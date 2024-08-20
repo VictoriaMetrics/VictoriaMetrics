@@ -15,7 +15,13 @@ export const darkPalette = {
   "box-shadow-popper": "rgba(0, 0, 0, 0.2) 0px 2px 8px 0px",
   "border-divider": "1px solid rgba(99, 110, 123, 0.5)",
   "color-hover-black": "rgba(0, 0, 0, 0.12)",
-  "color-log-hits-bar": "rgba(255, 255, 255, 0.18)"
+  // log hits chart colors
+  "color-log-hits-bar-0": "rgba(255, 255, 255, 0.18)",
+  "color-log-hits-bar-1": "#FFB74D",
+  "color-log-hits-bar-2": "#81C784",
+  "color-log-hits-bar-3": "#64B5F6",
+  "color-log-hits-bar-4": "#E57373",
+  "color-log-hits-bar-5": "#8a62f0",
 };
 
 export const lightPalette = {
@@ -35,5 +41,12 @@ export const lightPalette = {
   "box-shadow-popper": "rgba(0, 0, 0, 0.1) 0px 2px 8px 0px",
   "border-divider": "1px solid rgba(0, 0, 0, 0.15)",
   "color-hover-black": "rgba(0, 0, 0, 0.06)",
-  "color-log-hits-bar": "rgba(0, 0, 0, 0.18)"
+  // log hits chart colors
+  "color-log-hits-bar-0": "rgba(0, 0, 0, 0.18)",
+  "color-log-hits-bar-1": "#FFB74D",
+  "color-log-hits-bar-2": "#81C784",
+  "color-log-hits-bar-3": "#64B5F6",
+  "color-log-hits-bar-4": "#E57373",
+  "color-log-hits-bar-5": "#8a62f0",
+
 };

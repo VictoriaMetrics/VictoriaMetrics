@@ -1,9 +1,9 @@
 ---
-sort: 99
 weight: 99
-title: VictoriaMetrics Enterprise
+title: Enterprise
 menu:
   docs:
+    identifier: vm-enterprise
     parent: 'victoriametrics'
     weight: 99
 aliases:

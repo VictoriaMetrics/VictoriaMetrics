@@ -1,5 +1,4 @@
 ---
-sort: 38
 weight: 38
 editLink: https://github.com/VictoriaMetrics/victoriametrics-datasource/blob/main/README.md
 title: Grafana datasource

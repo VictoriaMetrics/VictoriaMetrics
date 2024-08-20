@@ -1,11 +1,11 @@
 ---
-sort: 33
 weight: 33
-title: VictoriaMetrics API examples
+title: API examples
 menu:
   docs:
     parent: 'victoriametrics'
     weight: 33
+    identifier: vm-api-examples
 
 aliases:
   - /url-examples.html

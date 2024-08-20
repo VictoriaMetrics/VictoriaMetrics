@@ -1,10 +1,10 @@
 ---
-sort: 2
 weight: 2
 title: Key concepts
 menu:
   docs:
-    parent: "victorialogs"
+    identifier: vl-key-concepts
+    parent: victorialogs
     weight: 2
     title: Key concepts
 aliases:

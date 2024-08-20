@@ -1,17 +1,15 @@
 ---
-sort: 15
 weight: 15
 title: VMUser
 menu:
   docs:
-    parent: "operator-custom-resources"
+    identifier: operator-cr-vmuser
+    parent: operator-cr
     weight: 15
 aliases:
-  - /operator/resources/vmuser.html
+  - /operator/resources/vmuser/
+  - /operator/resources/vmuser/index.html
 ---
-
-# VMUser
-
 The `VMUser` CRD describes user configuration, its authentication methods `basic auth` or `Authorization` header. 
 User access permissions, with possible routing information.
 
@@ -21,7 +19,7 @@ operator queries kubernetes API, retrieves information about CRD and builds prop
 ## Specification
 
 You can see the full actual specification of the `VMUser` resource in
-the **[API docs -> VMUser](../api.md#vmuser)**.
+the **[API docs -> VMUser](https://docs.victoriametrics.com/operator/api#vmuser)**.
 
 Also, you can check out the [examples](#examples) section.
 
@@ -64,13 +62,13 @@ or with `crd`, in this case, operator queries kubernetes API, retrieves informat
 
 Here are details about other fields in `targetRefs`:
 
-- `paths` is the same as `src_paths` from [auth config](https://docs.victoriametrics.com/vmauth.html#auth-config)
-- `headers` is the same as `headers` from [auth config](https://docs.victoriametrics.com/vmauth.html#auth-config)
-- `targetPathSuffix` is the suffix for `url_prefix` (target URL) from [auth config](https://docs.victoriametrics.com/vmauth.html#auth-config)
+- `paths` is the same as `src_paths` from [auth config](https://docs.victoriametrics.com/vmauth#auth-config)
+- `headers` is the same as `headers` from [auth config](https://docs.victoriametrics.com/vmauth#auth-config)
+- `targetPathSuffix` is the suffix for `url_prefix` (target URL) from [auth config](https://docs.victoriametrics.com/vmauth#auth-config)
 
 ### Static
 
-The `static` field is the same as `url_prefix` (target URL) from [auth config](https://docs.victoriametrics.com/vmauth.html#auth-config),
+The `static` field is the same as `url_prefix` (target URL) from [auth config](https://docs.victoriametrics.com/vmauth#auth-config),
 it allows you to set a specific static URL.
 
 ### CRDRef
@@ -81,11 +79,11 @@ User can define routing target with `crd` config, by entering `kind`, `name` and
 
 Operator supports following kinds in `kind` field:
 
-- `VMAgent` for [VMAgent](./vmagent.md)
-- `VMAlert` for [VMAlert](./vmalert.md)
-- `VMAlertmanager` for [VMAlertmanager](./vmalertmanager.md)
-- `VMSingle` for [VMSingle](./vmsingle.md)
-- `VMCluster/vmselect`, `VMCluster/vminsert` and `VMCluster/vmstorage` for [VMCluster](./vmcluster.md)
+- `VMAgent` for [VMAgent](https://docs.victoriametrics.com/operator/resources/vmagent)
+- `VMAlert` for [VMAlert](https://docs.victoriametrics.com/operator/resources/vmalert)
+- `VMAlertmanager` for [VMAlertmanager](https://docs.victoriametrics.com/operator/resources/vmalertmanager)
+- `VMSingle` for [VMSingle](https://docs.victoriametrics.com/operator/resources/vmsingle)
+- `VMCluster/vmselect`, `VMCluster/vminsert` and `VMCluster/vmstorage` for [VMCluster](https://docs.victoriametrics.com/operator/resources/vmcluster)
 
 Also, you can check out the [examples](#examples) section.
 
@@ -93,13 +91,13 @@ Additional fields like `path` and `scheme` can be added to `CRDRef` config.
 
 ## Enterprise features
 
-Custom resource `VMUser` supports feature [IP filters](https://docs.victoriametrics.com/vmauth.html#ip-filters) 
-from [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html#victoriametrics-enterprise).
+Custom resource `VMUser` supports feature [IP filters](https://docs.victoriametrics.com/vmauth#ip-filters)
+from [VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise#victoriametrics-enterprise).
 
 ### IP Filters
 
-For using [IP filters](https://docs.victoriametrics.com/vmauth.html#ip-filters) 
-you need to **[enable VMAuth Enterprise](./vmauth.md#enterprise-features)**.
+For using [IP filters](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs/vmauth#ip-filters)
+you need to **[enable VMAuth Enterprise](https://docs.victoriametrics.com/vmauth#enterprise-features)**.
 
 After that you can add `ip_filters` field to `VMUser`:
 
@@ -113,7 +111,7 @@ spec:
   password: simple-password
 
   # using enterprise features: ip filters for vmuser
-  # more details about ip filters you can read in https://docs.victoriametrics.com/vmuser.html#enterprise-features
+  # more details about ip filters you can read in https://docs.victoriametrics.com/operator/resources/vmuser#enterprise-features
   ip_filters:
     allow_list:
       - 10.0.0.0/24
@@ -143,5 +141,5 @@ spec:
       paths: ["/api/v1/groups","/api/v1/alerts"]
 ```
 
-More examples see on [Authorization and exposing components](../auth.md) page
-and in [Quickstart guide](../quick-start.md#vmuser).
+More examples see on [Authorization and exposing components](https://docs.victoriametrics.com/operator/auth) page
+and in [Quickstart guide](https://docs.victoriametrics.com/operator/quick-start#vmuser).

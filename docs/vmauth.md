@@ -1,9 +1,8 @@
 ---
-sort: 5
 weight: 5
 menu:
   docs:
-    parent: 'victoriametrics'
+    parent: victoriametrics
     weight: 5
 title: vmauth
 aliases:

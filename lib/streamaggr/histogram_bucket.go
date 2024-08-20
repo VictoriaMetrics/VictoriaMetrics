@@ -86,9 +86,8 @@ func (as *histogramBucketAggrState) removeOldEntries(currentTime uint64) {
 	})
 }
 
-func (as *histogramBucketAggrState) flushState(ctx *flushCtx, _ bool) {
+func (as *histogramBucketAggrState) flushState(ctx *flushCtx) {
 	currentTime := fasttime.UnixTimestamp()
-	currentTimeMsec := int64(currentTime) * 1000
 
 	as.removeOldEntries(currentTime)
 
@@ -99,7 +98,7 @@ func (as *histogramBucketAggrState) flushState(ctx *flushCtx, _ bool) {
 		if !sv.deleted {
 			key := k.(string)
 			sv.h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
-				ctx.appendSeriesWithExtraLabel(key, "histogram_bucket", currentTimeMsec, float64(count), "vmrange", vmrange)
+				ctx.appendSeriesWithExtraLabel(key, "histogram_bucket", float64(count), "vmrange", vmrange)
 			})
 		}
 		sv.mu.Unlock()

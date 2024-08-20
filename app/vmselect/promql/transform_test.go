@@ -39,6 +39,30 @@ func TestFixBrokenBuckets(t *testing.T) {
 	f([]float64{5, 10, 4, 3}, []float64{5, 10, 10, 10})
 }
 
+func TestFixBrokenBucketsMultipleValues(t *testing.T) {
+	f := func(values, expectedResult [][]float64) {
+		t.Helper()
+		xss := make([]leTimeseries, len(values))
+		for i, v := range values {
+
+			xss[i].ts = &timeseries{
+				Values: v,
+			}
+		}
+		for i := range len(values) - 1 {
+			fixBrokenBuckets(i, xss)
+		}
+		result := make([][]float64, len(values))
+		for i, xs := range xss {
+			result[i] = xs.ts.Values
+		}
+		if !reflect.DeepEqual(result, expectedResult) {
+			t.Fatalf("unexpected result for values=%v\ngot\n%v\nwant\n%v", values, result, expectedResult)
+		}
+	}
+	f([][]float64{{10, 1}, {11, 2}, {13, 3}}, [][]float64{{10, 1}, {11, 2}, {13, 3}})
+}
+
 func TestVmrangeBucketsToLE(t *testing.T) {
 	f := func(buckets, bucketsExpected string) {
 		t.Helper()

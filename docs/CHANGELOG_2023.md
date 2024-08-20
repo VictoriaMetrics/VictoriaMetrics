@@ -1,11 +1,11 @@
 ---
-sort: 104
-weight: 104
-title: CHANGELOG for the year 2023
+weight: 3
+title: Year 2023
 menu:
   docs:
-    parent: 'victoriametrics'
-    weight: 104
+    identifier: vm-changelog-2023
+    parent: vm-changelog
+    weight: 3
 aliases:
 - /CHANGELOG_2023.html
 ---

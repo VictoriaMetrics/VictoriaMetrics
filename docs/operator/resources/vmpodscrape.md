@@ -1,24 +1,22 @@
 ---
-sort: 8
 weight: 8
 title: VMPodScrape
 menu:
   docs:
-    parent: "operator-custom-resources"
+    identifier: operator-cr-vmpodscrape
+    parent: operator-cr
     weight: 8
 aliases:
-  - /operator/resources/vmpodscrape.html
+  - /operator/resources/vmpodscrape/
+  - /operator/resources/vmpodscrape/index.html
 ---
-
-# VMPodScrape
-
 The `VMPodScrape` CRD allows to declaratively define how a dynamic set of pods should be monitored.
 Use label selections to match pods for scraping. This allows an organization to introduce conventions
 for how metrics should be exposed. Following these conventions new services will be discovered automatically without
 need to reconfigure.
 
-`VMPodScrape` object generates part of [VMAgent](./vmagent.md) configuration with
-[kubernetes service discovery](https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs) role `pod` having specific labels and ports.
+`VMPodScrape` object generates part of [VMAgent](https://docs.victoriametrics.com/vmagent) configuration with
+[kubernetes service discovery](https://docs.victoriametrics.com/sd_configs#kubernetes_sd_configs) role `pod` having specific labels and ports.
 It has various options for scraping configuration of target (with basic auth,tls access, by specific port name etc.).
 
 A `Pod` is a collection of one or more containers which can expose Prometheus metrics on a number of ports.
@@ -43,12 +41,12 @@ spec:
     any: true
 ```
 
-More information about selectors you can find in [this doc](./vmagent.md#scraping).
+More information about selectors you can find in [this doc](https://docs.victoriametrics.com/operator/resources/vmagent#scraping).
 
 ## Specification
 
 You can see the full actual specification of the `VMPodScrape` resource in
-the **[API docs -> VMPodScrape](../api.md#vmpodscrape)**.
+the **[API docs -> VMPodScrape](https://docs.victoriametrics.com/operator/api#vmpodscrape)**.
 
 Also, you can check out the [examples](#examples) section.
 
@@ -57,7 +55,7 @@ Also, you can check out the [examples](#examples) section.
 The `VMPodScrape` CRD from VictoriaMetrics Operator is a drop-in replacement
 for the Prometheus `PodMonitor` from prometheus-operator.
 
-More details about migration from prometheus-operator you can read in [this doc](../migration.md).
+More details about migration from prometheus-operator you can read in [this doc](https://docs.victoriametrics.com/operator/migration).
 
 ## Examples
 

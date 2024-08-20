@@ -39,22 +39,6 @@ func BenchmarkAggregatorsPush(b *testing.B) {
 	}
 }
 
-func BenchmarkAggregatorsFlushInternalSerial(b *testing.B) {
-	pushFunc := func(_ []prompbmarshal.TimeSeries) {}
-	a := newBenchAggregators(benchOutputs, pushFunc)
-	defer a.MustStop()
-	_ = a.Push(benchSeries, nil)
-
-	b.ResetTimer()
-	b.ReportAllocs()
-	b.SetBytes(int64(len(benchSeries) * len(benchOutputs)))
-	for i := 0; i < b.N; i++ {
-		for _, aggr := range a.as {
-			aggr.flushInternal(pushFunc, false)
-		}
-	}
-}
-
 func benchmarkAggregatorsPush(b *testing.B, output string) {
 	pushFunc := func(_ []prompbmarshal.TimeSeries) {}
 	a := newBenchAggregators([]string{output}, pushFunc)

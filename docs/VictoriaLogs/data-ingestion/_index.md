@@ -1,5 +1,4 @@
 ---
-sort: 3
 title: Data ingestion
 weight: 3
 menu:

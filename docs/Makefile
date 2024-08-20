@@ -2,20 +2,7 @@
 
 # Converts images at docs folder to webp format
 # See https://docs.victoriametrics.com/single-server-victoriametrics/#images-in-documentation
-docs-images-to-webp:
-	IMAGES_EXTENSION=jpg $(MAKE) docs-images-to-webp-by-extension
-	IMAGES_EXTENSION=jpeg $(MAKE) docs-images-to-webp-by-extension
-	IMAGES_EXTENSION=png $(MAKE) docs-images-to-webp-by-extension
-
-docs-images-to-webp-by-extension:
-	docker run --rm -it \
-		-v $(shell pwd)/docs:/docs \
-		elswork/cwebp \
-		sh -c 'find /docs/ -type f ! -path "/docs/operator/*" ! -path "/docs/_site/*" -name "*.$(IMAGES_EXTENSION)" -print0 | \
-			xargs -0 -P $(MAKE_CONCURRENCY) -I {} sh -c '"'"'cwebp -preset drawing -m 6 -o "$${1%.*}.webp" $$1'"'"' _ {}'
-	find docs/ -type f ! -path 'docs/operator/*' ! -path 'docs/_site/*' -name '*.$(IMAGES_EXTENSION)' -print0 | xargs -0 rm -f
-
-docs-debug:
+docs-image:
 	if [ ! -d vmdocs ]; then \
 		git clone --depth 1 git@github.com:VictoriaMetrics/vmdocs vmdocs; \
 	fi; \
@@ -25,9 +12,21 @@ docs-debug:
 	cd .. && \
 	docker build \
 		-t vmdocs-docker-package \
-		vmdocs && \
+		vmdocs
+
+docs-debug: docs docs-image
 	docker run \
 		--rm \
 		--name vmdocs-docker-container \
 		-p 1313:1313 \
 		-v ./docs:/opt/docs/content vmdocs-docker-package
+
+docs-images-to-webp: docs-image
+	docker run \
+		--rm \
+		--entrypoint /usr/bin/find \
+		--name vmdocs-docker-container \
+		-v ./docs:/opt/docs/content vmdocs-docker-package \
+			content \
+				-regex ".*\.\(png\|jpg\|jpeg\)" \
+				-exec sh -c 'cwebp -preset drawing -m 6 -o $$(echo {} | cut -f-1 -d.).webp {} && rm -rf {}' {} \;

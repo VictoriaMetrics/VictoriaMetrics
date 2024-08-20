@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect } from "preact/compat";
+import React, { FC, useCallback, useEffect, useState } from "preact/compat";
 import ExploreLogsBody from "./ExploreLogsBody/ExploreLogsBody";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
 import useSearchParamsFromObject from "../../hooks/useSearchParamsFromObject";
@@ -9,7 +9,6 @@ import Alert from "../../components/Main/Alert/Alert";
 import ExploreLogsHeader from "./ExploreLogsHeader/ExploreLogsHeader";
 import "./style.scss";
 import { ErrorTypes, TimeParams } from "../../types";
-import { useState } from "react";
 import { useTimeState } from "../../state/time/TimeStateContext";
 import { getFromStorage, saveToStorage } from "../../utils/storage";
 import ExploreLogsBarChart from "./ExploreLogsBarChart/ExploreLogsBarChart";
@@ -27,11 +26,12 @@ const ExploreLogs: FC = () => {
 
   const [limit, setLimit] = useStateSearchParams(defaultLimit, "limit");
   const [query, setQuery] = useStateSearchParams("*", "query");
+  const [tmpQuery, setTmpQuery] = useState("");
   const [period, setPeriod] = useState<TimeParams>(periodState);
+  const [queryError, setQueryError] = useState<ErrorTypes | string>("");
+
   const { logs, isLoading, error, fetchLogs } = useFetchLogs(serverUrl, query, limit);
   const { fetchLogHits, ...dataLogHits } = useFetchLogHits(serverUrl, query);
-  const [queryError, setQueryError] = useState<ErrorTypes | string>("");
-  const [markdownParsing, setMarkdownParsing] = useState(getFromStorage("LOGS_MARKDOWN") === "true");
 
   const getPeriod = useCallback(() => {
     const relativeTimeOpts = relativeTimeOptions.find(d => d.id === relativeTime);
@@ -45,6 +45,7 @@ const ExploreLogs: FC = () => {
       setQueryError(ErrorTypes.validQuery);
       return;
     }
+    setQueryError("");
 
     const newPeriod = getPeriod();
     setPeriod(newPeriod);
@@ -65,9 +66,13 @@ const ExploreLogs: FC = () => {
     saveToStorage("LOGS_LIMIT", `${limit}`);
   };
 
-  const handleChangeMarkdownParsing = (val: boolean) => {
-    saveToStorage("LOGS_MARKDOWN", `${val}`);
-    setMarkdownParsing(val);
+  const handleApplyFilter = (val: string) => {
+    setQuery(prev => `_stream: ${val === "other" ? "{}" : val} AND (${prev})`);
+  };
+
+  const handleUpdateQuery = () => {
+    setQuery(tmpQuery);
+    handleRunQuery();
   };
 
   useEffect(() => {
@@ -75,20 +80,19 @@ const ExploreLogs: FC = () => {
   }, [periodState]);
 
   useEffect(() => {
-    setQueryError("");
+    handleRunQuery();
+    setTmpQuery(query);
   }, [query]);
 
   return (
     <div className="vm-explore-logs">
       <ExploreLogsHeader
-        query={query}
+        query={tmpQuery}
         error={queryError}
         limit={limit}
-        markdownParsing={markdownParsing}
-        onChange={setQuery}
+        onChange={setTmpQuery}
         onChangeLimit={handleChangeLimit}
-        onRun={handleRunQuery}
-        onChangeMarkdownParsing={handleChangeMarkdownParsing}
+        onRun={handleUpdateQuery}
       />
       {isLoading && <Spinner message={"Loading logs..."}/>}
       {error && <Alert variant="error">{error}</Alert>}
@@ -97,13 +101,11 @@ const ExploreLogs: FC = () => {
           {...dataLogHits}
           query={query}
           period={period}
+          onApplyFilter={handleApplyFilter}
           isLoading={isLoading ? false : dataLogHits.isLoading}
         />
       )}
-      <ExploreLogsBody
-        data={logs}
-        markdownParsing={markdownParsing}
-      />
+      <ExploreLogsBody data={logs}/>
     </div>
   );
 };

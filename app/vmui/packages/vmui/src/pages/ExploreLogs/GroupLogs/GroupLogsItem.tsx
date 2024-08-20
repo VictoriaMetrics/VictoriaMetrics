@@ -7,19 +7,21 @@ import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import { ArrowDownIcon, CopyIcon } from "../../../components/Main/Icons";
 import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import classNames from "classnames";
+import { useLogsState } from "../../../state/logsPanel/LogsStateContext";
 
 interface Props {
   log: Logs;
-  markdownParsing: boolean;
 }
 
-const GroupLogsItem: FC<Props> = ({ log, markdownParsing }) => {
+const GroupLogsItem: FC<Props> = ({ log }) => {
   const {
     value: isOpenFields,
     toggle: toggleOpenFields,
   } = useBoolean(false);
 
-  const excludeKeys = ["_stream", "_msg", "_time", "_vmui_time", "_vmui_data", "_vmui_markdown"];
+  const { markdownParsing } = useLogsState();
+
+  const excludeKeys = ["_msg", "_vmui_time", "_vmui_data", "_vmui_markdown"];
   const fields = Object.entries(log).filter(([key]) => !excludeKeys.includes(key));
   const hasFields = fields.length > 0;
 

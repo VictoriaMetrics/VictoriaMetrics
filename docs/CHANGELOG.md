@@ -1,9 +1,9 @@
 ---
-sort: 100
 weight: 100
 title: CHANGELOG
 menu:
   docs:
+    identifier: vm-changelog
     parent: victoriametrics
     weight: 100
 aliases:
@@ -29,20 +29,61 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
-**Update note 1: [vmauth](https://docs.victoriametrics.com/vmauth/) HTTP response code has changed from 503 to 502 for a case when all upstream backends were not available. This was changed to align [vmauth](https://docs.victoriametrics.com/vmauth/) behaviour with other well-known reverse-proxies behaviour. **
+**Update note 1: The `external_labels` field in vmalert-tool [test file](https://docs.victoriametrics.com/vmalert-tool/#test-file-format) will be deprecated soon. Please use `-external.label` command-line flag instead, in the same way as vmalert uses it. This change is done for the sake of consistency between vmalert and vmalert-tool configuration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6735).**
+**Update note 2: starting from this release, [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) will no longer add the default port 80/443 for scrape URLs without a specified port. 
+The value of `instance` label for those scrape targets will be changed from `<address>:<80|443>` to `<address>`, generating new time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6792) for details.**
+
+* FEATURE: add `/influx/health` health-check handler for Influx endpoints. This is needed as some clients use the health endpoint to determine if the server is healthy and ready for data ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6653) for the details.
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl/): add `--vm-backoff-retries`, `--vm-backoff-factor`, `--vm-backoff-min-duration` and `--vm-native-backoff-retries`, `--vm-native-backoff-factor`, `--vm-native-backoff-min-duration` command-line flags. These flags allow to change backoff policy config for import requests to VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6622).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): allow overriding the `sample_limit` option at [scrape_configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs) when a label `__sample_limit__` is specified for target. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6665). Thanks to @zoglam for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6666).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): reduce memory usage when scraping targets with big response body. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6759).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): stop adding default port 80/443 for scrape URLs without a port. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6792).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): add command-line flag `-notifier.headers` to allow configuring additional headers for all requests sent to the corresponding `-notifier.url`.
+* FEATURE: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): add `-external.label` and `-external.url` command-line flags, in the same way as these flags are supported by vmalert. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6735).
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup/), [vmrestore](https://docs.victoriametrics.com/vmrestore/), [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): use exponential backoff for retries when uploading or downloading data from S3. This should reduce the number of failed uploads and downloads when S3 is temporarily unavailable. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6732).
+* FEATURE: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): do not allow enabling `-stream.keepInput` and `keep_metric_names` options together in [stream aggregation config](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config), as it may result in time series collision.
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): fixes `proxy_url` authorization for scrape targets. Previously proxy authorization configuration was ignored for `https` targets. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6771) issue for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) fix service discovery of Azure Virtual Machines for response contains `nextLink`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6784).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): respect HTTP headers defined in [notifier configuration file](https://docs.victoriametrics.com/vmalert/#notifier-configuration-file) for each request to notifiers. Previously, this param was ignored by mistake.
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): correctly apply `-streamAggr.dropInputLabels` when global stream deduplication is enabled without `-streamAggr.config`. Previously, `-remoteWrite.streamAggr.dropInputLabels` was used instead.
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): fix command-line flag `-remoteWrite.streamAggr.ignoreFirstIntervals` to accept multiple values and be applied per each corresponding `-remoteWrite.url`. Previously, this flag only could have been used globally for all URLs.
+* BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): respect `-search.denyPartialResponse` cmd-line flag and `deny_partial_response` query GET param when serving requests via Graphite API. Before, partial responses were always denied. Thanks to @penguinlav for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6748).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): account for `-usePromCompatibleNaming` cmd-line flag during when pushing data to remote storages. Thanks to @12345XXX  for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6776).
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): reduce CPU usage by limiting the number of concurrently running inserts. The issue was introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/498fe1cfa523be5bfecaa372293c3cded85e75ab) starting from v1.101.0. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6733) issue for details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): fix calculation [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile) over Prometheus buckets with inconsistent values. It was producing incorrect results in case lower buckets. The issue was introduced in [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6714) for the details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/), [vmctl](https://docs.victoriametrics.com/vmctl/) and snapshot API: verify correctness of URLs provided via cmd-line flags before executing HTTP requests. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6740) issue for details.
+
+## [v1.102.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
+
+Released at 2024-08-01
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+**Update note 1: [vmauth](https://docs.victoriametrics.com/vmauth/) HTTP response code has changed from 503 to 502 for a case when all upstream backends were not available. This was changed to align [vmauth](https://docs.victoriametrics.com/vmauth/) behaviour with other well-known reverse-proxies behaviour.**
 
 * SECURITY: upgrade base docker image (Alpine) from 3.20.1 to 3.20.2. See [alpine 3.20.2 release notes](https://alpinelinux.org/posts/Alpine-3.20.2-released.html).
 
-* FEATURE: [vmauth](./vmauth.md): add `keep_original_host` option, which can be used for proxying the original `Host` header from client request to the backend. By default the backend host is used as `Host` header when proxying requests to the configured backends. See [these docs](./vmauth.md#host-http-header).
-* FEATURE: [vmauth](./vmauth.md) now returns HTTP 502 status code when all upstream backends are not available. Previously, it returned HTTP 503 status code. This change aligns vmauth behavior with other well-known reverse-proxies behavior.
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): add `keep_original_host` option, which can be used for proxying the original `Host` header from client request to the backend. By default, the backend host is used as `Host` header when proxying requests to the configured backends. See [these docs](https://docs.victoriametrics.com/vmauth#host-http-header).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): now returns HTTP 502 status code when all upstream backends are not available. Previously, it returned HTTP 503 status code. This change aligns vmauth behavior with other well-known reverse-proxies behavior.
+* FEATURE: [vmagent dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/vmagent.json): add `Scrape duration 0.99 quantile` panel to show the 99th quantile of scrape duration in seconds. This should help identifying vmagent instances that experiences too high scraping durations.
 
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Fixes panic if incorrect `metrisql` expression passed to the `prettify-query` API. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6736) for details.
 * BUGFIX: all VictoriaMetrics components: validate files specified via `-tlsKeyFile` and `-tlsCertFile` cmd-line flags on the process start-up. Previously, validation happened on the first connection accepted by HTTP server. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6608) for the details. Thanks to @yincongcyincong for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6621).
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly proxy requests to backend urls ending with `/` if the original request path equals to `/`. Previously the trailing `/` at the backend path was incorrectly removed. For example, if the request to `http://vmauth/` is configured to be proxied to `url_prefix=http://backend/foo/`, then it was proxied to `http://backend/foo`, while it should go to `http://backend/foo/`.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fix `cannot read data after closing the reader` error when proxying HTTP requests without body (aka `GET` requests). The issue has been introduced in [v1.102.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0) in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/7ee57974935a662896f2de40fdf613156630617d).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix auto-completion triggers for metric and label names, and disable it after specific characters. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6153) and [these comments](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5866#issuecomment-2065273421).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix automatic addition of quotes when inserting label values from autocomplete suggestions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6260).
 
 ## [v1.102.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0)
 
 Released at 2024-07-17
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
 
 **Update note 1: support for snap packages was removed due to lack of interest from community. See this [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6543) for details. Please read about supported package types [here](https://docs.victoriametrics.com/#install).**
 
@@ -222,6 +263,8 @@ Released at 2024-04-04
 
 **Update note 1: the `-datasource.lookback` command-line flag at `vmalert` is no-op starting from this release. This flag will be removed in the future, so please switch to [`eval_delay` option](https://docs.victoriametrics.com/vmalert/#groups). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5155) for more details.**
 
+**Update note 2: `-streamAggr.dedupInterval` and `-remoteWrite.streamAggr.dedupInterval` cmd-line flags are now used for all incoming samples if `-streamAggr.config` and `-remoteWrite.streamAggr.config` aren't specified. Before, deduplication wasn't applied if aggregation config was omitted.**
+
 * SECURITY: upgrade Go builder from Go1.21.7 to Go1.22.2. See [the list of issues addressed in Go1.22.1](https://github.com/golang/go/issues?q=milestone%3AGo1.22.1+label%3ACherryPickApproved) and [the list of issues addressed in Go1.22.2](https://github.com/golang/go/issues?q=milestone%3AGo1.22.2+label%3ACherryPickApproved).
 
 * FEATURE: [downsampling](https://docs.victoriametrics.com/#downsampling): add ability to configure distinct downsampling per distinct sets of time series and/or [tenants](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4960) and [these docs](https://docs.victoriametrics.com/#downsampling).
@@ -351,7 +394,7 @@ Released at 2024-07-17
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG#v1970) release**
 
 * SECURITY: upgrade Go builder from Go1.22.4 to Go1.22.5. See the list of issues addressed in [Go1.22.5](https://github.com/golang/go/issues?q=milestone%3AGo1.22.5+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.20.0 to 3.20.1. See [alpine 3.20.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.1-released.html).
@@ -375,7 +418,7 @@ Released at 2024-06-07
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG#v1970) release**
 
 * SECURITY: upgrade Go builder from Go1.22.2 to Go1.22.4. See the list of issues addressed in [Go1.22.3](https://github.com/golang/go/issues?q=milestone%3AGo1.22.3+label%3ACherryPickApproved) and [Go1.22.4](https://github.com/golang/go/issues?q=milestone%3AGo1.22.4+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.19.1 to 3.20.0. See [alpine 3.20.0 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.0-released.html).
@@ -565,7 +608,7 @@ See changes [here](https://docs.victoriametrics.com/changelog_2023/#v1940)
 Released at 2024-07-17
 
 **v1.93.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
-The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG#v1930) release**
 
 * SECURITY: upgrade Go builder from Go1.22.4 to Go1.22.5. See the list of issues addressed in [Go1.22.5](https://github.com/golang/go/issues?q=milestone%3AGo1.22.5+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.20.0 to 3.20.1. See [alpine 3.20.1 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.1-released.html).
@@ -583,7 +626,7 @@ The v1.93.x line will be supported for at least 12 months since [v1.93.0](https:
 Released at 2024-06-07
 
 **v1.93.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes.
-The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG.html#v1930) release**
+The v1.93.x line will be supported for at least 12 months since [v1.93.0](https://docs.victoriametrics.com/CHANGELOG#v1930) release**
 
 * SECURITY: upgrade Go builder from Go1.22.2 to Go1.22.4. See the list of issues addressed in [Go1.22.3](https://github.com/golang/go/issues?q=milestone%3AGo1.22.3+label%3ACherryPickApproved) and [Go1.22.4](https://github.com/golang/go/issues?q=milestone%3AGo1.22.4+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.19.1 to 3.20.0. See [alpine 3.20.0 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.0-released.html).
