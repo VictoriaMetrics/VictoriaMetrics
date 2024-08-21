@@ -122,11 +122,48 @@ func (ctx *InsertCtx) ApplyRelabeling() {
 func (ctx *InsertCtx) WriteDataPoint(at *auth.Token, labels []prompb.Label, timestamp int64, value float64) error {
 	ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, labels)
 	storageNodeIdx := ctx.GetStorageNodeIdx(at, labels)
-	return ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, timestamp, value)
+	return ctx.writeDataPointToReplicas(storageNodeIdx, ctx.MetricNameBuf, timestamp, value)
 }
 
 // WriteDataPointExt writes the given metricNameRaw with (timestmap, value) to ctx buffer with the given storageNodeIdx.
 func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
+	return ctx.writeDataPointToReplicas(storageNodeIdx, metricNameRaw, timestamp, value)
+}
+
+func (ctx *InsertCtx) writeDataPointToReplicas(storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
+	var firstErr error
+	var failsCount int
+	for i := 0; i < replicas; i++ {
+		snIdx := storageNodeIdx + i
+		if snIdx >= len(ctx.snb.sns) {
+			snIdx %= len(ctx.snb.sns)
+		}
+
+		if err := ctx.writeDataPointExt(snIdx, metricNameRaw, timestamp, value); err != nil {
+			if replicas == 1 {
+				return fmt.Errorf("cannot write datapoint: %w", err)
+			}
+			if firstErr == nil {
+				firstErr = err
+			}
+			failsCount++
+			// The data is partially replicated, so just emit a warning and return true.
+			// We could retry sending the data again, but this may result in uncontrolled duplicate data.
+			// So it is better returning true.
+			br := &ctx.bufRowss[snIdx]
+			rowsIncompletelyReplicatedTotal.Add(br.rows)
+			incompleteReplicationLogger.Warnf("cannot make a copy #%d out of %d copies according to -replicationFactor=%d, used_nodes=%d for %d bytes with %d rows, "+
+				"since a part of storage nodes is temporarily unavailable", i+1, replicas, *replicationFactor, len(br.buf), br.rows)
+			continue
+		}
+	}
+	if failsCount == replicas {
+		return fmt.Errorf("cannot write datapoint to any replicas: %w", firstErr)
+	}
+	return nil
+}
+
+func (ctx *InsertCtx) writeDataPointExt(storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
 	br := &ctx.bufRowss[storageNodeIdx]
 	snb := ctx.snb
 	sn := snb.sns[storageNodeIdx]
