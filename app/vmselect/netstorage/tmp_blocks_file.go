@@ -48,7 +48,7 @@ func maxInmemoryTmpBlocksFile() int {
 var _ = metrics.NewGauge(`vm_tmp_blocks_max_inmemory_file_size_bytes`, func() float64 {
 	return float64(maxInmemoryTmpBlocksFile())
 })
-var tmpBufSizeSummary = metrics.NewSummary(`vm_select_tmp_buffer_size`)
+var tmpBufSizeSummary = metrics.NewSummary(`vm_select_tmp_buffer_size_used`)
 
 type tmpBlocksFile struct {
 	buf []byte
