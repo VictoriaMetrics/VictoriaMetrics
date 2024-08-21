@@ -182,8 +182,11 @@ var (
 	})
 )
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 669294386ef7435da8b1bc695d05e309053dea5a
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
 
@@ -237,6 +240,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 	}
 
+	var slowQueries *metrics.Counter
 	if *logSlowQueryDuration > 0 {
 		actualStartTime := time.Now()
 		defer func() {
