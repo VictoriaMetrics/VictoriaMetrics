@@ -43,7 +43,8 @@ var (
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
-	cacheDataPath         = flag.String("cacheDataPath", "", "Path to directory for cache files. By default, the cache is not persisted.")
+	cacheDataPath = flag.String("cacheDataPath", "", "Path to directory for cache files and temporary query results. "+
+		"By default, the cache won't be persisted, and temporary query results will be placed under /tmp/searchResults. If set, the cache will be persisted under cacheDataPath/rollupResult, and temporary query results will be placed under cacheDataPath/tmp/searchResults.")
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
 		"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
@@ -194,7 +195,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
 	tracerEnabled := httputils.GetBool(r, "trace")
-	qt := querytracer.New(tracerEnabled, r.URL.Path)
+	qt := querytracer.New(tracerEnabled, "%s", r.URL.Path)
 
 	// Limit the number of concurrent queries.
 	select {

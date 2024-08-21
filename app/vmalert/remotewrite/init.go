@@ -15,7 +15,7 @@ import (
 var (
 	addr = flag.String("remoteWrite.url", "", "Optional URL to VictoriaMetrics or vminsert where to persist alerts state "+
 		"and recording rules results in form of timeseries. "+
-		"Supports address in the form of IP address with a port (e.g., 127.0.0.1:8428) or DNS SRV record. "+
+		"Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. "+
 		"For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, "+
 		"then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
@@ -72,7 +72,7 @@ func Init(ctx context.Context) (*Client, error) {
 
 	t, err := httputils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transport: %w", err)
+		return nil, fmt.Errorf("failed to create transport for -remoteWrite.url=%q: %w", *addr, err)
 	}
 	t.IdleConnTimeout = *idleConnectionTimeout
 	t.DialContext = netutil.NewStatDialFunc("vmalert_remotewrite")
