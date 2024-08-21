@@ -11,6 +11,9 @@ aliases:
   - /operator/changelog/index.html
 ---
 
+- fixed Prometheus scrape config metricsPath conversion. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1073)
+- [config-reloader](https://docs.victoriametrics.com/operator/): Added `reload` prefix to all config-reloader `tls*` flags to avoid collision with flags from external package. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1072)
+
 ## [v0.47.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.0) - 15 Aug 2024
 
 ### Breaking changes
@@ -1393,7 +1396,7 @@ aliases:
 
 ### Features
 
-- Adds additional service for all components, its useful for service exposition  <https://github.com/VictoriaMetrics/operator/issues/163> thanks [@TinySong](https://github.com/TinySong)
+- Adds additional service for all components, its useful for service exposition. See [this issue](https://github.com/VictoriaMetrics/operator/issues/163).
 
 ### Fixes
 
