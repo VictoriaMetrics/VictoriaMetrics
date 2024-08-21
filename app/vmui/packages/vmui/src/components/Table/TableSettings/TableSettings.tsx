@@ -53,6 +53,10 @@ const TableSettings: FC<TableSettingsProps> = ({
     return columns.filter(col => col.includes(searchColumn));
   }, [columns, searchColumn]);
 
+  const isAllChecked = useMemo(() => {
+    return filteredColumns.every(col => defaultColumns.includes(col));
+  }, [defaultColumns, filteredColumns]);
+
   const disabledButton = useMemo(() => !columns.length, [columns]);
 
   const handleChange = (key: string) => {
@@ -60,10 +64,10 @@ const TableSettings: FC<TableSettingsProps> = ({
   };
 
   const toggleAllColumns = () => {
-    if (defaultColumns.length === columns.length) {
-      onChangeColumns([]);
+    if (isAllChecked) {
+      onChangeColumns(defaultColumns.filter(col => !filteredColumns.includes(col)));
     } else {
-      onChangeColumns(columns);
+      onChangeColumns(filteredColumns);
     }
   };
 
@@ -159,9 +163,9 @@ const TableSettings: FC<TableSettingsProps> = ({
                 {!!filteredColumns.length && (
                   <div className="vm-table-settings-popper-list__item vm-table-settings-popper-list__item_check_all">
                     <Checkbox
-                      checked={defaultColumns.length === columns.length}
+                      checked={isAllChecked}
                       onChange={toggleAllColumns}
-                      label={defaultColumns.length === columns.length ? "Uncheck all" : "Check all"}
+                      label={isAllChecked ? "Uncheck all" : "Check all"}
                       disabled={tableCompact}
                     />
                   </div>
