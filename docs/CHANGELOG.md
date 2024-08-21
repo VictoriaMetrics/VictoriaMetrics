@@ -172,6 +172,7 @@ Released at 2024-06-07
 * SECURITY: upgrade base docker image (Alpine) from 3.19.1 to 3.20.0. See [alpine 3.20.0 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.0-released.html).
 * SECURITY: add release images built from scratch image. Such images could be more preferable for using in environments with higher security standards. See this [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6386).
 
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/metricsql/): add [sort_by_label_natural](https://docs.victoriametrics.com/metricsql/#sort_by_label_natural) and [sort_by_label_natural_desc](https://docs.victoriametrics.com/metricsql/#sort_by_label_natural_desc) functions for [natural sort (aka version sort)](https://www.gnu.org/software/coreutils/manual/html_node/Version-sort-is-not-the-same-as-numeric-sort.html) of input time series by the specified labels. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6256).
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229): support selecting of multiple instances on the dashboard. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5869) for details.
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229): properly display version in the Stats row for the custom builds of VictoriaMetrics.
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229): add `Network Usage` panel to `Resource Usage` row.
