@@ -1,6 +1,7 @@
 package netstorage
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	tmpBufSize = flag.Int("search.tmpBufSize", 4194304, "In large memory scenarios, controlling the size of temporary buffers to use memory more efficiently")
 )
 
 // InitTmpBlocksDir initializes directory to store temporary search results.
@@ -35,7 +40,7 @@ func maxInmemoryTmpBlocksFile() int {
 		return 64 * 1024
 	}
 	if maxLen > 4*1024*1024 {
-		return 4 * 1024 * 1024
+		return *tmpBufSize
 	}
 	return maxLen
 }
@@ -43,6 +48,8 @@ func maxInmemoryTmpBlocksFile() int {
 var _ = metrics.NewGauge(`vm_tmp_blocks_max_inmemory_file_size_bytes`, func() float64 {
 	return float64(maxInmemoryTmpBlocksFile())
 })
+var tmpBuffBytesMbSize = metrics.NewCounter(`vm_tmp_blocks_offset_bytes_mb_sum`)
+var tmpBuffBytesMbCount = metrics.NewCounter(`vm_tmp_blocks_offset_bytes_mb_count`)
 
 type tmpBlocksFile struct {
 	buf []byte
@@ -65,6 +72,8 @@ func getTmpBlocksFile() *tmpBlocksFile {
 
 func putTmpBlocksFile(tbf *tmpBlocksFile) {
 	tbf.MustClose()
+	tmpBuffBytesMbSize.Add(len(tbf.buf) / 1024 / 1024)
+	tmpBuffBytesMbCount.Inc()
 	tbf.buf = tbf.buf[:0]
 	tbf.f = nil
 	tbf.r = nil
