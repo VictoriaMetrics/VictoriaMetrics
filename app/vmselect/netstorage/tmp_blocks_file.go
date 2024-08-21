@@ -48,8 +48,7 @@ func maxInmemoryTmpBlocksFile() int {
 var _ = metrics.NewGauge(`vm_tmp_blocks_max_inmemory_file_size_bytes`, func() float64 {
 	return float64(maxInmemoryTmpBlocksFile())
 })
-var tmpBuffBytesMbSize = metrics.NewCounter(`vm_tmp_blocks_offset_bytes_mb_sum`)
-var tmpBuffBytesMbCount = metrics.NewCounter(`vm_tmp_blocks_offset_bytes_mb_count`)
+var tmpBufSizeSummary = metrics.NewSummary(`vm_select_tmp_buffer_size`)
 
 type tmpBlocksFile struct {
 	buf []byte
@@ -72,8 +71,7 @@ func getTmpBlocksFile() *tmpBlocksFile {
 
 func putTmpBlocksFile(tbf *tmpBlocksFile) {
 	tbf.MustClose()
-	tmpBuffBytesMbSize.Add(len(tbf.buf) / 1024 / 1024)
-	tmpBuffBytesMbCount.Inc()
+	tmpBufSizeSummary.Update(float64(len(tbf.buf) / 1024))
 	tbf.buf = tbf.buf[:0]
 	tbf.f = nil
 	tbf.r = nil
