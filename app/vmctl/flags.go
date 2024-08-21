@@ -285,93 +285,172 @@ const (
 	influxCAFile                    = "influx-CA-file"
 	influxServerName                = "influx-server-name"
 	influxInsecureSkipVerify        = "influx-insecure-skip-verify"
+	influxToken                     = "influx-token"
+	influxOrg                       = "influx-org"
+	influxBucket                    = "influx-bucket"
 )
 
 var (
-	influxFlags = []cli.Flag{
-		&cli.StringFlag{
-			Name:  influxAddr,
-			Value: "http://localhost:8086",
-			Usage: "InfluxDB server addr",
+	influxFlags = struct {
+		v1 []cli.Flag
+		v2 []cli.Flag
+	}{
+		v1: []cli.Flag{
+			&cli.StringFlag{
+				Name:  influxAddr,
+				Value: "http://localhost:8086",
+				Usage: "InfluxDB server addr",
+			},
+			&cli.StringFlag{
+				Name:    influxUser,
+				Usage:   "InfluxDB user",
+				EnvVars: []string{"INFLUX_USERNAME"},
+			},
+			&cli.StringFlag{
+				Name:    influxPassword,
+				Usage:   "InfluxDB user password",
+				EnvVars: []string{"INFLUX_PASSWORD"},
+			},
+			&cli.StringFlag{
+				Name:     influxDB,
+				Usage:    "InfluxDB database",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:  influxRetention,
+				Usage: "InfluxDB retention policy",
+				Value: "autogen",
+			},
+			&cli.IntFlag{
+				Name:  influxChunkSize,
+				Usage: "The chunkSize defines max amount of series to be returned in one chunk",
+				Value: 10e3,
+			},
+			&cli.IntFlag{
+				Name:  influxConcurrency,
+				Usage: "Number of concurrently running fetch queries to InfluxDB",
+				Value: 1,
+			},
+			&cli.StringFlag{
+				Name: influxFilterSeries,
+				Usage: "InfluxDB filter expression to select series. E.g. \"from cpu where arch='x86' AND hostname='host_2753'\".\n" +
+					"See for details https://docs.influxdata.com/influxdb/v1.7/query_language/schema_exploration#show-series",
+			},
+			&cli.StringFlag{
+				Name:  influxFilterTimeStart,
+				Usage: "The time filter to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
+			},
+			&cli.StringFlag{
+				Name:  influxFilterTimeEnd,
+				Usage: "The time filter to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'",
+			},
+			&cli.StringFlag{
+				Name:  influxMeasurementFieldSeparator,
+				Usage: "The {separator} symbol used to concatenate {measurement} and {field} names into series name {measurement}{separator}{field}.",
+				Value: "_",
+			},
+			&cli.BoolFlag{
+				Name:  influxSkipDatabaseLabel,
+				Usage: "Wether to skip adding the label 'db' to timeseries.",
+				Value: false,
+			},
+			&cli.BoolFlag{
+				Name:  influxPrometheusMode,
+				Usage: "Whether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write.",
+				Value: false,
+			},
+			&cli.StringFlag{
+				Name:  influxCertFile,
+				Usage: "Optional path to client-side TLS certificate file to use when connecting to -influx-addr",
+			},
+			&cli.StringFlag{
+				Name:  influxKeyFile,
+				Usage: "Optional path to client-side TLS key to use when connecting to -influx-addr",
+			},
+			&cli.StringFlag{
+				Name:  influxCAFile,
+				Usage: "Optional path to TLS CA file to use for verifying connections to -influx-addr. By default, system CA is used",
+			},
+			&cli.StringFlag{
+				Name:  influxServerName,
+				Usage: "Optional TLS server name to use for connections to -influx-addr. By default, the server name from -influx-addr is used",
+			},
+			&cli.BoolFlag{
+				Name:  influxInsecureSkipVerify,
+				Usage: "Whether to skip tls verification when connecting to -influx-addr",
+				Value: false,
+			},
 		},
-		&cli.StringFlag{
-			Name:    influxUser,
-			Usage:   "InfluxDB user",
-			EnvVars: []string{"INFLUX_USERNAME"},
-		},
-		&cli.StringFlag{
-			Name:    influxPassword,
-			Usage:   "InfluxDB user password",
-			EnvVars: []string{"INFLUX_PASSWORD"},
-		},
-		&cli.StringFlag{
-			Name:     influxDB,
-			Usage:    "InfluxDB database",
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name:  influxRetention,
-			Usage: "InfluxDB retention policy",
-			Value: "autogen",
-		},
-		&cli.IntFlag{
-			Name:  influxChunkSize,
-			Usage: "The chunkSize defines max amount of series to be returned in one chunk",
-			Value: 10e3,
-		},
-		&cli.IntFlag{
-			Name:  influxConcurrency,
-			Usage: "Number of concurrently running fetch queries to InfluxDB",
-			Value: 1,
-		},
-		&cli.StringFlag{
-			Name: influxFilterSeries,
-			Usage: "InfluxDB filter expression to select series. E.g. \"from cpu where arch='x86' AND hostname='host_2753'\".\n" +
-				"See for details https://docs.influxdata.com/influxdb/v1.7/query_language/schema_exploration#show-series",
-		},
-		&cli.StringFlag{
-			Name:  influxFilterTimeStart,
-			Usage: "The time filter to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
-		},
-		&cli.StringFlag{
-			Name:  influxFilterTimeEnd,
-			Usage: "The time filter to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'",
-		},
-		&cli.StringFlag{
-			Name:  influxMeasurementFieldSeparator,
-			Usage: "The {separator} symbol used to concatenate {measurement} and {field} names into series name {measurement}{separator}{field}.",
-			Value: "_",
-		},
-		&cli.BoolFlag{
-			Name:  influxSkipDatabaseLabel,
-			Usage: "Wether to skip adding the label 'db' to timeseries.",
-			Value: false,
-		},
-		&cli.BoolFlag{
-			Name:  influxPrometheusMode,
-			Usage: "Whether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write.",
-			Value: false,
-		},
-		&cli.StringFlag{
-			Name:  influxCertFile,
-			Usage: "Optional path to client-side TLS certificate file to use when connecting to -influx-addr",
-		},
-		&cli.StringFlag{
-			Name:  influxKeyFile,
-			Usage: "Optional path to client-side TLS key to use when connecting to -influx-addr",
-		},
-		&cli.StringFlag{
-			Name:  influxCAFile,
-			Usage: "Optional path to TLS CA file to use for verifying connections to -influx-addr. By default, system CA is used",
-		},
-		&cli.StringFlag{
-			Name:  influxServerName,
-			Usage: "Optional TLS server name to use for connections to -influx-addr. By default, the server name from -influx-addr is used",
-		},
-		&cli.BoolFlag{
-			Name:  influxInsecureSkipVerify,
-			Usage: "Whether to skip tls verification when connecting to -influx-addr",
-			Value: false,
+		v2: []cli.Flag{
+			&cli.StringFlag{
+				Name:  influxAddr,
+				Value: "http://localhost:8086",
+				Usage: "InfluxDB server addr",
+			},
+			&cli.IntFlag{
+				Name:  influxConcurrency,
+				Usage: "Number of concurrently running fetch queries to InfluxDB",
+				Value: 1,
+			},
+			&cli.StringFlag{
+				Name:  influxFilterTimeStart,
+				Usage: "The time filter to select timeseries with timestamp equal or higher than provided value. E.g. 2020-01-01T20:07:00Z",
+			},
+			&cli.StringFlag{
+				Name:  influxFilterTimeEnd,
+				Usage: "The time filter to select timeseries with timestamp equal or lower than provided value. E.g. 2020-01-01T20:07:00Z",
+			},
+			&cli.StringFlag{
+				Name:  influxMeasurementFieldSeparator,
+				Usage: "The {separator} symbol used to concatenate {measurement} and {field} names into series name {measurement}{separator}{field}.",
+				Value: "_",
+			},
+			&cli.BoolFlag{
+				Name:  influxSkipDatabaseLabel,
+				Usage: "Whether to skip adding the label 'db' to timeseries.",
+				Value: false,
+			},
+			&cli.BoolFlag{
+				Name:  influxPrometheusMode,
+				Usage: "Whether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write.",
+				Value: false,
+			},
+			&cli.StringFlag{
+				Name:  influxCertFile,
+				Usage: "Optional path to client-side TLS certificate file to use when connecting to -influx-addr",
+			},
+			&cli.StringFlag{
+				Name:  influxKeyFile,
+				Usage: "Optional path to client-side TLS key to use when connecting to -influx-addr",
+			},
+			&cli.StringFlag{
+				Name:  influxCAFile,
+				Usage: "Optional path to TLS CA file to use for verifying connections to -influx-addr. By default, system CA is used",
+			},
+			&cli.StringFlag{
+				Name:  influxServerName,
+				Usage: "Optional TLS server name to use for connections to -influx-addr. By default, the server name from -influx-addr is used",
+			},
+			&cli.BoolFlag{
+				Name:  influxInsecureSkipVerify,
+				Usage: "Whether to skip tls verification when connecting to -influx-addr",
+				Value: false,
+			},
+			&cli.StringFlag{
+				Name:     influxToken,
+				Usage:    "Whether to skip tls verification when connecting to -influx-addr",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     influxBucket,
+				Usage:    "Whether to skip tls verification when connecting to -influx-addr",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     influxOrg,
+				Usage:    "Whether to skip tls verification when connecting to -influx-addr",
+				Required: true,
+			},
 		},
 	}
 )

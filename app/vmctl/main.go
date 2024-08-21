@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	influxv2 "github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx/v2"
 	"log"
 	"net/http"
 	"os"
@@ -103,7 +104,7 @@ func main() {
 			{
 				Name:   "influx",
 				Usage:  "Migrate time series from InfluxDB",
-				Flags:  mergeFlags(globalFlags, influxFlags, vmFlags),
+				Flags:  mergeFlags(globalFlags, influxFlags.v1, vmFlags),
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {
 					fmt.Println("InfluxDB import mode")
@@ -159,6 +160,55 @@ func main() {
 						c.Bool(influxPrometheusMode),
 						c.Bool(globalVerbose))
 					return processor.run()
+				},
+			},
+			{
+				Name:   "influx-v2",
+				Usage:  "Migrate time series from InfluxDB v2",
+				Flags:  mergeFlags(globalFlags, influxFlags.v2, vmFlags),
+				Before: beforeFn,
+				Action: func(c *cli.Context) error {
+					fmt.Println("InfluxDB import mode")
+					certFile := c.String(influxCertFile)
+					keyFile := c.String(influxKeyFile)
+					caFile := c.String(influxCAFile)
+					serverName := c.String(influxServerName)
+					insecureSkipVerify := c.Bool(influxInsecureSkipVerify)
+					tc, err := httputils.TLSConfig(certFile, keyFile, caFile, serverName, insecureSkipVerify)
+					if err != nil {
+						return fmt.Errorf("failed to create TLS Config: %s", err)
+					}
+					adapter := influxv2.NewAdapter(influxv2.Config{
+						Addr:   c.String(influxAddr),
+						Bucket: c.String(influxBucket),
+						Org:    c.String(influxOrg),
+						Token:  c.String(influxToken),
+						Filter: influxv2.Filter{
+							TimeStart: c.String(influxFilterTimeStart),
+							TimeEnd:   c.String(influxFilterTimeEnd),
+						},
+						TLSConfig: tc,
+					})
+					if err != nil {
+						return fmt.Errorf("failed to create influx client: %s", err)
+					}
+					vmCfg, err := initConfigVM(c)
+					if err != nil {
+						return fmt.Errorf("failed to init VM configuration: %s", err)
+					}
+					importer, err = vm.NewImporter(ctx, vmCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create VM importer: %s", err)
+					}
+					processor := newInfluxV2Processor(
+						adapter,
+						importer,
+						c.Int(influxConcurrency),
+						c.String(influxMeasurementFieldSeparator),
+						c.Bool(influxSkipDatabaseLabel),
+						c.Bool(influxPrometheusMode),
+						c.Bool(globalVerbose))
+					return processor.run(ctx)
 				},
 			},
 			{
