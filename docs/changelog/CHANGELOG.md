@@ -1,14 +1,3 @@
----
-weight: 100
-title: CHANGELOG
-menu:
-  docs:
-    identifier: vm-changelog
-    parent: victoriametrics
-    weight: 100
-aliases:
-  - /CHANGELOG.html
----
 The following `tip` changes can be tested by building VictoriaMetrics components from the latest commits according to the following docs:
 
 * [How to build single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-build-from-sources)
