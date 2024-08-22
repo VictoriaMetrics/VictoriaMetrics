@@ -16,9 +16,8 @@
     display: grid;
     gap: 12px;
     padding: $padding-global;
-    max-height: 350px;
-    overflow: auto;
     border-bottom: $border-divider;
+    max-width: 250px;
 
     &_first {
       padding-top: 0;
@@ -29,6 +28,7 @@
       align-items: center;
       justify-content: space-between;
       grid-template-columns: 1fr auto;
+      gap: $padding-small;
       min-height: 25px;
 
       &__title {
@@ -36,12 +36,31 @@
       }
     }
 
-    &__item {
-      font-size: $font-size;
+    &-columns {
+      max-height: 350px;
+      overflow: auto;
     }
-    &__check_all {
-      padding: 0 0 $padding-global;
-      border-bottom: $border-divider;
+
+    &__item {
+      padding: calc($padding-global/2) $padding-global;
+      font-size: $font-size;
+
+      &:hover,
+      &_focus {
+        background-color: $color-hover-black;
+      }
+
+      &_check_all {
+        padding: calc($padding-global/2) $padding-global;
+        margin: 0 (-$padding-global);
+      }
+    }
+
+    &__no-found {
+      text-align: center;
+      font-style: italic;
+      color: $color-text-secondary;
+      margin-bottom: $padding-small;
     }
   }
 }
