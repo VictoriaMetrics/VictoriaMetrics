@@ -1,14 +1,3 @@
----
-weight: 100
-title: CHANGELOG
-menu:
-  docs:
-    identifier: vm-changelog
-    parent: victoriametrics
-    weight: 100
-aliases:
-  - /CHANGELOG.html
----
 The following `tip` changes can be tested by building VictoriaMetrics components from the latest commits according to the following docs:
 
 * [How to build single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-build-from-sources)
@@ -30,6 +19,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 ## tip
 
 **Update note 1: The `external_labels` field in vmalert-tool [test file](https://docs.victoriametrics.com/vmalert-tool/#test-file-format) will be deprecated soon. Please use `-external.label` command-line flag instead, in the same way as vmalert uses it. This change is done for the sake of consistency between vmalert and vmalert-tool configuration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6735).**
+
 **Update note 2: starting from this release, [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) will no longer add the default port 80/443 for scrape URLs without a specified port. 
 The value of `instance` label for those scrape targets will be changed from `<address>:<80|443>` to `<address>`, generating new time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6792) for details.**
 
@@ -53,6 +43,7 @@ The value of `instance` label for those scrape targets will be changed from `<ad
 * BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): reduce CPU usage by limiting the number of concurrently running inserts. The issue was introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/498fe1cfa523be5bfecaa372293c3cded85e75ab) starting from v1.101.0. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6733) issue for details.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): fix calculation [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile) over Prometheus buckets with inconsistent values. It was producing incorrect results in case lower buckets. The issue was introduced in [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release, see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6714) for the details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/), [vmctl](https://docs.victoriametrics.com/vmctl/) and snapshot API: verify correctness of URLs provided via cmd-line flags before executing HTTP requests. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6740) issue for details.
+* BUGFIX: all VictoriaMetrics components: forcefully set owner/group for release tars to 1000:1000. This helps to avoid unpacking [issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6788) on systems with limitations around UID:GID configuration. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6846).
 
 ## [v1.102.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
 
