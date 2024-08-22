@@ -1921,35 +1921,34 @@ Instead, VictoriaMetrics maintains an **inverted index** that enables searching
 the raw samples by metric name, label name, and label value by mapping these
 values to the corresponding TSIDs.
 
-There are two types of inverted index: `global` and `per-day`. Initially,
-VictoriaMetrics had only global index. The per-day index has been added later as
-an optimization that speeds up data retrieval when
-[high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
-is the case.
+VictoriaMetrics uses two types of inverted indexes:
 
-VictoriaMetrics decides which index to use based on the length of the search
-time range. If it is less than or equal to 40 days, then the per-day index is
-used. Otherwise, it will use the global index.
+-   Global index. This was the original type of index used by VictoriaMetrics.
+    Searches using this index is performed across the entire retention period.
+-   Per-day index. This index was introduced later as an optimization for
+    handling.
+    [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
+    (frequent creation and deletion of time series). The per-day index stores
+    mappings similar to ones in global index but also includes the date in each
+    mapping. This speeds up data retrieval for queries within a shorter time
+    range (which is often just the last day).
 
-Records are added to the global and per-day index during the data ingestion.
+When the search query is executed, VictoriaMetrics decides which index to use
+based on the time range of the query:
 
-NOTE: The records are not created atomically and duplicates are possible when
+-   Per-day index is used if the search time range is 40 days or less.
+-   Global index is used for search queries with a time range greater than 40
+    days.
+
+Mappings are added to the indexes during the data ingestion:
+
+-   In global index each mapping is created only once per retention period.
+-   In the per-day index each mapping will be created for each unique date that
+    has been seen in the samples for the corresponding time series.
+
+NOTE: The mappings are not created atomically and duplicates are possible when
 the samples for a new time series or a new label name-value pair are inserted
 concurrently.
-
-Global and per-day indexes store the same mappings with the only difference that
-per-day index adds the date to each record.
-
-For example, consider `MetricName -> TSID` mapping. Such records map the time
-series full name (the metric name plus the ordered set of label (name, value)
-pairs) to the TSID. This mapping is used during the data ingestion to find the
-TSID for the time series the incoming sample corresponds to. If the TSID is
-found (i.e. the samples for this time series have been ingested before), it will
-be reused; otherwise, a new TSID will be created and the new
-`MetricName -> TSID` record will be stored to the index. In global index, a
-record of this type will be created only once per retention period. But in the
-per-day index, such a record will be created for each unique date that has been
-seen in samples for that time series.
 
 IndexDB respects [retention period](#retention) and once it is over, the indexes
 are dropped. For the new retention period, the indexes are gradually populated
