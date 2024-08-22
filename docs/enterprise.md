@@ -1,9 +1,9 @@
 ---
-sort: 99
 weight: 99
-title: VictoriaMetrics Enterprise
+title: Enterprise
 menu:
   docs:
+    identifier: vm-enterprise
     parent: 'victoriametrics'
     weight: 99
 aliases:
@@ -28,7 +28,7 @@ The use of VictoriaMetrics Enterprise components is permitted in the following c
 - Production use if you have a valid enterprise contract or valid permit from VictoriaMetrics company.
   Please contact us via [this page](https://victoriametrics.com/products/enterprise/) if you are intereseted in such a contract.
 
-- [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/) is built on top of VictoriaMetrics Enterprise.
+- [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/) is built on top of VictoriaMetrics Enterprise.
 
 See [these docs](#running-victoriametrics-enterprise) for details on how to run VictoriaMetrics enterprise.
 

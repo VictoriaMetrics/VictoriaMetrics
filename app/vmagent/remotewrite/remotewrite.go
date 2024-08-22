@@ -441,7 +441,7 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 	var rctx *relabelCtx
 	rcs := allRelabelConfigs.Load()
 	pcsGlobal := rcs.global
-	if pcsGlobal.Len() > 0 {
+	if pcsGlobal.Len() > 0 || *usePromCompatibleNaming {
 		rctx = getRelabelCtx()
 		defer putRelabelCtx(rctx)
 	}

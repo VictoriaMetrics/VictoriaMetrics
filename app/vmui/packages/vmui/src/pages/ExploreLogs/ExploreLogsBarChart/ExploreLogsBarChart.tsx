@@ -17,19 +17,34 @@ interface Props {
   period: TimeParams;
   error?: string;
   isLoading: boolean;
+  onApplyFilter: (value: string) => void;
 }
 
-const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error, isLoading }) => {
+const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error, isLoading, onApplyFilter }) => {
   const { isMobile } = useDeviceDetect();
   const timeDispatch = useTimeDispatch();
 
+  const getXAxis = (timestamps: string[]): number[] => {
+    return (timestamps.map(t => t ? dayjs(t).unix() : null)
+      .filter(Boolean) as number[])
+      .sort((a, b) => a - b);
+  };
+
+  const getYAxes = (logHits: LogHits[], timestamps: string[]) => {
+    return logHits.map(hits => {
+      return timestamps.map(t => {
+        const index = hits.timestamps.findIndex(ts => ts === t);
+        return index === -1 ? null : hits.values[index] || null;
+      });
+    });
+  };
+
   const data = useMemo(() => {
-    const hits = logHits[0];
-    if (!hits) return [[], []] as AlignedData;
-    const { values, timestamps } = hits;
-    const xAxis = timestamps.map(t => t ? dayjs(t).unix() : null).filter(Boolean);
-    const yAxis = values.map(v => v || null);
-    return [xAxis, yAxis] as AlignedData;
+    if (!logHits.length) return [[], []] as AlignedData;
+    const timestamps = Array.from(new Set(logHits.map(l => l.timestamps).flat()));
+    const xAxis = getXAxis(timestamps);
+    const yAxes = getYAxes(logHits, timestamps);
+    return [xAxis, ...yAxes] as AlignedData;
   }, [logHits]);
 
   const noDataMessage: string = useMemo(() => {
@@ -75,9 +90,11 @@ const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error, isLoading }) =
 
       {data && (
         <BarHitsChart
+          logHits={logHits}
           data={data}
           period={period}
           setPeriod={setPeriod}
+          onApplyFilter={onApplyFilter}
         />
       )}
     </section>

@@ -38,7 +38,7 @@ func Create(createSnapshotURL string) (string, error) {
 	// create Transport
 	tr, err := httputils.Transport(createSnapshotURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create transport for createSnapshotURL=%q: %s", createSnapshotURL, err)
 	}
 	hc := &http.Client{Transport: tr}
 
@@ -83,7 +83,8 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	// create Transport
 	tr, err := httputils.Transport(deleteSnapshotURL, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create transport for deleteSnapshotURL=%q: %s", deleteSnapshotURL, err)
+
 	}
 	hc := &http.Client{Transport: tr}
 	resp, err := hc.PostForm(u.String(), formData)

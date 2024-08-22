@@ -22,7 +22,8 @@ export const getColumns = (data: MetricBase[]): MetricCategory[] => {
 
 export const useSortedCategories = (data: MetricBase[], displayColumns?: string[]): MetricCategory[] => (
   useMemo(() => {
+    if (!displayColumns) return [];
     const sortedColumns = getColumns(data);
-    return displayColumns ? sortedColumns.filter(col => displayColumns.includes(col.key)) : sortedColumns;
+    return sortedColumns.filter(col => displayColumns.includes(col.key));
   }, [data, displayColumns])
 );

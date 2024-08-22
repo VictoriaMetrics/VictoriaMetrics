@@ -54,6 +54,8 @@ type Config struct {
 	// RateLimit defines a data transfer speed in bytes per second.
 	// Is applied to each worker (see Concurrency) independently.
 	RateLimit int64
+	// Backoff defines backoff policy for retries
+	Backoff *backoff.Backoff
 }
 
 // Importer performs insertion of timeseries
@@ -144,7 +146,7 @@ func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 		close:      make(chan struct{}),
 		input:      make(chan *TimeSeries, cfg.Concurrency*4),
 		errors:     make(chan *ImportError, cfg.Concurrency),
-		backoff:    backoff.New(),
+		backoff:    cfg.Backoff,
 	}
 	if err := im.Ping(); err != nil {
 		return nil, fmt.Errorf("ping to %q failed: %s", addr, err)

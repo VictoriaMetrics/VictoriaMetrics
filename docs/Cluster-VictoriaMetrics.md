@@ -1,19 +1,14 @@
 ---
-sort: 2
 weight: 2
 menu:
   docs:
+    identifier: vm-cluster-version
     parent: 'victoriametrics'
     weight: 2
 title: Cluster version
 aliases:
   - /Cluster-VictoriaMetrics.html
 ---
-<picture>
-  <source srcset="/logo_white.webp" media="(prefers-color-scheme: dark)">
-  <source srcset="/logo.webp" media="(prefers-color-scheme: light)">
-  <img src="/logo.webp" width="300" alt="VictoriaMetrics logo">
-</picture>
 
 VictoriaMetrics is a fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
 
@@ -60,6 +55,8 @@ This is a [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-not
 It increases cluster availability, and simplifies cluster maintenance as well as cluster scaling.
 
 ![Cluster Scheme](Cluster-VictoriaMetrics_cluster-scheme.webp)
+
+> Note that `vmselect` despite being stateless still requires some disk space (a few GBs) for temporary caches. Refer to the `-cacheDataPath` command-line flag for more details.
 
 ## Multitenancy
 
@@ -1018,7 +1015,6 @@ Feel free asking any questions regarding VictoriaMetrics:
 * [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
 * [Telegram-en](https://t.me/VictoriaMetrics_en)
 * [Telegram-ru](https://t.me/VictoriaMetrics_ru1)
-* [Google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 * [Mastodon](https://mastodon.social/@victoriametrics/)
 
 If you like VictoriaMetrics and want contributing, then please read [these docs](https://docs.victoriametrics.com/contributing/).
@@ -1313,7 +1309,7 @@ Below is the output for `/path/to/vmselect -help`:
   -blockcache.missesBeforeCaching int
      The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -cacheDataPath string
-     Path to directory for cache files. By default, the cache is not persisted.
+     Path to directory for cache files and temporary query results. By default, the cache won't be persisted, and temporary query results will be placed under /tmp/searchResults. If set, the cache will be persisted under cacheDataPath/rollupResult, and temporary query results will be placed under cacheDataPath/tmp/searchResults.
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -cluster.tls
@@ -1901,32 +1897,3 @@ Below is the output for `/path/to/vmstorage -help`:
   -vmselectAddr string
      TCP address to accept connections from vmselect services (default ":8401")
 ```
-
-## VictoriaMetrics Logo
-
-[Zip](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/VM_logo.zip) contains three folders with different image orientation (main color and inverted version).
-
-Files included in each folder:
-
-- 2 JPEG Preview files
-- 2 PNG Preview files with transparent background
-- 2 EPS Adobe Illustrator EPS10 files
-
-### Logo Usage Guidelines
-
-#### Font used
-
-- Lato Black
-- Lato Regular
-
-#### Color Palette
-
-- HEX [#110f0f](https://www.color-hex.com/color/110f0f)
-- HEX [#ffffff](https://www.color-hex.com/color/ffffff)
-
-### We kindly ask
-
-- Please don't use any other font instead of suggested.
-- There should be sufficient clear space around the logo.
-- Do not change spacing, alignment, or relative locations of the design elements.
-- Do not change the proportions of any of the design elements or the design itself. You    may resize as needed but must retain all proportions.

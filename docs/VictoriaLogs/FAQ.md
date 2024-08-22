@@ -1,7 +1,6 @@
 ---
-sort: 6
 weight: 6
-title: VictoriaLogs FAQ
+title: FAQ
 menu:
   docs:
     identifier: "victorialogs-faq"
@@ -48,13 +47,13 @@ VictoriaLogs and Grafana Loki have the following differences:
   It starts consuming huge amounts of RAM and working very slow when logs with high-cardinality fields are ingested into it.
   See [these docs](https://grafana.com/docs/loki/latest/best-practices/) for details.
 
-  VictoriaMetrics supports high-cardinality [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+  VictoriaLogs supports high-cardinality [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
   It automatically indexes all the ingested log fields and allows performing fast full-text search over any field.
 
 - Grafana Loki provides very inconvenient query language - [LogQL](https://grafana.com/docs/loki/latest/logql/).
   This query language is hard to use for typical log analysis tasks.
 
-  VictoriaMetrics provides easy to use query language for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
+  VictoriaLogs provides easy to use query language for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 
 - VictoriaLogs performs typical full-text queries up to 1000x faster than Grafana Loki.
 

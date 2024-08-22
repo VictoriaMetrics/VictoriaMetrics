@@ -17,11 +17,23 @@
       padding: 0 $padding-global $padding-small;
     }
 
+    &_inline {
+      display: grid;
+      gap: calc($padding-small/2);
+      padding: $padding-global;
+    }
+
     &__search {
       position: sticky;
       top: 0;
       padding: $padding-small $padding-global;
       background-color: $color-background-block;
+    }
+
+    &__buttons {
+      display: flex;
+      justify-content: space-between;
+      gap: $padding-small;
     }
   }
 }

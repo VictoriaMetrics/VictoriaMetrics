@@ -135,6 +135,11 @@ type Options struct {
 	//
 	// This option can be overridden individually per each aggregation via ignore_first_intervals option.
 	IgnoreFirstIntervals int
+
+	// KeepInput enables keeping all the input samples after the aggregation.
+	//
+	// By default, aggregates samples are dropped, while the remaining samples are written to the corresponding -remoteWrite.url.
+	KeepInput bool
 }
 
 // Config is a configuration for a single stream aggregation.
@@ -429,13 +434,7 @@ type aggrState interface {
 	pushSamples(samples []pushSample)
 
 	// flushState must flush aggrState data to ctx.
-	//
-	// if resetState is true, then aggrState must be reset after flushing the data to ctx,
-	// otherwise the aggrState data must be kept unchanged.
-	//
-	// The resetState is set to false only in the benchmark, which measures flushState() performance
-	// over the same aggrState.
-	flushState(ctx *flushCtx, resetState bool)
+	flushState(ctx *flushCtx)
 }
 
 // PushFunc is called by Aggregators when it needs to push its state to metrics storage
@@ -524,6 +523,10 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		keepMetricNames = *v
 	}
 	if keepMetricNames {
+		if opts.KeepInput {
+			return nil, fmt.Errorf("`-streamAggr.keepInput` and `keep_metric_names` options can't be enabled in the same time," +
+				"as it may result in time series collision")
+		}
 		if len(cfg.Outputs) != 1 {
 			return nil, fmt.Errorf("`outputs` list must contain only a single entry if `keep_metric_names` is set; got %q; "+
 				"see https://docs.victoriametrics.com/stream-aggregation/#output-metric-names", cfg.Outputs)
@@ -743,11 +746,14 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 		}
 	}
 
+	var flushTimeMsec int64
 	tickerWait := func(t *time.Ticker) bool {
 		select {
 		case <-a.stopCh:
+			flushTimeMsec = time.Now().UnixMilli()
 			return false
-		case <-t.C:
+		case ct := <-t.C:
+			flushTimeMsec = ct.UnixMilli()
 			return true
 		}
 	}
@@ -758,16 +764,16 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 		defer t.Stop()
 
 		if alignFlushToInterval && skipIncompleteFlush {
-			a.flush(nil)
+			a.flush(nil, 0)
 			ignoreFirstIntervals--
 		}
 
 		for tickerWait(t) {
 			if ignoreFirstIntervals > 0 {
-				a.flush(nil)
+				a.flush(nil, 0)
 				ignoreFirstIntervals--
 			} else {
-				a.flush(pushFunc)
+				a.flush(pushFunc, flushTimeMsec)
 			}
 
 			if alignFlushToInterval {
@@ -791,14 +797,14 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 			if ct.After(flushDeadline) {
 				// It is time to flush the aggregated state
 				if alignFlushToInterval && skipIncompleteFlush && !isSkippedFirstFlush {
-					a.flush(nil)
+					a.flush(nil, 0)
 					ignoreFirstIntervals--
 					isSkippedFirstFlush = true
 				} else if ignoreFirstIntervals > 0 {
-					a.flush(nil)
+					a.flush(nil, 0)
 					ignoreFirstIntervals--
 				} else {
-					a.flush(pushFunc)
+					a.flush(pushFunc, flushTimeMsec)
 				}
 				for ct.After(flushDeadline) {
 					flushDeadline = flushDeadline.Add(a.interval)
@@ -816,7 +822,7 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 
 	if !skipIncompleteFlush && ignoreFirstIntervals <= 0 {
 		a.dedupFlush()
-		a.flush(pushFunc)
+		a.flush(pushFunc, flushTimeMsec)
 	}
 }
 
@@ -843,17 +849,13 @@ func (a *aggregator) dedupFlush() {
 // flush flushes aggregator state to pushFunc.
 //
 // If pushFunc is nil, then the aggregator state is just reset.
-func (a *aggregator) flush(pushFunc PushFunc) {
-	a.flushInternal(pushFunc, true)
-}
-
-func (a *aggregator) flushInternal(pushFunc PushFunc, resetState bool) {
+func (a *aggregator) flush(pushFunc PushFunc, flushTimeMsec int64) {
 	startTime := time.Now()
 
 	// Update minTimestamp before flushing samples to the storage,
 	// since the flush durtion can be quite long.
 	// This should prevent from dropping samples with old timestamps when the flush takes long time.
-	a.minTimestamp.Store(startTime.UnixMilli() - 5_000)
+	a.minTimestamp.Store(flushTimeMsec - 5_000)
 
 	var wg sync.WaitGroup
 	for i := range a.aggrOutputs {
@@ -866,8 +868,8 @@ func (a *aggregator) flushInternal(pushFunc PushFunc, resetState bool) {
 				wg.Done()
 			}()
 
-			ctx := getFlushCtx(a, ao, pushFunc)
-			ao.as.flushState(ctx, resetState)
+			ctx := getFlushCtx(a, ao, pushFunc, flushTimeMsec)
+			ao.as.flushState(ctx)
 			ctx.flushSeries()
 			putFlushCtx(ctx)
 		}(ao)
@@ -1088,7 +1090,7 @@ func getInputOutputLabels(dstInput, dstOutput, labels []prompbmarshal.Label, by,
 	return dstInput, dstOutput
 }
 
-func getFlushCtx(a *aggregator, ao *aggrOutput, pushFunc PushFunc) *flushCtx {
+func getFlushCtx(a *aggregator, ao *aggrOutput, pushFunc PushFunc, flushTimestamp int64) *flushCtx {
 	v := flushCtxPool.Get()
 	if v == nil {
 		v = &flushCtx{}
@@ -1097,6 +1099,7 @@ func getFlushCtx(a *aggregator, ao *aggrOutput, pushFunc PushFunc) *flushCtx {
 	ctx.a = a
 	ctx.ao = ao
 	ctx.pushFunc = pushFunc
+	ctx.flushTimestamp = flushTimestamp
 	return ctx
 }
 
@@ -1108,9 +1111,10 @@ func putFlushCtx(ctx *flushCtx) {
 var flushCtxPool sync.Pool
 
 type flushCtx struct {
-	a        *aggregator
-	ao       *aggrOutput
-	pushFunc PushFunc
+	a              *aggregator
+	ao             *aggrOutput
+	pushFunc       PushFunc
+	flushTimestamp int64
 
 	tss     []prompbmarshal.TimeSeries
 	labels  []prompbmarshal.Label
@@ -1121,6 +1125,7 @@ func (ctx *flushCtx) reset() {
 	ctx.a = nil
 	ctx.ao = nil
 	ctx.pushFunc = nil
+	ctx.flushTimestamp = 0
 	ctx.resetSeries()
 }
 
@@ -1176,7 +1181,7 @@ func (ctx *flushCtx) flushSeries() {
 	promutils.PutLabels(auxLabels)
 }
 
-func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value float64) {
+func (ctx *flushCtx) appendSeries(key, suffix string, value float64) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
 	ctx.labels = decompressLabels(ctx.labels, key)
@@ -1184,7 +1189,7 @@ func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value flo
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}
 	ctx.samples = append(ctx.samples, prompbmarshal.Sample{
-		Timestamp: timestamp,
+		Timestamp: ctx.flushTimestamp,
 		Value:     value,
 	})
 	ctx.tss = append(ctx.tss, prompbmarshal.TimeSeries{
@@ -1198,7 +1203,7 @@ func (ctx *flushCtx) appendSeries(key, suffix string, timestamp int64, value flo
 	}
 }
 
-func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, timestamp int64, value float64, extraName, extraValue string) {
+func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, value float64, extraName, extraValue string) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
 	ctx.labels = decompressLabels(ctx.labels, key)
@@ -1210,7 +1215,7 @@ func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, timestamp in
 		Value: extraValue,
 	})
 	ctx.samples = append(ctx.samples, prompbmarshal.Sample{
-		Timestamp: timestamp,
+		Timestamp: ctx.flushTimestamp,
 		Value:     value,
 	})
 	ctx.tss = append(ctx.tss, prompbmarshal.TimeSeries{

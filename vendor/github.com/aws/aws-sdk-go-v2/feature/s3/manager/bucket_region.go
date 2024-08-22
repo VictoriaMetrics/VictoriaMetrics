@@ -17,15 +17,13 @@ const bucketRegionHeader = "X-Amz-Bucket-Region"
 // GetBucketRegion will attempt to get the region for a bucket using the
 // client's configured region to determine which AWS partition to perform the query on.
 //
-// The request will not be signed, and will not use your AWS credentials.
-//
 // A BucketNotFound error will be returned if the bucket does not exist in the
 // AWS partition the client region belongs to.
 //
 // For example to get the region of a bucket which exists in "eu-central-1"
 // you could provide a region hint of "us-west-2".
 //
-//	cfg, err := config.LoadDefaultConfig(context.TODO())
+//	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("us-west-2"))
 //	if err != nil {
 //		log.Println("error:", err)
 //		return
@@ -60,6 +58,17 @@ const bucketRegionHeader = "X-Amz-Bucket-Region"
 //	if err != nil {
 //		panic(err)
 //	}
+//
+// If buckets are public, you may use anonymous credential like so.
+//
+//	manager.GetBucketRegion(ctx, s3.NewFromConfig(cfg), bucket, func(o *s3.Options) {
+//	     o.Credentials = nil
+//	     // Or
+//	     o.Credentials = aws.AnonymousCredentials{}
+//	})
+//
+// The request with anonymous credentials will not be signed.
+// Otherwise credentials would be required for private buckets.
 func GetBucketRegion(ctx context.Context, client HeadBucketAPIClient, bucket string, optFns ...func(*s3.Options)) (string, error) {
 	var captureBucketRegion deserializeBucketRegion
 
