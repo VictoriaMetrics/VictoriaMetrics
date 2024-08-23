@@ -18,11 +18,11 @@ To check that metrics are present in **VictoriaMetrics Cluster** run the followi
 
 _Warning: response can return many metrics, so be careful with series selector._
 
-
 ```sh
 curl -s 'http://vmselect:8481/select/0/prometheus/api/v1/series?match[]=process_cpu_cores_available' | jq
 ```
 
+_See URL example for single-node [here](https://docs.victoriametrics.com/url-examples/#apiv1series)._
 
 The expected output:
 
@@ -31,16 +31,6 @@ The expected output:
   "status": "success",
   "isPartial": false,
   "data": [
-    {
-      "__name__": "process_cpu_cores_available",
-      "job": "vmagent",
-      "instance": "vmagent:8429"
-    },
-    {
-      "__name__": "process_cpu_cores_available",
-      "job": "vmalert",
-      "instance": "vmalert:8880"
-    },
     {
       "__name__": "process_cpu_cores_available",
       "job": "vminsert",
@@ -54,31 +44,23 @@ The expected output:
     {
       "__name__": "process_cpu_cores_available",
       "job": "vmstorage",
-      "instance": "vmstorage-1:8482"
-    },
-    {
-      "__name__": "process_cpu_cores_available",
-      "job": "vmstorage",
-      "instance": "vmstorage-2:8482"
+      "instance": "vmstorage:8482"
     }
   ]
 }
-
 ```
 
 When you're sure [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) is correct, send a POST request to [delete API](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series) with [`match[]=<time-series-selector>`](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) argument. For example:
-
 
 ```sh
 curl -s 'http://vmselect:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series?match[]=process_cpu_cores_available'
 ```
 
-_For Single version of VictoriaMetrics see the example [here](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series)._
+_See URL example for single-node [here](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series)._
 
 If operation was successful, the deleted series will stop being [queryable](https://docs.victoriametrics.com/keyconcepts/#query-data). Storage space for the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282). The background merges may never occur for data from previous months, so storage space won't be freed for historical data. In this case [forced merge](https://docs.victoriametrics.com/single-server-victoriametrics/#forced-merge) may help freeing up storage space.
 
 To trigger [forced merge](https://docs.victoriametrics.com/single-server-victoriametrics/#forced-merge) on VictoriaMetrics Cluster run the following command:
-
 
 ```sh
 curl -v -X POST http://vmstorage:8482/internal/force_merge
@@ -99,21 +81,19 @@ By default, VictoriaMetrics doesn't provide a mechanism for replacing or updatin
 
 For example, let's export metric for `node_memory_MemTotal_bytes` with labels `instance="node-exporter:9100"` and `job="hostname.com"`:
 
-
 ```sh
 curl -X POST -g http://vmselect:8481/select/0/prometheus/api/v1/export -d 'match[]=node_memory_MemTotal_bytes{instance="node-exporter:9100", job="hostname.com"}' > data.jsonl
 ```
 
+_See URL example for single-node [here](https://docs.victoriametrics.com/url-examples/#apiv1export)._
 
-To check that exported file contains time series we can use [cat](https://man7.org/linux/man-pages/man1/cat.1.html) and [jq](https://stedolan.github.io/jq/download/)
-
+To check that exported file contains time series we can use [cat](https://man7.org/linux/man-pages/man1/cat.1.html) and [jq](https://stedolan.github.io/jq/download/):
 
 ```sh
 cat data.jsonl | jq
 ```
 
-
-The expected output will look like:
+The expected output will look like the following:
 
 ```json
 {
@@ -138,7 +118,7 @@ The expected output will look like:
 
 ```
 
-In this example, we will replace the values of `node_memory_MemTotal_bytes` from `33604390912` to `17179869184` (from 32Gb to 16Gb) via [sed](https://linux.die.net/man/1/sed), but it can be done in any of the available ways.
+In this example, we will replace the values of `node_memory_MemTotal_bytes` from `33604390912` to `17179869184` (from 32Gb to 16Gb) via [sed](https://linux.die.net/man/1/sed), but it can be done in any of the available ways:
 
 ```sh
 sed -i 's/33604390912/17179869184/g' data.jsonl
@@ -150,7 +130,7 @@ Let's check the changes in data.jsonl with `cat`:
 cat data.jsonl | jq
 ```
 
-The expected output will be the next:
+The expected output will be the following:
 
 ```json
 {
@@ -176,26 +156,27 @@ The expected output will be the next:
 
 ### Delete metrics
 
-See [How-to-delete-metrics](https://docs.victoriametrics.com/guides/guide-delete-or-replace-metrics.html#how-to-delete-metrics) from the previous paragraph
+See [How-to-delete-metrics](https://docs.victoriametrics.com/guides/guide-delete-or-replace-metrics.html#how-to-delete-metrics) from the previous paragraph.
 
 ### Import metrics
 
-Victoriametrics supports a lot of [ingestion protocols](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-time-series-data) and we will use [import from JSON line format](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
+VictoriaMetrics supports a lot of [ingestion protocols](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-time-series-data) and we will use [import from JSON line format](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
 
 The next command will import metrics from `data.jsonl` to VictoriaMetrics:
-
 
 ```sh
 curl -v -X POST http://vminsert:8480/insert/0/prometheus/api/v1/import -T data.jsonl
 ```
 
-### Check imported metrics
+_See URL example for single-node [here](https://docs.victoriametrics.com/url-examples/#apiv1import)._
 
+Please note, importing data with old timestamps is called **backfilling** and may require resetting caches as described [here](https://docs.victoriametrics.com/#backfilling). 
+
+### Check imported metrics
 
 ```sh
 curl -X POST -g http://vmselect:8481/select/0/prometheus/api/v1/export -d match[]=node_memory_MemTotal_bytes
 ```
-
 
 The expected output will look like:
 
