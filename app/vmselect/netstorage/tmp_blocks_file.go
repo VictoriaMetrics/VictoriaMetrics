@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	tmpBufSize = flagutil.NewBytes("search.tmpBufSizeBytes", 0, "In large memory scenarios, controlling the size of temporary buffers to use memory more efficiently")
+	tmpBufSize = flagutil.NewBytes("search.tmpBufSizeBytes", 0, "Size for in-memory data blocks used during processing search requests. By default, the size is automatically calculated based on available memory. Adjust this flag value if you observe that vm_tmp_blocks_max_inmemory_file_size_bytes metric shows much higher values than vm_tmp_blocks_inmemory_file_size_bytes. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6851")
 )
 
 // InitTmpBlocksDir initializes directory to store temporary search results.
