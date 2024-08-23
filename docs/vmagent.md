@@ -227,13 +227,13 @@ To route metrics `env=dev` to destination `dev` and metrics with `env=prod` to d
   source_labels: [env]
   regex: "dev"
 ```
-1. Create relabeling config file `relabelProd.yml` to drop all metrics that don't have label `env=prod`:
+2. Create relabeling config file `relabelProd.yml` to drop all metrics that don't have label `env=prod`:
 ```yaml
 - action: keep
   source_labels: [env]
   regex: "prod"
 ```
-1. Configure `vmagent` with 2 `-remoteWrite.url` flags pointing to destinations `dev` and `prod` with corresponding
+3. Configure `vmagent` with 2 `-remoteWrite.url` flags pointing to destinations `dev` and `prod` with corresponding
 `-remoteWrite.urlRelabelConfig` configs:
 ```sh
 ./vmagent \

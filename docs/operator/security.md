@@ -25,7 +25,7 @@ Also in [the same directory](https://github.com/VictoriaMetrics/operator/tree/ma
 - file `<RESOURCE_NAME>_viewer_role.yaml` - permissions for viewing (`get`, `list` and `watch`) some resource of vmoperator.
 - file `<RESOURCE_NAME>_editor_role.yaml` - permissions for editing (`create`, `delete`, `patch`, `update` and `deletecollection`) some resource of vmoperator (also includes viewing permissions).
 
-For instance, [`vmalert_editor_role.yaml` file](https://github.com/VictoriaMetrics/operator/blob/master/config/rbac/vmalert_editor_role.yaml) contain permission
+For instance, [`vmalert_editor_role.yaml` file](https://github.com/VictoriaMetrics/operator/blob/master/config/rbac/operator_vmalert_editor_role.yaml) contain permission
 for editing [`vmagent` custom resources](https://docs.victoriametrics.com/operator/resources/vmagent).
 
 <!-- TODO: service accounts / role bindings? -->
