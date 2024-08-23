@@ -35,8 +35,8 @@ var (
 		"By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data "+
 		"is sent after temporary unavailability of the remote storage. See also -maxIngestionRate")
 	sendTimeout      = flagutil.NewArrayDuration("remoteWrite.sendTimeout", time.Minute, "Timeout for sending a single block of data to the corresponding -remoteWrite.url")
-	retryMinInterval = flagutil.NewArrayDuration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval")
-	retryMaxTime     = flagutil.NewArrayDuration("remoteWrite.retryMaxTime", time.Minute, "The max time spent on retry attempts for the failed remote-write request. Change this value if it is expected for remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
+	retryMinInterval = flagutil.NewArrayDuration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval")
+	retryMaxTime     = flagutil.NewArrayDuration("remoteWrite.retryMaxTime", time.Minute, "The max time spent on retry attempts to send a block of data to the corresponding -remoteWrite.url. Change this value if it is expected for -remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
 	proxyURL         = flagutil.NewArrayString("remoteWrite.proxyURL", "Optional proxy URL for writing data to the corresponding -remoteWrite.url. "+
 		"Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234")
 
@@ -89,8 +89,9 @@ type client struct {
 	// Whether to use VictoriaMetrics remote write protocol for sending the data to remoteWriteURL
 	useVMProto bool
 
-	fq               *persistentqueue.FastQueue
-	hc               *http.Client
+	fq *persistentqueue.FastQueue
+	hc *http.Client
+
 	retryMinInterval time.Duration
 	retryMaxTime     time.Duration
 
@@ -402,7 +403,7 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 // sendBlockHTTP sends the given block to c.remoteWriteURL.
 //
 // The function returns false only if c.stopCh is closed.
-// Otherwise it tries sending the block to remote storage indefinitely.
+// Otherwise, it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlockHTTP(block []byte) bool {
 	c.rl.Register(len(block))
 	maxRetryDuration := timeutil.AddJitterToDuration(c.retryMaxTime)
