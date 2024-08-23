@@ -34,8 +34,10 @@ var (
 	rateLimit = flagutil.NewArrayInt("remoteWrite.rateLimit", 0, "Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. "+
 		"By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data "+
 		"is sent after temporary unavailability of the remote storage. See also -maxIngestionRate")
-	sendTimeout = flagutil.NewArrayDuration("remoteWrite.sendTimeout", time.Minute, "Timeout for sending a single block of data to the corresponding -remoteWrite.url")
-	proxyURL    = flagutil.NewArrayString("remoteWrite.proxyURL", "Optional proxy URL for writing data to the corresponding -remoteWrite.url. "+
+	sendTimeout      = flagutil.NewArrayDuration("remoteWrite.sendTimeout", time.Minute, "Timeout for sending a single block of data to the corresponding -remoteWrite.url")
+	retryMinInterval = flagutil.NewArrayDuration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval")
+	retryMaxTime     = flagutil.NewArrayDuration("remoteWrite.retryMaxTime", time.Minute, "The max time spent on retry attempts to send a block of data to the corresponding -remoteWrite.url. Change this value if it is expected for -remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
+	proxyURL         = flagutil.NewArrayString("remoteWrite.proxyURL", "Optional proxy URL for writing data to the corresponding -remoteWrite.url. "+
 		"Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234")
 
 	tlsHandshakeTimeout   = flagutil.NewArrayDuration("remoteWrite.tlsHandshakeTimeout", 20*time.Second, "The timeout for establishing tls connections to the corresponding -remoteWrite.url")
@@ -90,6 +92,9 @@ type client struct {
 	fq *persistentqueue.FastQueue
 	hc *http.Client
 
+	retryMinInterval time.Duration
+	retryMaxTime     time.Duration
+
 	sendBlock func(block []byte) bool
 	authCfg   *promauth.Config
 	awsCfg    *awsapi.Config
@@ -143,13 +148,15 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		Timeout:   sendTimeout.GetOptionalArg(argIdx),
 	}
 	c := &client{
-		sanitizedURL:   sanitizedURL,
-		remoteWriteURL: remoteWriteURL,
-		authCfg:        authCfg,
-		awsCfg:         awsCfg,
-		fq:             fq,
-		hc:             hc,
-		stopCh:         make(chan struct{}),
+		sanitizedURL:     sanitizedURL,
+		remoteWriteURL:   remoteWriteURL,
+		authCfg:          authCfg,
+		awsCfg:           awsCfg,
+		fq:               fq,
+		hc:               hc,
+		retryMinInterval: retryMinInterval.GetOptionalArg(argIdx),
+		retryMaxTime:     retryMaxTime.GetOptionalArg(argIdx),
+		stopCh:           make(chan struct{}),
 	}
 	c.sendBlock = c.sendBlockHTTP
 
@@ -396,11 +403,11 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 // sendBlockHTTP sends the given block to c.remoteWriteURL.
 //
 // The function returns false only if c.stopCh is closed.
-// Otherwise it tries sending the block to remote storage indefinitely.
+// Otherwise, it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlockHTTP(block []byte) bool {
 	c.rl.Register(len(block))
-	maxRetryDuration := timeutil.AddJitterToDuration(time.Minute)
-	retryDuration := timeutil.AddJitterToDuration(time.Second)
+	maxRetryDuration := timeutil.AddJitterToDuration(c.retryMaxTime)
+	retryDuration := timeutil.AddJitterToDuration(c.retryMinInterval)
 	retriesCount := 0
 
 again:
