@@ -1,6 +1,22 @@
 /* eslint-disable */
 const { override, addExternalBabelPlugin, addWebpackAlias, addWebpackPlugin } = require("customize-cra");
 const webpack = require("webpack");
+const fs = require('fs');
+const path = require('path');
+
+// This will replace the default check
+const pathIndexHTML = (() => {
+  switch (process.env.REACT_APP_TYPE) {
+    case 'logs':
+      return 'public/victorialogs.html';
+    case 'anomaly':
+      return 'public/vmanomaly.html';
+    default:
+      return 'public/victoriametrics.html';
+  }
+})();
+const fileContent = fs.readFileSync(path.resolve(__dirname, pathIndexHTML), 'utf8');
+fs.writeFileSync(path.resolve(__dirname, 'public/index.html'), fileContent);
 
 module.exports = override(
   addExternalBabelPlugin("@babel/plugin-proposal-nullish-coalescing-operator"),

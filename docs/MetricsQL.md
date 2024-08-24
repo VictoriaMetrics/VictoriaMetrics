@@ -545,7 +545,7 @@ while [increase](#increase) ignores the first value in a series if it is too big
 
 This function is usually applied to [counters](https://docs.victoriametrics.com/keyconcepts/#counter).
 
-See also [increase](#increas) and [increase_prometheus](#increase_prometheus).
+See also [increase](#increase) and [increase_prometheus](#increase_prometheus).
 
 #### increases_over_time
 
@@ -954,7 +954,7 @@ See also [stddev_over_time](#stddev_over_time).
 
 #### sum_eq_over_time
 
-`sum_eq_over_time(series_selector[d], eq)` is a [rollup function](#rollup-function), which calculates the sum of [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
+`sum_eq_over_time(series_selector[d], eq)` is a [rollup function](#rollup-functions), which calculates the sum of [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 values equal to `eq` on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
@@ -965,7 +965,7 @@ See also [sum_over_time](#sum_over_time) and [count_eq_over_time](#count_eq_over
 
 #### sum_gt_over_time
 
-`sum_gt_over_time(series_selector[d], gt)` is a [rollup function](#rollup-function), which calculates the sum of [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
+`sum_gt_over_time(series_selector[d], gt)` is a [rollup function](#rollup-functions), which calculates the sum of [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 values bigger than `gt` on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
@@ -976,7 +976,7 @@ See also [sum_over_time](#sum_over_time) and [count_gt_over_time](#count_gt_over
 
 #### sum_le_over_time
 
-`sum_le_over_time(series_selector[d], le)` is a [rollup function](#rollup-function), which calculates the sum of [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
+`sum_le_over_time(series_selector[d], le)` is a [rollup function](#rollup-functions), which calculates the sum of [raw sample](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
 values smaller or equal to `le` on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyconcepts/#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
