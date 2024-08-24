@@ -7,7 +7,7 @@ import ExploreAnomaly from "./pages/ExploreAnomaly/ExploreAnomaly";
 import router from "./router";
 import CustomPanel from "./pages/CustomPanel";
 
-const AppLogs: FC = () => {
+const AppAnomaly: FC = () => {
   const [loadedTheme, setLoadedTheme] = useState(false);
 
   return <>
@@ -38,4 +38,4 @@ const AppLogs: FC = () => {
   </>;
 };
 
-export default AppLogs;
+export default AppAnomaly;
