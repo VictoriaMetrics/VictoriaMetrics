@@ -299,7 +299,6 @@ func (w *Writer) MustFlush(isSync bool) {
 		if err := w.f.Sync(); err != nil {
 			logger.Panicf("FATAL: cannot fsync data to the underlying storage for file %q: %s", w.f.Name(), err)
 		}
-
 	}
 }
 
