@@ -1809,7 +1809,7 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 					// This may be the case on incomplete indexDB
 					// due to snapshot or due to unflushed entries.
 					// Just increment errors counter and skip it for now.
-					is.db.missingTSIDsForMetricID.Add(1)
+					db.missingTSIDsForMetricID.Add(1)
 					continue
 				}
 				is.db.putToMetricIDCache(metricID, tsid)
