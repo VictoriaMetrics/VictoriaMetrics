@@ -2264,13 +2264,15 @@ func (is *indexSearch) updateMetricIDsForTagFilters(qt *querytracer.Tracer, metr
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
 	if minDate <= maxDate && maxDate-minDate <= maxDaysForPerDaySearch {
-		// Fast path: found metricIDs by date range.
+		// Fast path - search metricIDs by date range in the per-day inverted
+		// index.
 		is.db.dateRangeSearchCalls.Add(1)
+		qt.Printf("search metric ids in the per-day index")
 		return is.updateMetricIDsForDateRange(qt, metricIDs, tfs, minDate, maxDate, maxMetrics)
 	}
 
-	// Slow path - fall back to search in the global inverted index.
-	qt.Printf("cannot find metric ids in per-day index; fall back to global index")
+	// Slow path - search metricIDs in the global inverted index.
+	qt.Printf("search metric ids in the global index")
 	is.db.globalSearchCalls.Add(1)
 	m, err := is.getMetricIDsForDateAndFilters(qt, 0, tfs, maxMetrics)
 	if err != nil {
