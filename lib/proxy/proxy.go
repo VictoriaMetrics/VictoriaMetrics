@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -120,4 +121,28 @@ func (u *URL) UnmarshalYAML(unmarshal func(any) error) error {
 	}
 	u.URL = parsedURL
 	return nil
+}
+
+// UnmarshalJSON implements json.Unmarshaller interface.
+// required to properly clone internal representation of url
+func (u *URL) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	parsedURL, err := url.Parse(s)
+	if err != nil {
+		return fmt.Errorf("cannot parse proxy_url=%q as *url.URL: %w", s, err)
+	}
+	if !isURLSchemeValid(parsedURL.Scheme) {
+		return fmt.Errorf("cannot parse proxy_url=%q unsupported scheme format=%q, valid schemes: %s", s, parsedURL.Scheme, validURLSchemes)
+	}
+	u.URL = parsedURL
+	return nil
+}
+
+// MarshalJSON implements json.Marshal interface.
+// required to properly clone internal representation of url
+func (u *URL) MarshalJSON() ([]byte, error) {
+	return json.Marshal(u.URL.String())
 }

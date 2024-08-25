@@ -41,6 +41,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
   - [Xiaohongshu](#xiaohongshu)
   - [Zerodha](#zerodha)
   - [zhihu](#zhihu)
+  - [Zomato](#zomato)
 
 You can also read [articles about VictoriaMetrics from our users](https://docs.victoriametrics.com/articles/#third-party-articles-and-slides-about-victoriametrics).
 
@@ -663,3 +664,28 @@ Numbers:
 - Index size: ~600 GB
 - The average query rate is ~3k per second (mostly alert queries).
 - Query duration: median is ~40ms, 99th percentile is ~100ms.
+
+
+## Zomato
+
+### Who We Are
+
+At [Zomato](https://www.zomato.com/), our mission statement is better food for more people, We connect millions of users with restaurants, delivering meals to their doorsteps while offering a variety of services, including restaurant discovery, online ordering, and table reservations.
+
+### The Challenge
+
+As we scaled, our existing observability stack (Prometheus and Thanos) began to show its limitations. We faced challenges like high memory usage, slow query response times, and rising costs, particularly due to the high cardinality of our metrics. Managing this setup became increasingly complex, impacting our ability to maintain reliable service and effectively troubleshoot issues.
+
+### Our Solution
+
+To address these challenges, we decided to migrate to VictoriaMetrics. We were drawn to its reputation for high performance, low resource usage, and scalability. The migration process was carefully planned to ensure a smooth transition with minimal disruption. We focused on:
+  - **Data Optimization**: We reduced unnecessary metrics to minimize data ingestion and storage needs.
+  - **Performance Enhancements**: VictoriaMetrics’ efficient query processing allowed us to achieve significantly faster query response times.
+  - **Cost Efficiency**: The optimized storage format in VictoriaMetrics led to a noticeable reduction in our storage and operational costs.
+
+### The Results
+
+Post-migration, we successfully scaled our monitoring infrastructure to handle billions of data points daily, all while experiencing faster query performance and 60% reduction in yearly infra cost. The improved observability has enhanced our ability to deliver reliable service, allowing us to troubleshoot issues more quickly and effectively.
+
+
+Read more about the migration journey in our blog - https://blog.zomato.com/migrating-to-victoriametrics-a-complete-overhaul-for-enhanced-observability

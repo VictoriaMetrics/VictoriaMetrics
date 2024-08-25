@@ -1,5 +1,4 @@
 ---
-sort: 38
 weight: 38
 editLink: https://github.com/VictoriaMetrics/victoriametrics-datasource/blob/main/README.md
 title: Grafana datasource
@@ -35,9 +34,9 @@ But with time, Prometheus and VictoriaMetrics diverge more and more. After some 
 datasource  we decided to create a datasource plugin specifically for VictoriaMetrics.
 The benefits of using VictoriaMetrics plugin are the following:
 
-* [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) functions support;
-* Supports [query tracing](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing) in Explore mode or right in panel's expressions;
-* Supports [WITH expressions](https://github.com/VictoriaMetrics/victoriametrics-datasource#how-to-use-with-templates);
+* [MetricsQL](https://docs.victoriametrics.com/metricsql) functions support;
+* Supports [query tracing](https://docs.victoriametrics.com/#query-tracing) in Explore mode or right in panel's expressions;
+* Supports [WITH expressions](https://docs.victoriametrics.com/victoriametrics-datasource/#how-to-use-with-templates);
 * Plugin fixes [label names validation](https://github.com/grafana/grafana/issues/42615) issue;
 * Integration with [vmui](https://docs.victoriametrics.com/#vmui).
 
@@ -413,10 +412,6 @@ If datasource is configured via Grafana variable, then change variable to Victor
 ### Why VictoriaMetrics datasource doesn't support alerting?
 
 Grafana doesn't allow forwarding Alert requests to alerting API /api/v1/rules for plugins which are not of Prometheus or Loki type. See more details [here](https://github.com/VictoriaMetrics/victoriametrics-datasource/issues/59#issuecomment-1541456768).
-
-### Which version of Grafana is required in order to use VictoriaMetrics datasource? 
-
-[8.3.0](https://grafana.com/grafana/download/8.3.0) or newer.
 
 ## License
 

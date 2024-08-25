@@ -1212,6 +1212,8 @@ The shortlist of configuration flags is the following:
      Whether to blackhole alerting notifications. Enable this flag if you want vmalert to evaluate alerting rules without sending any notifications to external receivers (eg. alertmanager). -notifier.url, -notifier.config and -notifier.blackhole are mutually exclusive.
   -notifier.config string
      Path to configuration file for notifiers
+  -notifier.headers array
+     Optional HTTP headers to send with each request to the corresponding -notifier.url. For example, -notifier.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -notifier.url. Multiple headers must be delimited by '^^': -notifier.headers='header1:value1^^header2:value2,header3:value3'.
   -notifier.oauth2.clientID array
      Optional OAuth2 clientID to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.

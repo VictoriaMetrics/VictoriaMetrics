@@ -49,20 +49,34 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	setProxyHeaders := func(_ *http.Request) error {
 		return nil
 	}
+	dialFunc := netutil.NewStatDialFunc("vm_promscrape")
 	proxyURL := sw.ProxyURL
-	if !strings.HasPrefix(sw.ScrapeURL, "https://") && proxyURL.IsHTTPOrHTTPS() {
-		pu := proxyURL.GetURL()
-		if pu.Scheme == "https" {
-			ac = sw.ProxyAuthConfig
-		}
-		setProxyHeaders = func(req *http.Request) error {
-			return proxyURL.SetHeaders(sw.ProxyAuthConfig, req)
-		}
-	}
 	var proxyURLFunc func(*http.Request) (*url.URL, error)
-	if pu := sw.ProxyURL.GetURL(); pu != nil {
-		proxyURLFunc = http.ProxyURL(pu)
+
+	if proxyURL != nil {
+		// case for direct http proxy connection.
+		// must be used for http based scrape targets
+		// since standard golang http.transport has special case for it
+		if strings.HasPrefix(sw.ScrapeURL, "http://") {
+			if proxyURL.URL.Scheme == "https" {
+				ac = sw.ProxyAuthConfig
+			}
+			proxyURLFunc = http.ProxyURL(proxyURL.URL)
+			setProxyHeaders = func(req *http.Request) error {
+				return proxyURL.SetHeaders(sw.ProxyAuthConfig, req)
+			}
+		} else {
+			// HTTP-Connect or socks5 proxy tunnel
+			// it makes possible to use separate tls configurations
+			// for proxy and backend connections
+			proxyDial, err := proxyURL.NewDialFunc(sw.ProxyAuthConfig)
+			if err != nil {
+				return nil, fmt.Errorf("cannot create dialer for proxy_url=%q connection: %w", proxyURL, err)
+			}
+			dialFunc = netutil.NewStatDialFuncWithDial("vm_promscrape", proxyDial)
+		}
 	}
+
 	hc := &http.Client{
 		Transport: ac.NewRoundTripper(&http.Transport{
 			Proxy:                  proxyURLFunc,
@@ -70,7 +84,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 			IdleConnTimeout:        2 * sw.ScrapeInterval,
 			DisableCompression:     *disableCompression || sw.DisableCompression,
 			DisableKeepAlives:      *disableKeepAlive || sw.DisableKeepAlive,
-			DialContext:            netutil.NewStatDialFunc("vm_promscrape"),
+			DialContext:            dialFunc,
 			MaxIdleConnsPerHost:    100,
 			MaxResponseHeaderBytes: int64(maxResponseHeadersSize.N),
 		}),

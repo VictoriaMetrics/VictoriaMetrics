@@ -8,7 +8,7 @@ export const getDefaultServer = (tenantId?: string): string => {
   const { serverURL } = getAppModeParams();
   const storageURL = getFromStorage("SERVER_URL") as string;
   const logsURL = window.location.href.replace(/\/(select\/)?(vmui)\/.*/, "");
-  const anomalyURL = `${window.location.origin}${window.location.pathname}`;
+  const anomalyURL = `${window.location.origin}${window.location.pathname.replace(/^\/vmui/, "")}`;
   const defaultURL = window.location.href.replace(/\/(?:prometheus\/)?(?:graph|vmui)\/.*/, "/prometheus");
   const url = serverURL || storageURL || defaultURL;
 

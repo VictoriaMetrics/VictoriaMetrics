@@ -13,6 +13,7 @@ PKG_TAG := $(BUILDINFO_TAG)
 endif
 
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
+TAR_OWNERSHIP ?= --owner=1000 --group=1000
 
 .PHONY: $(MAKECMDGOALS)
 
@@ -245,7 +246,7 @@ release-victoria-metrics-windows-amd64:
 
 release-victoria-metrics-goos-goarch: victoria-metrics-$(GOOS)-$(GOARCH)-prod
 	cd bin && \
-		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+		tar $(TAR_OWNERSHIP) --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			victoria-metrics-$(GOOS)-$(GOARCH)-prod \
 		&& sha256sum victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			victoria-metrics-$(GOOS)-$(GOARCH)-prod \
@@ -302,7 +303,7 @@ release-victoria-logs-windows-amd64:
 
 release-victoria-logs-goos-goarch: victoria-logs-$(GOOS)-$(GOARCH)-prod
 	cd bin && \
-		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+		tar $(TAR_OWNERSHIP) --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			victoria-logs-$(GOOS)-$(GOARCH)-prod \
 		&& sha256sum victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			victoria-logs-$(GOOS)-$(GOARCH)-prod \
@@ -366,7 +367,7 @@ release-vmutils-goos-goarch: \
 	vmrestore-$(GOOS)-$(GOARCH)-prod \
 	vmctl-$(GOOS)-$(GOARCH)-prod
 	cd bin && \
-		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf vmutils-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+		tar $(TAR_OWNERSHIP) --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf vmutils-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			vmagent-$(GOOS)-$(GOARCH)-prod \
 			vmalert-$(GOOS)-$(GOARCH)-prod \
 			vmalert-tool-$(GOOS)-$(GOARCH)-prod \
@@ -494,7 +495,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.59.1
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.60.1
 
 remove-golangci-lint:
 	rm -rf `which golangci-lint`
