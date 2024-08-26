@@ -16,7 +16,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/multitenant"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -112,8 +111,8 @@ func alignStartEnd(start, end, step int64) (int64, int64) {
 
 // EvalConfig is the configuration required for query evaluation via Exec
 type EvalConfig struct {
-	AuthToken  *auth.Token
-	AuthTokens []*auth.Token
+	AuthTokens    []*auth.Token
+	IsMultiTenant bool
 
 	Start int64
 	End   int64
@@ -165,8 +164,8 @@ type EvalConfig struct {
 // copyEvalConfig returns src copy.
 func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	var ec EvalConfig
-	ec.AuthToken = src.AuthToken
 	ec.AuthTokens = src.AuthTokens
+	ec.IsMultiTenant = src.IsMultiTenant
 	ec.Start = src.Start
 	ec.End = src.End
 	ec.Step = src.Step
@@ -288,33 +287,7 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 		mayCache := ec.mayCache()
 		qt = qt.NewChild("eval: query=%s, timeRange=%s, step=%d, mayCache=%v", query, ec.timeRangeString(), ec.Step, mayCache)
 	}
-	var (
-		rv  []*timeseries
-		err error
-	)
-	if ec.AuthToken == nil {
-		qtT := qt.NewChild("eval: fetching tenants")
-		tr := storage.TimeRange{
-			MinTimestamp: ec.Start,
-			MaxTimestamp: ec.End,
-		}
-		tenants, err := multitenant.FetchTenants(qtT, tr, ec.Deadline)
-		if err != nil {
-			qtT.Done()
-			return nil, fmt.Errorf("cannot obtain tenants: %w", err)
-		}
-		qtT.Printf("found %d tenants", len(tenants))
-
-		filters, ne := extractTenantFilters(e, nil)
-		filters = extractTenantFiltersEc(ec, filters)
-		tenantTokens := applyFiltersToTenants(tenants, filters)
-		e = ne
-		ec.AuthTokens = tenantTokens
-
-		qtT.Donef("%d tenants matched filters", len(tenantTokens))
-	}
-
-	rv, err = evalExprInternal(qt, ec, e)
+	rv, err := evalExprInternal(qt, ec, e)
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +300,6 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 		pointsCount := seriesCount * pointsPerSeries
 		qt.Donef("series=%d, points=%d, pointsPerSeries=%d", seriesCount, pointsCount, pointsPerSeries)
 	}
-
 	return rv, nil
 }
 
@@ -996,7 +968,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 		return nil, nil
 	}
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries)
-	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps, ec.AuthTokens != nil)
+	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps, ec.IsMultiTenant)
 	if err != nil {
 		return nil, err
 	}
@@ -1141,12 +1113,12 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		return offset >= maxOffset
 	}
 	deleteCachedSeries := func(qt *querytracer.Tracer) {
-		rollupResultCacheV.DeleteInstantValues(qt, ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss)
+		rollupResultCacheV.DeleteInstantValues(qt, ec, expr, window, ec.Step, ec.EnforcedTagFilterss)
 	}
 	getCachedSeries := func(qt *querytracer.Tracer) ([]*timeseries, int64, error) {
 	again:
 		offset := int64(0)
-		tssCached := rollupResultCacheV.GetInstantValues(qt, ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss)
+		tssCached := rollupResultCacheV.GetInstantValues(qt, ec, expr, window)
 		ec.QueryStats.addSeriesFetched(len(tssCached))
 		if len(tssCached) == 0 {
 			// Cache miss. Re-populate the missing data.
@@ -1172,7 +1144,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 				tss, err := evalAt(qt, timestamp, window)
 				return tss, 0, err
 			}
-			rollupResultCacheV.PutInstantValues(qt, ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss, tss)
+			rollupResultCacheV.PutInstantValues(qt, ec, expr, window, tss)
 			return tss, offset, nil
 		}
 		// Cache hit. Verify whether it is OK to use the cached data.
@@ -1740,7 +1712,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	}
 	// Obtain rollup configs before fetching data from db, so type errors could be caught earlier.
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries)
-	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps, ec.AuthTokens != nil)
+	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps, ec.IsMultiTenant)
 	if err != nil {
 		return nil, err
 	}
@@ -1759,15 +1731,15 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	}
 	var sq *storage.SearchQuery
 
-	if ec.AuthTokens != nil {
-		tt := make([]storage.TenantToken, len(ec.AuthTokens))
-		for i, authToken := range ec.AuthTokens {
-			tt[i].AccountID = authToken.AccountID
-			tt[i].ProjectID = authToken.ProjectID
+	if ec.IsMultiTenant {
+		ts := make([]storage.TenantToken, len(ec.AuthTokens))
+		for i, at := range ec.AuthTokens {
+			ts[i].ProjectID = at.ProjectID
+			ts[i].AccountID = at.AccountID
 		}
-		sq = storage.NewMultiTenantSearchQuery(tt, minTimestamp, ec.End, tfss, ec.MaxSeries)
+		sq = storage.NewMultiTenantSearchQuery(ts, minTimestamp, ec.End, tfss, ec.MaxSeries)
 	} else {
-		sq = storage.NewSearchQuery(ec.AuthToken.AccountID, ec.AuthToken.ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
+		sq = storage.NewSearchQuery(ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
 	}
 	rss, isPartial, err := netstorage.ProcessSearchQuery(qt, ec.DenyPartialResponse, sq, ec.Deadline)
 	if err != nil {
@@ -2001,18 +1973,26 @@ var timeseriesByWorkerIDPool sync.Pool
 var bbPool bytesutil.ByteBufferPool
 
 func evalNumber(ec *EvalConfig, n float64) []*timeseries {
-	var ts timeseries
-	ts.denyReuse = true
-	ts.MetricName.AccountID = ec.AuthToken.AccountID
-	ts.MetricName.ProjectID = ec.AuthToken.ProjectID
-	timestamps := ec.getSharedTimestamps()
-	values := make([]float64, len(timestamps))
-	for i := range timestamps {
-		values[i] = n
+	tss := make([]*timeseries, 0, len(ec.AuthTokens))
+	for _, at := range ec.AuthTokens {
+		var ts timeseries
+		ts.denyReuse = true
+		ts.MetricName.AccountID = at.AccountID
+		ts.MetricName.ProjectID = at.ProjectID
+		if ec.IsMultiTenant {
+			ts.MetricName.AddTag("vm_account_id", strconv.FormatUint(uint64(at.AccountID), 10))
+			ts.MetricName.AddTag("vm_project_id", strconv.FormatUint(uint64(at.ProjectID), 10))
+		}
+		timestamps := ec.getSharedTimestamps()
+		values := make([]float64, len(timestamps))
+		for i := range timestamps {
+			values[i] = n
+		}
+		ts.Values = values
+		ts.Timestamps = timestamps
+		tss = append(tss, &ts)
 	}
-	ts.Values = values
-	ts.Timestamps = timestamps
-	return []*timeseries{&ts}
+	return tss
 }
 
 func evalString(ec *EvalConfig, s string) []*timeseries {

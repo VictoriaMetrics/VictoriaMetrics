@@ -1,4 +1,4 @@
-package multitenant
+package netstorage
 
 import (
 	"flag"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -20,8 +19,8 @@ var (
 	tenantsCacheDuration = flag.Duration("search.tenantCacheExpireDuration", 5*time.Minute, "The expiry duration for list of tenants for multi-tenant queries.")
 )
 
-// FetchTenants returns the list of tenants available in the storage.
-func FetchTenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+// TenantsCached returns the list of tenants available in the storage.
+func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
 	qt.Printf("fetching tenants on timeRange=%s", tr.String())
 
 	cached := tenantsCacheV.get(tr)
@@ -30,7 +29,7 @@ func FetchTenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchu
 		return cached, nil
 	}
 
-	tenants, err := netstorage.Tenants(qt, tr, deadline)
+	tenants, err := Tenants(qt, tr, deadline)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain tenants: %w", err)
 	}

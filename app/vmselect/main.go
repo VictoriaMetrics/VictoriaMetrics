@@ -310,6 +310,10 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			return true
 		}
 	}
+	if strings.HasPrefix(p.Suffix, "graphite/") && at == nil {
+		httpserver.Errorf(w, r, "multi-tenant queries are not supported by Graphite endpoints")
+		return true
+	}
 	if strings.HasPrefix(p.Suffix, "graphite/tags/") && !isGraphiteTagsPath(p.Suffix[len("graphite"):]) {
 		tagName := p.Suffix[len("graphite/tags/"):]
 		graphiteTagValuesRequests.Inc()

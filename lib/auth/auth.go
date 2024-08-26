@@ -44,25 +44,35 @@ func NewTokenPossibleMultitenant(authToken string) (*Token, error) {
 
 // Init initializes t from authToken.
 func (t *Token) Init(authToken string) error {
+	accountID, projectID, err := ParseToken(authToken)
+	if err != nil {
+		return fmt.Errorf("cannot parse authToken %q: %w", authToken, err)
+	}
+
+	t.Set(accountID, projectID)
+	return nil
+}
+
+// ParseToken parses authToken and returns accountID and projectID from it.
+func ParseToken(authToken string) (uint32, uint32, error) {
 	tmp := strings.Split(authToken, ":")
 	if len(tmp) > 2 {
-		return fmt.Errorf("unexpected number of items in authToken %q; got %d; want 1 or 2", authToken, len(tmp))
+		return 0, 0, fmt.Errorf("unexpected number of items in authToken %q; got %d; want 1 or 2", authToken, len(tmp))
 	}
 	n, err := strconv.ParseUint(tmp[0], 10, 32)
 	if err != nil {
-		return fmt.Errorf("cannot parse accountID from %q: %w", tmp[0], err)
+		return 0, 0, fmt.Errorf("cannot parse accountID from %q: %w", tmp[0], err)
 	}
 	accountID := uint32(n)
 	projectID := uint32(0)
 	if len(tmp) > 1 {
 		n, err := strconv.ParseUint(tmp[1], 10, 32)
 		if err != nil {
-			return fmt.Errorf("cannot parse projectID from %q: %w", tmp[1], err)
+			return 0, 0, fmt.Errorf("cannot parse projectID from %q: %w", tmp[1], err)
 		}
 		projectID = uint32(n)
 	}
-	t.Set(accountID, projectID)
-	return nil
+	return accountID, projectID, nil
 }
 
 // Set sets accountID and projectID for the t.

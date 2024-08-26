@@ -1,4 +1,4 @@
-package multitenant
+package netstorage
 
 import (
 	"reflect"

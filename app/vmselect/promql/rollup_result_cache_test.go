@@ -41,10 +41,10 @@ func TestRollupResultCache(t *testing.T) {
 		Step:               200,
 		MaxPointsPerSeries: 1e4,
 
-		AuthToken: &auth.Token{
+		AuthTokens: []*auth.Token{{
 			AccountID: 333,
 			ProjectID: 843,
-		},
+		}},
 
 		MayCache: true,
 	}
@@ -336,10 +336,10 @@ func TestRollupResultCache(t *testing.T) {
 			},
 		}
 		ec1 := copyEvalConfig(ec)
-		ec1.AuthToken = &auth.Token{
+		ec1.AuthTokens = []*auth.Token{{
 			AccountID: 0,
 			ProjectID: 0,
-		}
+		}}
 		tss2 := []*timeseries{
 			{
 				MetricName: storage.MetricName{
@@ -351,10 +351,10 @@ func TestRollupResultCache(t *testing.T) {
 			},
 		}
 		ec2 := copyEvalConfig(ec)
-		ec2.AuthToken = &auth.Token{
+		ec2.AuthTokens = []*auth.Token{{
 			AccountID: 0,
 			ProjectID: 1,
-		}
+		}}
 
 		tss3 := []*timeseries{
 			{
@@ -367,17 +367,17 @@ func TestRollupResultCache(t *testing.T) {
 			},
 		}
 		ec3 := copyEvalConfig(ec)
-		ec3.AuthToken = &auth.Token{
+		ec3.AuthTokens = []*auth.Token{{
 			AccountID: 1,
 			ProjectID: 1,
-		}
+		}}
 
 		rollupResultCacheV.PutSeries(nil, ec1, fe, window, tss1)
 		rollupResultCacheV.PutSeries(nil, ec2, fe, window, tss2)
 		rollupResultCacheV.PutSeries(nil, ec3, fe, window, tss3)
 		ecSearch := copyEvalConfig(ec)
-		ecSearch.AuthToken = nil
-		ecSearch.AuthTokens = []*auth.Token{ec1.AuthToken, ec2.AuthToken, ec3.AuthToken}
+		ecSearch.AuthTokens = []*auth.Token{ec1.AuthTokens[0], ec2.AuthTokens[0], ec3.AuthTokens[0]}
+		ecSearch.IsMultiTenant = true
 		ecSearch.Start = 800
 		tss, newStart := rollupResultCacheV.GetSeries(nil, ecSearch, fe, window)
 		if newStart != 1400 {
@@ -418,7 +418,6 @@ func TestRollupResultCache(t *testing.T) {
 			},
 		}
 		ecL := copyEvalConfig(ec)
-		ecL.AuthToken = nil
 		ecL.Start = 800
 		ecL.AuthTokens = []*auth.Token{
 			{
@@ -434,6 +433,7 @@ func TestRollupResultCache(t *testing.T) {
 				ProjectID: 1,
 			},
 		}
+		ecL.IsMultiTenant = true
 		rollupResultCacheV.PutSeries(nil, ecL, fe, window, tssGolden)
 
 		tss, newStart := rollupResultCacheV.GetSeries(nil, ecL, fe, window)
@@ -456,7 +456,7 @@ func TestRollupResultCache(t *testing.T) {
 			},
 		}
 		ecL := copyEvalConfig(ec)
-		ecL.AuthToken = nil
+		ecL.IsMultiTenant = true
 		ecL.Start = 800
 		ecL.AuthTokens = []*auth.Token{
 			{

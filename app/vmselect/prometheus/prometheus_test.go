@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 func TestRemoveEmptyValuesAndTimeseries(t *testing.T) {
@@ -229,64 +228,4 @@ func TestGetLatencyOffsetMillisecondsFailure(t *testing.T) {
 		}
 	}
 	f("http://localhost?latency_offset=foobar")
-}
-
-func TestTagFiltersToMetricsQLFilters(t *testing.T) {
-	f := func(tfss [][]storage.TagFilter, expected []string) {
-		t.Helper()
-		filters := tagFiltersToMetricsQLFilters(tfss)
-		if len(expected) == 0 && len(filters) == 0 {
-			return
-		}
-
-		if !reflect.DeepEqual(filters, expected) {
-			t.Fatalf("unexpected filters; got\n%v\nwant\n%v", filters, expected)
-		}
-	}
-
-	f(nil, nil)
-
-	// Single tag filter with multiple key-values
-	f(
-		[][]storage.TagFilter{
-			{
-				{
-					Key:   []byte("a"),
-					Value: []byte("b"),
-				},
-				{
-					Key:   []byte("c"),
-					Value: []byte("d"),
-				},
-			},
-		},
-		[]string{
-			`{a="b",c="d"}`,
-		},
-	)
-
-	// Multiple tag filters sets
-	f(
-		[][]storage.TagFilter{
-			{
-				{
-					Key:        []byte("a"),
-					Value:      []byte("b"),
-					IsNegative: true,
-					IsRegexp:   true,
-				},
-			},
-			{
-				{
-					Key:        []byte("c"),
-					Value:      []byte("d"),
-					IsNegative: true,
-				},
-			},
-		},
-		[]string{
-			`{a!~"b"}`,
-			`{c!="d"}`,
-		},
-	)
 }

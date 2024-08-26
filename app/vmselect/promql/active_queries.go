@@ -79,11 +79,11 @@ func newActiveQueries() *activeQueries {
 
 func (aq *activeQueries) Add(ec *EvalConfig, q string) uint64 {
 	var aqe activeQueryEntry
-	if ec.AuthToken == nil {
+	if ec.IsMultiTenant {
 		aqe.isMultitenant = true
 	} else {
-		aqe.accountID = ec.AuthToken.AccountID
-		aqe.projectID = ec.AuthToken.ProjectID
+		aqe.accountID = ec.AuthTokens[0].AccountID
+		aqe.projectID = ec.AuthTokens[0].ProjectID
 	}
 	aqe.start = ec.Start
 	aqe.end = ec.End

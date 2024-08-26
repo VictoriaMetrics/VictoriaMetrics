@@ -834,7 +834,6 @@ func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadli
 func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline) (int, error) {
 	qt = qt.NewChild("delete series: %s", sq)
 	defer qt.Done()
-	requestData := sq.Marshal(nil)
 
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
@@ -843,25 +842,36 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		sn.deleteSeriesRequests.Inc()
-		deletedCount, err := sn.deleteSeries(qt, requestData, deadline)
+		err := populateSqTenantTokensIfNeeded(qt, sq, deadline)
 		if err != nil {
-			sn.deleteSeriesErrors.Inc()
+			return []*nodeResult{{
+				err: err,
+			}}
 		}
-		return &nodeResult{
-			deletedCount: deletedCount,
-			err:          err,
-		}
+
+		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte) any {
+			sn.deleteSeriesRequests.Inc()
+			deletedCount, err := sn.deleteSeries(qt, requestData, deadline)
+			if err != nil {
+				sn.deleteSeriesErrors.Inc()
+			}
+			return &nodeResult{
+				deletedCount: deletedCount,
+				err:          err,
+			}
+		})
 	})
 
 	// Collect results
 	deletedTotal := 0
 	err := snr.collectAllResults(func(result any) error {
-		nr := result.(*nodeResult)
-		if nr.err != nil {
-			return nr.err
+		for _, cr := range result.([]any) {
+			nr := cr.(*nodeResult)
+			if nr.err != nil {
+				return nr.err
+			}
+			deletedTotal += nr.deletedCount
 		}
-		deletedTotal += nr.deletedCount
 		return nil
 	})
 	if err != nil {
@@ -877,7 +887,6 @@ func LabelNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	requestData := sq.Marshal(nil)
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
 		labelNames []string
@@ -885,28 +894,43 @@ func LabelNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		sn.labelNamesRequests.Inc()
-		labelNames, err := sn.getLabelNames(qt, requestData, maxLabelNames, deadline)
+		err := populateSqTenantTokensIfNeeded(qt, sq, deadline)
 		if err != nil {
-			sn.labelNamesErrors.Inc()
-			err = fmt.Errorf("cannot get labels from vmstorage %s: %w", sn.connPool.Addr(), err)
+			return []*nodeResult{{
+				err: err,
+			}}
 		}
-		return &nodeResult{
-			labelNames: labelNames,
-			err:        err,
-		}
+
+		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte) any {
+			sn.labelNamesRequests.Inc()
+			labelNames, err := sn.getLabelNames(qt, requestData, maxLabelNames, deadline)
+			if err != nil {
+				sn.labelNamesErrors.Inc()
+				err = fmt.Errorf("cannot get labels from vmstorage %s: %w", sn.connPool.Addr(), err)
+			}
+			return &nodeResult{
+				labelNames: labelNames,
+				err:        err,
+			}
+		})
 	})
 
 	// Collect results
 	var labelNames []string
 	isPartial, err := snr.collectResults(partialLabelNamesResults, func(result any) error {
-		nr := result.(*nodeResult)
-		if nr.err != nil {
-			return nr.err
+		for _, cr := range result.([]any) {
+			nr := cr.(*nodeResult)
+			if nr.err != nil {
+				return nr.err
+			}
+			labelNames = append(labelNames, nr.labelNames...)
 		}
-		labelNames = append(labelNames, nr.labelNames...)
+
 		return nil
 	})
+	if sq.IsMultiTenant {
+		labelNames = append(labelNames, []string{"vm_account_id", "vm_project_id"}...)
+	}
 	qt.Printf("get %d non-duplicated labels", len(labelNames))
 	if err != nil {
 		return nil, isPartial, fmt.Errorf("cannot fetch labels from vmstorage nodes: %w", err)
@@ -979,7 +1003,34 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	requestData := sq.Marshal(nil)
+
+	if sq.IsMultiTenant && isTenancyLabel(labelName) {
+		tenants, err := Tenants(qt, sq.GetTimeRange(), deadline)
+		if err != nil {
+			return nil, false, err
+		}
+
+		var idx int
+		switch labelName {
+		case "vm_account_id":
+			idx = 0
+		case "vm_project_id":
+			idx = 1
+		}
+
+		labelValues := make([]string, 0, len(tenants))
+		for _, t := range tenants {
+			s := strings.Split(t, ":")
+			if len(s) != 2 {
+				logger.Fatalf("BUG: unexpected tenant received from storage: %q", t)
+			}
+
+			labelValues = append(labelValues, s[idx])
+		}
+
+		labelValues = prepareLabelValues(qt, labelValues, maxLabelValues)
+		return labelValues, false, nil
+	}
 
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
@@ -988,33 +1039,49 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		sn.labelValuesRequests.Inc()
-		labelValues, err := sn.getLabelValues(qt, labelName, requestData, maxLabelValues, deadline)
+		err := populateSqTenantTokensIfNeeded(qt, sq, deadline)
 		if err != nil {
-			sn.labelValuesErrors.Inc()
-			err = fmt.Errorf("cannot get label values from vmstorage %s: %w", sn.connPool.Addr(), err)
+			return []*nodeResult{{
+				err: err,
+			}}
 		}
-		return &nodeResult{
-			labelValues: labelValues,
-			err:         err,
-		}
+
+		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte) any {
+			sn.labelValuesRequests.Inc()
+			labelValues, err := sn.getLabelValues(qt, labelName, requestData, maxLabelValues, deadline)
+			if err != nil {
+				sn.labelValuesErrors.Inc()
+				err = fmt.Errorf("cannot get label values from vmstorage %s: %w", sn.connPool.Addr(), err)
+			}
+			return &nodeResult{
+				labelValues: labelValues,
+				err:         err,
+			}
+		})
 	})
 
 	// Collect results
 	var labelValues []string
 	isPartial, err := snr.collectResults(partialLabelValuesResults, func(result any) error {
-		nr := result.(*nodeResult)
-		if nr.err != nil {
-			return nr.err
+		for _, cr := range result.([]any) {
+			nr := cr.(*nodeResult)
+			if nr.err != nil {
+				return nr.err
+			}
+			labelValues = append(labelValues, nr.labelValues...)
 		}
-		labelValues = append(labelValues, nr.labelValues...)
 		return nil
 	})
 	qt.Printf("get %d non-duplicated label values", len(labelValues))
 	if err != nil {
 		return nil, isPartial, fmt.Errorf("cannot fetch label values from vmstorage nodes: %w", err)
 	}
+	labelValues = prepareLabelValues(qt, labelValues, maxLabelValues)
+	return labelValues, isPartial, nil
+}
 
+func prepareLabelValues(qt *querytracer.Tracer, labelValues []string, maxLabelValues int) []string {
+	qt.Printf("get %d non-duplicated label values", len(labelValues))
 	// Deduplicate label values
 	labelValues = deduplicateStrings(labelValues)
 	qt.Printf("get %d unique label values after de-duplication", len(labelValues))
@@ -1024,7 +1091,7 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 	}
 	sort.Strings(labelValues)
 	qt.Printf("sort %d label values", len(labelValues))
-	return labelValues, isPartial, nil
+	return labelValues
 }
 
 // Tenants returns tenants until the given deadline.
@@ -1180,7 +1247,6 @@ func TSDBStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
-	requestData := sq.Marshal(nil)
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
 		status *storage.TSDBStatus
@@ -1188,26 +1254,37 @@ func TSDBStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		sn.tsdbStatusRequests.Inc()
-		status, err := sn.getTSDBStatus(qt, requestData, focusLabel, topN, deadline)
+		err := populateSqTenantTokensIfNeeded(qt, sq, deadline)
 		if err != nil {
-			sn.tsdbStatusErrors.Inc()
-			err = fmt.Errorf("cannot obtain tsdb status from vmstorage %s: %w", sn.connPool.Addr(), err)
+			return []*nodeResult{{
+				err: err,
+			}}
 		}
-		return &nodeResult{
-			status: status,
-			err:    err,
-		}
+
+		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte) any {
+			sn.tsdbStatusRequests.Inc()
+			status, err := sn.getTSDBStatus(qt, requestData, focusLabel, topN, deadline)
+			if err != nil {
+				sn.tsdbStatusErrors.Inc()
+				err = fmt.Errorf("cannot obtain tsdb status from vmstorage %s: %w", sn.connPool.Addr(), err)
+			}
+			return &nodeResult{
+				status: status,
+				err:    err,
+			}
+		})
 	})
 
 	// Collect results.
 	var statuses []*storage.TSDBStatus
 	isPartial, err := snr.collectResults(partialTSDBStatusResults, func(result any) error {
-		nr := result.(*nodeResult)
-		if nr.err != nil {
-			return nr.err
+		for _, cr := range result.([]any) {
+			nr := cr.(*nodeResult)
+			if nr.err != nil {
+				return nr.err
+			}
+			statuses = append(statuses, nr.status)
 		}
-		statuses = append(statuses, nr.status)
 		return nil
 	})
 	if err != nil {
@@ -1603,7 +1680,6 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 	if deadline.Exceeded() {
 		return nil, false, fmt.Errorf("timeout exceeded before starting to search metric names: %s", deadline.String())
 	}
-	requestData := sq.Marshal(nil)
 
 	// Send the query to all the storage nodes in parallel.
 	type nodeResult struct {
@@ -1612,27 +1688,37 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		sn.searchMetricNamesRequests.Inc()
-		metricNames, err := sn.processSearchMetricNames(qt, requestData, deadline)
+		err := populateSqTenantTokensIfNeeded(qt, sq, deadline)
 		if err != nil {
-			sn.searchMetricNamesErrors.Inc()
-			err = fmt.Errorf("cannot search metric names on vmstorage %s: %w", sn.connPool.Addr(), err)
+			return []*nodeResult{{
+				err: err,
+			}}
 		}
-		return &nodeResult{
-			metricNames: metricNames,
-			err:         err,
-		}
+		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte) any {
+			sn.searchMetricNamesRequests.Inc()
+			metricNames, err := sn.processSearchMetricNames(qt, requestData, deadline)
+			if err != nil {
+				sn.searchMetricNamesErrors.Inc()
+				err = fmt.Errorf("cannot search metric names on vmstorage %s: %w", sn.connPool.Addr(), err)
+			}
+			return &nodeResult{
+				metricNames: metricNames,
+				err:         err,
+			}
+		})
 	})
 
 	// Collect results.
 	metricNamesMap := make(map[string]struct{})
 	isPartial, err := snr.collectResults(partialSearchMetricNamesResults, func(result any) error {
-		nr := result.(*nodeResult)
-		if nr.err != nil {
-			return nr.err
-		}
-		for _, metricName := range nr.metricNames {
-			metricNamesMap[metricName] = struct{}{}
+		for _, cr := range result.([]any) {
+			nr := cr.(*nodeResult)
+			if nr.err != nil {
+				return nr.err
+			}
+			for _, metricName := range nr.metricNames {
+				metricNamesMap[metricName] = struct{}{}
+			}
 		}
 		return nil
 	})
@@ -1735,18 +1821,6 @@ func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage
 
 func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool, sq *storage.SearchQuery,
 	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline) (bool, error) {
-	var requestsData [][]byte
-	if sq.TenantTokens != nil {
-		requestsData = make([][]byte, len(sq.TenantTokens))
-		for i, tenantToken := range sq.TenantTokens {
-			sq.AccountID = tenantToken.AccountID
-			sq.ProjectID = tenantToken.ProjectID
-
-			requestsData[i] = sq.Marshal(nil)
-		}
-	} else {
-		requestsData = [][]byte{sq.Marshal(nil)}
-	}
 
 	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
 	// Use per-worker WaitGroup instead of a shared WaitGroup in order to avoid inter-CPU contention,
@@ -1785,15 +1859,27 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 	// Send the query to all the storage nodes in parallel.
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any {
 		var err error
-		for i, rd := range requestsData {
-			qtChild := qt.NewChild("processing req for tenant %d", i)
+		err = populateSqTenantTokensIfNeeded(qt, sq, deadline)
+		if err != nil {
+			return &err
+		}
+
+		res := sq.Exec(qt, func(qt *querytracer.Tracer, rd []byte) any {
 			sn.searchRequests.Inc()
-			err = sn.processSearchQuery(qtChild, rd, f, workerID, deadline)
-			qtChild.Done()
+			err = sn.processSearchQuery(qt, rd, f, workerID, deadline)
 			if err != nil {
 				sn.searchErrors.Inc()
 				err = fmt.Errorf("cannot perform search on vmstorage %s: %w", sn.connPool.Addr(), err)
 				return &err
+			}
+
+			return &err
+		})
+
+		for _, e := range res {
+			e := e.(*error)
+			if *e != nil {
+				return e
 			}
 		}
 
@@ -1819,6 +1905,19 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 		return isPartial, fmt.Errorf("cannot fetch query results from vmstorage nodes: %w", err)
 	}
 	return isPartial, nil
+}
+
+func populateSqTenantTokensIfNeeded(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline) error {
+	if !sq.IsMultiTenant {
+		return nil
+	}
+	tts, tfss, err := GetTenantTokensFromFilters(qt, sq.GetTimeRange(), sq.TagFilterss, deadline)
+	if err != nil {
+		return err
+	}
+	sq.TenantTokens = tts
+	sq.TagFilterss = tfss
+	return nil
 }
 
 type storageNodesRequest struct {

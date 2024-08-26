@@ -587,7 +587,10 @@ type rollupConfig struct {
 	//
 	// If zero, then it is considered that Func scans all the samples passed to it.
 	samplesScannedPerCall int
-	isMultiTenant         bool
+
+	// Whether the rollup is used in multi-tenant mode.
+	// This is used in order to populate labels with tenancy information.
+	isMultiTenant bool
 }
 
 func (rc *rollupConfig) getTimestamps() []int64 {

@@ -7,19 +7,17 @@ import (
 	"net"
 	"net/http"
 	"runtime"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 
-	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/multitenant"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
@@ -128,7 +126,10 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	if cp.IsDefaultTimeRange() {
 		cp.start = cp.end - lookbackDelta
 	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxFederateSeries)
+	sq, err := getSearchQuery(nil, at, cp, *maxFederateSeries)
+	if err != nil {
+		return fmt.Errorf("cannot obtain search query: %w", err)
+	}
 	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 	rss, isPartial, err := netstorage.ProcessSearchQuery(nil, denyPartialResponse, sq, cp.deadline)
 	if err != nil {
@@ -174,7 +175,10 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 	fieldNames := strings.Split(format, ",")
 	reduceMemUsage := httputils.GetBool(r, "reduce_mem_usage")
 
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxExportSeries)
+	sq, err := getSearchQuery(nil, at, cp, *maxExportSeries)
+	if err != nil {
+		return fmt.Errorf("cannot obtain search query: %w", err)
+	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -248,6 +252,10 @@ var exportCSVDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/a
 // ExportNativeHandler exports data in native format from /api/v1/export/native.
 func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer exportNativeDuration.UpdateDuration(startTime)
+
+	if at == nil {
+		return fmt.Errorf("multi-tenant requests for /api/v1/export/native are not supported")
+	}
 
 	cp, err := getExportParams(r, startTime)
 	if err != nil {
@@ -396,7 +404,11 @@ func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter
 		}
 	}
 
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxExportSeries)
+	sq, err := getSearchQuery(qt, at, cp, *maxExportSeries)
+	if err != nil {
+		return fmt.Errorf("cannot obtain search query: %w", err)
+	}
+
 	w.Header().Set("Content-Type", contentType)
 
 	doneCh := make(chan error, 1)
@@ -454,7 +466,7 @@ func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter
 			doneCh <- err
 		}()
 	}
-	err := <-doneCh
+	err = <-doneCh
 	if err != nil {
 		return fmt.Errorf("cannot send data to remote client: %w", err)
 	}
@@ -601,27 +613,18 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 		return err
 	}
 	denyPartialResponse := httputils.GetDenyPartialResponse(r)
-
-	rc := getResultsCollector()
-	defer putResultsCollector(rc)
-
-	err = rc.executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, t *auth.Token, _ bool, filters [][]storage.TagFilter) ([]string, bool, error) {
-		sq := storage.NewSearchQuery(t.AccountID, t.ProjectID, cp.start, cp.end, filters, *maxLabelsAPISeries)
-		labelValues, isPartial, err := netstorage.LabelValues(qt, denyPartialResponse, labelName, sq, limit, cp.deadline)
-		if err != nil {
-			return nil, false, fmt.Errorf("cannot obtain values for label %q: %w", labelName, err)
-		}
-
-		return labelValues, isPartial, nil
-	})
+	sq, err := getSearchQuery(qt, at, cp, *maxLabelsAPISeries)
 	if err != nil {
 		return err
 	}
-
+	labelValues, isPartial, err := netstorage.LabelValues(qt, denyPartialResponse, labelName, sq, limit, cp.deadline)
+	if err != nil {
+		return fmt.Errorf("cannot obtain values for label %q: %w", labelName, err)
+	}
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteLabelValuesResponse(bw, rc.getIsPartial(), rc.getResults(), qt)
+	WriteLabelValuesResponse(bw, isPartial, labelValues, qt)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("canot flush label values to remote client: %w", err)
 	}
@@ -639,9 +642,6 @@ const secsPerDay = 3600 * 24
 // It can accept `match[]` filters in order to narrow down the search.
 func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer tsdbStatusDuration.UpdateDuration(startTime)
-	if at == nil {
-		return fmt.Errorf("missiing tenant for the request; multi-tenant requests are not supported for /api/v1/status/tsdb")
-	}
 
 	cp, err := getCommonParams(r, startTime, false)
 	if err != nil {
@@ -679,9 +679,12 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 		topN = n
 	}
 	denyPartialResponse := httputils.GetDenyPartialResponse(r)
-	start := int64(date*secsPerDay) * 1000
-	end := int64((date+1)*secsPerDay)*1000 - 1
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, cp.filterss, *maxTSDBStatusSeries)
+	cp.start = int64(date*secsPerDay) * 1000
+	cp.end = int64((date+1)*secsPerDay)*1000 - 1
+	sq, err := getSearchQuery(qt, at, cp, *maxTSDBStatusSeries)
+	if err != nil {
+		return err
+	}
 	status, isPartial, err := netstorage.TSDBStatus(qt, denyPartialResponse, sq, focusLabel, topN, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain tsdb stats: %w", err)
@@ -699,142 +702,6 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 
 var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/status/tsdb"}`)
 
-type resultsCollector struct {
-	results               []string
-	isPartial             bool
-	hasMultiTenantResults bool
-}
-
-type resultsCollectorCB func(qt *querytracer.Tracer, at *auth.Token, isMultiTenant bool, filters [][]storage.TagFilter) ([]string, bool, error)
-
-func (rc *resultsCollector) executeAcrossTenants(qt *querytracer.Tracer, at *auth.Token, cp *commonParams, cb resultsCollectorCB) error {
-	if at != nil {
-		r, isPartial, err := cb(qt, at, false, cp.filterss)
-		if err != nil {
-			return err
-		}
-
-		rc.addResults(r, isPartial)
-		return nil
-	}
-
-	tr := storage.TimeRange{
-		MinTimestamp: cp.start,
-		MaxTimestamp: cp.end,
-	}
-
-	// Execute the callback for each tenant.
-	tenants, err := multitenant.FetchTenants(qt, tr, cp.deadline)
-	if err != nil {
-		return fmt.Errorf("cannot obtain tenants: %w", err)
-	}
-
-	tenantFilters := make([][]storage.TagFilter, 0, len(cp.filterss))
-	otherFilters := make([][]storage.TagFilter, 0, len(cp.filterss))
-	for _, f := range cp.filterss {
-		ffs := make([]storage.TagFilter, 0, len(f))
-		offs := make([]storage.TagFilter, 0, len(f))
-		for _, tf := range f {
-			if !multitenant.IsTenancyLabel(string(tf.Key)) {
-				offs = append(offs, tf)
-				continue
-			}
-			ffs = append(ffs, tf)
-		}
-
-		if len(ffs) > 0 {
-			tenantFilters = append(tenantFilters, ffs)
-		}
-		if len(offs) > 0 {
-			otherFilters = append(otherFilters, offs)
-		}
-	}
-	ats := applyFiltersToTenants(tenants, tenantFilters)
-	qt.Printf("%d tenants matched filters", len(ats))
-
-	for _, t := range ats {
-		qtl := qt.NewChild("eval: tenant=%q", t.String())
-		r, isPartial, err := cb(qtl, t, true, otherFilters)
-		qtl.Done()
-		if err != nil {
-			return err
-		}
-
-		rc.addResults(r, isPartial)
-	}
-
-	return nil
-}
-
-var resultsCollectorPool sync.Pool
-
-func getResultsCollector() *resultsCollector {
-	rc := resultsCollectorPool.Get()
-	if rc == nil {
-		rc = &resultsCollector{
-			results: make([]string, 0),
-		}
-	}
-
-	return rc.(*resultsCollector)
-}
-
-func putResultsCollector(rc *resultsCollector) {
-	rc.results = rc.results[:0]
-}
-
-func (rc *resultsCollector) addResults(results []string, isPartial bool) {
-	if len(rc.results) > 0 {
-		rc.hasMultiTenantResults = true
-	}
-
-	rc.results = append(rc.results, results...)
-	rc.isPartial = rc.isPartial || isPartial
-}
-
-func (rc *resultsCollector) getResults() []string {
-	if len(rc.results) > 1 {
-		slices.Sort(rc.results)
-		rc.results = slices.Compact(rc.results)
-	}
-	return rc.results
-}
-
-func (rc *resultsCollector) getIsPartial() bool {
-	return rc.isPartial
-}
-
-func tagFiltersToMetricsQLFilters(tfs [][]storage.TagFilter) []string {
-	filtersStr := make([]string, 0, len(tfs))
-	b := make([]byte, 0)
-	for _, filter := range tfs {
-		b = append(b, "{"...)
-
-		for idx, f := range filter {
-			b = append(b, f.String()...)
-			if idx != len(filter)-1 {
-				b = append(b, ","...)
-			}
-		}
-		b = append(b, "}"...)
-		filtersStr = append(filtersStr, string(b))
-		b = b[:0]
-	}
-
-	return filtersStr
-}
-
-func applyFiltersToTenants(tenants []string, tfs [][]storage.TagFilter) []*auth.Token {
-	filtersStr := tagFiltersToMetricsQLFilters(tfs)
-
-	fts, err := multitenant.ApplyFiltersToTenants(tenants, filtersStr)
-	if err != nil {
-		logger.Panicf("BUG: cannot apply filters to tenants: %s", err)
-	}
-
-	return fts
-}
-
 // LabelsHandler processes /api/v1/labels request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names
@@ -850,37 +717,35 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 		return err
 	}
 	denyPartialResponse := httputils.GetDenyPartialResponse(r)
-
-	rc := getResultsCollector()
-	defer putResultsCollector(rc)
-	err = rc.executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, at *auth.Token, isMultiTenant bool, filters [][]storage.TagFilter) ([]string, bool, error) {
-		sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, filters, *maxLabelsAPISeries)
-		labels, isPartial, err := netstorage.LabelNames(qt, denyPartialResponse, sq, limit, cp.deadline)
-		if err != nil {
-			return nil, false, fmt.Errorf("cannot obtain labels: %w", err)
-		}
-		return labels, isPartial, nil
-	})
+	sq, err := getSearchQuery(qt, at, cp, *maxLabelsAPISeries)
 	if err != nil {
 		return err
 	}
-
-	if rc.hasMultiTenantResults {
-		// Insert pseudo-labels for multi-tenant querying
-		rc.addResults([]string{
-			"vm_account_id",
-			"vm_project_id",
-		}, false)
+	labels, isPartial, err := netstorage.LabelNames(qt, denyPartialResponse, sq, limit, cp.deadline)
+	if err != nil {
+		return fmt.Errorf("cannot obtain labels: %w", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteLabelsResponse(bw, rc.getIsPartial(), rc.getResults(), qt)
+	WriteLabelsResponse(bw, isPartial, labels, qt)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send labels response to remote client: %w", err)
 	}
 	return nil
+}
+
+func getSearchQuery(qt *querytracer.Tracer, at *auth.Token, cp *commonParams, maxSeries int) (*storage.SearchQuery, error) {
+	if at != nil {
+		return storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, maxSeries), nil
+	}
+	tt, tfs, err := netstorage.GetTenantTokensFromFilters(qt, storage.TimeRange{MinTimestamp: cp.start, MaxTimestamp: cp.end}, cp.filterss, cp.deadline)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain tenant tokens: %w", err)
+	}
+	sq := storage.NewMultiTenantSearchQuery(tt, cp.start, cp.end, tfs, maxSeries)
+	return sq, nil
 }
 
 var labelsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/labels"}`)
@@ -927,48 +792,15 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	if err != nil {
 		return err
 	}
-
-	rc := getResultsCollector()
-	defer putResultsCollector(rc)
-	err = rc.executeAcrossTenants(qt, at, cp, func(qt *querytracer.Tracer, at *auth.Token, isMultiTenant bool, filters [][]storage.TagFilter) ([]string, bool, error) {
-		sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, filters, *maxSeriesLimit)
-		denyPartialResponse := httputils.GetDenyPartialResponse(r)
-		metricNames, isPartial, err := netstorage.SearchMetricNames(qt, denyPartialResponse, sq, cp.deadline)
-		if err != nil {
-			return nil, false, fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
-		}
-
-		if isMultiTenant {
-			bts := make([]byte, 0, 32)
-			st := []storage.Tag{
-				{
-					Key:   []byte("vm_account_id"),
-					Value: strconv.AppendUint(nil, uint64(at.AccountID), 10),
-				},
-				{
-					Key:   []byte("vm_project_id"),
-					Value: strconv.AppendUint(nil, uint64(at.ProjectID), 10),
-				},
-			}
-			for _, t := range st {
-				bts = t.Marshal(bts)
-			}
-			s := string(bts)
-
-			// Add pseudo-labels for multi-tenant querying
-			for i, mn := range metricNames {
-				metricNames[i] = mn + s
-			}
-		}
-
-		return metricNames, isPartial, nil
-	})
+	sq, err := getSearchQuery(qt, at, cp, *maxSeriesLimit)
 	if err != nil {
 		return err
 	}
-
-	metricNames := rc.getResults()
-
+	denyPartialResponse := httputils.GetDenyPartialResponse(r)
+	metricNames, isPartial, err := netstorage.SearchMetricNames(qt, denyPartialResponse, sq, cp.deadline)
+	if err != nil {
+		return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
+	}
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -978,7 +810,7 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	qtDone := func() {
 		qt.Donef("start=%d, end=%d", cp.start, cp.end)
 	}
-	WriteSeriesResponse(bw, rc.getIsPartial(), metricNames, qt, qtDone)
+	WriteSeriesResponse(bw, isPartial, metricNames, qt, qtDone)
 	return bw.Flush()
 }
 
@@ -1089,7 +921,6 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	}
 	qs := &promql.QueryStats{}
 	ec := &promql.EvalConfig{
-		AuthToken:           at,
 		Start:               start,
 		End:                 start,
 		Step:                step,
@@ -1108,6 +939,11 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 		DenyPartialResponse: httputils.GetDenyPartialResponse(r),
 		QueryStats:          qs,
 	}
+	err = populateAuthTokens(qt, ec, at, deadline)
+	if err != nil {
+		return fmt.Errorf("cannot populate auth tokens: %w", err)
+	}
+
 	result, err := promql.Exec(qt, ec, query, true)
 	if err != nil {
 		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
@@ -1199,7 +1035,6 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 
 	qs := &promql.QueryStats{}
 	ec := &promql.EvalConfig{
-		AuthToken:           at,
 		Start:               start,
 		End:                 end,
 		Step:                step,
@@ -1218,6 +1053,11 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 		DenyPartialResponse: httputils.GetDenyPartialResponse(r),
 		QueryStats:          qs,
 	}
+	err = populateAuthTokens(qt, ec, at, deadline)
+	if err != nil {
+		return fmt.Errorf("cannot populate auth tokens: %w", err)
+	}
+
 	result, err := promql.Exec(qt, ec, query, false)
 	if err != nil {
 		return err
@@ -1246,6 +1086,30 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send query range response to remote client: %w", err)
 	}
+	return nil
+}
+
+func populateAuthTokens(qt *querytracer.Tracer, ec *promql.EvalConfig, at *auth.Token, deadline searchutils.Deadline) error {
+	if at != nil {
+		ec.AuthTokens = []*auth.Token{at}
+		return nil
+	}
+
+	tt, tfs, err := netstorage.GetTenantTokensFromFilters(qt, storage.TimeRange{MinTimestamp: ec.Start, MaxTimestamp: ec.End}, ec.EnforcedTagFilterss, deadline)
+	if err != nil {
+		return fmt.Errorf("cannot obtain tenant tokens for the given search query: %w", err)
+	}
+	ec.EnforcedTagFilterss = tfs
+
+	ats := make([]*auth.Token, len(tt))
+	for i, t := range tt {
+		ats[i] = &auth.Token{
+			AccountID: t.AccountID,
+			ProjectID: t.ProjectID,
+		}
+	}
+	ec.AuthTokens = ats
+	ec.IsMultiTenant = true
 	return nil
 }
 

@@ -40,14 +40,14 @@ var (
 func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
 	if querystats.Enabled() {
 		startTime := time.Now()
-		ac := ec.AuthToken
 		defer func() {
 			ec.QueryStats.addExecutionTimeMsec(startTime)
-			if ac == nil {
+			if ec.IsMultiTenant {
 				querystats.RegisterQueryMultiTenant(q, ec.End-ec.Start, startTime)
 				return
 			}
-			querystats.RegisterQuery(ac.AccountID, ac.ProjectID, q, ec.End-ec.Start, startTime)
+			at := ec.AuthTokens[0]
+			querystats.RegisterQuery(at.AccountID, at.ProjectID, q, ec.End-ec.Start, startTime)
 		}()
 	}
 

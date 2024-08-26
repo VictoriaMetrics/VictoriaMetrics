@@ -65,10 +65,11 @@ func TestExecSuccess(t *testing.T) {
 	f := func(q string, resultExpected []netstorage.Result) {
 		t.Helper()
 		ec := &EvalConfig{
-			AuthToken: &auth.Token{
+			AuthTokens: []*auth.Token{{
 				AccountID: accountID,
 				ProjectID: projectID,
-			},
+			}},
+
 			Start:              start,
 			End:                end,
 			Step:               step,
@@ -9345,10 +9346,10 @@ func TestExecError(t *testing.T) {
 	f := func(q string) {
 		t.Helper()
 		ec := &EvalConfig{
-			AuthToken: &auth.Token{
+			AuthTokens: []*auth.Token{{
 				AccountID: 123,
 				ProjectID: 567,
-			},
+			}},
 			Start:              1000,
 			End:                2000,
 			Step:               100,
