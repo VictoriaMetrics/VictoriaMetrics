@@ -300,7 +300,7 @@ func (sq *SearchQuery) GetTimeRange() TimeRange {
 }
 
 // Exec calls cb for with marshaled requestData for each tenant in sq.
-func (sq *SearchQuery) Exec(qt *querytracer.Tracer, cb func(qt *querytracer.Tracer, requestData []byte) any) []any {
+func (sq *SearchQuery) Exec(qt *querytracer.Tracer, cb func(qt *querytracer.Tracer, requestData []byte, t TenantToken) any) []any {
 	if sq.IsMultiTenant && sq.TenantTokens == nil {
 		logger.Panicf("BUG: missing TenantTokens in multi-tenant search query")
 	}
@@ -315,7 +315,7 @@ func (sq *SearchQuery) Exec(qt *querytracer.Tracer, cb func(qt *querytracer.Trac
 		if sq.IsMultiTenant && qt.Enabled() {
 			qtL = qt.NewChild("query for tenant: %s", sq.TenantTokens[i].String())
 		}
-		r := cb(qtL, requestData)
+		r := cb(qtL, requestData, sq.TenantTokens[i])
 		if sq.IsMultiTenant {
 			qtL.Done()
 		}

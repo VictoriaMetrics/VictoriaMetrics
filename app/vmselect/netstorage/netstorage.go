@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -849,7 +850,7 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 			}}
 		}
 
-		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte) any {
+		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.deleteSeriesRequests.Inc()
 			deletedCount, err := sn.deleteSeries(qt, requestData, deadline)
 			if err != nil {
@@ -901,7 +902,7 @@ func LabelNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 			}}
 		}
 
-		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte) any {
+		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.labelNamesRequests.Inc()
 			labelNames, err := sn.getLabelNames(qt, requestData, maxLabelNames, deadline)
 			if err != nil {
@@ -1046,7 +1047,7 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 			}}
 		}
 
-		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte) any {
+		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.labelValuesRequests.Inc()
 			labelValues, err := sn.getLabelValues(qt, labelName, requestData, maxLabelValues, deadline)
 			if err != nil {
@@ -1261,7 +1262,7 @@ func TSDBStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 			}}
 		}
 
-		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte) any {
+		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.tsdbStatusRequests.Inc()
 			status, err := sn.getTSDBStatus(qt, requestData, focusLabel, topN, deadline)
 			if err != nil {
@@ -1694,9 +1695,29 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 				err: err,
 			}}
 		}
-		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte) any {
+		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte, t storage.TenantToken) any {
 			sn.searchMetricNamesRequests.Inc()
 			metricNames, err := sn.processSearchMetricNames(qt, requestData, deadline)
+			if sq.IsMultiTenant {
+				tags := []storage.Tag{
+					{
+						Key:   []byte("vm_account_id"),
+						Value: strconv.AppendUint(nil, uint64(t.AccountID), 10),
+					},
+					{
+						Key:   []byte("vm_project_id"),
+						Value: strconv.AppendUint(nil, uint64(t.ProjectID), 10),
+					},
+				}
+				suffix := make([]byte, 0)
+				for _, tag := range tags {
+					suffix = tag.Marshal(suffix)
+				}
+				suffixStr := string(suffix)
+				for i := range metricNames {
+					metricNames[i] = metricNames[i] + suffixStr
+				}
+			}
 			if err != nil {
 				sn.searchMetricNamesErrors.Inc()
 				err = fmt.Errorf("cannot search metric names on vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -1730,7 +1751,6 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 	for metricName := range metricNamesMap {
 		metricNames = append(metricNames, metricName)
 	}
-	sort.Strings(metricNames)
 	qt.Printf("sort %d metric names", len(metricNames))
 	return metricNames, isPartial, nil
 }
@@ -1864,7 +1884,7 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 			return &err
 		}
 
-		res := sq.Exec(qt, func(qt *querytracer.Tracer, rd []byte) any {
+		res := sq.Exec(qt, func(qt *querytracer.Tracer, rd []byte, _ storage.TenantToken) any {
 			sn.searchRequests.Inc()
 			err = sn.processSearchQuery(qt, rd, f, workerID, deadline)
 			if err != nil {
