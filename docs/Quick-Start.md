@@ -37,6 +37,12 @@ and [Grafana setup](https://docs.victoriametrics.com/single-server-victoriametri
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/changelog/) and performing [regular upgrades](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
 
+### Starting VictoriaMetrics Single Node or Cluster on VictoriaMetrics Cloud {anchor="starting-vm-on-cloud"}
+
+The following steps will guide you through starting VictoriaMetrics on VictoriaMetrics Cloud:
+1. Go to [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) and sign up (it's free).
+1. After signing up, you will be immediately granted $200 of trial credits you can spend on running Single node or Cluster.
+1. Navigate to the VictoriaMetrics Cloud [quick start](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart/#creating-deployments) guide for detailed instructions.
 
 ### Starting VictoriaMetrics Single Node via Docker {anchor="starting-vm-single-via-docker"}
 
