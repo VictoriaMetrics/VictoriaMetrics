@@ -2777,6 +2777,7 @@ _Appears in:_
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
 | `podDisruptionBudget` | PodDisruptionBudget created by operator | _[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec)_ | false |
 | `podMetadata` | PodMetadata configures Labels and Annotations which are propagated to the alertmanager pods. | _[EmbeddedObjectMetadata](#embeddedobjectmetadata)_ | false |
+| `port` | Port for listen | _string_ | false |
 | `portName` | PortName used for the pods and governing service.<br />This defaults to web | _string_ | false |
 | `priorityClassName` | PriorityClassName class assigned to the Pods | _string_ | false |
 | `readinessGates` | ReadinessGates defines pod readiness gates | _[PodReadinessGate](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podreadinessgate-v1-core) array_ | true |
