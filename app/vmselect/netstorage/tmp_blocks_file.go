@@ -7,12 +7,17 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
+
+var tmpBufSize = flagutil.NewBytes("search.inmemoryBufSizeBytes", 0, "Size for in-memory data blocks used during processing search requests. "+
+	"By default, the size is automatically calculated based on available memory. "+
+	"Adjust this flag value if you observe that vm_tmp_blocks_max_inmemory_file_size_bytes metric constantly shows much higher values than vm_tmp_blocks_inmemory_file_size_bytes. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6851")
 
 // InitTmpBlocksDir initializes directory to store temporary search results.
 //
@@ -29,6 +34,9 @@ func InitTmpBlocksDir(tmpDirPath string) {
 var tmpBlocksDir string
 
 func maxInmemoryTmpBlocksFile() int {
+	if tmpBufSize.IntN() > 0 {
+		return tmpBufSize.IntN()
+	}
 	mem := memory.Allowed()
 	maxLen := mem / 1024
 	if maxLen < 64*1024 {
@@ -40,9 +48,12 @@ func maxInmemoryTmpBlocksFile() int {
 	return maxLen
 }
 
-var _ = metrics.NewGauge(`vm_tmp_blocks_max_inmemory_file_size_bytes`, func() float64 {
-	return float64(maxInmemoryTmpBlocksFile())
-})
+var (
+	_ = metrics.NewGauge(`vm_tmp_blocks_max_inmemory_file_size_bytes`, func() float64 {
+		return float64(maxInmemoryTmpBlocksFile())
+	})
+	tmpBufSizeSummary = metrics.NewSummary(`vm_tmp_blocks_inmemory_file_size_bytes`)
+)
 
 type tmpBlocksFile struct {
 	buf []byte
@@ -65,6 +76,8 @@ func getTmpBlocksFile() *tmpBlocksFile {
 
 func putTmpBlocksFile(tbf *tmpBlocksFile) {
 	tbf.MustClose()
+	bufLen := tbf.Len()
+	tmpBufSizeSummary.Update(float64(bufLen))
 	tbf.buf = tbf.buf[:0]
 	tbf.f = nil
 	tbf.r = nil

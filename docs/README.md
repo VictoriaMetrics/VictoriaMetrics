@@ -1202,8 +1202,8 @@ Using the delete API is not recommended in the following cases, since it brings 
 * Reducing disk space usage by deleting unneeded time series. This doesn't work as expected, since the deleted
   time series occupy disk space until the next merge operation, which can never occur when deleting too old data.
   [Forced merge](#forced-merge) may be used for freeing up disk space occupied by old data.
-  Note that VictoriaMetrics doesn't delete entries from inverted index (aka `indexdb`) for the deleted time series.
-  Inverted index is cleaned up once per the configured [retention](#retention).
+  Note that VictoriaMetrics doesn't delete entries from [IndexDB](#indexdb) for the deleted time series.
+  IndexDB is cleaned up once per the configured [retention](#retention).
 
 It's better to use the `-retentionPeriod` command-line flag for efficient pruning of old data.
 
@@ -1905,7 +1905,46 @@ See more details in [monitoring docs](#monitoring).
 
 See [this article](https://valyala.medium.com/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) for more details.
 
-See also [how to work with snapshots](#how-to-work-with-snapshots).
+See also [how to work with snapshots](#how-to-work-with-snapshots) and [IndexDB](#indexdb).
+
+## IndexDB
+
+VictoriaMetrics identifies
+[time series](https://docs.victoriametrics.com/keyconcepts/#time-series) by
+`TSID` (time series ID) and stores
+[raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) sorted
+by TSID (see [Storage](#storage)). Thus, the TSID is a primary index and could
+be used for searching and retrieving raw samples. However, the TSID is never
+exposed to the clients, i.e. it is for internal use only.
+
+Instead, VictoriaMetrics maintains an **inverted index** that enables searching
+the raw samples by metric name, label name, and label value by mapping these
+values to the corresponding TSIDs.
+
+VictoriaMetrics uses two types of inverted indexes:
+
+-   Global index. Searches using this index is performed across the entire
+    retention period.
+-   Per-day index. This index stores mappings similar to ones in global index
+    but also includes the date in each mapping. This speeds up data retrieval
+    for queries within a shorter time range (which is often just the last day).
+
+When the search query is executed, VictoriaMetrics decides which index to use
+based on the time range of the query:
+
+-   Per-day index is used if the search time range is 40 days or less.
+-   Global index is used for search queries with a time range greater than 40
+    days.
+
+Mappings are added to the indexes during the data ingestion:
+
+-   In global index each mapping is created only once per retention period.
+-   In the per-day index each mapping is be created for each unique date that
+    has been seen in the samples for the corresponding time series.
+
+IndexDB respects [retention period](#retention) and once it is over, the indexes
+are dropped. For the new retention period, the indexes are gradually populated
+again as the new samples arrive.
 
 ## Retention
 
@@ -1969,8 +2008,8 @@ For example, the following config sets 3 days retention for time series with `te
 Important notes:
 
 - The data outside the configured retention isn't deleted instantly - it is deleted eventually during [background merges](https://docs.victoriametrics.com/#storage).
-- The `-retentionFilter` doesn't remove old data from `indexdb` (aka inverted index) until the configured [-retentionPeriod](#retention).
-  So the `indexdb` size can grow big under [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
+- The `-retentionFilter` doesn't remove old data from [IndexDB](#indexdb) until the configured [-retentionPeriod](#retention).
+  So the IndexDB size can grow big under [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
   even for small retentions configured via `-retentionFilter`.
 
 It is safe updating `-retentionFilter` during VictoriaMetrics restarts - the updated retention filters are applied eventually
