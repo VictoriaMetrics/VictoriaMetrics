@@ -203,6 +203,16 @@ func (db *indexDB) scheduleToDrop() {
 
 // UpdateMetrics updates m with metrics from the db.
 func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
+	// global index metrics
+	m.DeletedMetricsCount += uint64(db.s.getDeletedMetricIDs().Len())
+
+	m.IndexBlocksWithMetricIDsProcessed = indexBlocksWithMetricIDsProcessed.Load()
+	m.IndexBlocksWithMetricIDsIncorrectOrder = indexBlocksWithMetricIDsIncorrectOrder.Load()
+
+	m.MinTimestampForCompositeIndex = uint64(db.s.minTimestampForCompositeIndex)
+	m.CompositeFilterSuccessConversions = compositeFilterSuccessConversions.Load()
+	m.CompositeFilterMissingConversions = compositeFilterMissingConversions.Load()
+
 	var cs fastcache.Stats
 
 	cs.Reset()
@@ -213,8 +223,6 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.TagFiltersToMetricIDsCacheRequests += cs.GetCalls
 	m.TagFiltersToMetricIDsCacheMisses += cs.Misses
 
-	m.DeletedMetricsCount += uint64(db.s.getDeletedMetricIDs().Len())
-
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 	m.MissingTSIDsForMetricID += db.missingTSIDsForMetricID.Load()
 
@@ -224,16 +232,26 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 
 	m.MissingMetricNamesForMetricID += db.missingMetricNamesForMetricID.Load()
 
-	m.IndexBlocksWithMetricIDsProcessed = indexBlocksWithMetricIDsProcessed.Load()
-	m.IndexBlocksWithMetricIDsIncorrectOrder = indexBlocksWithMetricIDsIncorrectOrder.Load()
-
-	m.MinTimestampForCompositeIndex = uint64(db.s.minTimestampForCompositeIndex)
-	m.CompositeFilterSuccessConversions = compositeFilterSuccessConversions.Load()
-	m.CompositeFilterMissingConversions = compositeFilterMissingConversions.Load()
-
 	db.tb.UpdateMetrics(&m.TableMetrics)
 	db.doExtDB(func(extDB *indexDB) {
 		extDB.tb.UpdateMetrics(&m.TableMetrics)
+
+		cs.Reset()
+		extDB.tagFiltersToMetricIDsCache.UpdateStats(&cs)
+		m.TagFiltersToMetricIDsCacheSize += cs.EntriesCount
+		m.TagFiltersToMetricIDsCacheSizeBytes += cs.BytesSize
+		m.TagFiltersToMetricIDsCacheSizeMaxBytes += cs.MaxBytesSize
+		m.TagFiltersToMetricIDsCacheRequests += cs.GetCalls
+		m.TagFiltersToMetricIDsCacheMisses += cs.Misses
+
+		m.IndexDBRefCount += uint64(extDB.refCount.Load())
+		m.MissingTSIDsForMetricID += extDB.missingTSIDsForMetricID.Load()
+
+		m.DateRangeSearchCalls += extDB.dateRangeSearchCalls.Load()
+		m.DateRangeSearchHits += extDB.dateRangeSearchHits.Load()
+		m.GlobalSearchCalls += extDB.globalSearchCalls.Load()
+
+		m.MissingMetricNamesForMetricID += extDB.missingMetricNamesForMetricID.Load()
 		m.IndexDBRefCount += uint64(extDB.refCount.Load())
 	})
 }
@@ -3321,6 +3339,7 @@ func (s uint64Sorter) Len() int { return len(s) }
 func (s uint64Sorter) Less(i, j int) bool {
 	return s[i] < s[j]
 }
+
 func (s uint64Sorter) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
