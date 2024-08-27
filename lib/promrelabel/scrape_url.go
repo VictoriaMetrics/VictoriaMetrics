@@ -38,6 +38,13 @@ func GetScrapeURL(labels *promutils.Labels, extraParams map[string][]string) (st
 		address = address[:n]
 	}
 
+	// If port is missing, typically it should be 80/443. This WAS written in a label and used as scrapeURL.
+	// However, adding the port by default can cause some issues, see: https://github.com/prometheus/prometheus/pull/9523#issuecomment-2059314966
+	// After https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6792:
+	// - don't add the default port to scrapeURL.
+	// - continue adding the default port to the label value for backward compatibility and avoid generating new time series.
+	addressMustWithPort := addMissingPort(address, scheme == "https")
+
 	if !strings.HasPrefix(metricsPath, "/") {
 		metricsPath = "/" + metricsPath
 	}
@@ -51,7 +58,7 @@ func GetScrapeURL(labels *promutils.Labels, extraParams map[string][]string) (st
 	}
 	paramsStr := url.Values(params).Encode()
 	scrapeURL := buildScrapeURL(scheme, address, metricsPath, optionalQuestion, paramsStr)
-	return scrapeURL, address
+	return scrapeURL, addressMustWithPort
 }
 
 func getParamsFromLabels(labels *promutils.Labels, extraParams map[string][]string) map[string][]string {
@@ -83,6 +90,27 @@ func buildScrapeURL(scheme, address, metricsPath, optionalQuestion, paramsStr st
 	b = append(b, metricsPath...)
 	b = append(b, optionalQuestion...)
 	b = append(b, paramsStr...)
+	s := bytesutil.InternBytes(b)
+	bb.B = b
+	bbPool.Put(bb)
+	return s
+}
+
+func addMissingPort(addr string, isTLS bool) string {
+	if strings.Contains(addr, ":") {
+		return addr
+	}
+	if isTLS {
+		return concatTwoStrings(addr, ":443")
+	}
+	return concatTwoStrings(addr, ":80")
+}
+
+func concatTwoStrings(x, y string) string {
+	bb := bbPool.Get()
+	b := bb.B[:0]
+	b = append(b, x...)
+	b = append(b, y...)
 	s := bytesutil.InternBytes(b)
 	bb.B = b
 	bbPool.Put(bb)
