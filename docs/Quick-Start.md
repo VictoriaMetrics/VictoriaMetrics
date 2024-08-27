@@ -11,16 +11,18 @@ aliases:
 ---
 ## How to install
 
-VictoriaMetrics is distributed in two forms:
+VictoriaMetrics is distributed in the following forms:
+
 * [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) - all-in-one
   binary, which is very easy to use and maintain.
   Single-server-VictoriaMetrics perfectly scales vertically and easily handles millions of metrics/s;
 * [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) - set of components
   for building horizontally scalable clusters.
+* [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) - allows 
+  users to run VictoriaMetrics, hosted on AWS, without the need to perform typical DevOps tasks such as proper configuration, monitoring, logs collection, access protection, software updates, backups, etc. 
 
-Single-server-VictoriaMetrics VictoriaMetrics is available as:
+VictoriaMetrics is available as:
 
-* [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_quickstart) – the most cost-efficient hosted monitoring platform, operated by VictoriaMetrics core team.
 * [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/)
 * [Helm Charts](https://github.com/VictoriaMetrics/helm-charts#list-of-charts)
 * [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
