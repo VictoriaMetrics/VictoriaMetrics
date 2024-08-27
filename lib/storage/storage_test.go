@@ -1712,7 +1712,7 @@ type counts struct {
 	dateTSDBStatuses map[uint64]*TSDBStatus
 }
 
-// assertCounts retrieves various counts from storage and comparates them with
+// assertCounts retrieves various counts from storage and compares them with
 // the wanted ones.
 //
 // Some counts can be greater than wanted values because duplicate metric IDs
