@@ -1946,6 +1946,8 @@ IndexDB respects [retention period](#retention) and once it is over, the indexes
 are dropped. For the new retention period, the indexes are gradually populated
 again as the new samples arrive.
 
+Also see how IndexDB can be [tuned](#index-tuning).
+
 ## Retention
 
 Retention is configured with the `-retentionPeriod` command-line flag, which takes a number followed by a time unit 
@@ -2525,7 +2527,8 @@ See the full description of flags [here](#list-of-command-line-flags).
 
 By default, VictoriaMetrics uses the following indexes for data retrieval:
 `global` and `per-day`. Both store the same data, the only difference is that
-the per-day index adds the date to each record.
+the per-day index adds the date to each record. See [IndexDB](#indexdb) for
+details.
 
 If your use case involves
 [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
