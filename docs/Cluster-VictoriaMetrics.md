@@ -123,6 +123,9 @@ Currently supported endpoints for `<suffix>` are:
 - `/prometheus/api/v1/label/<label_name>/values`
 - `/prometheus/api/v1/status/active_queries`
 - `/prometheus/api/v1/status/top_queries`
+- `/prometheus/api/v1/status/tsdb`
+- `/prometheus/api/v1/export`
+- `/prometheus/api/v1/export/csv`
 - `/vmui`
 
 It is possible to explicitly specify `accountID` and `projectID` for querying multiple tenants via `vm_account_id` and `vm_project_id` labels in the query.
