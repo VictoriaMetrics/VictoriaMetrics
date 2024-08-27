@@ -112,6 +112,28 @@ Deprecated since [v1.8.0](https://docs.victoriametrics.com/anomaly-detection/cha
         </tr>
         <tr>
             <td>
+`bearer_token`
+            </td>
+            <td>
+`token`
+            </td>
+            <td>
+Token is passed in the standard format with header: `Authorization: bearer {token}`. Available since [v1.15.9](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1159)
+            </td>
+        </tr>
+        <tr>
+            <td>
+`bearer_token_file`
+            </td>
+            <td>
+`path_to_file`
+            </td>
+            <td>
+Path to a file, which contains token, that is passed in the standard format with header: `Authorization: bearer {token}`. Available since [v1.15.9](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1159)
+            </td>
+        </tr>
+        <tr>
+            <td>
 
 `verify_tls`
             </td>

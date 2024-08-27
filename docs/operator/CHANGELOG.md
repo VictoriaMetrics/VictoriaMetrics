@@ -11,7 +11,18 @@ aliases:
   - /operator/changelog/index.html
 ---
 
-- fixed Prometheus scrape config metricsPath conversion. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1073)
+
+- [operator](https://docs.victoriametrics.com/operator/): fixes statefulset `rollingUpdate` strategyType readiness check.
+- [operator](https://docs.victoriametrics.com/operator/): fixes statefulset reconcile endless loop bug introduced at v0.47.1 version with [commit](https://github.com/VictoriaMetrics/operator/commit/57b65771b29ffd8b5d577e160aacddf0481295ee).
+- [vmuser](https://docs.victoriametrics.com/operator/resources/vmuser/): fixes `crd.kind` enum param for `VMAlertmanager`, it now supports both `VMAlertmanager` and `VMAlertManager`. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1083) for details.
+
+## [v0.47.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.1) - 23 Aug 2024
+
+**It is recommended upgrading to [operator v0.47.2](https://docs.victoriametrics.com/operator/changelog/#v0471---23-aug-2024) because v0.47.1 contains a bug, which can lead to endless statefulset reconcile loop.**
+
+- [operator](https://docs.victoriametrics.com/operator/): properly update statefulset on `revisionHistoryLimitCount` change. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1070) for details.
+- [vmalertmanagerconfig](https://docs.victoriametrics.com/operator/resources/vmalertmanagerconfig): properly construct `tls_config` for `emails` notifications. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1080) for details.
+- [operator](https://docs.victoriametrics.com/operator/): fixed Prometheus scrape config metricsPath conversion. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1073)
 - [config-reloader](https://docs.victoriametrics.com/operator/): Added `reload` prefix to all config-reloader `tls*` flags to avoid collision with flags from external package. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1072)
 
 ## [v0.47.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.0) - 15 Aug 2024
@@ -1148,7 +1159,7 @@ aliases:
 - Major API update for `VMServiceScrape`, `VMPodScrape`, `VMProbe`, `VMStaticScrape` and `VMNodeScrape`:
 - adds missing config params (sampleLimit and etc)
 - Adds new config options `vm_scrape_params` <https://github.com/VictoriaMetrics/operator/issues/303>
-- Adds proxyAuth, that allows to authenticate [proxy requests](https://docs.victoriametrics.com/vmagent#scraping-targets-via-a-proxy
+- Adds proxyAuth, that allows to authenticate [proxy requests](<https://docs.victoriametrics.com/vmagent#scraping-targets-via-a-proxy>
 - Adds OAuth2 support.
 - Adds `apiextensions.k8s.io/v1` `CRD` generation, `v1beta1` is now legacy <https://github.com/VictoriaMetrics/operator/issues/291>
 - Adds new `CRD` `VMAlertmanagerConfig`, it supports only v0.22 `alertmanager` version or above <https://github.com/VictoriaMetrics/operator/issues/188>
