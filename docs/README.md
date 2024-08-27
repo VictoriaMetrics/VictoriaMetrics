@@ -1923,15 +1923,11 @@ values to the corresponding TSIDs.
 
 VictoriaMetrics uses two types of inverted indexes:
 
--   Global index. This was the original type of index used by VictoriaMetrics.
-    Searches using this index is performed across the entire retention period.
--   Per-day index. This index was introduced later as an optimization for
-    handling.
-    [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
-    (frequent creation and deletion of time series). The per-day index stores
-    mappings similar to ones in global index but also includes the date in each
-    mapping. This speeds up data retrieval for queries within a shorter time
-    range (which is often just the last day).
+-   Global index. Searches using this index is performed across the entire
+    retention period.
+-   Per-day index. This index stores mappings similar to ones in global index
+    but also includes the date in each mapping. This speeds up data retrieval
+    for queries within a shorter time range (which is often just the last day).
 
 When the search query is executed, VictoriaMetrics decides which index to use
 based on the time range of the query:
@@ -1943,12 +1939,8 @@ based on the time range of the query:
 Mappings are added to the indexes during the data ingestion:
 
 -   In global index each mapping is created only once per retention period.
--   In the per-day index each mapping will be created for each unique date that
+-   In the per-day index each mapping is be created for each unique date that
     has been seen in the samples for the corresponding time series.
-
-NOTE: The mappings are not created atomically and duplicates are possible when
-the samples for a new time series or a new label name-value pair are inserted
-concurrently.
 
 IndexDB respects [retention period](#retention) and once it is over, the indexes
 are dropped. For the new retention period, the indexes are gradually populated
