@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
+
+Released at 2024-08-28
+
 **Update note: The `external_labels` field in vmalert-tool [test file](https://docs.victoriametrics.com/vmalert-tool/#test-file-format) will be deprecated soon. Please use `-external.label` command-line flag instead, in the same way as vmalert uses it. This change is done for the sake of consistency between vmalert and vmalert-tool configuration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6735).**
 
 * FEATURE: add `/influx/health` health-check handler for Influx endpoints. This is needed as some clients use the health endpoint to determine if the server is healthy and ready for data ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6653) for the details.
