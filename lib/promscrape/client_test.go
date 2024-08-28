@@ -3,6 +3,7 @@ package promscrape
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -143,8 +144,16 @@ func TestClientProxyReadOk(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create client: %s", err)
 		}
+
 		var bb bytesutil.ByteBuffer
-		if err := c.ReadData(&bb); err != nil {
+		err = c.ReadData(&bb)
+		if errors.Is(err, io.EOF) {
+			bb.Reset()
+			// EOF could occur in slow envs, like CI
+			err = c.ReadData(&bb)
+		}
+
+		if err != nil {
 			t.Fatalf("unexpected error at ReadData: %s", err)
 		}
 		got, err := io.ReadAll(bb.NewReader())
