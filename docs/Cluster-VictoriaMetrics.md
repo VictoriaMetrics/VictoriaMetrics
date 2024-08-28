@@ -877,13 +877,17 @@ HDD-based persistent disks should be enough for the majority of use cases. It is
 
 ## Deduplication
 
-Cluster version of VictoriaMetrics supports data deduplication in the same way as single-node version do. See [these docs](https://docs.victoriametrics.com/#deduplication) for details. The only difference is that the same `-dedup.minScrapeInterval` command-line flag value must be passed to both `vmselect` and `vmstorage` nodes because of the following aspects:
+Cluster version of VictoriaMetrics supports data deduplication in the same way as single-node version do. 
+See [these docs](https://docs.victoriametrics.com/#deduplication) for details. The only difference is that 
+deduplication can't be guaranteed when samples and sample duplicates for the same time series end up on different 
+`vmstorage` nodes. This could happen in the following scenarios:
 
-By default, `vminsert` tries to route all the samples for a single time series to a single `vmstorage` node. But samples for a single time series can be spread among multiple `vmstorage` nodes under certain conditions:
-* when adding/removing `vmstorage` nodes. Then new samples for a part of time series will be routed to another `vmstorage` nodes;
+* when adding/removing `vmstorage` nodes a new samples for time series will be re-routed to another `vmstorage` nodes;
 * when `vmstorage` nodes are temporarily unavailable (for instance, during their restart). Then new samples are re-routed to the remaining available `vmstorage` nodes;
 * when `vmstorage` node has no enough capacity for processing incoming data stream. Then `vminsert` re-routes new samples to other `vmstorage` nodes.
 
+It is recommended to set **the same** `-dedup.minScrapeInterval` command-line flag value to both `vmselect` and `vmstorage` nodes
+to ensure query results consistency, even if storage layer didn't complete deduplication yet.
 
 ## Backups
 
