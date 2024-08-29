@@ -1158,12 +1158,12 @@ into your `vmagent`s' health. Specifically, you won’t be able to see if queues
 To address this reliability concern, you can configure your `vmagent` to send their metrics to
 [VictoriaMetrics Cloud](https://victoriametrics.com/products/cloud/) instead of, or in addition to, your main monitoring system. 
 By decoupling `vmagent` monitoring from the main infrastructure, you ensure that you have a reliable, 
-cloud-based backup to monitor the health and performance of your `vmagent`s. 
+cloud-based backup to monitor the health and performance of your `vmagent` instances. 
 This approach provides an independent stream of metrics that remains available even if your primary 
 monitoring infrastructure goes down.
 
 This setup enhances the reliability of your monitoring solution by ensuring that you can still track 
-the performance and state of `vmagent`s even during monitoring infrastructure outages. 
+the performance and state of `vmagent` instances even during monitoring infrastructure outages. 
 You can detect and react to growing queues or other issues promptly, reducing the risk of metrics loss. 
 Just add appropriate alerting rules in VictoriaMetrics Cloud to notify you of any issues.
 
@@ -1172,18 +1172,35 @@ Just add appropriate alerting rules in VictoriaMetrics Cloud to notify you of an
 1. Create a [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_vmagent_mom) account (it's free!)
 1. Once registered, [create a new deployment](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart/#creating-deployments) to which your `vmagent`s will send their metrics.
 1. After setting up your deployment, note down the VictoriaMetrics Cloud URL and authentication token (we recommend using write-only token for this use case).
-1. Configure `vmagent` to scrape its own metrics and send them to VictoriaMetrics Cloud: 
-   1. Enable self-scraping:
-     ```yaml
-        ---
-        TBD
-     ```
-   1. Send only `vmagent`'s metrics to VictoriaMetrics Cloud:
-     ```sh 
-        TBD
-     ```
-1. Save and reload `vmagent` configuration.
-2. [Set up the official Grafana dashboard](https://grafana.com/grafana/dashboards/12683) to monitor the state of `vmagent`. 
+1. Configure `vmagent` to scrape its own metrics. 
+   Enable self-scraping in `vmagent` configuration file:
+   ```yaml
+   scrape_configs:
+     - job_name: 'vmagent'
+       static_configs:
+         - targets: ['localhost:8429']
+   ```
+   > Please note, if you're using multiple `vmagent` instances it is recommended to use [service discovery](https://docs.victoriametrics.com/sd_configs/) to scrape metrics from all `vmagent` instances.
+1. Send only `vmagent` metrics to VictoriaMetrics Cloud:
+   
+   In order to do that you can use [relabeling](https://docs.victoriametrics.com/relabeling/) to control 
+   which metrics are being sent to VictoriaMetrics Cloud. Relabeling configuration will look as follows (it needs to be saved as `url_relabeling-mom.yaml`):
+   ```sh 
+   - if: {job="vmagent"}
+     action: keep_metrics
+   ```
+   Start `vmagent` with the following command-line flags: 
+   ```
+   -remoteWrite.bearerTokenFile=/{bearer_token_file_path} \
+   -remoteWrite.url=http://{main_victoriametrics_endpoint},https://{victoriametrics_cloud_endpoint}/api/v1/write \
+   -remoteWrite.urlRelabelConfig=,url_relabeling-mom.yaml
+   ```
+   These flags will configure the following:
+   - `remoteWrite.bearerTokenFile` - authentication for VictoriaMetrics Cloud
+   - `remoteWrite.urlRelabelConfig` - relabeling configuration to only push `vmagent`'s metrics to VictoriaMetrics Cloud
+   - `remoteWrite.url` - endpoints to push `vmagent` metrics to.
+1. Restart `vmagent` to apply newly added command-line flags.
+1. [Set up the official Grafana dashboard](https://grafana.com/grafana/dashboards/12683) to monitor the state of `vmagent`. 
 Just add a new data source in Grafana with the URL of your VictoriaMetrics Cloud deployment and a read-only authentication token. 
 
 ## Troubleshooting
