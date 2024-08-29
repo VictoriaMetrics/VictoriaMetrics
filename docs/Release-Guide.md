@@ -102,7 +102,6 @@ Bumping the limits may significantly improve build speed.
 * Post in Reddit at <https://www.reddit.com/r/VictoriaMetrics/>
 * Post in LinkedIn at <https://www.linkedin.com/company/victoriametrics/>
 * Publish message in Telegram at <https://t.me/VictoriaMetrics_en> and <https://t.me/VictoriaMetrics_ru1>
-* Publish message in Google Groups at <https://groups.google.com/forum/#!forum/victorametrics-users>
 
 ## Operator
 

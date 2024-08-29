@@ -877,13 +877,17 @@ HDD-based persistent disks should be enough for the majority of use cases. It is
 
 ## Deduplication
 
-Cluster version of VictoriaMetrics supports data deduplication in the same way as single-node version do. See [these docs](https://docs.victoriametrics.com/#deduplication) for details. The only difference is that the same `-dedup.minScrapeInterval` command-line flag value must be passed to both `vmselect` and `vmstorage` nodes because of the following aspects:
+Cluster version of VictoriaMetrics supports data deduplication in the same way as single-node version do. 
+See [these docs](https://docs.victoriametrics.com/#deduplication) for details. The only difference is that 
+deduplication can't be guaranteed when samples and sample duplicates for the same time series end up on different 
+`vmstorage` nodes. This could happen in the following scenarios:
 
-By default, `vminsert` tries to route all the samples for a single time series to a single `vmstorage` node. But samples for a single time series can be spread among multiple `vmstorage` nodes under certain conditions:
-* when adding/removing `vmstorage` nodes. Then new samples for a part of time series will be routed to another `vmstorage` nodes;
+* when adding/removing `vmstorage` nodes a new samples for time series will be re-routed to another `vmstorage` nodes;
 * when `vmstorage` nodes are temporarily unavailable (for instance, during their restart). Then new samples are re-routed to the remaining available `vmstorage` nodes;
 * when `vmstorage` node has no enough capacity for processing incoming data stream. Then `vminsert` re-routes new samples to other `vmstorage` nodes.
 
+It is recommended to set **the same** `-dedup.minScrapeInterval` command-line flag value to both `vmselect` and `vmstorage` nodes
+to ensure query results consistency, even if storage layer didn't complete deduplication yet.
 
 ## Backups
 
@@ -1015,7 +1019,6 @@ Feel free asking any questions regarding VictoriaMetrics:
 * [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
 * [Telegram-en](https://t.me/VictoriaMetrics_en)
 * [Telegram-ru](https://t.me/VictoriaMetrics_ru1)
-* [Google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 * [Mastodon](https://mastodon.social/@victoriametrics/)
 
 If you like VictoriaMetrics and want contributing, then please read [these docs](https://docs.victoriametrics.com/contributing/).
@@ -1583,6 +1586,9 @@ Below is the output for `/path/to/vmselect -help`:
      Whether to fix lookback interval to 'step' query arg value. If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored
   -search.skipSlowReplicas
      Whether to skip -replicationFactor - 1 slowest vmstorage nodes during querying. Enabling this setting may improve query speed, but it could also lead to incomplete results if some queried data has less than -replicationFactor copies at vmstorage nodes. Consider enabling this setting only if all the queried data contains -replicationFactor copies in the cluster
+  -search.inmemoryBufSizeBytes size
+     Size for in-memory data blocks used during processing search requests. By default, the size is automatically calculated based on available memory. Adjust this flag value if you observe that vm_tmp_blocks_max_inmemory_file_size_bytes metric constantly shows much higher values than vm_tmp_blocks_inmemory_file_size_bytes. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6851
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -search.treatDotsAsIsInRegexps
      Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
   -selectNode array

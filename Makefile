@@ -13,6 +13,7 @@ PKG_TAG := $(BUILDINFO_TAG)
 endif
 
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
+TAR_OWNERSHIP ?= --owner=1000 --group=1000
 
 .PHONY: $(MAKECMDGOALS)
 
@@ -134,7 +135,7 @@ release-vmcluster-goos-goarch: \
 	vmselect-$(GOOS)-$(GOARCH)-prod \
 	vmstorage-$(GOOS)-$(GOARCH)-prod
 	cd bin && \
-		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+		tar $(TAR_OWNERSHIP) --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			vminsert-$(GOOS)-$(GOARCH)-prod \
 			vmselect-$(GOOS)-$(GOARCH)-prod \
 			vmstorage-$(GOOS)-$(GOARCH)-prod \
@@ -234,7 +235,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.59.1
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.60.1
 
 remove-golangci-lint:
 	rm -rf `which golangci-lint`
