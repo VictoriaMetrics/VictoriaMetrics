@@ -11,6 +11,8 @@ aliases:
   - /operator/changelog/index.html
 ---
 
+- [operator](https://docs.victoriametrics.com/operator/): updates default vm apps version to v1.103.0
+
 ## [v0.47.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.3) - 28 Aug 2024
 
 - [operator](https://docs.victoriametrics.com/operator/): fixes statefulset reconcile endless loop bug introduced at v0.47.0 version with [commit](https://github.com/VictoriaMetrics/operator/commit/57b65771b29ffd8b5d577e160aacddf0481295ee).
