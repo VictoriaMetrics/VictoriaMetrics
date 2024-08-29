@@ -4,3 +4,4 @@ allowlist:
   - BSD-3-Clause
   - BSD-2-Clause
   - ISC
+  - MPL-2.0
