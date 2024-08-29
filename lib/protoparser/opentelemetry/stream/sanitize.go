@@ -2,17 +2,14 @@ package stream
 
 import (
 	"flag"
-	"slices"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
-var (
-	usePrometheusNaming = flag.Bool("opentelemetry.usePrometheusNaming", false, "Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested "+
-		"via OpenTelemetry protocol; see https://docs.victoriametrics.com/#sending-data-via-opentelemetry")
-)
+var usePrometheusNaming = flag.Bool("opentelemetry.usePrometheusNaming", false, "Whether to convert metric names and labels into Prometheus-compatible format for the metrics ingested "+
+	"via OpenTelemetry protocol; see https://docs.victoriametrics.com/#sending-data-via-opentelemetry")
 
 // unitMap is obtained from https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/b8655058501bed61a06bb660869051491f46840b/pkg/translator/prometheus/normalize_name.go#L19
 var unitMap = map[string]string{
@@ -91,6 +88,15 @@ func sanitizeMetricName(m *pb.Metric) string {
 	return sanitizePrometheusMetricName(m)
 }
 
+func contains(src []string, value string) bool {
+	for _, v := range src {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}
+
 func sanitizePrometheusMetricName(m *pb.Metric) string {
 	nameTokens := promrelabel.SplitMetricNameToTokens(m.Name)
 
@@ -101,7 +107,7 @@ func sanitizePrometheusMetricName(m *pb.Metric) string {
 			if u, ok := unitMap[mainUnit]; ok {
 				mainUnit = u
 			}
-			if mainUnit != "" && !slices.Contains(nameTokens, mainUnit) {
+			if mainUnit != "" && !contains(nameTokens, mainUnit) {
 				nameTokens = append(nameTokens, mainUnit)
 			}
 		}
@@ -112,7 +118,7 @@ func sanitizePrometheusMetricName(m *pb.Metric) string {
 				if u, ok := perUnitMap[perUnit]; ok {
 					perUnit = u
 				}
-				if perUnit != "" && !slices.Contains(nameTokens, perUnit) {
+				if perUnit != "" && !contains(nameTokens, perUnit) {
 					nameTokens = append(nameTokens, "per", perUnit)
 				}
 			}

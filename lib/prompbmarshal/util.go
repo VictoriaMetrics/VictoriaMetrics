@@ -26,7 +26,9 @@ func (wr *WriteRequest) Reset() {
 
 // ResetTimeSeries clears all the GC references from tss and returns an empty tss ready for further use.
 func ResetTimeSeries(tss []TimeSeries) []TimeSeries {
-	clear(tss)
+	for i := range tss {
+		tss[i] = TimeSeries{}
+	}
 	return tss[:0]
 }
 

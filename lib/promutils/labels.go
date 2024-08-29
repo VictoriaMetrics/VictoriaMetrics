@@ -115,9 +115,15 @@ func (x *Labels) String() string {
 	return bytesutil.ToUnsafeString(b)
 }
 
+func cleanLabels(labels []prompbmarshal.Label) {
+	for i := range labels {
+		labels[i] = prompbmarshal.Label{}
+	}
+}
+
 // Reset resets x.
 func (x *Labels) Reset() {
-	clear(x.Labels)
+	cleanLabels(x.Labels)
 	x.Labels = x.Labels[:0]
 }
 
@@ -245,7 +251,7 @@ func (x *Labels) RemoveDuplicates() {
 			prevName = label.Name
 		}
 	}
-	clear(labels[len(tmp):])
+	cleanLabels(labels[len(tmp):])
 	x.Labels = tmp
 }
 
@@ -261,7 +267,7 @@ func (x *Labels) RemoveMetaLabels() {
 		}
 		dst = append(dst, label)
 	}
-	clear(src[len(dst):])
+	cleanLabels(src[len(dst):])
 	x.Labels = dst
 }
 
@@ -276,7 +282,7 @@ func (x *Labels) RemoveLabelsWithDoubleUnderscorePrefix() {
 		}
 		dst = append(dst, label)
 	}
-	clear(src[len(dst):])
+	cleanLabels(src[len(dst):])
 	x.Labels = dst
 }
 

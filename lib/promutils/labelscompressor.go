@@ -218,6 +218,8 @@ func (lm *labelsMap) moveMutableToReadOnlyLocked(pReadOnly *[]*prompbmarshal.Lab
 			labels = append(labels, pLabel)
 		}
 	}
-	clear(lm.mutable)
+	for k := range lm.mutable {
+		delete(lm.mutable, k)
+	}
 	lm.readOnly.Store(&labels)
 }
