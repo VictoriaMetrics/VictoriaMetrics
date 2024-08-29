@@ -1623,7 +1623,19 @@ Two types of auth are supported:
 
 ## VictoriaMetrics Cloud integration
 
-TBD
+1. Create a [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_vmagent_mom) account (it's free!), if you don't have one.
+1. [Create a new deployment](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart/#creating-deployments) (Single-node or Cluster) to which your `vmagent` instances will send metrics.
+1. Get the VictoriaMetrics Cloud URL and authentication token (we recommend using write-only token).
+1. Send metrics to VictoriaMetrics Cloud:
+   Start `vmagent` with the following command-line flags:
+   ```
+   -remoteWrite.bearerTokenFile=/{bearer_token_file_path} \
+   -remoteWrite.url=https://{victoriametrics_cloud_endpoint}/api/v1/write \ 
+   ```
+   These flags will configure the following:
+   - `remoteWrite.bearerTokenFile` - authentication for VictoriaMetrics Cloud 
+   - `remoteWrite.url` - VictoriaMetrics Cloud endpoint to push metrics to.
+1. Restart `vmagent` to apply newly added command-line flags.
 
 ## mTLS protection
 
