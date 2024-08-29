@@ -1,5 +1,4 @@
 ---
-sort: 3
 weight: 3
 menu:
   docs:
@@ -228,13 +227,13 @@ To route metrics `env=dev` to destination `dev` and metrics with `env=prod` to d
   source_labels: [env]
   regex: "dev"
 ```
-1. Create relabeling config file `relabelProd.yml` to drop all metrics that don't have label `env=prod`:
+2. Create relabeling config file `relabelProd.yml` to drop all metrics that don't have label `env=prod`:
 ```yaml
 - action: keep
   source_labels: [env]
   regex: "prod"
 ```
-1. Configure `vmagent` with 2 `-remoteWrite.url` flags pointing to destinations `dev` and `prod` with corresponding
+3. Configure `vmagent` with 2 `-remoteWrite.url` flags pointing to destinations `dev` and `prod` with corresponding
 `-remoteWrite.urlRelabelConfig` configs:
 ```sh
 ./vmagent \
@@ -2169,6 +2168,14 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Empty values are set to default value.
   -remoteWrite.relabelConfig string
      Optional path to file with relabeling configs, which are applied to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/vmagent/#relabeling
+  -remoteWrite.retryMaxTime array
+     The max time spent on retry attempts to send a block of data to the corresponding -remoteWrite.url. Change this value if it is expected for -remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval (default 1m0s)
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to default value.
+  -remoteWrite.retryMinInterval array
+     The minimum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval (default 1s)
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to default value.
   -remoteWrite.roundDigits array
      Round metric values to this number of decimal digits after the point before writing them to remote storage. Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. By default, digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. This option may be used for improving data compression for the stored metrics (default 100)
      Supports array of values separated by comma or specified via multiple flags.
@@ -2211,7 +2218,7 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      An optional list of labels to drop from samples before stream de-duplication and aggregation with -remoteWrite.streamAggr.config and -remoteWrite.streamAggr.dedupInterval at the corresponding -remoteWrite.url. See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -remoteWrite.streamAggr.ignoreFirstIntervals int
+  -remoteWrite.streamAggr.ignoreFirstIntervals array
      Number of aggregation intervals to skip after the start for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. Increase this value if you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving bufferred delayed data from clients pushing data into the vmagent. See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start
   -remoteWrite.streamAggr.ignoreOldSamples array
      Whether to ignore input samples with old timestamps outside the current aggregation interval for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples

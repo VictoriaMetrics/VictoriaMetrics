@@ -1,5 +1,4 @@
 ---
-sort: 300
 weight: 300
 title: Long-term support releases
 menu:
@@ -20,5 +19,5 @@ to [the latest available releases](https://docs.victoriametrics.com/changelog/).
 
 ## Currently supported LTS release lines
 
+- 1.102.x - the latest one is [v1.102.1 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.1)
 - 1.97.x - the latest one is [v1.97.6 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.6)
-- 1.93.x - the latest one is [v1.93.16 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.16)

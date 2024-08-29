@@ -1,5 +1,4 @@
 ---
-sort: 35
 weight: 35
 title: Troubleshooting
 menu:

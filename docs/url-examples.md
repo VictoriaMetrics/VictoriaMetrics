@@ -1,5 +1,4 @@
 ---
-sort: 33
 weight: 33
 title: API examples
 menu:

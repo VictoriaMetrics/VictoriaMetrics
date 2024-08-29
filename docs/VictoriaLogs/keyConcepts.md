@@ -1,5 +1,4 @@
 ---
-sort: 2
 weight: 2
 title: Key concepts
 menu:
@@ -111,7 +110,7 @@ Unicode chars must be encoded with [UTF-8](https://en.wikipedia.org/wiki/UTF-8) 
 VictoriaLogs automatically indexes all the fields in all the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs.
 This enables [full-text search](https://docs.victoriametrics.com/victorialogs/logsql/) across all the fields.
 
-VictoriaLogs supports the following special fields additionally to arbitrary [other fields](#other-field):
+VictoriaLogs supports the following special fields additionally to arbitrary [other fields](#other-fields):
 
 * [`_msg` field](#message-field)
 * [`_time` field](#time-field)

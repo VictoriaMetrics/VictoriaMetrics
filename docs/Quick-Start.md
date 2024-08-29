@@ -1,5 +1,4 @@
 ---
-sort: 22
 weight: 22
 title: Quick start
 menu:
@@ -21,7 +20,7 @@ VictoriaMetrics is distributed in two forms:
 
 Single-server-VictoriaMetrics VictoriaMetrics is available as:
 
-* [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_quickstart) – the most cost-efficient hosted monitoring platfor, operated by VictoriaMetrics core team.
+* [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_quickstart) – the most cost-efficient hosted monitoring platform, operated by VictoriaMetrics core team.
 * [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/)
 * [Helm Charts](https://github.com/VictoriaMetrics/helm-charts#list-of-charts)
 * [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
@@ -53,7 +52,7 @@ docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 842
 ```
 
 
-Open <a href="http://localhost:8428">http://localhost:8428</a> in web browser
+Open `http://localhost:8428` in web browser
 and read [these docs](https://docs.victoriametrics.com/#operation).
 
 There is also [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/)

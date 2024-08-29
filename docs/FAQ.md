@@ -1,5 +1,4 @@
 ---
-sort: 24
 weight: 24
 title: FAQ
 menu:
@@ -281,7 +280,8 @@ Questions about VictoriaMetrics can be asked via the following channels:
 
 * [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
 * [Telegram channel](https://t.me/VictoriaMetrics_en)
-* [Google group](https://groups.google.com/forum/#!forum/victorametrics-users)
+
+See the full list of [community channels](https://docs.victoriametrics.com/#community-and-contributions).
 
 ## Where can I file bugs and feature requests regarding VictoriaMetrics?
 
