@@ -10,7 +10,8 @@ aliases:
 ---
 `vmagent` is a tiny agent which helps you collect metrics from various sources,
 [relabel and filter the collected metrics](#relabeling)
-and store them in [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
+and store them in [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics),
+[VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_vmagent_intro)
 or any other storage systems via Prometheus `remote_write` protocol
 or via [VictoriaMetrics `remote_write` protocol](#victoriametrics-remote-write-protocol).
 
@@ -1146,9 +1147,48 @@ If you have suggestions for improvements or have found a bug - please open an is
   its initialization for all the [service_discovery configs](https://docs.victoriametrics.com/sd_configs/).
   It may be useful to perform `vmagent` rolling update without any scrape loss.
 
+### Monitoring of monitoring using VictoriaMetrics Cloud
+
+In a typical monitoring setup, `vmagent`s collect and forward its own metrics (exposed at `http://vmagent-host:8429/metrics`) 
+to a centralized monitoring infrastructure. While this setup works well under normal conditions, 
+it presents a weakness: if the main monitoring infrastructure experiences downtime, you lose visibility 
+into your `vmagent`s' health. Specifically, you won’t be able to see if queues are building up within 
+`vmagent`s, which at some point in time could lead to a loss of critical metrics.
+
+To address this reliability concern, you can configure your `vmagent` to send their metrics to
+[VictoriaMetrics Cloud](https://victoriametrics.com/products/cloud/) instead of, or in addition to, your main monitoring system. 
+By decoupling `vmagent` monitoring from the main infrastructure, you ensure that you have a reliable, 
+cloud-based backup to monitor the health and performance of your `vmagent`s. 
+This approach provides an independent stream of metrics that remains available even if your primary 
+monitoring infrastructure goes down.
+
+This setup enhances the reliability of your monitoring solution by ensuring that you can still track 
+the performance and state of `vmagent`s even during monitoring infrastructure outages. 
+You can detect and react to growing queues or other issues promptly, reducing the risk of metrics loss. 
+Just add appropriate alerting rules in VictoriaMetrics Cloud to notify you of any issues.
+
+#### Configuring `vmagent` to send metrics to VictoriaMetrics Cloud
+
+1. Create a [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_vmagent_mom) account (it's free!)
+1. Once registered, [create a new deployment](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart/#creating-deployments) to which your `vmagent`s will send their metrics.
+1. After setting up your deployment, note down the VictoriaMetrics Cloud URL and authentication token (we recommend using write-only token for this use case).
+1. Configure `vmagent` to scrape its own metrics and send them to VictoriaMetrics Cloud: 
+   1. Enable self-scraping:
+     ```yaml
+        ---
+        TBD
+     ```
+   1. Send only `vmagent`'s metrics to VictoriaMetrics Cloud:
+     ```sh 
+        TBD
+     ```
+1. Save and reload `vmagent` configuration.
+2. [Set up the official Grafana dashboard](https://grafana.com/grafana/dashboards/12683) to monitor the state of `vmagent`. 
+Just add a new data source in Grafana with the URL of your VictoriaMetrics Cloud deployment and a read-only authentication token. 
+
 ## Troubleshooting
 
-* It is recommended [setting up the official Grafana dashboard](#monitoring) in order to monitor the state of `vmagent'.
+* It is recommended [setting up the official Grafana dashboard](#monitoring) in order to monitor the state of `vmagent`.
 
 * It is recommended increasing the maximum number of open files in the system (`ulimit -n`) when scraping a big number of targets,
   as `vmagent` establishes at least a single TCP connection per target.
@@ -1563,6 +1603,10 @@ Two types of auth are supported:
     -remoteWrite.tlsCertFile=/opt/cert.pem \
     -remoteWrite.tlsKeyFile=/opt/key.pem
 ```
+
+## VictoriaMetrics Cloud integration
+
+TBD
 
 ## mTLS protection
 
