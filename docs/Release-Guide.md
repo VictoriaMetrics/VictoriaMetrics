@@ -158,10 +158,3 @@ Once updated, run the following commands:
 1. Commit changes.
 1. Create a new tag with `git tag -sm <TAG> <TAG>`.
 1. Push the changes with the new tag. This automatically publishes the new versions to galaxy.ansible.com.
-
-## RPM packages
-
-### Bump the version of components
-
-1. Update the version of VictoriaMetrics components at [https://github.com/VictoriaMetrics/victoriametrics-lts-rpm](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm).
-1. Commit and push changes to the repository. This will automatically build and publish new versions of RPM packages.
