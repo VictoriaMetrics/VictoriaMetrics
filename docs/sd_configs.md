@@ -1768,7 +1768,7 @@ scrape_configs:
   # the entire scrape will be treated as failed.
   # By default, the limit is disabled.
   # The sample_limit can be set on a per-target basis by specifying `__sample_limit__`
-  # label during target relabeling phase.
+  # label during target relabeling phase. Available starting from v1.103.0.
   # See https://docs.victoriametrics.com/vmagent/#relabeling
   #
   # sample_limit: <int>
