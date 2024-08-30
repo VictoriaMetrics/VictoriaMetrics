@@ -961,11 +961,6 @@ For example, a rule with `expr: {__name__=~"vmalert_alerts_.*"} > 0` returns two
 As label `__name__` will be dropped during evaluation, leads to duplicated time series.
 To fix this, one could use function like [label_replace](https://docs.victoriametrics.com/metricsql/#label_replace) to preserve the distinct labelset.
 
-### VictoriaMetrics Cloud
-
-If you are using [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_troubleshooting) 
-and encounter issues with alerting or recording rules, please contact VictoriaMetrics Cloud [support](https://cloud.victoriametrics.com/contact_support) for assistance.
-
 ## mTLS protection
 
 By default `vmalert` accepts http requests at `8880` port (this port can be changed via `-httpListenAddr` command-line flags),
