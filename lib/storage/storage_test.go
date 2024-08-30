@@ -1939,6 +1939,7 @@ func testStorageVariousDataPatterns(t *testing.T, registerOnly bool, op func(s *
 			sameRowDates:         sameRowDates,
 		})
 		strict := concurrency == 1
+		rowsAddedTotal := wantCounts.metrics.RowsAddedTotal
 
 		s := MustOpenStorage(t.Name(), 0, 0, 0)
 
@@ -1951,6 +1952,7 @@ func testStorageVariousDataPatterns(t *testing.T, registerOnly bool, op func(s *
 		s.mustRotateIndexDB(time.Now())
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()
+		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
 		assertCounts(t, s, wantCounts, strict)
 
 		// Empty the tsidCache to test the case when tsid is retrived from the
@@ -1958,6 +1960,7 @@ func testStorageVariousDataPatterns(t *testing.T, registerOnly bool, op func(s *
 		s.resetAndSaveTSIDCache()
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()
+		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
 		assertCounts(t, s, wantCounts, strict)
 
 		// Empty the tsidCache and rotate indexDB to test the case when tsid is
@@ -1967,6 +1970,7 @@ func testStorageVariousDataPatterns(t *testing.T, registerOnly bool, op func(s *
 		s.mustRotateIndexDB(time.Now())
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()
+		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
 		assertCounts(t, s, wantCounts, strict)
 
 		s.MustClose()
@@ -2149,6 +2153,10 @@ func assertCounts(t *testing.T, s *Storage, want *counts, strict bool) {
 
 	var gotMetrics Metrics
 	s.UpdateMetrics(&gotMetrics)
+	if got, want := gotMetrics.RowsAddedTotal, want.metrics.RowsAddedTotal; got != want {
+		t.Errorf("unexpected Metrics.RowsAddedTotal: got %d, want %d", got, want)
+	}
+
 	gotCnt, wantCnt := gotMetrics.NewTimeseriesCreated, want.metrics.NewTimeseriesCreated
 	if strict {
 		if gotCnt != wantCnt {
@@ -2271,8 +2279,15 @@ func testGenerateMetricRowBatches(opts *batchOptions) ([][]MetricRow, *counts) {
 	}
 
 	allTimeseries := len(names)
+	rowsAddedTotal := uint64(opts.numBatches * opts.numRowsPerBatch)
+	// When RegisterMetricNames() is called it only restisters the time series
+	// in IndexDB but no samples is written to the storage.
+	if opts.registerOnly {
+		rowsAddedTotal = 0
+	}
 	want := counts{
 		metrics: &Metrics{
+			RowsAddedTotal:       rowsAddedTotal,
 			NewTimeseriesCreated: uint64(allTimeseries),
 		},
 		timeRangeCounts:  make(map[TimeRange]int),
