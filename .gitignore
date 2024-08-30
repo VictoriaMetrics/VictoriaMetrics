@@ -26,3 +26,4 @@ _site
 /docs/.jekyll-metadata
 coverage.txt
 cspell.json
+*~
