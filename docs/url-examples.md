@@ -617,12 +617,10 @@ Single-node VictoriaMetrics:
 curl -Is http://localhost:8428/internal/resetRollupResultCache
 ```
 
-
 Cluster version of VictoriaMetrics:
 
-
 ```sh
-curl -Is http://<vmselect>:8481/select/internal/resetRollupResultCache
+curl -Is http://<vmselect>:8481/internal/resetRollupResultCache
 ```
 
 vmselect will propagate this call to the rest of the vmselects listed in its `-selectNode` cmd-line flag. If this
