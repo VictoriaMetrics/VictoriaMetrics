@@ -25,7 +25,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add search functionality to the column display settings in the table. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6668).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the ability to select all columns in the column display settings of the table. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6668). Thanks to @yincongcyincong for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6680).
 
-* BUGFIX: properly handle Logstash requests for Elasticsearch configuration when using `outputs.elasticsearch` in Logstash pipelines. Previously, the requests could be rejected with `400 Bad Request` response.
+* BUGFIX: properly handle Logstash requests for Elasticsearch configuration when using `outputs.elasticsearch` in Logstash pipelines. Previously, the requests could be rejected with `400 Bad Request` response. Updates [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4750).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix `not found index.js` error when loading vmui in VictoriaLogs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6764). Thanks to @yincongcyincong for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6770).
 
 ## [v0.28.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.28.0-victorialogs)

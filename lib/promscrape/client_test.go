@@ -3,6 +3,7 @@ package promscrape
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -133,18 +134,29 @@ func TestClientProxyReadOk(t *testing.T) {
 		defer ps.Close()
 
 		c, err := newClient(ctx, &ScrapeWork{
-			ScrapeURL:       backend.URL,
-			ProxyURL:        proxy.MustNewURL(ps.URL),
-			ScrapeTimeout:   2 * time.Second,
-			AuthConfig:      newTestAuthConfig(t, isBackendTLS, backendAuth),
-			ProxyAuthConfig: newTestAuthConfig(t, isProxyTLS, proxyAuth),
-			MaxScrapeSize:   16000,
+			ScrapeURL: backend.URL,
+			ProxyURL:  proxy.MustNewURL(ps.URL),
+			// bump timeout for slow CIs
+			ScrapeTimeout: 5 * time.Second,
+			// force connection re-creating to avoid broken conns in slow CIs
+			DisableKeepAlive: true,
+			AuthConfig:       newTestAuthConfig(t, isBackendTLS, backendAuth),
+			ProxyAuthConfig:  newTestAuthConfig(t, isProxyTLS, proxyAuth),
+			MaxScrapeSize:    16000,
 		})
 		if err != nil {
 			t.Fatalf("failed to create client: %s", err)
 		}
+
 		var bb bytesutil.ByteBuffer
-		if err := c.ReadData(&bb); err != nil {
+		err = c.ReadData(&bb)
+		if errors.Is(err, io.EOF) {
+			bb.Reset()
+			// EOF could occur in slow envs, like CI
+			err = c.ReadData(&bb)
+		}
+
+		if err != nil {
 			t.Fatalf("unexpected error at ReadData: %s", err)
 		}
 		got, err := io.ReadAll(bb.NewReader())

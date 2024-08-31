@@ -206,6 +206,16 @@ func (db *indexDB) scheduleToDrop() {
 
 // UpdateMetrics updates m with metrics from the db.
 func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
+	// global index metrics
+	m.DeletedMetricsCount += uint64(db.s.getDeletedMetricIDs().Len())
+
+	m.IndexBlocksWithMetricIDsProcessed = indexBlocksWithMetricIDsProcessed.Load()
+	m.IndexBlocksWithMetricIDsIncorrectOrder = indexBlocksWithMetricIDsIncorrectOrder.Load()
+
+	m.MinTimestampForCompositeIndex = uint64(db.s.minTimestampForCompositeIndex)
+	m.CompositeFilterSuccessConversions = compositeFilterSuccessConversions.Load()
+	m.CompositeFilterMissingConversions = compositeFilterMissingConversions.Load()
+
 	var cs fastcache.Stats
 
 	cs.Reset()
@@ -216,8 +226,6 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.TagFiltersToMetricIDsCacheRequests += cs.GetCalls
 	m.TagFiltersToMetricIDsCacheMisses += cs.Misses
 
-	m.DeletedMetricsCount += uint64(db.s.getDeletedMetricIDs().Len())
-
 	m.IndexDBRefCount += uint64(db.refCount.Load())
 	m.MissingTSIDsForMetricID += db.missingTSIDsForMetricID.Load()
 
@@ -227,16 +235,26 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 
 	m.MissingMetricNamesForMetricID += db.missingMetricNamesForMetricID.Load()
 
-	m.IndexBlocksWithMetricIDsProcessed = indexBlocksWithMetricIDsProcessed.Load()
-	m.IndexBlocksWithMetricIDsIncorrectOrder = indexBlocksWithMetricIDsIncorrectOrder.Load()
-
-	m.MinTimestampForCompositeIndex = uint64(db.s.minTimestampForCompositeIndex)
-	m.CompositeFilterSuccessConversions = compositeFilterSuccessConversions.Load()
-	m.CompositeFilterMissingConversions = compositeFilterMissingConversions.Load()
-
 	db.tb.UpdateMetrics(&m.TableMetrics)
 	db.doExtDB(func(extDB *indexDB) {
 		extDB.tb.UpdateMetrics(&m.TableMetrics)
+
+		cs.Reset()
+		extDB.tagFiltersToMetricIDsCache.UpdateStats(&cs)
+		m.TagFiltersToMetricIDsCacheSize += cs.EntriesCount
+		m.TagFiltersToMetricIDsCacheSizeBytes += cs.BytesSize
+		m.TagFiltersToMetricIDsCacheSizeMaxBytes += cs.MaxBytesSize
+		m.TagFiltersToMetricIDsCacheRequests += cs.GetCalls
+		m.TagFiltersToMetricIDsCacheMisses += cs.Misses
+
+		m.IndexDBRefCount += uint64(extDB.refCount.Load())
+		m.MissingTSIDsForMetricID += extDB.missingTSIDsForMetricID.Load()
+
+		m.DateRangeSearchCalls += extDB.dateRangeSearchCalls.Load()
+		m.DateRangeSearchHits += extDB.dateRangeSearchHits.Load()
+		m.GlobalSearchCalls += extDB.globalSearchCalls.Load()
+
+		m.MissingMetricNamesForMetricID += extDB.missingMetricNamesForMetricID.Load()
 		m.IndexDBRefCount += uint64(extDB.refCount.Load())
 	})
 }
@@ -2234,6 +2252,12 @@ func (is *indexSearch) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilter
 	return sortedMetricIDs, nil
 }
 
+func errTooManyTimeseries(maxMetrics int) error {
+	return fmt.Errorf("the number of matching timeseries exceeds %d; "+
+		"either narrow down the search or increase -search.max* command-line flag values at vmselect; "+
+		"see https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics)
+}
+
 func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) (*uint64set.Set, error) {
 	qt = qt.NewChild("search for metric ids: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
 	defer qt.Done()
@@ -2272,32 +2296,27 @@ func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*T
 			return nil, err
 		}
 		if metricIDs.Len() > maxMetrics {
-			return nil, fmt.Errorf("the number of matching timeseries exceeds %d; either narrow down the search "+
-				"or increase -search.max* command-line flag values at vmselect; see https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics)
+			return nil, errTooManyTimeseries(maxMetrics)
 		}
 	}
 	return metricIDs, nil
 }
 
 func (is *indexSearch) updateMetricIDsForTagFilters(qt *querytracer.Tracer, metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
-	err := is.tryUpdatingMetricIDsForDateRange(qt, metricIDs, tfs, tr, maxMetrics)
-	if err == nil {
-		// Fast path: found metricIDs by date range.
-		return nil
-	}
-	if !errors.Is(err, errFallbackToGlobalSearch) {
-		return err
+	if tr != globalIndexTimeRange {
+		// Fast path - search metricIDs by date range in the per-day inverted
+		// index.
+		qt.Printf("search metric ids in the per-day index")
+		is.db.dateRangeSearchCalls.Add(1)
+		minDate, maxDate := tr.DateRange()
+		return is.updateMetricIDsForDateRange(qt, metricIDs, tfs, minDate, maxDate, maxMetrics)
 	}
 
-	// Slow path - fall back to search in the global inverted index.
-	qt.Printf("cannot find metric ids in per-day index; fall back to global index")
+	// Slow path - search metricIDs in the global inverted index.
+	qt.Printf("search metric ids in the global index")
 	is.db.globalSearchCalls.Add(1)
 	m, err := is.getMetricIDsForDateAndFilters(qt, globalIndexDate, tfs, maxMetrics)
 	if err != nil {
-		if errors.Is(err, errFallbackToGlobalSearch) {
-			return fmt.Errorf("the number of matching timeseries exceeds %d; either narrow down the search "+
-				"or increase -search.max* command-line flag values at vmselect; see https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics)
-		}
 		return err
 	}
 	metricIDs.UnionMayOwn(m)
@@ -2476,16 +2495,7 @@ func (is *indexSearch) updateMetricIDsForOrSuffix(prefix []byte, metricIDs *uint
 	return loopsCount, nil
 }
 
-var errFallbackToGlobalSearch = errors.New("fall back from per-day index search to global index search")
-
-func (is *indexSearch) tryUpdatingMetricIDsForDateRange(qt *querytracer.Tracer, metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
-	is.db.dateRangeSearchCalls.Add(1)
-
-	if tr == globalIndexTimeRange {
-		return errFallbackToGlobalSearch
-	}
-
-	minDate, maxDate := tr.DateRange()
+func (is *indexSearch) updateMetricIDsForDateRange(qt *querytracer.Tracer, metricIDs *uint64set.Set, tfs *TagFilters, minDate, maxDate uint64, maxMetrics int) error {
 	if minDate == maxDate {
 		// Fast path - query only a single date.
 		m, err := is.getMetricIDsForDateAndFilters(qt, minDate, tfs, maxMetrics)
@@ -2649,7 +2659,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(qt *querytracer.Tracer, dat
 		}
 		if m.Len() >= maxDateMetrics {
 			// Too many time series found for the given (date). Fall back to global search.
-			return nil, errFallbackToGlobalSearch
+			return nil, errTooManyTimeseries(maxDateMetrics)
 		}
 		metricIDs = m
 		qt.Printf("found %d metric ids", metricIDs.Len())
@@ -3371,6 +3381,7 @@ func (s uint64Sorter) Len() int { return len(s) }
 func (s uint64Sorter) Less(i, j int) bool {
 	return s[i] < s[j]
 }
+
 func (s uint64Sorter) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }

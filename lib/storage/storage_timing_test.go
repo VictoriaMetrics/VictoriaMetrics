@@ -63,7 +63,7 @@ func BenchmarkStorageInsertVariousDataPatterns(b *testing.B) {
 		splitBatches    = true
 	)
 
-	highChurnRateData, _ := testGenerateMetricRowBatches(&BatchOptions{
+	highChurnRateData, _ := testGenerateMetricRowBatches(&batchOptions{
 		numBatches:           numBatches,
 		numRowsPerBatch:      numRowsPerBatch,
 		sameBatchMetricNames: false,
@@ -72,7 +72,7 @@ func BenchmarkStorageInsertVariousDataPatterns(b *testing.B) {
 		sameRowDates:         true,
 	})
 
-	noChurnRateData, _ := testGenerateMetricRowBatches(&BatchOptions{
+	noChurnRateData, _ := testGenerateMetricRowBatches(&batchOptions{
 		numBatches:           numBatches,
 		numRowsPerBatch:      numRowsPerBatch,
 		sameBatchMetricNames: true,
