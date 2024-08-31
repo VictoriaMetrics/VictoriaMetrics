@@ -8,6 +8,7 @@ menu:
     weight: 6
 aliases:
 - /CHANGELOG_2020.html
+- /changelog_2020
 ---
 ## [v1.51.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.51.0)
 

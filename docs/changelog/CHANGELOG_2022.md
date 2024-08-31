@@ -8,6 +8,7 @@ menu:
     weight: 4
 aliases:
 - /CHANGELOG_2022.html
+- /changelog_2022
 ---
 ## [v1.85.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.3)
 
