@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) fix service discovery of Azure Virtual Machines for response contains `nextLink` in `Host:Port` format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6912).
+
 ## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
 
 Released at 2024-08-28
