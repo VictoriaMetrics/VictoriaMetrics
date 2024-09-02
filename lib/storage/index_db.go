@@ -34,7 +34,7 @@ const (
 	//
 	// This index is used only when -disablePerDayIndex flag is set.
 	//
-	// Otherwise, this index was substituted with nsPrefixDateMetricNameToTSID,
+	// Otherwise, this index is substituted with nsPrefixDateMetricNameToTSID,
 	// since the MetricName->TSID index may require big amounts of memory for
 	// indexdb/dataBlocks cache when it grows big on the configured retention
 	// under high churn rate (e.g. when new time series are constantly
