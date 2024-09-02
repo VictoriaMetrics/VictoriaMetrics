@@ -67,8 +67,7 @@ func TestParseStream(t *testing.T) {
 
 		// Verify protobuf parsing
 		pbData := req.MarshalProtobuf(nil)
-		contentType := "application/x-protobuf"
-		if err := checkParseStream(pbData, contentType, checkSeries); err != nil {
+		if err := checkParseStream(pbData, checkSeries); err != nil {
 			t.Fatalf("cannot parse protobuf: %s", err)
 		}
 	}
@@ -195,9 +194,9 @@ func TestParseStream(t *testing.T) {
 	)
 }
 
-func checkParseStream(data []byte, contentType string, checkSeries func(tss []prompbmarshal.TimeSeries) error) error {
+func checkParseStream(data []byte, checkSeries func(tss []prompbmarshal.TimeSeries) error) error {
 	// Verify parsing without compression
-	if err := ParseStream(bytes.NewBuffer(data), contentType, false, nil, checkSeries); err != nil {
+	if err := ParseStream(bytes.NewBuffer(data), false, nil, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing data: %w", err)
 	}
 
@@ -210,7 +209,7 @@ func checkParseStream(data []byte, contentType string, checkSeries func(tss []pr
 	if err := zw.Close(); err != nil {
 		return fmt.Errorf("cannot close gzip writer: %w", err)
 	}
-	if err := ParseStream(&bb, contentType, true, nil, checkSeries); err != nil {
+	if err := ParseStream(&bb, true, nil, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing compressed data: %w", err)
 	}
 
@@ -230,12 +229,11 @@ func attributesFromKV(k, v string) []*pb.KeyValue {
 
 func generateGauge(name, unit string) *pb.Metric {
 	n := int64(15)
-	intValue := pb.Int64(n)
 	points := []*pb.NumberDataPoint{
 		{
 			Attributes:   attributesFromKV("label1", "value1"),
-			IntValue:     &intValue,
-			TimeUnixNano: pb.Uint64(15 * time.Second),
+			IntValue:     &n,
+			TimeUnixNano: uint64(15 * time.Second),
 		},
 	}
 	return &pb.Metric{
@@ -250,13 +248,12 @@ func generateGauge(name, unit string) *pb.Metric {
 func generateHistogram(name, unit string) *pb.Metric {
 	points := []*pb.HistogramDataPoint{
 		{
-
 			Attributes:     attributesFromKV("label2", "value2"),
 			Count:          15,
 			Sum:            func() *float64 { v := 30.0; return &v }(),
 			ExplicitBounds: []float64{0.1, 0.5, 1.0, 5.0},
-			BucketCounts:   []pb.Uint64{0, 5, 10, 0, 0},
-			TimeUnixNano:   pb.Uint64(30 * time.Second),
+			BucketCounts:   []uint64{0, 5, 10, 0, 0},
+			TimeUnixNano:   uint64(30 * time.Second),
 		},
 	}
 	return &pb.Metric{
@@ -275,7 +272,7 @@ func generateSum(name, unit string, isMonotonic bool) *pb.Metric {
 		{
 			Attributes:   attributesFromKV("label5", "value5"),
 			DoubleValue:  &d,
-			TimeUnixNano: pb.Uint64(150 * time.Second),
+			TimeUnixNano: uint64(150 * time.Second),
 		},
 	}
 	return &pb.Metric{
@@ -293,7 +290,7 @@ func generateSummary(name, unit string) *pb.Metric {
 	points := []*pb.SummaryDataPoint{
 		{
 			Attributes:   attributesFromKV("label6", "value6"),
-			TimeUnixNano: pb.Uint64(35 * time.Second),
+			TimeUnixNano: uint64(35 * time.Second),
 			Sum:          32.5,
 			Count:        5,
 			QuantileValues: []*pb.ValueAtQuantile{

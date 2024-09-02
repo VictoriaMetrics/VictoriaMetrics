@@ -1,6 +1,7 @@
 package opentelemetry
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
@@ -28,14 +29,14 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	}
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
 	var processBody func([]byte) ([]byte, error)
-	contentType := req.Header.Get("Content-Type")
-	if contentType == "application/json" {
+	if req.Header.Get("Content-Type") == "application/json" {
 		if req.Header.Get("X-Amz-Firehose-Protocol-Version") != "" {
 			processBody = firehose.ProcessRequestBody
-			contentType = "application/x-protobuf"
+		} else {
+			return fmt.Errorf("json encoding isn't supported for opentelemetry format. Use protobuf encoding")
 		}
 	}
-	return stream.ParseStream(req.Body, contentType, isGzipped, processBody, func(tss []prompbmarshal.TimeSeries) error {
+	return stream.ParseStream(req.Body, isGzipped, processBody, func(tss []prompbmarshal.TimeSeries) error {
 		return insertRows(at, tss, extraLabels)
 	})
 }
