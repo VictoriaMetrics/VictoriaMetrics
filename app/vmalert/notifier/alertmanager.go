@@ -63,12 +63,13 @@ func (am AlertManager) Addr() string {
 func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[string]string) error {
 	var sendAlerts []Alert
 	for _, alert := range alerts {
-		labels := alert.toPromLabels(am.relabelConfigs)
-		// drop alert that have no label after relabeling
+		labels := alert.applyRelabeling(am.relabelConfigs)
+		// drop alert that have no label after relabeling,
 		// alertmanager returns error if alert has no label pair
 		if len(labels) == 0 {
 			continue
 		}
+		alert.Labels = labels
 		sendAlerts = append(sendAlerts, alert)
 	}
 	am.metrics.alertsDroppedByRelabel.Add(len(alerts) - len(sendAlerts))

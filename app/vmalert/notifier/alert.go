@@ -187,7 +187,8 @@ func templateAnnotation(dst io.Writer, text string, data tplData, tmpl *textTpl.
 	return nil
 }
 
-func (a Alert) toPromLabels(relabelCfg *promrelabel.ParsedConfigs) []prompbmarshal.Label {
+// applyRelabeling applies relabeling rules to the alert labels before sending it.
+func (a Alert) applyRelabeling(relabelCfg *promrelabel.ParsedConfigs) map[string]string {
 	var labels []prompbmarshal.Label
 	for k, v := range a.Labels {
 		labels = append(labels, prompbmarshal.Label{
@@ -199,5 +200,10 @@ func (a Alert) toPromLabels(relabelCfg *promrelabel.ParsedConfigs) []prompbmarsh
 		labels = relabelCfg.Apply(labels, 0)
 	}
 	promrelabel.SortLabels(labels)
-	return labels
+
+	var res = make(map[string]string, len(labels))
+	for _, l := range labels {
+		res[l.Name] = l.Value
+	}
+	return res
 }

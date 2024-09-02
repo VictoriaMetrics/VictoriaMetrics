@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
@@ -184,25 +183,25 @@ func TestAlertExecTemplate(t *testing.T) {
 }
 
 func TestAlert_toPromLabels(t *testing.T) {
-	fn := func(labels map[string]string, exp []prompbmarshal.Label, relabel *promrelabel.ParsedConfigs) {
+	fn := func(labels map[string]string, exp map[string]string, relabel *promrelabel.ParsedConfigs) {
 		t.Helper()
 		a := Alert{Labels: labels}
-		got := a.toPromLabels(relabel)
+		got := a.applyRelabeling(relabel)
 		if !reflect.DeepEqual(got, exp) {
 			t.Fatalf("expected to have: \n%v;\ngot:\n%v",
 				exp, got)
 		}
 	}
 
-	fn(nil, nil, nil)
+	fn(nil, map[string]string{}, nil)
 	fn(
 		map[string]string{"foo": "bar", "a": "baz"}, // unsorted
-		[]prompbmarshal.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "bar"}},
+		map[string]string{"a": "baz", "foo": "bar"},
 		nil,
 	)
 	fn(
 		map[string]string{"foo.bar": "baz", "service!name": "qux"},
-		[]prompbmarshal.Label{{Name: "foo_bar", Value: "baz"}, {Name: "service_name", Value: "qux"}},
+		map[string]string{"foo_bar": "baz", "service_name": "qux"},
 		nil,
 	)
 
@@ -218,17 +217,17 @@ func TestAlert_toPromLabels(t *testing.T) {
 
 	fn(
 		map[string]string{"a": "baz"},
-		[]prompbmarshal.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "aaa"}},
+		map[string]string{"a": "baz", "foo": "aaa"},
 		pcs,
 	)
 	fn(
 		map[string]string{"foo": "bar", "a": "baz"},
-		[]prompbmarshal.Label{{Name: "a", Value: "baz"}, {Name: "foo", Value: "aaa"}},
+		map[string]string{"a": "baz", "foo": "aaa"},
 		pcs,
 	)
 	fn(
 		map[string]string{"qux": "bar", "env": "prod", "environment": "production"},
-		[]prompbmarshal.Label{{Name: "foo", Value: "aaa"}, {Name: "qux", Value: "bar"}},
+		map[string]string{"foo": "aaa", "qux": "bar"},
 		pcs,
 	)
 }

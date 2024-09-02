@@ -22,6 +22,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * FEATURE [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): perform deduplication for all received data when specifying `-streamAggr.dedupInterval` or `-remoteWrite.streamAggr.dedupInterval` command-line flags are set. Previously, if the `-remoteWrite.streamAggr.config` or `-streamAggr.config` is set, only series that matched aggregation config were deduplicated. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6711#issuecomment-2288361213) for details.
 
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): do not send notifications to alertmanager if alert has no label-value pairs left after applying `alert_relabel_configs` in [notifier config](https://docs.victoriametrics.com/vmalert/#notifier-configuration-file), since alertmanager would refuse such an alert anyway.
+
 ## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
 
 Released at 2024-08-28
@@ -45,7 +47,6 @@ Released at 2024-08-28
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): fixes `proxy_url` authorization for scrape targets. Previously proxy authorization configuration was ignored for `https` targets. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6771) issue for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) fix service discovery of Azure Virtual Machines for response contains `nextLink`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6784).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): respect HTTP headers defined in [notifier configuration file](https://docs.victoriametrics.com/vmalert/#notifier-configuration-file) for each request to notifiers. Previously, this param was ignored by mistake.
-* BUGFIX: [vmalert](./vmalert.md): do not send message to alertmanager when alert has no label pair, alertmanager would refuse such an alert and report error. It can be achieved by adding `alert_relabel_configs` in [notifier config](https://docs.victoriametrics.com/vmalert/#notifier-configuration-file).
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): correctly apply `-streamAggr.dropInputLabels` when global stream deduplication is enabled without `-streamAggr.config`. Previously, `-remoteWrite.streamAggr.dropInputLabels` was used instead.
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): fix command-line flag `-remoteWrite.streamAggr.ignoreFirstIntervals` to accept multiple values and be applied per each corresponding `-remoteWrite.url`. Previously, this flag only could have been used globally for all URLs.
 * BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): respect `-search.denyPartialResponse` cmd-line flag and `deny_partial_response` query GET param when serving requests via Graphite API. Before, partial responses were always denied. Thanks to @penguinlav for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6748).

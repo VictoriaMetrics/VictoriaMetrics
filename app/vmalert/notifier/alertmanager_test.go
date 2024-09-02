@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
@@ -79,10 +77,31 @@ func TestAlertManager_Send(t *testing.T) {
 			if a[0].EndAt.IsZero() {
 				t.Fatalf("expected non-zero end time")
 			}
+			if len(a[0].Labels) != 1 {
+				t.Fatalf("expected 1 labels got %d", len(a[0].Labels))
+			}
+			if len(a[0].Annotations) != 2 {
+				t.Fatalf("expected 2 annotations got %d", len(a[0].Annotations))
+			}
 			if r.Header.Get(headerKey) != "bar" {
 				t.Fatalf("expected header %q to be set to %q; got %q instead", headerKey, headerValue, r.Header.Get(headerKey))
 			}
 		case 3:
+			var a []struct {
+				Labels map[string]string `json:"labels"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&a); err != nil {
+				t.Fatalf("can not unmarshal data into alert %s", err)
+			}
+			if len(a) != 1 {
+				t.Fatalf("expected 1 alert in array got %d", len(a))
+			}
+			if len(a[0].Labels) != 3 {
+				t.Fatalf("expected 3 labels got %d", len(a[0].Labels))
+			}
+			if a[0].Labels["env"] != "prod" {
+				t.Fatalf("expected env label to be prod during relabeling, got %s", a[0].Labels["env"])
+			}
 			if r.Header.Get(headerKey) != "bar" {
 				t.Fatalf("expected header %q to be set to %q; got %q instead", headerKey, "bar", r.Header.Get(headerKey))
 			}
@@ -98,14 +117,17 @@ func TestAlertManager_Send(t *testing.T) {
 		},
 		Headers: []string{fmt.Sprintf("%s:%s", headerKey, headerValue)},
 	}
-	relabelCfgRaw := `
+	parsedConfigs, err := promrelabel.ParseRelabelConfigsData([]byte(`
 - action: drop
   if: '{tenant="0"}'
   regex: ".*"
-`
-	var relabelCfg []promrelabel.RelabelConfig
-	_ = yaml.Unmarshal([]byte(relabelCfgRaw), &relabelCfg)
-	parsedConfigs, _ := promrelabel.ParseRelabelConfigs(relabelCfg)
+- target_label: "env"
+  replacement: "prod"
+  if: '{tenant="1"}'
+`))
+	if err != nil {
+		t.Fatalf("unexpected error when parse relabeling config: %s", err)
+	}
 	am, err := NewAlertManager(srv.URL+alertManagerPath, func(alert Alert) string {
 		return strconv.FormatUint(alert.GroupID, 10) + "/" + strconv.FormatUint(alert.ID, 10)
 	}, aCfg, parsedConfigs, 0)
@@ -127,25 +149,25 @@ func TestAlertManager_Send(t *testing.T) {
 		Start:       time.Now().UTC(),
 		End:         time.Now().UTC(),
 		Labels:      map[string]string{"alertname": "alert0"},
-		Annotations: map[string]string{"a": "b", "c": "d", "e": "f"},
+		Annotations: map[string]string{"a": "b", "c": "d"},
 	}}, map[string]string{headerKey: "bar"}); err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
 
-	// message will be dropped because of relabeling
-	if err := am.Send(context.Background(), []Alert{{
-		Name:   "alert1",
-		Labels: map[string]string{"rule": "test", "tenant": "0"},
-	}}, nil); err != nil {
+	if err := am.Send(context.Background(), []Alert{
+		// drop tenant0 alert message during relabeling
+		{
+			Name:   "alert1",
+			Labels: map[string]string{"rule": "test", "tenant": "0"},
+		},
+		{
+			Name:   "alert2",
+			Labels: map[string]string{"rule": "test", "tenant": "1"},
+		},
+	}, map[string]string{headerKey: "bar"}); err != nil {
 		t.Fatalf("unexpected error %s", err)
 	}
 
-	if err := am.Send(context.Background(), []Alert{{
-		Name:   "alert2",
-		Labels: map[string]string{"rule": "test", "tenant": "1"},
-	}}, map[string]string{headerKey: "bar"}); err != nil {
-		t.Fatalf("unexpected error %s", err)
-	}
 	if c != 3 {
 		t.Fatalf("expected 3 calls(count from zero) to server got %d", c)
 	}
