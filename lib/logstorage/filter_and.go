@@ -112,6 +112,10 @@ func (fa *filterAnd) getByFieldTokens() []fieldTokens {
 	return fa.byFieldTokens
 }
 
+// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6554
+// and filter shouldn't return or filter which result in
+// bloom filter execute error interception.
+// detail see: https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6556#issuecomment-2323643507
 func (fa *filterAnd) initByFieldTokens() {
 	m := make(map[string]map[string]struct{})
 	var fieldNames []string
@@ -153,6 +157,11 @@ func (fa *filterAnd) initByFieldTokens() {
 		case *filterSequence:
 			tokens := t.getTokens()
 			mergeFieldTokens(t.fieldName, tokens)
+		case *filterOr:
+			bfts := t.getByFieldTokens()
+			for _, bft := range bfts {
+				mergeFieldTokens(bft.field, bft.tokens)
+			}
 		}
 	}
 
