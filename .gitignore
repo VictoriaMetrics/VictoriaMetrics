@@ -7,6 +7,7 @@
 .vscode
 *.test
 *.swp
+/vmdocs
 /gocache-for-docker
 /victoria-logs-data
 /victoria-metrics-data
@@ -25,3 +26,4 @@ _site
 /docs/.jekyll-metadata
 coverage.txt
 cspell.json
+*~

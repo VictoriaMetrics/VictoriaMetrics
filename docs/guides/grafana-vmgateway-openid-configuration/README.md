@@ -318,22 +318,22 @@ vmagent will write data into VictoriaMetrics single-node and cluster(with tenant
 
 Grafana datasources configuration will be the following:
 
-[Test datasources](grafana-vmgateway-openid-configuration/grafana-test-datasources.webp)
+![Test datasources](grafana-test-datasources.webp)
 
 Let's login as user with `team=dev` labels limitation set via claims.
 
 Using `vmgateway-cluster` results into `No data` response as proxied request will go to tenant `0:1`.
 Since vmagent is only configured to write to `0:0` `No data` is an expected response.
 
-[Dev cluster nodata](grafana-vmgateway-openid-configuration/dev-cluster-nodata.webp)
+![Dev cluster nodata](dev-cluster-nodata.webp)
 
 Switching to `vmgateway-single` does have data. Note that it is limited to metrics with `team=dev` label.
 
-[Dev single data](grafana-vmgateway-openid-configuration/dev-single-data.webp)
+![Dev single data](dev-single-data.webp)
 
 Now lets login as user with `team=admin`.
 
 Both cluster and single node datasources now return metrics for `team=admin`.
 
-[Admin cluster data](grafana-vmgateway-openid-configuration/admin-cluster-data.webp)
-[Admin single data](grafana-vmgateway-openid-configuration/admin-single-data.webp)
+![Admin cluster data](admin-cluster-data.webp)
+![Admin single data](admin-single-data.webp)

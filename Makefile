@@ -13,6 +13,7 @@ PKG_TAG := $(BUILDINFO_TAG)
 endif
 
 GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
+TAR_OWNERSHIP ?= --owner=1000 --group=1000
 
 .PHONY: $(MAKECMDGOALS)
 
@@ -245,7 +246,7 @@ release-victoria-metrics-windows-amd64:
 
 release-victoria-metrics-goos-goarch: victoria-metrics-$(GOOS)-$(GOARCH)-prod
 	cd bin && \
-		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+		tar $(TAR_OWNERSHIP) --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			victoria-metrics-$(GOOS)-$(GOARCH)-prod \
 		&& sha256sum victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			victoria-metrics-$(GOOS)-$(GOARCH)-prod \
@@ -302,7 +303,7 @@ release-victoria-logs-windows-amd64:
 
 release-victoria-logs-goos-goarch: victoria-logs-$(GOOS)-$(GOARCH)-prod
 	cd bin && \
-		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+		tar $(TAR_OWNERSHIP) --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			victoria-logs-$(GOOS)-$(GOARCH)-prod \
 		&& sha256sum victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			victoria-logs-$(GOOS)-$(GOARCH)-prod \
@@ -332,7 +333,7 @@ release-vmutils: \
 
 release-vmutils-linux-386:
 	GOOS=linux GOARCH=386 $(MAKE) release-vmutils-goos-goarch
-	
+
 release-vmutils-linux-amd64:
 	GOOS=linux GOARCH=amd64 $(MAKE) release-vmutils-goos-goarch
 
@@ -366,7 +367,7 @@ release-vmutils-goos-goarch: \
 	vmrestore-$(GOOS)-$(GOARCH)-prod \
 	vmctl-$(GOOS)-$(GOARCH)-prod
 	cd bin && \
-		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf vmutils-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+		tar $(TAR_OWNERSHIP) --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf vmutils-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
 			vmagent-$(GOOS)-$(GOARCH)-prod \
 			vmalert-$(GOOS)-$(GOARCH)-prod \
 			vmalert-tool-$(GOOS)-$(GOARCH)-prod \
@@ -443,19 +444,19 @@ check-all: fmt vet golangci-lint govulncheck
 clean-checkers: remove-golangci-lint remove-govulncheck
 
 test:
-	go test ./lib/... ./app/...
+	DISABLE_FSYNC_FOR_TESTING=1 go test ./lib/... ./app/...
 
 test-race:
-	go test -race ./lib/... ./app/...
+	DISABLE_FSYNC_FOR_TESTING=1 go test -race ./lib/... ./app/...
 
 test-pure:
-	CGO_ENABLED=0 go test ./lib/... ./app/...
+	DISABLE_FSYNC_FOR_TESTING=1 CGO_ENABLED=0 go test ./lib/... ./app/...
 
 test-full:
-	go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
+	DISABLE_FSYNC_FOR_TESTING=1 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 test-full-386:
-	GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
+	DISABLE_FSYNC_FOR_TESTING=1 GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 benchmark:
 	go test -bench=. ./lib/...
@@ -494,7 +495,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.59.1
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.60.1
 
 remove-golangci-lint:
 	rm -rf `which golangci-lint`
@@ -513,34 +514,3 @@ install-wwhrd:
 
 check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml
-
-copy-docs:
-# The 'printf' function is used instead of 'echo' or 'echo -e' to handle line breaks (e.g. '\n') in the same way on different operating systems (MacOS/Ubuntu Linux/Arch Linux) and their shells (bash/sh/zsh/fish).
-# For details, see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4548#issue-1782796419 and https://stackoverflow.com/questions/8467424/echo-newline-in-bash-prints-literal-n
-	echo "---" > ${DST}
-	@if [ ${ORDER} -ne 0 ]; then \
-		echo "sort: ${ORDER}" >> ${DST}; \
-		echo "weight: ${ORDER}" >> ${DST}; \
-		printf "menu:\n  docs:\n    parent: 'victoriametrics'\n    weight: ${ORDER}\n" >> ${DST}; \
-	fi
-
-	echo "title: ${TITLE}" >> ${DST}
-	@if [ ${OLD_URL} ]; then \
-		printf "aliases:\n  - ${OLD_URL}\n" >> ${DST}; \
-	fi
-	echo "---" >> ${DST}
-	cat ${SRC} >> ${DST}
-	sed -i='.tmp' 's/<img src=\"docs\//<img src=\"/' ${DST}
-	sed -i='.tmp' 's/<source srcset=\"docs\//<source srcset=\"/' ${DST}
-	rm -rf docs/*.tmp
-
-# Copies docs for all components and adds the order/weight tag, title, menu position and alias with the backward compatible link for the old site.
-# For ORDER=0 it adds no order tag/weight tag.
-# FOR OLD_URL - relative link, used for backward compatibility with the link from documentation based on GitHub pages (old one)
-# FOR OLD_URL='' it adds no alias, it should be empty for every new page, don't change it for already existing links.
-# Images starting with <img src="docs/ are replaced with <img src="
-# Cluster docs are supposed to be ordered as 2nd.
-# The rest of docs is ordered manually.
-docs-sync:
-	SRC=README.md DST=docs/README.md OLD_URL='' ORDER=0 TITLE=VictoriaMetrics $(MAKE) copy-docs
-	SRC=README.md DST=docs/Single-server-VictoriaMetrics.md OLD_URL='/Single-server-VictoriaMetrics.html' TITLE=VictoriaMetrics ORDER=1 $(MAKE) copy-docs

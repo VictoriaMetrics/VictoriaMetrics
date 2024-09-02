@@ -1,7 +1,6 @@
 ---
-sort: 8
 weight: 8
-title: VictoriaLogs roadmap
+title: Roadmap
 disableToc: true
 menu:
   docs:

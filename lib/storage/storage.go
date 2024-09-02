@@ -40,10 +40,11 @@ const (
 
 // Storage represents TSDB storage.
 type Storage struct {
-	rowsReceivedTotal     atomic.Uint64
-	rowsAddedTotal        atomic.Uint64
-	naNValueRows          atomic.Uint64
-	staleNaNValueRows     atomic.Uint64
+	rowsReceivedTotal atomic.Uint64
+	rowsAddedTotal    atomic.Uint64
+	naNValueRows      atomic.Uint64
+	staleNaNValueRows atomic.Uint64
+
 	tooSmallTimestampRows atomic.Uint64
 	tooBigTimestampRows   atomic.Uint64
 	invalidRawMetricNames atomic.Uint64
@@ -1690,6 +1691,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	mn := GetMetricName()
 	defer PutMetricName(mn)
 
+	var newSeriesCount uint64
 	var seriesRepopulated uint64
 
 	idb := s.idb()
@@ -1725,6 +1727,18 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 				genTSID.generation = generation
 				s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
 				seriesRepopulated++
+			} else if !s.dateMetricIDCache.Has(generation, date, genTSID.TSID.MetricID) {
+				if !is.hasDateMetricIDNoExtDB(date, genTSID.TSID.MetricID) {
+					if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
+						if firstWarn == nil {
+							firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+						}
+						continue
+					}
+					mn.sortTags()
+					is.createPerDayIndexes(date, &genTSID.TSID, mn)
+				}
+				s.dateMetricIDCache.Set(generation, date, genTSID.TSID.MetricID)
 			}
 			continue
 		}
@@ -1776,8 +1790,10 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
 		genTSID.generation = generation
 		s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
+		newSeriesCount++
 	}
 
+	s.newTimeseriesCreated.Add(newSeriesCount)
 	s.timeseriesRepopulated.Add(seriesRepopulated)
 
 	// There is no need in pre-filling idbNext here, since RegisterMetricNames() is rarely called.

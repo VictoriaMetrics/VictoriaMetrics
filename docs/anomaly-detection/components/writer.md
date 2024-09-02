@@ -1,5 +1,4 @@
 ---
-sort: 4
 title: Writer
 weight: 4
 menu:
@@ -33,7 +32,7 @@ Future updates will introduce additional export methods, offering users more fle
             </td>
             <td>
 
-`writer.vm.VmWriter` or `vm` starting from [`v1.13.0`](../CHANGELOG.md#v1130)
+`writer.vm.VmWriter` or `vm` starting from [`v1.13.0`](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)
             </td>
             <td>
 
@@ -65,7 +64,7 @@ Datasource URL address
             </td>
             <td>
 
-For VictoriaMetrics Cluster version only, tenants are identified by accountID or accountID:projectID. See VictoriaMetrics Cluster [multitenancy docs](../../Cluster-VictoriaMetrics.md#multitenancy)
+For VictoriaMetrics Cluster version only, tenants are identified by accountID or accountID:projectID. See VictoriaMetrics Cluster [multitenancy docs](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
             </td>
         </tr>
         <!-- Additional rows for metric_format -->
@@ -84,7 +83,7 @@ Metrics to save the output (in metric names or labels). Must have `__name__` key
                 <ul>
                     <li>
 
-`$VAR` -- Variables that model provides, all models provide the following set: {"anomaly_score", "y", "yhat", "yhat_lower", "yhat_upper"}. Description of standard output is [here](./models.md#vmanomaly-output). Depending on [model type](./models.md) it can provide more metrics, like "trend", "seasonality" etc.
+`$VAR` -- Variables that model provides, all models provide the following set: {"anomaly_score", "y", "yhat", "yhat_lower", "yhat_upper"}. Description of standard output is [here](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output). Depending on [model type](https://docs.victoriametrics.com/anomaly-detection/components/models/) it can provide more metrics, like "trend", "seasonality" etc.
                     </li>
                     <li>
 
@@ -200,16 +199,24 @@ Allows disabling TLS verification of the remote certificate.
         </tr>
         <tr>
             <td>
-
 `bearer_token`
             </td>
             <td>
-
 `token`
             </td>
             <td>
-
-Token is passed in the standard format with the header: `Authorization: bearer {token}`
+Token is passed in the standard format with header: `Authorization: bearer {token}`
+            </td>
+        </tr>
+        <tr>
+            <td>
+`bearer_token_file`
+            </td>
+            <td>
+`path_to_file`
+            </td>
+            <td>
+Path to a file, which contains token, that is passed in the standard format with header: `Authorization: bearer {token}`. Available since [v1.15.9](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1159)
             </td>
         </tr>
     </tbody>
@@ -235,7 +242,7 @@ writer:
 
 ### Healthcheck metrics
 
-`VmWriter` exposes [several healthchecks metrics](./monitoring.md#writer-behaviour-metrics). 
+`VmWriter` exposes [several healthchecks metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#writer-behaviour-metrics). 
 
 ### Metrics formatting
 
@@ -246,8 +253,8 @@ __name__: PREFIX1_$VAR
 for: PREFIX2_$QUERY_KEY
 ```
 
-* for `__name__` parameter it will name metrics returned by models as `PREFIX1_anomaly_score`, `PREFIX1_yhat_lower`, etc. Vmanomaly output metrics names described [here](./models.md#vmanomaly-output)
-* for `for` parameter will add labels `PREFIX2_query_name_1`, `PREFIX2_query_name_2`, etc. Query names are set as aliases in config `reader` section in [`queries`](./reader.md#config-parameters) parameter.
+* for `__name__` parameter it will name metrics returned by models as `PREFIX1_anomaly_score`, `PREFIX1_yhat_lower`, etc. Vmanomaly output metrics names described [here](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output)
+* for `for` parameter will add labels `PREFIX2_query_name_1`, `PREFIX2_query_name_2`, etc. Query names are set as aliases in config `reader` section in [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters) parameter.
 
 It is possible to specify other custom label names needed.
 For example:
@@ -257,7 +264,7 @@ custom_label_1: label_name_1
 custom_label_2: label_name_2
 ```
 
-Apart from specified labels, output metrics will return **labels inherited from input metrics returned by [queries](./reader.md#config-parameters)**.
+Apart from specified labels, output metrics will return **labels inherited from input metrics returned by [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/#config-parameters)**.
 For example if input data contains labels such as `cpu=1, device=eth0, instance=node-exporter:9100` all these labels will be present in vmanomaly output metrics.
 
 So if metric_format section was set up like this:

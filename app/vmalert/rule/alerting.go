@@ -441,9 +441,6 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 			}
 			a.Value = m.Values[0]
 			a.Annotations = annotations
-			if err != nil {
-				return nil, err
-			}
 			a.KeepFiringSince = time.Time{}
 			continue
 		}

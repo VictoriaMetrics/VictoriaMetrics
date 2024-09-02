@@ -4,8 +4,11 @@ import { ErrorTypes, TimeParams } from "../../../types";
 import { LogHits } from "../../../api/types";
 import dayjs from "dayjs";
 import { LOGS_BARS_VIEW } from "../../../constants/logs";
+import { useSearchParams } from "react-router-dom";
 
 export const useFetchLogHits = (server: string, query: string) => {
+  const [searchParams] = useSearchParams();
+
   const [logHits, setLogHits] = useState<LogHits[]>([]);
   const [isLoading, setIsLoading] = useState<{[key: number]: boolean;}>([]);
   const [error, setError] = useState<ErrorTypes | string>();
@@ -22,13 +25,53 @@ export const useFetchLogHits = (server: string, query: string) => {
     return {
       signal,
       method: "POST",
+      headers: {
+        AccountID: searchParams.get("accountID") || "0",
+        ProjectID: searchParams.get("projectID") || "0",
+      },
       body: new URLSearchParams({
         query: query.trim(),
         step: `${step}ms`,
         start: start.toISOString(),
         end: end.toISOString(),
+        field: "_stream" // In the future, this field can be made configurable
+
       })
     };
+  };
+
+  const accumulateHits = (resultHit: LogHits, hit: LogHits) => {
+    resultHit.total = (resultHit.total || 0) + (hit.total || 0);
+    hit.timestamps.forEach((timestamp, i) => {
+      const index = resultHit.timestamps.findIndex(t => t === timestamp);
+      if (index === -1) {
+        resultHit.timestamps.push(timestamp);
+        resultHit.values.push(hit.values[i]);
+      } else {
+        resultHit.values[index] += hit.values[i];
+      }
+    });
+    return resultHit;
+  };
+
+  const getHitsWithTop = (hits: LogHits[]) => {
+    const topN = 5;
+    const defaultHit = { fields: {}, timestamps: [], values: [], total: 0 };
+
+    const hitsByTotal = hits.sort((a, b) => (b.total || 0) - (a.total || 0));
+    const result = [];
+
+    const otherHits: LogHits = hitsByTotal.slice(topN).reduce(accumulateHits, defaultHit);
+    if (otherHits.total) {
+      result.push(otherHits);
+    }
+
+    const topHits: LogHits[] = hitsByTotal.slice(0, topN);
+    if (topHits.length) {
+      result.push(...topHits);
+    }
+
+    return result;
   };
 
   const fetchLogHits = useCallback(async (period: TimeParams) => {
@@ -59,7 +102,7 @@ export const useFetchLogHits = (server: string, query: string) => {
         setError(error);
       }
 
-      setLogHits(!hits ? [] : hits);
+      setLogHits(!hits ? [] : getHitsWithTop(hits));
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
         setError(String(e));
@@ -68,7 +111,7 @@ export const useFetchLogHits = (server: string, query: string) => {
       }
     }
     setIsLoading(prev => ({ ...prev, [id]: false }));
-  }, [url, query]);
+  }, [url, query, searchParams]);
 
   return {
     logHits,

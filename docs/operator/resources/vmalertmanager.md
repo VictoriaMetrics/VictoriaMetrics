@@ -1,17 +1,15 @@
 ---
-sort: 3
 weight: 3
 title: VMAlertmanager
 menu:
   docs:
-    parent: "operator-custom-resources"
+    identifier: operator-cr-vmalertmanager
+    parent: operator-cr
     weight: 3
 aliases:
-  - /operator/resources/vmalertmanager.html
+  - /operator/resources/vmalertmanager/
+  - /operator/resources/vmalertmanager/index.html
 ---
-
-# VMAlertmanager
-
 `VMAlertmanager` - represents [alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) configuration.
 
 The `VMAlertmanager` CRD declaratively defines a desired Alertmanager setup to run in a Kubernetes cluster.
@@ -25,10 +23,10 @@ When there are two or more configured replicas the Operator runs the Alertmanage
 
 ## Specification
 
-You can see the full actual specification of the `VMAlertmanager` resource in the **[API docs -> VMAlertManager](../api.md#vmalertmanager)**.
+You can see the full actual specification of the `VMAlertmanager` resource in the **[API docs -> VMAlertManager](https://docs.victoriametrics.com/operator/api#vmalertmanager)**.
 
 If you can't find necessary field in the specification of the custom resource,
-see [Extra arguments section](./README.md#extra-arguments).
+see [Extra arguments section](./#extra-arguments).
 
 Also, you can check out the [examples](#examples) section.
 
@@ -40,6 +38,8 @@ Generated config stored at `Secret` created by the operator, it has the followin
 
 This configuration file is mounted at `VMAlertmanager` `Pod`. A special side-car container tracks its changes and sends config-reload signals to `alertmanager` container.
 
+The operator generates default configuration with `blackhole` root route. It needs to properly start alertmanager container with empty configuration.
+
 ### Using secret
 
 Basically, you can use the global configuration defined at manually created `Secret`. This `Secret` must be created before `VMAlertmanager`.
@@ -50,7 +50,7 @@ Name of the `Secret` must be defined at `VMAlertmanager` `spec.configSecret` opt
 apiVersion: v1
 kind: Secret
 metadata:
-  name: vmalertmanager-example-alertmanager
+  name: alertmanager-config
   labels:
     app: vm-operator
 type: Opaque
@@ -73,7 +73,7 @@ metadata:
   name: example-alertmanager
 spec:
   replicaCount: 2
-  configSecret: vmalertmanager-example-alertmanager
+  configSecret: alertmanager-config
 ```
 
 ### Using inline raw config
@@ -99,15 +99,17 @@ spec:
     - name: 'default'
 ```
 
-If both `configSecret` and `configRawYaml` are defined, only configuration from `configRawYaml` will be used. Values from `configRawYaml` will be ignored.
+If both `configSecret` and `configRawYaml` are defined, only configuration from `configRawYaml` will be used. Values from `configSecret` will be ignored.
 
 ### Using VMAlertmanagerConfig
 
-See details at [VMAlertmanagerConfig](./vmalertmanagerconfig.md).
+See details at [VMAlertmanagerConfig](https://docs.victoriametrics.com/operator/resources/vmalertmanagerconfig).
 
 The CRD specifies which `VMAlertmanagerConfig`s should be covered by the deployed `VMAlertmanager` instances based on label selection.
-The Operator then generates a configuration based on the included `VMAlertmanagerConfig`s and updates the `Configmaps` containing
+The Operator then generates a configuration based on the included `VMAlertmanagerConfig`s and updates the `Secret` containing
 the configuration. It continuously does so for all changes that are made to `VMAlertmanagerConfig`s or to the `VMAlertmanager` resource itself.
+
+Main goal of operator - generate safe configuration for alertmanager. In case of any of misconfiguration at `VMAlertmanagerConfig` operator skips it from config generation and updates `VMAlertmanagerConfig` `Status` field with error cause.
 
 Configs are filtered by selectors `configNamespaceSelector` and `configSelector` in `VMAlertmanager` CRD definition.
 For selecting rules from all namespaces you must specify it to empty value:
@@ -118,8 +120,8 @@ spec:
   configNamespaceSelector: {}
 ```
 
-[VMAlertmanagerConfig](./vmalertmanagerconfig.md) objects are
-generates part of [VMAlertmanager](./vmalertmanager.md) configuration.
+[VMAlertmanagerConfig](https://docs.victoriametrics.com/operator/resources/vmalertmanagerconfig) objects are
+generates part of [VMAlertmanager](https://docs.victoriametrics.com/operator/resources/vmalertmanager) configuration.
 
 For filtering rules `VMAlertmanager` uses selectors `configNamespaceSelector` and `configSelector`.
 It allows configuring rules access control across namespaces and different environments.
@@ -147,7 +149,7 @@ Here's a more visual and more detailed view:
 | *any*                     | undefined        | *any*                | **defined**       | all vmalertmanagerconfigs only at `VMAlertmanager`'s namespace                                                         |
 | *any*                     | **defined**      | *any*                | **defined**       | all vmalertmanagerconfigs only at `VMAlertmanager`'s namespace for given `configSelector` are matching                 |
 
-More details about `WATCH_NAMESPACE` variable you can read in [this doc](../configuration.md#namespaced-mode).
+More details about `WATCH_NAMESPACE` variable you can read in [this doc](https://docs.victoriametrics.com/operator/configuration#namespaced-mode).
 
 Here are some examples of `VMAlertmanager` configuration with selectors:
 
@@ -207,6 +209,7 @@ spec:
   ```
 
 These templates will be automatically added to `VMAlertmanager` configuration and will be automatically reloaded on changes in source `ConfigMap`.
+
 - `spec.configMaps` - list of `ConfigMap` names (in the same namespace) that will be mounted at `VMAlertmanager`
   workload and will be automatically reloaded on changes in source `ConfigMap`. Mount path is `/etc/vm/configs/<configmap-name>`.
 
@@ -281,7 +284,7 @@ spec:
 ```
 
 If these parameters are not specified, then,
-by default all `VMAlertManager` pods have resource requests and limits from the default values of the following [operator parameters](../configuration.md):
+by default all `VMAlertManager` pods have resource requests and limits from the default values of the following [operator parameters](https://docs.victoriametrics.com/operator/configuration):
 
 - `VM_VMALERTMANAGER_RESOURCE_LIMIT_MEM` - default memory limit for `VMAlertManager` pods,
 - `VM_VMALERTMANAGER_RESOURCE_LIMIT_CPU` - default memory limit for `VMAlertManager` pods,

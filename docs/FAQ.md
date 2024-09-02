@@ -1,5 +1,4 @@
 ---
-sort: 24
 weight: 24
 title: FAQ
 menu:
@@ -215,11 +214,10 @@ We provide commercial support for both versions. [Contact us](mailto:info@victor
 
 The following commercial versions of VictoriaMetrics are available:
 
-* [Managed VictoriaMetrics at AWS](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc) (aka managed Prometheus).
+* [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_faq) – the most cost-efficient hosted monitoring platform, operated by VictoriaMetrics core team.
 
 The following commercial versions of VictoriaMetrics are planned:
 
-* Managed VictoriaMetrics at Google Cloud.
 * Cloud monitoring solution based on VictoriaMetrics.
 
 [Contact us](mailto:info@victoriametrics.com) for more information on our plans.
@@ -282,7 +280,8 @@ Questions about VictoriaMetrics can be asked via the following channels:
 
 * [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
 * [Telegram channel](https://t.me/VictoriaMetrics_en)
-* [Google group](https://groups.google.com/forum/#!forum/victorametrics-users)
+
+See the full list of [community channels](https://docs.victoriametrics.com/#community-and-contributions).
 
 ## Where can I file bugs and feature requests regarding VictoriaMetrics?
 

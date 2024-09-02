@@ -995,6 +995,10 @@ func TestStorageAddRowsConcurrent(t *testing.T) {
 }
 
 func testGenerateMetricRows(rng *rand.Rand, rows uint64, timestampMin, timestampMax int64) []MetricRow {
+	return testGenerateMetricRowsWithPrefix(rng, rows, "metric", TimeRange{timestampMin, timestampMax})
+}
+
+func testGenerateMetricRowsWithPrefix(rng *rand.Rand, rows uint64, prefix string, tr TimeRange) []MetricRow {
 	var mrs []MetricRow
 	var mn MetricName
 	mn.Tags = []Tag{
@@ -1002,9 +1006,9 @@ func testGenerateMetricRows(rng *rand.Rand, rows uint64, timestampMin, timestamp
 		{[]byte("instance"), []byte("1.2.3.4")},
 	}
 	for i := 0; i < int(rows); i++ {
-		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", i))
+		mn.MetricGroup = []byte(fmt.Sprintf("%s_%d", prefix, i))
 		metricNameRaw := mn.marshalRaw(nil)
-		timestamp := rng.Int63n(timestampMax-timestampMin) + timestampMin
+		timestamp := rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp
 		value := rng.NormFloat64() * 1e6
 
 		mr := MetricRow{
@@ -1503,4 +1507,646 @@ func testCountAllMetricNames(s *Storage, tr TimeRange) int {
 		panic(fmt.Sprintf("SeachMetricNames() failed unexpectedly: %v", err))
 	}
 	return len(names)
+}
+
+func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		numDays = 100
+		numRows = 10
+	)
+	rng := rand.New(rand.NewSource(1))
+	var (
+		days []TimeRange
+		mrs  []MetricRow
+	)
+	for i := range numDays {
+		day := TimeRange{
+			MinTimestamp: time.Date(2000, 1, i+1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 1, i+1, 23, 59, 59, 999, time.UTC).UnixMilli(),
+		}
+		days = append(days, day)
+		prefix1 := fmt.Sprintf("metric1_%d", i)
+		mrs = append(mrs, testGenerateMetricRowsWithPrefix(rng, numRows, prefix1, day)...)
+		prefix2 := fmt.Sprintf("metric2_%d", i)
+		mrs = append(mrs, testGenerateMetricRowsWithPrefix(rng, numRows, prefix2, day)...)
+	}
+
+	type options struct {
+		path       string
+		filters    []string
+		tr         TimeRange
+		maxMetrics int
+		wantErr    bool
+		wantCount  int
+	}
+	f := func(opts *options) {
+		t.Helper()
+
+		s := MustOpenStorage(t.Name()+"/"+opts.path, 0, 0, 0)
+		defer s.MustClose()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		var tfss []*TagFilters
+		for _, filter := range opts.filters {
+			filter := fmt.Sprintf("%s.*", filter)
+			tfs := NewTagFilters()
+			if err := tfs.Add(nil, []byte(filter), false, true); err != nil {
+				t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+			}
+			tfss = append(tfss, tfs)
+		}
+
+		names, err := s.SearchMetricNames(nil, tfss, opts.tr, opts.maxMetrics, noDeadline)
+		gotErr := err != nil
+		if gotErr != opts.wantErr {
+			t.Errorf("SeachMetricNames(%v, %v, %d): unexpected error: got %v, want error to happen %v", []any{
+				tfss, &opts.tr, opts.maxMetrics, err, opts.wantErr}...)
+		}
+		if got := len(names); got != opts.wantCount {
+			t.Errorf("SeachMetricNames(%v, %v, %d): unexpected metric name count: got %d, want %d", []any{
+				tfss, &opts.tr, opts.maxMetrics, got, opts.wantCount}...)
+		}
+	}
+
+	// Using one filter to search metric names within one day. The maxMetrics
+	// param is set to match exactly the number of time series that match the
+	// filter within that time range. Search operation must complete
+	// successfully.
+	f(&options{
+		path:       "OneDay/OneTagFilter/MaxMetricsNotExeeded",
+		filters:    []string{"metric1"},
+		tr:         days[0],
+		maxMetrics: numRows,
+		wantCount:  numRows,
+	})
+
+	// Using one filter to search metric names within one day. The maxMetrics
+	// param is less than the number of time series that match the filter
+	// within that time range. Search operation must fail.
+	f(&options{
+		path:       "OneDay/OneTagFilter/MaxMetricsExeeded",
+		filters:    []string{"metric1"},
+		tr:         days[0],
+		maxMetrics: numRows - 1,
+		wantErr:    true,
+	})
+
+	// Using two filters to search metric names within one day. The maxMetrics
+	// param is set to match exactly the number of time series that match the
+	// two filters within that time range. Search operation must complete
+	// successfully.
+	f(&options{
+		path:       "OneDay/TwoTagFilters/MaxMetricsNotExeeded",
+		filters:    []string{"metric1", "metric2"},
+		tr:         days[0],
+		maxMetrics: numRows * 2,
+		wantCount:  numRows * 2,
+	})
+
+	// Using two filters to search metric names within one day. The maxMetrics
+	// param is less than the number of time series that match the two filters
+	// within that time range. Search operation must fail.
+	f(&options{
+		path:       "OneDay/TwoTagFilters/MaxMetricsExeeded",
+		filters:    []string{"metric1", "metric2"},
+		tr:         days[0],
+		maxMetrics: numRows*2 - 1,
+		wantErr:    true,
+	})
+
+	// Using one filter to search metric names within two days. The maxMetrics
+	// param is set to match exactly the number of time series that match the
+	// filter within that time range. Search operation must complete
+	// successfully.
+	f(&options{
+		path:    "TwoDays/OneTagFilter/MaxMetricsNotExeeded",
+		filters: []string{"metric1"},
+		tr: TimeRange{
+			MinTimestamp: days[0].MinTimestamp,
+			MaxTimestamp: days[1].MaxTimestamp,
+		},
+		maxMetrics: numRows * 2,
+		wantCount:  numRows * 2,
+	})
+
+	// Using one filter to search metric names within two days. The maxMetrics
+	// param is less than the number of time series that match the filter
+	// within that time range. Search operation must fail.
+	f(&options{
+		path:    "TwoDays/OneTagFilter/MaxMetricsExeeded",
+		filters: []string{"metric1"},
+		tr: TimeRange{
+			MinTimestamp: days[0].MinTimestamp,
+			MaxTimestamp: days[1].MaxTimestamp,
+		},
+		maxMetrics: numRows*2 - 1,
+		wantErr:    true,
+	})
+
+	// Using two filters to search metric names within two days. The maxMetrics
+	// param is set to match exactly the number of time series that match the
+	// two filters within that time range. Search operation must complete
+	// successfully.
+	f(&options{
+		path:    "TwoDays/TwoTagFilters/MaxMetricsNotExeeded",
+		filters: []string{"metric1", "metric2"},
+		tr: TimeRange{
+			MinTimestamp: days[0].MinTimestamp,
+			MaxTimestamp: days[1].MaxTimestamp,
+		},
+		maxMetrics: numRows * 4,
+		wantCount:  numRows * 4,
+	})
+
+	// Using two filters to search metric names within two days. The maxMetrics
+	// param is less than the number of time series that match the two filters
+	// within that time range. Search operation must fail.
+	f(&options{
+		path:    "TwoDays/TwoTagFilters/MaxMetricsExeeded",
+		filters: []string{"metric1", "metric2"},
+		tr: TimeRange{
+			MinTimestamp: days[0].MinTimestamp,
+			MaxTimestamp: days[1].MaxTimestamp,
+		},
+		maxMetrics: numRows*4 - 1,
+		wantErr:    true,
+	})
+
+	// Using one filter to search metric names within the time range of 41 days.
+	// This time range corresponds to the day difference of 40 days, which is
+	// the max day difference when the per-day index is still used for
+	// searching. The maxMetrics param is set to match exactly the number of
+	// time series that match the filter within that time range. Search
+	// operation must complete successfully.
+	f(&options{
+		path:    "40Days/OneTagFilter/MaxMetricsNotExeeded",
+		filters: []string{"metric1"},
+		tr: TimeRange{
+			MinTimestamp: days[0].MinTimestamp,
+			MaxTimestamp: days[40].MaxTimestamp,
+		},
+		maxMetrics: numRows * 41,
+		wantCount:  numRows * 41,
+	})
+
+	// Using one filter to search metric names within the time range of 42 days.
+	// This time range corresponds to the day difference of 41 days, which is
+	// longer than than 40 days. In this case, the search is performed using
+	// global index instead of per-day index and the metric names will be
+	// searched within the entire retention period. The maxMetrics parameter,
+	// however, is set to the number of time series within the 42 days. The
+	// search must fail because the number of metrics will be much larger.
+	f(&options{
+		path:    "MoreThan40Days/OneTagFilter/MaxMetricsExeeded",
+		filters: []string{"metric1"},
+		tr: TimeRange{
+			MinTimestamp: days[0].MinTimestamp,
+			MaxTimestamp: days[41].MaxTimestamp,
+		},
+		maxMetrics: numRows * 42,
+		wantErr:    true,
+	})
+
+	// To fix the above case, the maxMetrics must be adjusted to be not less
+	// than the number of time series within the entire retention period.
+	f(&options{
+		path:    "MoreThan40Days/OneTagFilter/MaxMetricsNotExeeded",
+		filters: []string{"metric1"},
+		tr: TimeRange{
+			MinTimestamp: days[0].MinTimestamp,
+			MaxTimestamp: days[41].MaxTimestamp,
+		},
+		maxMetrics: numRows * numDays,
+		wantCount:  numRows * numDays,
+	})
+}
+
+// testCountAllMetricIDs is a test helper function that counts the IDs of
+// all time series within the given time range.
+func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
+	tfsAll := NewTagFilters()
+	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
+	}
+	ids, err := s.idb().searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
+	if err != nil {
+		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))
+	}
+	return len(ids)
+}
+
+func TestStorageRegisterMetricNamesForVariousDataPatternsConcurrently(t *testing.T) {
+	testStorageVariousDataPatternsConcurrently(t, true, func(s *Storage, mrs []MetricRow) {
+		s.RegisterMetricNames(nil, mrs)
+	})
+}
+
+func TestStorageAddRowsForVariousDataPatternsConcurrently(t *testing.T) {
+	testStorageVariousDataPatternsConcurrently(t, false, func(s *Storage, mrs []MetricRow) {
+		s.AddRows(mrs, defaultPrecisionBits)
+	})
+}
+
+// testStorageVariousDataPatternsConcurrently tests different concurrency use
+// cases when ingesting data of different patterns.
+//
+// The function is intended to be used by other tests that define which
+// operation (AddRows or RegisterMetricNames) is tested.
+func testStorageVariousDataPatternsConcurrently(t *testing.T, registerOnly bool, op func(s *Storage, mrs []MetricRow)) {
+	defer testRemoveAll(t)
+
+	const concurrency = 4
+
+	t.Run("serial", func(t *testing.T) {
+		testStorageVariousDataPatterns(t, registerOnly, op, 1, false)
+	})
+	t.Run("concurrentRows", func(t *testing.T) {
+		testStorageVariousDataPatterns(t, registerOnly, op, concurrency, true)
+	})
+	t.Run("concurrentBatches", func(t *testing.T) {
+		testStorageVariousDataPatterns(t, registerOnly, op, concurrency, false)
+	})
+}
+
+// testStorageVariousDataPatterns tests the ingestion of different combinations
+// of metric names and dates.
+//
+// The function is intended to be used by other tests that define the
+// concurrency and the operation (AddRows or RegisterMetricNames) under test.
+func testStorageVariousDataPatterns(t *testing.T, registerOnly bool, op func(s *Storage, mrs []MetricRow), concurrency int, splitBatches bool) {
+	f := func(t *testing.T, sameBatchMetricNames, sameRowMetricNames, sameBatchDates, sameRowDates bool) {
+		batches, wantCounts := testGenerateMetricRowBatches(&batchOptions{
+			numBatches:           4,
+			numRowsPerBatch:      100,
+			registerOnly:         registerOnly,
+			sameBatchMetricNames: sameBatchMetricNames,
+			sameRowMetricNames:   sameRowMetricNames,
+			sameBatchDates:       sameBatchDates,
+			sameRowDates:         sameRowDates,
+		})
+		strict := concurrency == 1
+		rowsAddedTotal := wantCounts.metrics.RowsAddedTotal
+
+		s := MustOpenStorage(t.Name(), 0, 0, 0)
+
+		testDoConcurrently(s, op, concurrency, splitBatches, batches)
+		s.DebugFlush()
+		assertCounts(t, s, wantCounts, strict)
+
+		// Rotate indexDB to test the case when TSIDs from tsidCache have the
+		// generation that is older than the generation of the current indexDB.
+		s.mustRotateIndexDB(time.Now())
+		testDoConcurrently(s, op, concurrency, splitBatches, batches)
+		s.DebugFlush()
+		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
+		assertCounts(t, s, wantCounts, strict)
+
+		// Empty the tsidCache to test the case when tsid is retrived from the
+		// index that belongs to the current generation indexDB.
+		s.resetAndSaveTSIDCache()
+		testDoConcurrently(s, op, concurrency, splitBatches, batches)
+		s.DebugFlush()
+		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
+		assertCounts(t, s, wantCounts, strict)
+
+		// Empty the tsidCache and rotate indexDB to test the case when tsid is
+		// retrived from the index that belongs to the previous generation
+		// indexDB.
+		s.resetAndSaveTSIDCache()
+		s.mustRotateIndexDB(time.Now())
+		testDoConcurrently(s, op, concurrency, splitBatches, batches)
+		s.DebugFlush()
+		wantCounts.metrics.RowsAddedTotal += rowsAddedTotal
+		assertCounts(t, s, wantCounts, strict)
+
+		s.MustClose()
+	}
+
+	t.Run("sameBatchMetrics/sameRowMetrics/sameBatchDates/sameRowDates", func(t *testing.T) {
+		// Batch1: metric 1971-01-01, metric 1971-01-01
+		// Batch2: metric 1971-01-01, metric 1971-01-01
+		t.Parallel()
+		f(t, true, true, true, true)
+	})
+
+	t.Run("sameBatchMetrics/sameRowMetrics/sameBatchDates/diffRowDates", func(t *testing.T) {
+		// Batch1: metric 1971-01-01, metric 1971-01-02
+		// Batch2: metric 1971-01-01, metric 1971-01-02
+		t.Parallel()
+		f(t, true, true, true, false)
+	})
+
+	t.Run("sameBatchMetrics/sameRowMetrics/diffBatchDates/sameRowDates", func(t *testing.T) {
+		// Batch1: metric 1971-01-01, metric 1971-01-01
+		// Batch2: metric 1971-01-02, metric 1971-01-02
+		t.Parallel()
+		f(t, true, true, false, true)
+	})
+
+	t.Run("sameBatchMetrics/sameRowMetrics/diffBatchDates/diffRowDates", func(t *testing.T) {
+		// Batch1: metric 1971-01-01, metric 1971-01-02
+		// Batch2: metric 1971-01-03, metric 1971-01-04
+		t.Parallel()
+		f(t, true, true, false, false)
+	})
+
+	t.Run("sameBatchMetrics/diffRowMetrics/sameBatchDates/sameRowDates", func(t *testing.T) {
+		// Batch1: metric_row0 1971-01-01, metric_row1 1971-01-01
+		// Batch2: metric_row0 1971-01-01, metric_row1 1971-01-01
+		t.Parallel()
+		f(t, true, false, true, true)
+	})
+
+	t.Run("sameBatchMetrics/diffRowMetrics/sameBatchDates/diffRowDates", func(t *testing.T) {
+		// Batch1: metric_row0 1971-01-01, metric_row1 1971-01-02
+		// Batch2: metric_row0 1971-01-01, metric_row1 1971-01-02
+		t.Parallel()
+		f(t, true, false, true, false)
+	})
+
+	t.Run("sameBatchMetrics/diffRowMetrics/diffBatchDates/sameRowDates", func(t *testing.T) {
+		// Batch1: metric_row0 1971-01-01, metric_row1 1971-01-01
+		// Batch2: metric_row0 1971-01-02, metric_row1 1971-01-02
+		t.Parallel()
+		f(t, true, false, false, true)
+	})
+
+	t.Run("sameBatchMetrics/diffRowMetrics/diffBatchDates/diffRowDates", func(t *testing.T) {
+		// Batch1: metric_row0 1971-01-01, metric_row1 1971-01-02
+		// Batch2: metric_row0 1971-01-03, metric_row1 1971-01-04
+		t.Parallel()
+		f(t, true, false, false, false)
+	})
+
+	t.Run("diffBatchMetrics/sameRowMetrics/sameBatchDates/sameRowDates", func(t *testing.T) {
+		// Batch1: metric_batch0 1971-01-01, metric_batch0 1971-01-01
+		// Batch2: metric_batch1 1971-01-01, metric_batch1 1971-01-01
+		t.Parallel()
+		f(t, false, true, true, true)
+	})
+
+	t.Run("diffBatchMetrics/sameRowMetrics/sameBatchDates/diffRowDates", func(t *testing.T) {
+		// Batch1: metric_batch0 1971-01-01, metric_batch0 1971-01-02
+		// Batch2: metric_batch1 1971-01-01, metric_batch1 1971-01-02
+		t.Parallel()
+		f(t, false, true, true, false)
+	})
+
+	t.Run("diffBatchMetrics/sameRowMetrics/diffBatchDates/sameRowDates", func(t *testing.T) {
+		// Batch1: metric_batch0 1971-01-01, metric_batch0 1971-01-01
+		// Batch2: metric_batch1 1971-01-02, metric_batch1 1971-01-02
+		t.Parallel()
+		f(t, false, true, false, true)
+	})
+
+	t.Run("diffBatchMetrics/sameRowMetrics/diffBatchDates/diffRowDates", func(t *testing.T) {
+		// Batch1: metric_batch0 1971-01-01, metric_batch0 1971-01-02
+		// Batch2: metric_batch1 1971-01-03, metric_batch1 1971-01-04
+		t.Parallel()
+		f(t, false, true, false, false)
+	})
+
+	t.Run("diffBatchMetrics/diffRowMetrics/sameBatchDates/sameRowDates", func(t *testing.T) {
+		// Batch1: metric_batch0_row0 1971-01-01, metric_batch0_row1 1971-01-01
+		// Batch2: metric_batch1_row0 1971-01-01, metric_batch1_row1 1971-01-01
+		t.Parallel()
+		f(t, false, false, true, true)
+	})
+
+	t.Run("diffBatchMetrics/diffRowMetrics/sameBatchDates/diffRowDates", func(t *testing.T) {
+		// Batch1: metric_batch0_row0 1971-01-01, metric_batch0_row1 1971-01-02
+		// Batch2: metric_batch1_row0 1971-01-01, metric_batch1_row1 1971-01-02
+		t.Parallel()
+		f(t, false, false, true, false)
+	})
+
+	t.Run("diffBatchMetrics/diffRowMetrics/diffBatchDates/sameRowDates", func(t *testing.T) {
+		// Batch1: metric_batch0_row0 1971-01-01, metric_batch0_row1 1971-01-01
+		// Batch2: metric_batch1_row0 1971-01-02, metric_batch1_row1 1971-01-02
+		t.Parallel()
+		f(t, false, false, false, true)
+	})
+
+	t.Run("diffBatchMetrics/diffRowMetrics/diffBatchDates/diffRowDates", func(t *testing.T) {
+		// Batch1: metric_batch0_row0 1971-01-01, metric_batch0_row1 1971-01-02
+		// Batch2: metric_batch1_row0 1971-01-03, metric_batch1_row1 1971-01-04
+		t.Parallel()
+		f(t, false, false, false, false)
+	})
+}
+
+// testDoConcurrently performs some storage operation on metric rows
+// concurrently.
+//
+// The function accepts metric rows organized in batches. The number of
+// goroutines is specified with concurrency arg. If splitBatches is false, then
+// each batch is processed in a separate goroutine. Otherwise, rows from a
+// single batch are spread across multiple goroutines and next batch won't be
+// processed until all records of the current batch are processed.
+func testDoConcurrently(s *Storage, op func(s *Storage, mrs []MetricRow), concurrency int, splitBatches bool, mrsBatches [][]MetricRow) {
+	if concurrency < 1 {
+		panic(fmt.Sprintf("Unexpected concurrency: got %d, want >= 1", concurrency))
+	}
+
+	var wg sync.WaitGroup
+	mrsCh := make(chan []MetricRow)
+	for range concurrency {
+		wg.Add(1)
+		go func() {
+			for mrs := range mrsCh {
+				op(s, mrs)
+			}
+			wg.Done()
+		}()
+	}
+
+	n := 1
+	if splitBatches {
+		n = concurrency
+	}
+	for _, batch := range mrsBatches {
+		step := len(batch) / n
+		if step == 0 {
+			step = 1
+		}
+		for begin := 0; begin < len(batch); begin += step {
+			limit := begin + step
+			if limit > len(batch) {
+				limit = len(batch)
+			}
+			mrsCh <- batch[begin:limit]
+		}
+	}
+	close(mrsCh)
+	wg.Wait()
+}
+
+type counts struct {
+	metrics          *Metrics
+	timeRangeCounts  map[TimeRange]int
+	dateTSDBStatuses map[uint64]*TSDBStatus
+}
+
+// assertCounts retrieves various counts from storage and compares them with
+// the wanted ones.
+//
+// Some counts can be greater than wanted values because duplicate metric IDs
+// can be created when rows are inserted concurrently. In this case `strict`
+// arg can be set to false in order to replace strict equality comparison with
+// `greater or equal`.
+func assertCounts(t *testing.T, s *Storage, want *counts, strict bool) {
+	t.Helper()
+
+	var gotMetrics Metrics
+	s.UpdateMetrics(&gotMetrics)
+	if got, want := gotMetrics.RowsAddedTotal, want.metrics.RowsAddedTotal; got != want {
+		t.Errorf("unexpected Metrics.RowsAddedTotal: got %d, want %d", got, want)
+	}
+
+	gotCnt, wantCnt := gotMetrics.NewTimeseriesCreated, want.metrics.NewTimeseriesCreated
+	if strict {
+		if gotCnt != wantCnt {
+			t.Errorf("unexpected Metrics.NewTimeseriesCreated: got %d, want %d", gotCnt, wantCnt)
+		}
+	} else {
+		if gotCnt < wantCnt {
+			t.Errorf("unexpected Metrics.NewTimeseriesCreated: got %d, want >= %d", gotCnt, wantCnt)
+		}
+	}
+
+	for tr, want := range want.timeRangeCounts {
+		if got := testCountAllMetricNames(s, tr); got != want {
+			t.Errorf("%v: unexpected metric name count: got %d, want %d", &tr, got, want)
+		}
+		got := testCountAllMetricIDs(s, tr)
+		if strict {
+			if got != want {
+				t.Errorf("%v: unexpected metric ID count: got %d, want %d", &tr, got, want)
+			}
+		} else {
+			if got < want {
+				t.Errorf("%v: unexpected metric ID count: got %d, want >= %d", &tr, got, want)
+			}
+		}
+
+	}
+
+	for date, wantStatus := range want.dateTSDBStatuses {
+		dt := time.UnixMilli(int64(date) * msecPerDay).UTC()
+		gotStatus, err := s.GetTSDBStatus(nil, nil, date, "", 10, 1e6, noDeadline)
+		if err != nil {
+			t.Fatalf("GetTSDBStatus(%v) failed unexpectedly: %v", dt, err)
+		}
+		got, want := gotStatus.TotalSeries, wantStatus.TotalSeries
+		if strict {
+			if got != want {
+				t.Errorf("%v: unexpected TSDBStatus.TotalSeries: got %d, want %d", dt, got, want)
+			}
+		} else {
+			if got < want {
+				t.Errorf("%v: unexpected TSDBStatus.TotalSeries: got %d, want >= %d", dt, got, want)
+			}
+		}
+	}
+}
+
+type batchOptions struct {
+	numBatches           int
+	numRowsPerBatch      int
+	registerOnly         bool
+	sameBatchMetricNames bool
+	sameRowMetricNames   bool
+	sameBatchDates       bool
+	sameRowDates         bool
+}
+
+// testGenerateMetricRowBatches generates metric rows batches of various
+// combinations of metric names and dates. The function also returns the counts
+// that the storage is expected to report once the generated batch is ingested
+// into the storage.
+func testGenerateMetricRowBatches(opts *batchOptions) ([][]MetricRow, *counts) {
+	if opts.numBatches <= 0 {
+		panic(fmt.Sprintf("unexpected number of batches: got %d, want > 0", opts.numBatches))
+	}
+	if opts.numRowsPerBatch <= 0 {
+		panic(fmt.Sprintf("unexpected number of rows per batch: got %d, want > 0", opts.numRowsPerBatch))
+	}
+
+	rng := rand.New(rand.NewSource(1))
+
+	batches := make([][]MetricRow, opts.numBatches)
+	metricName := "metric"
+	startTime := time.Date(1971, 1, 1, 0, 0, 0, 0, time.UTC)
+	endTime := time.Date(1971, 1, 1, 23, 59, 59, 999, time.UTC)
+	days := time.Duration(0)
+	trNames := make(map[TimeRange]map[string]bool)
+	names := make(map[string]bool)
+	for batch := range opts.numBatches {
+		batchMetricName := metricName
+		if !opts.sameBatchMetricNames {
+			batchMetricName += fmt.Sprintf("_batch%d", batch)
+		}
+		var rows []MetricRow
+		for row := range opts.numRowsPerBatch {
+			rowMetricName := batchMetricName
+			if !opts.sameRowMetricNames {
+				rowMetricName += fmt.Sprintf("_row%d", row)
+			}
+			mn := MetricName{
+				MetricGroup: []byte(rowMetricName),
+			}
+			tr := TimeRange{
+				MinTimestamp: startTime.Add(days * 24 * time.Hour).UnixMilli(),
+				MaxTimestamp: endTime.Add(days * 24 * time.Hour).UnixMilli(),
+			}
+			rows = append(rows, MetricRow{
+				MetricNameRaw: mn.marshalRaw(nil),
+				Timestamp:     rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp,
+				Value:         rng.NormFloat64() * 1e6,
+			})
+			if !opts.sameRowDates {
+				days++
+			}
+
+			if trNames[tr] == nil {
+				trNames[tr] = make(map[string]bool)
+			}
+			names[rowMetricName] = true
+			trNames[tr][rowMetricName] = true
+		}
+		batches[batch] = rows
+		if opts.sameBatchDates {
+			days = 0
+		} else if opts.sameRowDates {
+			days++
+		}
+	}
+
+	allTimeseries := len(names)
+	rowsAddedTotal := uint64(opts.numBatches * opts.numRowsPerBatch)
+	// When RegisterMetricNames() is called it only restisters the time series
+	// in IndexDB but no samples is written to the storage.
+	if opts.registerOnly {
+		rowsAddedTotal = 0
+	}
+	want := counts{
+		metrics: &Metrics{
+			RowsAddedTotal:       rowsAddedTotal,
+			NewTimeseriesCreated: uint64(allTimeseries),
+		},
+		timeRangeCounts:  make(map[TimeRange]int),
+		dateTSDBStatuses: make(map[uint64]*TSDBStatus),
+	}
+	for tr, names := range trNames {
+		count := len(names)
+		date := uint64(tr.MinTimestamp / msecPerDay)
+		want.timeRangeCounts[tr] = count
+		want.dateTSDBStatuses[date] = &TSDBStatus{
+			TotalSeries: uint64(count),
+		}
+	}
+	return batches, &want
 }

@@ -1,9 +1,8 @@
 ---
-sort: 9
 weight: 9
 menu:
   docs:
-    parent: 'victoriametrics'
+    parent: victoriametrics
     weight: 9
 title: vmgateway
 aliases:

@@ -1,26 +1,28 @@
 ---
-sort: 22
 weight: 22
 title: Quick start
 menu:
   docs:
-    parent: 'victoriametrics'
+    identifier: vm-quick-start
+    parent: victoriametrics
     weight: 22
 aliases:
 - /Quick-Start.html
 ---
 ## How to install
 
-VictoriaMetrics is distributed in two forms:
+VictoriaMetrics is distributed in the following forms:
+
 * [Single-server-VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) - all-in-one
   binary, which is very easy to use and maintain.
   Single-server-VictoriaMetrics perfectly scales vertically and easily handles millions of metrics/s;
 * [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) - set of components
   for building horizontally scalable clusters.
+* [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) - allows 
+  users to run VictoriaMetrics, hosted on AWS, without the need to perform typical DevOps tasks such as proper configuration, monitoring, logs collection, access protection, software updates, backups, etc. 
 
-Single-server-VictoriaMetrics VictoriaMetrics is available as:
+VictoriaMetrics is available as:
 
-* [Managed VictoriaMetrics at AWS](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc)
 * [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/)
 * [Helm Charts](https://github.com/VictoriaMetrics/helm-charts#list-of-charts)
 * [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
@@ -37,6 +39,12 @@ and [Grafana setup](https://docs.victoriametrics.com/single-server-victoriametri
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/changelog/) and performing [regular upgrades](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
 
+### Starting VictoriaMetrics Single Node or Cluster on VictoriaMetrics Cloud {anchor="starting-vm-on-cloud"}
+
+The following steps will guide you through starting VictoriaMetrics on VictoriaMetrics Cloud:
+1. Go to [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_quickstart_guide) and sign up (it's free).
+1. After signing up, you will be immediately granted $200 of trial credits you can spend on running Single node or Cluster.
+1. Navigate to the VictoriaMetrics Cloud [quick start](https://docs.victoriametrics.com/victoriametrics-cloud/quickstart/#creating-deployments) guide for detailed instructions.
 
 ### Starting VictoriaMetrics Single Node via Docker {anchor="starting-vm-single-via-docker"}
 
@@ -52,7 +60,7 @@ docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 842
 ```
 
 
-Open <a href="http://localhost:8428">http://localhost:8428</a> in web browser
+Open `http://localhost:8428` in web browser
 and read [these docs](https://docs.victoriametrics.com/#operation).
 
 There is also [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/)

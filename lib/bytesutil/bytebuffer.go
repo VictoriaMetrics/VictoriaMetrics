@@ -65,7 +65,11 @@ func (bb *ByteBuffer) ReadFrom(r io.Reader) (int64, error) {
 	offset := bLen
 	for {
 		if free := len(b) - offset; free < offset {
-			b = slicesutil.SetLength(b, 2*len(b))
+			// grow slice by 30% similar to how Go does this
+			// https://go.googlesource.com/go/+/2dda92ff6f9f07eeb110ecbf0fc2d7a0ddd27f9d
+			// higher growth rates could consume excessive memory when reading big amounts of data.
+			n := 1.3 * float64(len(b))
+			b = slicesutil.SetLength(b, int(n))
 		}
 		n, err := r.Read(b[offset:])
 		offset += n

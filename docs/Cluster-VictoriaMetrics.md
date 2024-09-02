@@ -1,19 +1,14 @@
 ---
-sort: 2
 weight: 2
 menu:
   docs:
+    identifier: vm-cluster-version
     parent: 'victoriametrics'
     weight: 2
 title: Cluster version
 aliases:
   - /Cluster-VictoriaMetrics.html
 ---
-<picture>
-  <source srcset="/logo_white.webp" media="(prefers-color-scheme: dark)">
-  <source srcset="/logo.webp" media="(prefers-color-scheme: light)">
-  <img src="/logo.webp" width="300" alt="VictoriaMetrics logo">
-</picture>
 
 VictoriaMetrics is a fast, cost-effective and scalable time series database. It can be used as a long-term remote storage for Prometheus.
 
@@ -60,6 +55,8 @@ This is a [shared nothing architecture](https://en.wikipedia.org/wiki/Shared-not
 It increases cluster availability, and simplifies cluster maintenance as well as cluster scaling.
 
 ![Cluster Scheme](Cluster-VictoriaMetrics_cluster-scheme.webp)
+
+> Note that `vmselect` despite being stateless still requires some disk space (a few GBs) for temporary caches. Refer to the `-cacheDataPath` command-line flag for more details.
 
 ## Multitenancy
 
@@ -880,13 +877,17 @@ HDD-based persistent disks should be enough for the majority of use cases. It is
 
 ## Deduplication
 
-Cluster version of VictoriaMetrics supports data deduplication in the same way as single-node version do. See [these docs](https://docs.victoriametrics.com/#deduplication) for details. The only difference is that the same `-dedup.minScrapeInterval` command-line flag value must be passed to both `vmselect` and `vmstorage` nodes because of the following aspects:
+Cluster version of VictoriaMetrics supports data deduplication in the same way as single-node version do. 
+See [these docs](https://docs.victoriametrics.com/#deduplication) for details. The only difference is that 
+deduplication can't be guaranteed when samples and sample duplicates for the same time series end up on different 
+`vmstorage` nodes. This could happen in the following scenarios:
 
-By default, `vminsert` tries to route all the samples for a single time series to a single `vmstorage` node. But samples for a single time series can be spread among multiple `vmstorage` nodes under certain conditions:
-* when adding/removing `vmstorage` nodes. Then new samples for a part of time series will be routed to another `vmstorage` nodes;
+* when adding/removing `vmstorage` nodes a new samples for time series will be re-routed to another `vmstorage` nodes;
 * when `vmstorage` nodes are temporarily unavailable (for instance, during their restart). Then new samples are re-routed to the remaining available `vmstorage` nodes;
 * when `vmstorage` node has no enough capacity for processing incoming data stream. Then `vminsert` re-routes new samples to other `vmstorage` nodes.
 
+It is recommended to set **the same** `-dedup.minScrapeInterval` command-line flag value to both `vmselect` and `vmstorage` nodes
+to ensure query results consistency, even if storage layer didn't complete deduplication yet.
 
 ## Backups
 
@@ -1018,7 +1019,6 @@ Feel free asking any questions regarding VictoriaMetrics:
 * [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
 * [Telegram-en](https://t.me/VictoriaMetrics_en)
 * [Telegram-ru](https://t.me/VictoriaMetrics_ru1)
-* [Google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 * [Mastodon](https://mastodon.social/@victoriametrics/)
 
 If you like VictoriaMetrics and want contributing, then please read [these docs](https://docs.victoriametrics.com/contributing/).
@@ -1313,7 +1313,7 @@ Below is the output for `/path/to/vmselect -help`:
   -blockcache.missesBeforeCaching int
      The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -cacheDataPath string
-     Path to directory for cache files. By default, the cache is not persisted.
+     Path to directory for cache files and temporary query results. By default, the cache won't be persisted, and temporary query results will be placed under /tmp/searchResults. If set, the cache will be persisted under cacheDataPath/rollupResult, and temporary query results will be placed under cacheDataPath/tmp/searchResults.
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -cluster.tls
@@ -1586,6 +1586,9 @@ Below is the output for `/path/to/vmselect -help`:
      Whether to fix lookback interval to 'step' query arg value. If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored
   -search.skipSlowReplicas
      Whether to skip -replicationFactor - 1 slowest vmstorage nodes during querying. Enabling this setting may improve query speed, but it could also lead to incomplete results if some queried data has less than -replicationFactor copies at vmstorage nodes. Consider enabling this setting only if all the queried data contains -replicationFactor copies in the cluster
+  -search.inmemoryBufSizeBytes size
+     Size for in-memory data blocks used during processing search requests. By default, the size is automatically calculated based on available memory. Adjust this flag value if you observe that vm_tmp_blocks_max_inmemory_file_size_bytes metric constantly shows much higher values than vm_tmp_blocks_inmemory_file_size_bytes. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6851
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -search.treatDotsAsIsInRegexps
      Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
   -selectNode array
@@ -1901,32 +1904,3 @@ Below is the output for `/path/to/vmstorage -help`:
   -vmselectAddr string
      TCP address to accept connections from vmselect services (default ":8401")
 ```
-
-## VictoriaMetrics Logo
-
-[Zip](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/VM_logo.zip) contains three folders with different image orientation (main color and inverted version).
-
-Files included in each folder:
-
-- 2 JPEG Preview files
-- 2 PNG Preview files with transparent background
-- 2 EPS Adobe Illustrator EPS10 files
-
-### Logo Usage Guidelines
-
-#### Font used
-
-- Lato Black
-- Lato Regular
-
-#### Color Palette
-
-- HEX [#110f0f](https://www.color-hex.com/color/110f0f)
-- HEX [#ffffff](https://www.color-hex.com/color/ffffff)
-
-### We kindly ask
-
-- Please don't use any other font instead of suggested.
-- There should be sufficient clear space around the logo.
-- Do not change spacing, alignment, or relative locations of the design elements.
-- Do not change the proportions of any of the design elements or the design itself. You    may resize as needed but must retain all proportions.
