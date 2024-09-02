@@ -314,7 +314,7 @@ func newMetricsController(ctx context.Context) (*controller.Controller, error) {
 
 This controller will collect and push collected metrics to VictoriaMetrics address with interval of `10s`.
 
-See the full source code of the example [here](/guides/app.go.example).
+See the full source code of the example [here](app.go.example).
 
 ### Test metrics ingestion
 
