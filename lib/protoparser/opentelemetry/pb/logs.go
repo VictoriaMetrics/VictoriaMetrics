@@ -250,7 +250,7 @@ func (lr *LogRecord) FormatSeverity() string {
 	if lr.SeverityText != "" {
 		return lr.SeverityText
 	}
-	if lr.SeverityNumber > int32(len(logSeverities)) {
+	if lr.SeverityNumber > int32(len(logSeverities)-1) {
 		return logSeverities[0]
 	}
 	return logSeverities[lr.SeverityNumber]
