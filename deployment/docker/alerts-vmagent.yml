@@ -27,8 +27,9 @@ groups:
           severity: warning
         annotations:
           dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=79&var-instance={{ $labels.instance }}"
-          summary: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} drops the rejected by 
-          remote-write server data blocks. Check the logs to find the reason for rejects."
+          summary: "Vmagent is dropping data blocks that are rejected by remote storage"
+          description: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} drops the rejected by 
+            remote-write server data blocks. Check the logs to find the reason for rejects."
 
       - alert: TooManyScrapeErrors
         expr: increase(vm_promscrape_scrapes_failed_total[5m]) > 0
@@ -37,7 +38,8 @@ groups:
           severity: warning
         annotations:
           dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=31&var-instance={{ $labels.instance }}"
-          summary: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} fails to scrape targets for last 15m"
+          summary: "Vmagent fails to scrape one or more targets"
+          description: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} fails to scrape targets for last 15m"
 
       - alert: TooManyWriteErrors
         expr: |
@@ -49,7 +51,8 @@ groups:
           severity: warning
         annotations:
           dashboard: "http://localhost:3000/d/G7Z9GzMGz?viewPanel=77&var-instance={{ $labels.instance }}"
-          summary: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} responds with errors to write requests for last 15m."
+          summary: "Vmagent responds with too many errors on data ingestion protocols"
+          description: "Job \"{{ $labels.job }}\" on instance {{ $labels.instance }} responds with errors to write requests for last 15m."
 
       - alert: TooManyRemoteWriteErrors
         expr: rate(vmagent_remotewrite_retries_count_total[5m]) > 0
