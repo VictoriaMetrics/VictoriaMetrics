@@ -1,6 +1,6 @@
 # See https://medium.com/on-docker/use-multi-stage-builds-to-inject-ca-certs-ad1e8f01de1b
-ARG certs_image
-ARG root_image
+ARG certs_image=non-existing
+ARG root_image=non-existing
 FROM $certs_image as certs
 RUN apk update && apk upgrade && apk --update --no-cache add ca-certificates
 
@@ -10,5 +10,5 @@ EXPOSE 8482
 EXPOSE 8400
 EXPOSE 8401
 ENTRYPOINT ["/vmstorage-prod"]
-ARG TARGETARCH
+ARG TARGETARCH=non-existing
 COPY vmstorage-linux-${TARGETARCH}-prod ./vmstorage-prod
