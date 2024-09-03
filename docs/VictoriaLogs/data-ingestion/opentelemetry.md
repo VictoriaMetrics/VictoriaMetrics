@@ -13,12 +13,6 @@ aliases:
 
 VictoriaLogs supports both client open-telemetry [SDK](https://opentelemetry.io/docs/languages/) and [collector](https://opentelemetry.io/docs/collector/).
 
- Please note:
-
-* VictoriaLogs supports only `encoding: proto`. It's default value for `otlphttp` exporter and `SDK`.
-* opentelemetry doesn't allow to configure `URL` query args. It makes impossible to define `_stream_fields`.
-   Current work around for it is to use any proxy server (like [vmauth](https://docs.victoriametrics.com/vmauth/)) in between and configure needed args with it.
-
 # Client SDK
 
  Specify `EndpointURL`  for http-exporter builder.
@@ -29,8 +23,21 @@ Consider the following example for `golang` `SDK`:
  // Create the OTLP log exporter that sends logs to configured destination
  logExporter, err := otlploghttp.New(ctx,
   otlploghttp.WithEndpointURL("http://victorialogs:9428/insert/opentelemetry/v1/logs"),
- )`
+ )
 ```
+
+ Optionally, [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) could be defined via headers:
+
+```go
+ // Create the OTLP log exporter that sends logs to configured destination
+ logExporter, err := otlploghttp.New(ctx,
+  otlploghttp.WithEndpointURL("http://victorialogs:9428/insert/opentelemetry/v1/logs"),
+   otlploghttp.WithHeaders(map[string]string{"VL-Stream-Fields": "telemetry.sdk.language,severity"}),
+ )
+
+```
+
+ Given config defines 2 stream fields - `severity` and `telemetry.sdk.language`
 
 # Collector configuration
 
@@ -86,6 +93,16 @@ for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.co
 exporters:
   otlphttp:
     logs_endpoint: http://localhost:9428/insert/opentelemetry/v1/logs
+```
+
+ Optionally, [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) could be defined via headers:
+
+```yaml
+exporters:
+  otlphttp:
+    logs_endpoint: http://localhost:9428/insert/opentelemetry/v1/logs
+    headers:
+     VL-Stream-Fields: telemetry.sdk.language,severity
 ```
 
 Substitute `localhost:9428` address inside `exporters.oltphttp.logs_endpoint` with the real address of VictoriaLogs.
