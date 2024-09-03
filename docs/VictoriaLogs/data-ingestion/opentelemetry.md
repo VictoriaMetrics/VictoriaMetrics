@@ -13,7 +13,7 @@ aliases:
 
 VictoriaLogs supports both client open-telemetry [SDK](https://opentelemetry.io/docs/languages/) and [collector](https://opentelemetry.io/docs/collector/).
 
-# Client SDK
+## Client SDK
 
  Specify `EndpointURL`  for http-exporter builder.
 
@@ -37,9 +37,11 @@ Consider the following example for `golang` `SDK`:
 
 ```
 
- Given config defines 2 stream fields - `severity` and `telemetry.sdk.language`
+ Given config defines 2 stream fields - `severity` and `telemetry.sdk.language`.
 
-# Collector configuration
+See also [HTTP headers](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-headers)
+
+## Collector configuration
 
 VictoriaLogs supports given below OpenTelemetry collector exporters:
 
@@ -47,7 +49,7 @@ VictoriaLogs supports given below OpenTelemetry collector exporters:
 * [Loki](#loki)
 * [OpenTelemetry](#opentelemetry)
 
-## Elasticsearch
+### Elasticsearch
 
 ```yaml
 exporters:
@@ -66,7 +68,7 @@ service:
       exporters: [elasticsearch]
 ```
 
-## Loki
+### Loki
 
 ```yaml
 exporters:
@@ -84,7 +86,7 @@ service:
       exporters: [loki]
 ```
 
-## OpenTelemetry
+### OpenTelemetry
 
 Specify logs endpoint for [OTLP/HTTP exporter](https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlphttpexporter/README.md) in configuration file
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
@@ -104,6 +106,8 @@ exporters:
     headers:
      VL-Stream-Fields: telemetry.sdk.language,severity
 ```
+
+See also [HTTP headers](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-headers)
 
 Substitute `localhost:9428` address inside `exporters.oltphttp.logs_endpoint` with the real address of VictoriaLogs.
 
