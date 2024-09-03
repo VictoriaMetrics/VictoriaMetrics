@@ -78,13 +78,13 @@ func pushFieldsFromScopeLogs(sc *ScopeLogs, commonFields []logstorage.Field, lmp
 				Value: attr.Value.FormatString(),
 			})
 		}
-		if lr.Severity != "" {
+		if severity := lr.severity(); severity != "" {
 			fields = append(fields, logstorage.Field{
 				Name:  "severity",
-				Value: lr.Severity,
+				Value: severity,
 			})
 		}
-		lmp.AddRow(int64(lr.Timestamp), fields)
+		lmp.AddRow(lr.timestamp(), fields)
 	}
 	return len(sc.LogRecords)
 }
@@ -196,10 +196,28 @@ func (sl *ScopeLogs) unmarshalProtobuf(src []byte) (err error) {
 
 // LogRecord represents the corresponding OTEL protobuf message
 type LogRecord struct {
-	Timestamp  uint64
-	Severity   string
-	Body       *pb.AnyValue
-	Attributes []*pb.KeyValue
+	TimeUnixNano         pb.Uint64
+	ObservedTimeUnixNano pb.Uint64
+	SeverityNumber       int32
+	SeverityText         string
+	Body                 *pb.AnyValue
+	Attributes           []*pb.KeyValue
+}
+
+func (r *LogRecord) severity() string {
+	if r.SeverityText != "" {
+		return r.SeverityText
+	}
+	return logSeverities[r.SeverityNumber]
+}
+
+func (r *LogRecord) timestamp() int64 {
+	if r.TimeUnixNano > 0 {
+		return int64(r.TimeUnixNano)
+	} else if r.ObservedTimeUnixNano > 0 {
+		return int64(r.ObservedTimeUnixNano)
+	}
+	return 0
 }
 
 func (r *LogRecord) unmarshalProtobuf(src []byte) (err error) {
@@ -223,29 +241,25 @@ func (r *LogRecord) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read log record timestamp")
 			}
-			r.Timestamp = ts
+			r.TimeUnixNano = pb.Uint64(ts)
 		case 11:
-			if r.Timestamp == 0 {
-				ts, ok := fc.Fixed64()
-				if !ok {
-					return fmt.Errorf("cannot read log record observed timestamp")
-				}
-				r.Timestamp = ts
+			ts, ok := fc.Fixed64()
+			if !ok {
+				return fmt.Errorf("cannot read log record observed timestamp")
 			}
+			r.ObservedTimeUnixNano = pb.Uint64(ts)
 		case 2:
-			severity, ok := fc.Int32()
+			severityNumber, ok := fc.Int32()
 			if !ok {
 				return fmt.Errorf("cannot read severity number")
 			}
-			r.Severity = logSeverities[severity]
+			r.SeverityNumber = severityNumber
 		case 3:
-			if r.Severity == "" {
-				severity, ok := fc.String()
-				if !ok {
-					return fmt.Errorf("cannot read severity string")
-				}
-				r.Severity = strings.Clone(severity)
+			severityText, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read severity string")
 			}
+			r.SeverityText = strings.Clone(severityText)
 		case 5:
 			data, ok := fc.MessageData()
 			if !ok {

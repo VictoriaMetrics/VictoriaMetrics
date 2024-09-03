@@ -3,10 +3,47 @@ package pb
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/VictoriaMetrics/easyproto"
 )
+
+// Uint64 represents uint64 type, which is encoded as a string in JSON and as uint64 in Prorobuf
+// See https://protobuf.dev/programming-guides/proto3/#json
+type Uint64 uint64
+
+// UnmarshalJSON decodes t from data
+func (u *Uint64) UnmarshalJSON(src []byte) error {
+	vStr, err := strconv.Unquote(string(src))
+	if err != nil {
+		return fmt.Errorf("failed to unquote uint64: %w", err)
+	}
+	v, err := strconv.ParseUint(vStr, 10, 64)
+	if err != nil {
+		return fmt.Errorf("failed to parse uint64: %w", err)
+	}
+	*u = Uint64(v)
+	return nil
+}
+
+// Int64 represents int64 type, which is encoded as a string in JSON and as int64 in Prorobuf
+// See https://protobuf.dev/programming-guides/proto3/#json
+type Int64 int64
+
+// UnmarshalJSON decodes t from data
+func (i *Int64) UnmarshalJSON(src []byte) error {
+	vStr, err := strconv.Unquote(string(src))
+	if err != nil {
+		return fmt.Errorf("failed to unquote int64: %w", err)
+	}
+	v, err := strconv.ParseInt(vStr, 10, 64)
+	if err != nil {
+		return fmt.Errorf("failed to parse int64: %w", err)
+	}
+	*i = Int64(v)
+	return nil
+}
 
 // Resource represents the corresponding OTEL protobuf message
 type Resource struct {

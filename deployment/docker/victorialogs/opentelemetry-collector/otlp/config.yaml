@@ -1,6 +1,9 @@
 exporters:
   otlphttp:
     logs_endpoint: http://victorialogs:9428/insert/opentelemetry/api/v1/push
+    encoding: json
+  debug:
+    verbosity: detailed
 receivers:
   filelog:
     include: [/tmp/logs/*.log]
@@ -10,4 +13,4 @@ service:
   pipelines:
     logs:
       receivers: [filelog]
-      exporters: [otlphttp]
+      exporters: [otlphttp, debug]

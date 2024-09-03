@@ -151,11 +151,11 @@ func (wr *writeContext) appendSamplesFromHistogram(metricName string, p *pb.Hist
 
 	var cumulative uint64
 	for index, bound := range p.ExplicitBounds {
-		cumulative += p.BucketCounts[index]
+		cumulative += uint64(p.BucketCounts[index])
 		boundLabelValue := strconv.FormatFloat(bound, 'f', -1, 64)
 		wr.appendSampleWithExtraLabel(metricName+"_bucket", "le", boundLabelValue, t, float64(cumulative), isStale)
 	}
-	cumulative += p.BucketCounts[len(p.BucketCounts)-1]
+	cumulative += uint64(p.BucketCounts[len(p.BucketCounts)-1])
 	wr.appendSampleWithExtraLabel(metricName+"_bucket", "le", "+Inf", t, float64(cumulative), isStale)
 }
 
