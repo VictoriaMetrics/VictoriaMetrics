@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -23,7 +24,7 @@ import (
 // callback shouldn't hold tss items after returning.
 //
 // optional processBody can be used for pre-processing the read request body from r before parsing it in OpenTelemetry format.
-func ParseStream(r io.Reader, isGzipped bool, processBody func([]byte) ([]byte, error), callback func(tss []prompbmarshal.TimeSeries) error) error {
+func ParseStream(r io.Reader, contentType string, isGzipped bool, processBody func([]byte) ([]byte, error), callback func(tss []prompbmarshal.TimeSeries) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -39,7 +40,7 @@ func ParseStream(r io.Reader, isGzipped bool, processBody func([]byte) ([]byte, 
 
 	wr := getWriteContext()
 	defer putWriteContext(wr)
-	req, err := wr.readAndUnpackRequest(r, processBody)
+	req, err := wr.readAndUnpackRequest(r, contentType, processBody)
 	if err != nil {
 		return fmt.Errorf("cannot unpack OpenTelemetry metrics: %w", err)
 	}
@@ -253,7 +254,7 @@ func resetLabels(labels []prompbmarshal.Label) []prompbmarshal.Label {
 	return labels[:0]
 }
 
-func (wr *writeContext) readAndUnpackRequest(r io.Reader, processBody func([]byte) ([]byte, error)) (*pb.ExportMetricsServiceRequest, error) {
+func (wr *writeContext) readAndUnpackRequest(r io.Reader, contentType string, processBody func([]byte) ([]byte, error)) (*pb.ExportMetricsServiceRequest, error) {
 	if _, err := wr.bb.ReadFrom(r); err != nil {
 		return nil, fmt.Errorf("cannot read request: %w", err)
 	}
@@ -265,8 +266,14 @@ func (wr *writeContext) readAndUnpackRequest(r io.Reader, processBody func([]byt
 		}
 		wr.bb.B = append(wr.bb.B[:0], data...)
 	}
-	if err := req.UnmarshalProtobuf(wr.bb.B); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(wr.bb.B), err)
+	if contentType == "application/json" {
+		if err := json.Unmarshal(wr.bb.B, &req); err != nil {
+			return nil, fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(wr.bb.B), err)
+		}
+	} else {
+		if err := req.UnmarshalProtobuf(wr.bb.B); err != nil {
+			return nil, fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(wr.bb.B), err)
+		}
 	}
 	return &req, nil
 }

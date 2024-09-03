@@ -22,9 +22,10 @@ func BenchmarkParseStream(b *testing.B) {
 			ResourceMetrics: []*pb.ResourceMetrics{generateOTLPSamples(samples)},
 		}
 		data := pbRequest.MarshalProtobuf(nil)
+		contentType := "application/x-protobuf"
 
 		for p.Next() {
-			err := ParseStream(bytes.NewBuffer(data), false, nil, func(_ []prompbmarshal.TimeSeries) error {
+			err := ParseStream(bytes.NewBuffer(data), contentType, false, nil, func(_ []prompbmarshal.TimeSeries) error {
 				return nil
 			})
 			if err != nil {
