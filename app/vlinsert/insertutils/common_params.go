@@ -2,6 +2,7 @@ package insertutils
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,7 +40,7 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 	}
 
 	// Extract time field name from _time_field query arg or header
-	var timeField = "_time"
+	timeField := "_time"
 	if tf := r.FormValue("_time_field"); tf != "" {
 		timeField = tf
 	} else if tf = r.Header.Get("VL-Time-Field"); tf != "" {
@@ -47,7 +48,7 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 	}
 
 	// Extract message field name from _msg_field query arg or header
-	var msgField = ""
+	msgField := ""
 	if msgf := r.FormValue("_msg_field"); msgf != "" {
 		msgField = msgf
 	} else if msgf = r.Header.Get("VL-Msg-Field"); msgf != "" {
@@ -56,18 +57,28 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 
 	streamFields := httputils.GetArray(r, "_stream_fields")
 	if len(streamFields) == 0 {
-		if sf := r.Header.Values("VL-Stream-Fields"); len(sf) > 0 {
-			streamFields = sf
+		if sf := r.Header.Get("VL-Stream-Fields"); len(sf) > 0 {
+			streamFields = strings.Split(sf, ",")
 		}
 	}
 	ignoreFields := httputils.GetArray(r, "ignore_fields")
 	if len(ignoreFields) == 0 {
-		if f := r.Header.Values("VL-Ignore-Fields"); len(f) > 0 {
-			ignoreFields = f
+		if f := r.Header.Get("VL-Ignore-Fields"); len(f) > 0 {
+			ignoreFields = strings.Split(f, ",")
 		}
 	}
 
 	debug := httputils.GetBool(r, "debug")
+	if !debug {
+		if dh := r.Header.Get("VL-Debug"); len(dh) > 0 {
+			hv := strings.ToLower(dh)
+			switch hv {
+			case "", "0", "f", "false", "no":
+			default:
+				debug = true
+			}
+		}
+	}
 	debugRequestURI := ""
 	debugRemoteAddr := ""
 	if debug {
@@ -169,7 +180,7 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 	if lmp.cp.Debug {
 		s := lmp.lr.GetRowString(0)
 		lmp.lr.ResetKeepSettings()
-		logger.Infof("remoteAddr=%s; requestURI=%s; ignoring log entry because of `debug` query arg: %s", lmp.cp.DebugRemoteAddr, lmp.cp.DebugRequestURI, s)
+		logger.Infof("remoteAddr=%s; requestURI=%s; ignoring log entry because of `debug` arg: %s", lmp.cp.DebugRemoteAddr, lmp.cp.DebugRequestURI, s)
 		rowsDroppedTotalDebug.Inc()
 		return
 	}
@@ -211,5 +222,7 @@ func (cp *CommonParams) NewLogMessageProcessor() LogMessageProcessor {
 	return lmp
 }
 
-var rowsDroppedTotalDebug = metrics.NewCounter(`vl_rows_dropped_total{reason="debug"}`)
-var rowsDroppedTotalTooManyFields = metrics.NewCounter(`vl_rows_dropped_total{reason="too_many_fields"}`)
+var (
+	rowsDroppedTotalDebug         = metrics.NewCounter(`vl_rows_dropped_total{reason="debug"}`)
+	rowsDroppedTotalTooManyFields = metrics.NewCounter(`vl_rows_dropped_total{reason="too_many_fields"}`)
+)
