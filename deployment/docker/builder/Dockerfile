@@ -1,4 +1,4 @@
-ARG go_builder_image
+ARG go_builder_image=non-existing
 FROM $go_builder_image
 STOPSIGNAL SIGINT
 RUN apk add git gcc musl-dev make wget --no-cache && \
