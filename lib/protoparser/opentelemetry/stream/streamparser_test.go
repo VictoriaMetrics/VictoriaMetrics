@@ -248,7 +248,6 @@ func generateGauge(name, unit string) *pb.Metric {
 func generateHistogram(name, unit string) *pb.Metric {
 	points := []*pb.HistogramDataPoint{
 		{
-
 			Attributes:     attributesFromKV("label2", "value2"),
 			Count:          15,
 			Sum:            func() *float64 { v := 30.0; return &v }(),
