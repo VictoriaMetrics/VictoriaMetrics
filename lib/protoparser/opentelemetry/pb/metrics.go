@@ -94,7 +94,7 @@ func (rm *ResourceMetrics) unmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot read Resource data")
 			}
 			rm.Resource = &Resource{}
-			if err := rm.Resource.UnmarshalProtobuf(data); err != nil {
+			if err := rm.Resource.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot umarshal Resource: %w", err)
 			}
 		case 2:
@@ -285,9 +285,9 @@ func (g *Gauge) unmarshalProtobuf(src []byte) (err error) {
 // NumberDataPoint represents the corresponding OTEL protobuf message
 type NumberDataPoint struct {
 	Attributes   []*KeyValue
-	TimeUnixNano Uint64
+	TimeUnixNano uint64
 	DoubleValue  *float64
-	IntValue     *Int64
+	IntValue     *int64
 	Flags        uint32
 }
 
@@ -295,12 +295,12 @@ func (ndp *NumberDataPoint) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	for _, a := range ndp.Attributes {
 		a.marshalProtobuf(mm.AppendMessage(7))
 	}
-	mm.AppendFixed64(3, uint64(ndp.TimeUnixNano))
+	mm.AppendFixed64(3, ndp.TimeUnixNano)
 	switch {
 	case ndp.DoubleValue != nil:
 		mm.AppendDouble(4, *ndp.DoubleValue)
 	case ndp.IntValue != nil:
-		mm.AppendSfixed64(6, int64(*ndp.IntValue))
+		mm.AppendSfixed64(6, *ndp.IntValue)
 	}
 	mm.AppendUint32(8, ndp.Flags)
 }
@@ -329,7 +329,7 @@ func (ndp *NumberDataPoint) unmarshalProtobuf(src []byte) (err error) {
 			}
 			ndp.Attributes = append(ndp.Attributes, &KeyValue{})
 			a := ndp.Attributes[len(ndp.Attributes)-1]
-			if err := a.UnmarshalProtobuf(data); err != nil {
+			if err := a.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Attribute: %w", err)
 			}
 		case 3:
@@ -337,7 +337,7 @@ func (ndp *NumberDataPoint) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read TimeUnixNano")
 			}
-			ndp.TimeUnixNano = Uint64(timeUnixNano)
+			ndp.TimeUnixNano = timeUnixNano
 		case 4:
 			doubleValue, ok := fc.Double()
 			if !ok {
@@ -349,8 +349,7 @@ func (ndp *NumberDataPoint) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read IntValue")
 			}
-			iv := Int64(intValue)
-			ndp.IntValue = &iv
+			ndp.IntValue = &intValue
 		case 8:
 			flags, ok := fc.Uint32()
 			if !ok {
@@ -514,10 +513,10 @@ func (s *Summary) unmarshalProtobuf(src []byte) (err error) {
 // HistogramDataPoint represents the corresponding OTEL protobuf message
 type HistogramDataPoint struct {
 	Attributes     []*KeyValue
-	TimeUnixNano   Uint64
-	Count          Uint64
+	TimeUnixNano   uint64
+	Count          uint64
 	Sum            *float64
-	BucketCounts   []Uint64
+	BucketCounts   []uint64
 	ExplicitBounds []float64
 	Flags          uint32
 }
@@ -531,11 +530,7 @@ func (dp *HistogramDataPoint) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	if dp.Sum != nil {
 		mm.AppendDouble(5, *dp.Sum)
 	}
-	bucketCounts := make([]uint64, len(dp.BucketCounts))
-	for i := range bucketCounts {
-		bucketCounts[i] = uint64(dp.BucketCounts[i])
-	}
-	mm.AppendFixed64s(6, bucketCounts)
+	mm.AppendFixed64s(6, dp.BucketCounts)
 	mm.AppendDoubles(7, dp.ExplicitBounds)
 	mm.AppendUint32(10, dp.Flags)
 }
@@ -564,7 +559,7 @@ func (dp *HistogramDataPoint) unmarshalProtobuf(src []byte) (err error) {
 			}
 			dp.Attributes = append(dp.Attributes, &KeyValue{})
 			a := dp.Attributes[len(dp.Attributes)-1]
-			if err := a.UnmarshalProtobuf(data); err != nil {
+			if err := a.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Attribute: %w", err)
 			}
 		case 3:
@@ -572,13 +567,13 @@ func (dp *HistogramDataPoint) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read TimeUnixNano")
 			}
-			dp.TimeUnixNano = Uint64(timeUnixNano)
+			dp.TimeUnixNano = timeUnixNano
 		case 4:
 			count, ok := fc.Fixed64()
 			if !ok {
 				return fmt.Errorf("cannot read Count")
 			}
-			dp.Count = Uint64(count)
+			dp.Count = count
 		case 5:
 			sum, ok := fc.Double()
 			if !ok {
@@ -586,15 +581,11 @@ func (dp *HistogramDataPoint) unmarshalProtobuf(src []byte) (err error) {
 			}
 			dp.Sum = &sum
 		case 6:
-			var bucketCounts []uint64
-			bucketCounts, ok := fc.UnpackFixed64s(bucketCounts)
+			bucketCounts, ok := fc.UnpackFixed64s(dp.BucketCounts)
 			if !ok {
 				return fmt.Errorf("cannot read BucketCounts")
 			}
-			dp.BucketCounts = make([]Uint64, len(bucketCounts))
-			for i := range bucketCounts {
-				dp.BucketCounts[i] = Uint64(bucketCounts[i])
-			}
+			dp.BucketCounts = bucketCounts
 		case 7:
 			explicitBounds, ok := fc.UnpackDoubles(dp.ExplicitBounds)
 			if !ok {
@@ -615,8 +606,8 @@ func (dp *HistogramDataPoint) unmarshalProtobuf(src []byte) (err error) {
 // SummaryDataPoint represents the corresponding OTEL protobuf message
 type SummaryDataPoint struct {
 	Attributes     []*KeyValue
-	TimeUnixNano   Uint64
-	Count          Uint64
+	TimeUnixNano   uint64
+	Count          uint64
 	Sum            float64
 	QuantileValues []*ValueAtQuantile
 	Flags          uint32
@@ -626,8 +617,8 @@ func (dp *SummaryDataPoint) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	for _, a := range dp.Attributes {
 		a.marshalProtobuf(mm.AppendMessage(7))
 	}
-	mm.AppendFixed64(3, uint64(dp.TimeUnixNano))
-	mm.AppendFixed64(4, uint64(dp.Count))
+	mm.AppendFixed64(3, dp.TimeUnixNano)
+	mm.AppendFixed64(4, dp.Count)
 	mm.AppendDouble(5, dp.Sum)
 	for _, v := range dp.QuantileValues {
 		v.marshalProtobuf(mm.AppendMessage(6))
@@ -658,7 +649,7 @@ func (dp *SummaryDataPoint) unmarshalProtobuf(src []byte) (err error) {
 			}
 			dp.Attributes = append(dp.Attributes, &KeyValue{})
 			a := dp.Attributes[len(dp.Attributes)-1]
-			if err := a.UnmarshalProtobuf(data); err != nil {
+			if err := a.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Attribute: %w", err)
 			}
 		case 3:
@@ -666,13 +657,13 @@ func (dp *SummaryDataPoint) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read TimeUnixNano")
 			}
-			dp.TimeUnixNano = Uint64(timeUnixNano)
+			dp.TimeUnixNano = timeUnixNano
 		case 4:
 			count, ok := fc.Fixed64()
 			if !ok {
 				return fmt.Errorf("cannot read Count")
 			}
-			dp.Count = Uint64(count)
+			dp.Count = count
 		case 5:
 			sum, ok := fc.Double()
 			if !ok {

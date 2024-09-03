@@ -13,14 +13,15 @@ type Resource struct {
 	Attributes []*KeyValue
 }
 
+// marshalProtobuf marshals
 func (r *Resource) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	for _, a := range r.Attributes {
 		a.marshalProtobuf(mm.AppendMessage(1))
 	}
 }
 
-// UnmarshalProtobuf unmarshals r from protobuf message at src.
-func (r *Resource) UnmarshalProtobuf(src []byte) (err error) {
+// unmarshalProtobuf unmarshals r from protobuf message at src.
+func (r *Resource) unmarshalProtobuf(src []byte) (err error) {
 	// message Resource {
 	//   repeated KeyValue attributes = 1;
 	// }
@@ -38,7 +39,7 @@ func (r *Resource) UnmarshalProtobuf(src []byte) (err error) {
 			}
 			r.Attributes = append(r.Attributes, &KeyValue{})
 			a := r.Attributes[len(r.Attributes)-1]
-			if err := a.UnmarshalProtobuf(data); err != nil {
+			if err := a.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Attribute: %w", err)
 			}
 		}
@@ -59,8 +60,8 @@ func (kv *KeyValue) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	}
 }
 
-// UnmarshalProtobuf unmarshals kv from protobuf message at src.
-func (kv *KeyValue) UnmarshalProtobuf(src []byte) (err error) {
+// unmarshalProtobuf unmarshals kv from protobuf message at src.
+func (kv *KeyValue) unmarshalProtobuf(src []byte) (err error) {
 	// message KeyValue {
 	//   string key = 1;
 	//   AnyValue value = 2;
@@ -84,7 +85,7 @@ func (kv *KeyValue) UnmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot read Value")
 			}
 			kv.Value = &AnyValue{}
-			if err := kv.Value.UnmarshalProtobuf(data); err != nil {
+			if err := kv.Value.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Value: %w", err)
 			}
 		}
@@ -122,8 +123,8 @@ func (av *AnyValue) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	}
 }
 
-// UnmarshalProtobuf unmarshals av from protobuf message at src.
-func (av *AnyValue) UnmarshalProtobuf(src []byte) (err error) {
+// unmarshalProtobuf unmarshals av from protobuf message at src.
+func (av *AnyValue) unmarshalProtobuf(src []byte) (err error) {
 	// message AnyValue {
 	//   oneof value {
 	//     string string_value = 1;
@@ -173,7 +174,7 @@ func (av *AnyValue) UnmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot read ArrayValue")
 			}
 			av.ArrayValue = &ArrayValue{}
-			if err := av.ArrayValue.UnmarshalProtobuf(data); err != nil {
+			if err := av.ArrayValue.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal ArrayValue: %w", err)
 			}
 		case 6:
@@ -182,7 +183,7 @@ func (av *AnyValue) UnmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot read KeyValueList")
 			}
 			av.KeyValueList = &KeyValueList{}
-			if err := av.KeyValueList.UnmarshalProtobuf(data); err != nil {
+			if err := av.KeyValueList.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal KeyValueList: %w", err)
 			}
 		case 7:
@@ -208,8 +209,8 @@ func (av *ArrayValue) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	}
 }
 
-// UnmarshalProtobuf unmarshals av from protobuf message at src.
-func (av *ArrayValue) UnmarshalProtobuf(src []byte) (err error) {
+// unmarshalProtobuf unmarshals av from protobuf message at src.
+func (av *ArrayValue) unmarshalProtobuf(src []byte) (err error) {
 	// message ArrayValue {
 	//   repeated AnyValue values = 1;
 	// }
@@ -227,7 +228,7 @@ func (av *ArrayValue) UnmarshalProtobuf(src []byte) (err error) {
 			}
 			av.Values = append(av.Values, &AnyValue{})
 			v := av.Values[len(av.Values)-1]
-			if err := v.UnmarshalProtobuf(data); err != nil {
+			if err := v.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Value: %w", err)
 			}
 		}
@@ -246,8 +247,8 @@ func (kvl *KeyValueList) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	}
 }
 
-// UnmarshalProtobuf unmarshals kvl from protobuf message at src.
-func (kvl *KeyValueList) UnmarshalProtobuf(src []byte) (err error) {
+// unmarshalProtobuf unmarshals kvl from protobuf message at src.
+func (kvl *KeyValueList) unmarshalProtobuf(src []byte) (err error) {
 	// message KeyValueList {
 	//   repeated KeyValue values = 1;
 	// }
@@ -265,7 +266,7 @@ func (kvl *KeyValueList) UnmarshalProtobuf(src []byte) (err error) {
 			}
 			kvl.Values = append(kvl.Values, &KeyValue{})
 			v := kvl.Values[len(kvl.Values)-1]
-			if err := v.UnmarshalProtobuf(data); err != nil {
+			if err := v.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Value: %w", err)
 			}
 		}

@@ -10,12 +10,35 @@ aliases:
   - /VictoriaLogs/data-ingestion/OpenTelemetry.html
 ---
 
-# OpenTelemetry setup
+
+VictoriaLogs supports both client open-telemetry [SDK](https://opentelemetry.io/docs/languages/) and [collector](https://opentelemetry.io/docs/collector/).
+
+ Please note:
+
+* VictoriaLogs supports only `encoding: proto`. It's default value for `otlphttp` exporter and `SDK`.
+* opentelemetry doesn't allow to configure `URL` query args. It makes impossible to define `_stream_fields`.
+   Current work around for it is to use any proxy server (like [vmauth](https://docs.victoriametrics.com/vmauth/)) in between and configure needed args with it.
+
+# Client SDK
+
+ Specify `EndpointURL`  for http-exporter builder.
+
+Consider the following example for `golang` `SDK`:
+
+```go
+ // Create the OTLP log exporter that sends logs to configured destination
+ logExporter, err := otlploghttp.New(ctx,
+  otlploghttp.WithEndpointURL("http://victorialogs:9428/insert/opentelemetry/v1/logs"),
+ )`
+```
+
+# Collector configuration
 
 VictoriaLogs supports given below OpenTelemetry collector exporters:
-- [Elasticsearch](#elasticsearch)
-- [Loki](#loki)
-- [OpenTelemetry](#opentelemetry)
+
+* [Elasticsearch](#elasticsearch)
+* [Loki](#loki)
+* [OpenTelemetry](#opentelemetry)
 
 ## Elasticsearch
 
@@ -62,25 +85,15 @@ for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.co
 ```yaml
 exporters:
   otlphttp:
-    logs_endpoint: http://localhost:9428/insert/opentelemetry/api/v1/push
+    logs_endpoint: http://localhost:9428/insert/opentelemetry/v1/logs
 ```
 
-Substitute `localhost:9428` address inside `exporters.oltphttp.logs_endpoint` with the real TCP address of VictoriaLogs.
-
-VictoriaLogs divides all the ingested logs into a log streams [log stream](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) relying on resource attributes. In example below resource attributes are set for [filelog OpenTelemetry receiver](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/filelogreceiver):
-
-```yaml
-receivers:
-  filelog:
-    include: [/var/log/myservice/*.json]
-    resource:
-      region: us-east-1
-```
+Substitute `localhost:9428` address inside `exporters.oltphttp.logs_endpoint` with the real address of VictoriaLogs.
 
 The ingested log entries can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
 See also:
 
-- [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
-- [Docker-compose demo for OpenTelemetry collector integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/opentelemetry-collector).
+* [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
+* [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
+* [Docker-compose demo for OpenTelemetry collector integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/opentelemetry-collector).
