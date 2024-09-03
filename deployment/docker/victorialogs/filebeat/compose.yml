@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   filebeat-victorialogs:
     image: docker.elastic.co/beats/filebeat:8.8.1
