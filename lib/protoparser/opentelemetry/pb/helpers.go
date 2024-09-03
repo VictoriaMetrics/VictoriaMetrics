@@ -10,6 +10,9 @@ import (
 
 // FormatString returns string reperesentation for av.
 func (av *AnyValue) FormatString() string {
+	if av == nil {
+		return ""
+	}
 	switch {
 	case av.StringValue != nil:
 		return *av.StringValue
