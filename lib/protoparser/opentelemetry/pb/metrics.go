@@ -525,8 +525,8 @@ func (dp *HistogramDataPoint) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	for _, a := range dp.Attributes {
 		a.marshalProtobuf(mm.AppendMessage(9))
 	}
-	mm.AppendFixed64(3, uint64(dp.TimeUnixNano))
-	mm.AppendFixed64(4, uint64(dp.Count))
+	mm.AppendFixed64(3, dp.TimeUnixNano)
+	mm.AppendFixed64(4, dp.Count)
 	if dp.Sum != nil {
 		mm.AppendDouble(5, *dp.Sum)
 	}

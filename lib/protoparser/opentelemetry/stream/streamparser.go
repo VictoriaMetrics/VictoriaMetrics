@@ -265,7 +265,6 @@ func (wr *writeContext) readAndUnpackRequest(r io.Reader, processBody func([]byt
 		}
 		wr.bb.B = append(wr.bb.B[:0], data...)
 	}
-
 	if err := req.UnmarshalProtobuf(wr.bb.B); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(wr.bb.B), err)
 	}

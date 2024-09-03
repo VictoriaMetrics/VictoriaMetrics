@@ -83,14 +83,18 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 }
 
 var (
-	requestsProtobufTotal     = metrics.NewCounter(`vl_http_requests_total{path="/insert/opentelemetry/api/v1/push",format="protobuf"}`)
 	rowsIngestedProtobufTotal = metrics.NewCounter(`vl_rows_ingested_total{type="opentelemetry",format="protobuf"}`)
-	requestProtobufDuration   = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/opentelemetry/api/v1/push",format="protobuf"}`)
+
+	requestsProtobufTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
+	errorsTotal           = metrics.NewCounter(`vl_http_errors_total{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
+
+	requestProtobufDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
 )
 
 func pushProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, error) {
 	var req pb.ExportLogsServiceRequest
 	if err := req.UnmarshalProtobuf(data); err != nil {
+		errorsTotal.Inc()
 		return 0, fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(data), err)
 	}
 
