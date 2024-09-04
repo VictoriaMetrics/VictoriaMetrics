@@ -1,5 +1,7 @@
 run:
   timeout: 2m
+  skip-dirs:
+    - "lib/regexutil/syntax"
 
 linters:
   enable:
