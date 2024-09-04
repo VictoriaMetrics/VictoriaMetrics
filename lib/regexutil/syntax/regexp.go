@@ -223,7 +223,7 @@ func calcFlagsI(re *Regexp) (must, cant printFlags) {
 
 		inside += int(hi - lo + 1)
 		outside += int(lo - pre)
-		pre = max(minFold, hi)
+		pre = max(minFold, hi+1)
 	}
 
 	outside += int(maxFold - pre)
