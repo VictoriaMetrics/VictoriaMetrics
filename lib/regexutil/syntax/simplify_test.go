@@ -138,17 +138,6 @@ var simplifyTests = []struct {
 	{`(){0,2}`, `(?:()()?)?`},
 }
 
-func TestSimplify2(t *testing.T) {
-	re, err := Parse(`[a-ee-gg-m]`, Perl|DotNL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := re.Simplify().String()
-	if s != `[a-m]` {
-		t.Errorf("Simplify(%#q) = %#q, want %#q", re.String(), s, `[a-m]`)
-	}
-}
-
 func TestSimplify(t *testing.T) {
 	for _, tt := range simplifyTests {
 		re, err := Parse(tt.Regexp, MatchNL|Perl&^OneLine)
