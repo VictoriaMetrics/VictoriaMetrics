@@ -242,6 +242,7 @@ func calcFlagsI(re *Regexp) (must, cant printFlags) {
 	}
 
 	// Check characters outside the defined range
+	pre = 0
 	for i := 0; i < len(re.Rune); i += 2 {
 		lo := max(minFold, re.Rune[i])
 		hi := min(maxFold, re.Rune[i+1])
