@@ -489,35 +489,36 @@ again:
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)
 
 // calculateRetryAfterDuration calculate the retry duration.
-// 1. Calculate next retry duration by backoff policy (x2) and max retry duration limit.
-// 2. use max(Retry-After duration, next retry duration).
+// 1. Respect `Retry-After` duration if exists.
+// 2. Otherwise, calculate next retry duration by backoff policy (x2) and max retry duration limit.
 //
 // Also see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6097
 func calculateRetryDuration(retryAfterDuration, retryDuration, maxRetryDuration time.Duration) time.Duration {
+	// respect `Retry-After` duration
+	if retryAfterDuration > 0 {
+		return timeutil.AddJitterToDuration(retryAfterDuration)
+	}
+
 	// default backoff retry policy
 	retryDuration *= 2
 	if retryDuration > maxRetryDuration {
 		retryDuration = maxRetryDuration
 	}
 
-	if retryDuration > retryAfterDuration {
-		// Stick with the default policy when `retryAfter` is shorter.
-		return retryDuration
-	}
-
-	// Follow retryAfter
-	return timeutil.AddJitterToDuration(retryAfterDuration)
+	return retryDuration
 }
 
 // parseRetryAfterHeader parse Retry-After value retrieved from HTTP response header.
 // `retryAfterString` should be in either HTTP-date or a number of seconds.
 // It will return time.Duration(0) if `retryAfterString` does not follow RFC 7231.
-func parseRetryAfterHeader(retryAfterString string) time.Duration {
-	var retryAfterDuration time.Duration
-
+func parseRetryAfterHeader(retryAfterString string) (retryAfterDuration time.Duration) {
 	if retryAfterString == "" {
 		return retryAfterDuration
 	}
+
+	defer func() {
+		logger.Infof("found Retry-After header %s, parsed into %.2f second(s)", retryAfterString, retryAfterDuration.Seconds())
+	}()
 
 	// Retry-After could be in "Mon, 02 Jan 2006 15:04:05 GMT" format.
 	if parsedTime, err := time.Parse(http.TimeFormat, retryAfterString); err == nil {
