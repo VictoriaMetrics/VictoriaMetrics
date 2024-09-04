@@ -1815,14 +1815,12 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	j := 0
 	for i := range mrs {
 		mr := &mrs[i]
-		var isStaleNan bool
 		if math.IsNaN(mr.Value) {
 			if !decimal.IsStaleNaN(mr.Value) {
 				// Skip NaNs other than Prometheus staleness marker, since the underlying encoding
 				// doesn't know how to work with them.
 				continue
 			}
-			isStaleNan = true
 		}
 		if mr.Timestamp < minTimestamp {
 			// Skip rows with too small timestamps outside the retention.
@@ -1933,13 +1931,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			r.TSID = genTSID.TSID
 			prevTSID = genTSID.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
-			continue
-		}
-
-		// If sample is stale and its TSID wasn't found in cache and in indexdb,
-		// then we skip it. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5069
-		if isStaleNan {
-			j--
 			continue
 		}
 
