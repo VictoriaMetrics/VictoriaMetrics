@@ -217,15 +217,18 @@ func calcFlagsI(re *Regexp) (must, cant printFlags) {
 	for i := 0; i < len(re.Rune); i += 2 {
 		lo := max(minFold, re.Rune[i])
 		hi := min(maxFold, re.Rune[i+1])
+		if lo > hi {
+			continue
+		}
 
-		inside += int(hi - lo)
-		outside += int(hi - pre)
+		inside += int(hi - lo + 1)
+		outside += int(lo - pre)
 		pre = max(minFold, hi)
 	}
 
 	outside += int(maxFold - pre)
 
-	if inside > outside {
+	if inside < outside {
 		for i := 0; i < len(re.Rune); i += 2 {
 			lo := max(minFold, re.Rune[i])
 			hi := min(maxFold, re.Rune[i+1])
@@ -242,9 +245,9 @@ func calcFlagsI(re *Regexp) (must, cant printFlags) {
 	}
 
 	// Check characters outside the defined range
-	pre = 0
+	pre = minFold
 	for i := 0; i < len(re.Rune); i += 2 {
-		lo := max(minFold, re.Rune[i])
+		lo := re.Rune[i]
 		hi := min(maxFold, re.Rune[i+1])
 		// Check characters between `pre` and `lo` (outside the defined range)
 		for r := pre; r < lo; r++ {
@@ -254,7 +257,7 @@ func calcFlagsI(re *Regexp) (must, cant printFlags) {
 				}
 			}
 		}
-		pre = max(minFold, hi)
+		pre = max(minFold, hi+1)
 	}
 
 	// Check characters between `pre` and `maxFold`
