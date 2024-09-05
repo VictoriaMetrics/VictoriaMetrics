@@ -14,7 +14,7 @@ The following `tip` changes can be tested by building VictoriaLogs from the late
 according to [these docs](https://docs.victoriametrics.com/victorialogs/quickstart/#building-from-source-code)
 
 ## tip
-
+* FEATURE: add support for autocomplete in LogsQL queries. This feature provides suggestions for field names, field values, and pipe names.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add support for displaying the top 5 log streams in the hits graph. The remaining log streams are grouped into an "other" label. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6545).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the ability to customize the graph display with options for bar, line, stepped line, and points.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add fields for setting AccountID and ProjectID. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6631).

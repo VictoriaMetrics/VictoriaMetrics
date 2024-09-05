@@ -6,6 +6,9 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import Button from "../../../components/Main/Button/Button";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import TextField from "../../../components/Main/TextField/TextField";
+import LogsQueryEditorAutocomplete from "../../../components/Configurators/QueryEditor/LogsQL/LogsQueryEditorAutocomplete";
+import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
+import Switch from "../../../components/Main/Switch/Switch";
 
 export interface ExploreLogHeaderProps {
   query: string;
@@ -25,6 +28,8 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
   onRun,
 }) => {
   const { isMobile } = useDeviceDetect();
+  const { autocomplete } = useQueryState();
+  const queryDispatch = useQueryDispatch();
 
   const [errorLimit, setErrorLimit] = useState("");
   const [limitInput, setLimitInput] = useState(limit);
@@ -38,6 +43,10 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
       setErrorLimit("");
       onChangeLimit(number);
     }
+  };
+
+  const onChangeAutocomplete = () => {
+    queryDispatch({ type: "TOGGLE_AUTOCOMPLETE" });
   };
 
   useEffect(() => {
@@ -55,7 +64,8 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
       <div className="vm-explore-logs-header-top">
         <QueryEditor
           value={query}
-          autocomplete={false}
+          autocomplete={autocomplete}
+          autocompleteEl={LogsQueryEditorAutocomplete}
           onArrowUp={() => null}
           onArrowDown={() => null}
           onEnter={onRun}
@@ -73,7 +83,14 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
         />
       </div>
       <div className="vm-explore-logs-header-bottom">
-        <div className="vm-explore-logs-header-bottom-contols"></div>
+        <div className="vm-explore-logs-header-bottom-contols">
+          <Switch
+            label={"Autocomplete"}
+            value={autocomplete}
+            onChange={onChangeAutocomplete}
+            fullWidth={isMobile}
+          />
+        </div>
         <div className="vm-explore-logs-header-bottom-helpful">
           <a
             className="vm-link vm-link_with-icon"
