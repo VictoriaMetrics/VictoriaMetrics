@@ -201,6 +201,7 @@ On the opened screen, choose parameters of your new deployment:
 * `Retention` period for stored metrics.
 * `Size` of your deployment [based on your needs](https://docs.victoriametrics.com/guides/understand-your-setup-size.html)
 
+Also see the [VictoriaMetrics Cloud Tiers Limitations](https://docs.victoriametrics.com/victoriametrics-cloud/limitations.html).
 
   ![Create deployment form](create_deployment_form.webp)
 
