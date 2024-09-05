@@ -211,9 +211,30 @@ func calcFlags(re *Regexp, flags *map[*Regexp]printFlags) (must, cant printFlags
 }
 
 func calcFlagsI(re *Regexp) (must, cant printFlags) {
-	inside := 0
-	outside := 0
+	if len(re.Rune) < 2 {
+		return 0, 0
+	}
+
+	maxRange := min(maxFold, re.Rune[len(re.Rune)-1])
 	pre := rune(minFold)
+	inside, outside := 0, int(maxFold-maxRange)
+	checkInRange := true
+
+	// if last range dominates the whole range,
+	// do a fast check
+	fastIn := max(0, maxRange-re.Rune[len(re.Rune)-2])
+	if fastIn > rune(outside)+re.Rune[len(re.Rune)-2] {
+		checkInRange = false
+		goto check
+	}
+
+	// if the range from last rune to maxFold dominates,
+	// do a fast check
+	if outside > int(re.Rune[len(re.Rune)-1]) {
+		goto check
+	}
+
+	// otherwise, do a slow check
 	for i := 0; i < len(re.Rune); i += 2 {
 		lo := max(minFold, re.Rune[i])
 		hi := min(maxFold, re.Rune[i+1])
@@ -226,9 +247,9 @@ func calcFlagsI(re *Regexp) (must, cant printFlags) {
 		pre = max(minFold, hi+1)
 	}
 
-	outside += int(maxFold - pre)
-
-	if inside < outside {
+	checkInRange = inside < outside
+check:
+	if checkInRange {
 		for i := 0; i < len(re.Rune); i += 2 {
 			lo := max(minFold, re.Rune[i])
 			hi := min(maxFold, re.Rune[i+1])
