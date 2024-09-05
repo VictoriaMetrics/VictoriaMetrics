@@ -26,6 +26,8 @@ See also [LTS releases](https://docs.victoriametrics.com/victoriametrics/lts-rel
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/victoriametrics/vmagent/), [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/): add `-secret.flags` command-line flag to configure flags to be hidden in logs and on `/metrics`. This is useful for protecting sensitive flag values (for example `-remoteWrite.headers`) from being exposed in logs or metrics. See [#6938](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6938). Thank you @truepele for the issue and PR
+
 ## [v1.127.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.127.0)
 
 Released at 2025-10-03
