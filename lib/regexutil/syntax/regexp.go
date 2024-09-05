@@ -222,8 +222,8 @@ func calcFlagsI(re *Regexp) (must, cant printFlags) {
 
 	// if last range dominates the whole range,
 	// do a fast check
-	fastIn := max(0, maxRange-re.Rune[len(re.Rune)-2])
-	if fastIn > rune(outside)+re.Rune[len(re.Rune)-2] {
+	lastRange := max(0, maxRange-re.Rune[len(re.Rune)-2])
+	if lastRange > rune(outside)+re.Rune[len(re.Rune)-2] {
 		checkInRange = false
 		goto check
 	}
