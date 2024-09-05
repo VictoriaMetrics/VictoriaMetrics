@@ -19,8 +19,9 @@ type filterPrefix struct {
 	fieldName string
 	prefix    string
 
-	tokensOnce sync.Once
-	tokens     []string
+	tokensOnce   sync.Once
+	tokens       []string
+	tokensHashes []uint64
 }
 
 func (fp *filterPrefix) String() string {
@@ -39,8 +40,14 @@ func (fp *filterPrefix) getTokens() []string {
 	return fp.tokens
 }
 
+func (fp *filterPrefix) getTokensHashes() []uint64 {
+	fp.tokensOnce.Do(fp.initTokens)
+	return fp.tokensHashes
+}
+
 func (fp *filterPrefix) initTokens() {
 	fp.tokens = getTokensSkipLast(fp.prefix)
+	fp.tokensHashes = appendTokensHashes(nil, fp.tokens)
 }
 
 func (fp *filterPrefix) applyToBlockResult(bs *blockResult, bm *bitmap) {
@@ -68,7 +75,7 @@ func (fp *filterPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	tokens := fp.getTokens()
+	tokens := fp.getTokensHashes()
 
 	switch ch.valueType {
 	case valueTypeString:
@@ -94,7 +101,7 @@ func (fp *filterPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-func matchTimestampISO8601ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
+func matchTimestampISO8601ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if prefix == "" {
 		// Fast path - all the timestamp values match an empty prefix aka `*`
 		return
@@ -115,7 +122,7 @@ func matchTimestampISO8601ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap
 	bbPool.Put(bb)
 }
 
-func matchIPv4ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
+func matchIPv4ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if prefix == "" {
 		// Fast path - all the ipv4 values match an empty prefix aka `*`
 		return
@@ -136,7 +143,7 @@ func matchIPv4ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix str
 	bbPool.Put(bb)
 }
 
-func matchFloat64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
+func matchFloat64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if prefix == "" {
 		// Fast path - all the float64 values match an empty prefix aka `*`
 		return
@@ -177,7 +184,7 @@ func matchValuesDictByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, pref
 	bbPool.Put(bb)
 }
 
-func matchStringByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
+func matchStringByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return

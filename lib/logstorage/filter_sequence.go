@@ -15,8 +15,9 @@ type filterSequence struct {
 	fieldName string
 	phrases   []string
 
-	tokensOnce sync.Once
-	tokens     []string
+	tokensOnce   sync.Once
+	tokens       []string
+	tokensHashes []uint64
 
 	nonEmptyPhrasesOnce sync.Once
 	nonEmptyPhrases     []string
@@ -40,10 +41,15 @@ func (fs *filterSequence) getTokens() []string {
 	return fs.tokens
 }
 
+func (fs *filterSequence) getTokensHashes() []uint64 {
+	fs.tokensOnce.Do(fs.initTokens)
+	return fs.tokensHashes
+}
+
 func (fs *filterSequence) initTokens() {
 	phrases := fs.getNonEmptyPhrases()
-	tokens := tokenizeStrings(nil, phrases)
-	fs.tokens = tokens
+	fs.tokens = tokenizeStrings(nil, phrases)
+	fs.tokensHashes = appendTokensHashes(nil, fs.tokens)
 }
 
 func (fs *filterSequence) getNonEmptyPhrases() []string {
@@ -100,7 +106,7 @@ func (fs *filterSequence) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	tokens := fs.getTokens()
+	tokens := fs.getTokensHashes()
 
 	switch ch.valueType {
 	case valueTypeString:
@@ -126,7 +132,7 @@ func (fs *filterSequence) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-func matchTimestampISO8601BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
+func matchTimestampISO8601BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string, tokens []uint64) {
 	if len(phrases) == 1 {
 		matchTimestampISO8601ByPhrase(bs, ch, bm, phrases[0], tokens)
 		return
@@ -145,7 +151,7 @@ func matchTimestampISO8601BySequence(bs *blockSearch, ch *columnHeader, bm *bitm
 	bbPool.Put(bb)
 }
 
-func matchIPv4BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
+func matchIPv4BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string, tokens []uint64) {
 	if len(phrases) == 1 {
 		matchIPv4ByPhrase(bs, ch, bm, phrases[0], tokens)
 		return
@@ -166,7 +172,7 @@ func matchIPv4BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases,
 	bbPool.Put(bb)
 }
 
-func matchFloat64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
+func matchFloat64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -197,7 +203,7 @@ func matchValuesDictBySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, ph
 	bbPool.Put(bb)
 }
 
-func matchStringBySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string, tokens []string) {
+func matchStringBySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -207,7 +213,7 @@ func matchStringBySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase
 	})
 }
 
-func matchUint8BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
+func matchUint8BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string, tokens []uint64) {
 	if len(phrases) > 1 {
 		bm.resetBits()
 		return
@@ -215,7 +221,7 @@ func matchUint8BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases
 	matchUint8ByExactValue(bs, ch, bm, phrases[0], tokens)
 }
 
-func matchUint16BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
+func matchUint16BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string, tokens []uint64) {
 	if len(phrases) > 1 {
 		bm.resetBits()
 		return
@@ -223,7 +229,7 @@ func matchUint16BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase
 	matchUint16ByExactValue(bs, ch, bm, phrases[0], tokens)
 }
 
-func matchUint32BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
+func matchUint32BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string, tokens []uint64) {
 	if len(phrases) > 1 {
 		bm.resetBits()
 		return
@@ -231,7 +237,7 @@ func matchUint32BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase
 	matchUint32ByExactValue(bs, ch, bm, phrases[0], tokens)
 }
 
-func matchUint64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases, tokens []string) {
+func matchUint64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string, tokens []uint64) {
 	if len(phrases) > 1 {
 		bm.resetBits()
 		return
