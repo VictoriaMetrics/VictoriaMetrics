@@ -32,5 +32,4 @@ func BenchmarkParseStream(b *testing.B) {
 			}
 		}
 	})
-
 }
