@@ -14,11 +14,6 @@ func TestBloomFilter(t *testing.T) {
 		if err := bf.unmarshal(data); err != nil {
 			t.Fatalf("unexpected error when unmarshaling bloom filter: %s", err)
 		}
-		for _, token := range tokens {
-			if !bf.containsAny([]string{token}) {
-				t.Fatalf("bloomFilterContains must return true for the added token %q", token)
-			}
-		}
 		if !bf.containsAll(tokens) {
 			t.Fatalf("bloomFilterContains must return true for the added tokens")
 		}
@@ -72,7 +67,7 @@ func TestBloomFilterFalsePositive(t *testing.T) {
 	falsePositives := 0
 	for i := range tokens {
 		token := fmt.Sprintf("non-existing-token_%d", i)
-		if bf.containsAny([]string{token}) {
+		if bf.containsAll([]string{token}) {
 			falsePositives++
 		}
 	}

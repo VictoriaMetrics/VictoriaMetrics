@@ -120,37 +120,6 @@ func (bf *bloomFilter) containsAll(tokens []string) bool {
 	return true
 }
 
-// containsAny returns true if bf contains at least a single token from the given tokens.
-func (bf *bloomFilter) containsAny(tokens []string) bool {
-	bits := bf.bits
-	if len(bits) == 0 {
-		return true
-	}
-	maxBits := uint64(len(bits)) * 64
-	var buf [8]byte
-	hp := (*uint64)(unsafe.Pointer(&buf[0]))
-nextToken:
-	for _, token := range tokens {
-		*hp = xxhash.Sum64(bytesutil.ToUnsafeBytes(token))
-		for i := 0; i < bloomFilterHashesCount; i++ {
-			hi := xxhash.Sum64(buf[:])
-			(*hp)++
-			idx := hi % maxBits
-			i := idx / 64
-			j := idx % 64
-			mask := uint64(1) << j
-			w := bits[i]
-			if (w & mask) == 0 {
-				// The token is missing. Check the next token
-				continue nextToken
-			}
-		}
-		// It is likely the token exists in the bloom filter
-		return true
-	}
-	return false
-}
-
 func getBloomFilter() *bloomFilter {
 	v := bloomFilterPool.Get()
 	if v == nil {
