@@ -24,11 +24,9 @@ type filterAnyCasePhrase struct {
 	phraseUppercaseOnce sync.Once
 	phraseUppercase     string
 
-	tokensOnce sync.Once
-	tokens     []string
-
-	tokensUppercaseOnce sync.Once
-	tokensUppercase     []string
+	tokensOnce            sync.Once
+	tokensHashes          []uint64
+	tokensHashesUppercase []uint64
 }
 
 func (fp *filterAnyCasePhrase) String() string {
@@ -39,27 +37,25 @@ func (fp *filterAnyCasePhrase) updateNeededFields(neededFields fieldsSet) {
 	neededFields.add(fp.fieldName)
 }
 
-func (fp *filterAnyCasePhrase) getTokens() []string {
+func (fp *filterAnyCasePhrase) getTokensHashes() []uint64 {
 	fp.tokensOnce.Do(fp.initTokens)
-	return fp.tokens
+	return fp.tokensHashes
+}
+
+func (fp *filterAnyCasePhrase) getTokensHashesUppercase() []uint64 {
+	fp.tokensOnce.Do(fp.initTokens)
+	return fp.tokensHashesUppercase
 }
 
 func (fp *filterAnyCasePhrase) initTokens() {
-	fp.tokens = tokenizeStrings(nil, []string{fp.phrase})
-}
+	tokens := tokenizeStrings(nil, []string{fp.phrase})
+	fp.tokensHashes = appendTokensHashes(nil, tokens)
 
-func (fp *filterAnyCasePhrase) getTokensUppercase() []string {
-	fp.tokensUppercaseOnce.Do(fp.initTokensUppercase)
-	return fp.tokensUppercase
-}
-
-func (fp *filterAnyCasePhrase) initTokensUppercase() {
-	tokens := fp.getTokens()
 	tokensUppercase := make([]string, len(tokens))
 	for i, token := range tokens {
 		tokensUppercase[i] = strings.ToUpper(token)
 	}
-	fp.tokensUppercase = tokensUppercase
+	fp.tokensHashesUppercase = appendTokensHashes(nil, tokensUppercase)
 }
 
 func (fp *filterAnyCasePhrase) getPhraseLowercase() string {
@@ -109,7 +105,7 @@ func (fp *filterAnyCasePhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	tokens := fp.getTokens()
+	tokens := fp.getTokensHashes()
 
 	switch ch.valueType {
 	case valueTypeString:
@@ -130,7 +126,7 @@ func (fp *filterAnyCasePhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchIPv4ByPhrase(bs, ch, bm, phraseLowercase, tokens)
 	case valueTypeTimestampISO8601:
 		phraseUppercase := fp.getPhraseUppercase()
-		tokensUppercase := fp.getTokensUppercase()
+		tokensUppercase := fp.getTokensHashesUppercase()
 		matchTimestampISO8601ByPhrase(bs, ch, bm, phraseUppercase, tokensUppercase)
 	default:
 		logger.Panicf("FATAL: %s: unknown valueType=%d", bs.partPath(), ch.valueType)

@@ -89,9 +89,9 @@ func (fo *filterOr) matchBloomFilters(bs *blockSearch) bool {
 		return true
 	}
 
-	for _, fieldTokens := range byFieldTokens {
-		fieldName := fieldTokens.field
-		tokens := fieldTokens.tokens
+	for _, ft := range byFieldTokens {
+		fieldName := ft.field
+		tokens := ft.tokens
 
 		v := bs.csh.getConstColumnValue(fieldName)
 		if v != "" {
@@ -112,7 +112,7 @@ func (fo *filterOr) matchBloomFilters(bs *blockSearch) bool {
 			}
 			continue
 		}
-		if matchBloomFilterAllTokens(bs, ch, tokens) {
+		if matchBloomFilterAllTokens(bs, ch, ft.tokensHashes) {
 			return true
 		}
 	}
@@ -190,8 +190,9 @@ func (fo *filterOr) initByFieldTokens() {
 			break
 		}
 		byFieldTokens = append(byFieldTokens, fieldTokens{
-			field:  fieldName,
-			tokens: commonTokens,
+			field:        fieldName,
+			tokens:       commonTokens,
+			tokensHashes: appendTokensHashes(nil, commonTokens),
 		})
 	}
 

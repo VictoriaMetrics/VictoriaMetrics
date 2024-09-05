@@ -18,8 +18,9 @@ type filterAnd struct {
 }
 
 type fieldTokens struct {
-	field  string
-	tokens []string
+	field        string
+	tokens       []string
+	tokensHashes []uint64
 }
 
 func (fa *filterAnd) String() string {
@@ -76,16 +77,16 @@ func (fa *filterAnd) matchBloomFilters(bs *blockSearch) bool {
 		return true
 	}
 
-	for _, fieldTokens := range byFieldTokens {
-		fieldName := fieldTokens.field
-		tokens := fieldTokens.tokens
+	for _, ft := range byFieldTokens {
+		fieldName := ft.field
+		tokens := ft.tokens
 
 		v := bs.csh.getConstColumnValue(fieldName)
 		if v != "" {
-			if !matchStringByAllTokens(v, tokens) {
-				return false
+			if matchStringByAllTokens(v, tokens) {
+				continue
 			}
-			continue
+			return false
 		}
 
 		ch := bs.csh.getColumnHeader(fieldName)
@@ -94,12 +95,12 @@ func (fa *filterAnd) matchBloomFilters(bs *blockSearch) bool {
 		}
 
 		if ch.valueType == valueTypeDict {
-			if !matchDictValuesByAllTokens(ch.valuesDict.values, tokens) {
-				return false
+			if matchDictValuesByAllTokens(ch.valuesDict.values, tokens) {
+				continue
 			}
-			continue
+			return false
 		}
-		if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		if !matchBloomFilterAllTokens(bs, ch, ft.tokensHashes) {
 			return false
 		}
 	}
@@ -170,8 +171,9 @@ func (fa *filterAnd) initByFieldTokens() {
 		}
 
 		byFieldTokens = append(byFieldTokens, fieldTokens{
-			field:  fieldName,
-			tokens: tokens,
+			field:        fieldName,
+			tokens:       tokens,
+			tokensHashes: appendTokensHashes(nil, tokens),
 		})
 	}
 
