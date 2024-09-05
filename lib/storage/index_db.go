@@ -2230,7 +2230,8 @@ func (is *indexSearch) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilter
 
 func errTooManyTimeseries(maxMetrics int) error {
 	return fmt.Errorf("the number of matching timeseries exceeds %d; "+
-		"either narrow down the search or increase -search.max* command-line flag values at vmselect; "+
+		"either narrow down the search or increase -search.max* command-line flag values at vmselect "+
+		"(the most likely limit is -search.maxUniqueTimeseries); "+
 		"see https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics)
 }
 

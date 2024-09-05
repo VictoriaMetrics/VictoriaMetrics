@@ -4497,7 +4497,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "The number of rows or bytes that vminesrt internal buffer contains at the moment.",
+          "description": "The number of rows or bytes that vminsert internal buffer contains at the moment.",
           "fieldConfig": {
             "defaults": {
               "color": {
