@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -369,7 +370,7 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.FuncExpr) ([]*timeseries, error) {
 	tf := getTransformFunc(fe.Name)
 	if tf == nil {
-		return nil, &UserReadableError{
+		return nil, &httpserver.UserReadableError{
 			Err: fmt.Errorf(`unknown func %q`, fe.Name),
 		}
 	}
@@ -391,7 +392,7 @@ func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.Fun
 	}
 	rv, err := tf(tfa)
 	if err != nil {
-		return nil, &UserReadableError{
+		return nil, &httpserver.UserReadableError{
 			Err: fmt.Errorf(`cannot evaluate %q: %w`, fe.AppendString(nil), err),
 		}
 	}
@@ -422,7 +423,7 @@ func evalAggrFunc(qt *querytracer.Tracer, ec *EvalConfig, ae *metricsql.AggrFunc
 	}
 	af := getAggrFunc(ae.Name)
 	if af == nil {
-		return nil, &UserReadableError{
+		return nil, &httpserver.UserReadableError{
 			Err: fmt.Errorf(`unknown func %q`, ae.Name),
 		}
 	}
@@ -817,12 +818,12 @@ func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf 
 	}
 	tssAt, err := evalExpr(qt, ec, re.At)
 	if err != nil {
-		return nil, &UserReadableError{
+		return nil, &httpserver.UserReadableError{
 			Err: fmt.Errorf("cannot evaluate `@` modifier: %w", err),
 		}
 	}
 	if len(tssAt) != 1 {
-		return nil, &UserReadableError{
+		return nil, &httpserver.UserReadableError{
 			Err: fmt.Errorf("`@` modifier must return a single series; it returns %d series instead", len(tssAt)),
 		}
 	}
@@ -884,7 +885,7 @@ func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName st
 		rvs, err = evalRollupFuncWithSubquery(qt, ecNew, funcName, rf, expr, re)
 	}
 	if err != nil {
-		return nil, &UserReadableError{
+		return nil, &httpserver.UserReadableError{
 			Err: err,
 		}
 	}
@@ -1623,7 +1624,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	if ec.Start == ec.End {
 		rvs, err := evalInstantRollup(qt, ec, funcName, rf, expr, me, iafc, window)
 		if err != nil {
-			err = &UserReadableError{
+			err = &httpserver.UserReadableError{
 				Err: err,
 			}
 			return nil, err
@@ -1634,7 +1635,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	evalWithConfig := func(ec *EvalConfig) ([]*timeseries, error) {
 		tss, err := evalRollupFuncNoCache(qt, ec, funcName, rf, expr, me, iafc, window, pointsPerSeries)
 		if err != nil {
-			err = &UserReadableError{
+			err = &httpserver.UserReadableError{
 				Err: err,
 			}
 			return nil, err

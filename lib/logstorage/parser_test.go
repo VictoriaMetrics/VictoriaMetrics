@@ -2100,3 +2100,94 @@ func TestQueryDropAllPipes(t *testing.T) {
 	f(`foo or bar and baz | top 5 by (x)`, `foo or bar baz`)
 	f(`foo | filter bar:baz | stats by (x) min(y)`, `foo bar:baz`)
 }
+
+func TestQueryGetStatsByFields_Success(t *testing.T) {
+	f := func(qStr string, fieldsExpected []string) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		fields, ok := q.GetStatsByFields()
+		if !ok {
+			t.Fatalf("cannot obtain byFields from the query [%s]", qStr)
+		}
+		if !reflect.DeepEqual(fields, fieldsExpected) {
+			t.Fatalf("unexpected byFields;\ngot\n%q\nwant\n%q", fields, fieldsExpected)
+		}
+	}
+
+	f(`* | stats count()`, []string{})
+	f(`* | count()`, []string{})
+	f(`* | by (foo) count(), count_uniq(bar)`, []string{"foo"})
+	f(`* | stats by (a, b, cd) min(foo), max(bar)`, []string{"a", "b", "cd"})
+
+	// multiple pipes before stats is ok
+	f(`foo | extract "ip=<ip>," | stats by (host) count_uniq(ip)`, []string{"host"})
+
+	// sort, offset and limit pipes are allowed after stats
+	f(`foo | stats by (x, y) count() rows | sort by (rows) desc | offset 5 | limit 10`, []string{"x", "y"})
+
+	// filter pipe is allowed after stats
+	f(`foo | stats by (x, y) count() rows | filter rows:>100`, []string{"x", "y"})
+
+	// math pipe is allowed after stats
+	f(`foo | stats by (x) count() total, count() if (error) errors | math errors / total`, []string{"x"})
+
+	// keep containing all the by(...) fields
+	f(`foo | stats by (x) count() total | keep x, y`, []string{"x"})
+
+	// drop which doesn't contain by(...) fields
+	f(`foo | stats by (x) count() total | drop y`, []string{"x"})
+
+	// copy which doesn't contain by(...) fields
+	f(`foo | stats by (x) count() total | copy total abc`, []string{"x"})
+
+	// mv by(...) fields
+	f(`foo | stats by (x) count() total | mv x y`, []string{"y"})
+}
+
+func TestQueryGetStatsByFields_Failure(t *testing.T) {
+	f := func(qStr string) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		fields, ok := q.GetStatsByFields()
+		if ok {
+			t.Fatalf("expecting failure to get byFields for the query [%s]", qStr)
+		}
+		if fields != nil {
+			t.Fatalf("expectig nil fields; got %q", fields)
+		}
+	}
+
+	f(`*`)
+	f(`foo bar`)
+	f(`foo | by (a, b) count() | copy a b`)
+	f(`foo | by (a, b) count() | delete a`)
+	f(`foo | count() | drop_empty_fields`)
+	f(`foo | count() | extract "foo<bar>baz"`)
+	f(`foo | count() | extract_regexp "(?P<ip>([0-9]+[.]){3}[0-9]+)"`)
+	f(`foo | count() | field_names`)
+	f(`foo | count() | field_values abc`)
+	f(`foo | by (x) count() | fields a, b`)
+	f(`foo | count() | format "foo<bar>baz"`)
+	f(`foo | count() | pack_json`)
+	f(`foo | count() | pack_logfmt`)
+	f(`foo | rename x y`)
+	f(`foo | count() | replace ("foo", "bar")`)
+	f(`foo | count() | replace_regexp ("foo.+bar", "baz")`)
+	f(`foo | count() | stream_context after 10`)
+	f(`foo | count() | top 5 by (x)`)
+	f(`foo | count() | uniq by (x)`)
+	f(`foo | count() | unpack_json`)
+	f(`foo | count() | unpack_logfmt`)
+	f(`foo | count() | unpack_syslog`)
+	f(`foo | count() | unroll by (x)`)
+
+	f(`* | by (x) count() as rows | math rows * 10, rows / 10 | drop x`)
+}

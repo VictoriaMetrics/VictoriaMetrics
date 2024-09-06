@@ -2,7 +2,6 @@ package main
 
 import (
 	"embed"
-	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -307,7 +306,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			httpserver.EnableCORS(w, r)
 			if err := prometheus.LabelValuesHandler(qt, startTime, at, labelName, w, r); err != nil {
 				labelValuesErrors.Inc()
-				sendPrometheusError(w, r, err)
+				httpserver.SendPrometheusError(w, r, err)
 				return true
 			}
 			return true
@@ -330,7 +329,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryHandler(qt, startTime, at, w, r); err != nil {
 			queryErrors.Inc()
-			sendPrometheusError(w, r, err)
+			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -339,7 +338,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryRangeHandler(qt, startTime, at, w, r); err != nil {
 			queryRangeErrors.Inc()
-			sendPrometheusError(w, r, err)
+			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -348,7 +347,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.SeriesHandler(qt, startTime, at, w, r); err != nil {
 			seriesErrors.Inc()
-			sendPrometheusError(w, r, err)
+			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -357,7 +356,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.SeriesCountHandler(startTime, at, w, r); err != nil {
 			seriesCountErrors.Inc()
-			sendPrometheusError(w, r, err)
+			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -366,7 +365,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.LabelsHandler(qt, startTime, at, w, r); err != nil {
 			labelsErrors.Inc()
-			sendPrometheusError(w, r, err)
+			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -375,7 +374,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.TSDBStatusHandler(qt, startTime, at, w, r); err != nil {
 			statusTSDBErrors.Inc()
-			sendPrometheusError(w, r, err)
+			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -528,7 +527,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryStatsHandler(nil, w, r); err != nil {
 			globalTopQueriesErrors.Inc()
-			sendPrometheusError(w, r, err)
+			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -672,7 +671,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryStatsHandler(at, w, r); err != nil {
 			topQueriesErrors.Inc()
-			sendPrometheusError(w, r, err)
+			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -772,24 +771,6 @@ func isGraphiteTagsPath(path string) bool {
 	default:
 		return false
 	}
-}
-
-func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
-	logger.WarnfSkipframes(1, "error in %q: %s", httpserver.GetRequestURI(r), err)
-
-	w.Header().Set("Content-Type", "application/json")
-	statusCode := http.StatusUnprocessableEntity
-	var esc *httpserver.ErrorWithStatusCode
-	if errors.As(err, &esc) {
-		statusCode = esc.StatusCode
-	}
-	w.WriteHeader(statusCode)
-
-	var ure *promql.UserReadableError
-	if errors.As(err, &ure) {
-		err = ure
-	}
-	prometheus.WriteErrorResponse(w, statusCode, err)
 }
 
 var (
