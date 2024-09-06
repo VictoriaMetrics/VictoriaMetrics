@@ -56,7 +56,7 @@ func TestPipeMath(t *testing.T) {
 		'123.45.67.89' + 1000 as ip,
 		time - time % time_step as time_rounded,
 		duration - duration % duration_step as duration_rounded,
-		(ip & ip_mask | 0x1234) xor 5678 as subnet
+		(ip & ip_mask or 0x1234) xor 5678 as subnet
 	`, [][]Field{
 		{
 			{"time_step", "30m"},
