@@ -43,7 +43,6 @@ type Storage struct {
 	rowsReceivedTotal atomic.Uint64
 	rowsAddedTotal    atomic.Uint64
 	naNValueRows      atomic.Uint64
-	staleNaNValueRows atomic.Uint64
 
 	tooSmallTimestampRows atomic.Uint64
 	tooBigTimestampRows   atomic.Uint64
@@ -491,7 +490,6 @@ type Metrics struct {
 	SnapshotsCount    uint64
 
 	NaNValueRows          uint64
-	StaleNaNValueRows     uint64
 	TooSmallTimestampRows uint64
 	TooBigTimestampRows   uint64
 	InvalidRawMetricNames uint64
@@ -568,7 +566,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.SnapshotsCount += uint64(s.mustGetSnapshotsCount())
 
 	m.NaNValueRows += s.naNValueRows.Load()
-	m.StaleNaNValueRows += s.staleNaNValueRows.Load()
 	m.TooSmallTimestampRows += s.tooSmallTimestampRows.Load()
 	m.TooBigTimestampRows += s.tooBigTimestampRows.Load()
 	m.InvalidRawMetricNames += s.invalidRawMetricNames.Load()
@@ -1834,7 +1831,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	j := 0
 	for i := range mrs {
 		mr := &mrs[i]
-		var isStaleNan bool
 		if math.IsNaN(mr.Value) {
 			if !decimal.IsStaleNaN(mr.Value) {
 				// Skip NaNs other than Prometheus staleness marker, since the underlying encoding
@@ -1842,7 +1838,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				s.naNValueRows.Add(1)
 				continue
 			}
-			isStaleNan = true
 		}
 		if mr.Timestamp < minTimestamp {
 			// Skip rows with too small timestamps outside the retention.
@@ -1955,14 +1950,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			r.TSID = genTSID.TSID
 			prevTSID = genTSID.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
-			continue
-		}
-
-		// If sample is stale and its TSID wasn't found in cache and in indexdb,
-		// then we skip it. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5069
-		if isStaleNan {
-			j--
-			s.staleNaNValueRows.Add(1)
 			continue
 		}
 

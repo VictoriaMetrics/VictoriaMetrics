@@ -224,6 +224,9 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	m.TagFiltersToMetricIDsCacheMisses += cs.Misses
 
 	m.IndexDBRefCount += uint64(db.refCount.Load())
+
+	// this shouldn't increase the MissingTSIDsForMetricID value,
+	// as we only count it as missingTSIDs if it can't be found in both the current and previous indexdb.
 	m.MissingTSIDsForMetricID += db.missingTSIDsForMetricID.Load()
 
 	m.DateRangeSearchCalls += db.dateRangeSearchCalls.Load()
@@ -252,7 +255,6 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 		m.GlobalSearchCalls += extDB.globalSearchCalls.Load()
 
 		m.MissingMetricNamesForMetricID += extDB.missingMetricNamesForMetricID.Load()
-		m.IndexDBRefCount += uint64(extDB.refCount.Load())
 	})
 }
 
@@ -2230,7 +2232,8 @@ func (is *indexSearch) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilter
 
 func errTooManyTimeseries(maxMetrics int) error {
 	return fmt.Errorf("the number of matching timeseries exceeds %d; "+
-		"either narrow down the search or increase -search.max* command-line flag values at vmselect; "+
+		"either narrow down the search or increase -search.max* command-line flag values at vmselect "+
+		"(the most likely limit is -search.maxUniqueTimeseries); "+
 		"see https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics)
 }
 

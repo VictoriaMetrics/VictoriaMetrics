@@ -89,9 +89,9 @@ func (fo *filterOr) matchBloomFilters(bs *blockSearch) bool {
 		return true
 	}
 
-	for _, fieldTokens := range byFieldTokens {
-		fieldName := fieldTokens.field
-		tokens := fieldTokens.tokens
+	for _, ft := range byFieldTokens {
+		fieldName := ft.field
+		tokens := ft.tokens
 
 		v := bs.csh.getConstColumnValue(fieldName)
 		if v != "" {
@@ -112,7 +112,7 @@ func (fo *filterOr) matchBloomFilters(bs *blockSearch) bool {
 			}
 			continue
 		}
-		if matchBloomFilterAllTokens(bs, ch, tokens) {
+		if matchBloomFilterAllTokens(bs, ch, ft.tokensHashes) {
 			return true
 		}
 	}
@@ -171,13 +171,29 @@ func (fo *filterOr) initByFieldTokens() {
 
 	var byFieldTokens []fieldTokens
 	for _, fieldName := range fieldNames {
-		commonTokens := getCommonTokens(m[fieldName])
-		if len(commonTokens) > 0 {
-			byFieldTokens = append(byFieldTokens, fieldTokens{
-				field:  fieldName,
-				tokens: commonTokens,
-			})
+		tokenss := m[fieldName]
+		if len(tokenss) != len(fo.filters) {
+			// The filter for the given fieldName is missing in some OR filters,
+			// so it is impossible to extract common tokens from these filters.
+			// Give up extracting common tokens from the remaining filters,
+			// since they may not cover log entries matching fieldName filters.
+			// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6554
+			byFieldTokens = nil
+			break
 		}
+		commonTokens := getCommonTokens(tokenss)
+		if len(commonTokens) == 0 {
+			// Give up extracting common tokens from the remaining filters,
+			// since they may not cover log entries matching fieldName filters.
+			// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6554
+			byFieldTokens = nil
+			break
+		}
+		byFieldTokens = append(byFieldTokens, fieldTokens{
+			field:        fieldName,
+			tokens:       commonTokens,
+			tokensHashes: appendTokensHashes(nil, commonTokens),
+		})
 	}
 
 	fo.byFieldTokens = byFieldTokens
