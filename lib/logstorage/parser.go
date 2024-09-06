@@ -1644,8 +1644,8 @@ func getDayRangeArg(lex *lexer) (int64, string, error) {
 	if offset < 0 {
 		offset = 0
 	}
-	if offset >= nsecPerDay {
-		offset = nsecPerDay - 1
+	if offset >= nsecsPerDay {
+		offset = nsecsPerDay - 1
 	}
 	return offset, argStr, nil
 }
