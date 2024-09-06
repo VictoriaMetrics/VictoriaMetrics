@@ -28,9 +28,9 @@ type filterIn struct {
 	// qFieldName must be set to field name for obtaining values from if q is non-nil.
 	qFieldName string
 
-	tokensOnce   sync.Once
-	commonTokens []string
-	tokenSets    [][]string
+	tokensOnce         sync.Once
+	commonTokensHashes []uint64
+	tokenSetsHashes    [][]uint64
 
 	stringValuesOnce sync.Once
 	stringValues     map[string]struct{}
@@ -76,16 +76,21 @@ func (fi *filterIn) updateNeededFields(neededFields fieldsSet) {
 	neededFields.add(fi.fieldName)
 }
 
-func (fi *filterIn) getTokens() ([]string, [][]string) {
+func (fi *filterIn) getTokensHashes() ([]uint64, [][]uint64) {
 	fi.tokensOnce.Do(fi.initTokens)
-	return fi.commonTokens, fi.tokenSets
+	return fi.commonTokensHashes, fi.tokenSetsHashes
 }
 
 func (fi *filterIn) initTokens() {
 	commonTokens, tokenSets := getCommonTokensAndTokenSets(fi.values)
 
-	fi.commonTokens = commonTokens
-	fi.tokenSets = tokenSets
+	fi.commonTokensHashes = appendTokensHashes(nil, commonTokens)
+
+	tokenSetsHashes := make([][]uint64, len(tokenSets))
+	for i, tokens := range tokenSets {
+		tokenSetsHashes[i] = appendTokensHashes(nil, tokens)
+	}
+	fi.tokenSetsHashes = tokenSetsHashes
 }
 
 func (fi *filterIn) getStringValues() map[string]struct{} {
@@ -374,7 +379,7 @@ func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	commonTokens, tokenSets := fi.getTokens()
+	commonTokens, tokenSets := fi.getTokensHashes()
 
 	switch ch.valueType {
 	case valueTypeString:
@@ -409,7 +414,7 @@ func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-func matchAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[string]struct{}, commonTokens []string, tokenSets [][]string) {
+func matchAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[string]struct{}, commonTokens []uint64, tokenSets [][]uint64) {
 	if len(values) == 0 {
 		bm.resetBits()
 		return
@@ -424,7 +429,7 @@ func matchAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[str
 	})
 }
 
-func matchBloomFilterAnyTokenSet(bs *blockSearch, ch *columnHeader, commonTokens []string, tokenSets [][]string) bool {
+func matchBloomFilterAnyTokenSet(bs *blockSearch, ch *columnHeader, commonTokens []uint64, tokenSets [][]uint64) bool {
 	if len(commonTokens) > 0 {
 		if !matchBloomFilterAllTokens(bs, ch, commonTokens) {
 			return false
@@ -510,6 +515,9 @@ func getCommonTokens(tokenSets [][]string) []string {
 				delete(m, token)
 			}
 		}
+	}
+	if len(m) == 0 {
+		return nil
 	}
 
 	tokens := make([]string, 0, len(m))

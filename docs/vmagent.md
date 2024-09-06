@@ -199,7 +199,7 @@ to the same `-remoteWrite.url`. In this case you can specify comma-separated lis
 command-line flag. For example, `-remoteWrite.shardByURL.labels=instance,__name__` would shard metrics with the same name and `instance`
 label to the same `-remoteWrite.url`.
 
-Sometimes is may be needed ignoring some labels when sharding samples across multiple `-remoteWrite.url` backends.
+Sometimes, it may be necessary to ignore some labels when sharding samples across multiple `-remoteWrite.url` backends.
 For example, if all the [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) with the same set of labels
 except of `instance` and `pod` labels must be routed to the same backend. In this case the list of ignored labels must be passed to
 `-remoteWrite.shardByURL.ignoreLabels` command-line flag: `-remoteWrite.shardByURL.ignoreLabels=instance,pod`.

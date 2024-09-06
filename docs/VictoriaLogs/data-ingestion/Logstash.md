@@ -11,6 +11,13 @@ aliases:
   - /victorialogs/data-ingestion/logstash.html
   - /victorialogs/data-ingestion/Logstash.html
 ---
+VictoriaLogs supports given below Logstash outputs:
+- [Elasticsearch](#elasticsearch)
+- [Loki](#loki)
+- [HTTP JSON](#http)
+
+## Elasticsearch
+
 Specify [`output.elasticsearch`](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) section in the `logstash.conf` file
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
@@ -103,6 +110,32 @@ output {
         "_stream_fields" => "host.hostname,process.name"
     }
   }
+}
+```
+
+## Loki
+
+Specify [`output.loki`](https://grafana.com/docs/loki/latest/send-data/logstash/) section in the `logstash.conf` file
+for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
+
+```conf
+output {
+  loki {
+     url => "http://victorialogs:9428/insert/loki/api/v1/push?_stream_fields=host.ip,process.name&_msg_field=message&_time_field=@timestamp"
+  }
+}
+```
+
+## HTTP
+
+Specify [`output.http`](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-http.html) section in the `logstash.conf` file
+for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
+
+```conf
+output {
+  url => "http://victorialogs:9428/insert/jsonline?_stream_fields=host.ip,process.name&_msg_field=message&_time_field=@timestamp"
+  format => "json"
+  http_method => "post"
 }
 ```
 

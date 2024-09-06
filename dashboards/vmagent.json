@@ -5087,7 +5087,7 @@
               "editorMode": "code",
               "expr": "sum(rate(vm_streamaggr_matched_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) without (instance, pod) > 0",
               "instant": false,
-              "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
+              "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
@@ -5183,7 +5183,7 @@
               "editorMode": "code",
               "expr": "sum(rate(vm_streamaggr_ignored_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0) without (instance, pod)",
               "instant": false,
-              "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
+              "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
@@ -5285,7 +5285,7 @@
               "editorMode": "code",
               "expr": "sum(rate(vm_streamaggr_output_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) without (instance, pod) > 0",
               "instant": false,
-              "legendFormat": "{{url}} ({{job}}): match={{match}}; output={{output}}",
+              "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
@@ -5382,7 +5382,7 @@
               "editorMode": "code",
               "expr": "increase(vm_streamaggr_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
               "instant": false,
-              "legendFormat": "aggregation: {{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
+              "legendFormat": "aggregation: {{url}} ({{job}}): {{path}}:{{position}}",
               "range": true,
               "refId": "A"
             },
@@ -5395,7 +5395,7 @@
               "expr": "increase(vm_streamaggr_dedup_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
               "hide": false,
               "instant": false,
-              "legendFormat": "deduplication: {{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
+              "legendFormat": "deduplication: {{url}} ({{job}}): {{path}}:{{position}}",
               "range": true,
               "refId": "B"
             }
@@ -5493,7 +5493,7 @@
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(vm_streamaggr_samples_lag_seconds_bucket{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) without (instance, pod))",
               "instant": false,
-              "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
+              "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
@@ -5590,7 +5590,7 @@
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, rate(vm_streamaggr_dedup_flush_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]))",
               "instant": false,
-              "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
+              "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
