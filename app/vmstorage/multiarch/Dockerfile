@@ -10,5 +10,5 @@ EXPOSE 8482
 EXPOSE 8400
 EXPOSE 8401
 ENTRYPOINT ["/vmstorage-prod"]
-ARG TARGETARCH=non-existing
+ARG TARGETARCH
 COPY vmstorage-linux-${TARGETARCH}-prod ./vmstorage-prod

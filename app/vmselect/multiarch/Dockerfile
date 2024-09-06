@@ -8,5 +8,5 @@ FROM $root_image
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 EXPOSE 8481
 ENTRYPOINT ["/vmselect-prod"]
-ARG TARGETARCH=non-existing
+ARG TARGETARCH
 COPY vmselect-linux-${TARGETARCH}-prod ./vmselect-prod
