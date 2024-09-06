@@ -40,10 +40,13 @@ const (
 
 // Storage represents TSDB storage.
 type Storage struct {
-	rowsAddedTotal atomic.Uint64
+	rowsReceivedTotal atomic.Uint64
+	rowsAddedTotal    atomic.Uint64
+	naNValueRows      atomic.Uint64
 
 	tooSmallTimestampRows atomic.Uint64
 	tooBigTimestampRows   atomic.Uint64
+	invalidRawMetricNames atomic.Uint64
 
 	timeseriesRepopulated  atomic.Uint64
 	timeseriesPreCreated   atomic.Uint64
@@ -496,12 +499,15 @@ func (s *Storage) idb() *indexDB {
 
 // Metrics contains essential metrics for the Storage.
 type Metrics struct {
+	RowsReceivedTotal uint64
 	RowsAddedTotal    uint64
 	DedupsDuringMerge uint64
 	SnapshotsCount    uint64
 
+	NaNValueRows          uint64
 	TooSmallTimestampRows uint64
 	TooBigTimestampRows   uint64
+	InvalidRawMetricNames uint64
 
 	TimeseriesRepopulated  uint64
 	TimeseriesPreCreated   uint64
@@ -569,12 +575,15 @@ func (m *Metrics) Reset() {
 
 // UpdateMetrics updates m with metrics from s.
 func (s *Storage) UpdateMetrics(m *Metrics) {
+	m.RowsReceivedTotal += s.rowsReceivedTotal.Load()
 	m.RowsAddedTotal += s.rowsAddedTotal.Load()
 	m.DedupsDuringMerge = dedupsDuringMerge.Load()
 	m.SnapshotsCount += uint64(s.mustGetSnapshotsCount())
 
+	m.NaNValueRows += s.naNValueRows.Load()
 	m.TooSmallTimestampRows += s.tooSmallTimestampRows.Load()
 	m.TooBigTimestampRows += s.tooBigTimestampRows.Load()
+	m.InvalidRawMetricNames += s.invalidRawMetricNames.Load()
 
 	m.TimeseriesRepopulated += s.timeseriesRepopulated.Load()
 	m.TimeseriesPreCreated += s.timeseriesPreCreated.Load()
@@ -1736,8 +1745,13 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) {
 		} else {
 			mrs = nil
 		}
-		s.add(ic.rrs, ic.tmpMrs, mrsBlock, precisionBits)
-		s.rowsAddedTotal.Add(uint64(len(mrsBlock)))
+		rowsAdded := s.add(ic.rrs, ic.tmpMrs, mrsBlock, precisionBits)
+
+		// If the number of received rows is greater than the number of added
+		// rows, then some rows have failed to add. Check logs for the first
+		// error.
+		s.rowsAddedTotal.Add(uint64(rowsAdded))
+		s.rowsReceivedTotal.Add(uint64(len(mrsBlock)))
 	}
 	putMetricRowsInsertCtx(ic)
 }
@@ -1809,6 +1823,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 					if firstWarn == nil {
 						firstWarn = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 					}
+					s.invalidRawMetricNames.Add(1)
 					continue
 				}
 				mn.sortTags()
@@ -1843,6 +1858,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 			if firstWarn == nil {
 				firstWarn = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 			}
+			s.invalidRawMetricNames.Add(1)
 			continue
 		}
 		mn.sortTags()
@@ -1893,7 +1909,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	}
 }
 
-func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) {
+func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) int {
 	idb := s.idb()
 	generation := idb.generation
 	is := idb.getIndexSearch(0, 0, noDeadline)
@@ -1927,6 +1943,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			if !decimal.IsStaleNaN(mr.Value) {
 				// Skip NaNs other than Prometheus staleness marker, since the underlying encoding
 				// doesn't know how to work with them.
+				s.naNValueRows.Add(1)
 				continue
 			}
 		}
@@ -1989,6 +2006,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 					}
 					j--
+					s.invalidRawMetricNames.Add(1)
 					continue
 				}
 				mn.sortTags()
@@ -2013,6 +2031,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 			}
 			j--
+			s.invalidRawMetricNames.Add(1)
 			continue
 		}
 		mn.sortTags()
@@ -2088,6 +2107,8 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	}
 
 	s.tb.MustAddRows(rows)
+
+	return len(rows)
 }
 
 var storageAddRowsLogger = logger.WithThrottler("storageAddRows", 5*time.Second)
@@ -2208,6 +2229,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 			if firstError == nil {
 				firstError = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", metricNameRaw, err)
 			}
+			s.invalidRawMetricNames.Add(1)
 			continue
 		}
 		mn.sortTags()
@@ -2364,6 +2386,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 				if firstError == nil {
 					firstError = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", dmid.mr.MetricNameRaw, err)
 				}
+				s.invalidRawMetricNames.Add(1)
 				continue
 			}
 			mn.sortTags()
