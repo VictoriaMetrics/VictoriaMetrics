@@ -728,7 +728,7 @@ var zeroByStatsField = &byStatsField{}
 
 // byStatsField represents 'by (...)' part of the pipeStats.
 //
-// It can have either 'name' representation or 'name:bucket' or 'name:buket offset off' representation,
+// It can have either 'name' representation or 'name:bucket' or 'name:bucket offset off' representation,
 // where `bucket` and `off` can contain duration, size or numeric value for creating different buckets
 // for 'value/bucket'.
 type byStatsField struct {

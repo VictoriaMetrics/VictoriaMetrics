@@ -13,6 +13,7 @@ VictoriaLogs provides the following HTTP endpoints:
 - [`/select/logsql/query`](#querying-logs) for querying logs.
 - [`/select/logsql/tail`](#live-tailing) for live tailing of query results.
 - [`/select/logsql/hits`](#querying-hits-stats) for querying log hits stats over the given time range.
+- [`/select/logsql/stats_query`](#querying-log-stats) for querying log stats at the given time.
 - [`/select/logsql/stream_ids`](#querying-stream_ids) for querying `_stream_id` values of [log streams](#https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - [`/select/logsql/streams`](#querying-streams) for querying [log streams](#https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - [`/select/logsql/stream_field_names`](#querying-stream-field-names) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field names.
@@ -105,6 +106,7 @@ See also:
 
 - [Live tailing](#live-tailing)
 - [Querying hits stats](#querying-hits-stats)
+- [Querying log stats](#querying-log-stats)
 - [Querying streams](#querying-streams)
 - [Querying stream field names](#querying-stream-field-names)
 - [Querying stream field values](#querying-stream-field-values)
@@ -273,7 +275,78 @@ curl http://localhost:9428/select/logsql/hits -H 'AccountID: 12' -H 'ProjectID: 
 See also:
 
 - [Querying logs](#querying-logs)
+- [Querying log stats](#querying-log-stats)
 - [Querying streams](#querying-streams)
+- [HTTP API](#http-api)
+
+### Querying log stats
+
+VictoriaLogs provides `/select/logsql/stats_query?query=<query>&time=<t>` HTTP endpoint, which returns log stats
+for the given [`query`](https://docs.victoriametrics.com/victorialogs/logsql/) at the given timestamp `t`
+in the format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries).
+
+The `<t>` arg can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
+If `<t>` is missing, then it equals to the current time.
+
+The `<query>` must contain [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe). The calculated stats is converted into metrics
+with labels enumerated in `by(...)` clause of the `| stats by(...)` pipe.
+
+For example, the following command returns the number of logs per each `level` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+across logs over `2024-01-01` day by UTC:
+
+```sh
+curl http://localhost:9428/select/logsql/stats_query -d 'query=_time:1d | stats by (level) count(*)' -d 'time=2024-01-02'
+```
+
+Below is an example JSON output returned from this endpoint:
+
+```json
+{
+  "status": "success",
+  "data": {
+    "resultType": "vector",
+    "result": [
+      {
+        "metric": {
+          "__name__": "count(*)",
+          "level": "info"
+        },
+        "value": [
+          1704153600,
+          "20395342"
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "count(*)",
+          "level": "warn"
+        },
+        "value": [
+          1704153600,
+          "1239222"
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "count(*)",
+          "level": "error"
+        },
+        "value": [
+          1704153600,
+          "832"
+        ]
+      },
+    ]
+  }
+}
+```
+
+The `/select/logsql/stats_query` API is useful for generating Prometheus-compatible alerts and calculating recording rules results.
+
+See also:
+
+- [Querying logs](#querying-logs)
+- [Querying hits stats](#querying-hits-stats)
 - [HTTP API](#http-api)
 
 ### Querying stream_ids

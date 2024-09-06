@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -380,6 +381,8 @@ func ProcessStreamsRequest(ctx context.Context, w http.ResponseWriter, r *http.R
 }
 
 // ProcessLiveTailRequest processes live tailing request to /select/logsq/tail
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#live-tailing
 func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	liveTailRequests.Inc()
 	defer liveTailRequests.Dec()
@@ -560,9 +563,82 @@ func (tp *tailProcessor) getTailRows() ([][]logstorage.Field, error) {
 	return tailRows, nil
 }
 
+// ProcessStatsQueryRequest handles /select/logsql/stats_query request.
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats
+func ProcessStatsQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	q, tenantIDs, err := parseCommonArgs(r)
+	if err != nil {
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	// Verify that q ends with `| stats` pipe
+	byFields, ok := q.GetStatsByFields()
+	if !ok {
+		err := fmt.Errorf("the query must end with '| stats ...'; got [%s]", q)
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	q.Optimize()
+
+	var rows []statsRow
+	var rowsLock sync.Mutex
+
+	timestamp := q.GetTimestamp()
+	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
+		clonedColumnNames := make([]string, len(columns))
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+		}
+		for i := range timestamps {
+			labels := make([]logstorage.Field, 0, len(byFields))
+			for j, c := range columns {
+				if slices.Contains(byFields, c.Name) {
+					labels = append(labels, logstorage.Field{
+						Name:  clonedColumnNames[j],
+						Value: strings.Clone(c.Values[i]),
+					})
+				}
+			}
+
+			for j, c := range columns {
+				if !slices.Contains(byFields, c.Name) {
+					r := statsRow{
+						Name:      clonedColumnNames[j],
+						Labels:    labels,
+						Timestamp: timestamp,
+						Value:     strings.Clone(c.Values[i]),
+					}
+					rowsLock.Lock()
+					rows = append(rows, r)
+					rowsLock.Unlock()
+				}
+			}
+		}
+	}
+
+	if err := vlstorage.RunQuery(ctx, tenantIDs, q, writeBlock); err != nil {
+		err = fmt.Errorf("cannot execute query [%s]: %s", q, err)
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	WriteStatsQueryResponse(w, rows)
+}
+
+type statsRow struct {
+	Name      string
+	Labels    []logstorage.Field
+	Timestamp int64
+	Value     string
+}
+
 // ProcessQueryRequest handles /select/logsql/query request.
 //
-// See https://docs.victoriametrics.com/victorialogs/querying/#http-api
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-logs
 func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	q, tenantIDs, err := parseCommonArgs(r)
 	if err != nil {
@@ -728,9 +804,23 @@ func parseCommonArgs(r *http.Request) (*logstorage.Query, []logstorage.TenantID,
 	}
 	tenantIDs := []logstorage.TenantID{tenantID}
 
+	// Parse optional time arg
+	timestamp, okTime, err := getTimeNsec(r, "time")
+	if err != nil {
+		return nil, nil, err
+	}
+	if !okTime {
+		// If time arg is missing, then evaluate query at the current timestamp
+		timestamp = time.Now().UnixNano()
+	}
+
+	// decrease timestamp by one nanosecond in order to avoid capturing logs belonging
+	// to the first nanosecond at the next period of time (month, week, day, hour, etc.)
+	timestamp--
+
 	// Parse query
 	qStr := r.FormValue("query")
-	q, err := logstorage.ParseQuery(qStr)
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, timestamp)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
