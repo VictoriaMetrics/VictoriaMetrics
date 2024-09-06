@@ -45,6 +45,7 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	}
 	if step <= 0 {
 		httpserver.Errorf(w, r, "'step' must be bigger than zero")
+		return
 	}
 
 	// Obtain offset
@@ -563,6 +564,137 @@ func (tp *tailProcessor) getTailRows() ([][]logstorage.Field, error) {
 	return tailRows, nil
 }
 
+// ProcessStatsQueryRangeRequest handles /select/logsql/stats_query_range request.
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats
+func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	q, tenantIDs, err := parseCommonArgs(r)
+	if err != nil {
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	// Obtain step
+	stepStr := r.FormValue("step")
+	if stepStr == "" {
+		stepStr = "1d"
+	}
+	step, err := promutils.ParseDuration(stepStr)
+	if err != nil {
+		err = fmt.Errorf("cannot parse 'step' arg: %s", err)
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+	if step <= 0 {
+		err := fmt.Errorf("'step' must be bigger than zero")
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	// Obtain `by(...)` fields from the last `| stats` pipe in q.
+	// Add `_time:step` to the `by(...)` list.
+	byFields, ok := q.GetStatsByFields(int64(step))
+	if !ok {
+		err := fmt.Errorf("the query must end with '| stats ...'; got [%s]", q)
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	q.Optimize()
+
+	m := make(map[string]*statsSeries)
+	var mLock sync.Mutex
+
+	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
+		clonedColumnNames := make([]string, len(columns))
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+		}
+		for i := range timestamps {
+			timestamp := q.GetTimestamp()
+			labels := make([]logstorage.Field, 0, len(byFields))
+			for j, c := range columns {
+				if c.Name == "_time" {
+					nsec, ok := logstorage.TryParseTimestampRFC3339Nano(c.Values[i])
+					if ok {
+						timestamp = nsec
+						continue
+					}
+				}
+				if slices.Contains(byFields, c.Name) {
+					labels = append(labels, logstorage.Field{
+						Name:  clonedColumnNames[j],
+						Value: strings.Clone(c.Values[i]),
+					})
+				}
+			}
+
+			var dst []byte
+			for j, c := range columns {
+				if !slices.Contains(byFields, c.Name) {
+					name := clonedColumnNames[j]
+					dst = dst[:0]
+					dst = append(dst, name...)
+					dst = logstorage.MarshalFieldsToJSON(dst, labels)
+					key := string(dst)
+					p := statsPoint{
+						Timestamp: timestamp,
+						Value:     strings.Clone(c.Values[i]),
+					}
+
+					mLock.Lock()
+					ss := m[key]
+					if ss == nil {
+						ss = &statsSeries{
+							key:    key,
+							Name:   name,
+							Labels: labels,
+						}
+						m[key] = ss
+					}
+					ss.Points = append(ss.Points, p)
+					mLock.Unlock()
+				}
+			}
+		}
+	}
+
+	if err := vlstorage.RunQuery(ctx, tenantIDs, q, writeBlock); err != nil {
+		err = fmt.Errorf("cannot execute query [%s]: %s", q, err)
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	// Sort the collected stats by time
+	rows := make([]*statsSeries, 0, len(m))
+	for _, ss := range m {
+		points := ss.Points
+		sort.Slice(points, func(i, j int) bool {
+			return points[i].Timestamp < points[j].Timestamp
+		})
+		rows = append(rows, ss)
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i].key < rows[j].key
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	WriteStatsQueryRangeResponse(w, rows)
+}
+
+type statsSeries struct {
+	key string
+
+	Name   string
+	Labels []logstorage.Field
+	Points []statsPoint
+}
+
+type statsPoint struct {
+	Timestamp int64
+	Value     string
+}
+
 // ProcessStatsQueryRequest handles /select/logsql/stats_query request.
 //
 // See https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats
@@ -573,8 +705,8 @@ func ProcessStatsQueryRequest(ctx context.Context, w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Verify that q ends with `| stats` pipe
-	byFields, ok := q.GetStatsByFields()
+	// Obtain `by(...)` fields from the last `| stats` pipe in q.
+	byFields, ok := q.GetStatsByFields(0)
 	if !ok {
 		err := fmt.Errorf("the query must end with '| stats ...'; got [%s]", q)
 		httpserver.SendPrometheusError(w, r, err)
@@ -611,6 +743,7 @@ func ProcessStatsQueryRequest(ctx context.Context, w http.ResponseWriter, r *htt
 						Timestamp: timestamp,
 						Value:     strings.Clone(c.Values[i]),
 					}
+
 					rowsLock.Lock()
 					rows = append(rows, r)
 					rowsLock.Unlock()

@@ -454,10 +454,12 @@ func (q *Query) Optimize() {
 	}
 }
 
-// GetStatsByFields returns `| stats by (...)` fields from q if q contains safe `| stats ...` pipe in the end.
+// GetStatsByFields returns `by (...)` fields from the last `stats` pipe at q.
+//
+// If step > 0, then _time:step field is added to the last `stats by(...)` pipe at q.
 //
 // False is returned if q doesn't contain safe `| stats ...` pipe.
-func (q *Query) GetStatsByFields() ([]string, bool) {
+func (q *Query) GetStatsByFields(step int64) ([]string, bool) {
 	pipes := q.pipes
 
 	idx := getLastPipeStatsIdx(pipes)
@@ -465,8 +467,13 @@ func (q *Query) GetStatsByFields() ([]string, bool) {
 		return nil, false
 	}
 
+	ps := pipes[idx].(*pipeStats)
+
+	// add _time:step to ps.byFields if it doesn't contain it yet.
+	ps.byFields = addByTimeField(ps.byFields, step)
+
 	// extract by(...) field names from stats pipe
-	byFields := pipes[idx].(*pipeStats).byFields
+	byFields := ps.byFields
 	fields := make([]string, len(byFields))
 	for i, f := range byFields {
 		fields[i] = f.name
@@ -523,6 +530,34 @@ func getLastPipeStatsIdx(pipes []pipe) int {
 		}
 	}
 	return -1
+}
+
+func addByTimeField(byFields []*byStatsField, step int64) []*byStatsField {
+	if step <= 0 {
+		return byFields
+	}
+	stepStr := fmt.Sprintf("%d", step)
+	dstFields := make([]*byStatsField, 0, len(byFields)+1)
+	hasByTime := false
+	for _, f := range byFields {
+		if f.name == "_time" {
+			f = &byStatsField{
+				name:          "_time",
+				bucketSizeStr: stepStr,
+				bucketSize:    float64(step),
+			}
+			hasByTime = true
+		}
+		dstFields = append(dstFields, f)
+	}
+	if !hasByTime {
+		dstFields = append(dstFields, &byStatsField{
+			name:          "_time",
+			bucketSizeStr: stepStr,
+			bucketSize:    float64(step),
+		})
+	}
+	return dstFields
 }
 
 func removeStarFilters(f filter) filter {

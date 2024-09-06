@@ -2101,6 +2101,35 @@ func TestQueryDropAllPipes(t *testing.T) {
 	f(`foo | filter bar:baz | stats by (x) min(y)`, `foo bar:baz`)
 }
 
+func TestQueryGetStatsByFields_PositiveStep(t *testing.T) {
+	f := func(qStr string, step int64, fieldsExpected []string, qExpected string) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		fields, ok := q.GetStatsByFields(step)
+		if !ok {
+			t.Fatalf("cannot obtain byFields from the query [%s]", qStr)
+		}
+		if !reflect.DeepEqual(fields, fieldsExpected) {
+			t.Fatalf("unexpected byFields;\ngot\n%q\nwant\n%q", fields, fieldsExpected)
+		}
+
+		// Verify the resulting query
+		qResult := q.String()
+		if qResult != qExpected {
+			t.Fatalf("unexpected query\ngot\n%s\nwant\n%s", qResult, qExpected)
+		}
+	}
+
+	f(`* | count()`, nsecsPerHour, []string{"_time"}, `* | stats by (_time:3600000000000) count(*) as "count(*)"`)
+	f(`* | by (level) count() x`, nsecsPerDay, []string{"level", "_time"}, `* | stats by (level, _time:86400000000000) count(*) as x`)
+	f(`* | by (_time:1m) count() x`, nsecsPerDay, []string{"_time"}, `* | stats by (_time:86400000000000) count(*) as x`)
+	f(`* | by (_time:1m offset 30s,level) count() x, count_uniq(z) y`, nsecsPerDay, []string{"_time", "level"}, `* | stats by (_time:86400000000000, level) count(*) as x, count_uniq(z) as y`)
+}
+
 func TestQueryGetStatsByFields_Success(t *testing.T) {
 	f := func(qStr string, fieldsExpected []string) {
 		t.Helper()
@@ -2109,7 +2138,7 @@ func TestQueryGetStatsByFields_Success(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse [%s]: %s", qStr, err)
 		}
-		fields, ok := q.GetStatsByFields()
+		fields, ok := q.GetStatsByFields(0)
 		if !ok {
 			t.Fatalf("cannot obtain byFields from the query [%s]", qStr)
 		}
@@ -2156,7 +2185,7 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse [%s]: %s", qStr, err)
 		}
-		fields, ok := q.GetStatsByFields()
+		fields, ok := q.GetStatsByFields(0)
 		if ok {
 			t.Fatalf("expecting failure to get byFields for the query [%s]", qStr)
 		}
