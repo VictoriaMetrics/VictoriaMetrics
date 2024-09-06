@@ -2066,6 +2066,56 @@ func TestStorageSearchTagValueSuffixesWithoutPerDayIndex(t *testing.T) {
 	testStorageSearchWithoutPerDayIndex(t, &opts)
 }
 
+func TestStorageSearchGraphitePathsWithoutPerDayIndex(t *testing.T) {
+	const (
+		days = 4
+		rows = 10
+	)
+	rng := rand.New(rand.NewSource(1))
+	opts := testStorageSearchWithoutPerDayIndexOptions{
+		wantEmpty:        []string(nil),
+		wantPerTimeRange: make(map[TimeRange]any),
+		wantAll:          []string{},
+	}
+	for day := 1; day <= days; day++ {
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, day, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, day, 23, 59, 59, 999, time.UTC).UnixMilli(),
+		}
+		want := make([]string, rows)
+		for row := 0; row < rows; row++ {
+			metricName := fmt.Sprintf("day%d.row%d", day, row)
+			mn := &MetricName{
+				MetricGroup: []byte(metricName),
+			}
+			metricNameRaw := mn.marshalRaw(nil)
+			opts.mrs = append(opts.mrs, MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp,
+				Value:         rng.NormFloat64() * 1e6,
+			})
+			want[row] = metricName
+		}
+		opts.wantPerTimeRange[tr] = want
+		opts.wantAll = append(opts.wantAll.([]string), want...)
+	}
+
+	opts.assertSearchResult = func(t *testing.T, s *Storage, tr TimeRange, want any) {
+		t.Helper()
+		got, err := s.SearchGraphitePaths(nil, tr, []byte("*.*"), 1e6, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchGraphitePaths(%v) failed unexpectedly", &tr)
+		}
+		slices.Sort(got)
+		slices.Sort(want.([]string))
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("[%v] unexpected graphite paths: got %v, want %v", &tr, got, want)
+		}
+	}
+
+	testStorageSearchWithoutPerDayIndex(t, &opts)
+}
+
 func TestStorageQueryWithoutPerDayIndex(t *testing.T) {
 	const (
 		days = 4

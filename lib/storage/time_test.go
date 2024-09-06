@@ -93,3 +93,41 @@ func TestTimeRangeDateRange(t *testing.T) {
 	tr = TimeRange{2*msecPerDay + 654, 1*msecPerDay + 321}
 	f(tr, 2, 2)
 }
+
+func TestDateToString(t *testing.T) {
+	f := func(date uint64, want string) {
+		t.Helper()
+
+		if got := dateToString(date); got != want {
+			t.Errorf("dateToString(%d) unexpected return value: got %q, want %q", date, got, want)
+		}
+	}
+
+	f(globalIndexDate, "[entire retention period]")
+	f(1, "1970-01-02")
+	f(10, "1970-01-11")
+}
+
+func TestTimeRangeString(t *testing.T) {
+	f := func(tr TimeRange, want string) {
+		t.Helper()
+
+		if got := tr.String(); got != want {
+			t.Errorf("TimeRange.String() unexpected return value: got %q, want %q", got, want)
+		}
+	}
+
+	f(globalIndexTimeRange, "[entire retention period]")
+	f(TimeRange{
+		MinTimestamp: 0,
+		MaxTimestamp: 1,
+	}, "[1970-01-01T00:00:00Z..1970-01-01T00:00:00.001Z]")
+	f(TimeRange{
+		MinTimestamp: 1,
+		MaxTimestamp: 2,
+	}, "[1970-01-01T00:00:00.001Z..1970-01-01T00:00:00.002Z]")
+	f(TimeRange{
+		MinTimestamp: time.Date(2024, 9, 6, 0, 0, 0, 000, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 9, 7, 0, 0, 0, 000, time.UTC).UnixMilli() - 1,
+	}, "[2024-09-06T00:00:00Z..2024-09-06T23:59:59.999Z]")
+}
