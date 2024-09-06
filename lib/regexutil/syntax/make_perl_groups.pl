@@ -2,6 +2,7 @@
 # Copyright 2008 The Go Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+# TODO(@func25,@anyone): drop this file when the issue at https://github.com/golang/go/issues/69303 is fixed
 
 # Modified version of RE2's make_perl_groups.pl.
 

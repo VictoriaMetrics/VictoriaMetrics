@@ -1,6 +1,7 @@
 // Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+// TODO(@func25): drop this file when the issue at <link_to_go_issue> is fixed
 
 package syntax
 
