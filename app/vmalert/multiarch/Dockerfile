@@ -8,5 +8,5 @@ FROM $root_image
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 EXPOSE 8880
 ENTRYPOINT ["/vmalert-prod"]
-ARG TARGETARCH=non-existing
+ARG TARGETARCH
 COPY vmalert-linux-${TARGETARCH}-prod ./vmalert-prod

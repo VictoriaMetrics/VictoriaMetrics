@@ -8,5 +8,5 @@ FROM $root_image
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 EXPOSE 8429
 ENTRYPOINT ["/vmagent-prod"]
-ARG TARGETARCH=non-existing
+ARG TARGETARCH
 COPY vmagent-linux-${TARGETARCH}-prod ./vmagent-prod
