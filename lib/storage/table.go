@@ -439,12 +439,38 @@ func (tb *table) finalDedupWatcher() {
 		// Deduplication is disabled.
 		return
 	}
-	f := func() {
+	dedupPartition := func(partitionNameToDedup string) {
+		ptws := tb.GetPartitions(nil)
+
+		unchangedPtws := ptws[:0]
+		var ptwToDedup *partitionWrapper
+		for _, ptw := range ptws {
+			if ptwToDedup == nil && ptw.pt.name == partitionNameToDedup {
+				ptwToDedup = ptw
+				continue
+			}
+			unchangedPtws = append(unchangedPtws, ptw)
+		}
+		// unlock the unchanged partitions to prevent them from being locked and allow for proper cleanup after deduplication
+		tb.PutPartitions(unchangedPtws)
+		if ptwToDedup == nil {
+			// partition may have been dropped by retention
+			return
+		}
+		defer tb.PutPartitions([]*partitionWrapper{ptwToDedup})
+
+		if err := ptwToDedup.pt.runFinalDedup(tb.stopCh); err != nil {
+			logger.Errorf("cannot run final dedup for partition %s: %s", ptwToDedup.pt.name, err)
+		}
+		ptwToDedup.pt.isDedupScheduled.Store(false)
+	}
+
+	getPartitionNamesToDedup := func() []string {
 		ptws := tb.GetPartitions(nil)
 		defer tb.PutPartitions(ptws)
 		timestamp := timestampFromTime(time.Now())
 		currentPartitionName := timestampToPartitionName(timestamp)
-		var ptwsToDedup []*partitionWrapper
+		var partitionNamesToDedup []string
 		for _, ptw := range ptws {
 			if ptw.pt.name == currentPartitionName {
 				// Do not run final dedup for the current month.
@@ -456,14 +482,9 @@ func (tb *table) finalDedupWatcher() {
 			}
 			// mark partition with final deduplication marker
 			ptw.pt.isDedupScheduled.Store(true)
-			ptwsToDedup = append(ptwsToDedup, ptw)
+			partitionNamesToDedup = append(partitionNamesToDedup, ptw.pt.name)
 		}
-		for _, ptw := range ptwsToDedup {
-			if err := ptw.pt.runFinalDedup(tb.stopCh); err != nil {
-				logger.Errorf("cannot run final dedup for partition %s: %s", ptw.pt.name, err)
-			}
-			ptw.pt.isDedupScheduled.Store(false)
-		}
+		return partitionNamesToDedup
 	}
 	d := timeutil.AddJitterToDuration(time.Hour)
 	t := time.NewTicker(d)
@@ -473,7 +494,10 @@ func (tb *table) finalDedupWatcher() {
 		case <-tb.stopCh:
 			return
 		case <-t.C:
-			f()
+			partitionNamesToDedup := getPartitionNamesToDedup()
+			for _, partitionName := range partitionNamesToDedup {
+				dedupPartition(partitionName)
+			}
 		}
 	}
 }
