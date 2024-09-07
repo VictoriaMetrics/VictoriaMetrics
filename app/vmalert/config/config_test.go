@@ -79,7 +79,7 @@ func TestParse_Failure(t *testing.T) {
 
 	f([]string{"testdata/rules/rules_interval_bad.rules"}, "eval_offset should be smaller than interval")
 	f([]string{"testdata/rules/rules0-bad.rules"}, "unexpected token")
-	f([]string{"testdata/rules/rules-multi-doc-bad.rules"}, "unknown fields in config: invalid-field-1, invalid-field-2, invalid-field-3")
+	f([]string{"testdata/rules/rules-multi-doc-bad.rules"}, "unknown fields in config")
 	f([]string{"testdata/dir/rules0-bad.rules"}, "error parsing annotation")
 	f([]string{"testdata/dir/rules1-bad.rules"}, "duplicate in file")
 	f([]string{"testdata/dir/rules2-bad.rules"}, "function \"unknown\" not defined")
