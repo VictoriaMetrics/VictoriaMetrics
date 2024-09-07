@@ -1,9 +1,11 @@
 package config
 
 import (
+	"bytes"
 	"crypto/md5"
 	"fmt"
 	"hash/fnv"
+	"maps"
 	"net/url"
 	"sort"
 	"strings"
@@ -44,6 +46,14 @@ type Group struct {
 	NotifierHeaders []Header `yaml:"notifier_headers,omitempty"`
 	// EvalAlignment will make the timestamp of group query requests be aligned with interval
 	EvalAlignment *bool `yaml:"eval_alignment,omitempty"`
+	// Catches all undefined fields and must be empty after parsing.
+	XXX map[string]any `yaml:",inline"`
+}
+
+// parseGroup
+// It is used for parseConfig only
+type parseGroup struct {
+	Groups []Group `yaml:"groups"`
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]any `yaml:",inline"`
 }
@@ -298,15 +308,23 @@ func parseConfig(data []byte) ([]Group, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
-	g := struct {
-		Groups []Group `yaml:"groups"`
-		// Catches all undefined fields and must be empty after parsing.
-		XXX map[string]any `yaml:",inline"`
-	}{}
-	err = yaml.Unmarshal(data, &g)
-	if err != nil {
-		return nil, err
+
+	// https://gettaurus.org/docs/YAMLTutorial/#YAML-Multi-Documents
+	multiDocs := bytes.Split(data, []byte("\n---\n"))
+	g := parseGroup{
+		XXX: make(map[string]any),
 	}
+
+	for _, doc := range multiDocs {
+		var pg parseGroup
+		err = yaml.Unmarshal(doc, &pg)
+		if err != nil {
+			return nil, err
+		}
+		g.Groups = append(g.Groups, pg.Groups...)
+		maps.Copy(g.XXX, pg.XXX)
+	}
+
 	return g.Groups, checkOverflow(g.XXX, "config")
 }
 
