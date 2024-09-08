@@ -170,7 +170,7 @@
         <div class="tab-pane active" role="tabpanel">
             {% switch activeTab %}
             {% case "scrapeTargets" %}
-                {%= scrapeTargets(tsr) %}
+                {%= scrapeTargets(tsr, filter) %}
             {% case "discoveredTargets" %}
                 {%= discoveredTargets(tsr) %}
             {% endswitch %}
@@ -178,11 +178,11 @@
     </div>
 {% endfunc %}
 
-{% func scrapeTargets(tsr *targetsStatusResult) %}
+{% func scrapeTargets(tsr *targetsStatusResult, filter *requestFilter) %}
     <div class="row mt-4">
         <div class="col-12">
             {% for i, jts := range tsr.jobTargetsStatuses %}
-                {%= scrapeJobTargets(i, jts, tsr.hasOriginalLabels) %}
+                {%= scrapeJobTargets(i, jts, tsr.hasOriginalLabels, filter.showOnlyUnhealthy) %}
             {% endfor %}
             {% for i, jobName := range tsr.emptyJobs %}
                 {% code
@@ -191,13 +191,16 @@
                         jobName: jobName,
                     }
                 %}
-                {%= scrapeJobTargets(num, jts, tsr.hasOriginalLabels) %}
+                {%= scrapeJobTargets(num, jts, tsr.hasOriginalLabels, filter.showOnlyUnhealthy) %}
             {% endfor %}
         </div>
    </div>
 {% endfunc %}
 
-{% func scrapeJobTargets(num int, jts *jobTargetsStatuses, hasOriginalLabels bool) %}
+{% func scrapeJobTargets(num int, jts *jobTargetsStatuses, hasOriginalLabels, showOnlyUnhealthy bool) %}
+    {% if showOnlyUnhealthy && jts.upCount == jts.targetsTotal %}
+        {% return %}
+    {% else %}
     <div class="row mb-4">
         <div class="col-12">
             <h4>
@@ -283,6 +286,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 {% endfunc %}
 
 {% func discoveredTargets(tsr *targetsStatusResult) %}
