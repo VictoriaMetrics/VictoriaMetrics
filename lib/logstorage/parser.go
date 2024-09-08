@@ -455,16 +455,19 @@ func (q *Query) Optimize() {
 }
 
 // GetStatsByFields returns `by (...)` fields from the last `stats` pipe at q.
+func (q *Query) GetStatsByFields() ([]string, error) {
+	return q.GetStatsByFieldsAddGroupingByTime(0)
+}
+
+// GetStatsByFieldsAddGroupingByTime returns `by (...)` fields from the last `stats` pipe at q.
 //
-// If step > 0, then _time:step field is added to the last `stats by(...)` pipe at q.
-//
-// False is returned if q doesn't contain safe `| stats ...` pipe.
-func (q *Query) GetStatsByFields(step int64) ([]string, bool) {
+// if step > 0, then _time:step is added to the last `stats by (...)` pipe at q.
+func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) {
 	pipes := q.pipes
 
 	idx := getLastPipeStatsIdx(pipes)
 	if idx < 0 {
-		return nil, false
+		return nil, fmt.Errorf("missing `| stats ...` pipe in the query [%s]", q)
 	}
 
 	ps := pipes[idx].(*pipeStats)
@@ -491,21 +494,21 @@ func (q *Query) GetStatsByFields(step int64) ([]string, bool) {
 			// `| fields ...` pipe must contain all the by(...) fields, otherwise it breaks output.
 			for _, f := range fields {
 				if !slices.Contains(t.fields, f) {
-					return nil, false
+					return nil, fmt.Errorf("missing %q field at %q pipe in the query [%s]", f, p, q)
 				}
 			}
 		case *pipeDelete:
 			// Disallow deleting by(...) fields, since this breaks output.
 			for _, f := range t.fields {
 				if slices.Contains(fields, f) {
-					return nil, false
+					return nil, fmt.Errorf("the %q field cannot be deleted via %q in the query [%s]", f, p, q)
 				}
 			}
 		case *pipeCopy:
 			// Disallow copying by(...) fields, since this breaks output.
 			for _, f := range t.srcFields {
 				if slices.Contains(fields, f) {
-					return nil, false
+					return nil, fmt.Errorf("the %q field cannot be copied via %q in the query [%s]", f, p, q)
 				}
 			}
 		case *pipeRename:
@@ -516,11 +519,11 @@ func (q *Query) GetStatsByFields(step int64) ([]string, bool) {
 				}
 			}
 		default:
-			return nil, false
+			return nil, fmt.Errorf("the %q pipe cannot be put after %q pipe in the query [%s]", p, ps, q)
 		}
 	}
 
-	return fields, true
+	return fields, nil
 }
 
 func getLastPipeStatsIdx(pipes []pipe) int {

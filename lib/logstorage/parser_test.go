@@ -2101,7 +2101,7 @@ func TestQueryDropAllPipes(t *testing.T) {
 	f(`foo | filter bar:baz | stats by (x) min(y)`, `foo bar:baz`)
 }
 
-func TestQueryGetStatsByFields_PositiveStep(t *testing.T) {
+func TestQueryGetStatsByFieldsAddGroupingByTime_Success(t *testing.T) {
 	f := func(qStr string, step int64, fieldsExpected []string, qExpected string) {
 		t.Helper()
 
@@ -2109,9 +2109,9 @@ func TestQueryGetStatsByFields_PositiveStep(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse [%s]: %s", qStr, err)
 		}
-		fields, ok := q.GetStatsByFields(step)
-		if !ok {
-			t.Fatalf("cannot obtain byFields from the query [%s]", qStr)
+		fields, err := q.GetStatsByFieldsAddGroupingByTime(step)
+		if err != nil {
+			t.Fatalf("unexpected error in GetStatsByFieldsAddGroupingByTime(): %s", err)
 		}
 		if !reflect.DeepEqual(fields, fieldsExpected) {
 			t.Fatalf("unexpected byFields;\ngot\n%q\nwant\n%q", fields, fieldsExpected)
@@ -2130,6 +2130,28 @@ func TestQueryGetStatsByFields_PositiveStep(t *testing.T) {
 	f(`* | by (_time:1m offset 30s,level) count() x, count_uniq(z) y`, nsecsPerDay, []string{"_time", "level"}, `* | stats by (_time:86400000000000, level) count(*) as x, count_uniq(z) as y`)
 }
 
+func TestQueryGetStatsByFieldsAddGroupingByTime_Failure(t *testing.T) {
+	f := func(qStr string) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		fields, err := q.GetStatsByFieldsAddGroupingByTime(nsecsPerHour)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+		if fields != nil {
+			t.Fatalf("unexpected non-nil fields: %q", fields)
+		}
+	}
+
+	f(`*`)
+	f(`_time:5m | count() | drop _time`)
+	f(`* | by (x) count() | keep x`)
+}
+
 func TestQueryGetStatsByFields_Success(t *testing.T) {
 	f := func(qStr string, fieldsExpected []string) {
 		t.Helper()
@@ -2138,9 +2160,9 @@ func TestQueryGetStatsByFields_Success(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse [%s]: %s", qStr, err)
 		}
-		fields, ok := q.GetStatsByFields(0)
-		if !ok {
-			t.Fatalf("cannot obtain byFields from the query [%s]", qStr)
+		fields, err := q.GetStatsByFields()
+		if err != nil {
+			t.Fatalf("unexpected error in GetStatsByFields(): %s", err)
 		}
 		if !reflect.DeepEqual(fields, fieldsExpected) {
 			t.Fatalf("unexpected byFields;\ngot\n%q\nwant\n%q", fields, fieldsExpected)
@@ -2185,9 +2207,9 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse [%s]: %s", qStr, err)
 		}
-		fields, ok := q.GetStatsByFields(0)
-		if ok {
-			t.Fatalf("expecting failure to get byFields for the query [%s]", qStr)
+		fields, err := q.GetStatsByFields()
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
 		}
 		if fields != nil {
 			t.Fatalf("expectig nil fields; got %q", fields)

@@ -289,7 +289,7 @@ for the given [`query`](https://docs.victoriametrics.com/victorialogs/logsql/) a
 in the format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries).
 
 The `<query>` must contain [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe). The calculated stats is converted into metrics
-with labels enumerated in `by(...)` clause of the `| stats by(...)` pipe.
+with labels from `by(...)` clause of the `| stats by(...)` pipe.
 
 The `<t>` arg can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
 If `<t>` is missing, then it equals to the current time.
@@ -360,7 +360,7 @@ for the given [`query`](https://docs.victoriametrics.com/victorialogs/logsql/) o
 The stats is returned in the format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
 
 The `<query>` must contain [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe). The calculated stats is converted into metrics
-with labels enumerated in `by(...)` clause of the `| stats by(...)` pipe.
+with labels from `by(...)` clause of the `| stats by(...)` pipe.
 
 The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
 If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
