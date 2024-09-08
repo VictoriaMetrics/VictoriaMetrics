@@ -126,6 +126,10 @@ func (fo *filterOr) getByFieldTokens() []fieldTokens {
 }
 
 func (fo *filterOr) initByFieldTokens() {
+	fo.byFieldTokens = getCommonTokensForOrFilters(fo.filters)
+}
+
+func getCommonTokensForOrFilters(filters []filter) []fieldTokens {
 	m := make(map[string][][]string)
 	var fieldNames []string
 
@@ -141,7 +145,7 @@ func (fo *filterOr) initByFieldTokens() {
 		m[fieldName] = append(m[fieldName], tokens)
 	}
 
-	for _, f := range fo.filters {
+	for _, f := range filters {
 		switch t := f.(type) {
 		case *filterExact:
 			tokens := t.getTokens()
@@ -166,28 +170,29 @@ func (fo *filterOr) initByFieldTokens() {
 			for _, bft := range bfts {
 				mergeFieldTokens(bft.field, bft.tokens)
 			}
+		default:
+			// Cannot extract tokens from this filter. This means that it is impossible to extract common tokens from OR filters.
+			return nil
 		}
 	}
 
 	var byFieldTokens []fieldTokens
 	for _, fieldName := range fieldNames {
 		tokenss := m[fieldName]
-		if len(tokenss) != len(fo.filters) {
+		if len(tokenss) != len(filters) {
 			// The filter for the given fieldName is missing in some OR filters,
 			// so it is impossible to extract common tokens from these filters.
 			// Give up extracting common tokens from the remaining filters,
 			// since they may not cover log entries matching fieldName filters.
 			// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6554
-			byFieldTokens = nil
-			break
+			return nil
 		}
 		commonTokens := getCommonTokens(tokenss)
 		if len(commonTokens) == 0 {
 			// Give up extracting common tokens from the remaining filters,
 			// since they may not cover log entries matching fieldName filters.
 			// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6554
-			byFieldTokens = nil
-			break
+			return nil
 		}
 		byFieldTokens = append(byFieldTokens, fieldTokens{
 			field:        fieldName,
@@ -196,5 +201,5 @@ func (fo *filterOr) initByFieldTokens() {
 		})
 	}
 
-	fo.byFieldTokens = byFieldTokens
+	return byFieldTokens
 }
