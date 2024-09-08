@@ -75,6 +75,10 @@ import (
 //     session token automatically to avoid service interruptions when a session
 //     expires. For more information about authorization, see [CreateSession]CreateSession .
 //
+//   - If you provide an [additional checksum value]in your MultipartUpload requests and the object is
+//     encrypted with Key Management Service, you must have permission to use the
+//     kms:Decrypt action for the CompleteMultipartUpload request to succeed.
+//
 // Special errors
 //
 //   - Error Code: EntityTooSmall
@@ -127,6 +131,7 @@ import (
 // [ListParts]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html
 // [UploadPart]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html
 // [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [additional checksum value]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_Checksum.html
 // [ListMultipartUploads]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListMultipartUploads.html
 // [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 // [UploadPartCopy]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html
@@ -232,6 +237,22 @@ type CompleteMultipartUploadInput struct {
 	// does not match the actual owner of the bucket, the request fails with the HTTP
 	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
+
+	// Uploads the object only if the object key name does not already exist in the
+	// bucket specified. Otherwise, Amazon S3 returns a 412 Precondition Failed error.
+	//
+	// If a conflicting operation occurs during the upload S3 returns a 409
+	// ConditionalRequestConflict response. On a 409 failure you should re-initiate the
+	// multipart upload with CreateMultipartUpload and re-upload each part.
+	//
+	// Expects the '*' (asterisk) character.
+	//
+	// For more information about conditional requests, see [RFC 7232], or [Conditional requests] in the Amazon S3
+	// User Guide.
+	//
+	// [Conditional requests]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-requests.html
+	// [RFC 7232]: https://tools.ietf.org/html/rfc7232
+	IfNoneMatch *string
 
 	// The container for the multipart upload request information.
 	MultipartUpload *types.CompletedMultipartUpload

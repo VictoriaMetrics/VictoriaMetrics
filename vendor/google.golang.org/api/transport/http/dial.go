@@ -182,17 +182,6 @@ func newTransport(ctx context.Context, base http.RoundTripper, settings *interna
 		if err != nil {
 			return nil, err
 		}
-		if settings.TokenSource == nil {
-			// We only validate non-tokensource creds, as TokenSource-based credentials
-			// don't propagate universe.
-			credsUniverseDomain, err := internal.GetUniverseDomain(creds)
-			if err != nil {
-				return nil, err
-			}
-			if settings.GetUniverseDomain() != credsUniverseDomain {
-				return nil, internal.ErrUniverseNotMatch(settings.GetUniverseDomain(), credsUniverseDomain)
-			}
-		}
 		paramTransport.quotaProject = internal.GetQuotaProject(creds, settings.QuotaProject)
 		ts := creds.TokenSource
 		if settings.ImpersonationConfig == nil && settings.TokenSource != nil {

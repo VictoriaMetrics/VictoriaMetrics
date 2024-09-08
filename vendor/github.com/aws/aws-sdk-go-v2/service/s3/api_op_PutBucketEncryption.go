@@ -29,7 +29,13 @@ import (
 // set your [default bucket encryption]to SSE-KMS, you should verify that your KMS key ID is correct. Amazon
 // S3 does not validate the KMS key ID provided in PutBucketEncryption requests.
 //
-// This action requires Amazon Web Services Signature Version 4. For more
+// If you're specifying a customer managed KMS key, we recommend using a fully
+// qualified KMS key ARN. If you use a KMS key alias instead, then KMS resolves the
+// key within the requester’s account. This behavior can result in data that's
+// encrypted with a KMS key that belongs to the requester, and not the bucket
+// owner.
+//
+// Also, this action requires Amazon Web Services Signature Version 4. For more
 // information, see [Authenticating Requests (Amazon Web Services Signature Version 4)].
 //
 // To use this operation, you must have permission to perform the
