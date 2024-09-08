@@ -362,6 +362,22 @@ type PutObjectInput struct {
 	//   - This functionality is not supported for Amazon S3 on Outposts.
 	GrantWriteACP *string
 
+	// Uploads the object only if the object key name does not already exist in the
+	// bucket specified. Otherwise, Amazon S3 returns a 412 Precondition Failed error.
+	//
+	// If a conflicting operation occurs during the upload S3 returns a 409
+	// ConditionalRequestConflict response. On a 409 failure you should retry the
+	// upload.
+	//
+	// Expects the '*' (asterisk) character.
+	//
+	// For more information about conditional requests, see [RFC 7232], or [Conditional requests] in the Amazon S3
+	// User Guide.
+	//
+	// [Conditional requests]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-requests.html
+	// [RFC 7232]: https://tools.ietf.org/html/rfc7232
+	IfNoneMatch *string
+
 	// A map of metadata to store with the object in S3.
 	Metadata map[string]string
 

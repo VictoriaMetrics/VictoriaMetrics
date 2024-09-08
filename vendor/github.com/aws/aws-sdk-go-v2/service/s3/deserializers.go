@@ -8113,6 +8113,19 @@ func awsRestxml_deserializeOpDocumentListBucketsOutput(v **ListBucketsOutput, de
 				return err
 			}
 
+		case strings.EqualFold("ContinuationToken", t.Name.Local):
+			val, err := decoder.Value()
+			if err != nil {
+				return err
+			}
+			if val == nil {
+				break
+			}
+			{
+				xtv := string(val)
+				sv.ContinuationToken = ptr.String(xtv)
+			}
+
 		case strings.EqualFold("Owner", t.Name.Local):
 			nodeDecoder := smithyxml.WrapNodeDecoder(decoder.Decoder, t)
 			if err := awsRestxml_deserializeDocumentOwner(&sv.Owner, nodeDecoder); err != nil {
