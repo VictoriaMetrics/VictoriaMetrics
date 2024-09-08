@@ -114,6 +114,10 @@ func (fa *filterAnd) getByFieldTokens() []fieldTokens {
 }
 
 func (fa *filterAnd) initByFieldTokens() {
+	fa.byFieldTokens = getCommonTokensForAndFilters(fa.filters)
+}
+
+func getCommonTokensForAndFilters(filters []filter) []fieldTokens {
 	m := make(map[string]map[string]struct{})
 	var fieldNames []string
 
@@ -134,7 +138,7 @@ func (fa *filterAnd) initByFieldTokens() {
 		}
 	}
 
-	for _, f := range fa.filters {
+	for _, f := range filters {
 		switch t := f.(type) {
 		case *filterExact:
 			tokens := t.getTokens()
@@ -177,7 +181,7 @@ func (fa *filterAnd) initByFieldTokens() {
 		})
 	}
 
-	fa.byFieldTokens = byFieldTokens
+	return byFieldTokens
 }
 
 func matchStringByAllTokens(v string, tokens []string) bool {
