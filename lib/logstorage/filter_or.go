@@ -182,17 +182,11 @@ func getCommonTokensForOrFilters(filters []filter) []fieldTokens {
 		if len(tokenss) != len(filters) {
 			// The filter for the given fieldName is missing in some OR filters,
 			// so it is impossible to extract common tokens from these filters.
-			// Give up extracting common tokens from the remaining filters,
-			// since they may not cover log entries matching fieldName filters.
-			// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6554
-			return nil
+			continue
 		}
 		commonTokens := getCommonTokens(tokenss)
 		if len(commonTokens) == 0 {
-			// Give up extracting common tokens from the remaining filters,
-			// since they may not cover log entries matching fieldName filters.
-			// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6554
-			return nil
+			continue
 		}
 		byFieldTokens = append(byFieldTokens, fieldTokens{
 			field:        fieldName,
