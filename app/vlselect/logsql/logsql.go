@@ -593,9 +593,8 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 
 	// Obtain `by(...)` fields from the last `| stats` pipe in q.
 	// Add `_time:step` to the `by(...)` list.
-	byFields, ok := q.GetStatsByFields(int64(step))
-	if !ok {
-		err := fmt.Errorf("the query must end with '| stats ...'; got [%s]", q)
+	byFields, err := q.GetStatsByFieldsAddGroupingByTime(int64(step))
+	if err != nil {
 		httpserver.SendPrometheusError(w, r, err)
 		return
 	}
@@ -706,9 +705,8 @@ func ProcessStatsQueryRequest(ctx context.Context, w http.ResponseWriter, r *htt
 	}
 
 	// Obtain `by(...)` fields from the last `| stats` pipe in q.
-	byFields, ok := q.GetStatsByFields(0)
-	if !ok {
-		err := fmt.Errorf("the query must end with '| stats ...'; got [%s]", q)
+	byFields, err := q.GetStatsByFields()
+	if err != nil {
 		httpserver.SendPrometheusError(w, r, err)
 		return
 	}
