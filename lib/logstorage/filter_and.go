@@ -118,7 +118,7 @@ func (fa *filterAnd) initByFieldTokens() {
 }
 
 func getCommonTokensForAndFilters(filters []filter) []fieldTokens {
-	m := make(map[string]map[string]struct{})
+	m := make(map[string][]string)
 	var fieldNames []string
 
 	mergeFieldTokens := func(fieldName string, tokens []string) {
@@ -127,15 +127,10 @@ func getCommonTokensForAndFilters(filters []filter) []fieldTokens {
 		}
 
 		fieldName = getCanonicalColumnName(fieldName)
-		mTokens, ok := m[fieldName]
-		if !ok {
+		if _, ok := m[fieldName]; !ok {
 			fieldNames = append(fieldNames, fieldName)
-			mTokens = make(map[string]struct{})
-			m[fieldName] = mTokens
 		}
-		for _, token := range tokens {
-			mTokens[token] = struct{}{}
-		}
+		m[fieldName] = append(m[fieldName], tokens...)
 	}
 
 	for _, f := range filters {
@@ -169,8 +164,13 @@ func getCommonTokensForAndFilters(filters []filter) []fieldTokens {
 	var byFieldTokens []fieldTokens
 	for _, fieldName := range fieldNames {
 		mTokens := m[fieldName]
+		seenTokens := make(map[string]struct{})
 		tokens := make([]string, 0, len(mTokens))
-		for token := range mTokens {
+		for _, token := range mTokens {
+			if _, ok := seenTokens[token]; ok {
+				continue
+			}
+			seenTokens[token] = struct{}{}
 			tokens = append(tokens, token)
 		}
 

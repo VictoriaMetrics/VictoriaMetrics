@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -74,4 +75,93 @@ func TestFilterAnd(t *testing.T) {
 	// negative filters
 	f(`foo:foo* AND !foo:~bar`, []int{0})
 	f(`foo:foo* AND foo:!~bar`, []int{0})
+}
+
+func TestGetCommonTokensForAndFilters(t *testing.T) {
+	f := func(qStr string, tokensExpected []fieldTokens) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("unexpected error in ParseQuery: %s", err)
+		}
+		fa, ok := q.f.(*filterAnd)
+		if !ok {
+			t.Fatalf("unexpected filter type: %T; want *filterAnd", q.f)
+		}
+		tokens := getCommonTokensForAndFilters(fa.filters)
+
+		if len(tokens) != len(tokensExpected) {
+			t.Fatalf("unexpected len(tokens); got %d; want %d\ntokens\n%#v\ntokensExpected\n%#v", len(tokens), len(tokensExpected), tokens, tokensExpected)
+		}
+		for i, ft := range tokens {
+			ftExpected := tokensExpected[i]
+			if ft.field != ftExpected.field {
+				t.Fatalf("unexpected field; got %q; want %q\ntokens\n%q\ntokensExpected\n%q", ft.field, ftExpected.field, ft.tokens, ftExpected.tokens)
+			}
+			if !reflect.DeepEqual(ft.tokens, ftExpected.tokens) {
+				t.Fatalf("unexpected tokens for field %q; got %q; want %q", ft.field, ft.tokens, ftExpected.tokens)
+			}
+		}
+	}
+
+	f(`foo AND bar`, []fieldTokens{
+		{
+			field:  "_msg",
+			tokens: []string{"foo", "bar"},
+		},
+	})
+
+	f(`="foo bar" AND ="a foo"* AND "bar foo" AND "foo bar"* AND ~"foo qwe bar.+" AND seq(x, bar, "foo qwe")`, []fieldTokens{
+		{
+			field:  "_msg",
+			tokens: []string{"foo", "bar", "a", "qwe", "x"},
+		},
+	})
+
+	// extract common tokens from OR filters
+	f(`foo AND (bar OR ~"x bar baz")`, []fieldTokens{
+		{
+			field:  "_msg",
+			tokens: []string{"foo", "bar"},
+		},
+	})
+
+	// star matches any non-empty token, so it is skipped
+	f(`foo bar *`, []fieldTokens{
+		{
+			field:  "_msg",
+			tokens: []string{"foo", "bar"},
+		},
+	})
+	f(`* *`, nil)
+
+	// empty filter must be skipped
+	f(`foo "" bar`, []fieldTokens{
+		{
+			field:  "_msg",
+			tokens: []string{"foo", "bar"},
+		},
+	})
+	f(`"" ""`, nil)
+
+	// unknown filters must be skipped
+	f(`_time:5m !foo "bar baz" x`, []fieldTokens{
+		{
+			field:  "_msg",
+			tokens: []string{"bar", "baz", "x"},
+		},
+	})
+
+	// distinct field names
+	f(`foo:x bar:"a bc" (foo:y OR (bar:qwe AND foo:"z y a"))`, []fieldTokens{
+		{
+			field:  "foo",
+			tokens: []string{"x", "y"},
+		},
+		{
+			field:  "bar",
+			tokens: []string{"a", "bc"},
+		},
+	})
 }
