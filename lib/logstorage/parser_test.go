@@ -2032,6 +2032,7 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | uniq (x)", false)
 	f("* | field_names", false)
 	f("* | field_values x", false)
+	f("* | top 5 by (x)", false)
 
 }
 
