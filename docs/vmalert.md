@@ -91,6 +91,8 @@ Then configure `vmalert` accordingly:
     -external.label=replica=a                # Multiple external labels may be set
 ```
 
+> _To validate the syntax of configured rules simply run vmalert with `-rule` and `-dryRun` cmd-line flags._
+
 Note there's a separate `-remoteWrite.url` command-line flag to allow writing results of
 alerting/recording rules into a different storage than the initial data that's
 queried. This allows using `vmalert` to aggregate data from a short-term,
