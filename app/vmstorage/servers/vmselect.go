@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
@@ -249,10 +250,23 @@ func getMaxMetrics(sq *storage.SearchQuery) int {
 	maxMetrics := sq.MaxMetrics
 	maxMetricsLimit := *maxUniqueTimeseries
 	if maxMetricsLimit <= 0 {
-		maxMetricsLimit = 2e9
+		maxMetricsLimit = calculateMaxMetricsLimitByResource(*maxConcurrentRequests, memory.Remaining())
 	}
 	if maxMetrics <= 0 || maxMetrics > maxMetricsLimit {
 		maxMetrics = maxMetricsLimit
 	}
 	return maxMetrics
+}
+
+// calculateMaxMetricsLimitByResource calculate the max metrics limit.
+func calculateMaxMetricsLimitByResource(maxConcurrentRequests, remainingMemory int) int {
+	if maxConcurrentRequests <= 0 {
+		// This line should NOT be reached unless the user has set an incorrect `search.maxConcurrentRequests`.
+		// In such cases, fallback to unlimited.
+		return 2e9
+	}
+
+	// Calculate the max metrics limit for a single request in the worst-case concurrent scenario.
+	// The approximate size of 1 unique series that could occupy in the vmstorage is 200 bytes.
+	return remainingMemory / 200 / maxConcurrentRequests
 }
