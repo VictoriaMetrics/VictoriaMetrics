@@ -1,4 +1,4 @@
-# Docker compose Logstash integration with VictoriaLogs. High-Availability example
+# Docker compose Logstash integration with VictoriaLogs for docker. High-Availability example
 
 The folder contains the example of integration of [logstash](https://www.elastic.co/logstash) with VictoriaLogs Single-Node(s) and [vmauth](https://docs.victoriametrics.com/vmauth/) for achieving High Availability.
 

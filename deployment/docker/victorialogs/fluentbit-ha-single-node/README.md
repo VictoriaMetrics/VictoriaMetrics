@@ -1,4 +1,4 @@
-# Docker compose Fluentbit integration with VictoriaLogs. High-Availability example 
+# Docker compose Fluentbit integration with VictoriaLogs for docker. High-Availability example 
 
 The folder contains the example of integration of [fluentbit](https://docs.fluentbit.io/manual) with VictoriaLogs Single-Nodes(s) and [vmauth](https://docs.victoriametrics.com/vmauth/) for achieving High Availability. 
 

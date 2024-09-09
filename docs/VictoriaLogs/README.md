@@ -145,10 +145,9 @@ This schema outlines how to configure a High Availability (HA) setup using Victo
 
 Here are the working example of HA configuration for VictoriaLogs using Docker Compose:
 
-- [Fluent Bit + VictoriaLogs Single-Node + vmauth]()
-- [Logstash + VictoriaLogs Single-Node + vmauth]()
-
-
+- [Fluent Bit + VictoriaLogs Single-Node + vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit-ha-single-node)
+- [Logstash + VictoriaLogs Single-Node + vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash-ha-single-node)
+- [Vector + VictoriaLogs Single-Node + vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/vector-ha-single-node)
 
 ## Backup and restore
 
