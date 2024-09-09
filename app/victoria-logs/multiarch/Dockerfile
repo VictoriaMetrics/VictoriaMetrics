@@ -8,5 +8,5 @@ FROM $root_image
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 EXPOSE 9428
 ENTRYPOINT ["/victoria-logs-prod"]
-ARG TARGETARCH=non-existing
+ARG TARGETARCH
 COPY victoria-logs-linux-${TARGETARCH}-prod ./victoria-logs-prod

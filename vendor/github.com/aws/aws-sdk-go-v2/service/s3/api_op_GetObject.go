@@ -216,6 +216,12 @@ type GetObjectInput struct {
 	Key *string
 
 	// To retrieve the checksum, this mode must be enabled.
+	//
+	// In addition, if you enable checksum mode and the object is uploaded with a [checksum] and
+	// encrypted with an Key Management Service (KMS) key, you must have permission to
+	// use the kms:Decrypt action to retrieve the checksum.
+	//
+	// [checksum]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_Checksum.html
 	ChecksumMode types.ChecksumMode
 
 	// The account ID of the expected bucket owner. If the account ID that you provide

@@ -673,8 +673,8 @@ type CSVOutput struct {
 	noSmithyDocumentSerde
 }
 
-// The container element for specifying the default Object Lock retention settings
-// for new objects placed in the specified bucket.
+// The container element for optionally specifying the default Object Lock
+// retention settings for new objects placed in the specified bucket.
 //
 //   - The DefaultRetention settings require both a mode and a period.
 //
@@ -870,6 +870,12 @@ type Encryption struct {
 
 // Specifies encryption-related information for an Amazon S3 bucket that is a
 // destination for replicated objects.
+//
+// If you're specifying a customer managed KMS key, we recommend using a fully
+// qualified KMS key ARN. If you use a KMS key alias instead, then KMS resolves the
+// key within the requester’s account. This behavior can result in data that's
+// encrypted with a KMS key that belongs to the requester, and not the bucket
+// owner.
 type EncryptionConfiguration struct {
 
 	// Specifies the ID (Key ARN or Alias ARN) of the customer managed Amazon Web
@@ -3029,7 +3035,14 @@ type Part struct {
 type PartitionedPrefix struct {
 
 	// Specifies the partition date source for the partitioned prefix.
-	// PartitionDateSource can be EventTime or DeliveryTime.
+	// PartitionDateSource can be EventTime or DeliveryTime .
+	//
+	// For DeliveryTime , the time in the log file names corresponds to the delivery
+	// time for the log files.
+	//
+	// For EventTime , The logs delivered are for a specific day only. The year, month,
+	// and day correspond to the day on which the event occurred, and the hour, minutes
+	// and seconds are set to 00 in the key.
 	PartitionDateSource PartitionDateSource
 
 	noSmithyDocumentSerde
@@ -3107,8 +3120,8 @@ type PublicAccessBlockConfiguration struct {
 
 	// Specifies whether Amazon S3 should restrict public bucket policies for this
 	// bucket. Setting this element to TRUE restricts access to this bucket to only
-	// Amazon Web Service principals and authorized users within this account if the
-	// bucket has a public policy.
+	// Amazon Web Servicesservice principals and authorized users within this account
+	// if the bucket has a public policy.
 	//
 	// Enabling this setting doesn't affect previously stored bucket policies, except
 	// that public and cross-account access within any public bucket policy, including
@@ -3149,7 +3162,14 @@ type QueueConfiguration struct {
 // The container for the records event.
 type RecordsEvent struct {
 
-	// The byte array of partial, one or more result records.
+	// The byte array of partial, one or more result records. S3 Select doesn't
+	// guarantee that a record will be self-contained in one record frame. To ensure
+	// continuous streaming of data, S3 Select might split the same record across
+	// multiple record frames instead of aggregating the results in memory. Some S3
+	// clients (for example, the SDK for Java) handle this behavior by creating a
+	// ByteStream out of the response by default. Other clients might not handle this
+	// behavior by default. In those cases, you must aggregate the results on the
+	// client side and parse the response.
 	Payload []byte
 
 	noSmithyDocumentSerde
@@ -3484,13 +3504,23 @@ type RestoreRequest struct {
 	// Describes the location where the restore job's output is stored.
 	OutputLocation *OutputLocation
 
+	// Amazon S3 Select is no longer available to new customers. Existing customers of
+	// Amazon S3 Select can continue to use the feature as usual. [Learn more]
+	//
 	// Describes the parameters for Select job types.
+	//
+	// [Learn more]: http://aws.amazon.com/blogs/storage/how-to-optimize-querying-your-data-in-amazon-s3/
 	SelectParameters *SelectParameters
 
 	// Retrieval tier at which the restore will be processed.
 	Tier Tier
 
+	// Amazon S3 Select is no longer available to new customers. Existing customers of
+	// Amazon S3 Select can continue to use the feature as usual. [Learn more]
+	//
 	// Type of restore request.
+	//
+	// [Learn more]: http://aws.amazon.com/blogs/storage/how-to-optimize-querying-your-data-in-amazon-s3/
 	Type RestoreRequestType
 
 	noSmithyDocumentSerde
@@ -3677,10 +3707,25 @@ type SelectObjectContentEventStreamMemberStats struct {
 
 func (*SelectObjectContentEventStreamMemberStats) isSelectObjectContentEventStream() {}
 
+// Amazon S3 Select is no longer available to new customers. Existing customers of
+// Amazon S3 Select can continue to use the feature as usual. [Learn more]
+//
 // Describes the parameters for Select job types.
+//
+// Learn [How to optimize querying your data in Amazon S3] using [Amazon Athena], [S3 Object Lambda], or client-side filtering.
+//
+// [Learn more]: http://aws.amazon.com/blogs/storage/how-to-optimize-querying-your-data-in-amazon-s3/
+// [How to optimize querying your data in Amazon S3]: http://aws.amazon.com/blogs/storage/how-to-optimize-querying-your-data-in-amazon-s3/
+// [Amazon Athena]: https://docs.aws.amazon.com/athena/latest/ug/what-is.html
+// [S3 Object Lambda]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/transforming-objects.html
 type SelectParameters struct {
 
+	// Amazon S3 Select is no longer available to new customers. Existing customers of
+	// Amazon S3 Select can continue to use the feature as usual. [Learn more]
+	//
 	// The expression that is used to query the object.
+	//
+	// [Learn more]: http://aws.amazon.com/blogs/storage/how-to-optimize-querying-your-data-in-amazon-s3/
 	//
 	// This member is required.
 	Expression *string
@@ -3710,6 +3755,12 @@ type SelectParameters struct {
 // in your Amazon Web Services account the first time that you add an object
 // encrypted with SSE-KMS to a bucket. By default, Amazon S3 uses this KMS key for
 // SSE-KMS. For more information, see [PUT Bucket encryption]in the Amazon S3 API Reference.
+//
+// If you're specifying a customer managed KMS key, we recommend using a fully
+// qualified KMS key ARN. If you use a KMS key alias instead, then KMS resolves the
+// key within the requester’s account. This behavior can result in data that's
+// encrypted with a KMS key that belongs to the requester, and not the bucket
+// owner.
 //
 // [PUT Bucket encryption]: https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTencryption.html
 type ServerSideEncryptionByDefault struct {
@@ -3763,6 +3814,12 @@ type ServerSideEncryptionConfiguration struct {
 }
 
 // Specifies the default server-side encryption configuration.
+//
+// If you're specifying a customer managed KMS key, we recommend using a fully
+// qualified KMS key ARN. If you use a KMS key alias instead, then KMS resolves the
+// key within the requester’s account. This behavior can result in data that's
+// encrypted with a KMS key that belongs to the requester, and not the bucket
+// owner.
 type ServerSideEncryptionRule struct {
 
 	// Specifies the default server-side encryption to apply to new objects in the

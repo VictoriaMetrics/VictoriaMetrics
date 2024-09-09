@@ -66,24 +66,31 @@ import (
 //   - If the destination bucket is a general purpose bucket, you must have the
 //     s3:PutObject permission to write the object copy to the destination bucket.
 //
-// For information about permissions required to use the multipart upload API, see [Multipart upload API and permissions]
+//   - To perform a multipart upload with encryption using an Key Management
+//     Service key, the requester must have permission to the kms:Decrypt and
+//     kms:GenerateDataKey actions on the key. The requester must also have
+//     permissions for the kms:GenerateDataKey action for the CreateMultipartUpload
+//     API. Then, the requester needs permissions for the kms:Decrypt action on the
+//     UploadPart and UploadPartCopy APIs. These permissions are required because
+//     Amazon S3 must decrypt and read data from the encrypted file parts before it
+//     completes the multipart upload. For more information about KMS permissions, see [Protecting data using server-side encryption with KMS]
+//     in the Amazon S3 User Guide. For information about the permissions required to
+//     use the multipart upload API, see [Multipart upload and permissions]and [Multipart upload API and permissions]in the Amazon S3 User Guide.
 //
-//	in the Amazon S3 User Guide.
+//   - Directory bucket permissions - You must have permissions in a bucket policy
+//     or an IAM identity-based policy based on the source and destination bucket types
+//     in an UploadPartCopy operation.
 //
-//	- Directory bucket permissions - You must have permissions in a bucket policy
-//	or an IAM identity-based policy based on the source and destination bucket types
-//	in an UploadPartCopy operation.
+//   - If the source object that you want to copy is in a directory bucket, you
+//     must have the s3express:CreateSession permission in the Action element of a
+//     policy to read the object. By default, the session is in the ReadWrite mode.
+//     If you want to restrict the access, you can explicitly set the
+//     s3express:SessionMode condition key to ReadOnly on the copy source bucket.
 //
-//	- If the source object that you want to copy is in a directory bucket, you
-//	must have the s3express:CreateSession permission in the Action element of a
-//	policy to read the object. By default, the session is in the ReadWrite mode.
-//	If you want to restrict the access, you can explicitly set the
-//	s3express:SessionMode condition key to ReadOnly on the copy source bucket.
-//
-//	- If the copy destination is a directory bucket, you must have the
-//	s3express:CreateSession permission in the Action element of a policy to write
-//	the object to the destination. The s3express:SessionMode condition key cannot
-//	be set to ReadOnly on the copy destination.
+//   - If the copy destination is a directory bucket, you must have the
+//     s3express:CreateSession permission in the Action element of a policy to write
+//     the object to the destination. The s3express:SessionMode condition key cannot
+//     be set to ReadOnly on the copy destination.
 //
 // For example policies, see [Example bucket policies for S3 Express One Zone]and [Amazon Web Services Identity and Access Management (IAM) identity-based policies for S3 Express One Zone]in the Amazon S3 User Guide.
 //
@@ -134,6 +141,8 @@ import (
 // [ListParts]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html
 // [UploadPart]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html
 // [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [Protecting data using server-side encryption with KMS]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html
+// [Multipart upload and permissions]: https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html
 // [Multipart upload API and permissions]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html#mpuAndPermissions
 // [CompleteMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html
 // [CreateMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html

@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -25,350 +26,142 @@ func TestFilterAnd(t *testing.T) {
 		},
 	}
 
-	// non-empty intersection
-	// foo:a AND foo:abc*
-	fa := &filterAnd{
-		filters: []filter{
-			&filterPhrase{
-				fieldName: "foo",
-				phrase:    "a",
-			},
-			&filterPrefix{
-				fieldName: "foo",
-				prefix:    "abc",
-			},
-		},
+	f := func(qStr string, expectedRowIdxs []int) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("unexpected error in ParseQuery: %s", err)
+		}
+		testFilterMatchForColumns(t, columns, q.f, "foo", expectedRowIdxs)
 	}
-	testFilterMatchForColumns(t, columns, fa, "foo", []int{2, 6})
+
+	// non-empty intersection
+	f(`foo:a AND foo:abc*`, []int{2, 6})
 
 	// reverse non-empty intersection
-	// foo:abc* AND foo:a
-	fa = &filterAnd{
-		filters: []filter{
-			&filterPrefix{
-				fieldName: "foo",
-				prefix:    "abc",
-			},
-			&filterPhrase{
-				fieldName: "foo",
-				phrase:    "a",
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", []int{2, 6})
+	f(`foo:abc* AND foo:a`, []int{2, 6})
 
 	// the first filter mismatch
-	// foo:bc* AND foo:a
-	fa = &filterAnd{
-		filters: []filter{
-			&filterPrefix{
-				fieldName: "foo",
-				prefix:    "bc",
-			},
-			&filterPhrase{
-				fieldName: "foo",
-				phrase:    "a",
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", nil)
+	f(`foo:bc* AND foo:a`, nil)
 
 	// the last filter mismatch
-	// foo:abc AND foo:foo*
-	fa = &filterAnd{
-		filters: []filter{
-			&filterPhrase{
-				fieldName: "foo",
-				phrase:    "abc",
-			},
-			&filterPrefix{
-				fieldName: "foo",
-				prefix:    "foo",
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", nil)
+	f(`foo:abc AND foo:foo*`, nil)
 
 	// empty intersection
-	// foo:foo AND foo:abc*
-	fa = &filterAnd{
-		filters: []filter{
-			&filterPhrase{
-				fieldName: "foo",
-				phrase:    "foo",
-			},
-			&filterPrefix{
-				fieldName: "foo",
-				prefix:    "abc",
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", nil)
-
-	// reverse empty intersection
-	// foo:abc* AND foo:foo
-	fa = &filterAnd{
-		filters: []filter{
-			&filterPrefix{
-				fieldName: "foo",
-				prefix:    "abc",
-			},
-			&filterPhrase{
-				fieldName: "foo",
-				phrase:    "foo",
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", nil)
+	f(`foo:foo AND foo:abc*`, nil)
+	f(`foo:abc* AND foo:foo`, nil)
 
 	// empty value
-	// foo:"" AND bar:""
-	fa = &filterAnd{
-		filters: []filter{
-			&filterExact{
-				fieldName: "foo",
-				value:     "",
-			},
-			&filterExact{
-				fieldName: "bar",
-				value:     "",
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", []int{5})
+	f(`foo:"" AND bar:""`, []int{5})
 
 	// non-existing field with empty value
-	// foo:foo* AND bar:""
-	fa = &filterAnd{
-		filters: []filter{
-			&filterPrefix{
-				fieldName: "foo",
-				prefix:    "foo",
-			},
-			&filterExact{
-				fieldName: "bar",
-				value:     "",
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", []int{0, 1, 3, 4, 6})
-
-	// reverse non-existing field with empty value
-	// bar:"" AND foo:foo*
-	fa = &filterAnd{
-		filters: []filter{
-			&filterExact{
-				fieldName: "bar",
-				value:     "",
-			},
-			&filterPrefix{
-				fieldName: "foo",
-				prefix:    "foo",
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", []int{0, 1, 3, 4, 6})
+	f(`foo:foo* AND bar:""`, []int{0, 1, 3, 4, 6})
+	f(`bar:"" AND foo:foo*`, []int{0, 1, 3, 4, 6})
 
 	// non-existing field with non-empty value
-	// foo:foo* AND bar:*
-	fa = &filterAnd{
-		filters: []filter{
-			&filterPrefix{
-				fieldName: "foo",
-				prefix:    "foo",
-			},
-			&filterPrefix{
-				fieldName: "bar",
-				prefix:    "",
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", nil)
-
-	// reverse non-existing field with non-empty value
-	// bar:* AND foo:foo*
-	fa = &filterAnd{
-		filters: []filter{
-			&filterPrefix{
-				fieldName: "bar",
-				prefix:    "",
-			},
-			&filterPrefix{
-				fieldName: "foo",
-				prefix:    "foo",
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", nil)
+	f(`foo:foo* AND bar:*`, nil)
+	f(`bar:* AND foo:foo*`, nil)
 
 	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6554
-	// foo:"a foo"* AND (foo:="a foobar" OR boo:bbbbbbb)
-	fa = &filterAnd{
-		filters: []filter{
-			&filterPrefix{
-				fieldName: "foo",
-				prefix:    "a foo",
-			},
-			&filterOr{
-				filters: []filter{
-					&filterExact{
-						fieldName: "foo",
-						value:     "a foobar",
-					},
-					&filterExact{
-						fieldName: "boo",
-						value:     "bbbbbbb",
-					},
-				},
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", []int{1})
+	f(`foo:"a foo"* AND (foo:="a foobar" OR boo:bbbbbbb)`, []int{1})
 
-	// foo:"a foo"* AND (foo:"abcd foobar" OR foo:foobar)
-	fa = &filterAnd{
-		filters: []filter{
-			&filterPrefix{
-				fieldName: "foo",
-				prefix:    "a foo",
-			},
-			&filterOr{
-				filters: []filter{
-					&filterPhrase{
-						fieldName: "foo",
-						phrase:    "abcd foobar",
-					},
-					&filterPhrase{
-						fieldName: "foo",
-						phrase:    "foobar",
-					},
-				},
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", []int{1, 6})
+	f(`foo:"a foo"* AND (foo:"abcd foobar" OR foo:foobar)`, []int{1, 6})
+	f(`(foo:foo* OR bar:baz) AND (bar:x OR foo:a)`, []int{0, 1, 3, 4, 6})
+	f(`(foo:foo* OR bar:baz) AND (bar:x OR foo:xyz)`, nil)
+	f(`(foo:foo* OR bar:baz) AND (bar:* OR foo:xyz)`, nil)
+	f(`(foo:foo* OR bar:baz) AND (bar:"" OR foo:xyz)`, []int{0, 1, 3, 4, 6})
 
-	// (foo:foo* OR bar:baz) AND (bar:x OR foo:a)
-	fa = &filterAnd{
-		filters: []filter{
-			&filterOr{
-				filters: []filter{
-					&filterPrefix{
-						fieldName: "foo",
-						prefix:    "foo",
-					},
-					&filterPhrase{
-						fieldName: "bar",
-						phrase:    "baz",
-					},
-				},
-			},
-			&filterOr{
-				filters: []filter{
-					&filterPhrase{
-						fieldName: "bar",
-						phrase:    "x",
-					},
-					&filterPhrase{
-						fieldName: "foo",
-						phrase:    "a",
-					},
-				},
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", []int{0, 1, 3, 4, 6})
+	// negative filters
+	f(`foo:foo* AND !foo:~bar`, []int{0})
+	f(`foo:foo* AND foo:!~bar`, []int{0})
+}
 
-	// (foo:foo* OR bar:baz) AND (bar:x OR foo:xyz)
-	fa = &filterAnd{
-		filters: []filter{
-			&filterOr{
-				filters: []filter{
-					&filterPrefix{
-						fieldName: "foo",
-						prefix:    "foo",
-					},
-					&filterPhrase{
-						fieldName: "bar",
-						phrase:    "baz",
-					},
-				},
-			},
-			&filterOr{
-				filters: []filter{
-					&filterPhrase{
-						fieldName: "bar",
-						phrase:    "x",
-					},
-					&filterPhrase{
-						fieldName: "foo",
-						phrase:    "xyz",
-					},
-				},
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", nil)
+func TestGetCommonTokensForAndFilters(t *testing.T) {
+	f := func(qStr string, tokensExpected []fieldTokens) {
+		t.Helper()
 
-	// (foo:foo* OR bar:baz) AND (bar:* OR foo:xyz)
-	fa = &filterAnd{
-		filters: []filter{
-			&filterOr{
-				filters: []filter{
-					&filterPrefix{
-						fieldName: "foo",
-						prefix:    "foo",
-					},
-					&filterPhrase{
-						fieldName: "bar",
-						phrase:    "baz",
-					},
-				},
-			},
-			&filterOr{
-				filters: []filter{
-					&filterPrefix{
-						fieldName: "bar",
-						prefix:    "",
-					},
-					&filterPhrase{
-						fieldName: "foo",
-						phrase:    "xyz",
-					},
-				},
-			},
-		},
-	}
-	testFilterMatchForColumns(t, columns, fa, "foo", nil)
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("unexpected error in ParseQuery: %s", err)
+		}
+		fa, ok := q.f.(*filterAnd)
+		if !ok {
+			t.Fatalf("unexpected filter type: %T; want *filterAnd", q.f)
+		}
+		tokens := getCommonTokensForAndFilters(fa.filters)
 
-	// (foo:foo* OR bar:baz) AND (bar:"" OR foo:xyz)
-	fa = &filterAnd{
-		filters: []filter{
-			&filterOr{
-				filters: []filter{
-					&filterPrefix{
-						fieldName: "foo",
-						prefix:    "foo",
-					},
-					&filterPhrase{
-						fieldName: "bar",
-						phrase:    "baz",
-					},
-				},
-			},
-			&filterOr{
-				filters: []filter{
-					&filterExact{
-						fieldName: "bar",
-						value:     "",
-					},
-					&filterPhrase{
-						fieldName: "foo",
-						phrase:    "xyz",
-					},
-				},
-			},
-		},
+		if len(tokens) != len(tokensExpected) {
+			t.Fatalf("unexpected len(tokens); got %d; want %d\ntokens\n%#v\ntokensExpected\n%#v", len(tokens), len(tokensExpected), tokens, tokensExpected)
+		}
+		for i, ft := range tokens {
+			ftExpected := tokensExpected[i]
+			if ft.field != ftExpected.field {
+				t.Fatalf("unexpected field; got %q; want %q\ntokens\n%q\ntokensExpected\n%q", ft.field, ftExpected.field, ft.tokens, ftExpected.tokens)
+			}
+			if !reflect.DeepEqual(ft.tokens, ftExpected.tokens) {
+				t.Fatalf("unexpected tokens for field %q; got %q; want %q", ft.field, ft.tokens, ftExpected.tokens)
+			}
+		}
 	}
-	testFilterMatchForColumns(t, columns, fa, "foo", []int{0, 1, 3, 4, 6})
+
+	f(`foo AND bar`, []fieldTokens{
+		{
+			field:  "_msg",
+			tokens: []string{"foo", "bar"},
+		},
+	})
+
+	f(`="foo bar" AND ="a foo"* AND "bar foo" AND "foo bar"* AND ~"foo qwe bar.+" AND seq(x, bar, "foo qwe")`, []fieldTokens{
+		{
+			field:  "_msg",
+			tokens: []string{"foo", "bar", "a", "qwe", "x"},
+		},
+	})
+
+	// extract common tokens from OR filters
+	f(`foo AND (bar OR ~"x bar baz")`, []fieldTokens{
+		{
+			field:  "_msg",
+			tokens: []string{"foo", "bar"},
+		},
+	})
+
+	// star matches any non-empty token, so it is skipped
+	f(`foo bar *`, []fieldTokens{
+		{
+			field:  "_msg",
+			tokens: []string{"foo", "bar"},
+		},
+	})
+	f(`* *`, nil)
+
+	// empty filter must be skipped
+	f(`foo "" bar`, []fieldTokens{
+		{
+			field:  "_msg",
+			tokens: []string{"foo", "bar"},
+		},
+	})
+	f(`"" ""`, nil)
+
+	// unknown filters must be skipped
+	f(`_time:5m !foo "bar baz" x`, []fieldTokens{
+		{
+			field:  "_msg",
+			tokens: []string{"bar", "baz", "x"},
+		},
+	})
+
+	// distinct field names
+	f(`foo:x bar:"a bc" (foo:y OR (bar:qwe AND foo:"z y a"))`, []fieldTokens{
+		{
+			field:  "foo",
+			tokens: []string{"x", "y"},
+		},
+		{
+			field:  "bar",
+			tokens: []string{"a", "bc"},
+		},
+	})
 }

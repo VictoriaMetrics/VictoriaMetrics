@@ -54,8 +54,9 @@ func (c *Client) ListDirectoryBuckets(ctx context.Context, params *ListDirectory
 type ListDirectoryBucketsInput struct {
 
 	// ContinuationToken indicates to Amazon S3 that the list is being continued on
-	// this bucket with a token. ContinuationToken is obfuscated and is not a real
-	// key. You can use this ContinuationToken for pagination of the list results.
+	// buckets in this account with a token. ContinuationToken is obfuscated and is
+	// not a real bucket name. You can use this ContinuationToken for the pagination
+	// of the list results.
 	ContinuationToken *string
 
 	// Maximum number of buckets to be returned in response. When the number is more
