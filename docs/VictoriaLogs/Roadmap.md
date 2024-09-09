@@ -25,7 +25,7 @@ The following functionality is planned in the future versions of VictoriaLogs:
   - [ ] Fluentd
   - [ ] [Journald](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4618) (systemd)
   - [ ] [Datadog protocol for logs](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6632)
-  - [x] [Telegraf http output](https://docs.victoriametrics.com/victorialogs/data-ingestion/telegraf/)
+  - [x] [Telegraf](https://docs.victoriametrics.com/victorialogs/data-ingestion/telegraf/)
 - [ ] Integration with Grafana. Partially done, check the [documentation](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/) and [datasource repository](https://github.com/VictoriaMetrics/victorialogs-datasource).
 - [ ] Ability to make instant snapshots and backups in the way [similar to VictoriaMetrics](https://docs.victoriametrics.com/#how-to-work-with-snapshots).
 - [ ] Cluster version of VictoriaLogs.
