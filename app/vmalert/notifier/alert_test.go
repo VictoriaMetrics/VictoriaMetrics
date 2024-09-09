@@ -187,7 +187,7 @@ func TestAlert_toPromLabels(t *testing.T) {
 	fn := func(labels map[string]string, exp []prompbmarshal.Label, relabel *promrelabel.ParsedConfigs) {
 		t.Helper()
 		a := Alert{Labels: labels}
-		got := a.toPromLabels(relabel)
+		got := a.applyRelabelingIfNeeded(relabel)
 		if !reflect.DeepEqual(got, exp) {
 			t.Fatalf("expected to have: \n%v;\ngot:\n%v",
 				exp, got)
