@@ -23,8 +23,8 @@ groups:
         for: 3m
 
         annotations:
-          summary: Too high connection number for {{$labels.instance}}
-          description: "It is {{ $value }} connections for {{$labels.instance}}"
+          summary: Too high connection number for {{$labels.instance}} \n\-\-\-\n
+          description: "It is {{ $value }} connections for {{$labels.instance}} \n---\n"
   - name: TestGroupPromMixed
     interval: 2s
     concurrency: 2
@@ -35,5 +35,5 @@ groups:
         expr: sum(vm_tcplistener_conns) by (instance) > 1
         for: 3m
         annotations:
-          summary: Too high connection number for {{$labels.instance}}
+          summary: \n markdown result is : ----\n # header\n body: \n text \n----\n"
           description: "It is {{ $value }} connections for {{$labels.instance}}"

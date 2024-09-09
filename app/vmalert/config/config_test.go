@@ -58,7 +58,7 @@ groups:
 }
 
 func TestParse_Success(t *testing.T) {
-	_, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, notifier.ValidateTemplates, true)
+	_, err := Parse([]string{"testdata/rules/*multi-doc-good.rules", "testdata/dir/*good.*"}, notifier.ValidateTemplates, true)
 	if err != nil {
 		t.Fatalf("error parsing files %s", err)
 	}
