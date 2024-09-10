@@ -1,0 +1,35 @@
+services:
+  victorialogs:
+    image: docker.io/victoriametrics/victoria-logs:v0.29.0-victorialogs
+    volumes:
+      - victorialogs:/vlogs
+    ports:
+      - '9428:9428'
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - /victoria-logs-prod -storageDataPath=/vlogs/$${HOSTNAME} -loggerFormat=json -syslog.listenAddr.tcp=0.0.0.0:8094
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9428/health"]
+      interval: 1s
+      timeout: 1s
+      retries: 10
+
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:latest
+    ports:
+      - '8428:8428'
+    command:
+      - -storageDataPath=/vmsingle
+      - -loggerFormat=json
+    volumes:
+      - victoriametrics:/vmsingle
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8428/health"]
+      interval: 1s
+      timeout: 1s
+      retries: 10
+
+volumes:
+  victorialogs:
+  victoriametrics:

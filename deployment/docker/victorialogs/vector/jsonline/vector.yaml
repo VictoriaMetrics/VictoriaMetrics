@@ -1,0 +1,43 @@
+api:
+  enabled: true
+  address: 0.0.0.0:8686
+sources:
+  docker:
+    type: docker_logs
+  demo:
+    type: demo_logs
+    format: json
+  metrics:
+    type: internal_metrics
+transforms:
+  msg_parser:
+    type: remap
+    inputs:
+      - docker
+    source: |
+      .log = parse_json!(.message)
+      del(.message)
+sinks:
+  http:
+    type: http
+    inputs:
+      - msg_parser
+    uri: http://victorialogs:9428/insert/jsonline?_stream_fields=source_type,host,container_name&_msg_field=log.msg&_time_field=timestamp
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    compression: gzip
+    healthcheck:
+      enabled: false
+    request:
+      headers:
+        AccountID: '0'
+        ProjectID: '0'
+  victoriametrics:
+    type: prometheus_remote_write
+    endpoint: http://victoriametrics:8428/api/v1/write
+    inputs: 
+      - metrics
+    healthcheck:
+      enabled: false
