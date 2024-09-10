@@ -129,6 +129,26 @@ For example, the following command starts VictoriaLogs, which stores the data at
 
 VictoriaLogs automatically creates the `-storageDataPath` directory on the first run if it is missing.
 
+## High Availability
+
+### High Availability (HA) Setup with VictoriaLogs Single-Node Instances
+
+This schema outlines how to configure a High Availability (HA) setup using VictoriaLogs Single-Node instances. The setup consists of the following components:
+
+- **Log Collector**: The log collector should support multiplexing incoming data to multiple outputs (destinations). Popular log collectors like [Fluent Bit](https://docs.fluentbit.io/manual/concepts/data-pipeline/router), [Logstash](https://www.elastic.co/guide/en/logstash/current/output-plugins.html), [Fluentd](https://docs.fluentd.org/output/copy), and [Vector](https://vector.dev/docs/setup/configuration/sinks/) already offer this capability. Refer to their documentation for configuration details.
+
+- **VictoriaLogs Single-Node Instances**: Use two or more instances to achieve HA.
+
+- **[vmauth](https://docs.victoriametrics.com/vmauth/#load-balancing) or Load Balancer**: Used for reading data from one of the replicas to ensure balanced and redundant access.
+
+![VictoriaLogs Single-Node Instance High-Availability schema](ha-victorialogs-single-node.webp)
+
+Here are the working example of HA configuration for VictoriaLogs using Docker Compose:
+
+- [Fluent Bit + VictoriaLogs Single-Node + vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit-ha-single-node)
+- [Logstash + VictoriaLogs Single-Node + vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash-ha-single-node)
+- [Vector + VictoriaLogs Single-Node + vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/vector-ha-single-node)
+
 ## Backup and restore
 
 VictoriaLogs currently does not have a snapshot feature and a tool like vmbackup as VictoriaMetrics does.

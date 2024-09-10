@@ -20,6 +20,9 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 **Update note 1: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): perform deduplication for all received data when specifying `-streamAggr.dedupInterval` or `-remoteWrite.streamAggr.dedupInterval` command-line flag. Previously, if the `-remoteWrite.streamAggr.config` or `-streamAggr.config` is set, only series that matched aggregation config were deduplicated. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6711#issuecomment-2288361213) for details.**
 
+* SECURITY: upgrade Go builder from Go1.23.0 to Go1.23.1. See the list of issues addressed in [Go1.23.1](https://github.com/golang/go/issues?q=milestone%3AGo1.23.1+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.20.2 to 3.20.3. See [alpine 3.20.3 release notes](https://alpinelinux.org/posts/Alpine-3.17.10-3.18.9-3.19.4-3.20.3-released.html).
+
 * FEATURE [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): perform deduplication for all received data when specifying `-streamAggr.dedupInterval` or `-remoteWrite.streamAggr.dedupInterval` command-line flags are set. Previously, if the `-remoteWrite.streamAggr.config` or `-streamAggr.config` is set, only series that matched aggregation config were deduplicated. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6711#issuecomment-2288361213) for details.
 * FEATURE: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: add support of hot-reload for license key supplied by `-licenseFile` command-line flag.
 * FEATURE: [vmgateway](https://docs.victoriametrics.com/vmgateway/): allow disabling `Bearer` prefix enforcement for authentication header. This is useful for cases when identity token is used instead of access token.
@@ -31,6 +34,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway/): add missing `datadog`, `newrelic`, `opentelemetry` and `pushgateway` routes to the `JWT` authorization routes. Allows prefixed (`promtheus/graphite`) routes for query requests.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fix metric `vm_object_references{type="indexdb"}`. Previously, it was overcounted.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly ingest stale NaN samples. Previously it could be dropped if series didn't exist at storage node. See this issue [https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5069] for details.
+
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): do not send notifications without labels to Alertmanager. Such notifications are rejected by Alertmanager anyway. Before, vmalert could send alert notifications even if no label-value pairs left after applying `alert_relabel_configs` from [notifier config](https://docs.victoriametrics.com/vmalert/#notifier-configuration-file).
 
 ## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
 

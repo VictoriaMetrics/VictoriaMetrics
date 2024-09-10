@@ -49,28 +49,28 @@ import (
 // requests. For more information about signing, see [Authenticating Requests (Amazon Web Services Signature Version 4)]in the Amazon S3 User Guide.
 //
 // Permissions
-//   - General purpose bucket permissions - For information about the permissions
-//     required to use the multipart upload API, see [Multipart upload and permissions]in the Amazon S3 User Guide.
 //
-// To perform a multipart upload with encryption by using an Amazon Web Services
+//   - General purpose bucket permissions - To perform a multipart upload with
+//     encryption using an Key Management Service (KMS) KMS key, the requester must
+//     have permission to the kms:Decrypt and kms:GenerateDataKey actions on the key.
+//     The requester must also have permissions for the kms:GenerateDataKey action
+//     for the CreateMultipartUpload API. Then, the requester needs permissions for
+//     the kms:Decrypt action on the UploadPart and UploadPartCopy APIs. These
+//     permissions are required because Amazon S3 must decrypt and read data from the
+//     encrypted file parts before it completes the multipart upload. For more
+//     information, see [Multipart upload API and permissions]and [Protecting data using server-side encryption with Amazon Web Services KMS]in the Amazon S3 User Guide.
 //
-//	KMS key, the requester must have permission to the kms:Decrypt and
-//	kms:GenerateDataKey* actions on the key. These permissions are required
-//	because Amazon S3 must decrypt and read data from the encrypted file parts
-//	before it completes the multipart upload. For more information, see [Multipart upload API and permissions]and [Protecting data using server-side encryption with Amazon Web Services KMS]in
-//	the Amazon S3 User Guide.
-//
-//	- Directory bucket permissions - To grant access to this API operation on a
-//	directory bucket, we recommend that you use the [CreateSession]CreateSession API operation
-//	for session-based authorization. Specifically, you grant the
-//	s3express:CreateSession permission to the directory bucket in a bucket policy
-//	or an IAM identity-based policy. Then, you make the CreateSession API call on
-//	the bucket to obtain a session token. With the session token in your request
-//	header, you can make API requests to this operation. After the session token
-//	expires, you make another CreateSession API call to generate a new session
-//	token for use. Amazon Web Services CLI or SDKs create session and refresh the
-//	session token automatically to avoid service interruptions when a session
-//	expires. For more information about authorization, see [CreateSession]CreateSession .
+//   - Directory bucket permissions - To grant access to this API operation on a
+//     directory bucket, we recommend that you use the [CreateSession]CreateSession API operation
+//     for session-based authorization. Specifically, you grant the
+//     s3express:CreateSession permission to the directory bucket in a bucket policy
+//     or an IAM identity-based policy. Then, you make the CreateSession API call on
+//     the bucket to obtain a session token. With the session token in your request
+//     header, you can make API requests to this operation. After the session token
+//     expires, you make another CreateSession API call to generate a new session
+//     token for use. Amazon Web Services CLI or SDKs create session and refresh the
+//     session token automatically to avoid service interruptions when a session
+//     expires. For more information about authorization, see [CreateSession]CreateSession .
 //
 // Encryption
 //
@@ -171,7 +171,7 @@ import (
 // [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
 // [Specifying the Signature Version in Request Authentication]: https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version
 // [Aborting Incomplete Multipart Uploads Using a Bucket Lifecycle Configuration]: https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config
-// [Multipart upload and permissions]: https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html
+// [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 // [Multipart upload API and permissions]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html#mpuAndPermissions
 // [UploadPartCopy]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html
 // [CompleteMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html
@@ -181,7 +181,6 @@ import (
 // [Protecting data using server-side encryption with Amazon Web Services KMS]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html
 // [ListMultipartUploads]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListMultipartUploads.html
 //
-// [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 // [Protecting data using server-side encryption with customer-provided encryption keys (SSE-C)]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerSideEncryptionCustomerKeys.html
 func (c *Client) CreateMultipartUpload(ctx context.Context, params *CreateMultipartUploadInput, optFns ...func(*Options)) (*CreateMultipartUploadOutput, error) {
 	if params == nil {
