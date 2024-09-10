@@ -21,7 +21,6 @@ groups:
       - alert: Conns
         expr: filterSeries(sumSeries(host.receiver.interface.cons),'last','>', 500)
         for: 3m
-
         annotations:
           summary: Too high connection number for {{$labels.instance}} \n\-\-\-\n
           description: "It is {{ $value }} connections for {{$labels.instance}} \n---\n"
@@ -35,5 +34,5 @@ groups:
         expr: sum(vm_tcplistener_conns) by (instance) > 1
         for: 3m
         annotations:
-          summary: \n markdown result is : ----\n # header\n body: \n text \n----\n"
+          summary: "\n markdown result is : ----\n # header\n body: \n text \n----\n"
           description: "It is {{ $value }} connections for {{$labels.instance}}"
