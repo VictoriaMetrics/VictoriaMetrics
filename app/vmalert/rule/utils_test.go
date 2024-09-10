@@ -66,7 +66,7 @@ func TestRequestToCurl(t *testing.T) {
 	f(req, "curl -k -X POST -H 'Key-For: <secret>' 'https://foo.com'")
 
 	req = newReq("https://foo.com")
-	req.Header.Set("My-Secret-Org", "secret-organisation")
+	req.Header.Set("My-Secret-Org", "secret-organization")
 	f(req, "curl -k -X POST -H 'My-Secret-Org: <secret>' 'https://foo.com'")
 
 	req = newReq("https://foo.com")
