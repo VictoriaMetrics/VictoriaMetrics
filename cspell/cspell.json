@@ -1,7 +1,7 @@
 {
   "allowCompoundWords": true,
   "caseSensitive": false,
-  "language": "en,ru,uk",
+  "language": "en",
   "minWordLength": 3,
   "dictionaryDefinitions": [
     {
@@ -20,7 +20,7 @@
     "data-science",
     "docker",
     "dotnet",
-    "en_us",
+    "en_US",
     "en-common-misspelling",
     "fonts",
     "fullstack",

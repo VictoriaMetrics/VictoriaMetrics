@@ -103,7 +103,7 @@ Unicode chars must be encoded with [UTF-8](https://en.wikipedia.org/wiki/UTF-8) 
 ```json
 {
   "field with whitespace": "value\nwith\nnewlines",
-  "Поле": "价值",
+  "Поле": "价值"
 }
 ```
 

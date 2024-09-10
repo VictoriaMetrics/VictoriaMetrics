@@ -2284,7 +2284,7 @@ _Appears in:_
 | `port` | Port listen port | _string_ | false |
 | `priorityClassName` | PriorityClassName assigned to the Pods | _string_ | false |
 | `readinessGates` | ReadinessGates defines pod readiness gates | _[PodReadinessGate](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podreadinessgate-v1-core) array_ | true |
-| `removePvcAfterDelete` | RemovePvcAfterDelete - if true, controller adds ownership to pvc<br />and after VLogs objest deletion - pvc will be garbage collected<br />by controller manager | _boolean_ | false |
+| `removePvcAfterDelete` | RemovePvcAfterDelete - if true, controller adds ownership to pvc<br />and after VLogs object deletion - pvc will be garbage collected<br />by controller manager | _boolean_ | false |
 | `replicaCount` | ReplicaCount is the expected size of the VLogs<br />it can be 0 or 1<br />if you need more - use vm cluster | _integer_ | true |
 | `resources` | Resources container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | false |
 | `retentionPeriod` | RetentionPeriod for the stored logs | _string_ | true |
@@ -3581,7 +3581,7 @@ _Appears in:_
 | `port` | Port listen port | _string_ | false |
 | `priorityClassName` | PriorityClassName assigned to the Pods | _string_ | false |
 | `readinessGates` | ReadinessGates defines pod readiness gates | _[PodReadinessGate](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podreadinessgate-v1-core) array_ | true |
-| `removePvcAfterDelete` | RemovePvcAfterDelete - if true, controller adds ownership to pvc<br />and after VMSingle objest deletion - pvc will be garbage collected<br />by controller manager | _boolean_ | false |
+| `removePvcAfterDelete` | RemovePvcAfterDelete - if true, controller adds ownership to pvc<br />and after VMSingle object deletion - pvc will be garbage collected<br />by controller manager | _boolean_ | false |
 | `replicaCount` | ReplicaCount is the expected size of the VMSingle<br />it can be 0 or 1<br />if you need more - use vm cluster | _integer_ | true |
 | `resources` | Resources container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | false |
 | `retentionPeriod` | RetentionPeriod for the stored metrics<br />Note VictoriaMetrics has data/ and indexdb/ folders<br />metrics from data/ removed eventually as soon as partition leaves retention period<br />reverse index data at indexdb rotates once at the half of configured [retention period](https://docs.victoriametrics.com/Single-server-VictoriaMetrics/#retention) | _string_ | true |

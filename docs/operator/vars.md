@@ -123,7 +123,7 @@ aliases:
 | VM_ENABLEDPROMETHEUSCONVERTER_SCRAPECONFIG | true | false | - |
 | VM_FILTERCHILDLABELPREFIXES | - | false | - |
 | VM_FILTERCHILDANNOTATIONPREFIXES | - | false | - |
-| VM_PROMETHEUSCONVERTERADDARGOCDIGNOREANNOTATIONS | false | false | adds compare-options and sync-options for prometheus objects converted by operatorit helps to properly use converter with ArgoCD |
+| VM_PROMETHEUSCONVERTERADDARGOCDIGNOREANNOTATIONS | false | false | adds compare-options and sync-options for prometheus objects converted by operator. It helps to properly use converter with ArgoCD |
 | VM_ENABLEDPROMETHEUSCONVERTEROWNERREFERENCES | false | false | - |
 | VM_FILTERPROMETHEUSCONVERTERLABELPREFIXES | - | false | allows filtering for converted labels, labels with matched prefix will be ignored |
 | VM_FILTERPROMETHEUSCONVERTERANNOTATIONPREFIXES | - | false | allows filtering for converted annotations, annotations with matched prefix will be ignored |
