@@ -201,7 +201,9 @@ On the opened screen, choose parameters of your new deployment:
 * `Retention` period for stored metrics.
 * `Size` of your deployment [based on your needs](https://docs.victoriametrics.com/guides/understand-your-setup-size.html)
 
-Also see the [Assumptions about tiers parameters](https://docs.victoriametrics.com/victoriametrics-cloud/tiers-assumptions.html).
+Also see the [Tier Parameters and Flag Parameters Configuration](https://docs.victoriametrics.com/victoriametrics-cloud/tiers-parameters/).
+This document provides an overview of tier parameters and predefined flag settings for VictoriaMetrics Cloud.
+
 
   ![Create deployment form](create_deployment_form.webp)
 
