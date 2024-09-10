@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"slices"
 	"sync/atomic"
 	"testing"
 
@@ -55,7 +56,7 @@ func benchmarkStorageAddRows(b *testing.B, rowsPerBatch int) {
 	b.StopTimer()
 }
 
-func BenchmarkStorageInsertVariousDataPatterns(b *testing.B) {
+func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 	const (
 		numBatches      = 100
 		numRowsPerBatch = 10000
@@ -63,22 +64,26 @@ func BenchmarkStorageInsertVariousDataPatterns(b *testing.B) {
 		splitBatches    = true
 	)
 
+	// Each batch corresponds to a unique date and has a unique set of metric
+	// names.
 	highChurnRateData, _ := testGenerateMetricRowBatches(&batchOptions{
 		numBatches:           numBatches,
 		numRowsPerBatch:      numRowsPerBatch,
-		sameBatchMetricNames: false,
-		sameRowMetricNames:   false,
-		sameBatchDates:       false,
-		sameRowDates:         true,
+		sameBatchMetricNames: false, // Each batch has unique set of metric names.
+		sameRowMetricNames:   false, // Within a batch, each metric name is unique.
+		sameBatchDates:       false, // Each batch has a unique date.
+		sameRowDates:         true,  // Within a batch, the date is the same.
 	})
 
+	// Each batch corresponds to a unique date but has the same set of metric
+	// names.
 	noChurnRateData, _ := testGenerateMetricRowBatches(&batchOptions{
 		numBatches:           numBatches,
 		numRowsPerBatch:      numRowsPerBatch,
-		sameBatchMetricNames: true,
-		sameRowMetricNames:   false,
-		sameBatchDates:       false,
-		sameRowDates:         true,
+		sameBatchMetricNames: true,  // Each batch has the same set of metric names.
+		sameRowMetricNames:   false, // Within a batch, each metric name is unique.
+		sameBatchDates:       false, // Each batch has a unique date.
+		sameRowDates:         true,  // Within a batch, the date is the same.
 	})
 
 	addRows := func(b *testing.B, disablePerDayIndex bool, batches [][]MetricRow) {
@@ -93,9 +98,7 @@ func BenchmarkStorageInsertVariousDataPatterns(b *testing.B) {
 		path := b.Name()
 		for range b.N {
 			s := MustOpenStorage(path, 0, 0, 0, disablePerDayIndex)
-			testDoConcurrently(s, func(s *Storage, mrs []MetricRow) {
-				s.AddRows(mrs, defaultPrecisionBits)
-			}, concurrency, splitBatches, batches)
+			s.AddRows(slices.Concat(batches...), defaultPrecisionBits)
 			s.DebugFlush()
 			if err := s.ForceMergePartitions(""); err != nil {
 				b.Fatalf("ForceMergePartitions() failed unexpectedly: %v", err)

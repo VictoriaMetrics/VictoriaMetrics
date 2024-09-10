@@ -1939,12 +1939,12 @@ func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
 		}
 		got, err := s.SearchMetricNames(nil, []*TagFilters{tfsAll}, tr, 1e6, noDeadline)
 		if err != nil {
-			t.Fatalf("SearchMetricNames(%v) failed unexpectedly", &tr)
+			t.Fatalf("SearchMetricNames(%v) failed unexpectedly: %v", &tr, err)
 		}
 		for i, name := range got {
 			var mn MetricName
 			if err := mn.Unmarshal([]byte(name)); err != nil {
-				t.Fatalf("mn.Unmarshal(%q) failed unexpectedly", name)
+				t.Fatalf("mn.Unmarshal(%q) failed unexpectedly: %v", name, err)
 			}
 			got[i] = string(mn.MetricGroup)
 		}
@@ -1998,7 +1998,7 @@ func TestStorageSearchLabelNamesWithoutPerDayIndex(t *testing.T) {
 		t.Helper()
 		got, err := s.SearchLabelNames(nil, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
 		if err != nil {
-			t.Fatalf("SearchLabelNames(%v) failed unexpectedly", &tr)
+			t.Fatalf("SearchLabelNames(%v) failed unexpectedly: %v", &tr, err)
 		}
 		slices.Sort(got)
 		slices.Sort(want.([]string))
@@ -2052,7 +2052,7 @@ func TestStorageSearchLabelValuesWithoutPerDayIndex(t *testing.T) {
 		t.Helper()
 		got, err := s.SearchLabelValues(nil, labelName, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
 		if err != nil {
-			t.Fatalf("SearchLabelValues(%v) failed unexpectedly", &tr)
+			t.Fatalf("SearchLabelValues(%v) failed unexpectedly: %v", &tr, err)
 		}
 		slices.Sort(got)
 		slices.Sort(want.([]string))
@@ -2102,7 +2102,7 @@ func TestStorageSearchTagValueSuffixesWithoutPerDayIndex(t *testing.T) {
 		t.Helper()
 		got, err := s.SearchTagValueSuffixes(nil, tr, "", tagValuePrefix, '.', 1e6, noDeadline)
 		if err != nil {
-			t.Fatalf("SearchTagValueSuffixes(%v) failed unexpectedly", &tr)
+			t.Fatalf("SearchTagValueSuffixes(%v) failed unexpectedly: %v", &tr, err)
 		}
 		slices.Sort(got)
 		slices.Sort(want.([]string))
@@ -2152,7 +2152,7 @@ func TestStorageSearchGraphitePathsWithoutPerDayIndex(t *testing.T) {
 		t.Helper()
 		got, err := s.SearchGraphitePaths(nil, tr, []byte("*.*"), 1e6, noDeadline)
 		if err != nil {
-			t.Fatalf("SearchGraphitePaths(%v) failed unexpectedly", &tr)
+			t.Fatalf("SearchGraphitePaths(%v) failed unexpectedly: %v", &tr, err)
 		}
 		slices.Sort(got)
 		slices.Sort(want.([]string))
