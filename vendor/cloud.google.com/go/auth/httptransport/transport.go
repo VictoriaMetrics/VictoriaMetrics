@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	quotaProjectHeaderKey = "X-Goog-User-Project"
+	quotaProjectHeaderKey = "X-goog-user-project"
 )
 
 func newTransport(base http.RoundTripper, opts *Options) (http.RoundTripper, error) {
@@ -76,7 +76,10 @@ func newTransport(base http.RoundTripper, opts *Options) (http.RoundTripper, err
 			if headers == nil {
 				headers = make(map[string][]string, 1)
 			}
-			headers.Set(quotaProjectHeaderKey, qp)
+			// Don't overwrite user specified quota
+			if v := headers.Get(quotaProjectHeaderKey); v == "" {
+				headers.Set(quotaProjectHeaderKey, qp)
+			}
 		}
 		creds.TokenProvider = auth.NewCachedTokenProvider(creds.TokenProvider, nil)
 		trans = &authTransport{
@@ -94,7 +97,11 @@ func newTransport(base http.RoundTripper, opts *Options) (http.RoundTripper, err
 // http.DefaultTransport.
 // If TLSCertificate is available, set TLSClientConfig as well.
 func defaultBaseTransport(clientCertSource cert.Provider, dialTLSContext func(context.Context, string, string) (net.Conn, error)) http.RoundTripper {
-	trans := http.DefaultTransport.(*http.Transport).Clone()
+	defaultTransport, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		defaultTransport = transport.BaseTransport()
+	}
+	trans := defaultTransport.Clone()
 	trans.MaxIdleConnsPerHost = 100
 
 	if clientCertSource != nil {
@@ -193,16 +200,18 @@ func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 			}
 		}()
 	}
-	credentialsUniverseDomain, err := t.creds.UniverseDomain(req.Context())
-	if err != nil {
-		return nil, err
-	}
-	if err := transport.ValidateUniverseDomain(t.getClientUniverseDomain(), credentialsUniverseDomain); err != nil {
-		return nil, err
-	}
 	token, err := t.creds.Token(req.Context())
 	if err != nil {
 		return nil, err
+	}
+	if token.MetadataString("auth.google.tokenSource") != "compute-metadata" {
+		credentialsUniverseDomain, err := t.creds.UniverseDomain(req.Context())
+		if err != nil {
+			return nil, err
+		}
+		if err := transport.ValidateUniverseDomain(t.getClientUniverseDomain(), credentialsUniverseDomain); err != nil {
+			return nil, err
+		}
 	}
 	req2 := req.Clone(req.Context())
 	SetAuthHeader(token, req2)

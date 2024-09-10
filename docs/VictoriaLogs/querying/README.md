@@ -13,6 +13,8 @@ VictoriaLogs provides the following HTTP endpoints:
 - [`/select/logsql/query`](#querying-logs) for querying logs.
 - [`/select/logsql/tail`](#live-tailing) for live tailing of query results.
 - [`/select/logsql/hits`](#querying-hits-stats) for querying log hits stats over the given time range.
+- [`/select/logsql/stats_query`](#querying-log-stats) for querying log stats at the given time.
+- [`/select/logsql/stats_query_range`](#querying-log-range-stats) for querying log stats over the given time range.
 - [`/select/logsql/stream_ids`](#querying-stream_ids) for querying `_stream_id` values of [log streams](#https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - [`/select/logsql/streams`](#querying-streams) for querying [log streams](#https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - [`/select/logsql/stream_field_names`](#querying-stream-field-names) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field names.
@@ -105,6 +107,8 @@ See also:
 
 - [Live tailing](#live-tailing)
 - [Querying hits stats](#querying-hits-stats)
+- [Querying log stats](#querying-log-stats)
+- [Querying log range stats](#querying-log-range-stats)
 - [Querying streams](#querying-streams)
 - [Querying stream field names](#querying-stream-field-names)
 - [Querying stream field values](#querying-stream-field-values)
@@ -273,7 +277,173 @@ curl http://localhost:9428/select/logsql/hits -H 'AccountID: 12' -H 'ProjectID: 
 See also:
 
 - [Querying logs](#querying-logs)
+- [Querying log stats](#querying-log-stats)
+- [Querying log range stats](#querying-log-range-stats)
 - [Querying streams](#querying-streams)
+- [HTTP API](#http-api)
+
+### Querying log stats
+
+VictoriaLogs provides `/select/logsql/stats_query?query=<query>&time=<t>` HTTP endpoint, which returns log stats
+for the given [`query`](https://docs.victoriametrics.com/victorialogs/logsql/) at the given timestamp `t`
+in the format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries).
+
+The `<query>` must contain [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe). The calculated stats is converted into metrics
+with labels from `by(...)` clause of the `| stats by(...)` pipe.
+
+The `<t>` arg can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
+If `<t>` is missing, then it equals to the current time.
+
+For example, the following command returns the number of logs per each `level` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+across logs over `2024-01-01` day by UTC:
+
+```sh
+curl http://localhost:9428/select/logsql/stats_query -d 'query=_time:1d | stats by (level) count(*)' -d 'time=2024-01-02'
+```
+
+Below is an example JSON output returned from this endpoint:
+
+```json
+{
+  "status": "success",
+  "data": {
+    "resultType": "vector",
+    "result": [
+      {
+        "metric": {
+          "__name__": "count(*)",
+          "level": "info"
+        },
+        "value": [
+          1704153600,
+          "20395342"
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "count(*)",
+          "level": "warn"
+        },
+        "value": [
+          1704153600,
+          "1239222"
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "count(*)",
+          "level": "error"
+        },
+        "value": [
+          1704153600,
+          "832"
+        ]
+      },
+    ]
+  }
+}
+```
+
+The `/select/logsql/stats_query` API is useful for generating Prometheus-compatible alerts and calculating recording rules results.
+
+See also:
+
+- [Querying log range stats](#querying-log-range-stats)
+- [Querying logs](#querying-logs)
+- [Querying hits stats](#querying-hits-stats)
+- [HTTP API](#http-api)
+
+### Querying log range stats
+
+VictoriaLogs provides `/select/logsql/stats_query_range?query=<query>&start=<start>&end=<end>&step=<step>` HTTP endpoint, which returns log stats
+for the given [`query`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[start ... end]` time range with the given `step` interval.
+The stats is returned in the format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
+
+The `<query>` must contain [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe). The calculated stats is converted into metrics
+with labels from `by(...)` clause of the `| stats by(...)` pipe.
+
+The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
+If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
+If `<end>` is missing, then it equals to the maximum timestamp across logs stored in VictoriaLogs.
+
+The `<step>` arg can contain values in [the format specified here](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets).
+If `<step>` is missing, then it equals to `1d` (one day).
+
+For example, the following command returns the number of logs per each `level` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+across logs over `2024-01-01` day by UTC with 6-hour granularity:
+
+```sh
+curl http://localhost:9428/select/logsql/stats_query_range -d 'query=* | stats by (level) count(*)' -d 'start=2024-01-01' -d 'end=2024-01-02' -d 'step=6h'
+```
+
+Below is an example JSON output returned from this endpoint:
+
+```json
+{
+  "status": "success",
+  "data": {
+    "resultType": "matrix",
+    "result": [
+      {
+        "metric": {
+          "__name__": "count(*)",
+          "level": "info"
+        },
+        "values": [
+          [
+            1704067200,
+            "103125"
+          ],
+          [
+            1704088800,
+            "102500"
+          ],
+          [
+            1704110400,
+            "103125"
+          ],
+          [
+            1704132000,
+            "102500"
+          ]
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "count(*)",
+          "level": "error"
+        },
+        "values": [
+          [
+            1704067200,
+            "31"
+          ],
+          [
+            1704088800,
+            "25"
+          ],
+          [
+            1704110400,
+            "31"
+          ],
+          [
+            1704132000,
+            "125"
+          ]
+        ]
+      }
+    ]
+  }
+}
+```
+
+The `/select/logsql/stats_query_range` API is useful for generating Prometheus-compatible graphs in Grafana.
+
+See also:
+
+- [Querying log stats](#querying-log-stats)
+- [Querying logs](#querying-logs)
+- [Querying hits stats](#querying-hits-stats)
 - [HTTP API](#http-api)
 
 ### Querying stream_ids

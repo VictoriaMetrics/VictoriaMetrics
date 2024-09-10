@@ -91,7 +91,7 @@ func TestGetVirtualMachinesSuccess(t *testing.T) {
 			defer c.Stop()
 			ac := &apiConfig{
 				c:              c,
-				apiServerHost:  u.Host,
+				apiServerHost:  u.Hostname(),
 				subscriptionID: "some-id",
 				refreshToken: func() (string, time.Duration, error) {
 					return "auth-token", 0, nil

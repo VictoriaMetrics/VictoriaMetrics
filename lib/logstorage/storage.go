@@ -200,8 +200,8 @@ func (ptw *partitionWrapper) decRef() {
 }
 
 func (ptw *partitionWrapper) canAddAllRows(lr *LogRows) bool {
-	minTimestamp := ptw.day * nsecPerDay
-	maxTimestamp := minTimestamp + nsecPerDay - 1
+	minTimestamp := ptw.day * nsecsPerDay
+	maxTimestamp := minTimestamp + nsecsPerDay - 1
 	for _, ts := range lr.timestamps {
 		if ts < minTimestamp || ts > maxTimestamp {
 			return false
@@ -286,7 +286,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 		if err != nil {
 			logger.Panicf("FATAL: cannot parse partition filename %q at %q; it must be in the form YYYYMMDD: %s", fname, partitionsPath, err)
 		}
-		day := t.UTC().UnixNano() / nsecPerDay
+		day := t.UTC().UnixNano() / nsecsPerDay
 
 		partitionPath := filepath.Join(partitionsPath, fname)
 		pt := mustOpenPartition(s, partitionPath)
@@ -441,11 +441,11 @@ func (s *Storage) watchMaxDiskSpaceUsage() {
 }
 
 func (s *Storage) getMinAllowedDay() int64 {
-	return time.Now().UTC().Add(-s.retention).UnixNano() / nsecPerDay
+	return time.Now().UTC().Add(-s.retention).UnixNano() / nsecsPerDay
 }
 
 func (s *Storage) getMaxAllowedDay() int64 {
-	return time.Now().UTC().Add(s.futureRetention).UnixNano() / nsecPerDay
+	return time.Now().UTC().Add(s.futureRetention).UnixNano() / nsecsPerDay
 }
 
 // MustClose closes s.
@@ -514,11 +514,11 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 	maxAllowedDay := s.getMaxAllowedDay()
 	m := make(map[int64]*LogRows)
 	for i, ts := range lr.timestamps {
-		day := ts / nsecPerDay
+		day := ts / nsecsPerDay
 		if day < minAllowedDay {
 			rf := RowFormatter(lr.rows[i])
 			tsf := TimeFormatter(ts)
-			minAllowedTsf := TimeFormatter(minAllowedDay * nsecPerDay)
+			minAllowedTsf := TimeFormatter(minAllowedDay * nsecsPerDay)
 			tooSmallTimestampLogger.Warnf("skipping log entry with too small timestamp=%s; it must be bigger than %s according "+
 				"to the configured -retentionPeriod=%dd. See https://docs.victoriametrics.com/victorialogs/#retention ; "+
 				"log entry: %s", &tsf, &minAllowedTsf, durationToDays(s.retention), &rf)
@@ -528,7 +528,7 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 		if day > maxAllowedDay {
 			rf := RowFormatter(lr.rows[i])
 			tsf := TimeFormatter(ts)
-			maxAllowedTsf := TimeFormatter(maxAllowedDay * nsecPerDay)
+			maxAllowedTsf := TimeFormatter(maxAllowedDay * nsecsPerDay)
 			tooBigTimestampLogger.Warnf("skipping log entry with too big timestamp=%s; it must be smaller than %s according "+
 				"to the configured -futureRetention=%dd; see https://docs.victoriametrics.com/victorialogs/#retention ; "+
 				"log entry: %s", &tsf, &maxAllowedTsf, durationToDays(s.futureRetention), &rf)
@@ -552,8 +552,6 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 
 var tooSmallTimestampLogger = logger.WithThrottler("too_small_timestamp", 5*time.Second)
 var tooBigTimestampLogger = logger.WithThrottler("too_big_timestamp", 5*time.Second)
-
-const nsecPerDay = 24 * 3600 * 1e9
 
 // TimeFormatter implements fmt.Stringer for timestamp in nanoseconds
 type TimeFormatter int64
@@ -582,7 +580,7 @@ func (s *Storage) getPartitionForDay(day int64) *partitionWrapper {
 	}
 	if ptw == nil {
 		// Missing partition for the given day. Create it.
-		fname := time.Unix(0, day*nsecPerDay).UTC().Format(partitionNameFormat)
+		fname := time.Unix(0, day*nsecsPerDay).UTC().Format(partitionNameFormat)
 		partitionPath := filepath.Join(s.path, partitionsDirname, fname)
 		mustCreatePartition(partitionPath)
 

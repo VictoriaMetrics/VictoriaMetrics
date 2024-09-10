@@ -78,10 +78,10 @@ func TestStorageMustAddRows(t *testing.T) {
 	s = MustOpenStorage(path, cfg)
 
 	lr = newTestLogRows(3, 10, 0)
-	now := time.Now().UTC().UnixNano() - int64(len(lr.timestamps)/2)*nsecPerDay
+	now := time.Now().UTC().UnixNano() - int64(len(lr.timestamps)/2)*nsecsPerDay
 	for i := range lr.timestamps {
 		lr.timestamps[i] = now
-		now += nsecPerDay
+		now += nsecsPerDay
 	}
 	totalRowsCount += uint64(len(lr.timestamps))
 	s.MustAddRows(lr)

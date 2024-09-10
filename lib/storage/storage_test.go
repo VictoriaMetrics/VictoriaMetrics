@@ -13,7 +13,6 @@ import (
 	"testing/quick"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
@@ -1232,65 +1231,6 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	}
 }
 
-func TestStorageSeriesAreNotCreatedOnStaleMarkers(t *testing.T) {
-	path := "TestStorageSeriesAreNotCreatedOnStaleMarkers"
-	s := MustOpenStorage(path, -1, 1e5, 1e6)
-
-	tr := TimeRange{MinTimestamp: 0, MaxTimestamp: 2e10}
-	tfsAll := NewTagFilters()
-	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
-		t.Fatalf("unexpected error in TagFilters.Add: %s", err)
-	}
-
-	findN := func(n int) {
-		t.Helper()
-		lns, err := s.SearchMetricNames(nil, []*TagFilters{tfsAll}, tr, 1e5, noDeadline)
-		if err != nil {
-			t.Fatalf("error in SearchLabelNamesWithFiltersOnTimeRange() at the start: %s", err)
-		}
-		if len(lns) != n {
-			fmt.Println(lns)
-			t.Fatalf("expected to find %d metric names, found %d instead", n, len(lns))
-		}
-	}
-
-	// db is empty, so should be search results
-	findN(0)
-
-	rng := rand.New(rand.NewSource(1))
-	mrs := testGenerateMetricRows(rng, 20, tr.MinTimestamp, tr.MaxTimestamp)
-	// populate storage with some rows
-	s.AddRows(mrs[:10], defaultPrecisionBits)
-	s.DebugFlush()
-
-	// verify ingested rows are searchable
-	findN(10)
-
-	// clean up ingested data
-	_, err := s.DeleteSeries(nil, []*TagFilters{tfsAll})
-	if err != nil {
-		t.Fatalf("DeleteSeries failed: %s", err)
-	}
-
-	// verify that data was actually deleted
-	findN(0)
-
-	// mark every 2nd row as stale, simulating a stale target
-	for i := 0; i < len(mrs); i = i + 2 {
-		mrs[i].Value = decimal.StaleNaN
-	}
-	s.AddRows(mrs, defaultPrecisionBits)
-	s.DebugFlush()
-
-	// verify that rows marked as stale aren't searchable
-	findN(10)
-
-	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
-}
-
 // testRemoveAll removes all storage data produced by a test if the test hasn't
 // failed. For this to work, the storage must use t.Name() as the base dir in
 // its data path.
@@ -1308,10 +1248,11 @@ func TestStorageRowsNotAdded(t *testing.T) {
 	defer testRemoveAll(t)
 
 	type options struct {
-		name      string
-		retention time.Duration
-		mrs       []MetricRow
-		tr        TimeRange
+		name        string
+		retention   time.Duration
+		mrs         []MetricRow
+		tr          TimeRange
+		wantMetrics *Metrics
 	}
 	f := func(opts *options) {
 		t.Helper()
@@ -1327,6 +1268,19 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		got := testCountAllMetricNames(s, opts.tr)
 		if got != 0 {
 			t.Fatalf("unexpected metric name count: got %d, want 0", got)
+		}
+
+		if got, want := gotMetrics.RowsReceivedTotal, opts.wantMetrics.RowsReceivedTotal; got != want {
+			t.Fatalf("unexpected Metrics.RowsReceivedTotal: got %d, want %d", got, want)
+		}
+		if got, want := gotMetrics.RowsAddedTotal, opts.wantMetrics.RowsAddedTotal; got != want {
+			t.Fatalf("unexpected Metrics.RowsAddedTotal: got %d, want %d", got, want)
+		}
+		if got, want := gotMetrics.NaNValueRows, opts.wantMetrics.NaNValueRows; got != want {
+			t.Fatalf("unexpected Metrics.NaNValueRows: got %d, want %d", got, want)
+		}
+		if got, want := gotMetrics.InvalidRawMetricNames, opts.wantMetrics.InvalidRawMetricNames; got != want {
+			t.Fatalf("unexpected Metrics.InvalidRawMetricNames: got %d, want %d", got, want)
 		}
 	}
 
@@ -1346,6 +1300,10 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		retention: retentionMax,
 		mrs:       testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
 		tr:        TimeRange{minTimestamp, maxTimestamp},
+		wantMetrics: &Metrics{
+			RowsReceivedTotal:     numRows,
+			TooSmallTimestampRows: numRows,
+		},
 	})
 
 	retention = 48 * time.Hour
@@ -1356,6 +1314,10 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		retention: retention,
 		mrs:       testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
 		tr:        TimeRange{minTimestamp, maxTimestamp},
+		wantMetrics: &Metrics{
+			RowsReceivedTotal:     numRows,
+			TooSmallTimestampRows: numRows,
+		},
 	})
 
 	retention = 48 * time.Hour
@@ -1366,6 +1328,10 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		retention: retention,
 		mrs:       testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp),
 		tr:        TimeRange{minTimestamp, maxTimestamp},
+		wantMetrics: &Metrics{
+			RowsReceivedTotal:   numRows,
+			TooBigTimestampRows: numRows,
+		},
 	})
 
 	minTimestamp = time.Now().UnixMilli()
@@ -1378,18 +1344,10 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		name: "NaN",
 		mrs:  mrs,
 		tr:   TimeRange{minTimestamp, maxTimestamp},
-	})
-
-	minTimestamp = time.Now().UnixMilli()
-	maxTimestamp = minTimestamp + 1000
-	mrs = testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
-	for i := range numRows {
-		mrs[i].Value = decimal.StaleNaN
-	}
-	f(&options{
-		name: "StaleNaN",
-		mrs:  mrs,
-		tr:   TimeRange{minTimestamp, maxTimestamp},
+		wantMetrics: &Metrics{
+			RowsReceivedTotal: numRows,
+			NaNValueRows:      numRows,
+		},
 	})
 
 	minTimestamp = time.Now().UnixMilli()
@@ -1402,6 +1360,10 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		name: "InvalidMetricNameRaw",
 		mrs:  mrs,
 		tr:   TimeRange{minTimestamp, maxTimestamp},
+		wantMetrics: &Metrics{
+			RowsReceivedTotal:     numRows,
+			InvalidRawMetricNames: numRows,
+		},
 	})
 }
 
@@ -1425,9 +1387,23 @@ func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 		s.DebugFlush()
 		s.UpdateMetrics(&gotMetrics)
 
+		if got, want := gotMetrics.RowsReceivedTotal, numRows; got != want {
+			t.Fatalf("unexpected Metrics.RowsReceivedTotal: got %d, want %d", got, want)
+		}
+		if got := gotMetrics.HourlySeriesLimitRowsDropped; maxHourlySeries > 0 && got <= 0 {
+			t.Fatalf("unexpected Metrics.HourlySeriesLimitRowsDropped: got %d, want > 0", got)
+		}
+		if got := gotMetrics.DailySeriesLimitRowsDropped; maxDailySeries > 0 && got <= 0 {
+			t.Fatalf("unexpected Metrics.DailySeriesLimitRowsDropped: got %d, want > 0", got)
+		}
+
 		want := numRows - (gotMetrics.HourlySeriesLimitRowsDropped + gotMetrics.DailySeriesLimitRowsDropped)
 		if got := testCountAllMetricNames(s, TimeRange{minTimestamp, maxTimestamp}); uint64(got) != want {
 			t.Fatalf("unexpected metric name count: %d, want %d", got, want)
+		}
+
+		if got := gotMetrics.RowsAddedTotal; got != want {
+			t.Fatalf("unexpected Metrics.RowsAddedTotal: got %d, want %d", got, want)
 		}
 	}
 

@@ -77,12 +77,12 @@ func newBlockBaseQuerier(b BlockReader, mint, maxt int64) (*blockBaseQuerier, er
 	}, nil
 }
 
-func (q *blockBaseQuerier) LabelValues(ctx context.Context, name string, matchers ...*labels.Matcher) ([]string, annotations.Annotations, error) {
+func (q *blockBaseQuerier) LabelValues(ctx context.Context, name string, hints *storage.LabelHints, matchers ...*labels.Matcher) ([]string, annotations.Annotations, error) {
 	res, err := q.index.SortedLabelValues(ctx, name, matchers...)
 	return res, nil, err
 }
 
-func (q *blockBaseQuerier) LabelNames(ctx context.Context, matchers ...*labels.Matcher) ([]string, annotations.Annotations, error) {
+func (q *blockBaseQuerier) LabelNames(ctx context.Context, hints *storage.LabelHints, matchers ...*labels.Matcher) ([]string, annotations.Annotations, error) {
 	res, err := q.index.LabelNames(ctx, matchers...)
 	return res, nil, err
 }
@@ -447,16 +447,7 @@ func labelNamesWithMatchers(ctx context.Context, r IndexReader, matchers ...*lab
 	if err != nil {
 		return nil, err
 	}
-
-	var postings []storage.SeriesRef
-	for p.Next() {
-		postings = append(postings, p.At())
-	}
-	if err := p.Err(); err != nil {
-		return nil, fmt.Errorf("postings for label names with matchers: %w", err)
-	}
-
-	return r.LabelNamesFor(ctx, postings...)
+	return r.LabelNamesFor(ctx, p)
 }
 
 // seriesData, used inside other iterators, are updated when we move from one series to another.

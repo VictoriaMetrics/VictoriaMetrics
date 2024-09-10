@@ -673,12 +673,12 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 	// Select partitions according to the selected time range
 	s.partitionsLock.Lock()
 	ptws := s.partitions
-	minDay := so.minTimestamp / nsecPerDay
+	minDay := so.minTimestamp / nsecsPerDay
 	n := sort.Search(len(ptws), func(i int) bool {
 		return ptws[i].day >= minDay
 	})
 	ptws = ptws[n:]
-	maxDay := so.maxTimestamp / nsecPerDay
+	maxDay := so.maxTimestamp / nsecsPerDay
 	n = sort.Search(len(ptws), func(i int) bool {
 		return ptws[i].day > maxDay
 	})

@@ -173,7 +173,7 @@ var mathBinaryOps = map[string]mathBinaryOp{
 		priority: 5,
 		f:        mathFuncXor,
 	},
-	"|": {
+	"or": {
 		priority: 6,
 		f:        mathFuncOr,
 	},

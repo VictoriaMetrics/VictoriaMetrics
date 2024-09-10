@@ -1799,7 +1799,7 @@ The following mathematical operations are supported by `math` pipe:
 - `arg1 % arg2` - returns the remainder of the division of `arg1` by `arg2`
 - `arg1 ^ arg2` - returns the power of `arg1` by `arg2`
 - `arg1 & arg2` - returns bitwise `and` for `arg1` and `arg2`. It is expected that `arg1` and `arg2` are in the range `[0 .. 2^53-1]`
-- `arg1 | arg2` - returns bitwise `or` for `arg1` and `arg2`. It is expected that `arg1` and `arg2` are in the range `[0 .. 2^53-1]`
+- `arg1 or arg2` - returns bitwise `or` for `arg1` and `arg2`. It is expected that `arg1` and `arg2` are in the range `[0 .. 2^53-1]`
 - `arg1 xor arg2` - returns bitwise `xor` for `arg1` and `arg2`. It is expected that `arg1` and `arg2` are in the range `[0 .. 2^53-1]`
 - `arg1 default arg2` - returns `arg2` if `arg1` is non-[numeric](#numeric-values) or equals to `NaN`
 - `abs(arg)` - returns an absolute value for the given `arg`

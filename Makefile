@@ -467,9 +467,9 @@ benchmark-pure:
 	CGO_ENABLED=0 go test -bench=. ./app/...
 
 vendor-update:
-	go get -u -d ./lib/...
-	go get -u -d ./app/...
-	go mod tidy -compat=1.22
+	go get -u ./lib/...
+	go get -u ./app/...
+	go mod tidy -compat=1.23
 	go mod vendor
 
 app-local:
@@ -495,7 +495,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.60.1
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.60.3
 
 remove-golangci-lint:
 	rm -rf `which golangci-lint`

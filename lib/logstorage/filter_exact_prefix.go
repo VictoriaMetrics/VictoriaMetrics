@@ -15,8 +15,9 @@ type filterExactPrefix struct {
 	fieldName string
 	prefix    string
 
-	tokensOnce sync.Once
-	tokens     []string
+	tokensOnce   sync.Once
+	tokens       []string
+	tokensHashes []uint64
 }
 
 func (fep *filterExactPrefix) String() string {
@@ -32,8 +33,14 @@ func (fep *filterExactPrefix) getTokens() []string {
 	return fep.tokens
 }
 
+func (fep *filterExactPrefix) getTokensHashes() []uint64 {
+	fep.tokensOnce.Do(fep.initTokens)
+	return fep.tokensHashes
+}
+
 func (fep *filterExactPrefix) initTokens() {
 	fep.tokens = getTokensSkipLast(fep.prefix)
+	fep.tokensHashes = appendTokensHashes(nil, fep.tokens)
 }
 
 func (fep *filterExactPrefix) applyToBlockResult(br *blockResult, bm *bitmap) {
@@ -62,7 +69,7 @@ func (fep *filterExactPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	tokens := fep.getTokens()
+	tokens := fep.getTokensHashes()
 
 	switch ch.valueType {
 	case valueTypeString:
@@ -88,7 +95,7 @@ func (fep *filterExactPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-func matchTimestampISO8601ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
+func matchTimestampISO8601ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if prefix == "" {
 		return
 	}
@@ -105,11 +112,11 @@ func matchTimestampISO8601ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *b
 	bbPool.Put(bb)
 }
 
-func matchIPv4ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
+func matchIPv4ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if prefix == "" {
 		return
 	}
-	if prefix < "0" || prefix > "9" || len(tokens) > 3 || !matchBloomFilterAllTokens(bs, ch, tokens) {
+	if prefix < "0" || prefix > "9" || len(tokens) > 3*bloomFilterHashesCount || !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
 	}
@@ -122,12 +129,12 @@ func matchIPv4ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefi
 	bbPool.Put(bb)
 }
 
-func matchFloat64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
+func matchFloat64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if prefix == "" {
 		// An empty prefix matches all the values
 		return
 	}
-	if len(tokens) > 2 || !matchBloomFilterAllTokens(bs, ch, tokens) {
+	if len(tokens) > 2*bloomFilterHashesCount || !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
 	}
@@ -153,7 +160,7 @@ func matchValuesDictByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap,
 	bbPool.Put(bb)
 }
 
-func matchStringByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
+func matchStringByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -163,7 +170,7 @@ func matchStringByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, pre
 	})
 }
 
-func matchUint8ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
+func matchUint8ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if !matchMinMaxExactPrefix(ch, bm, prefix, tokens) {
 		return
 	}
@@ -176,7 +183,7 @@ func matchUint8ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, pref
 	bbPool.Put(bb)
 }
 
-func matchUint16ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
+func matchUint16ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if !matchMinMaxExactPrefix(ch, bm, prefix, tokens) {
 		return
 	}
@@ -189,7 +196,7 @@ func matchUint16ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, pre
 	bbPool.Put(bb)
 }
 
-func matchUint32ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
+func matchUint32ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if !matchMinMaxExactPrefix(ch, bm, prefix, tokens) {
 		return
 	}
@@ -202,7 +209,7 @@ func matchUint32ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, pre
 	bbPool.Put(bb)
 }
 
-func matchUint64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []string) {
+func matchUint64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) {
 	if !matchMinMaxExactPrefix(ch, bm, prefix, tokens) {
 		return
 	}
@@ -215,7 +222,7 @@ func matchUint64ByExactPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, pre
 	bbPool.Put(bb)
 }
 
-func matchMinMaxExactPrefix(ch *columnHeader, bm *bitmap, prefix string, tokens []string) bool {
+func matchMinMaxExactPrefix(ch *columnHeader, bm *bitmap, prefix string, tokens []uint64) bool {
 	if prefix == "" {
 		// An empty prefix matches all the values
 		return false
