@@ -2813,7 +2813,7 @@ _Appears in:_
 
 
 
-VMAuth is the Schema for the vmauths API
+VMAuth is the Schema for the vmauth API
 
 
 

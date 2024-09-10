@@ -73,7 +73,7 @@ Usage example:
 ```yaml
 kind: VMSingle
 metadata:
-  name: vmsingle-example--exrtaenvs
+  name: vmsingle-example--extraenvs
 spec:
   retentionPeriod: "1"
   extraEnvs:
