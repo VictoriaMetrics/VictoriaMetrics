@@ -8,11 +8,15 @@
 [![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/workflows/main/badge.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/actions)
 [![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
 
+<br>
+
 <picture>
   <source srcset="docs/logo_white.webp" media="(prefers-color-scheme: dark)">
   <source srcset="docs/logo.webp" media="(prefers-color-scheme: light)">
   <img src="docs/logo.webp" width="300" alt="VictoriaMetrics logo">
 </picture>
+
+<br>
 
 VictoriaMetrics is a fast, cost-saving, and scalable solution for monitoring and managing time series data. It delivers high performance and reliability, making it an ideal choice for businesses of all sizes.
 
