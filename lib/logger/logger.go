@@ -14,13 +14,14 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syslog"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
 	loggerLevel    = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC")
 	loggerFormat   = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
-	loggerOutput   = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
+	loggerOutput   = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout, syslog")
 	loggerTimezone = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
 		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
 	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
@@ -37,6 +38,9 @@ var (
 //
 // There is no need in calling Init from tests.
 func Init() {
+	if *loggerOutput == "syslog" {
+		syslog.Init()
+	}
 	setLoggerJSONFields()
 	setLoggerOutput()
 	validateLoggerLevel()
@@ -62,8 +66,10 @@ func setLoggerOutput() {
 		output = os.Stderr
 	case "stdout":
 		output = os.Stdout
+	case "syslog":
+		// do nothing
 	default:
-		panic(fmt.Errorf("FATAL: unsupported `loggerOutput` value: %q; supported values are: stderr, stdout", *loggerOutput))
+		panic(fmt.Errorf("FATAL: unsupported `loggerOutput` value: %q; supported values are: stderr, stdout, syslog", *loggerOutput))
 	}
 }
 
@@ -283,9 +289,16 @@ func logMessage(level, msg string, skipframes int) {
 		}
 	}
 
+	//write a syslogLogInfo msg into the channel
+	syslogMsg := syslog.SyslogLogInfo{Msg: logMsg, LogLevel: levelLowercase}
+
 	// Serialize writes to log.
 	mu.Lock()
-	fmt.Fprint(output, logMsg)
+	if *loggerOutput == "syslog" {
+		syslog.WriteInfo(syslogMsg)
+	} else {
+		fmt.Fprint(output, logMsg)
+	}
 	mu.Unlock()
 
 	// Increment vm_log_messages_total
