@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"crypto/md5"
 	"fmt"
 	"hash/fnv"
@@ -298,16 +299,31 @@ func parseConfig(data []byte) ([]Group, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
-	g := struct {
-		Groups []Group `yaml:"groups"`
-		// Catches all undefined fields and must be empty after parsing.
-		XXX map[string]any `yaml:",inline"`
-	}{}
-	err = yaml.Unmarshal(data, &g)
-	if err != nil {
-		return nil, err
+
+	// Split the data by the "\n---\n" marker
+	configs := bytes.Split(data, []byte("\n---\n"))
+
+	var allGroups []Group
+
+	for _, config := range configs {
+		g := struct {
+			Groups []Group        `yaml:"groups"`
+			XXX    map[string]any `yaml:",inline"` // Catches all undefined fields and must be empty after parsing.
+		}{}
+
+		err = yaml.Unmarshal(config, &g)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := checkOverflow(g.XXX, "config"); err != nil {
+			return nil, err
+		}
+
+		allGroups = append(allGroups, g.Groups...)
 	}
-	return g.Groups, checkOverflow(g.XXX, "config")
+
+	return allGroups, nil
 }
 
 func checkOverflow(m map[string]any, ctx string) error {
