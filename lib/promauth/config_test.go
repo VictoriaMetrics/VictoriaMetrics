@@ -533,6 +533,11 @@ bearer_token: some-token
 	f(`
 bearer_token_file: testdata/test_secretfile.txt
 `, "Bearer secret-content")
+
+	// bearer token via file with multiline string
+	f(`
+bearer_token_file: testdata/test_secretfile_multiline.txt
+`, "Bearer secret-content")
 }
 
 func TestParseHeadersSuccess(t *testing.T) {
