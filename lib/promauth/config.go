@@ -803,6 +803,7 @@ func (actx *authContext) mustInitFromBearerTokenFile(baseDir string, bearerToken
 		if err != nil {
 			return "", fmt.Errorf("cannot read bearer token from `bearer_token_file`=%q: %w", bearerTokenFile, err)
 		}
+		token = strings.TrimSpace(token)
 		return "Bearer " + token, nil
 	}
 	actx.authHeaderDigest = fmt.Sprintf("bearer(tokenFile=%q)", filePath)
