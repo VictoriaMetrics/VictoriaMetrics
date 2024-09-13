@@ -29,7 +29,7 @@ Querying the data
 * for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
 
 
-the example of fluentbit configuration(`filebeat.yml`)
+the example of fluentbit configuration(`fluent-bit.conf`)
 
 ```text
 [INPUT]
