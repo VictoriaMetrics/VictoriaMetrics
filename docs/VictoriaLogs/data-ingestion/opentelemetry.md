@@ -109,7 +109,7 @@ exporters:
 
 See also [HTTP headers](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-headers)
 
-Substitute `localhost:9428` address inside `exporters.oltphttp.logs_endpoint` with the real address of VictoriaLogs.
+Substitute `localhost:9428` address inside `exporters.otlphttp.logs_endpoint` with the real address of VictoriaLogs.
 
 The ingested log entries can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 

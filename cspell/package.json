@@ -1,16 +1,16 @@
 {
   "devDependencies": {
-    "@cspell/dict-aws": "^4.0.2",
+    "@cspell/dict-aws": "^4.0.4",
     "@cspell/dict-data-science": "^2.0.1",
-    "@cspell/dict-en_us": "^4.3.21",
-    "@cspell/dict-fullstack": "^3.1.8",
-    "@cspell/dict-golang": "^6.0.9",
-    "@cspell/dict-k8s": "^1.0.5",
-    "@cspell/dict-people-names": "^1.0.3",
+    "@cspell/dict-en_us": "^4.3.23",
+    "@cspell/dict-fullstack": "^3.2.0",
+    "@cspell/dict-golang": "^6.0.12",
+    "@cspell/dict-k8s": "^1.0.6",
+    "@cspell/dict-people-names": "^1.1.1",
     "@cspell/dict-ru_ru": "^2.2.1",
-    "@cspell/dict-software-terms": "^3.4.5",
+    "@cspell/dict-software-terms": "^4.1.3",
     "@cspell/dict-uk-ua": "^4.0.1",
     "@cspell/dict-win32": "^2.0.3",
-    "cspell": "^8.8.4"
+    "cspell": "^8.14.2"
   }
 }

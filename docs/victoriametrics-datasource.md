@@ -320,7 +320,7 @@ This command will build executable multi-platform files to the `dist` folder for
 From the root folder of the project run the following command:
 
 ```
-make victorimetrics-frontend-plugin-build
+make victoriametrics-frontend-plugin-build
 ```
 
 This command will build all frontend app into `dist` folder.

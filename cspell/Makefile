@@ -23,3 +23,6 @@ cspell-run-command:
 		cspell -c "$(CMD)"
 	@rm cspell.json
 
+cspell-update-deps: cspell-install
+	@CMD="cd /victoriametrics/cspell && npm update && rm -rf ./node_modules" $(MAKE) cspell-run-command
+

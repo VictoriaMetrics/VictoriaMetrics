@@ -48,8 +48,8 @@ aliases:
 - [vmuser](https://docs.victoriametrics.com/operator/resources/vmuser/): allows to skip `VMUser` from `VMAuth` config generation if it has misconfigured fields. Such as references to non-exist `CRD` objects or missing fields. It's highly recommended to enable `Validation` webhook for `VMUsers`, it should reduce surface of potential misconfiguration. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1047) for details.
 - [vmagent](https://docs.victoriametrics.com/operator/resources/vmagent/): adds `status` and `lastSyncError` status fields to all scrape objects - `VMServiceScrape`, `VMPodScrape`, `VMNodeScrape`,`VMPodScrape`, `VMStaticScrape` and `VMScrapeConfig`. It allows to track config generation for `vmagent` from scrape objects.
 - [operator](https://docs.victoriametrics.com/operator/): refactors config builder for `VMAgent`. It fixes minor bug with incorrect skip of scrape object with incorrect references for secrets and configmaps.
-- [operator](https://docs.victoriametrics.com/operator/): allows to secure `metrics-bind-address` webserver with `TLS` and `mTLS` protection via flags `tls.enable`,`tls.certDir`,`tls.certName`,`tls.key``,`mtls.enable`,`mtls.clietCA`.  See this [issue](https://github.com/VictoriaMetrics/operator/issues/1033) for details.
-- [operator](https://docs.victoriametrics.com/operator/): fixes bug with possible `tlsConfig` `SecretOrConfigmap` references clash. Operator adds `configmap` prefix to the configmap refrenced tls asset. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1067) for details.
+- [operator](https://docs.victoriametrics.com/operator/): allows to secure `metrics-bind-address` webserver with `TLS` and `mTLS` protection via flags `tls.enable`,`tls.certDir`,`tls.certName`,`tls.key``,`mtls.enable`,`mtls.clientCA`.  See this [issue](https://github.com/VictoriaMetrics/operator/issues/1033) for details.
+- [operator](https://docs.victoriametrics.com/operator/): fixes bug with possible `tlsConfig` `SecretOrConfigmap` references clash. Operator adds `configmap` prefix to the configmap referenced tls asset. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1067) for details.
 - [operator](https://docs.victoriametrics.com/operator/): properly release `PodDisruptionBudget` object finalizer. Previously it could be kept due to typo. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1036) for details.
 - [operator](https://docs.victoriametrics.com/operator/): refactors finalizers usage. Simplifies finalizer manipulation with helper functions
 - [operator](https://docs.victoriametrics.com/operator/): adds `tls_config` and `authKey` settings to auto-created `VMServiceScrape` for CRD objects from `extraArgs`. See [this](https://github.com/VictoriaMetrics/operator/issues/1033) issue for details.
@@ -1223,7 +1223,7 @@ aliases:
 
 ### Fixes
 
-- Reduces memory usage - coz of improper label selectors and cache usage operator consumed a lot of memory <https://github.com/VictoriaMetrics/operator/issues/285>
+- Reduces memory usage - improper label selectors and cache usage cause operator to consume a lot of memory <https://github.com/VictoriaMetrics/operator/issues/285>
 - Fixes VMAlert default image tag typo <https://github.com/VictoriaMetrics/operator/issues/287>
 - Fixes logging configuration <https://github.com/VictoriaMetrics/operator/issues/281>
 - Fixes new config reloader watch logic: <https://github.com/VictoriaMetrics/operator/commit/35cadb04b828238ffdec67b3fd1ae7430543055d>
