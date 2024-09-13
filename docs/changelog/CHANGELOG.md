@@ -20,7 +20,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 **Update note 1: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): perform deduplication for all received data when specifying `-streamAggr.dedupInterval` or `-remoteWrite.streamAggr.dedupInterval` command-line flag. Previously, if the `-remoteWrite.streamAggr.config` or `-streamAggr.config` is set, only series that matched aggregation config were deduplicated. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6711#issuecomment-2288361213) for details.**
 
-**Update note 2: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): default value of `-loggerMaxArgLen` cmd-line flag was increased from 1e3 to 5e3. This should improve visibility on errors produced by very long queries.**
+**Update note 2: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): default value of `-loggerMaxArgLen` cmd-line flag was increased from 1000 to 5000. This should improve visibility on errors produced by very long queries.**
 
 * SECURITY: upgrade Go builder from Go1.23.0 to Go1.23.1. See the list of issues addressed in [Go1.23.1](https://github.com/golang/go/issues?q=milestone%3AGo1.23.1+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.20.2 to 3.20.3. See [alpine 3.20.3 release notes](https://alpinelinux.org/posts/Alpine-3.17.10-3.18.9-3.19.4-3.20.3-released.html).
