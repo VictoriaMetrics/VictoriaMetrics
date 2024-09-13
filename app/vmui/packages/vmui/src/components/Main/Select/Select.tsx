@@ -1,4 +1,4 @@
-import React, { FC, Ref, useEffect, useMemo, useRef, useState, } from "preact/compat";
+import React, { FC, useEffect, useMemo, useRef, useState, } from "preact/compat";
 import classNames from "classnames";
 import { ArrowDropDownIcon, CloseIcon } from "../Icons";
 import { FormEvent, MouseEvent } from "react";
@@ -40,7 +40,7 @@ const Select: FC<SelectProps> = ({
 
   const [search, setSearch] = useState("");
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
-  const [wrapperRef, setWrapperRef] = useState<Ref<HTMLDivElement> | null>(null);
+  const [wrapperRef, setWrapperRef] = useState<React.RefObject<HTMLElement> | null>(null);
   const [openList, setOpenList] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);

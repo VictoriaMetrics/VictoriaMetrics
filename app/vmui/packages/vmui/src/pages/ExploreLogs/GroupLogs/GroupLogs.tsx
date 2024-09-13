@@ -22,7 +22,7 @@ const WITHOUT_GROUPING = "No Grouping";
 interface TableLogsProps {
   logs: Logs[];
   columns: string[];
-  settingsRef: React.Ref<HTMLDivElement>;
+  settingsRef: React.RefObject<HTMLElement>;
 }
 
 const GroupLogs: FC<TableLogsProps> = ({ logs, settingsRef }) => {
