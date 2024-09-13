@@ -649,7 +649,7 @@ It uses the `quantiles` triplet to calculate `yhat_lower`, `yhat`, and `yhat_upp
 
 *Config Example*
 
-Suppose we have a data with strong intraday (hourly) and intraweek (daily) seasonality, data granularity is '5m' with up to 5% expected outliers present in data. Then you can apply similar config:
+Suppose we have a data with strong intra-day (hourly) and intra-week (daily) seasonality, data granularity is '5m' with up to 5% expected outliers present in data. Then you can apply similar config:
 
 ```yaml
 models:
@@ -660,7 +660,7 @@ models:
     min_subseason: '1h'  # smallest seasonality (week, day, hour) = hour, will have its own quantile estimates
     min_n_samples_seen: 288 # 1440 / 5 - at least 1 full day, ideal = 1440 / 5 * 7 - one full week (seasonal_interval)
     scale: 1.1  # to compensate lowered quantile boundaries with wider intervals
-    season_starts_from: '2024-01-01'  # interval calculation starting point, expecially for uncommon seasonalities like '36h' or '12d'
+    season_starts_from: '2024-01-01'  # interval calculation starting point, especially for uncommon seasonalities like '36h' or '12d'
     compression: 100  # higher values mean higher accuracy but higher memory usage
     provide_series: ['anomaly_score', 'yhat']  # common arg example
 ```

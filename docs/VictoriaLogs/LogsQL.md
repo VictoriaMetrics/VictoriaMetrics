@@ -526,7 +526,7 @@ log.level:error
 Both the field name and the word in the query can contain arbitrary [utf-8](https://en.wikipedia.org/wiki/UTF-8)-encoded chars. For example:
 
 ```logsql
-поле:значение
+სფერო:τιμή
 ```
 
 Both the field name and the word in the query can be put inside quotes if they contain special chars, which may clash with the query syntax.
@@ -589,7 +589,7 @@ event.original:"cannot open file"
 Both the field name and the phrase can contain arbitrary [utf-8](https://en.wikipedia.org/wiki/UTF-8)-encoded chars. For example:
 
 ```logsql
-сообщение:"невозможно открыть файл"
+შეტყობინება:"Το αρχείο δεν μπορεί να ανοίξει"
 ```
 
 The field name can be put inside quotes if it contains special chars, which may clash with the query syntax.
@@ -791,7 +791,7 @@ log.level:="error"
 Both the field name and the phrase can contain arbitrary [utf-8](https://en.wikipedia.org/wiki/UTF-8)-encoded chars. For example:
 
 ```logsql
-log.уровень:="ошибка"
+log.დონე:="შეცდომა"
 ```
 
 The field name can be put inside quotes if it contains special chars, which may clash with the query syntax.
@@ -843,7 +843,7 @@ log.level:="err"*
 Both the field name and the phrase can contain arbitrary [utf-8](https://en.wikipedia.org/wiki/UTF-8)-encoded chars. For example:
 
 ```logsql
-log.уровень:="ошиб"*
+log.დონე:="შეცდომა"*
 ```
 
 The field name can be put inside quotes if it contains special chars, which may clash with the query syntax.
@@ -1039,7 +1039,7 @@ Performance tips:
   For example, the `~"error|warning"` query can be substituted with `error OR warning` query, which usually works much faster.
   Note that the `~"error|warning"` matches `errors` as well as `warnings` [words](#word), while `error OR warning` matches
   only the specified [words](#word). See also [multi-exact filter](#multi-exact-filter).
-- Prefer moving the regexp filter to the end of the [logical filter](#logical-filter), so lightweighter filters are executed first.
+- Prefer moving the regexp filter to the end of the [logical filter](#logical-filter), so lighter filters are executed first.
 - Prefer using `="some prefix"*` instead of `~"^some prefix"`, since the [`exact` filter](#exact-prefix-filter) works much faster than the regexp filter.
 - See [other performance tips](#performance-tips).
 

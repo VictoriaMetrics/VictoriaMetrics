@@ -1003,7 +1003,7 @@ It is safe sharing the collected profiles from security point of view, since the
 vmselect is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/vmalert/)
 when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
 * for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
-* for accessing vmalerts UI through vmselects Web interface.
+* for accessing vmalert UI through vmselect Web interface.
 
 For accessing vmalerts UI through vmselect configure `-vmalert.proxyURL` flag and visit
 `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/` link.

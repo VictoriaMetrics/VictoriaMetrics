@@ -26,7 +26,7 @@ The use of VictoriaMetrics Enterprise components is permitted in the following c
   and then pass it via `-license` or `-licenseFile` command-line flags as described [in these docs](#running-victoriametrics-enterprise).
 
 - Production use if you have a valid enterprise contract or valid permit from VictoriaMetrics company.
-  Please contact us via [this page](https://victoriametrics.com/products/enterprise/) if you are intereseted in such a contract.
+  Please contact us via [this page](https://victoriametrics.com/products/enterprise/) if you are interested in such a contract.
 
 - [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/) is built on top of VictoriaMetrics Enterprise.
 
