@@ -218,4 +218,4 @@ otelcol.exporter.otlphttp "victoriametrics" {
 ## References
 
 - [Grafana Alloy Helm Chart](https://github.com/grafana/alloy/tree/main/operations/helm)
-- [Grafana Alloy Documenation](https://grafana.com/docs/alloy/latest)
+- [Grafana Alloy Documentation](https://grafana.com/docs/alloy/latest)
