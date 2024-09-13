@@ -41,7 +41,9 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 Released at 2024-08-28
 
-**Update note: The `external_labels` field in vmalert-tool [test file](https://docs.victoriametrics.com/vmalert-tool/#test-file-format) will be deprecated soon. Please use `-external.label` command-line flag instead, in the same way as vmalert uses it. This change is done for the sake of consistency between vmalert and vmalert-tool configuration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6735).**
+**Update note 1: VictoriaMetrics and vmagent components are failing to start on Windows platform with this release version. Please see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6973) for more details. The recommendation is to use previous releases or update to newer release.**
+
+**Update note 2: The `external_labels` field in vmalert-tool [test file](https://docs.victoriametrics.com/vmalert-tool/#test-file-format) will be deprecated soon. Please use `-external.label` command-line flag instead, in the same way as vmalert uses it. This change is done for the sake of consistency between vmalert and vmalert-tool configuration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6735).**
 
 * FEATURE: add `/influx/health` health-check handler for Influx endpoints. This is needed as some clients use the health endpoint to determine if the server is healthy and ready for data ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6653) for the details.
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl/): add `--vm-backoff-retries`, `--vm-backoff-factor`, `--vm-backoff-min-duration` and `--vm-native-backoff-retries`, `--vm-native-backoff-factor`, `--vm-native-backoff-min-duration` command-line flags. These flags allow to change backoff policy config for import requests to VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6622).
