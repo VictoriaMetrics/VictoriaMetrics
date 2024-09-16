@@ -4,7 +4,6 @@ title: Operator
 menu:
   docs:
     weight: 0
-    identifier: operator
 aliases:
   - /operator/
   - /operator/index.html
