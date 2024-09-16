@@ -1670,36 +1670,7 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64, accoun
 		return dst, true
 	}
 
-	// Cannot find the MetricName for the given metricID.
-	// There are the following expected cases when this may happen:
-	//
-	// 1. The corresponding metricID -> metricName entry isn't visible for search yet.
-	//    The solution is to wait for some time and try the search again.
-	//    It is OK if newly registered time series isn't visible for search during some time.
-	//    This should resolve https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959
-	//
-	// 2. The metricID -> metricName entry doesn't exist in the indexdb.
-	//    This is possible after unclean shutdown or after restoring of indexdb from a snapshot.
-	//    In this case the metricID must be deleted, so new metricID is registered
-	//    again when new sample for the given metricName is ingested next time.
-	//
-	ct := fasttime.UnixTimestamp()
-	db.s.missingMetricIDsLock.Lock()
-	if ct > db.s.missingMetricIDsResetDeadline {
-		db.s.missingMetricIDs = nil
-		db.s.missingMetricIDsResetDeadline = ct + 2*60
-	}
-	deleteDeadline, ok := db.s.missingMetricIDs[metricID]
-	if !ok {
-		if db.s.missingMetricIDs == nil {
-			db.s.missingMetricIDs = make(map[uint64]uint64)
-		}
-		deleteDeadline = ct + 60
-		db.s.missingMetricIDs[metricID] = deleteDeadline
-	}
-	db.s.missingMetricIDsLock.Unlock()
-
-	if ct > deleteDeadline {
+	if db.s.shouldDeleteMissingMetricID(metricID) {
 		// Cannot find the MetricName for the given metricID for the last 60 seconds.
 		// It is likely the indexDB contains incomplete set of metricID -> metricName entries
 		// after unclean shutdown or after restoring from a snapshot.
@@ -1964,6 +1935,7 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, accountID, proj
 	tsidsFound := i
 	qt.Printf("found %d tsids for %d metricIDs in the current indexdb", tsidsFound, len(metricIDs))
 
+	var metricIDsToDelete []uint64
 	if len(extMetricIDs) > 0 {
 		// Search for extMetricIDs in the previous indexdb (aka extDB)
 		db.doExtDB(func(extDB *indexDB) {
@@ -1983,7 +1955,10 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, accountID, proj
 					// This may be the case on incomplete indexDB
 					// due to snapshot or due to unflushed entries.
 					// Just increment errors counter and skip it for now.
-					is.db.missingTSIDsForMetricID.Add(1)
+					if is.db.s.shouldDeleteMissingMetricID(metricID) {
+						is.db.missingTSIDsForMetricID.Add(1)
+						metricIDsToDelete = append(metricIDsToDelete, metricID)
+					}
 					continue
 				}
 				is.db.putToMetricIDCache(metricID, tsid)
@@ -1998,6 +1973,10 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, accountID, proj
 
 	tsids = tsids[:i]
 	qt.Printf("load %d tsids for %d metricIDs from both current and previous indexdb", len(tsids), len(metricIDs))
+
+	if len(metricIDsToDelete) > 0 {
+		db.deleteMetricIDs(metricIDsToDelete)
+	}
 
 	// Sort the found tsids, since they must be passed to TSID search
 	// in the sorted order.
@@ -3483,8 +3462,10 @@ func mergeTagToMetricIDsRowsInternal(data []byte, items []mergeset.Item, nsPrefi
 	return dstData, dstItems
 }
 
-var indexBlocksWithMetricIDsIncorrectOrder atomic.Uint64
-var indexBlocksWithMetricIDsProcessed atomic.Uint64
+var (
+	indexBlocksWithMetricIDsIncorrectOrder atomic.Uint64
+	indexBlocksWithMetricIDsProcessed      atomic.Uint64
+)
 
 func checkItemsSorted(data []byte, items []mergeset.Item) bool {
 	if len(items) == 0 {

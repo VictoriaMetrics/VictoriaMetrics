@@ -154,8 +154,9 @@ type Storage struct {
 
 	// missingMetricIDs maps metricID to the deadline in unix timestamp seconds
 	// after which all the indexdb entries for the given metricID
-	// must be deleted if metricName isn't found by the given metricID.
-	// This is used inside searchMetricNameWithCache() for detecting permanently missing metricID->metricName entries.
+	// must be deleted if index entry isn't found by the given metricID.
+	// This is used inside searchMetricNameWithCache() and getTSIDsFromMetricIDs()
+	// for detecting permanently missing metricID->metricName/TSID entries.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959
 	missingMetricIDsLock          sync.Mutex
 	missingMetricIDs              map[uint64]uint64
@@ -2860,3 +2861,43 @@ var indexDBTableIdx = func() *atomic.Uint64 {
 	x.Store(uint64(time.Now().UnixNano()))
 	return &x
 }()
+
+// shouldDeleteMissingMetricID checks if metricID index entry is missing
+//
+// Broken index entry should be deleted by caller
+// There are the following expected cases when this may happen:
+//
+//  1. The corresponding metricID -> metricName/tsid entry isn't visible for search yet.
+//     The solution is to wait for some time and try the search again.
+//     It is OK if newly registered time series isn't visible for search during some time.
+//     This should resolve https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959
+//
+//  2. The metricID -> metricName/tsid entry doesn't exist in the indexdb.
+//     This is possible after unclean shutdown or after restoring of indexdb from a snapshot.
+//     In this case the metricID must be deleted, so new metricID is registered
+//     again when new sample for the given metric is ingested next time.
+func (s *Storage) shouldDeleteMissingMetricID(metricID uint64) bool {
+	ct := fasttime.UnixTimestamp()
+	s.missingMetricIDsLock.Lock()
+	defer s.missingMetricIDsLock.Unlock()
+
+	if ct > s.missingMetricIDsResetDeadline {
+		s.missingMetricIDs = nil
+		s.missingMetricIDsResetDeadline = ct + 2*60
+	}
+	deleteDeadline, ok := s.missingMetricIDs[metricID]
+	if !ok {
+		if s.missingMetricIDs == nil {
+			s.missingMetricIDs = make(map[uint64]uint64)
+		}
+		deleteDeadline = ct + 60
+		s.missingMetricIDs[metricID] = deleteDeadline
+	}
+	// Cannot find index entry for the given metricID for the last 60 seconds.
+	// It is likely the indexDB contains incomplete set of metricID -> metricName/tsid entries
+	// after unclean shutdown or after restoring from a snapshot.
+	// Mark the metricID as deleted, so it is created again when new sample
+	// for the given time series is ingested next time.
+
+	return ct > deleteDeadline
+}
