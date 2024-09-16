@@ -204,6 +204,20 @@ On the opened screen, choose parameters of your new deployment:
   * [Tier](https://docs.victoriametrics.com/victoriametrics-cloud/tiers-parameters/) – predefined set of parameters for your deployment [based on your needs](https://docs.victoriametrics.com/guides/understand-your-setup-size.html);
   * Retention – desired retention period for stored metrics;
   * Storage - desired storage capacity for storing metrics (you always can expand disk size later);
+  
+    We provide recommended capacity depends on how much data your ingestion rate and retention period involve, 
+    as well as on the size of each data point. We assume each data point is 0.8 byte based on our experience 
+    with VictoriaMetrics Cloud and take the ingestion rate and retention period from your deployment configuration.
+    We suggest using the recommended capacity for retention periods of one month or less. 
+    If you need to keep data longer (6 months or more), you can start with a smaller storage size and increase it over time.
+    If you ingest high cardinality data, this increases the data point size, and you may need more storage than we recommend.
+    Please note that while you can increase storage size, you cannot reduce it due to AWS limitations. 
+    We charge $0.09 per GB-month for SSD storage.
+    Since VictoriaMetrics Cloud doesn’t charge extra for storage, we recommend using enterprise features like [downsampling](https://docs.victoriametrics.com/#downsampling)
+    and [retention filters](https://docs.victoriametrics.com/#retention-filters) to optimize disk space.
+    You can find the formula for calculating the recommended storage [here](https://docs.victoriametrics.com/guides/understand-your-setup-size/#retention-perioddisk-space).  
+    Feel free to adjust parameters as needed.
+
 * `Advanced settings` – additional parameters for your deployment:
   * `Deduplication` – defines interval when deployment leaves a single raw sample with the biggest timestamp per each discrete interval;
   * `Maintenance Window` – when deployment should start an upgrade process if needed;
