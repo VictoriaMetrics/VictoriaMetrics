@@ -3,16 +3,16 @@
 .vm-bar-hits-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 0;
+  gap: $padding-small;
   padding: 0 $padding-small $padding-small;
 
   &-item {
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
-    gap: 4px;
+    gap: $padding-small;
     font-size: 12px;
-    padding: $padding-small;
+    padding: 0 $padding-small;
     border-radius: $border-radius-small;
     cursor: pointer;
     transition: 0.2s;
@@ -31,5 +31,30 @@
       height: 14px;
       border: $color-background-block;
     }
+
+    &-pairs {
+      display: flex;
+      gap: $padding-small;
+
+      &__value {
+        padding: $padding-small 0;
+
+        &:hover {
+          text-decoration: underline;
+        }
+
+        &:after {
+          content: ",";
+        }
+
+        &:last-child:after {
+          content: "";
+        }
+      }
+    }
+  }
+
+  &-info {
+    list-style-position: inside;
   }
 }

@@ -15,6 +15,9 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): improved readability of staircase graphs and tooltip usability. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6545#issuecomment-2336805237).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): simplify query input by adding only the label name when `ctrl`+clicking the line legend. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6545#issuecomment-2336805237).
+
 ## [v0.29.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.29.0-victorialogs)
 
 Released at 2024-09-08
