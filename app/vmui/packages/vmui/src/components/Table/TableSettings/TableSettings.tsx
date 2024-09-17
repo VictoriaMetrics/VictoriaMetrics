@@ -6,7 +6,7 @@ import "./style.scss";
 import Checkbox from "../../Main/Checkbox/Checkbox";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import Switch from "../../Main/Switch/Switch";
-import { arrayEquals } from "../../../utils/array";
+import { arrayInclude } from "../../../utils/array";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
@@ -94,7 +94,7 @@ const TableSettings: FC<TableSettingsProps> = ({
   };
 
   useEffect(() => {
-    if (arrayEquals(columns, defaultColumns)) return;
+    if (defaultColumns.length != 0 && arrayInclude(columns, defaultColumns)) return;
     onChangeColumns(columns);
   }, [columns]);
 

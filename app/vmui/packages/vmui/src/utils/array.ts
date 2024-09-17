@@ -2,6 +2,10 @@ export const arrayEquals = (a: (string|number)[], b: (string|number)[]) => {
   return a.length === b.length && a.every((val, index) => val === b[index]);
 };
 
+export const arrayInclude = (a: (string|number)[], b: (string|number)[]) => {
+  return b.every((val) => a.includes(val));
+};
+
 export function groupByMultipleKeys<T>(items: T[], keys: (keyof T)[]): { keys: string[], values: T[] }[] {
   const groups = items.reduce((result, item) => {
     const compositeKey = keys.map(key => `${key}: ${item[key] || "-"}`).join("|");
