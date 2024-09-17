@@ -6,6 +6,7 @@ import classNames from "classnames";
 import { MouseEvent } from "react";
 import { isMacOs } from "../../../../utils/detect-device";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
+import { getStreamPairs } from "../../../../utils/logs";
 
 interface Props {
   uPlotInst: uPlot;
@@ -19,12 +20,7 @@ const BarHitsLegend: FC<Props> = ({ uPlotInst, onApplyFilter }) => {
   const updateSeries = useCallback(() => {
     const series = uPlotInst.series.filter(s => s.scale !== "x");
     setSeries(series);
-    setPairs(series.map(s => {
-      const streamValue = s.label || "";
-      return /^{.+}$/.test(streamValue)
-        ? streamValue.slice(1, -1).match(/(\\.|[^,])+/g) || [streamValue]
-        : [streamValue];
-    }));
+    setPairs(series.map(s => getStreamPairs(s.label || "")));
   }, [uPlotInst]);
 
   const handleClickByValue = (value: string) => (e: MouseEvent<HTMLDivElement>) => {
