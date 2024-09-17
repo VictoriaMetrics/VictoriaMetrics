@@ -9,14 +9,8 @@ type netConn struct {
 	conn net.Conn
 }
 
-func (n *netConn) writeString(framer Framer, formatter Formatter, priority int64, hostname, msg string) error {
-	if framer == nil {
-		framer = DefaultFramer
-	}
-	if formatter == nil {
-		formatter = DefaultFormatter
-	}
-	formattedMessage := framer(formatter(priority, sysCfg.Syslog.Host, msg))
+func (n *netConn) writeString(framer framer, formatter formatter, priority int64, hostname, msg string) error {
+	formattedMessage := framer(formatter(priority, hostname, msg))
 	_, err := n.conn.Write([]byte(formattedMessage+"\n"))
 	return err
 }

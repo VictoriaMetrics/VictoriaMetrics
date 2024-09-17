@@ -10,47 +10,44 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-/*
-The syslog config supplied via args is stored in SyslogConfig, QueueConfig & Syslog structs 
-*/
-type SyslogConfig struct {
-	Syslog      Syslog      `json:"syslog"`
-	QueueConfig QueueConfig `json:"queue_config"`
+
+type config struct {
+	syslogConfig syslogConfig `json:"syslog"`
+	queueConfig queueConfig   `json:"queue_config"`
 }
 
-type QueueConfig struct {
-	Capacity int64 `json:"capacity,omitempty"`
-	Retries  int64 `json:"retries,omitempty"`
+type queueConfig struct {
+	capacity int64 `json:"capacity,omitempty"`
+	retries  int64 `json:"retries,omitempty"`
 }
 
-type Syslog struct {
-	Host        string    `json:"host"`
-	Port        int64     `json:"port,omitempty"`
-	Protocol    string    `json:"protocol,omitempty"`
-	RFCNum      int64     `json:"rfcNum,omitempty"`
-	Facility    int64     `json:"facility,omitempty"`
-	DefSeverity string    `json:"defSeverity,omitempty"`
-	BasicAuth   BasicAuth `json:"basic_auth,omitempty"`
-	TLS         TLS       `json:"tls,omitempty"`
+type syslogConfig struct {
+	remoteHost  string    `json:"host"`
+	port        int64     `json:"port,omitempty"`
+	hostname    string    `json:"hostname,omitempty"`
+	protocol    string    `json:"protocol,omitempty"`
+	rfcNum      int64     `json:"rfcNum,omitempty"`
+	facility    int64     `json:"facility,omitempty"`
+	basicAuth   basicAuth `json:"basic_auth,omitempty"`
+	tls         tlsConfig `json:"tls,omitempty"`
 }
 
-type BasicAuth struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+type basicAuth struct {
+	username string `json:"username"`
+	password string `json:"password"`
 }
 
-type TLS struct {
-	Ca                 string `json:"ca_file,omitempty"`
-	CertFile           string `json:"cert_file,omitempty"`
-	Keyfile            string `json:"key_file,omitempty"`
-	ServerName         string `json:"server_name,omitempty"`
-	InsecureSkipVerify bool   `json:"insecure_skip_verify,omitempty"`
+type tlsConfig struct {
+	ca                 string `json:"ca_file,omitempty"`
+	certFile           string `json:"cert_file,omitempty"`
+	keyfile            string `json:"key_file,omitempty"`
+	serverName         string `json:"server_name,omitempty"`
+	insecureSkipVerify bool   `json:"insecure_skip_verify,omitempty"`
 }
 
-/*
-Log data written into the buffered channel to be sent to the syslog server
-*/
-type SyslogLogInfo struct {
+
+// Log data to be written into the buffered channel and sent to the syslog server
+type SyslogLogContent struct {
 	Msg string
 	LogLevel string
 }
@@ -65,17 +62,18 @@ const (
 )
 
 var (
-	sysCfg       SyslogConfig
-	syslogConfig = flag.String("syslogConfig", "", "Configuration file for syslog")
-	logChan      chan SyslogLogInfo
+	cfgFile = flag.String("syslogConfig", "", "Configuration file for syslog")
+	logChan      chan SyslogLogContent
 )
 
-/*
-Initializes the buffered channel and the syslog writer
-*/
+
+//Initializes the buffered channel and the syslog writer
+
 func Init() {
-	if *syslogConfig != "" {
-		cfgData, err := os.ReadFile(*syslogConfig)
+	sysCfg := &config{}
+
+	if *cfgFile != "" {
+		cfgData, err := os.ReadFile(*cfgFile)
 		if err != nil {
 			panic(err)
 		}
@@ -84,35 +82,35 @@ func Init() {
 		if err != nil {
 			panic(err)
 		}
-		if sysCfg.QueueConfig.Capacity == 0 {
-			sysCfg.QueueConfig.Capacity = DEF_QUEUE_SIZE_VALUE
+		if sysCfg.queueConfig.capacity == 0 {
+			sysCfg.queueConfig.capacity = DEF_QUEUE_SIZE_VALUE
 		}
 
-		if sysCfg.Syslog.Port == 0 {
-			sysCfg.Syslog.Port = DEF_SYSLOG_SERVER_PORT
+		if sysCfg.syslogConfig.port == 0 {
+			sysCfg.syslogConfig.port = DEF_SYSLOG_SERVER_PORT
 		}
 
-		if sysCfg.Syslog.Protocol == "" {
-			sysCfg.Syslog.Protocol = DEF_SYSLOG_PROTOCOL
+		if sysCfg.syslogConfig.protocol == "" {
+			sysCfg.syslogConfig.protocol = DEF_SYSLOG_PROTOCOL
+		}
+		if sysCfg.syslogConfig.facility == 0 {
+			sysCfg.syslogConfig.facility = DEF_SYSLOG_FACILITY
 		}
 	} else {
 		panic(fmt.Errorf("Syslog is configured but configuration file missing"))
 	}
 
 	// Initializes the buffered channel and the syslog writer 
-	logChan = make(chan SyslogLogInfo, sysCfg.QueueConfig.Capacity)
-	syslogW := &syslogWriter{}
+	logChan = make(chan SyslogLogContent, sysCfg.queueConfig.capacity)
+	syslogW := &syslogWriter{framer: defaultFramer, formatter: defaultFormatter}
+	syslogW.sysCfg = sysCfg
 	
 	// watches the channel for log data written by the logger and forwards it to the syslog server
-	go syslogW.LogSender();
+	go syslogW.logSender();
 }
 
-/*
-Writes the log data to buffered channel. If the channel is full the oldest log data is dropped 
-Input: Data for each log message
-Output: error handling(TO_BE_DONE)
-*/
-func WriteInfo(s SyslogLogInfo) (error) {
+//Writes the log data to buffered channel. If the channel is full the oldest log data is dropped 
+func WriteInfo(s SyslogLogContent) (error) {
 	channelSize := "vm_syslog_queue_size"
 	metrics.GetOrCreateGauge(channelSize, func() float64 {
 		return float64(len(logChan))
@@ -122,7 +120,6 @@ func WriteInfo(s SyslogLogInfo) (error) {
 
 	select {
 	case logChan <- s:
-		//message sent
 	default:
 		drpMsg := <-logChan
 		fmt.Println("Dropped Message:", drpMsg)

@@ -2,25 +2,26 @@
 package syslog
 
 import (
-	"strings"
 	"fmt"
 	"net"
+	"os"
 )
 
 type syslogWriter struct {
 	conn serverConn
-	formatter Formatter
-	framer Framer
+	formatter formatter
+	framer framer
+	sysCfg *config
 }
 
 type serverConn interface {
-	writeString(framer Framer, formatter Formatter, priority int64, hostname string, s string) error
+	writeString(framer framer, formatter formatter, priority int64, hostname string, s string) error
 	close() error
 }
 
 
 func (w *syslogWriter) basicDialer() (serverConn, error) {
-	c, err := net.Dial(sysCfg.Syslog.Protocol, fmt.Sprintf("%s:%d", sysCfg.Syslog.Host, sysCfg.Syslog.Port))
+	c, err := net.Dial(w.sysCfg.syslogConfig.protocol, fmt.Sprintf("%s:%d", w.sysCfg.syslogConfig.remoteHost, w.sysCfg.syslogConfig.port))
 	var sc serverConn
 	if err == nil {
 		sc = &netConn{conn: c}
@@ -29,62 +30,46 @@ func (w *syslogWriter) basicDialer() (serverConn, error) {
 }
 
 func (w *syslogWriter) connect() (serverConn, error) {
-	conn := w.conn
-
-	if conn != nil {
-		conn.close()
-		w.conn = nil
-	}
-
-	var err error
-	conn, err = w.basicDialer()
+	conn, err := w.basicDialer()
 	if err == nil {
 		w.conn = conn
-
 		return conn, nil
 	} else {
 		return nil, err
 	}
 }
 
-// Close closes a connection to the syslog daemon.
-func (w *syslogWriter) Close() error {
-	if w.conn != nil {
-		err := w.conn.close()
-		w.conn = nil
-		return err
-	}
-	return nil
-}
 
-
-/*
-Connects to the syslog server and sends the log message
-*/
+//Connects to the syslog server and sends the log message
 func (w *syslogWriter) send(logLevel, msg string) (int, error) {
-	if !strings.HasSuffix(msg, "\n") {
-		msg += "\n"
-	}
+	priority := (w.sysCfg.syslogConfig.facility << 3) | logLevelMap[logLevel]
 
-	_,err := w.connect()
-	if err != nil {
-		return 0, err
+	var err error
+	if w.conn != nil {
+		err = w.conn.writeString(w.framer, w.formatter,  priority, w.getHostname(), msg)
+		if err == nil {
+			return len(msg), nil
+		}
 	}
-
-	priority := (sysCfg.Syslog.Facility << 3) | logLevelMap[logLevel]
-	err = w.conn.writeString(w.framer, w.formatter,  priority, "nokia.com", msg)
+	//Establishes a new connection with the syslog server
+	_,err = w.connect()
+	err = w.conn.writeString(w.framer, w.formatter,  priority, w.getHostname(), msg)
 	if err != nil {
 		return 0, err
 	}
 	return len(msg), nil
 }
 
-/*
-Observes the buffered channel for log data to be written to the syslog server
-Input: nil
-Output: error (TO_BE_DONE)
-*/
-func (w *syslogWriter) LogSender() {
+func (w *syslogWriter) getHostname() string {
+	hostname := w.sysCfg.syslogConfig.hostname
+	if hostname == "" {
+		hostname,_ = os.Hostname()
+	}
+	return hostname
+}
+
+//Observes the buffered channel for log data to be written to the syslog server
+func (w *syslogWriter) logSender() {
 	for logEntry := range logChan {
 		_,err := w.send(logEntry.LogLevel, logEntry.Msg)
 		for err != nil {

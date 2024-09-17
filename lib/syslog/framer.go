@@ -5,12 +5,8 @@ import (
 	"fmt"
 )
 
-type Framer func(in string) string
+type framer func(in string) string
 
-func DefaultFramer(in string) string {
-	return fmt.Sprintf("%d %s", len(in), in)
-}
-
-func RFC5425MessageLengthFramer(in string) string {
+func defaultFramer(in string) string {
 	return fmt.Sprintf("%d %s", len(in), in)
 }

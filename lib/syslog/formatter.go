@@ -10,7 +10,7 @@ import (
 //
 const appNameMaxLength = 48
 
-type Formatter func(priority int64, hostname, content string) string
+type formatter func(priority int64, hostname, content string) string
 
 func truncateStartStr(s string, max int) string {
 	if (len(s) > max) {
@@ -20,7 +20,7 @@ func truncateStartStr(s string, max int) string {
 }
 
 // RFC5424Formatter provides an RFC 5424 compliant message.
-func DefaultFormatter(priority int64, hostname, content string) string {
+func defaultFormatter(priority int64, hostname, content string) string {
 	version := 1 
 	timestamp := time.Now().Format(time.RFC3339)
 	appName := truncateStartStr(os.Args[0], appNameMaxLength)

@@ -263,43 +263,55 @@ func logMessage(level, msg string, skipframes int) {
 		msg = msg[:len(msg)-1]
 	}
 	var logMsg string
-	switch *loggerFormat {
-	case "json":
-		if *disableTimestamps {
-			logMsg = fmt.Sprintf(
-				`{%q:%q,%q:%q,%q:%q}`+"\n",
-				fieldLevel, levelLowercase,
-				fieldCaller, location,
-				fieldMsg, msg,
-			)
-		} else {
-			logMsg = fmt.Sprintf(
-				`{%q:%q,%q:%q,%q:%q,%q:%q}`+"\n",
-				fieldTs, timestamp,
-				fieldLevel, levelLowercase,
-				fieldCaller, location,
-				fieldMsg, msg,
-			)
-		}
-	default:
-		if *disableTimestamps {
-			logMsg = fmt.Sprintf("%s\t%s\t%s\n", levelLowercase, location, msg)
-		} else {
-			logMsg = fmt.Sprintf("%s\t%s\t%s\t%s\n", timestamp, levelLowercase, location, msg)
-		}
-	}
 
-	//write a syslogLogInfo msg into the channel
-	syslogMsg := syslog.SyslogLogInfo{Msg: logMsg, LogLevel: levelLowercase}
-
-	// Serialize writes to log.
-	mu.Lock()
 	if *loggerOutput == "syslog" {
+		switch *loggerFormat {
+		case "json":
+			logMsg = fmt.Sprintf(
+				`{%q:%q,%q:%q}`+"\n",
+				fieldCaller, location,
+				fieldMsg, msg,
+			)
+		default:
+			logMsg = fmt.Sprintf("%s\t%s\n", location, msg)
+		}
+
+		syslogMsg := syslog.SyslogLogContent{Msg: logMsg, LogLevel: levelLowercase}
+		mu.Lock()
 		syslog.WriteInfo(syslogMsg)
+		mu.Unlock()
 	} else {
+		switch *loggerFormat {
+		case "json":
+			if *disableTimestamps {
+				logMsg = fmt.Sprintf(
+					`{%q:%q,%q:%q,%q:%q}`+"\n",
+					fieldLevel, levelLowercase,
+					fieldCaller, location,
+					fieldMsg, msg,
+				)
+			} else {
+				logMsg = fmt.Sprintf(
+					`{%q:%q,%q:%q,%q:%q,%q:%q}`+"\n",
+					fieldTs, timestamp,
+					fieldLevel, levelLowercase,
+					fieldCaller, location,
+					fieldMsg, msg,
+				)
+			}
+		default:
+			if *disableTimestamps {
+				logMsg = fmt.Sprintf("%s\t%s\t%s\n", levelLowercase, location, msg)
+			} else {
+				logMsg = fmt.Sprintf("%s\t%s\t%s\t%s\n", timestamp, levelLowercase, location, msg)
+			}
+		}
+
+		// Serialize writes to log.
+		mu.Lock()
 		fmt.Fprint(output, logMsg)
+		mu.Unlock()
 	}
-	mu.Unlock()
 
 	// Increment vm_log_messages_total
 	counterName := fmt.Sprintf(`vm_log_messages_total{app_version=%q, level=%q, location=%q}`, buildinfo.Version, levelLowercase, location)
