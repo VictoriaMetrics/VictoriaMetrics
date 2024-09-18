@@ -9,7 +9,7 @@ import (
 
 func TestApplyFiltersToTenants(t *testing.T) {
 	f := func(filters, tenants []string, expectedTenants []storage.TenantToken) {
-		tenantsResult, err := applyFiltersToTenants(tenants, filters)
+		tenantsResult, err := applyFiltersToTenantsStr(tenants, filters)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}

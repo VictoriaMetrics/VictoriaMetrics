@@ -166,39 +166,17 @@ func ResetRollupResultCache() {
 	logger.Infof("rollupResult cache has been cleared")
 }
 
-func (rrc *rollupResultCache) GetInstantValues(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64) []*timeseries {
+func (rrc *rollupResultCache) GetInstantValues(qt *querytracer.Tracer, at *auth.Token, expr metricsql.Expr, window, step int64, etfss [][]storage.TagFilter) []*timeseries {
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
-		qt = qt.NewChild("rollup cache get instant values: query=%s, window=%d, step=%d", query, window, ec.Step)
+		qt = qt.NewChild("rollup cache get instant values: query=%s, window=%d, step=%d", query, window, step)
 		defer qt.Done()
 	}
 
 	// Obtain instant values from the cache
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
-
-	if !ec.IsMultiTenant {
-		return rrc.getInstantValuesInternal(qt, ec.AuthTokens[0], expr, window, ec.Step, ec.EnforcedTagFilterss)
-	}
-
-	var tssAll []*timeseries
-	for _, at := range ec.AuthTokens {
-		qtL := qt.NewChild("fetching values for: %s", at)
-		tss := rrc.getInstantValuesInternal(qtL, at, expr, window, ec.Step, ec.EnforcedTagFilterss)
-		qtL.Done()
-		if len(tss) == 0 {
-			continue
-		}
-		tssAll = append(tssAll, tss...)
-	}
-	return tssAll
-}
-
-func (rrc *rollupResultCache) getInstantValuesInternal(qt *querytracer.Tracer, at *auth.Token, expr metricsql.Expr, window, step int64, etfss [][]storage.TagFilter) []*timeseries {
-	bb := bbPool.Get()
-	defer bbPool.Put(bb)
-
 	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], at, expr, window, step, etfss)
 	tss, ok := rrc.getSeriesFromCache(qt, bb.B)
 	if !ok || len(tss) == 0 {
@@ -209,7 +187,7 @@ func (rrc *rollupResultCache) getInstantValuesInternal(qt *querytracer.Tracer, a
 	return tss
 }
 
-func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64, tss []*timeseries) {
+func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, at *auth.Token, expr metricsql.Expr, window, step int64, etfss [][]storage.TagFilter, tss []*timeseries) {
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
@@ -217,7 +195,7 @@ func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, ec *EvalC
 		if len(tss) > 0 {
 			startStr = storage.TimestampToHumanReadableFormat(tss[0].Timestamps[0])
 		}
-		qt = qt.NewChild("rollup cache put instant values: query=%s, window=%d, step=%d, series=%d, time=%s", query, window, ec.Step, len(tss), startStr)
+		qt = qt.NewChild("rollup cache put instant values: query=%s, window=%d, step=%d, series=%d, time=%s", query, window, step, len(tss), startStr)
 		defer qt.Done()
 	}
 	if len(tss) == 0 {
@@ -229,85 +207,25 @@ func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, ec *EvalC
 
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
-
-	if !ec.IsMultiTenant {
-		bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], ec.AuthTokens[0], expr, window, ec.Step, ec.EnforcedTagFilterss)
-		_ = rrc.putSeriesToCache(qt, bb.B, ec.Step, tss)
-		return
-	}
-
-	perTenantTss := getPerTenantTss(tss)
-	for _, at := range ec.AuthTokens {
-		tssL := perTenantTss[*at]
-		if len(tssL) == 0 {
-			continue
-		}
-		bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], at, expr, window, ec.Step, ec.EnforcedTagFilterss)
-		qtL := qt
-		if ec.IsMultiTenant {
-			qtL = qt.NewChild("putting values for %s", at)
-		}
-		_ = rrc.putSeriesToCache(qtL, bb.B, ec.Step, tssL)
-		if ec.IsMultiTenant {
-			qtL.Done()
-		}
-	}
-
+	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], at, expr, window, step, etfss)
+	_ = rrc.putSeriesToCache(qt, bb.B, step, tss)
 }
 
-func (rrc *rollupResultCache) DeleteInstantValues(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window, step int64, etfss [][]storage.TagFilter) {
+func (rrc *rollupResultCache) DeleteInstantValues(qt *querytracer.Tracer, at *auth.Token, expr metricsql.Expr, window, step int64, etfss [][]storage.TagFilter) {
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
-
-	for _, at := range ec.AuthTokens {
-		qtL := qt
-		if ec.IsMultiTenant && qt.Enabled() {
-			qtL = qt.NewChild("deleting values for %s", at)
-		}
-
-		bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], at, expr, window, step, etfss)
-		if !rrc.putSeriesToCache(qt, bb.B, step, nil) {
-			logger.Panicf("BUG: cannot store zero series to cache")
-		}
-
-		if qtL.Enabled() {
-			query := string(expr.AppendString(nil))
-			query = stringsutil.LimitStringLen(query, 300)
-			qtL.Printf("rollup result cache delete instant values: query=%s, window=%d, step=%d", query, window, step)
-			if ec.IsMultiTenant {
-				qtL.Done()
-			}
-		}
+	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], at, expr, window, step, etfss)
+	if !rrc.putSeriesToCache(qt, bb.B, step, nil) {
+		logger.Panicf("BUG: cannot store zero series to cache")
+	}
+	if qt.Enabled() {
+		query := string(expr.AppendString(nil))
+		query = stringsutil.LimitStringLen(query, 300)
+		qt.Printf("rollup result cache delete instant values: query=%s, window=%d, step=%d", query, window, step)
 	}
 }
 
 func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64) (tss []*timeseries, newStart int64) {
-	if !ec.IsMultiTenant {
-		return rrc.getSeriesInternal(qt, ec, ec.AuthTokens[0], expr, window)
-	}
-
-	var tssAll []*timeseries
-	for _, at := range ec.AuthTokens {
-		qtL := qt.NewChild("rollup cache get series for accountID=%d, projectID=%d", at.AccountID, at.ProjectID)
-		tssL, newStartL := rrc.getSeriesInternal(qtL, ec, at, expr, window)
-		qtL.Done()
-		if len(tssL) == 0 {
-			newStart = ec.Start
-			continue
-		}
-		if newStart == 0 || newStartL < newStart {
-			newStart = newStartL
-		}
-
-		tssAll = append(tssAll, tssL...)
-	}
-	if newStart == 0 {
-		newStart = ec.Start
-	}
-	return tssAll, newStart
-}
-
-func (rrc *rollupResultCache) getSeriesInternal(qt *querytracer.Tracer, ec *EvalConfig, at *auth.Token, expr metricsql.Expr, window int64) (tss []*timeseries, newStart int64) {
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
@@ -318,6 +236,10 @@ func (rrc *rollupResultCache) getSeriesInternal(qt *querytracer.Tracer, ec *Eval
 	// Obtain tss from the cache.
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
+	at := ec.AuthTokens[0]
+	if ec.IsMultiTenant {
+		at = nil
+	}
 
 	bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], at, expr, window, ec.Step, ec.EnforcedTagFilterss)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
@@ -341,7 +263,7 @@ func (rrc *rollupResultCache) getSeriesInternal(qt *querytracer.Tracer, ec *Eval
 	if !ok {
 		mi.RemoveKey(key)
 		metainfoBuf = mi.Marshal(metainfoBuf[:0])
-		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], at, expr, window, ec.Step, ec.EnforcedTagFilterss)
+		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], ec.AuthTokens[0], expr, window, ec.Step, ec.EnforcedTagFilterss)
 		rrc.c.Set(bb.B, metainfoBuf)
 		return nil, ec.Start
 	}
@@ -389,36 +311,6 @@ func (rrc *rollupResultCache) getSeriesInternal(qt *querytracer.Tracer, ec *Eval
 var resultBufPool bytesutil.ByteBufferPool
 
 func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, expr metricsql.Expr, window int64, tss []*timeseries) {
-	if !ec.IsMultiTenant {
-		rrc.putSeriesInternal(qt, ec, ec.AuthTokens[0], expr, window, tss)
-		return
-	}
-
-	perTenantTss := getPerTenantTss(tss)
-	for _, at := range ec.AuthTokens {
-		tssL := perTenantTss[*at]
-		if len(tssL) == 0 {
-			continue
-		}
-		qtL := qt.NewChild("rollup cache put series for accountID=%d, projectID=%d", at.AccountID, at.ProjectID)
-		rrc.putSeriesInternal(qtL, ec, at, expr, window, tssL)
-		qtL.Done()
-	}
-}
-
-func getPerTenantTss(tss []*timeseries) map[auth.Token][]*timeseries {
-	perTenantTss := make(map[auth.Token][]*timeseries)
-	for _, ts := range tss {
-		at := auth.Token{
-			AccountID: ts.MetricName.AccountID,
-			ProjectID: ts.MetricName.ProjectID,
-		}
-		perTenantTss[at] = append(perTenantTss[at], ts)
-	}
-	return perTenantTss
-}
-
-func (rrc *rollupResultCache) putSeriesInternal(qt *querytracer.Tracer, ec *EvalConfig, at *auth.Token, expr metricsql.Expr, window int64, tss []*timeseries) {
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
@@ -477,6 +369,10 @@ func (rrc *rollupResultCache) putSeriesInternal(qt *querytracer.Tracer, ec *Eval
 	metainfoBuf := bbPool.Get()
 	defer bbPool.Put(metainfoBuf)
 
+	at := ec.AuthTokens[0]
+	if ec.IsMultiTenant {
+		at = nil
+	}
 	metainfoKey.B = marshalRollupResultCacheKeyForSeries(metainfoKey.B[:0], at, expr, window, ec.Step, ec.EnforcedTagFilterss)
 	metainfoBuf.B = rrc.c.Get(metainfoBuf.B[:0], metainfoKey.B)
 	var mi rollupResultCacheMetainfo
@@ -617,8 +513,10 @@ func marshalRollupResultCacheKeyForSeries(dst []byte, at *auth.Token, expr metri
 	dst = append(dst, rollupResultCacheVersion)
 	dst = encoding.MarshalUint64(dst, rollupResultCacheKeyPrefix.Load())
 	dst = append(dst, rollupResultCacheTypeSeries)
-	dst = encoding.MarshalUint32(dst, at.AccountID)
-	dst = encoding.MarshalUint32(dst, at.ProjectID)
+	if at != nil {
+		dst = encoding.MarshalUint32(dst, at.AccountID)
+		dst = encoding.MarshalUint32(dst, at.ProjectID)
+	}
 	dst = encoding.MarshalInt64(dst, window)
 	dst = encoding.MarshalInt64(dst, step)
 	dst = marshalTagFiltersForRollupResultCacheKey(dst, etfs)
@@ -630,8 +528,10 @@ func marshalRollupResultCacheKeyForInstantValues(dst []byte, at *auth.Token, exp
 	dst = append(dst, rollupResultCacheVersion)
 	dst = encoding.MarshalUint64(dst, rollupResultCacheKeyPrefix.Load())
 	dst = append(dst, rollupResultCacheTypeInstantValues)
-	dst = encoding.MarshalUint32(dst, at.AccountID)
-	dst = encoding.MarshalUint32(dst, at.ProjectID)
+	if at != nil {
+		dst = encoding.MarshalUint32(dst, at.AccountID)
+		dst = encoding.MarshalUint32(dst, at.ProjectID)
+	}
 	dst = encoding.MarshalInt64(dst, window)
 	dst = encoding.MarshalInt64(dst, step)
 	dst = marshalTagFiltersForRollupResultCacheKey(dst, etfs)

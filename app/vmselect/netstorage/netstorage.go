@@ -843,14 +843,14 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		err := populateSqTenantTokensIfNeeded(qt, sq, deadline)
+		err := populateSqTenantTokensIfNeeded(sq)
 		if err != nil {
 			return []*nodeResult{{
 				err: err,
 			}}
 		}
 
-		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
+		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.deleteSeriesRequests.Inc()
 			deletedCount, err := sn.deleteSeries(qt, requestData, deadline)
 			if err != nil {
@@ -895,14 +895,14 @@ func LabelNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		err := populateSqTenantTokensIfNeeded(qt, sq, deadline)
+		err := populateSqTenantTokensIfNeeded(sq)
 		if err != nil {
 			return []*nodeResult{{
 				err: err,
 			}}
 		}
 
-		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
+		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.labelNamesRequests.Inc()
 			labelNames, err := sn.getLabelNames(qt, requestData, maxLabelNames, deadline)
 			if err != nil {
@@ -1040,14 +1040,14 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		err := populateSqTenantTokensIfNeeded(qt, sq, deadline)
+		err := populateSqTenantTokensIfNeeded(sq)
 		if err != nil {
 			return []*nodeResult{{
 				err: err,
 			}}
 		}
 
-		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
+		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.labelValuesRequests.Inc()
 			labelValues, err := sn.getLabelValues(qt, labelName, requestData, maxLabelValues, deadline)
 			if err != nil {
@@ -1255,14 +1255,14 @@ func TSDBStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		err := populateSqTenantTokensIfNeeded(qt, sq, deadline)
+		err := populateSqTenantTokensIfNeeded(sq)
 		if err != nil {
 			return []*nodeResult{{
 				err: err,
 			}}
 		}
 
-		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
+		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.tsdbStatusRequests.Inc()
 			status, err := sn.getTSDBStatus(qt, requestData, focusLabel, topN, deadline)
 			if err != nil {
@@ -1689,13 +1689,13 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 	}
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		err := populateSqTenantTokensIfNeeded(qt, sq, deadline)
+		err := populateSqTenantTokensIfNeeded(sq)
 		if err != nil {
 			return []*nodeResult{{
 				err: err,
 			}}
 		}
-		return sq.Exec(qt, func(qt *querytracer.Tracer, requestData []byte, t storage.TenantToken) any {
+		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, t storage.TenantToken) any {
 			sn.searchMetricNamesRequests.Inc()
 			metricNames, err := sn.processSearchMetricNames(qt, requestData, deadline)
 			if sq.IsMultiTenant {
@@ -1879,12 +1879,12 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 	// Send the query to all the storage nodes in parallel.
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any {
 		var err error
-		err = populateSqTenantTokensIfNeeded(qt, sq, deadline)
+		err = populateSqTenantTokensIfNeeded(sq)
 		if err != nil {
 			return &err
 		}
 
-		res := sq.Exec(qt, func(qt *querytracer.Tracer, rd []byte, _ storage.TenantToken) any {
+		res := execSearchQuery(qt, sq, func(qt *querytracer.Tracer, rd []byte, _ storage.TenantToken) any {
 			sn.searchRequests.Inc()
 			err = sn.processSearchQuery(qt, rd, f, workerID, deadline)
 			if err != nil {
@@ -1927,14 +1927,16 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 	return isPartial, nil
 }
 
-func populateSqTenantTokensIfNeeded(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline) error {
+func populateSqTenantTokensIfNeeded(sq *storage.SearchQuery) error {
 	if !sq.IsMultiTenant {
 		return nil
 	}
-	tts, tfss, err := GetTenantTokensFromFilters(qt, sq.GetTimeRange(), sq.TagFilterss, deadline)
-	if err != nil {
-		return err
+
+	if len(sq.TagFilterss) == 0 {
+		return nil
 	}
+
+	tts, tfss := ApplyTenantFiltersToTagFilters(sq.TenantTokens, sq.TagFilterss)
 	sq.TenantTokens = tts
 	sq.TagFilterss = tfss
 	return nil
@@ -3249,3 +3251,30 @@ func (pnc *perNodeCounter) GetTotal() uint64 {
 //
 // See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
 const maxFastAllocBlockSize = 32 * 1024
+
+// execSearchQuery calls cb for with marshaled requestData for each tenant in sq.
+func execSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, cb func(qt *querytracer.Tracer, requestData []byte, t storage.TenantToken) any) []any {
+	if sq.IsMultiTenant && sq.TenantTokens == nil {
+		logger.Panicf("BUG: missing TenantTokens in multi-tenant search query")
+	}
+
+	var requestData []byte
+	var results []any
+
+	for i := range sq.TenantTokens {
+		requestData = sq.TenantTokens[i].Marshal(requestData)
+		requestData = sq.MarshaWithoutTenant(requestData)
+		qtL := qt
+		if sq.IsMultiTenant && qt.Enabled() {
+			qtL = qt.NewChild("query for tenant: %s", sq.TenantTokens[i].String())
+		}
+		r := cb(qtL, requestData, sq.TenantTokens[i])
+		if sq.IsMultiTenant {
+			qtL.Done()
+		}
+		results = append(results, r)
+		requestData = requestData[:0]
+	}
+
+	return results
+}

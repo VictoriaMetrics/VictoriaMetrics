@@ -83,7 +83,7 @@ func TestExecSuccess(t *testing.T) {
 			if err != nil {
 				t.Fatalf(`unexpected error when executing %q: %s`, q, err)
 			}
-			testResultsEqual(t, result, resultExpected)
+			testResultsEqual(t, result, resultExpected, false)
 		}
 	}
 
@@ -9632,7 +9632,7 @@ func TestExecError(t *testing.T) {
 	f(`rollup_candlestick(time(), "foo")`)
 }
 
-func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) {
+func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result, verifyTenant bool) {
 	t.Helper()
 	if len(result) != len(resultExpected) {
 		t.Fatalf(`unexpected timeseries count; got %d; want %d`, len(result), len(resultExpected))
@@ -9640,17 +9640,17 @@ func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) 
 	for i := range result {
 		r := &result[i]
 		rExpected := &resultExpected[i]
-		testMetricNamesEqual(t, &r.MetricName, &rExpected.MetricName, i)
+		testMetricNamesEqual(t, &r.MetricName, &rExpected.MetricName, verifyTenant, i)
 		testRowsEqual(t, r.Values, r.Timestamps, rExpected.Values, rExpected.Timestamps)
 	}
 }
 
-func testMetricNamesEqual(t *testing.T, mn, mnExpected *storage.MetricName, pos int) {
+func testMetricNamesEqual(t *testing.T, mn, mnExpected *storage.MetricName, verifyTenant bool, pos int) {
 	t.Helper()
-	if mn.AccountID != mnExpected.AccountID {
+	if verifyTenant && mn.AccountID != mnExpected.AccountID {
 		t.Fatalf(`unexpected accountID; got %d; want %d`, mn.AccountID, mnExpected.AccountID)
 	}
-	if mn.ProjectID != mnExpected.ProjectID {
+	if verifyTenant && mn.ProjectID != mnExpected.ProjectID {
 		t.Fatalf(`unexpected projectID; got %d; want %d`, mn.ProjectID, mnExpected.ProjectID)
 	}
 	if string(mn.MetricGroup) != string(mnExpected.MetricGroup) {

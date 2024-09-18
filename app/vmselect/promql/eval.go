@@ -1112,13 +1112,18 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		}
 		return offset >= maxOffset
 	}
+
+	at := ec.AuthTokens[0]
+	if ec.IsMultiTenant {
+		at = nil
+	}
 	deleteCachedSeries := func(qt *querytracer.Tracer) {
-		rollupResultCacheV.DeleteInstantValues(qt, ec, expr, window, ec.Step, ec.EnforcedTagFilterss)
+		rollupResultCacheV.DeleteInstantValues(qt, at, expr, window, ec.Step, ec.EnforcedTagFilterss)
 	}
 	getCachedSeries := func(qt *querytracer.Tracer) ([]*timeseries, int64, error) {
 	again:
 		offset := int64(0)
-		tssCached := rollupResultCacheV.GetInstantValues(qt, ec, expr, window)
+		tssCached := rollupResultCacheV.GetInstantValues(qt, at, expr, window, ec.Step, ec.EnforcedTagFilterss)
 		ec.QueryStats.addSeriesFetched(len(tssCached))
 		if len(tssCached) == 0 {
 			// Cache miss. Re-populate the missing data.
@@ -1144,7 +1149,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 				tss, err := evalAt(qt, timestamp, window)
 				return tss, 0, err
 			}
-			rollupResultCacheV.PutInstantValues(qt, ec, expr, window, tss)
+			rollupResultCacheV.PutInstantValues(qt, at, expr, window, ec.Step, ec.EnforcedTagFilterss, tss)
 			return tss, offset, nil
 		}
 		// Cache hit. Verify whether it is OK to use the cached data.
@@ -1973,26 +1978,16 @@ var timeseriesByWorkerIDPool sync.Pool
 var bbPool bytesutil.ByteBufferPool
 
 func evalNumber(ec *EvalConfig, n float64) []*timeseries {
-	tss := make([]*timeseries, 0, len(ec.AuthTokens))
-	for _, at := range ec.AuthTokens {
-		var ts timeseries
-		ts.denyReuse = true
-		ts.MetricName.AccountID = at.AccountID
-		ts.MetricName.ProjectID = at.ProjectID
-		if ec.IsMultiTenant {
-			ts.MetricName.AddTag("vm_account_id", strconv.FormatUint(uint64(at.AccountID), 10))
-			ts.MetricName.AddTag("vm_project_id", strconv.FormatUint(uint64(at.ProjectID), 10))
-		}
-		timestamps := ec.getSharedTimestamps()
-		values := make([]float64, len(timestamps))
-		for i := range timestamps {
-			values[i] = n
-		}
-		ts.Values = values
-		ts.Timestamps = timestamps
-		tss = append(tss, &ts)
+	var ts timeseries
+	ts.denyReuse = true
+	timestamps := ec.getSharedTimestamps()
+	values := make([]float64, len(timestamps))
+	for i := range timestamps {
+		values[i] = n
 	}
-	return tss
+	ts.Values = values
+	ts.Timestamps = timestamps
+	return []*timeseries{&ts}
 }
 
 func evalString(ec *EvalConfig, s string) []*timeseries {

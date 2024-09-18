@@ -19,6 +19,21 @@ func GetTenantTokensFromFilters(qt *querytracer.Tracer, tr storage.TimeRange, tf
 		return nil, nil, fmt.Errorf("cannot obtain tenants: %w", err)
 	}
 
+	tenantFilters, otherFilters := splitFiltersByType(tfs)
+
+	tts, err := applyFiltersToTenantsStr(tenants, tenantFilters)
+	if err != nil {
+		return nil, nil, fmt.Errorf("cannot apply filters to tenants: %w", err)
+	}
+
+	return tts, otherFilters, nil
+}
+
+func splitFiltersByType(tfs [][]storage.TagFilter) ([]string, [][]storage.TagFilter) {
+	if len(tfs) == 0 {
+		return nil, tfs
+	}
+
 	tenantFilters := make([]string, 0, len(tfs))
 	otherFilters := make([][]storage.TagFilter, 0, len(tfs))
 	for _, f := range tfs {
@@ -39,13 +54,17 @@ func GetTenantTokensFromFilters(qt *querytracer.Tracer, tr storage.TimeRange, tf
 			otherFilters = append(otherFilters, offs)
 		}
 	}
+	return tenantFilters, otherFilters
+}
 
-	tts, err := applyFiltersToTenants(tenants, tenantFilters)
+// ApplyTenantFiltersToTagFilters applies the given tenant filters to the given tag filters.
+func ApplyTenantFiltersToTagFilters(tts []storage.TenantToken, tfs [][]storage.TagFilter) ([]storage.TenantToken, [][]storage.TagFilter) {
+	tenantFilters, otherFilters := splitFiltersByType(tfs)
+	tts, err := applyFiltersToTenants(tts, tenantFilters)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot apply filters to tenants: %w", err)
+		return nil, nil
 	}
-
-	return tts, otherFilters, nil
+	return tts, otherFilters
 }
 
 func tagFiltersToString(tfs []storage.TagFilter) string {
@@ -56,9 +75,7 @@ func tagFiltersToString(tfs []storage.TagFilter) string {
 	return "{" + strings.Join(a, ",") + "}"
 }
 
-// applyFiltersToTenants applies the given filters to the given tenants.
-// It returns the filtered tenants.
-func applyFiltersToTenants(tenants, filters []string) ([]storage.TenantToken, error) {
+func applyFiltersToTenantsStr(tenants, filters []string) ([]storage.TenantToken, error) {
 	tokens := make([]storage.TenantToken, len(tenants))
 	for i, tenant := range tenants {
 		accountID, projectID, err := auth.ParseToken(tenant)
@@ -72,10 +89,16 @@ func applyFiltersToTenants(tenants, filters []string) ([]storage.TenantToken, er
 		return tokens, nil
 	}
 
+	return applyFiltersToTenants(tokens, filters)
+}
+
+// applyFiltersToTenants applies the given filters to the given tenants.
+// It returns the filtered tenants.
+func applyFiltersToTenants(tenants []storage.TenantToken, filters []string) ([]storage.TenantToken, error) {
 	resultingTokens := make([]storage.TenantToken, 0, len(tenants))
 	lbs := make([][]prompbmarshal.Label, 0, len(filters))
 	lbsAux := make([]prompbmarshal.Label, 0, len(filters))
-	for _, token := range tokens {
+	for _, token := range tenants {
 		lbsAuxLen := len(lbsAux)
 		lbsAux = append(lbsAux, prompbmarshal.Label{
 			Name:  "vm_account_id",
@@ -99,7 +122,7 @@ func applyFiltersToTenants(tenants, filters []string) ([]storage.TenantToken, er
 	for i, lb := range lbs {
 		for _, promIf := range promIfs {
 			if promIf.Match(lb) {
-				resultingTokens = append(resultingTokens, tokens[i])
+				resultingTokens = append(resultingTokens, tenants[i])
 				break
 			}
 		}
