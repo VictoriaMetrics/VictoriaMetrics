@@ -864,6 +864,9 @@ func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, 
 	for {
 		q = qOrig.Clone()
 		q.AddTimeFilter(start, end)
+		// q.Optimize() call is needed for converting '*' into filterNoop.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6785#issuecomment-2358547733
+		q.Optimize()
 		rows, err := getQueryResultsWithLimit(ctx, tenantIDs, q, limitUpper)
 		if err != nil {
 			return nil, err
