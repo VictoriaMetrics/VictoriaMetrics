@@ -467,7 +467,7 @@ func (psp *pipeStatsProcessor) flush() error {
 		rcs = appendResultColumnWithName(rcs, bf.name)
 	}
 	for _, f := range psp.ps.funcs {
-		rcs = appendResultColumnWithName(rcs, f.resultName)
+		rcs = appendStatsResultColumnWithName(rcs, f.resultName)
 	}
 	var br blockResult
 

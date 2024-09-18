@@ -347,6 +347,15 @@ func (pmp *pipeMathProcessor) writeBlock(workerID uint, br *blockResult) {
 		br.addResultColumn(rc)
 	}
 
+	// remove columns that added by previous stats pipes
+	var unneededColumns []string
+	for i := range br.getColumns() {
+		if br.getColumns()[i].isStatsFunc {
+			unneededColumns = append(unneededColumns, br.getColumns()[i].name)
+		}
+	}
+	br.deleteColumns(unneededColumns)
+
 	pmp.ppNext.writeBlock(workerID, br)
 
 	for i := range rcs {

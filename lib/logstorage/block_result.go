@@ -240,12 +240,14 @@ func (br *blockResult) addResultColumn(rc *resultColumn) {
 		br.csBuf = append(br.csBuf, blockResultColumn{
 			name:          rc.name,
 			isConst:       true,
+			isStatsFunc:   rc.isStatsFunc,
 			valuesEncoded: rc.values[:1],
 		})
 	} else {
 		br.csBuf = append(br.csBuf, blockResultColumn{
 			name:          rc.name,
 			valueType:     valueTypeString,
+			isStatsFunc:   rc.isStatsFunc,
 			valuesEncoded: rc.values,
 		})
 	}
@@ -1490,6 +1492,9 @@ type blockResultColumn struct {
 	// The column values are stored in blockResult.timestamps, while valuesEncoded is nil.
 	isTime bool
 
+	// isStatsFunc is set to true if the column is added by stats functions.
+	isStatsFunc bool
+
 	// valueType is the type of non-cost value
 	valueType valueType
 
@@ -1859,6 +1864,9 @@ type resultColumn struct {
 
 	// values is the result values.
 	values []string
+
+	// isStatsFunc is set to true if the column is added by stats functions.
+	isStatsFunc bool
 }
 
 func (rc *resultColumn) reset() {
@@ -1876,6 +1884,12 @@ func appendResultColumnWithName(dst []resultColumn, name string) []resultColumn 
 	rc := &dst[len(dst)-1]
 	rc.name = name
 	rc.resetValues()
+	return dst
+}
+
+func appendStatsResultColumnWithName(dst []resultColumn, name string) []resultColumn {
+	dst = appendResultColumnWithName(dst, name)
+	dst[len(dst)-1].isStatsFunc = true
 	return dst
 }
 
