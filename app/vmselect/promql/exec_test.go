@@ -3037,6 +3037,12 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`1 and (0 > 1)`, func(t *testing.T) {
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6637
+		t.Parallel()
+		q := `1 and (0 > 1)`
+		f(q, nil)
+	})
 	t.Run(`time() and 2`, func(t *testing.T) {
 		t.Parallel()
 		q := `time() and 2`
