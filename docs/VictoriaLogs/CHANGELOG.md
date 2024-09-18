@@ -15,6 +15,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add functionality to preserve selected columns across page reloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7016).
+
 ## [v0.30.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.30.1-victorialogs)
 
 Released at 2024-09-27
