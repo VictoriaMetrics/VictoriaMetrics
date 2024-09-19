@@ -18,7 +18,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
-* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): change the `query_range` request method from `GET` to `POST`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6288).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): change the request method for `/query_range` and `/query` from `GET` to `POST`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6288).
 
 **Update note 1: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): perform deduplication for all received data when specifying `-streamAggr.dedupInterval` or `-remoteWrite.streamAggr.dedupInterval` command-line flag. Previously, if the `-remoteWrite.streamAggr.config` or `-streamAggr.config` is set, only series that matched aggregation config were deduplicated. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6711#issuecomment-2288361213) for details.**
 
