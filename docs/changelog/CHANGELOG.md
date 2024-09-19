@@ -33,6 +33,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): change the request method for `/query_range` and `/query` from `GET` to `POST`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6288).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) fix service discovery of Azure Virtual Machines for response contains `nextLink` in `Host:Port` format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6912).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly consume messages [from kafka](https://docs.victoriametrics.com/vmagent/#kafka-integration). Previously vmagent could skip some messages during start-up.
 * BUGFIX: [vmagent dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/vmagent.json): fix legend captions for stream aggregation related panels. Before they were displaying wrong label names.
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway/): add missing `datadog`, `newrelic`, `opentelemetry` and `pushgateway` routes to the `JWT` authorization routes. Allows prefixed (`promtheus/graphite`) routes for query requests.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Fixes start-up crash on Windows OS. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6973) for details.
