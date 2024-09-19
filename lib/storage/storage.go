@@ -2711,7 +2711,7 @@ var indexDBTableIdx = func() *atomic.Uint64 {
 	return &x
 }()
 
-// wasMissingBefore checks if passed metricID was already registered as missing before.
+// wasMetricIDMissingBefore checks if passed metricID was already registered as missing before.
 // It returns true if metricID was registered as missing for more than 60s.
 //
 // This function is called when storage can't find TSID for corresponding metricID.
@@ -2724,7 +2724,7 @@ var indexDBTableIdx = func() *atomic.Uint64 {
 //     This is possible after unclean shutdown or after restoring of indexdb from a snapshot.
 //     In this case the metricID must be deleted, so new metricID is registered
 //     again when new sample for the given metric is ingested next time.
-func (s *Storage) wasMissingBefore(metricID uint64) bool {
+func (s *Storage) wasMetricIDMissingBefore(metricID uint64) bool {
 	ct := fasttime.UnixTimestamp()
 	s.missingMetricIDsLock.Lock()
 	defer s.missingMetricIDsLock.Unlock()
