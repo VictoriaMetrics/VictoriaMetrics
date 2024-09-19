@@ -18,8 +18,6 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
-* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): change the request method for `/query_range` and `/query` from `GET` to `POST`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6288).
-
 **Update note 1: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): perform deduplication for all received data when specifying `-streamAggr.dedupInterval` or `-remoteWrite.streamAggr.dedupInterval` command-line flag. Previously, if the `-remoteWrite.streamAggr.config` or `-streamAggr.config` is set, only series that matched aggregation config were deduplicated. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6711#issuecomment-2288361213) for details.**
 
 **Update note 2: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): default value of `-loggerMaxArgLen` cmd-line flag was increased from 1000 to 5000. This should improve visibility on errors produced by very long queries.**
@@ -32,6 +30,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [vmgateway](https://docs.victoriametrics.com/vmgateway/): allow disabling `Bearer` prefix enforcement for authentication header. This is useful for cases when identity token is used instead of access token.
 * FEATURE: [vmgateway](https://docs.victoriametrics.com/vmgateway/): support parting `vm_access` claims in string format. This is useful for cases when identity provider does not support mapping claims to JSON format.
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Adds new metrics for data ingestion: `vm_rows_received_by_storage_total`, `vm_rows_ignored_total{reason="nan_value"}`, `vm_rows_ignored_total{reason="invalid_raw_metric_name"}`, `vm_rows_ignored_total{reason="hourly_limit_exceeded"}`, `vm_rows_ignored_total{reason="daily_limit_exceeded"}`. See this [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6663) for details.
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): change the request method for `/query_range` and `/query` from `GET` to `POST`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6288).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) fix service discovery of Azure Virtual Machines for response contains `nextLink` in `Host:Port` format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6912).
 * BUGFIX: [vmagent dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/vmagent.json): fix legend captions for stream aggregation related panels. Before they were displaying wrong label names.
