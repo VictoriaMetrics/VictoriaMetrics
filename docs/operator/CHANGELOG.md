@@ -11,6 +11,14 @@ aliases:
   - /operator/changelog/index.html
 ---
 
+- [api](https://docs.victoriametrics.com/operator/api): adds new fields `useVMConfigReloader`, `configReloaderImageTag`, `configReloaderResources` to to the `VMagent`, `VMAlert`, `VMAuth`, and `VMAlertmanager`.
+- [api](https://docs.victoriametrics.com/operator/api): adds underscore version of `host_aliases` setting, which has priority over `hostAliases`.
+- [api](https://docs.victoriametrics.com/operator/api): adds `useDefaultResources` setting to the all applications. It has priority over global operator setting.
+- [api](https://docs.victoriametrics.com/operator/api): adds `clusterDomainName` to the `VMCluster` and `VMAlertmanager`. It defines optional suffix for in-cluster addresses.
+- [api](https://docs.victoriametrics.com/operator/api): adds `disableSelfServiceScrape` setting to the all applications. It has priority over global operator setting.
+- [api](https://docs.victoriametrics.com/operator/api): Extends applications `securityContext` and apply security configuration parameters to the containers.
+- [api](https://docs.victoriametrics.com/operator): deletes unused env variables: `VM_DEFAULTLABELS`, `VM_PODWAITREADYINITDELAY`. Adds new variable `VM_APPREADYTIMEOUT`.
+- [vmalert](https://docs.victoriametrics.com/operator/resources/vmalert/): adds missing `hostAliases` fields to spec. See [this](https://github.com/VictoriaMetrics/operator/issues/1099) issue for details.
 - [operator](https://docs.victoriametrics.com/operator/): updates default vm apps version to v1.103.0
 - [vmsingle/vlogs](https://docs.victoriametrics.com/operator/resources): makes better compatible with argo-cd by adding ownerReference to PersistentVolumeClaim. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1091) for details.
 - [operator](https://docs.victoriametrics.com/operator/): reduces reconcile latency. See this [commit](2a9d09d0131cc10a0f9e32f0e2e054687ada78f7) for details.
