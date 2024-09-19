@@ -24,6 +24,7 @@ Here are some resources and information about VictoriaMetrics:
 - Deployment types: [Single-node version](https://docs.victoriametrics.com/), [Cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/), and [Enterprise version](https://docs.victoriametrics.com/enterprise/)
 - Changelog: [CHANGELOG](https://docs.victoriametrics.com/changelog/), and [How to upgrade](#how-to-upgrade-victoriametrics)
 - Community: [Slack](https://slack.victoriametrics.com/), [Twitter](https://twitter.com/VictoriaMetrics), [LinkedIn](https://www.linkedin.com/company/victoriametrics/), [YouTube](https://www.youtube.com/@VictoriaMetrics)
+- Self-Hosting: [Elestio](https://elest.io/open-source/victoriametrics)
 
 Yes, we open-source both the single-node VictoriaMetrics and the cluster version.
 
