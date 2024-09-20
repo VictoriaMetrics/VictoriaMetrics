@@ -335,6 +335,8 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 				// reset to Pending if there are gaps > EvalInterval between DPs
 				a.State = notifier.StatePending
 				a.ActiveAt = at
+				// re-template the annotations as active timestamp is changed
+				_, a.Annotations, _ = ar.expandTemplates(s, qFn, at)
 				a.Start = time.Time{}
 			} else if at.Sub(a.ActiveAt) >= ar.For && a.State != notifier.StateFiring {
 				a.State = notifier.StateFiring

@@ -1,4 +1,4 @@
-import React, { FC, Ref, useState, useEffect, useMemo, useCallback } from "preact/compat";
+import React, { FC, useState, useEffect, useMemo, useCallback } from "preact/compat";
 import Autocomplete, { AutocompleteOptions } from "../../Main/Autocomplete/Autocomplete";
 import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
 import { escapeRegexp, hasUnclosedQuotes } from "../../../utils/regexp";
@@ -8,7 +8,7 @@ import { AUTOCOMPLETE_LIMITS } from "../../../constants/queryAutocomplete";
 
 interface QueryEditorAutocompleteProps {
   value: string;
-  anchorEl: Ref<HTMLInputElement>;
+  anchorEl: React.RefObject<HTMLElement>;
   caretPosition: [number, number]; // [start, end]
   hasHelperText: boolean;
   onSelect: (val: string, caretPosition: number) => void;
