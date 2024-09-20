@@ -339,7 +339,7 @@ func BenchmarkMarshalUnmarshalMetricIDs(b *testing.B) {
 		b.ReportMetric(compressionRate, "compression-rate")
 	}
 
-	for _, n := range []int{1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7} {
+	for _, n := range []int{0, 1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7} {
 		b.Run(fmt.Sprintf("numMetricIDs-%d", n), func(b *testing.B) {
 			f(b, n)
 		})
