@@ -5,6 +5,7 @@ menu:
   docs:
     parent: "cloud"
     weight: 6
+    name: User Management
 aliases:
   - /victoriametrics-cloud/user-management/index.html
   - /managed-victoriametrics/user-management/index.html
