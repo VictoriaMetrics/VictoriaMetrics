@@ -289,7 +289,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 		4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
 	})
 
-	f(newTestAlertingRuleWithKeepFiring("for-pending=>firing=>keepfiring=>firing", defaultStep, defaultStep), [][]datasource.Metric{
+	f(newTestAlertingRuleWithCustomFields("for-pending=>firing=>keepfiring=>firing", defaultStep, 0, defaultStep, nil), [][]datasource.Metric{
 		{metricWithLabels(t, "name", "foo")},
 		{metricWithLabels(t, "name", "foo")},
 		// empty step to keep firing
@@ -302,7 +302,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 		3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
 	})
 
-	f(newTestAlertingRuleWithKeepFiring("for-pending=>firing=>keepfiring=>keepfiring=>inactive=>pending=>firing", defaultStep, 2*defaultStep), [][]datasource.Metric{
+	f(newTestAlertingRuleWithCustomFields("for-pending=>firing=>keepfiring=>keepfiring=>inactive=>pending=>firing", defaultStep, 0, 2*defaultStep, nil), [][]datasource.Metric{
 		{metricWithLabels(t, "name", "foo")},
 		{metricWithLabels(t, "name", "foo")},
 		// empty step to keep firing
@@ -395,7 +395,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		{State: notifier.StateFiring, ActiveAt: time.Unix(3e3, 0)},
 	}, nil)
 
-	f(newTestAlertingRule("for-pending", time.Second), []datasource.Metric{
+	f(newTestAlertingRuleWithCustomFields("for-pending", time.Second, 0, 0, map[string]string{"activeAt": "{{ $activeAt.UnixMilli }}"}), []datasource.Metric{
 		{Values: []float64{1, 1, 1}, Timestamps: []int64{1, 3, 5}},
 	}, []*notifier.Alert{
 		{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
@@ -406,7 +406,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.ID(),
 			Name:        "for-pending",
 			Labels:      map[string]string{"alertname": "for-pending"},
-			Annotations: map[string]string{},
+			Annotations: map[string]string{"activeAt": "5000"},
 			State:       notifier.StatePending,
 			ActiveAt:    time.Unix(5, 0),
 			Value:       1,
@@ -414,7 +414,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		},
 	})
 
-	f(newTestAlertingRule("for-firing", 3*time.Second), []datasource.Metric{
+	f(newTestAlertingRuleWithCustomFields("for-firing", 3*time.Second, 0, 0, map[string]string{"activeAt": "{{ $activeAt.UnixMilli }}"}), []datasource.Metric{
 		{Values: []float64{1, 1, 1}, Timestamps: []int64{1, 3, 5}},
 	}, []*notifier.Alert{
 		{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
@@ -425,7 +425,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.ID(),
 			Name:        "for-firing",
 			Labels:      map[string]string{"alertname": "for-firing"},
-			Annotations: map[string]string{},
+			Annotations: map[string]string{"activeAt": "1000"},
 			State:       notifier.StateFiring,
 			ActiveAt:    time.Unix(1, 0),
 			Start:       time.Unix(5, 0),
@@ -434,7 +434,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		},
 	})
 
-	f(newTestAlertingRule("for-hold-pending", time.Second), []datasource.Metric{
+	f(newTestAlertingRuleWithCustomFields("for-hold-pending", time.Second, 0, 0, map[string]string{"activeAt": "{{ $activeAt.UnixMilli }}"}), []datasource.Metric{
 		{Values: []float64{1, 1, 1}, Timestamps: []int64{1, 2, 5}},
 	}, []*notifier.Alert{
 		{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
@@ -445,7 +445,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 			GroupID:     fakeGroup.ID(),
 			Name:        "for-hold-pending",
 			Labels:      map[string]string{"alertname": "for-hold-pending"},
-			Annotations: map[string]string{},
+			Annotations: map[string]string{"activeAt": "5000"},
 			State:       notifier.StatePending,
 			ActiveAt:    time.Unix(5, 0),
 			Value:       1,
@@ -453,7 +453,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		},
 	})
 
-	f(newTestAlertingRuleWithEvalInterval("firing=>inactive=>inactive=>firing=>firing", 0, time.Second), []datasource.Metric{
+	f(newTestAlertingRuleWithCustomFields("firing=>inactive=>inactive=>firing=>firing", 0, time.Second, 0, nil), []datasource.Metric{
 		{Values: []float64{1, 1, 1, 1}, Timestamps: []int64{1, 4, 5, 6}},
 	}, []*notifier.Alert{
 		{State: notifier.StateFiring, ActiveAt: time.Unix(1, 0)},
@@ -538,7 +538,6 @@ func TestAlertingRuleExecRange(t *testing.T) {
 				"source": "vm",
 			},
 		},
-		//
 		{
 			State: notifier.StateFiring, ActiveAt: time.Unix(1, 0),
 			Labels: map[string]string{
@@ -1036,15 +1035,13 @@ func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
 	return &rule
 }
 
-func newTestAlertingRuleWithEvalInterval(name string, waitFor, evalInterval time.Duration) *AlertingRule {
+func newTestAlertingRuleWithCustomFields(name string, waitFor, evalInterval, keepFiringFor time.Duration, annotation map[string]string) *AlertingRule {
 	rule := newTestAlertingRule(name, waitFor)
-	rule.EvalInterval = evalInterval
-	return rule
-}
-
-func newTestAlertingRuleWithKeepFiring(name string, waitFor, keepFiringFor time.Duration) *AlertingRule {
-	rule := newTestAlertingRule(name, waitFor)
+	if evalInterval != 0 {
+		rule.EvalInterval = evalInterval
+	}
 	rule.KeepFiringFor = keepFiringFor
+	rule.Annotations = annotation
 	return rule
 }
 
