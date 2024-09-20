@@ -449,15 +449,34 @@ func invalidateTagFiltersCache() {
 var tagFiltersKeyGen atomic.Uint64
 
 func marshalMetricIDs(dst []byte, metricIDs []uint64) []byte {
+	if len(metricIDs) == 0 {
+		// Add one zero byte to indicate an empty metricID list and skip
+		// compression to save CPU cycles.
+		//
+		// An empty slice passed to ztsd won't be compressed and therefore
+		// nothing will be added to dst and if dst is empty the record won't be
+		// added to the cache. As the result, the search for a given filter will
+		// be performed again and again. This may lead to cases like this:
+		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7009
+		return append(dst, 0)
+	}
+
 	// Compress metricIDs, so they occupy less space in the cache.
 	//
 	// The srcBuf is a []byte cast of metricIDs.
 	srcBuf := unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(metricIDs))), 8*len(metricIDs))
+
 	dst = encoding.CompressZSTDLevel(dst, srcBuf, 1)
 	return dst
 }
 
 func mustUnmarshalMetricIDs(dst []uint64, src []byte) []uint64 {
+	if len(src) == 1 && src[0] == 0 {
+		// One zero byte indicates an empty metricID list.
+		// See marshalMetricIDs().
+		return dst
+	}
+
 	// Decompress src into dstBuf.
 	//
 	// dstBuf is a []byte cast of dst.
@@ -468,10 +487,6 @@ func mustUnmarshalMetricIDs(dst []uint64, src []byte) []uint64 {
 	dstBuf, err = encoding.DecompressZSTD(dstBuf, src)
 	if err != nil {
 		logger.Panicf("FATAL: cannot decompress metricIDs: %s", err)
-	}
-	if len(dstBuf) == dstBufLen {
-		// Zero metricIDs
-		return dst
 	}
 	if (len(dstBuf)-dstBufLen)%8 != 0 {
 		logger.Panicf("FATAL: cannot unmarshal metricIDs from buffer of %d bytes; the buffer length must divide by 8", len(dstBuf)-dstBufLen)
