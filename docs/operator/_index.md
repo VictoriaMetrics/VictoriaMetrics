@@ -1,6 +1,6 @@
 ---
 weight: 0
-title: Operator
+title: Kubernetes Operator
 menu:
   docs:
     weight: 35
