@@ -5,15 +5,24 @@ services:
       - victorialogs:/vlogs
     ports:
       - '9428:9428'
-    entrypoint: /bin/sh
     command:
-      - -c
-      - /victoria-logs-prod -storageDataPath=/vlogs/$${HOSTNAME} -loggerFormat=json -syslog.listenAddr.tcp=0.0.0.0:8094
+      - -storageDataPath=/vlogs
+      - -loggerFormat=json
+      - -syslog.listenAddr.tcp=0.0.0.0:8094
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9428/health"]
       interval: 1s
       timeout: 1s
       retries: 10
+
+  victorialogs-2:
+    extends: victorialogs
+    ports: !override
+      - '9429:9428'
+    volumes: !override
+      - victorialogs-2:/vlogs
+    deploy:
+      replicas: 0
 
   victoriametrics:
     image: victoriametrics/victoria-metrics:latest
@@ -32,4 +41,5 @@ services:
 
 volumes:
   victorialogs:
+  victorialogs-2:
   victoriametrics:

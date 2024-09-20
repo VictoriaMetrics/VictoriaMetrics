@@ -22,7 +22,7 @@ sinks:
     type: http
     inputs:
       - msg_parser
-    uri: http://vector-ha-jsonline-victorialogs-1:9428/insert/jsonline?_stream_fields=source_type,host,container_name&_msg_field=log.msg&_time_field=timestamp
+    uri: http://victorialogs:9428/insert/jsonline?_stream_fields=source_type,host,container_name&_msg_field=log.msg&_time_field=timestamp
     encoding:
       codec: json
     framing:
@@ -38,7 +38,7 @@ sinks:
     type: http
     inputs:
       - msg_parser
-    uri: http://vector-ha-jsonline-victorialogs-2:9428/insert/jsonline?_stream_fields=source_type,host,container_name&_msg_field=log.msg&_time_field=timestamp
+    uri: http://victorialogs-2:9428/insert/jsonline?_stream_fields=source_type,host,container_name&_msg_field=log.msg&_time_field=timestamp
     encoding:
       codec: json
     framing:

@@ -1,8 +1,8 @@
 exporters:
   elasticsearch:
     endpoints:
-      - http://collector-ha-elasticsearch-victorialogs-1:9428/insert/elasticsearch
-      - http://collector-ha-elasticsearch-victorialogs-2:9428/insert/elasticsearch
+      - http://victorialogs:9428/insert/elasticsearch
+      - http://victorialogs-2:9428/insert/elasticsearch
 receivers:
   filelog:
     include: [/var/lib/docker/containers/**/*.log]

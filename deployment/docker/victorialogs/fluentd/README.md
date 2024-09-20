@@ -28,6 +28,8 @@ Querying the data
 * for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
 
 
-the example of [fluentd configuration](`./datadog/fluentd.conf`)
+the example of fluentd configuration
+
+https://github.com/VictoriaMetrics/VictoriaMetrics/blob/da6889f89bd298683cd25b71a3f851930c8fe39f/deployment/docker/victorialogs/fluentd/loki/fluent.conf#L1-L17
 
 Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.

@@ -28,6 +28,8 @@ Querying the data
 * [vmui](https://docs.victoriametrics.com/victorialogs/querying/#vmui) - a web UI is accessible by `http://localhost:9428/select/vmui`
 * for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
 
-Here is an example of [fluentbit configuration](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/da6889f89bd298683cd25b71a3f851930c8fe39f/deployment/docker/victorialogs/fluentbit/loki/fluent-bit.conf)
+Here is an example of fluentbit configuration
+
+https://github.com/VictoriaMetrics/VictoriaMetrics/blob/752eb347fe4e0343bfb99798dcba5742807a0614/deployment/docker/victorialogs/fluentbit/elasticsearch/fluent-bit.conf#L1-L31
 
 Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.

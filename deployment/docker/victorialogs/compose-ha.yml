@@ -1,6 +1,4 @@
 services:
-  victorialogs:
+  victorialogs-2:
     deploy:
-      replicas: 2
-    ports: !override
-      - '9428-9429:9428'
+      replicas: 1
