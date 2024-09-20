@@ -404,11 +404,11 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	dirsToRemoveOnError = append(dirsToRemoveOnError, idbSnapshot)
 
 	var err error
-	ok := idb.doExtDB(func(extDB *indexDB) {
+	idb.doExtDB(func(extDB *indexDB) {
 		prevSnapshot := filepath.Join(idbSnapshot, extDB.name)
 		err = extDB.tb.CreateSnapshotAt(prevSnapshot)
 	})
-	if ok && err != nil {
+	if err != nil {
 		return "", fmt.Errorf("cannot create prev indexDB snapshot: %w", err)
 	}
 	dstIdbDir := filepath.Join(dstDir, indexdbDirname)

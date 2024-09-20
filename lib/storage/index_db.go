@@ -258,19 +258,20 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	})
 }
 
-func (db *indexDB) doExtDB(f func(extDB *indexDB)) bool {
+// doExtDB calls f for non-nil db.extDB.
+//
+// f isn't called if db.extDB is nil.
+func (db *indexDB) doExtDB(f func(extDB *indexDB)) {
 	db.extDBLock.Lock()
 	extDB := db.extDB
 	if extDB != nil {
 		extDB.incRef()
 	}
 	db.extDBLock.Unlock()
-	if extDB == nil {
-		return false
+	if extDB != nil {
+		f(extDB)
+		extDB.decRef()
 	}
-	f(extDB)
-	extDB.decRef()
-	return true
 }
 
 // SetExtDB sets external db to search.
@@ -1657,7 +1658,7 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64, accoun
 	}
 
 	// Try searching in the external indexDB.
-	if db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		is := extDB.getIndexSearch(accountID, projectID, noDeadline)
 		dst, ok = is.searchMetricName(dst, metricID)
 		extDB.putIndexSearch(is)
@@ -1666,7 +1667,8 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64, accoun
 			// since the filtering must be performed before calling this func.
 			extDB.putMetricNameToCache(metricID, dst)
 		}
-	}) && ok {
+	})
+	if ok {
 		return dst, true
 	}
 
