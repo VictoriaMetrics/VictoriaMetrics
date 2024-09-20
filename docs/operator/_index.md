@@ -5,6 +5,7 @@ menu:
   docs:
     weight: 35
     identifier: operator
+pageRef: /operator/
 aliases:
   - /operator/
   - /operator/index.html
