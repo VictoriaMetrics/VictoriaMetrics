@@ -423,6 +423,16 @@ func marshalMetricIDs(dst []byte, metricIDs []uint64) []byte {
 	//
 	// The srcBuf is a []byte cast of metricIDs.
 	srcBuf := unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(metricIDs))), 8*len(metricIDs))
+	if len(srcBuf) == 0 {
+		// If the list of metricIDs is empty, then add one byte so that zstd has
+		// something to compress. Otherwise nothing will be added to dst and if
+		// dst is empty the record won't be added to the cache and the search
+		// for a given filter will be performed again and again. This may lead
+		// to cases like this:
+		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7009
+		srcBuf = []byte{0}
+	}
+
 	dst = encoding.CompressZSTDLevel(dst, srcBuf, 1)
 	return dst
 }
@@ -439,8 +449,9 @@ func mustUnmarshalMetricIDs(dst []uint64, src []byte) []uint64 {
 	if err != nil {
 		logger.Panicf("FATAL: cannot decompress metricIDs: %s", err)
 	}
-	if len(dstBuf) == dstBufLen {
-		// Zero metricIDs
+	if len(dstBuf) == dstBufLen+1 && dstBuf[len(dstBuf)-1] == 0 {
+		// One zero byte indicates an empty metricID list.
+		// See marshalMetricIDs().
 		return dst
 	}
 	if (len(dstBuf)-dstBufLen)%8 != 0 {

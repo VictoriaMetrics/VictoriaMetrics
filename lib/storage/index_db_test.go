@@ -64,6 +64,34 @@ func TestMarshalUnmarshalMetricIDs(t *testing.T) {
 	f([]uint64{1, 2, 3, 4, 5, 6, 8989898, 823849234, 1<<64 - 1, 1<<32 - 1, 0})
 }
 
+func TestTagFiltersToMetricIDsCache(t *testing.T) {
+	f := func(want []uint64) {
+		path := t.Name()
+		defer fs.MustRemoveAll(path)
+
+		s := MustOpenStorage(path, 0, 0, 0)
+		defer s.MustClose()
+
+		idb := s.idb()
+		key := []byte("key")
+		idb.putMetricIDsToTagFiltersCache(nil, want, key)
+		got, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
+		if !ok {
+			t.Fatalf("expected metricIDs to be found in cache but they weren't: %v", want)
+		}
+		if (len(got) > 0 || len(want) > 0) && !reflect.DeepEqual(got, want) {
+			t.Fatalf("unexpected metricIDs in cache: got %v, want %v", got, want)
+		}
+	}
+
+	f(nil)
+	f([]uint64{})
+	f([]uint64{0})
+	f([]uint64{1})
+	f([]uint64{1234, 678932943, 843289893843})
+	f([]uint64{1, 2, 3, 4, 5, 6, 8989898, 823849234, 1<<64 - 1, 1<<32 - 1, 0})
+}
+
 func TestMergeSortedMetricIDs(t *testing.T) {
 	f := func(a, b []uint64) {
 		t.Helper()
