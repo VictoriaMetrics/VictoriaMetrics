@@ -1,6 +1,10 @@
 ---
 title: VictoriaMetrics Anomaly Detection
-weight: 0
+weight: 50
+menu:
+  docs:
+    weight: 50
+    identifier: anomaly-detection
 aliases:
 - /anomaly-detection.html
 - /vmanomaly.html
