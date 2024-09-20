@@ -66,6 +66,8 @@ func TestMarshalUnmarshalMetricIDs(t *testing.T) {
 
 func TestTagFiltersToMetricIDsCache(t *testing.T) {
 	f := func(want []uint64) {
+		t.Helper()
+
 		path := t.Name()
 		defer fs.MustRemoveAll(path)
 
