@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"sync"
 	"testing"
@@ -494,7 +495,7 @@ func TestNextRetentionDeadlineSeconds(t *testing.T) {
 func TestStorageOpenClose(t *testing.T) {
 	path := "TestStorageOpenClose"
 	for i := 0; i < 10; i++ {
-		s := MustOpenStorage(path, -1, 1e5, 1e6)
+		s := MustOpenStorage(path, -1, 1e5, 1e6, false)
 		s.MustClose()
 	}
 	if err := os.RemoveAll(path); err != nil {
@@ -505,14 +506,14 @@ func TestStorageOpenClose(t *testing.T) {
 func TestStorageRandTimestamps(t *testing.T) {
 	path := "TestStorageRandTimestamps"
 	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 0, 0)
+	s := MustOpenStorage(path, retention, 0, 0, false)
 	t.Run("serial", func(t *testing.T) {
 		for i := 0; i < 3; i++ {
 			if err := testStorageRandTimestamps(s); err != nil {
 				t.Fatalf("error on iteration %d: %s", i, err)
 			}
 			s.MustClose()
-			s = MustOpenStorage(path, retention, 0, 0)
+			s = MustOpenStorage(path, retention, 0, 0, false)
 		}
 	})
 	t.Run("concurrent", func(t *testing.T) {
@@ -584,12 +585,12 @@ func testStorageRandTimestamps(s *Storage) error {
 
 func TestStorageDeleteSeries(t *testing.T) {
 	path := "TestStorageDeleteSeries"
-	s := MustOpenStorage(path, 0, 0, 0)
+	s := MustOpenStorage(path, 0, 0, 0, false)
 
 	// Verify no label names exist
-	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	lns, err := s.SearchLabelNames(nil, nil, TimeRange{}, 1e5, 1e9, noDeadline)
 	if err != nil {
-		t.Fatalf("error in SearchLabelNamesWithFiltersOnTimeRange() at the start: %s", err)
+		t.Fatalf("error in SearchLabelNames() at the start: %s", err)
 	}
 	if len(lns) != 0 {
 		t.Fatalf("found non-empty tag keys at the start: %q", lns)
@@ -604,7 +605,7 @@ func TestStorageDeleteSeries(t *testing.T) {
 			// Re-open the storage in order to check how deleted metricIDs
 			// are persisted.
 			s.MustClose()
-			s = MustOpenStorage(path, 0, 0, 0)
+			s = MustOpenStorage(path, 0, 0, 0, false)
 		}
 	})
 
@@ -636,9 +637,9 @@ func TestStorageDeleteSeries(t *testing.T) {
 	})
 
 	// Verify no more tag keys exist
-	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	lns, err = s.SearchLabelNames(nil, nil, TimeRange{}, 1e5, 1e9, noDeadline)
 	if err != nil {
-		t.Fatalf("error in SearchLabelNamesWithFiltersOnTimeRange after the test: %s", err)
+		t.Fatalf("error in SearchLabelNames after the test: %s", err)
 	}
 	if len(lns) != 0 {
 		t.Fatalf("found non-empty tag keys after the test: %q", lns)
@@ -691,18 +692,18 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	s.DebugFlush()
 
 	// Verify tag values exist
-	tvs, err := s.SearchLabelValuesWithFiltersOnTimeRange(nil, string(workerTag), nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	tvs, err := s.SearchLabelValues(nil, string(workerTag), nil, TimeRange{}, 1e5, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange before metrics removal: %w", err)
+		return fmt.Errorf("error in SearchLabelValues before metrics removal: %w", err)
 	}
 	if len(tvs) == 0 {
 		return fmt.Errorf("unexpected empty number of tag values for workerTag")
 	}
 
 	// Verify tag keys exist
-	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	lns, err := s.SearchLabelNames(nil, nil, TimeRange{}, 1e5, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchLabelNamesWithFiltersOnTimeRange before metrics removal: %w", err)
+		return fmt.Errorf("error in SearchLabelNames before metrics removal: %w", err)
 	}
 	if err := checkLabelNames(lns, lnsAll); err != nil {
 		return fmt.Errorf("unexpected label names before metrics removal: %w", err)
@@ -764,9 +765,9 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	if n := metricBlocksCount(tfs); n != 0 {
 		return fmt.Errorf("expecting zero metric blocks after deleting all the metrics; got %d blocks", n)
 	}
-	tvs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, string(workerTag), nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	tvs, err = s.SearchLabelValues(nil, string(workerTag), nil, TimeRange{}, 1e5, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange after all the metrics are removed: %w", err)
+		return fmt.Errorf("error in SearchLabelValues after all the metrics are removed: %w", err)
 	}
 	if len(tvs) != 0 {
 		return fmt.Errorf("found non-empty tag values for %q after metrics removal: %q", workerTag, tvs)
@@ -797,7 +798,7 @@ func checkLabelNames(lns []string, lnsExpected map[string]bool) error {
 
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesSerial"
-	s := MustOpenStorage(path, 0, 0, 0)
+	s := MustOpenStorage(path, 0, 0, 0, false)
 	if err := testStorageRegisterMetricNames(s); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -809,7 +810,7 @@ func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 
 func TestStorageRegisterMetricNamesConcurrent(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesConcurrent"
-	s := MustOpenStorage(path, 0, 0, 0)
+	s := MustOpenStorage(path, 0, 0, 0, false)
 	ch := make(chan error, 3)
 	for i := 0; i < cap(ch); i++ {
 		go func() {
@@ -869,23 +870,23 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	// Verify the storage contains the added metric names.
 	s.DebugFlush()
 
-	// Verify that SearchLabelNamesWithFiltersOnTimeRange returns correct result.
+	// Verify that SearchLabelNames returns correct result.
 	lnsExpected := []string{
 		"__name__",
 		"add_id",
 		"instance",
 		"job",
 	}
-	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, TimeRange{}, 100, 1e9, noDeadline)
+	lns, err := s.SearchLabelNames(nil, nil, TimeRange{}, 100, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchLabelNamesWithFiltersOnTimeRange: %w", err)
+		return fmt.Errorf("error in SearchLabelNames: %w", err)
 	}
 	sort.Strings(lns)
 	if !reflect.DeepEqual(lns, lnsExpected) {
-		return fmt.Errorf("unexpected label names returned from SearchLabelNamesWithFiltersOnTimeRange;\ngot\n%q\nwant\n%q", lns, lnsExpected)
+		return fmt.Errorf("unexpected label names returned from SearchLabelNames;\ngot\n%q\nwant\n%q", lns, lnsExpected)
 	}
 
-	// Verify that SearchLabelNamesWithFiltersOnTimeRange with the specified time range returns correct result.
+	// Verify that SearchLabelNames with the specified time range returns correct result.
 	now := timestampFromTime(time.Now())
 	start := now - msecPerDay
 	end := now + 60*1000
@@ -893,33 +894,33 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		MinTimestamp: start,
 		MaxTimestamp: end,
 	}
-	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, tr, 100, 1e9, noDeadline)
+	lns, err = s.SearchLabelNames(nil, nil, tr, 100, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchLabelNamesWithFiltersOnTimeRange: %w", err)
+		return fmt.Errorf("error in SearchLabelNames: %w", err)
 	}
 	sort.Strings(lns)
 	if !reflect.DeepEqual(lns, lnsExpected) {
-		return fmt.Errorf("unexpected label names returned from SearchLabelNamesWithFiltersOnTimeRange;\ngot\n%q\nwant\n%q", lns, lnsExpected)
+		return fmt.Errorf("unexpected label names returned from SearchLabelNames;\ngot\n%q\nwant\n%q", lns, lnsExpected)
 	}
 
-	// Verify that SearchLabelValuesWithFiltersOnTimeRange returns correct result.
-	addIDs, err := s.SearchLabelValuesWithFiltersOnTimeRange(nil, "add_id", nil, TimeRange{}, addsCount+100, 1e9, noDeadline)
+	// Verify that SearchLabelValues returns correct result.
+	addIDs, err := s.SearchLabelValues(nil, "add_id", nil, TimeRange{}, addsCount+100, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange: %w", err)
+		return fmt.Errorf("error in SearchLabelValues: %w", err)
 	}
 	sort.Strings(addIDs)
 	if !reflect.DeepEqual(addIDs, addIDsExpected) {
-		return fmt.Errorf("unexpected tag values returned from SearchLabelValuesWithFiltersOnTimeRange;\ngot\n%q\nwant\n%q", addIDs, addIDsExpected)
+		return fmt.Errorf("unexpected tag values returned from SearchLabelValues;\ngot\n%q\nwant\n%q", addIDs, addIDsExpected)
 	}
 
-	// Verify that SearchLabelValuesWithFiltersOnTimeRange with the specified time range returns correct result.
-	addIDs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, "add_id", nil, tr, addsCount+100, 1e9, noDeadline)
+	// Verify that SearchLabelValues with the specified time range returns correct result.
+	addIDs, err = s.SearchLabelValues(nil, "add_id", nil, tr, addsCount+100, 1e9, noDeadline)
 	if err != nil {
-		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange: %w", err)
+		return fmt.Errorf("error in SearchLabelValues: %w", err)
 	}
 	sort.Strings(addIDs)
 	if !reflect.DeepEqual(addIDs, addIDsExpected) {
-		return fmt.Errorf("unexpected tag values returned from SearchLabelValuesWithFiltersOnTimeRange;\ngot\n%q\nwant\n%q", addIDs, addIDsExpected)
+		return fmt.Errorf("unexpected tag values returned from SearchLabelValues;\ngot\n%q\nwant\n%q", addIDs, addIDsExpected)
 	}
 
 	// Verify that SearchMetricNames returns correct result.
@@ -956,7 +957,7 @@ func TestStorageAddRowsSerial(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageAddRowsSerial"
 	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 1e5, 1e5)
+	s := MustOpenStorage(path, retention, 1e5, 1e5, false)
 	if err := testStorageAddRows(rng, s); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -969,7 +970,7 @@ func TestStorageAddRowsSerial(t *testing.T) {
 func TestStorageAddRowsConcurrent(t *testing.T) {
 	path := "TestStorageAddRowsConcurrent"
 	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 1e5, 1e5)
+	s := MustOpenStorage(path, retention, 1e5, 1e5, false)
 	ch := make(chan error, 3)
 	for i := 0; i < cap(ch); i++ {
 		go func(n int) {
@@ -1056,7 +1057,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 
 	// Try opening the storage from snapshot.
 	snapshotPath := filepath.Join(s.path, snapshotsDirname, snapshotName)
-	s1 := MustOpenStorage(snapshotPath, 0, 0, 0)
+	s1 := MustOpenStorage(snapshotPath, 0, 0, 0, false)
 
 	// Verify the snapshot contains rows
 	var m1 Metrics
@@ -1102,7 +1103,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 
 func TestStorageRotateIndexDB(t *testing.T) {
 	path := "TestStorageRotateIndexDB"
-	s := MustOpenStorage(path, 0, 0, 0)
+	s := MustOpenStorage(path, 0, 0, 0, false)
 
 	// Start indexDB rotater in a separate goroutine
 	stopCh := make(chan struct{})
@@ -1184,7 +1185,7 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageDeleteStaleSnapshots"
 	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 1e5, 1e5)
+	s := MustOpenStorage(path, retention, 1e5, 1e5, false)
 	const rowsPerAdd = 1e3
 	const addsCount = 10
 	maxTimestamp := timestampFromTime(time.Now())
@@ -1259,7 +1260,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 
 		var gotMetrics Metrics
 		path := fmt.Sprintf("%s/%s", t.Name(), opts.name)
-		s := MustOpenStorage(path, opts.retention, 0, 0)
+		s := MustOpenStorage(path, opts.retention, 0, 0, false)
 		defer s.MustClose()
 		s.AddRows(opts.mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -1381,7 +1382,7 @@ func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 
 		var gotMetrics Metrics
 		path := fmt.Sprintf("%s/%s", t.Name(), name)
-		s := MustOpenStorage(path, 0, maxHourlySeries, maxDailySeries)
+		s := MustOpenStorage(path, 0, maxHourlySeries, maxDailySeries, false)
 		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -1430,6 +1431,23 @@ func testCountAllMetricNames(s *Storage, tr TimeRange) int {
 	return len(names)
 }
 
+// testCountAllMetricIDs is a test helper function that counts the IDs of
+// all time series within the given time range.
+func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
+	tfsAll := NewTagFilters()
+	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
+	}
+	if s.disablePerDayIndex {
+		tr = globalIndexTimeRange
+	}
+	ids, err := s.idb().searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
+	if err != nil {
+		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))
+	}
+	return len(ids)
+}
+
 func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 	defer testRemoveAll(t)
 
@@ -1465,7 +1483,7 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 	f := func(opts *options) {
 		t.Helper()
 
-		s := MustOpenStorage(t.Name()+"/"+opts.path, 0, 0, 0)
+		s := MustOpenStorage(t.Name()+"/"+opts.path, 0, 0, 0, false)
 		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -1645,18 +1663,555 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 	})
 }
 
-// testCountAllMetricIDs is a test helper function that counts the IDs of
-// all time series within the given time range.
-func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
-	tfsAll := NewTagFilters()
-	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
-		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
+func TestStorageDate(t *testing.T) {
+	defer testRemoveAll(t)
+
+	f := func(disablePerDayIndex bool, millis int64, want uint64) {
+		t.Helper()
+		s := MustOpenStorage(t.Name(), 0, 0, 0, disablePerDayIndex)
+		defer s.MustClose()
+		if got := s.date(millis); got != want {
+			t.Errorf("unexpected date: got %d, want %d", got, want)
+		}
 	}
-	ids, err := s.idb().searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
-	if err != nil {
-		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))
+
+	// Zero millis are converted to zero date regardless whether
+	// -disablePerDayIndex flag is set or not.
+	f(false, 0, 0)
+	f(true, 0, 0)
+
+	// When per-day index is enabled, positive millis are converted to the
+	// corresponding date.
+	f(false, 10*msecPerDay, 10)
+
+	// When per-day index is disabled, positive millis are converted to
+	// globalIndexDate.
+	f(true, 10*msecPerDay, globalIndexDate)
+}
+
+func TestStorageDate_negativeMillis(t *testing.T) {
+	defer testRemoveAll(t)
+
+	// Negative millis won't be converted to a negative date because the date is
+	// always positive. As a result, dates earlier than 1970-01-01 are not
+	// supported. However, when the -disablePerDayIndex flag is set, negative
+	// millis must be converted to globalIndexDate.
+	s := MustOpenStorage(t.Name(), 0, 0, 0, true)
+	millis := int64(-10 * msecPerDay)
+	want := globalIndexDate
+	if got := s.date(millis); got != want {
+		t.Errorf("unexpected date: got %d, want %d", got, want)
 	}
-	return len(ids)
+	s.MustClose()
+}
+
+func TestStorageAdjustTimeRange(t *testing.T) {
+	defer testRemoveAll(t)
+
+	f := func(disablePerDayIndex bool, tr TimeRange, want TimeRange) {
+		t.Helper()
+
+		s := MustOpenStorage(t.Name(), 0, 0, 0, disablePerDayIndex)
+		defer s.MustClose()
+		if got := s.adjustTimeRange(tr); got != want {
+			t.Errorf("unexpected time range: got %v, want %v", &got, &want)
+		}
+	}
+
+	var tr TimeRange
+
+	// Zero time range is adjusted to globalIndexTimeRange regardless whether
+	// the -disablePerDayIndex flag is set or not.
+	tr = TimeRange{}
+	f(false, tr, globalIndexTimeRange)
+	f(true, tr, globalIndexTimeRange)
+
+	// Time range is smaller than 40 days. When the -disablePerDayIndex flag is
+	// unset, the time range will not be adjusted. When the flag is set, the
+	// adjusted time range will be globalIndexTimeRange.
+	tr = TimeRange{10 * msecPerDay, 50 * msecPerDay}
+	f(false, tr, tr)
+	f(true, tr, globalIndexTimeRange)
+
+	// Time range is exactly 40 days. In this case, the TimeRange.MaxTimestamp
+	// is set to the minimum possible value when the time range becomes 40 days.
+	// When the -disablePerDayIndex flag is unset, the time range will not be
+	// adjusted. When the flag is set, the adjusted time range will be
+	// globalIndexTimeRange.
+	tr = TimeRange{10 * msecPerDay, 50*msecPerDay + 1}
+	f(false, tr, tr)
+	f(true, tr, globalIndexTimeRange)
+
+	// Another case when time range is exactly 40 days. This time the the
+	// TimeRange.MaxTimestamp is set to its max value when the time range is
+	// still 40 days.
+	// When the -disablePerDayIndex flag is unset, the time range will not be
+	// adjusted. When the flag is set, the adjusted time range will be
+	// globalIndexTimeRange.
+	tr = TimeRange{10 * msecPerDay, 51 * msecPerDay}
+	f(false, tr, tr)
+	f(true, tr, globalIndexTimeRange)
+
+	// Time range is more than 40 days. The time range is adjusted to
+	// globalIndexTimeRange regardless whether the -disablePerDayIndex flag is
+	// set or not.
+	tr = TimeRange{10 * msecPerDay, 51*msecPerDay + 1}
+	f(false, tr, globalIndexTimeRange)
+	f(true, tr, globalIndexTimeRange)
+
+}
+
+type testStorageSearchWithoutPerDayIndexOptions struct {
+	mrs                []MetricRow
+	assertSearchResult func(t *testing.T, s *Storage, tr TimeRange, want any)
+	alwaysPerTimeRange bool // If true, use wantPerTimeRange instead of wantAll
+	wantPerTimeRange   map[TimeRange]any
+	wantAll            any
+	wantEmpty          any
+}
+
+// testStorageSearchWithoutPerDayIndex tests how the search behaves when the
+// per-day index is disabled. This function is expected to be called by
+// functions that test a particular search operation, such as GetTSDBStatus(),
+// SearchMetricNames(), etc.
+func testStorageSearchWithoutPerDayIndex(t *testing.T, opts *testStorageSearchWithoutPerDayIndexOptions) {
+	defer testRemoveAll(t)
+
+	// The data is inserted and the search is performed when the per-day index
+	// is enabled.
+	t.Run("InsertAndSearchWithPerDayIndex", func(t *testing.T) {
+		s := MustOpenStorage(t.Name(), 0, 0, 0, false)
+		s.AddRows(opts.mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		for tr, want := range opts.wantPerTimeRange {
+			opts.assertSearchResult(t, s, tr, want)
+		}
+		s.MustClose()
+	})
+
+	//  The data is inserted and the search is performed when the per-day index
+	//  is disabled.
+	t.Run("InsertAndSearchWithoutPerDayIndex", func(t *testing.T) {
+		s := MustOpenStorage(t.Name(), 0, 0, 0, true)
+		s.AddRows(opts.mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		for tr, want := range opts.wantPerTimeRange {
+			if !opts.alwaysPerTimeRange {
+				want = opts.wantAll
+			}
+			opts.assertSearchResult(t, s, tr, want)
+		}
+		s.MustClose()
+	})
+
+	// The data is inserted when the per-day index is enabled but the search is
+	// performed when the per-day index is disabled.
+	t.Run("InsertWithPerDayIndexSearchWithout", func(t *testing.T) {
+		s := MustOpenStorage(t.Name(), 0, 0, 0, false)
+		s.AddRows(opts.mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		s.MustClose()
+
+		s = MustOpenStorage(t.Name(), 0, 0, 0, true)
+		for tr, want := range opts.wantPerTimeRange {
+			if !opts.alwaysPerTimeRange {
+				want = opts.wantAll
+			}
+			opts.assertSearchResult(t, s, tr, want)
+		}
+		s.MustClose()
+	})
+
+	// The data is inserted when the per-day index is disable but the search is
+	// performed when the per-day index is enabled. This case also shows that
+	// registering metric names recovers the per-day index.
+	t.Run("InsertWithoutPerDayIndexSearchWith", func(t *testing.T) {
+		s := MustOpenStorage(t.Name(), 0, 0, 0, true)
+		s.AddRows(opts.mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		s.MustClose()
+
+		s = MustOpenStorage(t.Name(), 0, 0, 0, false)
+		for tr := range opts.wantPerTimeRange {
+			opts.assertSearchResult(t, s, tr, opts.wantEmpty)
+		}
+
+		// Verify that search result contains correct label values after populating
+		// per-day index by registering metric names.
+		s.RegisterMetricNames(nil, opts.mrs)
+		s.DebugFlush()
+		for tr, want := range opts.wantPerTimeRange {
+			opts.assertSearchResult(t, s, tr, want)
+		}
+		s.MustClose()
+	})
+}
+
+func TestStorageGetTSDBStatusWithoutPerDayIndex(t *testing.T) {
+	const (
+		days = 4
+		rows = 10
+	)
+	rng := rand.New(rand.NewSource(1))
+	opts := testStorageSearchWithoutPerDayIndexOptions{
+		wantEmpty:        &TSDBStatus{},
+		wantPerTimeRange: make(map[TimeRange]any),
+		wantAll:          &TSDBStatus{TotalSeries: days * rows},
+	}
+	for day := 1; day <= days; day++ {
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, day, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, day, 23, 59, 59, 999, time.UTC).UnixMilli(),
+		}
+		for row := 0; row < rows; row++ {
+			name := fmt.Sprintf("metric_%d", rows*day+row)
+			mn := &MetricName{
+				MetricGroup: []byte(name),
+			}
+			metricNameRaw := mn.marshalRaw(nil)
+			opts.mrs = append(opts.mrs, MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp,
+				Value:         rng.NormFloat64() * 1e6,
+			})
+		}
+		opts.wantPerTimeRange[tr] = &TSDBStatus{TotalSeries: rows}
+	}
+
+	opts.assertSearchResult = func(t *testing.T, s *Storage, tr TimeRange, want any) {
+		t.Helper()
+
+		date := uint64(tr.MinTimestamp) / msecPerDay
+		gotStatus, err := s.GetTSDBStatus(nil, nil, date, "", 10, 1e6, noDeadline)
+		if err != nil {
+			t.Fatalf("GetTSDBStatus(%v) failed unexpectedly", &tr)
+		}
+
+		wantStatus := want.(*TSDBStatus)
+		if got, want := gotStatus.TotalSeries, wantStatus.TotalSeries; got != want {
+			t.Errorf("[%v] unexpected TSDBStatus.TotalSeries: got %d, want %d", &tr, got, want)
+		}
+	}
+
+	testStorageSearchWithoutPerDayIndex(t, &opts)
+}
+
+func TestStorageSearchMetricNamesWithoutPerDayIndex(t *testing.T) {
+	const (
+		days = 4
+		rows = 10
+	)
+	rng := rand.New(rand.NewSource(1))
+	opts := testStorageSearchWithoutPerDayIndexOptions{
+		wantEmpty:        []string(nil),
+		wantPerTimeRange: make(map[TimeRange]any),
+		wantAll:          []string{},
+	}
+	for day := 1; day <= days; day++ {
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, day, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, day, 23, 59, 59, 999, time.UTC).UnixMilli(),
+		}
+		var want []string
+		for row := 0; row < rows; row++ {
+			name := fmt.Sprintf("metric_%d", rows*day+row)
+			mn := &MetricName{
+				MetricGroup: []byte(name),
+			}
+			metricNameRaw := mn.marshalRaw(nil)
+			want = append(want, string(name))
+			opts.mrs = append(opts.mrs, MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp,
+				Value:         rng.NormFloat64() * 1e6,
+			})
+		}
+		opts.wantPerTimeRange[tr] = want
+		opts.wantAll = append(opts.wantAll.([]string), want...)
+	}
+
+	opts.assertSearchResult = func(t *testing.T, s *Storage, tr TimeRange, want any) {
+		t.Helper()
+
+		tfsAll := NewTagFilters()
+		if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+			panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
+		}
+		got, err := s.SearchMetricNames(nil, []*TagFilters{tfsAll}, tr, 1e6, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchMetricNames(%v) failed unexpectedly: %v", &tr, err)
+		}
+		for i, name := range got {
+			var mn MetricName
+			if err := mn.Unmarshal([]byte(name)); err != nil {
+				t.Fatalf("mn.Unmarshal(%q) failed unexpectedly: %v", name, err)
+			}
+			got[i] = string(mn.MetricGroup)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("[%v] unexpected metric names: got %v, want %v", &tr, got, want)
+		}
+	}
+
+	testStorageSearchWithoutPerDayIndex(t, &opts)
+}
+
+func TestStorageSearchLabelNamesWithoutPerDayIndex(t *testing.T) {
+	const (
+		days = 4
+		rows = 10
+	)
+	rng := rand.New(rand.NewSource(1))
+	opts := testStorageSearchWithoutPerDayIndexOptions{
+		wantEmpty:        []string{},
+		wantPerTimeRange: make(map[TimeRange]any),
+		wantAll:          []string{},
+	}
+	for day := 1; day <= days; day++ {
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, day, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, day, 23, 59, 59, 999, time.UTC).UnixMilli(),
+		}
+		var want []string
+		for row := 0; row < rows; row++ {
+			labelName := fmt.Sprintf("job_%d", rows*day+row)
+			mn := &MetricName{
+				MetricGroup: []byte("metric"),
+				Tags: []Tag{
+					{[]byte(labelName), []byte("webservice")},
+				},
+			}
+			metricNameRaw := mn.marshalRaw(nil)
+			want = append(want, labelName)
+			opts.mrs = append(opts.mrs, MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp,
+				Value:         rng.NormFloat64() * 1e6,
+			})
+		}
+		opts.wantAll = append(opts.wantAll.([]string), want...)
+		opts.wantPerTimeRange[tr] = append(want, "__name__")
+	}
+	opts.wantAll = append(opts.wantAll.([]string), "__name__")
+
+	opts.assertSearchResult = func(t *testing.T, s *Storage, tr TimeRange, want any) {
+		t.Helper()
+		got, err := s.SearchLabelNames(nil, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelNames(%v) failed unexpectedly: %v", &tr, err)
+		}
+		slices.Sort(got)
+		slices.Sort(want.([]string))
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("[%v] unexpected label names: got %v, want %v", &tr, got, want)
+		}
+	}
+
+	testStorageSearchWithoutPerDayIndex(t, &opts)
+}
+
+func TestStorageSearchLabelValuesWithoutPerDayIndex(t *testing.T) {
+	const (
+		days      = 4
+		rows      = 10
+		labelName = "job"
+	)
+	rng := rand.New(rand.NewSource(1))
+	opts := testStorageSearchWithoutPerDayIndexOptions{
+		wantEmpty:        []string{},
+		wantPerTimeRange: make(map[TimeRange]any),
+		wantAll:          []string{},
+	}
+	for day := 1; day <= days; day++ {
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, day, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, day, 23, 59, 59, 999, time.UTC).UnixMilli(),
+		}
+		var want []string
+		for row := 0; row < rows; row++ {
+			labelValue := fmt.Sprintf("webservice_%d", rows*day+row)
+			mn := &MetricName{
+				MetricGroup: []byte("metric"),
+				Tags: []Tag{
+					{[]byte(labelName), []byte(labelValue)},
+				},
+			}
+			metricNameRaw := mn.marshalRaw(nil)
+			want = append(want, labelValue)
+			opts.mrs = append(opts.mrs, MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp,
+				Value:         rng.NormFloat64() * 1e6,
+			})
+		}
+		opts.wantPerTimeRange[tr] = want
+		opts.wantAll = append(opts.wantAll.([]string), want...)
+	}
+
+	opts.assertSearchResult = func(t *testing.T, s *Storage, tr TimeRange, want any) {
+		t.Helper()
+		got, err := s.SearchLabelValues(nil, labelName, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelValues(%v) failed unexpectedly: %v", &tr, err)
+		}
+		slices.Sort(got)
+		slices.Sort(want.([]string))
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("[%v] unexpected label values: got %v, want %v", &tr, got, want)
+		}
+	}
+
+	testStorageSearchWithoutPerDayIndex(t, &opts)
+}
+
+func TestStorageSearchTagValueSuffixesWithoutPerDayIndex(t *testing.T) {
+	const (
+		days           = 4
+		rows           = 10
+		tagValuePrefix = "metric."
+	)
+	rng := rand.New(rand.NewSource(1))
+	opts := testStorageSearchWithoutPerDayIndexOptions{
+		wantEmpty:        []string{},
+		wantPerTimeRange: make(map[TimeRange]any),
+		wantAll:          []string{},
+	}
+	for day := 1; day <= days; day++ {
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, day, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, day, 23, 59, 59, 999, time.UTC).UnixMilli(),
+		}
+		for row := 0; row < rows; row++ {
+			metricName := fmt.Sprintf("%sday%d.row%d", tagValuePrefix, day, row)
+			mn := &MetricName{
+				MetricGroup: []byte(metricName),
+			}
+			metricNameRaw := mn.marshalRaw(nil)
+			opts.mrs = append(opts.mrs, MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp,
+				Value:         rng.NormFloat64() * 1e6,
+			})
+		}
+		want := fmt.Sprintf("day%d.", day)
+		opts.wantPerTimeRange[tr] = []string{want}
+		opts.wantAll = append(opts.wantAll.([]string), want)
+	}
+
+	opts.assertSearchResult = func(t *testing.T, s *Storage, tr TimeRange, want any) {
+		t.Helper()
+		got, err := s.SearchTagValueSuffixes(nil, tr, "", tagValuePrefix, '.', 1e6, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchTagValueSuffixes(%v) failed unexpectedly: %v", &tr, err)
+		}
+		slices.Sort(got)
+		slices.Sort(want.([]string))
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("[%v] unexpected tag value suffixes: got %v, want %v", &tr, got, want)
+		}
+	}
+
+	testStorageSearchWithoutPerDayIndex(t, &opts)
+}
+
+func TestStorageSearchGraphitePathsWithoutPerDayIndex(t *testing.T) {
+	const (
+		days = 4
+		rows = 10
+	)
+	rng := rand.New(rand.NewSource(1))
+	opts := testStorageSearchWithoutPerDayIndexOptions{
+		wantEmpty:        []string(nil),
+		wantPerTimeRange: make(map[TimeRange]any),
+		wantAll:          []string{},
+	}
+	for day := 1; day <= days; day++ {
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, day, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, day, 23, 59, 59, 999, time.UTC).UnixMilli(),
+		}
+		want := make([]string, rows)
+		for row := 0; row < rows; row++ {
+			metricName := fmt.Sprintf("day%d.row%d", day, row)
+			mn := &MetricName{
+				MetricGroup: []byte(metricName),
+			}
+			metricNameRaw := mn.marshalRaw(nil)
+			opts.mrs = append(opts.mrs, MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp,
+				Value:         rng.NormFloat64() * 1e6,
+			})
+			want[row] = metricName
+		}
+		opts.wantPerTimeRange[tr] = want
+		opts.wantAll = append(opts.wantAll.([]string), want...)
+	}
+
+	opts.assertSearchResult = func(t *testing.T, s *Storage, tr TimeRange, want any) {
+		t.Helper()
+		got, err := s.SearchGraphitePaths(nil, tr, []byte("*.*"), 1e6, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchGraphitePaths(%v) failed unexpectedly: %v", &tr, err)
+		}
+		slices.Sort(got)
+		slices.Sort(want.([]string))
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("[%v] unexpected graphite paths: got %v, want %v", &tr, got, want)
+		}
+	}
+
+	testStorageSearchWithoutPerDayIndex(t, &opts)
+}
+
+func TestStorageQueryWithoutPerDayIndex(t *testing.T) {
+	const (
+		days = 4
+		rows = 10
+	)
+	rng := rand.New(rand.NewSource(1))
+	opts := testStorageSearchWithoutPerDayIndexOptions{
+		wantEmpty:          []MetricRow(nil),
+		wantPerTimeRange:   make(map[TimeRange]any),
+		alwaysPerTimeRange: true,
+	}
+	for day := 1; day <= days; day++ {
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, day, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, day, 23, 59, 59, 999, time.UTC).UnixMilli(),
+		}
+		var want []MetricRow
+		for row := 0; row < rows; row++ {
+			seqNumber := rows*day + row
+			name := fmt.Sprintf("metric_%d", seqNumber)
+			mn := &MetricName{
+				MetricGroup: []byte(name),
+			}
+			metricNameRaw := mn.marshalRaw(nil)
+			mr := MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     rng.Int63n(tr.MaxTimestamp-tr.MinTimestamp) + tr.MinTimestamp,
+				Value:         float64(seqNumber),
+			}
+			opts.mrs = append(opts.mrs, mr)
+			want = append(want, mr)
+		}
+		opts.wantPerTimeRange[tr] = want
+	}
+
+	opts.assertSearchResult = func(t *testing.T, s *Storage, tr TimeRange, want any) {
+		t.Helper()
+
+		tfs := NewTagFilters()
+		if err := tfs.Add(nil, []byte(`metric_\d*`), false, true); err != nil {
+			t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+		}
+		if err := testAssertSearchResult(s, tr, tfs, want.([]MetricRow)); err != nil {
+			t.Errorf("%v: %v", &tr, err)
+		}
+	}
+
+	testStorageSearchWithoutPerDayIndex(t, &opts)
 }
 
 func TestStorageRegisterMetricNamesForVariousDataPatternsConcurrently(t *testing.T) {
@@ -1672,7 +2227,8 @@ func TestStorageAddRowsForVariousDataPatternsConcurrently(t *testing.T) {
 }
 
 // testStorageVariousDataPatternsConcurrently tests different concurrency use
-// cases when ingesting data of different patterns.
+// cases when ingesting data of different patterns. Each concurrency use case
+// considered with and without the per-day index.
 //
 // The function is intended to be used by other tests that define which
 // operation (AddRows or RegisterMetricNames) is tested.
@@ -1681,14 +2237,26 @@ func testStorageVariousDataPatternsConcurrently(t *testing.T, registerOnly bool,
 
 	const concurrency = 4
 
-	t.Run("serial", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, registerOnly, op, 1, false)
+	disablePerDayIndex := false
+	t.Run("perDayIndexes/serial", func(t *testing.T) {
+		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, 1, false)
 	})
-	t.Run("concurrentRows", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, registerOnly, op, concurrency, true)
+	t.Run("perDayIndexes/concurrentRows", func(t *testing.T) {
+		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, concurrency, true)
 	})
-	t.Run("concurrentBatches", func(t *testing.T) {
-		testStorageVariousDataPatterns(t, registerOnly, op, concurrency, false)
+	t.Run("perDayIndexes/concurrentBatches", func(t *testing.T) {
+		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, concurrency, false)
+	})
+
+	disablePerDayIndex = true
+	t.Run("noPerDayIndexes/serial", func(t *testing.T) {
+		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, 1, false)
+	})
+	t.Run("noPerDayIndexes/concurrentRows", func(t *testing.T) {
+		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, concurrency, true)
+	})
+	t.Run("noPerDayIndexes/concurrentBatches", func(t *testing.T) {
+		testStorageVariousDataPatterns(t, disablePerDayIndex, registerOnly, op, concurrency, false)
 	})
 }
 
@@ -1696,12 +2264,14 @@ func testStorageVariousDataPatternsConcurrently(t *testing.T, registerOnly bool,
 // of metric names and dates.
 //
 // The function is intended to be used by other tests that define the
-// concurrency and the operation (AddRows or RegisterMetricNames) under test.
-func testStorageVariousDataPatterns(t *testing.T, registerOnly bool, op func(s *Storage, mrs []MetricRow), concurrency int, splitBatches bool) {
+// concurrency, the per-day index setting, and the operation (AddRows or
+// RegisterMetricNames) under test.
+func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndex, registerOnly bool, op func(s *Storage, mrs []MetricRow), concurrency int, splitBatches bool) {
 	f := func(t *testing.T, sameBatchMetricNames, sameRowMetricNames, sameBatchDates, sameRowDates bool) {
 		batches, wantCounts := testGenerateMetricRowBatches(&batchOptions{
 			numBatches:           4,
 			numRowsPerBatch:      100,
+			disablePerDayIndex:   disablePerDayIndex,
 			registerOnly:         registerOnly,
 			sameBatchMetricNames: sameBatchMetricNames,
 			sameRowMetricNames:   sameRowMetricNames,
@@ -1711,7 +2281,7 @@ func testStorageVariousDataPatterns(t *testing.T, registerOnly bool, op func(s *
 		strict := concurrency == 1
 		rowsAddedTotal := wantCounts.metrics.RowsAddedTotal
 
-		s := MustOpenStorage(t.Name(), 0, 0, 0)
+		s := MustOpenStorage(t.Name(), 0, 0, 0, disablePerDayIndex)
 
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()
@@ -1977,6 +2547,7 @@ func assertCounts(t *testing.T, s *Storage, want *counts, strict bool) {
 type batchOptions struct {
 	numBatches           int
 	numRowsPerBatch      int
+	disablePerDayIndex   bool
 	registerOnly         bool
 	sameBatchMetricNames bool
 	sameRowMetricNames   bool
@@ -2048,6 +2619,7 @@ func testGenerateMetricRowBatches(opts *batchOptions) ([][]MetricRow, *counts) {
 
 	allTimeseries := len(names)
 	rowsAddedTotal := uint64(opts.numBatches * opts.numRowsPerBatch)
+
 	// When RegisterMetricNames() is called it only restisters the time series
 	// in IndexDB but no samples is written to the storage.
 	if opts.registerOnly {
@@ -2062,7 +2634,12 @@ func testGenerateMetricRowBatches(opts *batchOptions) ([][]MetricRow, *counts) {
 		dateTSDBStatuses: make(map[uint64]*TSDBStatus),
 	}
 	for tr, names := range trNames {
-		count := len(names)
+		var count int
+		if opts.disablePerDayIndex {
+			count = allTimeseries
+		} else {
+			count = len(names)
+		}
 		date := uint64(tr.MinTimestamp / msecPerDay)
 		want.timeRangeCounts[tr] = count
 		want.dateTSDBStatuses[date] = &TSDBStatus{
