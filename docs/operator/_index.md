@@ -1,12 +1,10 @@
 ---
 weight: 0
-title: Operator
-<<<<<<< Updated upstream
+title: Kubernetes Operator
 menu:
   docs:
     weight: 0
-=======
->>>>>>> Stashed changes
+    identifier: operator
 aliases:
   - /operator/
   - /operator/index.html
