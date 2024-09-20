@@ -243,12 +243,24 @@ type groupWatcher struct {
 	noAPIWatchers bool
 }
 
-func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) *groupWatcher {
+var (
+	httpClientsCache = make(map[string]*http.Client)
+	httpClientsLock  sync.Mutex
+)
+
+func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
+	key := fmt.Sprintf("authConfig=%s, proxyURL=%s", ac.String(), proxyURL)
+	httpClientsLock.Lock()
+	if c, ok := httpClientsCache[key]; ok {
+		httpClientsLock.Unlock()
+		return c
+	}
+
 	var proxy func(*http.Request) (*url.URL, error)
 	if proxyURL != nil {
 		proxy = http.ProxyURL(proxyURL)
 	}
-	client := &http.Client{
+	c := &http.Client{
 		Transport: ac.NewRoundTripper(&http.Transport{
 			Proxy:               proxy,
 			TLSHandshakeTimeout: 10 * time.Second,
@@ -257,6 +269,13 @@ func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string,
 		}),
 		Timeout: *apiServerTimeout,
 	}
+	httpClientsCache[key] = c
+	httpClientsLock.Unlock()
+	return c
+}
+
+func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) *groupWatcher {
+	client := getHTTPClient(ac, proxyURL)
 	ctx, cancel := context.WithCancel(context.Background())
 	gw := &groupWatcher{
 		apiServer:          apiServer,
