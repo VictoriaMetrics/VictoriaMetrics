@@ -2862,21 +2862,20 @@ var indexDBTableIdx = func() *atomic.Uint64 {
 	return &x
 }()
 
-// shouldDeleteMissingMetricID checks if metricID index entry is missing
+// wasMetricIDMissingBefore checks if passed metricID was already registered as missing before.
+// It returns true if metricID was registered as missing for more than 60s.
 //
-// Broken index entry should be deleted by caller
+// This function is called when storage can't find TSID for corresponding metricID.
 // There are the following expected cases when this may happen:
-//
 //  1. The corresponding metricID -> metricName/tsid entry isn't visible for search yet.
 //     The solution is to wait for some time and try the search again.
 //     It is OK if newly registered time series isn't visible for search during some time.
 //     This should resolve https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959
-//
 //  2. The metricID -> metricName/tsid entry doesn't exist in the indexdb.
 //     This is possible after unclean shutdown or after restoring of indexdb from a snapshot.
 //     In this case the metricID must be deleted, so new metricID is registered
 //     again when new sample for the given metric is ingested next time.
-func (s *Storage) shouldDeleteMissingMetricID(metricID uint64) bool {
+func (s *Storage) wasMetricIDMissingBefore(metricID uint64) bool {
 	ct := fasttime.UnixTimestamp()
 	s.missingMetricIDsLock.Lock()
 	defer s.missingMetricIDsLock.Unlock()
@@ -2893,11 +2892,5 @@ func (s *Storage) shouldDeleteMissingMetricID(metricID uint64) bool {
 		deleteDeadline = ct + 60
 		s.missingMetricIDs[metricID] = deleteDeadline
 	}
-	// Cannot find index entry for the given metricID for the last 60 seconds.
-	// It is likely the indexDB contains incomplete set of metricID -> metricName/tsid entries
-	// after unclean shutdown or after restoring from a snapshot.
-	// Mark the metricID as deleted, so it is created again when new sample
-	// for the given time series is ingested next time.
-
 	return ct > deleteDeadline
 }

@@ -1670,7 +1670,7 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64, accoun
 		return dst, true
 	}
 
-	if db.s.shouldDeleteMissingMetricID(metricID) {
+	if db.s.wasMetricIDMissingBefore(metricID) {
 		// Cannot find the MetricName for the given metricID for the last 60 seconds.
 		// It is likely the indexDB contains incomplete set of metricID -> metricName entries
 		// after unclean shutdown or after restoring from a snapshot.
@@ -1953,9 +1953,10 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, accountID, proj
 				if !is.getTSIDByMetricID(tsid, metricID) {
 					// Cannot find TSID for the given metricID.
 					// This may be the case on incomplete indexDB
-					// due to snapshot or due to unflushed entries.
-					// Just increment errors counter and skip it for now.
-					if is.db.s.shouldDeleteMissingMetricID(metricID) {
+					// due to snapshot or due to un-flushed entries.
+					// Mark the metricID as deleted, so it is created again when new sample
+					// for the given time series is ingested next time.
+					if is.db.s.wasMetricIDMissingBefore(metricID) {
 						is.db.missingTSIDsForMetricID.Add(1)
 						metricIDsToDelete = append(metricIDsToDelete, metricID)
 					}
