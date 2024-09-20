@@ -64,6 +64,54 @@ func TestMarshalUnmarshalMetricIDs(t *testing.T) {
 	f([]uint64{1, 2, 3, 4, 5, 6, 8989898, 823849234, 1<<64 - 1, 1<<32 - 1, 0})
 }
 
+func TestTagFiltersToMetricIDsCache(t *testing.T) {
+	f := func(want []uint64) {
+		t.Helper()
+
+		path := t.Name()
+		defer fs.MustRemoveAll(path)
+
+		s := MustOpenStorage(path, 0, 0, 0)
+		defer s.MustClose()
+
+		idb := s.idb()
+		key := []byte("key")
+		idb.putMetricIDsToTagFiltersCache(nil, want, key)
+		got, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
+		if !ok {
+			t.Fatalf("expected metricIDs to be found in cache but they weren't: %v", want)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("unexpected metricIDs in cache: got %v, want %v", got, want)
+		}
+	}
+
+	f([]uint64{0})
+	f([]uint64{1})
+	f([]uint64{1234, 678932943, 843289893843})
+	f([]uint64{1, 2, 3, 4, 5, 6, 8989898, 823849234, 1<<64 - 1, 1<<32 - 1, 0})
+}
+
+func TestTagFiltersToMetricIDsCache_EmptyMetricIDList(t *testing.T) {
+	path := t.Name()
+	defer fs.MustRemoveAll(path)
+	s := MustOpenStorage(path, 0, 0, 0)
+	defer s.MustClose()
+	idb := s.idb()
+
+	key := []byte("key")
+	emptyMetricIDs := []uint64(nil)
+	idb.putMetricIDsToTagFiltersCache(nil, emptyMetricIDs, key)
+	got, ok := idb.getMetricIDsFromTagFiltersCache(nil, key)
+	if !ok {
+		t.Fatalf("expected empty metricID list to be found in cache but it wasn't")
+	}
+	if len(got) > 0 {
+		t.Fatalf("unexpected found metricID list to be empty but got %v", got)
+	}
+
+}
+
 func TestMergeSortedMetricIDs(t *testing.T) {
 	f := func(a, b []uint64) {
 		t.Helper()
