@@ -91,6 +91,14 @@ type indexDB struct {
 	// The db must be automatically recovered after that.
 	missingMetricNamesForMetricID atomic.Uint64
 
+	// minMissingTimestamp is the minimum timestamp, which is missing in the given indexDB.
+	//
+	// This field is used at containsTimeRange() function only for the previous indexDB,
+	// since this indexDB is readonly.
+	// This field cannot be used for the current indexDB, since it may receive data
+	// with bigger timestamps at any time.
+	minMissingTimestamp atomic.Int64
+
 	// generation identifies the index generation ID
 	// and is used for syncing items from different indexDBs
 	generation uint64
@@ -258,19 +266,28 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	})
 }
 
-func (db *indexDB) doExtDB(f func(extDB *indexDB)) bool {
+// doExtDB calls f for non-nil db.extDB.
+//
+// f isn't called if db.extDB is nil.
+func (db *indexDB) doExtDB(f func(extDB *indexDB)) {
 	db.extDBLock.Lock()
 	extDB := db.extDB
 	if extDB != nil {
 		extDB.incRef()
 	}
 	db.extDBLock.Unlock()
-	if extDB == nil {
-		return false
+	if extDB != nil {
+		f(extDB)
+		extDB.decRef()
 	}
-	f(extDB)
-	extDB.decRef()
-	return true
+}
+
+// hasExtDB returns true if db.extDB != nil
+func (db *indexDB) hasExtDB() bool {
+	db.extDBLock.Lock()
+	ok := db.extDB != nil
+	db.extDBLock.Unlock()
+	return ok
 }
 
 // SetExtDB sets external db to search.
@@ -1516,7 +1533,7 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64) ([]byt
 	}
 
 	// Try searching in the external indexDB.
-	if db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		is := extDB.getIndexSearch(noDeadline)
 		dst, ok = is.searchMetricName(dst, metricID)
 		extDB.putIndexSearch(is)
@@ -1525,40 +1542,12 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64) ([]byt
 			// since the filtering must be performed before calling this func.
 			extDB.putMetricNameToCache(metricID, dst)
 		}
-	}) && ok {
+	})
+	if ok {
 		return dst, true
 	}
 
-	// Cannot find the MetricName for the given metricID.
-	// There are the following expected cases when this may happen:
-	//
-	// 1. The corresponding metricID -> metricName entry isn't visible for search yet.
-	//    The solution is to wait for some time and try the search again.
-	//    It is OK if newly registered time series isn't visible for search during some time.
-	//    This should resolve https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959
-	//
-	// 2. The metricID -> metricName entry doesn't exist in the indexdb.
-	//    This is possible after unclean shutdown or after restoring of indexdb from a snapshot.
-	//    In this case the metricID must be deleted, so new metricID is registered
-	//    again when new sample for the given metricName is ingested next time.
-	//
-	ct := fasttime.UnixTimestamp()
-	db.s.missingMetricIDsLock.Lock()
-	if ct > db.s.missingMetricIDsResetDeadline {
-		db.s.missingMetricIDs = nil
-		db.s.missingMetricIDsResetDeadline = ct + 2*60
-	}
-	deleteDeadline, ok := db.s.missingMetricIDs[metricID]
-	if !ok {
-		if db.s.missingMetricIDs == nil {
-			db.s.missingMetricIDs = make(map[uint64]uint64)
-		}
-		deleteDeadline = ct + 60
-		db.s.missingMetricIDs[metricID] = deleteDeadline
-	}
-	db.s.missingMetricIDsLock.Unlock()
-
-	if ct > deleteDeadline {
+	if db.s.wasMetricIDMissingBefore(metricID) {
 		// Cannot find the MetricName for the given metricID for the last 60 seconds.
 		// It is likely the indexDB contains incomplete set of metricID -> metricName entries
 		// after unclean shutdown or after restoring from a snapshot.
@@ -1821,6 +1810,7 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 	tsidsFound := i
 	qt.Printf("found %d tsids for %d metricIDs in the current indexdb", tsidsFound, len(metricIDs))
 
+	var metricIDsToDelete []uint64
 	if len(extMetricIDs) > 0 {
 		// Search for extMetricIDs in the previous indexdb (aka extDB)
 		db.doExtDB(func(extDB *indexDB) {
@@ -1838,9 +1828,13 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 				if !is.getTSIDByMetricID(tsid, metricID) {
 					// Cannot find TSID for the given metricID.
 					// This may be the case on incomplete indexDB
-					// due to snapshot or due to unflushed entries.
-					// Just increment errors counter and skip it for now.
-					is.db.missingTSIDsForMetricID.Add(1)
+					// due to snapshot or due to un-flushed entries.
+					// Mark the metricID as deleted, so it is created again when new sample
+					// for the given time series is ingested next time.
+					if is.db.s.wasMetricIDMissingBefore(metricID) {
+						is.db.missingTSIDsForMetricID.Add(1)
+						metricIDsToDelete = append(metricIDsToDelete, metricID)
+					}
 					continue
 				}
 				is.db.putToMetricIDCache(metricID, tsid)
@@ -1855,6 +1849,10 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 
 	tsids = tsids[:i]
 	qt.Printf("load %d tsids for %d metricIDs from both current and previous indexdb", len(tsids), len(metricIDs))
+
+	if len(metricIDsToDelete) > 0 {
+		db.deleteMetricIDs(metricIDsToDelete)
+	}
 
 	// Sort the found tsids, since they must be passed to TSID search
 	// in the sorted order.
@@ -1933,13 +1931,37 @@ func (is *indexSearch) searchMetricName(dst []byte, metricID uint64) ([]byte, bo
 	return dst, true
 }
 
-func (is *indexSearch) containsTimeRange(tr TimeRange) (bool, error) {
+func (is *indexSearch) containsTimeRange(tr TimeRange) bool {
+	db := is.db
+
+	if db.hasExtDB() {
+		// The db corresponds to the current indexDB, which is used for storing index data for newly registered time series.
+		// This means that it may contain data for the given tr with probability close to 100%.
+		return true
+	}
+
+	// The db corresponds to the previous indexDB, which is readonly.
+	// So it is safe caching the minimum timestamp, which isn't covered by the db.
+	minMissingTimestamp := db.minMissingTimestamp.Load()
+	if minMissingTimestamp != 0 && tr.MinTimestamp >= minMissingTimestamp {
+		return false
+	}
+
+	if is.containsTimeRangeSlow(tr) {
+		return true
+	}
+
+	db.minMissingTimestamp.CompareAndSwap(minMissingTimestamp, tr.MinTimestamp)
+	return false
+}
+
+func (is *indexSearch) containsTimeRangeSlow(tr TimeRange) bool {
 	ts := &is.ts
 	kb := &is.kb
 
 	// Verify whether the tr.MinTimestamp is included into `ts` or is smaller than the minimum date stored in `ts`.
 	// Do not check whether tr.MaxTimestamp is included into `ts` or is bigger than the max date stored in `ts` for performance reasons.
-	// This means that containsTimeRange() can return true if `tr` is located below the min date stored in `ts`.
+	// This means that containsTimeRangeSlow() can return true if `tr` is located below the min date stored in `ts`.
 	// This is OK, since this case isn't encountered too much in practice.
 	// The main practical case allows skipping searching in prev indexdb (`ts`) when `tr`
 	// is located above the max date stored there.
@@ -1950,15 +1972,15 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) (bool, error) {
 	ts.Seek(kb.B)
 	if !ts.NextItem() {
 		if err := ts.Error(); err != nil {
-			return false, fmt.Errorf("error when searching for minDate=%d, prefix %q: %w", minDate, kb.B, err)
+			logger.Panicf("FATAL: error when searching for minDate=%d, prefix %q: %w", minDate, kb.B, err)
 		}
-		return false, nil
+		return false
 	}
 	if !bytes.HasPrefix(ts.Item, prefix) {
 		// minDate exceeds max date from ts.
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (is *indexSearch) getTSIDByMetricID(dst *TSID, metricID uint64) bool {
@@ -2254,11 +2276,7 @@ func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*T
 
 	metricIDs := &uint64set.Set{}
 
-	ok, err := is.containsTimeRange(tr)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
+	if !is.containsTimeRange(tr) {
 		qt.Printf("indexdb doesn't contain data for the given timeRange=%s", &tr)
 		return metricIDs, nil
 	}
@@ -3324,8 +3342,10 @@ func mergeTagToMetricIDsRowsInternal(data []byte, items []mergeset.Item, nsPrefi
 	return dstData, dstItems
 }
 
-var indexBlocksWithMetricIDsIncorrectOrder atomic.Uint64
-var indexBlocksWithMetricIDsProcessed atomic.Uint64
+var (
+	indexBlocksWithMetricIDsIncorrectOrder atomic.Uint64
+	indexBlocksWithMetricIDsProcessed      atomic.Uint64
+)
 
 func checkItemsSorted(data []byte, items []mergeset.Item) bool {
 	if len(items) == 0 {

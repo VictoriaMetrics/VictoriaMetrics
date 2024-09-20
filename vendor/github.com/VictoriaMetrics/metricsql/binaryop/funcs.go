@@ -107,3 +107,19 @@ func Ifnot(left, right float64) float64 {
 	}
 	return nan
 }
+
+// And return left if left and right is not NaN. Otherwise, NaN is returned.
+func And(left, right float64) float64 {
+	if math.IsNaN(left) || math.IsNaN(right) {
+		return nan
+	}
+	return left
+}
+
+// Or return the first non-NaN item. If both left and right are NaN, it returns NaN.
+func Or(left, right float64) float64 {
+	if !math.IsNaN(left) {
+		return left
+	}
+	return right
+}

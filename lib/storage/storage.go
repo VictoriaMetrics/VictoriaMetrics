@@ -154,8 +154,9 @@ type Storage struct {
 
 	// missingMetricIDs maps metricID to the deadline in unix timestamp seconds
 	// after which all the indexdb entries for the given metricID
-	// must be deleted if metricName isn't found by the given metricID.
-	// This is used inside searchMetricNameWithCache() for detecting permanently missing metricID->metricName entries.
+	// must be deleted if index entry isn't found by the given metricID.
+	// This is used inside searchMetricNameWithCache() and getTSIDsFromMetricIDs()
+	// for detecting permanently missing metricID->metricName/TSID entries.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959
 	missingMetricIDsLock          sync.Mutex
 	missingMetricIDs              map[uint64]uint64
@@ -388,11 +389,11 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	dirsToRemoveOnError = append(dirsToRemoveOnError, idbSnapshot)
 
 	var err error
-	ok := idb.doExtDB(func(extDB *indexDB) {
+	idb.doExtDB(func(extDB *indexDB) {
 		prevSnapshot := filepath.Join(idbSnapshot, extDB.name)
 		err = extDB.tb.CreateSnapshotAt(prevSnapshot)
 	})
-	if ok && err != nil {
+	if err != nil {
 		return "", fmt.Errorf("cannot create prev indexDB snapshot: %w", err)
 	}
 	dstIdbDir := filepath.Join(dstDir, indexdbDirname)
@@ -2709,3 +2710,36 @@ var indexDBTableIdx = func() *atomic.Uint64 {
 	x.Store(uint64(time.Now().UnixNano()))
 	return &x
 }()
+
+// wasMetricIDMissingBefore checks if passed metricID was already registered as missing before.
+// It returns true if metricID was registered as missing for more than 60s.
+//
+// This function is called when storage can't find TSID for corresponding metricID.
+// There are the following expected cases when this may happen:
+//  1. The corresponding metricID -> metricName/tsid entry isn't visible for search yet.
+//     The solution is to wait for some time and try the search again.
+//     It is OK if newly registered time series isn't visible for search during some time.
+//     This should resolve https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959
+//  2. The metricID -> metricName/tsid entry doesn't exist in the indexdb.
+//     This is possible after unclean shutdown or after restoring of indexdb from a snapshot.
+//     In this case the metricID must be deleted, so new metricID is registered
+//     again when new sample for the given metric is ingested next time.
+func (s *Storage) wasMetricIDMissingBefore(metricID uint64) bool {
+	ct := fasttime.UnixTimestamp()
+	s.missingMetricIDsLock.Lock()
+	defer s.missingMetricIDsLock.Unlock()
+
+	if ct > s.missingMetricIDsResetDeadline {
+		s.missingMetricIDs = nil
+		s.missingMetricIDsResetDeadline = ct + 2*60
+	}
+	deleteDeadline, ok := s.missingMetricIDs[metricID]
+	if !ok {
+		if s.missingMetricIDs == nil {
+			s.missingMetricIDs = make(map[uint64]uint64)
+		}
+		deleteDeadline = ct + 60
+		s.missingMetricIDs[metricID] = deleteDeadline
+	}
+	return ct > deleteDeadline
+}
