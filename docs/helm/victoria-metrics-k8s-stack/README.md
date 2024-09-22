@@ -24,7 +24,7 @@ To enable metrics collection for kubernetes this chart installs multiple scrape 
 
 This chart also installs bunch of dashboards and recording rules from [kube-prometheus](https://github.com/prometheus-operator/kube-prometheus) project.
 
-![Overview](img/k8s-stack-overview.png)
+![Overview](img/k8s-stack-overview.webp)
 
 ## Configuration
 
@@ -388,28 +388,31 @@ The following tables lists the configurable parameters of the chart and their de
 
 Change the values according to the need of the environment in ``victoria-metrics-k8s-stack/values.yaml`` file.
 
-<table>
+<table class="helm-vars">
   <thead>
-    <th>Key</th>
-    <th>Type</th>
-    <th>Default</th>
-    <th>Description</th>
+    <th class="helm-vars-key">Key</th>
+    <th class="helm-vars-type">Type</th>
+    <th class="helm-vars-default">Default</th>
+    <th class="helm-vars-description">Description</th>
   </thead>
   <tbody>
     <tr>
       <td>additionalVictoriaMetricsMap</td>
       <td>string</td>
-      <td><pre lang="">
-null
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">null
+</code>
 </pre>
 </td>
-      <td></td>
+      <td><p>Provide custom recording or alerting rules to be deployed into the cluster.</p>
+</td>
     </tr>
     <tr>
       <td>alertmanager.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
@@ -417,23 +420,25 @@ null
     <tr>
       <td>alertmanager.config</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-receivers:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">receivers:
     - name: blackhole
 route:
     receiver: blackhole
 templates:
     - /etc/vm/configs/**/*.tmpl
+</code>
 </pre>
 </td>
-      <td><p>alertmanager configuration</p>
+      <td><p>Alertmanager configuration</p>
 </td>
     </tr>
     <tr>
       <td>alertmanager.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -441,8 +446,8 @@ true
     <tr>
       <td>alertmanager.ingress</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-annotations: {}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">annotations: {}
 enabled: false
 extraPaths: []
 hosts:
@@ -451,16 +456,29 @@ labels: {}
 path: '{{ .Values.alertmanager.spec.routePrefix | default "/" }}'
 pathType: Prefix
 tls: []
+</code>
 </pre>
 </td>
-      <td><p>alertmanager ingress configuration</p>
+      <td><p>Alertmanager ingress configuration</p>
+</td>
+    </tr>
+    <tr>
+      <td>alertmanager.ingress.extraPaths</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Extra paths to prepend to every host configuration. This is useful when working with annotation based services.</p>
 </td>
     </tr>
     <tr>
       <td>alertmanager.monzoTemplate.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -468,44 +486,48 @@ true
     <tr>
       <td>alertmanager.spec</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-configSecret: ""
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">configSecret: ""
 externalURL: ""
 image:
     tag: v0.25.0
 port: "9093"
 routePrefix: /
 selectAllByDefault: true
+</code>
 </pre>
 </td>
-      <td><p>full spec for VMAlertmanager CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmalertmanagerspec" target="_blank">here</a></p>
+      <td><p>Full spec for VMAlertmanager CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmalertmanagerspec" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
       <td>alertmanager.spec.configSecret</td>
       <td>string</td>
-      <td><pre lang="">
-""
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
 </pre>
 </td>
-      <td><p>if this one defined, it will be used for alertmanager configuration and config parameter will be ignored</p>
+      <td><p>If this one defined, it will be used for alertmanager configuration and config parameter will be ignored</p>
 </td>
     </tr>
     <tr>
       <td>alertmanager.templateFiles</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
-      <td><p>extra alert templates</p>
+      <td><p>Extra alert templates</p>
 </td>
     </tr>
     <tr>
       <td>argocdReleaseOverride</td>
       <td>string</td>
-      <td><pre lang="">
-""
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
 </pre>
 </td>
       <td><p>For correct working need set value &lsquo;argocdReleaseOverride=$ARGOCD_APP_NAME&rsquo;</p>
@@ -514,8 +536,9 @@ selectAllByDefault: true
     <tr>
       <td>coreDns.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -523,8 +546,9 @@ true
     <tr>
       <td>coreDns.service.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -532,8 +556,9 @@ true
     <tr>
       <td>coreDns.service.port</td>
       <td>int</td>
-      <td><pre lang="">
-9153
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">9153
+</code>
 </pre>
 </td>
       <td></td>
@@ -541,8 +566,9 @@ true
     <tr>
       <td>coreDns.service.selector.k8s-app</td>
       <td>string</td>
-      <td><pre lang="">
-kube-dns
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">kube-dns
+</code>
 </pre>
 </td>
       <td></td>
@@ -550,8 +576,9 @@ kube-dns
     <tr>
       <td>coreDns.service.targetPort</td>
       <td>int</td>
-      <td><pre lang="">
-9153
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">9153
+</code>
 </pre>
 </td>
       <td></td>
@@ -559,8 +586,8 @@ kube-dns
     <tr>
       <td>coreDns.vmScrape</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-spec:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">spec:
     endpoints:
         - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
           port: http-metrics
@@ -568,27 +595,31 @@ spec:
     namespaceSelector:
         matchNames:
             - kube-system
+</code>
 </pre>
 </td>
-      <td><p>spec for VMServiceScrape crd <a href="https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec" target="_blank">https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec</a></p>
+      <td><p>Spec for VMServiceScrape CRD is <a href="https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
-      <td>crds.enabled</td>
-      <td>bool</td>
-      <td><pre lang="">
-true
+      <td>crds</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
+</code>
 </pre>
 </td>
-      <td></td>
+      <td><p>Install VM operator CRDs</p>
+</td>
     </tr>
     <tr>
       <td>dashboards</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-node-exporter-full: true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">node-exporter-full: true
 operator: false
 vmalert: false
+</code>
 </pre>
 </td>
       <td><p>Enable dashboards despite it&rsquo;s dependency is not installed</p>
@@ -597,18 +628,20 @@ vmalert: false
     <tr>
       <td>dashboards.node-exporter-full</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
-      <td><p>in ArgoCD using client-side apply this dashboard reaches annotations size limit and causes k8s issues without server side apply See <a href="https://github.com/VictoriaMetrics/helm-charts/tree/disable-node-exporter-dashboard-by-default/charts/victoria-metrics-k8s-stack#metadataannotations-too-long-must-have-at-most-262144-bytes-on-dashboards" target="_blank">this issue</a></p>
+      <td><p>In ArgoCD using client-side apply this dashboard reaches annotations size limit and causes k8s issues without server side apply See <a href="https://github.com/VictoriaMetrics/helm-charts/tree/disable-node-exporter-dashboard-by-default/charts/victoria-metrics-k8s-stack#metadataannotations-too-long-must-have-at-most-262144-bytes-on-dashboards" target="_blank">this issue</a></p>
 </td>
     </tr>
     <tr>
       <td>defaultDashboardsEnabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td><p>Create default dashboards</p>
@@ -617,8 +650,8 @@ true
     <tr>
       <td>defaultRules</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-alerting:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">alerting:
     spec:
         annotations: {}
         labels: {}
@@ -746,6 +779,7 @@ rule:
         labels: {}
 rules: {}
 runbookUrl: https://runbooks.prometheus-operator.dev/runbooks
+</code>
 </pre>
 </td>
       <td><p>Create default rules for monitoring the cluster</p>
@@ -754,10 +788,11 @@ runbookUrl: https://runbooks.prometheus-operator.dev/runbooks
     <tr>
       <td>defaultRules.alerting</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-spec:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">spec:
     annotations: {}
     labels: {}
+</code>
 </pre>
 </td>
       <td><p>Common properties for VMRules alerts</p>
@@ -766,8 +801,9 @@ spec:
     <tr>
       <td>defaultRules.alerting.spec.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td><p>Additional annotations for VMRule alerts</p>
@@ -776,8 +812,9 @@ spec:
     <tr>
       <td>defaultRules.alerting.spec.labels</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td><p>Additional labels for VMRule alerts</p>
@@ -786,8 +823,9 @@ spec:
     <tr>
       <td>defaultRules.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td><p>Annotations for default rules</p>
@@ -796,9 +834,10 @@ spec:
     <tr>
       <td>defaultRules.group</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-spec:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">spec:
     params: {}
+</code>
 </pre>
 </td>
       <td><p>Common properties for VMRule groups</p>
@@ -807,8 +846,9 @@ spec:
     <tr>
       <td>defaultRules.group.spec.params</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td><p>Optional HTTP URL parameters added to each rule request</p>
@@ -817,8 +857,9 @@ spec:
     <tr>
       <td>defaultRules.groups.etcd.rules</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td><p>Common properties for all rules in a group</p>
@@ -827,8 +868,9 @@ spec:
     <tr>
       <td>defaultRules.labels</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td><p>Labels for default rules</p>
@@ -837,10 +879,11 @@ spec:
     <tr>
       <td>defaultRules.recording</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-spec:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">spec:
     annotations: {}
     labels: {}
+</code>
 </pre>
 </td>
       <td><p>Common properties for VMRules recording rules</p>
@@ -849,8 +892,9 @@ spec:
     <tr>
       <td>defaultRules.recording.spec.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td><p>Additional annotations for VMRule recording rules</p>
@@ -859,8 +903,9 @@ spec:
     <tr>
       <td>defaultRules.recording.spec.labels</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td><p>Additional labels for VMRule recording rules</p>
@@ -869,10 +914,11 @@ spec:
     <tr>
       <td>defaultRules.rule</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-spec:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">spec:
     annotations: {}
     labels: {}
+</code>
 </pre>
 </td>
       <td><p>Common properties for all VMRules</p>
@@ -881,8 +927,9 @@ spec:
     <tr>
       <td>defaultRules.rule.spec.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td><p>Additional annotations for all VMRules</p>
@@ -891,8 +938,9 @@ spec:
     <tr>
       <td>defaultRules.rule.spec.labels</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td><p>Additional labels for all VMRules</p>
@@ -901,8 +949,9 @@ spec:
     <tr>
       <td>defaultRules.rules</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td><p>Per rule properties</p>
@@ -911,8 +960,9 @@ spec:
     <tr>
       <td>defaultRules.runbookUrl</td>
       <td>string</td>
-      <td><pre lang="">
-https://runbooks.prometheus-operator.dev/runbooks
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">https://runbooks.prometheus-operator.dev/runbooks
+</code>
 </pre>
 </td>
       <td><p>Runbook url prefix for default rules</p>
@@ -921,8 +971,9 @@ https://runbooks.prometheus-operator.dev/runbooks
     <tr>
       <td>experimentalDashboardsEnabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td><p>Create experimental dashboards</p>
@@ -931,8 +982,9 @@ true
     <tr>
       <td>externalVM.read.url</td>
       <td>string</td>
-      <td><pre lang="">
-""
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
 </pre>
 </td>
       <td></td>
@@ -940,8 +992,9 @@ true
     <tr>
       <td>externalVM.write.url</td>
       <td>string</td>
-      <td><pre lang="">
-""
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
 </pre>
 </td>
       <td></td>
@@ -949,8 +1002,9 @@ true
     <tr>
       <td>extraObjects</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
       <td><p>Add extra objects dynamically to this chart</p>
@@ -959,8 +1013,9 @@ true
     <tr>
       <td>fullnameOverride</td>
       <td>string</td>
-      <td><pre lang="">
-""
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
 </pre>
 </td>
       <td></td>
@@ -968,8 +1023,9 @@ true
     <tr>
       <td>global.clusterLabel</td>
       <td>string</td>
-      <td><pre lang="">
-cluster
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">cluster
+</code>
 </pre>
 </td>
       <td></td>
@@ -977,8 +1033,9 @@ cluster
     <tr>
       <td>global.license.key</td>
       <td>string</td>
-      <td><pre lang="">
-""
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
 </pre>
 </td>
       <td></td>
@@ -986,267 +1043,142 @@ cluster
     <tr>
       <td>global.license.keyRef</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
+    </tr>
+    <tr>
+      <td>grafana</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">additionalDataSources: []
+defaultDashboardsTimezone: utc
+defaultDatasourceType: prometheus
+enabled: true
+forceDeployDatasource: false
+ingress:
+    annotations: {}
+    enabled: false
+    extraPaths: []
+    hosts:
+        - grafana.domain.com
+    labels: {}
+    path: /
+    pathType: Prefix
+    tls: []
+sidecar:
+    dashboards:
+        additionalDashboardAnnotations: {}
+        additionalDashboardLabels: {}
+        defaultFolderName: default
+        enabled: true
+        folder: /var/lib/grafana/dashboards
+        multicluster: false
+        provider:
+            name: default
+            orgid: 1
+    datasources:
+        createVMReplicasDatasources: false
+        default:
+            - isDefault: true
+              name: VictoriaMetrics
+            - isDefault: false
+              name: VictoriaMetrics (DS)
+              type: victoriametrics-datasource
+        enabled: true
+        initDatasources: true
+vmScrape:
+    enabled: true
+    spec:
+        endpoints:
+            - port: '{{ .Values.grafana.service.portName }}'
+        selector:
+            matchLabels:
+                app.kubernetes.io/name: '{{ include "grafana.name" .Subcharts.grafana }}'
+</code>
+</pre>
+</td>
+      <td><p>Grafana dependency chart configuration. For possible values refer <a href="https://github.com/grafana/helm-charts/tree/main/charts/grafana#configuration" target="_blank">here</a></p>
+</td>
     </tr>
     <tr>
       <td>grafana.additionalDataSources</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.defaultDashboardsTimezone</td>
-      <td>string</td>
-      <td><pre lang="">
-utc
-</pre>
+      <td><p>Configure additional grafana datasources (passed through tpl). Check <a href="http://docs.grafana.org/administration/provisioning/#datasources" target="_blank">here</a> for details</p>
 </td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.defaultDatasourceType</td>
-      <td>string</td>
-      <td><pre lang="">
-prometheus
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.enabled</td>
-      <td>bool</td>
-      <td><pre lang="">
-true
-</pre>
-</td>
-      <td></td>
     </tr>
     <tr>
       <td>grafana.forceDeployDatasource</td>
       <td>bool</td>
-      <td><pre lang="">
-false
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
 </pre>
 </td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.ingress.annotations</td>
-      <td>object</td>
-      <td><pre lang="plaintext">
-{}
-</pre>
+      <td><p>Create datasource configmap even if grafana deployment has been disabled</p>
 </td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.ingress.enabled</td>
-      <td>bool</td>
-      <td><pre lang="">
-false
-</pre>
-</td>
-      <td></td>
     </tr>
     <tr>
       <td>grafana.ingress.extraPaths</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.ingress.hosts[0]</td>
-      <td>string</td>
-      <td><pre lang="">
-grafana.domain.com
-</pre>
+      <td><p>Extra paths to prepend to every host configuration. This is useful when working with annotation based services.</p>
 </td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.ingress.labels</td>
-      <td>object</td>
-      <td><pre lang="plaintext">
-{}
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.ingress.path</td>
-      <td>string</td>
-      <td><pre lang="">
-/
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.ingress.pathType</td>
-      <td>string</td>
-      <td><pre lang="">
-Prefix
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.ingress.tls</td>
-      <td>list</td>
-      <td><pre lang="plaintext">
-[]
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.sidecar.dashboards.additionalDashboardAnnotations</td>
-      <td>object</td>
-      <td><pre lang="plaintext">
-{}
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.sidecar.dashboards.additionalDashboardLabels</td>
-      <td>object</td>
-      <td><pre lang="plaintext">
-{}
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.sidecar.dashboards.defaultFolderName</td>
-      <td>string</td>
-      <td><pre lang="">
-default
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.sidecar.dashboards.enabled</td>
-      <td>bool</td>
-      <td><pre lang="">
-true
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.sidecar.dashboards.folder</td>
-      <td>string</td>
-      <td><pre lang="">
-/var/lib/grafana/dashboards
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.sidecar.dashboards.multicluster</td>
-      <td>bool</td>
-      <td><pre lang="">
-false
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.sidecar.dashboards.provider.name</td>
-      <td>string</td>
-      <td><pre lang="">
-default
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.sidecar.dashboards.provider.orgid</td>
-      <td>int</td>
-      <td><pre lang="">
-1
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.sidecar.datasources.createVMReplicasDatasources</td>
-      <td>bool</td>
-      <td><pre lang="">
-false
-</pre>
-</td>
-      <td></td>
     </tr>
     <tr>
       <td>grafana.sidecar.datasources.default</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-- isDefault: true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">- isDefault: true
   name: VictoriaMetrics
 - isDefault: false
   name: VictoriaMetrics (DS)
   type: victoriametrics-datasource
+</code>
 </pre>
 </td>
-      <td><p>list of default prometheus compatible datasource configurations. VM <code>url</code> will be added to each of them in templates and <code>type</code> will be set to defaultDatasourceType if not defined</p>
+      <td><p>List of default prometheus compatible datasource configurations. VM <code>url</code> will be added to each of them in templates and <code>type</code> will be set to defaultDatasourceType if not defined</p>
 </td>
-    </tr>
-    <tr>
-      <td>grafana.sidecar.datasources.enabled</td>
-      <td>bool</td>
-      <td><pre lang="">
-true
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>grafana.sidecar.datasources.initDatasources</td>
-      <td>bool</td>
-      <td><pre lang="">
-true
-</pre>
-</td>
-      <td></td>
     </tr>
     <tr>
       <td>grafana.vmScrape</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-enabled: true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
 spec:
     endpoints:
         - port: '{{ .Values.grafana.service.portName }}'
     selector:
         matchLabels:
             app.kubernetes.io/name: '{{ include "grafana.name" .Subcharts.grafana }}'
+</code>
 </pre>
 </td>
-      <td><p>grafana VM scrape config</p>
+      <td><p>Grafana VM scrape config</p>
 </td>
     </tr>
     <tr>
       <td>grafana.vmScrape.spec</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-endpoints:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">endpoints:
     - port: '{{ .Values.grafana.service.portName }}'
 selector:
     matchLabels:
         app.kubernetes.io/name: '{{ include "grafana.name" .Subcharts.grafana }}'
+</code>
 </pre>
 </td>
       <td><p><a href="https://docs.victoriametrics.com/operator/api#vmservicescrapespec" target="_blank">Scrape configuration</a> for Grafana</p>
@@ -1255,31 +1187,48 @@ selector:
     <tr>
       <td>grafanaOperatorDashboardsFormat</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-allowCrossNamespaceImport: false
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">allowCrossNamespaceImport: false
 enabled: false
 instanceSelector:
     matchLabels:
         dashboards: grafana
+</code>
 </pre>
 </td>
       <td><p>Create dashboards as CRDs (reuqires grafana-operator to be installed)</p>
 </td>
     </tr>
     <tr>
-      <td>kube-state-metrics.enabled</td>
-      <td>bool</td>
-      <td><pre lang="">
-true
+      <td>kube-state-metrics</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
+vmScrape:
+    enabled: true
+    spec:
+        endpoints:
+            - honorLabels: true
+              metricRelabelConfigs:
+                - action: labeldrop
+                  regex: (uid|container_id|image_id)
+              port: http
+        jobLabel: app.kubernetes.io/name
+        selector:
+            matchLabels:
+                app.kubernetes.io/instance: '{{ include "vm.release" . }}'
+                app.kubernetes.io/name: '{{ include "kube-state-metrics.name" (index .Subcharts "kube-state-metrics") }}'
+</code>
 </pre>
 </td>
-      <td></td>
+      <td><p>kube-state-metrics dependency chart configuration. For possible values check <a href="https://github.com/prometheus-community/helm-charts/blob/main/charts/kube-state-metrics/values.yaml" target="_blank">here</a></p>
+</td>
     </tr>
     <tr>
       <td>kube-state-metrics.vmScrape</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-enabled: true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
 spec:
     endpoints:
         - honorLabels: true
@@ -1292,6 +1241,7 @@ spec:
         matchLabels:
             app.kubernetes.io/instance: '{{ include "vm.release" . }}'
             app.kubernetes.io/name: '{{ include "kube-state-metrics.name" (index .Subcharts "kube-state-metrics") }}'
+</code>
 </pre>
 </td>
       <td><p><a href="https://docs.victoriametrics.com/operator/api#vmservicescrapespec" target="_blank">Scrape configuration</a> for Kube State Metrics</p>
@@ -1300,8 +1250,9 @@ spec:
     <tr>
       <td>kubeApiServer.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -1309,8 +1260,8 @@ true
     <tr>
       <td>kubeApiServer.vmScrape</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-spec:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">spec:
     endpoints:
         - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
           port: https
@@ -1326,16 +1277,18 @@ spec:
         matchLabels:
             component: apiserver
             provider: kubernetes
+</code>
 </pre>
 </td>
-      <td><p>spec for VMServiceScrape crd <a href="https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec" target="_blank">https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec</a></p>
+      <td><p>Spec for VMServiceScrape CRD is <a href="https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
       <td>kubeControllerManager.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -1343,8 +1296,9 @@ true
     <tr>
       <td>kubeControllerManager.endpoints</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
       <td></td>
@@ -1352,8 +1306,9 @@ true
     <tr>
       <td>kubeControllerManager.service.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -1361,8 +1316,9 @@ true
     <tr>
       <td>kubeControllerManager.service.port</td>
       <td>int</td>
-      <td><pre lang="">
-10257
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">10257
+</code>
 </pre>
 </td>
       <td></td>
@@ -1370,8 +1326,9 @@ true
     <tr>
       <td>kubeControllerManager.service.selector.component</td>
       <td>string</td>
-      <td><pre lang="">
-kube-controller-manager
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">kube-controller-manager
+</code>
 </pre>
 </td>
       <td></td>
@@ -1379,8 +1336,9 @@ kube-controller-manager
     <tr>
       <td>kubeControllerManager.service.targetPort</td>
       <td>int</td>
-      <td><pre lang="">
-10257
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">10257
+</code>
 </pre>
 </td>
       <td></td>
@@ -1388,8 +1346,8 @@ kube-controller-manager
     <tr>
       <td>kubeControllerManager.vmScrape</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-spec:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">spec:
     endpoints:
         - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
           port: http-metrics
@@ -1401,16 +1359,18 @@ spec:
     namespaceSelector:
         matchNames:
             - kube-system
+</code>
 </pre>
 </td>
-      <td><p>spec for VMServiceScrape crd <a href="https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec" target="_blank">https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec</a></p>
+      <td><p>Spec for VMServiceScrape CRD is <a href="https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
       <td>kubeDns.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-false
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
 </pre>
 </td>
       <td></td>
@@ -1418,8 +1378,9 @@ false
     <tr>
       <td>kubeDns.service.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-false
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
 </pre>
 </td>
       <td></td>
@@ -1427,8 +1388,9 @@ false
     <tr>
       <td>kubeDns.service.ports.dnsmasq.port</td>
       <td>int</td>
-      <td><pre lang="">
-10054
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">10054
+</code>
 </pre>
 </td>
       <td></td>
@@ -1436,8 +1398,9 @@ false
     <tr>
       <td>kubeDns.service.ports.dnsmasq.targetPort</td>
       <td>int</td>
-      <td><pre lang="">
-10054
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">10054
+</code>
 </pre>
 </td>
       <td></td>
@@ -1445,8 +1408,9 @@ false
     <tr>
       <td>kubeDns.service.ports.skydns.port</td>
       <td>int</td>
-      <td><pre lang="">
-10055
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">10055
+</code>
 </pre>
 </td>
       <td></td>
@@ -1454,8 +1418,9 @@ false
     <tr>
       <td>kubeDns.service.ports.skydns.targetPort</td>
       <td>int</td>
-      <td><pre lang="">
-10055
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">10055
+</code>
 </pre>
 </td>
       <td></td>
@@ -1463,8 +1428,9 @@ false
     <tr>
       <td>kubeDns.service.selector.k8s-app</td>
       <td>string</td>
-      <td><pre lang="">
-kube-dns
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">kube-dns
+</code>
 </pre>
 </td>
       <td></td>
@@ -1472,8 +1438,8 @@ kube-dns
     <tr>
       <td>kubeDns.vmScrape</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-spec:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">spec:
     endpoints:
         - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
           port: http-metrics-dnsmasq
@@ -1483,16 +1449,18 @@ spec:
     namespaceSelector:
         matchNames:
             - kube-system
+</code>
 </pre>
 </td>
-      <td><p>spec for VMServiceScrape crd <a href="https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec" target="_blank">https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec</a></p>
+      <td><p>Spec for VMServiceScrape CRD is <a href="https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
       <td>kubeEtcd.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -1500,8 +1468,9 @@ true
     <tr>
       <td>kubeEtcd.endpoints</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
       <td></td>
@@ -1509,8 +1478,9 @@ true
     <tr>
       <td>kubeEtcd.service.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -1518,8 +1488,9 @@ true
     <tr>
       <td>kubeEtcd.service.port</td>
       <td>int</td>
-      <td><pre lang="">
-2379
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">2379
+</code>
 </pre>
 </td>
       <td></td>
@@ -1527,8 +1498,9 @@ true
     <tr>
       <td>kubeEtcd.service.selector.component</td>
       <td>string</td>
-      <td><pre lang="">
-etcd
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">etcd
+</code>
 </pre>
 </td>
       <td></td>
@@ -1536,8 +1508,9 @@ etcd
     <tr>
       <td>kubeEtcd.service.targetPort</td>
       <td>int</td>
-      <td><pre lang="">
-2379
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">2379
+</code>
 </pre>
 </td>
       <td></td>
@@ -1545,8 +1518,8 @@ etcd
     <tr>
       <td>kubeEtcd.vmScrape</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-spec:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">spec:
     endpoints:
         - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
           port: http-metrics
@@ -1557,16 +1530,18 @@ spec:
     namespaceSelector:
         matchNames:
             - kube-system
+</code>
 </pre>
 </td>
-      <td><p>spec for VMServiceScrape crd <a href="https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec" target="_blank">https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec</a></p>
+      <td><p>Spec for VMServiceScrape CRD is <a href="https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
       <td>kubeProxy.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-false
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
 </pre>
 </td>
       <td></td>
@@ -1574,8 +1549,9 @@ false
     <tr>
       <td>kubeProxy.endpoints</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
       <td></td>
@@ -1583,8 +1559,9 @@ false
     <tr>
       <td>kubeProxy.service.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -1592,8 +1569,9 @@ true
     <tr>
       <td>kubeProxy.service.port</td>
       <td>int</td>
-      <td><pre lang="">
-10249
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">10249
+</code>
 </pre>
 </td>
       <td></td>
@@ -1601,8 +1579,9 @@ true
     <tr>
       <td>kubeProxy.service.selector.k8s-app</td>
       <td>string</td>
-      <td><pre lang="">
-kube-proxy
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">kube-proxy
+</code>
 </pre>
 </td>
       <td></td>
@@ -1610,8 +1589,9 @@ kube-proxy
     <tr>
       <td>kubeProxy.service.targetPort</td>
       <td>int</td>
-      <td><pre lang="">
-10249
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">10249
+</code>
 </pre>
 </td>
       <td></td>
@@ -1619,8 +1599,8 @@ kube-proxy
     <tr>
       <td>kubeProxy.vmScrape</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-spec:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">spec:
     endpoints:
         - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
           port: http-metrics
@@ -1631,16 +1611,18 @@ spec:
     namespaceSelector:
         matchNames:
             - kube-system
+</code>
 </pre>
 </td>
-      <td><p>spec for VMServiceScrape crd <a href="https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec" target="_blank">https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec</a></p>
+      <td><p>Spec for VMServiceScrape CRD is <a href="https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
       <td>kubeScheduler.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -1648,8 +1630,9 @@ true
     <tr>
       <td>kubeScheduler.endpoints</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
       <td></td>
@@ -1657,8 +1640,9 @@ true
     <tr>
       <td>kubeScheduler.service.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -1666,8 +1650,9 @@ true
     <tr>
       <td>kubeScheduler.service.port</td>
       <td>int</td>
-      <td><pre lang="">
-10259
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">10259
+</code>
 </pre>
 </td>
       <td></td>
@@ -1675,8 +1660,9 @@ true
     <tr>
       <td>kubeScheduler.service.selector.component</td>
       <td>string</td>
-      <td><pre lang="">
-kube-scheduler
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">kube-scheduler
+</code>
 </pre>
 </td>
       <td></td>
@@ -1684,8 +1670,9 @@ kube-scheduler
     <tr>
       <td>kubeScheduler.service.targetPort</td>
       <td>int</td>
-      <td><pre lang="">
-10259
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">10259
+</code>
 </pre>
 </td>
       <td></td>
@@ -1693,8 +1680,8 @@ kube-scheduler
     <tr>
       <td>kubeScheduler.vmScrape</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-spec:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">spec:
     endpoints:
         - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
           port: http-metrics
@@ -1705,25 +1692,68 @@ spec:
     namespaceSelector:
         matchNames:
             - kube-system
+</code>
 </pre>
 </td>
-      <td><p>spec for VMServiceScrape crd <a href="https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec" target="_blank">https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec</a></p>
+      <td><p>Spec for VMServiceScrape CRD is <a href="https://docs.victoriametrics.com/operator/api.html#vmservicescrapespec" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
-      <td>kubelet.enabled</td>
-      <td>bool</td>
-      <td><pre lang="">
-true
+      <td>kubelet</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
+vmScrape:
+    kind: VMNodeScrape
+    spec:
+        bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+        honorLabels: true
+        honorTimestamps: false
+        interval: 30s
+        metricRelabelConfigs:
+            - action: labeldrop
+              regex: (uid)
+            - action: labeldrop
+              regex: (id|name)
+            - action: drop
+              regex: (rest_client_request_duration_seconds_bucket|rest_client_request_duration_seconds_sum|rest_client_request_duration_seconds_count)
+              source_labels:
+                - __name__
+        relabelConfigs:
+            - action: labelmap
+              regex: __meta_kubernetes_node_label_(.+)
+            - sourceLabels:
+                - __metrics_path__
+              targetLabel: metrics_path
+            - replacement: kubelet
+              targetLabel: job
+        scheme: https
+        scrapeTimeout: 5s
+        tlsConfig:
+            caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            insecureSkipVerify: true
+vmScrapes:
+    cadvisor:
+        enabled: true
+        spec:
+            path: /metrics/cadvisor
+    kubelet:
+        spec: {}
+    probes:
+        enabled: true
+        spec:
+            path: /metrics/probes
+</code>
 </pre>
 </td>
-      <td></td>
+      <td><p>Component scraping the kubelets</p>
+</td>
     </tr>
     <tr>
       <td>kubelet.vmScrape</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-kind: VMNodeScrape
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">kind: VMNodeScrape
 spec:
     bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
     honorLabels: true
@@ -1751,39 +1781,33 @@ spec:
     tlsConfig:
         caFile: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
         insecureSkipVerify: true
+</code>
 </pre>
 </td>
-      <td><p>spec for VMNodeScrape crd <a href="https://docs.victoriametrics.com/operator/api.html#vmnodescrapespec" target="_blank">https://docs.victoriametrics.com/operator/api.html#vmnodescrapespec</a></p>
+      <td><p>Spec for VMNodeScrape CRD is <a href="https://docs.victoriametrics.com/operator/api.html#vmnodescrapespec" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
       <td>kubelet.vmScrapes.cadvisor</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-enabled: true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
 spec:
     path: /metrics/cadvisor
+</code>
 </pre>
 </td>
       <td><p>Enable scraping /metrics/cadvisor from kubelet&rsquo;s service</p>
 </td>
     </tr>
     <tr>
-      <td>kubelet.vmScrapes.kubelet.spec</td>
-      <td>object</td>
-      <td><pre lang="plaintext">
-{}
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
       <td>kubelet.vmScrapes.probes</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-enabled: true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
 spec:
     path: /metrics/probes
+</code>
 </pre>
 </td>
       <td><p>Enable scraping /metrics/probes from kubelet&rsquo;s service</p>
@@ -1792,53 +1816,49 @@ spec:
     <tr>
       <td>nameOverride</td>
       <td>string</td>
-      <td><pre lang="">
-""
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
 </pre>
 </td>
       <td></td>
     </tr>
     <tr>
-      <td>prometheus-node-exporter.enabled</td>
-      <td>bool</td>
-      <td><pre lang="">
-true
+      <td>prometheus-node-exporter</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
+extraArgs:
+    - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/.+)($|/)
+    - --collector.filesystem.ignored-fs-types=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$
+service:
+    labels:
+        jobLabel: node-exporter
+vmScrape:
+    enabled: true
+    spec:
+        endpoints:
+            - metricRelabelConfigs:
+                - action: drop
+                  regex: /var/lib/kubelet/pods.+
+                  source_labels:
+                    - mountpoint
+              port: metrics
+        jobLabel: jobLabel
+        selector:
+            matchLabels:
+                app.kubernetes.io/name: '{{ include "prometheus-node-exporter.name" (index .Subcharts "prometheus-node-exporter") }}'
+</code>
 </pre>
 </td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>prometheus-node-exporter.extraArgs[0]</td>
-      <td>string</td>
-      <td><pre lang="">
---collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/.+)($|/)
-</pre>
+      <td><p>prometheus-node-exporter dependency chart configuration. For possible values check <a href="https://github.com/prometheus-community/helm-charts/blob/main/charts/prometheus-node-exporter/values.yaml" target="_blank">here</a></p>
 </td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>prometheus-node-exporter.extraArgs[1]</td>
-      <td>string</td>
-      <td><pre lang="">
---collector.filesystem.ignored-fs-types=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$
-</pre>
-</td>
-      <td></td>
-    </tr>
-    <tr>
-      <td>prometheus-node-exporter.service.labels.jobLabel</td>
-      <td>string</td>
-      <td><pre lang="">
-node-exporter
-</pre>
-</td>
-      <td></td>
     </tr>
     <tr>
       <td>prometheus-node-exporter.vmScrape</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-enabled: true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
 spec:
     endpoints:
         - metricRelabelConfigs:
@@ -1851,16 +1871,17 @@ spec:
     selector:
         matchLabels:
             app.kubernetes.io/name: '{{ include "prometheus-node-exporter.name" (index .Subcharts "prometheus-node-exporter") }}'
+</code>
 </pre>
 </td>
-      <td><p>node exporter VM scrape config</p>
+      <td><p>Node Exporter VM scrape config</p>
 </td>
     </tr>
     <tr>
       <td>prometheus-node-exporter.vmScrape.spec</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-endpoints:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">endpoints:
     - metricRelabelConfigs:
         - action: drop
           regex: /var/lib/kubelet/pods.+
@@ -1871,25 +1892,29 @@ jobLabel: jobLabel
 selector:
     matchLabels:
         app.kubernetes.io/name: '{{ include "prometheus-node-exporter.name" (index .Subcharts "prometheus-node-exporter") }}'
+</code>
 </pre>
 </td>
       <td><p><a href="https://docs.victoriametrics.com/operator/api#vmservicescrapespec" target="_blank">Scrape configuration</a> for Node Exporter</p>
 </td>
     </tr>
     <tr>
-      <td>prometheus-operator-crds.enabled</td>
-      <td>bool</td>
-      <td><pre lang="">
-false
+      <td>prometheus-operator-crds</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: false
+</code>
 </pre>
 </td>
-      <td></td>
+      <td><p>Install prometheus operator CRDs</p>
+</td>
     </tr>
     <tr>
       <td>serviceAccount.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td><p>Annotations to add to the service account</p>
@@ -1898,8 +1923,9 @@ false
     <tr>
       <td>serviceAccount.create</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td><p>Specifies whether a service account should be created</p>
@@ -1908,8 +1934,9 @@ true
     <tr>
       <td>serviceAccount.name</td>
       <td>string</td>
-      <td><pre lang="">
-""
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
 </pre>
 </td>
       <td><p>If not set and create is true, a name is generated using the fullname template</p>
@@ -1918,8 +1945,9 @@ true
     <tr>
       <td>tenant</td>
       <td>string</td>
-      <td><pre lang="">
-"0"
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">"0"
+</code>
 </pre>
 </td>
       <td></td>
@@ -1927,8 +1955,8 @@ true
     <tr>
       <td>victoria-metrics-operator</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-crd:
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">crd:
     cleanup:
         enabled: true
         image:
@@ -1940,39 +1968,43 @@ operator:
     disable_prometheus_converter: false
 serviceMonitor:
     enabled: true
+</code>
 </pre>
 </td>
-      <td><p>also checkout here possible ENV variables to configure operator behaviour <a href="https://docs.victoriametrics.com/operator/vars" target="_blank">https://docs.victoriametrics.com/operator/vars</a></p>
+      <td><p>VictoriaMetrics Operator dependency chart configuration. More values can be found <a href="https://docs.victoriametrics.com/helm/victoriametrics-operator#parameters" target="_blank">here</a>. Also checkout <a href="https://docs.victoriametrics.com/operator/vars" target="_blank">here</a> possible ENV variables to configure operator behaviour</p>
 </td>
     </tr>
     <tr>
       <td>victoria-metrics-operator.crd.cleanup</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-enabled: true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
 image:
     pullPolicy: IfNotPresent
     repository: bitnami/kubectl
+</code>
 </pre>
 </td>
-      <td><p>tells helm to clean up vm cr resources when uninstalling</p>
+      <td><p>Helm delete hook for VM CR cleanup</p>
 </td>
     </tr>
     <tr>
       <td>victoria-metrics-operator.crd.create</td>
       <td>bool</td>
-      <td><pre lang="">
-false
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
 </pre>
 </td>
-      <td><p>we disable crd creation by operator chart as we create them in this chart</p>
+      <td><p>Disable CRD creation by operator chart as it&rsquo;s being created in this chart</p>
 </td>
     </tr>
     <tr>
       <td>victoria-metrics-operator.operator.disable_prometheus_converter</td>
       <td>bool</td>
-      <td><pre lang="">
-false
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
 </pre>
 </td>
       <td><p>By default, operator converts prometheus-operator objects.</p>
@@ -1981,18 +2013,20 @@ false
     <tr>
       <td>vmagent.additionalRemoteWrites</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
-      <td><p>remoteWrite configuration of VMAgent, allowed parameters defined in a <a href="https://docs.victoriametrics.com/operator/api#vmagentremotewritespec" target="_blank">spec</a></p>
+      <td><p>Remote write configuration of VMAgent, allowed parameters defined in a <a href="https://docs.victoriametrics.com/operator/api#vmagentremotewritespec" target="_blank">spec</a></p>
 </td>
     </tr>
     <tr>
       <td>vmagent.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
@@ -2000,8 +2034,9 @@ false
     <tr>
       <td>vmagent.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -2009,8 +2044,8 @@ true
     <tr>
       <td>vmagent.ingress</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-annotations: {}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">annotations: {}
 enabled: false
 extraPaths: []
 hosts:
@@ -2019,26 +2054,17 @@ labels: {}
 path: ""
 pathType: Prefix
 tls: []
+</code>
 </pre>
 </td>
-      <td><p>vmagent ingress configuration</p>
-</td>
-    </tr>
-    <tr>
-      <td>vmagent.ingress.extraPaths</td>
-      <td>list</td>
-      <td><pre lang="plaintext">
-[]
-</pre>
-</td>
-      <td><p>Extra paths to prepend to every host configuration. This is useful when working with annotation based services.</p>
+      <td><p>VMAgent ingress configuration</p>
 </td>
     </tr>
     <tr>
       <td>vmagent.spec</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-externalLabels: {}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">externalLabels: {}
 extraArgs:
     promscrape.dropOriginalLabels: "true"
     promscrape.streamParse: "true"
@@ -2047,25 +2073,29 @@ image:
 port: "8429"
 scrapeInterval: 20s
 selectAllByDefault: true
+</code>
 </pre>
 </td>
-      <td><p>full spec for VMAgent CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmagentspec" target="_blank">here</a></p>
+      <td><p>Full spec for VMAgent CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmagentspec" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
       <td>vmalert.additionalNotifierConfigs</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
-      <td></td>
+      <td><p>allows to configure static notifiers, discover notifiers via Consul and DNS, see specification <a href="https://docs.victoriametrics.com/vmalert/#notifier-configuration-file" target="_blank">here</a>. This configuration will be created as separate secret and mounted to VMAlert pod.</p>
+</td>
     </tr>
     <tr>
       <td>vmalert.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
@@ -2073,8 +2103,9 @@ selectAllByDefault: true
     <tr>
       <td>vmalert.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -2082,8 +2113,8 @@ true
     <tr>
       <td>vmalert.ingress</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-annotations: {}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">annotations: {}
 enabled: false
 extraPaths: []
 hosts:
@@ -2092,16 +2123,29 @@ labels: {}
 path: ""
 pathType: Prefix
 tls: []
+</code>
 </pre>
 </td>
-      <td><p>vmalert ingress config</p>
+      <td><p>VMAlert ingress config</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmalert.ingress.extraPaths</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Extra paths to prepend to every host configuration. This is useful when working with annotation based services.</p>
 </td>
     </tr>
     <tr>
       <td>vmalert.remoteWriteVMAgent</td>
       <td>bool</td>
-      <td><pre lang="">
-false
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
 </pre>
 </td>
       <td></td>
@@ -2109,8 +2153,8 @@ false
     <tr>
       <td>vmalert.spec</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-evaluationInterval: 15s
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">evaluationInterval: 15s
 externalLabels: {}
 extraArgs:
     http.pathPrefix: /
@@ -2118,26 +2162,29 @@ image:
     tag: v1.103.0
 port: "8080"
 selectAllByDefault: true
+</code>
 </pre>
 </td>
-      <td><p>full spec for VMAlert CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmalertspec" target="_blank">here</a></p>
+      <td><p>Full spec for VMAlert CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmalertspec" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
       <td>vmalert.templateFiles</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
-      <td><p>extra vmalert annotation templates</p>
+      <td><p>Extra VMAlert annotation templates</p>
 </td>
     </tr>
     <tr>
       <td>vmauth.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
@@ -2145,8 +2192,9 @@ selectAllByDefault: true
     <tr>
       <td>vmauth.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-false
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
 </pre>
 </td>
       <td></td>
@@ -2154,19 +2202,21 @@ false
     <tr>
       <td>vmauth.spec</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-discover_backend_ips: true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">discover_backend_ips: true
 port: "8427"
+</code>
 </pre>
 </td>
-      <td><p>full spec for VMAuth CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmauthspec" target="_blank">here</a></p>
+      <td><p>Full spec for VMAuth CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmauthspec" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
       <td>vmcluster.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
@@ -2174,8 +2224,9 @@ port: "8427"
     <tr>
       <td>vmcluster.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-false
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
 </pre>
 </td>
       <td></td>
@@ -2183,8 +2234,9 @@ false
     <tr>
       <td>vmcluster.ingress.insert.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
@@ -2192,8 +2244,9 @@ false
     <tr>
       <td>vmcluster.ingress.insert.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-false
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
 </pre>
 </td>
       <td></td>
@@ -2201,17 +2254,20 @@ false
     <tr>
       <td>vmcluster.ingress.insert.extraPaths</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
-      <td></td>
+      <td><p>Extra paths to prepend to every host configuration. This is useful when working with annotation based services.</p>
+</td>
     </tr>
     <tr>
       <td>vmcluster.ingress.insert.hosts[0]</td>
       <td>string</td>
-      <td><pre lang="">
-vminsert.domain.com
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">vminsert.domain.com
+</code>
 </pre>
 </td>
       <td></td>
@@ -2219,8 +2275,9 @@ vminsert.domain.com
     <tr>
       <td>vmcluster.ingress.insert.labels</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
@@ -2228,8 +2285,9 @@ vminsert.domain.com
     <tr>
       <td>vmcluster.ingress.insert.path</td>
       <td>string</td>
-      <td><pre lang="">
-'{{ dig "extraArgs" "http.pathPrefix" "/" .Values.vmcluster.spec.vminsert }}'
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">'{{ dig "extraArgs" "http.pathPrefix" "/" .Values.vmcluster.spec.vminsert }}'
+</code>
 </pre>
 </td>
       <td></td>
@@ -2237,8 +2295,9 @@ vminsert.domain.com
     <tr>
       <td>vmcluster.ingress.insert.pathType</td>
       <td>string</td>
-      <td><pre lang="">
-Prefix
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">Prefix
+</code>
 </pre>
 </td>
       <td></td>
@@ -2246,8 +2305,9 @@ Prefix
     <tr>
       <td>vmcluster.ingress.insert.tls</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
       <td></td>
@@ -2255,8 +2315,9 @@ Prefix
     <tr>
       <td>vmcluster.ingress.select.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
@@ -2264,8 +2325,9 @@ Prefix
     <tr>
       <td>vmcluster.ingress.select.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-false
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
 </pre>
 </td>
       <td></td>
@@ -2273,17 +2335,20 @@ false
     <tr>
       <td>vmcluster.ingress.select.extraPaths</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
-      <td></td>
+      <td><p>Extra paths to prepend to every host configuration. This is useful when working with annotation based services.</p>
+</td>
     </tr>
     <tr>
       <td>vmcluster.ingress.select.hosts[0]</td>
       <td>string</td>
-      <td><pre lang="">
-vmselect.domain.com
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">vmselect.domain.com
+</code>
 </pre>
 </td>
       <td></td>
@@ -2291,8 +2356,9 @@ vmselect.domain.com
     <tr>
       <td>vmcluster.ingress.select.labels</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
@@ -2300,8 +2366,9 @@ vmselect.domain.com
     <tr>
       <td>vmcluster.ingress.select.path</td>
       <td>string</td>
-      <td><pre lang="">
-'{{ dig "extraArgs" "http.pathPrefix" "/" .Values.vmcluster.spec.vmselect }}'
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">'{{ dig "extraArgs" "http.pathPrefix" "/" .Values.vmcluster.spec.vmselect }}'
+</code>
 </pre>
 </td>
       <td></td>
@@ -2309,8 +2376,9 @@ vmselect.domain.com
     <tr>
       <td>vmcluster.ingress.select.pathType</td>
       <td>string</td>
-      <td><pre lang="">
-Prefix
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">Prefix
+</code>
 </pre>
 </td>
       <td></td>
@@ -2318,8 +2386,9 @@ Prefix
     <tr>
       <td>vmcluster.ingress.select.tls</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
       <td></td>
@@ -2327,8 +2396,9 @@ Prefix
     <tr>
       <td>vmcluster.ingress.storage.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
@@ -2336,8 +2406,9 @@ Prefix
     <tr>
       <td>vmcluster.ingress.storage.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-false
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
 </pre>
 </td>
       <td></td>
@@ -2345,17 +2416,20 @@ false
     <tr>
       <td>vmcluster.ingress.storage.extraPaths</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
-      <td></td>
+      <td><p>Extra paths to prepend to every host configuration. This is useful when working with annotation based services.</p>
+</td>
     </tr>
     <tr>
       <td>vmcluster.ingress.storage.hosts[0]</td>
       <td>string</td>
-      <td><pre lang="">
-vmstorage.domain.com
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">vmstorage.domain.com
+</code>
 </pre>
 </td>
       <td></td>
@@ -2363,8 +2437,9 @@ vmstorage.domain.com
     <tr>
       <td>vmcluster.ingress.storage.labels</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
@@ -2372,8 +2447,9 @@ vmstorage.domain.com
     <tr>
       <td>vmcluster.ingress.storage.path</td>
       <td>string</td>
-      <td><pre lang="">
-""
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
 </pre>
 </td>
       <td></td>
@@ -2381,8 +2457,9 @@ vmstorage.domain.com
     <tr>
       <td>vmcluster.ingress.storage.pathType</td>
       <td>string</td>
-      <td><pre lang="">
-Prefix
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">Prefix
+</code>
 </pre>
 </td>
       <td></td>
@@ -2390,8 +2467,9 @@ Prefix
     <tr>
       <td>vmcluster.ingress.storage.tls</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
       <td></td>
@@ -2399,8 +2477,8 @@ Prefix
     <tr>
       <td>vmcluster.spec</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-replicationFactor: 2
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">replicationFactor: 2
 retentionPeriod: "1"
 vminsert:
     extraArgs: {}
@@ -2435,16 +2513,18 @@ vmstorage:
                     requests:
                         storage: 10Gi
     storageDataPath: /vm-data
+</code>
 </pre>
 </td>
-      <td><p>full spec for VMCluster CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmclusterspec" target="_blank">here</a></p>
+      <td><p>Full spec for VMCluster CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmclusterspec" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
       <td>vmcluster.spec.retentionPeriod</td>
       <td>string</td>
-      <td><pre lang="">
-"1"
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">"1"
+</code>
 </pre>
 </td>
       <td><p>Data retention period. Possible units character: h(ours), d(ays), w(eeks), y(ears), if no unit character specified - month. The minimum retention period is 24h. See these <a href="https://docs.victoriametrics.com/single-server-victoriametrics/#retention" target="_blank">docs</a></p>
@@ -2453,8 +2533,9 @@ vmstorage:
     <tr>
       <td>vmsingle.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
@@ -2462,8 +2543,9 @@ vmstorage:
     <tr>
       <td>vmsingle.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-true
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
 </pre>
 </td>
       <td></td>
@@ -2471,8 +2553,9 @@ true
     <tr>
       <td>vmsingle.ingress.annotations</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
@@ -2480,8 +2563,9 @@ true
     <tr>
       <td>vmsingle.ingress.enabled</td>
       <td>bool</td>
-      <td><pre lang="">
-false
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
 </pre>
 </td>
       <td></td>
@@ -2489,17 +2573,20 @@ false
     <tr>
       <td>vmsingle.ingress.extraPaths</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
-      <td></td>
+      <td><p>Extra paths to prepend to every host configuration. This is useful when working with annotation based services.</p>
+</td>
     </tr>
     <tr>
       <td>vmsingle.ingress.hosts[0]</td>
       <td>string</td>
-      <td><pre lang="">
-vmsingle.domain.com
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">vmsingle.domain.com
+</code>
 </pre>
 </td>
       <td></td>
@@ -2507,8 +2594,9 @@ vmsingle.domain.com
     <tr>
       <td>vmsingle.ingress.labels</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-{}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
 </pre>
 </td>
       <td></td>
@@ -2516,8 +2604,9 @@ vmsingle.domain.com
     <tr>
       <td>vmsingle.ingress.path</td>
       <td>string</td>
-      <td><pre lang="">
-""
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
 </pre>
 </td>
       <td></td>
@@ -2525,8 +2614,9 @@ vmsingle.domain.com
     <tr>
       <td>vmsingle.ingress.pathType</td>
       <td>string</td>
-      <td><pre lang="">
-Prefix
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">Prefix
+</code>
 </pre>
 </td>
       <td></td>
@@ -2534,8 +2624,9 @@ Prefix
     <tr>
       <td>vmsingle.ingress.tls</td>
       <td>list</td>
-      <td><pre lang="plaintext">
-[]
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
 </pre>
 </td>
       <td></td>
@@ -2543,8 +2634,8 @@ Prefix
     <tr>
       <td>vmsingle.spec</td>
       <td>object</td>
-      <td><pre lang="plaintext">
-extraArgs: {}
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">extraArgs: {}
 image:
     tag: v1.103.0
 port: "8429"
@@ -2556,16 +2647,18 @@ storage:
     resources:
         requests:
             storage: 20Gi
+</code>
 </pre>
 </td>
-      <td><p>full spec for VMSingle CRD. Allowed values describe <a href="https://docs.victoriametrics.com/operator/api#vmsinglespec" target="_blank">here</a></p>
+      <td><p>Full spec for VMSingle CRD. Allowed values describe <a href="https://docs.victoriametrics.com/operator/api#vmsinglespec" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
       <td>vmsingle.spec.retentionPeriod</td>
       <td>string</td>
-      <td><pre lang="">
-"1"
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">"1"
+</code>
 </pre>
 </td>
       <td><p>Data retention period. Possible units character: h(ours), d(ays), w(eeks), y(ears), if no unit character specified - month. The minimum retention period is 24h. See these <a href="https://docs.victoriametrics.com/single-server-victoriametrics/#retention" target="_blank">docs</a></p>
