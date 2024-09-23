@@ -21,7 +21,7 @@ type serverConn interface {
 
 
 func (w *syslogWriter) basicDialer() (serverConn, error) {
-	c, err := net.Dial(w.sysCfg.syslogConfig.protocol, fmt.Sprintf("%s:%d", w.sysCfg.syslogConfig.remoteHost, w.sysCfg.syslogConfig.port))
+	c, err := net.Dial(w.sysCfg.SyslogConfig.Protocol, fmt.Sprintf("%s:%d", w.sysCfg.SyslogConfig.RemoteHost, w.sysCfg.SyslogConfig.Port))
 	var sc serverConn
 	if err == nil {
 		sc = &netConn{conn: c}
@@ -42,7 +42,7 @@ func (w *syslogWriter) connect() (serverConn, error) {
 
 //Connects to the syslog server and sends the log message
 func (w *syslogWriter) send(logLevel, msg string) (int, error) {
-	priority := (w.sysCfg.syslogConfig.facility << 3) | logLevelMap[logLevel]
+	priority := (w.sysCfg.SyslogConfig.Facility << 3) | logLevelMap[logLevel]
 
 	var err error
 	if w.conn != nil {
@@ -53,6 +53,11 @@ func (w *syslogWriter) send(logLevel, msg string) (int, error) {
 	}
 	//Establishes a new connection with the syslog server
 	_,err = w.connect()
+
+	if err != nil {
+		return 0, err
+	}
+
 	err = w.conn.writeString(w.framer, w.formatter,  priority, w.getHostname(), msg)
 	if err != nil {
 		return 0, err
@@ -61,7 +66,7 @@ func (w *syslogWriter) send(logLevel, msg string) (int, error) {
 }
 
 func (w *syslogWriter) getHostname() string {
-	hostname := w.sysCfg.syslogConfig.hostname
+	hostname := w.sysCfg.SyslogConfig.Hostname
 	if hostname == "" {
 		hostname,_ = os.Hostname()
 	}

@@ -5,44 +5,44 @@ import (
 	"fmt"
 	"os"
 
-	"gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v2"
 	
 	"github.com/VictoriaMetrics/metrics"
 )
 
 
 type config struct {
-	syslogConfig syslogConfig `json:"syslog"`
-	queueConfig queueConfig   `json:"queue_config"`
+	SyslogConfig syslogConfig `yaml:"syslog"`
+	QueueConfig queueConfig   `yaml:"queue_config"`
 }
 
 type queueConfig struct {
-	capacity int64 `json:"capacity,omitempty"`
-	retries  int64 `json:"retries,omitempty"`
+	Capacity int64 `yaml:"capacity,omitempty"`
+	Retries  int64 `yaml:"retries,omitempty"`
 }
 
 type syslogConfig struct {
-	remoteHost  string    `json:"host"`
-	port        int64     `json:"port,omitempty"`
-	hostname    string    `json:"hostname,omitempty"`
-	protocol    string    `json:"protocol,omitempty"`
-	rfcNum      int64     `json:"rfcNum,omitempty"`
-	facility    int64     `json:"facility,omitempty"`
-	basicAuth   basicAuth `json:"basic_auth,omitempty"`
-	tls         tlsConfig `json:"tls,omitempty"`
+	RemoteHost  string    `yaml:"host"`
+	Port        int64     `yaml:"port,omitempty"`
+	Hostname    string    `yaml:"hostname,omitempty"`
+	Protocol    string    `yaml:"protocol,omitempty"`
+	RfcNum      int64     `yaml:"rfcNum,omitempty"`
+	Facility    int64     `yaml:"facility,omitempty"`
+	BasicAuth   basicAuth `yaml:"basic_auth,omitempty"`
+	Tls         tlsConfig `yaml:"tls,omitempty"`
 }
 
 type basicAuth struct {
-	username string `json:"username"`
-	password string `json:"password"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 type tlsConfig struct {
-	ca                 string `json:"ca_file,omitempty"`
-	certFile           string `json:"cert_file,omitempty"`
-	keyfile            string `json:"key_file,omitempty"`
-	serverName         string `json:"server_name,omitempty"`
-	insecureSkipVerify bool   `json:"insecure_skip_verify,omitempty"`
+	Ca                 string `yaml:"ca_file,omitempty"`
+	CertFile           string `yaml:"cert_file,omitempty"`
+	Keyfile            string `yaml:"key_file,omitempty"`
+	ServerName         string `yaml:"server_name,omitempty"`
+	InsecureSkipVerify bool   `yaml:"insecure_skip_verify,omitempty"`
 }
 
 
@@ -78,30 +78,30 @@ func Init() {
 			panic(err)
 		}
 
-		err = yaml.Unmarshal(cfgData, &sysCfg)
+		err = yaml.Unmarshal(cfgData, sysCfg)
 		if err != nil {
 			panic(err)
 		}
-		if sysCfg.queueConfig.capacity == 0 {
-			sysCfg.queueConfig.capacity = DEF_QUEUE_SIZE_VALUE
+		if sysCfg.QueueConfig.Capacity == 0 {
+			sysCfg.QueueConfig.Capacity = DEF_QUEUE_SIZE_VALUE
 		}
 
-		if sysCfg.syslogConfig.port == 0 {
-			sysCfg.syslogConfig.port = DEF_SYSLOG_SERVER_PORT
+		if sysCfg.SyslogConfig.Port == 0 {
+			sysCfg.SyslogConfig.Port = DEF_SYSLOG_SERVER_PORT
 		}
 
-		if sysCfg.syslogConfig.protocol == "" {
-			sysCfg.syslogConfig.protocol = DEF_SYSLOG_PROTOCOL
+		if sysCfg.SyslogConfig.Protocol == "" {
+			sysCfg.SyslogConfig.Protocol = DEF_SYSLOG_PROTOCOL
 		}
-		if sysCfg.syslogConfig.facility == 0 {
-			sysCfg.syslogConfig.facility = DEF_SYSLOG_FACILITY
+		if sysCfg.SyslogConfig.Facility == 0 {
+			sysCfg.SyslogConfig.Facility = DEF_SYSLOG_FACILITY
 		}
 	} else {
 		panic(fmt.Errorf("Syslog is configured but configuration file missing"))
 	}
 
 	// Initializes the buffered channel and the syslog writer 
-	logChan = make(chan SyslogLogContent, sysCfg.queueConfig.capacity)
+	logChan = make(chan SyslogLogContent, sysCfg.QueueConfig.Capacity)
 	syslogW := &syslogWriter{framer: defaultFramer, formatter: defaultFormatter}
 	syslogW.sysCfg = sysCfg
 	

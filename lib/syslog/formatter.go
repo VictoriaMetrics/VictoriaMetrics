@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-//
+// limit to 48 chars as per RFC5424
 const appNameMaxLength = 48
 
 type formatter func(priority int64, hostname, content string) string
