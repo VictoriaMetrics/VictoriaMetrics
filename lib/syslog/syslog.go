@@ -67,8 +67,7 @@ var (
 )
 
 
-//Initializes the buffered channel and the syslog writer
-
+// Init initializes the buffered channel and the syslog writer
 func Init() {
 	sysCfg := &config{}
 
@@ -109,7 +108,7 @@ func Init() {
 	go syslogW.logSender();
 }
 
-//Writes the log data to buffered channel. If the channel is full the oldest log data is dropped 
+// WriteInfo writes the log data to buffered channel. If the channel is full the oldest log data is dropped
 func WriteInfo(s SyslogLogContent) (error) {
 	channelSize := "vm_syslog_queue_size"
 	metrics.GetOrCreateGauge(channelSize, func() float64 {

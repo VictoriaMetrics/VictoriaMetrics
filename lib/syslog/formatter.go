@@ -12,6 +12,7 @@ const appNameMaxLength = 48
 
 type formatter func(priority int64, hostname, content string) string
 
+// truncateStartStr limits the length of string to max characters
 func truncateStartStr(s string, max int) string {
 	if (len(s) > max) {
 		return s[len(s) - max:]
@@ -19,7 +20,7 @@ func truncateStartStr(s string, max int) string {
 	return s
 }
 
-// RFC5424Formatter provides an RFC 5424 compliant message.
+// defaultFormatter provides an RFC 5424 compliant message.
 func defaultFormatter(priority int64, hostname, content string) string {
 	version := 1 
 	timestamp := time.Now().Format(time.RFC3339)
@@ -32,8 +33,8 @@ func defaultFormatter(priority int64, hostname, content string) string {
 		hostname,
 		appName,
 		os.Getpid(),
-		"NIL",
-		"",
+		"-",
+		"-",
 		content)
 
 	return msg

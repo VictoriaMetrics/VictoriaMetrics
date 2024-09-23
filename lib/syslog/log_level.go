@@ -1,6 +1,6 @@
 package syslog
 
-// define the syslog severity
+// defines the syslog severity
 const (
 	EMERG int64 = iota
 	ALERT
