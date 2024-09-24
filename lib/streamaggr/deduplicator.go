@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -17,6 +18,7 @@ import (
 type Deduplicator struct {
 	da *dedupAggr
 
+	stateSize     int
 	dropLabels    []string
 	dedupInterval int64
 
@@ -39,11 +41,12 @@ type Deduplicator struct {
 // alias is url label used in metrics exposed by the returned Deduplicator.
 //
 // MustStop must be called on the returned deduplicator in order to free up occupied resources.
-func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration, dropLabels []string, alias string) *Deduplicator {
+func NewDeduplicator(pushFunc PushFunc, stateSize int, dedupInterval time.Duration, dropLabels []string, alias string) *Deduplicator {
 	d := &Deduplicator{
-		da:            newDedupAggr(),
+		da:            newDedupAggr(stateSize),
 		dropLabels:    dropLabels,
 		dedupInterval: dedupInterval.Milliseconds(),
+		stateSize:     stateSize,
 
 		stopCh: make(chan struct{}),
 		ms:     metrics.NewSet(),
@@ -85,13 +88,13 @@ func (d *Deduplicator) MustStop() {
 
 // Push pushes tss to d.
 func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
-	ctx := getDeduplicatorPushCtx()
+	ctx := getDeduplicatorPushCtx(d.stateSize)
 	pss := ctx.pss
 	labels := &ctx.labels
 	buf := ctx.buf
 
 	dropLabels := d.dropLabels
-	aggrIntervals := int64(aggrStateSize)
+	aggrIntervals := int64(d.stateSize)
 	for _, ts := range tss {
 		if len(dropLabels) > 0 {
 			labels.Labels = dropSeriesLabels(labels.Labels[:0], ts.Labels, dropLabels)
@@ -117,8 +120,11 @@ func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 		}
 	}
 
+	data := &pushCtxData{}
 	for idx, ps := range pss {
-		d.da.pushSamples(ps, 0, idx)
+		data.idx = idx
+		data.samples = ps
+		d.da.pushSamples(data)
 	}
 
 	ctx.pss = pss
@@ -146,20 +152,21 @@ func (d *Deduplicator) runFlusher(pushFunc PushFunc, dedupInterval time.Duration
 			flushTime := t.Truncate(dedupInterval).Add(dedupInterval)
 			flushTimestamp := flushTime.UnixMilli()
 			flushIntervals := int(flushTimestamp / int64(dedupInterval/time.Millisecond))
-			flushIdx := flushIntervals % aggrStateSize
-			d.flush(pushFunc, dedupInterval, flushTime, flushIdx)
+			flushIdx := flushIntervals % d.stateSize
+			d.flush(pushFunc, dedupInterval, flushTimestamp, flushIdx)
 		}
 	}
 }
 
-func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration, flushTime time.Time, flushIdx int) {
-	d.da.flush(func(pss []pushSample, _ int64, _ int) {
+func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration, flushTimestamp int64, idx int) {
+	startTime := time.Now()
+	d.da.flush(func(data *pushCtxData) {
 		ctx := getDeduplicatorFlushCtx()
 
 		tss := ctx.tss
 		labels := ctx.labels
 		samples := ctx.samples
-		for _, ps := range pss {
+		for _, ps := range data.samples {
 			labelsLen := len(labels)
 			labels = decompressLabels(labels, ps.key)
 
@@ -180,9 +187,9 @@ func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration, flu
 		ctx.labels = labels
 		ctx.samples = samples
 		putDeduplicatorFlushCtx(ctx)
-	}, flushTime.UnixMilli(), flushIdx, flushIdx)
+	}, flushTimestamp, idx, idx)
 
-	duration := time.Since(flushTime)
+	duration := time.Since(startTime)
 	d.dedupFlushDuration.Update(duration.Seconds())
 	if duration > dedupInterval {
 		d.dedupFlushTimeouts.Inc()
@@ -193,7 +200,7 @@ func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration, flu
 }
 
 type deduplicatorPushCtx struct {
-	pss    [aggrStateSize][]pushSample
+	pss    [][]pushSample
 	labels promutils.Labels
 	buf    []byte
 }
@@ -208,12 +215,18 @@ func (ctx *deduplicatorPushCtx) reset() {
 	ctx.buf = ctx.buf[:0]
 }
 
-func getDeduplicatorPushCtx() *deduplicatorPushCtx {
+func getDeduplicatorPushCtx(stateSize int) *deduplicatorPushCtx {
 	v := deduplicatorPushCtxPool.Get()
 	if v == nil {
-		return &deduplicatorPushCtx{}
+		return &deduplicatorPushCtx{
+			pss: make([][]pushSample, stateSize),
+		}
 	}
-	return v.(*deduplicatorPushCtx)
+	ctx := v.(*deduplicatorPushCtx)
+	if len(ctx.pss) < stateSize {
+		ctx.pss = slicesutil.SetLength(ctx.pss, stateSize)
+	}
+	return ctx
 }
 
 func putDeduplicatorPushCtx(ctx *deduplicatorPushCtx) {
