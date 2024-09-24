@@ -200,11 +200,14 @@ func TestAggregatorsEqual(t *testing.T) {
 		t.Helper()
 
 		pushFunc := func(_ []prompbmarshal.TimeSeries) {}
-		aa, err := LoadFromData([]byte(a), pushFunc, nil, "some_alias")
+		opts := Options{
+			StateSize: 2,
+		}
+		aa, err := LoadFromData([]byte(a), pushFunc, &opts, "some_alias")
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
-		ab, err := LoadFromData([]byte(b), pushFunc, nil, "some_alias")
+		ab, err := LoadFromData([]byte(b), pushFunc, &opts, "some_alias")
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
@@ -266,6 +269,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 		opts := &Options{
 			FlushOnShutdown:        true,
 			NoAlignFlushToInterval: true,
+			StateSize:              2,
 		}
 		a, err := LoadFromData([]byte(config), pushFunc, opts, "some_alias")
 		if err != nil {
@@ -997,6 +1001,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 		opts := &Options{
 			DedupInterval:   30 * time.Second,
 			FlushOnShutdown: true,
+			StateSize:       2,
 		}
 		a, err := LoadFromData([]byte(config), pushFunc, opts, "some_alias")
 		if err != nil {

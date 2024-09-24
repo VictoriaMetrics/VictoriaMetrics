@@ -1,88 +1,14 @@
 package streamaggr
 
-import (
-	"sync"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-)
-
-// sumSamplesAggrState calculates output=sum_samples, e.g. the sum over input samples.
-type sumSamplesAggrState struct {
-	m sync.Map
+type sumSamplesAggrValue struct {
+	sum float64
 }
 
-type sumSamplesStateValue struct {
-	mu             sync.Mutex
-	state          [aggrStateSize]sumState
-	deleted        bool
-	deleteDeadline int64
+func (av *sumSamplesAggrValue) pushSample(ctx *pushSampleCtx) {
+	av.sum += ctx.sample.value
 }
 
-type sumState struct {
-	sum    float64
-	exists bool
-}
-
-func newSumSamplesAggrState() *sumSamplesAggrState {
-	return &sumSamplesAggrState{}
-}
-
-func (as *sumSamplesAggrState) pushSamples(samples []pushSample, deleteDeadline int64, idx int) {
-	for i := range samples {
-		s := &samples[i]
-		outputKey := getOutputKey(s.key)
-
-	again:
-		v, ok := as.m.Load(outputKey)
-		if !ok {
-			// The entry is missing in the map. Try creating it.
-			v = &sumSamplesStateValue{}
-			outputKey = bytesutil.InternString(outputKey)
-			vNew, loaded := as.m.LoadOrStore(outputKey, v)
-			if loaded {
-				// Update the entry created by a concurrent goroutine.
-				v = vNew
-			}
-		}
-		sv := v.(*sumSamplesStateValue)
-		sv.mu.Lock()
-		deleted := sv.deleted
-		if !deleted {
-			sv.state[idx].sum += s.value
-			sv.state[idx].exists = true
-			sv.deleteDeadline = deleteDeadline
-		}
-		sv.mu.Unlock()
-		if deleted {
-			// The entry has been deleted by the concurrent call to flushState
-			// Try obtaining and updating the entry again.
-			goto again
-		}
-	}
-}
-
-func (as *sumSamplesAggrState) flushState(ctx *flushCtx) {
-	m := &as.m
-	m.Range(func(k, v any) bool {
-		sv := v.(*sumSamplesStateValue)
-		sv.mu.Lock()
-
-		// check for stale entries
-		deleted := ctx.flushTimestamp > sv.deleteDeadline
-		if deleted {
-			// Mark the current entry as deleted
-			sv.deleted = deleted
-			sv.mu.Unlock()
-			m.Delete(k)
-			return true
-		}
-		state := sv.state[ctx.idx]
-		sv.state[ctx.idx] = sumState{}
-		sv.mu.Unlock()
-		if state.exists {
-			key := k.(string)
-			ctx.appendSeries(key, "sum_samples", state.sum)
-		}
-		return true
-	})
+func (av *sumSamplesAggrValue) flush(ctx *flushCtx, key string) {
+	ctx.appendSeries(key, "sum_samples", av.sum)
+	av.sum = 0
 }
