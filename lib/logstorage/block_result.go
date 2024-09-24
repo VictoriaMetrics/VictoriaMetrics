@@ -500,43 +500,11 @@ func (br *blockResult) addStreamIDColumn(bs *blockSearch) {
 }
 
 func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
-	if !bs.prevStreamID.equal(&bs.bsw.bh.streamID) {
-		return br.addStreamColumnSlow(bs)
-	}
-
-	if len(bs.prevStream) == 0 {
+	streamStr := bs.getStreamStr()
+	if streamStr == "" {
 		return false
 	}
-	br.addConstColumn("_stream", bytesutil.ToUnsafeString(bs.prevStream))
-	return true
-}
-
-func (br *blockResult) addStreamColumnSlow(bs *blockSearch) bool {
-	bb := bbPool.Get()
-	defer bbPool.Put(bb)
-
-	streamID := &bs.bsw.bh.streamID
-	bb.B = bs.bsw.p.pt.appendStreamTagsByStreamID(bb.B[:0], streamID)
-	if len(bb.B) == 0 {
-		// Couldn't find stream tags by streamID. This may be the case when the corresponding log stream
-		// was recently registered and its tags aren't visible to search yet.
-		// The stream tags must become visible in a few seconds.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6042
-		bs.prevStreamID = *streamID
-		bs.prevStream = bs.prevStream[:0]
-		return false
-	}
-
-	st := GetStreamTags()
-	mustUnmarshalStreamTags(st, bb.B)
-	bb.B = st.marshalString(bb.B[:0])
-	PutStreamTags(st)
-
-	s := bytesutil.ToUnsafeString(bb.B)
-	br.addConstColumn("_stream", s)
-
-	bs.prevStreamID = *streamID
-	bs.prevStream = append(bs.prevStream[:0], s...)
+	br.addConstColumn("_stream", streamStr)
 	return true
 }
 
