@@ -113,6 +113,41 @@ such as [Graphite](https://docs.victoriametrics.com/#how-to-send-data-from-graph
 [InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) and
 [OpenTSDB telnet put protocol](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol).
 
+
+`vmselect` can execute queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints `http://vmselect:8481/select/multitenant/<suffix>`.
+Currently supported endpoints for `<suffix>` are:
+- `/prometheus/api/v1/query`
+- `/prometheus/api/v1/query_range`
+- `/prometheus/api/v1/series`
+- `/prometheus/api/v1/labels`
+- `/prometheus/api/v1/label/<label_name>/values`
+- `/prometheus/api/v1/status/active_queries`
+- `/prometheus/api/v1/status/top_queries`
+- `/vmui`
+
+It is possible to explicitly specify `accountID` and `projectID` for querying multiple tenants via `vm_account_id` and `vm_project_id` labels in the query.
+Alternatively, it is possible to use [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements)
+query args to apply additional filters for the query.
+
+For example, the following query fetches the total number of time series for the tenants `accountID=42` and `accountID=7, projectID=9`:
+```
+up{vm_account_id="7", vm_project_id="9" or vm_account_id="42"}
+```
+
+In order to achieve the same via `extra_filters[]` and `extra_label` query args, the following query must be used:
+```
+curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
+  -d 'query=up' \
+  -d 'extra_filters[]={vm_account_id="7",vm_project_id="9"}' \
+  -d 'extra_filters[]={vm_account_id="42"}'
+```
+
+Note that `vm_account_id` and `vm_project_id` labels support all operators for label matching. For example:
+```
+up{vm_account_id!="42"} # selects all the time series except those belonging to accountID=42
+up{vm_account_id=~"4.*"} # selects all the time series belonging to accountIDs starting with 4
+```
+
 **Security considerations:** it is recommended restricting access to `multitenant` endpoints only to trusted sources,
 since untrusted source may break per-tenant data by writing unwanted samples to arbitrary tenants.
 
@@ -1596,6 +1631,8 @@ Below is the output for `/path/to/vmselect -help`:
   -search.inmemoryBufSizeBytes size
      Size for in-memory data blocks used during processing search requests. By default, the size is automatically calculated based on available memory. Adjust this flag value if you observe that vm_tmp_blocks_max_inmemory_file_size_bytes metric constantly shows much higher values than vm_tmp_blocks_inmemory_file_size_bytes. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6851
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
+  -search.tenantCacheExpireDuration duration
+     The expiry duration for list of tenants for multi-tenant queries. (default 5m0s)
   -search.treatDotsAsIsInRegexps
      Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
   -selectNode array
