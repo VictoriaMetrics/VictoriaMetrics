@@ -95,30 +95,31 @@ If you like VictoriaMetrics and want to contribute, then please [read these docs
 
 ## VictoriaMetrics Logo
 
-[Zip](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/VM_logo.zip) contains three folders with different image orientations (main color and inverted version).
+The provided [ZIP file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/VM_logo.zip) contains three folders with different logo orientations. Each folder includes the following file types:
 
-Files included in each folder:
+* JPEG: Preview files
+* PNG: Preview files with transparent background
+* AI: Adobe Illustrator files
 
-* 2 JPEG Preview files
-* 2 PNG Preview files with transparent background
-* 2 EPS Adobe Illustrator EPS10 files
+### VictoriaMetrics Logo Usage Guidelines
 
-### Logo Usage Guidelines
+#### Font
 
-#### Font used
-
-* Lato Black
-* Lato Regular
+* Font Used: Lato Black
+* Download here: [Lato Font](https://fonts.google.com/specimen/Lato)
 
 #### Color Palette
 
-* HEX [#110f0f](https://www.color-hex.com/color/110f0f)
-* HEX [#ffffff](https://www.color-hex.com/color/ffffff)
+* Black [#000000](https://www.color-hex.com/color/000000)
+* Purple [#4d0e82](https://www.color-hex.com/color/4d0e82)
+* Orange [#ff2e00](https://www.color-hex.com/color/ff2e00)
+* White [#ffffff](https://www.color-hex.com/color/ffffff)
 
-### We kindly ask
+### Logo Usage Rules
 
-* Please don't use any other font instead of suggested.
-* To keep enough clear space around the logo.
-* Do not change spacing, alignment, or relative locations of the design elements.
-* Do not change the proportions for any of the design elements or the design itself.
-  You may resize as needed but must retain all proportions.
+* Only use the Lato Black font as specified.
+* Maintain sufficient clear space around the logo for visibility.
+* Do not modify the spacing, alignment, or positioning of design elements.
+* You may resize the logo as needed, but ensure all proportions remain intact.
+
+Thank you for your cooperation!
