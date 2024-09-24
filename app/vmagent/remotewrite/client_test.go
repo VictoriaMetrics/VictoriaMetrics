@@ -16,7 +16,7 @@ func TestCalculateRetryDuration(t *testing.T) {
 		t.Helper()
 
 		for i := 0; i < n; i++ {
-			retryDuration = calculateRetryDuration(retryAfterDuration, retryDuration, time.Minute)
+			retryDuration = getRetryDuration(retryAfterDuration, retryDuration, time.Minute)
 		}
 
 		expectMaxDuration := helper(expectMinDuration)
