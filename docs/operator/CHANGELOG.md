@@ -26,6 +26,7 @@ aliases:
 - [operator](https://docs.victoriametrics.com/operator/): reduces load on kubernetes api-server. See this commits: [commit-0](a0145b8a89dd5bb9051f8d4359b6a70c1d1a95ce), [commit-1](e2fbbd3e37146670f656d700ad0f64b2c299b0a0), [commit-2](184ba19a5f1d10dc2ac1bf018b2729f64e2a8c25).
 - [operator](https://docs.victoriametrics.com/operator/): enables client cache back for `secrets` and `configmaps`. Adds new flag `-controller.disableCacheFor=seccret,configmap` to disable it if needed.
 - [operator](https://docs.victoriametrics.com/operator/): made webhook port configurable. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1106) for details.
+- [operator](https://docs.victoriametrics.com/operator/): operator trims spaces from `Secret` and `Configmap` values by default. This behaviour could be changed with flag `disableSecretKeySpaceTrim`. Related [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6986).
 
 ## [v0.47.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.3) - 28 Aug 2024
 
