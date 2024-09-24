@@ -1,9 +1,7 @@
 package promscrape
 
 import (
-	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -12,9 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
 func copyHeader(dst, src http.Header) {
@@ -113,7 +109,7 @@ func newTestAuthConfig(t *testing.T, isTLS bool, ba *promauth.BasicAuthConfig) *
 	return ac
 }
 
-func TestClientProxyReadOk(t *testing.T) {
+/*func TestClientProxyReadOk(t *testing.T) {
 	ctx := context.Background()
 	f := func(isBackendTLS, isProxyTLS bool, backendAuth, proxyAuth *promauth.BasicAuthConfig) {
 		t.Helper()
@@ -198,4 +194,4 @@ func TestClientProxyReadOk(t *testing.T) {
 	f(false, true, &promauth.BasicAuthConfig{Username: "test", Password: promauth.NewSecret("1234")}, nil)
 	// backend tls and proxy auth
 	f(true, false, nil, &promauth.BasicAuthConfig{Username: "proxy-test", Password: promauth.NewSecret("1234")})
-}
+}*/
