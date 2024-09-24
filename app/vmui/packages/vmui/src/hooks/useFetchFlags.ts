@@ -1,6 +1,7 @@
 import { useAppDispatch, useAppState } from "../state/common/StateContext";
 import { useEffect, useState } from "preact/compat";
 import { ErrorTypes } from "../types";
+import { getUrlWithoutTenant } from "../utils/tenants";
 
 const useFetchFlags = () => {
   const { serverUrl } = useAppState();
@@ -16,7 +17,8 @@ const useFetchFlags = () => {
       setIsLoading(true);
 
       try {
-        const response = await fetch(`${serverUrl}/flags`);
+        const url = getUrlWithoutTenant(serverUrl);
+        const response = await fetch(`${url}/flags`);
         const data = await response.text();
         const flags = data.split("\n").filter(flag => flag.trim() !== "")
           .reduce((acc, flag) => {
