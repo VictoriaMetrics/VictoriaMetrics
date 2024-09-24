@@ -8,8 +8,9 @@ import "./style.scss";
 import NavItem from "./NavItem";
 import NavSubItem from "./NavSubItem";
 import classNames from "classnames";
-import { anomalyNavigation, defaultNavigation, logsNavigation } from "../../../constants/navigation";
+import { anomalyNavigation, defaultNavigation, logsNavigation, NavigationItemType } from "../../../constants/navigation";
 import { AppType } from "../../../types/appType";
+import { useAppState } from "../../../state/common/StateContext";
 
 interface HeaderNavProps {
   color: string
@@ -21,6 +22,7 @@ const HeaderNav: FC<HeaderNavProps> = ({ color, background, direction }) => {
   const appModeEnable = getAppModeEnable();
   const { dashboardsSettings } = useDashboardsState();
   const { pathname } = useLocation();
+  const { serverUrl, flags } = useAppState();
 
   const [activeMenu, setActiveMenu] = useState(pathname);
 
@@ -37,7 +39,14 @@ const HeaderNav: FC<HeaderNavProps> = ({ color, background, direction }) => {
             label: routerOptions[router.dashboards].title,
             value: router.dashboards,
             hide: appModeEnable || !dashboardsSettings.length,
-          }
+          },
+          {
+            // see more https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=vmalertproxyurl#vmalert
+            label: "Alerts",
+            value: `${serverUrl}/vmalert`,
+            type: NavigationItemType.externalLink,
+            hide: !Object.keys(flags).includes("vmalert.proxyURL"),
+          },
         ].filter(r => !r.hide));
     }
   }, [appModeEnable, dashboardsSettings]);
@@ -74,6 +83,7 @@ const HeaderNav: FC<HeaderNavProps> = ({ color, background, direction }) => {
               value={m.value || ""}
               label={m.label || ""}
               color={color}
+              type={m.type || NavigationItemType.internalLink}
             />
           )
       ))}
