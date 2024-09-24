@@ -1,6 +1,6 @@
-import React, { FC, useEffect, useRef, useMemo, useCallback } from "preact/compat";
+import React, { FC, useEffect, useRef, useMemo } from "preact/compat";
 import Button from "../../Main/Button/Button";
-import { PlusIcon, SearchIcon, SettingsIcon } from "../../Main/Icons";
+import { SearchIcon, SettingsIcon } from "../../Main/Icons";
 import "./style.scss";
 import Checkbox from "../../Main/Checkbox/Checkbox";
 import Tooltip from "../../Main/Tooltip/Tooltip";
@@ -76,11 +76,6 @@ const TableSettings: FC<TableSettingsProps> = ({
     handleChange(key);
   };
 
-  const handleAddCustomColumn = useCallback(() => {
-    onChangeColumns([searchColumn, ...selectedColumns]);
-    setSearchColumn("");
-  }, [searchColumn]);
-
   const handleBlurSearch = () => {
     setIndexFocusItem(-1);
   };
@@ -143,7 +138,7 @@ const TableSettings: FC<TableSettingsProps> = ({
             <div className="vm-table-settings-modal-columns">
               <div className="vm-table-settings-modal-columns__search">
                 <TextField
-                  placeholder={"Search columns or add a custom column"}
+                  placeholder={"Search columns"}
                   startIcon={<SearchIcon/>}
                   value={searchColumn}
                   onChange={setSearchColumn}
@@ -152,34 +147,22 @@ const TableSettings: FC<TableSettingsProps> = ({
                   type="search"
                 />
               </div>
-              {!!filteredColumns.length && (
-                <div className="vm-table-settings-modal-columns-list__item vm-table-settings-modal-columns-list__item_all">
-                  <Checkbox
-                    checked={isAllChecked}
-                    onChange={toggleAllColumns}
-                    label={isAllChecked ? "Uncheck all" : "Check all"}
-                    disabled={tableCompact}
-                  />
-                </div>
-              )}
               <div className="vm-table-settings-modal-columns-list">
+                {!!filteredColumns.length && (
+                  <div className="vm-table-settings-modal-columns-list__item vm-table-settings-modal-columns-list__item_all">
+                    <Checkbox
+                      checked={isAllChecked}
+                      onChange={toggleAllColumns}
+                      label={isAllChecked ? "Uncheck all" : "Check all"}
+                      disabled={tableCompact}
+                    />
+                  </div>
+                )}
                 {!filteredColumns.length && (
                   <div className="vm-table-settings-modal-columns-no-found">
                     <p className="vm-table-settings-modal-columns-no-found__info">
                       No columns found.
                     </p>
-                    {searchColumn && (<>
-                      <p className="vm-table-settings-modal-columns-no-found__info">
-                          You can add a new column. The table will display data that matches this name.
-                      </p>
-                      <Button
-                        onClick={handleAddCustomColumn}
-                        startIcon={<PlusIcon/>}
-                        variant={"outlined"}
-                      >
-                        {`Add «${searchColumn}» column`}
-                      </Button>
-                    </>)}
                   </div>
                 )}
                 {filteredColumns.map((col, i) => (
