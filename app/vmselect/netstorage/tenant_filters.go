@@ -60,6 +60,10 @@ func splitFiltersByType(tfs [][]storage.TagFilter) ([]string, [][]storage.TagFil
 // ApplyTenantFiltersToTagFilters applies the given tenant filters to the given tag filters.
 func ApplyTenantFiltersToTagFilters(tts []storage.TenantToken, tfs [][]storage.TagFilter) ([]storage.TenantToken, [][]storage.TagFilter) {
 	tenantFilters, otherFilters := splitFiltersByType(tfs)
+	if len(tenantFilters) == 0 {
+		return tts, otherFilters
+	}
+
 	tts, err := applyFiltersToTenants(tts, tenantFilters)
 	if err != nil {
 		return nil, nil
