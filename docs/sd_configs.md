@@ -1462,7 +1462,8 @@ The list of discovered OpenStack targets is refreshed at the interval, which can
 
 ## ovhcloud_sd_configs
 
-OVH Cloud SD configuration allows retrieving scrape targets from [OVH Cloud VPS](https://www.ovhcloud.com/en/vps/) and [OVH Cloud dedicated server](https://ovhcloud.com/en/bare-metal/).
+OVH Cloud SD configuration allows retrieving scrape targets from [OVH Cloud VPS](https://www.ovhcloud.com/en/vps/) 
+and [OVH Cloud dedicated server](https://ovhcloud.com/en/bare-metal/).
 
 Configuration example:
 
@@ -1475,11 +1476,11 @@ scrape_configs:
   # `ovh-eu` for OVH Europe API (default).
   # `ovh-us` for OVH US API.
   # `ovh-ca` for OVH North-America API.
-  # `soyoustart-eu` for So you Start Europe API.
-  # `soyoustart-ca` for So you Start North America API.
+  # `soyoustart-eu` for "So you Start Europe API".
+  # `soyoustart-ca` for "So you Start North America API".
   # `kimsufi-eu` for Kimsufi Europe API.
   # `kimsufi-ca` for Kimsufi North America API.
-  # Also see: https://github.com/ovh/go-ovh?tab=readme-ov-file#supported-apis .
+  # See: https://github.com/ovh/go-ovh?tab=readme-ov-file#supported-apis
   - endpoint: "..."
 
     # (mandatory) application_key is a self generated tokens. 
@@ -1501,7 +1502,7 @@ scrape_configs:
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling/#how-to-modify-scrape-urls-in-targets) label set to either `<ipv4>` address or `<ipv6>` address.
 
-In addition, the `instance` label for the VPS/dedicated server will be set to the vps/dedicated server name as retrieved from OVH Cloud API.
+In addition, the `instance` label for the VPS/dedicated server will be set to the VPS/dedicated server name as retrieved from OVH Cloud API.
 
 The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling).
 
@@ -1541,7 +1542,7 @@ Dedicated servers:
 * `__meta_ovhcloud_dedicated_server_state`: the state of the server.
 * `__meta_ovhcloud_dedicated_server_support_level`: the support level of the server.
 
-The list of discovered OVH Cloud targets is refreshed at the interval, which can be configured via `-promscrape.ovhcloudSDCheckInterval` command-line flag, default: 30s.
+The list of discovered OVH Cloud targets is refreshed at the interval, which can be configured via `-promscrape.ovhcloudSDCheckInterval` command-line flag.
 
 ## static_configs
 

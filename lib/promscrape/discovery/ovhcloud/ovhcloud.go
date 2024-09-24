@@ -40,7 +40,7 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	case "vps":
 		return getVPSLabels(cfg)
 	default:
-		return nil, fmt.Errorf("skipping unexpected service=%q; only `dedicated_server` and `vps` supported for now", sdc.Service)
+		return nil, fmt.Errorf("skipping unexpected service=%q; only `dedicated_server` and `vps` are supported for now", sdc.Service)
 	}
 }
 

@@ -7,26 +7,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
 
-// Endpoints
-const (
-	OvhEU        = "https://eu.api.ovh.com/1.0"
-	OvhCA        = "https://ca.api.ovh.com/1.0"
-	OvhUS        = "https://api.us.ovhcloud.com/1.0"
-	KimsufiEU    = "https://eu.api.kimsufi.com/1.0"
-	KimsufiCA    = "https://ca.api.kimsufi.com/1.0"
-	SoyoustartEU = "https://eu.api.soyoustart.com/1.0"
-	SoyoustartCA = "https://ca.api.soyoustart.com/1.0"
-)
-
-// Endpoints conveniently maps endpoints names to their URI for external configuration
+// mapping for endpoint names to their URI for external configuration
 var availableEndpoints = map[string]string{
-	"ovh-eu":        OvhEU,
-	"ovh-ca":        OvhCA,
-	"ovh-us":        OvhUS,
-	"kimsufi-eu":    KimsufiEU,
-	"kimsufi-ca":    KimsufiCA,
-	"soyoustart-eu": SoyoustartEU,
-	"soyoustart-ca": SoyoustartCA,
+	"ovh-eu":        "https://eu.api.ovh.com/1.0",
+	"ovh-ca":        "https://ca.api.ovh.com/1.0",
+	"ovh-us":        "https://api.us.ovhcloud.com/1.0",
+	"kimsufi-eu":    "https://eu.api.kimsufi.com/1.0",
+	"kimsufi-ca":    "https://ca.api.kimsufi.com/1.0",
+	"soyoustart-eu": "https://eu.api.soyoustart.com/1.0",
+	"soyoustart-ca": "https://ca.api.soyoustart.com/1.0",
 }
 
 var configMap = discoveryutils.NewConfigMap()
@@ -55,13 +44,10 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		sdc.Endpoint = "ovh-eu"
 	}
 
-	var (
-		apiServer string
-		ok        bool
-	)
-	if apiServer, ok = availableEndpoints[sdc.Endpoint]; !ok {
+	apiServer, ok := availableEndpoints[sdc.Endpoint]
+	if !ok {
 		return nil, fmt.Errorf(
-			"unsupported endpoint for ovhcloud sd: %s, see: https://docs.victoriametrics.com/sd_configs/#ovhcloud_sd_configs",
+			"unsupported `endpoint` for ovhcloud sd: %s, see: https://docs.victoriametrics.com/sd_configs/#ovhcloud_sd_configs",
 			sdc.Endpoint,
 		)
 	}
