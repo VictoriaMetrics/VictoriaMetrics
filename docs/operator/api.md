@@ -42,7 +42,7 @@ Package v1beta1 contains API Schema definitions for the victoriametrics v1beta1 
 
 #### APIServerConfig
 
-_Underlying type:_ _[struct{Host string "json:\"host\""; BasicAuth *BasicAuth "json:\"basicAuth,omitempty\""; BearerToken string "json:\"bearerToken,omitempty\""; BearerTokenFile string "json:\"bearerTokenFile,omitempty\""; TLSConfig *TLSConfig "json:\"tlsConfig,omitempty\""; Authorization *Authorization "json:\"authorization,omitempty\""}](#struct{host-string-"json:\"host\"";-basicauth-*basicauth-"json:\"basicauth,omitempty\"";-bearertoken-string-"json:\"bearertoken,omitempty\"";-bearertokenfile-string-"json:\"bearertokenfile,omitempty\"";-tlsconfig-*tlsconfig-"json:\"tlsconfig,omitempty\"";-authorization-*authorization-"json:\"authorization,omitempty\""})_
+
 
 APIServerConfig defines a host and auth methods to access apiserver.
 
@@ -55,7 +55,7 @@ _Appears in:_
 
 #### AdditionalServiceSpec
 
-_Underlying type:_ _[struct{UseAsDefault bool "json:\"useAsDefault,omitempty\""; EmbeddedObjectMetadata "json:\"metadata,omitempty\""; Spec k8s.io/api/core/v1.ServiceSpec "json:\"spec\""}](#struct{useasdefault-bool-"json:\"useasdefault,omitempty\"";-embeddedobjectmetadata-"json:\"metadata,omitempty\"";-spec-k8sioapicorev1servicespec-"json:\"spec\""})_
+
 
 ServiceSpec defines additional service for CRD with user-defined params.
 by default, some of fields can be inherited from default service definition for the CRD:
@@ -559,7 +559,7 @@ _Appears in:_
 
 #### EmbeddedIngress
 
-_Underlying type:_ _[struct{ClassName *string "json:\"class_name,omitempty\""; EmbeddedObjectMetadata "json:\",inline\""; TlsHosts []string "json:\"tlsHosts,omitempty\""; TlsSecretName string "json:\"tlsSecretName,omitempty\""; ExtraRules []k8s.io/api/networking/v1.IngressRule "json:\"extraRules,omitempty\""; ExtraTLS []k8s.io/api/networking/v1.IngressTLS "json:\"extraTls,omitempty\""; Host string "json:\"host,omitempty\""}](#struct{classname-*string-"json:\"class_name,omitempty\"";-embeddedobjectmetadata-"json:\",inline\"";-tlshosts-[]string-"json:\"tlshosts,omitempty\"";-tlssecretname-string-"json:\"tlssecretname,omitempty\"";-extrarules-[]k8sioapinetworkingv1ingressrule-"json:\"extrarules,omitempty\"";-extratls-[]k8sioapinetworkingv1ingresstls-"json:\"extratls,omitempty\"";-host-string-"json:\"host,omitempty\""})_
+
 
 EmbeddedIngress describes ingress configuration options.
 
@@ -572,7 +572,7 @@ _Appears in:_
 
 #### EmbeddedObjectMetadata
 
-_Underlying type:_ _[struct{Name string "json:\"name,omitempty\" protobuf:\"bytes,1,opt,name=name\""; Labels map[string]string "json:\"labels,omitempty\" protobuf:\"bytes,11,rep,name=labels\""; Annotations map[string]string "json:\"annotations,omitempty\" protobuf:\"bytes,12,rep,name=annotations\""}](#struct{name-string-"json:\"name,omitempty\"-protobuf:\"bytes,1,opt,name=name\"";-labels-map[string]string-"json:\"labels,omitempty\"-protobuf:\"bytes,11,rep,name=labels\"";-annotations-map[string]string-"json:\"annotations,omitempty\"-protobuf:\"bytes,12,rep,name=annotations\""})_
+
 
 EmbeddedObjectMetadata contains a subset of the fields included in k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta
 Only fields which are relevant to embedded resources are included.
@@ -594,7 +594,7 @@ _Appears in:_
 
 #### EmbeddedPodDisruptionBudgetSpec
 
-_Underlying type:_ _[struct{MinAvailable *k8s.io/apimachinery/pkg/util/intstr.IntOrString "json:\"minAvailable,omitempty\""; MaxUnavailable *k8s.io/apimachinery/pkg/util/intstr.IntOrString "json:\"maxUnavailable,omitempty\""; SelectorLabels map[string]string "json:\"selectorLabels,omitempty\""}](#struct{minavailable-*k8sioapimachinerypkgutilintstrintorstring-"json:\"minavailable,omitempty\"";-maxunavailable-*k8sioapimachinerypkgutilintstrintorstring-"json:\"maxunavailable,omitempty\"";-selectorlabels-map[string]string-"json:\"selectorlabels,omitempty\""})_
+
 
 
 
@@ -610,7 +610,7 @@ _Appears in:_
 
 #### EmbeddedProbes
 
-_Underlying type:_ _[struct{LivenessProbe *k8s.io/api/core/v1.Probe "json:\"livenessProbe,omitempty\""; ReadinessProbe *k8s.io/api/core/v1.Probe "json:\"readinessProbe,omitempty\""; StartupProbe *k8s.io/api/core/v1.Probe "json:\"startupProbe,omitempty\""}](#struct{livenessprobe-*k8sioapicorev1probe-"json:\"livenessprobe,omitempty\"";-readinessprobe-*k8sioapicorev1probe-"json:\"readinessprobe,omitempty\"";-startupprobe-*k8sioapicorev1probe-"json:\"startupprobe,omitempty\""})_
+
 
 EmbeddedProbes - it allows to override some probe params.
 its not necessary to specify all options,
@@ -758,7 +758,7 @@ _Appears in:_
 
 #### HTTPAuth
 
-_Underlying type:_ _[struct{BasicAuth *BasicAuth "json:\"basicAuth,omitempty\""; OAuth2 *OAuth2 "json:\"oauth2,omitempty\""; TLSConfig *TLSConfig "json:\"tlsConfig,omitempty\""; *BearerAuth "json:\",inline,omitempty\""; Headers []string "json:\"headers,omitempty\""}](#struct{basicauth-*basicauth-"json:\"basicauth,omitempty\"";-oauth2-*oauth2-"json:\"oauth2,omitempty\"";-tlsconfig-*tlsconfig-"json:\"tlsconfig,omitempty\"";-*bearerauth-"json:\",inline,omitempty\"";-headers-[]string-"json:\"headers,omitempty\""})_
+
 
 HTTPAuth generic auth used with http protocols
 
@@ -827,7 +827,7 @@ _Appears in:_
 
 #### Image
 
-_Underlying type:_ _[struct{Repository string "json:\"repository,omitempty\""; Tag string "json:\"tag,omitempty\""; PullPolicy k8s.io/api/core/v1.PullPolicy "json:\"pullPolicy,omitempty\""}](#struct{repository-string-"json:\"repository,omitempty\"";-tag-string-"json:\"tag,omitempty\"";-pullpolicy-k8sioapicorev1pullpolicy-"json:\"pullpolicy,omitempty\""})_
+
 
 Image defines docker image settings
 
@@ -888,7 +888,7 @@ _Appears in:_
 
 #### InsertPorts
 
-_Underlying type:_ _[struct{GraphitePort string "json:\"graphitePort,omitempty\""; InfluxPort string "json:\"influxPort,omitempty\""; OpenTSDBHTTPPort string "json:\"openTSDBHTTPPort,omitempty\""; OpenTSDBPort string "json:\"openTSDBPort,omitempty\""}](#struct{graphiteport-string-"json:\"graphiteport,omitempty\"";-influxport-string-"json:\"influxport,omitempty\"";-opentsdbhttpport-string-"json:\"opentsdbhttpport,omitempty\"";-opentsdbport-string-"json:\"opentsdbport,omitempty\""})_
+
 
 
 
@@ -950,7 +950,7 @@ _Appears in:_
 
 #### License
 
-_Underlying type:_ _[struct{Key *string "json:\"key,omitempty\""; KeyRef *k8s.io/api/core/v1.SecretKeySelector "json:\"keyRef,omitempty\""}](#struct{key-*string-"json:\"key,omitempty\"";-keyref-*k8sioapicorev1secretkeyselector-"json:\"keyref,omitempty\""})_
+
 
 License holds license key for enterprise features.
 Using license key is supported starting from VictoriaMetrics v1.94.0.
@@ -1663,7 +1663,7 @@ _Appears in:_
 
 #### StorageSpec
 
-_Underlying type:_ _[struct{DisableMountSubPath bool "json:\"disableMountSubPath,omitempty\""; EmptyDir *k8s.io/api/core/v1.EmptyDirVolumeSource "json:\"emptyDir,omitempty\""; VolumeClaimTemplate EmbeddedPersistentVolumeClaim "json:\"volumeClaimTemplate,omitempty\""}](#struct{disablemountsubpath-bool-"json:\"disablemountsubpath,omitempty\"";-emptydir-*k8sioapicorev1emptydirvolumesource-"json:\"emptydir,omitempty\"";-volumeclaimtemplate-embeddedpersistentvolumeclaim-"json:\"volumeclaimtemplate,omitempty\""})_
+
 
 StorageSpec defines the configured storage for a group Prometheus servers.
 If neither `emptyDir` nor `volumeClaimTemplate` is specified, then by default an [EmptyDir](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) will be used.
@@ -1678,7 +1678,7 @@ _Appears in:_
 
 #### StreamAggrConfig
 
-_Underlying type:_ _[struct{Rules []StreamAggrRule "json:\"rules\""; RuleConfigMap *k8s.io/api/core/v1.ConfigMapKeySelector "json:\"configmap,omitempty\""; KeepInput bool "json:\"keepInput,omitempty\""; DropInput bool "json:\"dropInput,omitempty\""; DedupInterval string "json:\"dedupInterval,omitempty\""; DropInputLabels []string "json:\"dropInputLabels,omitempty\""; IgnoreFirstIntervals int "json:\"ignoreFirstIntervals,omitempty\""; IgnoreOldSamples bool "json:\"ignoreOldSamples,omitempty\""}](#struct{rules-[]streamaggrrule-"json:\"rules\"";-ruleconfigmap-*k8sioapicorev1configmapkeyselector-"json:\"configmap,omitempty\"";-keepinput-bool-"json:\"keepinput,omitempty\"";-dropinput-bool-"json:\"dropinput,omitempty\"";-dedupinterval-string-"json:\"dedupinterval,omitempty\"";-dropinputlabels-[]string-"json:\"dropinputlabels,omitempty\"";-ignorefirstintervals-int-"json:\"ignorefirstintervals,omitempty\"";-ignoreoldsamples-bool-"json:\"ignoreoldsamples,omitempty\""})_
+
 
 StreamAggrConfig defines the stream aggregation config
 
@@ -1694,7 +1694,7 @@ _Appears in:_
 
 #### StringOrArray
 
-_Underlying type:_ _string array_
+
 
 StringOrArray is a helper type for storing string or array of string.
 
@@ -1986,7 +1986,7 @@ _Appears in:_
 
 #### UnauthorizedAccessConfigURLMap
 
-_Underlying type:_ _[struct{SrcPaths []string "json:\"src_paths,omitempty\""; SrcHosts []string "json:\"src_hosts,omitempty\""; URLPrefix []string "json:\"url_prefix,omitempty\""; URLMapCommon "json:\",omitempty\""}](#struct{srcpaths-[]string-"json:\"src_paths,omitempty\"";-srchosts-[]string-"json:\"src_hosts,omitempty\"";-urlprefix-[]string-"json:\"url_prefix,omitempty\"";-urlmapcommon-"json:\",omitempty\""})_
+
 
 
 
@@ -1999,7 +1999,7 @@ _Appears in:_
 
 #### UpdateStatus
 
-_Underlying type:_ _string_
+
 
 UpdateStatus defines status for application
 
@@ -2145,7 +2145,7 @@ or any other Prometheus-compatible storage system that supports the remote_write
 
 #### VMAgentRemoteWriteSettings
 
-_Underlying type:_ _[struct{MaxBlockSize *int32 "json:\"maxBlockSize,omitempty\""; MaxDiskUsagePerURL *int64 "json:\"maxDiskUsagePerURL,omitempty\""; Queues *int32 "json:\"queues,omitempty\""; ShowURL *bool "json:\"showURL,omitempty\""; TmpDataPath *string "json:\"tmpDataPath,omitempty\""; FlushInterval *string "json:\"flushInterval,omitempty\""; Labels map[string]string "json:\"label,omitempty\""; UseMultiTenantMode bool "json:\"useMultiTenantMode,omitempty\""}](#struct{maxblocksize-*int32-"json:\"maxblocksize,omitempty\"";-maxdiskusageperurl-*int64-"json:\"maxdiskusageperurl,omitempty\"";-queues-*int32-"json:\"queues,omitempty\"";-showurl-*bool-"json:\"showurl,omitempty\"";-tmpdatapath-*string-"json:\"tmpdatapath,omitempty\"";-flushinterval-*string-"json:\"flushinterval,omitempty\"";-labels-map[string]string-"json:\"label,omitempty\"";-usemultitenantmode-bool-"json:\"usemultitenantmode,omitempty\""})_
+
 
 VMAgentRemoteWriteSettings - defines global settings for all remoteWrite urls.
 
@@ -2158,7 +2158,7 @@ _Appears in:_
 
 #### VMAgentRemoteWriteSpec
 
-_Underlying type:_ _[struct{URL string "json:\"url\""; BasicAuth *BasicAuth "json:\"basicAuth,omitempty\""; BearerTokenSecret *k8s.io/api/core/v1.SecretKeySelector "json:\"bearerTokenSecret,omitempty\""; UrlRelabelConfig *k8s.io/api/core/v1.ConfigMapKeySelector "json:\"urlRelabelConfig,omitempty\""; InlineUrlRelabelConfig []RelabelConfig "json:\"inlineUrlRelabelConfig,omitempty\""; OAuth2 *OAuth2 "json:\"oauth2,omitempty\""; TLSConfig *TLSConfig "json:\"tlsConfig,omitempty\""; SendTimeout *string "json:\"sendTimeout,omitempty\""; Headers []string "json:\"headers,omitempty\""; StreamAggrConfig *StreamAggrConfig "json:\"streamAggrConfig,omitempty\""}](#struct{url-string-"json:\"url\"";-basicauth-*basicauth-"json:\"basicauth,omitempty\"";-bearertokensecret-*k8sioapicorev1secretkeyselector-"json:\"bearertokensecret,omitempty\"";-urlrelabelconfig-*k8sioapicorev1configmapkeyselector-"json:\"urlrelabelconfig,omitempty\"";-inlineurlrelabelconfig-[]relabelconfig-"json:\"inlineurlrelabelconfig,omitempty\"";-oauth2-*oauth2-"json:\"oauth2,omitempty\"";-tlsconfig-*tlsconfig-"json:\"tlsconfig,omitempty\"";-sendtimeout-*string-"json:\"sendtimeout,omitempty\"";-headers-[]string-"json:\"headers,omitempty\"";-streamaggrconfig-*streamaggrconfig-"json:\"streamaggrconfig,omitempty\""})_
+
 
 VMAgentRemoteWriteSpec defines the remote storage configuration for VmAgent
 
@@ -2335,7 +2335,7 @@ _Appears in:_
 
 #### VMAlertNotifierSpec
 
-_Underlying type:_ _[struct{URL string "json:\"url,omitempty\""; Selector *DiscoverySelector "json:\"selector,omitempty\""; HTTPAuth "json:\",inline,omitempty\""}](#struct{url-string-"json:\"url,omitempty\"";-selector-*discoveryselector-"json:\"selector,omitempty\"";-httpauth-"json:\",inline,omitempty\""})_
+
 
 VMAlertNotifierSpec defines the notifier url for sending information about alerts
 
@@ -2348,7 +2348,7 @@ _Appears in:_
 
 #### VMAlertRemoteReadSpec
 
-_Underlying type:_ _[struct{URL string "json:\"url\""; Lookback *string "json:\"lookback,omitempty\""; HTTPAuth "json:\",inline,omitempty\""}](#struct{url-string-"json:\"url\"";-lookback-*string-"json:\"lookback,omitempty\"";-httpauth-"json:\",inline,omitempty\""})_
+
 
 VMAlertRemoteReadSpec defines the remote storage configuration for VmAlert to read alerts from
 
@@ -2361,7 +2361,7 @@ _Appears in:_
 
 #### VMAlertRemoteWriteSpec
 
-_Underlying type:_ _[struct{URL string "json:\"url\""; Concurrency *int32 "json:\"concurrency,omitempty\""; FlushInterval *string "json:\"flushInterval,omitempty\""; MaxBatchSize *int32 "json:\"maxBatchSize,omitempty\""; MaxQueueSize *int32 "json:\"maxQueueSize,omitempty\""; HTTPAuth "json:\",inline,omitempty\""}](#struct{url-string-"json:\"url\"";-concurrency-*int32-"json:\"concurrency,omitempty\"";-flushinterval-*string-"json:\"flushinterval,omitempty\"";-maxbatchsize-*int32-"json:\"maxbatchsize,omitempty\"";-maxqueuesize-*int32-"json:\"maxqueuesize,omitempty\"";-httpauth-"json:\",inline,omitempty\""})_
+
 
 VMAlertRemoteWriteSpec defines the remote storage configuration for VmAlert
 
@@ -2536,11 +2536,12 @@ _Appears in:_
 | `configSecret` | ConfigSecret is the name of a Kubernetes Secret in the same namespace as the<br />VMAlertmanager object, which contains configuration for this VMAlertmanager,<br />configuration must be inside secret key: alertmanager.yaml.<br />It must be created by user.<br />instance. Defaults to 'vmalertmanager-<alertmanager-name>'<br />The secret is mounted into /etc/alertmanager/config. | _string_ | false |
 | `configSelector` | ConfigSelector defines selector for VMAlertmanagerConfig, result config will be merged with with Raw or Secret config.<br />Works in combination with NamespaceSelector.<br />NamespaceSelector nil - only objects at VMAlertmanager namespace.<br />Selector nil - only objects at NamespaceSelector namespaces.<br />If both nil - behaviour controlled by selectAllByDefault | _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ | false |
 | `containers` | Containers property allows to inject additions sidecars or to patch existing containers.<br />It can be useful for proxies, backup, etc. | _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#container-v1-core) array_ | false |
-| `disableNamespaceMatcher` | DisableNamespaceMatcher disables namespace label matcher for VMAlertmanagerConfig<br />It may be useful if alert doesn't have namespace label for some reason | _boolean_ | false |
+| `disableNamespaceMatcher` | DisableNamespaceMatcher disables top route namespace label matcher for VMAlertmanagerConfig<br />It may be useful if alert doesn't have namespace label for some reason | _boolean_ | false |
 | `disableRouteContinueEnforce` | DisableRouteContinueEnforce cancel the behavior for VMAlertmanagerConfig that always enforce first-level route continue to true | _boolean_ | false |
 | `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | true |
 | `dnsConfig` | Specifies the DNS parameters of a pod.<br />Parameters specified here will be merged to the generated DNS<br />configuration based on DNSPolicy. | _[PodDNSConfig](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#poddnsconfig-v1-core)_ | false |
 | `dnsPolicy` | DNSPolicy sets DNS policy for the pod | _[DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#dnspolicy-v1-core)_ | false |
+| `enforcedTopRouteMatchers` | EnforcedTopRouteMatchers defines label matchers to be added for the top route<br />of VMAlertmanagerConfig<br />It allows to make some set of labels required for alerts.<br />https://prometheus.io/docs/alerting/latest/configuration/#matcher | _string array_ | true |
 | `externalURL` | ExternalURL the VMAlertmanager instances will be available under. This is<br />necessary to generate correct URLs. This is necessary if VMAlertmanager is not<br />served from root of a DNS name. | _string_ | false |
 | `extraArgs` | ExtraArgs that will be passed to the application container<br />for example remoteWrite.tmpDataPath: /tmp | _object (keys:string, values:string)_ | false |
 | `extraEnvs` | ExtraEnvs that will be passed to the application container | _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core) array_ | false |
@@ -2775,7 +2776,7 @@ _Appears in:_
 
 #### VMInsert
 
-_Underlying type:_ _[struct{PodMetadata *EmbeddedObjectMetadata "json:\"podMetadata,omitempty\""; LogFormat string "json:\"logFormat,omitempty\""; LogLevel string "json:\"logLevel,omitempty\""; InsertPorts *InsertPorts "json:\"insertPorts,omitempty\""; ClusterNativePort string "json:\"clusterNativeListenPort,omitempty\""; ServiceSpec *AdditionalServiceSpec "json:\"serviceSpec,omitempty\""; ServiceScrapeSpec *VMServiceScrapeSpec "json:\"serviceScrapeSpec,omitempty\""; UpdateStrategy *k8s.io/api/apps/v1.DeploymentStrategyType "json:\"updateStrategy,omitempty\""; RollingUpdate *k8s.io/api/apps/v1.RollingUpdateDeployment "json:\"rollingUpdate,omitempty\""; PodDisruptionBudget *EmbeddedPodDisruptionBudgetSpec "json:\"podDisruptionBudget,omitempty\""; *EmbeddedProbes "json:\",inline\""; HPA *EmbeddedHPA "json:\"hpa,omitempty\""; CommonDefaultableParams "json:\",inline\""; CommonApplicationDeploymentParams "json:\",inline\""}](#struct{podmetadata-*embeddedobjectmetadata-"json:\"podmetadata,omitempty\"";-logformat-string-"json:\"logformat,omitempty\"";-loglevel-string-"json:\"loglevel,omitempty\"";-insertports-*insertports-"json:\"insertports,omitempty\"";-clusternativeport-string-"json:\"clusternativelistenport,omitempty\"";-servicespec-*additionalservicespec-"json:\"servicespec,omitempty\"";-servicescrapespec-*vmservicescrapespec-"json:\"servicescrapespec,omitempty\"";-updatestrategy-*k8sioapiappsv1deploymentstrategytype-"json:\"updatestrategy,omitempty\"";-rollingupdate-*k8sioapiappsv1rollingupdatedeployment-"json:\"rollingupdate,omitempty\"";-poddisruptionbudget-*embeddedpoddisruptionbudgetspec-"json:\"poddisruptionbudget,omitempty\"";-*embeddedprobes-"json:\",inline\"";-hpa-*embeddedhpa-"json:\"hpa,omitempty\"";-commondefaultableparams-"json:\",inline\"";-commonapplicationdeploymentparams-"json:\",inline\""})_
+
 
 
 
@@ -3169,7 +3170,7 @@ _Appears in:_
 
 #### VMSelect
 
-_Underlying type:_ _[struct{PodMetadata *EmbeddedObjectMetadata "json:\"podMetadata,omitempty\""; LogFormat string "json:\"logFormat,omitempty\""; LogLevel string "json:\"logLevel,omitempty\""; CacheMountPath string "json:\"cacheMountPath,omitempty\""; Storage *StorageSpec "json:\"persistentVolume,omitempty\""; StorageSpec *StorageSpec "json:\"storage,omitempty\""; ClusterNativePort string "json:\"clusterNativeListenPort,omitempty\""; ServiceSpec *AdditionalServiceSpec "json:\"serviceSpec,omitempty\""; ServiceScrapeSpec *VMServiceScrapeSpec "json:\"serviceScrapeSpec,omitempty\""; PodDisruptionBudget *EmbeddedPodDisruptionBudgetSpec "json:\"podDisruptionBudget,omitempty\""; *EmbeddedProbes "json:\",inline\""; HPA *EmbeddedHPA "json:\"hpa,omitempty\""; RollingUpdateStrategy k8s.io/api/apps/v1.StatefulSetUpdateStrategyType "json:\"rollingUpdateStrategy,omitempty\""; ClaimTemplates []k8s.io/api/core/v1.PersistentVolumeClaim "json:\"claimTemplates,omitempty\""; CommonDefaultableParams "json:\",inline\""; CommonApplicationDeploymentParams "json:\",inline\""}](#struct{podmetadata-*embeddedobjectmetadata-"json:\"podmetadata,omitempty\"";-logformat-string-"json:\"logformat,omitempty\"";-loglevel-string-"json:\"loglevel,omitempty\"";-cachemountpath-string-"json:\"cachemountpath,omitempty\"";-storage-*storagespec-"json:\"persistentvolume,omitempty\"";-storagespec-*storagespec-"json:\"storage,omitempty\"";-clusternativeport-string-"json:\"clusternativelistenport,omitempty\"";-servicespec-*additionalservicespec-"json:\"servicespec,omitempty\"";-servicescrapespec-*vmservicescrapespec-"json:\"servicescrapespec,omitempty\"";-poddisruptionbudget-*embeddedpoddisruptionbudgetspec-"json:\"poddisruptionbudget,omitempty\"";-*embeddedprobes-"json:\",inline\"";-hpa-*embeddedhpa-"json:\"hpa,omitempty\"";-rollingupdatestrategy-k8sioapiappsv1statefulsetupdatestrategytype-"json:\"rollingupdatestrategy,omitempty\"";-claimtemplates-[]k8sioapicorev1persistentvolumeclaim-"json:\"claimtemplates,omitempty\"";-commondefaultableparams-"json:\",inline\"";-commonapplicationdeploymentparams-"json:\",inline\""})_
+
 
 
 
@@ -3203,7 +3204,7 @@ result config will scrape service endpoints
 
 #### VMServiceScrapeSpec
 
-_Underlying type:_ _[struct{DiscoveryRole string "json:\"discoveryRole,omitempty\""; JobLabel string "json:\"jobLabel,omitempty\""; TargetLabels []string "json:\"targetLabels,omitempty\""; PodTargetLabels []string "json:\"podTargetLabels,omitempty\""; Endpoints []Endpoint "json:\"endpoints\""; Selector k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector "json:\"selector,omitempty\""; NamespaceSelector NamespaceSelector "json:\"namespaceSelector,omitempty\""; SampleLimit uint64 "json:\"sampleLimit,omitempty\""; SeriesLimit uint64 "json:\"seriesLimit,omitempty\""; AttachMetadata AttachMetadata "json:\"attach_metadata,omitempty\""}](#struct{discoveryrole-string-"json:\"discoveryrole,omitempty\"";-joblabel-string-"json:\"joblabel,omitempty\"";-targetlabels-[]string-"json:\"targetlabels,omitempty\"";-podtargetlabels-[]string-"json:\"podtargetlabels,omitempty\"";-endpoints-[]endpoint-"json:\"endpoints\"";-selector-k8sioapimachinerypkgapismetav1labelselector-"json:\"selector,omitempty\"";-namespaceselector-namespaceselector-"json:\"namespaceselector,omitempty\"";-samplelimit-uint64-"json:\"samplelimit,omitempty\"";-serieslimit-uint64-"json:\"serieslimit,omitempty\"";-attachmetadata-attachmetadata-"json:\"attach_metadata,omitempty\""})_
+
 
 VMServiceScrapeSpec defines the desired state of VMServiceScrape
 
@@ -3343,7 +3344,7 @@ _Appears in:_
 
 #### VMStorage
 
-_Underlying type:_ _[struct{PodMetadata *EmbeddedObjectMetadata "json:\"podMetadata,omitempty\""; LogFormat string "json:\"logFormat,omitempty\""; LogLevel string "json:\"logLevel,omitempty\""; StorageDataPath string "json:\"storageDataPath,omitempty\""; Storage *StorageSpec "json:\"storage,omitempty\""; VMInsertPort string "json:\"vmInsertPort,omitempty\""; VMSelectPort string "json:\"vmSelectPort,omitempty\""; VMBackup *VMBackup "json:\"vmBackup,omitempty\""; ServiceSpec *AdditionalServiceSpec "json:\"serviceSpec,omitempty\""; ServiceScrapeSpec *VMServiceScrapeSpec "json:\"serviceScrapeSpec,omitempty\""; PodDisruptionBudget *EmbeddedPodDisruptionBudgetSpec "json:\"podDisruptionBudget,omitempty\""; *EmbeddedProbes "json:\",inline\""; MaintenanceInsertNodeIDs []int32 "json:\"maintenanceInsertNodeIDs,omitempty\""; MaintenanceSelectNodeIDs []int32 "json:\"maintenanceSelectNodeIDs,omitempty\""; RollingUpdateStrategy k8s.io/api/apps/v1.StatefulSetUpdateStrategyType "json:\"rollingUpdateStrategy,omitempty\""; ClaimTemplates []k8s.io/api/core/v1.PersistentVolumeClaim "json:\"claimTemplates,omitempty\""; CommonDefaultableParams "json:\",inline\""; CommonApplicationDeploymentParams "json:\",inline\""}](#struct{podmetadata-*embeddedobjectmetadata-"json:\"podmetadata,omitempty\"";-logformat-string-"json:\"logformat,omitempty\"";-loglevel-string-"json:\"loglevel,omitempty\"";-storagedatapath-string-"json:\"storagedatapath,omitempty\"";-storage-*storagespec-"json:\"storage,omitempty\"";-vminsertport-string-"json:\"vminsertport,omitempty\"";-vmselectport-string-"json:\"vmselectport,omitempty\"";-vmbackup-*vmbackup-"json:\"vmbackup,omitempty\"";-servicespec-*additionalservicespec-"json:\"servicespec,omitempty\"";-servicescrapespec-*vmservicescrapespec-"json:\"servicescrapespec,omitempty\"";-poddisruptionbudget-*embeddedpoddisruptionbudgetspec-"json:\"poddisruptionbudget,omitempty\"";-*embeddedprobes-"json:\",inline\"";-maintenanceinsertnodeids-[]int32-"json:\"maintenanceinsertnodeids,omitempty\"";-maintenanceselectnodeids-[]int32-"json:\"maintenanceselectnodeids,omitempty\"";-rollingupdatestrategy-k8sioapiappsv1statefulsetupdatestrategytype-"json:\"rollingupdatestrategy,omitempty\"";-claimtemplates-[]k8sioapicorev1persistentvolumeclaim-"json:\"claimtemplates,omitempty\"";-commondefaultableparams-"json:\",inline\"";-commonapplicationdeploymentparams-"json:\",inline\""})_
+
 
 
 
@@ -3374,7 +3375,7 @@ VMUser is the Schema for the vmusers API
 
 #### VMUserIPFilters
 
-_Underlying type:_ _[struct{DenyList []string "json:\"deny_list,omitempty\""; AllowList []string "json:\"allow_list,omitempty\""}](#struct{denylist-[]string-"json:\"deny_list,omitempty\"";-allowlist-[]string-"json:\"allow_list,omitempty\""})_
+
 
 VMUserIPFilters defines filters for IP addresses
 supported only with enterprise version of [vmauth](https://docs.victoriametrics.com/vmauth#ip-filters)
