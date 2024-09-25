@@ -13,15 +13,9 @@ import (
 )
 
 func getAuthHeaders(cfg *apiConfig, headers http.Header, endpoint, path string) (http.Header, error) {
+	timestamp := getOVHTimestamp(cfg)
+
 	headers = setGeneralHeaders(cfg, headers)
-
-	timeDelta, err := getTimeDelta(cfg)
-	if err != nil {
-		logger.Errorf("get time delta for auth headers failed: %w", err)
-		return nil, err
-	}
-
-	timestamp := time.Now().Add(-timeDelta).Unix()
 	headers.Set("X-Ovh-Timestamp", strconv.FormatInt(timestamp, 10))
 	headers.Add("X-Ovh-Consumer", cfg.consumerKey)
 
@@ -60,24 +54,25 @@ func getServerTime(cfg *apiConfig) (*time.Time, error) {
 	return &serverTime, nil
 }
 
-// getTimeDelta calculates the time difference between the host and the remote API.
-// It also saves the time difference for future reference.
-func getTimeDelta(cfg *apiConfig) (time.Duration, error) {
+// getOVHTimestamp return the server timestamp which is required by X-Ovh-Timestamp header.
+// The timestamp is calculated by now() - timeDelta, where timeDelta is retrieved from /auth/time API and stored in config.
+// It returns now() when server timestamp is unknown.
+func getOVHTimestamp(cfg *apiConfig) int64 {
 	d, ok := cfg.timeDelta.Load().(time.Duration)
 	if ok {
-		return d, nil
+		return time.Now().Add(-d).Unix()
 	}
 
 	ovhTime, err := getServerTime(cfg)
 	if err != nil {
-		return 0, err
+		logger.Warnf("cannot get OVH server time, err: %v. using current timestamp.", err)
+		return time.Now().Unix()
 	}
 
 	d = time.Since(*ovhTime)
 	cfg.timeDelta.Store(d)
 
-	return d, nil
-
+	return time.Now().Add(-d).Unix()
 }
 
 func parseIPList(ipList []string) ([]netip.Addr, error) {
