@@ -81,6 +81,11 @@ func tagFiltersToString(tfs []storage.TagFilter) string {
 // applyFiltersToTenants applies the given filters to the given tenants.
 // It returns the filtered tenants.
 func applyFiltersToTenants(tenants []storage.TenantToken, filters [][]storage.TagFilter) ([]storage.TenantToken, error) {
+	// fast path - return all tenants if no filters are given
+	if len(filters) == 0 {
+		return tenants, nil
+	}
+
 	resultingTokens := make([]storage.TenantToken, 0, len(tenants))
 	lbs := make([][]prompbmarshal.Label, 0, len(filters))
 	lbsAux := make([]prompbmarshal.Label, 0, len(filters))
