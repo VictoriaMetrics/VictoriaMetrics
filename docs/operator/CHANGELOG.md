@@ -27,6 +27,7 @@ aliases:
 - [operator](https://docs.victoriametrics.com/operator/): enables client cache back for `secrets` and `configmaps`. Adds new flag `-controller.disableCacheFor=seccret,configmap` to disable it if needed.
 - [operator](https://docs.victoriametrics.com/operator/): made webhook port configurable. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1106) for details.
 - [operator](https://docs.victoriametrics.com/operator/): operator trims spaces from `Secret` and `Configmap` values by default. This behaviour could be changed with flag `disableSecretKeySpaceTrim`. Related [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6986).
+- [operator](#https://docs.victoriametrics.com/operator/): expose again only command-line flags related to the operator. Release [v0.45.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.45.0) added regression with incorrectly exposed flags.
 
 ## [v0.47.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.3) - 28 Aug 2024
 
