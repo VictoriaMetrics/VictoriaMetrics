@@ -8,7 +8,7 @@ import (
 
 // pipeFieldNames processes '| field_names' pipe.
 //
-// See https://docs.victoriametrics.com/victorialogs/logsql/#field-names-pipe
+// See https://docs.victoriametrics.com/victorialogs/logsql/#field_names-pipe
 type pipeFieldNames struct {
 	// resultName is an optional name of the column to write results to.
 	// By default results are written into 'name' column.

@@ -967,6 +967,12 @@ func TestParseQuerySuccess(t *testing.T) {
 	// field_names pipe
 	f(`foo | field_names as x`, `foo | field_names as x`)
 	f(`foo | field_names y`, `foo | field_names as y`)
+	f(`foo | field_names`, `foo | field_names`)
+
+	// blocks_count pipe
+	f(`foo | blocks_count as x`, `foo | blocks_count as x`)
+	f(`foo | blocks_count y`, `foo | blocks_count as y`)
+	f(`foo | blocks_count`, `foo | blocks_count`)
 
 	// copy and cp pipe
 	f(`* | copy foo as bar`, `* | copy foo as bar`)
@@ -1458,6 +1464,17 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | field_names x y`)
 	f(`foo | field_names x, y`)
 
+	// invalid blocks_count
+	f(`foo | blocks_count |`)
+	f(`foo | blocks_count (`)
+	f(`foo | blocks_count )`)
+	f(`foo | blocks_count ,`)
+	f(`foo | blocks_count ()`)
+	f(`foo | blocks_count (x)`)
+	f(`foo | blocks_count (x,y)`)
+	f(`foo | blocks_count x y`)
+	f(`foo | blocks_count x, y`)
+
 	// invalid copy and cp pipe
 	f(`foo | copy`)
 	f(`foo | cp`)
@@ -1820,6 +1837,14 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | fields x,y | field_names as bar | fields baz`, `x,y`, ``)
 	f(`* | rm x,y | field_names as bar | fields baz`, `*`, `x,y`)
 
+	f(`* | blocks_count as foo`, ``, ``)
+	f(`* | blocks_count foo | fields bar`, ``, ``)
+	f(`* | blocks_count foo | fields foo`, ``, ``)
+	f(`* | blocks_count foo | rm foo`, ``, ``)
+	f(`* | blocks_count foo | rm bar`, ``, ``)
+	f(`* | fields x,y | blocks_count as bar | fields baz`, ``, ``)
+	f(`* | rm x,y | blocks_count as bar | fields baz`, ``, ``)
+
 	f(`* | format "foo" as s1`, `*`, `s1`)
 	f(`* | format "foo<f1>" as s1`, `*`, `s1`)
 	f(`* | format "foo<s1>" as s1`, `*`, ``)
@@ -1932,6 +1957,8 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | extract_regexp if (q:w p:a) "(?P<f1>.*)bar" from x | count() r1`, `p,q`, ``)
 	f(`* | field_names | count() r1`, `*`, `_time`)
 	f(`* | limit 10 | field_names as abc | count() r1`, `*`, ``)
+	f(`* | blocks_count | count() r1`, ``, ``)
+	f(`* | limit 10 | blocks_count as abc | count() r1`, ``, ``)
 	f(`* | fields a, b | count() r1`, ``, ``)
 	f(`* | field_values a | count() r1`, `a`, ``)
 	f(`* | limit 10 | filter a:b c:d | count() r1`, `a,c`, ``)
@@ -2030,6 +2057,7 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | limit 10", false)
 	f("* | offset 10", false)
 	f("* | uniq (x)", false)
+	f("* | blocks_count", false)
 	f("* | field_names", false)
 	f("* | field_values x", false)
 	f("* | top 5 by (x)", false)
@@ -2056,6 +2084,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | drop_empty_fields", true)
 	f("* | extract 'foo<bar>baz'", true)
 	f("* | extract_regexp 'foo(?P<bar>baz)'", true)
+	f("* | blocks_count a", false)
 	f("* | field_names a", false)
 	f("* | fields a, b", true)
 	f("* | field_values a", false)
@@ -2224,6 +2253,7 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | drop_empty_fields`)
 	f(`foo | count() | extract "foo<bar>baz"`)
 	f(`foo | count() | extract_regexp "(?P<ip>([0-9]+[.]){3}[0-9]+)"`)
+	f(`foo | count() | blocks_count`)
 	f(`foo | count() | field_names`)
 	f(`foo | count() | field_values abc`)
 	f(`foo | by (x) count() | fields a, b`)
