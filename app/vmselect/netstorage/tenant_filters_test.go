@@ -8,8 +8,8 @@ import (
 )
 
 func TestApplyFiltersToTenants(t *testing.T) {
-	f := func(filters, tenants []string, expectedTenants []storage.TenantToken) {
-		tenantsResult, err := applyFiltersToTenantsStr(tenants, filters)
+	f := func(filters [][]storage.TagFilter, tenants []storage.TenantToken, expectedTenants []storage.TenantToken) {
+		tenantsResult, err := applyFiltersToTenants(tenants, filters)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -19,12 +19,12 @@ func TestApplyFiltersToTenants(t *testing.T) {
 		}
 	}
 
-	f([]string{`{vm_account_id="1"}`}, []string{"1:1", "1:0"}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}})
-	f([]string{`{vm_account_id="1",vm_project_id="0"}`}, []string{"1:1", "1:0"}, []storage.TenantToken{{AccountID: 1, ProjectID: 0}})
+	f([][]storage.TagFilter{{{Key: []byte("vm_account_id"), Value: []byte("1"), IsNegative: false, IsRegexp: false}}}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}})
+	f([][]storage.TagFilter{{{Key: []byte("vm_account_id"), Value: []byte("1"), IsNegative: false, IsRegexp: false}, {Key: []byte("vm_project_id"), Value: []byte("0"), IsNegative: false, IsRegexp: false}}}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}}, []storage.TenantToken{{AccountID: 1, ProjectID: 0}})
 
-	f([]string{`{vm_account_id=~"1[0-9]+"}`}, []string{"1:1", "12323:0", "12323:3", "345:0"}, []storage.TenantToken{{AccountID: 12323, ProjectID: 0}, {AccountID: 12323, ProjectID: 3}})
+	f([][]storage.TagFilter{{{Key: []byte("vm_account_id"), Value: []byte("1[0-9]+"), IsNegative: false, IsRegexp: true}}}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 12323, ProjectID: 0}, {AccountID: 12323, ProjectID: 3}, {AccountID: 345, ProjectID: 0}}, []storage.TenantToken{{AccountID: 12323, ProjectID: 0}, {AccountID: 12323, ProjectID: 3}})
 
-	f([]string{`{vm_account_id="1",vm_project_id!="0"}`}, []string{"1:1", "1:0"}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}})
+	f([][]storage.TagFilter{{{Key: []byte("vm_account_id"), Value: []byte("1"), IsNegative: false, IsRegexp: false}, {Key: []byte("vm_project_id"), Value: []byte("0"), IsNegative: true, IsRegexp: false}}}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}})
 }
 
 func TestIsTenancyLabel(t *testing.T) {

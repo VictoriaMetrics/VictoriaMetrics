@@ -1017,6 +1017,8 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 			idx = 0
 		case "vm_project_id":
 			idx = 1
+		default:
+			logger.Fatalf("BUG: unexpected labeName=%q", labelName)
 		}
 
 		labelValues := make([]string, 0, len(tenants))
@@ -1178,7 +1180,8 @@ func GraphiteTagValues(qt *querytracer.Tracer, accountID, projectID uint32, deny
 //
 // It can be used for implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find
 func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool, tr storage.TimeRange, tagKey, tagValuePrefix string,
-	delimiter byte, maxSuffixes int, deadline searchutils.Deadline) ([]string, bool, error) {
+	delimiter byte, maxSuffixes int, deadline searchutils.Deadline,
+) ([]string, bool, error) {
 	qt = qt.NewChild("get tag value suffixes for tagKey=%s, tagValuePrefix=%s, maxSuffixes=%d, timeRange=%s", tagKey, tagValuePrefix, maxSuffixes, &tr)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -1637,7 +1640,8 @@ var metricNamePool = &sync.Pool{
 // It is the responsibility of f to call b.UnmarshalData before reading timestamps and values from the block.
 // It is the responsibility of f to filter blocks according to the given tr.
 func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline,
-	f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange, workerID uint) error) error {
+	f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange, workerID uint) error,
+) error {
 	qt = qt.NewChild("export blocks: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -1834,14 +1838,15 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 
 // ProcessBlocks calls processBlock per each block matching the given sq.
 func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery,
-	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline) (bool, error) {
+	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline,
+) (bool, error) {
 	sns := getStorageNodes()
 	return processBlocks(qt, sns, denyPartialResponse, sq, processBlock, deadline)
 }
 
 func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool, sq *storage.SearchQuery,
-	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline) (bool, error) {
-
+	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline,
+) (bool, error) {
 	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
 	// Use per-worker WaitGroup instead of a shared WaitGroup in order to avoid inter-CPU contention,
 	// which may significantly slow down the rate of processBlock calls on multi-CPU systems.
@@ -1956,7 +1961,8 @@ type rpcResult struct {
 }
 
 func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool,
-	f func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any) *storageNodesRequest {
+	f func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any,
+) *storageNodesRequest {
 	resultsCh := make(chan rpcResult, len(sns))
 	qts := make(map[*querytracer.Tracer]struct{}, len(sns))
 	for idx, sn := range sns {
@@ -2323,7 +2329,8 @@ func (sn *storageNode) getTenants(qt *querytracer.Tracer, tr storage.TimeRange, 
 }
 
 func (sn *storageNode) getTagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string,
-	delimiter byte, maxSuffixes int, deadline searchutils.Deadline) ([]string, error) {
+	delimiter byte, maxSuffixes int, deadline searchutils.Deadline,
+) ([]string, error) {
 	var suffixes []string
 	f := func(bc *handshake.BufferedConn) error {
 		ss, err := sn.getTagValueSuffixesOnConn(bc, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes)
@@ -2388,7 +2395,8 @@ func (sn *storageNode) processSearchMetricNames(qt *querytracer.Tracer, requestD
 }
 
 func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []byte, processBlock func(mb *storage.MetricBlock, workerID uint) error,
-	workerID uint, deadline searchutils.Deadline) error {
+	workerID uint, deadline searchutils.Deadline,
+) error {
 	f := func(bc *handshake.BufferedConn) error {
 		return sn.processSearchQueryOnConn(bc, requestData, processBlock, workerID)
 	}
@@ -2629,8 +2637,10 @@ func (sn *storageNode) getLabelNamesOnConn(bc *handshake.BufferedConn, requestDa
 	}
 }
 
-const maxLabelValueSize = 16 * 1024 * 1024
-const maxTenantValueSize = 16 * 1024 * 1024 // TODO: calc 'uint32:uint32'
+const (
+	maxLabelValueSize  = 16 * 1024 * 1024
+	maxTenantValueSize = 16 * 1024 * 1024 // TODO: calc 'uint32:uint32'
+)
 
 func (sn *storageNode) getLabelValuesOnConn(bc *handshake.BufferedConn, labelName string, requestData []byte, maxLabelValues int) ([]string, error) {
 	// Send the request to sn.
@@ -2714,7 +2724,8 @@ func (sn *storageNode) getTenantsOnConn(bc *handshake.BufferedConn, tr storage.T
 }
 
 func (sn *storageNode) getTagValueSuffixesOnConn(bc *handshake.BufferedConn, accountID, projectID uint32,
-	tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int) ([]string, error) {
+	tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxSuffixes int,
+) ([]string, error) {
 	// Send the request to sn.
 	if err := sendAccountIDProjectID(bc, accountID, projectID); err != nil {
 		return nil, err
@@ -2928,7 +2939,8 @@ func (sn *storageNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn
 const maxMetricNameSize = 64 * 1024
 
 func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requestData []byte,
-	processBlock func(mb *storage.MetricBlock, workerID uint) error, workerID uint) error {
+	processBlock func(mb *storage.MetricBlock, workerID uint) error, workerID uint,
+) error {
 	// Send the request to sn.
 	if err := writeBytes(bc, requestData); err != nil {
 		return fmt.Errorf("cannot write requestData: %w", err)
@@ -3254,10 +3266,6 @@ const maxFastAllocBlockSize = 32 * 1024
 
 // execSearchQuery calls cb for with marshaled requestData for each tenant in sq.
 func execSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, cb func(qt *querytracer.Tracer, requestData []byte, t storage.TenantToken) any) []any {
-	if sq.IsMultiTenant && sq.TenantTokens == nil {
-		logger.Panicf("BUG: missing TenantTokens in multi-tenant search query")
-	}
-
 	var requestData []byte
 	var results []any
 

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -21,7 +20,7 @@ func GetTenantTokensFromFilters(qt *querytracer.Tracer, tr storage.TimeRange, tf
 
 	tenantFilters, otherFilters := splitFiltersByType(tfs)
 
-	tts, err := applyFiltersToTenantsStr(tenants, tenantFilters)
+	tts, err := applyFiltersToTenants(tenants, tenantFilters)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot apply filters to tenants: %w", err)
 	}
@@ -29,12 +28,12 @@ func GetTenantTokensFromFilters(qt *querytracer.Tracer, tr storage.TimeRange, tf
 	return tts, otherFilters, nil
 }
 
-func splitFiltersByType(tfs [][]storage.TagFilter) ([]string, [][]storage.TagFilter) {
+func splitFiltersByType(tfs [][]storage.TagFilter) ([][]storage.TagFilter, [][]storage.TagFilter) {
 	if len(tfs) == 0 {
 		return nil, tfs
 	}
 
-	tenantFilters := make([]string, 0, len(tfs))
+	tenantFilters := make([][]storage.TagFilter, 0, len(tfs))
 	otherFilters := make([][]storage.TagFilter, 0, len(tfs))
 	for _, f := range tfs {
 		ffs := make([]storage.TagFilter, 0, len(f))
@@ -48,7 +47,7 @@ func splitFiltersByType(tfs [][]storage.TagFilter) ([]string, [][]storage.TagFil
 		}
 
 		if len(ffs) > 0 {
-			tenantFilters = append(tenantFilters, tagFiltersToString(ffs))
+			tenantFilters = append(tenantFilters, ffs)
 		}
 		if len(offs) > 0 {
 			otherFilters = append(otherFilters, offs)
@@ -79,26 +78,9 @@ func tagFiltersToString(tfs []storage.TagFilter) string {
 	return "{" + strings.Join(a, ",") + "}"
 }
 
-func applyFiltersToTenantsStr(tenants, filters []string) ([]storage.TenantToken, error) {
-	tokens := make([]storage.TenantToken, len(tenants))
-	for i, tenant := range tenants {
-		accountID, projectID, err := auth.ParseToken(tenant)
-		if err != nil {
-			return nil, fmt.Errorf("cannot construct auth token from tenant %q: %w", tenant, err)
-		}
-		tokens[i].AccountID = accountID
-		tokens[i].ProjectID = projectID
-	}
-	if len(filters) == 0 {
-		return tokens, nil
-	}
-
-	return applyFiltersToTenants(tokens, filters)
-}
-
 // applyFiltersToTenants applies the given filters to the given tenants.
 // It returns the filtered tenants.
-func applyFiltersToTenants(tenants []storage.TenantToken, filters []string) ([]storage.TenantToken, error) {
+func applyFiltersToTenants(tenants []storage.TenantToken, filters [][]storage.TagFilter) ([]storage.TenantToken, error) {
 	resultingTokens := make([]storage.TenantToken, 0, len(tenants))
 	lbs := make([][]prompbmarshal.Label, 0, len(filters))
 	lbsAux := make([]prompbmarshal.Label, 0, len(filters))
@@ -116,7 +98,8 @@ func applyFiltersToTenants(tenants []storage.TenantToken, filters []string) ([]s
 	}
 
 	promIfs := make([]promrelabel.IfExpression, len(filters))
-	for i, filter := range filters {
+	for i, tags := range filters {
+		filter := tagFiltersToString(tags)
 		err := promIfs[i].Parse(filter)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse if expression from filters %v: %s", filter, err)

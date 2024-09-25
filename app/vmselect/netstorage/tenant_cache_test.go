@@ -14,20 +14,41 @@ func TestFetchingTenants(t *testing.T) {
 
 	dayMs := (time.Hour * 24 * 1000).Milliseconds()
 
-	tc.put(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 0}, []string{"1:1", "1:0"})
-	tc.put(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: dayMs - 1}, []string{"1:1", "1:0"})
-	tc.put(storage.TimeRange{MinTimestamp: dayMs, MaxTimestamp: 2*dayMs - 1}, []string{"2:1", "2:0"})
-	tc.put(storage.TimeRange{MinTimestamp: 2 * dayMs, MaxTimestamp: 3*dayMs - 1}, []string{"3:1", "3:0"})
+	tc.put(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 0}, []storage.TenantToken{
+		{AccountID: 1, ProjectID: 1},
+		{AccountID: 1, ProjectID: 0},
+	})
+	tc.put(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: dayMs - 1}, []storage.TenantToken{
+		{AccountID: 1, ProjectID: 1},
+		{AccountID: 1, ProjectID: 0},
+	})
+	tc.put(storage.TimeRange{MinTimestamp: dayMs, MaxTimestamp: 2*dayMs - 1}, []storage.TenantToken{
+		{AccountID: 2, ProjectID: 1},
+		{AccountID: 2, ProjectID: 0},
+	})
+	tc.put(storage.TimeRange{MinTimestamp: 2 * dayMs, MaxTimestamp: 3*dayMs - 1}, []storage.TenantToken{
+		{AccountID: 3, ProjectID: 1},
+		{AccountID: 3, ProjectID: 0},
+	})
 
-	f := func(tr storage.TimeRange, expectedTenants []string) {
+	f := func(tr storage.TimeRange, expectedTenants []storage.TenantToken) {
 		t.Helper()
 		tenants := tc.get(tr)
 
 		if len(tenants) == 0 && len(tenants) == len(expectedTenants) {
 			return
 		}
-		sort.Strings(tenants)
-		sort.Strings(expectedTenants)
+
+		sortTenants := func(t []storage.TenantToken) func(i, j int) bool {
+			return func(i, j int) bool {
+				if t[i].AccountID == t[j].AccountID {
+					return t[i].ProjectID < t[j].ProjectID
+				}
+				return t[i].AccountID < t[j].AccountID
+			}
+		}
+		sort.Slice(tenants, sortTenants(tenants))
+		sort.Slice(expectedTenants, sortTenants(expectedTenants))
 
 		if !reflect.DeepEqual(tenants, expectedTenants) {
 			t.Fatalf("unexpected tenants; got %v; want %v", tenants, expectedTenants)
@@ -35,21 +56,21 @@ func TestFetchingTenants(t *testing.T) {
 	}
 
 	// Basic time range coverage
-	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 0}, []string{"1:1", "1:0"})
-	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 100}, []string{"1:1", "1:0"})
-	f(storage.TimeRange{MinTimestamp: dayMs, MaxTimestamp: dayMs}, []string{"2:1", "2:0"})
-	f(storage.TimeRange{MinTimestamp: 2 * dayMs, MaxTimestamp: 2 * dayMs}, []string{"3:1", "3:0"})
-	f(storage.TimeRange{MinTimestamp: 3 * dayMs, MaxTimestamp: 3*dayMs + 1}, []string{})
+	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 0}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}})
+	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 100}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}})
+	f(storage.TimeRange{MinTimestamp: dayMs, MaxTimestamp: dayMs}, []storage.TenantToken{{AccountID: 2, ProjectID: 1}, {AccountID: 2, ProjectID: 0}})
+	f(storage.TimeRange{MinTimestamp: 2 * dayMs, MaxTimestamp: 2 * dayMs}, []storage.TenantToken{{AccountID: 3, ProjectID: 1}, {AccountID: 3, ProjectID: 0}})
+	f(storage.TimeRange{MinTimestamp: 3 * dayMs, MaxTimestamp: 3*dayMs + 1}, []storage.TenantToken{})
 
 	// Time range inside existing range
-	f(storage.TimeRange{MinTimestamp: dayMs / 2, MaxTimestamp: dayMs/2 + 100}, []string{"1:1", "1:0"})
-	f(storage.TimeRange{MinTimestamp: dayMs + dayMs/2, MaxTimestamp: dayMs + dayMs/2 + 100}, []string{"2:1", "2:0"})
-	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: dayMs / 2}, []string{"1:1", "1:0"})
-	f(storage.TimeRange{MinTimestamp: dayMs / 2, MaxTimestamp: dayMs - 1}, []string{"1:1", "1:0"})
+	f(storage.TimeRange{MinTimestamp: dayMs / 2, MaxTimestamp: dayMs/2 + 100}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}})
+	f(storage.TimeRange{MinTimestamp: dayMs + dayMs/2, MaxTimestamp: dayMs + dayMs/2 + 100}, []storage.TenantToken{{AccountID: 2, ProjectID: 1}, {AccountID: 2, ProjectID: 0}})
+	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: dayMs / 2}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}})
+	f(storage.TimeRange{MinTimestamp: dayMs / 2, MaxTimestamp: dayMs - 1}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}})
 
 	// Overlapping time ranges
-	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 2*dayMs - 1}, []string{"1:1", "1:0", "2:1", "2:0"})
-	f(storage.TimeRange{MinTimestamp: dayMs / 2, MaxTimestamp: dayMs + dayMs/2}, []string{"1:1", "1:0", "2:1", "2:0"})
+	f(storage.TimeRange{MinTimestamp: 0, MaxTimestamp: 2*dayMs - 1}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}, {AccountID: 2, ProjectID: 1}, {AccountID: 2, ProjectID: 0}})
+	f(storage.TimeRange{MinTimestamp: dayMs / 2, MaxTimestamp: dayMs + dayMs/2}, []storage.TenantToken{{AccountID: 1, ProjectID: 1}, {AccountID: 1, ProjectID: 0}, {AccountID: 2, ProjectID: 1}, {AccountID: 2, ProjectID: 0}})
 }
 
 func TestHasIntersection(t *testing.T) {

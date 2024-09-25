@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
@@ -20,7 +21,7 @@ var (
 )
 
 // TenantsCached returns the list of tenants available in the storage.
-func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.Deadline) ([]storage.TenantToken, error) {
 	qt.Printf("fetching tenants on timeRange=%s", tr.String())
 
 	cached := tenantsCacheV.get(tr)
@@ -36,10 +37,20 @@ func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline search
 
 	qt.Printf("fetched %d tenants from storage", len(tenants))
 
-	tenantsCacheV.put(tr, tenants)
+	tt := make([]storage.TenantToken, len(tenants))
+	for i, t := range tenants {
+		accountID, projectID, err := auth.ParseToken(t)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse tenant token %q: %w", t, err)
+		}
+		tt[i].AccountID = accountID
+		tt[i].ProjectID = projectID
+	}
+
+	tenantsCacheV.put(tr, tt)
 	qt.Printf("put %d tenants into cache", len(tenants))
 
-	return tenants, nil
+	return tt, nil
 }
 
 var tenantsCacheV = func() *tenantsCache {
@@ -48,7 +59,7 @@ var tenantsCacheV = func() *tenantsCache {
 }()
 
 type tenantsCacheItem struct {
-	tenants []string
+	tenants []storage.TenantToken
 	tr      storage.TimeRange
 	expires time.Time
 }
@@ -93,7 +104,7 @@ func (tc *tenantsCache) cleanupLocked() {
 	}
 }
 
-func (tc *tenantsCache) put(tr storage.TimeRange, tenants []string) {
+func (tc *tenantsCache) put(tr storage.TimeRange, tenants []storage.TenantToken) {
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
 	alignTrToDay(&tr)
@@ -123,21 +134,21 @@ func (tc *tenantsCache) Len() uint64 {
 	return uint64(n)
 }
 
-func (tc *tenantsCache) get(tr storage.TimeRange) []string {
+func (tc *tenantsCache) get(tr storage.TimeRange) []storage.TenantToken {
 	tc.requests.Add(1)
 
 	alignTrToDay(&tr)
 	return tc.getInternal(tr)
 }
 
-func (tc *tenantsCache) getInternal(tr storage.TimeRange) []string {
+func (tc *tenantsCache) getInternal(tr storage.TimeRange) []storage.TenantToken {
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
 	if len(tc.items) == 0 {
 		return nil
 	}
 
-	result := make(map[string]struct{})
+	result := make(map[storage.TenantToken]struct{})
 	cleanupNeeded := false
 	for idx := range tc.items {
 		ci := tc.items[idx]
@@ -156,7 +167,7 @@ func (tc *tenantsCache) getInternal(tr storage.TimeRange) []string {
 		tc.cleanupLocked()
 	}
 
-	tenants := make([]string, 0, len(result))
+	tenants := make([]storage.TenantToken, 0, len(result))
 	for t := range result {
 		tenants = append(tenants, t)
 	}
