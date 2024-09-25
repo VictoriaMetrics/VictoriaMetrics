@@ -29,7 +29,12 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 			// Skip nil sq1.
 			continue
 		}
-		buf = sq1.Marshal(buf[:0])
+		tt := TenantToken{
+			AccountID: sq1.AccountID,
+			ProjectID: sq1.ProjectID,
+		}
+		buf = tt.Marshal(buf[:0])
+		buf = sq1.MarshaWithoutTenant(buf)
 
 		tail, err := sq2.Unmarshal(buf)
 		if err != nil {

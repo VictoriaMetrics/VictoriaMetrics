@@ -475,14 +475,6 @@ func tagFiltersToString(tfs []TagFilter) string {
 	return "{" + strings.Join(a, ",") + "}"
 }
 
-// Marshal appends marshaled sq to dst and returns the result.
-func (sq *SearchQuery) Marshal(dst []byte) []byte {
-	dst = encoding.MarshalUint32(dst, sq.AccountID)
-	dst = encoding.MarshalUint32(dst, sq.ProjectID)
-	dst = sq.MarshaWithoutTenant(dst)
-	return dst
-}
-
 // MarshaWithoutTenant appends marshaled sq without AccountID/ProjectID to dst and returns the result.
 // It is expected that TenantToken is already marshaled to dst.
 func (sq *SearchQuery) MarshaWithoutTenant(dst []byte) []byte {
