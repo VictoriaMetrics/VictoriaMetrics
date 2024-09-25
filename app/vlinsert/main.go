@@ -1,9 +1,11 @@
 package vlinsert
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/elasticsearch"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/journald"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jsonline"
@@ -25,6 +27,18 @@ func Stop() {
 // RequestHandler handles insert requests for VictoriaLogs
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
+
+	// agents, which do not support custom path prefix
+	switch path {
+	case "/api/v1/validate":
+		fmt.Fprintf(w, `{}`)
+		return true
+	case "/api/v2/logs":
+		if r.Header.Get("dd-api-key") != "" {
+			return datadog.RequestHandler(path, w, r)
+		}
+		return false
+	}
 	if !strings.HasPrefix(path, "/insert/") {
 		// Skip requests, which do not start with /insert/, since these aren't our requests.
 		return false
