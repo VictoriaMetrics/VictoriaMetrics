@@ -1367,7 +1367,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.bearerTokenFile string
      Optional path to bearer token file to use for -remoteWrite.url.
   -remoteWrite.concurrency int
-     Defines number of writers for concurrent writing into remote write endpoint (default 1)
+     Defines number of writers for concurrent writing into remote write endpoint (default 4)
   -remoteWrite.disablePathAppend
      Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -remoteWrite.flushInterval duration
@@ -1377,9 +1377,9 @@ The shortlist of configuration flags is the following:
   -remoteWrite.idleConnTimeout duration
      Defines a duration for idle (keep-alive connections) to exist. Consider settings this value less to the value of "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors. (default 50s)
   -remoteWrite.maxBatchSize int
-     Defines max number of timeseries to be flushed at once (default 1000)
+     Defines max number of timeseries to be flushed at once (default 10000)
   -remoteWrite.maxQueueSize int
-     Defines the max number of pending datapoints to remote write endpoint (default 100000)
+     Defines the max number of pending datapoints to remote write endpoint (default 1000000)
   -remoteWrite.oauth2.clientID string
      Optional OAuth2 clientID to use for -remoteWrite.url
   -remoteWrite.oauth2.clientSecret string
