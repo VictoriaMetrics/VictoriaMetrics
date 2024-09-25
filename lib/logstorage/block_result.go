@@ -305,10 +305,11 @@ func (br *blockResult) initAllColumns() {
 
 	if !slices.Contains(unneededColumnNames, "_msg") {
 		// Add _msg column
-		v := br.bs.csh.getConstColumnValue("_msg")
+		csh := br.bs.getColumnsHeader()
+		v := csh.getConstColumnValue("_msg")
 		if v != "" {
 			br.addConstColumn("_msg", v)
-		} else if ch := br.bs.csh.getColumnHeader("_msg"); ch != nil {
+		} else if ch := csh.getColumnHeader("_msg"); ch != nil {
 			br.addColumn(ch)
 		} else {
 			br.addConstColumn("_msg", "")
@@ -316,7 +317,8 @@ func (br *blockResult) initAllColumns() {
 	}
 
 	// Add other const columns
-	for _, cc := range br.bs.csh.constColumns {
+	csh := br.bs.getColumnsHeader()
+	for _, cc := range csh.constColumns {
 		if isMsgFieldName(cc.Name) {
 			continue
 		}
@@ -326,7 +328,7 @@ func (br *blockResult) initAllColumns() {
 	}
 
 	// Add other non-const columns
-	chs := br.bs.csh.columnHeaders
+	chs := csh.columnHeaders
 	for i := range chs {
 		ch := &chs[i]
 		if isMsgFieldName(ch.name) {
@@ -355,10 +357,11 @@ func (br *blockResult) initRequestedColumns() {
 		case "_time":
 			br.addTimeColumn()
 		default:
-			v := br.bs.csh.getConstColumnValue(columnName)
+			csh := br.bs.getColumnsHeader()
+			v := csh.getConstColumnValue(columnName)
 			if v != "" {
 				br.addConstColumn(columnName, v)
-			} else if ch := br.bs.csh.getColumnHeader(columnName); ch != nil {
+			} else if ch := csh.getColumnHeader(columnName); ch != nil {
 				br.addColumn(ch)
 			} else {
 				br.addConstColumn(columnName, "")
