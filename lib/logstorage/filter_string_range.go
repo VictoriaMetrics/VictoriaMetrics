@@ -52,7 +52,8 @@ func (fr *filterStringRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	v := bs.csh.getConstColumnValue(fieldName)
+	csh := bs.getColumnsHeader()
+	v := csh.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchStringRange(v, minValue, maxValue) {
 			bm.resetBits()
@@ -61,7 +62,7 @@ func (fr *filterStringRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := csh.getColumnHeader(fieldName)
 	if ch == nil {
 		if !matchStringRange("", minValue, maxValue) {
 			bm.resetBits()
