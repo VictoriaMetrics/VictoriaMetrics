@@ -1,9 +1,9 @@
-# Docker compose Filebeat integration with VictoriaLogs using listed below protocols:
+# Docker compose Filebeat integration with VictoriaLogs
+
+The folder contains examples of [Filebeat](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-overview.html) integration with VictoriaLogs using protocols:
 
 * [syslog](./syslog)
 * [elasticsearch](./elasticsearch)
-
-The folder contains the example of integration of [filebeat](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-overview.html) with Victorialogs
 
 To spin-up environment `cd` to any of listed above directories run the following command:
 ```
@@ -18,9 +18,9 @@ docker compose rm -f
 
 The docker compose file contains the following components:
 
-* filebeat - fileabeat is configured to collect logs from the `docker`, you can find configuration in the `filebeat.yml`. It writes data in VictoriaLogs
-* VictoriaLogs - the log database, it accepts the data from `filebeat` by elastic protocol
-* VictoriaMetrics - collects metrics from `filebeat` via `filebeat-exporter`, `VictoriaLogs` and `VictoriaMetrics`
+* filebeat - Filebeat logs collection agent, which is configured to collect and write data to `victorialogs`
+* victorialogs - VictoriaLogs log database, which accepts the data from `filebeat`
+* victoriametrics - VictoriaMetrics metrics database, which collects metrics from `victorialogs` and `filebeat`
 
 Querying the data 
 

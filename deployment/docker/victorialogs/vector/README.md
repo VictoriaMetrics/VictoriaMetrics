@@ -1,11 +1,11 @@
-# Docker compose Vector integration with VictoriaLogs using given below protocols:
+# Docker compose Vector integration with VictoriaLogs
+
+The folder contains examples of [Vector](https://vector.dev/docs/) integration with VictoriaLogs using protocols:
 
 * [elasticsearch](./elasticsearch)
 * [loki](./loki)
 * [jsonline single node](./jsonline)
 * [jsonline HA setup](./jsonline-ha)
-
-The folder contains the example of integration of [vector](https://vector.dev/docs/) with Victorialogs
 
 To spin-up environment `cd` to any of listed above directories run the following command:
 ```
@@ -20,9 +20,9 @@ docker compose rm -f
 
 The docker compose file contains the following components:
 
-* vector - vector is configured to collect logs from the `docker`, you can find configuration in the `vector.yaml`. It writes data in VictoriaLogs. It pushes metrics to VictoriaMetrics.
-* VictoriaLogs - the log database, it accepts the data from `vector` by DataDog protocol
-* VictoriaMetrics - collects metrics from `VictoriaLogs` and `VictoriaMetrics`
+* vector - Vector logs collection agent, which is configured to collect and write data to `victorialogs`
+* victorialogs - VictoriaLogs log database, which accepts the data from `vector`
+* victoriametrics - VictoriaMetrics metrics database, which collects metrics from `victorialogs` and `vector`
 
 Querying the data
 
