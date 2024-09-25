@@ -64,7 +64,7 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 		sup.columnValues = columnValues
 
 		keyBuf := sup.keyBuf[:0]
-		for i := range br.timestamps {
+		for i := 0; i < br.rowsLen; i++ {
 			seenKey := true
 			for _, values := range columnValues {
 				if i == 0 || values[i-1] != values[i] {
@@ -103,8 +103,8 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 		// This guarantees that keys do not clash for different column types across blocks.
 		c := br.getColumnByName(fields[0])
 		if c.isTime {
-			// Count unique br.timestamps
-			timestamps := br.timestamps
+			// Count unique timestamps
+			timestamps := br.getTimestamps()
 			keyBuf := sup.keyBuf[:0]
 			for i, timestamp := range timestamps {
 				if i > 0 && timestamps[i-1] == timestamps[i] {
@@ -180,7 +180,7 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 	sup.columnValues = columnValues
 
 	keyBuf := sup.keyBuf[:0]
-	for i := range br.timestamps {
+	for i := 0; i < br.rowsLen; i++ {
 		seenKey := true
 		for _, values := range columnValues {
 			if i == 0 || values[i-1] != values[i] {
@@ -247,10 +247,11 @@ func (sup *statsCountUniqProcessor) updateStatsForRow(br *blockResult, rowIdx in
 		// This guarantees that keys do not clash for different column types across blocks.
 		c := br.getColumnByName(fields[0])
 		if c.isTime {
-			// Count unique br.timestamps
+			// Count unique timestamps
+			timestamps := br.getTimestamps()
 			keyBuf := sup.keyBuf[:0]
 			keyBuf = append(keyBuf[:0], 1)
-			keyBuf = encoding.MarshalInt64(keyBuf, br.timestamps[rowIdx])
+			keyBuf = encoding.MarshalInt64(keyBuf, timestamps[rowIdx])
 			stateSizeIncrease += sup.updateState(keyBuf)
 			sup.keyBuf = keyBuf
 			return stateSizeIncrease

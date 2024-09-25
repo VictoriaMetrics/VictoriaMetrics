@@ -177,9 +177,9 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 
 	// fetch the requested columns to bs.br.
 	if bs.bsw.so.needAllColumns {
-		bs.br.initAllColumns(bs, bm)
+		bs.br.initAllColumns()
 	} else {
-		bs.br.initRequestedColumns(bs, bm)
+		bs.br.initRequestedColumns()
 	}
 }
 

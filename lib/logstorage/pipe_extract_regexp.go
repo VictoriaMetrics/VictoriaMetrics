@@ -175,7 +175,7 @@ type pipeExtractRegexpProcessorShardNopad struct {
 }
 
 func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -183,7 +183,7 @@ func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult
 	shard := &pep.shards[workerID]
 
 	bm := &shard.bm
-	bm.init(len(br.timestamps))
+	bm.init(br.rowsLen)
 	bm.setBits()
 	if iff := pe.iff; iff != nil {
 		iff.f.applyToBlockResult(br, bm)
