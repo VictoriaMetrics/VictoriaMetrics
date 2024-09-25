@@ -350,7 +350,8 @@ func (q *Query) Clone() *Query {
 func (q *Query) CanReturnLastNResults() bool {
 	for _, p := range q.pipes {
 		switch p.(type) {
-		case *pipeFieldNames,
+		case *pipeBlocksCount,
+			*pipeFieldNames,
 			*pipeFieldValues,
 			*pipeLimit,
 			*pipeOffset,
