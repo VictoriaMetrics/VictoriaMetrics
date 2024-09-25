@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
+	"golang.org/x/net/http2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -31,6 +33,8 @@ var (
 	apiServerTimeout      = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kubernetes API server")
 	attachNodeMetadataAll = flag.Bool("promscrape.kubernetes.attachNodeMetadataAll", false, "Whether to set attach_metadata.node=true for all the kubernetes_sd_configs at -promscrape.config . "+
 		"It is possible to set attach_metadata.node=false individually per each kubernetes_sd_configs . See https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs")
+	useHTTP2Client = flag.Bool("promscrape.kubernetes.useHTTP2Client", false, "Whether to use HTTP/2 client for watching for Kubernetes objects."+
+		" This may reduce amount of concurrent connections to API server when watching for a big number of Kubernetes objects")
 )
 
 // WatchEvent is a watch event returned from API server endpoints if `watch=1` query arg is set.
@@ -260,14 +264,29 @@ func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
 	if proxyURL != nil {
 		proxy = http.ProxyURL(proxyURL)
 	}
+	var transportGetter func(cfg *tls.Config) http.RoundTripper
+	if *useHTTP2Client {
+		transportGetter = func(cfg *tls.Config) http.RoundTripper {
+			return &http2.Transport{
+				IdleConnTimeout: *apiServerTimeout,
+				TLSClientConfig: cfg,
+			}
+
+		}
+	} else {
+		transportGetter = func(cfg *tls.Config) http.RoundTripper {
+			return &http.Transport{
+				Proxy:               proxy,
+				TLSHandshakeTimeout: 10 * time.Second,
+				IdleConnTimeout:     *apiServerTimeout,
+				MaxIdleConnsPerHost: 100,
+				TLSClientConfig:     cfg,
+			}
+		}
+	}
 	c := &http.Client{
-		Transport: ac.NewRoundTripper(&http.Transport{
-			Proxy:               proxy,
-			TLSHandshakeTimeout: 10 * time.Second,
-			IdleConnTimeout:     *apiServerTimeout,
-			MaxIdleConnsPerHost: 100,
-		}),
-		Timeout: *apiServerTimeout,
+		Transport: ac.NewRoundTripperFromGetter(transportGetter),
+		Timeout:   *apiServerTimeout,
 	}
 	httpClientsCache[key] = c
 	httpClientsLock.Unlock()
