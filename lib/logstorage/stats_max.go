@@ -80,20 +80,12 @@ func (smp *statsMaxProcessor) mergeState(sfp statsProcessor) {
 }
 
 func (smp *statsMaxProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
 	if c.isTime {
-		// Special case for time column
-		timestamps := br.timestamps
-		maxTimestamp := timestamps[len(timestamps)-1]
-		for _, timestamp := range timestamps[:len(timestamps)-1] {
-			if timestamp > maxTimestamp {
-				maxTimestamp = timestamp
-			}
-		}
-
+		maxTimestamp := br.getMaxTimestamp()
 		bb := bbPool.Get()
 		bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], maxTimestamp)
 		smp.updateStateBytes(bb.B)

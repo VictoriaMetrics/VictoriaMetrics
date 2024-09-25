@@ -94,7 +94,7 @@ func (shard *pipeFieldNamesProcessorShard) getM() map[string]*uint64 {
 }
 
 func (pfp *pipeFieldNamesProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -113,7 +113,7 @@ func (pfp *pipeFieldNamesProcessor) writeBlock(workerID uint, br *blockResult) {
 
 		// Assume that the column is set for all the rows in the block.
 		// This is much faster than reading all the column values and counting non-empty rows.
-		*pHits += uint64(len(br.timestamps))
+		*pHits += uint64(br.rowsLen)
 	}
 }
 

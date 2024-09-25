@@ -213,11 +213,12 @@ func testFilterMatchForStorage(t *testing.T, s *Storage, tenantID TenantID, f fi
 			t.Fatalf("unexpected number of columns in blockResult; got %d; want 2", len(cs))
 		}
 		values := cs[0].getValues(br)
+		timestamps := br.getTimestamps()
 		resultsMu.Lock()
 		for i, v := range values {
 			results = append(results, result{
 				value:     strings.Clone(v),
-				timestamp: br.timestamps[i],
+				timestamp: timestamps[i],
 			})
 		}
 		resultsMu.Unlock()

@@ -66,7 +66,7 @@ type pipeDropEmptyFieldsProcessorShardNopad struct {
 }
 
 func (pdp *pipeDropEmptyFieldsProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -90,7 +90,7 @@ func (pdp *pipeDropEmptyFieldsProcessor) writeBlock(workerID uint, br *blockResu
 	shard.wctx.init(workerID, pdp.ppNext)
 
 	fields := shard.fields
-	for rowIdx := range br.timestamps {
+	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 		fields = fields[:0]
 		for i, values := range columnValues {
 			v := values[rowIdx]
