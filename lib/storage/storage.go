@@ -1268,11 +1268,13 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uin
 // ErrDeadlineExceeded is returned when the request times out.
 var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 
-// DeleteSeries deletes all the series matching the given tfss.
+// DeleteSeries deletes the series matching the given tfss.
 //
-// Returns the number of metrics deleted.
-func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters) (int, error) {
-	deletedCount, err := s.idb().DeleteTSIDs(qt, tfss)
+// If the number of the series exceeds maxMetrics, no series will be deleted and
+// an error will be returned. Otherwise, the funciton returns the number of
+// metrics deleted.
+func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
+	deletedCount, err := s.idb().DeleteTSIDs(qt, tfss, maxMetrics)
 	if err != nil {
 		return deletedCount, fmt.Errorf("cannot delete tsids: %w", err)
 	}

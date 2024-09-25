@@ -46,6 +46,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): consistently return the first non-`NaN` value from [`range_first`](https://docs.victoriametrics.com/metricsql/#range_first) function across all the returned data points. Previously `NaN` data points weren't replaced with the first non-`NaN` value.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): consistently return the last non-`NaN` value from [`range_last`](https://docs.victoriametrics.com/metricsql/#range_last) function across all the returned data points. Previously `NaN` data points weren't replaced with the last non-`NaN` value.
 * BUGFIX: all VictoriaMetrics components: increase default value of `-loggerMaxArgLen` cmd-line flag from 1000 to 5000. This should improve visibility on errors produced by very long queries.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): introduce the `-search.maxDeleteSeries` command line flag to limit the number of series that can be deleted by a single `/api/v1/admin/tsdb/delete_series` call. Previously, one could delete any number of series and if this number was big (millions) the deletion could result in OOM. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7027) for details.
+
 
 ## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
 
