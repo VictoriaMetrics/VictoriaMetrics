@@ -120,4 +120,4 @@ See also:
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 - [Elasticsearch output docs for Telegraf](https://github.com/influxdata/telegraf/tree/master/plugins/outputs/elasticsearch).
-- [Docker-compose demo for Telegraf integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/telegraf-docker).
+- [Docker-compose demo for Telegraf integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/telegraf).
