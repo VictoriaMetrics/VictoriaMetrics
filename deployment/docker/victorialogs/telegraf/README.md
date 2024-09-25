@@ -29,8 +29,10 @@ Querying the data
 * [vmui](https://docs.victoriametrics.com/victorialogs/querying/#vmui) - a web UI is accessible by `http://localhost:9428/select/vmui`
 * for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
 
-Here is an example of telegraf configuration
-
-https://github.com/VictoriaMetrics/VictoriaMetrics/blob/da6889f89bd298683cd25b71a3f851930c8fe39f/deployment/docker/victorialogs/telegraf/loki/telegraf.conf#L1-L44
+Telegraf configuration example can be found below:
+* [elasticsearch](./elasticsearch/telegraf.conf)
+* [loki](./loki/telegraf.conf)
+* [jsonline](./jsonline/telegraf.conf)
+* [syslog](./syslog/telegraf.conf)
 
 Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.

@@ -3,7 +3,7 @@
 * [elasticsearch](./elasticsearch)
 * [loki](./loki)
 * [jsonline single node](./jsonline)
-* [jsonline HA setup](./ha-jsonline)
+* [jsonline HA setup](./jsonline-ha)
 
 The folder contains the example of integration of [vector](https://vector.dev/docs/) with Victorialogs
 
@@ -29,8 +29,10 @@ Querying the data
 * [vmui](https://docs.victoriametrics.com/victorialogs/querying/#vmui) - a web UI is accessible by `http://localhost:9428/select/vmui`
 * for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
 
-Here is an example of vector configuration
-
-https://github.com/VictoriaMetrics/VictoriaMetrics/blob/da6889f89bd298683cd25b71a3f851930c8fe39f/deployment/docker/victorialogs/vector/elasticsearch/vector.yaml#L1-L43
+Vector configuration example can be found below:
+* [elasticsearch](./elasticsearch/vector.yaml)
+* [loki](./loki/vector.yaml)
+* [jsonline single node](./jsonline/vector.yaml)
+* [jsonline HA setup](./jsonline-ha/vector.yaml)
 
 Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.

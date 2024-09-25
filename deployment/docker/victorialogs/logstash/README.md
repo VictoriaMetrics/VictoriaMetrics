@@ -2,7 +2,7 @@
 
 * [loki](./loki)
 * [jsonline single node](./jsonline)
-* [jsonline HA setup](./ha-jsonline)
+* [jsonline HA setup](./jsonline-ha)
 * [elasticsearch](./elasticsearch)
 
 It is required to use [OpenSearch plugin](https://github.com/opensearch-project/logstash-output-opensearch) for output configuration.
@@ -33,9 +33,10 @@ Querying the data
 * [vmui](https://docs.victoriametrics.com/victorialogs/querying/#vmui) - a web UI is accessible by `http://localhost:9428/select/vmui`
 * for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
 
-
-Here is an example of logstash configuration
-
-https://github.com/VictoriaMetrics/VictoriaMetrics/blob/da6889f89bd298683cd25b71a3f851930c8fe39f/deployment/docker/victorialogs/logstash/loki/pipeline.conf#L1-L11
+Logstash configuration example can be found below:
+* [loki](./loki/pipeline.conf)
+* [jsonline single node](./jsonline/pipeline.conf)
+* [jsonline HA setup](./jsonline-ha/pipeline.conf)
+* [elasticsearch](./elasticsearch/pipeline.conf)
 
 Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.

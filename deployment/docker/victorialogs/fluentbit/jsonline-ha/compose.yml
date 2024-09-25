@@ -2,4 +2,4 @@ include:
   - path:
       - ../compose.yml
       - ../../compose-ha.yml
-name: fluentbit-ha-jsonline
+name: fluentbit-jsonline-ha

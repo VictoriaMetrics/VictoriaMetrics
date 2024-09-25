@@ -2,4 +2,4 @@ include:
  - path:
      - ../compose.yml
      - ../../compose-ha.yml
-name: collector-ha-elasticsearch
+name: collector-elasticsearch-ha

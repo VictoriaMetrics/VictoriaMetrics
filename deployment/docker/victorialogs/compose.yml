@@ -1,25 +1,34 @@
 services:
-  victorialogs:
+  # meta service will be ignored by compose
+  .victorialogs:
     image: docker.io/victoriametrics/victoria-logs:v0.29.0-victorialogs
-    volumes:
-      - victorialogs:/vlogs
-    ports:
-      - '9428:9428'
     command:
       - -storageDataPath=/vlogs
       - -loggerFormat=json
       - -syslog.listenAddr.tcp=0.0.0.0:8094
+    deploy:
+      replicas: 0
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9428/health"]
       interval: 1s
       timeout: 1s
       retries: 10
 
+  victorialogs:
+    extends: .victorialogs
+    ports:
+      - '9428:9428'
+    volumes:
+      - victorialogs:/vlogs
+    deploy:
+      replicas: 1
+
+  # second replica is needed for HA setup and its replica count is set to 1 in compose-ha.yaml file
   victorialogs-2:
-    extends: victorialogs
-    ports: !override
+    extends: .victorialogs
+    ports:
       - '9429:9428'
-    volumes: !override
+    volumes:
       - victorialogs-2:/vlogs
     deploy:
       replicas: 0
