@@ -1,0 +1,11 @@
+include:
+ - ../compose.yml
+services:
+  fluentd:
+    build: .
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ${PWD}/fluent.conf:/fluentd/etc/fluent.conf
+    depends_on: [victorialogs]
+    ports:
+      - "5140:5140"

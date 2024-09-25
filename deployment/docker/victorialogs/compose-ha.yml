@@ -1,0 +1,4 @@
+services:
+  victorialogs-2:
+    deploy:
+      replicas: 1

@@ -5,7 +5,7 @@ exporters:
     verbosity: detailed
 receivers:
   filelog:
-    include: [/tmp/logs/*.log]
+    include: [/var/lib/docker/containers/**/*.log]
     resource:
       region: us-east-1
 service:
