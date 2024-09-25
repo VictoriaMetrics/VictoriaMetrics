@@ -90,8 +90,8 @@ _Appears in:_
 
 | Field | Description | Scheme | Required |
 | --- | --- | --- | --- |
-| `headers` | Headers defines list of headers that can be added to HTTP responses. | _object (keys:string, values:string)_ | true |
-| `http2` | HTTP2 enables HTTP/2 support. Note that HTTP/2 is only supported with TLS.<br />This can not be changed on the fly. | _boolean_ | true |
+| `headers` | Headers defines list of headers that can be added to HTTP responses. | _object (keys:string, values:string)_ | false |
+| `http2` | HTTP2 enables HTTP/2 support. Note that HTTP/2 is only supported with TLS.<br />This can not be changed on the fly. | _boolean_ | false |
 
 
 
@@ -257,10 +257,10 @@ _Appears in:_
 
 | Field | Description | Scheme | Required |
 | --- | --- | --- | --- |
-| `cert_file` | CertFile defines path to the pre-mounted file with certificate<br />mutually exclusive with CertSecretRef | _string_ | true |
-| `cert_secret_ref` |  | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | true |
-| `key_file` | KeyFile defines path to the pre-mounted file with certificate key<br />mutually exclusive with KeySecretRef | _string_ | true |
-| `key_secret_ref` | Key defines reference for secret with certificate key content under given key<br />mutually exclusive with KeyFile | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | true |
+| `cert_file` | CertFile defines path to the pre-mounted file with certificate<br />mutually exclusive with CertSecretRef | _string_ | false |
+| `cert_secret_ref` | CertSecretRef defines reference for secret with certificate content under given key<br />mutually exclusive with CertFile | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
+| `key_file` | KeyFile defines path to the pre-mounted file with certificate key<br />mutually exclusive with KeySecretRef | _string_ | false |
+| `key_secret_ref` | Key defines reference for secret with certificate key content under given key<br />mutually exclusive with KeyFile | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
 
 
 #### CommonApplicationDeploymentParams
@@ -330,9 +330,9 @@ _Appears in:_
 | Field | Description | Scheme | Required |
 | --- | --- | --- | --- |
 | `configReloaderExtraArgs` | ConfigReloaderExtraArgs that will be passed to  VMAuths config-reloader container<br />for example resyncInterval: "30s" | _object (keys:string, values:string)_ | false |
-| `configReloaderImageTag` | ConfigReloaderImageTag defines image:tag for config-reloader container | _string_ | true |
-| `configReloaderResources` | ConfigReloaderResources config-reloader container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | true |
-| `useVMConfigReloader` | UseVMConfigReloader replaces prometheus-like config-reloader<br />with vm one. It uses secrets watch instead of file watch<br />which greatly increases speed of config updates | _boolean_ | true |
+| `configReloaderImageTag` | ConfigReloaderImageTag defines image:tag for config-reloader container | _string_ | false |
+| `configReloaderResources` | ConfigReloaderResources config-reloader container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | false |
+| `useVMConfigReloader` | UseVMConfigReloader replaces prometheus-like config-reloader<br />with vm one. It uses secrets watch instead of file watch<br />which greatly increases speed of config updates | _boolean_ | false |
 
 
 #### CommonDefaultableParams
@@ -354,7 +354,7 @@ _Appears in:_
 
 | Field | Description | Scheme | Required |
 | --- | --- | --- | --- |
-| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | true |
+| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | false |
 | `image` | Image - docker image settings<br />if no specified operator uses default version from operator config | _[Image](#image)_ | false |
 | `port` | Port listen address | _string_ | false |
 | `resources` | Resources container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | false |
@@ -1721,14 +1721,14 @@ _Appears in:_
 
 | Field | Description | Scheme | Required |
 | --- | --- | --- | --- |
-| `ca_file` | CAFile defines path to the pre-mounted file with CA<br />mutually exclusive with CASecretRef | _string_ | true |
-| `ca_secret_ref` | CA defines reference for secret with CA content under given key<br />mutually exclusive with CAFile | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | true |
-| `cert_file` | CertFile defines path to the pre-mounted file with certificate<br />mutually exclusive with CertSecretRef | _string_ | true |
-| `cert_secret_ref` |  | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | true |
-| `insecure_skip_verify` | Cert defines reference for secret with CA content under given key<br />mutually exclusive with CertFile | _boolean_ | true |
-| `key_file` | KeyFile defines path to the pre-mounted file with certificate key<br />mutually exclusive with KeySecretRef | _string_ | true |
-| `key_secret_ref` | Key defines reference for secret with certificate key content under given key<br />mutually exclusive with KeyFile | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | true |
-| `server_name` | ServerName indicates a name of a server | _string_ | true |
+| `ca_file` | CAFile defines path to the pre-mounted file with CA<br />mutually exclusive with CASecretRef | _string_ | false |
+| `ca_secret_ref` | CA defines reference for secret with CA content under given key<br />mutually exclusive with CAFile | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
+| `cert_file` | CertFile defines path to the pre-mounted file with certificate<br />mutually exclusive with CertSecretRef | _string_ | false |
+| `cert_secret_ref` | CertSecretRef defines reference for secret with certificate content under given key<br />mutually exclusive with CertFile | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
+| `insecure_skip_verify` | Cert defines reference for secret with CA content under given key<br />mutually exclusive with CertFile | _boolean_ | false |
+| `key_file` | KeyFile defines path to the pre-mounted file with certificate key<br />mutually exclusive with KeySecretRef | _string_ | false |
+| `key_secret_ref` | Key defines reference for secret with certificate key content under given key<br />mutually exclusive with KeyFile | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
+| `server_name` | ServerName indicates a name of a server | _string_ | false |
 
 
 #### TLSConfig
@@ -1787,18 +1787,18 @@ _Appears in:_
 
 | Field | Description | Scheme | Required |
 | --- | --- | --- | --- |
-| `cert_file` | CertFile defines path to the pre-mounted file with certificate<br />mutually exclusive with CertSecretRef | _string_ | true |
-| `cert_secret_ref` |  | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | true |
-| `cipher_suites` | CipherSuites defines list of supported cipher suites for TLS versions up to TLS 1.2<br />https://golang.org/pkg/crypto/tls/#pkg-constants | _string array_ | true |
-| `client_auth_type` | Cert defines reference for secret with CA content under given key<br />mutually exclusive with CertFile<br />ClientAuthType defines server policy for client authentication<br />If you want to enable client authentication (aka mTLS), you need to use RequireAndVerifyClientCert<br />Note, mTLS is supported only at enterprise version of VictoriaMetrics components | _string_ | true |
-| `client_ca_file` | ClientCAFile defines path to the pre-mounted file with CA<br />mutually exclusive with ClientCASecretRef | _string_ | true |
-| `client_ca_secret_ref` | ClientCASecretRef defines reference for secret with CA content under given key<br />mutually exclusive with ClientCAFile | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | true |
-| `curve_preferences` | CurvePreferences defines elliptic curves that will be used in an ECDHE handshake, in preference order.<br />https://golang.org/pkg/crypto/tls/#CurveID | _string array_ | true |
-| `key_file` | KeyFile defines path to the pre-mounted file with certificate key<br />mutually exclusive with KeySecretRef | _string_ | true |
-| `key_secret_ref` | Key defines reference for secret with certificate key content under given key<br />mutually exclusive with KeyFile | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | true |
-| `max_version` | MaxVersion maximum TLS version that is acceptable. | _string_ | true |
-| `min_version` | MinVersion minimum TLS version that is acceptable. | _string_ | true |
-| `prefer_server_cipher_suites` | PreferServerCipherSuites controls whether the server selects the<br />client's most preferred ciphersuite | _boolean_ | true |
+| `cert_file` | CertFile defines path to the pre-mounted file with certificate<br />mutually exclusive with CertSecretRef | _string_ | false |
+| `cert_secret_ref` | CertSecretRef defines reference for secret with certificate content under given key<br />mutually exclusive with CertFile | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
+| `cipher_suites` | CipherSuites defines list of supported cipher suites for TLS versions up to TLS 1.2<br />https://golang.org/pkg/crypto/tls/#pkg-constants | _string array_ | false |
+| `client_auth_type` | Cert defines reference for secret with CA content under given key<br />mutually exclusive with CertFile<br />ClientAuthType defines server policy for client authentication<br />If you want to enable client authentication (aka mTLS), you need to use RequireAndVerifyClientCert<br />Note, mTLS is supported only at enterprise version of VictoriaMetrics components | _string_ | false |
+| `client_ca_file` | ClientCAFile defines path to the pre-mounted file with CA<br />mutually exclusive with ClientCASecretRef | _string_ | false |
+| `client_ca_secret_ref` | ClientCASecretRef defines reference for secret with CA content under given key<br />mutually exclusive with ClientCAFile | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
+| `curve_preferences` | CurvePreferences defines elliptic curves that will be used in an ECDHE handshake, in preference order.<br />https://golang.org/pkg/crypto/tls/#CurveID | _string array_ | false |
+| `key_file` | KeyFile defines path to the pre-mounted file with certificate key<br />mutually exclusive with KeySecretRef | _string_ | false |
+| `key_secret_ref` | Key defines reference for secret with certificate key content under given key<br />mutually exclusive with KeyFile | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
+| `max_version` | MaxVersion maximum TLS version that is acceptable. | _string_ | false |
+| `min_version` | MinVersion minimum TLS version that is acceptable. | _string_ | false |
+| `prefer_server_cipher_suites` | PreferServerCipherSuites controls whether the server selects the<br />client's most preferred ciphersuite | _boolean_ | false |
 
 
 #### TargetEndpoint
@@ -2075,7 +2075,7 @@ _Appears in:_
 | `affinity` | Affinity If specified, the pod's scheduling constraints. | _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | false |
 | `configMaps` | ConfigMaps is a list of ConfigMaps in the same namespace as the Application<br />object, which shall be mounted into the Application container<br />at /etc/vm/configs/CONFIGMAP_NAME folder | _string array_ | false |
 | `containers` | Containers property allows to inject additions sidecars or to patch existing containers.<br />It can be useful for proxies, backup, etc. | _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#container-v1-core) array_ | false |
-| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | true |
+| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | false |
 | `dnsConfig` | Specifies the DNS parameters of a pod.<br />Parameters specified here will be merged to the generated DNS<br />configuration based on DNSPolicy. | _[PodDNSConfig](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#poddnsconfig-v1-core)_ | false |
 | `dnsPolicy` | DNSPolicy sets DNS policy for the pod | _[DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#dnspolicy-v1-core)_ | false |
 | `extraArgs` | ExtraArgs that will be passed to the application container<br />for example remoteWrite.tmpDataPath: /tmp | _object (keys:string, values:string)_ | false |
@@ -2209,10 +2209,10 @@ _Appears in:_
 | `claimTemplates` | ClaimTemplates allows adding additional VolumeClaimTemplates for VMAgent in StatefulMode | _[PersistentVolumeClaim](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#persistentvolumeclaim-v1-core) array_ | true |
 | `configMaps` | ConfigMaps is a list of ConfigMaps in the same namespace as the Application<br />object, which shall be mounted into the Application container<br />at /etc/vm/configs/CONFIGMAP_NAME folder | _string array_ | false |
 | `configReloaderExtraArgs` | ConfigReloaderExtraArgs that will be passed to  VMAuths config-reloader container<br />for example resyncInterval: "30s" | _object (keys:string, values:string)_ | false |
-| `configReloaderImageTag` | ConfigReloaderImageTag defines image:tag for config-reloader container | _string_ | true |
-| `configReloaderResources` | ConfigReloaderResources config-reloader container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | true |
+| `configReloaderImageTag` | ConfigReloaderImageTag defines image:tag for config-reloader container | _string_ | false |
+| `configReloaderResources` | ConfigReloaderResources config-reloader container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | false |
 | `containers` | Containers property allows to inject additions sidecars or to patch existing containers.<br />It can be useful for proxies, backup, etc. | _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#container-v1-core) array_ | false |
-| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | true |
+| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | false |
 | `dnsConfig` | Specifies the DNS parameters of a pod.<br />Parameters specified here will be merged to the generated DNS<br />configuration based on DNSPolicy. | _[PodDNSConfig](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#poddnsconfig-v1-core)_ | false |
 | `dnsPolicy` | DNSPolicy sets DNS policy for the pod | _[DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#dnspolicy-v1-core)_ | false |
 | `enforcedNamespaceLabel` | EnforcedNamespaceLabel enforces adding a namespace label of origin for each alert<br />and metric that is user created. The label value will always be the namespace of the object that is<br />being created. | _string_ | false |
@@ -2291,7 +2291,7 @@ _Appears in:_
 | `updateStrategy` | UpdateStrategy - overrides default update strategy.<br />works only for deployments, statefulset always use OnDelete. | _[DeploymentStrategyType](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstrategytype-v1-apps)_ | false |
 | `useDefaultResources` | UseDefaultResources controls resource settings<br />By default, operator sets built-in resource requirements | _boolean_ | false |
 | `useStrictSecurity` | UseStrictSecurity enables strict security mode for component<br />it restricts disk writes access<br />uses non-root user out of the box<br />drops not needed security permissions | _boolean_ | false |
-| `useVMConfigReloader` | UseVMConfigReloader replaces prometheus-like config-reloader<br />with vm one. It uses secrets watch instead of file watch<br />which greatly increases speed of config updates | _boolean_ | true |
+| `useVMConfigReloader` | UseVMConfigReloader replaces prometheus-like config-reloader<br />with vm one. It uses secrets watch instead of file watch<br />which greatly increases speed of config updates | _boolean_ | false |
 | `vmAgentExternalLabelName` | VMAgentExternalLabelName Name of vmAgent external label used to denote vmAgent instance<br />name. Defaults to the value of `prometheus`. External label will<br />_not_ be added when value is set to empty string (`""`). | _string_ | false |
 | `volumeMounts` | VolumeMounts allows configuration of additional VolumeMounts on the output Deployment/StatefulSet definition.<br />VolumeMounts specified will be appended to other VolumeMounts in the Application container | _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ | false |
 | `volumes` | Volumes allows configuration of additional volumes on the output Deployment/StatefulSet definition.<br />Volumes specified will be appended to other volumes that are generated.<br />/ +optional | _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | true |
@@ -2388,11 +2388,11 @@ _Appears in:_
 | `affinity` | Affinity If specified, the pod's scheduling constraints. | _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | false |
 | `configMaps` | ConfigMaps is a list of ConfigMaps in the same namespace as the Application<br />object, which shall be mounted into the Application container<br />at /etc/vm/configs/CONFIGMAP_NAME folder | _string array_ | false |
 | `configReloaderExtraArgs` | ConfigReloaderExtraArgs that will be passed to  VMAuths config-reloader container<br />for example resyncInterval: "30s" | _object (keys:string, values:string)_ | false |
-| `configReloaderImageTag` | ConfigReloaderImageTag defines image:tag for config-reloader container | _string_ | true |
-| `configReloaderResources` | ConfigReloaderResources config-reloader container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | true |
+| `configReloaderImageTag` | ConfigReloaderImageTag defines image:tag for config-reloader container | _string_ | false |
+| `configReloaderResources` | ConfigReloaderResources config-reloader container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | false |
 | `containers` | Containers property allows to inject additions sidecars or to patch existing containers.<br />It can be useful for proxies, backup, etc. | _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#container-v1-core) array_ | false |
 | `datasource` | Datasource Victoria Metrics or VMSelect url. Required parameter. e.g. http://127.0.0.1:8428 | _[VMAlertDatasourceSpec](#vmalertdatasourcespec)_ | true |
-| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | true |
+| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | false |
 | `dnsConfig` | Specifies the DNS parameters of a pod.<br />Parameters specified here will be merged to the generated DNS<br />configuration based on DNSPolicy. | _[PodDNSConfig](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#poddnsconfig-v1-core)_ | false |
 | `dnsPolicy` | DNSPolicy sets DNS policy for the pod | _[DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#dnspolicy-v1-core)_ | false |
 | `enforcedNamespaceLabel` | EnforcedNamespaceLabel enforces adding a namespace label of origin for each alert<br />and metric that is user created. The label value will always be the namespace of the object that is<br />being created. | _string_ | false |
@@ -2443,7 +2443,7 @@ _Appears in:_
 | `updateStrategy` | UpdateStrategy - overrides default update strategy. | _[DeploymentStrategyType](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#deploymentstrategytype-v1-apps)_ | false |
 | `useDefaultResources` | UseDefaultResources controls resource settings<br />By default, operator sets built-in resource requirements | _boolean_ | false |
 | `useStrictSecurity` | UseStrictSecurity enables strict security mode for component<br />it restricts disk writes access<br />uses non-root user out of the box<br />drops not needed security permissions | _boolean_ | false |
-| `useVMConfigReloader` | UseVMConfigReloader replaces prometheus-like config-reloader<br />with vm one. It uses secrets watch instead of file watch<br />which greatly increases speed of config updates | _boolean_ | true |
+| `useVMConfigReloader` | UseVMConfigReloader replaces prometheus-like config-reloader<br />with vm one. It uses secrets watch instead of file watch<br />which greatly increases speed of config updates | _boolean_ | false |
 | `volumeMounts` | VolumeMounts allows configuration of additional VolumeMounts on the output Deployment/StatefulSet definition.<br />VolumeMounts specified will be appended to other VolumeMounts in the Application container | _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ | false |
 | `volumes` | Volumes allows configuration of additional volumes on the output Deployment/StatefulSet definition.<br />Volumes specified will be appended to other volumes that are generated.<br />/ +optional | _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | true |
 
@@ -2531,21 +2531,21 @@ _Appears in:_
 | `configNamespaceSelector` |  ConfigNamespaceSelector defines namespace selector for VMAlertmanagerConfig.<br />Works in combination with Selector.<br />NamespaceSelector nil - only objects at VMAlertmanager namespace.<br />Selector nil - only objects at NamespaceSelector namespaces.<br />If both nil - behaviour controlled by selectAllByDefault | _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ | false |
 | `configRawYaml` | ConfigRawYaml - raw configuration for alertmanager,<br />it helps it to start without secret.<br />priority -> hardcoded ConfigRaw -> ConfigRaw, provided by user -> ConfigSecret. | _string_ | false |
 | `configReloaderExtraArgs` | ConfigReloaderExtraArgs that will be passed to  VMAuths config-reloader container<br />for example resyncInterval: "30s" | _object (keys:string, values:string)_ | false |
-| `configReloaderImageTag` | ConfigReloaderImageTag defines image:tag for config-reloader container | _string_ | true |
-| `configReloaderResources` | ConfigReloaderResources config-reloader container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | true |
+| `configReloaderImageTag` | ConfigReloaderImageTag defines image:tag for config-reloader container | _string_ | false |
+| `configReloaderResources` | ConfigReloaderResources config-reloader container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | false |
 | `configSecret` | ConfigSecret is the name of a Kubernetes Secret in the same namespace as the<br />VMAlertmanager object, which contains configuration for this VMAlertmanager,<br />configuration must be inside secret key: alertmanager.yaml.<br />It must be created by user.<br />instance. Defaults to 'vmalertmanager-<alertmanager-name>'<br />The secret is mounted into /etc/alertmanager/config. | _string_ | false |
 | `configSelector` | ConfigSelector defines selector for VMAlertmanagerConfig, result config will be merged with with Raw or Secret config.<br />Works in combination with NamespaceSelector.<br />NamespaceSelector nil - only objects at VMAlertmanager namespace.<br />Selector nil - only objects at NamespaceSelector namespaces.<br />If both nil - behaviour controlled by selectAllByDefault | _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ | false |
 | `containers` | Containers property allows to inject additions sidecars or to patch existing containers.<br />It can be useful for proxies, backup, etc. | _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#container-v1-core) array_ | false |
 | `disableNamespaceMatcher` | DisableNamespaceMatcher disables top route namespace label matcher for VMAlertmanagerConfig<br />It may be useful if alert doesn't have namespace label for some reason | _boolean_ | false |
 | `disableRouteContinueEnforce` | DisableRouteContinueEnforce cancel the behavior for VMAlertmanagerConfig that always enforce first-level route continue to true | _boolean_ | false |
-| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | true |
+| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | false |
 | `dnsConfig` | Specifies the DNS parameters of a pod.<br />Parameters specified here will be merged to the generated DNS<br />configuration based on DNSPolicy. | _[PodDNSConfig](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#poddnsconfig-v1-core)_ | false |
 | `dnsPolicy` | DNSPolicy sets DNS policy for the pod | _[DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#dnspolicy-v1-core)_ | false |
 | `enforcedTopRouteMatchers` | EnforcedTopRouteMatchers defines label matchers to be added for the top route<br />of VMAlertmanagerConfig<br />It allows to make some set of labels required for alerts.<br />https://prometheus.io/docs/alerting/latest/configuration/#matcher | _string array_ | true |
 | `externalURL` | ExternalURL the VMAlertmanager instances will be available under. This is<br />necessary to generate correct URLs. This is necessary if VMAlertmanager is not<br />served from root of a DNS name. | _string_ | false |
 | `extraArgs` | ExtraArgs that will be passed to the application container<br />for example remoteWrite.tmpDataPath: /tmp | _object (keys:string, values:string)_ | false |
 | `extraEnvs` | ExtraEnvs that will be passed to the application container | _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core) array_ | false |
-| `gossipConfig` | GossipConfig defines gossip TLS configuration for Alertmanager cluster | _[AlertmanagerGossipConfig](#alertmanagergossipconfig)_ | true |
+| `gossipConfig` | GossipConfig defines gossip TLS configuration for Alertmanager cluster | _[AlertmanagerGossipConfig](#alertmanagergossipconfig)_ | false |
 | `hostAliases` | HostAliases provides mapping for ip and hostname,<br />that would be propagated to pod,<br />cannot be used with HostNetwork. | _[HostAlias](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#hostalias-v1-core) array_ | false |
 | `hostNetwork` | HostNetwork controls whether the pod may use the node network namespace | _boolean_ | false |
 | `host_aliases` | HostAliasesUnderScore provides mapping for ip and hostname,<br />that would be propagated to pod,<br />cannot be used with HostNetwork.<br />Has Priority over hostAliases field | _[HostAlias](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#hostalias-v1-core) array_ | false |
@@ -2585,10 +2585,10 @@ _Appears in:_
 | `topologySpreadConstraints` | TopologySpreadConstraints embedded kubernetes pod configuration option,<br />controls how pods are spread across your cluster among failure-domains<br />such as regions, zones, nodes, and other user-defined topology domains<br />https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/ | _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#topologyspreadconstraint-v1-core) array_ | false |
 | `useDefaultResources` | UseDefaultResources controls resource settings<br />By default, operator sets built-in resource requirements | _boolean_ | false |
 | `useStrictSecurity` | UseStrictSecurity enables strict security mode for component<br />it restricts disk writes access<br />uses non-root user out of the box<br />drops not needed security permissions | _boolean_ | false |
-| `useVMConfigReloader` | UseVMConfigReloader replaces prometheus-like config-reloader<br />with vm one. It uses secrets watch instead of file watch<br />which greatly increases speed of config updates | _boolean_ | true |
+| `useVMConfigReloader` | UseVMConfigReloader replaces prometheus-like config-reloader<br />with vm one. It uses secrets watch instead of file watch<br />which greatly increases speed of config updates | _boolean_ | false |
 | `volumeMounts` | VolumeMounts allows configuration of additional VolumeMounts on the output Deployment/StatefulSet definition.<br />VolumeMounts specified will be appended to other VolumeMounts in the Application container | _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ | false |
 | `volumes` | Volumes allows configuration of additional volumes on the output Deployment/StatefulSet definition.<br />Volumes specified will be appended to other volumes that are generated.<br />/ +optional | _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | true |
-| `webConfig` | WebConfig defines configuration for webserver<br />https://github.com/prometheus/alertmanager/blob/main/docs/https.md | _[AlertmanagerWebConfig](#alertmanagerwebconfig)_ | true |
+| `webConfig` | WebConfig defines configuration for webserver<br />https://github.com/prometheus/alertmanager/blob/main/docs/https.md | _[AlertmanagerWebConfig](#alertmanagerwebconfig)_ | false |
 
 
 
@@ -2627,12 +2627,12 @@ _Appears in:_
 | `affinity` | Affinity If specified, the pod's scheduling constraints. | _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | false |
 | `configMaps` | ConfigMaps is a list of ConfigMaps in the same namespace as the Application<br />object, which shall be mounted into the Application container<br />at /etc/vm/configs/CONFIGMAP_NAME folder | _string array_ | false |
 | `configReloaderExtraArgs` | ConfigReloaderExtraArgs that will be passed to  VMAuths config-reloader container<br />for example resyncInterval: "30s" | _object (keys:string, values:string)_ | false |
-| `configReloaderImageTag` | ConfigReloaderImageTag defines image:tag for config-reloader container | _string_ | true |
-| `configReloaderResources` | ConfigReloaderResources config-reloader container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | true |
+| `configReloaderImageTag` | ConfigReloaderImageTag defines image:tag for config-reloader container | _string_ | false |
+| `configReloaderResources` | ConfigReloaderResources config-reloader container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | false |
 | `configSecret` | ConfigSecret is the name of a Kubernetes Secret in the same namespace as the<br />VMAuth object, which contains auth configuration for vmauth,<br />configuration must be inside secret key: config.yaml.<br />It must be created and managed manually.<br />If it's defined, configuration for vmauth becomes unmanaged and operator'll not create any related secrets/config-reloaders | _string_ | false |
 | `containers` | Containers property allows to inject additions sidecars or to patch existing containers.<br />It can be useful for proxies, backup, etc. | _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#container-v1-core) array_ | false |
 | `default_url` | DefaultURLs backend url for non-matching paths filter<br />usually used for default backend with error message | _string array_ | true |
-| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | true |
+| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | false |
 | `discover_backend_ips` | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | _boolean_ | true |
 | `dnsConfig` | Specifies the DNS parameters of a pod.<br />Parameters specified here will be merged to the generated DNS<br />configuration based on DNSPolicy. | _[PodDNSConfig](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#poddnsconfig-v1-core)_ | false |
 | `dnsPolicy` | DNSPolicy sets DNS policy for the pod | _[DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#dnspolicy-v1-core)_ | false |
@@ -2681,7 +2681,7 @@ _Appears in:_
 | `unauthorizedAccessConfig` | UnauthorizedAccessConfig configures access for un authorized users | _[UnauthorizedAccessConfigURLMap](#unauthorizedaccessconfigurlmap) array_ | false |
 | `useDefaultResources` | UseDefaultResources controls resource settings<br />By default, operator sets built-in resource requirements | _boolean_ | false |
 | `useStrictSecurity` | UseStrictSecurity enables strict security mode for component<br />it restricts disk writes access<br />uses non-root user out of the box<br />drops not needed security permissions | _boolean_ | false |
-| `useVMConfigReloader` | UseVMConfigReloader replaces prometheus-like config-reloader<br />with vm one. It uses secrets watch instead of file watch<br />which greatly increases speed of config updates | _boolean_ | true |
+| `useVMConfigReloader` | UseVMConfigReloader replaces prometheus-like config-reloader<br />with vm one. It uses secrets watch instead of file watch<br />which greatly increases speed of config updates | _boolean_ | false |
 | `userNamespaceSelector` | UserNamespaceSelector Namespaces to be selected for  VMAuth discovery.<br />Works in combination with Selector.<br />NamespaceSelector nil - only objects at VMAuth namespace.<br />Selector nil - only objects at NamespaceSelector namespaces.<br />If both nil - behaviour controlled by selectAllByDefault | _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ | false |
 | `userSelector` | UserSelector defines VMUser to be selected for config file generation.<br />Works in combination with NamespaceSelector.<br />NamespaceSelector nil - only objects at VMAuth namespace.<br />If both nil - behaviour controlled by selectAllByDefault | _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ | false |
 | `volumeMounts` | VolumeMounts allows configuration of additional VolumeMounts on the output Deployment/StatefulSet definition.<br />VolumeMounts specified will be appended to other VolumeMounts in the Application container | _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ | false |
@@ -3255,7 +3255,7 @@ _Appears in:_
 | `affinity` | Affinity If specified, the pod's scheduling constraints. | _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | false |
 | `configMaps` | ConfigMaps is a list of ConfigMaps in the same namespace as the Application<br />object, which shall be mounted into the Application container<br />at /etc/vm/configs/CONFIGMAP_NAME folder | _string array_ | false |
 | `containers` | Containers property allows to inject additions sidecars or to patch existing containers.<br />It can be useful for proxies, backup, etc. | _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#container-v1-core) array_ | false |
-| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | true |
+| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | false |
 | `dnsConfig` | Specifies the DNS parameters of a pod.<br />Parameters specified here will be merged to the generated DNS<br />configuration based on DNSPolicy. | _[PodDNSConfig](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#poddnsconfig-v1-core)_ | false |
 | `dnsPolicy` | DNSPolicy sets DNS policy for the pod | _[DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#dnspolicy-v1-core)_ | false |
 | `extraArgs` | ExtraArgs that will be passed to the application container<br />for example remoteWrite.tmpDataPath: /tmp | _object (keys:string, values:string)_ | false |
