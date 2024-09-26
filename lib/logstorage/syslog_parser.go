@@ -62,7 +62,7 @@ type SyslogParser struct {
 	// currentYear is used as the current year for rfc3164 messages.
 	currentYear int
 
-	// timezeon is used as the current timezeon for rfc3164 messages.
+	// timezone is used as the current timezone for rfc3164 messages.
 	timezone *time.Location
 }
 
