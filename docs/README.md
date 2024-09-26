@@ -1724,6 +1724,13 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   of CPU time and memory when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxSeries` to quite low value in order limit CPU and memory usage.
   See also `-search.maxLabelsAPIDuration` and `-search.maxLabelsAPISeries`.
+- `-search.maxDeleteSeries` limits the number of unique time series that can be
+  deleted by a single
+  [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series)
+  call. Deleting too many time series may require big amount of CPU and memory
+  and this limit guards against unplanned resource usage spikes. Also see
+  [How to delete time series](#how-to-delete-time-series) section to learn about
+  different ways of deleting series.
 - `-search.maxTagKeys` limits the number of items, which may be returned from [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels).
   This endpoint is used mostly by Grafana for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
@@ -1750,12 +1757,6 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   In this case it might be useful to set the `-search.maxLabelsAPIDuration` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPISeries` and `-search.ignoreExtraFiltersAtLabelsAPI`.
 - `-search.maxTagValueSuffixesPerSearch` limits the number of entries, which may be returned from `/metrics/find` endpoint. See [Graphite Metrics API usage docs](#graphite-metrics-api-usage).
-- `-search.maxDeleteSeries` limits the number of unique time series that can be
-  deleted by a single `/api/v1/admin/tsdb/delete_series` call. Deleting too many
-  time series may require big amount of CPU and memory and this limit guards
-  against unplanned resource usage spikes. Also see
-  [How to delete time series](#how-to-delete-time-series) section to learn about
-  different ways of deleting series.
 
 See also [resource usage limits at VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#resource-usage-limits),
 [cardinality limiter](#cardinality-limiter) and [capacity planning docs](#capacity-planning).
