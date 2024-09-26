@@ -148,7 +148,7 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 
 		pcp, ok := pp.(*pipeStreamContextProcessor)
 		if ok {
-			pcp.init(ctx, s, minTimestamp, maxTimestamp)
+			pcp.init(s, neededColumnNames, unneededColumnNames)
 			if i > 0 {
 				errPipe = fmt.Errorf("[%s] pipe must go after [%s] filter; now it goes after the [%s] pipe", p, q.f, q.pipes[i-1])
 			}
