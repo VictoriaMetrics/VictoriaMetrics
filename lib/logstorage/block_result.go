@@ -387,35 +387,46 @@ func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
 	br.bm = bm
 }
 
-func (br *blockResult) getMinTimestamp() int64 {
-	if br.bm != nil && br.bm.bitsLen == br.rowsLen {
-		return br.bs.bsw.bh.timestampsHeader.minTimestamp
+// intersectsTimeRange returns true if br timestamps intersect (minTimestamp .. maxTimestamp) time range.
+func (br *blockResult) intersectsTimeRange(minTimestamp, maxTimestamp int64) bool {
+	return minTimestamp < br.getMaxTimestamp(minTimestamp) && maxTimestamp > br.getMinTimestamp(maxTimestamp)
+}
+
+func (br *blockResult) getMinTimestamp(minTimestamp int64) int64 {
+	if br.bs != nil {
+		bh := &br.bs.bsw.bh
+		if bh.rowsCount == uint64(br.rowsLen) {
+			return min(minTimestamp, bh.timestampsHeader.minTimestamp)
+		}
+		if minTimestamp <= bh.timestampsHeader.minTimestamp {
+			return minTimestamp
+		}
 	}
 
+	// Slow path - need to scan timestamps
 	timestamps := br.getTimestamps()
-	if len(timestamps) == 0 {
-		return -1 << 63
-	}
-	minTimestamp := timestamps[0]
-	for i := 1; i < len(timestamps); i++ {
-		if timestamps[i] < minTimestamp {
-			minTimestamp = timestamps[i]
+	for _, timestamp := range timestamps {
+		if timestamp < minTimestamp {
+			minTimestamp = timestamp
 		}
 	}
 	return minTimestamp
 }
 
-func (br *blockResult) getMaxTimestamp() int64 {
-	if br.bm != nil && br.bm.bitsLen == br.rowsLen {
-		return br.bs.bsw.bh.timestampsHeader.maxTimestamp
+func (br *blockResult) getMaxTimestamp(maxTimestamp int64) int64 {
+	if br.bs != nil {
+		bh := &br.bs.bsw.bh
+		if bh.rowsCount == uint64(br.rowsLen) {
+			return max(maxTimestamp, bh.timestampsHeader.maxTimestamp)
+		}
+		if maxTimestamp >= bh.timestampsHeader.maxTimestamp {
+			return maxTimestamp
+		}
 	}
 
+	// Slow path - need to scan timestamps
 	timestamps := br.getTimestamps()
-	if len(timestamps) == 0 {
-		return (1 << 63) - 1
-	}
-	maxTimestamp := timestamps[len(timestamps)-1]
-	for i := len(timestamps) - 2; i >= 0; i-- {
+	for i := len(timestamps) - 1; i >= 0; i-- {
 		if timestamps[i] > maxTimestamp {
 			maxTimestamp = timestamps[i]
 		}

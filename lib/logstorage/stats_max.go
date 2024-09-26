@@ -85,7 +85,15 @@ func (smp *statsMaxProcessor) updateStateForColumn(br *blockResult, c *blockResu
 	}
 
 	if c.isTime {
-		maxTimestamp := br.getMaxTimestamp()
+		timestamp, ok := TryParseTimestampRFC3339Nano(smp.max)
+		if !ok {
+			timestamp = -1 << 63
+		}
+		maxTimestamp := br.getMaxTimestamp(timestamp)
+		if maxTimestamp <= timestamp {
+			return
+		}
+
 		bb := bbPool.Get()
 		bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], maxTimestamp)
 		smp.updateStateBytes(bb.B)
