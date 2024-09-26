@@ -1705,10 +1705,12 @@ type EventBridgeConfiguration struct {
 	noSmithyDocumentSerde
 }
 
-// Optional configuration to replicate existing source bucket objects. For more
-// information, see [Replicating Existing Objects]in the Amazon S3 User Guide.
+// Optional configuration to replicate existing source bucket objects.
 //
-// [Replicating Existing Objects]: https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-what-is-isnot-replicated.html#existing-object-replication
+// This parameter is no longer supported. To replicate existing objects, see [Replicating existing objects with S3 Batch Replication] in
+// the Amazon S3 User Guide.
+//
+// [Replicating existing objects with S3 Batch Replication]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-batch-replication-batch.html
 type ExistingObjectReplication struct {
 
 	// Specifies whether Amazon S3 replicates existing source bucket objects.
@@ -3303,10 +3305,12 @@ type ReplicationRule struct {
 	// [Backward Compatibility]: https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-add-config.html#replication-backward-compat-considerations
 	DeleteMarkerReplication *DeleteMarkerReplication
 
-	// Optional configuration to replicate existing source bucket objects. For more
-	// information, see [Replicating Existing Objects]in the Amazon S3 User Guide.
+	// Optional configuration to replicate existing source bucket objects.
 	//
-	// [Replicating Existing Objects]: https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-what-is-isnot-replicated.html#existing-object-replication
+	// This parameter is no longer supported. To replicate existing objects, see [Replicating existing objects with S3 Batch Replication] in
+	// the Amazon S3 User Guide.
+	//
+	// [Replicating existing objects with S3 Batch Replication]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-batch-replication-batch.html
 	ExistingObjectReplication *ExistingObjectReplication
 
 	// A filter that identifies the subset of objects to which the replication rule
@@ -3750,29 +3754,41 @@ type SelectParameters struct {
 
 // Describes the default server-side encryption to apply to new objects in the
 // bucket. If a PUT Object request doesn't specify any server-side encryption, this
-// default encryption will be applied. If you don't specify a customer managed key
-// at configuration, Amazon S3 automatically creates an Amazon Web Services KMS key
-// in your Amazon Web Services account the first time that you add an object
-// encrypted with SSE-KMS to a bucket. By default, Amazon S3 uses this KMS key for
-// SSE-KMS. For more information, see [PUT Bucket encryption]in the Amazon S3 API Reference.
+// default encryption will be applied. For more information, see [PutBucketEncryption].
 //
-// If you're specifying a customer managed KMS key, we recommend using a fully
-// qualified KMS key ARN. If you use a KMS key alias instead, then KMS resolves the
-// key within the requester’s account. This behavior can result in data that's
-// encrypted with a KMS key that belongs to the requester, and not the bucket
-// owner.
+//   - General purpose buckets - If you don't specify a customer managed key at
+//     configuration, Amazon S3 automatically creates an Amazon Web Services KMS key (
+//     aws/s3 ) in your Amazon Web Services account the first time that you add an
+//     object encrypted with SSE-KMS to a bucket. By default, Amazon S3 uses this KMS
+//     key for SSE-KMS.
 //
-// [PUT Bucket encryption]: https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTencryption.html
+//   - Directory buckets - Your SSE-KMS configuration can only support 1 [customer managed key]per
+//     directory bucket for the lifetime of the bucket. [Amazon Web Services managed key]( aws/s3 ) isn't supported.
+//
+//   - Directory buckets - For directory buckets, there are only two supported
+//     options for server-side encryption: SSE-S3 and SSE-KMS.
+//
+// [PutBucketEncryption]: https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTencryption.html
+// [customer managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk
+// [Amazon Web Services managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#aws-managed-cmk
 type ServerSideEncryptionByDefault struct {
 
 	// Server-side encryption algorithm to use for the default encryption.
 	//
+	// For directory buckets, there are only two supported values for server-side
+	// encryption: AES256 and aws:kms .
+	//
 	// This member is required.
 	SSEAlgorithm ServerSideEncryption
 
-	// Amazon Web Services Key Management Service (KMS) customer Amazon Web Services
-	// KMS key ID to use for the default encryption. This parameter is allowed if and
-	// only if SSEAlgorithm is set to aws:kms or aws:kms:dsse .
+	// Amazon Web Services Key Management Service (KMS) customer managed key ID to use
+	// for the default encryption.
+	//
+	//   - General purpose buckets - This parameter is allowed if and only if
+	//   SSEAlgorithm is set to aws:kms or aws:kms:dsse .
+	//
+	//   - Directory buckets - This parameter is allowed if and only if SSEAlgorithm is
+	//   set to aws:kms .
 	//
 	// You can specify the key ID, key alias, or the Amazon Resource Name (ARN) of the
 	// KMS key.
@@ -3784,17 +3800,26 @@ type ServerSideEncryptionByDefault struct {
 	//
 	//   - Key Alias: alias/alias-name
 	//
-	// If you use a key ID, you can run into a LogDestination undeliverable error when
-	// creating a VPC flow log.
-	//
 	// If you are using encryption with cross-account or Amazon Web Services service
-	// operations you must use a fully qualified KMS key ARN. For more information, see
-	// [Using encryption for cross-account operations].
+	// operations, you must use a fully qualified KMS key ARN. For more information,
+	// see [Using encryption for cross-account operations].
+	//
+	//   - General purpose buckets - If you're specifying a customer managed KMS key,
+	//   we recommend using a fully qualified KMS key ARN. If you use a KMS key alias
+	//   instead, then KMS resolves the key within the requester’s account. This behavior
+	//   can result in data that's encrypted with a KMS key that belongs to the
+	//   requester, and not the bucket owner. Also, if you use a key ID, you can run into
+	//   a LogDestination undeliverable error when creating a VPC flow log.
+	//
+	//   - Directory buckets - When you specify an [KMS customer managed key]for encryption in your directory
+	//   bucket, only use the key ID or key ARN. The key alias format of the KMS key
+	//   isn't supported.
 	//
 	// Amazon S3 only supports symmetric encryption KMS keys. For more information,
 	// see [Asymmetric keys in Amazon Web Services KMS]in the Amazon Web Services Key Management Service Developer Guide.
 	//
 	// [Using encryption for cross-account operations]: https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html#bucket-encryption-update-bucket-policy
+	// [KMS customer managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk
 	// [Asymmetric keys in Amazon Web Services KMS]: https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html
 	KMSMasterKeyID *string
 
@@ -3815,11 +3840,17 @@ type ServerSideEncryptionConfiguration struct {
 
 // Specifies the default server-side encryption configuration.
 //
-// If you're specifying a customer managed KMS key, we recommend using a fully
-// qualified KMS key ARN. If you use a KMS key alias instead, then KMS resolves the
-// key within the requester’s account. This behavior can result in data that's
-// encrypted with a KMS key that belongs to the requester, and not the bucket
-// owner.
+//   - General purpose buckets - If you're specifying a customer managed KMS key,
+//     we recommend using a fully qualified KMS key ARN. If you use a KMS key alias
+//     instead, then KMS resolves the key within the requester’s account. This behavior
+//     can result in data that's encrypted with a KMS key that belongs to the
+//     requester, and not the bucket owner.
+//
+//   - Directory buckets - When you specify an [KMS customer managed key]for encryption in your directory
+//     bucket, only use the key ID or key ARN. The key alias format of the KMS key
+//     isn't supported.
+//
+// [KMS customer managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk
 type ServerSideEncryptionRule struct {
 
 	// Specifies the default server-side encryption to apply to new objects in the
@@ -3830,11 +3861,23 @@ type ServerSideEncryptionRule struct {
 	// Specifies whether Amazon S3 should use an S3 Bucket Key with server-side
 	// encryption using KMS (SSE-KMS) for new objects in the bucket. Existing objects
 	// are not affected. Setting the BucketKeyEnabled element to true causes Amazon S3
-	// to use an S3 Bucket Key. By default, S3 Bucket Key is not enabled.
+	// to use an S3 Bucket Key.
 	//
-	// For more information, see [Amazon S3 Bucket Keys] in the Amazon S3 User Guide.
+	//   - General purpose buckets - By default, S3 Bucket Key is not enabled. For
+	//   more information, see [Amazon S3 Bucket Keys]in the Amazon S3 User Guide.
+	//
+	//   - Directory buckets - S3 Bucket Keys are always enabled for GET and PUT
+	//   operations in a directory bucket and can’t be disabled. S3 Bucket Keys aren't
+	//   supported, when you copy SSE-KMS encrypted objects from general purpose buckets
+	//   to directory buckets, from directory buckets to general purpose buckets, or
+	//   between directory buckets, through [CopyObject], [UploadPartCopy], [the Copy operation in Batch Operations], or [the import jobs]. In this case, Amazon S3 makes a
+	//   call to KMS every time a copy request is made for a KMS-encrypted object.
 	//
 	// [Amazon S3 Bucket Keys]: https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html
+	// [CopyObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html
+	// [the import jobs]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/create-import-job
+	// [UploadPartCopy]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html
+	// [the Copy operation in Batch Operations]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-buckets-objects-Batch-Ops
 	BucketKeyEnabled *bool
 
 	noSmithyDocumentSerde
@@ -3843,7 +3886,8 @@ type ServerSideEncryptionRule struct {
 // The established temporary security credentials of the session.
 //
 // Directory buckets - These session credentials are only supported for the
-// authentication and authorization of Zonal endpoint APIs on directory buckets.
+// authentication and authorization of Zonal endpoint API operations on directory
+// buckets.
 type SessionCredentials struct {
 
 	// A unique identifier that's associated with a secret access key. The access key

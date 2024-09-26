@@ -34,6 +34,11 @@
     },
     {
       "description": "Regional Endpoint",
+      "endpointUrl": "https://storage.europe-west8.rep.googleapis.com/",
+      "location": "europe-west8"
+    },
+    {
+      "description": "Regional Endpoint",
       "endpointUrl": "https://storage.europe-west9.rep.googleapis.com/",
       "location": "europe-west9"
     },
@@ -41,9 +46,54 @@
       "description": "Regional Endpoint",
       "endpointUrl": "https://storage.me-central2.rep.googleapis.com/",
       "location": "me-central2"
+    },
+    {
+      "description": "Regional Endpoint",
+      "endpointUrl": "https://storage.us-central1.rep.googleapis.com/",
+      "location": "us-central1"
+    },
+    {
+      "description": "Regional Endpoint",
+      "endpointUrl": "https://storage.us-east1.rep.googleapis.com/",
+      "location": "us-east1"
+    },
+    {
+      "description": "Regional Endpoint",
+      "endpointUrl": "https://storage.us-east4.rep.googleapis.com/",
+      "location": "us-east4"
+    },
+    {
+      "description": "Regional Endpoint",
+      "endpointUrl": "https://storage.us-east5.rep.googleapis.com/",
+      "location": "us-east5"
+    },
+    {
+      "description": "Regional Endpoint",
+      "endpointUrl": "https://storage.us-south1.rep.googleapis.com/",
+      "location": "us-south1"
+    },
+    {
+      "description": "Regional Endpoint",
+      "endpointUrl": "https://storage.us-west1.rep.googleapis.com/",
+      "location": "us-west1"
+    },
+    {
+      "description": "Regional Endpoint",
+      "endpointUrl": "https://storage.us-west2.rep.googleapis.com/",
+      "location": "us-west2"
+    },
+    {
+      "description": "Regional Endpoint",
+      "endpointUrl": "https://storage.us-west3.rep.googleapis.com/",
+      "location": "us-west3"
+    },
+    {
+      "description": "Regional Endpoint",
+      "endpointUrl": "https://storage.us-west4.rep.googleapis.com/",
+      "location": "us-west4"
     }
   ],
-  "etag": "\"38363036373236373330353534313035333932\"",
+  "etag": "\"38303531353337323634333935393838333734\"",
   "icons": {
     "x16": "https://www.google.com/images/icons/product/cloud_storage-16.png",
     "x32": "https://www.google.com/images/icons/product/cloud_storage-32.png"
@@ -2829,6 +2879,11 @@
               "location": "query",
               "type": "string"
             },
+            "restoreToken": {
+              "description": "Restore token used to differentiate soft-deleted objects with the same name and generation. Only applicable for hierarchical namespace buckets and if softDeleted is set to true. This parameter is optional, and is only required in the rare case when there are multiple soft-deleted objects with the same name and generation.",
+              "location": "query",
+              "type": "string"
+            },
             "softDeleted": {
               "description": "If true, only soft-deleted object versions will be listed. The default is false. For more information, see [Soft Delete](https://cloud.google.com/storage/docs/soft-delete).",
               "location": "query",
@@ -3301,6 +3356,11 @@
                 "Include all properties.",
                 "Omit the owner, acl property."
               ],
+              "location": "query",
+              "type": "string"
+            },
+            "restoreToken": {
+              "description": "Restore token used to differentiate sof-deleted objects with the same name and generation. Only applicable for hierarchical namespace buckets. This parameter is optional, and is only required in the rare case when there are multiple soft-deleted objects with the same name and generation.",
               "location": "query",
               "type": "string"
             },
@@ -4136,7 +4196,7 @@
       }
     }
   },
-  "revision": "20240819",
+  "revision": "20240916",
   "rootUrl": "https://storage.googleapis.com/",
   "schemas": {
     "AnywhereCache": {
@@ -5596,6 +5656,10 @@
             }
           },
           "type": "object"
+        },
+        "restoreToken": {
+          "description": "Restore token used to differentiate deleted objects with the same name and generation. This field is only returned for deleted objects in hierarchical namespace buckets.",
+          "type": "string"
         },
         "retention": {
           "description": "A collection of object level retention parameters.",
