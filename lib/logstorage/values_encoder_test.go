@@ -151,6 +151,7 @@ func TestTryParseIPv4_Failure(t *testing.T) {
 func TestTryParseTimestampRFC3339NanoString_Success(t *testing.T) {
 	f := func(s, timestampExpected string) {
 		t.Helper()
+
 		nsecs, ok := TryParseTimestampRFC3339Nano(s)
 		if !ok {
 			t.Fatalf("cannot parse timestamp %q", s)
@@ -184,6 +185,11 @@ func TestTryParseTimestampRFC3339NanoString_Success(t *testing.T) {
 	// timestamp with timezone
 	f("2023-01-16T00:45:51+01:00", "2023-01-15T23:45:51Z")
 	f("2023-01-16T00:45:51.123-01:00", "2023-01-16T01:45:51.123Z")
+
+	// SQL datetime format
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6721
+	f("2023-01-16 00:45:51+01:00", "2023-01-15T23:45:51Z")
+	f("2023-01-16 00:45:51.123-01:00", "2023-01-16T01:45:51.123Z")
 }
 
 func TestTryParseTimestampRFC3339Nano_Failure(t *testing.T) {
@@ -198,10 +204,6 @@ func TestTryParseTimestampRFC3339Nano_Failure(t *testing.T) {
 	// invalid length
 	f("")
 	f("foobar")
-
-	// Missing Z at the end
-	f("2023-01-15T22:15:51")
-	f("2023-01-15T22:15:51.123")
 
 	// missing fractional part after dot
 	f("2023-01-15T22:15:51.Z")

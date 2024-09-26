@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // ParseTimeMsec parses time s in different formats.
@@ -33,6 +35,8 @@ const (
 //
 // See https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats
 //
+// If s doesn't contain timezone information, then the local timezone is used.
+//
 // It returns unix timestamp in nanoseconds.
 func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 	if s == "now" {
@@ -58,6 +62,12 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 				tzOffset = -tzOffset
 			}
 			s = sOrig[:len(sOrig)-6]
+		} else {
+			if !strings.HasSuffix(s, "Z") {
+				tzOffset = -timeutil.GetLocalTimezoneOffsetNsecs()
+			} else {
+				s = s[:len(s)-1]
+			}
 		}
 	}
 	s = strings.TrimSuffix(s, "Z")

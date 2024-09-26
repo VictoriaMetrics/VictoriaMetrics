@@ -298,7 +298,7 @@ For example, the following command returns the number of logs per each `level` [
 across logs over `2024-01-01` day by UTC:
 
 ```sh
-curl http://localhost:9428/select/logsql/stats_query -d 'query=_time:1d | stats by (level) count(*)' -d 'time=2024-01-02'
+curl http://localhost:9428/select/logsql/stats_query -d 'query=_time:1d | stats by (level) count(*)' -d 'time=2024-01-02Z'
 ```
 
 Below is an example JSON output returned from this endpoint:
@@ -373,7 +373,7 @@ For example, the following command returns the number of logs per each `level` [
 across logs over `2024-01-01` day by UTC with 6-hour granularity:
 
 ```sh
-curl http://localhost:9428/select/logsql/stats_query_range -d 'query=* | stats by (level) count(*)' -d 'start=2024-01-01' -d 'end=2024-01-02' -d 'step=6h'
+curl http://localhost:9428/select/logsql/stats_query_range -d 'query=* | stats by (level) count(*)' -d 'start=2024-01-01Z' -d 'end=2024-01-02Z' -d 'step=6h'
 ```
 
 Below is an example JSON output returned from this endpoint:
