@@ -176,10 +176,11 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 		return
 	}
 
-	// _msg field must exist and not empty
+	// _msg field must be non-empty according to VictoriaLogs data model.
+	// See https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field
 	msgExist := false
 	for i := range fields {
-		if fields[i].Name == `_msg` {
+		if fields[i].Name == "_msg" {
 			msgExist = len(fields[i].Value) > 0
 			break
 		}
