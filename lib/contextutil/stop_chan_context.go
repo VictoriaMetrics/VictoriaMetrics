@@ -42,6 +42,6 @@ func (ctx *stopChanContext) Err() error {
 	}
 }
 
-func (ctx *stopChanContext) Value(key any) any {
+func (ctx *stopChanContext) Value(_ any) any {
 	return nil
 }
