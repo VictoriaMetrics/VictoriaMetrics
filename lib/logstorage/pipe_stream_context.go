@@ -35,6 +35,9 @@ func (pc *pipeStreamContext) String() string {
 	if pc.linesAfter > 0 {
 		s += fmt.Sprintf(" after %d", pc.linesAfter)
 	}
+	if pc.linesBefore <= 0 && pc.linesAfter <= 0 {
+		s += " after 0"
+	}
 	return s
 }
 
@@ -163,21 +166,28 @@ func (pcp *pipeStreamContextProcessor) getStreamRowss(streamID string, neededRow
 
 		if stateSize > stateSizeBudget {
 			cancel()
+			return
 		}
 
-		timestamps := br.getTimestamps()
-		for i, timestamp := range timestamps {
+		for i := range contextRows {
 			if needStop(pcp.stopCh) {
 				break
 			}
-			for j := range contextRows {
-				if j > 0 && timestamp <= contextRows[j-1].neededTimestamp {
+
+			if !contextRows[i].canUpdate(br) {
+				// Fast path - skip reading block timestamps for the given ctx.
+				continue
+			}
+
+			timestamps := br.getTimestamps()
+			for j, timestamp := range timestamps {
+				if i > 0 && timestamp <= contextRows[i-1].neededTimestamp {
 					continue
 				}
-				if j+1 < len(contextRows) && timestamp >= contextRows[j+1].neededTimestamp {
+				if i+1 < len(contextRows) && timestamp >= contextRows[i+1].neededTimestamp {
 					continue
 				}
-				stateSize += contextRows[j].update(br, i, timestamp)
+				stateSize += contextRows[i].update(br, j, timestamp)
 			}
 		}
 	}
@@ -245,6 +255,42 @@ func (ctx *streamContextRows) getSortedRows() []*streamContextRow {
 		return rows[i].less(rows[j])
 	})
 	return rows
+}
+
+func (ctx *streamContextRows) canUpdate(br *blockResult) bool {
+	if ctx.linesBefore > 0 {
+		if len(ctx.rowsBefore) < ctx.linesBefore {
+			return true
+		}
+		minTimestamp := ctx.rowsBefore[0].timestamp - 1
+		maxTimestamp := ctx.neededTimestamp
+		if br.intersectsTimeRange(minTimestamp, maxTimestamp) {
+			return true
+		}
+	}
+
+	if ctx.linesAfter > 0 {
+		if len(ctx.rowsAfter) < ctx.linesAfter {
+			return true
+		}
+		minTimestamp := ctx.neededTimestamp
+		maxTimestamp := ctx.rowsAfter[0].timestamp + 1
+		if br.intersectsTimeRange(minTimestamp, maxTimestamp) {
+			return true
+		}
+	}
+
+	if ctx.linesBefore <= 0 && ctx.linesAfter <= 0 {
+		if len(ctx.rowsMatched) == 0 {
+			return true
+		}
+		timestamp := ctx.rowsMatched[0].timestamp
+		if br.intersectsTimeRange(timestamp-1, timestamp+1) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (ctx *streamContextRows) update(br *blockResult, rowIdx int, rowTimestamp int64) int {
@@ -430,11 +476,6 @@ func (pcp *pipeStreamContextProcessor) writeBlock(workerID uint, br *blockResult
 	if br.rowsLen == 0 {
 		return
 	}
-	if pcp.pc.linesBefore <= 0 && pcp.pc.linesAfter <= 0 {
-		// Fast path - there is no need to fetch stream context.
-		pcp.ppNext.writeBlock(workerID, br)
-		return
-	}
 
 	shard := &pcp.shards[workerID]
 
@@ -456,11 +497,6 @@ func (pcp *pipeStreamContextProcessor) writeBlock(workerID uint, br *blockResult
 }
 
 func (pcp *pipeStreamContextProcessor) flush() error {
-	if pcp.pc.linesBefore <= 0 && pcp.pc.linesAfter <= 0 {
-		// Fast path - nothing to do.
-		return nil
-	}
-
 	n := pcp.stateSizeBudget.Load()
 	if n <= 0 {
 		return fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", pcp.pc.String(), pcp.maxStateSize/(1<<20))

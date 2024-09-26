@@ -87,7 +87,15 @@ func (smp *statsMinProcessor) updateStateForColumn(br *blockResult, c *blockResu
 	}
 
 	if c.isTime {
-		minTimestamp := br.getMinTimestamp()
+		timestamp, ok := TryParseTimestampRFC3339Nano(smp.min)
+		if !ok {
+			timestamp = (1 << 63) - 1
+		}
+		minTimestamp := br.getMinTimestamp(timestamp)
+		if minTimestamp >= timestamp {
+			return
+		}
+
 		bb := bbPool.Get()
 		bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], minTimestamp)
 		smp.updateStateBytes(bb.B)

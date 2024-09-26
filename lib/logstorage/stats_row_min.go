@@ -60,7 +60,15 @@ func (smp *statsRowMinProcessor) updateStatsForAllRows(br *blockResult) int {
 		return stateSizeIncrease
 	}
 	if c.isTime {
-		minTimestamp := br.getMinTimestamp()
+		timestamp, ok := TryParseTimestampRFC3339Nano(smp.min)
+		if !ok {
+			timestamp = (1 << 63) - 1
+		}
+		minTimestamp := br.getMinTimestamp(timestamp)
+		if minTimestamp >= timestamp {
+			return stateSizeIncrease
+		}
+
 		bb := bbPool.Get()
 		bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], minTimestamp)
 		v := bytesutil.ToUnsafeString(bb.B)

@@ -60,7 +60,15 @@ func (smp *statsRowMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 		return stateSizeIncrease
 	}
 	if c.isTime {
-		maxTimestamp := br.getMaxTimestamp()
+		timestamp, ok := TryParseTimestampRFC3339Nano(smp.max)
+		if !ok {
+			timestamp = -1 << 63
+		}
+		maxTimestamp := br.getMaxTimestamp(timestamp)
+		if maxTimestamp <= timestamp {
+			return stateSizeIncrease
+		}
+
 		bb := bbPool.Get()
 		bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], maxTimestamp)
 		v := bytesutil.ToUnsafeString(bb.B)
