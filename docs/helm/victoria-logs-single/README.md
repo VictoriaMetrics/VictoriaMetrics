@@ -1,4 +1,4 @@
- ![Version: 0.6.3](https://img.shields.io/badge/Version-0.6.3-informational?style=flat-square)
+ ![Version: 0.6.4](https://img.shields.io/badge/Version-0.6.4-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-logs-single)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -161,31 +161,34 @@ Change the values according to the need of the environment in ``victoria-logs-si
 <code class="language-yaml">config:
     filters: |
         [FILTER]
-            Name kubernetes
-            Match kube.*
-            Merge_Log On
-            Keep_Log On
-            K8S-Logging.Parser On
+            Name                kubernetes
+            Match               kube.*
+            Merge_Log           On
+            Keep_Log            On
+            K8S-Logging.Parser  On
             K8S-Logging.Exclude On
         [FILTER]
-            Name                nest
-            Match               *
-            Wildcard            pod_name
-            Operation lift
+            Name         nest
+            Match        *
+            Wildcard     pod_name
+            Operation    lift
             Nested_under kubernetes
             Add_prefix   kubernetes_
     outputs: |
         [OUTPUT]
-            Name http
-            Match kube.*
-            Host '{{ include "victoria-logs.server.fullname" . }}'
-            port 9428
-            compress gzip
-            uri /insert/jsonline?_stream_fields=stream,kubernetes_pod_name,kubernetes_container_name,kubernetes_namespace_name&_msg_field=log&_time_field=date
-            format json_lines
+            Name             http
+            Match            kube.*
+            Host             {{ include "victoria-logs.server.fullname" . }}
+            port             9428
+            compress         gzip
+            uri              /insert/jsonline
+            format           json_lines
             json_date_format iso8601
-            header AccountID 0
-            header ProjectID 0
+            header           AccountID 0
+            header           ProjectID 0
+            header           VL-Msg-Field log
+            header           VL-Time-Field date
+            header           VL-Stream-Fields stream,kubernetes_pod_name,kubernetes_container_name,kubernetes_namespace_name
 daemonSetVolumeMounts:
     - mountPath: /var/log
       name: varlog
@@ -213,17 +216,17 @@ resources: {}
       <td><pre class="helm-vars-default-value" language-yaml" lang="tpl">
 <code class="language-yaml">fluent-bit.config.filters: |
   [FILTER]
-      Name kubernetes
-      Match kube.*
-      Merge_Log On
-      Keep_Log On
-      K8S-Logging.Parser On
+      Name                kubernetes
+      Match               kube.*
+      Merge_Log           On
+      Keep_Log            On
+      K8S-Logging.Parser  On
       K8S-Logging.Exclude On
   [FILTER]
-      Name                nest
-      Match               *
-      Wildcard            pod_name
-      Operation lift
+      Name         nest
+      Match        *
+      Wildcard     pod_name
+      Operation    lift
       Nested_under kubernetes
       Add_prefix   kubernetes_
  
@@ -239,16 +242,19 @@ resources: {}
       <td><pre class="helm-vars-default-value" language-yaml" lang="tpl">
 <code class="language-yaml">fluent-bit.config.outputs: |
   [OUTPUT]
-      Name http
-      Match kube.*
-      Host '{{ include "victoria-logs.server.fullname" . }}'
-      port 9428
-      compress gzip
-      uri /insert/jsonline?_stream_fields=stream,kubernetes_pod_name,kubernetes_container_name,kubernetes_namespace_name&_msg_field=log&_time_field=date
-      format json_lines
+      Name             http
+      Match            kube.*
+      Host             {{ include "victoria-logs.server.fullname" . }}
+      port             9428
+      compress         gzip
+      uri              /insert/jsonline
+      format           json_lines
       json_date_format iso8601
-      header AccountID 0
-      header ProjectID 0
+      header           AccountID 0
+      header           ProjectID 0
+      header           VL-Msg-Field log
+      header           VL-Time-Field date
+      header           VL-Stream-Fields stream,kubernetes_pod_name,kubernetes_container_name,kubernetes_namespace_name
  
 </code>
 </pre>
