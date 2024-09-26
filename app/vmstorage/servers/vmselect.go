@@ -154,7 +154,7 @@ func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.Search
 	if len(tfss) == 0 {
 		return 0, fmt.Errorf("missing tag filters")
 	}
-	return api.s.DeleteSeries(qt, tfss)
+	return api.s.DeleteSeries(qt, tfss, maxMetrics)
 }
 
 func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, _ uint64) error {
