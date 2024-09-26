@@ -417,13 +417,17 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 	if !ok {
 		logger.Panicf("BUG: it is expected that http.ResponseWriter (%T) supports http.Flusher interface", w)
 	}
+	qOrig := q
 	for {
 		start := end - tailOffsetNsecs
 		end = time.Now().UnixNano()
 
-		qCopy := q.Clone()
-		qCopy.AddTimeFilter(start, end)
-		if err := vlstorage.RunQuery(ctxWithCancel, tenantIDs, qCopy, tp.writeBlock); err != nil {
+		q = qOrig.Clone(end)
+		q.AddTimeFilter(start, end)
+		// q.Optimize() call is needed for converting '*' into filterNoop.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6785#issuecomment-2358547733
+		q.Optimize()
+		if err := vlstorage.RunQuery(ctxWithCancel, tenantIDs, q, tp.writeBlock); err != nil {
 			httpserver.Errorf(w, r, "cannot execute tail query [%s]: %s", q, err)
 			return
 		}
@@ -862,7 +866,8 @@ func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, 
 
 	qOrig := q
 	for {
-		q = qOrig.Clone()
+		timestamp := qOrig.GetTimestamp()
+		q = qOrig.Clone(timestamp)
 		q.AddTimeFilter(start, end)
 		// q.Optimize() call is needed for converting '*' into filterNoop.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6785#issuecomment-2358547733
