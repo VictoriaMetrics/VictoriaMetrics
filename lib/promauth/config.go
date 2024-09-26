@@ -486,6 +486,7 @@ func (ac *Config) NewRoundTripper(trBase *http.Transport) http.RoundTripper {
 	return rt
 }
 
+// NewRoundTripperFromGetter returns new http.RoundTripper for the given ac, which uses the given get as transport getter.
 func (ac *Config) NewRoundTripperFromGetter(get func(tls *tls.Config) http.RoundTripper) http.RoundTripper {
 	rt := &roundTripper{
 		trGetter: get,
