@@ -876,7 +876,7 @@ func TestStorageSearch(t *testing.T) {
 			so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 			var rowsCountTotal atomic.Uint32
 			processBlock := func(_ uint, br *blockResult) {
-				rowsCountTotal.Add(uint32(len(br.timestamps)))
+				rowsCountTotal.Add(uint32(br.rowsLen))
 			}
 			s.search(workersCount, so, nil, processBlock)
 
@@ -893,7 +893,7 @@ func TestStorageSearch(t *testing.T) {
 		so := newTestGenericSearchOptions(allTenantIDs, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
-			rowsCountTotal.Add(uint32(len(br.timestamps)))
+			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
 		s.search(workersCount, so, nil, processBlock)
 
@@ -926,7 +926,7 @@ func TestStorageSearch(t *testing.T) {
 			so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 			var rowsCountTotal atomic.Uint32
 			processBlock := func(_ uint, br *blockResult) {
-				rowsCountTotal.Add(uint32(len(br.timestamps)))
+				rowsCountTotal.Add(uint32(br.rowsLen))
 			}
 			s.search(workersCount, so, nil, processBlock)
 
@@ -948,7 +948,7 @@ func TestStorageSearch(t *testing.T) {
 		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
-			rowsCountTotal.Add(uint32(len(br.timestamps)))
+			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
 		s.search(workersCount, so, nil, processBlock)
 
@@ -978,7 +978,7 @@ func TestStorageSearch(t *testing.T) {
 		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
-			rowsCountTotal.Add(uint32(len(br.timestamps)))
+			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
 		s.search(workersCount, so, nil, processBlock)
 
@@ -999,7 +999,7 @@ func TestStorageSearch(t *testing.T) {
 		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
-			rowsCountTotal.Add(uint32(len(br.timestamps)))
+			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
 		s.search(workersCount, so, nil, processBlock)
 

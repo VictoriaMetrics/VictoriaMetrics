@@ -139,7 +139,8 @@ func getStreamRows(ctx context.Context, s *Storage, streamID string, minTimestam
 		}
 
 		cs := br.getColumns()
-		for i, timestamp := range br.timestamps {
+		timestamps := br.getTimestamps()
+		for i, timestamp := range timestamps {
 			fields := make([]Field, len(cs))
 			stateSize += int(unsafe.Sizeof(fields[0])) * len(fields)
 
@@ -210,7 +211,8 @@ func (shard *pipeStreamContextProcessorShard) writeBlock(br *blockResult) {
 	cs := br.getColumns()
 	cStreamID := br.getColumnByName("_stream_id")
 	stateSize := 0
-	for i, timestamp := range br.timestamps {
+	timestamps := br.getTimestamps()
+	for i, timestamp := range timestamps {
 		fields := make([]Field, len(cs))
 		stateSize += int(unsafe.Sizeof(fields[0])) * len(fields)
 
@@ -250,7 +252,7 @@ func (shard *pipeStreamContextProcessorShard) getM() map[string][]streamContextR
 }
 
 func (pcp *pipeStreamContextProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 	if pcp.pc.linesBefore <= 0 && pcp.pc.linesAfter <= 0 {

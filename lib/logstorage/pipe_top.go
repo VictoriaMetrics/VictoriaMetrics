@@ -145,7 +145,7 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 		// Take into account all the columns in br.
 		keyBuf := shard.keyBuf
 		cs := br.getColumns()
-		for i := range br.timestamps {
+		for i := 0; i < br.rowsLen; i++ {
 			keyBuf = keyBuf[:0]
 			for _, c := range cs {
 				v := c.getValueAtRow(br, i)
@@ -162,7 +162,7 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 		c := br.getColumnByName(byFields[0])
 		if c.isConst {
 			v := c.valuesEncoded[0]
-			shard.updateState(v, uint64(len(br.timestamps)))
+			shard.updateState(v, uint64(br.rowsLen))
 			return
 		}
 		if c.valueType == valueTypeDict {
@@ -197,7 +197,7 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 	shard.columnValues = columnValues
 
 	keyBuf := shard.keyBuf
-	for i := range br.timestamps {
+	for i := 0; i < br.rowsLen; i++ {
 		keyBuf = keyBuf[:0]
 		for _, values := range columnValues {
 			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[i]))
@@ -228,7 +228,7 @@ func (shard *pipeTopProcessorShard) getM() map[string]*uint64 {
 }
 
 func (ptp *pipeTopProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 

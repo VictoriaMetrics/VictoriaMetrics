@@ -51,7 +51,8 @@ func (fep *filterExactPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fep.fieldName
 	prefix := fep.prefix
 
-	v := bs.csh.getConstColumnValue(fieldName)
+	csh := bs.getColumnsHeader()
+	v := csh.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchExactPrefix(v, prefix) {
 			bm.resetBits()
@@ -60,7 +61,7 @@ func (fep *filterExactPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := csh.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		if !matchExactPrefix("", prefix) {

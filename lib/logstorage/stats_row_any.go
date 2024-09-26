@@ -39,7 +39,7 @@ type statsRowAnyProcessor struct {
 }
 
 func (sap *statsRowAnyProcessor) updateStatsForAllRows(br *blockResult) int {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return 0
 	}
 	if sap.captured {

@@ -44,9 +44,10 @@ func (fr *filterRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 		return
 	}
 	if c.isTime {
+		timestamps := br.getTimestamps()
 		minValueInt, maxValueInt := toInt64Range(minValue, maxValue)
 		bm.forEachSetBit(func(idx int) bool {
-			timestamp := br.timestamps[idx]
+			timestamp := timestamps[idx]
 			return timestamp >= minValueInt && timestamp <= maxValueInt
 		})
 		return
@@ -172,7 +173,8 @@ func (fr *filterRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	v := bs.csh.getConstColumnValue(fieldName)
+	csh := bs.getColumnsHeader()
+	v := csh.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchRange(v, minValue, maxValue) {
 			bm.resetBits()
@@ -181,7 +183,7 @@ func (fr *filterRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := csh.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		bm.resetBits()

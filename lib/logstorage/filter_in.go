@@ -358,7 +358,8 @@ func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	v := bs.csh.getConstColumnValue(fieldName)
+	csh := bs.getColumnsHeader()
+	v := csh.getConstColumnValue(fieldName)
 	if v != "" {
 		stringValues := fi.getStringValues()
 		if _, ok := stringValues[v]; !ok {
@@ -368,7 +369,7 @@ func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := csh.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		// It matches anything only for empty phrase.
@@ -496,33 +497,27 @@ func getCommonTokensAndTokenSets(values []string) ([]string, [][]string) {
 	return commonTokens, tokenSets
 }
 
+// getCommonTokens returns common tokens seen at every set of tokens inside tokenSets.
+//
+// The returned common tokens preserve the original order seen in tokenSets.
 func getCommonTokens(tokenSets [][]string) []string {
 	if len(tokenSets) == 0 {
 		return nil
 	}
 
-	m := make(map[string]struct{}, len(tokenSets[0]))
-	for _, token := range tokenSets[0] {
-		m[token] = struct{}{}
-	}
+	commonTokens := append([]string{}, tokenSets[0]...)
 
 	for _, tokens := range tokenSets[1:] {
-		if len(m) == 0 {
+		if len(commonTokens) == 0 {
 			return nil
 		}
-		for token := range m {
-			if !slices.Contains(tokens, token) {
-				delete(m, token)
+		dst := commonTokens[:0]
+		for _, token := range commonTokens {
+			if slices.Contains(tokens, token) {
+				dst = append(dst, token)
 			}
 		}
+		commonTokens = dst
 	}
-	if len(m) == 0 {
-		return nil
-	}
-
-	tokens := make([]string, 0, len(m))
-	for token := range m {
-		tokens = append(tokens, token)
-	}
-	return tokens
+	return commonTokens
 }

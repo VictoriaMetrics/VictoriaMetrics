@@ -79,7 +79,7 @@ type pipeCopyProcessor struct {
 }
 
 func (pcp *pipeCopyProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 

@@ -5,6 +5,7 @@ menu:
   docs:
     parent: "cloud"
     weight: 1
+    name: Overview
 aliases:
   - /victoriametrics-cloud/overview/index.html
   - /managed-victoriametrics/overview/index.html

@@ -136,7 +136,7 @@ func (pp *testPipeProcessor) writeBlock(_ uint, br *blockResult) {
 		columnValues = append(columnValues, values)
 	}
 
-	for i := range br.timestamps {
+	for i := 0; i < br.rowsLen; i++ {
 		row := make([]Field, len(columnValues))
 		for j, values := range columnValues {
 			r := &row[j]
