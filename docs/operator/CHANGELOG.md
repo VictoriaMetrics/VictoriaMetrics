@@ -11,6 +11,9 @@ aliases:
   - /operator/changelog/index.html
 ---
 
+- [vmalertmanager](https://docs.victoriametrics.com/operator/resources/vmalertmanager): properly build service, previously port by number instead of name was used. It produced `updating service` log messages.
+- [vmcluster](https://docs.victoriametrics.com/operator/resources/vmcluster): properly add `imagePullSecrets` to the components. Due to bug at `0.48.0` operator ignored `vmcluster.spec.imagePullSecrets` See [this issue](https://github.com/VictoriaMetrics/operator/issues/1116) for details.
+
 ## [v0.48.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.0) - 25 Sep 2024
 
 - [api](https://docs.victoriametrics.com/operator/api): adds new fields `useVMConfigReloader`, `configReloaderImageTag`, `configReloaderResources` to to the `VMagent`, `VMAlert`, `VMAuth`, and `VMAlertmanager`.
