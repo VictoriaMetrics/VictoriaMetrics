@@ -336,9 +336,8 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 }
 
 // Clone returns a copy of q.
-func (q *Query) Clone() *Query {
+func (q *Query) Clone(timestamp int64) *Query {
 	qStr := q.String()
-	timestamp := q.GetTimestamp()
 	qCopy, err := ParseQueryAtTimestamp(qStr, timestamp)
 	if err != nil {
 		logger.Panicf("BUG: cannot parse %q: %s", qStr, err)

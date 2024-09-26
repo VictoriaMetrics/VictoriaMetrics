@@ -2000,7 +2000,8 @@ func TestQueryClone(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse [%s]: %s", qStr, err)
 		}
-		qCopy := q.Clone()
+		timestamp := q.GetTimestamp()
+		qCopy := q.Clone(timestamp)
 		qCopyStr := qCopy.String()
 		if qStr != qCopyStr {
 			t.Fatalf("unexpected cloned query\ngot\n%s\nwant\n%s", qCopyStr, qStr)
