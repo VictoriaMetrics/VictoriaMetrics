@@ -36,40 +36,37 @@ func TestGetTime_Success(t *testing.T) {
 	}
 
 	// only year
-	f("2019", time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC))
+	f("2019Z", time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC))
 
 	// year and month
-	f("2019-01", time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC))
+	f("2019-01Z", time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC))
 
 	// year and not first month
-	f("2019-02", time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC))
+	f("2019-02Z", time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC))
 
 	// year, month and day
-	f("2019-02-01", time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC))
+	f("2019-02-01Z", time.Date(2019, 2, 1, 0, 0, 0, 0, time.UTC))
 
 	// year, month and not first day
-	f("2019-02-10", time.Date(2019, 2, 10, 0, 0, 0, 0, time.UTC))
+	f("2019-02-10Z", time.Date(2019, 2, 10, 0, 0, 0, 0, time.UTC))
 
 	// year, month, day and time
-	f("2019-02-02T00", time.Date(2019, 2, 2, 0, 0, 0, 0, time.UTC))
+	f("2019-02-02T00Z", time.Date(2019, 2, 2, 0, 0, 0, 0, time.UTC))
 
 	// year, month, day and one hour time
-	f("2019-02-02T01", time.Date(2019, 2, 2, 1, 0, 0, 0, time.UTC))
+	f("2019-02-02T01Z", time.Date(2019, 2, 2, 1, 0, 0, 0, time.UTC))
 
 	// time with zero minutes
-	f("2019-02-02T01:00", time.Date(2019, 2, 2, 1, 0, 0, 0, time.UTC))
+	f("2019-02-02T01:00Z", time.Date(2019, 2, 2, 1, 0, 0, 0, time.UTC))
 
 	// time with one minute
-	f("2019-02-02T01:01", time.Date(2019, 2, 2, 1, 1, 0, 0, time.UTC))
+	f("2019-02-02T01:01Z", time.Date(2019, 2, 2, 1, 1, 0, 0, time.UTC))
 
 	// time with zero seconds
-	f("2019-02-02T01:01:00", time.Date(2019, 2, 2, 1, 1, 0, 0, time.UTC))
+	f("2019-02-02T01:01:00Z", time.Date(2019, 2, 2, 1, 1, 0, 0, time.UTC))
 
 	// timezone with one second
-	f("2019-02-02T01:01:01", time.Date(2019, 2, 2, 1, 1, 1, 0, time.UTC))
-
-	// time with two second and timezone
-	f("2019-07-07T20:01:02Z", time.Date(2019, 7, 7, 20, 1, 02, 0, time.UTC))
+	f("2019-02-02T01:01:01Z", time.Date(2019, 2, 2, 1, 1, 1, 0, time.UTC))
 
 	// time with seconds and timezone
 	f("2019-07-07T20:47:40+03:00", func() time.Time {

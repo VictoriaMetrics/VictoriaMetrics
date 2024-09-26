@@ -66,9 +66,6 @@ func TestExtractTimestampRFC3339NanoFromFields_Error(t *testing.T) {
 
 	f("foobar")
 
-	// no Z at the end
-	f("2024-06-18T23:37:20")
-
 	// incomplete time
 	f("2024-06-18")
 	f("2024-06-18T23:37")
