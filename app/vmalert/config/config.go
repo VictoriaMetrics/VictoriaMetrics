@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"crypto/md5"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"hash/fnv"
+	"io"
 	"net/url"
 	"sort"
 	"strings"
-
-	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
@@ -300,26 +300,29 @@ func parseConfig(data []byte) ([]Group, error) {
 		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
 
-	// Split the data by the "\n---\n" marker
-	configs := bytes.Split(data, []byte("\n---\n"))
-
 	var allGroups []Group
 
-	for _, config := range configs {
-		g := struct {
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	for {
+		var g struct {
 			Groups []Group        `yaml:"groups"`
 			XXX    map[string]any `yaml:",inline"` // Catches all undefined fields and must be empty after parsing.
-		}{}
-
-		err = yaml.Unmarshal(config, &g)
-		if err != nil {
-			return nil, err
 		}
 
+		// Decode the next document
+		if err := decoder.Decode(&g); err != nil {
+			if err == io.EOF { // End of file indicates no more documents to read
+				break
+			}
+			return nil, fmt.Errorf("failed to decode YAML document: %w", err)
+		}
+
+		// Check for unknown fields
 		if err := checkOverflow(g.XXX, "config"); err != nil {
 			return nil, err
 		}
 
+		// Append valid groups
 		allGroups = append(allGroups, g.Groups...)
 	}
 
