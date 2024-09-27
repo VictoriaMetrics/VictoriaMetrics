@@ -1,10 +1,16 @@
 import router, { routerOptions } from "../router";
 
+export enum NavigationItemType {
+  internalLink,
+  externalLink,
+}
+
 export interface NavigationItem {
   label?: string,
   value?: string,
   hide?: boolean
   submenu?: NavigationItem[],
+  type?: NavigationItemType,
 }
 
 const explore = {
