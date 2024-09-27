@@ -22,54 +22,60 @@ If you like VictoriaMetrics and want to contribute, then it would be great:
   - experience sharing with colleagues.
 - Convincing your management to sign [Enterprise contract](https://docs.victoriametrics.com/enterprise/) with VictoriaMetrics.
 
+## Issues
+
+When making a new issue, make sure to create no duplicates. Use GitHub search to find whether similar issues exist already.
+The new issue should be written in English and contain concise description of the problem and environment where it exists.
+We'd very much prefer to have a specific use-case included in the description, since it could have workaround or alternative solutions.
+
+When looking for an issue to contribute, always prefer working on [bugs](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3Abug)
+instead of [enhancements](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement). 
+Helping other people with their [questions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3Aquestion) is also a contribution.
+
+If you'd like to contribute to [documentation](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs) please
+read the [guideline](https://docs.victoriametrics.com/#documentation).
+
+### Labels
+
+We use [labels](https://docs.github.com/en/issues/using-labels-and-milestones-to-track-work/managing-labels) 
+to categorize GitHub issues. We have the following labels:
+1. A component label: vmalert, vmagent, etc. Add this label to the issue if it is related to a specific component.
+1. An issue type: `bug`, `enhancement`, `question`.
+1. `enterprize`, assigned to issues related to ENT features
+1. `need more info`, assigned to issues which require elaboration from the issue creator.
+  For example, if we weren't able to reproduce the reported bug based on the ticket description then we ask additional
+  questions which could help to reproduce the issue and add `need more info` label. This label helps other maintainers
+  to understand  that this issue wasn't forgotten but waits for the feedback from user.
+1. `waiting for release`, assigned to issues that required code changes and those changes were merged to upstream, but not released yet.
+  Once a release is made, maintainers go through all labeled issues, leave a comment about the new release, remove the label, and close the issue.
+1. `vmui`, assigned to issues related to https://docs.victoriametrics.com/#vmui or https://docs.victoriametrics.com/victorialogs/querying/#web-ui
+
 ## Pull request checklist
 
-Before sending a pull request to [VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics/) please make sure it **conforms all** the following checks:
+Implementing a bugfix or enhancement requires sending a pull request to the [corresponding repository](https://github.com/orgs/VictoriaMetrics/repositories).
 
-- The pull request conforms [VictoriaMetrics goals](https://docs.victoriametrics.com/goals/).
-- The pull request conforms [`KISS` principle](https://en.wikipedia.org/wiki/KISS_principle). See [these docs](#kiss-principle) for more details.
-- The pull request contains clear description of the change, with links to the related GitHub issues and [docs](https://docs.victoriametrics.com/), if needed.
-- Commit messages contain concise yet clear descriptions. Include links to related GitHub issues in commit messages, if such issues exist.
-- All the commits are signed and include `Signed-off-by` line. Use `git commit -s` to include `Signed-off-by` your commits.
-  See [this doc](https://git-scm.com/book/en/v2/Git-Tools-Signing-Your-Work) about how to sign git commits.
-- All the lint checks are passing locally via `make check-all` command run from the VictoriaMetrics repository root.
-- All the tests are passing locally via `make test-full` command run from the VictoriaMetrics repository root.
-- If the change fixes some bug, it would be great to cover it by [tests](https://pkg.go.dev/testing) if it isn't covered yet by existsing tests.
-- If the change improves performance or reduces resource usage, then it would be great to add [benchmarks](https://pkg.go.dev/testing#hdr-Benchmarks)
-  and mention benchmark results before and after the change in the description to the pull request.
-- If the change implements some specifications or uses some external APIs, then please provide permanent links to these specs and APIs
-  directly in the relevant source code, in order to simplify further maintenance of the code.
-- If the change modifies the existing logic, make sure it doesn't break existing user setups after the upgrade.
-- Please investigate git commit history for the code you change in order to make sure your change doesn't break historical conventions in the modified code.
+A pull request should contain the following attributes:
+1. Don't use `master` branch for making PRs, as it makes it impossible for reviewers to modify the change.
+1. All commits need to be [signed](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
+1. A clear and concise description of what was done and for what purpose.
+1. A link to the issue related to this change, if any.
+1. Tests proving that the change is effective. See [this style guide](https://itnext.io/f-tests-as-a-replacement-for-table-driven-tests-in-go-8814a8b19e9e) for tests.
+   To run tests and code checks locally execute commands `make tests-full` and `make check-all`.
+1. Try to not extend the scope of the pull requests outside the issue, do not make unrelated changes.
+1. Documentation update, if needed. For example, adding a new flag or changing behavior of existing flags or features 
+  requires reflecting these changes in the documentation.
+1. A line in the [changelog](https://docs.victoriametrics.com/changelog/#tip) mentioning the change and related issue.
+1. Reviewers who you think have the best expertise on the matter.
 
-Further checks are optional for external contributions:
+See good example of pull request [here](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6487).
 
-- The change must be described in **clear user-readable** form at [docs/CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md),
-  since it is read by **VictoriaMetrics users** who may not know implementation details of VictoriaMetrics products. The change description must **clearly** answer the following questions:
+To merge the PR it should be approved by at least one reviewer, all CI checks should be green.
 
-  - What does this change do? There is no need to provide technical details for the change, since they may confuse VictoriaMetrics users, who do not know Go.
-  - Why this change is needed?
+Once the PR is merged, check if related issues are still opened (GitHub may close it on PR merge).
+The issue should be closed only when the change gets included into an actual release.
 
-  The change description must link to the related GitHub issues and the related docs, if any.
-
-  Tips for writing a good changelog message:
-
-  - Write a human-readable changelog message that describes the problem and the solution.
-  - Use specific text, which can be googled by users interested in the change, such as an error message, metric name, command-line flag name, etc.
-  - Provide a link to the related GitHub issue or pull request.
-  - Provide a link to the relevant documentation if the change modifies user-visible behaviour of VictoriaMetrics producs.
-
-- After your pull request is merged, please add a message to the issue with instructions for how to test the change you added before the new release.
-  [Here is an example](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4048#issuecomment-1546453726).
-- Do not close the original issue before the change is released. In some cases Github can automatically close the issue once PR is merged. Re-open the issue in such case.
-- If the change introduces a new feature, this feature must be documented in **user-readable** form at the appropriate parts of [VictoriaMetrics docs](https://docs.victoriametrics.com/).
-  The docs' sources are located in the [`docs` folder](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs).
-
-Examples of good changelog messages:
-
-* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): add support for [VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol) when [sending / receiving data to / from Kafka](https://docs.victoriametrics.com/vmagent/#kafka-integration). This protocol allows saving egress network bandwidth costs when sending data from `vmagent` to `Kafka` located in another datacenter or availability zone. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1225).
-
-* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): suppress `series after dedup` error message in logs when `-remoteWrite.streamAggr.dedupInterval` command-line flag is set at [vmagent](https://docs.victoriametrics.com/vmagent/) or when `-streamAggr.dedupInterval` command-line flag is set at [single-node VictoriaMetrics](https://docs.victoriametrics.com/).
+Label `waiting for release` is added to issues related to the merged PR. It makes easier for the person who makes the release 
+to track the related tickets and update them once release is published.
 
 ## KISS principle
 

@@ -159,32 +159,6 @@ func (pt *partition) logIngestedRows(lr *LogRows) {
 	}
 }
 
-// appendStreamTagsByStreamID appends canonical representation of stream tags for the given sid to dst
-// and returns the result.
-func (pt *partition) appendStreamTagsByStreamID(dst []byte, sid *streamID) []byte {
-	// Search for the StreamTags in the cache.
-	key := bbPool.Get()
-	defer bbPool.Put(key)
-
-	// There is no need in putting partition name into key here,
-	// since StreamTags is uniquely identified by streamID.
-	key.B = sid.marshal(key.B)
-	dstLen := len(dst)
-	dst = pt.s.streamTagsCache.GetBig(dst, key.B)
-	if len(dst) > dstLen {
-		// Fast path - the StreamTags have been found in cache.
-		return dst
-	}
-
-	// Slow path - search for StreamTags in idb
-	dst = pt.idb.appendStreamTagsByStreamID(dst, sid)
-	if len(dst) > dstLen {
-		// Store the found StreamTags to cache
-		pt.s.streamTagsCache.SetBig(key.B, dst[dstLen:])
-	}
-	return dst
-}
-
 func (pt *partition) hasStreamIDInCache(sid *streamID) bool {
 	var result [1]byte
 

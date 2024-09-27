@@ -115,30 +115,30 @@ Then the following query removes all the logs from the buggy app, allowing us pa
 _time:5m error NOT buggy_app
 ```
 
-This query uses `NOT` [operator](#logical-filter) for removing log lines from the buggy app. The `NOT` operator is used frequently, so it can be substituted with `!` char
-(the `!` char is used instead of `-` char as a shorthand for `NOT` operator because it nicely combines with [`=`](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter)
+This query uses `NOT` [operator](#logical-filter) for removing log lines from the buggy app. The `NOT` operator is used frequently, so it can be substituted with `-` or `!` char
+(the `!` must be used instead of `-` in front of [`=`](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter)
 and [`~`](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter) filters like `!=` and `!~`).
 The following query is equivalent to the previous one:
 
 ```logsql
-_time:5m error !buggy_app
+_time:5m error -buggy_app
 ```
 
 Suppose another buggy app starts pushing invalid error logs to VictoriaLogs - it adds `foobar` [word](#word) to every emitted log line.
-No problems - just add `!foobar` to the query in order to remove these buggy logs:
+No problems - just add `-foobar` to the query in order to remove these buggy logs:
 
 ```logsql
-_time:5m error !buggy_app !foobar
+_time:5m error -buggy_app -foobar
 ```
 
 This query can be rewritten to more clear query with the `OR` [operator](#logical-filter) inside parentheses:
 
 ```logsql
-_time:5m error !(buggy_app OR foobar)
+_time:5m error -(buggy_app OR foobar)
 ```
 
 The parentheses are **required** here, since otherwise the query won't return the expected results.
-The query `error !buggy_app OR foobar` is interpreted as `(error AND NOT buggy_app) OR foobar` according to [priorities for AND, OR and NOT operator](#logical-filters).
+The query `error -buggy_app OR foobar` is interpreted as `(error AND NOT buggy_app) OR foobar` according to [priorities for AND, OR and NOT operator](#logical-filters).
 This query returns logs with `foobar` [word](#word), even if do not contain `error` word or contain `buggy_app` word.
 So it is recommended wrapping the needed query parts into explicit parentheses if you are unsure in priority rules.
 As an additional bonus, explicit parentheses make queries easier to read and maintain.
@@ -148,26 +148,26 @@ If this word is stored in other [field](https://docs.victoriametrics.com/victori
 in front of the `error` word:
 
 ```logsql
-_time:5m log.level:error !(buggy_app OR foobar)
+_time:5m log.level:error -(buggy_app OR foobar)
 ```
 
 The field name can be wrapped into quotes if it contains special chars or keywords, which may clash with LogsQL syntax.
 Any [word](#word) also can be wrapped into quotes. So the following query is equivalent to the previous one:
 
 ```logsql
-"_time":"5m" "log.level":"error" !("buggy_app" OR "foobar")
+"_time":"5m" "log.level":"error" -("buggy_app" OR "foobar")
 ```
 
 What if the application identifier - such as `buggy_app` and `foobar` - is stored in the `app` field? Correct - just add `app:` prefix in front of `buggy_app` and `foobar`:
 
 ```logsql
-_time:5m log.level:error !(app:buggy_app OR app:foobar)
+_time:5m log.level:error -(app:buggy_app OR app:foobar)
 ```
 
 The query can be simplified by moving the `app:` prefix outside the parentheses:
 
 ```logsql
-_time:5m log.level:error !app:(buggy_app OR foobar)
+_time:5m log.level:error -app:(buggy_app OR foobar)
 ```
 
 The `app` field uniquely identifies the application instance if a single instance runs per each unique `app`.
@@ -177,7 +177,7 @@ and query performance when querying the needed streams via [`_stream` filter](#s
 If the `app` field is associated with the log stream, then the query above can be rewritten to more performant one:
 
 ```logsql
-_time:5m log.level:error _stream:{app!~"buggy_app|foobar"}
+_time:5m log.level:error {app!~"buggy_app|foobar"}
 ```
 
 This query skips scanning for [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) from `buggy_app` and `foobar` apps.
@@ -294,28 +294,31 @@ The following formats are supported for `_time` filter:
   - `_time:5m` - returns logs for the last 5 minutes
   - `_time:2.5d15m42.345s` - returns logs for the last 2.5 days, 15 minutes and 42.345 seconds
   - `_time:1y` - returns logs for the last year
-- `_time:YYYY-MM-DD` - matches all the logs for the particular day by UTC. For example, `_time:2023-04-25` matches logs on April 25, 2023 by UTC.
-- `_time:YYYY-MM` - matches all the logs for the particular month by UTC. For example, `_time:2023-02` matches logs on February, 2023 by UTC.
-- `_time:YYYY` - matches all the logs for the particular year by UTC. For example, `_time:2023` matches logs on 2023 by UTC.
-- `_time:YYYY-MM-DDTHH` - matches all the logs for the particular hour by UTC. For example, `_time:2023-04-25T22` matches logs on April 25, 2023 at 22 hour by UTC.
-- `_time:YYYY-MM-DDTHH:MM` - matches all the logs for the particular minute by UTC. For example, `_time:2023-04-25T22:45` matches logs on April 25, 2023 at 22:45 by UTC.
-- `_time:YYYY-MM-DDTHH:MM:SS` - matches all the logs for the particular second by UTC. For example, `_time:2023-04-25T22:45:59` matches logs on April 25, 2023 at 22:45:59 by UTC.
+- `_time:YYYY-MM-DDZ` - matches all the logs for the particular day by UTC. For example, `_time:2023-04-25Z` matches logs on April 25, 2023 by UTC.
+- `_time:YYYY-MMZ` - matches all the logs for the particular month by UTC. For example, `_time:2023-02Z` matches logs on February, 2023 by UTC.
+- `_time:YYYYZ` - matches all the logs for the particular year by UTC. For example, `_time:2023Z` matches logs on 2023 by UTC.
+- `_time:YYYY-MM-DDTHHZ` - matches all the logs for the particular hour by UTC. For example, `_time:2023-04-25T22Z` matches logs on April 25, 2023 at 22 hour by UTC.
+- `_time:YYYY-MM-DDTHH:MMZ` - matches all the logs for the particular minute by UTC. For example, `_time:2023-04-25T22:45Z` matches logs on April 25, 2023 at 22:45 by UTC.
+- `_time:YYYY-MM-DDTHH:MM:SSZ` - matches all the logs for the particular second by UTC. For example, `_time:2023-04-25T22:45:59Z` matches logs on April 25, 2023 at 22:45:59 by UTC.
 - `_time:[min_time, max_time]` - matches logs on the time range `[min_time, max_time]`, including both `min_time` and `max_time`.
     The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
-    For example, `_time:[2023-04-01, 2023-04-30]` matches logs for the whole April, 2023 by UTC, e.g. it is equivalent to `_time:2023-04`.
+    For example, `_time:[2023-04-01Z, 2023-04-30Z]` matches logs for the whole April, 2023 by UTC, e.g. it is equivalent to `_time:2023-04Z`.
 - `_time:[min_time, max_time)` - matches logs on the time range `[min_time, max_time)`, not including `max_time`.
     The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
-    For example, `_time:[2023-02-01, 2023-03-01)` matches logs for the whole February, 2023 by UTC, e.g. it is equivalent to `_time:2023-02`.
+    For example, `_time:[2023-02-01Z, 2023-03-01Z)` matches logs for the whole February, 2023 by UTC, e.g. it is equivalent to `_time:2023-02Z`.
 
 It is possible to specify time zone offset for all the absolute time formats by appending `+hh:mm` or `-hh:mm` suffix.
 For example, `_time:2023-04-25+05:30` matches all the logs on April 25, 2023 by India time zone,
 while `_time:2023-02-07:00` matches all the logs on February, 2023 by California time zone.
 
+If the timezone offset information is missing, then the local time zone of the host where VictoriaLogs runs is used.
+For example, `_time:2023-10-20` matches all the logs for `2023-10-20` day according to the local time zone of the host where VictoriaLogs runs.
+
 It is possible to specify generic offset for the selected time range by appending `offset` after the `_time` filter. Examples:
 
 - `_time:5m offset 1h` matches logs on the time range `(now-1h5m, now-1h]`.
-- `_time:2023-07 offset 5h30m` matches logs on July, 2023 by UTC with offset 5h30m.
-- `_time:[2023-02-01, 2023-03-01) offset 1w` matches logs the week before the time range `[2023-02-01, 2023-03-01)` by UTC.
+- `_time:2023-07Z offset 5h30m` matches logs on July, 2023 by UTC with offset 5h30m.
+- `_time:[2023-02-01Z, 2023-03-01Z) offset 1w` matches logs the week before the time range `[2023-02-01Z, 2023-03-01Z)` by UTC.
 
 Performance tips:
 
@@ -425,14 +428,14 @@ See also:
 ### Stream filter
 
 VictoriaLogs provides an optimized way to select logs, which belong to particular [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
-This can be done via `_stream:{...}` filter. The `{...}` may contain arbitrary
+This can be done via `{...}` filter, which may contain arbitrary
 [Prometheus-compatible label selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
 over fields associated with [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 For example, the following query selects [log entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with `app` field equal to `nginx`:
 
 ```logsql
-_stream:{app="nginx"}
+{app="nginx"}
 ```
 
 This query is equivalent to the following [`exact` filter](#exact-filter) query, but the upper query usually works much faster:
@@ -441,13 +444,19 @@ This query is equivalent to the following [`exact` filter](#exact-filter) query,
 app:="nginx"
 ```
 
+It is allowed to add `_stream:` prefix in front of `{...}` filter. The following filter is equivalent to `{app="nginx"}`:
+
+```logsql
+_stream:{app="nginx"}
+```
+
 Performance tips:
 
-- It is recommended using the most specific `_stream:{...}` filter matching the smallest number of log streams,
+- It is recommended using the most specific `{...}` filter matching the smallest number of log streams,
   which needs to be scanned by the rest of filters in the query.
 
-- While LogsQL supports arbitrary number of `_stream:{...}` filters at any level of [logical filters](#logical-filter),
-  it is recommended specifying a single `_stream:...` filter at the top level of the query.
+- While LogsQL supports arbitrary number of `{...}` filters at any level of [logical filters](#logical-filter),
+  it is recommended specifying a single `{...}` filter at the top level of the query.
 
 - See [other performance tips](#performance-tips).
 
@@ -1230,8 +1239,11 @@ Simpler LogsQL [filters](#filters) can be combined into more complex filters wit
 
 - `NOT q` - returns all the log entries except of those which match `q`. For example, `NOT info` returns all the
   [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
-  which do not contain `info` [word](#word). The `NOT` operation is frequently used in LogsQL queries, so it is allowed substituting `NOT` with `!` in queries.
-  For example, `!info` is equivalent to `NOT info`.
+  which do not contain `info` [word](#word). The `NOT` operation is frequently used in LogsQL queries, so it is allowed substituting `NOT` with `-` and `!` in queries.
+  For example, `-info` and `!info` are equivalent to `NOT info`.
+  The `!` must be used instead of `-` in front of [`=`](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter)
+  and [`~`](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter) filters like `!=` and `!~`.
+
 
 The `NOT` operation has the highest priority, `AND` has the middle priority and `OR` has the lowest priority.
 The priority order can be changed with parentheses. For example, `NOT info OR debug` is interpreted as `(NOT info) OR debug`,
@@ -1281,6 +1293,7 @@ _time:5m | stats by (_stream) count() per_stream_logs | sort by (per_stream_logs
 
 LogsQL supports the following pipes:
 
+- [`blocks_count`](#blocks_count-pipe) counts the number of blocks with logs processed by the query.
 - [`copy`](#copy-pipe) copies [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`delete`](#delete-pipe) deletes [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`drop_empty_fields`](#drop_empty_fields-pipe) drops [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with empty values.
@@ -1309,6 +1322,10 @@ LogsQL supports the following pipes:
 - [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_syslog`](#unpack_syslog-pipe) unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unroll`](#unroll-pipe) unrolls JSON arrays from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+### blocks_count pipe
+
+`<q> | blocks_count` [pipe](#pipes) counts the number of blocks with logs processed by `<q>`. This pipe is needed mostly for debugging.
 
 ### copy pipe
 

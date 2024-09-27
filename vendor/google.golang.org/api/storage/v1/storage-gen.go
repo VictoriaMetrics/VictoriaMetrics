@@ -2236,6 +2236,10 @@ type Object struct {
 	// Owner: The owner of the object. This will always be the uploader of the
 	// object.
 	Owner *ObjectOwner `json:"owner,omitempty"`
+	// RestoreToken: Restore token used to differentiate deleted objects with the
+	// same name and generation. This field is only returned for deleted objects in
+	// hierarchical namespace buckets.
+	RestoreToken string `json:"restoreToken,omitempty"`
 	// Retention: A collection of object level retention parameters.
 	Retention *ObjectRetention `json:"retention,omitempty"`
 	// RetentionExpirationTime: A server-determined value that specifies the
@@ -9961,6 +9965,17 @@ func (c *ObjectsGetCall) Projection(projection string) *ObjectsGetCall {
 	return c
 }
 
+// RestoreToken sets the optional parameter "restoreToken": Restore token used
+// to differentiate soft-deleted objects with the same name and generation.
+// Only applicable for hierarchical namespace buckets and if softDeleted is set
+// to true. This parameter is optional, and is only required in the rare case
+// when there are multiple soft-deleted objects with the same name and
+// generation.
+func (c *ObjectsGetCall) RestoreToken(restoreToken string) *ObjectsGetCall {
+	c.urlParams_.Set("restoreToken", restoreToken)
+	return c
+}
+
 // SoftDeleted sets the optional parameter "softDeleted": If true, only
 // soft-deleted object versions will be listed. The default is false. For more
 // information, see Soft Delete
@@ -11053,6 +11068,16 @@ func (c *ObjectsRestoreCall) IfMetagenerationNotMatch(ifMetagenerationNotMatch i
 //	"noAcl" - Omit the owner, acl property.
 func (c *ObjectsRestoreCall) Projection(projection string) *ObjectsRestoreCall {
 	c.urlParams_.Set("projection", projection)
+	return c
+}
+
+// RestoreToken sets the optional parameter "restoreToken": Restore token used
+// to differentiate sof-deleted objects with the same name and generation. Only
+// applicable for hierarchical namespace buckets. This parameter is optional,
+// and is only required in the rare case when there are multiple soft-deleted
+// objects with the same name and generation.
+func (c *ObjectsRestoreCall) RestoreToken(restoreToken string) *ObjectsRestoreCall {
+	c.urlParams_.Set("restoreToken", restoreToken)
 	return c
 }
 

@@ -58,7 +58,7 @@ to the query. For example, the following query selects logs with `error` [word](
 which do not contain `kubernetes` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word), over the last hour:
 
 ```logsql
-error !kubernetes _time:1h
+error -kubernetes _time:1h
 ```
 
 The logs are returned in arbitrary order because of performance reasons. Add [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
@@ -86,14 +86,14 @@ Use [`NOT` logical filter](https://docs.victoriametrics.com/victorialogs/logsql/
 without the `INFO` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) in the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 ```logsql
-!INFO
+-INFO
 ```
 
 If the number of returned logs is too big, then add [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter)
 for limiting the time range for the selected logs. For example, the following query returns matching logs over the last hour:
 
 ```logsql
-!INFO _time:1h
+-INFO _time:1h
 ```
 
 If the number of returned logs is still too big, then consider adding more specific [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters)
@@ -101,7 +101,7 @@ to the query. For example, the following query selects logs without `INFO` [word
 which contain `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word), over the last hour:
 
 ```logsql
-!INFO error _time:1h
+-INFO error _time:1h
 ```
 
 The logs are returned in arbitrary order because of performance reasons. Add [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
@@ -109,7 +109,7 @@ for sorting logs by the needed [fields](https://docs.victoriametrics.com/victori
 sorts the selected logs by [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field):
 
 ```logsql
-!INFO _time:1h | sort by (_time)
+-INFO _time:1h | sort by (_time)
 ```
 
 See also:
@@ -146,7 +146,7 @@ to the query. For example, the following query selects logs with `error` and `ku
 from [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) containing `container="my-app"` field, over the last hour:
 
 ```logsql
-error kubernetes _stream:{container="my-app"} _time:1h
+error kubernetes {container="my-app"} _time:1h
 ```
 
 The logs are returned in arbitrary order because of performance reasons. Add [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
@@ -191,7 +191,7 @@ to the query. For example, the following query selects logs without `error`, `ER
 which do not contain `kubernetes` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word), over the last hour:
 
 ```logsql
-(error or ERROR or Error) !kubernetes _time:1h
+(error or ERROR or Error) -kubernetes _time:1h
 ```
 
 The logs are returned in arbitrary order because of performance reasons. Add [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
@@ -220,14 +220,14 @@ For example, if the application contains `job="app-42"` and `instance="host-123:
 then the following query selects all the logs from this application:
 
 ```logsql
-_stream:{job="app-42",instance="host-123:5678"}
+{job="app-42",instance="host-123:5678"}
 ```
 
 If the number of returned logs is too big, it is recommended adding [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter)
 to the query in order to reduce the number of matching logs. For example, the following query returns logs for the given application for the last day:
 
 ```logsql
-_stream:{job="app-42",instance="host-123:5678"} _time:1d
+{job="app-42",instance="host-123:5678"} _time:1d
 ```
 
 If the number of returned logs is still too big, then consider adding more specific [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters)
@@ -236,7 +236,7 @@ which contain `error` [word](https://docs.victoriametrics.com/victorialogs/logsq
 over the last day:
 
 ```logsql
-_stream:{job="app-42",instance="host-123:5678"} error _time:1d
+{job="app-42",instance="host-123:5678"} error _time:1d
 ```
 
 The logs are returned in arbitrary order because of performance reasons. Use [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
@@ -244,7 +244,7 @@ for sorting the returned logs by the needed fields. For example, the following q
 by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field):
 
 ```logsql
-_stream:{job="app-42",instance="host-123:5678"} _time:1d | sort by (_time)
+{job="app-42",instance="host-123:5678"} _time:1d | sort by (_time)
 ```
 
 See also:

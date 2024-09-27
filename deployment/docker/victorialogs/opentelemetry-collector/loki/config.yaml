@@ -3,7 +3,7 @@ exporters:
     endpoint: http://victorialogs:9428/insert/loki/api/v1/push
 receivers:
   filelog:
-    include: [/tmp/logs/*.log]
+    include: [/var/lib/docker/containers/**/*.log]
     resource:
       region: us-east-1
 service:

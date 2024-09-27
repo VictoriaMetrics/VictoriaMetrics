@@ -51,16 +51,16 @@ type pipeOffsetProcessor struct {
 }
 
 func (pop *pipeOffsetProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
-	rowsProcessed := pop.rowsProcessed.Add(uint64(len(br.timestamps)))
+	rowsProcessed := pop.rowsProcessed.Add(uint64(br.rowsLen))
 	if rowsProcessed <= pop.po.offset {
 		return
 	}
 
-	rowsProcessed -= uint64(len(br.timestamps))
+	rowsProcessed -= uint64(br.rowsLen)
 	if rowsProcessed >= pop.po.offset {
 		pop.ppNext.writeBlock(workerID, br)
 		return

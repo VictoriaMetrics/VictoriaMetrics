@@ -19,8 +19,8 @@ const seriesColors = [
 ];
 
 const strokeWidth = {
-  [GRAPH_STYLES.BAR]: 0.8,
-  [GRAPH_STYLES.LINE_STEPPED]: 1.2,
+  [GRAPH_STYLES.BAR]: 1,
+  [GRAPH_STYLES.LINE_STEPPED]: 2,
   [GRAPH_STYLES.LINE]: 1.2,
   [GRAPH_STYLES.POINTS]: 0,
 };
@@ -82,7 +82,7 @@ const useBarHitsOptions = ({
     cursor: {
       points: {
         width: (u, seriesIdx, size) => size / 4,
-        size: (u, seriesIdx) => (u.series?.[seriesIdx]?.points?.size || 1) * 2.5,
+        size: (u, seriesIdx) => (u.series?.[seriesIdx]?.points?.size || 1) * 1.5,
         stroke: (u, seriesIdx) => `${series?.[seriesIdx]?.stroke || "#ffffff"}`,
         fill: () => "#ffffff",
       },

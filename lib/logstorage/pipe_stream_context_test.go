@@ -12,6 +12,7 @@ func TestParsePipeStreamContextSuccess(t *testing.T) {
 
 	f(`stream_context before 5`)
 	f(`stream_context after 10`)
+	f(`stream_context after 0`)
 	f(`stream_context before 10 after 20`)
 }
 
@@ -28,73 +29,6 @@ func TestParsePipeStreamContextFailure(t *testing.T) {
 	f(`stream_context after before`)
 	f(`stream_context before -4`)
 	f(`stream_context after -4`)
-}
-
-func TestPipeStreamContext(t *testing.T) {
-	f := func(pipeStr string, rows, rowsExpected [][]Field) {
-		t.Helper()
-		expectPipeResults(t, pipeStr, rows, rowsExpected)
-	}
-
-	f("stream_context before 0", [][]Field{
-		{
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"a", "2"},
-			{"b", "3"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-		},
-	}, [][]Field{
-		{
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"a", "2"},
-			{"b", "3"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-		},
-	})
-
-	f("stream_context after 0", [][]Field{
-		{
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"a", "2"},
-			{"b", "3"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-		},
-	}, [][]Field{
-		{
-			{"a", `2`},
-			{"b", `3`},
-		},
-		{
-			{"a", "2"},
-			{"b", "3"},
-		},
-		{
-			{"a", `2`},
-			{"b", `54`},
-			{"c", "d"},
-		},
-	})
 }
 
 func TestPipeStreamContextUpdateNeededFields(t *testing.T) {

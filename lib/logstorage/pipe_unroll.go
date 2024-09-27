@@ -106,7 +106,7 @@ type pipeUnrollProcessorShardNopad struct {
 }
 
 func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -115,7 +115,7 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.wctx.init(workerID, pup.ppNext, false, false, br)
 
 	bm := &shard.bm
-	bm.init(len(br.timestamps))
+	bm.init(br.rowsLen)
 	bm.setBits()
 	if iff := pu.iff; iff != nil {
 		iff.f.applyToBlockResult(br, bm)
@@ -133,7 +133,7 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	fields := shard.fields
-	for rowIdx := range br.timestamps {
+	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 		if bm.isSetBit(rowIdx) {
 			if needStop(pup.stopCh) {
 				return
