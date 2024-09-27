@@ -40,7 +40,7 @@ services:
 #  storing logs and serving read queries.
   victorialogs:
     container_name: victorialogs
-    image: docker.io/victoriametrics/victoria-logs:v0.30.0-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.30.1-victorialogs
     command:
       - "--storageDataPath=/vlogs"
       - "--httpListenAddr=:9428"
