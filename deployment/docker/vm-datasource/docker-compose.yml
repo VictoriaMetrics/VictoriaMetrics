@@ -8,7 +8,7 @@ services:
       - 3000:3000
     volumes:
       - grafanadata:/var/lib/grafana
-      - ./provisioning/datasources/victoriametrics-datasource:/etc/grafana/provisioning/datasources
+      - ./provisioning/datasources/victoriametrics-datasource/single.yml:/etc/grafana/provisioning/datasources/single.yml
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./provisioning/plugins/:/var/lib/grafana/plugins
       - ./../../dashboards/vm/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
