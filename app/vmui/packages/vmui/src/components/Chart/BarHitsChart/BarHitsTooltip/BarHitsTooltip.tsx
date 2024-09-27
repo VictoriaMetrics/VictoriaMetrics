@@ -12,12 +12,16 @@ interface Props {
   focusDataIdx: number;
 }
 
+const timeFormat = (ts: number) => dayjs(ts * 1000).tz().format(DATE_TIME_FORMAT);
+
 const BarHitsTooltip: FC<Props> = ({ data, focusDataIdx, uPlotInst }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   const tooltipData = useMemo(() => {
     const series = uPlotInst?.series || [];
     const [time, ...values] = data.map((d) => d[focusDataIdx] || 0);
+    const step = (data[0][1] - data[0][0]);
+    const timeNext = time + step;
 
     const tooltipItems = values.map((value, i) => {
       const targetSeries = series[i + 1];
@@ -41,7 +45,7 @@ const BarHitsTooltip: FC<Props> = ({ data, focusDataIdx, uPlotInst }) => {
       point,
       values: tooltipItems,
       total: tooltipItems.reduce((acc, item) => acc + item.value, 0),
-      timestamp: dayjs(time * 1000).tz().format(DATE_TIME_FORMAT),
+      timestamp: `${timeFormat(time)} - ${timeFormat(timeNext)}`,
     };
   }, [focusDataIdx, uPlotInst, data]);
 
