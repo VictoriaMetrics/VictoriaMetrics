@@ -876,7 +876,7 @@ received from [streams](https://docs.victoriametrics.com/victorialogs/keyconcept
 during the last 5 minutes:
 
 ```sh
-curl http://localhost:9428/select/logsql/query -d 'query=_stream:{app="nginx"} AND _time:5m AND error' | wc -l
+curl http://localhost:9428/select/logsql/query -d 'query={app="nginx"} AND _time:5m AND error' | wc -l
 ```
 
 See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter) about `_stream` filter,
@@ -886,7 +886,7 @@ and [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#logical-f
 Alternatively, you can count the number of matching logs at VictoriaLogs side with [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe):
 
 ```sh
-curl http://localhost:9428/select/logsql/query -d 'query=_stream:{app="nginx"} AND _time:5m AND error | stats count() logs_with_error'
+curl http://localhost:9428/select/logsql/query -d 'query={app="nginx"} AND _time:5m AND error | stats count() logs_with_error'
 ```
 
 The following example shows how to sort query results by the [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) with traditional Unix tools:

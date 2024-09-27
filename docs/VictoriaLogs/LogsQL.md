@@ -177,7 +177,7 @@ and query performance when querying the needed streams via [`_stream` filter](#s
 If the `app` field is associated with the log stream, then the query above can be rewritten to more performant one:
 
 ```logsql
-_time:5m log.level:error _stream:{app!~"buggy_app|foobar"}
+_time:5m log.level:error {app!~"buggy_app|foobar"}
 ```
 
 This query skips scanning for [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) from `buggy_app` and `foobar` apps.
@@ -428,14 +428,14 @@ See also:
 ### Stream filter
 
 VictoriaLogs provides an optimized way to select logs, which belong to particular [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
-This can be done via `_stream:{...}` filter. The `{...}` may contain arbitrary
+This can be done via `{...}` filter, which may contain arbitrary
 [Prometheus-compatible label selector](https://docs.victoriametrics.com/keyconcepts/#filtering)
 over fields associated with [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 For example, the following query selects [log entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with `app` field equal to `nginx`:
 
 ```logsql
-_stream:{app="nginx"}
+{app="nginx"}
 ```
 
 This query is equivalent to the following [`exact` filter](#exact-filter) query, but the upper query usually works much faster:
@@ -444,13 +444,19 @@ This query is equivalent to the following [`exact` filter](#exact-filter) query,
 app:="nginx"
 ```
 
+It is allowed to add `_stream:` prefix in front of `{...}` filter. The following filter is equivalent to `{app="nginx"}`:
+
+```logsql
+_stream:{app="nginx"}
+```
+
 Performance tips:
 
-- It is recommended using the most specific `_stream:{...}` filter matching the smallest number of log streams,
+- It is recommended using the most specific `{...}` filter matching the smallest number of log streams,
   which needs to be scanned by the rest of filters in the query.
 
-- While LogsQL supports arbitrary number of `_stream:{...}` filters at any level of [logical filters](#logical-filter),
-  it is recommended specifying a single `_stream:...` filter at the top level of the query.
+- While LogsQL supports arbitrary number of `{...}` filters at any level of [logical filters](#logical-filter),
+  it is recommended specifying a single `{...}` filter at the top level of the query.
 
 - See [other performance tips](#performance-tips).
 

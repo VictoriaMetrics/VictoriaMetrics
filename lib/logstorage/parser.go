@@ -822,6 +822,11 @@ func parseFilterAnd(lex *lexer, fieldName string) (filter, error) {
 func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 	// Check for special keywords
 	switch {
+	case lex.isKeyword("{"):
+		if fieldName != "" && fieldName != "_stream" {
+			return nil, fmt.Errorf("stream filter cannot be applied to %q field; it can be applied only to _stream field", fieldName)
+		}
+		return parseFilterStream(lex)
 	case lex.isKeyword(":"):
 		if !lex.mustNextToken() {
 			return nil, fmt.Errorf("missing filter after ':'")

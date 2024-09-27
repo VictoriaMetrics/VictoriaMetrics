@@ -146,7 +146,7 @@ to the query. For example, the following query selects logs with `error` and `ku
 from [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) containing `container="my-app"` field, over the last hour:
 
 ```logsql
-error kubernetes _stream:{container="my-app"} _time:1h
+error kubernetes {container="my-app"} _time:1h
 ```
 
 The logs are returned in arbitrary order because of performance reasons. Add [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
@@ -220,14 +220,14 @@ For example, if the application contains `job="app-42"` and `instance="host-123:
 then the following query selects all the logs from this application:
 
 ```logsql
-_stream:{job="app-42",instance="host-123:5678"}
+{job="app-42",instance="host-123:5678"}
 ```
 
 If the number of returned logs is too big, it is recommended adding [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter)
 to the query in order to reduce the number of matching logs. For example, the following query returns logs for the given application for the last day:
 
 ```logsql
-_stream:{job="app-42",instance="host-123:5678"} _time:1d
+{job="app-42",instance="host-123:5678"} _time:1d
 ```
 
 If the number of returned logs is still too big, then consider adding more specific [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters)
@@ -236,7 +236,7 @@ which contain `error` [word](https://docs.victoriametrics.com/victorialogs/logsq
 over the last day:
 
 ```logsql
-_stream:{job="app-42",instance="host-123:5678"} error _time:1d
+{job="app-42",instance="host-123:5678"} error _time:1d
 ```
 
 The logs are returned in arbitrary order because of performance reasons. Use [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
@@ -244,7 +244,7 @@ for sorting the returned logs by the needed fields. For example, the following q
 by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field):
 
 ```logsql
-_stream:{job="app-42",instance="host-123:5678"} _time:1d | sort by (_time)
+{job="app-42",instance="host-123:5678"} _time:1d | sort by (_time)
 ```
 
 See also:
