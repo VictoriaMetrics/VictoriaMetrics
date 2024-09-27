@@ -9,8 +9,6 @@ menu:
 aliases:
   - /VictoriaLogs/data-ingestion/Telegraf.html
 ---
-# Telegraf setup
-
 VictoriaLogs supports given below Telegraf outputs:
 - [Elasticsearch](#elasticsearch)
 - [Loki](#loki)

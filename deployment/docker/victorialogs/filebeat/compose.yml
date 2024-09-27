@@ -1,8 +1,8 @@
 include:
  - ../compose.yml
 services:
-  filebeat-victorialogs:
-    image: docker.elastic.co/beats/filebeat:8.15.0
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.15.1
     restart: on-failure
     volumes:
       - type: bind
