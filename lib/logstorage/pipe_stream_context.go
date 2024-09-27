@@ -544,7 +544,7 @@ func (pcp *pipeStreamContextProcessor) flush() error {
 			for _, streamRow := range streamRows {
 				wctx.writeRow(streamRow.fields)
 			}
-			if len(streamRowss) > 1 {
+			if len(m) > 1 || len(streamRowss) > 1 {
 				lastRow := streamRows[len(streamRows)-1]
 				fields := newDelimiterRowFields(lastRow, streamID)
 				wctx.writeRow(fields)
