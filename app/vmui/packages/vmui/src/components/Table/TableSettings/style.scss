@@ -1,66 +1,98 @@
 @use "src/styles/variables" as *;
 
-.vm-table-settings-popper {
-  display: grid;
-  min-width: 250px;
-
-  &_mobile &-list {
-    gap: $padding-global;
-
-    &:first-child {
-      padding-top: 0;
-    }
-  }
-
-  &-list {
-    display: grid;
-    gap: 12px;
-    padding: $padding-global;
-    border-bottom: $border-divider;
-    max-width: 250px;
-
-    &_first {
-      padding-top: 0;
+.vm-table-settings {
+  &-modal {
+    .vm-modal-content-body {
+      padding: 0;
     }
 
-    &-header {
-      display: grid;
-      align-items: center;
-      justify-content: space-between;
-      grid-template-columns: 1fr auto;
-      gap: $padding-small;
-      min-height: 25px;
+    &-section {
+      padding-block: $padding-global;
+      border-top: $border-divider;
+
+      &:first-child {
+        padding-top: 0;
+        border-top: none;
+      }
 
       &__title {
+        padding-inline: $padding-global;
+        font-size: $font-size;
         font-weight: bold;
+        margin-bottom: $padding-global;
       }
     }
 
     &-columns {
-      max-height: 350px;
-      overflow: auto;
-    }
-
-    &__item {
-      padding: calc($padding-global/2) $padding-global;
-      font-size: $font-size;
-
-      &:hover,
-      &_focus {
-        background-color: $color-hover-black;
+      &__search {
+        padding-inline: $padding-global;
       }
 
-      &_check_all {
-        padding: calc($padding-global/2) $padding-global;
-        margin: 0 (-$padding-global);
+      &-list {
+        display: flex;
+        flex-direction: column;
+        max-height: 250px;
+        min-height: 250px;
+        overflow: auto;
+        margin-bottom: $padding-global;
+
+        &__item {
+          width: 100%;
+          font-size: $font-size;
+          border-radius: $border-radius-small;
+
+          &>div {
+            padding: $padding-small $padding-global;
+          }
+
+          &_all {
+            font-weight: bold;
+          }
+
+          &:hover,
+          &_focus {
+            background-color: $color-hover-black;
+          }
+
+          &_custom {
+            .vm-checkbox__label:after {
+              width: 100%;
+              content: "(custom column, will be removed if unchecked)";
+              padding: 0 $padding-small;
+              text-align: right;
+              font-style: italic;
+              color: $color-text-secondary;
+            }
+          }
+        }
+      }
+
+      &-no-found {
+        display: flex;
+        flex-direction: column;
+        min-width: 100%;
+        min-height: 250px;
+        align-items: center;
+        justify-content: center;
+        gap: $padding-global;
+
+        &__info {
+          text-align: center;
+          font-style: italic;
+          color: $color-text-secondary;
+        }
       }
     }
 
-    &__no-found {
-      text-align: center;
-      font-style: italic;
-      color: $color-text-secondary;
-      margin-bottom: $padding-small;
+    &-preserve {
+      padding: $padding-global;
+
+      &__info {
+        padding-top: $padding-small;
+        font-size: $font-size-small;
+        color: $color-text-secondary;
+        line-height: 130%;
+      }
     }
   }
 }
