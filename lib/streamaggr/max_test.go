@@ -1,7 +1,7 @@
 package streamaggr
 
 import (
-	// "fmt"
+	"fmt"
 	"testing"
 	"time"
 
@@ -86,4 +86,12 @@ func TestPushSampleRace(t *testing.T) {
 		}()
 	}
 	time.Sleep(1 * time.Second)
+}
+
+func TestPushSamples(t *testing.T) {
+    for i := 0; i < 5; i++ {
+        t.Run(fmt.Sprintf("Run%d", i+1), func(t *testing.T) {
+            TestPushSampleRace(t)
+        })
+    }
 }

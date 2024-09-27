@@ -30,7 +30,7 @@ func (as *maxAggrState) pushSamples(samples []pushSample) {
 	again:
 		v, ok := as.m.Load(outputKey)
 		if !ok {
-			fmt.Printf("wang The entry is missing in the map: %d\n", time.Now().UnixMicro())
+			// fmt.Printf("wang The entry is missing in the map: %d\n", time.Now().UnixMicro())
 			// The entry is missing in the map. Try creating it.
 			v = &maxStateValue{
 				max: s.value,
@@ -45,7 +45,7 @@ func (as *maxAggrState) pushSamples(samples []pushSample) {
 			// Use the entry created by a concurrent goroutine.
 			v = vNew
 		}
-		fmt.Printf("wang the right way %d\n", time.Now().Unix())
+		fmt.Printf("wang This is the right way %d\n", time.Now().Unix())
 		sv := v.(*maxStateValue)
 		sv.mu.Lock()
 		deleted := sv.deleted
