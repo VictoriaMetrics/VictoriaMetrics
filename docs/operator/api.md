@@ -383,7 +383,6 @@ _Appears in:_
 | `schedulerName` | SchedulerName - defines kubernetes scheduler name | _string_ | false |
 | `secrets` | Secrets is a list of Secrets in the same namespace as the Application<br />object, which shall be mounted into the Application container<br />at /etc/vm/secrets/SECRET_NAME folder | _string array_ | false |
 | `securityContext` | SecurityContext holds pod-level security attributes and common container settings.<br />This defaults to the default PodSecurityContext. | _[SecurityContext](#securitycontext)_ | false |
-| `serviceAccountName` | ServiceAccountName is the name of the ServiceAccount to use to run the pods | _string_ | false |
 | `terminationGracePeriodSeconds` | TerminationGracePeriodSeconds period for container graceful termination | _integer_ | false |
 | `tolerations` | Tolerations If specified, the pod's tolerations. | _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#toleration-v1-core) array_ | false |
 | `topologySpreadConstraints` | TopologySpreadConstraints embedded kubernetes pod configuration option,<br />controls how pods are spread across your cluster among failure-domains<br />such as regions, zones, nodes, and other user-defined topology domains<br />https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/ | _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#topologyspreadconstraint-v1-core) array_ | false |
@@ -3214,7 +3213,6 @@ _Appears in:_
 | `schedulerName` | SchedulerName - defines kubernetes scheduler name | _string_ | false |
 | `secrets` | Secrets is a list of Secrets in the same namespace as the Application<br />object, which shall be mounted into the Application container<br />at /etc/vm/secrets/SECRET_NAME folder | _string array_ | false |
 | `securityContext` | SecurityContext holds pod-level security attributes and common container settings.<br />This defaults to the default PodSecurityContext. | _[SecurityContext](#securitycontext)_ | false |
-| `serviceAccountName` | ServiceAccountName is the name of the ServiceAccount to use to run the pods | _string_ | false |
 | `serviceScrapeSpec` | ServiceScrapeSpec that will be added to vminsert VMServiceScrape spec | _[VMServiceScrapeSpec](#vmservicescrapespec)_ | false |
 | `serviceSpec` | ServiceSpec that will be added to vminsert service spec | _[AdditionalServiceSpec](#additionalservicespec)_ | false |
 | `terminationGracePeriodSeconds` | TerminationGracePeriodSeconds period for container graceful termination | _integer_ | false |
@@ -3658,7 +3656,6 @@ _Appears in:_
 | `schedulerName` | SchedulerName - defines kubernetes scheduler name | _string_ | false |
 | `secrets` | Secrets is a list of Secrets in the same namespace as the Application<br />object, which shall be mounted into the Application container<br />at /etc/vm/secrets/SECRET_NAME folder | _string array_ | false |
 | `securityContext` | SecurityContext holds pod-level security attributes and common container settings.<br />This defaults to the default PodSecurityContext. | _[SecurityContext](#securitycontext)_ | false |
-| `serviceAccountName` | ServiceAccountName is the name of the ServiceAccount to use to run the pods | _string_ | false |
 | `serviceScrapeSpec` | ServiceScrapeSpec that will be added to vmselect VMServiceScrape spec | _[VMServiceScrapeSpec](#vmservicescrapespec)_ | false |
 | `serviceSpec` | ServiceSpec that will be added to vmselect service spec | _[AdditionalServiceSpec](#additionalservicespec)_ | false |
 | `storage` | StorageSpec - add persistent volume claim for cacheMountPath<br />its needed for persistent cache | _[StorageSpec](#storagespec)_ | false |
@@ -3895,7 +3892,6 @@ _Appears in:_
 | `schedulerName` | SchedulerName - defines kubernetes scheduler name | _string_ | false |
 | `secrets` | Secrets is a list of Secrets in the same namespace as the Application<br />object, which shall be mounted into the Application container<br />at /etc/vm/secrets/SECRET_NAME folder | _string array_ | false |
 | `securityContext` | SecurityContext holds pod-level security attributes and common container settings.<br />This defaults to the default PodSecurityContext. | _[SecurityContext](#securitycontext)_ | false |
-| `serviceAccountName` | ServiceAccountName is the name of the ServiceAccount to use to run the pods | _string_ | false |
 | `serviceScrapeSpec` | ServiceScrapeSpec that will be added to vmstorage VMServiceScrape spec | _[VMServiceScrapeSpec](#vmservicescrapespec)_ | false |
 | `serviceSpec` | ServiceSpec that will be create additional service for vmstorage | _[AdditionalServiceSpec](#additionalservicespec)_ | false |
 | `storage` | Storage - add persistent volume for StorageDataPath<br />its useful for persistent cache | _[StorageSpec](#storagespec)_ | false |
