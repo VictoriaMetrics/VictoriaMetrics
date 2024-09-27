@@ -122,7 +122,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 
 	cfg := &apiConfig{
 		c:              c,
-		apiServerHost:  u.Host,
+		apiServerHost:  u.Hostname(),
 		port:           port,
 		resourceGroup:  sdc.ResourceGroup,
 		subscriptionID: sdc.SubscriptionID,

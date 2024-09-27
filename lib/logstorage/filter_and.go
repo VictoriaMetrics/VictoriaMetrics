@@ -18,8 +18,9 @@ type filterAnd struct {
 }
 
 type fieldTokens struct {
-	field  string
-	tokens []string
+	field        string
+	tokens       []string
+	tokensHashes []uint64
 }
 
 func (fa *filterAnd) String() string {
@@ -76,30 +77,31 @@ func (fa *filterAnd) matchBloomFilters(bs *blockSearch) bool {
 		return true
 	}
 
-	for _, fieldTokens := range byFieldTokens {
-		fieldName := fieldTokens.field
-		tokens := fieldTokens.tokens
+	for _, ft := range byFieldTokens {
+		fieldName := ft.field
+		tokens := ft.tokens
 
-		v := bs.csh.getConstColumnValue(fieldName)
+		csh := bs.getColumnsHeader()
+		v := csh.getConstColumnValue(fieldName)
 		if v != "" {
-			if !matchStringByAllTokens(v, tokens) {
-				return false
+			if matchStringByAllTokens(v, tokens) {
+				continue
 			}
-			continue
+			return false
 		}
 
-		ch := bs.csh.getColumnHeader(fieldName)
+		ch := csh.getColumnHeader(fieldName)
 		if ch == nil {
 			return false
 		}
 
 		if ch.valueType == valueTypeDict {
-			if !matchDictValuesByAllTokens(ch.valuesDict.values, tokens) {
-				return false
+			if matchDictValuesByAllTokens(ch.valuesDict.values, tokens) {
+				continue
 			}
-			continue
+			return false
 		}
-		if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		if !matchBloomFilterAllTokens(bs, ch, ft.tokensHashes) {
 			return false
 		}
 	}
@@ -113,7 +115,11 @@ func (fa *filterAnd) getByFieldTokens() []fieldTokens {
 }
 
 func (fa *filterAnd) initByFieldTokens() {
-	m := make(map[string]map[string]struct{})
+	fa.byFieldTokens = getCommonTokensForAndFilters(fa.filters)
+}
+
+func getCommonTokensForAndFilters(filters []filter) []fieldTokens {
+	m := make(map[string][]string)
 	var fieldNames []string
 
 	mergeFieldTokens := func(fieldName string, tokens []string) {
@@ -122,18 +128,13 @@ func (fa *filterAnd) initByFieldTokens() {
 		}
 
 		fieldName = getCanonicalColumnName(fieldName)
-		mTokens, ok := m[fieldName]
-		if !ok {
+		if _, ok := m[fieldName]; !ok {
 			fieldNames = append(fieldNames, fieldName)
-			mTokens = make(map[string]struct{})
-			m[fieldName] = mTokens
 		}
-		for _, token := range tokens {
-			mTokens[token] = struct{}{}
-		}
+		m[fieldName] = append(m[fieldName], tokens...)
 	}
 
-	for _, f := range fa.filters {
+	for _, f := range filters {
 		switch t := f.(type) {
 		case *filterExact:
 			tokens := t.getTokens()
@@ -164,18 +165,24 @@ func (fa *filterAnd) initByFieldTokens() {
 	var byFieldTokens []fieldTokens
 	for _, fieldName := range fieldNames {
 		mTokens := m[fieldName]
+		seenTokens := make(map[string]struct{})
 		tokens := make([]string, 0, len(mTokens))
-		for token := range mTokens {
+		for _, token := range mTokens {
+			if _, ok := seenTokens[token]; ok {
+				continue
+			}
+			seenTokens[token] = struct{}{}
 			tokens = append(tokens, token)
 		}
 
 		byFieldTokens = append(byFieldTokens, fieldTokens{
-			field:  fieldName,
-			tokens: tokens,
+			field:        fieldName,
+			tokens:       tokens,
+			tokensHashes: appendTokensHashes(nil, tokens),
 		})
 	}
 
-	fa.byFieldTokens = byFieldTokens
+	return byFieldTokens
 }
 
 func matchStringByAllTokens(v string, tokens []string) bool {

@@ -193,6 +193,14 @@ func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		logsqlQueryRequests.Inc()
 		logsql.ProcessQueryRequest(ctx, w, r)
 		return true
+	case "/select/logsql/stats_query":
+		logsqlStatsQueryRequests.Inc()
+		logsql.ProcessStatsQueryRequest(ctx, w, r)
+		return true
+	case "/select/logsql/stats_query_range":
+		logsqlStatsQueryRangeRequests.Inc()
+		logsql.ProcessStatsQueryRangeRequest(ctx, w, r)
+		return true
 	case "/select/logsql/stream_field_names":
 		logsqlStreamFieldNamesRequests.Inc()
 		logsql.ProcessStreamFieldNamesRequest(ctx, w, r)
@@ -232,6 +240,8 @@ var (
 	logsqlFieldValuesRequests       = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_values"}`)
 	logsqlHitsRequests              = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/hits"}`)
 	logsqlQueryRequests             = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/query"}`)
+	logsqlStatsQueryRequests        = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stats_query"}`)
+	logsqlStatsQueryRangeRequests   = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stats_query_range"}`)
 	logsqlStreamFieldNamesRequests  = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_field_names"}`)
 	logsqlStreamFieldValuesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_field_values"}`)
 	logsqlStreamIDsRequests         = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_ids"}`)

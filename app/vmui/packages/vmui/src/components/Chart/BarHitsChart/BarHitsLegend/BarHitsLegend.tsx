@@ -6,6 +6,7 @@ import classNames from "classnames";
 import { MouseEvent } from "react";
 import { isMacOs } from "../../../../utils/detect-device";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
+import { getStreamPairs } from "../../../../utils/logs";
 
 interface Props {
   uPlotInst: uPlot;
@@ -14,20 +15,26 @@ interface Props {
 
 const BarHitsLegend: FC<Props> = ({ uPlotInst, onApplyFilter }) => {
   const [series, setSeries] = useState<Series[]>([]);
+  const [pairs, setPairs] = useState<string[][]>([]);
 
   const updateSeries = useCallback(() => {
     const series = uPlotInst.series.filter(s => s.scale !== "x");
     setSeries(series);
+    setPairs(series.map(s => getStreamPairs(s.label || "")));
   }, [uPlotInst]);
 
-  const handleClick = (target: Series) => (e: MouseEvent<HTMLDivElement>) => {
+  const handleClickByValue = (value: string) => (e: MouseEvent<HTMLDivElement>) => {
     const metaKey = e.metaKey || e.ctrlKey;
-    if (!metaKey) {
-      target.show = !target.show;
-    } else {
-      onApplyFilter(target.label || "");
-    }
+    if (!metaKey) return;
+    onApplyFilter(`{${value}}` || "");
+    updateSeries();
+    uPlotInst.redraw();
+  };
 
+  const handleClickByStream = (target: Series) => (e: MouseEvent<HTMLDivElement>) => {
+    const metaKey = e.metaKey || e.ctrlKey;
+    if (metaKey) return;
+    target.show = !target.show;
     updateSeries();
     uPlotInst.redraw();
   };
@@ -36,7 +43,7 @@ const BarHitsLegend: FC<Props> = ({ uPlotInst, onApplyFilter }) => {
 
   return (
     <div className="vm-bar-hits-legend">
-      {series.map(s => (
+      {series.map((s, i) => (
         <Tooltip
           key={s.label}
           title={(
@@ -51,13 +58,23 @@ const BarHitsLegend: FC<Props> = ({ uPlotInst, onApplyFilter }) => {
               "vm-bar-hits-legend-item": true,
               "vm-bar-hits-legend-item_hide": !s.show,
             })}
-            onClick={handleClick(s)}
+            onClick={handleClickByStream(s)}
           >
             <div
               className="vm-bar-hits-legend-item__marker"
               style={{ backgroundColor: `${(s?.stroke as () => string)?.()}` }}
             />
-            <div>{s.label}</div>
+            <div className="vm-bar-hits-legend-item-pairs">
+              {pairs[i].map(value => (
+                <span
+                  className="vm-bar-hits-legend-item-pairs__value"
+                  key={value}
+                  onClick={handleClickByValue(value)}
+                >
+                  {value}
+                </span>
+              ))}
+            </div>
           </div>
         </Tooltip>
       ))}

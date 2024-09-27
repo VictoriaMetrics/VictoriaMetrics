@@ -6,7 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// filterStream is the filter for `_stream:{...}`
+// filterStream is the filter for `{}` aka `_stream:{...}`
 type filterStream struct {
 	// f is the filter to apply
 	f *StreamFilter
@@ -22,7 +22,7 @@ type filterStream struct {
 }
 
 func (fs *filterStream) String() string {
-	return "_stream:" + fs.f.String()
+	return fs.f.String()
 }
 
 func (fs *filterStream) updateNeededFields(neededFields fieldsSet) {

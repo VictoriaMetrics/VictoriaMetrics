@@ -1179,7 +1179,7 @@ These issues can be fixed in the following ways:
 
 ### High resource usage
 
-The following solutions can help reducing memory usage and CPU usage durting streaming aggregation:
+The following solutions can help reducing memory usage and CPU usage during streaming aggregation:
 
 - To use more specific `match` filters at [streaming aggregation config](#stream-aggregation-config), so only the really needed
   [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) are aggregated.

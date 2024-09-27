@@ -191,9 +191,9 @@ func binaryOpEvalNumber(op string, left, right float64, isBool bool) float64 {
 		case "^":
 			left = binaryop.Pow(left, right)
 		case "and":
-			// Nothing to do
+			left = binaryop.And(left, right)
 		case "or":
-			// Nothing to do
+			left = binaryop.Or(left, right)
 		case "unless":
 			left = nan
 		case "default":

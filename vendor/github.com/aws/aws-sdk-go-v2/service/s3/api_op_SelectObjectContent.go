@@ -16,6 +16,10 @@ import (
 
 // This operation is not supported by directory buckets.
 //
+// The SelectObjectContent operation is no longer available to new customers.
+// Existing customers of Amazon S3 Select can continue to use the operation as
+// usual. [Learn more]
+//
 // This action filters the contents of an Amazon S3 object based on a simple
 // structured query language (SQL) statement. In the request, along with the SQL
 // expression, you must also specify a data serialization format (JSON, CSV, or
@@ -89,16 +93,17 @@ import (
 //
 // [PutBucketLifecycleConfiguration]
 //
-// [Appendix: SelectObjectContent Response]: https://docs.aws.amazon.com/AmazonS3/latest/API/RESTSelectObjectAppendix.html
+// [Learn more]: http://aws.amazon.com/blogs/storage/how-to-optimize-querying-your-data-in-amazon-s3/
 // [Selecting Content from Objects]: https://docs.aws.amazon.com/AmazonS3/latest/dev/selecting-content-from-objects.html
 // [PutBucketLifecycleConfiguration]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycleConfiguration.html
-// [SelectObjectContentRequest - ScanRange]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_SelectObjectContent.html#AmazonS3-SelectObjectContent-request-ScanRange
 // [List of SELECT Object Content Error Codes]: https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#SelectObjectContentErrorCodeList
 // [GetBucketLifecycleConfiguration]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLifecycleConfiguration.html
 // [Using Amazon S3 storage classes]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html
 // [SELECT Command]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-glacier-select-sql-reference-select.html
-// [GetObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
 // [Specifying Permissions in a Policy]: https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html
+// [Appendix: SelectObjectContent Response]: https://docs.aws.amazon.com/AmazonS3/latest/API/RESTSelectObjectAppendix.html
+// [SelectObjectContentRequest - ScanRange]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_SelectObjectContent.html#AmazonS3-SelectObjectContent-request-ScanRange
+// [GetObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
 //
 // [Server-Side Encryption (Using Customer-Provided Encryption Keys)]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html
 // [Protecting Data Using Server-Side Encryption]: https://docs.aws.amazon.com/AmazonS3/latest/dev/serv-side-encryption.html
@@ -117,6 +122,9 @@ func (c *Client) SelectObjectContent(ctx context.Context, params *SelectObjectCo
 	return out, nil
 }
 
+// Learn Amazon S3 Select is no longer available to new customers. Existing
+// customers of Amazon S3 Select can continue to use the feature as usual. [Learn more]
+//
 // Request to filter the contents of an Amazon S3 object based on a simple
 // Structured Query Language (SQL) statement. In the request, along with the SQL
 // expression, you must specify a data serialization format (JSON or CSV) of the
@@ -124,6 +132,7 @@ func (c *Client) SelectObjectContent(ctx context.Context, params *SelectObjectCo
 // records that match the specified SQL expression. You must also specify the data
 // serialization format for the response. For more information, see [S3Select API Documentation].
 //
+// [Learn more]: http://aws.amazon.com/blogs/storage/how-to-optimize-querying-your-data-in-amazon-s3/
 // [S3Select API Documentation]: https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectSELECTContent.html
 type SelectObjectContentInput struct {
 
@@ -270,6 +279,9 @@ func (c *Client) addOperationSelectObjectContentMiddlewares(stack *middleware.St
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -319,6 +331,18 @@ func (c *Client) addOperationSelectObjectContentMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

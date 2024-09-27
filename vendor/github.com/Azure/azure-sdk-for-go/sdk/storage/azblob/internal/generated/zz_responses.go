@@ -490,6 +490,9 @@ type BlobClientGetAccountInfoResponse struct {
 	// Date contains the information returned from the Date header response.
 	Date *time.Time
 
+	// IsHierarchicalNamespaceEnabled contains the information returned from the x-ms-is-hns-enabled header response.
+	IsHierarchicalNamespaceEnabled *bool
+
 	// RequestID contains the information returned from the x-ms-request-id header response.
 	RequestID *string
 
@@ -1176,6 +1179,9 @@ type BlockBlobClientUploadResponse struct {
 	// ClientRequestID contains the information returned from the x-ms-client-request-id header response.
 	ClientRequestID *string
 
+	// ContentCRC64 contains the information returned from the x-ms-content-crc64 header response.
+	ContentCRC64 []byte
+
 	// ContentMD5 contains the information returned from the Content-MD5 header response.
 	ContentMD5 []byte
 
@@ -1370,6 +1376,9 @@ type ContainerClientGetAccountInfoResponse struct {
 
 	// Date contains the information returned from the Date header response.
 	Date *time.Time
+
+	// IsHierarchicalNamespaceEnabled contains the information returned from the x-ms-is-hns-enabled header response.
+	IsHierarchicalNamespaceEnabled *bool
 
 	// RequestID contains the information returned from the x-ms-request-id header response.
 	RequestID *string

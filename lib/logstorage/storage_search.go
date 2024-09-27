@@ -86,7 +86,7 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	}
 
 	writeBlockResult := func(workerID uint, br *blockResult) {
-		if len(br.timestamps) == 0 {
+		if br.rowsLen == 0 {
 			return
 		}
 
@@ -101,7 +101,9 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 				Values: values,
 			})
 		}
-		writeBlock(workerID, br.timestamps, csDst)
+
+		timestamps := br.getTimestamps()
+		writeBlock(workerID, timestamps, csDst)
 
 		brs.cs = csDst
 		putBlockRows(brs)
@@ -146,7 +148,7 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 
 		pcp, ok := pp.(*pipeStreamContextProcessor)
 		if ok {
-			pcp.init(ctx, s, minTimestamp, maxTimestamp)
+			pcp.init(s, neededColumnNames, unneededColumnNames)
 			if i > 0 {
 				errPipe = fmt.Errorf("[%s] pipe must go after [%s] filter; now it goes after the [%s] pipe", p, q.f, q.pipes[i-1])
 			}
@@ -233,7 +235,7 @@ func (s *Storage) getFieldValuesNoHits(ctx context.Context, tenantIDs []TenantID
 	var values []string
 	var valuesLock sync.Mutex
 	writeBlockResult := func(_ uint, br *blockResult) {
-		if len(br.timestamps) == 0 {
+		if br.rowsLen == 0 {
 			return
 		}
 
@@ -396,7 +398,7 @@ func (s *Storage) runValuesWithHitsQuery(ctx context.Context, tenantIDs []Tenant
 	var results []ValueWithHits
 	var resultsLock sync.Mutex
 	writeBlockResult := func(_ uint, br *blockResult) {
-		if len(br.timestamps) == 0 {
+		if br.rowsLen == 0 {
 			return
 		}
 
@@ -656,7 +658,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 					}
 
 					bs.search(bsw, bm)
-					if len(bs.br.timestamps) > 0 {
+					if bs.br.rowsLen > 0 {
 						processBlockResult(workerID, &bs.br)
 					}
 					bsw.reset()
@@ -673,12 +675,12 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 	// Select partitions according to the selected time range
 	s.partitionsLock.Lock()
 	ptws := s.partitions
-	minDay := so.minTimestamp / nsecPerDay
+	minDay := so.minTimestamp / nsecsPerDay
 	n := sort.Search(len(ptws), func(i int) bool {
 		return ptws[i].day >= minDay
 	})
 	ptws = ptws[n:]
-	maxDay := so.maxTimestamp / nsecPerDay
+	maxDay := so.maxTimestamp / nsecsPerDay
 	n = sort.Search(len(ptws), func(i int) bool {
 		return ptws[i].day > maxDay
 	})

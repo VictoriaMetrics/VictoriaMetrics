@@ -25,11 +25,9 @@ type filterAnyCasePrefix struct {
 	prefixUppercaseOnce sync.Once
 	prefixUppercase     string
 
-	tokensOnce sync.Once
-	tokens     []string
-
-	tokensUppercaseOnce sync.Once
-	tokensUppercase     []string
+	tokensOnce            sync.Once
+	tokensHashes          []uint64
+	tokensUppercaseHashes []uint64
 }
 
 func (fp *filterAnyCasePrefix) String() string {
@@ -43,27 +41,25 @@ func (fp *filterAnyCasePrefix) updateNeededFields(neededFields fieldsSet) {
 	neededFields.add(fp.fieldName)
 }
 
-func (fp *filterAnyCasePrefix) getTokens() []string {
+func (fp *filterAnyCasePrefix) getTokensHashes() []uint64 {
 	fp.tokensOnce.Do(fp.initTokens)
-	return fp.tokens
+	return fp.tokensHashes
+}
+
+func (fp *filterAnyCasePrefix) getTokensUppercaseHashes() []uint64 {
+	fp.tokensOnce.Do(fp.initTokens)
+	return fp.tokensUppercaseHashes
 }
 
 func (fp *filterAnyCasePrefix) initTokens() {
-	fp.tokens = getTokensSkipLast(fp.prefix)
-}
+	tokens := getTokensSkipLast(fp.prefix)
+	fp.tokensHashes = appendTokensHashes(nil, tokens)
 
-func (fp *filterAnyCasePrefix) getTokensUppercase() []string {
-	fp.tokensUppercaseOnce.Do(fp.initTokensUppercase)
-	return fp.tokensUppercase
-}
-
-func (fp *filterAnyCasePrefix) initTokensUppercase() {
-	tokens := fp.getTokens()
 	tokensUppercase := make([]string, len(tokens))
 	for i, token := range tokens {
 		tokensUppercase[i] = strings.ToUpper(token)
 	}
-	fp.tokensUppercase = tokensUppercase
+	fp.tokensUppercaseHashes = appendTokensHashes(nil, tokensUppercase)
 }
 
 func (fp *filterAnyCasePrefix) getPrefixLowercase() string {
@@ -94,7 +90,8 @@ func (fp *filterAnyCasePrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	prefixLowercase := fp.getPrefixLowercase()
 
 	// Verify whether fp matches const column
-	v := bs.csh.getConstColumnValue(fieldName)
+	csh := bs.getColumnsHeader()
+	v := csh.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchAnyCasePrefix(v, prefixLowercase) {
 			bm.resetBits()
@@ -103,14 +100,14 @@ func (fp *filterAnyCasePrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether fp matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := csh.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		bm.resetBits()
 		return
 	}
 
-	tokens := fp.getTokens()
+	tokens := fp.getTokensHashes()
 
 	switch ch.valueType {
 	case valueTypeString:
@@ -131,7 +128,7 @@ func (fp *filterAnyCasePrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchIPv4ByPrefix(bs, ch, bm, prefixLowercase, tokens)
 	case valueTypeTimestampISO8601:
 		prefixUppercase := fp.getPrefixUppercase()
-		tokensUppercase := fp.getTokensUppercase()
+		tokensUppercase := fp.getTokensUppercaseHashes()
 		matchTimestampISO8601ByPrefix(bs, ch, bm, prefixUppercase, tokensUppercase)
 	default:
 		logger.Panicf("FATAL: %s: unknown valueType=%d", bs.partPath(), ch.valueType)

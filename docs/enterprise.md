@@ -26,7 +26,7 @@ The use of VictoriaMetrics Enterprise components is permitted in the following c
   and then pass it via `-license` or `-licenseFile` command-line flags as described [in these docs](#running-victoriametrics-enterprise).
 
 - Production use if you have a valid enterprise contract or valid permit from VictoriaMetrics company.
-  Please contact us via [this page](https://victoriametrics.com/products/enterprise/) if you are intereseted in such a contract.
+  Please contact us via [this page](https://victoriametrics.com/products/enterprise/) if you are interested in such a contract.
 
 - [VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/) is built on top of VictoriaMetrics Enterprise.
 
@@ -92,6 +92,7 @@ All the VictoriaMetrics Enterprise components require specifying the following c
 * `-license` - this flag accepts VictoriaMetrics Enterprise license key, which can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/)
 * `-licenseFile` - this flag accepts a path to file with VictoriaMetrics Enterprise license key,
   which can be obtained at [this page](https://victoriametrics.com/products/enterprise/trial/) . Use either `-license` or `-licenseFile`, but not both.
+* `-licenseFile.reloadInterval` - specifies the interval for checking the license file for updates. The default value is 1 hour. If the license file is updated, the new license key is read from the file.
 * `-license.forceOffline` - enables offline verification of VictoriaMetrics Enterprise license key. Contact us via [this page](https://victoriametrics.com/products/enterprise/)
   if you need license key, which can be verified offline without the need to connect to VictoriaMetrics license server.
 
@@ -208,6 +209,8 @@ Or create secret via `kubectl`:
 kubectl create secret generic vm-license --from-literal=license={BASE64_ENCODED_LICENSE_KEY}
 ```
 
+Note that license key provided by using secret is mounted in a file. This allows to perform updates of the license without the need to restart the pod.
+
 ### Kubernetes operator
 
 It is allowed to run VictoriaMetrics Enterprise components in [cases listed here](#valid-cases-for-victoriametrics-enterprise).
@@ -267,6 +270,7 @@ Or create secret via `kubectl`:
 kubectl create secret generic vm-license --from-literal=license={BASE64_ENCODED_LICENSE_KEY}
 ```
 
+Note that license key provided by using secret is mounted in a file. This allows to perform updates of the license without the need to restart the pod.
 See full list of CRD specifications [here](https://docs.victoriametrics.com/operator/api.html).
 
 ## Monitoring license expiration

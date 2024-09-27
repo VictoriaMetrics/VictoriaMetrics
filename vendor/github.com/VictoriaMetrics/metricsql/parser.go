@@ -1368,6 +1368,13 @@ func (p *parser) parseLabelFilterExpr() (*labelFilterExpr, error) {
 		lfe.IsNegative = true
 		lfe.IsRegexp = true
 	case ",", "}", "or":
+		// Incomplete label filter 'lf' in the following forms:
+		//
+		//   - {lf}
+		//   - {lf,other="filter"}
+		//   - {lf or other="filter"}
+		//
+		// It must be substituted by complete label filter during WITH template expand.
 		return &lfe, nil
 	default:
 		return nil, fmt.Errorf(`labelFilterExpr: unexpected token %q; want "=", "!=", "=~", "!~", ",", "or", "}"`, p.lex.Token)
@@ -1388,8 +1395,12 @@ func (p *parser) parseLabelFilterExpr() (*labelFilterExpr, error) {
 //
 // This type isn't exported.
 type labelFilterExpr struct {
-	Label      string
-	Value      *StringExpr
+	// Label contains either the label name or the WITH template reference.
+	Label string
+
+	// Value can be nil if Label contains unexpanded WITH template reference.
+	Value *StringExpr
+
 	IsRegexp   bool
 	IsNegative bool
 }
@@ -1658,7 +1669,7 @@ func (p *parser) parseMetricExpr() (*MetricExpr, error) {
 			return nil, err
 		}
 		if p.lex.Token != "{" {
-			me.labelFilterss = append(me.labelFilterss[:0], []*labelFilterExpr{mf})
+			me.labelFilterss = append(me.labelFilterss, []*labelFilterExpr{mf})
 			return &me, nil
 		}
 	}
@@ -2009,7 +2020,7 @@ func (we *withExpr) AppendString(dst []byte) []byte {
 	for i, wa := range we.Was {
 		dst = wa.AppendString(dst)
 		if i+1 < len(we.Was) {
-			dst = append(dst, ',')
+			dst = append(dst, ", "...)
 		}
 	}
 	dst = append(dst, ") "...)
@@ -2246,15 +2257,15 @@ func isOnlyMetricNameInLabelFilterss(lfss [][]*labelFilterExpr) bool {
 }
 
 func getMetricNameFromLabelFilterss(lfss [][]*labelFilterExpr) string {
-	if len(lfss) == 0 || len(lfss[0]) == 0 || lfss[0][0].Label != "__name__" || len(lfss[0][0].Value.tokens) != 1 {
+	if len(lfss) == 0 {
 		return ""
 	}
-	metricName := mustExtractMetricNameFromToken(lfss[0][0].Value.tokens[0])
+	metricName := mustGetMetricName(lfss[0])
+	if metricName == "" {
+		return ""
+	}
 	for _, lfs := range lfss[1:] {
-		if len(lfs) == 0 || lfs[0].Label != "__name__" || len(lfs[0].Value.tokens) != 1 {
-			return ""
-		}
-		metricNameLocal := mustExtractMetricNameFromToken(lfs[0].Value.tokens[0])
+		metricNameLocal := mustGetMetricName(lfs)
 		if metricNameLocal != metricName {
 			return ""
 		}
@@ -2262,8 +2273,15 @@ func getMetricNameFromLabelFilterss(lfss [][]*labelFilterExpr) string {
 	return metricName
 }
 
-func mustExtractMetricNameFromToken(token string) string {
-	metricName, err := extractStringValue(token)
+func mustGetMetricName(lfss []*labelFilterExpr) string {
+	if len(lfss) == 0 {
+		return ""
+	}
+	lfs := lfss[0]
+	if lfs.Label != "__name__" || lfs.Value == nil || len(lfs.Value.tokens) != 1 {
+		return ""
+	}
+	metricName, err := extractStringValue(lfs.Value.tokens[0])
 	if err != nil {
 		panic(fmt.Errorf("BUG: cannot obtain metric name: %w", err))
 	}

@@ -82,18 +82,18 @@ func (smp *statsMinProcessor) mergeState(sfp statsProcessor) {
 }
 
 func (smp *statsMinProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
 	if c.isTime {
-		// Special case for time column
-		timestamps := br.timestamps
-		minTimestamp := timestamps[0]
-		for _, timestamp := range timestamps[1:] {
-			if timestamp < minTimestamp {
-				minTimestamp = timestamp
-			}
+		timestamp, ok := TryParseTimestampRFC3339Nano(smp.min)
+		if !ok {
+			timestamp = (1 << 63) - 1
+		}
+		minTimestamp := br.getMinTimestamp(timestamp)
+		if minTimestamp >= timestamp {
+			return
 		}
 
 		bb := bbPool.Get()

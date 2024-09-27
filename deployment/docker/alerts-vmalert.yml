@@ -46,7 +46,7 @@ groups:
           severity: info
         annotations:
           dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=33&var-group={{ $labels.group }}"
-          summary: "Recording rule {{ $labels.recording }} ({ $labels.group }}) produces no data"
+          summary: "Recording rule {{ $labels.recording }} ({{ $labels.group }}) produces no data"
           description: "Recording rule \"{{ $labels.recording }}\" from group \"{{ $labels.group }}\" 
             produces 0 samples over the last 30min. It might be caused by a misconfiguration 
             or incorrect query expression."

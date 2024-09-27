@@ -8,5 +8,5 @@ FROM $root_image
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 EXPOSE 8427
 ENTRYPOINT ["/vmauth-prod"]
-ARG TARGETARCH=non-existing
+ARG TARGETARCH
 COPY vmauth-linux-${TARGETARCH}-prod ./vmauth-prod

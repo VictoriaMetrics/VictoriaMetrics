@@ -10,12 +10,14 @@ export interface AppState {
   tenantId: string;
   theme: Theme;
   isDarkTheme: boolean | null;
+  flags: Record<string, string | null>;
 }
 
 export type Action =
   | { type: "SET_SERVER", payload: string }
   | { type: "SET_THEME", payload: Theme }
   | { type: "SET_TENANT_ID", payload: string }
+  | { type: "SET_FLAGS", payload: Record<string, string | null> }
   | { type: "SET_DARK_THEME" }
 
 const tenantId = getQueryStringValue("g0.tenantID", "") as string;
@@ -24,7 +26,8 @@ export const initialState: AppState = {
   serverUrl: removeTrailingSlash(getDefaultServer(tenantId)),
   tenantId,
   theme: (getFromStorage("THEME") || Theme.system) as Theme,
-  isDarkTheme: null
+  isDarkTheme: null,
+  flags: {},
 };
 
 export function reducer(state: AppState, action: Action): AppState {
@@ -49,6 +52,11 @@ export function reducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         isDarkTheme: isDarkTheme(state.theme)
+      };
+    case "SET_FLAGS":
+      return {
+        ...state,
+        flags: action.payload
       };
     default:
       throw new Error();

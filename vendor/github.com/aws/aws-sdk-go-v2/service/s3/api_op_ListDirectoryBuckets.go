@@ -54,8 +54,9 @@ func (c *Client) ListDirectoryBuckets(ctx context.Context, params *ListDirectory
 type ListDirectoryBucketsInput struct {
 
 	// ContinuationToken indicates to Amazon S3 that the list is being continued on
-	// this bucket with a token. ContinuationToken is obfuscated and is not a real
-	// key. You can use this ContinuationToken for pagination of the list results.
+	// buckets in this account with a token. ContinuationToken is obfuscated and is
+	// not a real bucket name. You can use this ContinuationToken for the pagination
+	// of the list results.
 	ContinuationToken *string
 
 	// Maximum number of buckets to be returned in response. When the number is more
@@ -129,6 +130,9 @@ func (c *Client) addOperationListDirectoryBucketsMiddlewares(stack *middleware.S
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -181,6 +185,18 @@ func (c *Client) addOperationListDirectoryBucketsMiddlewares(stack *middleware.S
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

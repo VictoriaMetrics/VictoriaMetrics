@@ -40,10 +40,13 @@ const (
 
 // Storage represents TSDB storage.
 type Storage struct {
-	rowsAddedTotal atomic.Uint64
+	rowsReceivedTotal atomic.Uint64
+	rowsAddedTotal    atomic.Uint64
+	naNValueRows      atomic.Uint64
 
 	tooSmallTimestampRows atomic.Uint64
 	tooBigTimestampRows   atomic.Uint64
+	invalidRawMetricNames atomic.Uint64
 
 	timeseriesRepopulated  atomic.Uint64
 	timeseriesPreCreated   atomic.Uint64
@@ -151,8 +154,9 @@ type Storage struct {
 
 	// missingMetricIDs maps metricID to the deadline in unix timestamp seconds
 	// after which all the indexdb entries for the given metricID
-	// must be deleted if metricName isn't found by the given metricID.
-	// This is used inside searchMetricNameWithCache() for detecting permanently missing metricID->metricName entries.
+	// must be deleted if index entry isn't found by the given metricID.
+	// This is used inside searchMetricNameWithCache() and getTSIDsFromMetricIDs()
+	// for detecting permanently missing metricID->metricName/TSID entries.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959
 	missingMetricIDsLock          sync.Mutex
 	missingMetricIDs              map[uint64]uint64
@@ -385,11 +389,11 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	dirsToRemoveOnError = append(dirsToRemoveOnError, idbSnapshot)
 
 	var err error
-	ok := idb.doExtDB(func(extDB *indexDB) {
+	idb.doExtDB(func(extDB *indexDB) {
 		prevSnapshot := filepath.Join(idbSnapshot, extDB.name)
 		err = extDB.tb.CreateSnapshotAt(prevSnapshot)
 	})
-	if ok && err != nil {
+	if err != nil {
 		return "", fmt.Errorf("cannot create prev indexDB snapshot: %w", err)
 	}
 	dstIdbDir := filepath.Join(dstDir, indexdbDirname)
@@ -481,12 +485,15 @@ func (s *Storage) idb() *indexDB {
 
 // Metrics contains essential metrics for the Storage.
 type Metrics struct {
+	RowsReceivedTotal uint64
 	RowsAddedTotal    uint64
 	DedupsDuringMerge uint64
 	SnapshotsCount    uint64
 
+	NaNValueRows          uint64
 	TooSmallTimestampRows uint64
 	TooBigTimestampRows   uint64
+	InvalidRawMetricNames uint64
 
 	TimeseriesRepopulated  uint64
 	TimeseriesPreCreated   uint64
@@ -554,12 +561,15 @@ func (m *Metrics) Reset() {
 
 // UpdateMetrics updates m with metrics from s.
 func (s *Storage) UpdateMetrics(m *Metrics) {
+	m.RowsReceivedTotal += s.rowsReceivedTotal.Load()
 	m.RowsAddedTotal += s.rowsAddedTotal.Load()
 	m.DedupsDuringMerge = dedupsDuringMerge.Load()
 	m.SnapshotsCount += uint64(s.mustGetSnapshotsCount())
 
+	m.NaNValueRows += s.naNValueRows.Load()
 	m.TooSmallTimestampRows += s.tooSmallTimestampRows.Load()
 	m.TooBigTimestampRows += s.tooBigTimestampRows.Load()
+	m.InvalidRawMetricNames += s.invalidRawMetricNames.Load()
 
 	m.TimeseriesRepopulated += s.timeseriesRepopulated.Load()
 	m.TimeseriesPreCreated += s.timeseriesPreCreated.Load()
@@ -1628,8 +1638,13 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) {
 		} else {
 			mrs = nil
 		}
-		s.add(ic.rrs, ic.tmpMrs, mrsBlock, precisionBits)
-		s.rowsAddedTotal.Add(uint64(len(mrsBlock)))
+		rowsAdded := s.add(ic.rrs, ic.tmpMrs, mrsBlock, precisionBits)
+
+		// If the number of received rows is greater than the number of added
+		// rows, then some rows have failed to add. Check logs for the first
+		// error.
+		s.rowsAddedTotal.Add(uint64(rowsAdded))
+		s.rowsReceivedTotal.Add(uint64(len(mrsBlock)))
 	}
 	putMetricRowsInsertCtx(ic)
 }
@@ -1701,6 +1716,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 					if firstWarn == nil {
 						firstWarn = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 					}
+					s.invalidRawMetricNames.Add(1)
 					continue
 				}
 				mn.sortTags()
@@ -1735,6 +1751,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 			if firstWarn == nil {
 				firstWarn = fmt.Errorf("cannot umarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 			}
+			s.invalidRawMetricNames.Add(1)
 			continue
 		}
 		mn.sortTags()
@@ -1785,7 +1802,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	}
 }
 
-func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) {
+func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) int {
 	idb := s.idb()
 	generation := idb.generation
 	is := idb.getIndexSearch(noDeadline)
@@ -1815,14 +1832,13 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	j := 0
 	for i := range mrs {
 		mr := &mrs[i]
-		var isStaleNan bool
 		if math.IsNaN(mr.Value) {
 			if !decimal.IsStaleNaN(mr.Value) {
 				// Skip NaNs other than Prometheus staleness marker, since the underlying encoding
 				// doesn't know how to work with them.
+				s.naNValueRows.Add(1)
 				continue
 			}
-			isStaleNan = true
 		}
 		if mr.Timestamp < minTimestamp {
 			// Skip rows with too small timestamps outside the retention.
@@ -1883,6 +1899,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 					}
 					j--
+					s.invalidRawMetricNames.Add(1)
 					continue
 				}
 				mn.sortTags()
@@ -1907,6 +1924,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 			}
 			j--
+			s.invalidRawMetricNames.Add(1)
 			continue
 		}
 		mn.sortTags()
@@ -1933,13 +1951,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			r.TSID = genTSID.TSID
 			prevTSID = genTSID.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
-			continue
-		}
-
-		// If sample is stale and its TSID wasn't found in cache and in indexdb,
-		// then we skip it. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5069
-		if isStaleNan {
-			j--
 			continue
 		}
 
@@ -1989,6 +2000,8 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	}
 
 	s.tb.MustAddRows(rows)
+
+	return len(rows)
 }
 
 var storageAddRowsLogger = logger.WithThrottler("storageAddRows", 5*time.Second)
@@ -2109,6 +2122,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 			if firstError == nil {
 				firstError = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", metricNameRaw, err)
 			}
+			s.invalidRawMetricNames.Add(1)
 			continue
 		}
 		mn.sortTags()
@@ -2254,6 +2268,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 				if firstError == nil {
 					firstError = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", dmid.mr.MetricNameRaw, err)
 				}
+				s.invalidRawMetricNames.Add(1)
 				continue
 			}
 			mn.sortTags()
@@ -2695,3 +2710,36 @@ var indexDBTableIdx = func() *atomic.Uint64 {
 	x.Store(uint64(time.Now().UnixNano()))
 	return &x
 }()
+
+// wasMetricIDMissingBefore checks if passed metricID was already registered as missing before.
+// It returns true if metricID was registered as missing for more than 60s.
+//
+// This function is called when storage can't find TSID for corresponding metricID.
+// There are the following expected cases when this may happen:
+//  1. The corresponding metricID -> metricName/tsid entry isn't visible for search yet.
+//     The solution is to wait for some time and try the search again.
+//     It is OK if newly registered time series isn't visible for search during some time.
+//     This should resolve https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5959
+//  2. The metricID -> metricName/tsid entry doesn't exist in the indexdb.
+//     This is possible after unclean shutdown or after restoring of indexdb from a snapshot.
+//     In this case the metricID must be deleted, so new metricID is registered
+//     again when new sample for the given metric is ingested next time.
+func (s *Storage) wasMetricIDMissingBefore(metricID uint64) bool {
+	ct := fasttime.UnixTimestamp()
+	s.missingMetricIDsLock.Lock()
+	defer s.missingMetricIDsLock.Unlock()
+
+	if ct > s.missingMetricIDsResetDeadline {
+		s.missingMetricIDs = nil
+		s.missingMetricIDsResetDeadline = ct + 2*60
+	}
+	deleteDeadline, ok := s.missingMetricIDs[metricID]
+	if !ok {
+		if s.missingMetricIDs == nil {
+			s.missingMetricIDs = make(map[uint64]uint64)
+		}
+		deleteDeadline = ct + 60
+		s.missingMetricIDs[metricID] = deleteDeadline
+	}
+	return ct > deleteDeadline
+}

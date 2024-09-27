@@ -85,6 +85,10 @@ func getBlockSearch() *blockSearch {
 
 func putBlockSearch(bs *blockSearch) {
 	bs.reset()
+
+	// reset seenStreams before returning bs to the pool in order to reduce memory usage.
+	bs.seenStreams = nil
+
 	blockSearchPool.Put(bs)
 }
 
@@ -109,16 +113,20 @@ type blockSearch struct {
 	// sbu is used for unmarshaling local columns
 	sbu stringsBlockUnmarshaler
 
-	// csh is the columnsHeader associated with the given block
-	csh columnsHeader
+	// cshCached is the columnsHeader associated with the given block
+	//
+	// it is initialized lazily by calling getColumnsHeader().
+	cshCached columnsHeader
 
-	// a is used for storing unmarshaled data in csh
+	// cshInitialized is set to true if cshCached is initialized.
+	cshInitialized bool
+
+	// a is used for storing unmarshaled data in cshCached
 	a arena
 
-	// prevStreamID and prevStream are used for speeding up fetching _stream columns
-	// across sequential blocks belonging to the same stream.
-	prevStreamID streamID
-	prevStream   []byte
+	// seenStreams contains seen streamIDs for the recent searches.
+	// It is used for speeding up fetching _stream column.
+	seenStreams map[u128]string
 }
 
 func (bs *blockSearch) reset() {
@@ -143,8 +151,13 @@ func (bs *blockSearch) reset() {
 	}
 
 	bs.sbu.reset()
-	bs.csh.reset()
+
+	bs.cshCached.reset()
+	bs.cshInitialized = false
+
 	bs.a.reset()
+
+	// Do not reset seenStreams, since its' lifetime is managed by blockResult.addStreamColumn() code.
 }
 
 func (bs *blockSearch) partPath() string {
@@ -155,8 +168,6 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 	bs.reset()
 
 	bs.bsw = bsw
-
-	bs.csh.initFromBlockHeader(&bs.a, bsw.p, &bsw.bh)
 
 	// search rows matching the given filter
 	bm.init(int(bsw.bh.rowsCount))
@@ -172,10 +183,17 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 
 	// fetch the requested columns to bs.br.
 	if bs.bsw.so.needAllColumns {
-		bs.br.initAllColumns(bs, bm)
+		bs.br.initAllColumns()
 	} else {
-		bs.br.initRequestedColumns(bs, bm)
+		bs.br.initRequestedColumns()
 	}
+}
+
+func (bs *blockSearch) getColumnsHeader() *columnsHeader {
+	if !bs.cshInitialized {
+		bs.cshCached.initFromBlockHeader(&bs.a, bs.bsw.p, &bs.bsw.bh)
+	}
+	return &bs.cshCached
 }
 
 func (csh *columnsHeader) initFromBlockHeader(a *arena, p *part, bh *blockHeader) {
@@ -325,4 +343,49 @@ func (ih *indexBlockHeader) mustReadBlockHeaders(dst []blockHeader, p *part) []b
 	}
 
 	return dst
+}
+
+// getStreamStr returns _stream value for the given block at bs.
+func (bs *blockSearch) getStreamStr() string {
+	sid := bs.bsw.bh.streamID.id
+	streamStr := bs.seenStreams[sid]
+	if streamStr != "" {
+		// Fast path - streamStr is found in the seenStreams.
+		return streamStr
+	}
+
+	// Slow path - load streamStr from the storage.
+	streamStr = bs.getStreamStrSlow()
+	if streamStr != "" {
+		// Store the found streamStr in seenStreams.
+		if len(bs.seenStreams) > 20_000 {
+			bs.seenStreams = nil
+		}
+		if bs.seenStreams == nil {
+			bs.seenStreams = make(map[u128]string)
+		}
+		bs.seenStreams[sid] = streamStr
+	}
+	return streamStr
+}
+
+func (bs *blockSearch) getStreamStrSlow() string {
+	bb := bbPool.Get()
+	defer bbPool.Put(bb)
+
+	bb.B = bs.bsw.p.pt.idb.appendStreamTagsByStreamID(bb.B[:0], &bs.bsw.bh.streamID)
+	if len(bb.B) == 0 {
+		// Couldn't find stream tags by sid. This may be the case when the corresponding log stream
+		// was recently registered and its tags aren't visible to search yet.
+		// The stream tags must become visible in a few seconds.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6042
+		return ""
+	}
+
+	st := GetStreamTags()
+	mustUnmarshalStreamTags(st, bb.B)
+	bb.B = st.marshalString(bb.B[:0])
+	PutStreamTags(st)
+
+	return string(bb.B)
 }

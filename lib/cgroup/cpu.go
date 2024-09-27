@@ -37,15 +37,20 @@ func updateGOMAXPROCSToCPUQuota(cpuQuota float64) {
 		// Do not override explicitly set GOMAXPROCS.
 		return
 	}
-	gomaxprocs := int(cpuQuota + 0.5)
+
+	// Round gomaxprocs to the floor of cpuQuota, since Go runtime doesn't work well
+	// with fractional available CPU cores.
+	gomaxprocs := int(cpuQuota)
+	if gomaxprocs <= 0 {
+		gomaxprocs = 1
+	}
+
 	numCPU := runtime.NumCPU()
 	if gomaxprocs > numCPU {
 		// There is no sense in setting more GOMAXPROCS than the number of available CPU cores.
 		gomaxprocs = numCPU
 	}
-	if gomaxprocs <= 0 {
-		gomaxprocs = 1
-	}
+
 	runtime.GOMAXPROCS(gomaxprocs)
 }
 

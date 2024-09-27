@@ -37,7 +37,7 @@ menu:
 1. Merging all the pull requests users submit. These pull requests should fit [the goals](#goals) of VictoriaMetrics.
    Other pull requests must be closed as `won't merge`, with the link to this page.
 1. Slowing down and complicating CI/CD pipelines with non-essential tasks, since this results in development velocity slowdown.
-1. Introducing non-essential requrirements, since this slows down development velocity.
+1. Introducing non-essential requirements, since this slows down development velocity.
 
 ## VictoriaMetrics proverbs
 

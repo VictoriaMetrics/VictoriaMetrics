@@ -103,7 +103,7 @@ Unicode chars must be encoded with [UTF-8](https://en.wikipedia.org/wiki/UTF-8) 
 ```json
 {
   "field with whitespace": "value\nwith\nnewlines",
-  "Поле": "价值",
+  "Поле": "价值"
 }
 ```
 
@@ -135,8 +135,7 @@ during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-inges
 ### Time field
 
 The ingested [log entries](#data-model) may contain `_time` field with the timestamp of the ingested log entry.
-The timestamp must be in [RFC3339](https://www.rfc-editor.org/rfc/rfc3339) format. The most commonly used subset of [ISO8601](https://en.wikipedia.org/wiki/ISO_8601)
-is also supported. It is allowed specifying seconds part of the timestamp with any precision up to nanoseconds.
+The timestamp must be in [RFC3339](https://www.rfc-editor.org/rfc/rfc3339) or [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) format.
 For example, the following [log entry](#data-model) contains valid timestamp with millisecond precision in the `_time` field:
 
 ```json
@@ -145,6 +144,8 @@ For example, the following [log entry](#data-model) contains valid timestamp wit
   "_time": "2023-04-12T06:38:11.095Z"
 }
 ```
+
+If timezone information is missing in the `_time` field value, then the local timezone of the host where VictoriaLogs runs is used.
 
 If the actual timestamp has other than `_time` field name, then it is possible to specify the real timestamp
 field via `_time_field` query arg during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).

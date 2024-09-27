@@ -1,21 +1,11 @@
+include:
+ - ../compose.yml
 services:
   fluentbit:
-    image: cr.fluentbit.io/fluent/fluent-bit:3.0.7
+    image: cr.fluentbit.io/fluent/fluent-bit:3.1.7
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+      - ${PWD}/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
     depends_on: [victorialogs]
     ports:
       - "5140:5140"
-
-  victorialogs:
-    image: docker.io/victoriametrics/victoria-logs:v0.28.0-victorialogs
-    volumes:
-      - victorialogs-fluentbit-vl:/vlogs
-    ports:
-      - "9428:9428"
-    command:
-      - -storageDataPath=/vlogs
-
-volumes:
-  victorialogs-fluentbit-vl:

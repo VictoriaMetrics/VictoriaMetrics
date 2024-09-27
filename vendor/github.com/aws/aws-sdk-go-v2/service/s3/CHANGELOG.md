@@ -1,3 +1,54 @@
+# v1.63.2 (2024-09-25)
+
+* No change notes available for this release.
+
+# v1.63.1 (2024-09-23)
+
+* No change notes available for this release.
+
+# v1.63.0 (2024-09-20)
+
+* **Feature**: Add tracing and metrics support to service clients.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.62.0 (2024-09-18)
+
+* **Feature**: Added SSE-KMS support for directory buckets.
+
+# v1.61.3 (2024-09-17)
+
+* **Bug Fix**: **BREAKFIX**: Only generate AccountIDEndpointMode config for services that use it. This is a compiler break, but removes no actual functionality, as no services currently use the account ID in endpoint resolution.
+
+# v1.61.2 (2024-09-04)
+
+* No change notes available for this release.
+
+# v1.61.1 (2024-09-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.61.0 (2024-08-28)
+
+* **Feature**: Add presignPost for s3 PutObject
+
+# v1.60.1 (2024-08-22)
+
+* No change notes available for this release.
+
+# v1.60.0 (2024-08-20)
+
+* **Feature**: Amazon Simple Storage Service / Features : Add support for conditional writes for PutObject and CompleteMultipartUpload APIs.
+
+# v1.59.0 (2024-08-15)
+
+* **Feature**: Amazon Simple Storage Service / Features  : Adds support for pagination in the S3 ListBuckets API.
+* **Dependency Update**: Bump minimum Go version to 1.21.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.58.3 (2024-08-02)
+
+* **Bug Fix**: Add assurance tests for auth scheme selection logic.
+
 # v1.58.2 (2024-07-10.2)
 
 * **Dependency Update**: Updated to the latest SDK module versions

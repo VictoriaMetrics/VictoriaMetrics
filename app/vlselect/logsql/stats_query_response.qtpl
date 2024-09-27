@@ -1,0 +1,36 @@
+{% stripspace %}
+
+// StatsQueryResponse generates response for /select/logsql/stats_query
+{% func StatsQueryResponse(rows []statsRow) %}
+{
+	"status":"success",
+	"data":{
+		"resultType":"vector",
+		"result":[
+			{% if len(rows) > 0 %}
+				{%= formatStatsRow(&rows[0]) %}
+				{% code rows = rows[1:] %}
+				{% for i := range rows %}
+					,{%= formatStatsRow(&rows[i]) %}
+				{% endfor %}
+			{% endif %}
+		]
+	}
+}
+{% endfunc %}
+
+{% func formatStatsRow(r *statsRow) %}
+{
+	"metric":{
+		"__name__":{%q= r.Name %}
+		{% if len(r.Labels) > 0 %}
+			{% for _, label := range r.Labels %}
+				,{%q= label.Name %}:{%q= label.Value %}
+			{% endfor %}
+		{% endif %}
+	},
+	"value":[{%f= float64(r.Timestamp)/1e9 %},{%q= r.Value %}]
+}
+{% endfunc %}
+
+{% endstripspace %}

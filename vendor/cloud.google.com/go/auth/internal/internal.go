@@ -38,18 +38,35 @@ const (
 	// QuotaProjectEnvVar is the environment variable for setting the quota
 	// project.
 	QuotaProjectEnvVar = "GOOGLE_CLOUD_QUOTA_PROJECT"
-	projectEnvVar      = "GOOGLE_CLOUD_PROJECT"
-	maxBodySize        = 1 << 20
+	// UniverseDomainEnvVar is the environment variable for setting the default
+	// service domain for a given Cloud universe.
+	UniverseDomainEnvVar = "GOOGLE_CLOUD_UNIVERSE_DOMAIN"
+	projectEnvVar        = "GOOGLE_CLOUD_PROJECT"
+	maxBodySize          = 1 << 20
 
 	// DefaultUniverseDomain is the default value for universe domain.
 	// Universe domain is the default service domain for a given Cloud universe.
 	DefaultUniverseDomain = "googleapis.com"
 )
 
-// CloneDefaultClient returns a [http.Client] with some good defaults.
-func CloneDefaultClient() *http.Client {
+type clonableTransport interface {
+	Clone() *http.Transport
+}
+
+// DefaultClient returns an [http.Client] with some defaults set. If
+// the current [http.DefaultTransport] is a [clonableTransport], as
+// is the case for an [*http.Transport], the clone will be used.
+// Otherwise the [http.DefaultTransport] is used directly.
+func DefaultClient() *http.Client {
+	if transport, ok := http.DefaultTransport.(clonableTransport); ok {
+		return &http.Client{
+			Transport: transport.Clone(),
+			Timeout:   30 * time.Second,
+		}
+	}
+
 	return &http.Client{
-		Transport: http.DefaultTransport.(*http.Transport).Clone(),
+		Transport: http.DefaultTransport,
 		Timeout:   30 * time.Second,
 	}
 }

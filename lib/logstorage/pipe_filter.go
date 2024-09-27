@@ -83,14 +83,14 @@ type pipeFilterProcessorShardNopad struct {
 }
 
 func (pfp *pipeFilterProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
 	shard := &pfp.shards[workerID]
 
 	bm := &shard.bm
-	bm.init(len(br.timestamps))
+	bm.init(br.rowsLen)
 	bm.setBits()
 	pfp.pf.f.applyToBlockResult(br, bm)
 	if bm.areAllBitsSet() {

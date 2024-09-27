@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package auth provides utilities for managing Google Cloud credentials,
+// including functionality for creating, caching, and refreshing OAuth2 tokens.
+// It offers customizable options for different OAuth2 flows, such as 2-legged
+// (2LO) and 3-legged (3LO) OAuth, along with support for PKCE and automatic
+// token management.
 package auth
 
 import (
@@ -101,6 +106,20 @@ func (t *Token) IsValid() bool {
 	return t.isValidWithEarlyExpiry(defaultExpiryDelta)
 }
 
+// MetadataString is a convenience method for accessing string values in the
+// token's metadata. Returns an empty string if the metadata is nil or the value
+// for the given key cannot be cast to a string.
+func (t *Token) MetadataString(k string) string {
+	if t.Metadata == nil {
+		return ""
+	}
+	s, ok := t.Metadata[k].(string)
+	if !ok {
+		return ""
+	}
+	return s
+}
+
 func (t *Token) isValidWithEarlyExpiry(earlyExpiry time.Duration) bool {
 	if t.isEmpty() {
 		return false
@@ -116,7 +135,9 @@ func (t *Token) isEmpty() bool {
 }
 
 // Credentials holds Google credentials, including
-// [Application Default Credentials](https://developers.google.com/accounts/docs/application-default-credentials).
+// [Application Default Credentials].
+//
+// [Application Default Credentials]: https://developers.google.com/accounts/docs/application-default-credentials
 type Credentials struct {
 	json           []byte
 	projectID      CredentialsPropertyProvider
@@ -244,7 +265,7 @@ func (ctpo *CachedTokenProviderOptions) autoRefresh() bool {
 }
 
 func (ctpo *CachedTokenProviderOptions) expireEarly() time.Duration {
-	if ctpo == nil {
+	if ctpo == nil || ctpo.ExpireEarly == 0 {
 		return defaultExpiryDelta
 	}
 	return ctpo.ExpireEarly
@@ -307,7 +328,9 @@ func (c *cachedTokenProvider) tokenNonBlocking(ctx context.Context) (*Token, err
 		defer c.mu.Unlock()
 		return c.cachedToken, nil
 	case stale:
-		c.tokenAsync(ctx)
+		// Call tokenAsync with a new Context because the user-provided context
+		// may have a short timeout incompatible with async token refresh.
+		c.tokenAsync(context.Background())
 		// Return the stale token immediately to not block customer requests to Cloud services.
 		c.mu.Lock()
 		defer c.mu.Unlock()
@@ -479,7 +502,7 @@ func (o *Options2LO) client() *http.Client {
 	if o.Client != nil {
 		return o.Client
 	}
-	return internal.CloneDefaultClient()
+	return internal.DefaultClient()
 }
 
 func (o *Options2LO) validate() error {

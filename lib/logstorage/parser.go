@@ -3,6 +3,7 @@ package logstorage
 import (
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -57,10 +58,15 @@ func (lex *lexer) restoreState(ls *lexerState) {
 //
 // The lex.token points to the first token in s.
 func newLexer(s string) *lexer {
+	timestamp := time.Now().UnixNano()
+	return newLexerAtTimestamp(s, timestamp)
+}
+
+func newLexerAtTimestamp(s string, timestamp int64) *lexer {
 	lex := &lexer{
 		s:                s,
 		sOrig:            s,
-		currentTimestamp: time.Now().UnixNano(),
+		currentTimestamp: timestamp,
 	}
 	lex.nextToken()
 	return lex
@@ -221,6 +227,9 @@ type Query struct {
 	f filter
 
 	pipes []pipe
+
+	// timestamp is the timestamp context used for parsing the query.
+	timestamp int64
 }
 
 // String returns string representation for q.
@@ -327,9 +336,9 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 }
 
 // Clone returns a copy of q.
-func (q *Query) Clone() *Query {
+func (q *Query) Clone(timestamp int64) *Query {
 	qStr := q.String()
-	qCopy, err := ParseQuery(qStr)
+	qCopy, err := ParseQueryAtTimestamp(qStr, timestamp)
 	if err != nil {
 		logger.Panicf("BUG: cannot parse %q: %s", qStr, err)
 	}
@@ -340,10 +349,12 @@ func (q *Query) Clone() *Query {
 func (q *Query) CanReturnLastNResults() bool {
 	for _, p := range q.pipes {
 		switch p.(type) {
-		case *pipeFieldNames,
+		case *pipeBlocksCount,
+			*pipeFieldNames,
 			*pipeFieldValues,
 			*pipeLimit,
 			*pipeOffset,
+			*pipeTop,
 			*pipeSort,
 			*pipeStats,
 			*pipeUniq:
@@ -443,6 +454,115 @@ func (q *Query) Optimize() {
 	for _, p := range q.pipes {
 		p.optimize()
 	}
+}
+
+// GetStatsByFields returns `by (...)` fields from the last `stats` pipe at q.
+func (q *Query) GetStatsByFields() ([]string, error) {
+	return q.GetStatsByFieldsAddGroupingByTime(0)
+}
+
+// GetStatsByFieldsAddGroupingByTime returns `by (...)` fields from the last `stats` pipe at q.
+//
+// if step > 0, then _time:step is added to the last `stats by (...)` pipe at q.
+func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) {
+	pipes := q.pipes
+
+	idx := getLastPipeStatsIdx(pipes)
+	if idx < 0 {
+		return nil, fmt.Errorf("missing `| stats ...` pipe in the query [%s]", q)
+	}
+
+	ps := pipes[idx].(*pipeStats)
+
+	// add _time:step to ps.byFields if it doesn't contain it yet.
+	ps.byFields = addByTimeField(ps.byFields, step)
+
+	// extract by(...) field names from stats pipe
+	byFields := ps.byFields
+	fields := make([]string, len(byFields))
+	for i, f := range byFields {
+		fields[i] = f.name
+	}
+
+	// verify that all the pipes after the idx do not add new fields
+	for i := idx + 1; i < len(pipes); i++ {
+		p := pipes[i]
+		switch t := p.(type) {
+		case *pipeSort, *pipeOffset, *pipeLimit, *pipeFilter:
+			// These pipes do not change the set of fields.
+		case *pipeMath:
+			// Allow pipeMath, since it adds additional metrics to the given set of fields.
+		case *pipeFields:
+			// `| fields ...` pipe must contain all the by(...) fields, otherwise it breaks output.
+			for _, f := range fields {
+				if !slices.Contains(t.fields, f) {
+					return nil, fmt.Errorf("missing %q field at %q pipe in the query [%s]", f, p, q)
+				}
+			}
+		case *pipeDelete:
+			// Disallow deleting by(...) fields, since this breaks output.
+			for _, f := range t.fields {
+				if slices.Contains(fields, f) {
+					return nil, fmt.Errorf("the %q field cannot be deleted via %q in the query [%s]", f, p, q)
+				}
+			}
+		case *pipeCopy:
+			// Disallow copying by(...) fields, since this breaks output.
+			for _, f := range t.srcFields {
+				if slices.Contains(fields, f) {
+					return nil, fmt.Errorf("the %q field cannot be copied via %q in the query [%s]", f, p, q)
+				}
+			}
+		case *pipeRename:
+			// Update by(...) fields with dst fields
+			for i, f := range t.srcFields {
+				if n := slices.Index(fields, f); n >= 0 {
+					fields[n] = t.dstFields[i]
+				}
+			}
+		default:
+			return nil, fmt.Errorf("the %q pipe cannot be put after %q pipe in the query [%s]", p, ps, q)
+		}
+	}
+
+	return fields, nil
+}
+
+func getLastPipeStatsIdx(pipes []pipe) int {
+	for i := len(pipes) - 1; i >= 0; i-- {
+		if _, ok := pipes[i].(*pipeStats); ok {
+			return i
+		}
+	}
+	return -1
+}
+
+func addByTimeField(byFields []*byStatsField, step int64) []*byStatsField {
+	if step <= 0 {
+		return byFields
+	}
+	stepStr := fmt.Sprintf("%d", step)
+	dstFields := make([]*byStatsField, 0, len(byFields)+1)
+	hasByTime := false
+	for _, f := range byFields {
+		if f.name == "_time" {
+			f = &byStatsField{
+				name:          "_time",
+				bucketSizeStr: stepStr,
+				bucketSize:    float64(step),
+			}
+			hasByTime = true
+		}
+		dstFields = append(dstFields, f)
+	}
+	if !hasByTime {
+		dstFields = append(dstFields, &byStatsField{
+			name:          "_time",
+			bucketSizeStr: stepStr,
+			bucketSize:    float64(step),
+		})
+	}
+	return dstFields
 }
 
 func removeStarFilters(f filter) filter {
@@ -584,7 +704,15 @@ func (q *Query) getNeededColumns() ([]string, []string) {
 
 // ParseQuery parses s.
 func ParseQuery(s string) (*Query, error) {
-	lex := newLexer(s)
+	timestamp := time.Now().UnixNano()
+	return ParseQueryAtTimestamp(s, timestamp)
+}
+
+// ParseQueryAtTimestamp parses s in the context of the given timestamp.
+//
+// E.g. _time:duration filters are ajusted according to the provided timestamp as _time:[timestamp-duration, duration].
+func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
+	lex := newLexerAtTimestamp(s, timestamp)
 
 	// Verify the first token doesn't match pipe names.
 	firstToken := strings.ToLower(lex.rawToken)
@@ -600,7 +728,13 @@ func ParseQuery(s string) (*Query, error) {
 	if !lex.isEnd() {
 		return nil, fmt.Errorf("unexpected unparsed tail after [%s]; context: [%s]; tail: [%s]", q, lex.context(), lex.s)
 	}
+	q.timestamp = timestamp
 	return q, nil
+}
+
+// GetTimestamp returns timestamp context for the given q, which was passed to ParseQueryAtTimestamp().
+func (q *Query) GetTimestamp() int64 {
+	return q.timestamp
 }
 
 func parseQuery(lex *lexer) (*Query, error) {
@@ -688,6 +822,11 @@ func parseFilterAnd(lex *lexer, fieldName string) (filter, error) {
 func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 	// Check for special keywords
 	switch {
+	case lex.isKeyword("{"):
+		if fieldName != "" && fieldName != "_stream" {
+			return nil, fmt.Errorf("stream filter cannot be applied to %q field; it can be applied only to _stream field", fieldName)
+		}
+		return parseFilterStream(lex)
 	case lex.isKeyword(":"):
 		if !lex.mustNextToken() {
 			return nil, fmt.Errorf("missing filter after ':'")
@@ -717,7 +856,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterTilda(lex, fieldName)
 	case lex.isKeyword("!~"):
 		return parseFilterNotTilda(lex, fieldName)
-	case lex.isKeyword("not", "!"):
+	case lex.isKeyword("not", "!", "-"):
 		return parseFilterNot(lex, fieldName)
 	case lex.isKeyword("exact"):
 		return parseFilterExact(lex, fieldName)
@@ -1644,8 +1783,8 @@ func getDayRangeArg(lex *lexer) (int64, string, error) {
 	if offset < 0 {
 		offset = 0
 	}
-	if offset >= nsecPerDay {
-		offset = nsecPerDay - 1
+	if offset >= nsecsPerDay {
+		offset = nsecsPerDay - 1
 	}
 	return offset, argStr, nil
 }
@@ -2010,7 +2149,7 @@ func needQuoteToken(s string) bool {
 		return true
 	}
 	for _, r := range s {
-		if !isTokenRune(r) && r != '.' && r != '-' {
+		if !isTokenRune(r) && r != '.' {
 			return true
 		}
 	}

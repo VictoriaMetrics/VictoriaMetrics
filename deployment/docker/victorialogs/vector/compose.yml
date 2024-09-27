@@ -1,6 +1,8 @@
+include:
+ - ../compose.yml
 services:
   vector:
-    image: docker.io/timberio/vector:0.38.0-distroless-static
+    image: docker.io/timberio/vector:0.40.0-distroless-static
     restart: on-failure
     volumes:
       - type: bind
@@ -9,7 +11,7 @@ services:
       - type: bind
         source: /var/lib/docker
         target: /var/lib/docker
-      - ./vector.yaml:/etc/vector/vector.yaml:ro
+      - ${PWD}/vector.yaml:/etc/vector/vector.yaml:ro
     user: root
     ports:
       - '8686:8686'
@@ -18,39 +20,3 @@ services:
         condition: service_healthy
       victoriametrics:
         condition: service_healthy
-
-  victorialogs:
-    image: docker.io/victoriametrics/victoria-logs:v0.28.0-victorialogs
-    volumes:
-      - victorialogs-vector-docker-vl:/vlogs
-    ports:
-      - '9428:9428'
-    command:
-      - -storageDataPath=/vlogs
-      - -loggerFormat=json
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9428/health"]
-      interval: 1s
-      timeout: 1s
-      retries: 10
-
-  victoriametrics:
-    image: victoriametrics/victoria-metrics:latest
-    ports:
-      - '8428:8428'
-    command:
-      - -storageDataPath=/vmsingle
-      - -promscrape.config=/promscrape.yml
-      - -loggerFormat=json
-    volumes:
-      - victorialogs-vector-docker-vm:/vmsingle
-      - ./scrape.yml:/promscrape.yml
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8428/health"]
-      interval: 1s
-      timeout: 1s
-      retries: 10
-
-volumes:
-  victorialogs-vector-docker-vl:
-  victorialogs-vector-docker-vm:

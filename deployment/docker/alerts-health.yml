@@ -58,6 +58,18 @@ groups:
             Too high CPU usage may be a sign of insufficient resources and make process unstable.
             Consider to either increase available CPU resources or decrease the load on the process.
 
+      - alert: TooHighGoroutineSchedulingLatency
+        expr: histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket[5m])) by (le, job, instance)) > 0.1
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "\"{{ $labels.job }}\"(\"{{ $labels.instance }}\") has insufficient CPU resources for >15m"
+          description: >
+            Go runtime is unable to schedule goroutines execution in acceptable time. This is usually a sign of
+            insufficient CPU resources or CPU throttling. Verify that service has enough CPU resources. Otherwise,
+            the service could work unreliably with delays in processing.
+
       - alert: TooManyLogs
         expr: sum(increase(vm_log_messages_total{level="error"}[5m])) without (app_version, location) > 0
         for: 15m

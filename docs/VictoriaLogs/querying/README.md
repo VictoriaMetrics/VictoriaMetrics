@@ -13,6 +13,8 @@ VictoriaLogs provides the following HTTP endpoints:
 - [`/select/logsql/query`](#querying-logs) for querying logs.
 - [`/select/logsql/tail`](#live-tailing) for live tailing of query results.
 - [`/select/logsql/hits`](#querying-hits-stats) for querying log hits stats over the given time range.
+- [`/select/logsql/stats_query`](#querying-log-stats) for querying log stats at the given time.
+- [`/select/logsql/stats_query_range`](#querying-log-range-stats) for querying log stats over the given time range.
 - [`/select/logsql/stream_ids`](#querying-stream_ids) for querying `_stream_id` values of [log streams](#https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - [`/select/logsql/streams`](#querying-streams) for querying [log streams](#https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - [`/select/logsql/stream_field_names`](#querying-stream-field-names) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field names.
@@ -57,7 +59,7 @@ By default the `/select/logsql/query` returns all the log entries matching the g
   curl http://localhost:9428/select/logsql/query -d 'query=error | limit 10'
   ```
 - By adding [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter). The time range for the query can be specified via optional
-  `start` and `end` query ars formatted according to [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats).
+  `start` and `end` query args formatted according to [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats).
 - By adding more specific [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters) to the query, which select lower number of logs.
 
 The `/select/logsql/query` endpoint returns [a stream of JSON lines](https://jsonlines.org/),
@@ -105,6 +107,8 @@ See also:
 
 - [Live tailing](#live-tailing)
 - [Querying hits stats](#querying-hits-stats)
+- [Querying log stats](#querying-log-stats)
+- [Querying log range stats](#querying-log-range-stats)
 - [Querying streams](#querying-streams)
 - [Querying stream field names](#querying-stream-field-names)
 - [Querying stream field values](#querying-stream-field-values)
@@ -273,7 +277,173 @@ curl http://localhost:9428/select/logsql/hits -H 'AccountID: 12' -H 'ProjectID: 
 See also:
 
 - [Querying logs](#querying-logs)
+- [Querying log stats](#querying-log-stats)
+- [Querying log range stats](#querying-log-range-stats)
 - [Querying streams](#querying-streams)
+- [HTTP API](#http-api)
+
+### Querying log stats
+
+VictoriaLogs provides `/select/logsql/stats_query?query=<query>&time=<t>` HTTP endpoint, which returns log stats
+for the given [`query`](https://docs.victoriametrics.com/victorialogs/logsql/) at the given timestamp `t`
+in the format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries).
+
+The `<query>` must contain [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe). The calculated stats is converted into metrics
+with labels from `by(...)` clause of the `| stats by(...)` pipe.
+
+The `<t>` arg can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
+If `<t>` is missing, then it equals to the current time.
+
+For example, the following command returns the number of logs per each `level` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+across logs over `2024-01-01` day by UTC:
+
+```sh
+curl http://localhost:9428/select/logsql/stats_query -d 'query=_time:1d | stats by (level) count(*)' -d 'time=2024-01-02Z'
+```
+
+Below is an example JSON output returned from this endpoint:
+
+```json
+{
+  "status": "success",
+  "data": {
+    "resultType": "vector",
+    "result": [
+      {
+        "metric": {
+          "__name__": "count(*)",
+          "level": "info"
+        },
+        "value": [
+          1704153600,
+          "20395342"
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "count(*)",
+          "level": "warn"
+        },
+        "value": [
+          1704153600,
+          "1239222"
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "count(*)",
+          "level": "error"
+        },
+        "value": [
+          1704153600,
+          "832"
+        ]
+      },
+    ]
+  }
+}
+```
+
+The `/select/logsql/stats_query` API is useful for generating Prometheus-compatible alerts and calculating recording rules results.
+
+See also:
+
+- [Querying log range stats](#querying-log-range-stats)
+- [Querying logs](#querying-logs)
+- [Querying hits stats](#querying-hits-stats)
+- [HTTP API](#http-api)
+
+### Querying log range stats
+
+VictoriaLogs provides `/select/logsql/stats_query_range?query=<query>&start=<start>&end=<end>&step=<step>` HTTP endpoint, which returns log stats
+for the given [`query`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[start ... end]` time range with the given `step` interval.
+The stats is returned in the format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
+
+The `<query>` must contain [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe). The calculated stats is converted into metrics
+with labels from `by(...)` clause of the `| stats by(...)` pipe.
+
+The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
+If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
+If `<end>` is missing, then it equals to the maximum timestamp across logs stored in VictoriaLogs.
+
+The `<step>` arg can contain values in [the format specified here](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets).
+If `<step>` is missing, then it equals to `1d` (one day).
+
+For example, the following command returns the number of logs per each `level` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+across logs over `2024-01-01` day by UTC with 6-hour granularity:
+
+```sh
+curl http://localhost:9428/select/logsql/stats_query_range -d 'query=* | stats by (level) count(*)' -d 'start=2024-01-01Z' -d 'end=2024-01-02Z' -d 'step=6h'
+```
+
+Below is an example JSON output returned from this endpoint:
+
+```json
+{
+  "status": "success",
+  "data": {
+    "resultType": "matrix",
+    "result": [
+      {
+        "metric": {
+          "__name__": "count(*)",
+          "level": "info"
+        },
+        "values": [
+          [
+            1704067200,
+            "103125"
+          ],
+          [
+            1704088800,
+            "102500"
+          ],
+          [
+            1704110400,
+            "103125"
+          ],
+          [
+            1704132000,
+            "102500"
+          ]
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "count(*)",
+          "level": "error"
+        },
+        "values": [
+          [
+            1704067200,
+            "31"
+          ],
+          [
+            1704088800,
+            "25"
+          ],
+          [
+            1704110400,
+            "31"
+          ],
+          [
+            1704132000,
+            "125"
+          ]
+        ]
+      }
+    ]
+  }
+}
+```
+
+The `/select/logsql/stats_query_range` API is useful for generating Prometheus-compatible graphs in Grafana.
+
+See also:
+
+- [Querying log stats](#querying-log-stats)
+- [Querying logs](#querying-logs)
+- [Querying hits stats](#querying-hits-stats)
 - [HTTP API](#http-api)
 
 ### Querying stream_ids
@@ -480,7 +650,7 @@ Below is an example JSON output returned from this endpoint:
 }
 ```
 
-The `/select/logsql/stream_field_names` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N`.
+The `/select/logsql/stream_field_values` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N`.
 The endpoint returns arbitrary subset of values if their number exceeds `N`, so `limit=N` cannot be used for pagination over big number of field values.
 When the `limit` is reached, `hits` are zeroed, since they cannot be calculated reliably.
 
@@ -591,7 +761,7 @@ Below is an example JSON output returned from this endpoint:
 }
 ```
 
-The `/select/logsql/field_names` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N`.
+The `/select/logsql/field_values` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N`.
 The endpoint returns arbitrary subset of values if their number exceeds `N`, so `limit=N` cannot be used for pagination over big number of field values.
 When the `limit` is reached, `hits` are zeroed, since they cannot be calculated reliably.
 
@@ -706,7 +876,7 @@ received from [streams](https://docs.victoriametrics.com/victorialogs/keyconcept
 during the last 5 minutes:
 
 ```sh
-curl http://localhost:9428/select/logsql/query -d 'query=_stream:{app="nginx"} AND _time:5m AND error' | wc -l
+curl http://localhost:9428/select/logsql/query -d 'query={app="nginx"} AND _time:5m AND error' | wc -l
 ```
 
 See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter) about `_stream` filter,
@@ -716,7 +886,7 @@ and [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#logical-f
 Alternatively, you can count the number of matching logs at VictoriaLogs side with [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe):
 
 ```sh
-curl http://localhost:9428/select/logsql/query -d 'query=_stream:{app="nginx"} AND _time:5m AND error | stats count() logs_with_error'
+curl http://localhost:9428/select/logsql/query -d 'query={app="nginx"} AND _time:5m AND error | stats count() logs_with_error'
 ```
 
 The following example shows how to sort query results by the [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) with traditional Unix tools:

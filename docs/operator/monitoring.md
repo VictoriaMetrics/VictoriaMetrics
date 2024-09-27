@@ -29,13 +29,13 @@ Alerting rules for VictoriaMetrics operator are available [here](https://github.
 
 ### Helm-chart victoria-metrics-k8s-stack
 
-In [victoria-metrics-k8s-stack](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-k8s-stack/README.md) helm-chart operator self-scrapes metrics by default.
+In [victoria-metrics-k8s-stack](https://docs.victoriametrics.com/helm/victoriametrics-k8s-stack/) helm-chart operator self-scrapes metrics by default.
 
 This helm-chart also includes [official grafana dashboard for operator](#dashboard) and [official alerting rules for operator](#alerting-rules).
 
 ### Helm-chart victoria-metrics-operator
 
-With [victoria-metrics-operator](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator/README.md) you can use following parameter in `values.yaml`:
+With [victoria-metrics-operator](https://docs.victoriametrics.com/helm/victoriametrics-operator) you can use following parameter in `values.yaml`:
 
 ```yaml
 # values.yaml

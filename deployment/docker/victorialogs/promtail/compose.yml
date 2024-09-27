@@ -1,22 +1,12 @@
+include:
+ - ../compose.yml
 services:
   promtail:
-    image: grafana/promtail:2.8.2
+    image: grafana/promtail:3.0.1
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/log:/var/log:ro
-      - ./config.yml:/etc/promtail/docker-config.yml:ro
+      - ${PWD}/config.yml:/etc/promtail/docker-config.yml:ro
     command: -config.file=/etc/promtail/docker-config.yml
     ports:
       - "5140:5140"
-
-  vlogs:
-    image: docker.io/victoriametrics/victoria-logs:v0.28.0-victorialogs
-    volumes:
-      - victorialogs-promtail-docker:/vlogs
-    ports:
-      - '9428:9428'
-    command:
-      - -storageDataPath=/vlogs
-
-volumes:
-  victorialogs-promtail-docker:

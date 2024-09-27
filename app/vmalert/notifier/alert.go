@@ -187,7 +187,7 @@ func templateAnnotation(dst io.Writer, text string, data tplData, tmpl *textTpl.
 	return nil
 }
 
-func (a Alert) toPromLabels(relabelCfg *promrelabel.ParsedConfigs) []prompbmarshal.Label {
+func (a Alert) applyRelabelingIfNeeded(relabelCfg *promrelabel.ParsedConfigs) []prompbmarshal.Label {
 	var labels []prompbmarshal.Label
 	for k, v := range a.Labels {
 		labels = append(labels, prompbmarshal.Label{

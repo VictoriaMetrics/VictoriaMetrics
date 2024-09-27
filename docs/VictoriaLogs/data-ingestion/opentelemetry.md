@@ -56,6 +56,8 @@ exporters:
   elasticsearch:
     endpoints:
       - http://victorialogs:9428/insert/elasticsearch
+    headers:
+      VL-Msg-Field: "Body" # Optional.
 receivers:
   filelog:
     include: [/tmp/logs/*.log]
@@ -67,6 +69,15 @@ service:
       receivers: [filelog]
       exporters: [elasticsearch]
 ```
+
+Please note that every ingested log entry **must** contain at least a `_msg` field with the actual log message. By default, 
+the Elasticsearch exporter may place the log message in the `Body` field. In this case, you can specify the field mapping via:
+```yaml
+    headers:
+      VL-Msg-Field: "Body"
+```
+
+VictoriaLogs also support specify `AccountID`, `ProjectID`, log timestamp and other fields via [HTTP headers](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-headers).
 
 ### Loki
 
@@ -104,12 +115,12 @@ exporters:
   otlphttp:
     logs_endpoint: http://localhost:9428/insert/opentelemetry/v1/logs
     headers:
-     VL-Stream-Fields: telemetry.sdk.language,severity
+      VL-Stream-Fields: telemetry.sdk.language,severity
 ```
 
 See also [HTTP headers](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-headers)
 
-Substitute `localhost:9428` address inside `exporters.oltphttp.logs_endpoint` with the real address of VictoriaLogs.
+Substitute `localhost:9428` address inside `exporters.otlphttp.logs_endpoint` with the real address of VictoriaLogs.
 
 The ingested log entries can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 

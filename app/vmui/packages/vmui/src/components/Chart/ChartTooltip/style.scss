@@ -29,6 +29,7 @@ $chart-tooltip-y: -1 * ($padding-global + $chart-tooltip-half-icon);
     white-space: pre-wrap;
     word-break: break-all;
     width: auto;
+    max-width: calc(100vw/3);
   }
 
   &_sticky {
