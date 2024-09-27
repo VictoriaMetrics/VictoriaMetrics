@@ -21,9 +21,9 @@ docker compose rm -f
 
 The docker compose file contains the following components:
 
-* collector - OpenTelemetry collection agent, which is configured to collect and write data to `victorialogs`
-* victorialogs - VictoriaLogs log database, which accepts the data from `collector`
-* victoriametrics - VictoriaMetrics metrics database, which collects metrics from `victorialogs` and `collector`
+* collector - logs collection agent configured to collect and write data to `victorialogs`
+* victorialogs - logs database, receives data from `collector` agent
+* victoriametrics - metrics database, which collects metrics from `victorialogs` and `collector` for observability purposes
 
 Querying the data
 

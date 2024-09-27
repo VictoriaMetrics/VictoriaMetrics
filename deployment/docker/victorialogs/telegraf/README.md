@@ -20,9 +20,9 @@ docker compose rm -f
 
 The docker compose file contains the following components:
 
-* telegraf - Telegraf logs collection agent, which is configured to collect and write data to `victorialogs`
-* victorialogs - VictoriaLogs log database, which accepts the data from `telegraf`
-* victoriametrics - VictoriaMetrics metrics database, which collects metrics from `victorialogs` and `telegraf`
+* telegraf - logs collection agent configured to collect and write data to `victorialogs`
+* victorialogs - logs database, receives data from `telegraf` agent
+* victoriametrics - metrics database, which collects metrics from `victorialogs` and `telegraf` for observability purposes
 
 Querying the data
 

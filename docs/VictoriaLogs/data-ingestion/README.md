@@ -3,6 +3,7 @@
 - Syslog, Rsyslog and Syslog-ng - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/).
 - Filebeat - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/filebeat/).
 - Fluentbit - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/fluentbit/).
+- Fluentd - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/fluentd/).
 - Logstash - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/logstash/).
 - Vector - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector/).
 - Promtail (aka Grafana Loki) - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/).

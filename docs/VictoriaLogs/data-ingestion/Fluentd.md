@@ -11,9 +11,6 @@ aliases:
   - /victorialogs/data-ingestion/fluentd.html
   - /victorialogs/data-ingestion/Fluentd.html
 ---
-
-# Fluentd setup
-
 VictoriaLogs supports given below Fluentd outputs:
 - [Loki](#loki)
 - [HTTP JSON](#http)
@@ -51,11 +48,11 @@ for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.co
 
 Substitute the host (`localhost`) and port (`9428`) with the real TCP address of VictoriaLogs.
 
-See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details on the query args specified in the `uri`.
+See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details on the query args specified in the `endpoint`.
 
 It is recommended verifying whether the initial setup generates the needed [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 and uses the correct [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
-This can be done by specifying `debug` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) in the `uri`
+This can be done by specifying `debug` [parameter](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) in the `endpoint`
 and inspecting VictoriaLogs logs then:
 
 ```fluentd

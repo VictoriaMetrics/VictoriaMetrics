@@ -18,9 +18,9 @@ docker compose rm -f
 
 The docker compose file contains the following components:
 
-* filebeat - Filebeat logs collection agent, which is configured to collect and write data to `victorialogs`
-* victorialogs - VictoriaLogs log database, which accepts the data from `filebeat`
-* victoriametrics - VictoriaMetrics metrics database, which collects metrics from `victorialogs` and `filebeat`
+* filebeat - logs collection agent configured to collect and write data to `victorialogs`
+* victorialogs - logs database, receives data from `filebeat` agent
+* victoriametrics - metrics database, which collects metrics from `victorialogs` and `filebeat` for observability purposes
 
 Querying the data 
 

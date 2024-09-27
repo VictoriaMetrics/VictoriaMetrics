@@ -20,9 +20,9 @@ docker compose rm -f
 
 The docker compose file contains the following components:
 
-* vector - Vector logs collection agent, which is configured to collect and write data to `victorialogs`
-* victorialogs - VictoriaLogs log database, which accepts the data from `vector`
-* victoriametrics - VictoriaMetrics metrics database, which collects metrics from `victorialogs` and `vector`
+* vector - logs collection agent configured to collect and write data to `victorialogs`
+* victorialogs - logs database, receives data from `vector` agent
+* victoriametrics - metrics database, which collects metrics from `victorialogs` and `vector` for observability purposes
 
 Querying the data
 

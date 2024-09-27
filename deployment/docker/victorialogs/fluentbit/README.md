@@ -19,9 +19,9 @@ docker compose rm -f
 
 The docker compose file contains the following components:
 
-* fluentbit - FluentBit logs collection agent, which is configured to collect and write data to `victorialogs`
-* victorialogs - VictoriaLogs log database, which accepts the data from `fluentbit`
-* victoriametrics - VictoriaMetrics metrics database, which collects metrics from `victorialogs` and `fluentbit`
+* fluentbit - logs collection agent configured to collect and write data to `victorialogs`
+* victorialogs - logs database, receives data from `fluentbit` agent
+* victoriametrics - metrics database, which collects metrics from `victorialogs` and `fluentbit` for observability purposes
 
 Querying the data
 
