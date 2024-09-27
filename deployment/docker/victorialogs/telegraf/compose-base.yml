@@ -1,5 +1,5 @@
 include:
- - ../compose.yml
+ - ../compose-base.yml
 services:
   telegraf:
     image: bitnami/telegraf:1.31.3

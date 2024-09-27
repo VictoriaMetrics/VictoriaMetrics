@@ -1,5 +1,5 @@
 include:
- - ../compose.yml
+ - ../compose-base.yml
 services:
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.15.1
