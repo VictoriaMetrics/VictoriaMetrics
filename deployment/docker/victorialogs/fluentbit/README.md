@@ -1,10 +1,10 @@
-# Docker compose Fluentbit integration with VictoriaLogs using given below protocols:
+# Docker compose FluentBit integration with VictoriaLogs
+
+The folder contains examples of [FluentBit](https://docs.fluentbit.io/manual) integration with VictoriaLogs using protocols:
 
 * [loki](./loki)
 * [jsonline single node](./jsonline)
 * [jsonline HA setup](./jsonline-ha)
-
-The folder contains the example of integration of [fluentbit](https://docs.fluentbit.io/manual) with Victorialogs
 
 To spin-up environment `cd` to any of listed above directories run the following command:
 ```
@@ -19,8 +19,9 @@ docker compose rm -f
 
 The docker compose file contains the following components:
 
-* fluentbit - fluentbit is configured to collect logs from the `docker`, you can find configuration in the `fluent-bit.conf`. It writes data in VictoriaLogs
-* VictoriaLogs - the log database, it accepts the data from `fluentbit` by json line protocol
+* fluentbit - logs collection agent configured to collect and write data to `victorialogs`
+* victorialogs - logs database, receives data from `fluentbit` agent
+* victoriametrics - metrics database, which collects metrics from `victorialogs` and `fluentbit` for observability purposes
 
 Querying the data
 

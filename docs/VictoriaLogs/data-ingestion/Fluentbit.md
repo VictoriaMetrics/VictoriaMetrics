@@ -11,9 +11,6 @@ aliases:
   - /victorialogs/data-ingestion/fluentbit.html
   - /victorialogs/data-ingestion/Fluentbit.html
 ---
-
-# Fluentbit setup
-
 VictoriaLogs supports given below Fluentbit outputs:
 - [Loki](#loki)
 - [HTTP JSON](#http)

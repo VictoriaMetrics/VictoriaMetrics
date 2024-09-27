@@ -1,16 +1,13 @@
-# Docker compose Logstash integration with VictoriaLogs for given below protocols:
+# Docker compose Logstash integration with VictoriaLogs
+
+The folder contains examples of [Logstash](https://www.elastic.co/logstash) integration with VictoriaLogs using protocols:
 
 * [loki](./loki)
 * [jsonline single node](./jsonline)
 * [jsonline HA setup](./jsonline-ha)
 * [elasticsearch](./elasticsearch)
 
-It is required to use [OpenSearch plugin](https://github.com/opensearch-project/logstash-output-opensearch) for output configuration.
-Plugin can be installed by using the following command:
-```
-bin/logstash-plugin install logstash-output-opensearch
-```
-OpenSearch plugin is required because elasticsearch output plugin performs various checks for Elasticsearch version and license which are not applicable for VictoriaLogs.
+All required plugins, that should be installed in order to support protocols listed above can be found in a [Dockerfile](./Dockerfile)
 
 To spin-up environment `cd` to any of listed above directories run the following command:
 ```
@@ -25,8 +22,9 @@ docker compose rm -f
 
 The docker compose file contains the following components:
 
-* logstash - logstash is configured to accept `syslog` on `5140` port, you can find configuration in the `pipeline.conf`. It writes data in VictoriaLogs
-* VictoriaLogs - the log database, it accepts the data from `logstash` by elastic protocol
+* logstash - logs collection agent configured to collect and write data to `victorialogs`
+* victorialogs - logs database, receives data from `logstash` agent
+* victoriametrics - metrics database, which collects metrics from `victorialogs` and `logstash` for observability purposes
 
 Querying the data
 
