@@ -29,6 +29,8 @@ func TestLexer(t *testing.T) {
 	f("foo:bar", []string{"foo", ":", "bar"})
 	f(` re   (  "тест(\":"  )  `, []string{"re", "(", `тест(":`, ")"})
 	f(" `foo, bar`* AND baz:(abc or 'd\\'\"ЙЦУК `'*)", []string{"foo, bar", "*", "AND", "baz", ":", "(", "abc", "or", `d'"ЙЦУК ` + "`", "*", ")"})
+	f(`{foo="bar",a=~"baz", b != 'cd',"d,}a"!~abc} def`,
+		[]string{"{", "foo", "=", "bar", ",", "a", "=~", "baz", ",", "b", "!=", "cd", ",", "d,}a", "!~", "abc", "}", "def"})
 	f(`_stream:{foo="bar",a=~"baz", b != 'cd',"d,}a"!~abc}`,
 		[]string{"_stream", ":", "{", "foo", "=", "bar", ",", "a", "=~", "baz", ",", "b", "!=", "cd", ",", "d,}a", "!~", "abc", "}"})
 }
@@ -700,10 +702,14 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`_stream_id:in(_time:5m | fields _stream_id)`, `_stream_id:in(_time:5m | fields _stream_id)`)
 
 	// _stream filters
-	f(`_stream:{}`, `_stream:{}`)
-	f(`_stream:{foo="bar", baz=~"x" OR or!="b", "x=},"="d}{"}`, `_stream:{foo="bar",baz=~"x" or "or"!="b","x=},"="d}{"}`)
-	f(`_stream:{or=a or ","="b"}`, `_stream:{"or"="a" or ","="b"}`)
-	f("_stream : { foo =  bar , }  ", `_stream:{foo="bar"}`)
+	f(`_stream:{}`, `{}`)
+	f(`_stream:{foo="bar", baz=~"x" OR or!="b", "x=},"="d}{"}`, `{foo="bar",baz=~"x" or "or"!="b","x=},"="d}{"}`)
+	f(`_stream:{or=a or ","="b"}`, `{"or"="a" or ","="b"}`)
+	f("_stream : { foo =  bar , }  ", `{foo="bar"}`)
+
+	// _stream filter without _stream prefix
+	f(`{}`, `{}`)
+	f(`{foo="bar", baz=~"x" OR or!="b", "x=},"="d}{"}`, `{foo="bar",baz=~"x" or "or"!="b","x=},"="d}{"}`)
 
 	// _time filters
 	f(`_time:[-5m,now)`, `_time:[-5m,now)`)
@@ -942,11 +948,11 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// complex queries
 	f(`_time:[-1h, now] _stream:{job="foo",env=~"prod|staging"} level:(error or warn*) and not "connection reset by peer"`,
-		`_time:[-1h,now] _stream:{job="foo",env=~"prod|staging"} (level:error or level:warn*) !"connection reset by peer"`)
+		`_time:[-1h,now] {job="foo",env=~"prod|staging"} (level:error or level:warn*) !"connection reset by peer"`)
 	f(`(_time:(2023-04-20, now] or _time:[-10m, -1m))
 		and (_stream:{job="a"} or _stream:{instance!="b"})
 		and (err* or ip:(ipv4_range(1.2.3.0, 1.2.3.255) and not 1.2.3.4))`,
-		`(_time:(2023-04-20,now] or _time:[-10m,-1m)) (_stream:{job="a"} or _stream:{instance!="b"}) (err* or ip:ipv4_range(1.2.3.0, 1.2.3.255) !ip:1.2.3.4)`)
+		`(_time:(2023-04-20,now] or _time:[-10m,-1m)) ({job="a"} or {instance!="b"}) (err* or ip:ipv4_range(1.2.3.0, 1.2.3.255) !ip:1.2.3.4)`)
 
 	// fields pipe
 	f(`foo|fields *`, `foo | fields *`)
@@ -1272,6 +1278,17 @@ func TestParseQueryFailure(t *testing.T) {
 	f("_stream:foo")
 	f("_stream:(foo)")
 	f("_stream:[foo]")
+
+	// invalid _stream filters without _stream: prefix
+	f("{")
+	f(`{foo`)
+	f(`{foo}`)
+	f(`{foo=`)
+	f(`{foo=}`)
+	f(`{foo="bar`)
+	f(`{foo='bar`)
+	f(`{foo="bar}`)
+	f(`{foo='bar}`)
 
 	// invalid _time filters
 	f("_time:")
