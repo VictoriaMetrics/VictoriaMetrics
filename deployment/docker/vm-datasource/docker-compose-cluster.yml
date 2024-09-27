@@ -16,6 +16,6 @@ services:
       - ./../../dashboards/vm/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
       - ./../../dashboards/vm/vmauth.json:/var/lib/grafana/dashboards/vmauth.json
     environment:
-      - "GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.9.0/victoriametrics-datasource-v0.9.0.zip;victoriametrics-datasource"
+      - "GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.9.1/victoriametrics-datasource-v0.9.1.zip;victoriametrics-datasource"
       - "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource"
     restart: always

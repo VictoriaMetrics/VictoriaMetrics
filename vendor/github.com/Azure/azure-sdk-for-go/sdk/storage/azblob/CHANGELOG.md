@@ -1,5 +1,19 @@
 # Release History
 
+## 1.4.1 (2024-09-18)
+
+### Features Added
+* Added crc64 response header to Put Blob.
+* Upgraded service version to `2024-08-04`.
+
+## 1.4.1-beta.1 (2024-08-27)
+
+### Features Added
+* Upgraded service version to `2024-08-04`.
+
+### Other Changes
+* Updated `azcore` version to `1.14.0`
+
 ## 1.4.0 (2024-07-18)
 
 ### Other Changes

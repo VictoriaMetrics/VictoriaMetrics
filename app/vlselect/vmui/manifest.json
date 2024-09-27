@@ -1,16 +1,11 @@
 {
-  "short_name": "Victoria Metrics UI",
-  "name": "Victoria Metrics UI is a metric explorer for Victoria Metrics",
+  "short_name": "vmui",
+  "name": "vmui",
   "icons": [
     {
-      "src": "favicon-32x32.png",
-      "sizes": "32x32",
-      "type": "image/png"
-    },
-    {
-      "src": "apple-touch-icon.png",
-      "type": "image/png",
-      "sizes": "192x192"
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
   ],
   "start_url": ".",

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.9.5](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.4...auth/v0.9.5) (2024-09-25)
+
+
+### Bug Fixes
+
+* **auth:** Restore support for GOOGLE_CLOUD_UNIVERSE_DOMAIN env ([#10915](https://github.com/googleapis/google-cloud-go/issues/10915)) ([94caaaa](https://github.com/googleapis/google-cloud-go/commit/94caaaa061362d0e00ef6214afcc8a0a3e7ebfb2))
+* **auth:** Skip directpath credentials overwrite when it's not on GCE ([#10833](https://github.com/googleapis/google-cloud-go/issues/10833)) ([7e5e8d1](https://github.com/googleapis/google-cloud-go/commit/7e5e8d10b761b0a6e43e19a028528db361bc07b1))
+* **auth:** Use new context for non-blocking token refresh ([#10919](https://github.com/googleapis/google-cloud-go/issues/10919)) ([cf7102d](https://github.com/googleapis/google-cloud-go/commit/cf7102d33a21be1e5a9d47a49456b3a57c43b350))
+
+## [0.9.4](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.3...auth/v0.9.4) (2024-09-11)
+
+
+### Bug Fixes
+
+* **auth:** Enable self-signed JWT for non-GDU universe domain ([#10831](https://github.com/googleapis/google-cloud-go/issues/10831)) ([f9869f7](https://github.com/googleapis/google-cloud-go/commit/f9869f7903cfd34d1b97c25d0dc5669d2c5138e6))
+
 ## [0.9.3](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.2...auth/v0.9.3) (2024-09-03)
 
 

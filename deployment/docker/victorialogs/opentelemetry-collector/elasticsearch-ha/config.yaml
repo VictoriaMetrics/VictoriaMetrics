@@ -1,0 +1,15 @@
+exporters:
+  elasticsearch:
+    endpoints:
+      - http://victorialogs:9428/insert/elasticsearch
+      - http://victorialogs-2:9428/insert/elasticsearch
+receivers:
+  filelog:
+    include: [/var/lib/docker/containers/**/*.log]
+    resource:
+      region: us-east-1
+service:
+  pipelines:
+    logs:
+      receivers: [filelog]
+      exporters: [elasticsearch]

@@ -57,11 +57,11 @@ type pipeLimitProcessor struct {
 }
 
 func (plp *pipeLimitProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
-	rowsProcessed := plp.rowsProcessed.Add(uint64(len(br.timestamps)))
+	rowsProcessed := plp.rowsProcessed.Add(uint64(br.rowsLen))
 	limit := plp.pl.limit
 	if rowsProcessed <= limit {
 		// Fast path - write all the rows to ppNext.
@@ -73,7 +73,7 @@ func (plp *pipeLimitProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	// Slow path - overflow. Write the remaining rows if needed.
-	rowsProcessed -= uint64(len(br.timestamps))
+	rowsProcessed -= uint64(br.rowsLen)
 	if rowsProcessed >= limit {
 		// Nothing to write. There is no need in cancel() call, since it has been called by another goroutine.
 		return

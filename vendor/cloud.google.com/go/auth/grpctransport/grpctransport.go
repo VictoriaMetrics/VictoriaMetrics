@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 
 	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/credentials"
@@ -330,15 +331,23 @@ type grpcCredentialsProvider struct {
 	clientUniverseDomain string
 }
 
-// getClientUniverseDomain returns the default service domain for a given Cloud universe.
-// The default value is "googleapis.com". This is the universe domain
-// configured for the client, which will be compared to the universe domain
-// that is separately configured for the credentials.
+// getClientUniverseDomain returns the default service domain for a given Cloud
+// universe, with the following precedence:
+//
+// 1. A non-empty option.WithUniverseDomain or similar client option.
+// 2. A non-empty environment variable GOOGLE_CLOUD_UNIVERSE_DOMAIN.
+// 3. The default value "googleapis.com".
+//
+// This is the universe domain configured for the client, which will be compared
+// to the universe domain that is separately configured for the credentials.
 func (c *grpcCredentialsProvider) getClientUniverseDomain() string {
-	if c.clientUniverseDomain == "" {
-		return internal.DefaultUniverseDomain
+	if c.clientUniverseDomain != "" {
+		return c.clientUniverseDomain
 	}
-	return c.clientUniverseDomain
+	if envUD := os.Getenv(internal.UniverseDomainEnvVar); envUD != "" {
+		return envUD
+	}
+	return internal.DefaultUniverseDomain
 }
 
 func (c *grpcCredentialsProvider) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {

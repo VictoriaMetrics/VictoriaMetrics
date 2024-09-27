@@ -77,6 +77,11 @@ import (
 //	session token automatically to avoid service interruptions when a session
 //	expires. For more information about authorization, see [CreateSession]CreateSession .
 //
+// If the object is encrypted with SSE-KMS, you must also have the
+//
+//	kms:GenerateDataKey and kms:Decrypt permissions in IAM identity-based policies
+//	and KMS key policies for the KMS key.
+//
 // Data integrity  General purpose bucket - To ensure that data is not corrupted
 // traversing the network, specify the Content-MD5 header in the upload part
 // request. Amazon S3 checks the part data against the provided MD5 value. If they
@@ -118,10 +123,12 @@ import (
 //
 //	- x-amz-server-side-encryption-customer-key-MD5
 //
-//	- Directory bucket - For directory buckets, only server-side encryption with
-//	Amazon S3 managed keys (SSE-S3) ( AES256 ) is supported.
+// For more information, see [Using Server-Side Encryption]in the Amazon S3 User Guide.
 //
-// For more information, see [Using Server-Side Encryption] in the Amazon S3 User Guide.
+//   - Directory buckets - For directory buckets, there are only two supported
+//     options for server-side encryption: server-side encryption with Amazon S3
+//     managed keys (SSE-S3) ( AES256 ) and server-side encryption with KMS keys
+//     (SSE-KMS) ( aws:kms ).
 //
 // Special errors
 //
@@ -350,8 +357,6 @@ type UploadPartOutput struct {
 
 	// Indicates whether the multipart upload uses an S3 Bucket Key for server-side
 	// encryption with Key Management Service (KMS) keys (SSE-KMS).
-	//
-	// This functionality is not supported for directory buckets.
 	BucketKeyEnabled *bool
 
 	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
@@ -421,17 +426,11 @@ type UploadPartOutput struct {
 	// This functionality is not supported for directory buckets.
 	SSECustomerKeyMD5 *string
 
-	// If present, indicates the ID of the Key Management Service (KMS) symmetric
-	// encryption customer managed key that was used for the object.
-	//
-	// This functionality is not supported for directory buckets.
+	// If present, indicates the ID of the KMS key that was used for object encryption.
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm used when you store this object in Amazon
 	// S3 (for example, AES256 , aws:kms ).
-	//
-	// For directory buckets, only server-side encryption with Amazon S3 managed keys
-	// (SSE-S3) ( AES256 ) is supported.
 	ServerSideEncryption types.ServerSideEncryption
 
 	// Metadata pertaining to the operation's result.
@@ -481,6 +480,9 @@ func (c *Client) addOperationUploadPartMiddlewares(stack *middleware.Stack, opti
 		return err
 	}
 	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -547,6 +549,18 @@ func (c *Client) addOperationUploadPartMiddlewares(stack *middleware.Stack, opti
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

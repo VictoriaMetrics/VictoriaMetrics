@@ -475,6 +475,9 @@ func (tsm *targetStatusMap) getTargetsStatusByJob(filter *requestFilter) *target
 			}
 			targetsStatuses = append(targetsStatuses, ts)
 		}
+		if filter.showOnlyUnhealthy && len(targetsStatuses) == 0 {
+			continue
+		}
 		jts = append(jts, &jobTargetsStatuses{
 			jobName:       jobName,
 			upCount:       ups,
@@ -488,7 +491,7 @@ func (tsm *targetStatusMap) getTargetsStatusByJob(filter *requestFilter) *target
 	emptyJobs := getEmptyJobs(jts, jobNames)
 	var err error
 	jts, err = filterTargets(jts, filter.endpointSearch, filter.labelSearch)
-	if len(filter.endpointSearch) > 0 || len(filter.labelSearch) > 0 {
+	if len(filter.endpointSearch) > 0 || len(filter.labelSearch) > 0 || filter.showOnlyUnhealthy {
 		// Do not show empty jobs if target filters are set.
 		emptyJobs = nil
 	}

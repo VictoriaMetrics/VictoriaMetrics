@@ -135,15 +135,6 @@ type Storage struct {
 	// the check whether the given stream is already registered in the persistent storage.
 	streamIDCache *workingsetcache.Cache
 
-	// streamTagsCache caches StreamTags entries keyed by streamID.
-	//
-	// There is no need to put partition into the key for StreamTags,
-	// since StreamTags are uniquely identified by streamID.
-	//
-	// It reduces the load on persistent storage during querying
-	// when StreamTags must be found for the particular streamID
-	streamTagsCache *workingsetcache.Cache
-
 	// filterStreamCache caches streamIDs keyed by (partition, []TenanID, StreamFilter).
 	//
 	// It reduces the load on persistent storage during querying by _stream:{...} filter.
@@ -253,8 +244,6 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	streamIDCachePath := filepath.Join(path, cacheDirname, streamIDCacheFilename)
 	streamIDCache := workingsetcache.Load(streamIDCachePath, mem/16)
 
-	streamTagsCache := workingsetcache.New(mem / 10)
-
 	filterStreamCache := workingsetcache.New(mem / 10)
 
 	s := &Storage{
@@ -270,7 +259,6 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 		stopCh:                 make(chan struct{}),
 
 		streamIDCache:     streamIDCache,
-		streamTagsCache:   streamTagsCache,
 		filterStreamCache: filterStreamCache,
 	}
 
@@ -473,9 +461,6 @@ func (s *Storage) MustClose() {
 	}
 	s.streamIDCache.Stop()
 	s.streamIDCache = nil
-
-	s.streamTagsCache.Stop()
-	s.streamTagsCache = nil
 
 	s.filterStreamCache.Stop()
 	s.filterStreamCache = nil

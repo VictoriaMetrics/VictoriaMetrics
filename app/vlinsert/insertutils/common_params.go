@@ -176,6 +176,22 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 		return
 	}
 
+	// _msg field must be non-empty according to VictoriaLogs data model.
+	// See https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field
+	msgExist := false
+	for i := range fields {
+		if fields[i].Name == "_msg" {
+			msgExist = len(fields[i].Value) > 0
+			break
+		}
+	}
+	if !msgExist {
+		rf := logstorage.RowFormatter(fields)
+		logger.Warnf("dropping log line without _msg field; %s", rf)
+		rowsDroppedTotalMsgNotValid.Inc()
+		return
+	}
+
 	lmp.lr.MustAdd(lmp.cp.TenantID, timestamp, fields)
 	if lmp.cp.Debug {
 		s := lmp.lr.GetRowString(0)
@@ -225,4 +241,5 @@ func (cp *CommonParams) NewLogMessageProcessor() LogMessageProcessor {
 var (
 	rowsDroppedTotalDebug         = metrics.NewCounter(`vl_rows_dropped_total{reason="debug"}`)
 	rowsDroppedTotalTooManyFields = metrics.NewCounter(`vl_rows_dropped_total{reason="too_many_fields"}`)
+	rowsDroppedTotalMsgNotValid   = metrics.NewCounter(`vl_rows_dropped_total{reason="msg_not_exist"}`)
 )

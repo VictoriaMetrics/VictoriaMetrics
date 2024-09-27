@@ -8,7 +8,7 @@ import (
 
 // pipeFieldNames processes '| field_names' pipe.
 //
-// See https://docs.victoriametrics.com/victorialogs/logsql/#field-names-pipe
+// See https://docs.victoriametrics.com/victorialogs/logsql/#field_names-pipe
 type pipeFieldNames struct {
 	// resultName is an optional name of the column to write results to.
 	// By default results are written into 'name' column.
@@ -94,7 +94,7 @@ func (shard *pipeFieldNamesProcessorShard) getM() map[string]*uint64 {
 }
 
 func (pfp *pipeFieldNamesProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -113,7 +113,7 @@ func (pfp *pipeFieldNamesProcessor) writeBlock(workerID uint, br *blockResult) {
 
 		// Assume that the column is set for all the rows in the block.
 		// This is much faster than reading all the column values and counting non-empty rows.
-		*pHits += uint64(len(br.timestamps))
+		*pHits += uint64(br.rowsLen)
 	}
 }
 
