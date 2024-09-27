@@ -1,6 +1,8 @@
-FROM fluent/fluentd:v1.17
+FROM fluent/fluentd:v1.17-debian-1
 USER root
 RUN \
+  apt update && \
+  apt install -y netcat-traditional && \
   gem install \
     fluent-plugin-datadog \
     fluent-plugin-grafana-loki \
