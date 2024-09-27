@@ -273,6 +273,7 @@ expr: <string>
 [ update_entries_limit: <integer> | default 0 ]
 
 # Labels to add or overwrite for each alert.
+# In case of conflicts, original labels are kept with prefix `exported_`.
 labels:
   [ <labelname>: <tmpl_string> ]
 
@@ -394,6 +395,7 @@ record: <string>
 expr: <string>
 
 # Labels to add or overwrite before storing the result.
+# In case of conflicts, original labels are kept with prefix `exported_`.
 labels:
   [ <labelname>: <labelvalue> ]
 
@@ -1109,7 +1111,7 @@ The shortlist of configuration flags is the following:
   -external.alert.source string
      External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service. Supports templating - see https://docs.victoriametrics.com/vmalert/#templating . For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
   -external.label array
-     Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
+     Optional label in the form 'Name=value' to add to all generated recording rules and alerts. In case of conflicts, original labels are kept with prefix `exported_`.
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -external.url string
