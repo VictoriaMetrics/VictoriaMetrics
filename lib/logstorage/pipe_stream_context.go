@@ -530,7 +530,10 @@ func (pcp *pipeStreamContextProcessor) flush() error {
 		pcp: pcp,
 	}
 
-	for streamID, rows := range m {
+	// write output contexts in the ascending order of rows
+	streamIDs := getStreamIDsSortedByMinRowTimestamp(m)
+	for _, streamID := range streamIDs {
+		rows := m[streamID]
 		streamRowss, err := pcp.getStreamRowss(streamID, rows, stateSizeBudget)
 		if err != nil {
 			return err
@@ -555,6 +558,34 @@ func (pcp *pipeStreamContextProcessor) flush() error {
 	wctx.flush()
 
 	return nil
+}
+
+func getStreamIDsSortedByMinRowTimestamp(m map[string][]streamContextRow) []string {
+	type streamTimestamp struct {
+		streamID  string
+		timestamp int64
+	}
+	streamTimestamps := make([]streamTimestamp, 0, len(m))
+	for streamID, rows := range m {
+		minTimestamp := rows[0].timestamp
+		for _, r := range rows[1:] {
+			if r.timestamp < minTimestamp {
+				minTimestamp = r.timestamp
+			}
+		}
+		streamTimestamps = append(streamTimestamps, streamTimestamp{
+			streamID:  streamID,
+			timestamp: minTimestamp,
+		})
+	}
+	sort.Slice(streamTimestamps, func(i, j int) bool {
+		return streamTimestamps[i].timestamp < streamTimestamps[j].timestamp
+	})
+	streamIDs := make([]string, len(streamTimestamps))
+	for i := range streamIDs {
+		streamIDs[i] = streamTimestamps[i].streamID
+	}
+	return streamIDs
 }
 
 func newDelimiterRowFields(r *streamContextRow, streamID string) []Field {
