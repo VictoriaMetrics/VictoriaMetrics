@@ -856,7 +856,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterTilda(lex, fieldName)
 	case lex.isKeyword("!~"):
 		return parseFilterNotTilda(lex, fieldName)
-	case lex.isKeyword("not", "!"):
+	case lex.isKeyword("not", "!", "-"):
 		return parseFilterNot(lex, fieldName)
 	case lex.isKeyword("exact"):
 		return parseFilterExact(lex, fieldName)
@@ -2149,7 +2149,7 @@ func needQuoteToken(s string) bool {
 		return true
 	}
 	for _, r := range s {
-		if !isTokenRune(r) && r != '.' && r != '-' {
+		if !isTokenRune(r) && r != '.' {
 			return true
 		}
 	}

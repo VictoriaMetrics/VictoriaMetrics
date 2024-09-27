@@ -115,30 +115,30 @@ Then the following query removes all the logs from the buggy app, allowing us pa
 _time:5m error NOT buggy_app
 ```
 
-This query uses `NOT` [operator](#logical-filter) for removing log lines from the buggy app. The `NOT` operator is used frequently, so it can be substituted with `!` char
-(the `!` char is used instead of `-` char as a shorthand for `NOT` operator because it nicely combines with [`=`](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter)
+This query uses `NOT` [operator](#logical-filter) for removing log lines from the buggy app. The `NOT` operator is used frequently, so it can be substituted with `-` or `!` char
+(the `!` must be used instead of `-` in front of [`=`](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter)
 and [`~`](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter) filters like `!=` and `!~`).
 The following query is equivalent to the previous one:
 
 ```logsql
-_time:5m error !buggy_app
+_time:5m error -buggy_app
 ```
 
 Suppose another buggy app starts pushing invalid error logs to VictoriaLogs - it adds `foobar` [word](#word) to every emitted log line.
-No problems - just add `!foobar` to the query in order to remove these buggy logs:
+No problems - just add `-foobar` to the query in order to remove these buggy logs:
 
 ```logsql
-_time:5m error !buggy_app !foobar
+_time:5m error -buggy_app -foobar
 ```
 
 This query can be rewritten to more clear query with the `OR` [operator](#logical-filter) inside parentheses:
 
 ```logsql
-_time:5m error !(buggy_app OR foobar)
+_time:5m error -(buggy_app OR foobar)
 ```
 
 The parentheses are **required** here, since otherwise the query won't return the expected results.
-The query `error !buggy_app OR foobar` is interpreted as `(error AND NOT buggy_app) OR foobar` according to [priorities for AND, OR and NOT operator](#logical-filters).
+The query `error -buggy_app OR foobar` is interpreted as `(error AND NOT buggy_app) OR foobar` according to [priorities for AND, OR and NOT operator](#logical-filters).
 This query returns logs with `foobar` [word](#word), even if do not contain `error` word or contain `buggy_app` word.
 So it is recommended wrapping the needed query parts into explicit parentheses if you are unsure in priority rules.
 As an additional bonus, explicit parentheses make queries easier to read and maintain.
@@ -148,26 +148,26 @@ If this word is stored in other [field](https://docs.victoriametrics.com/victori
 in front of the `error` word:
 
 ```logsql
-_time:5m log.level:error !(buggy_app OR foobar)
+_time:5m log.level:error -(buggy_app OR foobar)
 ```
 
 The field name can be wrapped into quotes if it contains special chars or keywords, which may clash with LogsQL syntax.
 Any [word](#word) also can be wrapped into quotes. So the following query is equivalent to the previous one:
 
 ```logsql
-"_time":"5m" "log.level":"error" !("buggy_app" OR "foobar")
+"_time":"5m" "log.level":"error" -("buggy_app" OR "foobar")
 ```
 
 What if the application identifier - such as `buggy_app` and `foobar` - is stored in the `app` field? Correct - just add `app:` prefix in front of `buggy_app` and `foobar`:
 
 ```logsql
-_time:5m log.level:error !(app:buggy_app OR app:foobar)
+_time:5m log.level:error -(app:buggy_app OR app:foobar)
 ```
 
 The query can be simplified by moving the `app:` prefix outside the parentheses:
 
 ```logsql
-_time:5m log.level:error !app:(buggy_app OR foobar)
+_time:5m log.level:error -app:(buggy_app OR foobar)
 ```
 
 The `app` field uniquely identifies the application instance if a single instance runs per each unique `app`.
@@ -1239,8 +1239,11 @@ Simpler LogsQL [filters](#filters) can be combined into more complex filters wit
 
 - `NOT q` - returns all the log entries except of those which match `q`. For example, `NOT info` returns all the
   [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
-  which do not contain `info` [word](#word). The `NOT` operation is frequently used in LogsQL queries, so it is allowed substituting `NOT` with `!` in queries.
-  For example, `!info` is equivalent to `NOT info`.
+  which do not contain `info` [word](#word). The `NOT` operation is frequently used in LogsQL queries, so it is allowed substituting `NOT` with `-` and `!` in queries.
+  For example, `-info` and `!info` are equivalent to `NOT info`.
+  The `!` must be used instead of `-` in front of [`=`](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter)
+  and [`~`](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter) filters like `!=` and `!~`.
+
 
 The `NOT` operation has the highest priority, `AND` has the middle priority and `OR` has the lowest priority.
 The priority order can be changed with parentheses. For example, `NOT info OR debug` is interpreted as `(NOT info) OR debug`,
