@@ -96,7 +96,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data }) => {
           <div className="vm-explore-logs-body-header__settings">
             <TableSettings
               columns={columns}
-              defaultColumns={displayColumns}
+              selectedColumns={displayColumns}
               onChangeColumns={setDisplayColumns}
               tableCompact={tableCompact}
               toggleTableCompact={toggleTableCompact}
