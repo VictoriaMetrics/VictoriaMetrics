@@ -6,7 +6,7 @@ import Popper from "../../../components/Main/Popper/Popper";
 import NavItem from "./NavItem";
 import { useEffect } from "react";
 import useBoolean from "../../../hooks/useBoolean";
-import { NavigationItem } from "../../../constants/navigation";
+import { NavigationItem, NavigationItemType } from "../../../constants/navigation";
 
 interface NavItemProps {
   activeMenu: string,
@@ -64,6 +64,7 @@ const NavSubItem: FC<NavItemProps> = ({
             activeMenu={activeMenu}
             value={sm.value || ""}
             label={sm.label || ""}
+            type={sm.type || NavigationItemType.internalLink}
           />
         ))}
       </>
@@ -106,6 +107,7 @@ const NavSubItem: FC<NavItemProps> = ({
               value={sm.value || ""}
               label={sm.label || ""}
               color={color}
+              type={sm.type || NavigationItemType.internalLink}
             />
           ))}
         </div>
