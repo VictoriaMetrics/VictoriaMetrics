@@ -1,4 +1,4 @@
-import React, { FC, Ref, useEffect, useRef, useState } from "preact/compat";
+import React, { FC, useEffect, useRef, useState } from "preact/compat";
 import { KeyboardEvent } from "react";
 import { ErrorTypes } from "../../../types";
 import TextField from "../../Main/TextField/TextField";
@@ -12,7 +12,7 @@ import debounce from "lodash.debounce";
 
 export interface QueryEditorAutocompleteProps {
   value: string;
-  anchorEl: Ref<HTMLInputElement>;
+  anchorEl: React.RefObject<HTMLInputElement>;
   caretPosition: [number, number]; // [start, end]
   hasHelperText: boolean;
   onSelect: (val: string, caretPosition: number) => void;
