@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
@@ -26,7 +27,8 @@ var (
 		"See the list of allowed fields at https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html.")
 	journaldTimeField = flag.String("journald.timeField", "__REALTIME_TIMESTAMP", "Journal field to be used as time field. "+
 		"See the list of allowed fields at https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html.")
-	journaldTenantID = flag.String("journald.tenantID", "0:0", "TenantID for logs ingested via the Journald endpoint.")
+	journaldTenantID            = flag.String("journald.tenantID", "0:0", "TenantID for logs ingested via the Journald endpoint.")
+	journaldIgnoreEntryMetadata = flag.Bool("journald.ignoreEntryMetadata", true, "Ignore journal entry fields, which with double underscores.")
 )
 
 func getCommonParams(tenantID logstorage.TenantID) *insertutils.CommonParams {
@@ -138,13 +140,14 @@ func parseJournaldRequest(data []byte, lmp insertutils.LogMessageProcessor, cp *
 				rowsIngested++
 				fields = fields[:0]
 			} else {
+				ignoreField := *journaldIgnoreEntryMetadata && strings.HasPrefix(name, "__")
 				if name == cp.TimeField {
 					// extract timetamp in microseconds
 					ts, err = strconv.ParseInt(value, 10, 64)
 					if err != nil {
 						return 0, fmt.Errorf("failed to parse Journald timestamp, %w", err)
 					}
-				} else {
+				} else if !ignoreField {
 					fields = append(fields, logstorage.Field{
 						Name:  name,
 						Value: value,
