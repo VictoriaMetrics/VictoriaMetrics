@@ -1,0 +1,13 @@
+apiVersion: 1
+
+datasources:
+  - name: VictoriaMetrics
+    type: victoriametrics-datasource
+    access: proxy
+    url: http://victoriametrics:8428
+    isDefault: true
+    # see https://grafana.com/docs/grafana/latest/administration/provisioning/#json-data
+    jsonData:
+      # vmuiUrl will auto resolve into http://victoriametrics:8428 and won't work at user's machine
+      # so we override it
+      vmuiUrl: http://localhost:8428/vmui
