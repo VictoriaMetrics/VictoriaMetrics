@@ -17,13 +17,14 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): keep selected columns in table view on page reloads. Before, selected columns were reset on each update. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7016).
 * FEATURE: allow skipping `_stream:` prefix in [stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter). This simplifies writing queries with stream filters. Now `{foo="bar"}` is the recommended format for stream filters over the `_stream:{foo="bar"}` format.
+* FEATURE: allow using `-` instead of `!` as `NOT` operator shorthand in [logical filters](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter). For example, `-info -warn` query is equivalent to `!info !warn`. This simplifies transition from other query languages with full-text search support, which usually use `-` as `NOT` operator.
 
 ## [v0.30.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.30.1-victorialogs)
 
 Released at 2024-09-27
 
 * BUGFIX: consistently return matching log streams sorted by time from [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe). Previously log streams could be returned in arbitrary order with every request. This could complicate using `stream_context` pipe.
-* BUGFIX: add missing `_msg="---"` delimiter between stream contexts belonging to different [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields). This should simplify investigating `stream_context` output for multiple matching log streams.
+* BUGFIX: [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe): add missing `_msg="---"` delimiter between stream contexts belonging to different [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields). This should simplify investigating `stream_context` output for multiple matching log streams.
 
 ## [v0.30.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.30.0-victorialogs)
 
