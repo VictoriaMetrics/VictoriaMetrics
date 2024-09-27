@@ -15,6 +15,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v0.30.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.30.0-victorialogs)
+
+Released at 2024-09-27
+
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add button for enabling auto refresh, similarly to VictoriaMetrics vmui. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7017).
 * FEATURE: drop logs without [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) field or with empty `_msg` field, since this field is required to be non-empty in [VictoriaLogs data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6785).
 * FEATURE: improve performance of analytical queries, which do not need reading the `_time` field. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7070).
