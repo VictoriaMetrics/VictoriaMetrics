@@ -202,19 +202,25 @@ For example:
 
 `vmbackupmanager` exposes the following API methods:
 
+* POST `/api/v1/backups` - schedule/create the backup. Response examples:
+
+  success, status code - 201, body:
+  ```json
+      {}
+  ```
+
+  failure, status code - 400, body:
+  ```json
+      {"error": "backups <name> is in progress"}
+  ```
+
 * GET `/api/v1/backups` - returns list of backups in remote storage.
-  Example output:
+  Response example:
   ```json
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
   > Note: `created_at` field is in RFC3339 format.
-
-* GET `/api/v1/backups/<BACKUP_NAME>` - returns backup info by name.
-  Example output:
-  ```json
-  {"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00","locked":true}
-  ```
-
+  
 * PUT `/api/v1/backups/<BACKUP_NAME>` - update "locked" attribute for backup by name.
   Example request body:
   ```json
