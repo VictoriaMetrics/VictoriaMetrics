@@ -46,7 +46,15 @@ It is possible to push thousands of log lines in a single request to this API.
 
 If the [timestamp field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) is set to `"0"`,
 then the current timestamp at VictoriaLogs side is used per each ingested log line.
-Otherwise the timestamp field must be in the [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) or [RFC3339](https://www.rfc-editor.org/rfc/rfc3339) format.
+Otherwise the timestamp field must be in one of the following formats:
+
+- [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) or [RFC3339](https://www.rfc-editor.org/rfc/rfc3339).
+  For example, `2023-06-20T15:32:10Z` or `2023-06-20 15:32:10.123456789+02:00`.
+  If timezone information is missing (for example, `2023-06-20 15:32:10`),
+  then the time is parsed in the local timezone of the host where VictoriaLogs runs.
+
+- Unix timestamp in seconds or in milliseconds. For example, `1686026893` (seconds) or `1686026893735` (milliseconds).
+
 For example, `2023-06-20T15:32:10Z` or `2023-06-20 15:32:10.123456789+02:00`.
 If timezone information is missing (for example, `2023-06-20 15:32:10`), then the time is parsed in the local timezone of the host where VictoriaLogs runs.
 
