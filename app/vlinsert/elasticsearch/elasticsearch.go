@@ -6,9 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -252,22 +250,7 @@ func parseElasticsearchTimestamp(s string) (int64, error) {
 	}
 	if len(s) < len("YYYY-MM-DD") || s[len("YYYY")] != '-' {
 		// Try parsing timestamp in seconds or milliseconds
-		n, err := strconv.ParseInt(s, 10, 64)
-		if err != nil {
-			return 0, fmt.Errorf("cannot parse timestamp in milliseconds from %q: %w", s, err)
-		}
-		if n < (1<<31) && n >= (-1<<31) {
-			// The timestamp is in seconds. Convert it to milliseconds
-			n *= 1e3
-		}
-		if n > int64(math.MaxInt64)/1e6 {
-			return 0, fmt.Errorf("too big timestamp in milliseconds: %d; mustn't exceed %d", n, int64(math.MaxInt64)/1e6)
-		}
-		if n < int64(math.MinInt64)/1e6 {
-			return 0, fmt.Errorf("too small timestamp in milliseconds: %d; must be bigger than %d", n, int64(math.MinInt64)/1e6)
-		}
-		n *= 1e6
-		return n, nil
+		return insertutils.ParseUnixTimestamp(s)
 	}
 	if len(s) == len("YYYY-MM-DD") {
 		t, err := time.Parse("2006-01-02", s)

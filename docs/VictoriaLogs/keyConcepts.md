@@ -135,7 +135,15 @@ during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-inges
 ### Time field
 
 The ingested [log entries](#data-model) may contain `_time` field with the timestamp of the ingested log entry.
-The timestamp must be in [RFC3339](https://www.rfc-editor.org/rfc/rfc3339) or [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) format.
+The timestamp field must be in one of the following formats:
+
+- [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) or [RFC3339](https://www.rfc-editor.org/rfc/rfc3339).
+  For example, `2023-06-20T15:32:10Z` or `2023-06-20 15:32:10.123456789+02:00`.
+  If timezone information is missing (for example, `2023-06-20 15:32:10`),
+  then the time is parsed in the local timezone of the host where VictoriaLogs runs.
+
+- Unix timestamp in seconds or in milliseconds. For example, `1686026893` (seconds) or `1686026893735` (milliseconds).
+
 For example, the following [log entry](#data-model) contains valid timestamp with millisecond precision in the `_time` field:
 
 ```json
@@ -152,7 +160,7 @@ field via `_time_field` query arg during [data ingestion](https://docs.victoriam
 For example, if timestamp is located in the `event.created` field, then specify `_time_field=event.created` query arg
 during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 
-If `_time` field is missing, then the data ingestion time is used as log entry timestamp.
+If `_time` field is missing or if it equals `0`, then the data ingestion time is used as log entry timestamp.
 
 The `_time` field is used in [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) for quickly narrowing down
 the search to a particular time range.
