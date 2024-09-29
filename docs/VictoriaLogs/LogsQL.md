@@ -2110,6 +2110,12 @@ The `by` keyword can be skipped in `sort ...` pipe. For example, the following q
 _time:5m | sort (foo, bar) desc
 ```
 
+The `order` alias can be used instead of `sort`, so the following query is equivalent to the previous one:
+
+```logsql
+_time:5m | order by (foo, bar) desc
+```
+
 Sorting of big number of logs can consume a lot of CPU time and memory. Sometimes it is enough to return the first `N` entries with the biggest
 or the smallest values. This can be done by adding `limit N` to the end of `sort ...` pipe.
 Such a query consumes lower amounts of memory when sorting big number of logs, since it keeps in memory only `N` log entries.
