@@ -169,6 +169,7 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 			if needHits {
 				a := encoding.GetUint64s(len(c.dictValues))
 				hits := a.A
+				clear(hits)
 				valuesEncoded := c.getValuesEncoded(br)
 				for _, v := range valuesEncoded {
 					idx := unmarshalUint8(v)
