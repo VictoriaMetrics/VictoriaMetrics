@@ -646,6 +646,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`not(foo)`, `!foo`)
 	f(`not (foo)`, `!foo`)
 	f(`not ( foo or bar )`, `!(foo or bar)`)
+	f(`!(foo or bar)`, `!(foo or bar)`)
+	f(`-(foo or bar)`, `!(foo or bar)`)
 	f(`foo:!""`, `!foo:""`)
 	f("_msg:foo", "foo")
 	f("'foo:bar'", `"foo:bar"`)
