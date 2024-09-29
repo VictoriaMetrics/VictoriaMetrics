@@ -57,6 +57,27 @@ groups:
 	}
 }
 
+func TestParseConfig_ValidDocuments(t *testing.T) {
+	data, err := os.ReadFile("testdata/rules/rules-multi-doc-valid-count-bad.rules")
+	if err != nil {
+		t.Fatalf("unexpected error while reading file: %v", err)
+	}
+
+	// Call parseConfig and handle any errors
+	groups, err := parseConfig(data)
+	if err != nil {
+		t.Fatalf("unexpected error while parsing config: %v", err)
+	}
+
+	// Check if the correct number of valid groups is returned (expecting 2 valid documents)
+	expectedGroupCount := 2
+	if len(groups) != expectedGroupCount {
+		t.Fatalf("expected %d valid groups, but got %d", expectedGroupCount, len(groups))
+	}
+
+	t.Logf("Successfully parsed %d valid groups", len(groups))
+}
+
 func TestParse_Success(t *testing.T) {
 	_, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, notifier.ValidateTemplates, true)
 	if err != nil {
