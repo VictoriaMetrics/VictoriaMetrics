@@ -12,13 +12,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
+
+var bodyBufferPool bytesutil.ByteBufferPool
 
 var (
 	journaldStreamFields = flagutil.NewArrayString("journald.streamFields", "Journal fields to be used as stream fields. "+
@@ -31,14 +33,29 @@ var (
 	journaldIgnoreEntryMetadata = flag.Bool("journald.ignoreEntryMetadata", true, "Ignore journal entry fields, which with double underscores.")
 )
 
-func getCommonParams(tenantID logstorage.TenantID) *insertutils.CommonParams {
-	return &insertutils.CommonParams{
-		TenantID:     tenantID,
-		TimeField:    *journaldTimeField,
-		MsgField:     "MESSAGE",
-		StreamFields: *journaldStreamFields,
-		IgnoreFields: *journaldIgnoreFields,
+func getCommonParams(r *http.Request) (*insertutils.CommonParams, error) {
+	cp, err := insertutils.GetCommonParams(r)
+	if err != nil {
+		return nil, err
 	}
+	if cp.TenantID.AccountID == 0 && cp.TenantID.ProjectID == 0 {
+		tenantID, err := logstorage.ParseTenantID(*journaldTenantID)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse -journald.tenantID=%q for journald: %w", *journaldTenantID, err)
+		}
+		cp.TenantID = tenantID
+	}
+	if cp.TimeField != "" {
+		cp.TimeField = *journaldTimeField
+	}
+	if len(cp.StreamFields) == 0 {
+		cp.StreamFields = *journaldStreamFields
+	}
+	if len(cp.IgnoreFields) == 0 {
+		cp.IgnoreFields = *journaldIgnoreFields
+	}
+	cp.MsgField = "MESSAGE"
+	return cp, nil
 }
 
 // RequestHandler processes Journald Export insert requests
@@ -59,39 +76,38 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 func handleJournald(r *http.Request, w http.ResponseWriter) {
 	startTime := time.Now()
 	requestsJournaldTotal.Inc()
-	reader := r.Body
-	if r.Header.Get("Content-Encoding") == "gzip" {
-		zr, err := common.GetGzipReader(reader)
-		if err != nil {
-			httpserver.Errorf(w, r, "cannot initialize gzip reader: %s", err)
-			return
-		}
-		defer common.PutGzipReader(zr)
-		reader = zr
-	}
 
-	wcr := writeconcurrencylimiter.GetReader(reader)
-	data, err := io.ReadAll(wcr)
-	writeconcurrencylimiter.PutReader(wcr)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot read request body: %s", err)
-		return
-	}
-
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
-		return
-	}
 	if err := vlstorage.CanWriteData(); err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
 
-	tenantID, err := logstorage.ParseTenantID(*journaldTenantID)
+	reader := r.Body
+	var err error
+
+	wcr := writeconcurrencylimiter.GetReader(reader)
+	data, err := io.ReadAll(wcr)
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse -journald.tenantID=%q for journald: %s", *journaldTenantID, err)
+		httpserver.Errorf(w, r, "cannot read request body: %s", err)
+		return
 	}
-	cp := getCommonParams(tenantID)
+	writeconcurrencylimiter.PutReader(wcr)
+	bb := bodyBufferPool.Get()
+	defer bodyBufferPool.Put(bb)
+	if r.Header.Get("Content-Encoding") == "zstd" {
+		bb.B, err = zstd.Decompress(bb.B[:0], data)
+		if err != nil {
+			httpserver.Errorf(w, r, "cannot decompress zstd-encoded request with length %d: %s", len(data), err)
+			return
+		}
+		data = bb.B
+	}
+	cp, err := getCommonParams(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
+		return
+	}
+
 	lmp := cp.NewLogMessageProcessor()
 	n, err := parseJournaldRequest(data, lmp, cp)
 	lmp.MustClose()
@@ -123,9 +139,8 @@ func parseJournaldRequest(data []byte, lmp insertutils.LogMessageProcessor, cp *
 	var fields []logstorage.Field
 	var ts int64
 	var err error
-	var rowsIngested int
-	var lastIdx int
-	var name string
+	var rowsIngested, lastIdx int
+	var name, value string
 	for i, char := range dataStr {
 		if char == '=' && len(name) == 0 {
 			name = dataStr[lastIdx:i]
@@ -133,13 +148,17 @@ func parseJournaldRequest(data []byte, lmp insertutils.LogMessageProcessor, cp *
 				name = "_msg"
 			}
 			lastIdx = i + 1
-		} else if char == '\n' {
-			value := dataStr[lastIdx:i]
+		} else if char == '\n' || i == len(dataStr)-1 {
 			if len(name) == 0 && len(fields) > 0 {
 				lmp.AddRow(ts*1e3, fields)
 				rowsIngested++
 				fields = fields[:0]
 			} else {
+				if i == len(dataStr)-1 {
+					value = dataStr[lastIdx:]
+				} else {
+					value = dataStr[lastIdx:i]
+				}
 				ignoreField := *journaldIgnoreEntryMetadata && strings.HasPrefix(name, "__")
 				if name == cp.TimeField {
 					// extract timetamp in microseconds
@@ -154,9 +173,15 @@ func parseJournaldRequest(data []byte, lmp insertutils.LogMessageProcessor, cp *
 					})
 				}
 				name = ""
+				value = ""
 			}
 			lastIdx = i + 1
 		}
+	}
+	if len(fields) > 0 {
+		lmp.AddRow(ts*1e3, fields)
+		rowsIngested++
+		fields = fields[:0]
 	}
 	return rowsIngested, nil
 }
