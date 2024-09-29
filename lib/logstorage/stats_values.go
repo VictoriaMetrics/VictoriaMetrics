@@ -184,7 +184,7 @@ func (svp *statsValuesProcessor) finalizeStats() string {
 
 func (svp *statsValuesProcessor) limitReached() bool {
 	limit := svp.sv.limit
-	return limit > 0 && uint64(len(svp.values)) >= limit
+	return limit > 0 && uint64(len(svp.values)) > limit
 }
 
 func parseStatsValues(lex *lexer) (*statsValues, error) {
