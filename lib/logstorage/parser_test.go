@@ -1150,9 +1150,11 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// sort pipe
 	f(`* | sort`, `* | sort`)
+	f(`* | order`, `* | sort`)
 	f(`* | sort desc`, `* | sort desc`)
 	f(`* | sort by()`, `* | sort`)
 	f(`* | sort bY (foo)`, `* | sort by (foo)`)
+	f(`* | ORDer bY (foo)`, `* | sort by (foo)`)
 	f(`* | sORt bY (_time, _stream DEsc, host)`, `* | sort by (_time, _stream desc, host)`)
 	f(`* | sort bY (foo desc, bar,) desc`, `* | sort by (foo desc, bar) desc`)
 	f(`* | sort limit 10`, `* | sort limit 10`)

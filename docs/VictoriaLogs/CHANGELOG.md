@@ -16,6 +16,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): accept Unix timestamps in seconds in the ingested logs.
+* FEATURE: [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe): allow using `order` alias instead of `sort`. For example, `_time:5s | order by (_time)` query works the same as `_time:5s | sort by (_time)`.
 
 ## [v0.31.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.31.0-victorialogs)
 
