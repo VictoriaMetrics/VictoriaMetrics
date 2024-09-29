@@ -74,11 +74,9 @@ func (pc *pipeStreamContext) newPipeProcessor(workersCount int, stopCh <-chan st
 	for i := range shards {
 		shards[i] = pipeStreamContextProcessorShard{
 			pipeStreamContextProcessorShardNopad: pipeStreamContextProcessorShardNopad{
-				pc:              pc,
-				stateSizeBudget: stateSizeBudgetChunk,
+				pc: pc,
 			},
 		}
-		maxStateSize -= stateSizeBudgetChunk
 	}
 
 	pcp := &pipeStreamContextProcessor{
