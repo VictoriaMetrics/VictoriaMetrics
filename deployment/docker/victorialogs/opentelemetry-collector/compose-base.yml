@@ -1,5 +1,5 @@
 include:
- - ../compose.yml
+ - ../compose-base.yml
 services:
   collector:
     image: docker.io/otel/opentelemetry-collector-contrib:0.108.0

@@ -1,5 +1,5 @@
 include:
- - ../compose.yml
+ - ../compose-base.yml
 services:
   vector:
     image: docker.io/timberio/vector:0.40.0-distroless-static

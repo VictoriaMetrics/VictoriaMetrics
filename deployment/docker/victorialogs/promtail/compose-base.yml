@@ -1,5 +1,5 @@
 include:
- - ../compose.yml
+ - ../compose-base.yml
 services:
   promtail:
     image: grafana/promtail:3.0.1
