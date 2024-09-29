@@ -1025,6 +1025,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats count('') foo`, `* | stats count(_msg) as foo`)
 	f(`* | stats count(foo) ''`, `* | stats count(foo) as _msg`)
 	f(`* | count()`, `* | stats count(*) as "count(*)"`)
+	f(`* | count(), count() if (foo)`, `* | stats count(*) as "count(*)", count(*) if (foo) as "count(*) if (foo)"`)
 
 	// stats pipe count_empty
 	f(`* | stats count_empty() x`, `* | stats count_empty(*) as x`)
