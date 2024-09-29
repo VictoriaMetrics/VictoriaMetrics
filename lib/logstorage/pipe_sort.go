@@ -116,11 +116,9 @@ func newPipeSortProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}
 	for i := range shards {
 		shards[i] = pipeSortProcessorShard{
 			pipeSortProcessorShardNopad: pipeSortProcessorShardNopad{
-				ps:              ps,
-				stateSizeBudget: stateSizeBudgetChunk,
+				ps: ps,
 			},
 		}
-		maxStateSize -= stateSizeBudgetChunk
 	}
 
 	psp := &pipeSortProcessor{

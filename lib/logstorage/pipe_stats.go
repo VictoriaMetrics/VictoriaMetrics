@@ -162,11 +162,8 @@ func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, 
 		shards[i] = pipeStatsProcessorShard{
 			pipeStatsProcessorShardNopad: pipeStatsProcessorShardNopad{
 				ps: ps,
-
-				stateSizeBudget: stateSizeBudgetChunk,
 			},
 		}
-		maxStateSize -= stateSizeBudgetChunk
 	}
 
 	psp := &pipeStatsProcessor{

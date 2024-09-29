@@ -79,11 +79,9 @@ func (pt *pipeTop) newPipeProcessor(workersCount int, stopCh <-chan struct{}, ca
 	for i := range shards {
 		shards[i] = pipeTopProcessorShard{
 			pipeTopProcessorShardNopad: pipeTopProcessorShardNopad{
-				pt:              pt,
-				stateSizeBudget: stateSizeBudgetChunk,
+				pt: pt,
 			},
 		}
-		maxStateSize -= stateSizeBudgetChunk
 	}
 
 	ptp := &pipeTopProcessor{
