@@ -173,7 +173,6 @@ func parseJournaldRequest(data []byte, lmp insertutils.LogMessageProcessor, cp *
 					})
 				}
 				name = ""
-				value = ""
 			}
 			lastIdx = i + 1
 		}
@@ -181,7 +180,6 @@ func parseJournaldRequest(data []byte, lmp insertutils.LogMessageProcessor, cp *
 	if len(fields) > 0 {
 		lmp.AddRow(ts*1e3, fields)
 		rowsIngested++
-		fields = fields[:0]
 	}
 	return rowsIngested, nil
 }
