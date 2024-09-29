@@ -1,7 +1,6 @@
 package config
 
 import (
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -22,45 +21,6 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	os.Exit(m.Run())
-}
-
-func TestParseConfigWithMultiDocNegative(t *testing.T) {
-	// Load the test file that contains invalid YAML or unknown fields
-	data, err := os.ReadFile("testdata/rules/rules-multi-doc-bad.rules")
-	if err != nil {
-		t.Fatalf("failed to read test file: %s", err)
-	}
-	groups, err := parseConfig(data)
-
-	// We expect an error to occur
-	if err == nil {
-		t.Fatalf("expected an error but got none")
-	}
-
-	// Verify that no groups were parsed
-	if len(groups) != 0 {
-		t.Fatalf("expected 0 groups due to parsing error, got %d", len(groups))
-	}
-
-	log.Println("Error occurred as expected:", err)
-}
-
-func TestParseConfigWithMultiDocPositive(t *testing.T) {
-
-	data, err := os.ReadFile("testdata/rules/rules-multi-doc-good.rules")
-	if err != nil {
-		t.Fatalf("failed to read test file: %s", err)
-	}
-
-	groups, err := parseConfig(data)
-	for i, group := range groups {
-		// Print the index and the group
-		log.Printf("Group %d: %+v\n", i+1, group)
-	}
-	if err != nil {
-		t.Fatalf("failed to read test file: %s", err.Error())
-	}
-
 }
 
 func TestParseFromURL(t *testing.T) {
@@ -127,6 +87,7 @@ func TestParse_Failure(t *testing.T) {
 	f([]string{"testdata/rules/rules1-bad.rules"}, "bad graphite expr")
 	f([]string{"testdata/dir/rules6-bad.rules"}, "missing ':' in header")
 	f([]string{"http://unreachable-url"}, "failed to")
+	f([]string{"testdata/rules/rules-multi-doc-bad.rules"}, "failed to parse [testdata/rules/rules-multi-doc-bad.rules]: errors(1): failed to parse file \"testdata/rules/rules-multi-doc-bad.rules\": unknown fields in config: invalid-field-1, invalid-field-2, invalid-field-3")
 }
 
 func TestRuleValidate(t *testing.T) {

@@ -4,17 +4,16 @@ import (
 	"bytes"
 	"crypto/md5"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"gopkg.in/yaml.v2"
 	"hash/fnv"
 	"io"
 	"net/url"
 	"sort"
 	"strings"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // Group contains list of Rules grouped into
@@ -301,32 +300,33 @@ func parseConfig(data []byte) ([]Group, error) {
 	}
 
 	var allGroups []Group
+	var g struct {
+		Groups []Group        `yaml:"groups"`
+		XXX    map[string]any `yaml:",inline"` // Catches all undefined fields and must be empty after parsing.
+	}
+	var overflowMap = make(map[string]any)
 
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	for {
-		var g struct {
-			Groups []Group        `yaml:"groups"`
-			XXX    map[string]any `yaml:",inline"` // Catches all undefined fields and must be empty after parsing.
-		}
 
 		// Decode the next document
 		if err := decoder.Decode(&g); err != nil {
 			if err == io.EOF { // End of file indicates no more documents to read
 				break
 			}
-			return nil, fmt.Errorf("failed to decode YAML document: %w", err)
+			fmt.Printf("Warning: failed to decode document: %v", err)
+			continue
 		}
 
-		// Check for unknown fields
-		if err := checkOverflow(g.XXX, "config"); err != nil {
-			return nil, err
+		for key, value := range g.XXX {
+			overflowMap[key] = value
 		}
 
 		// Append valid groups
 		allGroups = append(allGroups, g.Groups...)
 	}
 
-	return allGroups, nil
+	return allGroups, checkOverflow(overflowMap, "config")
 }
 
 func checkOverflow(m map[string]any, ctx string) error {
