@@ -51,6 +51,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): consistently return the first non-`NaN` value from [`range_first`](https://docs.victoriametrics.com/metricsql/#range_first) function across all the returned data points. Previously `NaN` data points weren't replaced with the first non-`NaN` value.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): consistently return the last non-`NaN` value from [`range_last`](https://docs.victoriametrics.com/metricsql/#range_last) function across all the returned data points. Previously `NaN` data points weren't replaced with the last non-`NaN` value.
 * BUGFIX: all VictoriaMetrics components: increase default value of `-loggerMaxArgLen` cmd-line flag from 1000 to 5000. This should improve visibility on errors produced by very long queries.
+* BUGFIX: all VictoriaMetrics components: trim trailing spaces when reading content from `*.passwordFile` and similar flags. It reverts changes introduced at [v1.102.0-rc2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc2) release. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6986) for details.
 
 ## [v1.103.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.103.0)
 
