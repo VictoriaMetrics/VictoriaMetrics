@@ -135,7 +135,7 @@ type pipeUniqProcessorShardNopad struct {
 //
 // It returns false if the block cannot be written because of the exceeded limit.
 func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
-	if limit := shard.pu.limit; limit > 0 && uint64(len(shard.m)) >= limit {
+	if limit := shard.pu.limit; limit > 0 && uint64(len(shard.m)) > limit {
 		return false
 	}
 
@@ -301,7 +301,7 @@ func (pup *pipeUniqProcessor) flush() error {
 
 	// There is little sense in returning partial hits when the limit on the number of unique entries is reached.
 	// It is better from UX experience is to return zero hits instead.
-	resetHits := pup.pu.limit > 0 && uint64(len(m)) >= pup.pu.limit
+	resetHits := pup.pu.limit > 0 && uint64(len(m)) > pup.pu.limit
 
 	// write result
 	wctx := &pipeUniqWriteContext{
