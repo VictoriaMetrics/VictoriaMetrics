@@ -34,7 +34,7 @@
       "collapsed": false,
       "datasource": {
         "type": "victoriametrics-datasource",
-        "uid": "PB894574A363DF0AF"
+        "uid": "$ds"
       },
       "gridPos": {
         "h": 1,
@@ -48,7 +48,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "PB894574A363DF0AF"
+            "uid": "$ds"
           },
           "refId": "A"
         }
@@ -287,7 +287,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "JVggZ4UVk"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(operator_victoriametrics-datasource_converter_active_watchers)",
@@ -356,7 +356,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "JVggZ4UVk"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(leader_election_master_status{job=~\"$job\"})",
@@ -425,7 +425,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "JVggZ4UVk"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(controller_runtime_active_workers{job=~\"$job\"})",
@@ -524,7 +524,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "JVggZ4UVk"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(operator_victoriametrics-datasource_converter_watch_events_total{job=~\"$job\"}[$__interval])) by (event_type,object_type_name)",
@@ -740,7 +740,7 @@
       "collapsed": false,
       "datasource": {
         "type": "victoriametrics-datasource",
-        "uid": "PB894574A363DF0AF"
+        "uid": "$ds"
       },
       "gridPos": {
         "h": 1,
@@ -754,7 +754,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "PB894574A363DF0AF"
+            "uid": "$ds"
           },
           "refId": "A"
         }
@@ -810,8 +810,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -924,8 +923,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1024,8 +1022,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1124,8 +1121,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1226,8 +1222,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1264,7 +1259,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "JVggZ4UVk"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(rest_client_requests_total{job=~\"$job\"}[$__interval])) by (method,code)",
@@ -1325,8 +1320,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1380,7 +1374,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "JVggZ4UVk"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "max(max_over_time(controller_runtime_active_workers{job=~\"$job\"}[$__interval]))",
@@ -1454,8 +1448,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1490,7 +1483,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "JVggZ4UVk"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (job, instance, le))) by(job)",
@@ -1551,8 +1544,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1590,7 +1582,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "JVggZ4UVk"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.99,sum(rate(rest_client_request_duration_seconds_bucket{job=~\"$job\"})) by(le,method,api) )",
@@ -1607,7 +1599,7 @@
       "collapsed": true,
       "datasource": {
         "type": "victoriametrics-datasource",
-        "uid": "PB894574A363DF0AF"
+        "uid": "$ds"
       },
       "gridPos": {
         "h": 1,
@@ -1664,8 +1656,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1800,8 +1791,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1896,8 +1886,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1992,8 +1981,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2049,7 +2037,7 @@
         {
           "datasource": {
             "type": "victoriametrics-datasource",
-            "uid": "PB894574A363DF0AF"
+            "uid": "$ds"
           },
           "refId": "A"
         }
@@ -2067,18 +2055,14 @@
   "templating": {
     "list": [
       {
-        "current": {
-          "selected": true,
-          "text": "VictoriaMetrics",
-          "value": "PF64AB64142051B50"
-        },
+        "current": {},
         "hide": 0,
         "includeAll": false,
         "multi": false,
         "name": "ds",
         "options": [],
         "query": "victoriametrics-datasource",
-        "queryValue": "",
+        "queryValue": "te",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -2153,7 +2137,7 @@
     ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {},
