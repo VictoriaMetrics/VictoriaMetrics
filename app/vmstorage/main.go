@@ -171,9 +171,9 @@ func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) {
 // DeleteSeries deletes series matching tfss.
 //
 // Returns the number of deleted series.
-func DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters) (int, error) {
+func DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters, maxMetrics int) (int, error) {
 	WG.Add(1)
-	n, err := Storage.DeleteSeries(qt, tfss)
+	n, err := Storage.DeleteSeries(qt, tfss, maxMetrics)
 	WG.Done()
 	return n, err
 }

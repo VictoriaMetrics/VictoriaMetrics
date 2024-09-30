@@ -162,11 +162,8 @@ func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, 
 		shards[i] = pipeStatsProcessorShard{
 			pipeStatsProcessorShardNopad: pipeStatsProcessorShardNopad{
 				ps: ps,
-
-				stateSizeBudget: stateSizeBudgetChunk,
 			},
 		}
-		maxStateSize -= stateSizeBudgetChunk
 	}
 
 	psp := &pipeStatsProcessor{
@@ -577,6 +574,9 @@ func parsePipeStats(lex *lexer, needStatsKeyword bool) (*pipeStats, error) {
 		resultName := ""
 		if lex.isKeyword(",", "|", ")", "") {
 			resultName = sf.String()
+			if f.iff != nil {
+				resultName += " " + f.iff.String()
+			}
 		} else {
 			if lex.isKeyword("as") {
 				lex.nextToken()

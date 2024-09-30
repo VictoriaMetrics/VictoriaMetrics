@@ -20,11 +20,9 @@ func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}
 	for i := range shards {
 		shards[i] = pipeTopkProcessorShard{
 			pipeTopkProcessorShardNopad: pipeTopkProcessorShardNopad{
-				ps:              ps,
-				stateSizeBudget: stateSizeBudgetChunk,
+				ps: ps,
 			},
 		}
-		maxStateSize -= stateSizeBudgetChunk
 	}
 
 	ptp := &pipeTopkProcessor{

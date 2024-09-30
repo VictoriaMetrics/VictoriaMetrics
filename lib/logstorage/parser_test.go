@@ -646,6 +646,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`not(foo)`, `!foo`)
 	f(`not (foo)`, `!foo`)
 	f(`not ( foo or bar )`, `!(foo or bar)`)
+	f(`!(foo or bar)`, `!(foo or bar)`)
+	f(`-(foo or bar)`, `!(foo or bar)`)
 	f(`foo:!""`, `!foo:""`)
 	f("_msg:foo", "foo")
 	f("'foo:bar'", `"foo:bar"`)
@@ -944,8 +946,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("foo-bar+baz*", `"foo-bar+baz"*`)
 	f("foo- bar", `"foo-" bar`)
 	f("foo -bar", `foo !bar`)
-	f("foo!bar", `foo !bar`)
-	f("foo:aa!bb:cc", `foo:aa !bb:cc`)
+	f("foo!bar", `"foo!bar"`)
+	f("foo:aa!bb:cc", `foo:"aa!bb:cc"`)
 	f(`foo:bar:baz`, `foo:"bar:baz"`)
 	f(`foo:(bar baz:xxx)`, `foo:bar foo:"baz:xxx"`)
 	f(`foo:(_time:abc or not z)`, `foo:"_time:abc" or !foo:z`)
@@ -1025,6 +1027,7 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats count('') foo`, `* | stats count(_msg) as foo`)
 	f(`* | stats count(foo) ''`, `* | stats count(foo) as _msg`)
 	f(`* | count()`, `* | stats count(*) as "count(*)"`)
+	f(`* | count(), count() if (foo)`, `* | stats count(*) as "count(*)", count(*) if (foo) as "count(*) if (foo)"`)
 
 	// stats pipe count_empty
 	f(`* | stats count_empty() x`, `* | stats count_empty(*) as x`)
@@ -1150,9 +1153,11 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// sort pipe
 	f(`* | sort`, `* | sort`)
+	f(`* | order`, `* | sort`)
 	f(`* | sort desc`, `* | sort desc`)
 	f(`* | sort by()`, `* | sort`)
 	f(`* | sort bY (foo)`, `* | sort by (foo)`)
+	f(`* | ORDer bY (foo)`, `* | sort by (foo)`)
 	f(`* | sORt bY (_time, _stream DEsc, host)`, `* | sort by (_time, _stream desc, host)`)
 	f(`* | sort bY (foo desc, bar,) desc`, `* | sort by (foo desc, bar) desc`)
 	f(`* | sort limit 10`, `* | sort limit 10`)

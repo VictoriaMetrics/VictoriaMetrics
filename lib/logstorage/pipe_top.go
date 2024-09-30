@@ -79,11 +79,9 @@ func (pt *pipeTop) newPipeProcessor(workersCount int, stopCh <-chan struct{}, ca
 	for i := range shards {
 		shards[i] = pipeTopProcessorShard{
 			pipeTopProcessorShardNopad: pipeTopProcessorShardNopad{
-				pt:              pt,
-				stateSizeBudget: stateSizeBudgetChunk,
+				pt: pt,
 			},
 		}
-		maxStateSize -= stateSizeBudgetChunk
 	}
 
 	ptp := &pipeTopProcessor{
@@ -168,6 +166,7 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 		if c.valueType == valueTypeDict {
 			a := encoding.GetUint64s(len(c.dictValues))
 			hits := a.A
+			clear(hits)
 			valuesEncoded := c.getValuesEncoded(br)
 			for _, v := range valuesEncoded {
 				idx := unmarshalUint8(v)
@@ -208,6 +207,10 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 }
 
 func (shard *pipeTopProcessorShard) updateState(v string, hits uint64) {
+	if hits == 0 {
+		return
+	}
+
 	m := shard.getM()
 	pHits, ok := m[v]
 	if !ok {

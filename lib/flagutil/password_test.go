@@ -32,7 +32,7 @@ func TestPassword(t *testing.T) {
 
 	// read the password from file by relative path
 	localPassFile := "testdata/password.txt"
-	expectedPassword = "foo-bar-baz\n\n\n"
+	expectedPassword = "foo-bar-baz"
 	path := "file://" + localPassFile
 	if err := p.Set(path); err != nil {
 		t.Fatalf("cannot set password to file: %s", err)
@@ -52,7 +52,7 @@ func TestPassword(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	expectedPassword = "foo-bar-baz\n\n\n"
+	expectedPassword = "foo-bar-baz"
 	path = "file://" + localPassFile
 	if err := p.Set(path); err != nil {
 		t.Fatalf("unexpected error: %s", err)

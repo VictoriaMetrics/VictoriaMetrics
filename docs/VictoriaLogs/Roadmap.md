@@ -22,7 +22,7 @@ The following functionality is planned in the future versions of VictoriaLogs:
 
 - Support for [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/) from popular log collectors and formats:
   - [x] [OpenTelemetry for logs](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/)
-  - [ ] Fluentd
+  - [x] [Fluentd](https://docs.victoriametrics.com/victorialogs/data-ingestion/fluentd/)
   - [ ] [Journald](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4618) (systemd)
   - [ ] [Datadog protocol for logs](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6632)
   - [x] [Telegraf](https://docs.victoriametrics.com/victorialogs/data-ingestion/telegraf/)

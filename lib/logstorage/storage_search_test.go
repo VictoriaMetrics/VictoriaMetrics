@@ -384,9 +384,9 @@ func TestStorageRunQuery(t *testing.T) {
 		}
 
 		resultsExpected := []ValueWithHits{
-			{`{instance="host-0:234",job="foobar"}`, 0},
-			{`{instance="host-1:234",job="foobar"}`, 0},
-			{`{instance="host-2:234",job="foobar"}`, 0},
+			{`{instance="host-0:234",job="foobar"}`, 385},
+			{`{instance="host-1:234",job="foobar"}`, 385},
+			{`{instance="host-2:234",job="foobar"}`, 385},
 		}
 		if !reflect.DeepEqual(results, resultsExpected) {
 			t.Fatalf("unexpected result; got\n%v\nwant\n%v", results, resultsExpected)

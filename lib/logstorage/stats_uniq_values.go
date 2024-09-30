@@ -215,7 +215,7 @@ func (sup *statsUniqValuesProcessor) updateState(v string) int {
 
 func (sup *statsUniqValuesProcessor) limitReached() bool {
 	limit := sup.su.limit
-	return limit > 0 && uint64(len(sup.m)) >= limit
+	return limit > 0 && uint64(len(sup.m)) > limit
 }
 
 func marshalJSONArray(items []string) string {

@@ -355,7 +355,7 @@ func (sup *statsCountUniqProcessor) updateState(v []byte) int {
 
 func (sup *statsCountUniqProcessor) limitReached() bool {
 	limit := sup.su.limit
-	return limit > 0 && uint64(len(sup.m)) >= limit
+	return limit > 0 && uint64(len(sup.m)) > limit
 }
 
 func parseStatsCountUniq(lex *lexer) (*statsCountUniq, error) {

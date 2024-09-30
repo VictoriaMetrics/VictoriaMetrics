@@ -1,10 +1,12 @@
-# Docker compose Fluentd integration with VictoriaLogs using given below protocols:
+# Docker compose Fluentd integration with VictoriaLogs
+
+The folder contains examples of [Fluentd](https://www.fluentd.org/) integration with VictoriaLogs using protocols:
 
 * [loki](./loki)
 * [jsonline](./jsonline)
 * [elasticsearch](./elasticsearch)
 
-The folder contains the example of integration of [fluentd](https://www.fluentd.org/) with Victorialogs
+All required plugins, that should be installed in order to support protocols listed above can be found in a [Dockerfile](./Dockerfile)
 
 To spin-up environment `cd` to any of listed above directories run the following command:
 ```
@@ -19,8 +21,9 @@ docker compose rm -f
 
 The docker compose file contains the following components:
 
-* fluentd - fluentd is configured to collect logs from the `docker`, you can find configuration in the `fluent-bit.conf`. It writes data in VictoriaLogs
-* VictoriaLogs - the log database, it accepts the data from `fluentd` by json line protocol
+* fluentd - logs collection agent configured to collect and write data to `victorialogs`
+* victorialogs - logs database, receives data from `fluentd` agent
+* victoriametrics - metrics database, which collects metrics from `victorialogs` and `fluentd` for observability purposes
 
 Querying the data
 

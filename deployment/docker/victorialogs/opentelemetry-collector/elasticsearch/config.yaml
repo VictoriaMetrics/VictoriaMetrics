@@ -8,6 +8,15 @@ receivers:
     resource:
       region: us-east-1
 service:
+  telemetry:
+    metrics:
+      readers:
+        - periodic:
+            interval: 5000
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: http://victoriametrics:8428/opentelemetry/api/v1/push
   pipelines:
     logs:
       receivers: [filelog]

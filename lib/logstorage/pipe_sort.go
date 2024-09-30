@@ -116,11 +116,9 @@ func newPipeSortProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}
 	for i := range shards {
 		shards[i] = pipeSortProcessorShard{
 			pipeSortProcessorShardNopad: pipeSortProcessorShardNopad{
-				ps:              ps,
-				stateSizeBudget: stateSizeBudgetChunk,
+				ps: ps,
 			},
 		}
-		maxStateSize -= stateSizeBudgetChunk
 	}
 
 	psp := &pipeSortProcessor{
@@ -748,8 +746,8 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 }
 
 func parsePipeSort(lex *lexer) (*pipeSort, error) {
-	if !lex.isKeyword("sort") {
-		return nil, fmt.Errorf("expecting 'sort'; got %q", lex.token)
+	if !lex.isKeyword("sort") && !lex.isKeyword("order") {
+		return nil, fmt.Errorf("expecting 'sort' or 'order'; got %q", lex.token)
 	}
 	lex.nextToken()
 

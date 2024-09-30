@@ -74,11 +74,9 @@ func (pu *pipeUniq) newPipeProcessor(workersCount int, stopCh <-chan struct{}, c
 	for i := range shards {
 		shards[i] = pipeUniqProcessorShard{
 			pipeUniqProcessorShardNopad: pipeUniqProcessorShardNopad{
-				pu:              pu,
-				stateSizeBudget: stateSizeBudgetChunk,
+				pu: pu,
 			},
 		}
-		maxStateSize -= stateSizeBudgetChunk
 	}
 
 	pup := &pipeUniqProcessor{
@@ -137,7 +135,7 @@ type pipeUniqProcessorShardNopad struct {
 //
 // It returns false if the block cannot be written because of the exceeded limit.
 func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
-	if limit := shard.pu.limit; limit > 0 && uint64(len(shard.m)) >= limit {
+	if limit := shard.pu.limit; limit > 0 && uint64(len(shard.m)) > limit {
 		return false
 	}
 
@@ -168,23 +166,18 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 			return true
 		}
 		if c.valueType == valueTypeDict {
-			if needHits {
-				a := encoding.GetUint64s(len(c.dictValues))
-				hits := a.A
-				valuesEncoded := c.getValuesEncoded(br)
-				for _, v := range valuesEncoded {
-					idx := unmarshalUint8(v)
-					hits[idx]++
-				}
-				for i, v := range c.dictValues {
-					shard.updateState(v, hits[i])
-				}
-				encoding.PutUint64s(a)
-			} else {
-				for _, v := range c.dictValues {
-					shard.updateState(v, 0)
-				}
+			a := encoding.GetUint64s(len(c.dictValues))
+			hits := a.A
+			clear(hits)
+			valuesEncoded := c.getValuesEncoded(br)
+			for _, v := range valuesEncoded {
+				idx := unmarshalUint8(v)
+				hits[idx]++
 			}
+			for i, v := range c.dictValues {
+				shard.updateState(v, hits[i])
+			}
+			encoding.PutUint64s(a)
 			return true
 		}
 
@@ -231,6 +224,10 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 }
 
 func (shard *pipeUniqProcessorShard) updateState(v string, hits uint64) {
+	if hits == 0 {
+		return
+	}
+
 	m := shard.getM()
 	pHits, ok := m[v]
 	if !ok {
@@ -302,7 +299,7 @@ func (pup *pipeUniqProcessor) flush() error {
 
 	// There is little sense in returning partial hits when the limit on the number of unique entries is reached.
 	// It is better from UX experience is to return zero hits instead.
-	resetHits := pup.pu.limit > 0 && uint64(len(m)) >= pup.pu.limit
+	resetHits := pup.pu.limit > 0 && uint64(len(m)) > pup.pu.limit
 
 	// write result
 	wctx := &pipeUniqWriteContext{

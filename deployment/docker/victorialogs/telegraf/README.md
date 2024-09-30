@@ -1,6 +1,6 @@
-# Docker compose Telegraf integration with VictoriaLogs for docker
+# Docker compose Telegraf integration with VictoriaLogs
 
-The folder contains the examples of integration of [telegraf](https://www.influxdata.com/time-series-platform/telegraf/) with VictoriaLogs using:
+The folder contains examples of [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/) integration with VictoriaLogs using protocols:
 
 * [elasticsearch](./elasticsearch)
 * [loki](./loki)
@@ -20,9 +20,9 @@ docker compose rm -f
 
 The docker compose file contains the following components:
 
-* telegraf - telegraf is configured to collect logs from the `docker`, you can find configuration in the `telegraf.conf`. It writes data in VictoriaLogs. It pushes metrics to VictoriaMetrics.
-* VictoriaLogs - the log database, it accepts the data from `telegraf` by elastic protocol
-* VictoriaMetrics - collects metrics from `VictoriaLogs` and `VictoriaMetrics`
+* telegraf - logs collection agent configured to collect and write data to `victorialogs`
+* victorialogs - logs database, receives data from `telegraf` agent
+* victoriametrics - metrics database, which collects metrics from `victorialogs` and `telegraf` for observability purposes
 
 Querying the data
 

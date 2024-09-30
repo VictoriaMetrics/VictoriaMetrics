@@ -11,6 +11,18 @@ aliases:
   - /operator/changelog/index.html
 ---
 
+## [v0.48.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.3) - 29 Sep 2024
+
+- [vmcluster](https://docs.victoriametrics.com/operator/resources/vmcluster): properly apply global container registry from configuration. It was ignored for `VMCluster` since `v0.48.0` release. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1118) for details.
+- [operator](https://docs.victoriametrics.com/operator/): updates default vlogs app version to v0.32.0
+- [operator](https://docs.victoriametrics.com/operator/): adds new flag `--disableControllerForCRD`. It allows to disable reconcile controller for the given comma-separated list of CRD names. See [this issue](https://github.com/VictoriaMetrics/operator/issues/528) for details.
+
+## [v0.48.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.2) - 27 Sep 2024
+
+- [operator](https://docs.victoriametrics.com/operator/): properly expose `vm_app_version` metric tag with `version` and `short_version` build info. It was broken since v0.46.0 release.
+- [operator](https://docs.victoriametrics.com/operator/): changes default value for `controller.maxConcurrentReconciles` from `1` to `5`. It should improve reconcile performance for the most installations.
+- [operator](https://docs.victoriametrics.com/operator/): expose new runtime metrics `rest_client_request_duration_seconds`, `sched_latencies_seconds`. It allows to better debug operator reconcile latencies.
+
 ## [v0.48.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.1) - 26 Sep 2024
 
 - [vmalertmanager](https://docs.victoriametrics.com/operator/resources/vmalertmanager): properly build service, previously port by number instead of name was used. It produced `updating service` log messages.

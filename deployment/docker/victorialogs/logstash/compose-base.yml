@@ -1,5 +1,5 @@
 include:
- - ../compose.yml
+ - ../compose-base.yml
 services:
   logstash:
     build:
