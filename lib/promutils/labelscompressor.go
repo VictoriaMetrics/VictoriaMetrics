@@ -60,13 +60,16 @@ func (lc *LabelsCompressor) compress(dst []uint64, labels []prompbmarshal.Label)
 			v = idx
 			labelCopy := cloneLabel(label)
 
-			// must store idxToLabel entry before labelToIdx,
+			// Must store idxToLabel entry before labelToIdx,
 			// so it can be found by possible concurrent goroutines.
+			//
+			// We might store duplicated entries for single label with different indexes,
+			// and it's fine, see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7118.
 			lc.idxToLabel.Store(idx, labelCopy)
 			vNew, loaded := lc.labelToIdx.LoadOrStore(labelCopy, v)
 			if loaded {
-				// This label has been stored by a concurrent goroutine,
-				// use it for key consistency.
+				// This label has been stored by a concurrent goroutine with different index,
+				// use it for key consistency in aggrState.
 				v = vNew
 			}
 
