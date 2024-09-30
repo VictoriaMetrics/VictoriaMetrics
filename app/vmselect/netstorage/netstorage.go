@@ -119,7 +119,7 @@ type timeseriesWork struct {
 	rowsProcessed int
 }
 
-func (tsw *timeseriesWork) do(r *Result, workerID uint, isMultiTenant bool) error {
+func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 	if tsw.mustStop.Load() {
 		return nil
 	}
@@ -128,7 +128,7 @@ func (tsw *timeseriesWork) do(r *Result, workerID uint, isMultiTenant bool) erro
 		tsw.mustStop.Store(true)
 		return fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 	}
-	if err := tsw.pts.Unpack(r, rss.tbfs, rss.tr, isMultiTenant); err != nil {
+	if err := tsw.pts.Unpack(r, rss.tbfs, rss.tr); err != nil {
 		tsw.mustStop.Store(true)
 		return fmt.Errorf("error during time series unpacking: %w", err)
 	}
@@ -142,7 +142,7 @@ func (tsw *timeseriesWork) do(r *Result, workerID uint, isMultiTenant bool) erro
 	return nil
 }
 
-func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, workerID uint, isMultiTenant bool) {
+func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, workerID uint) {
 	tmpResult := getTmpResult()
 
 	// Perform own work at first.
@@ -150,7 +150,7 @@ func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, wo
 	seriesProcessed := 0
 	ch := workChs[workerID]
 	for tsw := range ch {
-		tsw.err = tsw.do(&tmpResult.rs, workerID, isMultiTenant)
+		tsw.err = tsw.do(&tmpResult.rs, workerID)
 		rowsProcessed += tsw.rowsProcessed
 		seriesProcessed++
 	}
@@ -174,7 +174,7 @@ func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, wo
 			if !ok {
 				break
 			}
-			tsw.err = tsw.do(&tmpResult.rs, workerID, isMultiTenant)
+			tsw.err = tsw.do(&tmpResult.rs, workerID)
 			rowsProcessed += tsw.rowsProcessed
 			seriesProcessed++
 		}
@@ -244,11 +244,11 @@ var defaultMaxWorkersPerQuery = func() int {
 // Data processing is immediately stopped if f returns non-nil error.
 //
 // rss becomes unusable after the call to RunParallel.
-func (rss *Results) RunParallel(qt *querytracer.Tracer, isMultiTenant bool, f func(rs *Result, workerID uint) error) error {
+func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) error {
 	qt = qt.NewChild("parallel process of fetched data")
 	defer rss.closeTmpBlockFiles()
 
-	rowsProcessedTotal, err := rss.runParallel(qt, isMultiTenant, f)
+	rowsProcessedTotal, err := rss.runParallel(qt, f)
 	seriesProcessedTotal := len(rss.packedTimeseries)
 	rss.packedTimeseries = rss.packedTimeseries[:0]
 
@@ -260,7 +260,7 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, isMultiTenant bool, f fu
 	return err
 }
 
-func (rss *Results) runParallel(qt *querytracer.Tracer, isMultiTenant bool, f func(rs *Result, workerID uint) error) (int, error) {
+func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) (int, error) {
 	tswsLen := len(rss.packedTimeseries)
 	if tswsLen == 0 {
 		// Nothing to process
@@ -283,7 +283,7 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, isMultiTenant bool, f fu
 		var err error
 		for i := range rss.packedTimeseries {
 			initTimeseriesWork(&tsw, &rss.packedTimeseries[i])
-			err = tsw.do(&tmpResult.rs, 0, isMultiTenant)
+			err = tsw.do(&tmpResult.rs, 0)
 			rowsReadPerSeries.Update(float64(tsw.rowsProcessed))
 			rowsProcessedTotal += tsw.rowsProcessed
 			if err != nil {
@@ -332,7 +332,7 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, isMultiTenant bool, f fu
 		wg.Add(1)
 		qtChild := qt.NewChild("worker #%d", i)
 		go func(workerID uint) {
-			timeseriesWorker(qtChild, workChs, workerID, isMultiTenant)
+			timeseriesWorker(qtChild, workChs, workerID)
 			qtChild.Done()
 			wg.Done()
 		}(uint(i))
@@ -453,16 +453,10 @@ func putTmpStorageBlock(sb *storage.Block) {
 var tmpStorageBlockPool sync.Pool
 
 // Unpack unpacks pts to dst.
-func (pts *packedTimeseries) Unpack(dst *Result, tbfs []*tmpBlocksFile, tr storage.TimeRange, isMultiTenant bool) error {
+func (pts *packedTimeseries) Unpack(dst *Result, tbfs []*tmpBlocksFile, tr storage.TimeRange) error {
 	dst.reset()
 	if err := dst.MetricName.Unmarshal(bytesutil.ToUnsafeBytes(pts.metricName)); err != nil {
 		return fmt.Errorf("cannot unmarshal metricName %q: %w", pts.metricName, err)
-	}
-	if isMultiTenant {
-		dst.MetricName.AddTagBytes([]byte("vm_account_id"), strconv.AppendUint(nil, uint64(dst.MetricName.AccountID), 10))
-		dst.MetricName.AddTagBytes([]byte("vm_project_id"), strconv.AppendUint(nil, uint64(dst.MetricName.ProjectID), 10))
-		dst.MetricName.AccountID = 0
-		dst.MetricName.ProjectID = 0
 	}
 	sbh := getSortBlocksHeap()
 	var err error
@@ -1512,7 +1506,12 @@ func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
 	}
 }
 
-func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock, workerID uint) error {
+var (
+	// a prefix with an empty(0:0) tenant to be used when MetricName is reset for multi-tenancy
+	mnEmptyTenantPrefix = make([]byte, 8)
+)
+
+func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock, workerID uint, isMultiTenant bool) error {
 	tbfwLocal := &tbfw.shards[workerID]
 	tbfwLocal.initIfNeeded()
 
@@ -1528,6 +1527,15 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	m := tbfwLocal.m
 	metricName := mb.MetricName
 	addrsIdx := tbfwLocal.prevAddrsIdx
+
+	if isMultiTenant {
+		accountID := encoding.UnmarshalUint32(metricName[:4])
+		projectID := encoding.UnmarshalUint32(metricName[4:8])
+		suffix := marshalAsTags(accountID, projectID)
+		metricName = append(mnEmptyTenantPrefix, metricName[8:]...)
+		metricName = append(metricName, suffix...)
+	}
+
 	if tbfwLocal.prevMetricName == nil || string(metricName) != string(tbfwLocal.prevMetricName) {
 		idx, ok := m[string(metricName)]
 		if !ok {
@@ -1713,20 +1721,7 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 			sn.searchMetricNamesRequests.Inc()
 			metricNames, err := sn.processSearchMetricNames(qt, requestData, deadline)
 			if sq.IsMultiTenant {
-				tags := []storage.Tag{
-					{
-						Key:   []byte("vm_account_id"),
-						Value: strconv.AppendUint(nil, uint64(t.AccountID), 10),
-					},
-					{
-						Key:   []byte("vm_project_id"),
-						Value: strconv.AppendUint(nil, uint64(t.ProjectID), 10),
-					},
-				}
-				suffix := make([]byte, 0)
-				for _, tag := range tags {
-					suffix = tag.Marshal(suffix)
-				}
+				suffix := marshalAsTags(t.AccountID, t.ProjectID)
 				suffixStr := string(suffix)
 				for i := range metricNames {
 					metricNames[i] = metricNames[i] + suffixStr
@@ -1767,6 +1762,24 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 	}
 	qt.Printf("sort %d metric names", len(metricNames))
 	return metricNames, isPartial, nil
+}
+
+func marshalAsTags(accountID, projectID uint32) []byte {
+	tags := []storage.Tag{
+		{
+			Key:   []byte("vm_account_id"),
+			Value: strconv.AppendUint(nil, uint64(accountID), 10),
+		},
+		{
+			Key:   []byte("vm_project_id"),
+			Value: strconv.AppendUint(nil, uint64(projectID), 10),
+		},
+	}
+	suffix := make([]byte, 0)
+	for _, tag := range tags {
+		suffix = tag.Marshal(suffix)
+	}
+	return suffix
 }
 
 // limitExceededErr error generated by vmselect
@@ -1815,7 +1828,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 			}
 		}
 
-		if err := tbfw.RegisterAndWriteBlock(mb, workerID); err != nil {
+		if err := tbfw.RegisterAndWriteBlock(mb, workerID, sq.IsMultiTenant); err != nil {
 			return fmt.Errorf("cannot write MetricBlock to temporary blocks file: %w", err)
 		}
 		return nil
