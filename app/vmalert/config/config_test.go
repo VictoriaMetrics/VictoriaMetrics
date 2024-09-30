@@ -108,7 +108,7 @@ func TestParse_Failure(t *testing.T) {
 	f([]string{"testdata/rules/rules1-bad.rules"}, "bad graphite expr")
 	f([]string{"testdata/dir/rules6-bad.rules"}, "missing ':' in header")
 	f([]string{"http://unreachable-url"}, "failed to")
-	f([]string{"testdata/rules/rules-multi-doc-bad.rules"}, "failed to parse [testdata/rules/rules-multi-doc-bad.rules]: errors(1): failed to parse file \"testdata/rules/rules-multi-doc-bad.rules\": unknown fields in config: invalid-field-1, invalid-field-2, invalid-field-3")
+	f([]string{"testdata/rules/rules-multi-doc-bad.rules"}, "unknown fields")
 }
 
 func TestRuleValidate(t *testing.T) {

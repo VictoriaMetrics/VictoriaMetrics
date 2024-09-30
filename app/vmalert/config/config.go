@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"crypto/md5"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
-	"gopkg.in/yaml.v2"
 	"hash/fnv"
 	"io"
 	"net/url"
@@ -314,7 +314,7 @@ func parseConfig(data []byte) ([]Group, error) {
 			if err == io.EOF { // End of file indicates no more documents to read
 				break
 			}
-			fmt.Printf("Warning: failed to decode document: %v", err)
+			cLogger.Warnf("Warning: failed to decode document: %v", err)
 			continue
 		}
 
