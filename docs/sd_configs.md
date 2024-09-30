@@ -1462,6 +1462,8 @@ The list of discovered OpenStack targets is refreshed at the interval, which can
 
 ## ovhcloud_sd_configs
 
+_Available from [v1.104](https://docs.victoriametrics.com/changelog/#v11040) version._
+
 OVH Cloud SD configuration allows retrieving scrape targets from [OVH Cloud VPS](https://www.ovhcloud.com/en/vps/) 
 and [OVH Cloud dedicated server](https://ovhcloud.com/en/bare-metal/).
 
