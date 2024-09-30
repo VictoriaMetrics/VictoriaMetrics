@@ -30,6 +30,7 @@ supports the following Prometheus-compatible service discovery options for Prome
 * `kuma_sd_configs` is for discovering and scraping [Kuma](https://kuma.io) targets. See [these docs](#kuma_sd_configs).
 * `nomad_sd_configs` is for discovering and scraping targets registered in [HashiCorp Nomad](https://www.nomadproject.io/). See [these docs](#nomad_sd_configs).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
+* `ovhcloud_sd_configs` is for discovering and scraping OVH Cloud VPS and dedicated server targets. See [these docs](#ovhcloud_sd_configs).
 * `static_configs` is for scraping statically defined targets. See [these docs](#static_configs).
 * `vultr_sd_configs` is for discovering and scraping [Vultr](https://www.vultr.com/) targets. See [these docs](#vultr_sd_configs).
 * `yandexcloud_sd_configs` is for discovering and scraping [Yandex Cloud](https://cloud.yandex.com/en/) targets. See [these docs](#yandexcloud_sd_configs).
@@ -1458,6 +1459,92 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_openstack_user_id`: the user account owning the tenant.
 
 The list of discovered OpenStack targets is refreshed at the interval, which can be configured via `-promscrape.openstackSDCheckInterval` command-line flag.
+
+## ovhcloud_sd_configs
+
+_Available from [v1.104](https://docs.victoriametrics.com/changelog/#v11040) version._
+
+OVH Cloud SD configuration allows retrieving scrape targets from [OVH Cloud VPS](https://www.ovhcloud.com/en/vps/) 
+and [OVH Cloud dedicated server](https://ovhcloud.com/en/bare-metal/).
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: ovh_job
+  ovhcloud_sd_configs:
+
+  # (optional) depending on the API you want to use, you may set the endpoint to:
+  # `ovh-eu` for OVH Europe API (default).
+  # `ovh-us` for OVH US API.
+  # `ovh-ca` for OVH North-America API.
+  # `soyoustart-eu` for "So you Start Europe API".
+  # `soyoustart-ca` for "So you Start North America API".
+  # `kimsufi-eu` for Kimsufi Europe API.
+  # `kimsufi-ca` for Kimsufi North America API.
+  # See: https://github.com/ovh/go-ovh?tab=readme-ov-file#supported-apis
+  - endpoint: "..."
+
+    # (mandatory) application_key is a self generated tokens. 
+    # create one by visiting: https://eu.api.ovh.com/createApp/
+    application_key: "..."
+
+    # (mandatory) application_secret holds the application secret key.
+    application_secret: "..."
+    
+    # (mandatory) consumer_key holds the user/app specific token. It must have been validated before use.
+    consumer_key: "..."
+
+    # (mandatory) service could be either `vps` or `dedicated_server`.
+    service: "..."
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling/#how-to-modify-scrape-urls-in-targets) label set to either `<ipv4>` address or `<ipv6>` address.
+
+In addition, the `instance` label for the VPS/dedicated server will be set to the VPS/dedicated server name as retrieved from OVH Cloud API.
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling).
+
+VPS:
+* `__meta_ovhcloud_vps_cluster`: the cluster of the server.
+* `__meta_ovhcloud_vps_datacenter`: the datacenter of the server.
+* `__meta_ovhcloud_vps_disk`: the disk of the server.
+* `__meta_ovhcloud_vps_display_name`: the display name of the server.
+* `__meta_ovhcloud_vps_ipv4`: the IPv4 of the server.
+* `__meta_ovhcloud_vps_ipv6`: the IPv6 of the server.
+* `__meta_ovhcloud_vps_keymap`: the KVM keyboard layout of the server.
+* `__meta_ovhcloud_vps_maximum_additional_ip`: the maximum additional IPs of the server.
+* `__meta_ovhcloud_vps_memory_limit`: the memory limit of the server.
+* `__meta_ovhcloud_vps_memory`: the memory of the server.
+* `__meta_ovhcloud_vps_monitoring_ip_blocks`: the monitoring IP blocks of the server.
+* `__meta_ovhcloud_vps_name`: the name of the server.
+* `__meta_ovhcloud_vps_netboot_mode`: the netboot mode of the server.
+* `__meta_ovhcloud_vps_offer_type`: the offer type of the server.
+* `__meta_ovhcloud_vps_offer`: the offer of the server.
+* `__meta_ovhcloud_vps_state`: the state of the server.
+* `__meta_ovhcloud_vps_vcore`: the number of virtual cores of the server.
+* `__meta_ovhcloud_vps_version`: the version of the server.
+* `__meta_ovhcloud_vps_zone`: the zone of the server.
+
+Dedicated servers:
+* `__meta_ovhcloud_dedicated_server_commercial_range`: the commercial range of the server.    
+* `__meta_ovhcloud_dedicated_server_datacenter`: the datacenter of the server.                
+* `__meta_ovhcloud_dedicated_server_ipv4`: the IPv4 of the server.                            
+* `__meta_ovhcloud_dedicated_server_ipv6`: the IPv6 of the server.                            
+* `__meta_ovhcloud_dedicated_server_link_speed`: the link speed of the server.                
+* `__meta_ovhcloud_dedicated_server_name`: the name of the server.                            
+* `__meta_ovhcloud_dedicated_server_no_intervention`: the [intervention](https://support.us.ovhcloud.com/hc/en-us/articles/27991435200147-FAQ-Interventions-and-Hardware-Replacement) of the server.
+* `__meta_ovhcloud_dedicated_server_os`: the operating system of the server.
+* `__meta_ovhcloud_dedicated_server_rack`: the rack of the server.
+* `__meta_ovhcloud_dedicated_server_reverse`: the reverse DNS name of the server.
+* `__meta_ovhcloud_dedicated_server_server_id`: the ID of the server.
+* `__meta_ovhcloud_dedicated_server_state`: the state of the server.
+* `__meta_ovhcloud_dedicated_server_support_level`: the support level of the server.
+
+The list of discovered OVH Cloud targets is refreshed at the interval, which can be configured via `-promscrape.ovhcloudSDCheckInterval` command-line flag.
 
 ## static_configs
 
