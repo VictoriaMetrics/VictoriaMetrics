@@ -2006,8 +2006,8 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Interval for checking for changes in Nomad. This works only if nomad_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#nomad_sd_configs for details (default 30s)
   -promscrape.openstackSDCheckInterval duration
      Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#openstack_sd_configs for details (default 30s)
-  -promscrape.scrapeExemplars
-     Whether to enable scraping of exemplars from scrape targets.
+  -promscrape.ovhcloudSDCheckInterval duration
+     Interval for checking for changes in OVH Cloud VPS and dedicated server. This works only if ovhcloud_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#ovhcloud_sd_configs for details (default 30s)
   -promscrape.seriesLimitPerTarget int
      Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter for more info
   -promscrape.streamParse
