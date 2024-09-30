@@ -1716,12 +1716,14 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64, accoun
 	return dst, false
 }
 
-// DeleteTSIDs marks as deleted all the TSIDs matching the given tfss.
+// DeleteTSIDs marks as deleted all the TSIDs matching the given tfss and
+// updates or resets all caches where TSIDs and the corresponding MetricIDs may
+// be stored.
 //
-// The caller must reset all the caches which may contain the deleted TSIDs.
-//
-// Returns the number of metrics deleted.
-func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters) (int, error) {
+// If the number of the series exceeds maxMetrics, no series will be deleted and
+// an error will be returned. Otherwise, the funciton returns the number of
+// series deleted.
+func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
 	qt = qt.NewChild("deleting series for %s", tfss)
 	defer qt.Done()
 	if len(tfss) == 0 {
@@ -1734,7 +1736,7 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 		MaxTimestamp: (1 << 63) - 1,
 	}
 	is := db.getIndexSearch(tfss[0].accountID, tfss[0].projectID, noDeadline)
-	metricIDs, err := is.searchMetricIDs(qt, tfss, tr, 2e9)
+	metricIDs, err := is.searchMetricIDs(qt, tfss, tr, maxMetrics)
 	db.putIndexSearch(is)
 	if err != nil {
 		return 0, err
@@ -1746,7 +1748,7 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 	db.doExtDB(func(extDB *indexDB) {
 		var n int
 		qtChild := qt.NewChild("deleting series from the previos indexdb")
-		n, err = extDB.DeleteTSIDs(qtChild, tfss)
+		n, err = extDB.DeleteTSIDs(qtChild, tfss, maxMetrics)
 		qtChild.Donef("deleted %d series", n)
 		deletedCount += n
 	})
