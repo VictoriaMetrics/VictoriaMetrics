@@ -207,6 +207,10 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 }
 
 func (shard *pipeTopProcessorShard) updateState(v string, hits uint64) {
+	if hits == 0 {
+		return
+	}
+
 	m := shard.getM()
 	pHits, ok := m[v]
 	if !ok {
