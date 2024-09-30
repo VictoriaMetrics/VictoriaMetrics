@@ -119,7 +119,7 @@ type timeseriesWork struct {
 	rowsProcessed int
 }
 
-func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
+func (tsw *timeseriesWork) do(r *Result, workerID uint, isMultiTenant bool) error {
 	if tsw.mustStop.Load() {
 		return nil
 	}
@@ -128,7 +128,7 @@ func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 		tsw.mustStop.Store(true)
 		return fmt.Errorf("timeout exceeded during query execution: %s", rss.deadline.String())
 	}
-	if err := tsw.pts.Unpack(r, rss.tbfs, rss.tr); err != nil {
+	if err := tsw.pts.Unpack(r, rss.tbfs, rss.tr, isMultiTenant); err != nil {
 		tsw.mustStop.Store(true)
 		return fmt.Errorf("error during time series unpacking: %w", err)
 	}
@@ -142,7 +142,7 @@ func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 	return nil
 }
 
-func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, workerID uint) {
+func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, workerID uint, isMultiTenant bool) {
 	tmpResult := getTmpResult()
 
 	// Perform own work at first.
@@ -150,7 +150,7 @@ func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, wo
 	seriesProcessed := 0
 	ch := workChs[workerID]
 	for tsw := range ch {
-		tsw.err = tsw.do(&tmpResult.rs, workerID)
+		tsw.err = tsw.do(&tmpResult.rs, workerID, isMultiTenant)
 		rowsProcessed += tsw.rowsProcessed
 		seriesProcessed++
 	}
@@ -174,7 +174,7 @@ func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, wo
 			if !ok {
 				break
 			}
-			tsw.err = tsw.do(&tmpResult.rs, workerID)
+			tsw.err = tsw.do(&tmpResult.rs, workerID, isMultiTenant)
 			rowsProcessed += tsw.rowsProcessed
 			seriesProcessed++
 		}
@@ -244,11 +244,11 @@ var defaultMaxWorkersPerQuery = func() int {
 // Data processing is immediately stopped if f returns non-nil error.
 //
 // rss becomes unusable after the call to RunParallel.
-func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) error {
+func (rss *Results) RunParallel(qt *querytracer.Tracer, isMultiTenant bool, f func(rs *Result, workerID uint) error) error {
 	qt = qt.NewChild("parallel process of fetched data")
 	defer rss.closeTmpBlockFiles()
 
-	rowsProcessedTotal, err := rss.runParallel(qt, f)
+	rowsProcessedTotal, err := rss.runParallel(qt, isMultiTenant, f)
 	seriesProcessedTotal := len(rss.packedTimeseries)
 	rss.packedTimeseries = rss.packedTimeseries[:0]
 
@@ -260,7 +260,7 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	return err
 }
 
-func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, workerID uint) error) (int, error) {
+func (rss *Results) runParallel(qt *querytracer.Tracer, isMultiTenant bool, f func(rs *Result, workerID uint) error) (int, error) {
 	tswsLen := len(rss.packedTimeseries)
 	if tswsLen == 0 {
 		// Nothing to process
@@ -283,7 +283,7 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		var err error
 		for i := range rss.packedTimeseries {
 			initTimeseriesWork(&tsw, &rss.packedTimeseries[i])
-			err = tsw.do(&tmpResult.rs, 0)
+			err = tsw.do(&tmpResult.rs, 0, isMultiTenant)
 			rowsReadPerSeries.Update(float64(tsw.rowsProcessed))
 			rowsProcessedTotal += tsw.rowsProcessed
 			if err != nil {
@@ -332,7 +332,7 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		wg.Add(1)
 		qtChild := qt.NewChild("worker #%d", i)
 		go func(workerID uint) {
-			timeseriesWorker(qtChild, workChs, workerID)
+			timeseriesWorker(qtChild, workChs, workerID, isMultiTenant)
 			qtChild.Done()
 			wg.Done()
 		}(uint(i))
@@ -453,10 +453,16 @@ func putTmpStorageBlock(sb *storage.Block) {
 var tmpStorageBlockPool sync.Pool
 
 // Unpack unpacks pts to dst.
-func (pts *packedTimeseries) Unpack(dst *Result, tbfs []*tmpBlocksFile, tr storage.TimeRange) error {
+func (pts *packedTimeseries) Unpack(dst *Result, tbfs []*tmpBlocksFile, tr storage.TimeRange, isMultiTenant bool) error {
 	dst.reset()
 	if err := dst.MetricName.Unmarshal(bytesutil.ToUnsafeBytes(pts.metricName)); err != nil {
 		return fmt.Errorf("cannot unmarshal metricName %q: %w", pts.metricName, err)
+	}
+	if isMultiTenant {
+		dst.MetricName.AddTagBytes([]byte("vm_account_id"), strconv.AppendUint(nil, uint64(dst.MetricName.AccountID), 10))
+		dst.MetricName.AddTagBytes([]byte("vm_project_id"), strconv.AppendUint(nil, uint64(dst.MetricName.ProjectID), 10))
+		dst.MetricName.AccountID = 0
+		dst.MetricName.ProjectID = 0
 	}
 	sbh := getSortBlocksHeap()
 	var err error

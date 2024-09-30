@@ -6,7 +6,6 @@ import (
 	"math"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1814,9 +1813,9 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	// Evaluate rollup
 	keepMetricNames := getKeepMetricNames(expr)
 	if iafc != nil {
-		return evalRollupWithIncrementalAggregate(qt, funcName, keepMetricNames, iafc, rss, rcs, preFunc, sharedTimestamps)
+		return evalRollupWithIncrementalAggregate(qt, funcName, keepMetricNames, iafc, rss, rcs, preFunc, sharedTimestamps, ec.IsMultiTenant)
 	}
-	return evalRollupNoIncrementalAggregate(qt, funcName, keepMetricNames, rss, rcs, preFunc, sharedTimestamps)
+	return evalRollupNoIncrementalAggregate(qt, funcName, keepMetricNames, rss, rcs, preFunc, sharedTimestamps, ec.IsMultiTenant)
 }
 
 var (
@@ -1841,11 +1840,11 @@ func maxSilenceInterval() int64 {
 
 func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string, keepMetricNames bool,
 	iafc *incrementalAggrFuncContext, rss *netstorage.Results, rcs []*rollupConfig,
-	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
+	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64, isMultiTenant bool) ([]*timeseries, error) {
 	qt = qt.NewChild("rollup %s() with incremental aggregation %s() over %d series; rollupConfigs=%s", funcName, iafc.ae.Name, rss.Len(), rcs)
 	defer qt.Done()
 	var samplesScannedTotal atomic.Uint64
-	err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
+	err := rss.RunParallel(qt, isMultiTenant, func(rs *netstorage.Result, workerID uint) error {
 		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
 		ts := getTimeseries()
@@ -1880,7 +1879,7 @@ func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string,
 }
 
 func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, keepMetricNames bool, rss *netstorage.Results, rcs []*rollupConfig,
-	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
+	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64, isMultiTenant bool) ([]*timeseries, error) {
 	qt = qt.NewChild("rollup %s() over %d series; rollupConfigs=%s", funcName, rss.Len(), rcs)
 	defer qt.Done()
 
@@ -1888,7 +1887,7 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 	tsw := getTimeseriesByWorkerID()
 	seriesByWorkerID := tsw.byWorkerID
 	seriesLen := rss.Len()
-	err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
+	err := rss.RunParallel(qt, isMultiTenant, func(rs *netstorage.Result, workerID uint) error {
 		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
 		for _, rc := range rcs {
@@ -1927,10 +1926,6 @@ func doRollupForTimeseries(funcName string, keepMetricNames bool, rc *rollupConf
 	}
 	if !keepMetricNames && !rollupFuncsKeepMetricName[funcName] {
 		tsDst.MetricName.ResetMetricGroup()
-	}
-	if rc.isMultiTenant {
-		tsDst.MetricName.AddTag("vm_account_id", strconv.FormatUint(uint64(tsDst.MetricName.AccountID), 10))
-		tsDst.MetricName.AddTag("vm_project_id", strconv.FormatUint(uint64(tsDst.MetricName.ProjectID), 10))
 	}
 	var samplesScanned uint64
 	tsDst.Values, samplesScanned = rc.Do(tsDst.Values[:0], valuesSrc, timestampsSrc)
