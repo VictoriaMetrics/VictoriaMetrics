@@ -735,7 +735,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 		if n := metricBlocksCount(tfs); n == 0 {
 			return fmt.Errorf("expecting non-zero number of metric blocks for tfs=%s", tfs)
 		}
-		deletedCount, err := s.DeleteSeries(nil, []*TagFilters{tfs})
+		deletedCount, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9)
 		if err != nil {
 			return fmt.Errorf("cannot delete metrics: %w", err)
 		}
@@ -747,7 +747,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 		}
 
 		// Try deleting empty tfss
-		deletedCount, err = s.DeleteSeries(nil, nil)
+		deletedCount, err = s.DeleteSeries(nil, nil, 1e9)
 		if err != nil {
 			return fmt.Errorf("cannot delete empty tfss: %w", err)
 		}
@@ -793,6 +793,120 @@ func checkLabelNames(lns []string, lnsExpected map[string]bool) error {
 		}
 	}
 	return nil
+}
+
+func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numSeries = 1000
+	rng := rand.New(rand.NewSource(1))
+	mrs := testGenerateMetricRowsWithPrefix(rng, numSeries, "metric", TimeRange{
+		MinTimestamp: time.Now().Add(-100 * 24 * time.Hour).UnixMilli(),
+		MaxTimestamp: time.Now().UnixMilli(),
+	})
+
+	s := MustOpenStorage(t.Name(), 0, 0, 0)
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	tfs := NewTagFilters()
+	if err := tfs.Add(nil, []byte("metric.*"), false, true); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	maxSeries := numSeries - 1
+	count, err := s.DeleteSeries(nil, []*TagFilters{tfs}, maxSeries)
+	if err == nil {
+		t.Errorf("expected an error but there hasn't been one")
+	}
+	if count != 0 {
+		t.Errorf("unexpected deleted series count: got %d, want 0", count)
+	}
+}
+
+func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
+	defer testRemoveAll(t)
+
+	tr := TimeRange{
+		MinTimestamp: time.Now().Add(-100 * 24 * time.Hour).UnixMilli(),
+		MaxTimestamp: time.Now().UnixMilli(),
+	}
+	mn := MetricName{MetricGroup: []byte("metric")}
+	mr := MetricRow{
+		MetricNameRaw: mn.marshalRaw(nil),
+		Timestamp:     tr.MaxTimestamp,
+		Value:         123,
+	}
+	var (
+		genTSID generationTSID
+		tfssKey []byte
+	)
+	tfs := NewTagFilters()
+	if err := tfs.Add(nil, []byte("metric.*"), false, true); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	tfss := []*TagFilters{tfs}
+	s := MustOpenStorage(t.Name(), 0, 0, 0)
+	defer s.MustClose()
+
+	// Ensure caches are empty.
+	if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
+		t.Fatalf("tsidCache unexpected contents: got %v, want empty", genTSID)
+	}
+	tfssKey = marshalTagFiltersKey(nil, tfss, tr, true)
+	if got, ok := s.idb().getMetricIDsFromTagFiltersCache(nil, tfssKey); ok {
+		t.Fatalf("tagFiltersToMetricIDsCache unexpected contents: got %v, want empty", got)
+	}
+	if got := s.getDeletedMetricIDs().Len(); got != 0 {
+		t.Fatalf("deletedMetricIDs cache: unexpected size: got %d, want empty", got)
+	}
+
+	// Add one row, search it, and ensure that the tsidCache and
+	// tagFiltersToMetricIDsCache are not empty but the deletedMetricIDs
+	// cache is still empty.
+	s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
+	s.DebugFlush()
+	gotMetrics, err := s.SearchMetricNames(nil, tfss, tr, 1, noDeadline)
+	if err != nil {
+		t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
+	}
+	wantMetrics := []string{string(mr.MetricNameRaw)}
+	if reflect.DeepEqual(gotMetrics, wantMetrics) {
+		t.Fatalf("SearchMetricNames() unexpected search result: got %v, want %v", gotMetrics, wantMetrics)
+	}
+
+	if !s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
+		t.Fatalf("tsidCache was expected to contain a record but it did not")
+	}
+	metricID := genTSID.TSID.MetricID
+	tfssKey = marshalTagFiltersKey(nil, tfss, tr, true)
+	if _, ok := s.idb().getMetricIDsFromTagFiltersCache(nil, tfssKey); !ok {
+		t.Fatalf("tagFiltersToMetricIDsCache was expected to contain a record but it did not")
+	}
+	if got := s.getDeletedMetricIDs().Len(); got != 0 {
+		t.Fatalf("deletedMetricIDs cache unexpected size: got %d, want empty", got)
+	}
+
+	// Delete the metric added earlier and ensure that the tsidCache and
+	// tagFiltersToMetricIDsCache have been reset and the deletedMetricIDs
+	// cache is now contains ID of the deleted metric.
+	numDeletedSeries, err := s.DeleteSeries(nil, tfss, 1)
+	if err != nil {
+		t.Fatalf("DeleteSeries() failed unexpectedly: %v", err)
+	}
+	if got, want := numDeletedSeries, 1; got != want {
+		t.Fatalf("unexpected number of deleted series, got %d, want %d", got, want)
+	}
+	if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
+		t.Fatalf("tsidCache unexpected contents: got %v, want empty", genTSID)
+	}
+	tfssKey = marshalTagFiltersKey(nil, tfss, tr, true)
+	if got, ok := s.idb().getMetricIDsFromTagFiltersCache(nil, tfssKey); ok {
+		t.Fatalf("tagFiltersToMetricIDsCache unexpected contents: got %v, want empty", got)
+	}
+	if got, want := s.getDeletedMetricIDs().AppendTo(nil), []uint64{metricID}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("deletedMetricIDs cache: unexpected contents: got %v, want %v", got, want)
+	}
 }
 
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {
@@ -1425,7 +1539,7 @@ func testCountAllMetricNames(s *Storage, tr TimeRange) int {
 	}
 	names, err := s.SearchMetricNames(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
 	if err != nil {
-		panic(fmt.Sprintf("SeachMetricNames() failed unexpectedly: %v", err))
+		panic(fmt.Sprintf("SearchMetricNames() failed unexpectedly: %v", err))
 	}
 	return len(names)
 }
