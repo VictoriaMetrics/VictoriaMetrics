@@ -28,7 +28,7 @@ interface AutocompleteProps {
   offset?: {top: number, left: number}
   maxDisplayResults?: {limit: number, message?: string}
   loading?: boolean;
-  onSelect: (val: string) => void
+  onSelect: (val: string, item: AutocompleteOptions) => void
   onOpenAutocomplete?: (val: boolean) => void
   onFoundOptions?: (val: AutocompleteOptions[]) => void
   onChangeWrapperRef?: (elementRef: React.RefObject<HTMLElement>) => void
@@ -97,9 +97,9 @@ const Autocomplete: FC<AutocompleteProps> = ({
     return noOptionsText && !foundOptions.length;
   }, [noOptionsText,foundOptions]);
 
-  const createHandlerSelect = (item: string) => () => {
+  const createHandlerSelect = (item: AutocompleteOptions) => () => {
     if (disabled) return;
-    onSelect(item);
+    onSelect(item.value, item);
     if (!selected) handleCloseAutocomplete();
   };
 
@@ -141,7 +141,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
 
     if (key === "Enter") {
       const item = foundOptions[focusOption.index];
-      item && onSelect(item.value);
+      item && onSelect(item.value, item);
       if (!selected) handleCloseAutocomplete();
     }
 
@@ -206,7 +206,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
             })}
             id={`$autocomplete$${option.value}`}
             key={`${i}${option.value}`}
-            onClick={createHandlerSelect(option.value)}
+            onClick={createHandlerSelect(option)}
             onMouseEnter={createHandlerMouseEnter(i)}
             onMouseLeave={handlerMouseLeave}
           >
