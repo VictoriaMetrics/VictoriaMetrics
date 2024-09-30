@@ -302,7 +302,13 @@ type BlobClientDownloadOptions struct {
 
 // BlobClientGetAccountInfoOptions contains the optional parameters for the BlobClient.GetAccountInfo method.
 type BlobClientGetAccountInfoOptions struct {
-	// placeholder for future optional parameters
+	// Provides a client-generated, opaque value with a 1 KB character limit that is recorded in the analytics logs when storage
+	// analytics logging is enabled.
+	RequestID *string
+
+	// The timeout parameter is expressed in seconds. For more information, see Setting Timeouts for Blob Service Operations.
+	// [https://docs.microsoft.com/en-us/rest/api/storageservices/fileservices/setting-timeouts-for-blob-service-operations]
+	Timeout *int32
 }
 
 // BlobClientGetPropertiesOptions contains the optional parameters for the BlobClient.GetProperties method.
@@ -873,7 +879,13 @@ type ContainerClientGetAccessPolicyOptions struct {
 
 // ContainerClientGetAccountInfoOptions contains the optional parameters for the ContainerClient.GetAccountInfo method.
 type ContainerClientGetAccountInfoOptions struct {
-	// placeholder for future optional parameters
+	// Provides a client-generated, opaque value with a 1 KB character limit that is recorded in the analytics logs when storage
+	// analytics logging is enabled.
+	RequestID *string
+
+	// The timeout parameter is expressed in seconds. For more information, see Setting Timeouts for Blob Service Operations.
+	// [https://docs.microsoft.com/en-us/rest/api/storageservices/fileservices/setting-timeouts-for-blob-service-operations]
+	Timeout *int32
 }
 
 // ContainerClientGetPropertiesOptions contains the optional parameters for the ContainerClient.GetProperties method.
@@ -1357,7 +1369,13 @@ type ServiceClientFilterBlobsOptions struct {
 
 // ServiceClientGetAccountInfoOptions contains the optional parameters for the ServiceClient.GetAccountInfo method.
 type ServiceClientGetAccountInfoOptions struct {
-	// placeholder for future optional parameters
+	// Provides a client-generated, opaque value with a 1 KB character limit that is recorded in the analytics logs when storage
+	// analytics logging is enabled.
+	RequestID *string
+
+	// The timeout parameter is expressed in seconds. For more information, see Setting Timeouts for Blob Service Operations.
+	// [https://docs.microsoft.com/en-us/rest/api/storageservices/fileservices/setting-timeouts-for-blob-service-operations]
+	Timeout *int32
 }
 
 // ServiceClientGetPropertiesOptions contains the optional parameters for the ServiceClient.GetProperties method.

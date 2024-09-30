@@ -116,11 +116,9 @@ func newPipeSortProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}
 	for i := range shards {
 		shards[i] = pipeSortProcessorShard{
 			pipeSortProcessorShardNopad: pipeSortProcessorShardNopad{
-				ps:              ps,
-				stateSizeBudget: stateSizeBudgetChunk,
+				ps: ps,
 			},
 		}
-		maxStateSize -= stateSizeBudgetChunk
 	}
 
 	psp := &pipeSortProcessor{
@@ -245,11 +243,11 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 		shard.columnValues = columnValues
 
 		// Generate byColumns
-		valuesEncoded := make([]string, len(br.timestamps))
+		valuesEncoded := make([]string, br.rowsLen)
 		shard.stateSizeBudget -= len(valuesEncoded) * int(unsafe.Sizeof(valuesEncoded[0]))
 
 		bb := bbPool.Get()
-		for rowIdx := range br.timestamps {
+		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 			// Marshal all the columns per each row into a single string
 			// and sort rows by the resulting string.
 			bb.B = bb.B[:0]
@@ -267,8 +265,8 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 		}
 		bbPool.Put(bb)
 
-		i64Values := make([]int64, len(br.timestamps))
-		f64Values := make([]float64, len(br.timestamps))
+		i64Values := make([]int64, br.rowsLen)
+		f64Values := make([]float64, br.rowsLen)
 		for i := range f64Values {
 			f64Values[i] = nan
 		}
@@ -347,7 +345,7 @@ func (shard *pipeSortProcessorShard) writeBlock(br *blockResult) {
 	blockIdx := len(shard.blocks) - 1
 	rowRefs := shard.rowRefs
 	rowRefsLen := len(rowRefs)
-	for i := range br.timestamps {
+	for i := 0; i < br.rowsLen; i++ {
 		rowRefs = append(rowRefs, sortRowRef{
 			blockIdx: blockIdx,
 			rowIdx:   i,
@@ -405,7 +403,7 @@ func (shard *pipeSortProcessorShard) Less(i, j int) bool {
 }
 
 func (psp *pipeSortProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -686,8 +684,10 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 
 		if cA.c.isTime && cB.c.isTime {
 			// Fast path - sort by _time
-			tA := bA.br.timestamps[rrA.rowIdx]
-			tB := bB.br.timestamps[rrB.rowIdx]
+			timestampsA := bA.br.getTimestamps()
+			timestampsB := bB.br.getTimestamps()
+			tA := timestampsA[rrA.rowIdx]
+			tB := timestampsB[rrB.rowIdx]
 			if tA == tB {
 				continue
 			}
@@ -746,8 +746,8 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 }
 
 func parsePipeSort(lex *lexer) (*pipeSort, error) {
-	if !lex.isKeyword("sort") {
-		return nil, fmt.Errorf("expecting 'sort'; got %q", lex.token)
+	if !lex.isKeyword("sort") && !lex.isKeyword("order") {
+		return nil, fmt.Errorf("expecting 'sort' or 'order'; got %q", lex.token)
 	}
 	lex.nextToken()
 

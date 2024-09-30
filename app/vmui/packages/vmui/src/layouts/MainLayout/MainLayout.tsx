@@ -11,6 +11,7 @@ import { useFetchDashboards } from "../../pages/PredefinedPanels/hooks/useFetchD
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import ControlsMainLayout from "./ControlsMainLayout";
 import useFetchDefaultTimezone from "../../hooks/useFetchDefaultTimezone";
+import useFetchFlags from "../../hooks/useFetchFlags";
 
 const MainLayout: FC = () => {
   const appModeEnable = getAppModeEnable();
@@ -20,6 +21,7 @@ const MainLayout: FC = () => {
 
   useFetchDashboards();
   useFetchDefaultTimezone();
+  useFetchFlags();
 
   const setDocumentTitle = () => {
     const defaultTitle = "vmui";

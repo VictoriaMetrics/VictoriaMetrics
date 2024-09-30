@@ -384,9 +384,9 @@ func TestStorageRunQuery(t *testing.T) {
 		}
 
 		resultsExpected := []ValueWithHits{
-			{`{instance="host-0:234",job="foobar"}`, 0},
-			{`{instance="host-1:234",job="foobar"}`, 0},
-			{`{instance="host-2:234",job="foobar"}`, 0},
+			{`{instance="host-0:234",job="foobar"}`, 385},
+			{`{instance="host-1:234",job="foobar"}`, 385},
+			{`{instance="host-2:234",job="foobar"}`, 385},
 		}
 		if !reflect.DeepEqual(results, resultsExpected) {
 			t.Fatalf("unexpected result; got\n%v\nwant\n%v", results, resultsExpected)
@@ -662,7 +662,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context before 0
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "33"},
+				{"rows", "66"},
 			},
 		})
 	})
@@ -671,7 +671,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context before 0 after 0
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "33"},
+				{"rows", "66"},
 			},
 		})
 	})
@@ -680,7 +680,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context before 1
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "66"},
+				{"rows", "99"},
 			},
 		})
 	})
@@ -689,7 +689,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context after 1
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "66"},
+				{"rows", "99"},
 			},
 		})
 	})
@@ -698,7 +698,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context before 1 after 1
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "99"},
+				{"rows", "132"},
 			},
 		})
 	})
@@ -707,7 +707,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context before 1000
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "825"},
+				{"rows", "990"},
 			},
 		})
 	})
@@ -716,7 +716,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context after 1000
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "495"},
+				{"rows", "660"},
 			},
 		})
 	})
@@ -725,7 +725,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context before 1000 after 1000
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "1155"},
+				{"rows", "1320"},
 			},
 		})
 	})
@@ -876,7 +876,7 @@ func TestStorageSearch(t *testing.T) {
 			so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 			var rowsCountTotal atomic.Uint32
 			processBlock := func(_ uint, br *blockResult) {
-				rowsCountTotal.Add(uint32(len(br.timestamps)))
+				rowsCountTotal.Add(uint32(br.rowsLen))
 			}
 			s.search(workersCount, so, nil, processBlock)
 
@@ -893,7 +893,7 @@ func TestStorageSearch(t *testing.T) {
 		so := newTestGenericSearchOptions(allTenantIDs, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
-			rowsCountTotal.Add(uint32(len(br.timestamps)))
+			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
 		s.search(workersCount, so, nil, processBlock)
 
@@ -926,7 +926,7 @@ func TestStorageSearch(t *testing.T) {
 			so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 			var rowsCountTotal atomic.Uint32
 			processBlock := func(_ uint, br *blockResult) {
-				rowsCountTotal.Add(uint32(len(br.timestamps)))
+				rowsCountTotal.Add(uint32(br.rowsLen))
 			}
 			s.search(workersCount, so, nil, processBlock)
 
@@ -948,7 +948,7 @@ func TestStorageSearch(t *testing.T) {
 		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
-			rowsCountTotal.Add(uint32(len(br.timestamps)))
+			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
 		s.search(workersCount, so, nil, processBlock)
 
@@ -978,7 +978,7 @@ func TestStorageSearch(t *testing.T) {
 		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
-			rowsCountTotal.Add(uint32(len(br.timestamps)))
+			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
 		s.search(workersCount, so, nil, processBlock)
 
@@ -999,7 +999,7 @@ func TestStorageSearch(t *testing.T) {
 		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
-			rowsCountTotal.Add(uint32(len(br.timestamps)))
+			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
 		s.search(workersCount, so, nil, processBlock)
 

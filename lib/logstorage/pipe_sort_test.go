@@ -308,7 +308,7 @@ func TestPipeSort(t *testing.T) {
 	})
 
 	// Sort by multiple fields with offset and limit
-	f("sort by (a, b) desc offset 2 limit 100", [][]Field{
+	f("order by (a, b) desc offset 2 limit 100", [][]Field{
 		{
 			{"_msg", `abc`},
 			{"a", `2`},
@@ -360,5 +360,5 @@ func TestPipeSortUpdateNeededFields(t *testing.T) {
 
 	// needed fields intersect with src
 	f("sort by(s1,s2)", "s1,f1,f2", "", "s1,s2,f1,f2", "")
-	f("sort by(s1,s2) rank as x", "s1,f1,f2,x", "", "s1,s2,f1,f2", "")
+	f("order by(s1,s2) rank as x", "s1,f1,f2,x", "", "s1,s2,f1,f2", "")
 }

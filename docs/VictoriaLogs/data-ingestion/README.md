@@ -3,6 +3,7 @@
 - Syslog, Rsyslog and Syslog-ng - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/).
 - Filebeat - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/filebeat/).
 - Fluentbit - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/fluentbit/).
+- Fluentd - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/fluentd/).
 - Logstash - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/logstash/).
 - Vector - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector/).
 - Promtail (aka Grafana Loki) - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/).
@@ -45,9 +46,14 @@ It is possible to push thousands of log lines in a single request to this API.
 
 If the [timestamp field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) is set to `"0"`,
 then the current timestamp at VictoriaLogs side is used per each ingested log line.
-Otherwise the timestamp field must be in the [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) format. For example, `2023-06-20T15:32:10Z`.
-Optional fractional part of seconds can be specified after the dot - `2023-06-20T15:32:10.123Z`.
-Timezone can be specified instead of `Z` suffix - `2023-06-20T15:32:10+02:00`.
+Otherwise the timestamp field must be in one of the following formats:
+
+- [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) or [RFC3339](https://www.rfc-editor.org/rfc/rfc3339).
+  For example, `2023-06-20T15:32:10Z` or `2023-06-20 15:32:10.123456789+02:00`.
+  If timezone information is missing (for example, `2023-06-20 15:32:10`),
+  then the time is parsed in the local timezone of the host where VictoriaLogs runs.
+
+- Unix timestamp in seconds or in milliseconds. For example, `1686026893` (seconds) or `1686026893735` (milliseconds).
 
 See [these docs](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) for details on fields,
 which must be present in the ingested log messages.
@@ -95,9 +101,14 @@ It is possible to push unlimited number of log lines in a single request to this
 
 If the [timestamp field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) is set to `"0"`,
 then the current timestamp at VictoriaLogs side is used per each ingested log line.
-Otherwise the timestamp field must be in the [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) format. For example, `2023-06-20T15:32:10Z`.
-Optional fractional part of seconds can be specified after the dot - `2023-06-20T15:32:10.123Z`.
-Timezone can be specified instead of `Z` suffix - `2023-06-20T15:32:10+02:00`.
+Otherwise the timestamp field must be in one of the following formats:
+
+- [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) or [RFC3339](https://www.rfc-editor.org/rfc/rfc3339).
+  For example, `2023-06-20T15:32:10Z` or `2023-06-20 15:32:10.123456789+02:00`.
+  If timezone information is missing (for example, `2023-06-20 15:32:10`),
+  then the time is parsed in the local timezone of the host where VictoriaLogs runs.
+
+- Unix timestamp in seconds or in milliseconds. For example, `1686026893` (seconds) or `1686026893735` (milliseconds).
 
 See [these docs](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) for details on fields,
 which must be present in the ingested log messages.
@@ -286,3 +297,5 @@ Here is the list of log collectors and their ingestion formats supported by Vict
 | [Promtail](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/)   | No | No | [Yes](https://grafana.com/docs/loki/latest/clients/promtail/configuration/#clients) | No | No |
 | [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) | [Yes](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/elasticsearchexporter) | No | [Yes](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/lokiexporter) | [Yes](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/syslogexporter) | [Yes](https://github.com/open-telemetry/opentelemetry-collector/tree/main/exporter/otlphttpexporter) |
 | [Telegraf](https://docs.victoriametrics.com/victorialogs/data-ingestion/telegraf/) | [Yes](https://github.com/influxdata/telegraf/tree/master/plugins/outputs/elasticsearch) | [Yes](https://github.com/influxdata/telegraf/tree/master/plugins/outputs/http) | [Yes](https://github.com/influxdata/telegraf/tree/master/plugins/outputs/loki) | [Yes](https://github.com/influxdata/telegraf/blob/master/plugins/outputs/syslog) | Yes |
+| [Fluentd](https://docs.victoriametrics.com/victorialogs/data-ingestion/fluentd/) | [Yes](https://github.com/uken/fluent-plugin-elasticsearch) | [Yes](https://docs.fluentd.org/output/http) | [Yes](https://grafana.com/docs/loki/latest/send-data/fluentd/) | [Yes](https://github.com/fluent-plugins-nursery/fluent-plugin-remote_syslog) | No |
+

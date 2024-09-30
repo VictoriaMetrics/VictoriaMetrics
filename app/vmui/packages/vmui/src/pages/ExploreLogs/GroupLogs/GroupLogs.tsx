@@ -16,6 +16,7 @@ import TextField from "../../../components/Main/TextField/TextField";
 import useBoolean from "../../../hooks/useBoolean";
 import useStateSearchParams from "../../../hooks/useStateSearchParams";
 import { useSearchParams } from "react-router-dom";
+import { getStreamPairs } from "../../../utils/logs";
 
 const WITHOUT_GROUPING = "No Grouping";
 
@@ -62,12 +63,10 @@ const GroupLogs: FC<TableLogsProps> = ({ logs, settingsRef }) => {
   const groupData = useMemo(() => {
     return groupByMultipleKeys(logs, [groupBy]).map((item) => {
       const streamValue = item.values[0]?.[groupBy] || "";
-      const pairs = /^{.+}$/.test(streamValue)
-        ? streamValue.slice(1, -1).match(/(\\.|[^,])+/g) || [streamValue]
-        : [streamValue];
+      const pairs = getStreamPairs(streamValue);
       return {
         ...item,
-        pairs: pairs.filter(Boolean),
+        pairs,
       };
     });
   }, [logs, groupBy]);

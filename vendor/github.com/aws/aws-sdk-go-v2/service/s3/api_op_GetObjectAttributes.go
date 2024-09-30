@@ -32,13 +32,13 @@ import (
 //
 //   - General purpose bucket permissions - To use GetObjectAttributes , you must
 //     have READ access to the object. The permissions that you need to use this
-//     operation with depend on whether the bucket is versioned. If the bucket is
-//     versioned, you need both the s3:GetObjectVersion and
-//     s3:GetObjectVersionAttributes permissions for this operation. If the bucket is
-//     not versioned, you need the s3:GetObject and s3:GetObjectAttributes
-//     permissions. For more information, see [Specifying Permissions in a Policy]in the Amazon S3 User Guide. If the
-//     object that you request does not exist, the error Amazon S3 returns depends on
-//     whether you also have the s3:ListBucket permission.
+//     operation depend on whether the bucket is versioned. If the bucket is versioned,
+//     you need both the s3:GetObjectVersion and s3:GetObjectVersionAttributes
+//     permissions for this operation. If the bucket is not versioned, you need the
+//     s3:GetObject and s3:GetObjectAttributes permissions. For more information, see [Specifying Permissions in a Policy]
+//     in the Amazon S3 User Guide. If the object that you request does not exist, the
+//     error Amazon S3 returns depends on whether you also have the s3:ListBucket
+//     permission.
 //
 //   - If you have the s3:ListBucket permission on the bucket, Amazon S3 returns an
 //     HTTP status code 404 Not Found ("no such key") error.
@@ -57,6 +57,11 @@ import (
 //     token for use. Amazon Web Services CLI or SDKs create session and refresh the
 //     session token automatically to avoid service interruptions when a session
 //     expires. For more information about authorization, see [CreateSession]CreateSession .
+//
+// If the object is encrypted with SSE-KMS, you must also have the
+//
+//	kms:GenerateDataKey and kms:Decrypt permissions in IAM identity-based policies
+//	and KMS key policies for the KMS key.
 //
 // Encryption Encryption request headers, like x-amz-server-side-encryption ,
 // should not be sent for HEAD requests if your object uses server-side encryption
@@ -83,8 +88,15 @@ import (
 //
 // For more information about SSE-C, see [Server-Side Encryption (Using Customer-Provided Encryption Keys)] in the Amazon S3 User Guide.
 //
-// Directory bucket permissions - For directory buckets, only server-side
-// encryption with Amazon S3 managed keys (SSE-S3) ( AES256 ) is supported.
+// Directory bucket permissions - For directory buckets, there are only two
+// supported options for server-side encryption: server-side encryption with Amazon
+// S3 managed keys (SSE-S3) ( AES256 ) and server-side encryption with KMS keys
+// (SSE-KMS) ( aws:kms ). We recommend that the bucket's default encryption uses
+// the desired encryption configuration and you don't override the bucket default
+// encryption in your CreateSession requests or PUT object requests. Then, new
+// objects are automatically encrypted with the desired encryption settings. For
+// more information, see [Protecting data with server-side encryption]in the Amazon S3 User Guide. For more information about
+// the encryption overriding behaviors in directory buckets, see [Specifying server-side encryption with KMS for new object uploads].
 //
 // Versioning  Directory buckets - S3 Versioning isn't enabled and supported for
 // directory buckets. For this API operation, only the null value of the version
@@ -134,6 +146,7 @@ import (
 //
 // [ListParts]
 //
+// [Specifying server-side encryption with KMS for new object uploads]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-specifying-kms-encryption.html
 // [GetObjectLegalHold]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectLegalHold.html
 // [ListParts]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html
 // [Server-Side Encryption (Using Customer-Provided Encryption Keys)]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html
@@ -144,6 +157,7 @@ import (
 // [RFC 7232]: https://tools.ietf.org/html/rfc7232
 // [HeadObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html
 // [GetObjectLockConfiguration]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectLockConfiguration.html
+// [Protecting data with server-side encryption]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-serv-side-encryption.html
 // [GetObjectAcl]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAcl.html
 // [GetObjectRetention]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectRetention.html
 // [GetObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
@@ -369,6 +383,9 @@ func (c *Client) addOperationGetObjectAttributesMiddlewares(stack *middleware.St
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -424,6 +441,18 @@ func (c *Client) addOperationGetObjectAttributesMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

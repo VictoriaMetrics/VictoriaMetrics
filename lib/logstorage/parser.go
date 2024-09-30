@@ -336,9 +336,8 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 }
 
 // Clone returns a copy of q.
-func (q *Query) Clone() *Query {
+func (q *Query) Clone(timestamp int64) *Query {
 	qStr := q.String()
-	timestamp := q.GetTimestamp()
 	qCopy, err := ParseQueryAtTimestamp(qStr, timestamp)
 	if err != nil {
 		logger.Panicf("BUG: cannot parse %q: %s", qStr, err)
@@ -350,7 +349,8 @@ func (q *Query) Clone() *Query {
 func (q *Query) CanReturnLastNResults() bool {
 	for _, p := range q.pipes {
 		switch p.(type) {
-		case *pipeFieldNames,
+		case *pipeBlocksCount,
+			*pipeFieldNames,
 			*pipeFieldValues,
 			*pipeLimit,
 			*pipeOffset,
@@ -822,6 +822,11 @@ func parseFilterAnd(lex *lexer, fieldName string) (filter, error) {
 func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 	// Check for special keywords
 	switch {
+	case lex.isKeyword("{"):
+		if fieldName != "" && fieldName != "_stream" {
+			return nil, fmt.Errorf("stream filter cannot be applied to %q field; it can be applied only to _stream field", fieldName)
+		}
+		return parseFilterStream(lex)
 	case lex.isKeyword(":"):
 		if !lex.mustNextToken() {
 			return nil, fmt.Errorf("missing filter after ':'")
@@ -835,7 +840,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		}
 		return f, nil
 	case lex.isKeyword("("):
-		if !lex.isSkippedSpace && !lex.isPrevToken("", ":", "(", "!", "not") {
+		if !lex.isSkippedSpace && !lex.isPrevToken("", ":", "(", "!", "-", "not") {
 			return nil, fmt.Errorf("missing whitespace before the search word %q", lex.prevToken)
 		}
 		return parseParensFilter(lex, fieldName)
@@ -851,7 +856,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterTilda(lex, fieldName)
 	case lex.isKeyword("!~"):
 		return parseFilterNotTilda(lex, fieldName)
-	case lex.isKeyword("not", "!"):
+	case lex.isKeyword("not", "!", "-"):
 		return parseFilterNot(lex, fieldName)
 	case lex.isKeyword("exact"):
 		return parseFilterExact(lex, fieldName)
@@ -884,7 +889,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 }
 
 func getCompoundPhrase(lex *lexer, allowColon bool) (string, error) {
-	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", "!", ""}
+	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", ""}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound phrase cannot start with '%s'", lex.token)
 	}
@@ -901,7 +906,7 @@ func getCompoundPhrase(lex *lexer, allowColon bool) (string, error) {
 
 func getCompoundSuffix(lex *lexer, allowColon bool) string {
 	s := ""
-	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", "!", ""}
+	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", ""}
 	if !allowColon {
 		stopTokens = append(stopTokens, ":")
 	}
@@ -913,7 +918,7 @@ func getCompoundSuffix(lex *lexer, allowColon bool) string {
 }
 
 func getCompoundToken(lex *lexer) (string, error) {
-	stopTokens := []string{",", "(", ")", "[", "]", "|", "!", ""}
+	stopTokens := []string{",", "(", ")", "[", "]", "|", ""}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
 	}
@@ -2144,7 +2149,7 @@ func needQuoteToken(s string) bool {
 		return true
 	}
 	for _, r := range s {
-		if !isTokenRune(r) && r != '.' && r != '-' {
+		if !isTokenRune(r) && r != '.' {
 			return true
 		}
 	}

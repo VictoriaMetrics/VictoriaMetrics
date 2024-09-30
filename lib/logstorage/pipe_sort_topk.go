@@ -20,11 +20,9 @@ func newPipeTopkProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}
 	for i := range shards {
 		shards[i] = pipeTopkProcessorShard{
 			pipeTopkProcessorShardNopad: pipeTopkProcessorShardNopad{
-				ps:              ps,
-				stateSizeBudget: stateSizeBudgetChunk,
+				ps: ps,
 			},
 		}
-		maxStateSize -= stateSizeBudgetChunk
 	}
 
 	ptp := &pipeTopkProcessor{
@@ -182,7 +180,8 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 		byColumns := shard.byColumns[:0]
 		byColumnsIsTime := shard.byColumnsIsTime[:0]
 		bb := bbPool.Get()
-		for rowIdx, timestamp := range br.timestamps {
+		timestamps := br.getTimestamps()
+		for rowIdx, timestamp := range timestamps {
 			byColumns = byColumns[:0]
 			bb.B = bb.B[:0]
 			for i, values := range byColumnValues {
@@ -234,7 +233,8 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 
 		// add rows to shard
 		byColumns := shard.byColumns[:0]
-		for rowIdx, timestamp := range br.timestamps {
+		timestamps := br.getTimestamps()
+		for rowIdx, timestamp := range timestamps {
 			byColumns = byColumns[:0]
 
 			for i, values := range byColumnValues {
@@ -307,7 +307,7 @@ func (shard *pipeTopkProcessorShard) sortRows(stopCh <-chan struct{}) {
 }
 
 func (ptp *pipeTopkProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 

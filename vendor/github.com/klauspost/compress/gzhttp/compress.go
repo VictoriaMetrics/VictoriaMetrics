@@ -306,7 +306,7 @@ func (w *GzipResponseWriter) startPlain() error {
 func (w *GzipResponseWriter) WriteHeader(code int) {
 	// Handle informational headers
 	// This is gated to not forward 1xx responses on builds prior to go1.20.
-	if shouldWrite1xxResponses() && code >= 100 && code <= 199 {
+	if code >= 100 && code <= 199 {
 		w.ResponseWriter.WriteHeader(code)
 		return
 	}
@@ -464,6 +464,11 @@ func NewWrapper(opts ...option) (func(http.Handler) http.HandlerFunc, error) {
 	return func(h http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Add(vary, acceptEncoding)
+			if c.allowCompressedRequests && contentGzip(r) {
+				r.Header.Del(contentEncoding)
+				r.Body = &gzipReader{body: r.Body}
+			}
+
 			if acceptsGzip(r) {
 				gw := grwPool.Get().(*GzipResponseWriter)
 				*gw = GzipResponseWriter{
@@ -536,17 +541,18 @@ func (pct parsedContentType) equals(mediaType string, params map[string]string) 
 
 // Used for functional configuration.
 type config struct {
-	minSize          int
-	level            int
-	writer           writer.GzipWriterFactory
-	contentTypes     func(ct string) bool
-	keepAcceptRanges bool
-	setContentType   bool
-	suffixETag       string
-	dropETag         bool
-	jitterBuffer     int
-	randomJitter     string
-	sha256Jitter     bool
+	minSize                 int
+	level                   int
+	writer                  writer.GzipWriterFactory
+	contentTypes            func(ct string) bool
+	keepAcceptRanges        bool
+	setContentType          bool
+	suffixETag              string
+	dropETag                bool
+	jitterBuffer            int
+	randomJitter            string
+	sha256Jitter            bool
+	allowCompressedRequests bool
 }
 
 func (c *config) validate() error {
@@ -576,6 +582,15 @@ type option func(c *config)
 func MinSize(size int) option {
 	return func(c *config) {
 		c.minSize = size
+	}
+}
+
+// AllowCompressedRequests will enable or disable RFC 7694 compressed requests.
+// By default this is Disabled.
+// See https://datatracker.ietf.org/doc/html/rfc7694
+func AllowCompressedRequests(b bool) option {
+	return func(c *config) {
+		c.allowCompressedRequests = b
 	}
 }
 
@@ -750,6 +765,12 @@ func RandomJitter(n, buffer int, paranoid bool) option {
 			c.jitterBuffer = 0
 		}
 	}
+}
+
+// contentGzip returns true if the given HTTP request indicates that it gzipped.
+func contentGzip(r *http.Request) bool {
+	// See more detail in `acceptsGzip`
+	return r.Method != http.MethodHead && r.Body != nil && parseEncodingGzip(r.Header.Get(contentEncoding)) > 0
 }
 
 // acceptsGzip returns true if the given HTTP request indicates that it will

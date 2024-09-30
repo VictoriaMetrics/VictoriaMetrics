@@ -1,13 +1,15 @@
-# Docker compose Logstash integration with VictoriaLogs for syslog
+# Docker compose Logstash integration with VictoriaLogs
 
-It is required to use [OpenSearch plugin](https://github.com/opensearch-project/logstash-output-opensearch) for output configuration.
-Plugin can be installed by using the following command:
-```
-bin/logstash-plugin install logstash-output-opensearch
-```
-OpenSearch plugin is required because elasticsearch output plugin performs various checks for Elasticsearch version and license which are not applicable for VictoriaLogs.
+The folder contains examples of [Logstash](https://www.elastic.co/logstash) integration with VictoriaLogs using protocols:
 
-To spin-up environment  run the following command:
+* [loki](./loki)
+* [jsonline single node](./jsonline)
+* [jsonline HA setup](./jsonline-ha)
+* [elasticsearch](./elasticsearch)
+
+All required plugins, that should be installed in order to support protocols listed above can be found in a [Dockerfile](./Dockerfile)
+
+To spin-up environment `cd` to any of listed above directories run the following command:
 ```
 docker compose up -d 
 ```
@@ -20,37 +22,19 @@ docker compose rm -f
 
 The docker compose file contains the following components:
 
-* logstash - logstash is configured to accept `syslog` on `5140` port, you can find configuration in the `pipeline.conf`. It writes data in VictoriaLogs
-* VictoriaLogs - the log database, it accepts the data from `logstash` by elastic protocol
+* logstash - logs collection agent configured to collect and write data to `victorialogs`
+* victorialogs - logs database, receives data from `logstash` agent
+* victoriametrics - metrics database, which collects metrics from `victorialogs` and `logstash` for observability purposes
 
 Querying the data
 
 * [vmui](https://docs.victoriametrics.com/victorialogs/querying/#vmui) - a web UI is accessible by `http://localhost:9428/select/vmui`
 * for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
 
-
-Here is an example of logstash configuration(`pipeline.conf`):
-
-```
-input {
-  syslog {
-    port => 5140
-  }
-}
-output {
-  opensearch {
-    hosts => ["http://victorialogs:9428/insert/elasticsearch"]
-    custom_headers => {
-        "AccountID" => "0"
-        "ProjectID" => "0"
-    }
-    parameters => {
-        "_stream_fields" => "host.ip,process.name"
-        "_msg_field" => "message"
-        "_time_field" => "@timestamp"
-    }
-  }
-}
-```
+Logstash configuration example can be found below:
+* [loki](./loki/pipeline.conf)
+* [jsonline single node](./jsonline/pipeline.conf)
+* [jsonline HA setup](./jsonline-ha/pipeline.conf)
+* [elasticsearch](./elasticsearch/pipeline.conf)
 
 Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.

@@ -113,10 +113,15 @@ type blockSearch struct {
 	// sbu is used for unmarshaling local columns
 	sbu stringsBlockUnmarshaler
 
-	// csh is the columnsHeader associated with the given block
-	csh columnsHeader
+	// cshCached is the columnsHeader associated with the given block
+	//
+	// it is initialized lazily by calling getColumnsHeader().
+	cshCached columnsHeader
 
-	// a is used for storing unmarshaled data in csh
+	// cshInitialized is set to true if cshCached is initialized.
+	cshInitialized bool
+
+	// a is used for storing unmarshaled data in cshCached
 	a arena
 
 	// seenStreams contains seen streamIDs for the recent searches.
@@ -146,7 +151,10 @@ func (bs *blockSearch) reset() {
 	}
 
 	bs.sbu.reset()
-	bs.csh.reset()
+
+	bs.cshCached.reset()
+	bs.cshInitialized = false
+
 	bs.a.reset()
 
 	// Do not reset seenStreams, since its' lifetime is managed by blockResult.addStreamColumn() code.
@@ -160,8 +168,6 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 	bs.reset()
 
 	bs.bsw = bsw
-
-	bs.csh.initFromBlockHeader(&bs.a, bsw.p, &bsw.bh)
 
 	// search rows matching the given filter
 	bm.init(int(bsw.bh.rowsCount))
@@ -177,10 +183,17 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 
 	// fetch the requested columns to bs.br.
 	if bs.bsw.so.needAllColumns {
-		bs.br.initAllColumns(bs, bm)
+		bs.br.initAllColumns()
 	} else {
-		bs.br.initRequestedColumns(bs, bm)
+		bs.br.initRequestedColumns()
 	}
+}
+
+func (bs *blockSearch) getColumnsHeader() *columnsHeader {
+	if !bs.cshInitialized {
+		bs.cshCached.initFromBlockHeader(&bs.a, bs.bsw.p, &bs.bsw.bh)
+	}
+	return &bs.cshCached
 }
 
 func (csh *columnsHeader) initFromBlockHeader(a *arena, p *part, bh *blockHeader) {

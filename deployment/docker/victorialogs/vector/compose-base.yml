@@ -1,0 +1,22 @@
+include:
+ - ../compose-base.yml
+services:
+  vector:
+    image: docker.io/timberio/vector:0.40.0-distroless-static
+    restart: on-failure
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: /var/lib/docker
+        target: /var/lib/docker
+      - ${PWD}/vector.yaml:/etc/vector/vector.yaml:ro
+    user: root
+    ports:
+      - '8686:8686'
+    depends_on:
+      victorialogs:
+        condition: service_healthy
+      victoriametrics:
+        condition: service_healthy

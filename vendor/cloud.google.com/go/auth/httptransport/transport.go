@@ -19,6 +19,7 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+	"os"
 	"time"
 
 	"cloud.google.com/go/auth"
@@ -178,13 +179,23 @@ type authTransport struct {
 	clientUniverseDomain string
 }
 
-// getClientUniverseDomain returns the universe domain configured for the client.
-// The default value is "googleapis.com".
+// getClientUniverseDomain returns the default service domain for a given Cloud
+// universe, with the following precedence:
+//
+// 1. A non-empty option.WithUniverseDomain or similar client option.
+// 2. A non-empty environment variable GOOGLE_CLOUD_UNIVERSE_DOMAIN.
+// 3. The default value "googleapis.com".
+//
+// This is the universe domain configured for the client, which will be compared
+// to the universe domain that is separately configured for the credentials.
 func (t *authTransport) getClientUniverseDomain() string {
-	if t.clientUniverseDomain == "" {
-		return internal.DefaultUniverseDomain
+	if t.clientUniverseDomain != "" {
+		return t.clientUniverseDomain
 	}
-	return t.clientUniverseDomain
+	if envUD := os.Getenv(internal.UniverseDomainEnvVar); envUD != "" {
+		return envUD
+	}
+	return internal.DefaultUniverseDomain
 }
 
 // RoundTrip authorizes and authenticates the request with an

@@ -273,6 +273,7 @@ expr: <string>
 [ update_entries_limit: <integer> | default 0 ]
 
 # Labels to add or overwrite for each alert.
+# In case of conflicts, original labels are kept with prefix `exported_`.
 labels:
   [ <labelname>: <tmpl_string> ]
 
@@ -394,6 +395,7 @@ record: <string>
 expr: <string>
 
 # Labels to add or overwrite before storing the result.
+# In case of conflicts, original labels are kept with prefix `exported_`.
 labels:
   [ <labelname>: <labelvalue> ]
 
@@ -1109,7 +1111,7 @@ The shortlist of configuration flags is the following:
   -external.alert.source string
      External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service. Supports templating - see https://docs.victoriametrics.com/vmalert/#templating . For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
   -external.label array
-     Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
+     Optional label in the form 'Name=value' to add to all generated recording rules and alerts. In case of conflicts, original labels are kept with prefix `exported_`.
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -external.url string
@@ -1367,7 +1369,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.bearerTokenFile string
      Optional path to bearer token file to use for -remoteWrite.url.
   -remoteWrite.concurrency int
-     Defines number of writers for concurrent writing into remote write endpoint (default 1)
+     Defines number of writers for concurrent writing into remote write endpoint (default 4)
   -remoteWrite.disablePathAppend
      Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -remoteWrite.flushInterval duration
@@ -1377,9 +1379,9 @@ The shortlist of configuration flags is the following:
   -remoteWrite.idleConnTimeout duration
      Defines a duration for idle (keep-alive connections) to exist. Consider settings this value less to the value of "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors. (default 50s)
   -remoteWrite.maxBatchSize int
-     Defines max number of timeseries to be flushed at once (default 1000)
+     Defines max number of timeseries to be flushed at once (default 10000)
   -remoteWrite.maxQueueSize int
-     Defines the max number of pending datapoints to remote write endpoint (default 100000)
+     Defines the max number of pending datapoints to remote write endpoint (default 1000000)
   -remoteWrite.oauth2.clientID string
      Optional OAuth2 clientID to use for -remoteWrite.url
   -remoteWrite.oauth2.clientSecret string
