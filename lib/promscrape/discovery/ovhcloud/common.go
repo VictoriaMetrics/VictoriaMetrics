@@ -2,7 +2,6 @@ package ovhcloud
 
 import (
 	"crypto/sha1"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/netip"
@@ -98,7 +97,7 @@ func parseIPList(ipList []string) ([]netip.Addr, error) {
 	}
 
 	if len(ipAddresses) == 0 {
-		return nil, errors.New("could not parse IP addresses from list")
+		return nil, fmt.Errorf("could not parse IP addresses from ip List: %v", ipList)
 	}
 	return ipAddresses, nil
 }
