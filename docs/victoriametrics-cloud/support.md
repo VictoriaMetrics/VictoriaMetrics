@@ -1,5 +1,5 @@
 ---
-weight: 2
+weight: 12
 title: VictoriaMetrics Cloud Support
 menu:
   docs:
@@ -7,9 +7,6 @@ menu:
     weight: 12
     name: Support
 ---
-
-# VictoriaMetrics Cloud Support
-
 ## Basic Support
 All offerings include basic support, where we maintain the health of your deployments, perform system upgrades, and proactively contact customers if issues arise.
 
