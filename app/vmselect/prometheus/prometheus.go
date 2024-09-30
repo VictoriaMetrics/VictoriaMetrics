@@ -253,16 +253,15 @@ var exportCSVDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/a
 func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer exportNativeDuration.UpdateDuration(startTime)
 
-	if at == nil {
-		return fmt.Errorf("multi-tenant requests for /api/v1/export/native are not supported")
-	}
-
 	cp, err := getExportParams(r, startTime)
 	if err != nil {
 		return err
 	}
 
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxExportSeries)
+	sq, err := getSearchQuery(nil, at, cp, *maxExportSeries)
+	if err != nil {
+		return fmt.Errorf("cannot obtain search query: %w", err)
+	}
 	w.Header().Set("Content-Type", "VictoriaMetrics/native")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)

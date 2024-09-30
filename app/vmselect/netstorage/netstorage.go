@@ -1665,6 +1665,10 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		if err := mn.Unmarshal(mb.MetricName); err != nil {
 			return fmt.Errorf("cannot unmarshal metricName: %w", err)
 		}
+		if sq.IsMultiTenant {
+			mn.AddTagBytes([]byte("vm_account_id"), strconv.AppendUint(nil, uint64(mn.AccountID), 10))
+			mn.AddTagBytes([]byte("vm_project_id"), strconv.AppendUint(nil, uint64(mn.ProjectID), 10))
+		}
 		if err := f(mn, &mb.Block, tr, workerID); err != nil {
 			return err
 		}
