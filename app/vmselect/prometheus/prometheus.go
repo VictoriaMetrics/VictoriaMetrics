@@ -422,7 +422,7 @@ func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter
 		}
 		qtChild := qt.NewChild("background export format=%s", format)
 		go func() {
-			err := rss.RunParallel(qtChild, false, func(rs *netstorage.Result, workerID uint) error {
+			err := rss.RunParallel(qtChild, sq.IsMultiTenant, func(rs *netstorage.Result, workerID uint) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
