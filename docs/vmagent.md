@@ -267,15 +267,16 @@ There is also support for multitenant writes. See [these docs](#multitenancy).
 for the collected samples. Examples:
 
 - The following command instructs `vmagent` to send only the last sample per each seen [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) per every 60 seconds:
-  ```
-  ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -remoteWrite.streamAggr.dedupInterval=60s
+  ```sh
+  ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -streamAggr.dedupInterval=60s
   ```
 
 - The following command instructs `vmagent` to merge [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) with different `replica` label values
-  and then to send only the last sample per each merged series per ever 60 seconds:
+  and then to send only the last sample per each merged series per every 60 seconds:
+  ```sh
+  ./vmagent -remoteWrite=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
   ```
-  ./vmagent -remoteWrite=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -remoteWrite.streamAggr.dedupInterval=60s
-  ```
+
 
 ## SRV urls
 

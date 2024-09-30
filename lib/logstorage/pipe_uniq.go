@@ -166,24 +166,18 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 			return true
 		}
 		if c.valueType == valueTypeDict {
-			if needHits {
-				a := encoding.GetUint64s(len(c.dictValues))
-				hits := a.A
-				clear(hits)
-				valuesEncoded := c.getValuesEncoded(br)
-				for _, v := range valuesEncoded {
-					idx := unmarshalUint8(v)
-					hits[idx]++
-				}
-				for i, v := range c.dictValues {
-					shard.updateState(v, hits[i])
-				}
-				encoding.PutUint64s(a)
-			} else {
-				for _, v := range c.dictValues {
-					shard.updateState(v, 0)
-				}
+			a := encoding.GetUint64s(len(c.dictValues))
+			hits := a.A
+			clear(hits)
+			valuesEncoded := c.getValuesEncoded(br)
+			for _, v := range valuesEncoded {
+				idx := unmarshalUint8(v)
+				hits[idx]++
 			}
+			for i, v := range c.dictValues {
+				shard.updateState(v, hits[i])
+			}
+			encoding.PutUint64s(a)
 			return true
 		}
 
@@ -230,6 +224,10 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 }
 
 func (shard *pipeUniqProcessorShard) updateState(v string, hits uint64) {
+	if hits == 0 {
+		return
+	}
+
 	m := shard.getM()
 	pHits, ok := m[v]
 	if !ok {

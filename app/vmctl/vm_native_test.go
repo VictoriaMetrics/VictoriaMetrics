@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"log"
 	"net/http"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	remote_read_integration "github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/testdata/servers_integration_test"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
@@ -251,7 +251,7 @@ func deleteSeries(name, value string) (int, error) {
 	if err := tfs.Add([]byte(name), []byte(value), false, true); err != nil {
 		return 0, fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
 	}
-	return vmstorage.DeleteSeries(nil, []*storage.TagFilters{tfs})
+	return vmstorage.DeleteSeries(nil, []*storage.TagFilters{tfs}, 1e3)
 }
 
 func TestBuildMatchWithFilter_Failure(t *testing.T) {

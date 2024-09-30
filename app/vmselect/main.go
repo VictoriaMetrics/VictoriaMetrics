@@ -44,10 +44,7 @@ var (
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
 func getDefaultMaxConcurrentRequests() int {
-	n := cgroup.AvailableCPUs()
-	if n <= 4 {
-		n *= 2
-	}
+	n := cgroup.AvailableCPUs() * 2
 	if n > 16 {
 		// A single request can saturate all the CPU cores, so there is no sense
 		// in allowing higher number of concurrent requests - they will just contend

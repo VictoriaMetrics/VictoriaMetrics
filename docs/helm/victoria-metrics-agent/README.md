@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.2](https://img.shields.io/badge/Version-0.12.2-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.13.0](https://img.shields.io/badge/Version-0.13.0-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-agent)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -88,6 +88,28 @@ See the history of versions of `vma` application with command.
 
 ```console
 helm history vma -n NAMESPACE
+```
+
+## Upgrade guide
+
+### Upgrade to 0.13.0
+
+- replace `remoteWriteUrls` to `remoteWrite`:
+
+Given below config
+
+```yaml
+remoteWriteUrls:
+- http://address1/api/v1/write
+- http://address2/api/v1/write
+```
+
+should be changed to
+
+```yaml
+remoteWrite:
+- url: http://address1/api/v1/write
+- url: http://address2/api/v1/write
 ```
 
 ## How to uninstall
@@ -885,17 +907,6 @@ name: ""
 </td>
     </tr>
     <tr>
-      <td>multiTenantUrls</td>
-      <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
-</code>
-</pre>
-</td>
-      <td><p>Destination multitenant endpoint for scraped/received metrics</p>
-</td>
-    </tr>
-    <tr>
       <td>nameOverride</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -1144,14 +1155,14 @@ periodSeconds: 15
 </td>
     </tr>
     <tr>
-      <td>remoteWriteUrls</td>
-      <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+      <td>remoteWrite</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">null
 </code>
 </pre>
 </td>
-      <td><p>WARN: need to specify at least one remote write url or one multi tenant url</p>
+      <td><p>Generates <code>remoteWrite.*</code> flags and config maps with value content for values, that are of type list of map. Each item should contain <code>url</code> param to pass validation.</p>
 </td>
     </tr>
     <tr>

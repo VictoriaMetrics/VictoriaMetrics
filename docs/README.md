@@ -1184,7 +1184,10 @@ In this case [forced merge](#forced-merge) may help freeing up storage space.
 
 It is recommended verifying which metrics will be deleted with the call to `http://<victoria-metrics-addr>:8428/api/v1/series?match[]=<timeseries_selector_for_delete>`
 before actually deleting the metrics. By default, this query will only scan series in the past 5 minutes, so you may need to
-adjust `start` and `end` to a suitable range to achieve match hits.
+adjust `start` and `end` to a suitable range to achieve match hits. Also, if the
+number of returned time series is rather big you will need to set
+`-search.maxDeleteSeries` flag (see
+[Resource usage limits](#resource-usage-limits)).
 
 The `/api/v1/admin/tsdb/delete_series` handler may be protected with `authKey` if `-deleteAuthKey` command-line flag is set.
 Note that handler accepts any HTTP method, so sending a `GET` request to `/api/v1/admin/tsdb/delete_series` will result in deletion of time series.
@@ -1721,6 +1724,13 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   of CPU time and memory when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxSeries` to quite low value in order limit CPU and memory usage.
   See also `-search.maxLabelsAPIDuration` and `-search.maxLabelsAPISeries`.
+- `-search.maxDeleteSeries` limits the number of unique time series that can be
+  deleted by a single
+  [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series)
+  call. Deleting too many time series may require big amount of CPU and memory
+  and this limit guards against unplanned resource usage spikes. Also see
+  [How to delete time series](#how-to-delete-time-series) section to learn about
+  different ways of deleting series.
 - `-search.maxTagKeys` limits the number of items, which may be returned from [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels).
   This endpoint is used mostly by Grafana for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
