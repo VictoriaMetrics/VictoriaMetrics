@@ -48,7 +48,7 @@ func readWithLess(r io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("cannot find 'less' command: %w", err)
 	}
-	p, err := os.StartProcess(path, []string{"less", "-F"}, &os.ProcAttr{
+	p, err := os.StartProcess(path, []string{"less", "-F", "-X"}, &os.ProcAttr{
 		Env:   append(os.Environ(), "LESSCHARSET=utf-8"),
 		Files: []*os.File{pr, os.Stdout, os.Stderr},
 	})
