@@ -61,8 +61,11 @@ It increases cluster availability, and simplifies cluster maintenance as well as
 ## Multitenancy
 
 VictoriaMetrics cluster supports multiple isolated tenants (aka namespaces).
-Tenants are identified by `accountID` or `accountID:projectID`, which are put inside request urls.
-See [these docs](#url-format) for details.
+Tenants are identified by `accountID` or `accountID:projectID`, which are either put inside request urls or inside headers.
+Its also possible to accept data from multiple tenants via a special `multitenant` endpoints `http://vminsert:8480/insert/multitenant/<suffix>`,
+where `<suffix>` can be replaced with any supported suffix for data ingestion from [this list](#url-format). In this case tenants can be passed via:
+- [`headers`](#multitenancy-via-headers)
+- [`labels`](#multitenancy-via-labels)
 
 Some facts about tenants in VictoriaMetrics:
 
@@ -85,13 +88,19 @@ when different tenants have different amounts of data and different query load.
 
 - VictoriaMetrics exposes various per-tenant statistics via metrics - see [these docs](https://docs.victoriametrics.com/pertenantstatistic/).
 
-See also [multitenancy via labels](#multitenancy-via-labels).
+See also
+- [`multitenancy via headers`](#multitenancy-via-headers)
+- [`multitenancy via labels`](#multitenancy-via-labels)
+
+
+## Multitenancy via headers
+
+To pass tenant information via header it's required to use special `multitenant` endpoint and pass `accountID:projectID` via `TenantID` HTTP header.
+If no `TenantID` header is set, tenant information will be obtained from [special labels](#multitenancy-via-labels).
 
 
 ## Multitenancy via labels
 
-`vminsert` can accept data from multiple [tenants](#multitenancy) via a special `multitenant` endpoints `http://vminsert:8480/insert/multitenant/<suffix>`,
-where `<suffix>` can be replaced with any supported suffix for data ingestion from [this list](#url-format).
 In this case the account id and project id are obtained from optional `vm_account_id` and `vm_project_id` labels of the incoming samples.
 If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding `accountID` or `projectID` is set to 0.
 These labels are automatically removed from samples before forwarding them to `vmstorage`.
