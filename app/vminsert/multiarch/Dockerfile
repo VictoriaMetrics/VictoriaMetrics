@@ -6,7 +6,7 @@ RUN apk update && apk upgrade && apk --update --no-cache add ca-certificates
 
 FROM $root_image
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-EXPOSE 8428
-ENTRYPOINT ["/victoria-metrics-prod"]
+EXPOSE 8480
+ENTRYPOINT ["/vminsert-prod"]
 ARG TARGETARCH
-COPY victoria-metrics-linux-${TARGETARCH}-prod ./victoria-metrics-prod
+COPY vminsert-linux-${TARGETARCH}-prod ./vminsert-prod
