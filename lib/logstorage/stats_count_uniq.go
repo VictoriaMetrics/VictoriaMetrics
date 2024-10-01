@@ -42,6 +42,7 @@ type statsCountUniqProcessor struct {
 
 	columnValues [][]string
 	keyBuf       []byte
+	tmpNum       int
 }
 
 func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
@@ -133,18 +134,19 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 			return stateSizeIncrease
 		}
 		if c.valueType == valueTypeDict {
-			// count unique non-zero c.dictValues
-			keyBuf := sup.keyBuf[:0]
-			for _, v := range c.dictValues {
+			// count unique non-zero dict values for the selected logs
+			sup.tmpNum = 0
+			c.forEachDictValue(br, func(v string) {
 				if v == "" {
 					// Do not count empty values
-					continue
+					return
 				}
-				keyBuf = append(keyBuf[:0], 0)
+				keyBuf := append(sup.keyBuf[:0], 0)
 				keyBuf = append(keyBuf, v...)
-				stateSizeIncrease += sup.updateState(keyBuf)
-			}
-			sup.keyBuf = keyBuf
+				sup.tmpNum += sup.updateState(keyBuf)
+				sup.keyBuf = keyBuf
+			})
+			stateSizeIncrease += sup.tmpNum
 			return stateSizeIncrease
 		}
 

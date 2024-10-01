@@ -1728,6 +1728,60 @@ func (c *blockResultColumn) getValuesEncoded(br *blockResult) []string {
 	return c.valuesEncoded
 }
 
+// forEachDictValue calls f for every value in the column dictionary.
+func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) {
+	if c.valueType != valueTypeDict {
+		logger.Panicf("BUG: unexpected column valueType=%d; want %d", c.valueType, valueTypeDict)
+	}
+	if uint64(br.rowsLen) == br.bs.bsw.bh.rowsCount {
+		// Fast path - there is no need in reading encoded values
+		for _, v := range c.dictValues {
+			f(v)
+		}
+		return
+	}
+
+	// Slow path - need to read encoded values in order filter not referenced columns.
+	a := encoding.GetUint64s(len(c.dictValues))
+	hits := a.A
+	clear(hits)
+	valuesEncoded := c.getValuesEncoded(br)
+	for _, v := range valuesEncoded {
+		idx := unmarshalUint8(v)
+		hits[idx]++
+	}
+	for i, v := range c.dictValues {
+		if h := hits[i]; h > 0 {
+			f(v)
+		}
+	}
+	encoding.PutUint64s(a)
+}
+
+// forEachDictValueWithHits calls f for every value in the column dictionary.
+//
+// hits is the number of rows with the given value v in the column.
+func (c *blockResultColumn) forEachDictValueWithHits(br *blockResult, f func(v string, hits uint64)) {
+	if c.valueType != valueTypeDict {
+		logger.Panicf("BUG: unexpected column valueType=%d; want %d", c.valueType, valueTypeDict)
+	}
+
+	a := encoding.GetUint64s(len(c.dictValues))
+	hits := a.A
+	clear(hits)
+	valuesEncoded := c.getValuesEncoded(br)
+	for _, v := range valuesEncoded {
+		idx := unmarshalUint8(v)
+		hits[idx]++
+	}
+	for i, v := range c.dictValues {
+		if h := hits[i]; h > 0 {
+			f(v, h)
+		}
+	}
+	encoding.PutUint64s(a)
+}
+
 func (c *blockResultColumn) getFloatValueAtRow(br *blockResult, rowIdx int) (float64, bool) {
 	if c.isConst {
 		v := c.valuesEncoded[0]
