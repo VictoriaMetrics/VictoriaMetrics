@@ -208,7 +208,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 `)
 		return true
 	}
-	p, err := httpserver.ParsePath(r.URL.Path)
+	tenantID := r.Header.Get("TenantID")
+	p, err := httpserver.ParsePath(r.URL.Path, tenantID)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse path %q: %s", r.URL.Path, err)
 		return true
