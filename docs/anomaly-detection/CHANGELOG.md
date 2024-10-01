@@ -11,7 +11,18 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
-> **Important note: Users are strongly encouraged to upgrade to `vmanomaly` [v1.9.2](https://hub.docker.com/repository/docker/victoriametrics/vmanomaly/tags?page=1&ordering=name) or newer for optimal performance and accuracy. <br><br> This recommendation is crucial for configurations with a low `infer_every` parameter [in your scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#parameters-1), and in scenarios where data exhibits significant high-order seasonality patterns (such as hourly or daily cycles). Previous versions from v1.5.1 to v1.8.0 were identified to contain a critical issue impacting model training, where models were inadvertently trained on limited data subsets, leading to suboptimal fits, affecting the accuracy of anomaly detection. <br><br> Upgrading to v1.9.2 addresses this issue, ensuring proper model training and enhanced reliability. For users utilizing Helm charts, it is recommended to upgrade to version [1.0.0](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/CHANGELOG.md#100) or newer.**
+### v1.16.0
+Released: 2024-10-01
+- FEATURE: Introduced data dumps to a host filesystem for [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader).  Resource-intensive setups (multiple queries returning many metrics, bigger `fit_window` arg) will have RAM consumption reduced during fit calls.
+- IMPROVEMENT: Added a `groupby` argument for logical grouping in [multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models#multivariate-models). When specified, a separate multivariate model is trained for each unique combination of label values in the `groupby` columns. For example, to perform multivariate anomaly detection on metrics at the machine level without cross-entity interference, you can use `groupby: [host]` or `groupby: [instance]`, ensuring one model per entity being trained (e.g., per host). Please find more details [here](https://docs.victoriametrics.com/anomaly-detection/components/models/#group-by).
+- IMPROVEMENT: Improved performance of [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader) on multicore instances for reading and data processing.
+- IMPROVEMENT: Introduced new CLI argument aliases to enhance compatibility with [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md) (i.e. using secrets) and better align with [VictoriaMetrics flags](https://docs.victoriametrics.com/#list-of-command-line-flags):
+  - `--licenseFile` as an alias for `--license-file`
+  - `--license.forceOffline` as an alias for `--license-verify-offline`
+  - `--loggerLevel` as an alias for `--log-level`
+  - The previous argument format is retained for backward compatibility.
+
+- FIX: The `provide_series` [common argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series) now correctly filters the written time series in the [IsolationForestMultivariate](https://docs.victoriametrics.com/anomaly-detection/components/models/#isolation-forest-multivariate) model.
 
 ## v1.15.9
 Released: 2024-08-27
