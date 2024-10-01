@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/elasticsearch"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/journald"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jsonline"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/loki"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/opentelemetry"
@@ -45,6 +46,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case strings.HasPrefix(path, "/opentelemetry/"):
 		path = strings.TrimPrefix(path, "/opentelemetry")
 		return opentelemetry.RequestHandler(path, w, r)
+	case strings.HasPrefix(path, "/journald/"):
+		path = strings.TrimPrefix(path, "/journald")
+		return journald.RequestHandler(path, w, r)
 	default:
 		return false
 	}
