@@ -50,7 +50,7 @@ export YOUR_CONFIG_FILE_PATH=path/to/config/file
 docker run -it -v $YOUR_LICENSE_FILE_PATH:/license \
                -v $YOUR_CONFIG_FILE_PATH:/config.yml \
                vmanomaly /config.yml \
-               --license-file=/license
+               --licenseFile=/license
 ```
 
 In case you found `PermissionError: [Errno 13] Permission denied:` in `vmanomaly` logs, set user/user group to 1000 in the run command above / in a docker-compose file:
@@ -62,7 +62,7 @@ docker run -it --user 1000:1000 \
                -v $YOUR_LICENSE_FILE_PATH:/license \
                -v $YOUR_CONFIG_FILE_PATH:/config.yml \
                vmanomaly /config.yml \
-               --license-file=/license
+               --licenseFile=/license
 ```
 
 ```yaml
@@ -76,7 +76,7 @@ services:
         $YOUR_CONFIG_FILE_PATH:/config.yml
     command:
       - "/config.yml"
-      - "--license-file=/license"
+      - "--licenseFile=/license"
     # ...
 ```
 
