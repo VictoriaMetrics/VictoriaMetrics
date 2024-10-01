@@ -2,7 +2,7 @@
 via the following ways:
 
 - [Web UI](#web-ui) - a web-based UI for querying logs
-- [Visualization in Grafana](#visualization-in-grafana)
+- [Grafana plugin](#visualization-in-grafana)
 - [HTTP API](#http-api)
 - [Command-line interface](#command-line)
 
@@ -800,7 +800,10 @@ See also [command line interface](#command-line).
 
 ## Command-line
 
-VictoriaLogs integrates well with `curl` and other command-line tools during querying because of the following features:
+VictoriaLogs provides `vlogsqcli` interactive command-line tool for querying logs. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/).
+
+VictoriaLogs [querying API](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs) integrates well with `curl`
+and other Unix command-line tools because of the following features:
 
 - Matching log entries are sent to the response stream as soon as they are found.
   This allows forwarding the response stream to arbitrary [Unix pipes](https://en.wikipedia.org/wiki/Pipeline_(Unix))

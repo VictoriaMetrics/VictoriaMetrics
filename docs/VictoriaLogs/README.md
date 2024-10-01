@@ -3,25 +3,27 @@ from [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/).
 
 VictoriaLogs provides the following features:
 
-- VictoriaLogs can accept logs from popular log collectors. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
-- VictoriaLogs is much easier to set up and operate compared to Elasticsearch and Grafana Loki.
+- It can accept logs from popular log collectors. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+- It is much easier to set up and operate compared to Elasticsearch and Grafana Loki.
   See [these docs](https://docs.victoriametrics.com/victorialogs/quickstart/).
-- VictoriaLogs provides easy yet powerful query language with full-text search across
+- It provides easy yet powerful query language with full-text search across
   all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
   See [LogsQL docs](https://docs.victoriametrics.com/victorialogs/logsql/).
-- VictoriaLogs can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
+- It provides interactive command-line tool for querying VictoriaLogs - [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/).
+- It can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
   See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line) for details.
-- VictoriaLogs capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
-  It runs smoothly on both Raspberry PI and a server with hundreds of CPU cores and terabytes of RAM.
-- VictoriaLogs can handle up to 30x bigger data volumes than Elasticsearch and Grafana Loki when running on the same hardware.
+- VictoriaLogs' capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
+  It runs smoothly on Raspberry PI and on servers with hundreds of CPU cores and terabytes of RAM.
+- It can handle up to 30x bigger data volumes than Elasticsearch and Grafana Loki when running on the same hardware.
   See [these docs](#benchmarks).
-- VictoriaLogs supports fast full-text search over high-cardinality [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-  such as `trace_id`, `user_id` and `ip`.
-- VictoriaLogs supports multitenancy - see [these docs](#multitenancy).
-- VictoriaLogs supports out-of-order logs' ingestion aka backfilling.
-- VictoriaLogs supports live tailing for newly ingested logs. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing).
-- VictoriaLogs supports selecting surrounding logs in front and after the selected logs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe).
-- VictoriaLogs provides web UI for querying logs - see [these docs](https://docs.victoriametrics.com/victorialogs/querying/#web-ui).
+- It provides fast full-text search out of the box for [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  with high cardinality (e.g. high number of unique values) such as `trace_id`, `user_id` and `ip`.
+- It supports multitenancy - see [these docs](#multitenancy).
+- It supports out-of-order logs' ingestion aka backfilling.
+- It supports live tailing for newly ingested logs. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing).
+- It supports selecting surrounding logs in front and after the selected logs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe).
+- It provides web UI for querying logs - see [these docs](https://docs.victoriametrics.com/victorialogs/querying/#web-ui).
+- It provides [Grafana plugin for querying logs](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/).
 
 If you have questions about VictoriaLogs, then read [this FAQ](https://docs.victoriametrics.com/victorialogs/faq/).
 Also feel free asking any questions at [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/), 

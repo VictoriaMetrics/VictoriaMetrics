@@ -841,7 +841,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return f, nil
 	case lex.isKeyword("("):
 		if !lex.isSkippedSpace && !lex.isPrevToken("", ":", "(", "!", "-", "not") {
-			return nil, fmt.Errorf("missing whitespace before the search word %q", lex.prevToken)
+			return nil, fmt.Errorf("missing whitespace after the search word %q", lex.prevToken)
 		}
 		return parseParensFilter(lex, fieldName)
 	case lex.isKeyword(">"):
