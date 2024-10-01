@@ -145,6 +145,15 @@ curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
   -d 'extra_filters[]={vm_account_id="42"}'
 ```
 
+The precedence for applying filters for tenants follows this order:
+
+1. filters tenants from `extra_label` and `extra_filters` query arguments label selectors.
+ These filters have the highest priority and are applied first when provided through the query arguments.
+
+2. filters tenants from labels selectors defined at metricsQL query expression.
+
+
+
 Note that `vm_account_id` and `vm_project_id` labels support all operators for label matching. For example:
 ```
 up{vm_account_id!="42"} # selects all the time series except those belonging to accountID=42
@@ -152,7 +161,7 @@ up{vm_account_id=~"4.*"} # selects all the time series belonging to accountIDs s
 ```
 
 **Security considerations:** it is recommended restricting access to `multitenant` endpoints only to trusted sources,
-since untrusted source may break per-tenant data by writing unwanted samples to arbitrary tenants.
+since untrusted source may break per-tenant data by writing unwanted samples or get access to data of arbitrary tenants.
 
 
 ## Binaries
