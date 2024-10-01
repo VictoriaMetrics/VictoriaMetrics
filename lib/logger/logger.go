@@ -14,13 +14,14 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syslog"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
 	loggerLevel    = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC")
 	loggerFormat   = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
-	loggerOutput   = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
+	loggerOutput   = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout, syslog")
 	loggerTimezone = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
 		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
 	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
@@ -37,6 +38,9 @@ var (
 //
 // There is no need in calling Init from tests.
 func Init() {
+	if *loggerOutput == "syslog" {
+		syslog.Init()
+	}
 	setLoggerJSONFields()
 	setLoggerOutput()
 	validateLoggerLevel()
@@ -62,8 +66,10 @@ func setLoggerOutput() {
 		output = os.Stderr
 	case "stdout":
 		output = os.Stdout
+	case "syslog":
+		// do nothing
 	default:
-		panic(fmt.Errorf("FATAL: unsupported `loggerOutput` value: %q; supported values are: stderr, stdout", *loggerOutput))
+		panic(fmt.Errorf("FATAL: unsupported `loggerOutput` value: %q; supported values are: stderr, stdout, syslog", *loggerOutput))
 	}
 }
 
@@ -257,36 +263,55 @@ func logMessage(level, msg string, skipframes int) {
 		msg = msg[:len(msg)-1]
 	}
 	var logMsg string
-	switch *loggerFormat {
-	case "json":
-		if *disableTimestamps {
-			logMsg = fmt.Sprintf(
-				`{%q:%q,%q:%q,%q:%q}`+"\n",
-				fieldLevel, levelLowercase,
-				fieldCaller, location,
-				fieldMsg, msg,
-			)
-		} else {
-			logMsg = fmt.Sprintf(
-				`{%q:%q,%q:%q,%q:%q,%q:%q}`+"\n",
-				fieldTs, timestamp,
-				fieldLevel, levelLowercase,
-				fieldCaller, location,
-				fieldMsg, msg,
-			)
-		}
-	default:
-		if *disableTimestamps {
-			logMsg = fmt.Sprintf("%s\t%s\t%s\n", levelLowercase, location, msg)
-		} else {
-			logMsg = fmt.Sprintf("%s\t%s\t%s\t%s\n", timestamp, levelLowercase, location, msg)
-		}
-	}
 
-	// Serialize writes to log.
-	mu.Lock()
-	fmt.Fprint(output, logMsg)
-	mu.Unlock()
+	if *loggerOutput == "syslog" {
+		switch *loggerFormat {
+		case "json":
+			logMsg = fmt.Sprintf(
+				`{%q:%q,%q:%q}`+"\n",
+				fieldCaller, location,
+				fieldMsg, msg,
+			)
+		default:
+			logMsg = fmt.Sprintf("%s\t%s\n", location, msg)
+		}
+
+		syslogMsg := syslog.SyslogLogContent{Msg: logMsg, LogLevel: levelLowercase}
+		mu.Lock()
+		syslog.WriteInfo(syslogMsg)
+		mu.Unlock()
+	} else {
+		switch *loggerFormat {
+		case "json":
+			if *disableTimestamps {
+				logMsg = fmt.Sprintf(
+					`{%q:%q,%q:%q,%q:%q}`+"\n",
+					fieldLevel, levelLowercase,
+					fieldCaller, location,
+					fieldMsg, msg,
+				)
+			} else {
+				logMsg = fmt.Sprintf(
+					`{%q:%q,%q:%q,%q:%q,%q:%q}`+"\n",
+					fieldTs, timestamp,
+					fieldLevel, levelLowercase,
+					fieldCaller, location,
+					fieldMsg, msg,
+				)
+			}
+		default:
+			if *disableTimestamps {
+				logMsg = fmt.Sprintf("%s\t%s\t%s\n", levelLowercase, location, msg)
+			} else {
+				logMsg = fmt.Sprintf("%s\t%s\t%s\t%s\n", timestamp, levelLowercase, location, msg)
+			}
+		}
+
+		// Serialize writes to log.
+		mu.Lock()
+		fmt.Fprint(output, logMsg)
+		mu.Unlock()
+	}
 
 	// Increment vm_log_messages_total
 	counterName := fmt.Sprintf(`vm_log_messages_total{app_version=%q, level=%q, location=%q}`, buildinfo.Version, levelLowercase, location)

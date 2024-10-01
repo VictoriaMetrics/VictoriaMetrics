@@ -1,0 +1,19 @@
+syslog:
+  host: ip_or_fqdn
+  port: 514
+  protocol: tcp_udp_tcp+tls
+  rfcNum: 3164
+  facility: 20 #local 4
+  defSeverity: "emerg"
+  basic_auth:
+    username: test
+    password: test
+  tls:
+    ca_file: /etc/ssl/tls.crt
+    cert_file: /etc/ssl/tls.crt
+    key_file: /etc/ssl/tls.crt
+    server_name:
+    insecure_skip_verify: false
+queue_config:
+  capacity: 1000
+  retries: 3
