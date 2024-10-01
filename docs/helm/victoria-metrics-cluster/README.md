@@ -6,7 +6,7 @@ Victoria Metrics Cluster version - high-performance, cost-effective and scalable
 
 ## Prerequisites
 
-* Install the follow packages: ``git``, ``kubectl``, ``helm``, ``helm-docs``. See this [tutorial](../../REQUIREMENTS.md).
+* Install the follow packages: ``git``, ``kubectl``, ``helm``, ``helm-docs``. See this [tutorial](https://docs.victoriametrics.com/helm/requirements/).
 
 * PV support on underlying infrastructure
 
@@ -106,7 +106,7 @@ helm uninstall vmc -n NAMESPACE
 
 ## Documentation of Helm Chart
 
-Install ``helm-docs`` following the instructions on this [tutorial](../../REQUIREMENTS.md).
+Install ``helm-docs`` following the instructions on this [tutorial](https://docs.victoriametrics.com/helm/requirements/).
 
 Generate docs with ``helm-docs`` command.
 

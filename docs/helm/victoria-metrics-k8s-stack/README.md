@@ -158,7 +158,7 @@ grafana:
 
 ## Prerequisites
 
-* Install the follow packages: ``git``, ``kubectl``, ``helm``, ``helm-docs``. See this [tutorial](../../REQUIREMENTS.md).
+* Install the follow packages: ``git``, ``kubectl``, ``helm``, ``helm-docs``. See this [tutorial](https://docs.victoriametrics.com/helm/requirements/).
 
 * Add dependency chart repositories
 
@@ -259,7 +259,7 @@ To run VictoriaMetrics stack locally it's possible to use [Minikube](https://git
 Run Minikube cluster
 
 ```
-minikube start --container-runtime=containerd --extra-config=scheduler.bind-address=0.0.0.0 --extra-config=controller-manager.bind-address=0.0.0.0
+minikube start --container-runtime=containerd --extra-config=scheduler.bind-address=0.0.0.0 --extra-config=controller-manager.bind-address=0.0.0.0 --extra-config=etcd.listen-metrics-urls=http://0.0.0.0:2381
 ```
 
 Install helm chart
@@ -370,7 +370,7 @@ kubectl apply -f https://raw.githubusercontent.com/VictoriaMetrics/operator/v0.1
 
 ## Documentation of Helm Chart
 
-Install ``helm-docs`` following the instructions on this [tutorial](../../REQUIREMENTS.md).
+Install ``helm-docs`` following the instructions on this [tutorial](https://docs.victoriametrics.com/helm/requirements/).
 
 Generate docs with ``helm-docs`` command.
 

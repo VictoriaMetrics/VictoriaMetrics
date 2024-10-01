@@ -6,7 +6,7 @@ Victoria Metrics Auth - is a simple auth proxy and router for VictoriaMetrics.
 
 ## Prerequisites
 
-* Install the follow packages: ``git``, ``kubectl``, ``helm``, ``helm-docs``. See this [tutorial](../../REQUIREMENTS.md).
+* Install the follow packages: ``git``, ``kubectl``, ``helm``, ``helm-docs``. See this [tutorial](https://docs.victoriametrics.com/helm/requirements/).
 
 ## How to install
 
@@ -100,7 +100,7 @@ helm uninstall vma -n NAMESPACE
 
 ## Documentation of Helm Chart
 
-Install ``helm-docs`` following the instructions on this [tutorial](../../REQUIREMENTS.md).
+Install ``helm-docs`` following the instructions on this [tutorial](https://docs.victoriametrics.com/helm/requirements/).
 
 Generate docs with ``helm-docs`` command.
 
