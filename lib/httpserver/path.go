@@ -16,9 +16,9 @@ type Path struct {
 }
 
 // ParsePath parses the given path.
-func ParsePath(path string) (*Path, error) {
+func ParsePath(path string, tenantID string) (*Path, error) {
 	// The path must have the following form:
-	// /{prefix}/{authToken}/{suffix}
+	// /{prefix}/[{authToken}/]{suffix}
 	//
 	// - prefix must contain `select`, `insert` or `delete`.
 	// - authToken contains `accountID[:projectID]`, where projectID is optional.
@@ -31,18 +31,25 @@ func ParsePath(path string) (*Path, error) {
 	s := skipPrefixSlashes(path)
 	n := strings.IndexByte(s, '/')
 	if n < 0 {
-		return nil, fmt.Errorf("cannot find {prefix} in %q; expecting /{prefix}/{authToken}/{suffix} format", path)
+		if len(tenantID) == 0 {
+			return nil, fmt.Errorf("cannot find {prefix} in %q; expecting /{prefix}/{tenantID}/{suffix} format; "+
+				"see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format", path)
+		}
+		return nil, fmt.Errorf("cannot find {prefix} in %q; expecting /{prefix}/{suffix} format; "+
+			"see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format", path)
 	}
 	prefix := s[:n]
 
 	s = skipPrefixSlashes(s[n+1:])
-	n = strings.IndexByte(s, '/')
-	if n < 0 {
-		return nil, fmt.Errorf("cannot find {authToken} in %q; expecting /{prefix}/{authToken}/{suffix} format", path)
+	if len(tenantID) == 0 {
+		n = strings.IndexByte(s, '/')
+		if n < 0 {
+			return nil, fmt.Errorf("cannot find {tenantID} in %q; expecting /{prefix}/{tenantID}/{suffix} format; "+
+				"see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format", path)
+		}
+		tenantID = s[:n]
+		s = skipPrefixSlashes(s[n+1:])
 	}
-	authToken := s[:n]
-
-	s = skipPrefixSlashes(s[n+1:])
 
 	// Substitute double slashes with single slashes in the path, since such slashes
 	// may appear due improper copy-pasting of the url.
@@ -50,7 +57,7 @@ func ParsePath(path string) (*Path, error) {
 
 	p := &Path{
 		Prefix:    prefix,
-		AuthToken: authToken,
+		AuthToken: tenantID,
 		Suffix:    suffix,
 	}
 	return p, nil
