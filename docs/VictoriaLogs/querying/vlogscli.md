@@ -43,7 +43,7 @@ which queries `(AccountID=123, ProjectID=456)` [tenant](https://docs.victoriamet
 ```
 
 After the start `vlogsql` provides a prompt for writing [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) queries.
-The query can be multi-line. The is sent to VictoriaLogs as soon as it contains `;` at the end or if a blank line follows the query.
+The query can be multi-line. It is sent to VictoriaLogs as soon as it contains `;` at the end or if a blank line follows the query.
 For example:
 
 ```sh
@@ -57,9 +57,9 @@ duration: 0.688s
 
 Query execution can be interrupted at any time by pressing `Ctrl+C`.
 
-Type `q`, `quit` or `exit` and the press `Enter` for exit from `vlogsql`.
+Type `q`, `quit` or `exit` and then press `Enter` for exit from `vlogsql`.
 
-If the query response exceeds vertical screen space, the `vlogsql` pipes query response to `less` utility,
+If the query response exceeds vertical screen space, `vlogsql` pipes query response to `less` utility,
 so you can scroll the response as needed. This allows executing queries, which potentially
 may return billions of rows, without any problems at both VictoriaMetrics and `vlogsql` sides,
 thanks to the way how `less` interacts with [`/select/logsql/query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs):
