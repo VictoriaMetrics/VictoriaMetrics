@@ -369,7 +369,7 @@ func getRollupTag(expr metricsql.Expr) (string, error) {
 }
 
 func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start, end, step int64, maxPointsPerSeries int,
-	window, lookbackDelta int64, sharedTimestamps []int64) (
+	window, lookbackDelta int64, sharedTimestamps []int64, isMultiTenant bool) (
 	func(values []float64, timestamps []int64), []*rollupConfig, error) {
 	preFunc := func(_ []float64, _ []int64) {}
 	funcName = strings.ToLower(funcName)
@@ -395,6 +395,7 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 			Timestamps:            sharedTimestamps,
 			isDefaultRollup:       funcName == "default_rollup",
 			samplesScannedPerCall: samplesScannedPerCall,
+			isMultiTenant:         isMultiTenant,
 		}
 	}
 
@@ -586,6 +587,10 @@ type rollupConfig struct {
 	//
 	// If zero, then it is considered that Func scans all the samples passed to it.
 	samplesScannedPerCall int
+
+	// Whether the rollup is used in multi-tenant mode.
+	// This is used in order to populate labels with tenancy information.
+	isMultiTenant bool
 }
 
 func (rc *rollupConfig) getTimestamps() []int64 {

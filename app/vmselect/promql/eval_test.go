@@ -4,9 +4,10 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 func TestGetCommonLabelFilters(t *testing.T) {

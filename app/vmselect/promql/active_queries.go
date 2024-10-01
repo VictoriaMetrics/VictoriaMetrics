@@ -19,16 +19,16 @@ import (
 // If at is nil, then all the active queries across all the tenants are written.
 func ActiveQueriesHandler(at *auth.Token, w http.ResponseWriter, _ *http.Request) {
 	aqes := activeQueriesV.GetAll()
-	if at != nil {
-		// Filter out queries, which do not belong to at.
-		dst := aqes[:0]
-		for _, aqe := range aqes {
-			if aqe.accountID == at.AccountID && aqe.projectID == at.ProjectID {
-				dst = append(dst, aqe)
-			}
+
+	// Filter out queries, which do not belong to at.
+	// if at is nil, then all the queries are returned for multi-tenant request
+	dst := aqes[:0]
+	for _, aqe := range aqes {
+		if at == nil || (aqe.accountID == at.AccountID && aqe.projectID == at.ProjectID) {
+			dst = append(dst, aqe)
 		}
-		aqes = dst
 	}
+	aqes = dst
 	writeActiveQueries(w, aqes)
 }
 
@@ -42,8 +42,8 @@ func writeActiveQueries(w http.ResponseWriter, aqes []activeQueryEntry) {
 	fmt.Fprintf(w, `{"status":"ok","data":[`)
 	for i, aqe := range aqes {
 		d := now.Sub(aqe.startTime)
-		fmt.Fprintf(w, `{"duration":"%.3fs","id":"%016X","remote_addr":%s,"account_id":"%d","project_id":"%d","query":%s,"start":%d,"end":%d,"step":%d}`,
-			d.Seconds(), aqe.qid, aqe.quotedRemoteAddr, aqe.accountID, aqe.projectID, stringsutil.JSONString(aqe.q), aqe.start, aqe.end, aqe.step)
+		fmt.Fprintf(w, `{"duration":"%.3fs","id":"%016X","remote_addr":%s,"account_id":"%d","project_id":"%d","query":%s,"start":%d,"end":%d,"step":%d,"is_multitenant":%v}`,
+			d.Seconds(), aqe.qid, aqe.quotedRemoteAddr, aqe.accountID, aqe.projectID, stringsutil.JSONString(aqe.q), aqe.start, aqe.end, aqe.step, aqe.isMultitenant)
 		if i+1 < len(aqes) {
 			fmt.Fprintf(w, `,`)
 		}
@@ -68,6 +68,7 @@ type activeQueryEntry struct {
 	quotedRemoteAddr string
 	q                string
 	startTime        time.Time
+	isMultitenant    bool
 }
 
 func newActiveQueries() *activeQueries {
@@ -78,8 +79,12 @@ func newActiveQueries() *activeQueries {
 
 func (aq *activeQueries) Add(ec *EvalConfig, q string) uint64 {
 	var aqe activeQueryEntry
-	aqe.accountID = ec.AuthToken.AccountID
-	aqe.projectID = ec.AuthToken.ProjectID
+	if ec.IsMultiTenant {
+		aqe.isMultitenant = true
+	} else {
+		aqe.accountID = ec.AuthTokens[0].AccountID
+		aqe.projectID = ec.AuthTokens[0].ProjectID
+	}
 	aqe.start = ec.Start
 	aqe.end = ec.End
 	aqe.step = ec.Step

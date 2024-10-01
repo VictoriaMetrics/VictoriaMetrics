@@ -12,6 +12,9 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -26,8 +29,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 var (
@@ -109,10 +110,12 @@ func alignStartEnd(start, end, step int64) (int64, int64) {
 
 // EvalConfig is the configuration required for query evaluation via Exec
 type EvalConfig struct {
-	AuthToken *auth.Token
-	Start     int64
-	End       int64
-	Step      int64
+	AuthTokens    []*auth.Token
+	IsMultiTenant bool
+
+	Start int64
+	End   int64
+	Step  int64
 
 	// MaxSeries is the maximum number of time series, which can be scanned by the query.
 	// Zero means 'no limit'
@@ -160,7 +163,8 @@ type EvalConfig struct {
 // copyEvalConfig returns src copy.
 func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	var ec EvalConfig
-	ec.AuthToken = src.AuthToken
+	ec.AuthTokens = src.AuthTokens
+	ec.IsMultiTenant = src.IsMultiTenant
 	ec.Start = src.Start
 	ec.End = src.End
 	ec.Step = src.Step
@@ -963,7 +967,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 		return nil, nil
 	}
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries)
-	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
+	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps, ec.IsMultiTenant)
 	if err != nil {
 		return nil, err
 	}
@@ -1107,13 +1111,18 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		}
 		return offset >= maxOffset
 	}
+
+	at := ec.AuthTokens[0]
+	if ec.IsMultiTenant {
+		at = nil
+	}
 	deleteCachedSeries := func(qt *querytracer.Tracer) {
-		rollupResultCacheV.DeleteInstantValues(qt, ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss)
+		rollupResultCacheV.DeleteInstantValues(qt, at, expr, window, ec.Step, ec.EnforcedTagFilterss)
 	}
 	getCachedSeries := func(qt *querytracer.Tracer) ([]*timeseries, int64, error) {
 	again:
 		offset := int64(0)
-		tssCached := rollupResultCacheV.GetInstantValues(qt, ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss)
+		tssCached := rollupResultCacheV.GetInstantValues(qt, at, expr, window, ec.Step, ec.EnforcedTagFilterss)
 		ec.QueryStats.addSeriesFetched(len(tssCached))
 		if len(tssCached) == 0 {
 			// Cache miss. Re-populate the missing data.
@@ -1139,7 +1148,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 				tss, err := evalAt(qt, timestamp, window)
 				return tss, 0, err
 			}
-			rollupResultCacheV.PutInstantValues(qt, ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss, tss)
+			rollupResultCacheV.PutInstantValues(qt, at, expr, window, ec.Step, ec.EnforcedTagFilterss, tss)
 			return tss, offset, nil
 		}
 		// Cache hit. Verify whether it is OK to use the cached data.
@@ -1707,7 +1716,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	}
 	// Obtain rollup configs before fetching data from db, so type errors could be caught earlier.
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries)
-	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
+	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps, ec.IsMultiTenant)
 	if err != nil {
 		return nil, err
 	}
@@ -1724,7 +1733,18 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 	} else {
 		minTimestamp -= ec.Step
 	}
-	sq := storage.NewSearchQuery(ec.AuthToken.AccountID, ec.AuthToken.ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
+	var sq *storage.SearchQuery
+
+	if ec.IsMultiTenant {
+		ts := make([]storage.TenantToken, len(ec.AuthTokens))
+		for i, at := range ec.AuthTokens {
+			ts[i].ProjectID = at.ProjectID
+			ts[i].AccountID = at.AccountID
+		}
+		sq = storage.NewMultiTenantSearchQuery(ts, minTimestamp, ec.End, tfss, ec.MaxSeries)
+	} else {
+		sq = storage.NewSearchQuery(ec.AuthTokens[0].AccountID, ec.AuthTokens[0].ProjectID, minTimestamp, ec.End, tfss, ec.MaxSeries)
+	}
 	rss, isPartial, err := netstorage.ProcessSearchQuery(qt, ec.DenyPartialResponse, sq, ec.Deadline)
 	if err != nil {
 		return nil, err
@@ -1955,8 +1975,6 @@ var bbPool bytesutil.ByteBufferPool
 func evalNumber(ec *EvalConfig, n float64) []*timeseries {
 	var ts timeseries
 	ts.denyReuse = true
-	ts.MetricName.AccountID = ec.AuthToken.AccountID
-	ts.MetricName.ProjectID = ec.AuthToken.ProjectID
 	timestamps := ec.getSharedTimestamps()
 	values := make([]float64, len(timestamps))
 	for i := range timestamps {

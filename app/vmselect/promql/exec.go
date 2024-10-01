@@ -10,14 +10,15 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 var (
@@ -39,10 +40,14 @@ var (
 func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
 	if querystats.Enabled() {
 		startTime := time.Now()
-		ac := ec.AuthToken
 		defer func() {
-			querystats.RegisterQuery(ac.AccountID, ac.ProjectID, q, ec.End-ec.Start, startTime)
 			ec.QueryStats.addExecutionTimeMsec(startTime)
+			if ec.IsMultiTenant {
+				querystats.RegisterQueryMultiTenant(q, ec.End-ec.Start, startTime)
+				return
+			}
+			at := ec.AuthTokens[0]
+			querystats.RegisterQuery(at.AccountID, at.ProjectID, q, ec.End-ec.Start, startTime)
 		}()
 	}
 

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/clusternative"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
@@ -34,7 +36,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -268,7 +269,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.Errorf(w, r, "cannot parse path %q: %s", path, err)
 		return true
 	}
-	at, err := auth.NewToken(p.AuthToken)
+	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
 	if err != nil {
 		httpserver.Errorf(w, r, "auth error: %s", err)
 		return true
@@ -308,6 +309,10 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			}
 			return true
 		}
+	}
+	if strings.HasPrefix(p.Suffix, "graphite/") && at == nil {
+		httpserver.Errorf(w, r, "multi-tenant queries are not supported by Graphite endpoints")
+		return true
 	}
 	if strings.HasPrefix(p.Suffix, "graphite/tags/") && !isGraphiteTagsPath(p.Suffix[len("graphite"):]) {
 		tagName := p.Suffix[len("graphite/tags/"):]
@@ -651,7 +656,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	}
 	switch p.Suffix {
 	case "prometheus/api/v1/status/active_queries":
-		at, err := auth.NewToken(p.AuthToken)
+		at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
 		if err != nil {
 			return false
 		}
@@ -660,7 +665,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		promql.ActiveQueriesHandler(at, w, r)
 		return true
 	case "prometheus/api/v1/status/top_queries":
-		at, err := auth.NewToken(p.AuthToken)
+		at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
 		if err != nil {
 			return false
 		}

@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 func TestRollupResultCacheInitStop(t *testing.T) {
@@ -40,10 +41,10 @@ func TestRollupResultCache(t *testing.T) {
 		Step:               200,
 		MaxPointsPerSeries: 1e4,
 
-		AuthToken: &auth.Token{
+		AuthTokens: []*auth.Token{{
 			AccountID: 333,
 			ProjectID: 843,
-		},
+		}},
 
 		MayCache: true,
 	}
@@ -322,7 +323,60 @@ func TestRollupResultCache(t *testing.T) {
 		}
 		testTimeseriesEqual(t, tss, tssExpected)
 	})
+	t.Run("multi-tenant cache can be retrieved", func(t *testing.T) {
+		ResetRollupResultCache()
+		tssGolden := []*timeseries{
+			{
+				MetricName: storage.MetricName{
+					AccountID: 0,
+					ProjectID: 0,
+				},
+				Timestamps: []int64{800, 1000, 1200},
+				Values:     []float64{0, 1, 2},
+			},
+			{
+				MetricName: storage.MetricName{
+					AccountID: 0,
+					ProjectID: 1,
+				},
+				Timestamps: []int64{800, 1000, 1200},
+				Values:     []float64{0, 1, 2},
+			},
+			{
+				MetricName: storage.MetricName{
+					AccountID: 1,
+					ProjectID: 1,
+				},
+				Timestamps: []int64{800, 1000, 1200},
+				Values:     []float64{0, 1, 2},
+			},
+		}
+		ecL := copyEvalConfig(ec)
+		ecL.Start = 800
+		ecL.AuthTokens = []*auth.Token{
+			{
+				AccountID: 0,
+				ProjectID: 0,
+			},
+			{
+				AccountID: 0,
+				ProjectID: 1,
+			},
+			{
+				AccountID: 1,
+				ProjectID: 1,
+			},
+		}
+		ecL.IsMultiTenant = true
+		rollupResultCacheV.PutSeries(nil, ecL, fe, window, tssGolden)
 
+		tss, newStart := rollupResultCacheV.GetSeries(nil, ecL, fe, window)
+		if newStart != 1400 {
+			t.Fatalf("unexpected newStart; got %d; want %d", newStart, 1400)
+		}
+
+		testTimeseriesEqual(t, tss, tssGolden)
+	})
 }
 
 func TestMergeSeries(t *testing.T) {
@@ -511,7 +565,7 @@ func testTimeseriesEqual(t *testing.T, tss, tssExpected []*timeseries) {
 	}
 	for i, ts := range tss {
 		tsExpected := tssExpected[i]
-		testMetricNamesEqual(t, &ts.MetricName, &tsExpected.MetricName, i)
+		testMetricNamesEqual(t, &ts.MetricName, &tsExpected.MetricName, true, i)
 		testRowsEqual(t, ts.Values, ts.Timestamps, tsExpected.Values, tsExpected.Timestamps)
 	}
 }

@@ -9,6 +9,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/fastcache"
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -21,9 +25,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
 )
 
 var (
@@ -176,7 +177,6 @@ func (rrc *rollupResultCache) GetInstantValues(qt *querytracer.Tracer, at *auth.
 	// Obtain instant values from the cache
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
-
 	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], at, expr, window, step, etfss)
 	tss, ok := rrc.getSeriesFromCache(qt, bb.B)
 	if !ok || len(tss) == 0 {
@@ -207,7 +207,6 @@ func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, at *auth.
 
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
-
 	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], at, expr, window, step, etfss)
 	_ = rrc.putSeriesToCache(qt, bb.B, step, tss)
 }
@@ -215,12 +214,10 @@ func (rrc *rollupResultCache) PutInstantValues(qt *querytracer.Tracer, at *auth.
 func (rrc *rollupResultCache) DeleteInstantValues(qt *querytracer.Tracer, at *auth.Token, expr metricsql.Expr, window, step int64, etfss [][]storage.TagFilter) {
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
-
 	bb.B = marshalRollupResultCacheKeyForInstantValues(bb.B[:0], at, expr, window, step, etfss)
 	if !rrc.putSeriesToCache(qt, bb.B, step, nil) {
 		logger.Panicf("BUG: cannot store zero series to cache")
 	}
-
 	if qt.Enabled() {
 		query := string(expr.AppendString(nil))
 		query = stringsutil.LimitStringLen(query, 300)
@@ -239,8 +236,12 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	// Obtain tss from the cache.
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
+	at := ec.AuthTokens[0]
+	if ec.IsMultiTenant {
+		at = nil
+	}
 
-	bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss)
+	bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], at, expr, window, ec.Step, ec.EnforcedTagFilterss)
 	metainfoBuf := rrc.c.Get(nil, bb.B)
 	if len(metainfoBuf) == 0 {
 		qt.Printf("nothing found")
@@ -262,7 +263,7 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	if !ok {
 		mi.RemoveKey(key)
 		metainfoBuf = mi.Marshal(metainfoBuf[:0])
-		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss)
+		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], ec.AuthTokens[0], expr, window, ec.Step, ec.EnforcedTagFilterss)
 		rrc.c.Set(bb.B, metainfoBuf)
 		return nil, ec.Start
 	}
@@ -368,7 +369,11 @@ func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	metainfoBuf := bbPool.Get()
 	defer bbPool.Put(metainfoBuf)
 
-	metainfoKey.B = marshalRollupResultCacheKeyForSeries(metainfoKey.B[:0], ec.AuthToken, expr, window, ec.Step, ec.EnforcedTagFilterss)
+	at := ec.AuthTokens[0]
+	if ec.IsMultiTenant {
+		at = nil
+	}
+	metainfoKey.B = marshalRollupResultCacheKeyForSeries(metainfoKey.B[:0], at, expr, window, ec.Step, ec.EnforcedTagFilterss)
 	metainfoBuf.B = rrc.c.Get(metainfoBuf.B[:0], metainfoKey.B)
 	var mi rollupResultCacheMetainfo
 	if len(metainfoBuf.B) > 0 {
@@ -508,8 +513,10 @@ func marshalRollupResultCacheKeyForSeries(dst []byte, at *auth.Token, expr metri
 	dst = append(dst, rollupResultCacheVersion)
 	dst = encoding.MarshalUint64(dst, rollupResultCacheKeyPrefix.Load())
 	dst = append(dst, rollupResultCacheTypeSeries)
-	dst = encoding.MarshalUint32(dst, at.AccountID)
-	dst = encoding.MarshalUint32(dst, at.ProjectID)
+	if at != nil {
+		dst = encoding.MarshalUint32(dst, at.AccountID)
+		dst = encoding.MarshalUint32(dst, at.ProjectID)
+	}
 	dst = encoding.MarshalInt64(dst, window)
 	dst = encoding.MarshalInt64(dst, step)
 	dst = marshalTagFiltersForRollupResultCacheKey(dst, etfs)
@@ -521,8 +528,10 @@ func marshalRollupResultCacheKeyForInstantValues(dst []byte, at *auth.Token, exp
 	dst = append(dst, rollupResultCacheVersion)
 	dst = encoding.MarshalUint64(dst, rollupResultCacheKeyPrefix.Load())
 	dst = append(dst, rollupResultCacheTypeInstantValues)
-	dst = encoding.MarshalUint32(dst, at.AccountID)
-	dst = encoding.MarshalUint32(dst, at.ProjectID)
+	if at != nil {
+		dst = encoding.MarshalUint32(dst, at.AccountID)
+		dst = encoding.MarshalUint32(dst, at.ProjectID)
+	}
 	dst = encoding.MarshalInt64(dst, window)
 	dst = encoding.MarshalInt64(dst, step)
 	dst = marshalTagFiltersForRollupResultCacheKey(dst, etfs)
