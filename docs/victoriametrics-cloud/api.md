@@ -23,7 +23,7 @@ VictoriaMetrics Cloud provides programmatic access for managing cloud resources 
 * **Lifetime**: Key expiration date (no expiration is an option).
 * **Permissions**: Read-only or Read/Write access.
 * **Deployment Access**: Limit access to single, multiple, or all deployments. ***Note**:  selecting all deployments in the list and the “All” option are not the same thing, the “All" option will also apply to future deployments that are created.*
-* **Key ID**: Programmatically generated identifier. It's sensitive data used for Authentication. Any operation with API keys (including viewing Key ID), will be recorded in the Audit Log.
+* **Key Value**: Programmatically generated identifier. It's sensitive data used for Authentication. Any operation with API keys (including viewing Key ID), will be recorded in the Audit Log.
 
 ![Create API Key](api-1.webp)
 
@@ -32,7 +32,7 @@ VictoriaMetrics Cloud provides programmatic access for managing cloud resources 
 * **API Key Creation**: Required for using the VictoriaMetrics Cloud API. You need to issue the key manually [here](https://cloud.victoriametrics.com/api_keys).
 * **HTTP Header**:
     * **Header Name**: `X-VM-Cloud-Access`
-    * **Header Value**: `<Key-Id>`
+    * **Header Value**: `<Key-Value>`
 
 ## Alerting & Recording Rules API:
 
