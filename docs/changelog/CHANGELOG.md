@@ -20,7 +20,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
 
-Released at 2024-10-01
+Released at 2024-10-02
 
 **Update note 1: `*.passwordFile` and similar flags are trimming trailing whitespaces at the end of content. If authorization check performed with `*.passwordFile` content, make sure to update authorization settings to not include trailing whitespaces before the upgrade. In case of [operator](https://docs.victoriametrics.com/operator/) managed installations, make sure to update operator version to [v0.48.*](https://docs.victoriametrics.com/operator/changelog/#v0480---25-sep-2024). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6986) for the details. This change reverts behavior introduced at [v1.102.0-rc2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc2) release**
 
@@ -99,6 +99,40 @@ Released at 2024-08-28
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Removes the fallback to global index search when the search using per-day index fails due to too many time series found (the global index will fail anyway with the same error and so the fallback is not needed and only slows down the search). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6836) for details.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fix metric names registering in the per-day index for new dates for existing time series when making calls to `/tags/tagSeries` and `/tags/tagMultiSeries` handlers of [Graphite API](https://docs.victoriametrics.com/#graphite-api-usage). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6872/) for details.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly ignore deleted metrics when applying [retention filters](https://docs.victoriametrics.com/#retention-filters) and [downsampling](https://docs.victoriametrics.com/#downsampling). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6891) issue for the details.
+
+## [v1.102.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.4)
+
+Released at 2024-10-02
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): fix `-remoteWrite.streamAggr.dropInputLabels` labels parsing. Now, this flag allows specifying a list of labels to drop (by using '^^' separator, i.e. `dropInputLabels='replica^^az,replica'`) per each corresponding `remoteWrite.url`. Before, `-remoteWrite.streamAggr.dropInputLabels` labels were incorrectly applied to all configured `remoteWrite.url`s. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6780) for the details.
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): fix duplicated aggregation results if there are multiple concurrent writing samples with the same label. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7118).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): consistently return the first non-`NaN` value from [`range_first`](https://docs.victoriametrics.com/metricsql/#range_first) function across all the returned data points. Previously `NaN` data points weren't replaced with the first non-`NaN` value.
+
+## [v1.102.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.3)
+
+Released at 2024-09-23
+
+* SECURITY: upgrade Go builder from Go1.22.5 to Go1.23.1. See the list of issues addressed in [Go1.23.1](https://github.com/golang/go/issues?q=milestone%3AGo1.23.1+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.20.2 to 3.20.3. See [alpine 3.20.3 release notes](https://alpinelinux.org/posts/Alpine-3.17.10-3.18.9-3.19.4-3.20.3-released.html).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) fix service discovery of Azure Virtual Machines for response contains `nextLink` in `Host:Port` format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6912).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly consume messages [from kafka](https://docs.victoriametrics.com/vmagent/#kafka-integration). Previously vmagent could skip some messages during start-up.
+* BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): perform deduplication for all received data when specifying `-streamAggr.dedupInterval` or `-remoteWrite.streamAggr.dedupInterval` command-line flags are set. Previously, if the `-remoteWrite.streamAggr.config` or `-streamAggr.config` is set, only series that matched aggregation config were deduplicated. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6711#issuecomment-2288361213) for details.
+* BUGFIX: [vmagent dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards/vmagent.json): fix legend captions for stream aggregation related panels. Before they were displaying wrong label names.
+* BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway/): add missing `datadog`, `newrelic`, `opentelemetry` and `pushgateway` routes to the `JWT` authorization routes. Allows prefixed (`prometheus/graphite`) routes for query requests.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly cache empty list of matching time series for the given [labels filter](https://docs.victoriametrics.com/keyconcepts/#filtering). This type of caching was broken since [v1.97.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.0), which could result in the increased CPU usage when performing queries, which match zero time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7009).
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Fixes start-up crash on Windows OS. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6973) for details.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fix metric `vm_object_references{type="indexdb"}`. Previously, it was overcounted.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly ingest stale NaN samples. Previously it could be dropped if series didn't exist at storage node. See this issue [https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5069] for details.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly track `vm_missing_tsids_for_metric_id_total` metric. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6931) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): do not send notifications without labels to Alertmanager. Such notifications are rejected by Alertmanager anyway. Before, vmalert could send alert notifications even if no label-value pairs left after applying `alert_relabel_configs` from [notifier config](https://docs.victoriametrics.com/vmalert/#notifier-configuration-file).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly update value of variable `$activeAt` in rules annotation during replay mode. Before, `$activeAt` could have provided incorrect values during replay.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): properly handle `c1 AND c2` and `c1 OR c1` queries for constants `c1` and `c2`. Previously such queries could return unexpected results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6637).
+* BUGFIX: all VictoriaMetrics components: increase default value of `-loggerMaxArgLen` cmd-line flag from 1000 to 5000. This should improve visibility on errors produced by very long queries.
 
 ## [v1.102.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.2)
 
@@ -458,6 +492,36 @@ Released at 2024-02-14
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): improve the operation of the context for autocomplete. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5736), [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5737) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5739) issues.
 * BUGFIX: [dashboards](https://grafana.com/orgs/victoriametrics): update `Storage full ETA` panels for Single-node and Cluster dashboards to prevent them from showing negative or blank results caused by increase of deduplicated samples. Deduplicated samples were part of the expression to provide a better estimate for disk usage, but due to sporadic nature of [deduplication](https://docs.victoriametrics.com/#deduplication) in VictoriaMetrics it rather produced skewed results. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5747).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/#vmalert): reduce memory usage for ENT version of vmalert for configurations with high number of groups with enabled multitenancy.
+
+## [v1.97.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.9)
+
+Released at 2024-10-02
+
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): consistently return the first non-`NaN` value from [`range_first`](https://docs.victoriametrics.com/metricsql/#range_first) function across all the returned data points. Previously `NaN` data points weren't replaced with the first non-`NaN` value.
+
+## [v1.97.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.8)
+
+Released at 2024-09-23
+
+* SECURITY: upgrade Go builder from Go1.22.5 to Go1.23.1. See the list of issues addressed in [Go1.23.1](https://github.com/golang/go/issues?q=milestone%3AGo1.23.1+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.20.2 to 3.20.3. See [alpine 3.20.3 release notes](https://alpinelinux.org/posts/Alpine-3.17.10-3.18.9-3.19.4-3.20.3-released.html).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) fix service discovery of Azure Virtual Machines for response contains `nextLink` in `Host:Port` format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6912).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly consume messages [from kafka](https://docs.victoriametrics.com/vmagent/#kafka-integration). Previously vmagent could skip some messages during start-up.
+* BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway/): add missing `datadog`, `newrelic`, `opentelemetry` and `pushgateway` routes to the `JWT` authorization routes. Allows prefixed (`prometheus/graphite`) routes for query requests.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly cache empty list of matching time series for the given [labels filter](https://docs.victoriametrics.com/keyconcepts/#filtering). This type of caching was broken since [v1.97.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.0), which could result in the increased CPU usage when performing queries, which match zero time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7009).
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Fixes start-up crash on Windows OS. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6973) for details.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fix metric `vm_object_references{type="indexdb"}`. Previously, it was overcounted.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly ingest stale NaN samples. Previously it could be dropped if series didn't exist at storage node. See this issue [https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5069] for details.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly track `vm_missing_tsids_for_metric_id_total` metric. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6931) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): do not send notifications without labels to Alertmanager. Such notifications are rejected by Alertmanager anyway. Before, vmalert could send alert notifications even if no label-value pairs left after applying `alert_relabel_configs` from [notifier config](https://docs.victoriametrics.com/vmalert/#notifier-configuration-file).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly update value of variable `$activeAt` in rules annotation during replay mode. Before, `$activeAt` could have provided incorrect values during replay.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): properly handle `c1 AND c2` and `c1 OR c1` queries for constants `c1` and `c2`. Previously such queries could return unexpected results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6637).
+* BUGFIX: all VictoriaMetrics components: increase default value of `-loggerMaxArgLen` cmd-line flag from 1000 to 5000. This should improve visibility on errors produced by very long queries.
 
 ## [v1.97.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.7)
 
