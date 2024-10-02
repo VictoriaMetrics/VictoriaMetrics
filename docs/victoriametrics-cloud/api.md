@@ -29,7 +29,7 @@ VictoriaMetrics Cloud provides programmatic access for managing cloud resources 
 
 ## Authentication:
 
-* **API Key Creation**: Required for using the VictoriaMetrics Cloud API. You need to issue the key manually [here](https://cloud.victoriametrics.com/api_keys) or check this [Guide here](https://docs.victoriametrics.com).
+* **API Key Creation**: Required for using the VictoriaMetrics Cloud API. You need to issue the key manually [here](https://cloud.victoriametrics.com/api_keys).
 * **HTTP Header**:
     * **Header Name**: `X-VM-Cloud-Access`
     * **Header Value**: `<Key-Id>`
