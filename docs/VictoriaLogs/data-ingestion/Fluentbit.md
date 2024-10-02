@@ -11,8 +11,29 @@ aliases:
   - /victorialogs/data-ingestion/fluentbit.html
   - /victorialogs/data-ingestion/Fluentbit.html
 ---
+VictoriaLogs supports given below Fluentbit outputs:
+- [Loki](#loki)
+- [HTTP JSON](#http)
 
-# Fluentbit setup
+## Loki
+
+Specify [loki output](https://docs.fluentbit.io/manual/pipeline/outputs/loki) section in the `fluentbit.conf`
+for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
+
+```conf
+[OUTPUT]
+    name       loki
+    match      *
+    host       victorialogs
+    uri        /insert/loki/api/v1/push
+    port       9428
+    label_keys $path,$log,$time
+    header     VL-Msg-Field log
+    header     VL-Time-Field time
+    header     VL-Stream-Fields path
+```
+
+## HTTP
 
 Specify [http output](https://docs.fluentbit.io/manual/pipeline/outputs/http) section in the `fluentbit.conf`
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
@@ -100,4 +121,4 @@ See also:
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 - [Fluentbit HTTP output config docs](https://docs.fluentbit.io/manual/pipeline/outputs/http).
-- [Docker-compose demo for Fluentbit integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit-docker).
+- [Docker-compose demo for Fluentbit integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit).

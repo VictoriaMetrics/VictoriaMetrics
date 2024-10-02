@@ -247,6 +247,7 @@ func dialPoolNewAuth(ctx context.Context, secure bool, poolSize int, ds *interna
 			DefaultScopes:                   ds.DefaultScopes,
 			SkipValidation:                  skipValidation,
 		},
+		UniverseDomain: ds.UniverseDomain,
 	})
 	return pool, err
 }
@@ -295,17 +296,6 @@ func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.C
 			creds, err := internal.Creds(ctx, o)
 			if err != nil {
 				return nil, err
-			}
-			if o.TokenSource == nil {
-				// We only validate non-tokensource creds, as TokenSource-based credentials
-				// don't propagate universe.
-				credsUniverseDomain, err := internal.GetUniverseDomain(creds)
-				if err != nil {
-					return nil, err
-				}
-				if o.GetUniverseDomain() != credsUniverseDomain {
-					return nil, internal.ErrUniverseNotMatch(o.GetUniverseDomain(), credsUniverseDomain)
-				}
 			}
 			grpcOpts = append(grpcOpts, grpc.WithPerRPCCredentials(grpcTokenSource{
 				TokenSource:   oauth.TokenSource{TokenSource: creds.TokenSource},

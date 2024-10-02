@@ -147,7 +147,7 @@ const QueryAnalyzerView: FC<Props> = ({ data, period }) => {
             {displayType === "table" && (
               <TableSettings
                 columns={columns}
-                defaultColumns={displayColumns}
+                selectedColumns={displayColumns}
                 onChangeColumns={setDisplayColumns}
                 tableCompact={tableCompact}
                 toggleTableCompact={toggleTableCompact}

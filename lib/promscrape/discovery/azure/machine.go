@@ -96,8 +96,10 @@ func visitAllAPIObjects(ac *apiConfig, apiURL string, cb func(data json.RawMessa
 			return fmt.Errorf("cannot parse nextLink from response %q: %w", lar.NextLink, err)
 		}
 
-		if nextURL.Host != "" && nextURL.Host != ac.apiServerHost {
-			return fmt.Errorf("unexpected nextLink host %q, expecting %q", nextURL.Host, ac.apiServerHost)
+		// Sometimes Azure will respond a host with a port. Since all possible apiServer defined in cloudEnvironments do not include a port,
+		// it is best to check the host without the port. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6912
+		if nextURL.Host != "" && nextURL.Hostname() != ac.apiServerHost {
+			return fmt.Errorf("unexpected nextLink host %q, expecting %q", nextURL.Hostname(), ac.apiServerHost)
 		}
 
 		nextLinkURI = nextURL.RequestURI()

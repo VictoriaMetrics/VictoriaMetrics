@@ -37,6 +37,21 @@ func (c *Client) ListBuckets(ctx context.Context, params *ListBucketsInput, optF
 }
 
 type ListBucketsInput struct {
+
+	// ContinuationToken indicates to Amazon S3 that the list is being continued on
+	// this bucket with a token. ContinuationToken is obfuscated and is not a real
+	// key. You can use this ContinuationToken for pagination of the list results.
+	//
+	// Length Constraints: Minimum length of 0. Maximum length of 1024.
+	//
+	// Required: No.
+	ContinuationToken *string
+
+	// Maximum number of buckets to be returned in response. When the number is more
+	// than the count of buckets that are owned by an Amazon Web Services account,
+	// return all the buckets in response.
+	MaxBuckets *int32
+
 	noSmithyDocumentSerde
 }
 
@@ -44,6 +59,12 @@ type ListBucketsOutput struct {
 
 	// The list of buckets owned by the requester.
 	Buckets []types.Bucket
+
+	// ContinuationToken is included in the response when there are more buckets that
+	// can be listed with pagination. The next ListBuckets request to Amazon S3 can be
+	// continued with this ContinuationToken . ContinuationToken is obfuscated and is
+	// not a real bucket.
+	ContinuationToken *string
 
 	// The owner of the buckets listed.
 	Owner *types.Owner
@@ -95,6 +116,9 @@ func (c *Client) addOperationListBucketsMiddlewares(stack *middleware.Stack, opt
 		return err
 	}
 	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -151,8 +175,114 @@ func (c *Client) addOperationListBucketsMiddlewares(stack *middleware.Stack, opt
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
 		return err
 	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
+		return err
+	}
 	return nil
 }
+
+// ListBucketsPaginatorOptions is the paginator options for ListBuckets
+type ListBucketsPaginatorOptions struct {
+	// Maximum number of buckets to be returned in response. When the number is more
+	// than the count of buckets that are owned by an Amazon Web Services account,
+	// return all the buckets in response.
+	Limit int32
+
+	// Set to true if pagination should stop if the service returns a pagination token
+	// that matches the most recent token provided to the service.
+	StopOnDuplicateToken bool
+}
+
+// ListBucketsPaginator is a paginator for ListBuckets
+type ListBucketsPaginator struct {
+	options   ListBucketsPaginatorOptions
+	client    ListBucketsAPIClient
+	params    *ListBucketsInput
+	nextToken *string
+	firstPage bool
+}
+
+// NewListBucketsPaginator returns a new ListBucketsPaginator
+func NewListBucketsPaginator(client ListBucketsAPIClient, params *ListBucketsInput, optFns ...func(*ListBucketsPaginatorOptions)) *ListBucketsPaginator {
+	if params == nil {
+		params = &ListBucketsInput{}
+	}
+
+	options := ListBucketsPaginatorOptions{}
+	if params.MaxBuckets != nil {
+		options.Limit = *params.MaxBuckets
+	}
+
+	for _, fn := range optFns {
+		fn(&options)
+	}
+
+	return &ListBucketsPaginator{
+		options:   options,
+		client:    client,
+		params:    params,
+		firstPage: true,
+		nextToken: params.ContinuationToken,
+	}
+}
+
+// HasMorePages returns a boolean indicating whether more pages are available
+func (p *ListBucketsPaginator) HasMorePages() bool {
+	return p.firstPage || (p.nextToken != nil && len(*p.nextToken) != 0)
+}
+
+// NextPage retrieves the next ListBuckets page.
+func (p *ListBucketsPaginator) NextPage(ctx context.Context, optFns ...func(*Options)) (*ListBucketsOutput, error) {
+	if !p.HasMorePages() {
+		return nil, fmt.Errorf("no more pages available")
+	}
+
+	params := *p.params
+	params.ContinuationToken = p.nextToken
+
+	var limit *int32
+	if p.options.Limit > 0 {
+		limit = &p.options.Limit
+	}
+	params.MaxBuckets = limit
+
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
+	result, err := p.client.ListBuckets(ctx, &params, optFns...)
+	if err != nil {
+		return nil, err
+	}
+	p.firstPage = false
+
+	prevToken := p.nextToken
+	p.nextToken = result.ContinuationToken
+
+	if p.options.StopOnDuplicateToken &&
+		prevToken != nil &&
+		p.nextToken != nil &&
+		*prevToken == *p.nextToken {
+		p.nextToken = nil
+	}
+
+	return result, nil
+}
+
+// ListBucketsAPIClient is a client that implements the ListBuckets operation.
+type ListBucketsAPIClient interface {
+	ListBuckets(context.Context, *ListBucketsInput, ...func(*Options)) (*ListBucketsOutput, error)
+}
+
+var _ ListBucketsAPIClient = (*Client)(nil)
 
 func newServiceMetadataMiddleware_opListBuckets(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{

@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // valueType is the type of values stored in every column block.
@@ -283,11 +284,13 @@ func tryTimestampISO8601Encoding(dstBuf []byte, dstValues, srcValues []string) (
 	return dstBuf, dstValues, valueTypeTimestampISO8601, uint64(minValue), uint64(maxValue)
 }
 
-// TryParseTimestampRFC3339Nano parses 'YYYY-MM-DDThh:mm:ss' with optional nanoseconds part and timezone offset and returns unix timestamp in nanoseconds.
+// TryParseTimestampRFC3339Nano parses s as RFC3339 with optional nanoseconds part and timezone offset and returns unix timestamp in nanoseconds.
+//
+// If s doesn't contain timezone offset, then the local timezone is used.
 //
 // The returned timestamp can be negative if s is smaller than 1970 year.
 func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
-	if len(s) < len("2006-01-02T15:04:05Z") {
+	if len(s) < len("2006-01-02T15:04:05") {
 		return 0, false
 	}
 
@@ -301,28 +304,29 @@ func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	// Parse timezone offset
 	n := strings.IndexAny(s, "Z+-")
 	if n < 0 {
-		return 0, false
-	}
-	offsetStr := s[n+1:]
-	if s[n] != 'Z' {
-		isMinus := s[n] == '-'
-		if len(offsetStr) == 0 {
-			return 0, false
-		}
-		offsetNsecs, ok := tryParseTimezoneOffset(offsetStr)
-		if !ok {
-			return 0, false
-		}
-		if isMinus {
-			offsetNsecs = -offsetNsecs
-		}
-		nsecs -= offsetNsecs
+		nsecs -= timeutil.GetLocalTimezoneOffsetNsecs()
 	} else {
-		if len(offsetStr) != 0 {
-			return 0, false
+		offsetStr := s[n+1:]
+		if s[n] != 'Z' {
+			isMinus := s[n] == '-'
+			if len(offsetStr) == 0 {
+				return 0, false
+			}
+			offsetNsecs, ok := tryParseTimezoneOffset(offsetStr)
+			if !ok {
+				return 0, false
+			}
+			if isMinus {
+				offsetNsecs = -offsetNsecs
+			}
+			nsecs -= offsetNsecs
+		} else {
+			if len(offsetStr) != 0 {
+				return 0, false
+			}
 		}
+		s = s[:n]
 	}
-	s = s[:n]
 
 	// Parse optional fractional part of seconds.
 	if len(s) == 0 {
@@ -434,8 +438,13 @@ func tryParseTimestampSecs(s string) (int64, bool, string) {
 	month := time.Month(n)
 	s = s[len("MM")+1:]
 
-	// Parse day
-	if s[len("DD")] != 'T' {
+	// Parse day.
+	//
+	// Allow whitespace additionally to T as the delimiter after DD,
+	// so SQL datetime format can be parsed additionally to RFC3339.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6721
+	delim := s[len("DD")]
+	if delim != 'T' && delim != ' ' {
 		return 0, false, s
 	}
 	dayStr := s[:len("DD")]

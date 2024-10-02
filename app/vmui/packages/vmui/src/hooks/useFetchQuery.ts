@@ -110,7 +110,12 @@ export const useFetchQuery = ({
           continue;
         }
 
-        const response = await fetch(url, { signal: controller.signal });
+        const urlObj = new URL(url);
+        const response = await fetch(`${urlObj.origin}${urlObj.pathname}`, {
+          signal: controller.signal,
+          method: "POST",
+          body: urlObj.searchParams
+        });
         const resp = await response.json();
 
         if (response.ok) {

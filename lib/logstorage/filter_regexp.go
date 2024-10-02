@@ -16,8 +16,9 @@ type filterRegexp struct {
 	fieldName string
 	re        *regexutil.Regex
 
-	tokens     []string
-	tokensOnce sync.Once
+	tokensOnce   sync.Once
+	tokens       []string
+	tokensHashes []uint64
 }
 
 func (fr *filterRegexp) String() string {
@@ -33,12 +34,18 @@ func (fr *filterRegexp) getTokens() []string {
 	return fr.tokens
 }
 
+func (fr *filterRegexp) getTokensHashes() []uint64 {
+	fr.tokensOnce.Do(fr.initTokens)
+	return fr.tokensHashes
+}
+
 func (fr *filterRegexp) initTokens() {
 	literals := fr.re.GetLiterals()
 	for i, literal := range literals {
 		literals[i] = skipFirstLastToken(literal)
 	}
 	fr.tokens = tokenizeStrings(nil, literals)
+	fr.tokensHashes = appendTokensHashes(nil, fr.tokens)
 }
 
 func skipFirstLastToken(s string) string {
@@ -71,7 +78,8 @@ func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	re := fr.re
 
 	// Verify whether filter matches const column
-	v := bs.csh.getConstColumnValue(fieldName)
+	csh := bs.getColumnsHeader()
+	v := csh.getConstColumnValue(fieldName)
 	if v != "" {
 		if !re.MatchString(v) {
 			bm.resetBits()
@@ -80,7 +88,7 @@ func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := csh.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		if !re.MatchString("") {
@@ -89,7 +97,7 @@ func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	tokens := fr.getTokens()
+	tokens := fr.getTokensHashes()
 
 	switch ch.valueType {
 	case valueTypeString:
@@ -115,7 +123,7 @@ func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-func matchTimestampISO8601ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+func matchTimestampISO8601ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -128,7 +136,7 @@ func matchTimestampISO8601ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap
 	bbPool.Put(bb)
 }
 
-func matchIPv4ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+func matchIPv4ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -141,7 +149,7 @@ func matchIPv4ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexu
 	bbPool.Put(bb)
 }
 
-func matchFloat64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+func matchFloat64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -167,7 +175,7 @@ func matchValuesDictByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *
 	bbPool.Put(bb)
 }
 
-func matchStringByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+func matchStringByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -177,7 +185,7 @@ func matchStringByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *rege
 	})
 }
 
-func matchUint8ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+func matchUint8ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -190,7 +198,7 @@ func matchUint8ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regex
 	bbPool.Put(bb)
 }
 
-func matchUint16ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+func matchUint16ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -203,7 +211,7 @@ func matchUint16ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *rege
 	bbPool.Put(bb)
 }
 
-func matchUint32ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+func matchUint32ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -216,7 +224,7 @@ func matchUint32ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *rege
 	bbPool.Put(bb)
 }
 
-func matchUint64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []string) {
+func matchUint64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return

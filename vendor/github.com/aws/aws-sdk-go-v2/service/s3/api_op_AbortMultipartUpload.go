@@ -24,12 +24,19 @@ import (
 // part storage, you should call the [ListParts]API operation and ensure that the parts list
 // is empty.
 //
-// Directory buckets - For directory buckets, you must make requests for this API
-// operation to the Zonal endpoint. These endpoints support virtual-hosted-style
-// requests in the format
-// https://bucket_name.s3express-az_id.region.amazonaws.com/key-name . Path-style
-// requests are not supported. For more information, see [Regional and Zonal endpoints]in the Amazon S3 User
-// Guide.
+//   - Directory buckets - If multipart uploads in a directory bucket are in
+//     progress, you can't delete the bucket until all the in-progress multipart
+//     uploads are aborted or completed. To delete these in-progress multipart uploads,
+//     use the ListMultipartUploads operation to list the in-progress multipart
+//     uploads in the bucket and use the AbortMultupartUpload operation to abort all
+//     the in-progress multipart uploads.
+//
+//   - Directory buckets - For directory buckets, you must make requests for this
+//     API operation to the Zonal endpoint. These endpoints support
+//     virtual-hosted-style requests in the format
+//     https://bucket_name.s3express-az_id.region.amazonaws.com/key-name .
+//     Path-style requests are not supported. For more information, see [Regional and Zonal endpoints]in the
+//     Amazon S3 User Guide.
 //
 // Permissions
 //
@@ -219,6 +226,9 @@ func (c *Client) addOperationAbortMultipartUploadMiddlewares(stack *middleware.S
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -274,6 +284,18 @@ func (c *Client) addOperationAbortMultipartUploadMiddlewares(stack *middleware.S
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

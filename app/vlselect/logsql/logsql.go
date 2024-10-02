@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -44,6 +45,7 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	}
 	if step <= 0 {
 		httpserver.Errorf(w, r, "'step' must be bigger than zero")
+		return
 	}
 
 	// Obtain offset
@@ -380,6 +382,8 @@ func ProcessStreamsRequest(ctx context.Context, w http.ResponseWriter, r *http.R
 }
 
 // ProcessLiveTailRequest processes live tailing request to /select/logsq/tail
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#live-tailing
 func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	liveTailRequests.Inc()
 	defer liveTailRequests.Dec()
@@ -413,13 +417,17 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 	if !ok {
 		logger.Panicf("BUG: it is expected that http.ResponseWriter (%T) supports http.Flusher interface", w)
 	}
+	qOrig := q
 	for {
 		start := end - tailOffsetNsecs
 		end = time.Now().UnixNano()
 
-		qCopy := q.Clone()
-		qCopy.AddTimeFilter(start, end)
-		if err := vlstorage.RunQuery(ctxWithCancel, tenantIDs, qCopy, tp.writeBlock); err != nil {
+		q = qOrig.Clone(end)
+		q.AddTimeFilter(start, end)
+		// q.Optimize() call is needed for converting '*' into filterNoop.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6785#issuecomment-2358547733
+		q.Optimize()
+		if err := vlstorage.RunQuery(ctxWithCancel, tenantIDs, q, tp.writeBlock); err != nil {
 			httpserver.Errorf(w, r, "cannot execute tail query [%s]: %s", q, err)
 			return
 		}
@@ -560,9 +568,212 @@ func (tp *tailProcessor) getTailRows() ([][]logstorage.Field, error) {
 	return tailRows, nil
 }
 
+// ProcessStatsQueryRangeRequest handles /select/logsql/stats_query_range request.
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats
+func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	q, tenantIDs, err := parseCommonArgs(r)
+	if err != nil {
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	// Obtain step
+	stepStr := r.FormValue("step")
+	if stepStr == "" {
+		stepStr = "1d"
+	}
+	step, err := promutils.ParseDuration(stepStr)
+	if err != nil {
+		err = fmt.Errorf("cannot parse 'step' arg: %s", err)
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+	if step <= 0 {
+		err := fmt.Errorf("'step' must be bigger than zero")
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	// Obtain `by(...)` fields from the last `| stats` pipe in q.
+	// Add `_time:step` to the `by(...)` list.
+	byFields, err := q.GetStatsByFieldsAddGroupingByTime(int64(step))
+	if err != nil {
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	q.Optimize()
+
+	m := make(map[string]*statsSeries)
+	var mLock sync.Mutex
+
+	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
+		clonedColumnNames := make([]string, len(columns))
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+		}
+		for i := range timestamps {
+			timestamp := q.GetTimestamp()
+			labels := make([]logstorage.Field, 0, len(byFields))
+			for j, c := range columns {
+				if c.Name == "_time" {
+					nsec, ok := logstorage.TryParseTimestampRFC3339Nano(c.Values[i])
+					if ok {
+						timestamp = nsec
+						continue
+					}
+				}
+				if slices.Contains(byFields, c.Name) {
+					labels = append(labels, logstorage.Field{
+						Name:  clonedColumnNames[j],
+						Value: strings.Clone(c.Values[i]),
+					})
+				}
+			}
+
+			var dst []byte
+			for j, c := range columns {
+				if !slices.Contains(byFields, c.Name) {
+					name := clonedColumnNames[j]
+					dst = dst[:0]
+					dst = append(dst, name...)
+					dst = logstorage.MarshalFieldsToJSON(dst, labels)
+					key := string(dst)
+					p := statsPoint{
+						Timestamp: timestamp,
+						Value:     strings.Clone(c.Values[i]),
+					}
+
+					mLock.Lock()
+					ss := m[key]
+					if ss == nil {
+						ss = &statsSeries{
+							key:    key,
+							Name:   name,
+							Labels: labels,
+						}
+						m[key] = ss
+					}
+					ss.Points = append(ss.Points, p)
+					mLock.Unlock()
+				}
+			}
+		}
+	}
+
+	if err := vlstorage.RunQuery(ctx, tenantIDs, q, writeBlock); err != nil {
+		err = fmt.Errorf("cannot execute query [%s]: %s", q, err)
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	// Sort the collected stats by time
+	rows := make([]*statsSeries, 0, len(m))
+	for _, ss := range m {
+		points := ss.Points
+		sort.Slice(points, func(i, j int) bool {
+			return points[i].Timestamp < points[j].Timestamp
+		})
+		rows = append(rows, ss)
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i].key < rows[j].key
+	})
+
+	w.Header().Set("Content-Type", "application/json")
+	WriteStatsQueryRangeResponse(w, rows)
+}
+
+type statsSeries struct {
+	key string
+
+	Name   string
+	Labels []logstorage.Field
+	Points []statsPoint
+}
+
+type statsPoint struct {
+	Timestamp int64
+	Value     string
+}
+
+// ProcessStatsQueryRequest handles /select/logsql/stats_query request.
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats
+func ProcessStatsQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	q, tenantIDs, err := parseCommonArgs(r)
+	if err != nil {
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	// Obtain `by(...)` fields from the last `| stats` pipe in q.
+	byFields, err := q.GetStatsByFields()
+	if err != nil {
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	q.Optimize()
+
+	var rows []statsRow
+	var rowsLock sync.Mutex
+
+	timestamp := q.GetTimestamp()
+	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
+		clonedColumnNames := make([]string, len(columns))
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+		}
+		for i := range timestamps {
+			labels := make([]logstorage.Field, 0, len(byFields))
+			for j, c := range columns {
+				if slices.Contains(byFields, c.Name) {
+					labels = append(labels, logstorage.Field{
+						Name:  clonedColumnNames[j],
+						Value: strings.Clone(c.Values[i]),
+					})
+				}
+			}
+
+			for j, c := range columns {
+				if !slices.Contains(byFields, c.Name) {
+					r := statsRow{
+						Name:      clonedColumnNames[j],
+						Labels:    labels,
+						Timestamp: timestamp,
+						Value:     strings.Clone(c.Values[i]),
+					}
+
+					rowsLock.Lock()
+					rows = append(rows, r)
+					rowsLock.Unlock()
+				}
+			}
+		}
+	}
+
+	if err := vlstorage.RunQuery(ctx, tenantIDs, q, writeBlock); err != nil {
+		err = fmt.Errorf("cannot execute query [%s]: %s", q, err)
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	WriteStatsQueryResponse(w, rows)
+}
+
+type statsRow struct {
+	Name      string
+	Labels    []logstorage.Field
+	Timestamp int64
+	Value     string
+}
+
 // ProcessQueryRequest handles /select/logsql/query request.
 //
-// See https://docs.victoriametrics.com/victorialogs/querying/#http-api
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-logs
 func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	q, tenantIDs, err := parseCommonArgs(r)
 	if err != nil {
@@ -637,6 +848,7 @@ func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, 
 	limitUpper := 2 * limit
 	q.AddPipeLimit(uint64(limitUpper))
 	q.Optimize()
+
 	rows, err := getQueryResultsWithLimit(ctx, tenantIDs, q, limitUpper)
 	if err != nil {
 		return nil, err
@@ -647,32 +859,62 @@ func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, 
 		return rows, nil
 	}
 
-	// Slow path - search for the time range containing up to limitUpper rows.
+	// Slow path - adjust time range for selecting up to limitUpper rows
 	start, end := q.GetFilterTimeRange()
 	d := end/2 - start/2
 	start += d
 
 	qOrig := q
 	for {
-		q = qOrig.Clone()
+		timestamp := qOrig.GetTimestamp()
+		q = qOrig.Clone(timestamp)
 		q.AddTimeFilter(start, end)
+		// q.Optimize() call is needed for converting '*' into filterNoop.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6785#issuecomment-2358547733
+		q.Optimize()
 		rows, err := getQueryResultsWithLimit(ctx, tenantIDs, q, limitUpper)
 		if err != nil {
 			return nil, err
 		}
 
-		if len(rows) >= limit && len(rows) < limitUpper || d == 0 {
+		if d == 0 || start >= end {
+			// The [start ... end] time range equals one nanosecond.
+			// Just return up to limit rows.
+			if len(rows) > limit {
+				rows = rows[:limit]
+			}
+			return rows, nil
+		}
+
+		dLastBit := d & 1
+		d /= 2
+
+		if len(rows) >= limitUpper {
+			// The number of found rows on the [start ... end] time range exceeds limitUpper,
+			// so reduce the time range to [start+d ... end].
+			start += d
+			continue
+		}
+		if len(rows) >= limit {
+			// The number of found rows is in the range [limit ... limitUpper).
+			// This means that found rows contains the needed limit rows with the biggest timestamps.
 			rows = getLastNRows(rows, limit)
 			return rows, nil
 		}
 
-		lastBit := d & 1
-		d /= 2
-		if len(rows) > limit {
-			start += d
-		} else {
-			start -= d + lastBit
+		// The number of found rows on [start ... end] time range is below the limit.
+		// This means the time range doesn't cover the needed logs, so it must be extended.
+
+		if len(rows) == 0 {
+			// The [start ... end] time range doesn't contain any rows, so change it to [start-d ... start).
+			end = start - 1
+			start -= d + dLastBit
+			continue
 		}
+
+		// The number of found rows on [start ... end] time range is bigger than 0 but smaller than limit.
+		// Increase the time range to [start-d ... end].
+		start -= d + dLastBit
 	}
 }
 
@@ -693,20 +935,25 @@ func getQueryResultsWithLimit(ctx context.Context, tenantIDs []logstorage.Tenant
 	var rows []row
 	var rowsLock sync.Mutex
 	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
-		rowsLock.Lock()
-		defer rowsLock.Unlock()
+		clonedColumnNames := make([]string, len(columns))
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+		}
 
 		for i, timestamp := range timestamps {
 			fields := make([]logstorage.Field, len(columns))
 			for j := range columns {
 				f := &fields[j]
-				f.Name = strings.Clone(columns[j].Name)
+				f.Name = clonedColumnNames[j]
 				f.Value = strings.Clone(columns[j].Values[i])
 			}
+
+			rowsLock.Lock()
 			rows = append(rows, row{
 				timestamp: timestamp,
 				fields:    fields,
 			})
+			rowsLock.Unlock()
 		}
 
 		if len(rows) >= limit {
@@ -728,9 +975,23 @@ func parseCommonArgs(r *http.Request) (*logstorage.Query, []logstorage.TenantID,
 	}
 	tenantIDs := []logstorage.TenantID{tenantID}
 
+	// Parse optional time arg
+	timestamp, okTime, err := getTimeNsec(r, "time")
+	if err != nil {
+		return nil, nil, err
+	}
+	if !okTime {
+		// If time arg is missing, then evaluate query at the current timestamp
+		timestamp = time.Now().UnixNano()
+	}
+
+	// decrease timestamp by one nanosecond in order to avoid capturing logs belonging
+	// to the first nanosecond at the next period of time (month, week, day, hour, etc.)
+	timestamp--
+
 	// Parse query
 	qStr := r.FormValue("query")
-	q, err := logstorage.ParseQuery(qStr)
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, timestamp)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}

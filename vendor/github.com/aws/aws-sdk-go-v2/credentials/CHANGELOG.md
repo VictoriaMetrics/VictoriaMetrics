@@ -1,3 +1,40 @@
+# v1.17.36 (2024-09-25)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.35 (2024-09-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.34 (2024-09-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.33 (2024-09-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.32 (2024-09-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.31 (2024-09-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.30 (2024-08-26)
+
+* **Bug Fix**: Save SSO cached token expiry in UTC to ensure cross-SDK compatibility.
+
+# v1.17.29 (2024-08-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.28 (2024-08-15)
+
+* **Dependency Update**: Bump minimum Go version to 1.21.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.17.27 (2024-07-18)
 
 * **Dependency Update**: Updated to the latest SDK module versions

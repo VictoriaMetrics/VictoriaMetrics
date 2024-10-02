@@ -68,6 +68,7 @@ func TestLabelsCompressorSerial(t *testing.T) {
 func TestLabelsCompressorConcurrent(t *testing.T) {
 	const concurrency = 5
 	var lc LabelsCompressor
+	var expectCompressedKeys sync.Map
 
 	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
@@ -75,9 +76,14 @@ func TestLabelsCompressorConcurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			series := newTestSeries(100, 20)
-			for i, labels := range series {
+			for n, labels := range series {
 				sExpected := labelsToString(labels)
 				data := lc.Compress(nil, labels)
+				if expectData, ok := expectCompressedKeys.LoadOrStore(n, data); ok {
+					if string(data) != string(expectData.([]byte)) {
+						panic(fmt.Errorf("unexpected compress result at series/%d in iteration %d ", n, i))
+					}
+				}
 				labelsResult := lc.Decompress(nil, data)
 				sResult := labelsToString(labelsResult)
 				if sExpected != sResult {

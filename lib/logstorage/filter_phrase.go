@@ -24,8 +24,9 @@ type filterPhrase struct {
 	fieldName string
 	phrase    string
 
-	tokensOnce sync.Once
-	tokens     []string
+	tokensOnce   sync.Once
+	tokens       []string
+	tokensHashes []uint64
 }
 
 func (fp *filterPhrase) String() string {
@@ -41,8 +42,14 @@ func (fp *filterPhrase) getTokens() []string {
 	return fp.tokens
 }
 
+func (fp *filterPhrase) getTokensHashes() []uint64 {
+	fp.tokensOnce.Do(fp.initTokens)
+	return fp.tokensHashes
+}
+
 func (fp *filterPhrase) initTokens() {
 	fp.tokens = tokenizeStrings(nil, []string{fp.phrase})
+	fp.tokensHashes = appendTokensHashes(nil, fp.tokens)
 }
 
 func (fp *filterPhrase) applyToBlockResult(br *blockResult, bm *bitmap) {
@@ -54,7 +61,8 @@ func (fp *filterPhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	phrase := fp.phrase
 
 	// Verify whether fp matches const column
-	v := bs.csh.getConstColumnValue(fieldName)
+	csh := bs.getColumnsHeader()
+	v := csh.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchPhrase(v, phrase) {
 			bm.resetBits()
@@ -63,7 +71,7 @@ func (fp *filterPhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether fp matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := csh.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		// It matches anything only for empty phrase.
@@ -73,7 +81,7 @@ func (fp *filterPhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	tokens := fp.getTokens()
+	tokens := fp.getTokensHashes()
 
 	switch ch.valueType {
 	case valueTypeString:
@@ -99,7 +107,7 @@ func (fp *filterPhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-func matchTimestampISO8601ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
+func matchTimestampISO8601ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []uint64) {
 	_, ok := tryParseTimestampISO8601(phrase)
 	if ok {
 		// Fast path - the phrase contains complete timestamp, so we can use exact search
@@ -121,7 +129,7 @@ func matchTimestampISO8601ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap
 	bbPool.Put(bb)
 }
 
-func matchIPv4ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
+func matchIPv4ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []uint64) {
 	_, ok := tryParseIPv4(phrase)
 	if ok {
 		// Fast path - phrase contains the full IP address, so we can use exact matching
@@ -145,7 +153,7 @@ func matchIPv4ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase str
 	bbPool.Put(bb)
 }
 
-func matchFloat64ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
+func matchFloat64ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []uint64) {
 	// The phrase may contain a part of the floating-point number.
 	// For example, `foo:"123"` must match `123`, `123.456` and `-0.123`.
 	// This means we cannot search in binary representation of floating-point numbers.
@@ -187,7 +195,7 @@ func matchValuesDictByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phra
 	bbPool.Put(bb)
 }
 
-func matchStringByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
+func matchStringByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -288,7 +296,7 @@ func visitValues(bs *blockSearch, ch *columnHeader, bm *bitmap, f func(value str
 	})
 }
 
-func matchBloomFilterAllTokens(bs *blockSearch, ch *columnHeader, tokens []string) bool {
+func matchBloomFilterAllTokens(bs *blockSearch, ch *columnHeader, tokens []uint64) bool {
 	if len(tokens) == 0 {
 		return true
 	}

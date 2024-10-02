@@ -221,7 +221,7 @@ This command will result in 3 keys loaded: 2 keys from files and 1 from command 
 `vmgateway` supports using OpenID discovery endpoint for JWKS keys discovery.
 
 In order to enable [OpenID discovery](https://openid.net/specs/openid-connect-discovery-1_0.html) endpoint for JWT signature verification, you need to specify OpenID discovery endpoint URLs by using `auth.oidcDiscoveryEndpoints` flag.
-When `auth.oidcDiscoveryEndpoints` is specified `vmageteway` will fetch JWKS keys from the specified endpoint and use them for JWT signature verification.
+When `auth.oidcDiscoveryEndpoints` is specified `vmgateway` will fetch JWKS keys from the specified endpoint and use them for JWT signature verification.
 
 Example usage for tokens issued by Azure Active Directory:
 ```sh
@@ -246,7 +246,7 @@ Example usage for tokens issued by Google:
 `vmgateway` supports using JWKS endpoint for JWT signature verification.
 
 In order to enable JWKS endpoint for JWT signature verification, you need to specify JWKS endpoint URL by using `auth.jwksEndpoints` flag.
-When `auth.jwksEndpoints` is specified `vmageteway` will fetch public keys from the specified endpoint and use them for JWT signature verification.
+When `auth.jwksEndpoints` is specified `vmgateway` will fetch public keys from the specified endpoint and use them for JWT signature verification.
 
 Example usage for tokens issued by Azure Active Directory:
 ```sh

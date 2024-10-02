@@ -1660,7 +1660,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1668,8 +1669,7 @@
                   }
                 ]
               },
-              "unit": "percentunit",
-              "unitScale": true
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -1680,7 +1680,6 @@
             "y": 3
           },
           "id": 66,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2269,8 +2268,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": [
               {
@@ -2294,7 +2292,6 @@
             "y": 19
           },
           "id": 204,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2400,7 +2397,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2408,8 +2406,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2420,7 +2417,6 @@
             "y": 27
           },
           "id": 68,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2507,7 +2503,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2515,8 +2512,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2614,7 +2610,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2622,8 +2619,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2634,7 +2630,6 @@
             "y": 35
           },
           "id": 70,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2721,7 +2716,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2729,8 +2725,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2829,7 +2824,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2837,8 +2833,7 @@
                   }
                 ]
               },
-              "unit": "percentunit",
-              "unitScale": true
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -2849,7 +2844,6 @@
             "y": 43
           },
           "id": 210,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2885,6 +2879,113 @@
           ],
           "title": "CPU spent on GC ($instance)",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows the time goroutines have spent in runnable state before actually running. The lower is better.\n\nHigh values or values exceeding the threshold is usually a sign of            insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.1
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 43
+          },
+          "id": 213,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (job, instance, le))) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Go scheduling latency",
+          "type": "timeseries"
         }
       ],
       "title": "Resource usage ($job)",
@@ -2914,7 +3015,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 4
+            "y": 12
           },
           "id": 211,
           "links": [],
@@ -3012,7 +3113,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 23
+            "y": 31
           },
           "id": 102,
           "options": {
@@ -3126,7 +3227,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 23
+            "y": 31
           },
           "id": 108,
           "options": {
@@ -3227,7 +3328,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 31
+            "y": 39
           },
           "id": 142,
           "links": [
@@ -3339,7 +3440,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 31
+            "y": 39
           },
           "id": 107,
           "options": {
@@ -3440,7 +3541,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 47
           },
           "id": 170,
           "links": [],
@@ -3546,7 +3647,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 39
+            "y": 47
           },
           "id": 116,
           "links": [],
@@ -3648,7 +3749,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 55
           },
           "id": 144,
           "options": {
@@ -3751,7 +3852,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 47
+            "y": 55
           },
           "id": 58,
           "links": [],
@@ -3857,7 +3958,7 @@
             "h": 6,
             "w": 24,
             "x": 0,
-            "y": 56
+            "y": 64
           },
           "id": 183,
           "options": {
@@ -3985,7 +4086,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 62
+            "y": 70
           },
           "id": 135,
           "options": {
@@ -4107,7 +4208,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 37
+            "y": 45
           },
           "id": 76,
           "links": [],
@@ -4223,7 +4324,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 37
+            "y": 45
           },
           "id": 86,
           "links": [],
@@ -4348,7 +4449,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 46
+            "y": 54
           },
           "id": 80,
           "links": [],
@@ -4453,7 +4554,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 46
+            "y": 54
           },
           "id": 78,
           "links": [],
@@ -4497,7 +4598,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "The number of rows or bytes that vminesrt internal buffer contains at the moment.",
+          "description": "The number of rows or bytes that vminsert internal buffer contains at the moment.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4569,7 +4670,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 54
+            "y": 62
           },
           "id": 82,
           "options": {
@@ -4676,7 +4777,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 54
+            "y": 62
           },
           "id": 74,
           "options": {
@@ -4780,8 +4881,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4797,7 +4897,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 6
+            "y": 14
           },
           "id": 100,
           "options": {
@@ -4893,8 +4993,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4910,7 +5009,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 6
+            "y": 14
           },
           "id": 113,
           "options": {
@@ -5007,8 +5106,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5024,7 +5122,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 14
+            "y": 22
           },
           "id": 151,
           "options": {
@@ -5154,8 +5252,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5171,7 +5268,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 14
+            "y": 22
           },
           "id": 167,
           "options": {
@@ -5293,8 +5390,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5326,7 +5422,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 21
+            "y": 29
           },
           "id": 212,
           "links": [
@@ -5435,8 +5531,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5468,7 +5563,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 21
+            "y": 29
           },
           "id": 133,
           "options": {
@@ -5573,8 +5668,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5590,7 +5684,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 29
+            "y": 37
           },
           "id": 54,
           "options": {
@@ -5679,8 +5773,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5696,7 +5789,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 29
+            "y": 37
           },
           "id": 55,
           "options": {
@@ -5790,8 +5883,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5807,7 +5899,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 37
+            "y": 45
           },
           "id": 20,
           "options": {
@@ -5925,8 +6017,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5942,7 +6033,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 37
+            "y": 45
           },
           "id": 22,
           "options": {
@@ -6039,8 +6130,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -6052,7 +6142,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 45
+            "y": 53
           },
           "id": 202,
           "options": {
@@ -6156,8 +6246,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6190,7 +6279,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 45
+            "y": 53
           },
           "id": 14,
           "options": {
@@ -6294,8 +6383,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6324,7 +6412,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 53
+            "y": 61
           },
           "id": 206,
           "options": {
@@ -6425,8 +6513,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6442,7 +6529,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 53
+            "y": 61
           },
           "id": 141,
           "links": [
@@ -6565,7 +6652,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 50
+            "y": 58
           },
           "id": 92,
           "links": [],
@@ -6691,7 +6778,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 50
+            "y": 58
           },
           "id": 95,
           "links": [],
@@ -6813,7 +6900,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 58
+            "y": 66
           },
           "id": 163,
           "links": [],
@@ -6957,7 +7044,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 58
+            "y": 66
           },
           "id": 165,
           "links": [],
@@ -7097,7 +7184,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 66
+            "y": 74
           },
           "id": 178,
           "links": [],
@@ -7204,7 +7291,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 66
+            "y": 74
           },
           "id": 180,
           "links": [],
@@ -7311,7 +7398,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 74
+            "y": 82
           },
           "id": 179,
           "links": [],
@@ -7418,7 +7505,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 74
+            "y": 82
           },
           "id": 181,
           "links": [],
@@ -7536,7 +7623,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 82
+            "y": 90
           },
           "id": 93,
           "links": [],
@@ -7666,7 +7753,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 82
+            "y": 90
           },
           "id": 207,
           "links": [],
@@ -7802,7 +7889,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 59
           },
           "id": 97,
           "links": [],
@@ -7928,7 +8015,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 51
+            "y": 59
           },
           "id": 99,
           "links": [],
@@ -8052,7 +8139,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 59
+            "y": 67
           },
           "id": 185,
           "links": [],
@@ -8196,7 +8283,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 59
+            "y": 67
           },
           "id": 187,
           "links": [],
@@ -8336,7 +8423,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 67
+            "y": 75
           },
           "id": 139,
           "links": [],
@@ -8443,7 +8530,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 67
+            "y": 75
           },
           "id": 114,
           "links": [],
@@ -8558,7 +8645,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 75
+            "y": 83
           },
           "id": 208,
           "links": [],
@@ -8688,7 +8775,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 75
+            "y": 83
           },
           "id": 209,
           "links": [],
@@ -8807,7 +8894,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 83
+            "y": 91
           },
           "id": 88,
           "links": [],
@@ -8872,7 +8959,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 100
+            "y": 108
           },
           "id": 198,
           "options": {
@@ -8948,7 +9035,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 102
+            "y": 110
           },
           "id": 189,
           "links": [],
@@ -9049,7 +9136,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 102
+            "y": 110
           },
           "id": 190,
           "links": [],
@@ -9150,7 +9237,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 110
+            "y": 118
           },
           "id": 192,
           "links": [],
@@ -9257,7 +9344,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 110
+            "y": 118
           },
           "id": 196,
           "links": [],
@@ -9359,7 +9446,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 117
+            "y": 125
           },
           "id": 200,
           "links": [],
@@ -9460,7 +9547,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 117
+            "y": 125
           },
           "id": 201,
           "links": [],
@@ -9579,7 +9666,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 125
+            "y": 133
           },
           "id": 203,
           "links": [],

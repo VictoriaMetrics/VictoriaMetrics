@@ -15,6 +15,71 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v0.33.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.33.0-victorialogs)
+
+Released at 2024-10-01
+
+* FEATURE: add interactive command-line tool for querying VictoriaLogs - [`vlogscli`](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/).
+
+* BUGFIX: [`count_uniq` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-stats): do not count field values, which aren't matched by the used filters. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7152).
+
+## [v0.32.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.32.1-victorialogs)
+
+Released at 2024-09-30
+
+* BUGFIX: do not return field values with zero matching logs from [`field_values`](https://docs.victoriametrics.com/victorialogs/logsql/#field_values-pipe), [`top`](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe) and [`uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe) pipes. See [this issue](https://github.com/VictoriaMetrics/victorialogs-datasource/issues/72#issuecomment-2352078483).
+
+## [v0.32.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.32.0-victorialogs)
+
+Released at 2024-09-29
+
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): accept Unix timestamps in seconds in the ingested logs. This simplifies integration with systems, which prefer Unix timestamps over text-based representation of time.
+* FEATURE: [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe): allow using `order` alias instead of `sort`. For example, `_time:5s | order by (_time)` query works the same as `_time:5s | sort by (_time)`. This simplifies the to [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) transition from SQL-like query languages.
+* FEATURE: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): allow using multiple identical [stats functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions) with distinct [filters](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters) and automatically generated result names. For example, `_time:5m | count(), count() if (error)` query works as expected now, e.g. it returns two results over the last 5 minutes: the total number of logs and the number of logs with `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word). Previously this query couldn't be executed because the `if (...)` condition wasn't included in the automatically generate result name, so both results had the same name - `count(*)`.
+
+* BUGFIX: properly calculate [`uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe) and [`top`](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe) pipes. Previously they could return invalid results in some cases.
+
+## [v0.31.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.31.0-victorialogs)
+
+Released at 2024-09-27
+
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): improved readability of staircase graphs and tooltip usability. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6545#issuecomment-2336805237).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): simplify query input by adding only the label name when `ctrl`+clicking the line legend. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6545#issuecomment-2336805237).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): keep selected columns in table view on page reloads. Before, selected columns were reset on each update. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7016).
+* FEATURE: allow skipping `_stream:` prefix in [stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter). This simplifies writing queries with stream filters. Now `{foo="bar"}` is the recommended format for stream filters over the `_stream:{foo="bar"}` format.
+* FEATURE: allow using `-` instead of `!` as `NOT` operator shorthand in [logical filters](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter). For example, `-info -warn` query is equivalent to `!info !warn`. This simplifies transition from other query languages with full-text search support, which usually use `-` as `NOT` operator.
+
+## [v0.30.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.30.1-victorialogs)
+
+Released at 2024-09-27
+
+* BUGFIX: consistently return matching log streams sorted by time from [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe). Previously log streams could be returned in arbitrary order with every request. This could complicate using `stream_context` pipe.
+* BUGFIX: [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe): add missing `_msg="---"` delimiter between stream contexts belonging to different [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields). This should simplify investigating `stream_context` output for multiple matching log streams.
+
+## [v0.30.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.30.0-victorialogs)
+
+Released at 2024-09-27
+
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add button for enabling auto refresh, similarly to VictoriaMetrics vmui. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7017).
+* FEATURE: drop logs without [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) field or with empty `_msg` field, since this field is required to be non-empty in [VictoriaLogs data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6785).
+* FEATURE: improve performance of analytical queries, which do not need reading the `_time` field. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7070).
+* FEATURE: add [`blocks_count` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#blocks_count-pipe), which can be used for counting the number of matching blocks for the given query. For example, `_time:5m | blocks_count` returns the number of blocks with logs for the last 5 minutes. This pipe can be useful for debugging purposes.
+* FEATURE: support [ingesting logs](https://docs.victoriametrics.com/victorialogs/data-ingestion/) with `_time` field, which doesn't contain timezone information. For example, `2024-09-20T10:20:30`. In this case the local timezone of the host where VictoriaLogs runs is used. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6721).
+* FEATURE: reduce memory usage when [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe) is applied to [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with big number of messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6730).
+
+* BUGFIX: fix Windows build, which has been broken in [v0.29.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.29.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6973).
+* BUGFIX: properly return logs from [`/select/logsql/tail` endpoint](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing) if the query contains [`_time:some_duration` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) like `_time:5m`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7028). The bug has been introduced in [v0.29.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.29.0-victorialogs).
+* BUGFIX: properly return logs without [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) field when `*` query is passed to [`/select/logsql/query` endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs) together with positive `limit` arg. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6785). Thanks to @jiekun for identifying the root cause of the issue.
+* BUGFIX: support [ingesting logs](https://docs.victoriametrics.com/victorialogs/data-ingestion/) with `_time` field containing whitespace delimiter between the date and time instead of `T` delimiter. For example, `2024-09-20 10:20:30`. This is valid [ISO8601 format](https://en.wikipedia.org/wiki/ISO_8601) aka `SQL datetime` format, which sometimes is used in production. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6721).
+* BUGFIX: return all the requested surrounding logs for [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe). Previously only logs matching the [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) were returned. This is needed for [this feature](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7063).
+
+## [v0.29.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.29.0-victorialogs)
+
+Released at 2024-09-08
+
+* FEATURE: add [`/select/logsql/stats_query` HTTP API](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats), which is going to be used by [vmalert](https://docs.victoriametrics.com/vmalert/) for executing alerting and recording rules against VictoriaLogs. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6942) for details.
+* FEATURE: add [`/select/logsql/stats_query_range` HTTP API](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats), which is going to be used by [VictoriaLogs plugin for Grafana](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/) for building time series panels. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6943) for details.
+* FEATURE: optimize [multi-exact queries](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter) with many phrases to search. For example, `ip:in(path:="/foo/bar" | keep ip)` when there are many unique values for `ip` field among log entries with `/foo/bar` path.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add support for displaying the top 5 log streams in the hits graph. The remaining log streams are grouped into an "other" label. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6545).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the ability to customize the graph display with options for bar, line, stepped line, and points.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add fields for setting AccountID and ProjectID. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6631).
@@ -24,9 +89,12 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): move the Markdown toggle to the general settings panel in the upper left corner.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add search functionality to the column display settings in the table. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6668).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the ability to select all columns in the column display settings of the table. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6668). Thanks to @yincongcyincong for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6680).
+* FEATURE: Allow to define ingestion parameters via headers. Supported headers - `VL-Msg-Field`,`VL-Stream-Fields`,`VL-Ignore-Fields`,`VL-Time-Field`, `VL-Debug`. See this [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6443) for details.
+* FEATURE: [vlinsert](https://docs.victoriametrics.com/victorialogs/): added OpenTelemetry logs ingestion support. See this [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6218) for details.
 
 * BUGFIX: properly handle Logstash requests for Elasticsearch configuration when using `outputs.elasticsearch` in Logstash pipelines. Previously, the requests could be rejected with `400 Bad Request` response. Updates [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4750).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix `not found index.js` error when loading vmui in VictoriaLogs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6764). Thanks to @yincongcyincong for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6770).
+* BUGFIX: properly execute queries with `OR` [filters](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter) for distinct [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). For example, `field1:foo OR field2:bar`. Previously logs matching these filters may be skipped during querying. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6554) for details. Thanks to @yincongcyincong for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6556).
 
 ## [v0.28.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.28.0-victorialogs)
 
@@ -241,10 +309,10 @@ Released at 2024-05-24
 
 * FEATURE: return the number of matching log entries per returned value in [HTTP API](https://docs.victoriametrics.com/victorialogs/querying/#http-api) results. This simplifies detecting [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) / [stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) values with the biggest number of logs for the given [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/).
 * FEATURE: improve performance for [regexp filter](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter) in the following cases:
-  - If the regexp contains just a phrase without special regular expression chars. For example, `~"foo"`.
-  - If the regexp starts with `.*` or ends with `.*`. For example, `~".*foo.*"`.
-  - If the regexp contains multiple strings delimited by `|`. For example, `~"foo|bar|baz"`.
-  - If the regexp contains multiple [words](https://docs.victoriametrics.com/victorialogs/logsql/#word). For example, `~"foo bar baz"`.
+  * If the regexp contains just a phrase without special regular expression chars. For example, `~"foo"`.
+  * If the regexp starts with `.*` or ends with `.*`. For example, `~".*foo.*"`.
+  * If the regexp contains multiple strings delimited by `|`. For example, `~"foo|bar|baz"`.
+  * If the regexp contains multiple [words](https://docs.victoriametrics.com/victorialogs/logsql/#word). For example, `~"foo bar baz"`.
 * FEATURE: allow disabling automatic unquoting of the matched placeholders in [`extract` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe). See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#format-for-extract-pipe-pattern).
 
 * BUGFIX: properly parse `!` in front of [exact filter](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter), [exact-prefix filter](https://docs.victoriametrics.com/victorialogs/logsql/#exact-prefix-filter) and [regexp filter](https://docs.victoriametrics.com/victorialogs/logsql/#regexp-filter). For example, `!~"some regexp"` is properly parsed as `not ="some regexp"`. Previously it was incorrectly parsed as `'~="some regexp"'` [phrase filter](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter).
@@ -304,7 +372,6 @@ Released at 2024-05-15
 * FEATURE: add ability to return the first `N` results from [`sort` pipe](#https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe). This is useful when `N` biggest or `N` smallest values must be returned from large amounts of logs.
 * FEATURE: add [`quantile`](https://docs.victoriametrics.com/victorialogs/logsql/#quantile-stats) and [`median`](https://docs.victoriametrics.com/victorialogs/logsql/#median-stats) [stats functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe).
 
-
 ## [v0.6.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.6.1-victorialogs)
 
 Released at 2024-05-14
@@ -313,7 +380,6 @@ Released at 2024-05-14
 
 * BUGFIX: properly return matching logs in [streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with small number of entries. Previously they could be skipped. The issue has been introduced in [the release v0.6.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.6.0-victorialogs).
 * BUGFIX: fix `runtime error: index out of range` panic when using [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe) like `_time:1h | sort by (_time)`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6258).
-
 
 ## [v0.6.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.6.0-victorialogs)
 
@@ -341,7 +407,6 @@ Released at 2024-05-12
 Released at 2024-04-11
 
 * BUGFIX: properly register new [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) under high data ingestion rate. The issue has been introduced in [v0.5.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.5.0-victorialogs).
-
 
 ## [v0.5.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.5.1-victorialogs)
 

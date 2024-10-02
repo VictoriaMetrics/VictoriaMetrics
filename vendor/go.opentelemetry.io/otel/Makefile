@@ -145,12 +145,14 @@ build-tests/%:
 
 # Tests
 
-TEST_TARGETS := test-default test-bench test-short test-verbose test-race
+TEST_TARGETS := test-default test-bench test-short test-verbose test-race test-concurrent-safe
 .PHONY: $(TEST_TARGETS) test
 test-default test-race: ARGS=-race
 test-bench:   ARGS=-run=xxxxxMatchNothingxxxxx -test.benchtime=1ms -bench=.
 test-short:   ARGS=-short
 test-verbose: ARGS=-v -race
+test-concurrent-safe: ARGS=-run=ConcurrentSafe -count=100 -race
+test-concurrent-safe: TIMEOUT=120
 $(TEST_TARGETS): test
 test: $(OTEL_GO_MOD_DIRS:%=test/%)
 test/%: DIR=$*
@@ -178,17 +180,14 @@ test-coverage: $(GOCOVMERGE)
 	done; \
 	$(GOCOVMERGE) $$(find . -name coverage.out) > coverage.txt
 
-# Adding a directory will include all benchmarks in that directory if a filter is not specified.
-BENCHMARK_TARGETS := sdk/trace
 .PHONY: benchmark
-benchmark: $(BENCHMARK_TARGETS:%=benchmark/%)
-BENCHMARK_FILTER = .
-# You can override the filter for a particular directory by adding a rule here.
-benchmark/sdk/trace: BENCHMARK_FILTER = SpanWithAttributes_8/AlwaysSample
+benchmark: $(OTEL_GO_MOD_DIRS:%=benchmark/%)
 benchmark/%:
-	@echo "$(GO) test -timeout $(TIMEOUT)s -run=xxxxxMatchNothingxxxxx -bench=$(BENCHMARK_FILTER) $*..." \
+	@echo "$(GO) test -run=xxxxxMatchNothingxxxxx -bench=. $*..." \
 		&& cd $* \
-		$(foreach filter, $(BENCHMARK_FILTER), && $(GO) test -timeout $(TIMEOUT)s -run=xxxxxMatchNothingxxxxx -bench=$(filter))
+		&& $(GO) list ./... \
+		| grep -v third_party \
+		| xargs $(GO) test -run=xxxxxMatchNothingxxxxx -bench=.
 
 .PHONY: golangci-lint golangci-lint-fix
 golangci-lint-fix: ARGS=--fix

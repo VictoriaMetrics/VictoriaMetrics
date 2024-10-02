@@ -33,8 +33,8 @@ Just download archive for the needed Operating system and architecture, unpack i
 For example, the following commands download VictoriaLogs archive for Linux/amd64, unpack and run it:
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.28.0-victorialogs/victoria-logs-linux-amd64-v0.28.0-victorialogs.tar.gz
-tar xzf victoria-logs-linux-amd64-v0.28.0-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.33.0-victorialogs/victoria-logs-linux-amd64-v0.33.0-victorialogs.tar.gz
+tar xzf victoria-logs-linux-amd64-v0.33.0-victorialogs.tar.gz
 ./victoria-logs-prod
 ```
 
@@ -58,7 +58,7 @@ Here is the command to run VictoriaLogs in a Docker container:
 
 ```sh
 docker run --rm -it -p 9428:9428 -v ./victoria-logs-data:/victoria-logs-data \
-  docker.io/victoriametrics/victoria-logs:v0.28.0-victorialogs
+  docker.io/victoriametrics/victoria-logs:v0.33.0-victorialogs
 ```
 
 See also:
@@ -139,10 +139,10 @@ See also:
 
 Here are a Docker-compose demos, which start VictoriaLogs and push logs to it via various log collectors:
 
-- [Filebeat demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat-docker)
-- [Fluentbit demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit-docker)
+- [Filebeat demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat)
+- [Fluentbit demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit)
 - [Logstash demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash)
-- [Vector demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/vector-docker)
+- [Vector demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/vector)
 - [Promtail demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/promtail)
 
 You can use [this Helm chart](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-logs-single/README.md)

@@ -8,7 +8,7 @@ services:
       - 3000:3000
     volumes:
       - grafanadata:/var/lib/grafana
-      - ./provisioning/datasources/victoriametrics-datasource:/etc/grafana/provisioning/datasources
+      - ./provisioning/datasources/victoriametrics-datasource/cluster.yml:/etc/grafana/provisioning/datasources/cluster.yml
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./provisioning/plugins/:/var/lib/grafana/plugins
       - ./../../dashboards/vm/victoriametrics-cluster.json:/var/lib/grafana/dashboards/vm.json
@@ -16,6 +16,6 @@ services:
       - ./../../dashboards/vm/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
       - ./../../dashboards/vm/vmauth.json:/var/lib/grafana/dashboards/vmauth.json
     environment:
-      - "GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.8.2/victoriametrics-datasource-v0.8.2.zip;victoriametrics-datasource"
+      - "GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.9.1/victoriametrics-datasource-v0.9.1.zip;victoriametrics-datasource"
       - "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource"
     restart: always

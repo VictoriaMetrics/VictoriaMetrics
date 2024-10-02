@@ -64,12 +64,12 @@ func (svp *statsValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColum
 		stateSizeIncrease += len(v)
 
 		values := svp.values
-		for range br.timestamps {
+		for i := 0; i < br.rowsLen; i++ {
 			values = append(values, v)
 		}
 		svp.values = values
 
-		stateSizeIncrease += len(br.timestamps) * int(unsafe.Sizeof(values[0]))
+		stateSizeIncrease += br.rowsLen * int(unsafe.Sizeof(values[0]))
 		return stateSizeIncrease
 	}
 	if c.valueType == valueTypeDict {
@@ -86,7 +86,7 @@ func (svp *statsValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColum
 		}
 		svp.values = values
 
-		stateSizeIncrease += len(br.timestamps) * int(unsafe.Sizeof(values[0]))
+		stateSizeIncrease += br.rowsLen * int(unsafe.Sizeof(values[0]))
 		return stateSizeIncrease
 	}
 
@@ -100,7 +100,7 @@ func (svp *statsValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColum
 	}
 	svp.values = values
 
-	stateSizeIncrease += len(br.timestamps) * int(unsafe.Sizeof(values[0]))
+	stateSizeIncrease += br.rowsLen * int(unsafe.Sizeof(values[0]))
 	return stateSizeIncrease
 }
 
@@ -184,7 +184,7 @@ func (svp *statsValuesProcessor) finalizeStats() string {
 
 func (svp *statsValuesProcessor) limitReached() bool {
 	limit := svp.sv.limit
-	return limit > 0 && uint64(len(svp.values)) >= limit
+	return limit > 0 && uint64(len(svp.values)) > limit
 }
 
 func parseStatsValues(lex *lexer) (*statsValues, error) {

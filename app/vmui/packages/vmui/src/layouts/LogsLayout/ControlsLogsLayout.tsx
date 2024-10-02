@@ -4,6 +4,7 @@ import GlobalSettings from "../../components/Configurators/GlobalSettings/Global
 import { ControlsProps } from "../Header/HeaderControls/HeaderControls";
 import { TimeSelector } from "../../components/Configurators/TimeRangeSettings/TimeSelector/TimeSelector";
 import TenantsFields from "../../components/Configurators/GlobalSettings/TenantsConfiguration/TenantsFields";
+import { ExecutionControls } from "../../components/Configurators/TimeRangeSettings/ExecutionControls/ExecutionControls";
 
 const ControlsLogsLayout: FC<ControlsProps> = ({ isMobile }) => {
 
@@ -16,6 +17,7 @@ const ControlsLogsLayout: FC<ControlsProps> = ({ isMobile }) => {
     >
       <TenantsFields/>
       <TimeSelector/>
+      <ExecutionControls/>
       <GlobalSettings/>
     </div>
   );

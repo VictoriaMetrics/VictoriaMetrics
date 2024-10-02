@@ -120,4 +120,4 @@ See also:
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 - [Filebeat `output.elasticsearch` docs](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html).
-- [Docker-compose demo for Filebeat integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat-docker).
+- [Docker-compose demo for Filebeat integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat).

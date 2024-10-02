@@ -199,7 +199,7 @@ to the same `-remoteWrite.url`. In this case you can specify comma-separated lis
 command-line flag. For example, `-remoteWrite.shardByURL.labels=instance,__name__` would shard metrics with the same name and `instance`
 label to the same `-remoteWrite.url`.
 
-Sometimes is may be needed ignoring some labels when sharding samples across multiple `-remoteWrite.url` backends.
+Sometimes, it may be necessary to ignore some labels when sharding samples across multiple `-remoteWrite.url` backends.
 For example, if all the [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) with the same set of labels
 except of `instance` and `pod` labels must be routed to the same backend. In this case the list of ignored labels must be passed to
 `-remoteWrite.shardByURL.ignoreLabels` command-line flag: `-remoteWrite.shardByURL.ignoreLabels=instance,pod`.
@@ -267,15 +267,16 @@ There is also support for multitenant writes. See [these docs](#multitenancy).
 for the collected samples. Examples:
 
 - The following command instructs `vmagent` to send only the last sample per each seen [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) per every 60 seconds:
-  ```
-  ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -remoteWrite.streamAggr.dedupInterval=60s
+  ```sh
+  ./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -streamAggr.dedupInterval=60s
   ```
 
 - The following command instructs `vmagent` to merge [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) with different `replica` label values
-  and then to send only the last sample per each merged series per ever 60 seconds:
+  and then to send only the last sample per each merged series per every 60 seconds:
+  ```sh
+  ./vmagent -remoteWrite=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
   ```
-  ./vmagent -remoteWrite=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -remoteWrite.streamAggr.dedupInterval=60s
-  ```
+
 
 ## SRV urls
 
@@ -2005,8 +2006,8 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Interval for checking for changes in Nomad. This works only if nomad_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#nomad_sd_configs for details (default 30s)
   -promscrape.openstackSDCheckInterval duration
      Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#openstack_sd_configs for details (default 30s)
-  -promscrape.scrapeExemplars
-     Whether to enable scraping of exemplars from scrape targets.
+  -promscrape.ovhcloudSDCheckInterval duration
+     Interval for checking for changes in OVH Cloud VPS and dedicated server. This works only if ovhcloud_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#ovhcloud_sd_configs for details (default 30s)
   -promscrape.seriesLimitPerTarget int
      Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter for more info
   -promscrape.streamParse
@@ -2215,7 +2216,7 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -remoteWrite.streamAggr.dropInputLabels array
-     An optional list of labels to drop from samples before stream de-duplication and aggregation with -remoteWrite.streamAggr.config and -remoteWrite.streamAggr.dedupInterval at the corresponding -remoteWrite.url. See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels
+     An optional list of labels to drop from samples before stream de-duplication and aggregation with -remoteWrite.streamAggr.config and -remoteWrite.streamAggr.dedupInterval at the corresponding -remoteWrite.url. Multiple labels per remoteWrite.url must be delimited by '^^': -remoteWrite.streamAggr.dropInputLabels='replica^^az,replica'. See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.streamAggr.ignoreFirstIntervals array

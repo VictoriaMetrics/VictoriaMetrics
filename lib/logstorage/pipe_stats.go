@@ -162,11 +162,8 @@ func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, 
 		shards[i] = pipeStatsProcessorShard{
 			pipeStatsProcessorShardNopad: pipeStatsProcessorShardNopad{
 				ps: ps,
-
-				stateSizeBudget: stateSizeBudgetChunk,
 			},
 		}
-		maxStateSize -= stateSizeBudgetChunk
 	}
 
 	psp := &pipeStatsProcessor{
@@ -269,7 +266,7 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 		// Slower generic path for a column with different values.
 		var psg *pipeStatsGroup
 		keyBuf := shard.keyBuf[:0]
-		for i := range br.timestamps {
+		for i := 0; i < br.rowsLen; i++ {
 			if i <= 0 || values[i-1] != values[i] {
 				keyBuf = encoding.MarshalBytes(keyBuf[:0], bytesutil.ToUnsafeBytes(values[i]))
 				psg = shard.getPipeStatsGroup(keyBuf)
@@ -312,7 +309,7 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 	// The slowest path - group by multiple columns with different values across rows.
 	var psg *pipeStatsGroup
 	keyBuf := shard.keyBuf[:0]
-	for i := range br.timestamps {
+	for i := 0; i < br.rowsLen; i++ {
 		// Verify whether the key for 'by (...)' fields equals the previous key
 		sameValue := i > 0
 		for _, values := range columnValues {
@@ -338,7 +335,7 @@ func (shard *pipeStatsProcessorShard) applyPerFunctionFilters(br *blockResult) {
 	funcs := shard.ps.funcs
 	for i := range funcs {
 		bm := &shard.bms[i]
-		bm.init(len(br.timestamps))
+		bm.init(br.rowsLen)
 		bm.setBits()
 
 		iff := funcs[i].iff
@@ -400,7 +397,7 @@ func (psg *pipeStatsGroup) updateStatsForRow(bms []bitmap, br *blockResult, rowI
 }
 
 func (psp *pipeStatsProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -577,6 +574,9 @@ func parsePipeStats(lex *lexer, needStatsKeyword bool) (*pipeStats, error) {
 		resultName := ""
 		if lex.isKeyword(",", "|", ")", "") {
 			resultName = sf.String()
+			if f.iff != nil {
+				resultName += " " + f.iff.String()
+			}
 		} else {
 			if lex.isKeyword("as") {
 				lex.nextToken()
@@ -728,7 +728,7 @@ var zeroByStatsField = &byStatsField{}
 
 // byStatsField represents 'by (...)' part of the pipeStats.
 //
-// It can have either 'name' representation or 'name:bucket' or 'name:buket offset off' representation,
+// It can have either 'name' representation or 'name:bucket' or 'name:bucket offset off' representation,
 // where `bucket` and `off` can contain duration, size or numeric value for creating different buckets
 // for 'value/bucket'.
 type byStatsField struct {

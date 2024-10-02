@@ -1,0 +1,38 @@
+api:
+  enabled: true
+  address: 0.0.0.0:8686
+sources:
+  docker:
+    type: docker_logs
+  demo:
+    type: demo_logs
+    format: json
+  metrics:
+    type: internal_metrics
+transforms:
+  msg_parser:
+    type: remap
+    inputs:
+      - docker
+    source: |
+      .log = parse_json!(.message)
+      del(.message)
+sinks:
+  loki:
+    type: loki
+    inputs:
+      - demo
+    endpoint: http://victorialogs:9428/insert/loki/
+    compression: gzip
+    path: /api/v1/push?_msg_field=message.message&_time_field=timestamp&_stream_fields=source
+    encoding:
+      codec: json
+    labels:
+      source: vector
+  victoriametrics:
+    type: prometheus_remote_write
+    endpoint: http://victoriametrics:8428/api/v1/write
+    inputs: 
+      - metrics
+    healthcheck:
+      enabled: false

@@ -79,11 +79,9 @@ func (pt *pipeTop) newPipeProcessor(workersCount int, stopCh <-chan struct{}, ca
 	for i := range shards {
 		shards[i] = pipeTopProcessorShard{
 			pipeTopProcessorShardNopad: pipeTopProcessorShardNopad{
-				pt:              pt,
-				stateSizeBudget: stateSizeBudgetChunk,
+				pt: pt,
 			},
 		}
-		maxStateSize -= stateSizeBudgetChunk
 	}
 
 	ptp := &pipeTopProcessor{
@@ -145,7 +143,7 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 		// Take into account all the columns in br.
 		keyBuf := shard.keyBuf
 		cs := br.getColumns()
-		for i := range br.timestamps {
+		for i := 0; i < br.rowsLen; i++ {
 			keyBuf = keyBuf[:0]
 			for _, c := range cs {
 				v := c.getValueAtRow(br, i)
@@ -162,21 +160,11 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 		c := br.getColumnByName(byFields[0])
 		if c.isConst {
 			v := c.valuesEncoded[0]
-			shard.updateState(v, uint64(len(br.timestamps)))
+			shard.updateState(v, uint64(br.rowsLen))
 			return
 		}
 		if c.valueType == valueTypeDict {
-			a := encoding.GetUint64s(len(c.dictValues))
-			hits := a.A
-			valuesEncoded := c.getValuesEncoded(br)
-			for _, v := range valuesEncoded {
-				idx := unmarshalUint8(v)
-				hits[idx]++
-			}
-			for i, v := range c.dictValues {
-				shard.updateState(v, hits[i])
-			}
-			encoding.PutUint64s(a)
+			c.forEachDictValueWithHits(br, shard.updateState)
 			return
 		}
 
@@ -197,7 +185,7 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 	shard.columnValues = columnValues
 
 	keyBuf := shard.keyBuf
-	for i := range br.timestamps {
+	for i := 0; i < br.rowsLen; i++ {
 		keyBuf = keyBuf[:0]
 		for _, values := range columnValues {
 			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[i]))
@@ -228,7 +216,7 @@ func (shard *pipeTopProcessorShard) getM() map[string]*uint64 {
 }
 
 func (ptp *pipeTopProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 

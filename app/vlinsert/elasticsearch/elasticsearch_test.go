@@ -76,17 +76,20 @@ func TestReadBulkRequest_Success(t *testing.T) {
 	data := `{"create":{"_index":"filebeat-8.8.0"}}
 {"@timestamp":"2023-06-06T04:48:11.735Z","log":{"offset":71770,"file":{"path":"/var/log/auth.log"}},"message":"foobar"}
 {"create":{"_index":"filebeat-8.8.0"}}
-{"@timestamp":"2023-06-06T04:48:12.735Z","message":"baz"}
+{"@timestamp":"2023-06-06 04:48:12.735+01:00","message":"baz"}
 {"index":{"_index":"filebeat-8.8.0"}}
-{"message":"xyz","@timestamp":"2023-06-06T04:48:13.735Z","x":"y"}
+{"message":"xyz","@timestamp":"1686026893735","x":"y"}
+{"create":{"_index":"filebeat-8.8.0"}}
+{"message":"qwe rty","@timestamp":"1686026893"}
 `
 	timeField := "@timestamp"
 	msgField := "message"
-	rowsExpected := 3
-	timestampsExpected := []int64{1686026891735000000, 1686026892735000000, 1686026893735000000}
+	rowsExpected := 4
+	timestampsExpected := []int64{1686026891735000000, 1686023292735000000, 1686026893735000000, 1686026893000000000}
 	resultExpected := `{"@timestamp":"","log.offset":"71770","log.file.path":"/var/log/auth.log","_msg":"foobar"}
 {"@timestamp":"","_msg":"baz"}
-{"_msg":"xyz","@timestamp":"","x":"y"}`
+{"_msg":"xyz","@timestamp":"","x":"y"}
+{"_msg":"qwe rty","@timestamp":""}`
 	f(data, timeField, msgField, rowsExpected, timestampsExpected, resultExpected)
 }
 

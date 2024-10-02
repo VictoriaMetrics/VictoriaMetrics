@@ -15,3 +15,4 @@ dashboards-sync:
 	SRC=vmagent.json D_UID=G7Z9GzMGz TITLE="VictoriaMetrics - vmagent" $(MAKE) dashboard-copy
 	SRC=vmalert.json D_UID=LzldHAVnz TITLE="VictoriaMetrics - vmalert" $(MAKE) dashboard-copy
 	SRC=vmauth.json D_UID=nbuo5Mr4k TITLE="VictoriaMetrics - vmauth" $(MAKE) dashboard-copy
+	SRC=operator.json D_UID=1H179hunk TITLE="VictoriaMetrics - operator" $(MAKE) dashboard-copy

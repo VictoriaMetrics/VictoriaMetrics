@@ -21,14 +21,29 @@ import (
 //
 // It is expected that its contents is accessed only from a single goroutine at a time.
 type blockResult struct {
+	// rowsLen is the number of rows in the given blockResult.
+	rowsLen int
+
+	// bs is the associated blockSearch for the given blockResult.
+	//
+	// bs is nil for the blockResult constructed by pipes.
+	bs *blockSearch
+
+	// bm is the associated bitmap for the given blockResult.
+	//
+	// bm is nil for the blockResult constructed by pipes.
+	bm *bitmap
+
 	// a holds all the bytes behind the requested column values in the block.
 	a arena
 
-	// values holds all the requested column values in the block.
+	// valuesBuf holds all the requested column values in the block.
 	valuesBuf []string
 
-	// timestamps contain timestamps for the selected log entries in the block.
-	timestamps []int64
+	// timestampsBuf contains cached timestamps for the selected log entries in the block.
+	//
+	// timestamps must be obtained via blockResult.getTimestamps() call.
+	timestampsBuf []int64
 
 	// csBuf contains requested columns.
 	csBuf []blockResultColumn
@@ -47,12 +62,17 @@ type blockResult struct {
 }
 
 func (br *blockResult) reset() {
+	br.rowsLen = 0
+
+	br.cs = nil
+	br.bm = nil
+
 	br.a.reset()
 
 	clear(br.valuesBuf)
 	br.valuesBuf = br.valuesBuf[:0]
 
-	br.timestamps = br.timestamps[:0]
+	br.timestampsBuf = br.timestampsBuf[:0]
 
 	clear(br.csBuf)
 	br.csBuf = br.csBuf[:0]
@@ -76,6 +96,11 @@ func (br *blockResult) reset() {
 func (br *blockResult) clone() *blockResult {
 	brNew := &blockResult{}
 
+	brNew.rowsLen = br.rowsLen
+
+	// do not clone br.cs, since it may be updated at any time.
+	// do not clone br.bm, since it may be updated at any time.
+
 	cs := br.getColumns()
 
 	// Pre-populate values in every column in order to properly calculate the needed backing buffer size below.
@@ -96,8 +121,10 @@ func (br *blockResult) clone() *blockResult {
 	}
 	brNew.valuesBuf = make([]string, 0, valuesBufLen)
 
-	brNew.timestamps = make([]int64, len(br.timestamps))
-	copy(brNew.timestamps, br.timestamps)
+	srcTimestamps := br.getTimestamps()
+	brNew.timestampsBuf = make([]int64, len(srcTimestamps))
+	copy(brNew.timestampsBuf, srcTimestamps)
+	brNew.checkTimestampsLen()
 
 	csNew := make([]blockResultColumn, len(cs))
 	for i, c := range cs {
@@ -112,18 +139,19 @@ func (br *blockResult) clone() *blockResult {
 	return brNew
 }
 
-// initFromFilterAllColumns initializes br from brSrc by copying rows identified by set bets at bm.
+// initFromFilterAllColumns initializes br from brSrc by copying rows identified by set bits at bm.
 //
 // The br is valid until brSrc or bm is updated.
 func (br *blockResult) initFromFilterAllColumns(brSrc *blockResult, bm *bitmap) {
 	br.reset()
 
-	srcTimestamps := brSrc.timestamps
-	dstTimestamps := br.timestamps[:0]
+	srcTimestamps := brSrc.getTimestamps()
+	dstTimestamps := br.timestampsBuf[:0]
 	bm.forEachSetBitReadonly(func(idx int) {
 		dstTimestamps = append(dstTimestamps, srcTimestamps[idx])
 	})
-	br.timestamps = dstTimestamps
+	br.timestampsBuf = dstTimestamps
+	br.rowsLen = len(br.timestampsBuf)
 
 	for _, cSrc := range brSrc.getColumns() {
 		br.appendFilteredColumn(brSrc, cSrc, bm)
@@ -134,7 +162,7 @@ func (br *blockResult) initFromFilterAllColumns(brSrc *blockResult, bm *bitmap) 
 //
 // the br is valid until brSrc, cSrc or bm is updated.
 func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResultColumn, bm *bitmap) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 	cDst := blockResultColumn{
@@ -211,7 +239,7 @@ func (br *blockResult) sizeBytes() int {
 
 	n += br.a.sizeBytes()
 	n += cap(br.valuesBuf) * int(unsafe.Sizeof(br.valuesBuf[0]))
-	n += cap(br.timestamps) * int(unsafe.Sizeof(br.timestamps[0]))
+	n += cap(br.timestampsBuf) * int(unsafe.Sizeof(br.timestampsBuf[0]))
 	n += cap(br.csBuf) * int(unsafe.Sizeof(br.csBuf[0]))
 	n += cap(br.cs) * int(unsafe.Sizeof(br.cs[0]))
 
@@ -221,10 +249,10 @@ func (br *blockResult) sizeBytes() int {
 // setResultColumns sets the given rcs as br columns.
 //
 // The br is valid only until rcs are modified.
-func (br *blockResult) setResultColumns(rcs []resultColumn, rowsCount int) {
+func (br *blockResult) setResultColumns(rcs []resultColumn, rowsLen int) {
 	br.reset()
 
-	br.timestamps = fastnum.AppendInt64Zeros(br.timestamps[:0], rowsCount)
+	br.rowsLen = rowsLen
 
 	for i := range rcs {
 		br.addResultColumn(&rcs[i])
@@ -232,8 +260,8 @@ func (br *blockResult) setResultColumns(rcs []resultColumn, rowsCount int) {
 }
 
 func (br *blockResult) addResultColumn(rc *resultColumn) {
-	if len(rc.values) != len(br.timestamps) {
-		logger.Panicf("BUG: column %q must contain %d rows, but it contains %d rows", rc.name, len(br.timestamps), len(rc.values))
+	if len(rc.values) != br.rowsLen {
+		logger.Panicf("BUG: column %q must contain %d rows, but it contains %d rows", rc.name, br.rowsLen, len(rc.values))
 	}
 	if areConstValues(rc.values) {
 		// This optimization allows reducing memory usage after br cloning
@@ -252,11 +280,9 @@ func (br *blockResult) addResultColumn(rc *resultColumn) {
 	br.csInitialized = false
 }
 
-// initAllColumns initializes all the columns in br according to bs and bm.
-//
-// The initialized columns are valid until bs and bm are changed.
-func (br *blockResult) initAllColumns(bs *blockSearch, bm *bitmap) {
-	unneededColumnNames := bs.bsw.so.unneededColumnNames
+// initAllColumns initializes all the columns in br.
+func (br *blockResult) initAllColumns() {
+	unneededColumnNames := br.bs.bsw.so.unneededColumnNames
 
 	if !slices.Contains(unneededColumnNames, "_time") {
 		// Add _time column
@@ -265,12 +291,12 @@ func (br *blockResult) initAllColumns(bs *blockSearch, bm *bitmap) {
 
 	if !slices.Contains(unneededColumnNames, "_stream_id") {
 		// Add _stream_id column
-		br.addStreamIDColumn(bs)
+		br.addStreamIDColumn()
 	}
 
 	if !slices.Contains(unneededColumnNames, "_stream") {
 		// Add _stream column
-		if !br.addStreamColumn(bs) {
+		if !br.addStreamColumn() {
 			// Skip the current block, since the associated stream tags are missing
 			br.reset()
 			return
@@ -279,18 +305,20 @@ func (br *blockResult) initAllColumns(bs *blockSearch, bm *bitmap) {
 
 	if !slices.Contains(unneededColumnNames, "_msg") {
 		// Add _msg column
-		v := bs.csh.getConstColumnValue("_msg")
+		csh := br.bs.getColumnsHeader()
+		v := csh.getConstColumnValue("_msg")
 		if v != "" {
 			br.addConstColumn("_msg", v)
-		} else if ch := bs.csh.getColumnHeader("_msg"); ch != nil {
-			br.addColumn(bs, bm, ch)
+		} else if ch := csh.getColumnHeader("_msg"); ch != nil {
+			br.addColumn(ch)
 		} else {
 			br.addConstColumn("_msg", "")
 		}
 	}
 
 	// Add other const columns
-	for _, cc := range bs.csh.constColumns {
+	csh := br.bs.getColumnsHeader()
+	for _, cc := range csh.constColumns {
 		if isMsgFieldName(cc.Name) {
 			continue
 		}
@@ -300,30 +328,28 @@ func (br *blockResult) initAllColumns(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Add other non-const columns
-	chs := bs.csh.columnHeaders
+	chs := csh.columnHeaders
 	for i := range chs {
 		ch := &chs[i]
 		if isMsgFieldName(ch.name) {
 			continue
 		}
 		if !slices.Contains(unneededColumnNames, ch.name) {
-			br.addColumn(bs, bm, ch)
+			br.addColumn(ch)
 		}
 	}
 
 	br.csInitFast()
 }
 
-// initRequestedColumns initialized only requested columns in br according to bs and bm.
-//
-// The initialized columns are valid until bs and bm are changed.
-func (br *blockResult) initRequestedColumns(bs *blockSearch, bm *bitmap) {
-	for _, columnName := range bs.bsw.so.neededColumnNames {
+// initRequestedColumns initialized only requested columns in br.
+func (br *blockResult) initRequestedColumns() {
+	for _, columnName := range br.bs.bsw.so.neededColumnNames {
 		switch columnName {
 		case "_stream_id":
-			br.addStreamIDColumn(bs)
+			br.addStreamIDColumn()
 		case "_stream":
-			if !br.addStreamColumn(bs) {
+			if !br.addStreamColumn() {
 				// Skip the current block, since the associated stream tags are missing.
 				br.reset()
 				return
@@ -331,11 +357,12 @@ func (br *blockResult) initRequestedColumns(bs *blockSearch, bm *bitmap) {
 		case "_time":
 			br.addTimeColumn()
 		default:
-			v := bs.csh.getConstColumnValue(columnName)
+			csh := br.bs.getColumnsHeader()
+			v := csh.getConstColumnValue(columnName)
 			if v != "" {
 				br.addConstColumn(columnName, v)
-			} else if ch := bs.csh.getColumnHeader(columnName); ch != nil {
-				br.addColumn(bs, bm, ch)
+			} else if ch := csh.getColumnHeader(columnName); ch != nil {
+				br.addColumn(ch)
 			} else {
 				br.addConstColumn(columnName, "")
 			}
@@ -345,38 +372,103 @@ func (br *blockResult) initRequestedColumns(bs *blockSearch, bm *bitmap) {
 	br.csInitFast()
 }
 
+// mustInit initializes br with the given bs and bm.
+//
+// br is valid until bs or bm changes.
 func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
 	br.reset()
 
-	if bm.isZero() {
-		// Nothing to initialize for zero matching log entries in the block.
+	br.rowsLen = bm.onesCount()
+	if br.rowsLen == 0 {
 		return
 	}
 
-	// Initialize timestamps, since they are required for all the further work with br.
-	so := bs.bsw.so
-	if !so.needAllColumns && !slices.Contains(so.neededColumnNames, "_time") || so.needAllColumns && slices.Contains(so.unneededColumnNames, "_time") {
-		// The fastest path - _time column wasn't requested, so it is enough to initialize br.timestamps with zeroes.
-		rowsLen := bm.onesCount()
-		br.timestamps = fastnum.AppendInt64Zeros(br.timestamps[:0], rowsLen)
+	br.bs = bs
+	br.bm = bm
+}
+
+// intersectsTimeRange returns true if br timestamps intersect (minTimestamp .. maxTimestamp) time range.
+func (br *blockResult) intersectsTimeRange(minTimestamp, maxTimestamp int64) bool {
+	return minTimestamp < br.getMaxTimestamp(minTimestamp) && maxTimestamp > br.getMinTimestamp(maxTimestamp)
+}
+
+func (br *blockResult) getMinTimestamp(minTimestamp int64) int64 {
+	if br.bs != nil {
+		bh := &br.bs.bsw.bh
+		if bh.rowsCount == uint64(br.rowsLen) {
+			return min(minTimestamp, bh.timestampsHeader.minTimestamp)
+		}
+		if minTimestamp <= bh.timestampsHeader.minTimestamp {
+			return minTimestamp
+		}
+	}
+
+	// Slow path - need to scan timestamps
+	timestamps := br.getTimestamps()
+	for _, timestamp := range timestamps {
+		if timestamp < minTimestamp {
+			minTimestamp = timestamp
+		}
+	}
+	return minTimestamp
+}
+
+func (br *blockResult) getMaxTimestamp(maxTimestamp int64) int64 {
+	if br.bs != nil {
+		bh := &br.bs.bsw.bh
+		if bh.rowsCount == uint64(br.rowsLen) {
+			return max(maxTimestamp, bh.timestampsHeader.maxTimestamp)
+		}
+		if maxTimestamp >= bh.timestampsHeader.maxTimestamp {
+			return maxTimestamp
+		}
+	}
+
+	// Slow path - need to scan timestamps
+	timestamps := br.getTimestamps()
+	for i := len(timestamps) - 1; i >= 0; i-- {
+		if timestamps[i] > maxTimestamp {
+			maxTimestamp = timestamps[i]
+		}
+	}
+	return maxTimestamp
+}
+
+func (br *blockResult) getTimestamps() []int64 {
+	if br.rowsLen > 0 && len(br.timestampsBuf) == 0 {
+		br.initTimestamps()
+	}
+	return br.timestampsBuf
+}
+
+func (br *blockResult) initTimestamps() {
+	if br.bs == nil {
+		br.timestampsBuf = fastnum.AppendInt64Zeros(br.timestampsBuf[:0], br.rowsLen)
 		return
 	}
 
-	// Slow path - the _time column is requested, so we need to initialize br.timestamps with real timestamps.
-	srcTimestamps := bs.getTimestamps()
-	if bm.areAllBitsSet() {
+	srcTimestamps := br.bs.getTimestamps()
+	if br.bm.areAllBitsSet() {
 		// Fast path - all the rows in the block are selected, so copy all the timestamps without any filtering.
-		br.timestamps = append(br.timestamps[:0], srcTimestamps...)
+		br.timestampsBuf = append(br.timestampsBuf[:0], srcTimestamps...)
+		br.checkTimestampsLen()
 		return
 	}
 
 	// Slow path - copy only the needed timestamps to br according to filter results.
-	dstTimestamps := br.timestamps[:0]
-	bm.forEachSetBitReadonly(func(idx int) {
+	dstTimestamps := br.timestampsBuf[:0]
+	br.bm.forEachSetBitReadonly(func(idx int) {
 		ts := srcTimestamps[idx]
 		dstTimestamps = append(dstTimestamps, ts)
 	})
-	br.timestamps = dstTimestamps
+	br.timestampsBuf = dstTimestamps
+	br.checkTimestampsLen()
+}
+
+func (br *blockResult) checkTimestampsLen() {
+	if len(br.timestampsBuf) != br.rowsLen {
+		logger.Panicf("BUG: unexpected number of timestamps; got %d; want %d", len(br.timestampsBuf), br.rowsLen)
+	}
 }
 
 func (br *blockResult) newValuesEncodedFromColumnHeader(bs *blockSearch, bm *bitmap, ch *columnHeader) []string {
@@ -454,8 +546,8 @@ func (br *blockResult) newValuesEncodedFromColumnHeader(bs *blockSearch, bm *bit
 
 // addColumn adds column for the given ch to br.
 //
-// The added column is valid until bs, bm or ch is changed.
-func (br *blockResult) addColumn(bs *blockSearch, bm *bitmap, ch *columnHeader) {
+// The added column is valid until ch is changed.
+func (br *blockResult) addColumn(ch *columnHeader) {
 	br.csBuf = append(br.csBuf, blockResultColumn{
 		name:       getCanonicalColumnName(ch.name),
 		valueType:  ch.valueType,
@@ -466,8 +558,8 @@ func (br *blockResult) addColumn(bs *blockSearch, bm *bitmap, ch *columnHeader) 
 	c := &br.csBuf[len(br.csBuf)-1]
 
 	br.svecs = append(br.svecs, searchValuesEncodedCreator{
-		bs: bs,
-		bm: bm,
+		bs: br.bs,
+		bm: br.bm,
 		ch: ch,
 	})
 	c.valuesEncodedCreator = &br.svecs[len(br.svecs)-1]
@@ -492,51 +584,19 @@ func (br *blockResult) addTimeColumn() {
 	br.csInitialized = false
 }
 
-func (br *blockResult) addStreamIDColumn(bs *blockSearch) {
+func (br *blockResult) addStreamIDColumn() {
 	bb := bbPool.Get()
-	bb.B = bs.bsw.bh.streamID.marshalString(bb.B)
+	bb.B = br.bs.bsw.bh.streamID.marshalString(bb.B)
 	br.addConstColumn("_stream_id", bytesutil.ToUnsafeString(bb.B))
 	bbPool.Put(bb)
 }
 
-func (br *blockResult) addStreamColumn(bs *blockSearch) bool {
-	if !bs.prevStreamID.equal(&bs.bsw.bh.streamID) {
-		return br.addStreamColumnSlow(bs)
-	}
-
-	if len(bs.prevStream) == 0 {
+func (br *blockResult) addStreamColumn() bool {
+	streamStr := br.bs.getStreamStr()
+	if streamStr == "" {
 		return false
 	}
-	br.addConstColumn("_stream", bytesutil.ToUnsafeString(bs.prevStream))
-	return true
-}
-
-func (br *blockResult) addStreamColumnSlow(bs *blockSearch) bool {
-	bb := bbPool.Get()
-	defer bbPool.Put(bb)
-
-	streamID := &bs.bsw.bh.streamID
-	bb.B = bs.bsw.p.pt.appendStreamTagsByStreamID(bb.B[:0], streamID)
-	if len(bb.B) == 0 {
-		// Couldn't find stream tags by streamID. This may be the case when the corresponding log stream
-		// was recently registered and its tags aren't visible to search yet.
-		// The stream tags must become visible in a few seconds.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6042
-		bs.prevStreamID = *streamID
-		bs.prevStream = bs.prevStream[:0]
-		return false
-	}
-
-	st := GetStreamTags()
-	mustUnmarshalStreamTags(st, bb.B)
-	bb.B = st.marshalString(bb.B[:0])
-	PutStreamTags(st)
-
-	s := bytesutil.ToUnsafeString(bb.B)
-	br.addConstColumn("_stream", s)
-
-	bs.prevStreamID = *streamID
-	bs.prevStream = append(bs.prevStream[:0], s...)
+	br.addConstColumn("_stream", streamStr)
 	return true
 }
 
@@ -594,16 +654,16 @@ func (br *blockResult) newValuesBucketedForColumn(c *blockResultColumn, bf *bySt
 func (br *blockResult) getBucketedConstValues(v string, bf *byStatsField) []string {
 	if v == "" {
 		// Fast path - return a slice of empty strings without constructing the slice.
-		return getEmptyStrings(len(br.timestamps))
+		return getEmptyStrings(br.rowsLen)
 	}
 
-	// Slower path - construct slice of identical values with the len(br.timestamps)
+	// Slower path - construct slice of identical values with the length equal to br.rowsLen
 
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
 
 	v = br.getBucketedValue(v, bf)
-	for range br.timestamps {
+	for i := 0; i < br.rowsLen; i++ {
 		valuesBuf = append(valuesBuf, v)
 	}
 
@@ -617,7 +677,7 @@ func (br *blockResult) getBucketedTimestampValues(bf *byStatsField) []string {
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
 
-	timestamps := br.timestamps
+	timestamps := br.getTimestamps()
 	var s string
 
 	if !bf.hasBucketConfig() {
@@ -1433,7 +1493,11 @@ func getBlockResultColumnIdxByName(cs []*blockResultColumn, name string) int {
 }
 
 func (br *blockResult) skipRows(skipRows int) {
-	br.timestamps = append(br.timestamps[:0], br.timestamps[skipRows:]...)
+	timestamps := br.getTimestamps()
+	br.timestampsBuf = append(br.timestampsBuf[:0], timestamps[skipRows:]...)
+	br.rowsLen -= skipRows
+	br.checkTimestampsLen()
+
 	for _, c := range br.getColumns() {
 		if c.values != nil {
 			c.values = append(c.values[:0], c.values[skipRows:]...)
@@ -1453,7 +1517,11 @@ func (br *blockResult) skipRows(skipRows int) {
 }
 
 func (br *blockResult) truncateRows(keepRows int) {
-	br.timestamps = br.timestamps[:keepRows]
+	timestamps := br.getTimestamps()
+	br.timestampsBuf = append(br.timestampsBuf[:0], timestamps[:keepRows]...)
+	br.rowsLen = keepRows
+	br.checkTimestampsLen()
+
 	for _, c := range br.getColumns() {
 		if c.values != nil {
 			c.values = c.values[:keepRows]
@@ -1660,6 +1728,60 @@ func (c *blockResultColumn) getValuesEncoded(br *blockResult) []string {
 	return c.valuesEncoded
 }
 
+// forEachDictValue calls f for every value in the column dictionary.
+func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) {
+	if c.valueType != valueTypeDict {
+		logger.Panicf("BUG: unexpected column valueType=%d; want %d", c.valueType, valueTypeDict)
+	}
+	if uint64(br.rowsLen) == br.bs.bsw.bh.rowsCount {
+		// Fast path - there is no need in reading encoded values
+		for _, v := range c.dictValues {
+			f(v)
+		}
+		return
+	}
+
+	// Slow path - need to read encoded values in order filter not referenced columns.
+	a := encoding.GetUint64s(len(c.dictValues))
+	hits := a.A
+	clear(hits)
+	valuesEncoded := c.getValuesEncoded(br)
+	for _, v := range valuesEncoded {
+		idx := unmarshalUint8(v)
+		hits[idx]++
+	}
+	for i, v := range c.dictValues {
+		if h := hits[i]; h > 0 {
+			f(v)
+		}
+	}
+	encoding.PutUint64s(a)
+}
+
+// forEachDictValueWithHits calls f for every value in the column dictionary.
+//
+// hits is the number of rows with the given value v in the column.
+func (c *blockResultColumn) forEachDictValueWithHits(br *blockResult, f func(v string, hits uint64)) {
+	if c.valueType != valueTypeDict {
+		logger.Panicf("BUG: unexpected column valueType=%d; want %d", c.valueType, valueTypeDict)
+	}
+
+	a := encoding.GetUint64s(len(c.dictValues))
+	hits := a.A
+	clear(hits)
+	valuesEncoded := c.getValuesEncoded(br)
+	for _, v := range valuesEncoded {
+		idx := unmarshalUint8(v)
+		hits[idx]++
+	}
+	for i, v := range c.dictValues {
+		if h := hits[i]; h > 0 {
+			f(v, h)
+		}
+	}
+	encoding.PutUint64s(a)
+}
+
 func (c *blockResultColumn) getFloatValueAtRow(br *blockResult, rowIdx int) (float64, bool) {
 	if c.isConst {
 		v := c.valuesEncoded[0]
@@ -1708,10 +1830,10 @@ func (c *blockResultColumn) getFloatValueAtRow(br *blockResult, rowIdx int) (flo
 func (c *blockResultColumn) sumLenValues(br *blockResult) uint64 {
 	if c.isConst {
 		v := c.valuesEncoded[0]
-		return uint64(len(v)) * uint64(len(br.timestamps))
+		return uint64(len(v)) * uint64(br.rowsLen)
 	}
 	if c.isTime {
-		return uint64(len(time.RFC3339Nano)) * uint64(len(br.timestamps))
+		return uint64(len(time.RFC3339Nano)) * uint64(br.rowsLen)
 	}
 
 	switch c.valueType {
@@ -1739,7 +1861,7 @@ func (c *blockResultColumn) sumLenValues(br *blockResult) uint64 {
 	case valueTypeIPv4:
 		return c.sumLenStringValues(br)
 	case valueTypeTimestampISO8601:
-		return uint64(len(iso8601Timestamp)) * uint64(len(br.timestamps))
+		return uint64(len(iso8601Timestamp)) * uint64(br.rowsLen)
 	default:
 		logger.Panicf("BUG: unknown valueType=%d", c.valueType)
 		return 0
@@ -1761,7 +1883,7 @@ func (c *blockResultColumn) sumValues(br *blockResult) (float64, int) {
 		if !ok {
 			return 0, 0
 		}
-		return f * float64(len(br.timestamps)), len(br.timestamps)
+		return f * float64(br.rowsLen), br.rowsLen
 	}
 	if c.isTime {
 		return 0, 0
@@ -1812,25 +1934,25 @@ func (c *blockResultColumn) sumValues(br *blockResult) (float64, int) {
 		for _, v := range c.getValuesEncoded(br) {
 			sum += uint64(unmarshalUint8(v))
 		}
-		return float64(sum), len(br.timestamps)
+		return float64(sum), br.rowsLen
 	case valueTypeUint16:
 		sum := uint64(0)
 		for _, v := range c.getValuesEncoded(br) {
 			sum += uint64(unmarshalUint16(v))
 		}
-		return float64(sum), len(br.timestamps)
+		return float64(sum), br.rowsLen
 	case valueTypeUint32:
 		sum := uint64(0)
 		for _, v := range c.getValuesEncoded(br) {
 			sum += uint64(unmarshalUint32(v))
 		}
-		return float64(sum), len(br.timestamps)
+		return float64(sum), br.rowsLen
 	case valueTypeUint64:
 		sum := float64(0)
 		for _, v := range c.getValuesEncoded(br) {
 			sum += float64(unmarshalUint64(v))
 		}
-		return sum, len(br.timestamps)
+		return sum, br.rowsLen
 	case valueTypeFloat64:
 		sum := float64(0)
 		for _, v := range c.getValuesEncoded(br) {
@@ -1839,7 +1961,7 @@ func (c *blockResultColumn) sumValues(br *blockResult) (float64, int) {
 				sum += f
 			}
 		}
-		return sum, len(br.timestamps)
+		return sum, br.rowsLen
 	case valueTypeIPv4:
 		return 0, 0
 	case valueTypeTimestampISO8601:
@@ -1896,15 +2018,15 @@ func truncateTimestampToYear(timestamp int64) int64 {
 	return time.Date(t.Year(), time.January, 1, 0, 0, 0, 0, time.UTC).UnixNano()
 }
 
-func getEmptyStrings(rowsCount int) []string {
+func getEmptyStrings(rowsLen int) []string {
 	p := emptyStrings.Load()
 	if p == nil {
-		values := make([]string, rowsCount)
+		values := make([]string, rowsLen)
 		emptyStrings.Store(&values)
 		return values
 	}
 	values := *p
-	return slicesutil.SetLength(values, rowsCount)
+	return slicesutil.SetLength(values, rowsLen)
 }
 
 var emptyStrings atomic.Pointer[[]string]

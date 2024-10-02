@@ -20,7 +20,6 @@ The VictoriaLogs datasource plugin allows you to query and visualize
 * [Installation](#installation)
 * [How to make new release](#how-to-make-new-release)
 * [Notes](#notes)
-* [Frequently Asked Questions](#faq)
 * [License](#license)
 
 ## Installation
@@ -96,7 +95,7 @@ docker-compose -f docker-compose.yaml up
 
 After Grafana starts successfully, datasource should be available in the datasources tab
 
-![Configuration](./provision_datasources.webp)
+<img src="provision_datasources.webp" width="800" alt="Configuration">
 
 ### Install in Kubernetes
 
@@ -136,7 +135,7 @@ extraInitContainers:
      - |
        set -ex
        mkdir -p /var/lib/grafana/plugins/
-       ver=$(curl -s https://api.github.com/repos/VictoriaMetrics/victorialogs-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+       ver=$(curl -s -L https://api.github.com/repos/VictoriaMetrics/victorialogs-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
        curl -L https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/$ver/victorialogs-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/vl-plugin.tar.gz
        tar -xf /var/lib/grafana/plugins/vl-plugin.tar.gz -C /var/lib/grafana/plugins/
        rm /var/lib/grafana/plugins/vl-plugin.tar.gz
@@ -308,12 +307,6 @@ This command will build frontend part and backend part or the plugin and locate 
 In the `plugin.json` file of our plugin, the `metrics` field is set to `true`. This is not to support metric queries in the classical sense but to ensure our plugin can be selected in the Grafana panel editor.
 
 For more information on the fields in `plugin.json`, please refer to the [Grafana documentation](https://grafana.com/developers/plugin-tools/reference-plugin-json#properties).
-
-## FAQ
-
-### Which version of Grafana is required in order to use VictoriaLogs datasource?
-
-[10.0.3](https://grafana.com/grafana/download/10.0.3) or newer.
 
 ## License
 

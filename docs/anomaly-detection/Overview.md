@@ -250,24 +250,23 @@ docker run -it --net [YOUR_NETWORK] \
                -v YOUR_LICENSE_FILE_PATH:/license \
                -v YOUR_CONFIG_FILE_PATH:/config.yml \
                vmanomaly /config.yml \
-               --license-file=/license
+               --licenseFile=/license
 ```
 
 ### Licensing
 
 The license key can be passed via the following command-line flags:
 ```
-  --license LICENSE     See https://victoriametrics.com/products/enterprise/
-                        for trial license
-  --license-file LICENSE_FILE
-                        See https://victoriametrics.com/products/enterprise/
-                        for trial license
-  --license-verify-offline {true,false}
-                        Force offline verification of license code. License is
-                        verified online by default. This flag runs license
-                        verification offline.
+  --license     STRING  License key for VictoriaMetrics Enterprise.
+                        See https://victoriametrics.com/products/enterprise/trial/ to obtain a trial license.
+  --licenseFile STRING  Path to file with license key for VictoriaMetrics Enterprise.
+                        See https://victoriametrics.com/products/enterprise/trial/ to obtain a trial license.
+  --license.forceOffline 
+                        Whether to force offline verification for VictoriaMetrics Enterprise license key, 
+                        which has been passed either via -license or via -licenseFile command-line flag. 
+                        The issued license key must support offline verification feature. 
+                        Contact info@victoriametrics.com if you need offline license verification.
 ```
-
 
 
 In order to make it easier to monitor the license expiration date, the following metrics are exposed(see

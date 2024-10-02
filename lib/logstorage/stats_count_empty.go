@@ -36,7 +36,7 @@ type statsCountEmptyProcessor struct {
 func (scp *statsCountEmptyProcessor) updateStatsForAllRows(br *blockResult) int {
 	fields := scp.sc.fields
 	if len(fields) == 0 {
-		bm := getBitmap(len(br.timestamps))
+		bm := getBitmap(br.rowsLen)
 		bm.setBits()
 		for _, c := range br.getColumns() {
 			values := c.getValues(br)
@@ -53,7 +53,7 @@ func (scp *statsCountEmptyProcessor) updateStatsForAllRows(br *blockResult) int 
 		c := br.getColumnByName(fields[0])
 		if c.isConst {
 			if c.valuesEncoded[0] == "" {
-				scp.rowsCount += uint64(len(br.timestamps))
+				scp.rowsCount += uint64(br.rowsLen)
 			}
 			return 0
 		}
@@ -88,7 +88,7 @@ func (scp *statsCountEmptyProcessor) updateStatsForAllRows(br *blockResult) int 
 	}
 
 	// Slow path - count rows containing empty value for all the fields enumerated inside count_empty().
-	bm := getBitmap(len(br.timestamps))
+	bm := getBitmap(br.rowsLen)
 	defer putBitmap(bm)
 
 	bm.setBits()

@@ -51,21 +51,36 @@ import (
 // Guide.
 //
 // Permissions
+//   - General purpose bucket permissions - To perform a multipart upload with
+//     encryption using an Key Management Service key, the requester must have
+//     permission to the kms:Decrypt and kms:GenerateDataKey actions on the key. The
+//     requester must also have permissions for the kms:GenerateDataKey action for
+//     the CreateMultipartUpload API. Then, the requester needs permissions for the
+//     kms:Decrypt action on the UploadPart and UploadPartCopy APIs.
 //
-//   - General purpose bucket permissions - For information on the permissions
-//     required to use the multipart upload API, see [Multipart Upload and Permissions]in the Amazon S3 User Guide.
+// These permissions are required because Amazon S3 must decrypt and read data
 //
-//   - Directory bucket permissions - To grant access to this API operation on a
-//     directory bucket, we recommend that you use the [CreateSession]CreateSession API operation
-//     for session-based authorization. Specifically, you grant the
-//     s3express:CreateSession permission to the directory bucket in a bucket policy
-//     or an IAM identity-based policy. Then, you make the CreateSession API call on
-//     the bucket to obtain a session token. With the session token in your request
-//     header, you can make API requests to this operation. After the session token
-//     expires, you make another CreateSession API call to generate a new session
-//     token for use. Amazon Web Services CLI or SDKs create session and refresh the
-//     session token automatically to avoid service interruptions when a session
-//     expires. For more information about authorization, see [CreateSession]CreateSession .
+//	from the encrypted file parts before it completes the multipart upload. For more
+//	information about KMS permissions, see [Protecting data using server-side encryption with KMS]in the Amazon S3 User Guide. For
+//	information about the permissions required to use the multipart upload API, see [Multipart upload and permissions]
+//	and [Multipart upload API and permissions]in the Amazon S3 User Guide.
+//
+//	- Directory bucket permissions - To grant access to this API operation on a
+//	directory bucket, we recommend that you use the [CreateSession]CreateSession API operation
+//	for session-based authorization. Specifically, you grant the
+//	s3express:CreateSession permission to the directory bucket in a bucket policy
+//	or an IAM identity-based policy. Then, you make the CreateSession API call on
+//	the bucket to obtain a session token. With the session token in your request
+//	header, you can make API requests to this operation. After the session token
+//	expires, you make another CreateSession API call to generate a new session
+//	token for use. Amazon Web Services CLI or SDKs create session and refresh the
+//	session token automatically to avoid service interruptions when a session
+//	expires. For more information about authorization, see [CreateSession]CreateSession .
+//
+// If the object is encrypted with SSE-KMS, you must also have the
+//
+//	kms:GenerateDataKey and kms:Decrypt permissions in IAM identity-based policies
+//	and KMS key policies for the KMS key.
 //
 // Data integrity  General purpose bucket - To ensure that data is not corrupted
 // traversing the network, specify the Content-MD5 header in the upload part
@@ -108,10 +123,12 @@ import (
 //
 //	- x-amz-server-side-encryption-customer-key-MD5
 //
-//	- Directory bucket - For directory buckets, only server-side encryption with
-//	Amazon S3 managed keys (SSE-S3) ( AES256 ) is supported.
+// For more information, see [Using Server-Side Encryption]in the Amazon S3 User Guide.
 //
-// For more information, see [Using Server-Side Encryption] in the Amazon S3 User Guide.
+//   - Directory buckets - For directory buckets, there are only two supported
+//     options for server-side encryption: server-side encryption with Amazon S3
+//     managed keys (SSE-S3) ( AES256 ) and server-side encryption with KMS keys
+//     (SSE-KMS) ( aws:kms ).
 //
 // Special errors
 //
@@ -142,7 +159,6 @@ import (
 // [ListParts]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html
 // [Authenticating Requests: Using the Authorization Header (Amazon Web Services Signature Version 4)]: https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-auth-using-authorization-header.html
 // [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
-// [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 // [UploadPartCopy]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html
 // [CompleteMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html
 // [CreateMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html
@@ -151,7 +167,11 @@ import (
 // [AbortMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html
 // [Multipart Upload Overview]: https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html
 // [ListMultipartUploads]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListMultipartUploads.html
-// [Multipart Upload and Permissions]: https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html
+//
+// [Protecting data using server-side encryption with KMS]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html
+// [Multipart upload and permissions]: https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html
+// [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
+// [Multipart upload API and permissions]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html#mpuAndPermissions
 func (c *Client) UploadPart(ctx context.Context, params *UploadPartInput, optFns ...func(*Options)) (*UploadPartOutput, error) {
 	if params == nil {
 		params = &UploadPartInput{}
@@ -337,8 +357,6 @@ type UploadPartOutput struct {
 
 	// Indicates whether the multipart upload uses an S3 Bucket Key for server-side
 	// encryption with Key Management Service (KMS) keys (SSE-KMS).
-	//
-	// This functionality is not supported for directory buckets.
 	BucketKeyEnabled *bool
 
 	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
@@ -408,17 +426,11 @@ type UploadPartOutput struct {
 	// This functionality is not supported for directory buckets.
 	SSECustomerKeyMD5 *string
 
-	// If present, indicates the ID of the Key Management Service (KMS) symmetric
-	// encryption customer managed key that was used for the object.
-	//
-	// This functionality is not supported for directory buckets.
+	// If present, indicates the ID of the KMS key that was used for object encryption.
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm used when you store this object in Amazon
 	// S3 (for example, AES256 , aws:kms ).
-	//
-	// For directory buckets, only server-side encryption with Amazon S3 managed keys
-	// (SSE-S3) ( AES256 ) is supported.
 	ServerSideEncryption types.ServerSideEncryption
 
 	// Metadata pertaining to the operation's result.
@@ -468,6 +480,9 @@ func (c *Client) addOperationUploadPartMiddlewares(stack *middleware.Stack, opti
 		return err
 	}
 	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -534,6 +549,18 @@ func (c *Client) addOperationUploadPartMiddlewares(stack *middleware.Stack, opti
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

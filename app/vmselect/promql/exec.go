@@ -35,24 +35,6 @@ var (
 		"Such conversion can be disabled using -search.disableImplicitConversion.")
 )
 
-// UserReadableError is a type of error which supposed to be returned to the user without additional context.
-type UserReadableError struct {
-	// Err is the error which needs to be returned to the user.
-	Err error
-}
-
-// Unwrap returns ure.Err.
-//
-// This is used by standard errors package. See https://golang.org/pkg/errors
-func (ure *UserReadableError) Unwrap() error {
-	return ure.Err
-}
-
-// Error satisfies Error interface
-func (ure *UserReadableError) Error() string {
-	return ure.Err.Error()
-}
-
 // Exec executes q for the given ec.
 func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
 	if querystats.Enabled() {

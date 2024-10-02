@@ -2,7 +2,6 @@ package vmselect
 
 import (
 	"embed"
-	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -45,10 +44,7 @@ var (
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
 func getDefaultMaxConcurrentRequests() int {
-	n := cgroup.AvailableCPUs()
-	if n <= 4 {
-		n *= 2
-	}
+	n := cgroup.AvailableCPUs() * 2
 	if n > 16 {
 		// A single request can saturate all the CPU cores, so there is no sense
 		// in allowing higher number of concurrent requests - they will just contend
@@ -187,7 +183,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.EnableCORS(w, r)
 			if err := prometheus.LabelValuesHandler(qt, startTime, labelName, w, r); err != nil {
 				labelValuesErrors.Inc()
-				sendPrometheusError(w, r, err)
+				httpserver.SendPrometheusError(w, r, err)
 				return true
 			}
 			return true
@@ -210,7 +206,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryHandler(qt, startTime, w, r); err != nil {
 			queryErrors.Inc()
-			sendPrometheusError(w, r, err)
+			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -219,7 +215,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryRangeHandler(qt, startTime, w, r); err != nil {
 			queryRangeErrors.Inc()
-			sendPrometheusError(w, r, err)
+			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -228,7 +224,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.SeriesHandler(qt, startTime, w, r); err != nil {
 			seriesErrors.Inc()
-			sendPrometheusError(w, r, err)
+			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -237,7 +233,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.SeriesCountHandler(startTime, w, r); err != nil {
 			seriesCountErrors.Inc()
-			sendPrometheusError(w, r, err)
+			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -246,7 +242,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.LabelsHandler(qt, startTime, w, r); err != nil {
 			labelsErrors.Inc()
-			sendPrometheusError(w, r, err)
+			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -255,7 +251,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.TSDBStatusHandler(qt, startTime, w, r); err != nil {
 			statusTSDBErrors.Inc()
-			sendPrometheusError(w, r, err)
+			httpserver.SendPrometheusError(w, r, err)
 			return true
 		}
 		return true
@@ -498,7 +494,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryStatsHandler(w, r); err != nil {
 			topQueriesErrors.Inc()
-			sendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
+			httpserver.SendPrometheusError(w, r, fmt.Errorf("cannot query status endpoint: %w", err))
 			return true
 		}
 		return true
@@ -573,24 +569,6 @@ func isGraphiteTagsPath(path string) bool {
 	default:
 		return false
 	}
-}
-
-func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
-	logger.WarnfSkipframes(1, "error in %q: %s", httpserver.GetRequestURI(r), err)
-
-	w.Header().Set("Content-Type", "application/json")
-	statusCode := http.StatusUnprocessableEntity
-	var esc *httpserver.ErrorWithStatusCode
-	if errors.As(err, &esc) {
-		statusCode = esc.StatusCode
-	}
-	w.WriteHeader(statusCode)
-
-	var ure *promql.UserReadableError
-	if errors.As(err, &ure) {
-		err = ure
-	}
-	prometheus.WriteErrorResponse(w, statusCode, err)
 }
 
 var (

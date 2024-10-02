@@ -69,6 +69,7 @@ Bumping the limits may significantly improve build speed.
       * linux/ppc64le
       * linux/386
       This step can be run manually with the command `make publish` from the needed git tag.
+1. Verify that created images are stable and don't introduce regressions on [test environment](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md#testing-releases).
 1. Push the tags `v1.xx.y` and `v1.xx.y-cluster` created at previous steps to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics.
    Push the tags `v1.xx.y`, `v1.xx.y-cluster`, `v1.xx.y-enterprise` and `v1.xx.y-enterprise-cluster` to the corresponding
    branches in private repository.
@@ -158,10 +159,3 @@ Once updated, run the following commands:
 1. Commit changes.
 1. Create a new tag with `git tag -sm <TAG> <TAG>`.
 1. Push the changes with the new tag. This automatically publishes the new versions to galaxy.ansible.com.
-
-## RPM packages
-
-### Bump the version of components
-
-1. Update the version of VictoriaMetrics components at [https://github.com/VictoriaMetrics/victoriametrics-lts-rpm](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm).
-1. Commit and push changes to the repository. This will automatically build and publish new versions of RPM packages.

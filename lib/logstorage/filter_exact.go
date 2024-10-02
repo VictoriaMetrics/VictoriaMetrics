@@ -16,8 +16,9 @@ type filterExact struct {
 	fieldName string
 	value     string
 
-	tokensOnce sync.Once
-	tokens     []string
+	tokensOnce   sync.Once
+	tokens       []string
+	tokensHashes []uint64
 }
 
 func (fe *filterExact) String() string {
@@ -33,8 +34,14 @@ func (fe *filterExact) getTokens() []string {
 	return fe.tokens
 }
 
+func (fe *filterExact) getTokensHashes() []uint64 {
+	fe.tokensOnce.Do(fe.initTokens)
+	return fe.tokensHashes
+}
+
 func (fe *filterExact) initTokens() {
 	fe.tokens = tokenizeStrings(nil, []string{fe.value})
+	fe.tokensHashes = appendTokensHashes(nil, fe.tokens)
 }
 
 func (fe *filterExact) applyToBlockResult(br *blockResult, bm *bitmap) {
@@ -167,7 +174,8 @@ func (fe *filterExact) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fe.fieldName
 	value := fe.value
 
-	v := bs.csh.getConstColumnValue(fieldName)
+	csh := bs.getColumnsHeader()
+	v := csh.getConstColumnValue(fieldName)
 	if v != "" {
 		if value != v {
 			bm.resetBits()
@@ -176,7 +184,7 @@ func (fe *filterExact) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := csh.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		// It matches anything only for empty value.
@@ -186,7 +194,7 @@ func (fe *filterExact) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	tokens := fe.getTokens()
+	tokens := fe.getTokensHashes()
 
 	switch ch.valueType {
 	case valueTypeString:
@@ -212,7 +220,7 @@ func (fe *filterExact) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-func matchTimestampISO8601ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []string) {
+func matchTimestampISO8601ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []uint64) {
 	n, ok := tryParseTimestampISO8601(value)
 	if !ok || n < int64(ch.minValue) || n > int64(ch.maxValue) {
 		bm.resetBits()
@@ -224,7 +232,7 @@ func matchTimestampISO8601ByExactValue(bs *blockSearch, ch *columnHeader, bm *bi
 	bbPool.Put(bb)
 }
 
-func matchIPv4ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []string) {
+func matchIPv4ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []uint64) {
 	n, ok := tryParseIPv4(value)
 	if !ok || uint64(n) < ch.minValue || uint64(n) > ch.maxValue {
 		bm.resetBits()
@@ -236,7 +244,7 @@ func matchIPv4ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value 
 	bbPool.Put(bb)
 }
 
-func matchFloat64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []string) {
+func matchFloat64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []uint64) {
 	f, ok := tryParseFloat64(value)
 	if !ok || f < math.Float64frombits(ch.minValue) || f > math.Float64frombits(ch.maxValue) {
 		bm.resetBits()
@@ -262,7 +270,7 @@ func matchValuesDictByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, 
 	bbPool.Put(bb)
 }
 
-func matchStringByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []string) {
+func matchStringByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return
@@ -272,7 +280,7 @@ func matchStringByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, valu
 	})
 }
 
-func matchUint8ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
+func matchUint8ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []uint64) {
 	n, ok := tryParseUint64(phrase)
 	if !ok || n < ch.minValue || n > ch.maxValue {
 		bm.resetBits()
@@ -284,7 +292,7 @@ func matchUint8ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phras
 	bbPool.Put(bb)
 }
 
-func matchUint16ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
+func matchUint16ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []uint64) {
 	n, ok := tryParseUint64(phrase)
 	if !ok || n < ch.minValue || n > ch.maxValue {
 		bm.resetBits()
@@ -296,7 +304,7 @@ func matchUint16ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phra
 	bbPool.Put(bb)
 }
 
-func matchUint32ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
+func matchUint32ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []uint64) {
 	n, ok := tryParseUint64(phrase)
 	if !ok || n < ch.minValue || n > ch.maxValue {
 		bm.resetBits()
@@ -308,7 +316,7 @@ func matchUint32ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phra
 	bbPool.Put(bb)
 }
 
-func matchUint64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []string) {
+func matchUint64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []uint64) {
 	n, ok := tryParseUint64(phrase)
 	if !ok || n < ch.minValue || n > ch.maxValue {
 		bm.resetBits()
@@ -320,7 +328,7 @@ func matchUint64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phra
 	bbPool.Put(bb)
 }
 
-func matchBinaryValue(bs *blockSearch, ch *columnHeader, bm *bitmap, binValue []byte, tokens []string) {
+func matchBinaryValue(bs *blockSearch, ch *columnHeader, bm *bitmap, binValue []byte, tokens []uint64) {
 	if !matchBloomFilterAllTokens(bs, ch, tokens) {
 		bm.resetBits()
 		return

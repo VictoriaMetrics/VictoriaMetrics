@@ -1,0 +1,12 @@
+include:
+ - ../compose-base.yml
+services:
+  promtail:
+    image: grafana/promtail:3.0.1
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+      - ${PWD}/config.yml:/etc/promtail/docker-config.yml:ro
+    command: -config.file=/etc/promtail/docker-config.yml
+    ports:
+      - "5140:5140"

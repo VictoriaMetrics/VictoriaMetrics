@@ -1569,7 +1569,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 31
+            "y": 3
           },
           "id": 112,
           "links": [],
@@ -1677,10 +1677,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 31
+            "y": 3
           },
           "id": 44,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -1845,7 +1844,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 11
           },
           "id": 123,
           "links": [],
@@ -1952,10 +1951,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 39
+            "y": 11
           },
           "id": 114,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2046,7 +2044,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2054,8 +2053,7 @@
                   }
                 ]
               },
-              "unit": "percentunit",
-              "unitScale": true
+              "unit": "percentunit"
             },
             "overrides": [
               {
@@ -2079,10 +2077,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 19
           },
           "id": 75,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2172,7 +2169,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2180,8 +2178,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": [
               {
@@ -2205,10 +2202,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 47
+            "y": 19
           },
           "id": 57,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2313,7 +2309,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2321,8 +2318,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2330,10 +2326,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 55
+            "y": 27
           },
           "id": 47,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2420,7 +2415,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2428,8 +2424,7 @@
                   }
                 ]
               },
-              "unit": "bytes",
-              "unitScale": true
+              "unit": "bytes"
             },
             "overrides": [
               {
@@ -2450,10 +2445,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 55
+            "y": 27
           },
           "id": 76,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2558,7 +2552,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2566,8 +2561,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2575,10 +2569,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 63
+            "y": 35
           },
           "id": 48,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2665,7 +2658,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2673,8 +2667,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": [
               {
@@ -2695,10 +2688,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 63
+            "y": 35
           },
           "id": 124,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2803,7 +2795,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2811,8 +2804,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2820,10 +2812,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 71
+            "y": 43
           },
           "id": 49,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2912,7 +2903,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2920,8 +2912,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2929,10 +2920,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 71
+            "y": 43
           },
           "id": 37,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -3020,7 +3010,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3028,8 +3019,7 @@
                   }
                 ]
               },
-              "unit": "decbits",
-              "unitScale": true
+              "unit": "decbits"
             },
             "overrides": [
               {
@@ -3050,10 +3040,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 79
+            "y": 51
           },
           "id": 127,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -3157,7 +3146,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3165,8 +3155,7 @@
                   }
                 ]
               },
-              "unit": "percentunit",
-              "unitScale": true
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -3174,10 +3163,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 79
+            "y": 51
           },
           "id": 125,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -3212,6 +3200,113 @@
             }
           ],
           "title": "CPU spent on GC",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the time goroutines have spent in runnable state before actually running. The lower is better.\n\nHigh values or values exceeding the threshold is usually a sign of            insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.1
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 59
+          },
+          "id": 128,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (job, instance, le))",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Go scheduling latency",
           "type": "timeseries"
         }
       ],

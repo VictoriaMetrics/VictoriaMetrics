@@ -1634,7 +1634,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 11
+            "y": 35
           },
           "id": 109,
           "options": {
@@ -1732,7 +1732,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1748,7 +1749,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 11
+            "y": 35
           },
           "id": 111,
           "options": {
@@ -1843,7 +1844,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1872,7 +1874,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 43
           },
           "id": 81,
           "options": {
@@ -1978,7 +1980,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2007,7 +2010,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 43
           },
           "id": 7,
           "options": {
@@ -2109,7 +2112,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2125,7 +2129,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 51
           },
           "id": 83,
           "options": {
@@ -2214,7 +2218,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2230,7 +2235,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 51
           },
           "id": 39,
           "options": {
@@ -2320,7 +2325,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2336,7 +2342,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 59
           },
           "id": 135,
           "options": {
@@ -2373,6 +2379,113 @@
             }
           ],
           "title": "CPU spent on GC ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the time goroutines have spent in runnable state before actually running. The lower is better.\n\nHigh values or values exceeding the threshold is usually a sign of            insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.1
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 59
+          },
+          "id": 149,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (job, instance, le))) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Go scheduling latency",
           "type": "timeseries"
         },
         {
@@ -2425,7 +2538,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2441,7 +2555,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 35
+            "y": 67
           },
           "id": 41,
           "options": {
@@ -2570,7 +2684,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 12
+            "y": 20
           },
           "id": 92,
           "options": {
@@ -2674,7 +2788,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 12
+            "y": 20
           },
           "id": 95,
           "options": {
@@ -2781,7 +2895,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 20
+            "y": 28
           },
           "id": 98,
           "options": {
@@ -2888,7 +3002,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 20
+            "y": 28
           },
           "id": 99,
           "options": {
@@ -2992,7 +3106,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 28
+            "y": 36
           },
           "id": 79,
           "options": {
@@ -3096,7 +3210,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 28
+            "y": 36
           },
           "id": 18,
           "links": [
@@ -3206,7 +3320,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 36
+            "y": 44
           },
           "id": 127,
           "options": {
@@ -3308,7 +3422,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 36
+            "y": 44
           },
           "id": 50,
           "options": {
@@ -3408,7 +3522,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 44
+            "y": 52
           },
           "id": 129,
           "options": {
@@ -3547,8 +3661,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3564,7 +3677,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 37
+            "y": 45
           },
           "id": 48,
           "options": {
@@ -3654,8 +3767,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3671,7 +3783,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 37
+            "y": 45
           },
           "id": 76,
           "options": {
@@ -3759,8 +3871,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3776,7 +3887,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 44
+            "y": 52
           },
           "id": 132,
           "options": {
@@ -3866,8 +3977,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3883,7 +3993,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 44
+            "y": 52
           },
           "id": 133,
           "options": {
@@ -3972,8 +4082,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3989,7 +4098,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 59
           },
           "id": 20,
           "options": {
@@ -4077,8 +4186,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4094,7 +4202,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 51
+            "y": 59
           },
           "id": 126,
           "options": {
@@ -4181,8 +4289,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4198,7 +4305,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 59
+            "y": 67
           },
           "id": 46,
           "options": {
@@ -4285,8 +4392,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4302,7 +4408,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 59
+            "y": 67
           },
           "id": 148,
           "options": {
@@ -4389,8 +4495,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4406,7 +4511,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 67
+            "y": 75
           },
           "id": 31,
           "options": {
@@ -4585,7 +4690,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 14
+            "y": 22
           },
           "id": 73,
           "options": {
@@ -4702,7 +4807,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 6
+            "y": 14
           },
           "id": 131,
           "options": {
@@ -4806,7 +4911,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 14
+            "y": 22
           },
           "id": 130,
           "options": {
@@ -4923,7 +5028,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 14
+            "y": 22
           },
           "id": 77,
           "options": {
@@ -5057,7 +5162,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7
+            "y": 15
           },
           "id": 146,
           "options": {
@@ -5087,7 +5192,7 @@
               "editorMode": "code",
               "expr": "sum(rate(vm_streamaggr_matched_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) without (instance, pod) > 0",
               "instant": false,
-              "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
+              "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
@@ -5159,7 +5264,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7
+            "y": 15
           },
           "id": 143,
           "options": {
@@ -5183,7 +5288,7 @@
               "editorMode": "code",
               "expr": "sum(rate(vm_streamaggr_ignored_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0) without (instance, pod)",
               "instant": false,
-              "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
+              "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
@@ -5255,7 +5360,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 15
+            "y": 23
           },
           "id": 147,
           "options": {
@@ -5285,7 +5390,7 @@
               "editorMode": "code",
               "expr": "sum(rate(vm_streamaggr_output_samples_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) without (instance, pod) > 0",
               "instant": false,
-              "legendFormat": "{{url}} ({{job}}): match={{match}}; output={{output}}",
+              "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
@@ -5358,7 +5463,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 15
+            "y": 23
           },
           "id": 139,
           "options": {
@@ -5382,7 +5487,7 @@
               "editorMode": "code",
               "expr": "increase(vm_streamaggr_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
               "instant": false,
-              "legendFormat": "aggregation: {{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
+              "legendFormat": "aggregation: {{url}} ({{job}}): {{path}}:{{position}}",
               "range": true,
               "refId": "A"
             },
@@ -5395,7 +5500,7 @@
               "expr": "increase(vm_streamaggr_dedup_flush_timeouts_total{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]) > 0",
               "hide": false,
               "instant": false,
-              "legendFormat": "deduplication: {{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
+              "legendFormat": "deduplication: {{url}} ({{job}}): {{path}}:{{position}}",
               "range": true,
               "refId": "B"
             }
@@ -5469,7 +5574,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 23
+            "y": 31
           },
           "id": 142,
           "options": {
@@ -5493,7 +5598,7 @@
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, sum(rate(vm_streamaggr_samples_lag_seconds_bucket{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval])) without (instance, pod))",
               "instant": false,
-              "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
+              "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
@@ -5566,7 +5671,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 23
+            "y": 31
           },
           "id": 137,
           "options": {
@@ -5590,7 +5695,7 @@
               "editorMode": "code",
               "expr": "histogram_quantile(0.99, rate(vm_streamaggr_dedup_flush_duration_seconds_bucket{job=~\"$job\",instance=~\"$instance\", url=~\"$url\"}[$__rate_interval]))",
               "instant": false,
-              "legendFormat": "{{url}} ({{job}}): match={{match}}; outputs={{outputs}}",
+              "legendFormat": "__auto",
               "range": true,
               "refId": "A"
             }
@@ -5679,7 +5784,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 31
+            "y": 39
           },
           "id": 141,
           "options": {
@@ -5810,7 +5915,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8
+            "y": 16
           },
           "id": 60,
           "options": {
@@ -5914,7 +6019,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8
+            "y": 16
           },
           "id": 66,
           "options": {
@@ -6018,7 +6123,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 16
+            "y": 24
           },
           "id": 61,
           "options": {
@@ -6122,7 +6227,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 16
+            "y": 24
           },
           "id": 65,
           "options": {
@@ -6225,7 +6330,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 24
+            "y": 32
           },
           "id": 88,
           "options": {
@@ -6324,7 +6429,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 24
+            "y": 32
           },
           "id": 84,
           "options": {
@@ -6427,7 +6532,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 32
+            "y": 40
           },
           "id": 90,
           "options": {
@@ -6493,7 +6598,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 17
+            "y": 25
           },
           "id": 115,
           "options": {
@@ -6571,7 +6676,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 27
           },
           "id": 119,
           "options": {
@@ -6675,7 +6780,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 27
           },
           "id": 117,
           "options": {
@@ -6781,7 +6886,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 35
           },
           "id": 125,
           "links": [
@@ -6903,7 +7008,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 35
           },
           "id": 123,
           "options": {
@@ -7033,7 +7138,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 43
           },
           "id": 121,
           "options": {

@@ -136,7 +136,7 @@ type pipeFormatProcessorShardNopad struct {
 }
 
 func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -144,7 +144,7 @@ func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
 	pf := pfp.pf
 
 	bm := &shard.bm
-	bm.init(len(br.timestamps))
+	bm.init(br.rowsLen)
 	bm.setBits()
 	if iff := pf.iff; iff != nil {
 		iff.f.applyToBlockResult(br, bm)
@@ -157,7 +157,7 @@ func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.rc.name = pf.resultField
 
 	resultColumn := br.getColumnByName(pf.resultField)
-	for rowIdx := range br.timestamps {
+	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 		v := ""
 		if bm.isSetBit(rowIdx) {
 			v = shard.formatRow(pf, br, rowIdx)

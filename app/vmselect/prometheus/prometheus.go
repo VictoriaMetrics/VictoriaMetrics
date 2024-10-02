@@ -3,7 +3,6 @@ package prometheus
 import (
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/metricsql"
 	"math"
 	"net/http"
 	"runtime"
@@ -27,6 +26,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
 	"github.com/valyala/fastjson/fastfloat"
 )
 
@@ -52,6 +52,7 @@ var (
 	maxExportSeries     = flag.Int("search.maxExportSeries", 10e6, "The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage")
 	maxTSDBStatusSeries = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
 	maxSeriesLimit      = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
+	maxDeleteSeries     = flag.Int("search.maxDeleteSeries", 1e6, "The maximum number of time series, which can be deleted using /api/v1/admin/tsdb/delete_series. This option allows limiting memory usage")
 	maxLabelsAPISeries  = flag.Int("search.maxLabelsAPISeries", 1e6, "The maximum number of time series, which could be scanned when searching for the matching time series "+
 		"at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, "+
 		"-search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI")
@@ -479,7 +480,7 @@ func DeleteHandler(startTime time.Time, r *http.Request) error {
 	if !cp.IsDefaultTimeRange() {
 		return fmt.Errorf("start=%d and end=%d args aren't supported. Remove these args from the query in order to delete all the matching metrics", cp.start, cp.end)
 	}
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, 0)
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxDeleteSeries)
 	deletedCount, err := netstorage.DeleteSeries(nil, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series: %w", err)

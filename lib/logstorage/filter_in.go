@@ -28,9 +28,9 @@ type filterIn struct {
 	// qFieldName must be set to field name for obtaining values from if q is non-nil.
 	qFieldName string
 
-	tokensOnce   sync.Once
-	commonTokens []string
-	tokenSets    [][]string
+	tokensOnce         sync.Once
+	commonTokensHashes []uint64
+	tokenSetsHashes    [][]uint64
 
 	stringValuesOnce sync.Once
 	stringValues     map[string]struct{}
@@ -76,16 +76,21 @@ func (fi *filterIn) updateNeededFields(neededFields fieldsSet) {
 	neededFields.add(fi.fieldName)
 }
 
-func (fi *filterIn) getTokens() ([]string, [][]string) {
+func (fi *filterIn) getTokensHashes() ([]uint64, [][]uint64) {
 	fi.tokensOnce.Do(fi.initTokens)
-	return fi.commonTokens, fi.tokenSets
+	return fi.commonTokensHashes, fi.tokenSetsHashes
 }
 
 func (fi *filterIn) initTokens() {
 	commonTokens, tokenSets := getCommonTokensAndTokenSets(fi.values)
 
-	fi.commonTokens = commonTokens
-	fi.tokenSets = tokenSets
+	fi.commonTokensHashes = appendTokensHashes(nil, commonTokens)
+
+	tokenSetsHashes := make([][]uint64, len(tokenSets))
+	for i, tokens := range tokenSets {
+		tokenSetsHashes[i] = appendTokensHashes(nil, tokens)
+	}
+	fi.tokenSetsHashes = tokenSetsHashes
 }
 
 func (fi *filterIn) getStringValues() map[string]struct{} {
@@ -353,7 +358,8 @@ func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	v := bs.csh.getConstColumnValue(fieldName)
+	csh := bs.getColumnsHeader()
+	v := csh.getConstColumnValue(fieldName)
 	if v != "" {
 		stringValues := fi.getStringValues()
 		if _, ok := stringValues[v]; !ok {
@@ -363,7 +369,7 @@ func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := csh.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		// It matches anything only for empty phrase.
@@ -374,7 +380,7 @@ func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	commonTokens, tokenSets := fi.getTokens()
+	commonTokens, tokenSets := fi.getTokensHashes()
 
 	switch ch.valueType {
 	case valueTypeString:
@@ -409,7 +415,7 @@ func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 }
 
-func matchAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[string]struct{}, commonTokens []string, tokenSets [][]string) {
+func matchAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[string]struct{}, commonTokens []uint64, tokenSets [][]uint64) {
 	if len(values) == 0 {
 		bm.resetBits()
 		return
@@ -424,7 +430,7 @@ func matchAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, values map[str
 	})
 }
 
-func matchBloomFilterAnyTokenSet(bs *blockSearch, ch *columnHeader, commonTokens []string, tokenSets [][]string) bool {
+func matchBloomFilterAnyTokenSet(bs *blockSearch, ch *columnHeader, commonTokens []uint64, tokenSets [][]uint64) bool {
 	if len(commonTokens) > 0 {
 		if !matchBloomFilterAllTokens(bs, ch, commonTokens) {
 			return false
@@ -491,30 +497,27 @@ func getCommonTokensAndTokenSets(values []string) ([]string, [][]string) {
 	return commonTokens, tokenSets
 }
 
+// getCommonTokens returns common tokens seen at every set of tokens inside tokenSets.
+//
+// The returned common tokens preserve the original order seen in tokenSets.
 func getCommonTokens(tokenSets [][]string) []string {
 	if len(tokenSets) == 0 {
 		return nil
 	}
 
-	m := make(map[string]struct{}, len(tokenSets[0]))
-	for _, token := range tokenSets[0] {
-		m[token] = struct{}{}
-	}
+	commonTokens := append([]string{}, tokenSets[0]...)
 
 	for _, tokens := range tokenSets[1:] {
-		if len(m) == 0 {
+		if len(commonTokens) == 0 {
 			return nil
 		}
-		for token := range m {
-			if !slices.Contains(tokens, token) {
-				delete(m, token)
+		dst := commonTokens[:0]
+		for _, token := range commonTokens {
+			if slices.Contains(tokens, token) {
+				dst = append(dst, token)
 			}
 		}
+		commonTokens = dst
 	}
-
-	tokens := make([]string, 0, len(m))
-	for token := range m {
-		tokens = append(tokens, token)
-	}
-	return tokens
+	return commonTokens
 }

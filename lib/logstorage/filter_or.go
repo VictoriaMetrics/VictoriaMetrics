@@ -89,11 +89,12 @@ func (fo *filterOr) matchBloomFilters(bs *blockSearch) bool {
 		return true
 	}
 
-	for _, fieldTokens := range byFieldTokens {
-		fieldName := fieldTokens.field
-		tokens := fieldTokens.tokens
+	for _, ft := range byFieldTokens {
+		fieldName := ft.field
+		tokens := ft.tokens
 
-		v := bs.csh.getConstColumnValue(fieldName)
+		csh := bs.getColumnsHeader()
+		v := csh.getConstColumnValue(fieldName)
 		if v != "" {
 			if matchStringByAllTokens(v, tokens) {
 				return true
@@ -101,7 +102,7 @@ func (fo *filterOr) matchBloomFilters(bs *blockSearch) bool {
 			continue
 		}
 
-		ch := bs.csh.getColumnHeader(fieldName)
+		ch := csh.getColumnHeader(fieldName)
 		if ch == nil {
 			continue
 		}
@@ -112,7 +113,7 @@ func (fo *filterOr) matchBloomFilters(bs *blockSearch) bool {
 			}
 			continue
 		}
-		if matchBloomFilterAllTokens(bs, ch, tokens) {
+		if matchBloomFilterAllTokens(bs, ch, ft.tokensHashes) {
 			return true
 		}
 	}
@@ -126,6 +127,10 @@ func (fo *filterOr) getByFieldTokens() []fieldTokens {
 }
 
 func (fo *filterOr) initByFieldTokens() {
+	fo.byFieldTokens = getCommonTokensForOrFilters(fo.filters)
+}
+
+func getCommonTokensForOrFilters(filters []filter) []fieldTokens {
 	m := make(map[string][][]string)
 	var fieldNames []string
 
@@ -141,7 +146,7 @@ func (fo *filterOr) initByFieldTokens() {
 		m[fieldName] = append(m[fieldName], tokens)
 	}
 
-	for _, f := range fo.filters {
+	for _, f := range filters {
 		switch t := f.(type) {
 		case *filterExact:
 			tokens := t.getTokens()
@@ -166,19 +171,30 @@ func (fo *filterOr) initByFieldTokens() {
 			for _, bft := range bfts {
 				mergeFieldTokens(bft.field, bft.tokens)
 			}
+		default:
+			// Cannot extract tokens from this filter. This means that it is impossible to extract common tokens from OR filters.
+			return nil
 		}
 	}
 
 	var byFieldTokens []fieldTokens
 	for _, fieldName := range fieldNames {
-		commonTokens := getCommonTokens(m[fieldName])
-		if len(commonTokens) > 0 {
-			byFieldTokens = append(byFieldTokens, fieldTokens{
-				field:  fieldName,
-				tokens: commonTokens,
-			})
+		tokenss := m[fieldName]
+		if len(tokenss) != len(filters) {
+			// The filter for the given fieldName is missing in some OR filters,
+			// so it is impossible to extract common tokens from these filters.
+			continue
 		}
+		commonTokens := getCommonTokens(tokenss)
+		if len(commonTokens) == 0 {
+			continue
+		}
+		byFieldTokens = append(byFieldTokens, fieldTokens{
+			field:        fieldName,
+			tokens:       commonTokens,
+			tokensHashes: appendTokensHashes(nil, commonTokens),
+		})
 	}
 
-	fo.byFieldTokens = byFieldTokens
+	return byFieldTokens
 }

@@ -10,13 +10,6 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-var (
-	kernelDLL = windows.MustLoadDLL("kernel32.dll")
-	procLock  = kernelDLL.MustFindProc("LockFileEx")
-	procEvent = kernelDLL.MustFindProc("CreateEventW")
-	procDisk  = kernelDLL.MustFindProc("GetDiskFreeSpaceExW")
-)
-
 // at windows only files could be synced
 // Sync for directories is not supported.
 func mustSyncPath(path string) {
@@ -61,8 +54,8 @@ func createFlockFile(flockFile string) (*os.File, error) {
 		return nil, fmt.Errorf("cannot create Overlapped handler: %w", err)
 	}
 	// https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex
-	r1, _, err := procLock.Call(uintptr(handle), uintptr(lockfileExclusiveLock), uintptr(0), uintptr(1), uintptr(0), uintptr(unsafe.Pointer(ol)))
-	if r1 == 0 {
+	err = windows.LockFileEx(handle, lockfileExclusiveLock, 0, 0, 0, ol)
+	if err != nil {
 		return nil, err
 	}
 	return os.NewFile(uintptr(handle), flockFile), nil
@@ -118,13 +111,13 @@ func mUnmap(data []byte) error {
 }
 
 func mustGetFreeSpace(path string) uint64 {
-	var freeBytes int64
-	r, _, err := procDisk.Call(uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(path))),
-		uintptr(unsafe.Pointer(&freeBytes)))
-	if r == 0 {
+	var freeBytes uint64
+	// https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getdiskfreespaceexw
+	err := windows.GetDiskFreeSpaceEx(windows.StringToUTF16Ptr(path), &freeBytes, nil, nil)
+	if err != nil {
 		logger.Panicf("FATAL: cannot get free space for %q : %s", path, err)
 	}
-	return uint64(freeBytes)
+	return freeBytes
 }
 
 // stub
@@ -132,23 +125,11 @@ func fadviseSequentialRead(f *os.File, prefetch bool) error {
 	return nil
 }
 
-// copied from https://github.com/juju/fslock/blob/master/fslock_windows.go
 // https://docs.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-overlapped
 func newOverlapped() (*windows.Overlapped, error) {
-	event, err := createEvent(nil, nil)
+	event, err := windows.CreateEvent(nil, 1, 1, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot create event: %w", err)
 	}
 	return &windows.Overlapped{HEvent: event}, nil
-}
-
-// copied from https://github.com/juju/fslock/blob/master/fslock_windows.go
-// https://docs.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-createeventa
-func createEvent(sa *windows.SecurityAttributes, name *uint16) (windows.Handle, error) {
-	r0, _, err := procEvent.Call(uintptr(unsafe.Pointer(sa)), uintptr(1), uintptr(1), uintptr(unsafe.Pointer(name)))
-	handle := windows.Handle(r0)
-	if handle == windows.InvalidHandle {
-		return 0, err
-	}
-	return handle, nil
 }

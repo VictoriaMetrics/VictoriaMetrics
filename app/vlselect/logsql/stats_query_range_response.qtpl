@@ -1,0 +1,52 @@
+{% stripspace %}
+
+// StatsQueryRangeResponse generates response for /select/logsql/stats_query_range
+{% func StatsQueryRangeResponse(rows []*statsSeries) %}
+{
+	"status":"success",
+	"data":{
+		"resultType":"matrix",
+		"result":[
+			{% if len(rows) > 0 %}
+				{%= formatStatsSeries(rows[0]) %}
+				{% code rows = rows[1:] %}
+				{% for i := range rows %}
+					,{%= formatStatsSeries(rows[i]) %}
+				{% endfor %}
+			{% endif %}
+		]
+	}
+}
+{% endfunc %}
+
+{% func formatStatsSeries(ss *statsSeries) %}
+{
+	"metric":{
+		"__name__":{%q= ss.Name %}
+		{% if len(ss.Labels) > 0 %}
+			{% for _, label := range ss.Labels %}
+				,{%q= label.Name %}:{%q= label.Value %}
+			{% endfor %}
+		{% endif %}
+	},
+	"values":[
+		{% code points := ss.Points %}
+		{% if len(points) > 0 %}
+			{%= formatStatsPoint(&points[0]) %}
+			{% code points = points[1:] %}
+			{% for i := range points %}
+				,{%= formatStatsPoint(&points[i]) %}
+			{% endfor %}
+		{% endif %}
+	]
+}
+{% endfunc %}
+
+{% func formatStatsPoint(p *statsPoint) %}
+[
+	{%f= float64(p.Timestamp)/1e9 %},
+	{%q= p.Value %}
+]
+{% endfunc %}
+
+{% endstripspace %}

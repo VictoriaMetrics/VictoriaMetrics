@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package grpctransport provides functionality for managing gRPC client
+// connections to Google Cloud services.
 package grpctransport
 
 import (
@@ -20,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 
 	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/credentials"
@@ -38,7 +41,7 @@ const (
 	// Check env to decide if using google-c2p resolver for DirectPath traffic.
 	enableDirectPathXdsEnvVar = "GOOGLE_CLOUD_ENABLE_DIRECT_PATH_XDS"
 
-	quotaProjectHeaderKey = "X-Goog-User-Project"
+	quotaProjectHeaderKey = "X-goog-user-project"
 )
 
 var (
@@ -271,7 +274,10 @@ func dial(ctx context.Context, secure bool, opts *Options) (*grpc.ClientConn, er
 			if metadata == nil {
 				metadata = make(map[string]string, 1)
 			}
-			metadata[quotaProjectHeaderKey] = qp
+			// Don't overwrite user specified quota
+			if _, ok := metadata[quotaProjectHeaderKey]; !ok {
+				metadata[quotaProjectHeaderKey] = qp
+			}
 		}
 		grpcOpts = append(grpcOpts,
 			grpc.WithPerRPCCredentials(&grpcCredentialsProvider{
@@ -291,7 +297,7 @@ func dial(ctx context.Context, secure bool, opts *Options) (*grpc.ClientConn, er
 	grpcOpts = addOCStatsHandler(grpcOpts, opts)
 	grpcOpts = append(grpcOpts, opts.GRPCDialOpts...)
 
-	return grpc.DialContext(ctx, endpoint, grpcOpts...)
+	return grpc.NewClient(endpoint, grpcOpts...)
 }
 
 // grpcKeyProvider satisfies https://pkg.go.dev/google.golang.org/grpc/credentials#PerRPCCredentials.
@@ -325,28 +331,38 @@ type grpcCredentialsProvider struct {
 	clientUniverseDomain string
 }
 
-// getClientUniverseDomain returns the default service domain for a given Cloud universe.
-// The default value is "googleapis.com". This is the universe domain
-// configured for the client, which will be compared to the universe domain
-// that is separately configured for the credentials.
+// getClientUniverseDomain returns the default service domain for a given Cloud
+// universe, with the following precedence:
+//
+// 1. A non-empty option.WithUniverseDomain or similar client option.
+// 2. A non-empty environment variable GOOGLE_CLOUD_UNIVERSE_DOMAIN.
+// 3. The default value "googleapis.com".
+//
+// This is the universe domain configured for the client, which will be compared
+// to the universe domain that is separately configured for the credentials.
 func (c *grpcCredentialsProvider) getClientUniverseDomain() string {
-	if c.clientUniverseDomain == "" {
-		return internal.DefaultUniverseDomain
+	if c.clientUniverseDomain != "" {
+		return c.clientUniverseDomain
 	}
-	return c.clientUniverseDomain
+	if envUD := os.Getenv(internal.UniverseDomainEnvVar); envUD != "" {
+		return envUD
+	}
+	return internal.DefaultUniverseDomain
 }
 
 func (c *grpcCredentialsProvider) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
-	credentialsUniverseDomain, err := c.creds.UniverseDomain(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if err := transport.ValidateUniverseDomain(c.getClientUniverseDomain(), credentialsUniverseDomain); err != nil {
-		return nil, err
-	}
 	token, err := c.creds.Token(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if token.MetadataString("auth.google.tokenSource") != "compute-metadata" {
+		credentialsUniverseDomain, err := c.creds.UniverseDomain(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if err := transport.ValidateUniverseDomain(c.getClientUniverseDomain(), credentialsUniverseDomain); err != nil {
+			return nil, err
+		}
 	}
 	if c.secure {
 		ri, _ := grpccreds.RequestInfoFromContext(ctx)

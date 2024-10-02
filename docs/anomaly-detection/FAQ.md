@@ -120,7 +120,9 @@ Configuration above will produce N intervals of full length (`fit_window`=14d + 
 ## Resource consumption of vmanomaly
 `vmanomaly` itself is a lightweight service, resource usage is primarily dependent on [scheduling](https://docs.victoriametrics.com/anomaly-detection/components/scheduler) (how often and on what data to fit/infer your models), [# and size of timeseries returned by your queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), and the complexity of the employed [models](https://docs.victoriametrics.com/anomaly-detection/components/models). Its resource usage is directly related to these factors, making it adaptable to various operational scales.
 
-> **Note**: Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), there is a mode to save anomaly detection models on host filesystem after `fit` stage (instead of keeping them in-memory by default). **Resource-intensive setups** (many models, many metrics, bigger [`fit_window` arg](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#periodic-scheduler-config-example)) and/or 3rd-party models that store fit data (like [ProphetModel](https://docs.victoriametrics.com/anomaly-detection/components/models#prophet) or [HoltWinters](https://docs.victoriametrics.com/anomaly-detection/components/models#holt-winters)) will have RAM consumption greatly reduced at a cost of slightly slower `infer` stage. To enable it, you need to set environment variable `VMANOMALY_MODEL_DUMPS_DIR` to desired location. [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md) are being updated accordingly ([`StatefulSet`](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) for persistent storage starting from chart version `1.3.0`).
+> **Note**: Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), there is an option to save anomaly detection models to the host filesystem after the `fit` stage (instead of keeping them in memory by default). This is particularly useful for **resource-intensive setups** (e.g., many models, many metrics, or larger [`fit_window` argument](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#periodic-scheduler-config-example)) and for 3rd-party models that store fit data (such as [ProphetModel](https://docs.victoriametrics.com/anomaly-detection/components/models#prophet) or [HoltWinters](https://docs.victoriametrics.com/anomaly-detection/components/models#holt-winters)). This reduces RAM consumption significantly, though at the cost of slightly slower `infer` stages. To enable this, set the environment variable `VMANOMALY_MODEL_DUMPS_DIR` to the desired location. If using [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md), starting from chart version `1.3.0` `.persistentVolume.enabled` should be set to `true` in [values.yaml](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/values.yaml).
+
+> **Note**: Starting from [v1.16.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1160), a similar optimization is available for data read from VictoriaMetrics TSDB. To use this, set the environment variable `VMANOMALY_DATA_DUMPS_DIR` to the desired location.
 
 Here's an example of how to set it up in docker-compose using volumes:
 ```yaml
@@ -138,17 +140,20 @@ services:
       - ./vmanomaly_license:/license
       # map the host directory to the container directory
       - vmanomaly_model_dump_dir:/vmanomaly/tmp/models
+      - vmanomaly_data_dump_dir:/vmanomaly/tmp/data
     environment:
       # set the environment variable for the model dump directory
       - VMANOMALY_MODEL_DUMPS_DIR=/vmanomaly/tmp/models/
+       VMANOMALY_DATA_DUMPS_DIR=/vmanomaly/tmp/data/
     platform: "linux/amd64"
     command:
       - "/config.yaml"
-      - "--license-file=/license"
+      - "--licenseFile=/license"
 
 volumes:
   # ...
   vmanomaly_model_dump_dir: {}
+  vmanomaly_data_dump_dir: {}
 ```
 
 > **Note**: Starting from [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog#v1150) with the introduction of [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models), you can additionally reduce resource consumption (e.g., flatten `fit` stage peaks by querying less data from VictoriaMetrics at once).
@@ -208,7 +213,7 @@ As a result, switching from the offline Z-score model to the Online Z-score mode
 
 The old configuration would perform 168 (hours in a week) `fit` calls, each using 2 days (48 hours) of data, totaling 168 * 48 = 8064 hours of data for each timeseries returned.
 
-The new configuration performs only 1 `fit` call in 180 days, using 4 hours of data initially, totaling 4 hours of data, which is **magnitutes smaller**.
+The new configuration performs only 1 `fit` call in 180 days, using 4 hours of data initially, totaling 4 hours of data, which is **magnitudes smaller**.
 
 P.s. `infer` data volume will remain the same for both models, so it does not affect the overall calculations.
 

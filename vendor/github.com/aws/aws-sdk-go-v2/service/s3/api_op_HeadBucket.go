@@ -26,17 +26,14 @@ import (
 // code. A message body is not included, so you cannot determine the exception
 // beyond these HTTP response codes.
 //
-// Directory buckets - You must make requests for this API operation to the Zonal
-// endpoint. These endpoints support virtual-hosted-style requests in the format
-// https://bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests
-// are not supported. For more information, see [Regional and Zonal endpoints]in the Amazon S3 User Guide.
+// Authentication and authorization  General purpose buckets - Request to public
+// buckets that grant the s3:ListBucket permission publicly do not need to be
+// signed. All other HeadBucket requests must be authenticated and signed by using
+// IAM credentials (access key ID and secret access key for the IAM identities).
+// All headers with the x-amz- prefix, including x-amz-copy-source , must be
+// signed. For more information, see [REST Authentication].
 //
-// Authentication and authorization All HeadBucket requests must be authenticated
-// and signed by using IAM credentials (access key ID and secret access key for the
-// IAM identities). All headers with the x-amz- prefix, including x-amz-copy-source
-// , must be signed. For more information, see [REST Authentication].
-//
-// Directory bucket - You must use IAM credentials to authenticate and authorize
+// Directory buckets - You must use IAM credentials to authenticate and authorize
 // your access to the HeadBucket API operation, instead of using the temporary
 // security credentials through the CreateSession API operation.
 //
@@ -61,6 +58,11 @@ import (
 //
 // HTTP Host header syntax  Directory buckets - The HTTP Host header syntax is
 // Bucket_name.s3express-az_id.region.amazonaws.com .
+//
+// You must make requests for this API operation to the Zonal endpoint. These
+// endpoints support virtual-hosted-style requests in the format
+// https://bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests
+// are not supported. For more information, see [Regional and Zonal endpoints]in the Amazon S3 User Guide.
 //
 // [Amazon Web Services Identity and Access Management (IAM) identity-based policies for S3 Express One Zone]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam-identity-policies.html
 // [REST Authentication]: https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html
@@ -146,7 +148,7 @@ type HeadBucketOutput struct {
 
 	// Indicates whether the bucket name used in the request is an access point alias.
 	//
-	// This functionality is not supported for directory buckets.
+	// For directory buckets, the value of this field is false .
 	AccessPointAlias *bool
 
 	// The name of the location where the bucket will be created.
@@ -163,8 +165,6 @@ type HeadBucketOutput struct {
 	BucketLocationType types.LocationType
 
 	// The Region that the bucket is located.
-	//
-	// This functionality is not supported for directory buckets.
 	BucketRegion *string
 
 	// Metadata pertaining to the operation's result.
@@ -214,6 +214,9 @@ func (c *Client) addOperationHeadBucketMiddlewares(stack *middleware.Stack, opti
 		return err
 	}
 	if err = addRecordResponseTiming(stack); err != nil {
+		return err
+	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
 	if err = addClientUserAgent(stack, options); err != nil {
@@ -271,6 +274,18 @@ func (c *Client) addOperationHeadBucketMiddlewares(stack *middleware.Stack, opti
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

@@ -805,7 +805,7 @@ func putSortBlocksHeap(sbh *sortBlocksHeap) {
 
 var sbhPool sync.Pool
 
-// DeleteSeries deletes time series matching the given tagFilterss.
+// DeleteSeries deletes time series matching the given search query.
 func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline) (int, error) {
 	qt = qt.NewChild("delete series: %s", sq)
 	defer qt.Done()
@@ -814,7 +814,7 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	if err != nil {
 		return 0, err
 	}
-	return vmstorage.DeleteSeries(qt, tfss)
+	return vmstorage.DeleteSeries(qt, tfss, sq.MaxMetrics)
 }
 
 // LabelNames returns label names matching the given sq until the given deadline.

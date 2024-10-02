@@ -1,3 +1,5 @@
-FROM docker.elastic.co/logstash/logstash:8.8.1
+FROM docker.elastic.co/logstash/logstash:8.15.0
 
-RUN bin/logstash-plugin install logstash-output-opensearch
+RUN bin/logstash-plugin install \
+    logstash-output-opensearch \
+    logstash-output-loki

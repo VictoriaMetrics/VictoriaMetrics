@@ -81,6 +81,11 @@ import (
 //     session token automatically to avoid service interruptions when a session
 //     expires. For more information about authorization, see [CreateSession]CreateSession .
 //
+// If the object is encrypted with SSE-KMS, you must also have the
+//
+//	kms:GenerateDataKey and kms:Decrypt permissions in IAM identity-based policies
+//	and KMS key policies for the KMS key.
+//
 // Data integrity with Content-MD5
 //
 //   - General purpose bucket - To ensure that data is not corrupted traversing
@@ -202,13 +207,22 @@ type PutObjectInput struct {
 
 	// Specifies whether Amazon S3 should use an S3 Bucket Key for object encryption
 	// with server-side encryption using Key Management Service (KMS) keys (SSE-KMS).
-	// Setting this header to true causes Amazon S3 to use an S3 Bucket Key for object
-	// encryption with SSE-KMS.
 	//
-	// Specifying this header with a PUT action doesn’t affect bucket-level settings
-	// for S3 Bucket Key.
+	// General purpose buckets - Setting this header to true causes Amazon S3 to use
+	// an S3 Bucket Key for object encryption with SSE-KMS. Also, specifying this
+	// header with a PUT action doesn't affect bucket-level settings for S3 Bucket Key.
 	//
-	// This functionality is not supported for directory buckets.
+	// Directory buckets - S3 Bucket Keys are always enabled for GET and PUT
+	// operations in a directory bucket and can’t be disabled. S3 Bucket Keys aren't
+	// supported, when you copy SSE-KMS encrypted objects from general purpose buckets
+	// to directory buckets, from directory buckets to general purpose buckets, or
+	// between directory buckets, through [CopyObject], [UploadPartCopy], [the Copy operation in Batch Operations], or [the import jobs]. In this case, Amazon S3 makes a
+	// call to KMS every time a copy request is made for a KMS-encrypted object.
+	//
+	// [CopyObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html
+	// [the import jobs]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/create-import-job
+	// [UploadPartCopy]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html
+	// [the Copy operation in Batch Operations]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-buckets-objects-Batch-Ops
 	BucketKeyEnabled *bool
 
 	// Can be used to specify caching behavior along the request/reply chain. For more
@@ -362,6 +376,22 @@ type PutObjectInput struct {
 	//   - This functionality is not supported for Amazon S3 on Outposts.
 	GrantWriteACP *string
 
+	// Uploads the object only if the object key name does not already exist in the
+	// bucket specified. Otherwise, Amazon S3 returns a 412 Precondition Failed error.
+	//
+	// If a conflicting operation occurs during the upload S3 returns a 409
+	// ConditionalRequestConflict response. On a 409 failure you should retry the
+	// upload.
+	//
+	// Expects the '*' (asterisk) character.
+	//
+	// For more information about conditional requests, see [RFC 7232], or [Conditional requests] in the Amazon S3
+	// User Guide.
+	//
+	// [Conditional requests]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-requests.html
+	// [RFC 7232]: https://tools.ietf.org/html/rfc7232
+	IfNoneMatch *string
+
 	// A map of metadata to store with the object in S3.
 	Metadata map[string]string
 
@@ -417,46 +447,97 @@ type PutObjectInput struct {
 	// This functionality is not supported for directory buckets.
 	SSECustomerKeyMD5 *string
 
-	// Specifies the Amazon Web Services KMS Encryption Context to use for object
-	// encryption. The value of this header is a base64-encoded UTF-8 string holding
-	// JSON with the encryption context key-value pairs. This value is stored as object
-	// metadata and automatically gets passed on to Amazon Web Services KMS for future
-	// GetObject or CopyObject operations on this object. This value must be
-	// explicitly added during CopyObject operations.
+	// Specifies the Amazon Web Services KMS Encryption Context as an additional
+	// encryption context to use for object encryption. The value of this header is a
+	// Base64-encoded string of a UTF-8 encoded JSON, which contains the encryption
+	// context as key-value pairs. This value is stored as object metadata and
+	// automatically gets passed on to Amazon Web Services KMS for future GetObject
+	// operations on this object.
 	//
-	// This functionality is not supported for directory buckets.
+	// General purpose buckets - This value must be explicitly added during CopyObject
+	// operations if you want an additional encryption context for your object. For
+	// more information, see [Encryption context]in the Amazon S3 User Guide.
+	//
+	// Directory buckets - You can optionally provide an explicit encryption context
+	// value. The value must match the default encryption context - the bucket Amazon
+	// Resource Name (ARN). An additional encryption context value is not supported.
+	//
+	// [Encryption context]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html#encryption-context
 	SSEKMSEncryptionContext *string
 
-	// If x-amz-server-side-encryption has a valid value of aws:kms or aws:kms:dsse ,
-	// this header specifies the ID (Key ID, Key ARN, or Key Alias) of the Key
-	// Management Service (KMS) symmetric encryption customer managed key that was used
-	// for the object. If you specify x-amz-server-side-encryption:aws:kms or
+	// Specifies the KMS key ID (Key ID, Key ARN, or Key Alias) to use for object
+	// encryption. If the KMS key doesn't exist in the same account that's issuing the
+	// command, you must use the full Key ARN not the Key ID.
+	//
+	// General purpose buckets - If you specify x-amz-server-side-encryption with
+	// aws:kms or aws:kms:dsse , this header specifies the ID (Key ID, Key ARN, or Key
+	// Alias) of the KMS key to use. If you specify
+	// x-amz-server-side-encryption:aws:kms or
 	// x-amz-server-side-encryption:aws:kms:dsse , but do not provide
 	// x-amz-server-side-encryption-aws-kms-key-id , Amazon S3 uses the Amazon Web
-	// Services managed key ( aws/s3 ) to protect the data. If the KMS key does not
-	// exist in the same account that's issuing the command, you must use the full ARN
-	// and not just the ID.
+	// Services managed key ( aws/s3 ) to protect the data.
 	//
-	// This functionality is not supported for directory buckets.
+	// Directory buckets - If you specify x-amz-server-side-encryption with aws:kms ,
+	// you must specify the x-amz-server-side-encryption-aws-kms-key-id header with
+	// the ID (Key ID or Key ARN) of the KMS symmetric encryption customer managed key
+	// to use. Otherwise, you get an HTTP 400 Bad Request error. Only use the key ID
+	// or key ARN. The key alias format of the KMS key isn't supported. Your SSE-KMS
+	// configuration can only support 1 [customer managed key]per directory bucket for the lifetime of the
+	// bucket. [Amazon Web Services managed key]( aws/s3 ) isn't supported.
+	//
+	// [customer managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk
+	// [Amazon Web Services managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#aws-managed-cmk
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm that was used when you store this object
 	// in Amazon S3 (for example, AES256 , aws:kms , aws:kms:dsse ).
 	//
-	// General purpose buckets - You have four mutually exclusive options to protect
-	// data using server-side encryption in Amazon S3, depending on how you choose to
-	// manage the encryption keys. Specifically, the encryption key options are Amazon
-	// S3 managed keys (SSE-S3), Amazon Web Services KMS keys (SSE-KMS or DSSE-KMS),
-	// and customer-provided keys (SSE-C). Amazon S3 encrypts data with server-side
-	// encryption by using Amazon S3 managed keys (SSE-S3) by default. You can
-	// optionally tell Amazon S3 to encrypt data at rest by using server-side
-	// encryption with other key options. For more information, see [Using Server-Side Encryption]in the Amazon S3
-	// User Guide.
+	//   - General purpose buckets - You have four mutually exclusive options to
+	//   protect data using server-side encryption in Amazon S3, depending on how you
+	//   choose to manage the encryption keys. Specifically, the encryption key options
+	//   are Amazon S3 managed keys (SSE-S3), Amazon Web Services KMS keys (SSE-KMS or
+	//   DSSE-KMS), and customer-provided keys (SSE-C). Amazon S3 encrypts data with
+	//   server-side encryption by using Amazon S3 managed keys (SSE-S3) by default. You
+	//   can optionally tell Amazon S3 to encrypt data at rest by using server-side
+	//   encryption with other key options. For more information, see [Using Server-Side Encryption]in the Amazon S3
+	//   User Guide.
 	//
-	// Directory buckets - For directory buckets, only the server-side encryption with
-	// Amazon S3 managed keys (SSE-S3) ( AES256 ) value is supported.
+	//   - Directory buckets - For directory buckets, there are only two supported
+	//   options for server-side encryption: server-side encryption with Amazon S3
+	//   managed keys (SSE-S3) ( AES256 ) and server-side encryption with KMS keys
+	//   (SSE-KMS) ( aws:kms ). We recommend that the bucket's default encryption uses
+	//   the desired encryption configuration and you don't override the bucket default
+	//   encryption in your CreateSession requests or PUT object requests. Then, new
+	//   objects are automatically encrypted with the desired encryption settings. For
+	//   more information, see [Protecting data with server-side encryption]in the Amazon S3 User Guide. For more information about
+	//   the encryption overriding behaviors in directory buckets, see [Specifying server-side encryption with KMS for new object uploads].
+	//
+	// In the Zonal endpoint API calls (except [CopyObject]and [UploadPartCopy]) using the REST API, the
+	//   encryption request headers must match the encryption settings that are specified
+	//   in the CreateSession request. You can't override the values of the encryption
+	//   settings ( x-amz-server-side-encryption ,
+	//   x-amz-server-side-encryption-aws-kms-key-id ,
+	//   x-amz-server-side-encryption-context , and
+	//   x-amz-server-side-encryption-bucket-key-enabled ) that are specified in the
+	//   CreateSession request. You don't need to explicitly specify these encryption
+	//   settings values in Zonal endpoint API calls, and Amazon S3 will use the
+	//   encryption settings values from the CreateSession request to protect new
+	//   objects in the directory bucket.
+	//
+	// When you use the CLI or the Amazon Web Services SDKs, for CreateSession , the
+	//   session token refreshes automatically to avoid service interruptions when a
+	//   session expires. The CLI or the Amazon Web Services SDKs use the bucket's
+	//   default encryption configuration for the CreateSession request. It's not
+	//   supported to override the encryption settings values in the CreateSession
+	//   request. So in the Zonal endpoint API calls (except [CopyObject]and [UploadPartCopy]), the encryption
+	//   request headers must match the default encryption configuration of the directory
+	//   bucket.
 	//
 	// [Using Server-Side Encryption]: https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html
+	// [Specifying server-side encryption with KMS for new object uploads]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-specifying-kms-encryption.html
+	// [Protecting data with server-side encryption]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-serv-side-encryption.html
+	// [CopyObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html
+	// [UploadPartCopy]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html
 	ServerSideEncryption types.ServerSideEncryption
 
 	// By default, Amazon S3 uses the STANDARD Storage Class to store newly created
@@ -517,8 +598,6 @@ type PutObjectOutput struct {
 
 	// Indicates whether the uploaded object uses an S3 Bucket Key for server-side
 	// encryption with Key Management Service (KMS) keys (SSE-KMS).
-	//
-	// This functionality is not supported for directory buckets.
 	BucketKeyEnabled *bool
 
 	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
@@ -607,26 +686,17 @@ type PutObjectOutput struct {
 	SSECustomerKeyMD5 *string
 
 	// If present, indicates the Amazon Web Services KMS Encryption Context to use for
-	// object encryption. The value of this header is a base64-encoded UTF-8 string
-	// holding JSON with the encryption context key-value pairs. This value is stored
-	// as object metadata and automatically gets passed on to Amazon Web Services KMS
-	// for future GetObject or CopyObject operations on this object.
-	//
-	// This functionality is not supported for directory buckets.
+	// object encryption. The value of this header is a Base64-encoded string of a
+	// UTF-8 encoded JSON, which contains the encryption context as key-value pairs.
+	// This value is stored as object metadata and automatically gets passed on to
+	// Amazon Web Services KMS for future GetObject operations on this object.
 	SSEKMSEncryptionContext *string
 
-	// If x-amz-server-side-encryption has a valid value of aws:kms or aws:kms:dsse ,
-	// this header indicates the ID of the Key Management Service (KMS) symmetric
-	// encryption customer managed key that was used for the object.
-	//
-	// This functionality is not supported for directory buckets.
+	// If present, indicates the ID of the KMS key that was used for object encryption.
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm used when you store this object in Amazon
-	// S3 (for example, AES256 , aws:kms , aws:kms:dsse ).
-	//
-	// For directory buckets, only server-side encryption with Amazon S3 managed keys
-	// (SSE-S3) ( AES256 ) is supported.
+	// S3.
 	ServerSideEncryption types.ServerSideEncryption
 
 	// Version ID of the object.
@@ -693,6 +763,9 @@ func (c *Client) addOperationPutObjectMiddlewares(stack *middleware.Stack, optio
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -757,6 +830,18 @@ func (c *Client) addOperationPutObjectMiddlewares(stack *middleware.Stack, optio
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

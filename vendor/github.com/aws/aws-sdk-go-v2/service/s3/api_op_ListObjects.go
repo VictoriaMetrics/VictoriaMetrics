@@ -99,12 +99,20 @@ type ListObjectsInput struct {
 	// A delimiter is a character that you use to group keys.
 	Delimiter *string
 
-	// Requests Amazon S3 to encode the object keys in the response and specifies the
-	// encoding method to use. An object key can contain any Unicode character;
-	// however, the XML 1.0 parser cannot parse some characters, such as characters
-	// with an ASCII value from 0 to 10. For characters that are not supported in XML
-	// 1.0, you can add this parameter to request that Amazon S3 encode the keys in the
-	// response.
+	// Encoding type used by Amazon S3 to encode the [object keys] in the response. Responses are
+	// encoded only in UTF-8. An object key can contain any Unicode character. However,
+	// the XML 1.0 parser can't parse certain characters, such as characters with an
+	// ASCII value from 0 to 10. For characters that aren't supported in XML 1.0, you
+	// can add this parameter to request that Amazon S3 encode the keys in the
+	// response. For more information about characters to avoid in object key names,
+	// see [Object key naming guidelines].
+	//
+	// When using the URL encoding type, non-ASCII characters that are used in an
+	// object's key name will be percent-encoded according to UTF-8 code values. For
+	// example, the object test_file(3).png will appear as test_file%283%29.png .
+	//
+	// [Object key naming guidelines]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-guidelines
+	// [object keys]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html
 	EncodingType types.EncodingType
 
 	// The account ID of the expected bucket owner. If the account ID that you provide
@@ -172,9 +180,20 @@ type ListObjectsOutput struct {
 	// MaxKeys value.
 	Delimiter *string
 
-	// Encoding type used by Amazon S3 to encode object keys in the response. If using
-	// url , non-ASCII characters used in an object's key name will be URL encoded. For
+	// Encoding type used by Amazon S3 to encode the [object keys] in the response. Responses are
+	// encoded only in UTF-8. An object key can contain any Unicode character. However,
+	// the XML 1.0 parser can't parse certain characters, such as characters with an
+	// ASCII value from 0 to 10. For characters that aren't supported in XML 1.0, you
+	// can add this parameter to request that Amazon S3 encode the keys in the
+	// response. For more information about characters to avoid in object key names,
+	// see [Object key naming guidelines].
+	//
+	// When using the URL encoding type, non-ASCII characters that are used in an
+	// object's key name will be percent-encoded according to UTF-8 code values. For
 	// example, the object test_file(3).png will appear as test_file%283%29.png .
+	//
+	// [Object key naming guidelines]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-guidelines
+	// [object keys]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html
 	EncodingType types.EncodingType
 
 	// A flag that indicates whether Amazon S3 returned all of the results that
@@ -260,6 +279,9 @@ func (c *Client) addOperationListObjectsMiddlewares(stack *middleware.Stack, opt
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -315,6 +337,18 @@ func (c *Client) addOperationListObjectsMiddlewares(stack *middleware.Stack, opt
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil

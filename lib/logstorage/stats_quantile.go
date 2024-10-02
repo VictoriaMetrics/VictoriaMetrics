@@ -96,7 +96,7 @@ func (sqp *statsQuantileProcessor) updateStateForColumn(br *blockResult, c *bloc
 	if c.isConst {
 		f, ok := tryParseFloat64(c.valuesEncoded[0])
 		if ok {
-			for range br.timestamps {
+			for i := 0; i < br.rowsLen; i++ {
 				stateSizeIncrease += h.update(f)
 			}
 		}

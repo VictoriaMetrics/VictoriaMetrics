@@ -3027,6 +3027,12 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`1 and (0 > 1)`, func(t *testing.T) {
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6637
+		t.Parallel()
+		q := `1 and (0 > 1)`
+		f(q, nil)
+	})
 	t.Run(`time() and 2`, func(t *testing.T) {
 		t.Parallel()
 		q := `time() and 2`
@@ -7245,12 +7251,34 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`range_trim_outliers(time() > 1200)`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_trim_outliers(0.5, time() > 1200)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, 1800, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`range_trim_spikes()`, func(t *testing.T) {
 		t.Parallel()
 		q := `range_trim_spikes(0.2, time())`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{nan, 1200, 1400, 1600, 1800, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_trim_spikes(time() > 1200 <= 1800)`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_trim_spikes(0.2, time() > 1200 <= 1800)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, nan, nan},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -7267,12 +7295,34 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`range_trim_zscore(time() > 1200 <= 1800)`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_trim_zscore(0.9, time() > 1200 <= 1800)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`range_zscore()`, func(t *testing.T) {
 		t.Parallel()
 		q := `round(range_zscore(time()), 0.1)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{-1.5, -0.9, -0.3, 0.3, 0.9, 1.5},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_zscore(time() > 1200 < 1800)`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(range_zscore(time() > 1200 < 1800), 0.1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, -1, 1, nan, nan},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -7289,6 +7339,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`range_quantile(0.5, time() > 1200 < 2000)`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_quantile(0.5, time() > 1200 < 2000)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1600, 1600, 1600, 1600, 1600, 1600},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`range_stddev()`, func(t *testing.T) {
 		t.Parallel()
 		q := `round(range_stddev(time()),0.01)`
@@ -7300,12 +7361,34 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`range_stddev(time() > 1200 < 1800)`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(range_stddev(time() > 1200 < 1800),0.01)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 100, 100, 100, 100, 100},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`range_stdvar()`, func(t *testing.T) {
 		t.Parallel()
 		q := `round(range_stdvar(time()),0.01)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{116666.67, 116666.67, 116666.67, 116666.67, 116666.67, 116666.67},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_stdvar(time() > 1200 < 1800)`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(range_stdvar(time() > 1200 < 1800),0.01)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10000, 10000, 10000, 10000, 10000, 10000},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -7671,12 +7754,34 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`running_min(abs(1500-time()) < 400 > 100)`, func(t *testing.T) {
+		t.Parallel()
+		q := `running_min(abs(1500-time()) < 400 > 100)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, 300, 300, 300, 300, 300},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`running_max(abs(1300-time()))`, func(t *testing.T) {
 		t.Parallel()
 		q := `running_max(abs(1300-time()))`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{300, 300, 300, 300, 500, 700},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`running_max(abs(1300-time()) > 300 < 700)`, func(t *testing.T) {
+		t.Parallel()
+		q := `running_max(abs(1300-time()) > 300 < 700)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, nan, 500, 500},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -7704,12 +7809,34 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`running_sum(time() > 1.2 < 1.8)`, func(t *testing.T) {
+		t.Parallel()
+		q := `running_sum(time()/1e3 > 1.2 < 1.8)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, 1.4, 3, 3, 3},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`running_avg(time())`, func(t *testing.T) {
 		t.Parallel()
 		q := `running_avg(time())`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1000, 1100, 1200, 1300, 1400, 1500},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`running_avg(time() > 1200 < 1800)`, func(t *testing.T) {
+		t.Parallel()
+		q := `running_avg(time() > 1200 < 1800)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, 1400, 1500, 1500, 1500},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -7795,6 +7922,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`range_min(time() > 1200 < 1800)`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_min(time() > 1200 < 1800)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1400, 1400, 1400, 1400, 1400, 1400},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`range_normalize(time(),alias(-time(),"negative"))`, func(t *testing.T) {
 		t.Parallel()
 		q := `range_normalize(time(),alias(-time(), "negative"))`
@@ -7812,12 +7950,40 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`range_normalize(time() > 1200 < 1800,alias(-(time() > 1400 < 2000),"negative"))`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_normalize(time() > 1200 < 1800,alias(-(time() > 1200 < 2000), "negative"))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, 0, 1, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, 1, 0.5, 0, nan},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("negative")
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`range_first(time())`, func(t *testing.T) {
 		t.Parallel()
 		q := `range_first(time())`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1000, 1000, 1000, 1000, 1000, 1000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_first(time() > 1200 < 1800)`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_first(time() > 1200 < 1800)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1400, 1400, 1400, 1400, 1400, 1400},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -7834,6 +8000,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`range_mad(time() > 1200 < 1800)`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_mad(time() > 1200 < 1800)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{100, 100, 100, 100, 100, 100},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`range_max(time())`, func(t *testing.T) {
 		t.Parallel()
 		q := `range_max(time())`
@@ -7845,12 +8022,56 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`range_max(time() > 1200 < 1800)`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_max(time() > 1200 < 1800)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1600, 1600, 1600, 1600, 1600, 1600},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_sum(time())`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_sum(time())`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{9000, 9000, 9000, 9000, 9000, 9000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_sum(time() > 1200 < 1800)`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_sum(time() > 1200 < 1800)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{3000, 3000, 3000, 3000, 3000, 3000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`range_last(time())`, func(t *testing.T) {
 		t.Parallel()
 		q := `range_last(time())`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{2000, 2000, 2000, 2000, 2000, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_last(time() > 1200 < 1800)`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_last(time() > 1200 < 1800)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1600, 1600, 1600, 1600, 1600, 1600},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -7873,6 +8094,17 @@ func TestExecSuccess(t *testing.T) {
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{-1000, -1200, -1400, -1600, -1800, -2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_linear_regression(time() > 1200 < 1800)`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_linear_regression(time() > 1200 < 1800)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}

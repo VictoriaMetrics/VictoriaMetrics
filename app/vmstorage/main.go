@@ -174,9 +174,9 @@ func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow) {
 // DeleteSeries deletes series matching tfss.
 //
 // Returns the number of deleted series.
-func DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters) (int, error) {
+func DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters, maxMetrics int) (int, error) {
 	WG.Add(1)
-	n, err := Storage.DeleteSeries(qt, tfss)
+	n, err := Storage.DeleteSeries(qt, tfss, maxMetrics)
 	WG.Done()
 	return n, err
 }
@@ -525,12 +525,20 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteGaugeUint64(w, `vm_data_size_bytes{type="indexdb/inmemory"}`, idbm.InmemorySizeBytes)
 	metrics.WriteGaugeUint64(w, `vm_data_size_bytes{type="indexdb/file"}`, idbm.FileSizeBytes)
 
+	metrics.WriteCounterUint64(w, `vm_rows_received_by_storage_total`, m.RowsReceivedTotal)
 	metrics.WriteCounterUint64(w, `vm_rows_added_to_storage_total`, m.RowsAddedTotal)
 	metrics.WriteCounterUint64(w, `vm_deduplicated_samples_total{type="merge"}`, m.DedupsDuringMerge)
 	metrics.WriteGaugeUint64(w, `vm_snapshots`, m.SnapshotsCount)
 
 	metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="big_timestamp"}`, m.TooBigTimestampRows)
 	metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="small_timestamp"}`, m.TooSmallTimestampRows)
+	metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="invalid_raw_metric_name"}`, m.InvalidRawMetricNames)
+	if *maxHourlySeries > 0 {
+		metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="hourly_limit_exceeded"}`, m.HourlySeriesLimitRowsDropped)
+	}
+	if *maxDailySeries > 0 {
+		metrics.WriteCounterUint64(w, `vm_rows_ignored_total{reason="daily_limit_exceeded"}`, m.DailySeriesLimitRowsDropped)
+	}
 
 	metrics.WriteCounterUint64(w, `vm_timeseries_repopulated_total`, m.TimeseriesRepopulated)
 	metrics.WriteCounterUint64(w, `vm_timeseries_precreated_total`, m.TimeseriesPreCreated)

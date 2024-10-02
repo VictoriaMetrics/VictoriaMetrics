@@ -27,25 +27,41 @@ func TestExtractTimestampRFC3339NanoFromFields_Success(t *testing.T) {
 		}
 	}
 
+	// UTC time
 	f("time", []logstorage.Field{
 		{Name: "foo", Value: "bar"},
 		{Name: "time", Value: "2024-06-18T23:37:20Z"},
 	}, 1718753840000000000)
 
+	// Time with timezone
 	f("time", []logstorage.Field{
 		{Name: "foo", Value: "bar"},
 		{Name: "time", Value: "2024-06-18T23:37:20+08:00"},
 	}, 1718725040000000000)
 
+	// SQL datetime format
 	f("time", []logstorage.Field{
 		{Name: "foo", Value: "bar"},
-		{Name: "time", Value: "2024-06-18T23:37:20.123-05:30"},
+		{Name: "time", Value: "2024-06-18 23:37:20.123-05:30"},
 	}, 1718773640123000000)
 
+	// Time with nanosecond precision
 	f("time", []logstorage.Field{
 		{Name: "time", Value: "2024-06-18T23:37:20.123456789-05:30"},
 		{Name: "foo", Value: "bar"},
 	}, 1718773640123456789)
+
+	// Unix timestamp in milliseconds
+	f("time", []logstorage.Field{
+		{Name: "foo", Value: "bar"},
+		{Name: "time", Value: "1718773640123"},
+	}, 1718773640123000000)
+
+	// Unix timestamp in seconds
+	f("time", []logstorage.Field{
+		{Name: "foo", Value: "bar"},
+		{Name: "time", Value: "1718773640"},
+	}, 1718773640000000000)
 }
 
 func TestExtractTimestampRFC3339NanoFromFields_Error(t *testing.T) {
@@ -65,9 +81,6 @@ func TestExtractTimestampRFC3339NanoFromFields_Error(t *testing.T) {
 	}
 
 	f("foobar")
-
-	// no Z at the end
-	f("2024-06-18T23:37:20")
 
 	// incomplete time
 	f("2024-06-18")

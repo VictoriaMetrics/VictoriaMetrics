@@ -173,7 +173,7 @@ var mathBinaryOps = map[string]mathBinaryOp{
 		priority: 5,
 		f:        mathFuncXor,
 	},
-	"|": {
+	"or": {
 		priority: 6,
 		f:        mathFuncOr,
 	},
@@ -293,12 +293,12 @@ func (shard *pipeMathProcessorShard) executeExpr(me *mathExpr, br *blockResult) 
 	rIdx := len(shard.rs)
 	shard.rs = slicesutil.SetLength(shard.rs, len(shard.rs)+1)
 
-	shard.rsBuf = slicesutil.SetLength(shard.rsBuf, len(shard.rsBuf)+len(br.timestamps))
-	shard.rs[rIdx] = shard.rsBuf[len(shard.rsBuf)-len(br.timestamps):]
+	shard.rsBuf = slicesutil.SetLength(shard.rsBuf, len(shard.rsBuf)+br.rowsLen)
+	shard.rs[rIdx] = shard.rsBuf[len(shard.rsBuf)-br.rowsLen:]
 
 	if me.isConst {
 		r := shard.rs[rIdx]
-		for i := range br.timestamps {
+		for i := 0; i < br.rowsLen; i++ {
 			r[i] = me.constValue
 		}
 		return
@@ -331,7 +331,7 @@ func (shard *pipeMathProcessorShard) executeExpr(me *mathExpr, br *blockResult) 
 }
 
 func (pmp *pipeMathProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
