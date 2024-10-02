@@ -960,8 +960,8 @@ monitoring:
 ### 3. Running custom model
 Let's pull the docker image for `vmanomaly`:
 
-```sh 
-docker pull victoriametrics/vmanomaly:latest
+```sh
+docker pull victoriametrics/vmanomaly:v1.16.0
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -975,7 +975,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:latest /config.yaml \
+victoriametrics/vmanomaly:v1.16.0 /config.yaml \
 --licenseFile=/license
 ```
 
