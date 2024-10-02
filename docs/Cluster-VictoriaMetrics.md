@@ -61,7 +61,7 @@ It increases cluster availability, and simplifies cluster maintenance as well as
 ## Multitenancy
 
 VictoriaMetrics cluster supports multiple isolated tenants (aka namespaces).
-Tenants are identified by `accountID` or `accountID:projectID`, which are put inside request urls.
+Tenants are identified by `accountID` or `accountID:projectID`, which are put inside request URLs for writes and reads.
 See [these docs](#url-format) for details.
 
 Some facts about tenants in VictoriaMetrics:
@@ -79,8 +79,6 @@ when different tenants have different amounts of data and different query load.
 
 - The database performance and resource usage doesn't depend on the number of tenants. It depends mostly on the total number of active time series in all the tenants. A time series is considered active if it received at least a single sample during the last hour or it has been touched by queries during the last hour.
 
-- VictoriaMetrics doesn't support querying multiple tenants in a single request.
-
 - The list of registered tenants can be obtained via `http://<vmselect>:8481/admin/tenants` url. See [these docs](#url-format).
 
 - VictoriaMetrics exposes various per-tenant statistics via metrics - see [these docs](https://docs.victoriametrics.com/pertenantstatistic/).
@@ -90,13 +88,14 @@ See also [multitenancy via labels](#multitenancy-via-labels).
 
 ## Multitenancy via labels
 
+**Writes**
+
 `vminsert` can accept data from multiple [tenants](#multitenancy) via a special `multitenant` endpoints `http://vminsert:8480/insert/multitenant/<suffix>`,
 where `<suffix>` can be replaced with any supported suffix for data ingestion from [this list](#url-format).
-In this case the account id and project id are obtained from optional `vm_account_id` and `vm_project_id` labels of the incoming samples.
-If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding `accountID` or `projectID` is set to 0.
+In this case the account ID and project ID are obtained from optional `vm_account_id` and `vm_project_id` labels of the incoming samples.
+If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding account ID and project ID are set to 0.
 These labels are automatically removed from samples before forwarding them to `vmstorage`.
 For example, if the following samples are written into `http://vminsert:8480/insert/multitenant/prometheus/api/v1/write`:
-
 ```
 http_requests_total{path="/foo",vm_account_id="42"} 12
 http_requests_total{path="/bar",vm_account_id="7",vm_project_id="9"} 34
@@ -113,6 +112,9 @@ such as [Graphite](https://docs.victoriametrics.com/#how-to-send-data-from-graph
 [InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) and
 [OpenTSDB telnet put protocol](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol).
 
+**Reads**
+
+_For better performance prefer specifying [tenants in read URL](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)._
 
 `vmselect` can execute queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints `http://vmselect:8481/select/multitenant/<suffix>`.
 Currently supported endpoints for `<suffix>` are:
@@ -128,16 +130,20 @@ Currently supported endpoints for `<suffix>` are:
 - `/prometheus/api/v1/export/csv`
 - `/vmui`
 
-It is possible to explicitly specify `accountID` and `projectID` for querying multiple tenants via `vm_account_id` and `vm_project_id` labels in the query.
-Alternatively, it is possible to use [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements)
-query args to apply additional filters for the query.
-
-For example, the following query fetches the total number of time series for the tenants `accountID=42` and `accountID=7, projectID=9`:
+It is allowed to explicitly specify tenant IDs via `vm_account_id` and `vm_project_id` labels in the query.
+For example, the following query fetches metric `up` for the tenants `accountID=42` and `accountID=7, projectID=9`:
 ```
 up{vm_account_id="7", vm_project_id="9" or vm_account_id="42"}
 ```
 
-In order to achieve the same via `extra_filters[]` and `extra_label` query args, the following query must be used:
+`vm_account_id` and `vm_project_id` labels support all operators for label matching. For example:
+```
+up{vm_account_id!="42"} # selects all the time series except those belonging to accountID=42
+up{vm_account_id=~"4.*"} # selects all the time series belonging to accountIDs starting with 4
+```
+
+Alternatively, it is possible to use [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements)
+query args to apply additional filters for the query:
 ```
 curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
   -d 'query=up' \
@@ -146,21 +152,12 @@ curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
 ```
 
 The precedence for applying filters for tenants follows this order:
-
-1. filters tenants from `extra_label` and `extra_filters` query arguments label selectors.
+1. Filter tenants by `extra_label` and `extra_filters` filters.
  These filters have the highest priority and are applied first when provided through the query arguments.
+2. Filter tenants from labels selectors defined at metricsQL query expression.
 
-2. filters tenants from labels selectors defined at metricsQL query expression.
-
-
-
-Note that `vm_account_id` and `vm_project_id` labels support all operators for label matching. For example:
-```
-up{vm_account_id!="42"} # selects all the time series except those belonging to accountID=42
-up{vm_account_id=~"4.*"} # selects all the time series belonging to accountIDs starting with 4
-```
-
-**Security considerations:** it is recommended restricting access to `multitenant` endpoints only to trusted sources,
+**Security considerations**
+It is recommended restricting access to `multitenant` endpoints only to trusted sources,
 since untrusted source may break per-tenant data by writing unwanted samples or get access to data of arbitrary tenants.
 
 
