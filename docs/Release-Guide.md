@@ -88,11 +88,11 @@ Bumping the limits may significantly improve build speed.
         file created at the step `a`.
       - To run the command `TAG=v1.xx.y make github-create-release github-upload-assets`, so new release is created
         and all the needed assets are re-uploaded to it.
+1. Test new images on [sandbox](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md#testing-releases).
 1. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> and verify that draft release with the name `TAG` has been created
    and this release contains all the needed binaries and checksums.
 1. Update the release description with the content of [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release.
 1. Publish release by pressing "Publish release" green button in GitHub's UI.
-1. Bump version of the VictoriaMetrics cluster in the sandbox environment by opening and merging PR.
 1. Bump VictoriaMetrics version at `deployment/docker/docker-compose.yml` and at `deployment/docker/docker-compose-cluster.yml`.
 1. Follow the instructions in [release follow-up](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md).
 
