@@ -15,6 +15,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix display of hits chart. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7133).
+
 ## [v0.33.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.33.0-victorialogs)
 
 Released at 2024-10-01
