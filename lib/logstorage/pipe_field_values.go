@@ -77,7 +77,7 @@ func parsePipeFieldValues(lex *lexer) (*pipeFieldValues, error) {
 	}
 	lex.nextToken()
 
-	field, err := parseFieldName(lex)
+	field, err := parseFieldNameWithOptionalParens(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse field name for 'field_values': %w", err)
 	}
