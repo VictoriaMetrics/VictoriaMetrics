@@ -69,7 +69,7 @@ var jsonResponse = `[
 ]`
 
 func TestSDConfig_GetLabels(t *testing.T) {
-	mockSvr := newMockPuppetDBServer(func(path string) ([]byte, error) {
+	mockSvr := newMockPuppetDBServer(func(_ string) ([]byte, error) {
 		return []byte(jsonResponse), nil
 	})
 
