@@ -130,7 +130,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:latest
+    image: victoriametrics/vmanomaly:v1.16.1
     # ...
     ports:
       - "8490:8490"
@@ -144,7 +144,7 @@ services:
     environment:
       # set the environment variable for the model dump directory
       - VMANOMALY_MODEL_DUMPS_DIR=/vmanomaly/tmp/models/
-       VMANOMALY_DATA_DUMPS_DIR=/vmanomaly/tmp/data/
+      - VMANOMALY_DATA_DUMPS_DIR=/vmanomaly/tmp/data/
     platform: "linux/amd64"
     command:
       - "/config.yaml"
