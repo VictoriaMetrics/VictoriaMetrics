@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"crypto/md5"
 	"fmt"
-	"gopkg.in/yaml.v2"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"hash/fnv"
 	"io"
 	"net/url"
 	"sort"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"gopkg.in/yaml.v2"
 )
 
 // Group contains list of Rules grouped into
@@ -307,14 +308,15 @@ func parseConfig(data []byte) ([]Group, error) {
 	var overflowMap = make(map[string]any)
 
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
-	for {
+	errGroup := new(utils.ErrGroup)
 
+	for {
 		// Decode the next document
-		if err := decoder.Decode(&g); err != nil {
+		if err = decoder.Decode(&g); err != nil {
 			if err == io.EOF { // End of file indicates no more documents to read
 				break
 			}
-			cLogger.Warnf("Warning: failed to decode document: %v", err)
+			errGroup.Add(err)
 			continue
 		}
 
@@ -324,6 +326,10 @@ func parseConfig(data []byte) ([]Group, error) {
 
 		// Append valid groups
 		allGroups = append(allGroups, g.Groups...)
+	}
+
+	if errGroup.Err() != nil {
+		return nil, errGroup.Err()
 	}
 
 	return allGroups, checkOverflow(overflowMap, "config")
