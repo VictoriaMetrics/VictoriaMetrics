@@ -2041,7 +2041,7 @@ The `<filters>` can contain arbitrary [filters](#filters). For example, the foll
 only if `user_type` field equals to `admin`:
 
 ```logsql
-_time:5m | replace if (user_type:=admin) replace ("secret", "***") at password
+_time:5m | replace if (user_type:=admin) ("secret", "***") at password
 ```
 
 ### replace_regexp pipe
@@ -2093,7 +2093,7 @@ The `<filters>` can contain arbitrary [filters](#filters). For example, the foll
 with `***` in the `foo` field only if `user_type` field equals to `admin`:
 
 ```logsql
-_time:5m | replace_regexp if (user_type:=admin) replace ("password: [^ ]+", "") at foo
+_time:5m | replace_regexp if (user_type:=admin) ("password: [^ ]+", "") at foo
 ```
 
 ### sort pipe
