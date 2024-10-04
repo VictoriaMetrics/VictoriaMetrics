@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.13.7](https://img.shields.io/badge/Version-0.13.7-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.14.1](https://img.shields.io/badge/Version-0.14.1-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-cluster)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -6,7 +6,7 @@ Victoria Metrics Cluster version - high-performance, cost-effective and scalable
 
 ## Prerequisites
 
-* Install the follow packages: ``git``, ``kubectl``, ``helm``, ``helm-docs``. See this [tutorial](../../REQUIREMENTS.md).
+* Install the follow packages: ``git``, ``kubectl``, ``helm``, ``helm-docs``. See this [tutorial](https://docs.victoriametrics.com/helm/requirements/).
 
 * PV support on underlying infrastructure
 
@@ -106,7 +106,7 @@ helm uninstall vmc -n NAMESPACE
 
 ## Documentation of Helm Chart
 
-Install ``helm-docs`` following the instructions on this [tutorial](../../REQUIREMENTS.md).
+Install ``helm-docs`` following the instructions on this [tutorial](https://docs.victoriametrics.com/helm/requirements/).
 
 Generate docs with ``helm-docs`` command.
 
@@ -132,6 +132,16 @@ Change the values according to the need of the environment in ``victoria-metrics
     <th class="helm-vars-description">Description</th>
   </thead>
   <tbody>
+    <tr>
+      <td>autoDiscovery</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
     <tr>
       <td>clusterDomainSuffix</td>
       <td>string</td>
@@ -163,6 +173,17 @@ Change the values according to the need of the environment in ``victoria-metrics
 </pre>
 </td>
       <td></td>
+    </tr>
+    <tr>
+      <td>global.cluster</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">dnsDomain: cluster.local
+</code>
+</pre>
+</td>
+      <td><p>k8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
+</td>
     </tr>
     <tr>
       <td>global.compatibility</td>
@@ -269,50 +290,6 @@ name: ""
 </td>
     </tr>
     <tr>
-      <td>rbac.annotations</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">{}
-</code>
-</pre>
-</td>
-      <td><p>Role/RoleBinding annotations</p>
-</td>
-    </tr>
-    <tr>
-      <td>rbac.create</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
-</code>
-</pre>
-</td>
-      <td><p>Enables Role/RoleBinding creation</p>
-</td>
-    </tr>
-    <tr>
-      <td>rbac.extraLabels</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">{}
-</code>
-</pre>
-</td>
-      <td><p>Role/RoleBinding labels</p>
-</td>
-    </tr>
-    <tr>
-      <td>rbac.namespaced</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">false
-</code>
-</pre>
-</td>
-      <td><p>If true and <code>rbac.enabled</code>, will deploy a Role/RoleBinding instead of a ClusterRole/ClusterRoleBinding</p>
-</td>
-    </tr>
-    <tr>
       <td>serviceAccount.annotations</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -365,6 +342,808 @@ name: ""
 </pre>
 </td>
       <td><p>The name of the service account to use. If not set and create is true, a name is generated using the fullname template</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.affinity</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Pod affinity</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.annotations</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>VMAuth annotations</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.config</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">unauthorized_user: {}
+</code>
+</pre>
+</td>
+      <td><p>VMAuth configuration object</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.configSecretName</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>VMAuth configuration secret name</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.containerWorkingDir</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Container workdir</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Enable deployment of vmauth component. With vmauth enabled please set <code>service.clusterIP: None</code> and <code>service.type: ClusterIP</code> for <code>vminsert</code> and <code>vmselect</code> to use vmauth balancing benefits.</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.env</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Additional environment variables (ex.: secret tokens, flags). Check <a href="https://docs.victoriametrics.com/#environment-variables" target="_blank">here</a> for details</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.envFrom</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Specify alternative source for env variables</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.extraArgs</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">envflag.enable: "true"
+envflag.prefix: VM_
+loggerFormat: json
+</code>
+</pre>
+</td>
+      <td><p>Extra command line arguments for vmauth component</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.extraContainers</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Extra containers to run in a pod with vmauth</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.extraLabels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>VMAuth additional labels</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.extraVolumeMounts</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Extra Volume Mounts for the container</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.extraVolumes</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Extra Volumes for the pod</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.fullnameOverride</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Overrides the full name of vmauth component</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.horizontalPodAutoscaler.behavior</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Behavior settings for scaling by the HPA</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.horizontalPodAutoscaler.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Use HPA for vmauth component</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.horizontalPodAutoscaler.maxReplicas</td>
+      <td>int</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">10
+</code>
+</pre>
+</td>
+      <td><p>Maximum replicas for HPA to use to to scale the vmauth component</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.horizontalPodAutoscaler.metrics</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Metric for HPA to use to scale the vmauth component</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.horizontalPodAutoscaler.minReplicas</td>
+      <td>int</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">2
+</code>
+</pre>
+</td>
+      <td><p>Minimum replicas for HPA to use to scale the vmauth component</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.image.pullPolicy</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">IfNotPresent
+</code>
+</pre>
+</td>
+      <td><p>Image pull policy</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.image.registry</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Image registry</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.image.repository</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">victoriametrics/vmauth
+</code>
+</pre>
+</td>
+      <td><p>Image repository</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.image.tag</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Image tag override Chart.AppVersion</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.image.variant</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Variant of the image to use. e.g. cluster, enterprise-cluster</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.ingress.annotations</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Ingress annotations</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.ingress.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Enable deployment of ingress for vmauth component</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.ingress.extraLabels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>vmauth.ingress.hosts</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Array of host objects</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.ingress.pathType</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">Prefix
+</code>
+</pre>
+</td>
+      <td><p>pathType is only for k8s &gt;= 1.1=</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.ingress.tls</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Array of TLS objects</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.initContainers</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Init containers for vmauth</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.name</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>VMAuth container name</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.nodeSelector</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Pod&rsquo;s node selector. Details are <a href="https://kubernetes.io/docs/user-guide/node-selection/" target="_blank">here</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.podAnnotations</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Pod&rsquo;s annotations</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.podDisruptionBudget</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: false
+labels: {}
+</code>
+</pre>
+</td>
+      <td><p>See <code>kubectl explain poddisruptionbudget.spec</code> for more. Details are <a href="https://kubernetes.io/docs/tasks/run-application/configure-pdb/" target="_blank">here</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.podLabels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>VMAuth pod labels</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.podSecurityContext</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: false
+</code>
+</pre>
+</td>
+      <td><p>Pod&rsquo;s security context. Details are <a href="https://kubernetes.io/docs/tasks/configure-pod-container/security-context/" target="_blank">here</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.ports.name</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">http
+</code>
+</pre>
+</td>
+      <td><p>VMAuth http port name</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.priorityClassName</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Name of Priority Class</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.probe.liveness</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">failureThreshold: 3
+initialDelaySeconds: 5
+periodSeconds: 15
+tcpSocket: {}
+timeoutSeconds: 5
+</code>
+</pre>
+</td>
+      <td><p>VMAuth liveness probe</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.probe.readiness</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">failureThreshold: 3
+httpGet: {}
+initialDelaySeconds: 5
+periodSeconds: 15
+timeoutSeconds: 5
+</code>
+</pre>
+</td>
+      <td><p>VMAuth readiness probe</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.probe.startup</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>VMAuth startup probe</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.replicaCount</td>
+      <td>int</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">2
+</code>
+</pre>
+</td>
+      <td><p>Count of vmauth pods</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.resources</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Resource object</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.securityContext</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: false
+</code>
+</pre>
+</td>
+      <td><p>Pod&rsquo;s security context. Details are <a href="https://kubernetes.io/docs/tasks/configure-pod-container/security-context/" target="_blank">here</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.annotations</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Service annotations</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.clusterIP</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Service ClusterIP</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
+</pre>
+</td>
+      <td><p>Create VMAuth service</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.externalIPs</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Service External IPs. Details are <a href="https://kubernetes.io/docs/user-guide/services/#external-ips" target="_blank">here</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.externalTrafficPolicy</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Service external traffic policy. Check <a href="https://kubernetes.io/docs/tasks/access-application-cluster/create-external-load-balancer/#preserving-the-client-source-ip" target="_blank">here</a> for details</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.extraPorts</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Extra service ports</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.healthCheckNodePort</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Health check node port for a service. Check <a href="https://kubernetes.io/docs/tasks/access-application-cluster/create-external-load-balancer/#preserving-the-client-source-ip" target="_blank">here</a> for details</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.ipFamilies</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>List of service IP families. Check <a href="https://kubernetes.io/docs/concepts/services-networking/dual-stack/#services" target="_blank">here</a> for details.</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.ipFamilyPolicy</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Service IP family policy. Check <a href="https://kubernetes.io/docs/concepts/services-networking/dual-stack/#services" target="_blank">here</a> for details.</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.labels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Service labels</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.loadBalancerIP</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Service load balancer IP</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.loadBalancerSourceRanges</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Load balancer source range</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.servicePort</td>
+      <td>int</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">8427
+</code>
+</pre>
+</td>
+      <td><p>Service port</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.targetPort</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">http
+</code>
+</pre>
+</td>
+      <td><p>Target port</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.type</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">ClusterIP
+</code>
+</pre>
+</td>
+      <td><p>Service type</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.service.udp</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Enable UDP port. used if you have <code>spec.opentsdbListenAddr</code> specified Make sure that service is not type <code>LoadBalancer</code>, as it requires <code>MixedProtocolLBService</code> feature gate. Check <a href="https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/" target="_blank">here</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.serviceMonitor.annotations</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Service Monitor annotations</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.serviceMonitor.basicAuth</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Basic auth params for Service Monitor</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.serviceMonitor.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Enable deployment of Service Monitor for vmauth component. This is Prometheus operator object</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.serviceMonitor.extraLabels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Service Monitor labels</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.serviceMonitor.metricRelabelings</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Service Monitor metricRelabelings</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.serviceMonitor.namespace</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Target namespace of ServiceMonitor manifest</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.serviceMonitor.relabelings</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Service Monitor relabelings</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.strategy</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>VMAuth Deployment strategy</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.suppressStorageFQDNsRender</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Suppress rendering <code>--storageNode</code> FQDNs based on <code>vmstorage.replicaCount</code> value. If true suppress rendering <code>--storageNodes</code>, they can be re-defined in extraArgs</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.tolerations</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Array of tolerations object. Details are <a href="https://kubernetes.io/docs/concepts/configuration/assign-pod-node/" target="_blank">here</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.topologySpreadConstraints</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Pod topologySpreadConstraints</p>
 </td>
     </tr>
     <tr>
@@ -431,6 +1210,17 @@ name: ""
 </pre>
 </td>
       <td><p>Specify alternative source for env variables</p>
+</td>
+    </tr>
+    <tr>
+      <td>vminsert.excludeStorageIDs</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>IDs of vmstorage nodes to exclude from writing</p>
 </td>
     </tr>
     <tr>
@@ -703,11 +1493,11 @@ loggerFormat: json
       <td>vminsert.name</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">vminsert
+<code class="language-yaml">""
 </code>
 </pre>
 </td>
-      <td><p>VMInsert container name</p>
+      <td><p>VMInsert name</p>
 </td>
     </tr>
     <tr>
@@ -905,6 +1695,17 @@ timeoutSeconds: 5
 </pre>
 </td>
       <td><p>Service ClusterIP</p>
+</td>
+    </tr>
+    <tr>
+      <td>vminsert.service.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
+</pre>
+</td>
+      <td><p>Create VMInsert service</p>
 </td>
     </tr>
     <tr>
@@ -1540,7 +2341,7 @@ loggerFormat: json
       <td>vmselect.name</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">vmselect
+<code class="language-yaml">""
 </code>
 </pre>
 </td>
@@ -1830,6 +2631,17 @@ timeoutSeconds: 5
 </pre>
 </td>
       <td><p>Service ClusterIP</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmselect.service.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
+</pre>
+</td>
+      <td><p>Create VMSelect service</p>
 </td>
     </tr>
     <tr>
@@ -2275,6 +3087,62 @@ loggerFormat: json
 </td>
     </tr>
     <tr>
+      <td>vmstorage.horizontalPodAutoscaler.behavior</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">scaleDown:
+    selectPolicy: Disabled
+</code>
+</pre>
+</td>
+      <td><p>Behavior settings for scaling by the HPA</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmstorage.horizontalPodAutoscaler.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Use HPA for vmstorage component</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmstorage.horizontalPodAutoscaler.maxReplicas</td>
+      <td>int</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">10
+</code>
+</pre>
+</td>
+      <td><p>Maximum replicas for HPA to use to to scale the vmstorage component</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmstorage.horizontalPodAutoscaler.metrics</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Metric for HPA to use to scale the vmstorage component</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmstorage.horizontalPodAutoscaler.minReplicas</td>
+      <td>int</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">2
+</code>
+</pre>
+</td>
+      <td><p>Minimum replicas for HPA to use to scale the vmstorage component</p>
+</td>
+    </tr>
+    <tr>
       <td>vmstorage.image.pullPolicy</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -2344,7 +3212,7 @@ loggerFormat: json
       <td>vmstorage.name</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">vmstorage
+<code class="language-yaml">""
 </code>
 </pre>
 </td>
@@ -2680,6 +3548,27 @@ timeoutSeconds: 5
 </td>
     </tr>
     <tr>
+      <td>vmstorage.service.clusterIP</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">None
+</code>
+</pre>
+</td>
+      <td><p>Service ClusterIP</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmstorage.service.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
       <td>vmstorage.service.externalTrafficPolicy</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -2754,6 +3643,17 @@ timeoutSeconds: 5
 </pre>
 </td>
       <td><p>Service port</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmstorage.service.type</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">ClusterIP
+</code>
+</pre>
+</td>
+      <td><p>Service type</p>
 </td>
     </tr>
     <tr>
