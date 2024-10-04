@@ -2,6 +2,24 @@
 
 - TODO
 
+## 0.12.1
+
+**Release date:** 2024-10-04
+
+![AppVersion: v1.104.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.104.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- upgraded common chart dependency
+
+## 0.12.0
+
+**Release date:** 2024-10-02
+
+![AppVersion: v1.104.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.104.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- bump version of VM components to [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
+
 ## 0.11.2
 
 **Release date:** 2024-09-12
