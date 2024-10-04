@@ -784,7 +784,7 @@ func (cfg *Config) getPuppetDBSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 			visitor(&sc.PuppetDBSDConfigs[i])
 		}
 	}
-	return cfg.getScrapeWorkGeneric(visitConfigs, "ovhcloud_sd_config", prev)
+	return cfg.getScrapeWorkGeneric(visitConfigs, "puppetdb_sd_config", prev)
 }
 
 // getVultrSDScrapeWork returns `vultr_sd_configs` ScrapeWork from cfg.
