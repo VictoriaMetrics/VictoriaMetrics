@@ -1,5 +1,13 @@
-# Prerequisites to develop and test Helm Charts
-
+---
+weight: 0
+title: Requirements
+menu:
+  docs:
+    weight: 1
+    parent: helm
+aliases:
+  - /helm/requirements/index.html
+---
 ## Kubernetes Cluster
 
 You will need to create a Kubernetes cluster locally using [minikube](https://kubernetes.io/docs/tasks/tools/install-minikube), [microk8s](https://microk8s.io), [kind](https://kind.sigs.k8s.io), [k3s](https://k3s.io) or other tools.
