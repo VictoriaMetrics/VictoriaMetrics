@@ -46,15 +46,11 @@ func (jp *jsonPrettifier) closePipesWithError(err error) {
 
 func (jp *jsonPrettifier) prettifyJSONLines() error {
 	for jp.d.More() {
-		var v any
-		if err := jp.d.Decode(&v); err != nil {
+		kvs, err := readNextJSONObject(jp.d)
+		if err != nil {
 			return err
 		}
-		line, err := json.MarshalIndent(v, "", "  ")
-		if err != nil {
-			panic(fmt.Errorf("BUG: cannot marshal %v to JSON: %w", v, err))
-		}
-		if _, err := fmt.Fprintf(jp.pw, "%s\n", line); err != nil {
+		if err := writeJSONObject(jp.pw, kvs); err != nil {
 			return err
 		}
 	}
@@ -70,4 +66,90 @@ func (jp *jsonPrettifier) Close() error {
 
 func (jp *jsonPrettifier) Read(p []byte) (int, error) {
 	return jp.pr.Read(p)
+}
+
+func readNextJSONObject(d *json.Decoder) ([]kv, error) {
+	t, err := d.Token()
+	if err != nil {
+		return nil, fmt.Errorf("cannot read '{': %w", err)
+	}
+	delim, ok := t.(json.Delim)
+	if !ok || delim.String() != "{" {
+		return nil, fmt.Errorf("unexpected token read; got %q; want '{'", delim)
+	}
+
+	var kvs []kv
+	for {
+		// Read object key
+		t, err := d.Token()
+		if err != nil {
+			return nil, fmt.Errorf("cannot read JSON object key or closing brace: %w", err)
+		}
+		delim, ok := t.(json.Delim)
+		if ok {
+			if delim.String() == "}" {
+				return kvs, nil
+			}
+			return nil, fmt.Errorf("unexpected delimiter read; got %q; want '}'", delim)
+		}
+		key, ok := t.(string)
+		if !ok {
+			return nil, fmt.Errorf("unexpected token read for object key: %v; want string or '}'", t)
+		}
+
+		// read object value
+		t, err = d.Token()
+		if err != nil {
+			return nil, fmt.Errorf("cannot read JSON object value: %w", err)
+		}
+		value, ok := t.(string)
+		if !ok {
+			return nil, fmt.Errorf("unexpected token read for oject value: %v; want string", t)
+		}
+
+		kvs = append(kvs, kv{
+			key:   key,
+			value: value,
+		})
+	}
+}
+
+func writeJSONObject(w io.Writer, kvs []kv) error {
+	if len(kvs) == 0 {
+		fmt.Fprintf(w, "{}\n")
+		return nil
+	}
+
+	fmt.Fprintf(w, "{\n")
+	if err := writeJSONObjectKeyValue(w, kvs[0]); err != nil {
+		return err
+	}
+	for _, kv := range kvs[1:] {
+		fmt.Fprintf(w, ",\n")
+		if err := writeJSONObjectKeyValue(w, kv); err != nil {
+			return err
+		}
+	}
+	fmt.Fprintf(w, "\n}\n")
+	return nil
+}
+
+func writeJSONObjectKeyValue(w io.Writer, kv kv) error {
+	key := getJSONString(kv.key)
+	value := getJSONString(kv.value)
+	_, err := fmt.Fprintf(w, "  %s: %s", key, value)
+	return err
+}
+
+func getJSONString(s string) string {
+	data, err := json.Marshal(s)
+	if err != nil {
+		panic(fmt.Errorf("unexpected error when marshaling string to JSON: %w", err))
+	}
+	return string(data)
+}
+
+type kv struct {
+	key   string
+	value string
 }
