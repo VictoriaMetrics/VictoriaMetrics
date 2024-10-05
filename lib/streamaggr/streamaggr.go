@@ -41,6 +41,7 @@ var supportedOutputs = []string{
 	"rate_sum",
 	"stddev",
 	"stdvar",
+	"sum_last",
 	"sum_samples",
 	"total",
 	"total_prometheus",
@@ -192,6 +193,7 @@ type Config struct {
 	// - rate_sum - calculates sum of rate for input counters
 	// - stddev - standard deviation across all the samples
 	// - stdvar - standard variance across all the samples
+	// - sum_last - sums the input sample last values
 	// - sum_samples - sums the input sample values
 	// - total - aggregates input counters
 	// - total_prometheus - aggregates input counters, ignoring the first sample in new time series
@@ -707,6 +709,8 @@ func newAggrState(output string, outputsSeen map[string]struct{}, stalenessInter
 		return newStddevAggrState(), nil
 	case "stdvar":
 		return newStdvarAggrState(), nil
+	case "sum_last":
+		return newSumLastAggrState(stalenessInterval), nil
 	case "sum_samples":
 		return newSumSamplesAggrState(), nil
 	case "total":
