@@ -242,8 +242,6 @@ writer:
 
 ### Multitenancy support
 
-### Multitenancy Support
-
 > This feature applies to the VictoriaMetrics Cluster version only. Tenants are identified by either `accountID` or `accountID:projectID`. Starting with [v1.16.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1162), the `multitenant` [endpoint](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=writes#multitenancy-via-labels) is supported for writing data across multiple [tenants](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy). For more details, refer to the VictoriaMetrics Cluster [multitenancy documentation](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy).
 
 Please note the different behaviors depending on the `tenant_id` value:
