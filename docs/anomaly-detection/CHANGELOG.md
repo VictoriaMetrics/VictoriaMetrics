@@ -11,6 +11,15 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.16.2
+Released: 2024-10-06
+- FEATURE: Added support for `multitenant` value in `tenant_id` arg to enable querying across multiple tenants in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) (option available from [v1.104.0](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels)):
+  - Applied when reading input data from `vmselect` via the [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader).
+  - Applied when writing generated results through `vminsert` via the [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer#vm-writer).
+  - For more details, refer to the `tenant_id` arg description in the documentation of the mentioned components.
+
+- FIX: Resolved an issue with handling an empty `preset` value (e.g., `preset: ""`) that was preventing the [default helm chart](https://github.com/VictoriaMetrics/helm-charts/blob/7f5a2c00b14c2c088d7d8d8bcee7a440a5ff11c6/charts/victoria-metrics-anomaly/values.yaml#L139) from being deployed.
+
 ## v1.16.1
 Released: 2024-10-02
 - FIX: This patch release prevents the service from crashing by rolling back the version of a third-party dependency. Affected releases: [v1.16.0](#v1160).
