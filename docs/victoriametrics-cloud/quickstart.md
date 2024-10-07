@@ -23,7 +23,7 @@ The document covers the following topics:
 
 ## Registration
 
-Start your registration process by visiting the [Sign Up](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_quickstart) page.
+Start your registration process by visiting the [Sign Up](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_quickstart) page.
 ![Signup default](quick_start_signup_default.webp)
 
 There are two different methods to create an account:
@@ -32,7 +32,7 @@ There are two different methods to create an account:
 
 ### Create an account via Google Auth service:
 
-1. Click `Continue with Google` button on the [Sign Up page](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_quickstart)
+1. Click `Continue with Google` button on the [Sign Up page](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_quickstart)
 ![Signup Google click](quick_start_signup_google_click.webp)
    
 1. Choose Google account you want to use for registration
@@ -42,7 +42,7 @@ There are two different methods to create an account:
 ![Signup success](quick_start_signup_success.webp)
 
 ### Create an account by filling in a registration form:
-1. Fill in your email, password and password confirmation on [Sign Up page](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_quickstart).
+1. Fill in your email, password and password confirmation on [Sign Up page](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_quickstart).
 ![Signup](quick_start_signup_fill.webp)
 
 1.All fields are required. Any errors will be shown in the interface, so it is easy to understand what should be adjusted.
@@ -70,7 +70,7 @@ After successful confirmation of your email address, you'll be able to [create y
 
 ## Adding a payment method
 
-1. Navigate to a [Billing](https://cloud.victoriametrics.com/billing?utm_source=website&utm_campaign=docs_quickstart) page or click on `Upgrade` button as shown below:
+1. Navigate to a [Billing](https://console.victoriametrics.cloud/billing?utm_source=website&utm_campaign=docs_quickstart) page or click on `Upgrade` button as shown below:
    
      ![Add payment method](how_to_add_payment_method_upgrade.webp)
    
@@ -120,7 +120,7 @@ When you need to unify your AWS billing, you can start a subscription on AWS Mar
    
      ![Setup your account](quickstart_setup-your-account.webp)
    
-1. You'll be redirected back to VictoriaMetrics Cloud <a href="https://cloud.victoriametrics.com/billing?utm_source=website&utm_campaign=docs_quickstart" target="_blank">billing page</a>:
+1. You'll be redirected back to VictoriaMetrics Cloud <a href="https://console.victoriametrics.cloud/billing?utm_source=website&utm_campaign=docs_quickstart" target="_blank">billing page</a>:
    
      ![Add payment method finish](how_to_add_payment_method_aws_finish.webp)
    
@@ -148,7 +148,7 @@ If the payment method was changed successfully, the following message will appea
 
 If you forgot your password, it can be restored in the following way:
 
-1. Click `Forgot password?` link on the [Sign In](https://cloud.victoriametrics.com/signIn?utm_source=website&utm_campaign=docs_quickstart) page:
+1. Click `Forgot password?` link on the [Sign In](https://console.victoriametrics.cloud/signIn?utm_source=website&utm_campaign=docs_quickstart) page:
    
      ![Restore password](quick_start_restore_password.webp)
    
@@ -179,7 +179,7 @@ If you forgot your password, it can be restored in the following way:
 
 ## Creating deployments
 
-On the [Deployments](https://cloud.victoriametrics.com/deployments?utm_source=website&utm_campaign=docs_quickstart) page you 
+On the [Deployments](https://console.victoriametrics.cloud/deployments?utm_source=website&utm_campaign=docs_quickstart) page you 
 will see a list of your existing deployments and will be able to manage them. 
 
 To create a deployment click on the button `Start sending metrics` button:
