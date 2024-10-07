@@ -86,6 +86,7 @@ func runReadlineLoop(rl *readline.Instance, incompleteLine *string) {
 		}
 	}
 
+	outputMode := outputModeJSONMultiline
 	s := ""
 	for {
 		line, err := rl.ReadLine()
@@ -94,7 +95,7 @@ func runReadlineLoop(rl *readline.Instance, incompleteLine *string) {
 			case io.EOF:
 				if s != "" {
 					// This is non-interactive query execution.
-					if err := executeQuery(context.Background(), rl, s); err != nil {
+					if err := executeQuery(context.Background(), rl, s, outputMode); err != nil {
 						fmt.Fprintf(rl, "%s\n", err)
 					}
 				}
@@ -116,12 +117,41 @@ func runReadlineLoop(rl *readline.Instance, incompleteLine *string) {
 		}
 
 		s += line
-		if isQuitCommand(s) {
-			fmt.Fprintf(rl, "bye!\n")
-			return
-		}
 		if s == "" {
 			// Skip empty lines
+			continue
+		}
+
+		if isQuitCommand(s) {
+			fmt.Fprintf(rl, "bye!\n")
+			_ = pushToHistory(rl, historyLines, s)
+			return
+		}
+		if isHelpCommand(s) {
+			printCommandsHelp(rl)
+			historyLines = pushToHistory(rl, historyLines, s)
+			s = ""
+			continue
+		}
+		if s == `\s` {
+			fmt.Fprintf(rl, "singleline json output mode\n")
+			outputMode = outputModeJSONSingleline
+			historyLines = pushToHistory(rl, historyLines, s)
+			s = ""
+			continue
+		}
+		if s == `\m` {
+			fmt.Fprintf(rl, "multiline json output mode\n")
+			outputMode = outputModeJSONMultiline
+			historyLines = pushToHistory(rl, historyLines, s)
+			s = ""
+			continue
+		}
+		if s == `\logfmt` {
+			fmt.Fprintf(rl, "logfmt output mode\n")
+			outputMode = outputModeLogfmt
+			historyLines = pushToHistory(rl, historyLines, s)
+			s = ""
 			continue
 		}
 		if line != "" && !strings.HasSuffix(line, ";") {
@@ -133,7 +163,7 @@ func runReadlineLoop(rl *readline.Instance, incompleteLine *string) {
 
 		// Execute the query
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-		err = executeQuery(ctx, rl, s)
+		err = executeQuery(ctx, rl, s, outputMode)
 		cancel()
 
 		if err != nil {
@@ -205,14 +235,33 @@ func saveToHistory(filePath string, lines []string) error {
 
 func isQuitCommand(s string) bool {
 	switch s {
-	case "q", "quit", "exit", "\\q":
+	case `\q`, "q", "quit", "exit":
 		return true
 	default:
 		return false
 	}
 }
 
-func executeQuery(ctx context.Context, output io.Writer, s string) error {
+func isHelpCommand(s string) bool {
+	switch s {
+	case `\h`, "h", "help", "?":
+		return true
+	default:
+		return false
+	}
+}
+
+func printCommandsHelp(w io.Writer) {
+	fmt.Fprintf(w, "%s", `List of available commands:
+\q - quit
+\h - show this help
+\s - singleline json output mode
+\m - multiline json output mode
+\logfmt - logfmt output mode
+`)
+}
+
+func executeQuery(ctx context.Context, output io.Writer, s string, outputMode outputMode) error {
 	// Parse the query and convert it to canonical view.
 	s = strings.TrimSuffix(s, ";")
 	q, err := logstorage.ParseQuery(s)
@@ -257,7 +306,7 @@ func executeQuery(ctx context.Context, output io.Writer, s string) error {
 	}
 
 	// Prettify the response and stream it to 'less'.
-	jp := newJSONPrettifier(resp.Body)
+	jp := newJSONPrettifier(resp.Body, outputMode)
 	defer func() {
 		_ = jp.Close()
 	}()

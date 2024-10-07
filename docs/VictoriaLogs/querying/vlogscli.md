@@ -57,7 +57,8 @@ duration: 0.688s
 
 Query execution can be interrupted at any time by pressing `Ctrl+C`.
 
-Type `q`, `quit` or `exit` and then press `Enter` for exit from `vlogsql`.
+Type `q` and then press `Enter` for exit from `vlogsql` (if you want to search for `q` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word),
+then just wrap it into quotes: `"q"` or `'q'`).
 
 If the query response exceeds vertical screen space, `vlogsql` pipes query response to `less` utility,
 so you can scroll the response as needed. This allows executing queries, which potentially
@@ -88,3 +89,14 @@ Press `Ctrl+R` multiple times for searching other matching queries in the histor
 Press `Enter` when the needed query is found in order to execute it.
 Press `Ctrl+C` for exit from the `search history` mode.
 See also [other available shortcuts](https://github.com/chzyer/readline/blob/f533ef1caae91a1fcc90875ff9a5a030f0237c6a/doc/shortcut.md).
+
+## Output modes
+
+By default `vlogscli` displays query results as prettified JSON object with every field on a separate line.
+Fields in every JSON object are sorted in alphabetical order. This simplifies locating the needed fields.
+
+`vlogscli` supports the following output modes:
+
+* A single JSON line per every result. Type `\s` and press `enter` for this mode.
+* Multline JSON per every result. Type `\m` and press `enter` for this mode.
+* [Logfmt output](https://brandur.org/logfmt). Type `\logfmt` and press `enter` for this mode.

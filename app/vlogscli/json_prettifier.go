@@ -1,33 +1,70 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
 	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
+type outputMode int
+
+const (
+	outputModeJSONMultiline  = outputMode(0)
+	outputModeJSONSingleline = outputMode(1)
+	outputModeLogfmt         = outputMode(2)
+)
+
+func getOutputFormatter(outputMode outputMode) func(w io.Writer, fields []logstorage.Field) error {
+	switch outputMode {
+	case outputModeJSONMultiline:
+		return func(w io.Writer, fields []logstorage.Field) error {
+			return writeJSONObject(w, fields, true)
+		}
+	case outputModeJSONSingleline:
+		return func(w io.Writer, fields []logstorage.Field) error {
+			return writeJSONObject(w, fields, false)
+		}
+	case outputModeLogfmt:
+		return writeLogfmtObject
+	default:
+		panic(fmt.Errorf("BUG: unexpected outputMode=%d", outputMode))
+	}
+}
+
 type jsonPrettifier struct {
-	rOriginal io.ReadCloser
+	r         io.ReadCloser
+	formatter func(w io.Writer, fields []logstorage.Field) error
 
 	d *json.Decoder
 
 	pr *io.PipeReader
 	pw *io.PipeWriter
+	bw *bufio.Writer
 
 	wg sync.WaitGroup
 }
 
-func newJSONPrettifier(r io.ReadCloser) *jsonPrettifier {
+func newJSONPrettifier(r io.ReadCloser, outputMode outputMode) *jsonPrettifier {
 	d := json.NewDecoder(r)
 	pr, pw := io.Pipe()
+	bw := bufio.NewWriter(pw)
+
+	formatter := getOutputFormatter(outputMode)
 
 	jp := &jsonPrettifier{
-		rOriginal: r,
-		d:         d,
-		pr:        pr,
-		pw:        pw,
+		r:         r,
+		formatter: formatter,
+
+		d: d,
+
+		pr: pr,
+		pw: pw,
+		bw: bw,
 	}
 
 	jp.wg.Add(1)
@@ -47,20 +84,23 @@ func (jp *jsonPrettifier) closePipesWithError(err error) {
 
 func (jp *jsonPrettifier) prettifyJSONLines() error {
 	for jp.d.More() {
-		kvs, err := readNextJSONObject(jp.d)
+		fields, err := readNextJSONObject(jp.d)
 		if err != nil {
 			return err
 		}
-		if err := writeJSONObject(jp.pw, kvs); err != nil {
+		sort.Slice(fields, func(i, j int) bool {
+			return fields[i].Name < fields[j].Name
+		})
+		if err := jp.formatter(jp.bw, fields); err != nil {
 			return err
 		}
 	}
-	return nil
+	return jp.bw.Flush()
 }
 
 func (jp *jsonPrettifier) Close() error {
 	jp.closePipesWithError(io.ErrUnexpectedEOF)
-	err := jp.rOriginal.Close()
+	err := jp.r.Close()
 	jp.wg.Wait()
 	return err
 }
@@ -69,7 +109,7 @@ func (jp *jsonPrettifier) Read(p []byte) (int, error) {
 	return jp.pr.Read(p)
 }
 
-func readNextJSONObject(d *json.Decoder) ([]kv, error) {
+func readNextJSONObject(d *json.Decoder) ([]logstorage.Field, error) {
 	t, err := d.Token()
 	if err != nil {
 		return nil, fmt.Errorf("cannot read '{': %w", err)
@@ -79,7 +119,7 @@ func readNextJSONObject(d *json.Decoder) ([]kv, error) {
 		return nil, fmt.Errorf("unexpected token read; got %q; want '{'", delim)
 	}
 
-	var kvs []kv
+	var fields []logstorage.Field
 	for {
 		// Read object key
 		t, err := d.Token()
@@ -89,7 +129,7 @@ func readNextJSONObject(d *json.Decoder) ([]kv, error) {
 		delim, ok := t.(json.Delim)
 		if ok {
 			if delim.String() == "}" {
-				return kvs, nil
+				return fields, nil
 			}
 			return nil, fmt.Errorf("unexpected delimiter read; got %q; want '}'", delim)
 		}
@@ -108,41 +148,56 @@ func readNextJSONObject(d *json.Decoder) ([]kv, error) {
 			return nil, fmt.Errorf("unexpected token read for oject value: %v; want string", t)
 		}
 
-		kvs = append(kvs, kv{
-			key:   key,
-			value: value,
+		fields = append(fields, logstorage.Field{
+			Name:  key,
+			Value: value,
 		})
 	}
 }
 
-func writeJSONObject(w io.Writer, kvs []kv) error {
-	if len(kvs) == 0 {
+func writeLogfmtObject(w io.Writer, fields []logstorage.Field) error {
+	data := logstorage.MarshalFieldsToLogfmt(nil, fields)
+	_, err := fmt.Fprintf(w, "%s\n", data)
+	return err
+}
+
+func writeJSONObject(w io.Writer, fields []logstorage.Field, isMultiline bool) error {
+	if len(fields) == 0 {
 		fmt.Fprintf(w, "{}\n")
 		return nil
 	}
 
-	sort.Slice(kvs, func(i, j int) bool {
-		return kvs[i].key < kvs[j].key
-	})
-
-	fmt.Fprintf(w, "{\n")
-	if err := writeJSONObjectKeyValue(w, kvs[0]); err != nil {
+	fmt.Fprintf(w, "{")
+	writeNewlineIfNeeded(w, isMultiline)
+	if err := writeJSONObjectKeyValue(w, fields[0], isMultiline); err != nil {
 		return err
 	}
-	for _, kv := range kvs[1:] {
-		fmt.Fprintf(w, ",\n")
-		if err := writeJSONObjectKeyValue(w, kv); err != nil {
+	for _, f := range fields[1:] {
+		fmt.Fprintf(w, ",")
+		writeNewlineIfNeeded(w, isMultiline)
+		if err := writeJSONObjectKeyValue(w, f, isMultiline); err != nil {
 			return err
 		}
 	}
-	fmt.Fprintf(w, "\n}\n")
+	writeNewlineIfNeeded(w, isMultiline)
+	fmt.Fprintf(w, "}\n")
 	return nil
 }
 
-func writeJSONObjectKeyValue(w io.Writer, kv kv) error {
-	key := getJSONString(kv.key)
-	value := getJSONString(kv.value)
-	_, err := fmt.Fprintf(w, "  %s: %s", key, value)
+func writeNewlineIfNeeded(w io.Writer, isMultiline bool) {
+	if isMultiline {
+		fmt.Fprintf(w, "\n")
+	}
+}
+
+func writeJSONObjectKeyValue(w io.Writer, f logstorage.Field, isMultiline bool) error {
+	key := getJSONString(f.Name)
+	value := getJSONString(f.Value)
+	if isMultiline {
+		_, err := fmt.Fprintf(w, "  %s: %s", key, value)
+		return err
+	}
+	_, err := fmt.Fprintf(w, "%s:%s", key, value)
 	return err
 }
 
@@ -152,9 +207,4 @@ func getJSONString(s string) string {
 		panic(fmt.Errorf("unexpected error when marshaling string to JSON: %w", err))
 	}
 	return string(data)
-}
-
-type kv struct {
-	key   string
-	value string
 }
