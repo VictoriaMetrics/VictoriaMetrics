@@ -1233,6 +1233,10 @@ func getCompoundSuffix(lex *lexer, allowColon bool) string {
 
 func getCompoundToken(lex *lexer) (string, error) {
 	stopTokens := []string{",", "(", ")", "[", "]", "|", ""}
+	return getCompoundTokenExt(lex, stopTokens)
+}
+
+func getCompoundTokenExt(lex *lexer, stopTokens []string) (string, error) {
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
 	}
