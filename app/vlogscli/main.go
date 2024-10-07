@@ -198,7 +198,7 @@ func saveToHistory(filePath string, lines []string) error {
 
 func isQuitCommand(s string) bool {
 	switch s {
-	case "q", "quit", "exit":
+	case "q", "quit", "exit", "\\q":
 		return true
 	default:
 		return false
