@@ -91,11 +91,23 @@ func getFieldValue(fields []Field, name string) string {
 
 func needLogfmtQuoting(s string) bool {
 	for _, c := range s {
-		if !isTokenRune(c) {
+		if isLogfmtSpecialChar(c) {
 			return true
 		}
 	}
 	return false
+}
+
+func isLogfmtSpecialChar(c rune) bool {
+	if c <= 0x20 {
+		return true
+	}
+	switch c {
+	case '"', '\\':
+		return true
+	default:
+		return false
+	}
 }
 
 // RenameField renames field with the oldName to newName in Fields
