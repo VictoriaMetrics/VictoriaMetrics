@@ -15,6 +15,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/): add ability to display results in `logfmt` mode, single-line and multi-line JSON modes according [these docs](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/#output-modes).
 * FEATURE: [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/): preserve `less` output after the exit from scrolling mode. This should help re-using previous query results in subsequent queries.
 * FEATURE: add [`len` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#len-pipe) for calculating the length for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value in bytes.
 
