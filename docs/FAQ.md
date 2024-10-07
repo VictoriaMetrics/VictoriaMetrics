@@ -214,7 +214,7 @@ We provide commercial support for both versions. [Contact us](mailto:info@victor
 
 The following commercial versions of VictoriaMetrics are available:
 
-* [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_faq) – the most cost-efficient hosted monitoring platform, operated by VictoriaMetrics core team.
+* [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_faq) – the most cost-efficient hosted monitoring platform, operated by VictoriaMetrics core team.
 
 The following commercial versions of VictoriaMetrics are planned:
 
