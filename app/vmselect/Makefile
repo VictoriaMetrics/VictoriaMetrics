@@ -40,6 +40,12 @@ vmselect-freebsd-amd64-prod:
 vmselect-openbsd-amd64-prod:
 	APP_NAME=vmselect $(MAKE) app-via-docker-openbsd-amd64
 
+vmselect-darwin-amd64-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-darwin-amd64
+
+vmselect-darwin-arm64-prod:
+	APP_NAME=vmselect $(MAKE) app-via-docker-darwin-arm64
+
 vmselect-windows-amd64-prod:
 	APP_NAME=vmselect $(MAKE) app-via-docker-windows-amd64
 
@@ -102,6 +108,12 @@ vmselect-openbsd-amd64:
 
 vmselect-windows-amd64:
 	GOARCH=amd64 APP_NAME=vmselect $(MAKE) app-local-windows-goarch
+
+vmselect-darwin-amd64:
+	APP_NAME=vmselect CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmselect-darwin-arm64:
+	APP_NAME=vmselect CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 $(MAKE) app-local-goos-goarch
 
 vmselect-pure:
 	APP_NAME=vmselect $(MAKE) app-local-pure
