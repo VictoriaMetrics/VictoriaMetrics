@@ -51,12 +51,12 @@ func main() {
 	}
 	headers = hes
 
-	isEmptyLine := true
+	incompleteLine := ""
 	cfg := &readline.Config{
 		Prompt:                 firstLinePrompt,
 		DisableAutoSaveHistory: true,
 		Listener: func(line []rune, pos int, _ rune) ([]rune, int, bool) {
-			isEmptyLine = len(line) == 0
+			incompleteLine = string(line)
 			return line, pos, false
 		},
 	}
@@ -67,7 +67,7 @@ func main() {
 
 	fmt.Fprintf(rl, "sending queries to %s\n", *datasourceURL)
 
-	runReadlineLoop(rl, &isEmptyLine)
+	runReadlineLoop(rl, &incompleteLine)
 
 	if err := rl.Close(); err != nil {
 		fatalf("cannot close readline: %s", err)
@@ -75,7 +75,7 @@ func main() {
 
 }
 
-func runReadlineLoop(rl *readline.Instance, isEmptyLine *bool) {
+func runReadlineLoop(rl *readline.Instance, incompleteLine *string) {
 	historyLines, err := loadFromHistory(*historyFile)
 	if err != nil {
 		fatalf("cannot load query history: %s", err)
@@ -100,11 +100,13 @@ func runReadlineLoop(rl *readline.Instance, isEmptyLine *bool) {
 				}
 				return
 			case readline.ErrInterrupt:
-				if s == "" && *isEmptyLine {
+				if s == "" && *incompleteLine == "" {
 					fmt.Fprintf(rl, "interrupted\n")
 					os.Exit(128 + int(syscall.SIGINT))
 				}
-				// Default value for Ctrl+C - clear the prompt
+				// Default value for Ctrl+C - clear the prompt and store the incompletely entered line into history
+				s += *incompleteLine
+				historyLines = pushToHistory(rl, historyLines, s)
 				s = ""
 				rl.SetPrompt(firstLinePrompt)
 				continue
@@ -143,22 +145,27 @@ func runReadlineLoop(rl *readline.Instance, isEmptyLine *bool) {
 			// Save queries in the history even if they weren't finished successfully
 		}
 
-		s = strings.TrimSpace(s)
-		if len(historyLines) == 0 || historyLines[len(historyLines)-1] != s {
-			historyLines = append(historyLines, s)
-			if len(historyLines) > 500 {
-				historyLines = historyLines[len(historyLines)-500:]
-			}
-			if err := saveToHistory(*historyFile, historyLines); err != nil {
-				fatalf("cannot save query history: %s", err)
-			}
-		}
-		if err := rl.SaveToHistory(s); err != nil {
-			fatalf("cannot update query history: %s", err)
-		}
+		historyLines = pushToHistory(rl, historyLines, s)
 		s = ""
 		rl.SetPrompt(firstLinePrompt)
 	}
+}
+
+func pushToHistory(rl *readline.Instance, historyLines []string, s string) []string {
+	s = strings.TrimSpace(s)
+	if len(historyLines) == 0 || historyLines[len(historyLines)-1] != s {
+		historyLines = append(historyLines, s)
+		if len(historyLines) > 500 {
+			historyLines = historyLines[len(historyLines)-500:]
+		}
+		if err := saveToHistory(*historyFile, historyLines); err != nil {
+			fatalf("cannot save query history: %s", err)
+		}
+	}
+	if err := rl.SaveToHistory(s); err != nil {
+		fatalf("cannot update query history: %s", err)
+	}
+	return historyLines
 }
 
 func loadFromHistory(filePath string) ([]string, error) {
