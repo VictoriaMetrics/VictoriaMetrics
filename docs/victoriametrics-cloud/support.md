@@ -10,7 +10,7 @@ menu:
 ## Basic Support
 All offerings include basic support, where we maintain the health of your deployments, perform system upgrades, and proactively contact customers if issues arise.
 
-All changes are logged and visible in the [Audit log](https://cloud.victoriametrics.com/audit).
+All changes are logged and visible in the [Audit log](https://cloud.victoriametrics.com/audit). For more details, check the [documentation](https://docs.victoriametrics.com/victoriametrics-cloud/audit-logs/) 
 
 ## How to Reach Support
 To contact support, use the [Contact Support](https://cloud.victoriametrics.com/contact_support) button in the Cloud UI.
