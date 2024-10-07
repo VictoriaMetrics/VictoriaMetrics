@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"sync"
 )
 
@@ -119,6 +120,10 @@ func writeJSONObject(w io.Writer, kvs []kv) error {
 		fmt.Fprintf(w, "{}\n")
 		return nil
 	}
+
+	sort.Slice(kvs, func(i, j int) bool {
+		return kvs[i].key < kvs[j].key
+	})
 
 	fmt.Fprintf(w, "{\n")
 	if err := writeJSONObjectKeyValue(w, kvs[0]); err != nil {
