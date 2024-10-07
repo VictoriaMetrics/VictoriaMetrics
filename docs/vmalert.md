@@ -24,7 +24,7 @@ Use this feature for the following cases:
 * for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
 * for accessing `vmalert`'s UI through VictoriaMetrics Web interface.
 
-[VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_intro) 
+[VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_intro) 
 provides out-of-the-box alerting functionality based on `vmalert`. This service simplifies the setup 
 and management of alerting and recording rules as well as the integration with Alertmanager. For more details, 
 please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/alertmanager-setup-for-deployment/).
@@ -120,7 +120,7 @@ groups:
 
 > Explore how to integrate `vmalert` with [VictoriaMetrics Anomaly Detection](/anomaly-detection/) in the following [guide](/anomaly-detection/guides/guide-vmanomaly-vmalert/)
 
-> For users of [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_config), 
+> For users of [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_vmalert_config), 
 > many of the configuration steps (including highly available setup of `vmalert` for cluster deployments) are handled automatically. 
 > Please, refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriametrics.com/victoriametrics-cloud/alertmanager-setup-for-deployment/) for more details.
 
