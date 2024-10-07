@@ -99,7 +99,7 @@ Pass `-help` to `vmagent` in order to see [the full list of supported command-li
 ## How to push data to vmagent
 
 `vmagent` supports [the same set of push-based data ingestion protocols as VictoriaMetrics does](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-additionally to pull-based Prometheus-compatible targets' scraping:
+additional to pull-based Prometheus-compatible targets' scraping:
 
 * DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-datadog-agent).
 * InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
