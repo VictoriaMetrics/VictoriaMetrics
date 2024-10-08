@@ -493,6 +493,11 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 		metricFields[f.resultName] = struct{}{}
 	}
 
+	resultNames := make([]string, len(ps.funcs))
+	for i, f := range ps.funcs {
+		resultNames[i] = f.resultName
+	}
+
 	// verify that all the pipes after the idx do not add new fields
 	for i := idx + 1; i < len(pipes); i++ {
 		p := pipes[i]
@@ -515,7 +520,6 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 					return nil, fmt.Errorf("missing %q field at %q pipe in the query [%s]", f, p, q)
 				}
 			}
-
 			remainingMetricFields := make(map[string]struct{})
 			for _, f := range t.fields {
 				if _, ok := metricFields[f]; ok {
@@ -572,6 +576,9 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 				if _, ok := metricFields[fSrc]; ok {
 					delete(metricFields, fSrc)
 					metricFields[fDst] = struct{}{}
+				}
+				if n := slices.Index(resultNames, f); n >= 0 {
+					resultNames[n] = t.dstFields[i]
 				}
 			}
 		case *pipeFormat:
