@@ -15,15 +15,15 @@ or from [docker images](https://hub.docker.com/r/victoriametrics/vlogscli/tags):
 ### Running `vlogscli` from release binary
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.33.0-victorialogs/vlogscli-linux-amd64-v0.33.0-victorialogs.tar.gz
-tar xzf vlogscli-linux-amd64-v0.33.0-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.34.0-victorialogs/vlogscli-linux-amd64-v0.34.0-victorialogs.tar.gz
+tar xzf vlogscli-linux-amd64-v0.34.0-victorialogs.tar.gz
 ./vlogscli-prod
 ```
 
 ### Running `vlogscli` from Docker image
 
 ```sh
-docker run --rm -it docker.io/victoriametrics/vlogscli:v0.33.0-victorialogs
+docker run --rm -it docker.io/victoriametrics/vlogscli:v0.34.0-victorialogs
 ```
 
 By default `vlogscli` sends queries to [`http://localhost:8429/select/logsql/query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs).
