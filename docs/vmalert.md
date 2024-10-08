@@ -1397,7 +1397,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.retryMaxTime duration
      The max time spent on retry attempts for the failed remote-write request. Change this value if it is expected for remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval (default 30s)
   -remoteWrite.retryMinInterval duration
-     The minimum delay between retry attempts. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval (default 1s)
+     The minimum delay between retry attempts. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxTime (default 1s)
   -remoteWrite.sendTimeout duration
      Timeout for sending data to the configured -remoteWrite.url. (default 30s)
   -remoteWrite.showURL
