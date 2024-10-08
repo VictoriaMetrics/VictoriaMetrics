@@ -1,6 +1,8 @@
 @use "src/styles/variables" as *;
 
 .vm-explore-logs-body {
+  position: relative;
+
   &-header {
     margin: -$padding-medium 0-$padding-medium 0;
 
