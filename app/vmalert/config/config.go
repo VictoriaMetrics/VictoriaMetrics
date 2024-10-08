@@ -300,39 +300,29 @@ func parseConfig(data []byte) ([]Group, error) {
 		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
 
-	var allGroups []Group
-	var g struct {
-		Groups []Group        `yaml:"groups"`
-		XXX    map[string]any `yaml:",inline"` // Catches all undefined fields and must be empty after parsing.
+	var result []Group
+	type cfgFile struct {
+		Groups []Group `yaml:"groups"`
+		// Catches all undefined fields and must be empty after parsing.
+		XXX map[string]any `yaml:",inline"`
 	}
-	var overflowMap = make(map[string]any)
 
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
-	errGroup := new(utils.ErrGroup)
-
 	for {
-		// Decode the next document
-		if err = decoder.Decode(&g); err != nil {
-			if err == io.EOF { // End of file indicates no more documents to read
+		var cf cfgFile
+		if err = decoder.Decode(&cf); err != nil {
+			if err == io.EOF { // EOF indicates no more documents to read
 				break
 			}
-			errGroup.Add(err)
-			continue
+			return nil, err
 		}
-
-		for key, value := range g.XXX {
-			overflowMap[key] = value
+		if err = checkOverflow(cf.XXX, "config"); err != nil {
+			return nil, err
 		}
-
-		// Append valid groups
-		allGroups = append(allGroups, g.Groups...)
+		result = append(result, cf.Groups...)
 	}
 
-	if errGroup.Err() != nil {
-		return nil, errGroup.Err()
-	}
-
-	return allGroups, checkOverflow(overflowMap, "config")
+	return result, nil
 }
 
 func checkOverflow(m map[string]any, ctx string) error {
