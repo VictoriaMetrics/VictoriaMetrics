@@ -211,7 +211,31 @@ Timeout for the requests, passed as a string
 `false`
             </td>
             <td>
-Allows disabling TLS verification of the remote certificate.
+Verify TLS certificate. If `False`, it will not verify the TLS certificate. 
+If `True`, it will verify the certificate using the system's CA store. 
+If a path to a CA bundle file (like `ca.crt`), it will verify the certificate using the provided CA bundle.
+            </td>
+        </tr>
+        <tr>
+            <td>
+`tls_cert_file`
+            </td>
+            <td>
+`path/to/cert.crt`
+            </td>
+            <td>
+Path to a file with the client certificate, i.e. `client.crt`. Available since [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163).
+            </td>
+        </tr>
+        <tr>
+            <td>
+`tls_key_file`
+            </td>
+            <td>
+`path/to/key.crt`
+            </td>
+            <td>
+Path to a file with the client certificate key, i.e. `client.key`. Available since [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163).
             </td>
         </tr>
         <tr>
@@ -288,6 +312,50 @@ reader:
   query_from_last_seen_timestamp: True  # false by default
   latency_offset: '1ms'
 ```
+
+<!-- ### mTLS protection
+
+Starting from [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163), `vmanomaly` supports [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) requests in its components, like [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer), and [Monitoring/Push](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters) to query from and write to [VictoriaMetrics Enterprise, configured in the same mode](https://docs.victoriametrics.com/#mtls-protection).
+
+Please see the description of next arguments in a [config](#config-parameters):
+- `verify_tls` (if string, acts similar to `-mtlsCAFile` command line arg of VictoriaMetrics).
+- `tls_cert_file` (if given, acts similar to `-tlsCertFile` command line arg of VictoriaMetrics).
+- `tls_key_file` (if given, acts similar to `-tlsKeyFile` command line arg of VictoriaMetrics). -->
+
+
+### mTLS protection
+
+As of [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163), `vmanomaly` supports [mutual TLS (mTLS)](https://en.wikipedia.org/wiki/Mutual_authentication) for secure communication across its components, including [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer), and [Monitoring/Push](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters). This allows for mutual authentication between the client and server when querying or writing data to [VictoriaMetrics Enterprise, configured for mTLS](https://docs.victoriametrics.com/#mtls-protection).
+
+mTLS ensures that both the client and server verify each other's identity using certificates, which enhances security by preventing unauthorized access. 
+
+To configure mTLS, the following parameters can be set in the [config](#config-parameters):
+- `verify_tls`: If set to a string, it functions like the `-mtlsCAFile` command-line argument of VictoriaMetrics, specifying the CA bundle to use. Set to `True` to use the system's default certificate store.
+- `tls_cert_file`: Specifies the path to the client certificate, analogous to the `-tlsCertFile` argument of VictoriaMetrics.
+- `tls_key_file`: Specifies the path to the client certificate key, similar to the `-tlsKeyFile` argument of VictoriaMetrics.
+
+These options allow you to securely interact with mTLS-enabled VictoriaMetrics endpoints.
+
+Example configuration to enable mTLS with custom certificates:
+
+```yaml
+reader:
+  class: "vm"
+  datasource_url: "https://your-victoriametrics-instance-with-mtls"
+  # tenant_id: "0:0" uncomment and set for cluster version
+  queries:
+    vm_blocks_example:
+      expr: 'avg(rate(vm_blocks[5m]))'
+      step: 30s
+  sampling_period: 30s
+  verify_tls: "path/to/ca.crt"  # path to CA bundle for TLS verification
+  tls_cert_file: "path/to/client.crt"  # path to the client certificate
+  tls_key_file:  "path/to/client.key"  # path to the client certificate key
+  # additional reader parameters ...
+
+# other config sections, like models, schedulers, writer, ...
+```
+
 
 ### Healthcheck metrics
 

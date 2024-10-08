@@ -185,16 +185,37 @@ Timeout for the requests, passed as a string
         </tr>
         <tr>
             <td>
-
 `verify_tls`
             </td>
             <td>
-
 `false`
             </td>
             <td>
-
-Allows disabling TLS verification of the remote certificate.
+Verify TLS certificate. If `False`, it will not verify the TLS certificate. 
+If `True`, it will verify the certificate using the system's CA store. 
+If a path to a CA bundle file (like `ca.crt`), it will verify the certificate using the provided CA bundle.
+            </td>
+        </tr>
+        <tr>
+            <td>
+`tls_cert_file`
+            </td>
+            <td>
+`path/to/cert.crt`
+            </td>
+            <td>
+Path to a file with the client certificate, i.e. `client.crt`. Available since [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163).
+            </td>
+        </tr>
+        <tr>
+            <td>
+`tls_key_file`
+            </td>
+            <td>
+`path/to/key.crt`
+            </td>
+            <td>
+Path to a file with the client certificate key, i.e. `client.key`. Available since [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163).
             </td>
         </tr>
         <tr>
@@ -271,6 +292,13 @@ Please note the different behaviors depending on the `tenant_id` value:
     Either adjust the query in the reader to avoid multi-tenancy labels 
     or ensure that reserved key `vm_account_id` is not explicitly set for single-tenant environments.
     ```
+
+### mTLS protection
+
+Starting from [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163), `vmanomaly` components such as [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) support [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) to ensure secure communication with [VictoriaMetrics Enterprise, configured with mTLS](https://docs.victoriametrics.com/#mtls-protection).
+
+For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_cert_file`, and `tls_key_file`, please refer to the [mTLS protection section](https://docs.victoriametrics.com/anomaly-detection/components/reader/#mtls-protection) in the [Reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) documentation. The configuration principles apply consistently across all these `vmanomaly` components.
+
 
 ### Healthcheck metrics
 
