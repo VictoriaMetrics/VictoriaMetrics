@@ -77,6 +77,16 @@ vmcluster-windows-amd64: \
 	vmselect-windows-amd64 \
 	vmstorage-windows-amd64
 
+vmcluster-darwin-amd64: \
+	vminsert-darwin-amd64 \
+	vmselect-darwin-amd64 \
+	vmstorage-darwin-amd64
+
+vmcluster-darwin-arm64: \
+	vminsert-darwin-arm64 \
+	vmselect-darwin-arm64 \
+	vmstorage-darwin-arm64
+
 crossbuild: vmcluster-crossbuild
 
 vmcluster-crossbuild:
@@ -113,7 +123,9 @@ release-vmcluster: \
 	release-vmcluster-linux-arm64 \
 	release-vmcluster-freebsd-amd64 \
 	release-vmcluster-openbsd-amd64 \
-	release-vmcluster-windows-amd64
+	release-vmcluster-windows-amd64 \
+	release-vmcluster-darwin-amd64 \
+	release-vmcluster-darwin-arm64
 
 release-vmcluster-linux-amd64:
 	GOOS=linux GOARCH=amd64 $(MAKE) release-vmcluster-goos-goarch
@@ -129,6 +141,12 @@ release-vmcluster-openbsd-amd64:
 
 release-vmcluster-windows-amd64:
 	GOARCH=amd64 $(MAKE) release-vmcluster-windows-goarch
+
+release-vmcluster-darwin-amd64:
+	GOOS=darwin GOARCH=amd64 $(MAKE) release-vmcluster-goos-goarch
+
+release-vmcluster-darwin-arm64:
+	 GOOS=darwin GOARCH=arm64 $(MAKE) release-vmcluster-goos-goarch
 
 release-vmcluster-goos-goarch: \
 	vminsert-$(GOOS)-$(GOARCH)-prod \
