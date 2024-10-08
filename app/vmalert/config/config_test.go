@@ -9,11 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"gopkg.in/yaml.v2"
 )
 
 func TestMain(m *testing.M) {
@@ -44,17 +43,55 @@ groups:
       - record: conns
         expr: max(vm_tcplistener_conns)`))
 	})
+	mux.HandleFunc("/good-multi-doc", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(`
+groups:
+  - name: foo
+    rules:
+      - record: conns
+        expr: max(vm_tcplistener_conns)
+---
+groups:
+  - name: bar
+    rules:
+      - record: conns
+        expr: max(vm_tcplistener_conns)`))
+	})
+	mux.HandleFunc("/bad-multi-doc", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(`
+bad_field:
+  - name: foo
+    rules:
+      - record: conns
+        expr: max(vm_tcplistener_conns)
+---
+groups:
+  - name: bar
+    rules:
+      - record: conns
+        expr: max(vm_tcplistener_conns)`))
+	})
 
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	if _, err := Parse([]string{srv.URL + "/good-alert", srv.URL + "/good-rr"}, notifier.ValidateTemplates, true); err != nil {
-		t.Fatalf("error parsing URLs %s", err)
+	f := func(urls []string, expErr bool) {
+		for i, u := range urls {
+			urls[i] = srv.URL + u
+		}
+		_, err := Parse(urls, notifier.ValidateTemplates, true)
+		if err != nil && !expErr {
+			t.Fatalf("error parsing URLs %s", err)
+		}
+		if err == nil && expErr {
+			t.Fatalf("expecting error parsing URLs but got none")
+		}
 	}
 
-	if _, err := Parse([]string{srv.URL + "/bad"}, notifier.ValidateTemplates, true); err == nil {
-		t.Fatalf("expected parsing error: %s", err)
-	}
+	f([]string{"/good-alert", "/good-rr", "/good-multi-doc"}, false)
+	f([]string{"/bad"}, true)
+	f([]string{"/bad-multi-doc"}, true)
+	f([]string{"/good-alert", "/bad"}, true)
 }
 
 func TestParse_Success(t *testing.T) {
@@ -86,6 +123,8 @@ func TestParse_Failure(t *testing.T) {
 	f([]string{"testdata/dir/rules4-bad.rules"}, "either `record` or `alert` must be set")
 	f([]string{"testdata/rules/rules1-bad.rules"}, "bad graphite expr")
 	f([]string{"testdata/dir/rules6-bad.rules"}, "missing ':' in header")
+	f([]string{"testdata/rules/rules-multi-doc-bad.rules"}, "unknown fields")
+	f([]string{"testdata/rules/rules-multi-doc-duplicates-bad.rules"}, "duplicate")
 	f([]string{"http://unreachable-url"}, "failed to")
 }
 
