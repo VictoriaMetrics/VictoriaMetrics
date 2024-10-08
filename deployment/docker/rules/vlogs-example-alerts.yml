@@ -1,0 +1,12 @@
+groups:
+  - name: TestGroup
+    interval: 1m
+    rules:
+      - record: logCount
+        expr: '_time: 1m | stats by (path) count () as total'
+        annotations:
+          description: "path {{$labels.path}} generated {{$value}} logs in the last 1 minute"
+      - alert: tooManyLogs
+        expr: '_time: 1m | stats by (path) count () as total | filter total:>50'
+        annotations:
+          description: "path {{$labels.path}} generated more than 50 log entries in the last 1 minute: {{$value}}"

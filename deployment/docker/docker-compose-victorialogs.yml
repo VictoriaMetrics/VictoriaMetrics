@@ -26,7 +26,7 @@ services:
   # and forwards them to VictoriaLogs
   fluentbit:
     container_name: fluentbit
-    image: cr.fluentbit.io/fluent/fluent-bit:2.1.4
+    image: fluent/fluent-bit:2.1.4
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
@@ -40,7 +40,7 @@ services:
   #  storing logs and serving read queries.
   victorialogs:
     container_name: victorialogs
-    image: docker.io/victoriametrics/victoria-logs:v0.37.0-victorialogs
+    image: victoriametrics/victoria-logs:v0.37.0-victorialogs
     command:
       - "--storageDataPath=/vlogs"
       - "--httpListenAddr=:9428"
@@ -72,26 +72,24 @@ services:
   # vmalert executes alerting and recording rules
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.105.0
+    image: victoriametrics/vmalert:heads-vmalert-support-vlog-ds-0-gdd5f198-scratch
     depends_on:
+      - "victorialogs"
       - "victoriametrics"
       - "alertmanager"
     ports:
       - 8880:8880
     volumes:
-      - ./alerts.yml:/etc/alerts/alerts.yml
-      - ./alerts-health.yml:/etc/alerts/alerts-health.yml
-      - ./alerts-vlogs.yml:/etc/alerts/alerts-vlogs.yml
-      - ./alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
+      - ./rules/vlogs-example-alerts.yml:/etc/alerts/vlogs.yml
     command:
-      - "--datasource.url=http://victoriametrics:8428/"
+      - "--datasource.url=http://victorialogs:9428/"
+      - "-rule.defaultRuleType=vlogs"
       - "--remoteRead.url=http://victoriametrics:8428/"
       - "--remoteWrite.url=http://victoriametrics:8428/"
       - "--notifier.url=http://alertmanager:9093/"
       - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana
       - "--external.url=http://127.0.0.1:3000" #grafana outside container
-      - '--external.alert.source=explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
     networks:
       - vm_net
     restart: always

@@ -42,11 +42,13 @@ type QuerierBuilder interface {
 
 // QuerierParams params for Querier.
 type QuerierParams struct {
-	DataSourceType     string
-	EvaluationInterval time.Duration
-	QueryParams        url.Values
-	Headers            map[string]string
-	Debug              bool
+	DataSourceType string
+	// ApplyIntervalAsTimeFilter is only valid for vlogs datasource
+	ApplyIntervalAsTimeFilter bool
+	EvaluationInterval        time.Duration
+	QueryParams               url.Values
+	Headers                   map[string]string
+	Debug                     bool
 }
 
 // Metric is the basic entity which should be return by datasource
