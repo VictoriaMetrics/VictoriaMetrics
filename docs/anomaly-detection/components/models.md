@@ -17,7 +17,7 @@ This section covers the `Models` component of VictoriaMetrics Anomaly Detection 
 - You can also integrate a **custom model**—see the [custom model guide](#custom-model-guide) for more details.
 - Models have **different types and properties**—refer to the [model types section](#model-types) for more information.
 
-> **Note:** Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), models can be dumped to disk instead of being stored in RAM. This option **slightly reduces inference speed but significantly decreases RAM usage**, particularly useful for larger setups. For more details, see the [relevant FAQ section](https://docs.victoriametrics.com/anomaly-detection/faq/#resource-consumption-of-vmanomaly).
+> **Note:** Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), models can be dumped to disk instead of being stored in RAM. This option **slightly reduces inference speed but significantly decreases RAM usage**, particularly useful for larger setups. For more details, see the [relevant FAQ section](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
 
 > **Note:** Starting from [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100) model section in config supports multiple models via aliasing. <br>Also, `vmanomaly` expects model section to be named `models`. Using old (flat) format with `model` key is deprecated and will be removed in future versions. Having `model` and `models` sections simultaneously in a config will result in only `models` being used:
 
@@ -366,6 +366,7 @@ Infer stage
 - The ability to distribute the data load evenly between the initial `fit` and subsequent `infer` calls. For example, an online model can be fit on 10 `1m` datapoints during the initial `fit` stage once per month and then be gradually updated on the same 10 `1m` datapoints during each `infer` call each 10 minutes.
 - The model can adapt to new data patterns (gradually updating itself during each `infer` call) without needing to wait for the next `fit` call and one big re-training.
 - Slightly faster training/updating times compared to similar offline models.
+- Please refer to additional benefits for data-intensive setups in correspondent [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq#online-models) section.
 
 **Limitations**:
 
@@ -446,7 +447,7 @@ models:
 > **Note**: There are some expected limitations of Autotune mode:
 > - It can't be made on your [custom model](#custom-model-guide).
 > - It can't be applied to itself (like `tuned_class_name: 'model.auto.AutoTunedModel'`)
-> - `AutoTunedModel` can't be used on [rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-models) like [`RollingQuantile`](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-quantile) in combination with [on-disk model storage mode](https://docs.victoriametrics.com/anomaly-detection/faq/#resource-consumption-of-vmanomaly), as the rolling models exists only during `infer` calls and aren't persisted neither in RAM, nor on disk.
+> - `AutoTunedModel` can't be used on [rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-models) like [`RollingQuantile`](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-quantile) in combination with [on-disk model storage mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode), as the rolling models exists only during `infer` calls and aren't persisted neither in RAM, nor on disk.
 
 
 ### [Prophet](https://facebook.github.io/prophet/)
@@ -961,7 +962,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.16.1
+docker pull victoriametrics/vmanomaly:v1.16.3
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -975,7 +976,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.16.1 /config.yaml \
+victoriametrics/vmanomaly:v1.16.3 /config.yaml \
 --licenseFile=/license
 ```
 
