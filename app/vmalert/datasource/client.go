@@ -20,18 +20,27 @@ type datasourceType string
 const (
 	datasourcePrometheus datasourceType = "prometheus"
 	datasourceGraphite   datasourceType = "graphite"
+	datasourceVLogs      datasourceType = "vlogs"
 )
 
 func toDatasourceType(s string) datasourceType {
-	if s == string(datasourceGraphite) {
+	switch s {
+	case string(datasourcePrometheus):
+		return datasourcePrometheus
+	case string(datasourceGraphite):
 		return datasourceGraphite
+	case string(datasourceVLogs):
+		return datasourceVLogs
+	default:
+		logger.Panicf("BUG: unknown datasource type %q", s)
 	}
-	return datasourcePrometheus
+	return ""
 }
 
-// VMStorage represents vmstorage entity with ability to read and write metrics
-// WARN: when adding a new field, remember to update Clone() method.
-type VMStorage struct {
+// Client is a datasource entity for reading data,
+// supported clients are enumerated in datasourceType.
+// WARN: when adding a new field, remember to check if Clone() method needs to be updated.
+type Client struct {
 	c                *http.Client
 	authCfg          *promauth.Config
 	datasourceURL    string
@@ -56,22 +65,17 @@ type keyValue struct {
 	value string
 }
 
-// Clone makes clone of VMStorage, shares http client.
-func (s *VMStorage) Clone() *VMStorage {
-	ns := &VMStorage{
+// Clone clones shared http client and other configuration to the new client.
+func (s *Client) Clone() *Client {
+	ns := &Client{
 		c:                s.c,
 		authCfg:          s.authCfg,
 		datasourceURL:    s.datasourceURL,
 		appendTypePrefix: s.appendTypePrefix,
 		queryStep:        s.queryStep,
 
-		dataSourceType:     s.dataSourceType,
-		evaluationInterval: s.evaluationInterval,
-
 		// init map so it can be populated below
 		extraParams: url.Values{},
-
-		debug: s.debug,
 	}
 	if len(s.extraHeaders) > 0 {
 		ns.extraHeaders = make([]keyValue, len(s.extraHeaders))
@@ -85,8 +89,10 @@ func (s *VMStorage) Clone() *VMStorage {
 }
 
 // ApplyParams - changes given querier params.
-func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
-	s.dataSourceType = toDatasourceType(params.DataSourceType)
+func (s *Client) ApplyParams(params QuerierParams) *Client {
+	if params.DataSourceType != "" {
+		s.dataSourceType = toDatasourceType(params.DataSourceType)
+	}
 	s.evaluationInterval = params.EvaluationInterval
 	if params.QueryParams != nil {
 		if s.extraParams == nil {
@@ -116,25 +122,24 @@ func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 }
 
 // BuildWithParams - implements interface.
-func (s *VMStorage) BuildWithParams(params QuerierParams) Querier {
+func (s *Client) BuildWithParams(params QuerierParams) Querier {
 	return s.Clone().ApplyParams(params)
 }
 
-// NewVMStorage is a constructor for VMStorage
-func NewVMStorage(baseURL string, authCfg *promauth.Config, queryStep time.Duration, appendTypePrefix bool, c *http.Client) *VMStorage {
-	return &VMStorage{
+// NewPrometheusClient returns a new prometheus datasource client.
+func NewPrometheusClient(baseURL string, authCfg *promauth.Config, appendTypePrefix bool, c *http.Client) *Client {
+	return &Client{
 		c:                c,
 		authCfg:          authCfg,
 		datasourceURL:    strings.TrimSuffix(baseURL, "/"),
 		appendTypePrefix: appendTypePrefix,
-		queryStep:        queryStep,
 		dataSourceType:   datasourcePrometheus,
 		extraParams:      url.Values{},
 	}
 }
 
 // Query executes the given query and returns parsed response
-func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) (Result, *http.Request, error) {
+func (s *Client) Query(ctx context.Context, query string, ts time.Time) (Result, *http.Request, error) {
 	req, err := s.newQueryRequest(ctx, query, ts)
 	if err != nil {
 		return Result{}, nil, err
@@ -158,9 +163,16 @@ func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) (Resu
 	}
 
 	// Process the received response.
-	parseFn := parsePrometheusResponse
-	if s.dataSourceType != datasourcePrometheus {
+	var parseFn func(req *http.Request, resp *http.Response) (Result, error)
+	switch s.dataSourceType {
+	case datasourcePrometheus:
+		parseFn = parsePrometheusResponse
+	case datasourceGraphite:
 		parseFn = parseGraphiteResponse
+	case datasourceVLogs:
+		parseFn = parseVLogsResponse
+	default:
+		logger.Panicf("BUG: unsupported datasource type %q to parse query response", s.dataSourceType)
 	}
 	result, err := parseFn(req, resp)
 	_ = resp.Body.Close()
@@ -170,8 +182,8 @@ func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) (Resu
 // QueryRange executes the given query on the given time range.
 // For Prometheus type see https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
 // Graphite type isn't supported.
-func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end time.Time) (res Result, err error) {
-	if s.dataSourceType != datasourcePrometheus {
+func (s *Client) QueryRange(ctx context.Context, query string, start, end time.Time) (res Result, err error) {
+	if s.dataSourceType == datasourceGraphite {
 		return res, fmt.Errorf("%q is not supported for QueryRange", s.dataSourceType)
 	}
 	if start.IsZero() {
@@ -203,12 +215,21 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 	}
 
 	// Process the received response.
-	res, err = parsePrometheusResponse(req, resp)
+	var parseFn func(req *http.Request, resp *http.Response) (Result, error)
+	switch s.dataSourceType {
+	case datasourcePrometheus:
+		parseFn = parsePrometheusResponse
+	case datasourceVLogs:
+		parseFn = parseVLogsResponse
+	default:
+		logger.Panicf("BUG: unsupported datasource type %q to parse query range response", s.dataSourceType)
+	}
+	res, err = parseFn(req, resp)
 	_ = resp.Body.Close()
 	return res, err
 }
 
-func (s *VMStorage) do(req *http.Request) (*http.Response, error) {
+func (s *Client) do(req *http.Request) (*http.Response, error) {
 	ru := req.URL.Redacted()
 	if *showDatasourceURL {
 		ru = req.URL.String()
@@ -228,32 +249,41 @@ func (s *VMStorage) do(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-func (s *VMStorage) newQueryRangeRequest(ctx context.Context, query string, start, end time.Time) (*http.Request, error) {
+func (s *Client) newQueryRangeRequest(ctx context.Context, query string, start, end time.Time) (*http.Request, error) {
 	req, err := s.newRequest(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create query_range request to datasource %q: %w", s.datasourceURL, err)
 	}
-	s.setPrometheusRangeReqParams(req, query, start, end)
+	switch s.dataSourceType {
+	case datasourcePrometheus:
+		s.setPrometheusRangeReqParams(req, query, start, end)
+	case datasourceVLogs:
+		s.setVLogsRangeReqParams(req, query, start, end)
+	default:
+		logger.Panicf("BUG: unsupported datasource type %q to create range query request", s.dataSourceType)
+	}
 	return req, nil
 }
 
-func (s *VMStorage) newQueryRequest(ctx context.Context, query string, ts time.Time) (*http.Request, error) {
+func (s *Client) newQueryRequest(ctx context.Context, query string, ts time.Time) (*http.Request, error) {
 	req, err := s.newRequest(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create query request to datasource %q: %w", s.datasourceURL, err)
 	}
 	switch s.dataSourceType {
-	case "", datasourcePrometheus:
+	case datasourcePrometheus:
 		s.setPrometheusInstantReqParams(req, query, ts)
 	case datasourceGraphite:
 		s.setGraphiteReqParams(req, query)
+	case datasourceVLogs:
+		s.setVLogsInstantReqParams(req, query, ts)
 	default:
-		logger.Panicf("BUG: engine not found: %q", s.dataSourceType)
+		logger.Panicf("BUG: unsupported datasource type %q to create query request", s.dataSourceType)
 	}
 	return req, nil
 }
 
-func (s *VMStorage) newRequest(ctx context.Context) (*http.Request, error) {
+func (s *Client) newRequest(ctx context.Context) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.datasourceURL, nil)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", s.datasourceURL, err)
@@ -269,4 +299,19 @@ func (s *VMStorage) newRequest(ctx context.Context) (*http.Request, error) {
 		req.Header.Set(h.key, h.value)
 	}
 	return req, nil
+}
+
+// setReqParams adds query and other extra params for the request.
+func (s *Client) setReqParams(r *http.Request, query string) {
+	q := r.URL.Query()
+	for k, vs := range s.extraParams {
+		if q.Has(k) { // extraParams are prior to params in URL
+			q.Del(k)
+		}
+		for _, v := range vs {
+			q.Add(k, v)
+		}
+	}
+	q.Set("query", query)
+	r.URL.RawQuery = q.Encode()
 }

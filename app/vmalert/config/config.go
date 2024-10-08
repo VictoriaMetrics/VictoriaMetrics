@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"crypto/md5"
+	"flag"
 	"fmt"
 	"hash/fnv"
 	"io"
@@ -15,6 +16,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"gopkg.in/yaml.v2"
+)
+
+var (
+	defaultRuleType = flag.String("rule.defaultRuleType", "prometheus", `Default type for rule expressions, can be overridden by type parameter inside the rule group. Supported values: "graphite", "prometheus" and "vlogs", default is "prometheus".`)
 )
 
 // Group contains list of Rules grouped into
@@ -59,11 +64,9 @@ func (g *Group) UnmarshalYAML(unmarshal func(any) error) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal group configuration for checksum: %w", err)
 	}
-	// change default value to prometheus datasource.
 	if g.Type.Get() == "" {
-		g.Type.Set(NewPrometheusType())
+		g.Type = NewRawType(*defaultRuleType)
 	}
-
 	h := md5.New()
 	h.Write(b)
 	g.Checksum = fmt.Sprintf("%x", h.Sum(nil))

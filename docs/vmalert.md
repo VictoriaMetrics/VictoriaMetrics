@@ -10,7 +10,7 @@ aliases:
 ---
 `vmalert` executes a list of the given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
 or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
-rules against configured `-datasource.url` compatible with Prometheus HTTP API. For sending alerting notifications
+rules against configured `-datasource.url`. For sending alerting notifications
 `vmalert` relies on [Alertmanager](https://github.com/prometheus/alertmanager) configured via `-notifier.url` flag.
 Recording rules results are persisted via [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
 protocol and require `-remoteWrite.url` to be configured.
@@ -31,9 +31,8 @@ please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriam
 
 ## Features
 
-* Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) TSDB;
-* VictoriaMetrics [MetricsQL](https://docs.victoriametrics.com/metricsql/)
-  support and expressions validation;
+* Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) TSDB and [MetricsQL](https://docs.victoriametrics.com/metricsql/) expressions validation;
+* Integration with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) TSDB and [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) expressions validation. See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/);
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
   support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager) starting from [Alertmanager v0.16.0-alpha](https://github.com/prometheus/alertmanager/releases/tag/v0.16.0-alpha.0);
@@ -458,7 +457,7 @@ In this example, `-external.alert.source` will lead to Grafana's Explore page wi
 and time range will be selected starting from `"from":"{{ .ActiveAt.UnixMilli }}"` when alert became active.
 
 In addition to `source` link, some extra links could be added to alert's [annotations](https://docs.victoriametrics.com/vmalert/#alerting-rules)
-field. See [how we use them](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/839596c00df123c639d1244b28ee8137dfc9609c/deployment/docker/alerts-cluster.yml#L43) 
+field. See [how we use them](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/839596c00df123c639d1244b28ee8137dfc9609c/deployment/docker/rules/alerts-cluster.yml#L43)
 to link alerting rule and the corresponding panel on Grafana dashboard.
 
 ### Multitenancy
@@ -727,6 +726,10 @@ if the corresponding group or rule contains `type: "graphite"` config option. It
 implements [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) for `format=json`.
 When using vmalert with both `graphite` and `prometheus` rules configured against cluster version of VM do not forget
 to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL prefix automatically based on the query type.
+
+## VictoriaLogs
+
+vmalert supports using [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) as the datasource and writing alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
 
 ## Rules backfilling
 
@@ -1036,6 +1039,8 @@ The shortlist of configuration flags is the following:
      Interval for checking for changes in '-rule' or '-notifier.config' files. By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes.
   -datasource.appendTypePrefix
      Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.
+  -datasource.applyIntervalAsTimeFilter
+     Only work for victoriaLogs rules. Whether to apply the evaluation interval as the time filter for the rules. (default false)
   -datasource.basicAuth.password string
      Optional basic auth password for -datasource.url
   -datasource.basicAuth.passwordFile string
@@ -1323,7 +1328,7 @@ The shortlist of configuration flags is the following:
   -remoteRead.bearerTokenFile string
      Optional path to bearer token file to use for -remoteRead.url.
   -remoteRead.disablePathAppend
-     Whether to disable automatic appending of '/api/v1/query' path to the configured -datasource.url and -remoteRead.url
+     Whether to disable automatic appending of '/api/v1/query' or '/select/logsql/stats_query' path to the configured -datasource.url and -remoteRead.url
   -remoteRead.headers string
      Optional HTTP headers to send with each request to the corresponding -remoteRead.url. For example, -remoteRead.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteRead.url. Multiple headers must be delimited by '^^': -remoteRead.headers='header1:value1^^header2:value2'
   -remoteRead.idleConnTimeout duration
@@ -1441,6 +1446,8 @@ The shortlist of configuration flags is the following:
      all files with prefix rule_ in folder dir.
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -rule.defaultRuleType string
+     Default type for rule expressions, can be overridden by type parameter inside the rule group. Supported values: "graphite", "prometheus" and "vlogs". (default: "prometheus")
   -rule.evalDelay time
      Adjustment of the time parameter for rule evaluation requests to compensate intentional data delay from the datasource.Normally, should be equal to `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect). (default 30s)
   -rule.maxResolveDuration duration

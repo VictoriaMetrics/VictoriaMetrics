@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphiteql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
@@ -24,6 +25,12 @@ func NewPrometheusType() Type {
 func NewGraphiteType() Type {
 	return Type{
 		Name: "graphite",
+	}
+}
+
+func NewVLogsType() Type {
+	return Type{
+		Name: "vlogs",
 	}
 }
 
@@ -62,6 +69,10 @@ func (t *Type) ValidateExpr(expr string) error {
 		if _, err := metricsql.Parse(expr); err != nil {
 			return fmt.Errorf("bad prometheus expr: %q, err: %w", expr, err)
 		}
+	case "vlogs":
+		if _, err := logstorage.ParseStatsQuery(expr); err != nil {
+			return fmt.Errorf("bad LogsQL expr: %q, err: %w", expr, err)
+		}
 	default:
 		return fmt.Errorf("unknown datasource type=%q", t.Name)
 	}
@@ -74,13 +85,10 @@ func (t *Type) UnmarshalYAML(unmarshal func(any) error) error {
 	if err := unmarshal(&s); err != nil {
 		return err
 	}
-	if s == "" {
-		s = "prometheus"
-	}
 	switch s {
-	case "graphite", "prometheus":
+	case "graphite", "prometheus", "vlogs":
 	default:
-		return fmt.Errorf("unknown datasource type=%q, want %q or %q", s, "prometheus", "graphite")
+		return fmt.Errorf("unknown datasource type=%q, want prometheus, graphite or vlogs", s)
 	}
 	t.Name = s
 	return nil
