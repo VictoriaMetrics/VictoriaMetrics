@@ -484,6 +484,11 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 		fields[i] = f.name
 	}
 
+	resultNames := make([]string, len(ps.funcs))
+	for i, f := range ps.funcs {
+		resultNames[i] = f.resultName
+	}
+
 	// verify that all the pipes after the idx do not add new fields
 	for i := idx + 1; i < len(pipes); i++ {
 		p := pipes[i]
@@ -492,11 +497,20 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 			// These pipes do not change the set of fields.
 		case *pipeMath:
 			// Allow pipeMath, since it adds additional metrics to the given set of fields.
+			for _, f := range t.entries {
+				resultNames = append(resultNames, f.resultField)
+			}
 		case *pipeFields:
 			// `| fields ...` pipe must contain all the by(...) fields, otherwise it breaks output.
 			for _, f := range fields {
 				if !slices.Contains(t.fields, f) {
 					return nil, fmt.Errorf("missing %q field at %q pipe in the query [%s]", f, p, q)
+				}
+			}
+			// field in `| fields ...` pipe must exist, otherwise it breaks output.
+			for _, f := range t.fields {
+				if !slices.Contains(fields, f) && !slices.Contains(resultNames, f) {
+					return nil, fmt.Errorf("unknown %q field at %q pipe in the query [%s]", f, p, q)
 				}
 			}
 		case *pipeDelete:
@@ -518,6 +532,9 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 			for i, f := range t.srcFields {
 				if n := slices.Index(fields, f); n >= 0 {
 					fields[n] = t.dstFields[i]
+				}
+				if n := slices.Index(resultNames, f); n >= 0 {
+					resultNames[n] = t.dstFields[i]
 				}
 			}
 		default:
@@ -708,9 +725,20 @@ func ParseQuery(s string) (*Query, error) {
 	return ParseQueryAtTimestamp(s, timestamp)
 }
 
+// ParseStatsQuery parses s with stats API check.
+func ParseStatsQuery(s string) (*Query, error) {
+	timestamp := time.Now().UnixNano()
+	query, err := ParseQueryAtTimestamp(s, timestamp)
+	if err != nil {
+		return nil, err
+	}
+	_, err = query.GetStatsByFields()
+	return query, err
+}
+
 // ParseQueryAtTimestamp parses s in the context of the given timestamp.
 //
-// E.g. _time:duration filters are ajusted according to the provided timestamp as _time:[timestamp-duration, duration].
+// E.g. _time:duration filters are adjusted according to the provided timestamp as _time:[timestamp-duration, duration].
 func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 	lex := newLexerAtTimestamp(s, timestamp)
 

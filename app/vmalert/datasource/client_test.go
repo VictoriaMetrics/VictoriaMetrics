@@ -86,7 +86,7 @@ func TestVMInstantQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
-	s := NewVMStorage(srv.URL, authCfg, 0, false, srv.Client())
+	s := NewPrometheusClient(srv.URL, authCfg, false, srv.Client())
 
 	p := datasourcePrometheus
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(p), EvaluationInterval: 15 * time.Second})
@@ -225,7 +225,7 @@ func TestVMInstantQueryWithRetry(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	s := NewVMStorage(srv.URL, nil, 0, false, srv.Client())
+	s := NewPrometheusClient(srv.URL, nil, false, srv.Client())
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourcePrometheus)})
 
 	expErr := func(err string) {
@@ -334,7 +334,7 @@ func TestVMRangeQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
-	s := NewVMStorage(srv.URL, authCfg, *queryStep, false, srv.Client())
+	s := NewPrometheusClient(srv.URL, authCfg, false, srv.Client())
 
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourcePrometheus), EvaluationInterval: 15 * time.Second})
 
@@ -373,7 +373,7 @@ func TestRequestParams(t *testing.T) {
 	query := "up"
 	timestamp := time.Date(2001, 2, 3, 4, 5, 6, 0, time.UTC)
 
-	f := func(isQueryRange bool, vm *VMStorage, checkFn func(t *testing.T, r *http.Request)) {
+	f := func(isQueryRange bool, vm *Client, checkFn func(t *testing.T, r *http.Request)) {
 		t.Helper()
 
 		req, err := vm.newRequest(ctx)
@@ -399,19 +399,19 @@ func TestRequestParams(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	storage := VMStorage{
+	storage := Client{
 		extraParams: url.Values{"round_digits": {"10"}},
 	}
 
 	// prometheus path
-	f(false, &VMStorage{
+	f(false, &Client{
 		dataSourceType: datasourcePrometheus,
 	}, func(t *testing.T, r *http.Request) {
 		checkEqualString(t, "/api/v1/query", r.URL.Path)
 	})
 
 	// prometheus prefix
-	f(false, &VMStorage{
+	f(false, &Client{
 		dataSourceType:   datasourcePrometheus,
 		appendTypePrefix: true,
 	}, func(t *testing.T, r *http.Request) {
@@ -419,14 +419,14 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	// prometheus range path
-	f(true, &VMStorage{
+	f(true, &Client{
 		dataSourceType: datasourcePrometheus,
 	}, func(t *testing.T, r *http.Request) {
 		checkEqualString(t, "/api/v1/query_range", r.URL.Path)
 	})
 
 	// prometheus range prefix
-	f(true, &VMStorage{
+	f(true, &Client{
 		dataSourceType:   datasourcePrometheus,
 		appendTypePrefix: true,
 	}, func(t *testing.T, r *http.Request) {
@@ -434,14 +434,14 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	// graphite path
-	f(false, &VMStorage{
+	f(false, &Client{
 		dataSourceType: datasourceGraphite,
 	}, func(t *testing.T, r *http.Request) {
 		checkEqualString(t, graphitePath, r.URL.Path)
 	})
 
 	// graphite prefix
-	f(false, &VMStorage{
+	f(false, &Client{
 		dataSourceType:   datasourceGraphite,
 		appendTypePrefix: true,
 	}, func(t *testing.T, r *http.Request) {
@@ -449,20 +449,20 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	// default params
-	f(false, &VMStorage{}, func(t *testing.T, r *http.Request) {
+	f(false, &Client{}, func(t *testing.T, r *http.Request) {
 		exp := url.Values{"query": {query}, "time": {timestamp.Format(time.RFC3339)}}
 		checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 	})
 
 	// default range params
-	f(true, &VMStorage{}, func(t *testing.T, r *http.Request) {
+	f(true, &Client{}, func(t *testing.T, r *http.Request) {
 		ts := timestamp.Format(time.RFC3339)
 		exp := url.Values{"query": {query}, "start": {ts}, "end": {ts}}
 		checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 	})
 
 	// basic auth
-	f(false, &VMStorage{
+	f(false, &Client{
 		authCfg: authCfg,
 	}, func(t *testing.T, r *http.Request) {
 		u, p, _ := r.BasicAuth()
@@ -471,7 +471,7 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	// basic auth range
-	f(true, &VMStorage{
+	f(true, &Client{
 		authCfg: authCfg,
 	}, func(t *testing.T, r *http.Request) {
 		u, p, _ := r.BasicAuth()
@@ -480,7 +480,7 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	// evaluation interval
-	f(false, &VMStorage{
+	f(false, &Client{
 		evaluationInterval: 15 * time.Second,
 	}, func(t *testing.T, r *http.Request) {
 		evalInterval := 15 * time.Second
@@ -489,7 +489,7 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	// step override
-	f(false, &VMStorage{
+	f(false, &Client{
 		queryStep: time.Minute,
 	}, func(t *testing.T, r *http.Request) {
 		exp := url.Values{
@@ -501,7 +501,7 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	//  step to seconds
-	f(false, &VMStorage{
+	f(false, &Client{
 		evaluationInterval: 3 * time.Hour,
 	}, func(t *testing.T, r *http.Request) {
 		evalInterval := 3 * time.Hour
@@ -510,7 +510,7 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	// prometheus extra params
-	f(false, &VMStorage{
+	f(false, &Client{
 		extraParams: url.Values{"round_digits": {"10"}},
 	}, func(t *testing.T, r *http.Request) {
 		exp := url.Values{"query": {query}, "round_digits": {"10"}, "time": {timestamp.Format(time.RFC3339)}}
@@ -518,7 +518,7 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	// prometheus extra params range
-	f(true, &VMStorage{
+	f(true, &Client{
 		extraParams: url.Values{
 			"nocache":      {"1"},
 			"max_lookback": {"1h"},
@@ -535,7 +535,7 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	// custom params overrides the original params
-	f(false, storage.Clone().ApplyParams(QuerierParams{
+	f(false, storage.CloneFields().ApplyParams(QuerierParams{
 		QueryParams: url.Values{"round_digits": {"2"}},
 	}), func(t *testing.T, r *http.Request) {
 		exp := url.Values{"query": {query}, "round_digits": {"2"}, "time": {timestamp.Format(time.RFC3339)}}
@@ -543,7 +543,7 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	// allow duplicates in query params
-	f(false, storage.Clone().ApplyParams(QuerierParams{
+	f(false, storage.CloneFields().ApplyParams(QuerierParams{
 		QueryParams: url.Values{"extra_labels": {"env=dev", "foo=bar"}},
 	}), func(t *testing.T, r *http.Request) {
 		exp := url.Values{"query": {query}, "round_digits": {"10"}, "extra_labels": {"env=dev", "foo=bar"}, "time": {timestamp.Format(time.RFC3339)}}
@@ -551,7 +551,7 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	// graphite extra params
-	f(false, &VMStorage{
+	f(false, &Client{
 		dataSourceType: datasourceGraphite,
 		extraParams: url.Values{
 			"nocache":      {"1"},
@@ -563,7 +563,7 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	// graphite extra params allows to override from
-	f(false, &VMStorage{
+	f(false, &Client{
 		dataSourceType: datasourceGraphite,
 		extraParams: url.Values{
 			"from": {"-10m"},
@@ -575,7 +575,7 @@ func TestRequestParams(t *testing.T) {
 }
 
 func TestHeaders(t *testing.T) {
-	f := func(vmFn func() *VMStorage, checkFn func(t *testing.T, r *http.Request)) {
+	f := func(vmFn func() *Client, checkFn func(t *testing.T, r *http.Request)) {
 		t.Helper()
 
 		vm := vmFn()
@@ -587,12 +587,12 @@ func TestHeaders(t *testing.T) {
 	}
 
 	// basic auth
-	f(func() *VMStorage {
+	f(func() *Client {
 		cfg, err := utils.AuthConfig(utils.WithBasicAuth("foo", "bar", ""))
 		if err != nil {
 			t.Fatalf("Error get auth config: %s", err)
 		}
-		return &VMStorage{authCfg: cfg}
+		return NewPrometheusClient("", cfg, false, nil)
 	}, func(t *testing.T, r *http.Request) {
 		u, p, _ := r.BasicAuth()
 		checkEqualString(t, "foo", u)
@@ -600,12 +600,12 @@ func TestHeaders(t *testing.T) {
 	})
 
 	// bearer auth
-	f(func() *VMStorage {
+	f(func() *Client {
 		cfg, err := utils.AuthConfig(utils.WithBearer("foo", ""))
 		if err != nil {
 			t.Fatalf("Error get auth config: %s", err)
 		}
-		return &VMStorage{authCfg: cfg}
+		return NewPrometheusClient("", cfg, false, nil)
 	}, func(t *testing.T, r *http.Request) {
 		reqToken := r.Header.Get("Authorization")
 		splitToken := strings.Split(reqToken, "Bearer ")
@@ -617,11 +617,13 @@ func TestHeaders(t *testing.T) {
 	})
 
 	// custom extraHeaders
-	f(func() *VMStorage {
-		return &VMStorage{extraHeaders: []keyValue{
+	f(func() *Client {
+		c := NewPrometheusClient("", nil, false, nil)
+		c.extraHeaders = []keyValue{
 			{key: "Foo", value: "bar"},
 			{key: "Baz", value: "qux"},
-		}}
+		}
+		return c
 	}, func(t *testing.T, r *http.Request) {
 		h1 := r.Header.Get("Foo")
 		checkEqualString(t, "bar", h1)
@@ -630,17 +632,16 @@ func TestHeaders(t *testing.T) {
 	})
 
 	// custom header overrides basic auth
-	f(func() *VMStorage {
+	f(func() *Client {
 		cfg, err := utils.AuthConfig(utils.WithBasicAuth("foo", "bar", ""))
 		if err != nil {
 			t.Fatalf("Error get auth config: %s", err)
 		}
-		return &VMStorage{
-			authCfg: cfg,
-			extraHeaders: []keyValue{
-				{key: "Authorization", value: "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="},
-			},
+		c := NewPrometheusClient("", cfg, false, nil)
+		c.extraHeaders = []keyValue{
+			{key: "Authorization", value: "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="},
 		}
+		return c
 	}, func(t *testing.T, r *http.Request) {
 		u, p, _ := r.BasicAuth()
 		checkEqualString(t, "Aladdin", u)

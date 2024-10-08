@@ -55,7 +55,6 @@ Examples:
 absolute path to all .tpl files in root.
  -rule.templates="dir/**/*.tpl". Includes all the .tpl files in "dir" subfolders recursively.
 `)
-
 	configCheckInterval = flag.Duration("configCheckInterval", 0, "Interval for checking for changes in '-rule' or '-notifier.config' files. "+
 		"By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes.")
 

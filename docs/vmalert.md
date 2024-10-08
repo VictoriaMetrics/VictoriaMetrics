@@ -32,8 +32,7 @@ please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriam
 ## Features
 
 * Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) TSDB;
-* VictoriaMetrics [MetricsQL](https://docs.victoriametrics.com/metricsql/)
-  support and expressions validation;
+* Integration with [Victorialogs](https://docs.victoriametrics.com/victorialogs/) TSDB;
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
   support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager) starting from [Alertmanager v0.16.0-alpha](https://github.com/prometheus/alertmanager/releases/tag/v0.16.0-alpha.0);
@@ -727,6 +726,10 @@ if the corresponding group or rule contains `type: "graphite"` config option. It
 implements [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) for `format=json`.
 When using vmalert with both `graphite` and `prometheus` rules configured against cluster version of VM do not forget
 to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL prefix automatically based on the query type.
+
+## VictoriaLogs
+
+
 
 ## Rules backfilling
 

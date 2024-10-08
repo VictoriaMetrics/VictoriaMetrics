@@ -218,7 +218,7 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result
 	return res, nil
 }
 
-func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string, timestamp time.Time) {
+func (s *Client) setPrometheusInstantReqParams(r *http.Request, query string, timestamp time.Time) {
 	if s.appendTypePrefix {
 		r.URL.Path += "/prometheus"
 	}
@@ -238,10 +238,10 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 		q.Set("step", fmt.Sprintf("%ds", int(s.queryStep.Seconds())))
 	}
 	r.URL.RawQuery = q.Encode()
-	s.setPrometheusReqParams(r, query)
+	s.setReqParams(r, query)
 }
 
-func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, start, end time.Time) {
+func (s *Client) setPrometheusRangeReqParams(r *http.Request, query string, start, end time.Time) {
 	if s.appendTypePrefix {
 		r.URL.Path += "/prometheus"
 	}
@@ -257,19 +257,5 @@ func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, s
 		q.Set("step", fmt.Sprintf("%ds", int(s.evaluationInterval.Seconds())))
 	}
 	r.URL.RawQuery = q.Encode()
-	s.setPrometheusReqParams(r, query)
-}
-
-func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
-	q := r.URL.Query()
-	for k, vs := range s.extraParams {
-		if q.Has(k) { // extraParams are prior to params in URL
-			q.Del(k)
-		}
-		for _, v := range vs {
-			q.Add(k, v)
-		}
-	}
-	q.Set("query", query)
-	r.URL.RawQuery = q.Encode()
+	s.setReqParams(r, query)
 }
