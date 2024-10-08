@@ -20,6 +20,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * FEATURE: add Darwin binaries for [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) to the release flow. The binaries will be available in the new release.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): allow using HTTP/2 client for Kubernetes service discovery if `-promscrape.kubernetes.useHTTP2Client` cmd-line flag is set. This could help to reduce the amount of opened connections to the Kubernetes API server. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5971) for the details.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): `-rule` cmd-line flag now supports multi-document YAML files. This could be usefule when rules are retrieved from via HTTP where multiple rule files were merged together in one response. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6753). Thanks to @Irene-123 for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6995).
 
 ## [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
 
@@ -37,7 +38,6 @@ Released at 2024-10-02
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): introduce the `-search.maxDeleteSeries` command line flag to limit the number of series that can be deleted by a single `/api/v1/admin/tsdb/delete_series` call. Previously, one could delete any number of series and if this number was big (millions) the deletion could result in OOM. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7027) for details.
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): add API for creating/scheduling backups. See [documentation](https://docs.victoriametrics.com/vmbackupmanager/#api-methods)
 * FEATURE: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: add support of hot-reload for license key supplied by `-licenseFile` command-line flag.
-* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): support multi-doc yaml parsing. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6753). Thanks to @Irene-123 for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6995).
 * FEATURE: [vmgateway](https://docs.victoriametrics.com/vmgateway/): allow disabling `Bearer` prefix enforcement for authentication header. This is useful for cases when identity token is used instead of access token.
 * FEATURE: [vmgateway](https://docs.victoriametrics.com/vmgateway/): support parsing `vm_access` claims in string format. This is useful for cases when identity provider does not support mapping claims to JSON format.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): respect `Retry-After` header when making retries for pushing the data to remote destination via remote write protocol. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6097).
