@@ -32,6 +32,8 @@ var (
 		"The url is automatically detected from -datasource.url by replacing /query with /tail at the end if -tail.url is empty")
 	historyFile = flag.String("historyFile", "vlogscli-history", "Path to file with command history")
 	header      = flagutil.NewArrayString("header", "Optional header to pass in request -datasource.url in the form 'HeaderName: value'")
+	accountID   = flag.Int("accountID", 0, "Account ID to query; see https://docs.victoriametrics.com/victorialogs/#multitenancy")
+	projectID   = flag.Int("projectID", 0, "Project ID to query; see https://docs.victoriametrics.com/victorialogs/#multitenancy")
 )
 
 const (
@@ -346,6 +348,8 @@ func getQueryResponse(ctx context.Context, output io.Writer, qStr string, output
 	for _, h := range headers {
 		req.Header.Set(h.Name, h.Value)
 	}
+	req.Header.Set("AccountID", strconv.Itoa(*accountID))
+	req.Header.Set("ProjectID", strconv.Itoa(*projectID))
 
 	// Execute HTTP request at qURL
 	startTime := time.Now()
