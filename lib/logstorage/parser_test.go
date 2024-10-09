@@ -1196,6 +1196,11 @@ func TestParseQuerySuccess(t *testing.T) {
 	// filter pipe
 	f(`* | filter error ip:12.3.4.5 or warn`, `* | filter error ip:12.3.4.5 or warn`)
 	f(`foo | stats by (host) count() logs | filter logs:>50 | sort by (logs desc) | limit 10`, `foo | stats by (host) count(*) as logs | filter logs:>50 | sort by (logs desc) | limit 10`)
+	f(`* | error`, `* | filter error`)
+	f(`* | "by"`, `* | filter "by"`)
+	f(`* | "stats"`, `* | filter "stats"`)
+	f(`* | "count"`, `* | filter "count"`)
+	f(`* | foo:bar AND baz:<10`, `* | filter foo:bar baz:<10`)
 
 	// extract pipe
 	f(`* | extract "foo<bar>baz"`, `* | extract "foo<bar>baz"`)
@@ -1237,7 +1242,7 @@ func TestParseQueryFailure(t *testing.T) {
 		t.Helper()
 		q, err := ParseQuery(s)
 		if q != nil {
-			t.Fatalf("expecting nil result; got %s", q)
+			t.Fatalf("expecting nil result; got [%s]", q)
 		}
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
@@ -1635,6 +1640,9 @@ func TestParseQueryFailure(t *testing.T) {
 	// stats result names identical to by fields
 	f(`foo | stats by (x) count() x`)
 
+	// missing stats function
+	f(`foo | by (bar)`)
+
 	// invalid sort pipe
 	f(`foo | sort bar`)
 	f(`foo | sort by`)
@@ -1668,6 +1676,14 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | filter | sort by (x)`)
 	f(`foo | filter (`)
 	f(`foo | filter )`)
+
+	f(`foo | filter stats`)
+	f(`foo | filter fields`)
+	f(`foo | filter by`)
+	f(`foo | count`)
+	f(`foo | filter count`)
+	f(`foo | (`)
+	f(`foo | )`)
 
 	// invalid extract pipe
 	f(`foo | extract`)
