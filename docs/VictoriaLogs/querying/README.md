@@ -1,10 +1,10 @@
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/)
 via the following ways:
 
+- [Command-line interface](#command-line)
+- [HTTP API](#http-api)
 - [Web UI](#web-ui) - a web-based UI for querying logs
 - [Grafana plugin](#visualization-in-grafana)
-- [HTTP API](#http-api)
-- [Command-line interface](#command-line)
 
 ## HTTP API
 
@@ -828,7 +828,7 @@ curl http://localhost:9428/select/logsql/query -d 'query=error'
 If the command above returns "never-ending" response, then just press `ctrl+C` at any time in order to cancel the query.
 VictoriaLogs notices that the response stream is closed, so it cancels the query and stops consuming CPU, RAM and disk IO for this query.
 
-Then just use `head` command for investigating the returned log messages and narrowing down the query:
+Then use `head` command for investigating the returned log messages and narrowing down the query:
 
 ```sh
 curl http://localhost:9428/select/logsql/query -d 'query=error' | head -10
@@ -865,7 +865,8 @@ curl http://localhost:9428/select/logsql/query -d 'query=error AND "cannot open 
 ```
 
 Note that the `query` arg must be properly encoded with [percent encoding](https://en.wikipedia.org/wiki/URL_encoding) when passing it to `curl`
-or similar tools.
+or similar tools. It is highly recommended to use [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/) -
+it automatically performs all the needed encoding.
 
 The `pipe the query to "head" or "less" -> investigate the results -> refine the query` iteration
 can be repeated multiple times until the needed log messages are found.
