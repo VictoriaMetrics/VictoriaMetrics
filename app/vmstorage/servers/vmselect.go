@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -17,7 +18,7 @@ import (
 )
 
 var (
-	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be scanned during every query. This allows protecting against heavy queries, which select unexpectedly high number of series. Zero means 'no limit'. See also -search.max* command-line flags at vmselect")
+	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be scanned during every query. This allows protecting against heavy queries, which select unexpectedly high number of series. Zero means 'calculate automatically by available resources'. See also -search.max* command-line flags at vmselect")
 	maxTagKeys          = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned per search. "+
 		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
 	maxTagValues = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search. "+
@@ -250,7 +251,7 @@ func getMaxMetrics(sq *storage.SearchQuery) int {
 	maxMetrics := sq.MaxMetrics
 	maxMetricsLimit := *maxUniqueTimeseries
 	if maxMetricsLimit <= 0 {
-		maxMetricsLimit = calculateMaxMetricsLimitByResource(*maxConcurrentRequests, memory.Remaining())
+		maxMetricsLimit = GetMaxMetricsLimitByResource()
 	}
 	if maxMetrics <= 0 || maxMetrics > maxMetricsLimit {
 		maxMetrics = maxMetricsLimit
@@ -258,15 +259,29 @@ func getMaxMetrics(sq *storage.SearchQuery) int {
 	return maxMetrics
 }
 
-// calculateMaxMetricsLimitByResource calculate the max metrics limit.
+var (
+	maxMetricsLimitByResource int
+	once                      sync.Once
+)
+
+func GetMaxMetricsLimitByResource() int {
+	once.Do(func() {
+		maxMetricsLimitByResource = calculateMaxMetricsLimitByResource(*maxConcurrentRequests, memory.Remaining())
+		logger.Infof("limiting -search.maxUniqueTimeseries to %d according to -search.maxConcurrentRequests=%d and remaining memory=%d bytes", maxMetricsLimitByResource, *maxConcurrentRequests, memory.Remaining())
+	})
+	return maxMetricsLimitByResource
+}
+
+// calculateMaxMetricsLimitByResource calculate the max metrics limit calculated by available resources.
 func calculateMaxMetricsLimitByResource(maxConcurrentRequests, remainingMemory int) int {
 	if maxConcurrentRequests <= 0 {
 		// This line should NOT be reached unless the user has set an incorrect `search.maxConcurrentRequests`.
 		// In such cases, fallback to unlimited.
+		logger.Warnf("limiting -search.maxUniqueTimeseries to %v because -search.maxConcurrentRequests=%d.", 2e9, maxConcurrentRequests)
 		return 2e9
+	} else {
+		// Calculate the max metrics limit for a single request in the worst-case concurrent scenario.
+		// The approximate size of 1 unique series that could occupy in the vmstorage is 200 bytes.
+		return remainingMemory / 200 / maxConcurrentRequests
 	}
-
-	// Calculate the max metrics limit for a single request in the worst-case concurrent scenario.
-	// The approximate size of 1 unique series that could occupy in the vmstorage is 200 bytes.
-	return remainingMemory / 200 / maxConcurrentRequests
 }

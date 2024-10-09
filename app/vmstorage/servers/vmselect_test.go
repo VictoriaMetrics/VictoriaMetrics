@@ -9,7 +9,6 @@ import (
 func TestCalculateMaxMetricsLimitByResource(t *testing.T) {
 	f := func(maxConcurrentRequest, remainingMemory, expect int) {
 		t.Helper()
-
 		maxMetricsLimit := calculateMaxMetricsLimitByResource(maxConcurrentRequest, remainingMemory)
 		if maxMetricsLimit != expect {
 			t.Fatalf("unexpected max metrics limit: got %d, want %d", maxMetricsLimit, expect)
