@@ -55,6 +55,16 @@ type Row struct {
 	Timestamp   int64
 }
 
+// Clone returns rows copy.
+func (r *Row) Clone() *Row {
+	return &Row{
+		Measurement: r.Measurement,
+		Tags:        append(make([]Tag, 0, len(r.Tags)), r.Tags...),
+		Fields:      append(make([]Field, 0, len(r.Fields)), r.Fields...),
+		Timestamp:   r.Timestamp,
+	}
+}
+
 func (r *Row) reset() {
 	r.Measurement = ""
 	r.Tags = nil

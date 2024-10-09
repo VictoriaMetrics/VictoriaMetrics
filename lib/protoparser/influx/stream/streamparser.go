@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
@@ -17,9 +18,11 @@ import (
 )
 
 var (
-	maxLineSize   = flagutil.NewBytes("influx.maxLineSize", 256*1024, "The maximum size in bytes for a single InfluxDB line during parsing")
-	trimTimestamp = flag.Duration("influxTrimTimestamp", time.Millisecond, "Trim timestamps for InfluxDB line protocol data to this duration. "+
+	maxLineSize    = flagutil.NewBytes("influx.maxLineSize", 256*1024, "The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only.")
+	maxRequestSize = flagutil.NewBytes("influx.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only.")
+	trimTimestamp  = flag.Duration("influxTrimTimestamp", time.Millisecond, "Trim timestamps for InfluxDB line protocol data to this duration. "+
 		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
+	testMode = false
 )
 
 // Parse parses r with the given args and calls callback for the parsed rows.
@@ -27,7 +30,7 @@ var (
 // The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
-func Parse(r io.Reader, isGzipped bool, precision, db string, callback func(db string, rows []influx.Row) error) error {
+func Parse(r io.Reader, isStreamMode, isGzipped bool, precision, db string, callback func(db string, rows []influx.Row) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -57,18 +60,33 @@ func Parse(r io.Reader, isGzipped bool, precision, db string, callback func(db s
 		tsMultiplier = -1e3 * 3600
 	}
 
-	ctx := getStreamContext(r)
-	defer putStreamContext(ctx)
-	for ctx.Read() {
+	ctx := getProcessingContext(r)
+	defer putProcessingContext(ctx)
+	if !isStreamMode {
+		ctx.Read()
+		uw := getUnmarshalWork()
+		uw.ctx = ctx
+		uw.callback = callback
+		uw.isStreamMode = isStreamMode
+		uw.db = db
+		uw.tsMultiplier = tsMultiplier
+		uw.reqBuf, ctx.reqBuf.B = ctx.reqBuf.B, uw.reqBuf
+		common.ScheduleUnmarshalWork(uw)
+		return ctx.Error()
+	}
+	for ctx.ReadLine() {
 		uw := getUnmarshalWork()
 		uw.ctx = ctx
 		uw.callback = callback
 		uw.db = db
+		uw.isStreamMode = isStreamMode
 		uw.tsMultiplier = tsMultiplier
-		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
+		uw.reqBuf, ctx.reqBuf.B = ctx.reqBuf.B, uw.reqBuf
 		ctx.wg.Add(1)
 		common.ScheduleUnmarshalWork(uw)
-		wcr.DecConcurrency()
+		if !testMode {
+			wcr.DecConcurrency()
+		}
 	}
 	ctx.wg.Wait()
 	if err := ctx.Error(); err != nil {
@@ -77,12 +95,38 @@ func Parse(r io.Reader, isGzipped bool, precision, db string, callback func(db s
 	return ctx.callbackErr
 }
 
-func (ctx *streamContext) Read() bool {
+var (
+	readCalls  = metrics.NewCounter(`vm_protoparser_read_calls_total{type="influx"}`)
+	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="influx"}`)
+	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="influx"}`)
+)
+
+type processingContext struct {
+	br      *bufio.Reader
+	reqBuf  bytesutil.ByteBuffer
+	tailBuf []byte
+	err     error
+
+	wg              sync.WaitGroup
+	callbackErrLock sync.Mutex
+	callbackErr     error
+}
+
+func (ctx *processingContext) Read() {
+	var reqLen int64
+	lr := io.LimitReader(ctx.br, int64(maxRequestSize.IntN()))
+	reqLen, ctx.err = ctx.reqBuf.ReadFrom(lr)
+	if ctx.err != nil && reqLen > int64(maxRequestSize.IntN()) {
+		ctx.err = fmt.Errorf("too big request; mustn't exceed -influx.maxRequestSize=%d bytes", maxRequestSize.N)
+	}
+}
+
+func (ctx *processingContext) ReadLine() bool {
 	readCalls.Inc()
 	if ctx.err != nil || ctx.hasCallbackError() {
 		return false
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlockExt(ctx.br, ctx.reqBuf, ctx.tailBuf, maxLineSize.IntN())
+	ctx.reqBuf.B, ctx.tailBuf, ctx.err = common.ReadLinesBlockExt(ctx.br, ctx.reqBuf.B, ctx.tailBuf, maxLineSize.IntN())
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
@@ -93,69 +137,53 @@ func (ctx *streamContext) Read() bool {
 	return true
 }
 
-var (
-	readCalls  = metrics.NewCounter(`vm_protoparser_read_calls_total{type="influx"}`)
-	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="influx"}`)
-	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="influx"}`)
-)
-
-type streamContext struct {
-	br      *bufio.Reader
-	reqBuf  []byte
-	tailBuf []byte
-	err     error
-
-	wg              sync.WaitGroup
-	callbackErrLock sync.Mutex
-	callbackErr     error
-}
-
-func (ctx *streamContext) Error() error {
+func (ctx *processingContext) Error() error {
 	if ctx.err == io.EOF {
 		return nil
 	}
 	return ctx.err
 }
 
-func (ctx *streamContext) hasCallbackError() bool {
+func (ctx *processingContext) hasCallbackError() bool {
 	ctx.callbackErrLock.Lock()
 	ok := ctx.callbackErr != nil
 	ctx.callbackErrLock.Unlock()
 	return ok
 }
 
-func (ctx *streamContext) reset() {
+func (ctx *processingContext) reset() {
 	ctx.br.Reset(nil)
-	ctx.reqBuf = ctx.reqBuf[:0]
+	ctx.reqBuf.Reset()
 	ctx.tailBuf = ctx.tailBuf[:0]
 	ctx.err = nil
 	ctx.callbackErr = nil
 }
 
-func getStreamContext(r io.Reader) *streamContext {
-	if v := streamContextPool.Get(); v != nil {
-		ctx := v.(*streamContext)
+func getProcessingContext(r io.Reader) *processingContext {
+	if v := processingContextPool.Get(); v != nil {
+		ctx := v.(*processingContext)
 		ctx.br.Reset(r)
 		return ctx
 	}
-	return &streamContext{
+	return &processingContext{
 		br: bufio.NewReaderSize(r, 64*1024),
 	}
 }
 
-func putStreamContext(ctx *streamContext) {
+func putProcessingContext(ctx *processingContext) {
 	ctx.reset()
-	streamContextPool.Put(ctx)
+	processingContextPool.Put(ctx)
 }
 
-var streamContextPool sync.Pool
+var processingContextPool sync.Pool
 
 type unmarshalWork struct {
 	rows         influx.Rows
-	ctx          *streamContext
+	ctx          *processingContext
 	callback     func(db string, rows []influx.Row) error
 	db           string
 	tsMultiplier int64
+	isStreamMode bool
 	reqBuf       []byte
 }
 
@@ -171,13 +199,20 @@ func (uw *unmarshalWork) reset() {
 func (uw *unmarshalWork) runCallback(rows []influx.Row) {
 	ctx := uw.ctx
 	if err := uw.callback(uw.db, rows); err != nil {
+		err = fmt.Errorf("error when processing imported data: %w", err)
+		if !uw.isStreamMode {
+			logger.Errorf("failed to parse Influx batch data: %s", err)
+			return
+		}
 		ctx.callbackErrLock.Lock()
 		if ctx.callbackErr == nil {
-			ctx.callbackErr = fmt.Errorf("error when processing imported data: %w", err)
+			ctx.callbackErr = err
 		}
 		ctx.callbackErrLock.Unlock()
 	}
-	ctx.wg.Done()
+	if uw.isStreamMode {
+		ctx.wg.Done()
+	}
 }
 
 // Unmarshal implements common.UnmarshalWork
