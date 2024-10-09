@@ -717,7 +717,7 @@ func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 	// Verify the first token doesn't match pipe names.
 	firstToken := strings.ToLower(lex.rawToken)
 	if _, ok := pipeNames[firstToken]; ok {
-		return nil, fmt.Errorf("the query [%s] cannot start with pipe - it must start with madatory filter; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
+		return nil, fmt.Errorf("the query [%s] cannot start with pipe - it must start with mandatory filter; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
 			"if the filter isn't missing, then please put the first word of the filter into quotes: %q", s, firstToken)
 	}
 
