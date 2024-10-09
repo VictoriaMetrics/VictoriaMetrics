@@ -48,7 +48,7 @@ for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.co
 sinks:
   vlogs:
     type: "loki"
-    endpoint = "http://localhost:9428/insert/loki/"
+    endpoint: "http://localhost:9428/insert/loki/"
     inputs:
       - your_input
     compression: gzip
