@@ -317,7 +317,7 @@ var pipeNames = func() map[string]struct{} {
 		"replace",
 		"replace_regexp",
 		"sort", "order",
-		"stats",
+		"stats", "by",
 		"stream_context",
 		"top",
 		"uniq",
