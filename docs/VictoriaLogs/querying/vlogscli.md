@@ -26,6 +26,8 @@ tar xzf vlogscli-linux-amd64-v0.34.0-victorialogs.tar.gz
 docker run --rm -it docker.io/victoriametrics/vlogscli:v0.34.0-victorialogs
 ```
 
+## Configuration
+
 By default `vlogscli` sends queries to [`http://localhost:8429/select/logsql/query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs).
 The url to query can be changed via `-datasource.url` command-line flag. For example, the following command instructs
 `vlogsql` sending queries to `https://victoria-logs.some-domain.com/select/logsql/query`:
@@ -41,6 +43,14 @@ which queries `(AccountID=123, ProjectID=456)` [tenant](https://docs.victoriamet
 ```sh
 ./vlogsql -header='AccountID: 123' -header='ProjectID: 456'
 ```
+
+`AccountID` and `ProjectID` values can be also set via `-accountID` and `-projectID` command-line flags:
+
+```sh
+./vlogsql -accountID=123 -projectID=456
+```
+
+## Querying
 
 After the start `vlogsql` provides a prompt for writing [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) queries.
 The query can be multi-line. It is sent to VictoriaLogs as soon as it contains `;` at the end or if a blank line follows the query.
