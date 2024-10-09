@@ -265,6 +265,8 @@ var (
 	once                      sync.Once
 )
 
+// GetMaxMetricsLimitByResource returns the max metrics limit calculated by available resources.
+// The calculation is split into calculateMaxMetricsLimitByResource for unit testing.
 func GetMaxMetricsLimitByResource() int {
 	once.Do(func() {
 		maxMetricsLimitByResource = calculateMaxMetricsLimitByResource(*maxConcurrentRequests, memory.Remaining())
@@ -280,9 +282,8 @@ func calculateMaxMetricsLimitByResource(maxConcurrentRequests, remainingMemory i
 		// In such cases, fallback to unlimited.
 		logger.Warnf("limiting -search.maxUniqueTimeseries to %v because -search.maxConcurrentRequests=%d.", 2e9, maxConcurrentRequests)
 		return 2e9
-	} else {
-		// Calculate the max metrics limit for a single request in the worst-case concurrent scenario.
-		// The approximate size of 1 unique series that could occupy in the vmstorage is 200 bytes.
-		return remainingMemory / 200 / maxConcurrentRequests
 	}
+	// Calculate the max metrics limit for a single request in the worst-case concurrent scenario.
+	// The approximate size of 1 unique series that could occupy in the vmstorage is 200 bytes.
+	return remainingMemory / 200 / maxConcurrentRequests
 }
