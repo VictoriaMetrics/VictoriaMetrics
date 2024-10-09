@@ -137,14 +137,14 @@ export const barDisp = (stroke: Stroke, fill: Fill): Disp => {
 
 export const delSeries = (u: uPlot) => {
   for (let i = u.series.length - 1; i >= 0; i--) {
-    u.delSeries(i);
+    i && u.delSeries(i);
   }
 };
 
 export const addSeries = (u: uPlot, series: uPlotSeries[], spanGaps = false) => {
-  series.forEach((s) => {
+  series.forEach((s,i) => {
     if (s.label) s.spanGaps = spanGaps;
-    u.addSeries(s);
+    i && u.addSeries(s);
   });
 };
 
