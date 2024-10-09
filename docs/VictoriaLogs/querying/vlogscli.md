@@ -77,6 +77,17 @@ See also [`less` docs](https://man7.org/linux/man-pages/man1/less.1.html) and
 [command-line integration docs for VictoriaMetrics](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
 
 
+## Live tailing
+
+`vlogsql` enters live tailing mode when the query is prepended with `\tail ` command. For example:
+
+```
+;> \tail {kubernetes_container_name="vmagent"};
+```
+
+By default `vlogscli` derives [the URL for live tailing](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing) from the `-datasource.url` command-line flag
+by replacing `/query` with `/tail` at the end of `-datasource.url`. The URL for live tailing can be specified explicitly via `-tail.url` command-line flag.
+
 ## Query history
 
 `vlogsql` supports query history - press `up` and `down` keys for navigating the history.
@@ -90,6 +101,7 @@ Press `Enter` when the needed query is found in order to execute it.
 Press `Ctrl+C` for exit from the `search history` mode.
 See also [other available shortcuts](https://github.com/chzyer/readline/blob/f533ef1caae91a1fcc90875ff9a5a030f0237c6a/doc/shortcut.md).
 
+
 ## Output modes
 
 By default `vlogscli` displays query results as prettified JSON object with every field on a separate line.
@@ -99,4 +111,8 @@ Fields in every JSON object are sorted in alphabetical order. This simplifies lo
 
 * A single JSON line per every result. Type `\s` and press `enter` for this mode.
 * Multline JSON per every result. Type `\m` and press `enter` for this mode.
+* Compact output. Type `\c` and press `enter` for this mode.
+  This mode shows field values as is if the response contains a single field
+  (for example if [`fields _msg` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) is used)
+  plus optional [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
 * [Logfmt output](https://brandur.org/logfmt). Type `\logfmt` and press `enter` for this mode.
