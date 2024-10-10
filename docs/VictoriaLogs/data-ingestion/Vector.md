@@ -132,7 +132,7 @@ sinks:
       _msg_field: message
       _time_field: timestamp
       _stream_fields: host,container_name
-    batch]
+    batch:
       max_events: 1000
 ```
 
