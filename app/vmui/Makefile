@@ -22,6 +22,10 @@ vmui-logs-build: vmui-package-base-image
 		--entrypoint=/bin/bash \
 		vmui-builder-image -c "npm install && npm run build:logs"
 
+vmui-logs-build-without-docker:
+	cd app/vmui/packages/vmui && npm install && npm run build:logs
+	rm -rf app/vlselect/vmui/* && mv app/vmui/packages/vmui/build/* app/vlselect/vmui && rm -rf app/vlselect/vmui/dashboards
+
 vmui-anomaly-build: vmui-package-base-image
 	docker run --rm \
 		--user $(shell id -u):$(shell id -g) \
