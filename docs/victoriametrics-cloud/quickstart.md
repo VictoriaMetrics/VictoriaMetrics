@@ -177,7 +177,7 @@ If you forgot your password, it can be restored in the following way:
 On the [Deployments](https://console.victoriametrics.cloud/deployments?utm_source=website&utm_campaign=docs_quickstart) page you 
 will see a list of your existing deployments and will be able to manage them. 
 
-To create a deployment click on the button `Start sending metrics` button:
+To create a deployment click on the button `Start using VictoriaMetrics cloud` button:
 
 
   ![Create deployment start](create_deployment_start.webp)
