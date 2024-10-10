@@ -1,6 +1,13 @@
 ## Next release
 
 - Generate VM components tag version from chart app name by default
+- Added k8s apiserver, kube-proxy, controller-manager and kubelet dashboards
+- Moved `dashboards.<dashboard>` to `defaultDashboards.dashboards.<dashboard>.enabled`
+- Moved `defaultDashboardsEnabled` to `defaultDashboards.enabled`
+- Moved `grafanaOperatorDashboardsFormat` to `defaultDashboards.grafanaOperator`
+- Added condition for `grafana-overview`, `alertmanager-overview` and `vmbackupmanager` dashboards. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1564)
+- Removed `experimentalDashboardsEnabled` param
+- Upgraded default Alertmanager tag 0.25.0 -> 0.27.0
 
 ## 0.27.0
 

@@ -493,7 +493,7 @@ tls: []
 <code class="language-yaml">configSecret: ""
 externalURL: ""
 image:
-    tag: v0.25.0
+    tag: v0.27.0
 port: "9093"
 routePrefix: /
 selectAllByDefault: true
@@ -621,23 +621,26 @@ selectAllByDefault: true
 </td>
     </tr>
     <tr>
-      <td>dashboards</td>
+      <td>defaultDashboards.dashboards</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">node-exporter-full: true
-operator: false
-vmalert: false
+<code class="language-yaml">node-exporter-full:
+    enabled: true
+victoriametrics-operator:
+    enabled: false
+victoriametrics-vmalert:
+    enabled: false
 </code>
 </pre>
 </td>
-      <td><p>Enable dashboards despite it&rsquo;s dependency is not installed</p>
+      <td><p>Create dashboards as ConfigMap despite dependency it requires is not installed</p>
 </td>
     </tr>
     <tr>
-      <td>dashboards.node-exporter-full</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
+      <td>defaultDashboards.dashboards.node-exporter-full</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
 </code>
 </pre>
 </td>
@@ -645,15 +648,46 @@ vmalert: false
 </td>
     </tr>
     <tr>
-      <td>defaultDashboardsEnabled</td>
+      <td>defaultDashboards.enabled</td>
       <td>bool</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
 </td>
-      <td><p>Create default dashboards</p>
+      <td><p>Enable custom dashboards installation</p>
 </td>
+    </tr>
+    <tr>
+      <td>defaultDashboards.grafanaOperator.allowCrossNamespaceImport</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>defaultDashboards.grafanaOperator.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Create dashboards as CRDs (reuqires grafana-operator to be installed)</p>
+</td>
+    </tr>
+    <tr>
+      <td>defaultDashboards.grafanaOperator.instanceSelector.matchLabels.dashboards</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">grafana
+</code>
+</pre>
+</td>
+      <td></td>
     </tr>
     <tr>
       <td>defaultRules</td>
@@ -1094,17 +1128,6 @@ vmsingle:
 </td>
     </tr>
     <tr>
-      <td>experimentalDashboardsEnabled</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
-</code>
-</pre>
-</td>
-      <td><p>Create experimental dashboards</p>
-</td>
-    </tr>
-    <tr>
       <td>externalVM</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -1295,21 +1318,6 @@ selector:
 </pre>
 </td>
       <td><p><a href="https://docs.victoriametrics.com/operator/api#vmservicescrapespec" target="_blank">Scrape configuration</a> for Grafana</p>
-</td>
-    </tr>
-    <tr>
-      <td>grafanaOperatorDashboardsFormat</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">allowCrossNamespaceImport: false
-enabled: false
-instanceSelector:
-    matchLabels:
-        dashboards: grafana
-</code>
-</pre>
-</td>
-      <td><p>Create dashboards as CRDs (reuqires grafana-operator to be installed)</p>
 </td>
     </tr>
     <tr>
