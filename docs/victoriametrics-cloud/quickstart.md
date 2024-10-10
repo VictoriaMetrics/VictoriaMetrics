@@ -68,7 +68,7 @@ After successful confirmation of your email address, you'll be able to [create y
 
 ## Adding a payment method
 
-1. Navigate to a [Billing](https://console.victoriametrics.cloud/billing?utm_source=website&utm_campaign=docs_quickstart) page or click on `Upgrade` button as shown below:
+1. Navigate to a [Billing](https://console.victoriametrics.cloud/billing?utm_source=website&utm_campaign=docs_quickstart) page:
    
      ![Add payment method](how_to_add_payment_method_upgrade.webp)
    
@@ -84,7 +84,7 @@ After successful confirmation of your email address, you'll be able to [create y
    
      ![Add payment method add card](how_to_add_payment_method_add_card.webp)
    
-1. An error message will appear if a card us invalid
+1. An error message will appear if a card is invalid
    
      ![Add payment method invalid card](how_to_add_payment_method_invalid_card.webp)
    
@@ -182,7 +182,7 @@ To create a deployment click on the button `Start sending metrics` button:
 
   ![Create deployment start](create_deployment_start.webp)
 
-When you already have at least one deployment you can create a new one by clicking on the `Create deployment` button:
+When you already have at least one deployment you can create a new one by clicking on the `Create` button:
 
    ![Create deployment continue](create_deployment_continue.webp)
 
@@ -253,7 +253,7 @@ Click on the `Generate token`. Fill `Name` field. Select token `Permission` and 
   
   ![Deployment generate access token](deployment_access_generate_token.webp)
 
-Generated token will be shown in the list of access tokens. Click on the token to see the usage examples:
+Generated token will be shown in the list of access tokens. Click on the three dots and choose `Show examples` to see the usage examples:
 
   ![Deployment access token](deployment_access_token_generated.webp)
 

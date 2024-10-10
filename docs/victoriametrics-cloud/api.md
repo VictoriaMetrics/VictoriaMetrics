@@ -25,7 +25,7 @@ VictoriaMetrics Cloud provides programmatic access for managing cloud resources 
 * **Deployment Access**: Limit access to single, multiple, or all deployments. ***Note**:  selecting all deployments in the list and the “All” option are not the same thing, the “All" option will also apply to future deployments that are created.*
 * **Key** or **Key Value**: Programmatically generated identifier. It's sensitive data used for Authentication. Any operation with API keys (including viewing/revealing Key Value), will be recorded in the [Audit Log](https://docs.victoriametrics.com/victoriametrics-cloud/audit-logs/).
 
-![Create API Key](api-1.webp)
+![Create API Key](api_keys.webp)
 
 ## Authentication:
 
