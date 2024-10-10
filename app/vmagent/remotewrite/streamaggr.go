@@ -24,7 +24,7 @@ var (
 	streamAggrGlobalDropInput = flag.Bool("streamAggr.dropInput", false, "Whether to drop all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
 		"are written to remote storages write. See also -streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation/")
-	streamAggrGlobalDedupInterval = flagutil.NewDuration("streamAggr.dedupInterval", "0s", "Input samples are de-duplicated with this interval on "+
+	streamAggrGlobalDedupInterval = flag.Duration("streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval on "+
 		"aggregator before optional aggregation with -streamAggr.config . "+
 		"See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation/#deduplication")
 	streamAggrGlobalIgnoreOldSamples = flag.Bool("streamAggr.ignoreOldSamples", false, "Whether to ignore input samples with old timestamps outside the "+
@@ -133,7 +133,7 @@ func initStreamAggrConfigGlobal() {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, filePath)).Set(1)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, filePath)).Set(fasttime.UnixTimestamp())
 	}
-	dedupInterval := streamAggrGlobalDedupInterval.Duration()
+	dedupInterval := *streamAggrGlobalDedupInterval
 	if dedupInterval > 0 {
 		deduplicatorGlobal = streamaggr.NewDeduplicator(pushToRemoteStoragesTrackDropped, dedupInterval, *streamAggrGlobalDropInputLabels, "dedup-global")
 	}
@@ -202,7 +202,7 @@ func newStreamAggrConfigGlobal() (*streamaggr.Aggregators, error) {
 	}
 
 	opts := &streamaggr.Options{
-		DedupInterval:        streamAggrGlobalDedupInterval.Duration(),
+		DedupInterval:        *streamAggrGlobalDedupInterval,
 		DropInputLabels:      *streamAggrGlobalDropInputLabels,
 		IgnoreOldSamples:     *streamAggrGlobalIgnoreOldSamples,
 		IgnoreFirstIntervals: *streamAggrGlobalIgnoreFirstIntervals,
