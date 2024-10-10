@@ -35,7 +35,7 @@ var (
 		"clients pushing data into the vmagent. See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start")
 	streamAggrGlobalDropInputLabels = flagutil.NewArrayString("streamAggr.dropInputLabels", "An optional list of labels to drop from samples for aggregator "+
 		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
-	streamAggrGlobalStateSize = flag.Int("streamAggr.stateSize", 1, "Amount of aggregation intervals")
+	streamAggrGlobalEnableWindows = flag.Bool("streamAggr.enableWindows", false, "Enable aggregation windows")
 
 	// Per URL config
 	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config for the corresponding -remoteWrite.url. "+
@@ -60,7 +60,7 @@ var (
 		"before stream de-duplication and aggregation with -remoteWrite.streamAggr.config and -remoteWrite.streamAggr.dedupInterval at the corresponding -remoteWrite.url. "+
 		"Multiple labels per remoteWrite.url must be delimited by '^^': -remoteWrite.streamAggr.dropInputLabels='replica^^az,replica'. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
-	streamAggrStateSize = flagutil.NewArrayInt("remoteWrite.streamAggr.stateSize", 1, "Amount of aggregation intervals")
+	streamAggrEnableWindows = flagutil.NewArrayBool("remoteWrite.streamAggr.enableWindows", "Enable aggregation windows")
 )
 
 // CheckStreamAggrConfigs checks -remoteWrite.streamAggr.config and -streamAggr.config.
@@ -137,7 +137,7 @@ func initStreamAggrConfigGlobal() {
 	}
 	dedupInterval := *streamAggrGlobalDedupInterval
 	if dedupInterval > 0 {
-		deduplicatorGlobal = streamaggr.NewDeduplicator(pushToRemoteStoragesTrackDropped, *streamAggrGlobalStateSize, dedupInterval, *streamAggrGlobalDropInputLabels, "dedup-global")
+		deduplicatorGlobal = streamaggr.NewDeduplicator(pushToRemoteStoragesTrackDropped, *streamAggrGlobalEnableWindows, dedupInterval, *streamAggrGlobalDropInputLabels, "dedup-global")
 	}
 }
 
@@ -163,7 +163,7 @@ func (rwctx *remoteWriteCtx) initStreamAggrConfig() {
 		if streamAggrDropInputLabels.GetOptionalArg(idx) != "" {
 			dropLabels = strings.Split(streamAggrDropInputLabels.GetOptionalArg(idx), "^^")
 		}
-		rwctx.deduplicator = streamaggr.NewDeduplicator(rwctx.pushInternalTrackDropped, *streamAggrGlobalStateSize, dedupInterval, dropLabels, alias)
+		rwctx.deduplicator = streamaggr.NewDeduplicator(rwctx.pushInternalTrackDropped, *streamAggrGlobalEnableWindows, dedupInterval, dropLabels, alias)
 	}
 }
 
@@ -209,7 +209,7 @@ func newStreamAggrConfigGlobal() (*streamaggr.Aggregators, error) {
 		IgnoreOldSamples:     *streamAggrGlobalIgnoreOldSamples,
 		IgnoreFirstIntervals: *streamAggrGlobalIgnoreFirstIntervals,
 		KeepInput:            *streamAggrGlobalKeepInput,
-		StateSize:            *streamAggrGlobalStateSize,
+		EnableWindows:        *streamAggrGlobalEnableWindows,
 	}
 
 	sas, err := streamaggr.LoadFromFile(path, pushToRemoteStoragesTrackDropped, opts, "global")
@@ -224,9 +224,6 @@ func (rwctx *remoteWriteCtx) newStreamAggrConfig() (*streamaggr.Aggregators, err
 }
 
 func newStreamAggrConfigPerURL(idx int, pushFunc streamaggr.PushFunc) (*streamaggr.Aggregators, error) {
-	if streamAggrStateSize.GetOptionalArg(idx) < 1 {
-		return nil, fmt.Errorf("--remoteWrite.streamAggr.stateSize should be greater than 0")
-	}
 	path := streamAggrConfig.GetOptionalArg(idx)
 	if path == "" {
 		return nil, nil
@@ -246,7 +243,7 @@ func newStreamAggrConfigPerURL(idx int, pushFunc streamaggr.PushFunc) (*streamag
 		IgnoreOldSamples:     streamAggrIgnoreOldSamples.GetOptionalArg(idx),
 		IgnoreFirstIntervals: streamAggrIgnoreFirstIntervals.GetOptionalArg(idx),
 		KeepInput:            streamAggrKeepInput.GetOptionalArg(idx),
-		StateSize:            streamAggrStateSize.GetOptionalArg(idx),
+		EnableWindows:        streamAggrEnableWindows.GetOptionalArg(idx),
 	}
 
 	sas, err := streamaggr.LoadFromFile(path, pushFunc, opts, alias)

@@ -41,7 +41,11 @@ type Deduplicator struct {
 // alias is url label used in metrics exposed by the returned Deduplicator.
 //
 // MustStop must be called on the returned deduplicator in order to free up occupied resources.
-func NewDeduplicator(pushFunc PushFunc, stateSize int, dedupInterval time.Duration, dropLabels []string, alias string) *Deduplicator {
+func NewDeduplicator(pushFunc PushFunc, enableWindows bool, dedupInterval time.Duration, dropLabels []string, alias string) *Deduplicator {
+	stateSize := 1
+	if enableWindows {
+		stateSize = 2
+	}
 	d := &Deduplicator{
 		da:            newDedupAggr(stateSize),
 		dropLabels:    dropLabels,
@@ -95,6 +99,7 @@ func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 
 	dropLabels := d.dropLabels
 	aggrIntervals := int64(d.stateSize)
+	var idx int
 	for _, ts := range tss {
 		if len(dropLabels) > 0 {
 			labels.Labels = dropSeriesLabels(labels.Labels[:0], ts.Labels, dropLabels)
@@ -110,8 +115,10 @@ func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 		buf = lc.Compress(buf, labels.Labels)
 		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, s := range ts.Samples {
-			flushIntervals := s.Timestamp/d.dedupInterval + 1
-			idx := int(flushIntervals % aggrIntervals)
+			if aggrIntervals > 1 {
+				flushIntervals := s.Timestamp/d.dedupInterval + 1
+				idx = int(flushIntervals % aggrIntervals)
+			}
 			pss[idx] = append(pss[idx], pushSample{
 				key:       key,
 				value:     s.Value,
@@ -142,6 +149,8 @@ func dropSeriesLabels(dst, src []prompbmarshal.Label, labelNames []string) []pro
 }
 
 func (d *Deduplicator) runFlusher(pushFunc PushFunc, dedupInterval time.Duration) {
+	var idx int
+	var flushTimestamp int64
 	t := time.NewTicker(dedupInterval)
 	defer t.Stop()
 	for {
@@ -149,11 +158,15 @@ func (d *Deduplicator) runFlusher(pushFunc PushFunc, dedupInterval time.Duration
 		case <-d.stopCh:
 			return
 		case t := <-t.C:
-			flushTime := t.Truncate(dedupInterval).Add(dedupInterval)
-			flushTimestamp := flushTime.UnixMilli()
-			flushIntervals := int(flushTimestamp / int64(dedupInterval/time.Millisecond))
-			flushIdx := flushIntervals % d.stateSize
-			d.flush(pushFunc, dedupInterval, flushTimestamp, flushIdx)
+			if d.stateSize > 1 {
+				flushTime := t.Truncate(dedupInterval)
+				flushTimestamp = flushTime.UnixMilli()
+				flushIntervals := int(flushTimestamp / int64(dedupInterval/time.Millisecond))
+				idx = flushIntervals % d.stateSize
+			} else {
+				flushTimestamp = t.UnixMilli()
+			}
+			d.flush(pushFunc, dedupInterval, flushTimestamp, idx)
 		}
 	}
 }
@@ -187,7 +200,7 @@ func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration, flu
 		ctx.labels = labels
 		ctx.samples = samples
 		putDeduplicatorFlushCtx(ctx)
-	}, flushTimestamp, idx, idx)
+	}, flushTimestamp, idx)
 
 	duration := time.Since(startTime)
 	d.dedupFlushDuration.Update(duration.Seconds())
