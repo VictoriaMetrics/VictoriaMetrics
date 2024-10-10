@@ -689,8 +689,12 @@ func (dp *ExponentialHistogramDataPoint) marshalProtobuf(mm *easyproto.MessageMa
 	}
 	mm.AppendSint32(6, dp.Scale)
 	mm.AppendFixed64(7, dp.ZeroCount)
-	dp.Positive.marshalProtobuf(mm.AppendMessage(8))
-	dp.Negative.marshalProtobuf(mm.AppendMessage(9))
+	if dp.Positive != nil {
+		dp.Positive.marshalProtobuf(mm.AppendMessage(8))
+	}
+	if dp.Negative != nil {
+		dp.Negative.marshalProtobuf(mm.AppendMessage(9))
+	}
 	mm.AppendUint32(10, dp.Flags)
 	if dp.Min != nil {
 		mm.AppendDouble(12, *dp.Min)

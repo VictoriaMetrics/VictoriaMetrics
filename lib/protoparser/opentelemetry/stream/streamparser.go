@@ -182,31 +182,29 @@ func (wr *writeContext) appendSamplesFromExponentialHistogram(metricName string,
 	}
 
 	wr.appendSample(metricName+"_sum", t, *p.Sum, isStale)
-	ratio := math.Pow(2, -float64(p.Scale))
-	base := math.Pow(2, ratio)
-	lowerBound := 1.0
-	upperBound := base
 	if p.ZeroCount > 0 {
-		vmRange := fmt.Sprintf("%.3e...%.3e", lowerBound, upperBound)
+		vmRange := fmt.Sprintf("%.3e...%.3e", 0.0, p.ZeroThreshold)
 		wr.appendSampleWithExtraLabel(metricName+"_bucket", "vmrange", vmRange, t, float64(p.ZeroCount), isStale)
 	}
+	ratio := math.Pow(2, -float64(p.Scale))
+	base := math.Pow(2, ratio)
 	if p.Positive != nil {
-		upperBound = math.Pow(2, float64(p.Positive.Offset+1)*ratio)
-		for s := range p.Positive.BucketCounts {
+		bound := math.Pow(2, float64(p.Positive.Offset)*ratio)
+		for i, s := range p.Positive.BucketCounts {
 			if s > 0 {
-				lowerBound = upperBound
-				upperBound *= base
+				lowerBound := bound * math.Pow(base, float64(i))
+				upperBound := lowerBound * base
 				vmRange := fmt.Sprintf("%.3e...%.3e", lowerBound, upperBound)
 				wr.appendSampleWithExtraLabel(metricName+"_bucket", "vmrange", vmRange, t, float64(s), isStale)
 			}
 		}
 	}
 	if p.Negative != nil {
-		lowerBound = math.Pow(2, -float64(p.Negative.Offset+1)*ratio)
-		for s := range p.Negative.BucketCounts {
+		bound := math.Pow(2, -float64(p.Negative.Offset)*ratio)
+		for i, s := range p.Negative.BucketCounts {
 			if s > 0 {
-				upperBound = lowerBound
-				lowerBound /= base
+				upperBound := bound * math.Pow(base, float64(i))
+				lowerBound := upperBound / base
 				vmRange := fmt.Sprintf("%.3e...%.3e", lowerBound, upperBound)
 				wr.appendSampleWithExtraLabel(metricName+"_bucket", "vmrange", vmRange, t, float64(s), isStale)
 			}
