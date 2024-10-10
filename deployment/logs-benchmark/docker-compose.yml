@@ -3,7 +3,7 @@ version: '3'
 services:
   # Run `make package-victoria-logs` to build victoria-logs image
   vlogs:
-    image: docker.io/victoriametrics/victoria-logs:v0.34.0-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.35.0-victorialogs
     volumes:
       - vlogs:/vlogs
     ports:

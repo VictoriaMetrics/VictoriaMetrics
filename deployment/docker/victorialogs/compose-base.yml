@@ -1,7 +1,7 @@
 services:
   # meta service will be ignored by compose
   .victorialogs:
-    image: docker.io/victoriametrics/victoria-logs:v0.34.0-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.35.0-victorialogs
     command:
       - -storageDataPath=/vlogs
       - -loggerFormat=json

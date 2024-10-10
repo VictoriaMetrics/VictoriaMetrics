@@ -15,16 +15,18 @@ or from [docker images](https://hub.docker.com/r/victoriametrics/vlogscli/tags):
 ### Running `vlogscli` from release binary
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.34.0-victorialogs/vlogscli-linux-amd64-v0.34.0-victorialogs.tar.gz
-tar xzf vlogscli-linux-amd64-v0.34.0-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.35.0-victorialogs/vlogscli-linux-amd64-v0.35.0-victorialogs.tar.gz
+tar xzf vlogscli-linux-amd64-v0.35.0-victorialogs.tar.gz
 ./vlogscli-prod
 ```
 
 ### Running `vlogscli` from Docker image
 
 ```sh
-docker run --rm -it docker.io/victoriametrics/vlogscli:v0.34.0-victorialogs
+docker run --rm -it docker.io/victoriametrics/vlogscli:v0.35.0-victorialogs
 ```
+
+## Configuration
 
 By default `vlogscli` sends queries to [`http://localhost:8429/select/logsql/query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs).
 The url to query can be changed via `-datasource.url` command-line flag. For example, the following command instructs
@@ -41,6 +43,14 @@ which queries `(AccountID=123, ProjectID=456)` [tenant](https://docs.victoriamet
 ```sh
 ./vlogsql -header='AccountID: 123' -header='ProjectID: 456'
 ```
+
+`AccountID` and `ProjectID` values can be also set via `-accountID` and `-projectID` command-line flags:
+
+```sh
+./vlogsql -accountID=123 -projectID=456
+```
+
+## Querying
 
 After the start `vlogsql` provides a prompt for writing [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) queries.
 The query can be multi-line. It is sent to VictoriaLogs as soon as it contains `;` at the end or if a blank line follows the query.
@@ -77,6 +87,17 @@ See also [`less` docs](https://man7.org/linux/man-pages/man1/less.1.html) and
 [command-line integration docs for VictoriaMetrics](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
 
 
+## Live tailing
+
+`vlogsql` enters live tailing mode when the query is prepended with `\tail ` command. For example:
+
+```
+;> \tail {kubernetes_container_name="vmagent"};
+```
+
+By default `vlogscli` derives [the URL for live tailing](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing) from the `-datasource.url` command-line flag
+by replacing `/query` with `/tail` at the end of `-datasource.url`. The URL for live tailing can be specified explicitly via `-tail.url` command-line flag.
+
 ## Query history
 
 `vlogsql` supports query history - press `up` and `down` keys for navigating the history.
@@ -90,6 +111,7 @@ Press `Enter` when the needed query is found in order to execute it.
 Press `Ctrl+C` for exit from the `search history` mode.
 See also [other available shortcuts](https://github.com/chzyer/readline/blob/f533ef1caae91a1fcc90875ff9a5a030f0237c6a/doc/shortcut.md).
 
+
 ## Output modes
 
 By default `vlogscli` displays query results as prettified JSON object with every field on a separate line.
@@ -99,4 +121,8 @@ Fields in every JSON object are sorted in alphabetical order. This simplifies lo
 
 * A single JSON line per every result. Type `\s` and press `enter` for this mode.
 * Multline JSON per every result. Type `\m` and press `enter` for this mode.
+* Compact output. Type `\c` and press `enter` for this mode.
+  This mode shows field values as is if the response contains a single field
+  (for example if [`fields _msg` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) is used)
+  plus optional [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
 * [Logfmt output](https://brandur.org/logfmt). Type `\logfmt` and press `enter` for this mode.

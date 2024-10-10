@@ -15,6 +15,12 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v0.35.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.35.0-victorialogs)
+
+* FEATURE: [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/): add ability to live tail query results - see [these docs](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/#live-tailing).
+* FEATURE: [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/): add compact output mode for query results. It can be enabled by typing `\c` and then pressing `enter`. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/#output-modes).
+* FEATURE: [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/): add `-accountID` and `-projectID` command-line flags for setting `AccountID` and `ProjectID` values when querying the specific [tenants](https://docs.victoriametrics.com/victorialogs/#multitenancy).
+
 ## [v0.34.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.34.0-victorialogs)
 
 Released at 2024-10-08
