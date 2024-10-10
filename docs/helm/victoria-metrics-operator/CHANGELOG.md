@@ -1,6 +1,8 @@
 ## Next release
 
 - upgraded common chart dependency
+- added configurable cleanup hook resources. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1571)
+- added ability to configure `terminationGracePeriodSeconds` and `lifecycle`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1563) for details
 
 ## 0.35.2
 

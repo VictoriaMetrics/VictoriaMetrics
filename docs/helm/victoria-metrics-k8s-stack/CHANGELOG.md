@@ -1,6 +1,7 @@
 ## Next release
 
 - Generate VM components tag version from chart app name by default
+- Upgraded default Alertmanager tag 0.25.0 -> 0.27.0
 
 ## 0.27.0
 

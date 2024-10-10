@@ -493,7 +493,7 @@ tls: []
 <code class="language-yaml">configSecret: ""
 externalURL: ""
 image:
-    tag: v0.25.0
+    tag: v0.27.0
 port: "9093"
 routePrefix: /
 selectAllByDefault: true
