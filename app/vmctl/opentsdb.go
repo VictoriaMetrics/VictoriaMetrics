@@ -158,7 +158,7 @@ func (op *otsdbProcessor) do(s queryObj) error {
 	if len(data.Timestamps) < 1 || len(data.Values) < 1 {
 		return nil
 	}
-	labels := make([]vm.LabelPair, len(data.Tags))
+	labels := make([]vm.LabelPair, 0, len(data.Tags))
 	for k, v := range data.Tags {
 		labels = append(labels, vm.LabelPair{Name: k, Value: v})
 	}
