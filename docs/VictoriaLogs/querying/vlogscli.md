@@ -9,6 +9,14 @@ menu:
 ---
 
 `vlogsqcli` is an interactive command-line tool for querying [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
+It has the following features:
+
+- It supports scrolling and searching over query results in the same way as `less` command does - see [these docs](#scrolling-query-results).
+- It supports canceling long-running queries at any time via `Ctrl+C`.
+- It supports query history - see [these docs](#query-history).
+- It supports diffent formats for query results (JSON, logfmt, compact, etc.) - see [these docs](#output-modes).
+- It supports live tailing - see [these docs](#live-tailing).
+
 This tool can be obtained from the linked release pages at the [changelog](https://docs.victoriametrics.com/victorialogs/changelog/)
 or from [docker images](https://hub.docker.com/r/victoriametrics/vlogscli/tags):
 
@@ -44,11 +52,16 @@ which queries `(AccountID=123, ProjectID=456)` [tenant](https://docs.victoriamet
 ./vlogsql -header='AccountID: 123' -header='ProjectID: 456'
 ```
 
-`AccountID` and `ProjectID` values can be also set via `-accountID` and `-projectID` command-line flags:
+
+## Multitenancy
+
+`AccountID` and `ProjectID` [values](https://docs.victoriametrics.com/victorialogs/#multitenancy)
+can be set via `-accountID` and `-projectID` command-line flags:
 
 ```sh
 ./vlogsql -accountID=123 -projectID=456
 ```
+
 
 ## Querying
 
@@ -58,17 +71,32 @@ For example:
 
 ```sh
 ;> _time:1y | count();
-executing [_time:1y | stats count(*) as "count(*)"]...
+executing [_time:1y | stats count(*) as "count(*)"]...; duration: 0.688s
 {
   "count(*)": "1923019991"
 }
-duration: 0.688s
 ```
+
+`vlogscli` shows the actually executed query on the next line after the query input prompt.
+This helps debugging issues related to incorrectly written queries.
+
+The next line after the query input prompt also shows the query duration. This helps debugging
+and optimizing slow queries.
 
 Query execution can be interrupted at any time by pressing `Ctrl+C`.
 
 Type `q` and then press `Enter` for exit from `vlogsql` (if you want to search for `q` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word),
 then just wrap it into quotes: `"q"` or `'q'`).
+
+See also:
+
+- [output modes](#output-modes)
+- [query history](#query-history)
+- [scrolling query results](#scrolling-query-results)
+- [live tailing](#live-tailing)
+
+
+## Scrolling query results
 
 If the query response exceeds vertical screen space, `vlogsql` pipes query response to `less` utility,
 so you can scroll the response as needed. This allows executing queries, which potentially
@@ -89,14 +117,19 @@ See also [`less` docs](https://man7.org/linux/man-pages/man1/less.1.html) and
 
 ## Live tailing
 
-`vlogsql` enters live tailing mode when the query is prepended with `\tail ` command. For example:
+`vlogsql` enters live tailing mode when the query is prepended with `\tail ` command. For example,
+the following query shows all the newly ingested logs with `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+in real time:
 
 ```
-;> \tail {kubernetes_container_name="vmagent"};
+;> \tail error;
 ```
 
 By default `vlogscli` derives [the URL for live tailing](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing) from the `-datasource.url` command-line flag
 by replacing `/query` with `/tail` at the end of `-datasource.url`. The URL for live tailing can be specified explicitly via `-tail.url` command-line flag.
+
+Live tailing can show query results in different formats - see [these docs](#output-modes).
+
 
 ## Query history
 
