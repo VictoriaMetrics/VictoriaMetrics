@@ -93,15 +93,14 @@ func (da *dedupAggr) pushSamples(data *pushCtxData) {
 	putPerShardSamples(pss)
 }
 
-func getDedupFlushCtx(deleteDeadline int64, dedupIdx, flushIdx int) *dedupFlushCtx {
+func getDedupFlushCtx(deleteDeadline int64, idx int) *dedupFlushCtx {
 	v := dedupFlushCtxPool.Get()
 	if v == nil {
 		v = &dedupFlushCtx{}
 	}
 	ctx := v.(*dedupFlushCtx)
 	ctx.deleteDeadline = deleteDeadline
-	ctx.dedupIdx = dedupIdx
-	ctx.flushIdx = flushIdx
+	ctx.idx = idx
 	return ctx
 }
 
@@ -115,15 +114,14 @@ var dedupFlushCtxPool sync.Pool
 type dedupFlushCtx struct {
 	samples        []pushSample
 	deleteDeadline int64
-	dedupIdx       int
-	flushIdx       int
+	idx            int
 }
 
 func (ctx *dedupFlushCtx) getPushCtxData(samples []pushSample) *pushCtxData {
 	return &pushCtxData{
 		samples:        samples,
 		deleteDeadline: ctx.deleteDeadline,
-		idx:            ctx.flushIdx,
+		idx:            0,
 	}
 }
 
@@ -131,11 +129,10 @@ func (ctx *dedupFlushCtx) reset() {
 	clear(ctx.samples)
 	ctx.samples = ctx.samples[:0]
 	ctx.deleteDeadline = 0
-	ctx.dedupIdx = 0
-	ctx.flushIdx = 0
+	ctx.idx = 0
 }
 
-func (da *dedupAggr) flush(f aggrPushFunc, deleteDeadline int64, dedupIdx, flushIdx int) {
+func (da *dedupAggr) flush(f aggrPushFunc, deleteDeadline int64, idx int) {
 	var wg sync.WaitGroup
 	for i := range da.shards {
 		flushConcurrencyCh <- struct{}{}
@@ -145,7 +142,7 @@ func (da *dedupAggr) flush(f aggrPushFunc, deleteDeadline int64, dedupIdx, flush
 				<-flushConcurrencyCh
 				wg.Done()
 			}()
-			ctx := getDedupFlushCtx(deleteDeadline, dedupIdx, flushIdx)
+			ctx := getDedupFlushCtx(deleteDeadline, idx)
 			shard.flush(ctx, f)
 			putDedupFlushCtx(ctx)
 		}(&da.shards[i])
@@ -184,19 +181,19 @@ func putPerShardSamples(pss *perShardSamples) {
 
 var perShardSamplesPool sync.Pool
 
-func (das *dedupAggrShard) pushSamples(samples []pushSample, stateSize, dedupIdx int) {
+func (das *dedupAggrShard) pushSamples(samples []pushSample, stateSize, idx int) {
 	das.mu.Lock()
 	defer das.mu.Unlock()
 
 	if len(das.state) == 0 {
 		das.state = make([]*dedupAggrState, stateSize)
 	}
-	state := das.state[dedupIdx]
+	state := das.state[idx]
 	if state == nil {
 		state = &dedupAggrState{
 			m: make(map[string]*dedupAggrSample, len(samples)),
 		}
-		das.state[dedupIdx] = state
+		das.state[idx] = state
 	}
 	samplesBuf := state.samplesBuf
 	for _, sample := range samples {
@@ -210,8 +207,8 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample, stateSize, dedupIdx
 			key := bytesutil.InternString(sample.key)
 			state.m[key] = s
 
-			das.state[dedupIdx].itemsCount.Add(1)
-			das.state[dedupIdx].sizeBytes.Add(uint64(len(key)) + uint64(unsafe.Sizeof(key)+unsafe.Sizeof(s)+unsafe.Sizeof(*s)))
+			das.state[idx].itemsCount.Add(1)
+			das.state[idx].sizeBytes.Add(uint64(len(key)) + uint64(unsafe.Sizeof(key)+unsafe.Sizeof(s)+unsafe.Sizeof(*s)))
 			continue
 		}
 		if !isDuplicate(s, sample) {
@@ -219,7 +216,7 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample, stateSize, dedupIdx
 			s.timestamp = sample.timestamp
 		}
 	}
-	das.state[dedupIdx].samplesBuf = samplesBuf
+	das.state[idx].samplesBuf = samplesBuf
 }
 
 // isDuplicate returns true if b is duplicate of a
@@ -244,15 +241,16 @@ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f aggrPushFunc) {
 
 	var m map[string]*dedupAggrSample
 	if len(das.state) == 0 {
+		das.mu.Unlock()
 		return
 	}
-	state := das.state[ctx.dedupIdx]
+	state := das.state[ctx.idx]
 	if state != nil && len(state.m) > 0 {
 		m = state.m
-		das.state[ctx.dedupIdx].m = make(map[string]*dedupAggrSample, len(state.m))
-		das.state[ctx.dedupIdx].samplesBuf = make([]dedupAggrSample, 0, len(das.state[ctx.dedupIdx].samplesBuf))
-		das.state[ctx.dedupIdx].sizeBytes.Store(0)
-		das.state[ctx.dedupIdx].itemsCount.Store(0)
+		das.state[ctx.idx].m = make(map[string]*dedupAggrSample, len(state.m))
+		das.state[ctx.idx].samplesBuf = make([]dedupAggrSample, 0, len(das.state[ctx.idx].samplesBuf))
+		das.state[ctx.idx].sizeBytes.Store(0)
+		das.state[ctx.idx].itemsCount.Store(0)
 	}
 
 	das.mu.Unlock()

@@ -53,7 +53,7 @@ func TestGetLabelsHash_Distribution(t *testing.T) {
 }
 
 func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
-	f := func(streamAggrConfig, relabelConfig string, stateSize int, dedupInterval time.Duration, keepInput, dropInput bool, input string) {
+	f := func(streamAggrConfig, relabelConfig string, enableWindows bool, dedupInterval time.Duration, keepInput, dropInput bool, input string) {
 		t.Helper()
 		perURLRelabel, err := promrelabel.ParseRelabelConfigsData([]byte(relabelConfig))
 		if err != nil {
@@ -77,13 +77,13 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 			rowsDroppedByRelabel:   metrics.GetOrCreateCounter(`bar`),
 		}
 		if dedupInterval > 0 {
-			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, stateSize, dedupInterval, nil, "dedup-global")
+			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, enableWindows, dedupInterval, nil, "dedup-global")
 		}
 
 		if streamAggrConfig != "" {
 			pushNoop := func(_ []prompbmarshal.TimeSeries) {}
 			opts := streamaggr.Options{
-				StateSize: stateSize,
+				EnableWindows: enableWindows,
 			}
 			sas, err := streamaggr.LoadFromData([]byte(streamAggrConfig), pushNoop, &opts, "global")
 			if err != nil {
@@ -117,13 +117,13 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, 1, 0, false, false, `
+`, false, 0, false, false, `
 metric{env="dev"} 10
 metric{env="bar"} 20
 metric{env="dev"} 15
 metric{env="bar"} 25
 `)
-	f(``, ``, 2, time.Hour, false, false, `
+	f(``, ``, true, time.Hour, false, false, `
 metric{env="dev"} 10
 metric{env="foo"} 20
 metric{env="dev"} 15
@@ -133,7 +133,7 @@ metric{env="foo"} 25
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, 3, time.Hour, false, false, `
+`, true, time.Hour, false, false, `
 metric{env="dev"} 10
 metric{env="bar"} 20
 metric{env="dev"} 15
@@ -143,7 +143,7 @@ metric{env="bar"} 25
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, 6, time.Hour, true, false, `
+`, true, time.Hour, true, false, `
 metric{env="test"} 10
 metric{env="dev"} 20
 metric{env="foo"} 15
@@ -153,7 +153,7 @@ metric{env="dev"} 25
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, 10, time.Hour, false, true, `
+`, true, time.Hour, false, true, `
 metric{env="foo"} 10
 metric{env="dev"} 20
 metric{env="foo"} 15
@@ -163,7 +163,7 @@ metric{env="dev"} 25
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, 11, time.Hour, true, true, `
+`, true, time.Hour, true, true, `
 metric{env="dev"} 10
 metric{env="test"} 20
 metric{env="dev"} 15

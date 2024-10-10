@@ -142,8 +142,8 @@ type Options struct {
 	// By default, aggregates samples are dropped, while the remaining samples are written to the corresponding -remoteWrite.url.
 	KeepInput bool
 
-	// StateSize defines a number of intervals to aggregate for
-	StateSize int
+	// EnableWindows enables aggregation in windows
+	EnableWindows bool
 }
 
 // Config is a configuration for a single stream aggregation.
@@ -252,8 +252,8 @@ type Config struct {
 	// on the aggregated output before being sent to remote storage.
 	OutputRelabelConfigs []promrelabel.RelabelConfig `yaml:"output_relabel_configs,omitempty"`
 
-	// StateSize
-	StateSize *int `yaml:"state_size,omitempty"`
+	// EnableWindows enables aggregation in windows
+	EnableWindows *bool `yaml:"enable_windows,omitempty"`
 }
 
 // Aggregators aggregates metrics passed to Push and calls pushFunc for aggregated data.
@@ -386,6 +386,7 @@ type aggregator struct {
 
 	keepMetricNames  bool
 	ignoreOldSamples bool
+	enableWindows    bool
 
 	by                  []string
 	without             []string
@@ -404,12 +405,11 @@ type aggregator struct {
 	// aggrOutputs contains aggregate states for the given outputs
 	aggrOutputs *aggrOutputs
 
-	// minTimestamp is used for ignoring old samples when ignoreOldSamples is set
+	// minTimestamp is used for ignoring old samples when ignoreOldSamples or enableWindows is set
 	minTimestamp atomic.Int64
 
 	// time to wait after interval end before flush
-	flushAfter   *histogram.Fast
-	flushAfterMu sync.Mutex
+	flushAfter atomic.Pointer[histogram.Fast]
 
 	// suffix contains a suffix, which should be added to aggregate metric names
 	//
@@ -556,14 +556,15 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		ignoreFirstIntervals = *v
 	}
 
-	// check cfg.StateSize
-	stateSize := opts.StateSize
-	if v := cfg.StateSize; v != nil {
-		stateSize = *v
+	// check cfg.
+	enableWindows := opts.EnableWindows
+	if v := cfg.EnableWindows; v != nil {
+		enableWindows = *v
 	}
 
-	if stateSize < 1 {
-		return nil, fmt.Errorf("`state_size` must be greater or equal to 1")
+	aggrStateSize := 1
+	if enableWindows {
+		aggrStateSize = 2
 	}
 
 	// Initialize common metric labels
@@ -571,7 +572,6 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	if name == "" {
 		name = "none"
 	}
-	metricLabels := fmt.Sprintf(`name=%q,path=%q,url=%q,position="%d"`, name, path, alias, aggrID)
 
 	// initialize aggrOutputs
 	if len(cfg.Outputs) == 0 {
@@ -579,18 +579,23 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 			"see https://docs.victoriametrics.com/stream-aggregation/", supportedOutputs)
 	}
 	aggrOutputs := &aggrOutputs{
-		initFns:       make([]aggrValuesFn, len(cfg.Outputs)),
-		outputSamples: ms.NewCounter(fmt.Sprintf(`vm_streamaggr_output_samples_total{outputs=%q,%s}`, "test", metricLabels)),
-		stateSize:     stateSize,
+		initFns:   make([]aggrValuesFn, len(cfg.Outputs)),
+		stateSize: aggrStateSize,
 	}
 	outputsSeen := make(map[string]struct{}, len(cfg.Outputs))
 	for i, output := range cfg.Outputs {
-		oc, err := newOutputInitFns(output, outputsSeen, ignoreFirstSampleInterval, stateSize)
+		oc, err := newOutputInitFns(output, outputsSeen, ignoreFirstSampleInterval, aggrStateSize)
 		if err != nil {
 			return nil, err
 		}
 		aggrOutputs.initFns[i] = oc
 	}
+	outputsLabels := make([]string, 0, len(outputsSeen))
+	for o := range outputsSeen {
+		outputsLabels = append(outputsLabels, o)
+	}
+	metricLabels := fmt.Sprintf(`outputs=%q,name=%q,path=%q,url=%q,position="%d"`, strings.Join(outputsLabels, ","), name, path, alias, aggrID)
+	aggrOutputs.outputSamples = ms.NewCounter(fmt.Sprintf(`vm_streamaggr_output_samples_total{%s}`, metricLabels))
 
 	// initialize suffix to add to metric names after aggregation
 	suffix := ":" + cfg.Interval
@@ -612,6 +617,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 
 		keepMetricNames:   keepMetricNames,
 		ignoreOldSamples:  ignoreOldSamples,
+		enableWindows:     enableWindows,
 		stalenessInterval: stalenessInterval,
 
 		by:                  by,
@@ -626,8 +632,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 
 		suffix: suffix,
 
-		stopCh:     make(chan struct{}),
-		flushAfter: histogram.NewFast(),
+		stopCh: make(chan struct{}),
 
 		flushDuration:      ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_flush_duration_seconds{%s}`, metricLabels)),
 		dedupFlushDuration: ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels)),
@@ -640,8 +645,14 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		ignoredOldSamples:  ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="too_old",%s}`, metricLabels)),
 	}
 
+	a.flushAfter.Store(histogram.GetFast())
+
 	if dedupInterval > 0 {
-		a.da = newDedupAggr(stateSize)
+		dedupStateSize := 1
+		if enableWindows {
+			dedupStateSize = 2
+		}
+		a.da = newDedupAggr(dedupStateSize)
 
 		_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_size_bytes{%s}`, metricLabels), func() float64 {
 			n := a.da.sizeBytes()
@@ -755,11 +766,14 @@ func newOutputInitFns(output string, outputsSeen map[string]struct{}, ignoreFirs
 }
 
 func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipIncompleteFlush bool, ignoreFirstIntervals int) {
+	flushDeadline := time.Now().Add(a.interval)
 	alignedSleep := func(d time.Duration) {
 		if !alignFlushToInterval {
 			return
 		}
-
+		if flushDeadline != flushDeadline.Truncate(d) {
+			flushDeadline = flushDeadline.Truncate(d).Add(d)
+		}
 		ct := time.Duration(time.Now().UnixNano())
 		dSleep := d - (ct % d)
 		timer := timerpool.Get(dSleep)
@@ -770,64 +784,65 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 		}
 	}
 
+	var dedupTime time.Time
+	truncateIfNeeded := func(t time.Time) time.Time {
+		if alignFlushToInterval {
+			return t.Truncate(a.interval)
+		}
+		return t
+	}
 	tickerWait := func(t *time.Ticker) bool {
 		select {
 		case <-a.stopCh:
+			dedupTime = time.Now()
 			return false
-		case <-t.C:
+		case ct := <-t.C:
+			dedupTime = ct
 			return true
 		}
 	}
 
-	flushDeadline := time.Now().Truncate(a.interval).Add(a.interval)
 	tickInterval := time.Duration(a.tickInterval) * time.Millisecond
-	alignedSleep(tickInterval)
-
-	var dedupIdx, flushIdx int
+	alignedSleep(a.interval)
 
 	t := time.NewTicker(tickInterval)
 	defer t.Stop()
 
 	isSkippedFirstFlush := false
 	for tickerWait(t) {
-		ct := time.Now()
-
-		dedupTime := ct.Truncate(tickInterval)
-		if a.ignoreOldSamples {
-			dedupIdx, flushIdx = a.getAggrIdxs(dedupTime, flushDeadline)
-		}
+		dedupDeadline := truncateIfNeeded(dedupTime)
 		pf := pushFunc
 
-		// Calculate delay
-		a.flushAfterMu.Lock()
-		flushAfterMsec := a.flushAfter.Quantile(0.95)
-		a.flushAfter.Reset()
-		a.flushAfterMu.Unlock()
-		flushAfter := time.Duration(flushAfterMsec) * time.Millisecond
+		if a.enableWindows {
+			// Calculate delay
+			fa := a.flushAfter.Swap(histogram.GetFast())
+			flushAfter := time.Duration(fa.Quantile(0.95)) * time.Millisecond
+			histogram.PutFast(fa)
 
-		if flushAfter > tickInterval {
-			logger.Warnf("metrics ingestion lag (%v) is more than tick interval (%v). "+
-				"gaps are expected in aggregations", flushAfter, tickInterval)
-			pf = nil
-		} else {
-			time.Sleep(flushAfter)
+			if flushAfter > tickInterval {
+				logger.Warnf("metrics ingestion lag (%v) is more than tick interval (%v). "+
+					"gaps are expected in aggregations", flushAfter, tickInterval)
+				pf = nil
+			} else {
+				time.Sleep(flushAfter)
+			}
 		}
 
-		deleteDeadline := dedupTime.Add(a.stalenessInterval)
-		a.dedupFlush(deleteDeadline.UnixMilli(), dedupIdx, flushIdx)
+		deleteDeadline := dedupDeadline.Add(a.stalenessInterval)
+		a.dedupFlush(deleteDeadline, dedupDeadline)
 
-		if ct.After(flushDeadline) {
+		if dedupTime.After(flushDeadline) {
 			// It is time to flush the aggregated state
 			if alignFlushToInterval && skipIncompleteFlush && !isSkippedFirstFlush {
-				a.flush(nil, 0, flushIdx)
+				a.flush(nil, flushDeadline)
 				isSkippedFirstFlush = true
 			} else if ignoreFirstIntervals > 0 {
-				a.flush(nil, 0, flushIdx)
+				a.flush(nil, flushDeadline)
 				ignoreFirstIntervals--
 			} else {
-				a.flush(pf, flushDeadline.UnixMilli(), flushIdx)
+				a.flush(pf, flushDeadline)
 			}
-			for ct.After(flushDeadline) {
+			for dedupTime.After(flushDeadline) {
 				flushDeadline = flushDeadline.Add(a.interval)
 			}
 		}
@@ -840,38 +855,28 @@ func (a *aggregator) runFlusher(pushFunc PushFunc, alignFlushToInterval, skipInc
 	}
 
 	if !skipIncompleteFlush && ignoreFirstIntervals <= 0 {
-		dedupTime := time.Now().Truncate(tickInterval).Add(tickInterval)
+		dedupDeadline := truncateIfNeeded(dedupTime)
 		deleteDeadline := flushDeadline.Add(a.stalenessInterval)
-		if a.ignoreOldSamples {
-			dedupIdx, flushIdx = a.getAggrIdxs(dedupTime, flushDeadline)
-		}
-		a.dedupFlush(deleteDeadline.UnixMilli(), dedupIdx, flushIdx)
-		a.flush(pushFunc, flushDeadline.UnixMilli(), flushIdx)
+		a.dedupFlush(deleteDeadline, dedupDeadline)
+		a.flush(pushFunc, flushDeadline)
 	}
-}
-
-func (a *aggregator) getAggrIdxs(dedupTime, flushTime time.Time) (int, int) {
-	flushIdx := a.getStateIdx(a.interval.Milliseconds(), flushTime.Add(-a.interval).UnixMilli())
-	dedupIdx := flushIdx
-	if a.dedupInterval > 0 {
-		dedupIdx = a.getStateIdx(a.dedupInterval.Milliseconds(), dedupTime.Add(-a.dedupInterval).UnixMilli())
-	}
-	return dedupIdx, flushIdx
 }
 
 func (a *aggregator) getStateIdx(interval int64, ts int64) int {
 	return int(ts/interval) % a.aggrOutputs.stateSize
 }
 
-func (a *aggregator) dedupFlush(deleteDeadline int64, dedupIdx, flushIdx int) {
+func (a *aggregator) dedupFlush(deleteDeadline, dedupDeadline time.Time) {
 	if a.dedupInterval <= 0 {
 		// The de-duplication is disabled.
 		return
 	}
 
+	idx := a.getStateIdx(a.dedupInterval.Milliseconds(), dedupDeadline.Add(-a.dedupInterval).UnixMilli())
+
 	startTime := time.Now()
 
-	a.da.flush(a.aggrOutputs.pushSamples, deleteDeadline, dedupIdx, flushIdx)
+	a.da.flush(a.aggrOutputs.pushSamples, deleteDeadline.UnixMilli(), idx)
 
 	d := time.Since(startTime)
 	a.dedupFlushDuration.Update(d.Seconds())
@@ -886,19 +891,20 @@ func (a *aggregator) dedupFlush(deleteDeadline int64, dedupIdx, flushIdx int) {
 // flush flushes aggregator state to pushFunc.
 //
 // If pushFunc is nil, then the aggregator state is just reset.
-func (a *aggregator) flush(pushFunc PushFunc, flushTimeMsec int64, idx int) {
+func (a *aggregator) flush(pushFunc PushFunc, flushTime time.Time) {
 	startTime := time.Now()
 
 	ao := a.aggrOutputs
 
-	ctx := getFlushCtx(a, ao, pushFunc, flushTimeMsec, idx)
+	idx := a.getStateIdx(a.interval.Milliseconds(), flushTime.Add(-a.interval).UnixMilli())
+	ctx := getFlushCtx(a, ao, pushFunc, flushTime.UnixMilli(), idx)
 	ao.flushState(ctx)
 	ctx.flushSeries()
 	putFlushCtx(ctx)
 
 	d := time.Since(startTime)
 	a.flushDuration.Update(d.Seconds())
-	a.minTimestamp.Store(flushTimeMsec)
+	a.minTimestamp.Store(flushTime.UnixMilli())
 	if d > a.interval {
 		a.flushTimeouts.Inc()
 		logger.Warnf("stream aggregation couldn't be finished in the configured interval=%s; it took %.03fs; "+
@@ -934,6 +940,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 
 	dropLabels := a.dropInputLabels
 	ignoreOldSamples := a.ignoreOldSamples
+	enableWindows := a.enableWindows
 	minTimestamp := a.minTimestamp.Load()
 
 	var maxLagMsec int64
@@ -975,7 +982,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 				a.ignoredNaNSamples.Inc()
 				continue
 			}
-			if ignoreOldSamples && s.Timestamp < minTimestamp {
+			if (ignoreOldSamples || enableWindows) && s.Timestamp < minTimestamp {
 				// Skip old samples outside the current aggregation interval
 				a.ignoredOldSamples.Inc()
 				continue
@@ -984,7 +991,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			if lagMsec > maxLagMsec {
 				maxLagMsec = lagMsec
 			}
-			if ignoreOldSamples {
+			if enableWindows {
 				flushIdx = a.getStateIdx(a.tickInterval, s.Timestamp)
 			}
 			samples[flushIdx] = append(samples[flushIdx], pushSample{
@@ -994,9 +1001,10 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			})
 		}
 	}
-	a.flushAfterMu.Lock()
-	a.flushAfter.Update(float64(maxLagMsec))
-	a.flushAfterMu.Unlock()
+	if enableWindows {
+		a.flushAfter.Load().Update(float64(maxLagMsec))
+	}
+	a.samplesLag.Update(float64(maxLagMsec) / 1_000)
 
 	ctx.samples = samples
 	ctx.buf = buf
@@ -1008,7 +1016,6 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 
 	for idx, s := range samples {
 		if len(s) > 0 {
-			a.samplesLag.Update(float64(maxLagMsec) / 1_000)
 			a.matchedSamples.Add(len(s))
 			data := ctx.getPushCtxData(s, nowMsec, deleteDeadlineMsec, idx)
 			pushSamples(data)

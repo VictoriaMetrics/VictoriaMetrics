@@ -201,7 +201,7 @@ func TestAggregatorsEqual(t *testing.T) {
 
 		pushFunc := func(_ []prompbmarshal.TimeSeries) {}
 		opts := Options{
-			StateSize: 2,
+			EnableWindows: true,
 		}
 		aa, err := LoadFromData([]byte(a), pushFunc, &opts, "some_alias")
 		if err != nil {
@@ -269,7 +269,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 		opts := &Options{
 			FlushOnShutdown:        true,
 			NoAlignFlushToInterval: true,
-			StateSize:              2,
+			EnableWindows:          true,
 		}
 		a, err := LoadFromData([]byte(config), pushFunc, opts, "some_alias")
 		if err != nil {
@@ -1001,7 +1001,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 		opts := &Options{
 			DedupInterval:   30 * time.Second,
 			FlushOnShutdown: true,
-			StateSize:       2,
+			EnableWindows:   true,
 		}
 		a, err := LoadFromData([]byte(config), pushFunc, opts, "some_alias")
 		if err != nil {
