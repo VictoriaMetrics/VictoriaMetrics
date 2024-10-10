@@ -1,6 +1,18 @@
 ## Next release
 
+- TODO
+
+## 0.35.3
+
+**Release date:** 2024-10-10
+
+![AppVersion: v0.48.3](https://img.shields.io/static/v1?label=AppVersion&message=v0.48.3&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
 - upgraded common chart dependency
+- made webhook pod port configurable. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1565)
+- added configurable cleanup hook resources. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1571)
+- added ability to configure `terminationGracePeriodSeconds` and `lifecycle`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1563) for details
 
 ## 0.35.2
 
