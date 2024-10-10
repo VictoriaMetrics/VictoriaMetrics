@@ -36,6 +36,7 @@ var (
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples")
 	streamAggrIgnoreFirstIntervals = flag.Int("streamAggr.ignoreFirstIntervals", 0, "Number of aggregation intervals to skip after the start. Increase this value if you observe incorrect aggregation results after restarts. It could be caused by receiving unordered delayed data from clients pushing data into the database. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start")
+	streamAggrStateSize = flag.Int("streamAggr.stateSize", 1, "Number of aggregation intervals")
 )
 
 var (
@@ -62,6 +63,7 @@ func CheckStreamAggrConfig() error {
 		DropInputLabels:      *streamAggrDropInputLabels,
 		IgnoreOldSamples:     *streamAggrIgnoreOldSamples,
 		IgnoreFirstIntervals: *streamAggrIgnoreFirstIntervals,
+		StateSize:            *streamAggrStateSize,
 	}
 	sas, err := streamaggr.LoadFromFile(*streamAggrConfig, pushNoop, opts, "global")
 	if err != nil {
@@ -78,7 +80,7 @@ func InitStreamAggr() {
 	saCfgReloaderStopCh = make(chan struct{})
 	if *streamAggrConfig == "" {
 		if *streamAggrDedupInterval > 0 {
-			deduplicator = streamaggr.NewDeduplicator(pushAggregateSeries, *streamAggrDedupInterval, *streamAggrDropInputLabels, "global")
+			deduplicator = streamaggr.NewDeduplicator(pushAggregateSeries, *streamAggrStateSize, *streamAggrDedupInterval, *streamAggrDropInputLabels, "global")
 		}
 		return
 	}
