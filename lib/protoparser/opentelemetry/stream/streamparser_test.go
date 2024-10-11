@@ -250,7 +250,7 @@ func generateExpHistogram(name, unit string) *pb.Metric {
 		ExponentialHistogram: &pb.ExponentialHistogram{
 			AggregationTemporality: pb.AggregationTemporalityCumulative,
 			DataPoints: []*pb.ExponentialHistogramDataPoint{
-				&pb.ExponentialHistogramDataPoint{
+				{
 					Attributes:   attributesFromKV("label1", "value1"),
 					TimeUnixNano: uint64(15 * time.Second),
 					Count:        20,
