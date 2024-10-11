@@ -1,6 +1,9 @@
 ## Next release
 
-- TODO
+- Grafana chart: 8.4.9 -> 8.5.2
+- Prometheus operator chart: 11.0 -> 15.0
+- Human-readable error about Helm version requirement
+- Updated rules template context structure
 
 ## 0.27.2
 
