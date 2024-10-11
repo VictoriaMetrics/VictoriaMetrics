@@ -2,6 +2,18 @@
 
 - TODO
 
+## 0.27.3
+
+**Release date:** 2024-10-11
+
+![AppVersion: v1.104.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.104.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Grafana chart: 8.4.9 -> 8.5.2
+- Prometheus operator chart: 11.0 -> 15.0
+- Human-readable error about Helm version requirement
+- Updated rules template context structure
+
 ## 0.27.2
 
 **Release date:** 2024-10-10
