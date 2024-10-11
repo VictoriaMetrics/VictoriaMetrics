@@ -1535,10 +1535,15 @@ VictoriaMetrics supports data ingestion via [OpenTelemetry protocol for metrics]
 VictoriaMetrics expects `protobuf`-encoded requests at `/opentelemetry/v1/metrics`.
 Set HTTP request header `Content-Encoding: gzip` when sending gzip-compressed data to `/opentelemetry/v1/metrics`.
 
+VictoriaMetrics supports only [cumulative temporality](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#temporality)
+for received measurements. The number of dropped unsupported samples is exposed via `vm_protoparser_rows_dropped_total{type="opentelemetry"` metric.
+
 VictoriaMetrics stores the ingested OpenTelemetry [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) as is without any transformations.
 Pass `-opentelemetry.usePrometheusNaming` command-line flag to VictoriaMetrics for automatic conversion of metric names and labels into Prometheus-compatible format.
+OpenTelemetry [exponential histogram](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram) is automatically converted 
+to [VictoriaMetrics histogram format](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350).
 
-Using the following exporter configuration in the opentelemetry collector will allow you to send metrics into VictoriaMetrics:
+Using the following exporter configuration in the OpenTelemetry collector will allow you to send metrics into VictoriaMetrics:
 
 ```yaml
 exporters:
