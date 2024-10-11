@@ -117,7 +117,7 @@ Set the `-retentionPeriod` to some big value (e.g. `100y` - 100 years) if logs s
 For example:
 
 ```sh
-/path/to/victoria-logs -retention.maxDiskSpaceUsageBytes=10TiB -retentionPeriod=100y
+/path/to/victoria-logs -retention.maxDiskSpaceUsageBytes=10TiB -retention=100y
 ```
 
 ## Storage
