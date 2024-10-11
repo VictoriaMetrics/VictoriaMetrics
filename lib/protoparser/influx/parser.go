@@ -43,8 +43,15 @@ func (rs *Rows) Reset() {
 // See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/
 //
 // s shouldn't be modified when rs is in use.
-func (rs *Rows) Unmarshal(s string) {
-	rs.Rows, rs.tagsPool, rs.fieldsPool = unmarshalRows(rs.Rows[:0], s, rs.tagsPool[:0], rs.fieldsPool[:0])
+func (rs *Rows) Unmarshal(s string, stopOnErr bool) error {
+	rs.reset()
+	return rs.unmarshal(s, stopOnErr)
+}
+
+func (rs *Rows) reset() {
+	rs.Rows = rs.Rows[:0]
+	rs.tagsPool = rs.tagsPool[:0]
+	rs.fieldsPool = rs.fieldsPool[:0]
 }
 
 // Row is a single influx row.
@@ -176,47 +183,50 @@ func (f *Field) unmarshal(s string, noEscapeChars, hasQuotedFields bool) error {
 	return nil
 }
 
-func unmarshalRows(dst []Row, s string, tagsPool []Tag, fieldsPool []Field) ([]Row, []Tag, []Field) {
+func (rs *Rows) unmarshal(s string, stopOnErr bool) error {
 	noEscapeChars := strings.IndexByte(s, '\\') < 0
 	for len(s) > 0 {
 		n := strings.IndexByte(s, '\n')
 		if n < 0 {
 			// The last line.
-			return unmarshalRow(dst, s, tagsPool, fieldsPool, noEscapeChars)
+			return rs.unmarshalRow(s, noEscapeChars)
 		}
-		dst, tagsPool, fieldsPool = unmarshalRow(dst, s[:n], tagsPool, fieldsPool, noEscapeChars)
+		err := rs.unmarshalRow(s[:n], noEscapeChars)
+		if err != nil && stopOnErr {
+			return err
+		}
 		s = s[n+1:]
 	}
-	return dst, tagsPool, fieldsPool
+	return nil
 }
 
-func unmarshalRow(dst []Row, s string, tagsPool []Tag, fieldsPool []Field, noEscapeChars bool) ([]Row, []Tag, []Field) {
+func (rs *Rows) unmarshalRow(s string, noEscapeChars bool) error {
 	if len(s) > 0 && s[len(s)-1] == '\r' {
 		s = s[:len(s)-1]
 	}
 	if len(s) == 0 {
 		// Skip empty line
-		return dst, tagsPool, fieldsPool
+		return nil
 	}
 	if s[0] == '#' {
 		// Skip comment
-		return dst, tagsPool, fieldsPool
+		return nil
 	}
 
-	if cap(dst) > len(dst) {
-		dst = dst[:len(dst)+1]
+	if cap(rs.Rows) > len(rs.Rows) {
+		rs.Rows = rs.Rows[:len(rs.Rows)+1]
 	} else {
-		dst = append(dst, Row{})
+		rs.Rows = append(rs.Rows, Row{})
 	}
-	r := &dst[len(dst)-1]
+	r := &rs.Rows[len(rs.Rows)-1]
 	var err error
-	tagsPool, fieldsPool, err = r.unmarshal(s, tagsPool, fieldsPool, noEscapeChars)
+	rs.tagsPool, rs.fieldsPool, err = r.unmarshal(s, rs.tagsPool, rs.fieldsPool, noEscapeChars)
 	if err != nil {
-		dst = dst[:len(dst)-1]
+		rs.Rows = rs.Rows[:len(rs.Rows)-1]
 		logger.Errorf("skipping InfluxDB line %q because of error: %s", s, err)
 		invalidLines.Inc()
 	}
-	return dst, tagsPool, fieldsPool
+	return err
 }
 
 var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="influx"}`)

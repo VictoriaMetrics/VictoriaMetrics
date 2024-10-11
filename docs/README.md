@@ -588,11 +588,22 @@ For instance, put the following lines into `Telegraf` config, so it sends data t
   urls = ["http://<victoriametrics-addr>:8428"]
 ```
 
+Or in case of [`http`](https://github.com/influxdata/telegraf/blob/master/plugins/outputs/http) output
+
+```toml
+[[outputs.http]]
+  url = "http://<victoriametrics-addr>:8428/influx/write"
+  data_format = "influx"
+  non_retryable_statuscodes = [400]
+```
+
 Another option is to enable TCP and UDP receiver for InfluxDB line protocol via `-influxListenAddr` command-line flag
 and stream plain InfluxDB line protocol data to the configured TCP and/or UDP addresses.
 
 VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
 
+* By default Influx HTTP endpoints support ingestion in a batch mode, batch size limit is controlled by `-influx.maxRequestSize` (default: 64Mb).
+  To enable stream processing use `Stream-Mode: "1"` HTTP header.
 * [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` 
   [label](https://docs.victoriametrics.com/keyconcepts/#labels) value unless `db` tag exists in the InfluxDB line. 
   The `db` label name can be overridden via `-influxDBLabel` command-line flag. If more strict data isolation is required,
@@ -2875,8 +2886,11 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -influx.maxLineSize size
-     The maximum size in bytes for a single InfluxDB line during parsing
+     The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only.
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
+  -influx.maxRequestSize size
+     The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only.
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -influxDBLabel string
      Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
   -influxListenAddr string
