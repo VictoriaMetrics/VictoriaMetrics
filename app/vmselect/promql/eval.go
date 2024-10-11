@@ -48,6 +48,8 @@ var (
 		"so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
 	minWindowForInstantRollupOptimization = flagutil.NewDuration("search.minWindowForInstantRollupOptimization", "3h", "Enable cache-based optimization for repeated queries "+
 		"to /api/v1/query (aka instant queries), which contain rollup functions with lookbehind window exceeding the given value")
+	maxBinaryCommonValues = flag.Int("search.maxBinaryCommonValues", 100, "The maximum number of common values that can be passed to the right query in binary expr, "+
+		"which can be configured to be larger when resources are sufficient to ensure faster queries")
 )
 
 // The minimum number of points per timeseries for enabling time rounding.
@@ -601,7 +603,7 @@ func getCommonLabelFilters(tss []*timeseries) []metricsql.LabelFilter {
 				}
 				continue
 			}
-			if len(vc.values) > 100 {
+			if len(vc.values) > *maxBinaryCommonValues {
 				// Too many unique values found for the given tag.
 				// Do not make a filter on such values, since it may slow down
 				// search for matching time series.
