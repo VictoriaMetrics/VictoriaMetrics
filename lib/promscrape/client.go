@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
 var (
@@ -43,7 +44,14 @@ type client struct {
 
 func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	ac := sw.AuthConfig
+	var acceptValues []string
+	for i, sp := range sw.ScrapeProtocols {
+		acceptValues = append(acceptValues, fmt.Sprintf("%s;q=0.%d", ScrapeProtocolsHeaders[sp], i+2))
+	}
+	acceptValues = append(acceptValues, "*/*;q=0.1")
+	acceptValue := strings.Join(acceptValues, ",")
 	setHeaders := func(req *http.Request) error {
+		req.Header.Set("Accept", acceptValue)
 		return sw.AuthConfig.SetHeaders(req, true)
 	}
 	setProxyHeaders := func(_ *http.Request) error {
@@ -108,7 +116,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) (*client, error) {
 	return c, nil
 }
 
-func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
+func (c *client) ReadData(dst *bytesutil.ByteBuffer, contentType *prometheus.ContentType) error {
 	deadline := time.Now().Add(c.c.Timeout)
 	ctx, cancel := context.WithDeadline(c.ctx, deadline)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.scrapeURL, nil)
@@ -116,12 +124,6 @@ func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
 		cancel()
 		return fmt.Errorf("cannot create request for %q: %w", c.scrapeURL, err)
 	}
-	// The following `Accept` header has been copied from Prometheus sources.
-	// See https://github.com/prometheus/prometheus/blob/f9d21f10ecd2a343a381044f131ea4e46381ce09/scrape/scrape.go#L532 .
-	// This is needed as a workaround for scraping stupid Java-based servers such as Spring Boot.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/608 for details.
-	// Do not bloat the `Accept` header with OpenMetrics shit, since it looks like dead standard now.
-	req.Header.Set("Accept", "text/plain;version=0.0.4;q=1,*/*;q=0.1")
 	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
@@ -167,6 +169,7 @@ func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
 		}
 		return fmt.Errorf("cannot read data from %s: %w", c.scrapeURL, err)
 	}
+	*contentType = prometheus.ParseContentType(resp.Header.Get("Content-Type"))
 	if int64(len(dst.B)) >= c.maxScrapeSize {
 		maxScrapeSizeExceeded.Inc()
 		return fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize or max_scrape_size in the scrape config (%d bytes). "+

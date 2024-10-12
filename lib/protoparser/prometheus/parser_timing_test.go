@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func BenchmarkAreIdenticalSeriesFast(b *testing.B) {
+func BenchmarkAreIdenticalTextSeriesFast(b *testing.B) {
 	b.Run("identical-series-no-timestamps", func(b *testing.B) {
 		s := `
 # HELP machine_cpu_cores Number of logical CPU cores.
@@ -31,7 +31,7 @@ machine_nvm_capacity{boot_id="a1b49bdb-4c2a-4943-9ab3-363a316e9260",machine_id="
 # TYPE machine_scrape_error gauge
 machine_scrape_error 0
 `
-		benchmarkAreIdenticalSeriesFast(b, s, s, true)
+		benchmarkAreIdenticalTextSeriesFast(b, s, s, true)
 	})
 	b.Run("different-series-no-timestamps", func(b *testing.B) {
 		s := `
@@ -58,7 +58,7 @@ machine_nvm_capacity{boot_id="a1b49bdb-4c2a-4943-9ab3-363a316e9260",machine_id="
 # TYPE machine_scrape_error gauge
 machine_scrape_error 0
 `
-		benchmarkAreIdenticalSeriesFast(b, s, s+"\nfoo 1", false)
+		benchmarkAreIdenticalTextSeriesFast(b, s, s+"\nfoo 1", false)
 	})
 	b.Run("identical-series-with-timestamps", func(b *testing.B) {
 		s := `
@@ -78,7 +78,7 @@ container_ulimits_soft{container="kube-controller-manager",id="/kubelet/kubepods
 container_ulimits_soft{container="kube-scheduler",id="/docker/6b7c234cfe92a0924e54e2a51d9607a5893a38ed14c7161f324863eeaa2fb985/kubelet/kubepods/burstable/pod69cd289b4ed80ced4f95a59ff60fa102/d9627625c8d60d859f2a13f9ed66c77c9767368e18eb5669fe1a85d600e43f9b",image="k8s.gcr.io/kube-scheduler:v1.20.2",name="d9627625c8d60d859f2a13f9ed66c77c9767368e18eb5669fe1a85d600e43f9b",namespace="kube-system",pod="kube-scheduler-kind-control-plane",ulimit="max_open_files"} 1.048576e+06 1631113857794
 container_ulimits_soft{container="kube-scheduler",id="/kubelet/kubepods/burstable/pod69cd289b4ed80ced4f95a59ff60fa102/d9627625c8d60d859f2a13f9ed66c77c9767368e18eb5669fe1a85d600e43f9b",image="k8s.gcr.io/kube-scheduler:v1.20.2",name="d9627625c8d60d859f2a13f9ed66c77c9767368e18eb5669fe1a85d600e43f9b",namespace="kube-system",pod="kube-scheduler-kind-control-plane",ulimit="max_open_files"} 1.048576e+06 1631113868640
 `
-		benchmarkAreIdenticalSeriesFast(b, s, s, true)
+		benchmarkAreIdenticalTextSeriesFast(b, s, s, true)
 	})
 	b.Run("different-series-with-timestamps", func(b *testing.B) {
 		s := `
@@ -98,16 +98,16 @@ container_ulimits_soft{container="kube-controller-manager",id="/kubelet/kubepods
 container_ulimits_soft{container="kube-scheduler",id="/docker/6b7c234cfe92a0924e54e2a51d9607a5893a38ed14c7161f324863eeaa2fb985/kubelet/kubepods/burstable/pod69cd289b4ed80ced4f95a59ff60fa102/d9627625c8d60d859f2a13f9ed66c77c9767368e18eb5669fe1a85d600e43f9b",image="k8s.gcr.io/kube-scheduler:v1.20.2",name="d9627625c8d60d859f2a13f9ed66c77c9767368e18eb5669fe1a85d600e43f9b",namespace="kube-system",pod="kube-scheduler-kind-control-plane",ulimit="max_open_files"} 1.048576e+06 1631113857794
 container_ulimits_soft{container="kube-scheduler",id="/kubelet/kubepods/burstable/pod69cd289b4ed80ced4f95a59ff60fa102/d9627625c8d60d859f2a13f9ed66c77c9767368e18eb5669fe1a85d600e43f9b",image="k8s.gcr.io/kube-scheduler:v1.20.2",name="d9627625c8d60d859f2a13f9ed66c77c9767368e18eb5669fe1a85d600e43f9b",namespace="kube-system",pod="kube-scheduler-kind-control-plane",ulimit="max_open_files"} 1.048576e+06 1631113868640
 `
-		benchmarkAreIdenticalSeriesFast(b, s, s+"\nfoo 1", false)
+		benchmarkAreIdenticalTextSeriesFast(b, s, s+"\nfoo 1", false)
 	})
 }
 
-func benchmarkAreIdenticalSeriesFast(b *testing.B, s1, s2 string, expectedResult bool) {
+func benchmarkAreIdenticalTextSeriesFast(b *testing.B, s1, s2 string, expectedResult bool) {
 	b.SetBytes(int64(len(s1)))
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			result := AreIdenticalSeriesFast(s1, s2)
+			result := AreIdenticalTextSeriesFast(s1, s2)
 			if result != expectedResult {
 				panic(fmt.Errorf("unexpected result; got %v; want %v", result, expectedResult))
 			}
@@ -137,7 +137,7 @@ container_ulimits_soft{container="kube-scheduler",id="/kubelet/kubepods/burstabl
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			diff := GetRowsDiff(s2, s1)
+			diff, _ := GetRowsDiff(s2, s1, false)
 			if diff != "foo 0\n" {
 				panic(fmt.Errorf("unexpected diff; got %q; want %q", diff, "foo 0\n"))
 			}
@@ -156,7 +156,7 @@ cpu_usage{mode="irq"} 0.34432
 	b.RunParallel(func(pb *testing.PB) {
 		var rows Rows
 		for pb.Next() {
-			rows.Unmarshal(s)
+			rows.Unmarshal(s, TextHeader)
 			if len(rows.Rows) != 4 {
 				panic(fmt.Errorf("unexpected number of rows unmarshaled: got %d; want 4", len(rows.Rows)))
 			}

@@ -53,6 +53,9 @@ type ScrapeWork struct {
 	// Timeout for scraping the ScrapeURL.
 	ScrapeTimeout time.Duration
 
+	// Protocols to support exposition formats.
+	ScrapeProtocols []ScrapeProtocol
+
 	// MaxScrapeSize sets max amount of data, that can be scraped by a job
 	MaxScrapeSize int64
 
@@ -186,7 +189,7 @@ type scrapeWork struct {
 	Config *ScrapeWork
 
 	// ReadData is called for reading the scrape response data into dst.
-	ReadData func(dst *bytesutil.ByteBuffer) error
+	ReadData func(dst *bytesutil.ByteBuffer, contentType *parser.ContentType) error
 
 	// PushData is called for pushing collected data.
 	PushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)
@@ -213,6 +216,9 @@ type scrapeWork struct {
 	// prevLabelsLen contains the number labels scraped during the previous scrape.
 	// It is used as a hint in order to reduce memory usage when parsing scrape responses.
 	prevLabelsLen int
+
+	// contentType contains media type extracted from scraped Content-Type header
+	contentType parser.ContentType
 
 	// lastScrape holds the last response from scrape target.
 	// It is used for staleness tracking and for populating scrape_series_added metric.
@@ -409,7 +415,7 @@ func (sw *scrapeWork) needStreamParseMode(responseSize int) bool {
 // getTargetResponse() fetches response from sw target in the same way as when scraping the target.
 func (sw *scrapeWork) getTargetResponse() ([]byte, error) {
 	var bb bytesutil.ByteBuffer
-	if err := sw.ReadData(&bb); err != nil {
+	if err := sw.ReadData(&bb, &sw.contentType); err != nil {
 		return nil, err
 	}
 	return bb.B, nil
@@ -423,7 +429,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	// is occupied during parsing of the read response body below.
 	// This also allows measuring the real scrape duration, which doesn't include
 	// the time needed for processing of the read response.
-	err := sw.ReadData(body)
+	err := sw.ReadData(body, &sw.contentType)
 
 	// Measure scrape duration.
 	endTimestamp := time.Now().UnixNano() / 1e6
@@ -468,7 +474,7 @@ func (sw *scrapeWork) processDataOneShot(scrapeTimestamp, realTimestamp int64, b
 		up = 0
 		scrapesFailed.Inc()
 	} else {
-		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
+		wc.rows.UnmarshalWithErrLogger(bodyString, sw.contentType, sw.logError)
 	}
 	srcRows := wc.rows.Rows
 	samplesScraped := len(srcRows)
@@ -538,7 +544,7 @@ func (sw *scrapeWork) processDataInStreamMode(scrapeTimestamp, realTimestamp int
 
 	r := body.NewReader()
 	var mu sync.Mutex
-	err := stream.Parse(r, scrapeTimestamp, false, false, func(rows []parser.Row) error {
+	err := stream.Parse(r, sw.contentType, scrapeTimestamp, false, false, func(rows []parser.Row) error {
 		mu.Lock()
 		defer mu.Unlock()
 
@@ -615,13 +621,20 @@ func (sw *scrapeWork) pushData(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	pushDataDuration.UpdateDuration(startTime)
 }
 
+func (sw *scrapeWork) isBinary() bool {
+	return sw.contentType == parser.ProtoHeader
+}
+
 func (sw *scrapeWork) areIdenticalSeries(prevData, currData string) bool {
 	if sw.Config.NoStaleMarkers && sw.Config.SeriesLimit <= 0 {
 		// Do not spend CPU time on tracking the changes in series if stale markers are disabled.
 		// The check for series_limit is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
 		return true
 	}
-	return parser.AreIdenticalSeriesFast(prevData, currData)
+	if sw.isBinary() {
+		return prevData == currData
+	}
+	return parser.AreIdenticalTextSeriesFast(prevData, currData)
 }
 
 // leveledWriteRequestCtxPool allows reducing memory usage when writeRequesCtx
@@ -697,8 +710,8 @@ func (sw *scrapeWork) getSeriesAdded(lastScrape, currScrape string) int {
 	if currScrape == "" {
 		return 0
 	}
-	bodyString := parser.GetRowsDiff(currScrape, lastScrape)
-	return strings.Count(bodyString, "\n")
+	_, count := parser.GetRowsDiff(currScrape, lastScrape, sw.isBinary())
+	return count
 }
 
 func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
@@ -743,7 +756,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	}
 	bodyString := lastScrape
 	if currScrape != "" {
-		bodyString = parser.GetRowsDiff(lastScrape, currScrape)
+		bodyString, _ = parser.GetRowsDiff(lastScrape, currScrape, sw.isBinary())
 	}
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	defer func() {
@@ -757,7 +770,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3675
 		var mu sync.Mutex
 		br := bytes.NewBufferString(bodyString)
-		err := stream.Parse(br, timestamp, false, false, func(rows []parser.Row) error {
+		err := stream.Parse(br, sw.contentType, timestamp, false, false, func(rows []parser.Row) error {
 			mu.Lock()
 			defer mu.Unlock()
 			for i := range rows {
