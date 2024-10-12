@@ -38,6 +38,11 @@ var (
 		"This may be useful when multiple data sources with distinct retentions are hidden behind query-tee")
 )
 
+var (
+	maxMetricsLimitByResource int
+	once                      sync.Once
+)
+
 // NewVMSelectServer starts new server at the given addr, which serves vmselect requests from the given s.
 func NewVMSelectServer(addr string, s *storage.Storage) (*vmselectapi.Server, error) {
 	api := &vmstorageAPI{
@@ -259,11 +264,6 @@ func getMaxMetrics(sq *storage.SearchQuery) int {
 	}
 	return maxMetrics
 }
-
-var (
-	maxMetricsLimitByResource int
-	once                      sync.Once
-)
 
 // GetMaxUniqueTimeSeries returns the max metrics limit calculated by available resources.
 // The calculation is split into calculateMaxUniqueTimeSeriesByResource for unit testing.
