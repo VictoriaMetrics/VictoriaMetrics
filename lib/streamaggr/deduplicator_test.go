@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
 func TestDeduplicator(t *testing.T) {
@@ -28,7 +29,7 @@ x 433 1000
 asfjkldsf{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",namespace="asdff",container="ohohffd"} 12322
 foo{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",namespace="asdff",container="ohohffd"} 894
 baz_aaa_aaa_fdd{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",namespace="asdff",container="ohohffd"} -2.3
-`, offsetMsecs)
+`, parser.TextHeader, offsetMsecs)
 
 	d := NewDeduplicator(pushFunc, time.Hour, []string{"node", "instance"}, "global")
 	for i := 0; i < 10; i++ {
