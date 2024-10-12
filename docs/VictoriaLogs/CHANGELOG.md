@@ -15,6 +15,9 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: avoid panic at `lib/logstorage.(*blockResultColumn).forEachDictValue()` when [stats with additional filters](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters). The panic has been introduced in [v0.33.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.33.0-victorialogs) in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/a350be48b68330ee1a487e1fb09b002d3be45163).
+
+
 ## [v0.35.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.35.0-victorialogs)
 
 * FEATURE: [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/): add ability to live tail query results - see [these docs](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/#live-tailing).
