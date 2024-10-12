@@ -118,7 +118,7 @@ type EvalConfig struct {
 	Step  int64
 
 	// MaxSeries is the maximum number of time series, which can be scanned by the query.
-	// Zero means 'no limit' on vmselect side and let vmstorage to calculate.
+	// Zero means 'no limit'
 	MaxSeries int
 
 	// MaxPointsPerSeries is the limit on the number of points, which can be generated per each returned time series.

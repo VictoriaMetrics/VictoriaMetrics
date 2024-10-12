@@ -252,7 +252,7 @@ func getMaxMetrics(sq *storage.SearchQuery) int {
 	maxMetrics := sq.MaxMetrics
 	maxMetricsLimit := *maxUniqueTimeseries
 	if maxMetricsLimit <= 0 {
-		maxMetricsLimit = GetMaxMetricsLimitByResource()
+		maxMetricsLimit = GetMaxUniqueTimeSeries()
 	}
 	if maxMetrics <= 0 || maxMetrics > maxMetricsLimit {
 		maxMetrics = maxMetricsLimit
@@ -265,18 +265,18 @@ var (
 	once                      sync.Once
 )
 
-// GetMaxMetricsLimitByResource returns the max metrics limit calculated by available resources.
-// The calculation is split into calculateMaxMetricsLimitByResource for unit testing.
-func GetMaxMetricsLimitByResource() int {
+// GetMaxUniqueTimeSeries returns the max metrics limit calculated by available resources.
+// The calculation is split into calculateMaxUniqueTimeSeriesByResource for unit testing.
+func GetMaxUniqueTimeSeries() int {
 	once.Do(func() {
-		maxMetricsLimitByResource = calculateMaxMetricsLimitByResource(*maxConcurrentRequests, memory.Remaining())
+		maxMetricsLimitByResource = calculateMaxUniqueTimeSeriesByResource(*maxConcurrentRequests, memory.Remaining())
 		logger.Infof("limiting -search.maxUniqueTimeseries to %d according to -search.maxConcurrentRequests=%d and remaining memory=%d bytes. To increase the limit, reduce -search.maxConcurrentRequests or increase memory available to the process.", maxMetricsLimitByResource, *maxConcurrentRequests, memory.Remaining())
 	})
 	return maxMetricsLimitByResource
 }
 
-// calculateMaxMetricsLimitByResource calculate the max metrics limit calculated by available resources.
-func calculateMaxMetricsLimitByResource(maxConcurrentRequests, remainingMemory int) int {
+// calculateMaxUniqueTimeSeriesByResource calculate the max metrics limit calculated by available resources.
+func calculateMaxUniqueTimeSeriesByResource(maxConcurrentRequests, remainingMemory int) int {
 	if maxConcurrentRequests <= 0 {
 		// This line should NOT be reached unless the user has set an incorrect `search.maxConcurrentRequests`.
 		// In such cases, fallback to unlimited.
