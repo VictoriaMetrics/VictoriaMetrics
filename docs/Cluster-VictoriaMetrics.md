@@ -712,7 +712,7 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   may exceed the per-query memory limit by a small percent. The total memory limit for concurrently executed queries can be estimated
   as `-search.maxMemoryPerQuery` multiplied by `-search.maxConcurrentRequests`.
 - `-search.maxUniqueTimeseries` at `vmselect` component limits the number of unique time series a single query can find and process.
-  By default, it's set to 0, meaning that vmstorage will calculate automatically based on the available resources and 
+  By default, vmselect lets vmstorage to calculate the limit automatically based on the available resources and 
   the maximum number of concurrent vmselect requests it can process.
   Otherwise, `vmselect` passes the limit to `vmstorage` component, which keeps in memory some metainformation about the time series located
   by each query and spends some CPU time for processing the found time series. This means that the maximum memory usage and CPU usage

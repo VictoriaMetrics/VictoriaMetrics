@@ -19,7 +19,7 @@ import (
 
 var (
 	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be scanned during every query. "+
-		"This allows protecting against heavy queries, which select unexpectedly high number of series. Zero means 'calculate automatically by available resources'. See also -search.max* command-line flags at vmselect")
+		"This allows protecting against heavy queries, which select unexpectedly high number of series. When set to zero, the limit is automatically calculated based on -search.maxConcurrentRequests (inversely proportional) and memory available to the process (proportional). See also -search.max* command-line flags at vmselect")
 	maxTagKeys = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned per search. "+
 		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
 	maxTagValues = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search. "+
@@ -270,7 +270,7 @@ var (
 func GetMaxMetricsLimitByResource() int {
 	once.Do(func() {
 		maxMetricsLimitByResource = calculateMaxMetricsLimitByResource(*maxConcurrentRequests, memory.Remaining())
-		logger.Infof("limiting -search.maxUniqueTimeseries to %d according to -search.maxConcurrentRequests=%d and remaining memory=%d bytes", maxMetricsLimitByResource, *maxConcurrentRequests, memory.Remaining())
+		logger.Infof("limiting -search.maxUniqueTimeseries to %d according to -search.maxConcurrentRequests=%d and remaining memory=%d bytes. To increase the limit, reduce -search.maxConcurrentRequests or increase memory available to the process.", maxMetricsLimitByResource, *maxConcurrentRequests, memory.Remaining())
 	})
 	return maxMetricsLimitByResource
 }
