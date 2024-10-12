@@ -1733,7 +1733,7 @@ func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) 
 	if c.valueType != valueTypeDict {
 		logger.Panicf("BUG: unexpected column valueType=%d; want %d", c.valueType, valueTypeDict)
 	}
-	if uint64(br.rowsLen) == br.bs.bsw.bh.rowsCount {
+	if br.bs != nil && uint64(br.rowsLen) == br.bs.bsw.bh.rowsCount {
 		// Fast path - there is no need in reading encoded values
 		for _, v := range c.dictValues {
 			f(v)
