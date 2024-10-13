@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
@@ -25,7 +27,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -60,7 +61,7 @@ func Init() {
 	fs.RemoveDirContents(tmpDirPath)
 	netstorage.InitTmpBlocksDir(tmpDirPath)
 	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
-
+	prometheus.InitMaxUniqueTimeseries(*maxConcurrentRequests)
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMAlertProxy()
 }
@@ -81,6 +82,9 @@ var (
 	})
 	_ = metrics.NewGauge(`vm_concurrent_select_current`, func() float64 {
 		return float64(len(concurrencyLimitCh))
+	})
+	_ = metrics.NewGauge(`vm_search_max_unique_timeseries`, func() float64 {
+		return float64(prometheus.GetMaxUniqueTimeSeries())
 	})
 )
 
