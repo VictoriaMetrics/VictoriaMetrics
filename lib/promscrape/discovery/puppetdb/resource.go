@@ -140,14 +140,14 @@ func getResourceLabels(resources []resource, cfg *apiConfig) []*promutils.Labels
 		m := promutils.NewLabels(18)
 
 		m.Add("__address__", discoveryutils.JoinHostPort(resource.Certname, cfg.port))
-		m.Add("__meta_puppetdb_query", cfg.query)
 		m.Add("__meta_puppetdb_certname", resource.Certname)
-		m.Add("__meta_puppetdb_resource", resource.Resource)
-		m.Add("__meta_puppetdb_type", resource.Type)
-		m.Add("__meta_puppetdb_title", resource.Title)
+		m.Add("__meta_puppetdb_environment", resource.Environment)
 		m.Add("__meta_puppetdb_exported", fmt.Sprintf("%t", resource.Exported))
 		m.Add("__meta_puppetdb_file", resource.File)
-		m.Add("__meta_puppetdb_environment", resource.Environment)
+		m.Add("__meta_puppetdb_query", cfg.query)
+		m.Add("__meta_puppetdb_resource", resource.Resource)
+		m.Add("__meta_puppetdb_title", resource.Title)
+		m.Add("__meta_puppetdb_type", resource.Type)
 
 		if len(resource.Tags) > 0 {
 			//discoveryutils.AddTagsToLabels(m, resource.Tags, "__meta_puppetdb_tags", separator)
