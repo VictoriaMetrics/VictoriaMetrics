@@ -235,34 +235,6 @@ func (csh *columnsHeader) reset() {
 	csh.constColumns = ccs[:0]
 }
 
-func (csh *columnsHeader) getConstColumnValue(name string) string {
-	if name == "_msg" {
-		name = ""
-	}
-	ccs := csh.constColumns
-	for i := range ccs {
-		cc := &ccs[i]
-		if cc.Name == name {
-			return cc.Value
-		}
-	}
-	return ""
-}
-
-func (csh *columnsHeader) getColumnHeader(name string) *columnHeader {
-	if name == "_msg" {
-		name = ""
-	}
-	chs := csh.columnHeaders
-	for i := range chs {
-		ch := &chs[i]
-		if ch.name == name {
-			return ch
-		}
-	}
-	return nil
-}
-
 func (csh *columnsHeader) resizeConstColumns(columnsLen int) []Field {
 	csh.constColumns = slicesutil.SetLength(csh.constColumns, columnsLen)
 	return csh.constColumns
