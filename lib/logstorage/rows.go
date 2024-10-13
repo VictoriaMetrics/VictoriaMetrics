@@ -36,7 +36,7 @@ func (f *Field) marshal(dst []byte) []byte {
 	return dst
 }
 
-func (f *Field) unmarshal(a *arena, src []byte) ([]byte, error) {
+func (f *Field) unmarshalNoArena(src []byte) ([]byte, error) {
 	srcOrig := src
 
 	// Unmarshal field name
@@ -45,7 +45,7 @@ func (f *Field) unmarshal(a *arena, src []byte) ([]byte, error) {
 		return srcOrig, fmt.Errorf("cannot unmarshal field name")
 	}
 	src = src[nSize:]
-	f.Name = a.copyBytesToString(b)
+	f.Name = bytesutil.ToUnsafeString(b)
 
 	// Unmarshal field value
 	b, nSize = encoding.UnmarshalBytes(src)
@@ -53,7 +53,7 @@ func (f *Field) unmarshal(a *arena, src []byte) ([]byte, error) {
 		return srcOrig, fmt.Errorf("cannot unmarshal field value")
 	}
 	src = src[nSize:]
-	f.Value = a.copyBytesToString(b)
+	f.Value = bytesutil.ToUnsafeString(b)
 
 	return src, nil
 }
