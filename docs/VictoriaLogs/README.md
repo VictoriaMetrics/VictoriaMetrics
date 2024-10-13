@@ -131,6 +131,19 @@ For example, the following command starts VictoriaLogs, which stores the data at
 
 VictoriaLogs automatically creates the `-storageDataPath` directory on the first run if it is missing.
 
+## Forced merge
+
+VictoriaLogs performs data compactions in background in order to keep good performance characteristics when accepting new data.
+These compactions (merges) are performed independently on per-day partitions.
+This means that compactions are stopped for per-day partitions if no new data is ingested into these partitions.
+Sometimes it is necessary to trigger compactions for old partitions. In this case forced compaction may be initiated on the specified per-month partition
+by sending request to `/internal/force_merge?partition_prefix=YYYYMMDD`,
+where `YYYYMMDD` is per-day partition name. For example, `http://victoria-logs:9428/internal/force_merge?partition_prefix=20240921` would initiate forced
+merge for September 21, 2024 partition. The call to `/internal/force_merge` returns immediately, while the corresponding forced merge continues running in background.
+
+Forced merges may require additional CPU, disk IO and storage space resources. It is unnecessary to run forced merge under normal conditions,
+since VictoriaLogs automatically performs optimal merges in background when new data is ingested into it.
+
 ## High Availability
 
 ### High Availability (HA) Setup with VictoriaLogs Single-Node Instances
