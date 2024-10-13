@@ -113,13 +113,15 @@ type blockSearch struct {
 	// sbu is used for unmarshaling local columns
 	sbu stringsBlockUnmarshaler
 
+	// cshBlockCache holds columnsHeader data for the given block.
+	//
+	// it is initialized lazily by calling getColumnsHeader().
+	cshBlockCache []byte
+
 	// cshCache is the columnsHeader associated with the given block
 	//
 	// it is initialized lazily by calling getColumnsHeader().
 	cshCache *columnsHeader
-
-	// a is used for storing unmarshaled data in cshCached
-	a arena
 
 	// seenStreams contains seen streamIDs for the recent searches.
 	// It is used for speeding up fetching _stream column.
@@ -149,12 +151,12 @@ func (bs *blockSearch) reset() {
 
 	bs.sbu.reset()
 
+	bs.cshBlockCache = bs.cshBlockCache[:0]
+
 	if bs.cshCache != nil {
 		putColumnsHeader(bs.cshCache)
 		bs.cshCache = nil
 	}
-
-	bs.a.reset()
 
 	// Do not reset seenStreams, since its' lifetime is managed by blockResult.addStreamColumn() code.
 }
@@ -190,25 +192,25 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 
 func (bs *blockSearch) getColumnsHeader() *columnsHeader {
 	if bs.cshCache == nil {
+		bs.cshBlockCache = readColumnsHeaderBlock(bs.cshBlockCache[:0], bs.bsw.p, &bs.bsw.bh)
+
 		bs.cshCache = getColumnsHeader()
-		bs.cshCache.initFromBlockHeader(&bs.a, bs.bsw.p, &bs.bsw.bh)
+		if err := bs.cshCache.unmarshalNoArena(bs.cshBlockCache); err != nil {
+			logger.Panicf("FATAL: %s: cannot unmarshal columns header: %s", bs.bsw.p.path, err)
+		}
 	}
 	return bs.cshCache
 }
 
-func (csh *columnsHeader) initFromBlockHeader(a *arena, p *part, bh *blockHeader) {
-	bb := longTermBufPool.Get()
+func readColumnsHeaderBlock(dst []byte, p *part, bh *blockHeader) []byte {
 	columnsHeaderSize := bh.columnsHeaderSize
 	if columnsHeaderSize > maxColumnsHeaderSize {
 		logger.Panicf("FATAL: %s: columns header size cannot exceed %d bytes; got %d bytes", p.path, maxColumnsHeaderSize, columnsHeaderSize)
 	}
-	bb.B = bytesutil.ResizeNoCopyMayOverallocate(bb.B, int(columnsHeaderSize))
-	p.columnsHeaderFile.MustReadAt(bb.B, int64(bh.columnsHeaderOffset))
-
-	if err := csh.unmarshal(a, bb.B); err != nil {
-		logger.Panicf("FATAL: %s: cannot unmarshal columns header: %s", p.path, err)
-	}
-	longTermBufPool.Put(bb)
+	dstLen := len(dst)
+	dst = bytesutil.ResizeNoCopyMayOverallocate(dst, int(columnsHeaderSize)+dstLen)
+	p.columnsHeaderFile.MustReadAt(dst[dstLen:], int64(bh.columnsHeaderOffset))
+	return dst
 }
 
 // getBloomFilterForColumn returns bloom filter for the given ch.
