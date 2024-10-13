@@ -70,8 +70,8 @@ var (
 )
 
 var (
-	once                      sync.Once
-	maxMetricsLimitByResource int
+	once                       sync.Once
+	defaultMaxUniqueTimeseries int
 )
 
 // Default step used if not set.
@@ -1258,12 +1258,13 @@ func (sw *scalableWriter) flush() error {
 // InitMaxUniqueTimeseries init the max metrics limit calculated by available resources.
 // The calculation is split into calculateMaxUniqueTimeSeriesByResource for unit testing.
 func InitMaxUniqueTimeseries(maxConcurrentRequests int) {
-	if *maxUniqueTimeseries <= 0 {
-		once.Do(func() {
-			maxMetricsLimitByResource = calculateMaxUniqueTimeSeriesByResource(maxConcurrentRequests, memory.Remaining())
-			logger.Infof("limiting -search.maxUniqueTimeseries to %d according to -search.maxConcurrentRequests=%d and remaining memory=%d bytes. To increase the limit, reduce -search.maxConcurrentRequests or increase memory available to the process.", maxMetricsLimitByResource, maxConcurrentRequests, memory.Remaining())
-		})
-	}
+	once.Do(func() {
+		defaultMaxUniqueTimeseries = *maxUniqueTimeseries
+		if defaultMaxUniqueTimeseries <= 0 {
+			defaultMaxUniqueTimeseries = calculateMaxUniqueTimeSeriesByResource(maxConcurrentRequests, memory.Remaining())
+			logger.Infof("limiting -search.maxUniqueTimeseries to %d according to -search.maxConcurrentRequests=%d and remaining memory=%d bytes. To increase the limit, reduce -search.maxConcurrentRequests or increase memory available to the process.", defaultMaxUniqueTimeseries, maxConcurrentRequests, memory.Remaining())
+		}
+	})
 }
 
 // calculateMaxUniqueTimeSeriesByResource calculate the max metrics limit calculated by available resources.
@@ -1281,8 +1282,5 @@ func calculateMaxUniqueTimeSeriesByResource(maxConcurrentRequests, remainingMemo
 
 // GetMaxUniqueTimeSeries returns the max metrics limit calculated by available resources.
 func GetMaxUniqueTimeSeries() int {
-	if *maxUniqueTimeseries <= 0 {
-		return maxMetricsLimitByResource
-	}
-	return *maxUniqueTimeseries
+	return defaultMaxUniqueTimeseries
 }
