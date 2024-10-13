@@ -113,13 +113,10 @@ type blockSearch struct {
 	// sbu is used for unmarshaling local columns
 	sbu stringsBlockUnmarshaler
 
-	// cshCached is the columnsHeader associated with the given block
+	// cshCache is the columnsHeader associated with the given block
 	//
 	// it is initialized lazily by calling getColumnsHeader().
-	cshCached columnsHeader
-
-	// cshInitialized is set to true if cshCached is initialized.
-	cshInitialized bool
+	cshCache *columnsHeader
 
 	// a is used for storing unmarshaled data in cshCached
 	a arena
@@ -152,8 +149,10 @@ func (bs *blockSearch) reset() {
 
 	bs.sbu.reset()
 
-	bs.cshCached.reset()
-	bs.cshInitialized = false
+	if bs.cshCache != nil {
+		putColumnsHeader(bs.cshCache)
+		bs.cshCache = nil
+	}
 
 	bs.a.reset()
 
@@ -190,10 +189,11 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 }
 
 func (bs *blockSearch) getColumnsHeader() *columnsHeader {
-	if !bs.cshInitialized {
-		bs.cshCached.initFromBlockHeader(&bs.a, bs.bsw.p, &bs.bsw.bh)
+	if bs.cshCache == nil {
+		bs.cshCache = getColumnsHeader()
+		bs.cshCache.initFromBlockHeader(&bs.a, bs.bsw.p, &bs.bsw.bh)
 	}
-	return &bs.cshCached
+	return bs.cshCache
 }
 
 func (csh *columnsHeader) initFromBlockHeader(a *arena, p *part, bh *blockHeader) {
