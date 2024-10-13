@@ -190,6 +190,46 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 	}
 }
 
+func (bs *blockSearch) getConstColumnValue(name string) string {
+	if name == "_msg" {
+		name = ""
+	}
+
+	csh := bs.getColumnsHeader()
+	for _, cc := range csh.constColumns {
+		if cc.Name == name {
+			return cc.Value
+		}
+	}
+	return ""
+}
+
+func (bs *blockSearch) getColumnHeader(name string) *columnHeader {
+	if name == "_msg" {
+		name = ""
+	}
+
+	csh := bs.getColumnsHeader()
+	chs := csh.columnHeaders
+	for i := range chs {
+		ch := &chs[i]
+		if ch.name == name {
+			return ch
+		}
+	}
+	return nil
+}
+
+func (bs *blockSearch) getConstColumns() []Field {
+	csh := bs.getColumnsHeader()
+	return csh.constColumns
+}
+
+func (bs *blockSearch) getColumnHeaders() []columnHeader {
+	csh := bs.getColumnsHeader()
+	return csh.columnHeaders
+}
+
 func (bs *blockSearch) getColumnsHeader() *columnsHeader {
 	if bs.cshCache == nil {
 		bs.cshBlockCache = readColumnsHeaderBlock(bs.cshBlockCache[:0], bs.bsw.p, &bs.bsw.bh)
