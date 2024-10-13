@@ -11,7 +11,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
-	"github.com/prometheus/common/model"
 )
 
 const (
@@ -115,6 +114,7 @@ func getResourceList(cfg *apiConfig) ([]resource, error) {
 		responseContentType = resp.Header.Get("Content-Type")
 	}
 
+	// https://www.puppet.com/docs/puppetdb/8/api/query/v4/overview#pdbqueryv4
 	resp, err := cfg.client.GetAPIResponseWithParamsCtx(cfg.client.Context(), "/pdb/query/v4", modifyRequestFunc, inspectResponseFunc)
 	if err != nil {
 		return nil, err
@@ -139,7 +139,7 @@ func getResourceLabels(resources []resource, cfg *apiConfig) []*promutils.Labels
 	for _, resource := range resources {
 		m := promutils.NewLabels(18)
 
-		m.Add(model.AddressLabel, discoveryutils.JoinHostPort(resource.Certname, cfg.port))
+		m.Add("__address__", discoveryutils.JoinHostPort(resource.Certname, cfg.port))
 		m.Add("__meta_puppetdb_query", cfg.query)
 		m.Add("__meta_puppetdb_certname", resource.Certname)
 		m.Add("__meta_puppetdb_resource", resource.Resource)

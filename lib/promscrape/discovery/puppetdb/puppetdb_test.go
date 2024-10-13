@@ -68,6 +68,8 @@ var jsonResponse = `[
    }
 ]`
 
+// TestSDConfig_GetLabels test example response and expect labels are from:
+// https://github.com/prometheus/prometheus/blob/685493187ec5f5734777769f595cf8418d49900d/discovery/puppetdb/puppetdb_test.go#L110C6-L110C39
 func TestSDConfig_GetLabels(t *testing.T) {
 	mockSvr := newMockPuppetDBServer(func(_ string) ([]byte, error) {
 		return []byte(jsonResponse), nil
