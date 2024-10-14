@@ -2280,9 +2280,6 @@ func TestQueryGetStatsByFields_Success(t *testing.T) {
 	// math pipe is allowed after stats
 	f(`foo | stats by (x) count() total, count() if (error) errors | math errors / total`, []string{"x"})
 
-	// keep containing all the by(...) fields
-	f(`foo | stats by (x) count() total | keep x, y`, []string{"x"})
-
 	// drop which doesn't contain by(...) fields
 	f(`foo | stats by (x) count() total | drop y`, []string{"x"})
 
@@ -2336,4 +2333,5 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | unroll by (x)`)
 
 	f(`* | by (x) count() as rows | math rows * 10, rows / 10 | drop x`)
+	f(`* | by (x) count() total | keep x, y`)
 }
