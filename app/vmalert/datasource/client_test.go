@@ -24,10 +24,10 @@ var (
 		Username: basicAuthName,
 		Password: promauth.NewSecret(basicAuthPass),
 	}
-	vmQuery     = "vm_rows"
-	queryRender = "constantLine(10)"
-	vlogsQuery  = "_time: 5m | stats by (foo) count() total"
-	vlogsRangeQuery  = "* | stats by (foo) count() total"
+	vmQuery         = "vm_rows"
+	queryRender     = "constantLine(10)"
+	vlogsQuery      = "_time: 5m | stats by (foo) count() total"
+	vlogsRangeQuery = "* | stats by (foo) count() total"
 )
 
 func TestVMInstantQuery(t *testing.T) {
@@ -459,7 +459,7 @@ func TestVMRangeQuery(t *testing.T) {
 	expectError(t, err, "is not supported")
 
 	// test victorialogs
-	gq = s.BuildWithParams(QuerierParams{DataSourceType: string(datasourceVLogs), EvaluationInterval: 60*time.Second})
+	gq = s.BuildWithParams(QuerierParams{DataSourceType: string(datasourceVLogs), EvaluationInterval: 60 * time.Second})
 
 	res, err = gq.QueryRange(ctx, vlogsRangeQuery, start, end)
 	if err != nil {
@@ -581,7 +581,7 @@ func TestRequestParams(t *testing.T) {
 	// basic auth
 	f(false, &Client{
 		dataSourceType: datasourcePrometheus,
-		authCfg: authCfg,
+		authCfg:        authCfg,
 	}, func(t *testing.T, r *http.Request) {
 		u, p, _ := r.BasicAuth()
 		checkEqualString(t, "foo", u)
@@ -591,7 +591,7 @@ func TestRequestParams(t *testing.T) {
 	// basic auth range
 	f(true, &Client{
 		dataSourceType: datasourcePrometheus,
-		authCfg: authCfg,
+		authCfg:        authCfg,
 	}, func(t *testing.T, r *http.Request) {
 		u, p, _ := r.BasicAuth()
 		checkEqualString(t, "foo", u)
@@ -600,7 +600,7 @@ func TestRequestParams(t *testing.T) {
 
 	// evaluation interval
 	f(false, &Client{
-		dataSourceType: datasourcePrometheus,
+		dataSourceType:     datasourcePrometheus,
 		evaluationInterval: 15 * time.Second,
 	}, func(t *testing.T, r *http.Request) {
 		evalInterval := 15 * time.Second
@@ -611,7 +611,7 @@ func TestRequestParams(t *testing.T) {
 	// step override
 	f(false, &Client{
 		dataSourceType: datasourcePrometheus,
-		queryStep: time.Minute,
+		queryStep:      time.Minute,
 	}, func(t *testing.T, r *http.Request) {
 		exp := url.Values{
 			"query": {query},
@@ -623,7 +623,7 @@ func TestRequestParams(t *testing.T) {
 
 	//  step to seconds
 	f(false, &Client{
-		dataSourceType: datasourcePrometheus,
+		dataSourceType:     datasourcePrometheus,
 		evaluationInterval: 3 * time.Hour,
 	}, func(t *testing.T, r *http.Request) {
 		evalInterval := 3 * time.Hour
@@ -634,7 +634,7 @@ func TestRequestParams(t *testing.T) {
 	// prometheus extra params
 	f(false, &Client{
 		dataSourceType: datasourcePrometheus,
-		extraParams: url.Values{"round_digits": {"10"}},
+		extraParams:    url.Values{"round_digits": {"10"}},
 	}, func(t *testing.T, r *http.Request) {
 		exp := url.Values{"query": {query}, "round_digits": {"10"}, "time": {timestamp.Format(time.RFC3339)}}
 		checkEqualString(t, exp.Encode(), r.URL.RawQuery)
@@ -661,7 +661,7 @@ func TestRequestParams(t *testing.T) {
 	// custom params overrides the original params
 	f(false, storage.Clone().ApplyParams(QuerierParams{
 		DataSourceType: string(datasourcePrometheus),
-		QueryParams: url.Values{"round_digits": {"2"}},
+		QueryParams:    url.Values{"round_digits": {"2"}},
 	}), func(t *testing.T, r *http.Request) {
 		exp := url.Values{"query": {query}, "round_digits": {"2"}, "time": {timestamp.Format(time.RFC3339)}}
 		checkEqualString(t, exp.Encode(), r.URL.RawQuery)
@@ -670,7 +670,7 @@ func TestRequestParams(t *testing.T) {
 	// allow duplicates in query params
 	f(false, storage.Clone().ApplyParams(QuerierParams{
 		DataSourceType: string(datasourcePrometheus),
-		QueryParams: url.Values{"extra_labels": {"env=dev", "foo=bar"}},
+		QueryParams:    url.Values{"extra_labels": {"env=dev", "foo=bar"}},
 	}), func(t *testing.T, r *http.Request) {
 		exp := url.Values{"query": {query}, "round_digits": {"10"}, "extra_labels": {"env=dev", "foo=bar"}, "time": {timestamp.Format(time.RFC3339)}}
 		checkEqualString(t, exp.Encode(), r.URL.RawQuery)
@@ -700,7 +700,7 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	f(false, &Client{
-		dataSourceType: datasourceVLogs,
+		dataSourceType:     datasourceVLogs,
 		evaluationInterval: time.Minute,
 	}, func(t *testing.T, r *http.Request) {
 		exp := url.Values{"query": {vlogsQuery}, "time": {timestamp.Format(time.RFC3339)}}
@@ -708,7 +708,7 @@ func TestRequestParams(t *testing.T) {
 	})
 
 	f(true, &Client{
-		dataSourceType: datasourceVLogs,
+		dataSourceType:     datasourceVLogs,
 		evaluationInterval: time.Minute,
 	}, func(t *testing.T, r *http.Request) {
 		ts := timestamp.Format(time.RFC3339)

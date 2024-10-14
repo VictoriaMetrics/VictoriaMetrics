@@ -28,6 +28,7 @@ func NewGraphiteType() Type {
 	}
 }
 
+// NewVLogsType returns victorialogs datasource type
 func NewVLogsType() Type {
 	return Type{
 		Name: "vlogs",
