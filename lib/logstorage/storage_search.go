@@ -119,9 +119,6 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	})
 
 	minTimestamp, maxTimestamp := q.GetFilterTimeRange()
-	if minTimestamp > maxTimestamp {
-		return fmt.Errorf("invalid time range: minTimestamp=%d cannot exceed maxTimestamp=%d", minTimestamp, maxTimestamp)
-	}
 
 	neededColumnNames, unneededColumnNames := q.getNeededColumns()
 	so := &genericSearchOptions{

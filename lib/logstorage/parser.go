@@ -493,11 +493,6 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 		metricFields[f.resultName] = struct{}{}
 	}
 
-	resultNames := make([]string, len(ps.funcs))
-	for i, f := range ps.funcs {
-		resultNames[i] = f.resultName
-	}
-
 	// verify that all the pipes after the idx do not add new fields
 	for i := idx + 1; i < len(pipes); i++ {
 		p := pipes[i]
@@ -576,9 +571,6 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 				if _, ok := metricFields[fSrc]; ok {
 					delete(metricFields, fSrc)
 					metricFields[fDst] = struct{}{}
-				}
-				if n := slices.Index(resultNames, f); n >= 0 {
-					resultNames[n] = t.dstFields[i]
 				}
 			}
 		case *pipeFormat:
@@ -795,7 +787,7 @@ func ParseStatsQuery(s string) (*Query, error) {
 
 // ParseQueryAtTimestamp parses s in the context of the given timestamp.
 //
-// E.g. _time:duration filters are adjusted according to the provided timestamp as _time:[timestamp-duration, duration].
+// E.g. _time:duration filters are ajusted according to the provided timestamp as _time:[timestamp-duration, duration].
 func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 	lex := newLexerAtTimestamp(s, timestamp)
 
