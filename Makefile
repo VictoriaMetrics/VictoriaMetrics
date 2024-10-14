@@ -192,10 +192,12 @@ pprof-cpu:
 fmt:
 	gofmt -l -w -s ./lib
 	gofmt -l -w -s ./app
+	gofmt -l -w -s ./apptest
 
 vet:
 	go vet ./lib/...
 	go vet ./app/...
+	go vet ./apptest/...
 
 check-all: fmt vet golangci-lint govulncheck
 
@@ -215,6 +217,9 @@ test-full:
 
 test-full-386:
 	DISABLE_FSYNC_FOR_TESTING=1 GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
+
+integration-test: all
+	go test ./apptest/...
 
 benchmark:
 	go test -bench=. ./lib/...
