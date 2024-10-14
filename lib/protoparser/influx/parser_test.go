@@ -71,12 +71,13 @@ func TestUnescapeTagValue(t *testing.T) {
 }
 
 func TestRowsUnmarshalFailure(t *testing.T) {
-	f := func(s string, ignoreErrs bool) {
+	f := func(s string) {
 		t.Helper()
-		rows := Rows{
-			IgnoreErrs: ignoreErrs,
+		var rows Rows
+		err := rows.Unmarshal(s)
+		if err == nil {
+			t.Fatal("unexpected nil error")
 		}
-		_ = rows.Unmarshal(s)
 		if len(rows.Rows) != 0 {
 			t.Fatalf("expecting zero rows; got %d rows", len(rows.Rows))
 		}
@@ -89,48 +90,49 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	}
 
 	// No fields
-	f("foo", true)
-	f("foo,bar=baz 1234", true)
+	f("foo")
+	f("foo,bar=baz 1234")
 
 	// Missing tag value
-	f("foo,bar", true)
-	f("foo,bar baz", true)
-	f("foo,bar=123, 123", true)
+	f("foo,bar")
+	f("foo,bar baz")
+	f("foo,bar=123, 123")
 
 	// Missing field value
-	f("foo bar", true)
-	f("foo bar=", true)
-	f("foo bar=,baz=23 123", true)
-	f("foo bar=1, 123", true)
-	f(`foo bar=" 123`, true)
-	f(`foo bar="123`, true)
-	f(`foo bar=",123`, true)
-	f(`foo bar=a"", 123`, true)
+	f("foo bar")
+	f("foo bar=")
+	f("foo bar=,baz=23 123")
+	f("foo bar=1, 123")
+	f(`foo bar=" 123`)
+	f(`foo bar="123`)
+	f(`foo bar=",123`)
+	f(`foo bar=a"", 123`)
 
 	// Missing field name
-	f("foo =123", true)
-	f("foo =123\nbar", true)
+	f("foo =123")
+	f("foo =123\nbar")
 
 	// Invalid timestamp
-	f("foo bar=123 baz", true)
+	f("foo bar=123 baz")
 
 	// Invalid field value
-	f("foo bar=1abci", true)
-	f("foo bar=-2abci", true)
-	f("foo bar=3abcu", true)
+	f("foo bar=1abci")
+	f("foo bar=-2abci")
+	f("foo bar=3abcu")
 
 	// HTTP request line
-	f("GET /foo HTTP/1.1", true)
-	f("GET /foo?bar=baz HTTP/1.0", true)
+	f("GET /foo HTTP/1.1")
+	f("GET /foo?bar=baz HTTP/1.0")
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {
-	f := func(s string, rowsExpected *Rows, ignoreErrs bool) {
+	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
-		rows := Rows{
-			IgnoreErrs: ignoreErrs,
+		rows := Rows{IgnoreErrs: true}
+		err := rows.Unmarshal(s)
+		if err != nil {
+			t.Fatalf("unexpected err: %s", err)
 		}
-		_ = rows.Unmarshal(s)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
@@ -148,14 +150,14 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	}
 
 	// Empty line
-	f("", &Rows{}, true)
-	f("\n\n", &Rows{}, true)
-	f("\n\r\n", &Rows{}, true)
+	f("", &Rows{})
+	f("\n\n", &Rows{})
+	f("\n\r\n", &Rows{})
 
 	// Comment
-	f("\n# foobar\n", &Rows{}, true)
-	f("#foobar baz", &Rows{}, true)
-	f("#foobar baz\n#sss", &Rows{}, true)
+	f("\n# foobar\n", &Rows{})
+	f("#foobar baz", &Rows{})
+	f("#foobar baz\n#sss", &Rows{})
 
 	// Missing measurement
 	f(" baz=123", &Rows{
@@ -166,7 +168,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				Value: 123,
 			}},
 		}},
-	}, true)
+	})
 	f(",foo=bar baz=123", &Rows{
 		Rows: []Row{{
 			Measurement: "",
@@ -179,7 +181,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				Value: 123,
 			}},
 		}},
-	}, true)
+	})
 
 	// Minimal line without tags and timestamp
 	f("foo bar=123", &Rows{
@@ -190,7 +192,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				Value: 123,
 			}},
 		}},
-	}, true)
+	})
 	f("# comment\nfoo bar=123\r\n#comment2 sdsf dsf", &Rows{
 		Rows: []Row{{
 			Measurement: "foo",
@@ -199,7 +201,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				Value: 123,
 			}},
 		}},
-	}, true)
+	})
 	f("foo bar=123\n", &Rows{
 		Rows: []Row{{
 			Measurement: "foo",
@@ -208,7 +210,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				Value: 123,
 			}},
 		}},
-	}, true)
+	})
 
 	// Line without tags and with a timestamp.
 	f("foo bar=123.45 -345", &Rows{
@@ -220,7 +222,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			}},
 			Timestamp: -345,
 		}},
-	}, true)
+	})
 
 	// Line with a single tag
 	f("foo,tag1=xyz bar=123", &Rows{
@@ -235,7 +237,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				Value: 123,
 			}},
 		}},
-	}, true)
+	})
 
 	// Line with multiple tags
 	f("foo,tag1=xyz,tag2=43as bar=123", &Rows{
@@ -256,7 +258,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				Value: 123,
 			}},
 		}},
-	}, true)
+	})
 
 	// Line with empty tag values
 	f("foo,tag1=xyz,tagN=,tag2=43as,=xxx bar=123", &Rows{
@@ -277,7 +279,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				Value: 123,
 			}},
 		}},
-	}, true)
+	})
 
 	// Line with multiple tags, multiple fields and timestamp
 	f(`system,host=ip-172-16-10-144 uptime_format="3 days, 21:01",quoted_float="-1.23",quoted_int="123" 1557761040000000000`, &Rows{
@@ -303,7 +305,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			},
 			Timestamp: 1557761040000000000,
 		}},
-	}, true)
+	})
 	f(`foo,tag1=xyz,tag2=43as bar=-123e4,x=True,y=-45i,z=f,aa="f,= \"a",bb=23u 48934`, &Rows{
 		Rows: []Row{{
 			Measurement: "foo",
@@ -345,7 +347,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			},
 			Timestamp: 48934,
 		}},
-	}, true)
+	})
 
 	// Escape chars
 	f(`fo\,bar\=b\ az,x\=\ b=\\a\,\=\q\  \\\a\ b\=\,=4.34`, &Rows{
@@ -360,7 +362,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				Value: 4.34,
 			}},
 		}},
-	}, true)
+	})
 	// Test case from https://community.librenms.org/t/integration-with-victoriametrics/9689
 	f("ports,foo=a,bar=et\\ +\\ V,baz=ype INDISCARDS=245333676,OUTDISCARDS=1798680", &Rows{
 		Rows: []Row{{
@@ -390,7 +392,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				},
 			},
 		}},
-	}, true)
+	})
 
 	// Multiple lines
 	f("foo,tag=xyz field=1.23 48934\n"+
@@ -416,7 +418,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				}},
 			},
 		},
-	}, true)
+	})
 
 	// Multiple lines with invalid line in the middle.
 	f("foo,tag=xyz field=1.23 48934\n"+
@@ -443,7 +445,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				}},
 			},
 		},
-	}, true)
+	})
 
 	// No newline after the second line.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/82
@@ -470,7 +472,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				}},
 			},
 		},
-	}, true)
+	})
 
 	// Superfluous whitespace between tags, fields and timestamps.
 	f(`cpu_utilization,host=mnsbook-pro.local value=119.8 1607222595591`, &Rows{
@@ -486,7 +488,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			}},
 			Timestamp: 1607222595591,
 		}},
-	}, true)
+	})
 	f(`cpu_utilization,host=mnsbook-pro.local   value=119.8   1607222595591`, &Rows{
 		Rows: []Row{{
 			Measurement: "cpu_utilization",
@@ -500,7 +502,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			}},
 			Timestamp: 1607222595591,
 		}},
-	}, true)
+	})
 
 	f("x,y=z,g=p:\\ \\ 5432\\,\\ gp\\ mon\\ [lol]\\ con10\\ cmd5\\ SELECT f=1", &Rows{
 		Rows: []Row{{
@@ -520,5 +522,5 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 				Value: 1,
 			}},
 		}},
-	}, true)
+	})
 }

@@ -14,9 +14,7 @@ bbb usage_user=1.23,usage_system=4.34,usage_iowait=0.1112 123455676344
 	b.SetBytes(int64(len(s)))
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
-		rows := Rows{
-			IgnoreErrs: true,
-		}
+		var rows Rows
 		for pb.Next() {
 			_ = rows.Unmarshal(s)
 			if len(rows.Rows) != 4 {

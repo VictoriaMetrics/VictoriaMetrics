@@ -38,7 +38,10 @@ func TestDetectTimestamp(t *testing.T) {
 func TestParseStream(t *testing.T) {
 	common.StartUnmarshalWorkers()
 	defer common.StopUnmarshalWorkers()
-	f := func(data string, rowsExpected []influx.Row, isStreamMode bool, precesion string, badData bool) {
+
+	f := func(data string, rowsExpected []influx.Row, isStreamMode bool, badData bool) {
+		t.Helper()
+
 		var wg sync.WaitGroup
 		wg.Add(len(rowsExpected))
 		buf := bytes.NewBuffer([]byte(data))
@@ -55,8 +58,8 @@ func TestParseStream(t *testing.T) {
 			}
 			return nil
 		}
-		t.Helper()
-		err := Parse(buf, isStreamMode, false, precesion, "test", cb)
+
+		err := Parse(buf, isStreamMode, false, "ns", "test", cb)
 		if badData && !isStreamMode && err == nil {
 			t.Fatalf("expected error on bad data in batch mode")
 		}
@@ -65,11 +68,10 @@ func TestParseStream(t *testing.T) {
 		}
 	}
 
-	// batch mode
-	f(`foo1,location=us-midwest1 temperature=81 1727879909390000000
+	goodData := `foo1,location=us-midwest1 temperature=81 1727879909390000000
 foo2,location=us-midwest2 temperature=82 1727879909390000000
-foo3,location=us-midwest3 temperature=83 1727879909390000000
-`, []influx.Row{
+foo3,location=us-midwest3 temperature=83 1727879909390000000`
+	goodDataParsed := []influx.Row{
 		{
 			Measurement: "foo1",
 			Tags:        []influx.Tag{{Key: "location", Value: "us-midwest1"}},
@@ -85,47 +87,30 @@ foo3,location=us-midwest3 temperature=83 1727879909390000000
 			Tags:        []influx.Tag{{Key: "location", Value: "us-midwest3"}},
 			Fields:      []influx.Field{{Key: "temperature", Value: 83}},
 			Timestamp:   1727879909390,
-		}}, false, "ns", false)
+		}}
 
+	// batch mode
+	f(goodData, goodDataParsed, false, false)
 	// stream mode
-	f(`foo1,location=us-midwest1 temperature=81 1727879909390000000
-foo2,location=us-midwest2 temperature=82 1727879909390000000
-foo3,location=us-midwest3 temperature=83 1727879909390000000
-`, []influx.Row{{
+	f(goodData, goodDataParsed, true, false)
+
+	badData := `foo1,location=us-midwest1 temperature=81 1727879909390000000
+foo2, ,location=us-midwest2 temperature=82 1727879909390000000
+foo3,location=us-midwest3 temperature=83 1727879909390000000`
+	badDataParsed := []influx.Row{{
 		Measurement: "foo1",
 		Tags:        []influx.Tag{{Key: "location", Value: "us-midwest1"}},
 		Fields:      []influx.Field{{Key: "temperature", Value: 81}},
-		Timestamp:   1727879909390,
-	}, {
-		Measurement: "foo2",
-		Tags:        []influx.Tag{{Key: "location", Value: "us-midwest2"}},
-		Fields:      []influx.Field{{Key: "temperature", Value: 82}},
 		Timestamp:   1727879909390,
 	}, {
 		Measurement: "foo3",
 		Tags:        []influx.Tag{{Key: "location", Value: "us-midwest3"}},
 		Fields:      []influx.Field{{Key: "temperature", Value: 83}},
 		Timestamp:   1727879909390,
-	}}, true, "ns", false)
+	}}
 
 	// batch mode with errors
-	f(`foo1,location=us-midwest1 temperature=81 1727879909390000000
-foo2, ,location=us-midwest2 temperature=82 1727879909390000000
-foo3,location=us-midwest3 temperature=83 1727879909390000000
-`, []influx.Row{}, false, "ns", true)
+	f(badData, []influx.Row{}, false, true)
 	// stream mode with errors
-	f(`foo1,location=us-midwest1 temperature=81 1727879909390000000
-foo2, ,location=us-midwest2 temperature=82 1727879909390000000
-foo3,location=us-midwest3 temperature=83 1727879909390000000
-`, []influx.Row{{
-		Measurement: "foo1",
-		Tags:        []influx.Tag{{Key: "location", Value: "us-midwest1"}},
-		Fields:      []influx.Field{{Key: "temperature", Value: 81}},
-		Timestamp:   1727879909390,
-	}, {
-		Measurement: "foo3",
-		Tags:        []influx.Tag{{Key: "location", Value: "us-midwest3"}},
-		Fields:      []influx.Field{{Key: "temperature", Value: 83}},
-		Timestamp:   1727879909390,
-	}}, true, "ns", false)
+	f(badData, badDataParsed, true, false)
 }
