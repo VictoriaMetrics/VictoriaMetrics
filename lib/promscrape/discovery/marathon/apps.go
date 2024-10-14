@@ -74,6 +74,7 @@ func (app app) isContainerNet() bool {
 	return len(app.Networks) > 0 && app.Networks[0].Mode == "container"
 }
 
+// GetAppsList randomly choose a server from the `servers` and get the list of running applications.
 func GetAppsList(ac *apiConfig) (*AppList, error) {
 	c := ac.cs[rand.Intn(len(ac.cs))]
 
