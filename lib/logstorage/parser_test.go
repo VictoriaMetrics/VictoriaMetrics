@@ -2240,6 +2240,10 @@ func TestQueryGetStatsByFieldsAddGroupingByTime_Failure(t *testing.T) {
 	f(`*`)
 	f(`_time:5m | count() | drop _time`)
 	f(`* | by (x) count() | keep x`)
+	f(`* | stats by (host) count() total | fields total`)
+	f(`* | stats by (host) count() total | delete host`)
+	f(`* | stats by (host) count() total | copy host as server`)
+	f(`* | stats by (host) count() total | rename host as server | fields host, total`)
 }
 
 func TestQueryGetStatsByFields_Success(t *testing.T) {
