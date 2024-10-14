@@ -193,8 +193,12 @@ func (rs *Rows) unmarshal(s string) error {
 			return rs.unmarshalRow(s, noEscapeChars)
 		}
 		err := rs.unmarshalRow(s[:n], noEscapeChars)
-		if err != nil && !rs.IgnoreErrs {
-			return err
+		if err != nil {
+			if !rs.IgnoreErrs {
+				return fmt.Errorf("incorrect influx line %q: %w", s, err)
+			}
+			logger.Errorf("skipping InfluxDB line %q because of error: %s", s, err)
+			invalidLines.Inc()
 		}
 		s = s[n+1:]
 	}
@@ -224,8 +228,6 @@ func (rs *Rows) unmarshalRow(s string, noEscapeChars bool) error {
 	rs.tagsPool, rs.fieldsPool, err = r.unmarshal(s, rs.tagsPool, rs.fieldsPool, noEscapeChars)
 	if err != nil {
 		rs.Rows = rs.Rows[:len(rs.Rows)-1]
-		logger.Errorf("skipping InfluxDB line %q because of error: %s", s, err)
-		invalidLines.Inc()
 	}
 	return err
 }
