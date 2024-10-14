@@ -21,7 +21,6 @@ var (
 	maxRequestSize = flagutil.NewBytes("influx.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only.")
 	trimTimestamp  = flag.Duration("influxTrimTimestamp", time.Millisecond, "Trim timestamps for InfluxDB line protocol data to this duration. "+
 		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
-	testMode = false
 )
 
 // Parse parses r with the given args and calls callback for the parsed rows.
@@ -66,7 +65,7 @@ func Parse(r io.Reader, isStreamMode, isGzipped bool, precision, db string, call
 		if err != nil {
 			return err
 		}
-		err = unmarshal(&ctx.rows, ctx.reqBuf.B, tsMultiplier, true)
+		err = unmarshal(&ctx.rows, ctx.reqBuf.B, tsMultiplier)
 		if err != nil {
 			return err
 		}
@@ -83,9 +82,7 @@ func Parse(r io.Reader, isStreamMode, isGzipped bool, precision, db string, call
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
 		common.ScheduleUnmarshalWork(uw)
-		if !testMode {
-			wcr.DecConcurrency()
-		}
+		wcr.DecConcurrency()
 	}
 	ctx.wg.Wait()
 	if err := ctx.Error(); err != nil {
@@ -241,7 +238,7 @@ func (uw *unmarshalWork) runCallback() {
 
 // Unmarshal implements common.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
-	_ = unmarshal(&uw.rows, uw.reqBuf, uw.tsMultiplier, false)
+	_ = unmarshal(&uw.rows, uw.reqBuf, uw.tsMultiplier)
 	uw.runCallback()
 	putUnmarshalWork(uw)
 }
@@ -249,9 +246,11 @@ func (uw *unmarshalWork) Unmarshal() {
 func getUnmarshalWork() *unmarshalWork {
 	v := unmarshalWorkPool.Get()
 	if v == nil {
-		return &unmarshalWork{}
+		v = &unmarshalWork{}
 	}
-	return v.(*unmarshalWork)
+	uw := v.(*unmarshalWork)
+	uw.rows.IgnoreErrs = true
+	return uw
 }
 
 func putUnmarshalWork(uw *unmarshalWork) {
@@ -281,9 +280,9 @@ func detectTimestamp(ts, currentTs int64) int64 {
 	return ts * 1e3
 }
 
-func unmarshal(rs *influx.Rows, reqBuf []byte, tsMultiplier int64, stopOnErr bool) error {
-	err := rs.Unmarshal(bytesutil.ToUnsafeString(reqBuf), stopOnErr)
-	if err != nil && stopOnErr {
+func unmarshal(rs *influx.Rows, reqBuf []byte, tsMultiplier int64) error {
+	err := rs.Unmarshal(bytesutil.ToUnsafeString(reqBuf))
+	if err != nil {
 		return err
 	}
 	rows := rs.Rows

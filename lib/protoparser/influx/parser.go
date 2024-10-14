@@ -11,7 +11,8 @@ import (
 
 // Rows contains parsed influx rows.
 type Rows struct {
-	Rows []Row
+	Rows       []Row
+	IgnoreErrs bool
 
 	tagsPool   []Tag
 	fieldsPool []Field
@@ -43,9 +44,9 @@ func (rs *Rows) Reset() {
 // See https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/
 //
 // s shouldn't be modified when rs is in use.
-func (rs *Rows) Unmarshal(s string, stopOnErr bool) error {
+func (rs *Rows) Unmarshal(s string) error {
 	rs.reset()
-	return rs.unmarshal(s, stopOnErr)
+	return rs.unmarshal(s)
 }
 
 func (rs *Rows) reset() {
@@ -183,7 +184,7 @@ func (f *Field) unmarshal(s string, noEscapeChars, hasQuotedFields bool) error {
 	return nil
 }
 
-func (rs *Rows) unmarshal(s string, stopOnErr bool) error {
+func (rs *Rows) unmarshal(s string) error {
 	noEscapeChars := strings.IndexByte(s, '\\') < 0
 	for len(s) > 0 {
 		n := strings.IndexByte(s, '\n')
@@ -192,7 +193,7 @@ func (rs *Rows) unmarshal(s string, stopOnErr bool) error {
 			return rs.unmarshalRow(s, noEscapeChars)
 		}
 		err := rs.unmarshalRow(s[:n], noEscapeChars)
-		if err != nil && stopOnErr {
+		if err != nil && !rs.IgnoreErrs {
 			return err
 		}
 		s = s[n+1:]

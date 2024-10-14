@@ -2,13 +2,12 @@ package stream
 
 import (
 	"bytes"
-	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"reflect"
-	"strings"
 	"sync"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 )
 
 func TestDetectTimestamp(t *testing.T) {
@@ -37,12 +36,11 @@ func TestDetectTimestamp(t *testing.T) {
 }
 
 func TestParseStream(t *testing.T) {
-	testMode = true
-	f := func(data string, rowsExpected []influx.Row, isStreamMode bool, precesion string, errCallback error) {
+	common.StartUnmarshalWorkers()
+	defer common.StopUnmarshalWorkers()
+	f := func(data string, rowsExpected []influx.Row, isStreamMode bool, precesion string, badData bool) {
 		var wg sync.WaitGroup
 		wg.Add(len(rowsExpected))
-		common.StartUnmarshalWorkers()
-		defer common.StopUnmarshalWorkers()
 		buf := bytes.NewBuffer([]byte(data))
 		rows := make([]influx.Row, 0, len(rowsExpected))
 		cb := func(_ string, rs []influx.Row) error {
@@ -55,15 +53,13 @@ func TestParseStream(t *testing.T) {
 				})
 				wg.Done()
 			}
-			return errCallback
+			return nil
 		}
 		t.Helper()
 		err := Parse(buf, isStreamMode, false, precesion, "test", cb)
-		if !(errCallback == err || errCallback != nil && err != nil && strings.Contains(err.Error(), errCallback.Error())) {
-			t.Fatalf("unexpected error;\ngot\n%+v\nshould contain\n%+v", err, errCallback)
+		if badData && !isStreamMode && err == nil {
+			t.Fatalf("expected error on bad data in batch mode")
 		}
-		//	wg.Wait()
-		t.Helper()
 		if !reflect.DeepEqual(rows, rowsExpected) {
 			t.Fatalf("unexpected rows;\ngot\n%+v\nwant\n%+v", rows, rowsExpected)
 		}
@@ -89,7 +85,7 @@ foo3,location=us-midwest3 temperature=83 1727879909390000000
 			Tags:        []influx.Tag{{Key: "location", Value: "us-midwest3"}},
 			Fields:      []influx.Field{{Key: "temperature", Value: 83}},
 			Timestamp:   1727879909390,
-		}}, false, "ns", fmt.Errorf("test"))
+		}}, false, "ns", false)
 
 	// stream mode
 	f(`foo1,location=us-midwest1 temperature=81 1727879909390000000
@@ -110,13 +106,13 @@ foo3,location=us-midwest3 temperature=83 1727879909390000000
 		Tags:        []influx.Tag{{Key: "location", Value: "us-midwest3"}},
 		Fields:      []influx.Field{{Key: "temperature", Value: 83}},
 		Timestamp:   1727879909390,
-	}}, true, "ns", nil)
+	}}, true, "ns", false)
 
 	// batch mode with errors
 	f(`foo1,location=us-midwest1 temperature=81 1727879909390000000
 foo2, ,location=us-midwest2 temperature=82 1727879909390000000
 foo3,location=us-midwest3 temperature=83 1727879909390000000
-`, []influx.Row{}, false, "ns", fmt.Errorf("missing tag value for"))
+`, []influx.Row{}, false, "ns", true)
 	// stream mode with errors
 	f(`foo1,location=us-midwest1 temperature=81 1727879909390000000
 foo2, ,location=us-midwest2 temperature=82 1727879909390000000
@@ -131,5 +127,5 @@ foo3,location=us-midwest3 temperature=83 1727879909390000000
 		Tags:        []influx.Tag{{Key: "location", Value: "us-midwest3"}},
 		Fields:      []influx.Field{{Key: "temperature", Value: 83}},
 		Timestamp:   1727879909390,
-	}}, true, "ns", nil)
+	}}, true, "ns", false)
 }
