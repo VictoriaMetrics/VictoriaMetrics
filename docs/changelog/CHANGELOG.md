@@ -34,6 +34,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): properly add metrics tags for `opentsdb` migration source. Previously it could have empty values. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7161).
 
 
+* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): reduce the initial health check interval for datasource. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6970).
+
 ## [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
 
 Released at 2024-10-02
