@@ -91,7 +91,20 @@ func TestGetAppsList_Success(t *testing.T) {
 		t.Fatalf("unexpected error in GetAppsList(): %s", err)
 	}
 
-	expect := AppList{}
+	expect := &AppList{
+		Apps: []app{
+			{
+				ID: "/myapp",
+				PortDefinitions: []portDefinition{
+					{
+						Labels: map[string]string{"pdl1": "pdl1", "pdl2": "pdl2"},
+						Port:   1999,
+					},
+				},
+				Labels: map[string]string{},
+			},
+		},
+	}
 	if !reflect.DeepEqual(apps, expect) {
 		t.Fatalf("unexpected result, got: %v, expect: %v", apps, expect)
 	}
