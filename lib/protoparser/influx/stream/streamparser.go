@@ -17,8 +17,8 @@ import (
 )
 
 var (
-	maxLineSize    = flagutil.NewBytes("influx.maxLineSize", 256*1024, "The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only.")
-	maxRequestSize = flagutil.NewBytes("influx.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only.")
+	maxLineSize    = flagutil.NewBytes("influx.maxLineSize", 256*1024, "The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf")
+	maxRequestSize = flagutil.NewBytes("influx.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf")
 	trimTimestamp  = flag.Duration("influxTrimTimestamp", time.Millisecond, "Trim timestamps for InfluxDB line protocol data to this duration. "+
 		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
 )
@@ -58,6 +58,8 @@ func Parse(r io.Reader, isStreamMode, isGzipped bool, precision, db string, call
 		tsMultiplier = -1e3 * 3600
 	}
 
+	// processing payload altogether
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7090
 	if !isStreamMode {
 		ctx := getBatchContext(r)
 		defer putBatchContext(ctx)
@@ -71,6 +73,9 @@ func Parse(r io.Reader, isStreamMode, isGzipped bool, precision, db string, call
 		}
 		return callback(db, ctx.rows.Rows)
 	}
+
+	// processing in a streaming fashion, line-by-line
+	// invalid lines are skipped
 	ctx := getStreamContext(r)
 	defer putStreamContext(ctx)
 	for ctx.Read() {
@@ -283,7 +288,7 @@ func detectTimestamp(ts, currentTs int64) int64 {
 func unmarshal(rs *influx.Rows, reqBuf []byte, tsMultiplier int64) error {
 	err := rs.Unmarshal(bytesutil.ToUnsafeString(reqBuf))
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot unmarshal influx data: %w", err)
 	}
 	rows := rs.Rows
 	rowsRead.Add(len(rows))
