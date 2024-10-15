@@ -190,7 +190,7 @@ func (rs *Rows) unmarshal(s string) error {
 		n := strings.IndexByte(s, '\n')
 		if n < 0 {
 			// The last line.
-			return rs.unmarshalRow(s, noEscapeChars)
+			n = len(s)
 		}
 		err := rs.unmarshalRow(s[:n], noEscapeChars)
 		if err != nil {
@@ -199,6 +199,9 @@ func (rs *Rows) unmarshal(s string) error {
 			}
 			logger.Errorf("skipping InfluxDB line %q because of error: %s", s, err)
 			invalidLines.Inc()
+		}
+		if len(s) == n {
+			return nil
 		}
 		s = s[n+1:]
 	}
