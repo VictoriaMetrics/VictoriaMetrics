@@ -16,6 +16,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * FEATURE: add support for forced merge. See [these docs](https://docs.victoriametrics.com/victorialogs/#forced-merge).
+* FEATURE: skip empty log fields in query results, since they are treated as non-existing fields in [VictoriaLogs data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 * BUGFIX: avoid possible panic when logs for a new day are ingested during execution of concurrent queries.
 * BUGFIX: avoid panic at `lib/logstorage.(*blockResultColumn).forEachDictValue()` when [stats with additional filters](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters). The panic has been introduced in [v0.33.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.33.0-victorialogs) in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/a350be48b68330ee1a487e1fb09b002d3be45163).
