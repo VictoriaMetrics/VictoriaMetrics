@@ -110,7 +110,7 @@ func TestStatsRowMin(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", `{"a":"2","x":"","b":"3"}`},
+			{"x", `{"a":"2","b":"3"}`},
 		},
 	})
 
@@ -241,7 +241,7 @@ func TestStatsRowMin(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "1"},
-			{"x", `{"c":""}`},
+			{"x", `{}`},
 		},
 		{
 			{"a", "3"},
