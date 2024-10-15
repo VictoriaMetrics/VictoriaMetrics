@@ -997,7 +997,7 @@ The v1.87.x line will be supported for at least 12 months since [v1.87.0](https:
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): properly return results from [bottomk](https://docs.victoriametrics.com/metricsql/#bottomk) and `bottomk_...` functions when some of these results contain NaN values. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5506). Thanks to @xiaozongyang for [the fix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5509).
 * BUGFIX: all: fix potential panic during components shutdown when [metrics push](https://docs.victoriametrics.com/#push-metrics) is configured. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5548). Thanks to @zhdd99 for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5549).
 
-# [v1.87.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.12)
+## [v1.87.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.12)
 
 See changes [here](https://docs.victoriametrics.com/changelog_2023/#v18712)
 
