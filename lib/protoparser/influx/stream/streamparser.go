@@ -286,10 +286,9 @@ func detectTimestamp(ts, currentTs int64) int64 {
 }
 
 func unmarshal(rs *influx.Rows, reqBuf []byte, tsMultiplier int64) error {
+	// do not return error immediately because rs.Rows could contain
+	// successfully parsed rows that needs to be processed below
 	err := rs.Unmarshal(bytesutil.ToUnsafeString(reqBuf))
-	if err != nil {
-		return fmt.Errorf("cannot unmarshal influx data: %w", err)
-	}
 	rows := rs.Rows
 	rowsRead.Add(len(rows))
 

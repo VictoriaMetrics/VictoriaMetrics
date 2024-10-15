@@ -3,6 +3,7 @@ package stream
 import (
 	"bytes"
 	"reflect"
+	"sort"
 	"sync"
 	"testing"
 
@@ -45,29 +46,39 @@ func TestParseStream(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Add(len(rowsExpected))
 		buf := bytes.NewBuffer([]byte(data))
+
+		var rowsMu sync.Mutex
 		rows := make([]influx.Row, 0, len(rowsExpected))
+
 		cb := func(_ string, rs []influx.Row) error {
 			for _, r := range rs {
+				rowsMu.Lock()
 				rows = append(rows, influx.Row{
 					Measurement: r.Measurement,
 					Tags:        append(make([]influx.Tag, 0, len(r.Tags)), r.Tags...),
 					Fields:      append(make([]influx.Field, 0, len(r.Fields)), r.Fields...),
 					Timestamp:   r.Timestamp,
 				})
+				rowsMu.Unlock()
 				wg.Done()
 			}
 			return nil
 		}
 
 		err := Parse(buf, isStreamMode, false, "ns", "test", cb)
+		wg.Wait()
+
 		if badData && !isStreamMode && err == nil {
 			t.Fatalf("expected error on bad data in batch mode")
 		}
+
+		sort.Slice(rows, func(i, j int) bool {
+			return rows[i].Measurement < rows[j].Measurement
+		})
 		if !reflect.DeepEqual(rows, rowsExpected) {
 			t.Fatalf("unexpected rows;\ngot\n%+v\nwant\n%+v", rows, rowsExpected)
 		}
 	}
-
 	goodData := `foo1,location=us-midwest1 temperature=81 1727879909390000000
 foo2,location=us-midwest2 temperature=82 1727879909390000000
 foo3,location=us-midwest3 temperature=83 1727879909390000000`
@@ -89,9 +100,9 @@ foo3,location=us-midwest3 temperature=83 1727879909390000000`
 			Timestamp:   1727879909390,
 		}}
 
-	// batch mode
+	//batch mode
 	f(goodData, goodDataParsed, false, false)
-	// stream mode
+	//stream mode
 	f(goodData, goodDataParsed, true, false)
 
 	badData := `foo1,location=us-midwest1 temperature=81 1727879909390000000
