@@ -25,9 +25,9 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): disable stream processing mode for data [ingested via InfluxDB](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) HTTP endpoints by default. With this change, the data is processed in batches (see `-influx.maxRequestSize`) and user will get parsing errors immediately as they happen. This also improves users' experience and resiliency against thundering herd problems caused by clients without backoff policies like telegraf. To enable stream mode back, pass HTTP header `Stream-Mode: "1"` with each request. For data sent via TCP and UDP (see `-influxListenAddr`) protocols streaming processing remains enabled.
 * FEATURE: [vmgateway](https://docs.victoriametrics.com/vmgateway/): allow parsing `scope` claim parsing in array format. This is useful for cases when identity provider does encode claims in array format.
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to cancel running queries. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7097).
-* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): fix Alert component from overflowing the screen with long messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7207).
 
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway/): fix possible panic during parsing of a token without `vm_access` claim. This issue was introduced in v1.104.0.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix error messages rendering from overflowing the screen with long messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7207).
 
 ## [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
 
