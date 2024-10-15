@@ -109,11 +109,14 @@ type batchContext struct {
 }
 
 func (ctx *batchContext) Read() error {
+	readCalls.Inc()
 	lr := io.LimitReader(ctx.br, int64(maxRequestSize.IntN()))
 	reqLen, err := ctx.reqBuf.ReadFrom(lr)
 	if err != nil {
+		readErrors.Inc()
 		return err
 	} else if reqLen > int64(maxRequestSize.IntN()) {
+		readErrors.Inc()
 		return fmt.Errorf("too big request; mustn't exceed -influx.maxRequestSize=%d bytes", maxRequestSize.N)
 	}
 	return nil
