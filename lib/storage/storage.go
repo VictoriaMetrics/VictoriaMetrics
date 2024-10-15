@@ -71,6 +71,10 @@ type Storage struct {
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
 
+	// idbLock is used for correct handling of indexdb rotation happening
+	// concurrently with data insertion. See idbsLocked().
+	idbLock sync.RWMutex
+
 	// idbCurr contains the currently used indexdb.
 	idbCurr atomic.Pointer[indexDB]
 
@@ -482,6 +486,34 @@ func (s *Storage) idb() *indexDB {
 	return s.idbCurr.Load()
 }
 
+// idbsLocked acquires read lock on current and next indexDBs and increments
+// their reference counters. It then returns both indexDBs along with a cleanup
+// function that decrements the reference counters.
+//
+// Returning both indexDBs is needed so that current and next indexDBs don't
+// change when mustRotateIndexDB() happens in the middle of the add() operation.
+//
+// Reference increment is needed so that idbCurr does not get deleted (due to
+// its ref counter reaching zero, see indexDB.decRef()) when mustRotateIndexDB()
+// happens more than once in the middle of the add() operation. Note that, this
+// won't ever happen in read life, but such a case have been cought by
+// TestStorageRotateIndexDB unit test resulting in our tests being flaky.
+// See #6977.
+func (s *Storage) idbsLocked() (*indexDB, *indexDB, func()) {
+	s.idbLock.RLock()
+	defer s.idbLock.RUnlock()
+
+	idbCurr := s.idbCurr.Load()
+	idbCurr.incRef()
+	idbNext := s.idbNext.Load()
+	idbNext.incRef()
+
+	return idbCurr, idbNext, func() {
+		idbCurr.decRef()
+		idbNext.decRef()
+	}
+}
+
 // Metrics contains essential metrics for the Storage.
 type Metrics struct {
 	RowsReceivedTotal uint64
@@ -801,6 +833,9 @@ func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 	nextRotationTimestamp := currentTime.Unix() + s.retentionMsecs/1000
 	s.nextRotationTimestamp.Store(nextRotationTimestamp)
 
+	// Update indexDBs under write lock. See idbsLocked().
+	s.idbLock.Lock()
+
 	// Set idbNext to idbNew
 	idbNext := s.idbNext.Load()
 	idbNew.SetExtDB(idbNext)
@@ -815,6 +850,8 @@ func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 		extDB.scheduleToDrop()
 	})
 	idbCurr.SetExtDB(nil)
+
+	s.idbLock.Unlock()
 
 	// Persist changes on the file system.
 	fs.MustSyncPath(s.path)
@@ -1802,10 +1839,11 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 }
 
 func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) int {
-	idb := s.idb()
-	generation := idb.generation
-	is := idb.getIndexSearch(noDeadline)
-	defer idb.putIndexSearch(is)
+	idbCurr, idbNext, cleanup := s.idbsLocked()
+	defer cleanup()
+	generation := idbCurr.generation
+	is := idbCurr.getIndexSearch(noDeadline)
+	defer idbCurr.putIndexSearch(is)
 
 	mn := GetMetricName()
 	defer PutMetricName(mn)
@@ -1982,12 +2020,12 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	dstMrs = dstMrs[:j]
 	rows = rows[:j]
 
-	if err := s.prefillNextIndexDB(rows, dstMrs); err != nil {
+	if err := s.prefillNextIndexDB(idbNext, rows, dstMrs); err != nil {
 		if firstWarn == nil {
 			firstWarn = fmt.Errorf("cannot prefill next indexdb: %w", err)
 		}
 	}
-	if err := s.updatePerDateData(rows, dstMrs); err != nil {
+	if err := s.updatePerDateData(idbCurr, rows, dstMrs); err != nil {
 		if firstWarn == nil {
 			firstWarn = fmt.Errorf("cannot not update per-day index: %w", err)
 		}
@@ -2064,7 +2102,7 @@ func getUserReadableMetricName(metricNameRaw []byte) string {
 	return mn.String()
 }
 
-func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
+func (s *Storage) prefillNextIndexDB(idbNext *indexDB, rows []rawRow, mrs []*MetricRow) error {
 	d := s.nextRetentionSeconds()
 	if d >= 3600 {
 		// Fast path: nothing to pre-fill because it is too early.
@@ -2077,7 +2115,6 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 	// The probability increases from 0% to 100% proportioinally to d=[3600 .. 0].
 	pMin := float64(d) / 3600
 
-	idbNext := s.idbNext.Load()
 	generation := idbNext.generation
 	isNext := idbNext.getIndexSearch(noDeadline)
 	defer idbNext.putIndexSearch(isNext)
@@ -2136,7 +2173,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 	return firstError
 }
 
-func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
+func (s *Storage) updatePerDateData(idb *indexDB, rows []rawRow, mrs []*MetricRow) error {
 	var date uint64
 	var hour uint64
 	var prevTimestamp int64
@@ -2147,7 +2184,6 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 		prevMetricID uint64
 	)
 
-	idb := s.idb()
 	generation := idb.generation
 
 	hm := s.currHourMetricIDs.Load()

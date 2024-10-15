@@ -1261,26 +1261,29 @@ func TestStorageRotateIndexDB(t *testing.T) {
 }
 
 func testStorageAddMetrics(s *Storage, workerNum int) error {
+	const (
+		numBatches   = 10
+		rowsPerBatch = 10000
+		rowsCount    = numBatches * rowsPerBatch
+	)
 	rng := rand.New(rand.NewSource(1))
-	const rowsCount = 1e3
-
-	var mn MetricName
-	mn.Tags = []Tag{
-		{[]byte("job"), []byte(fmt.Sprintf("webservice_%d", workerNum))},
-		{[]byte("instance"), []byte("1.2.3.4")},
+	mn := MetricName{
+		Tags: []Tag{
+			{[]byte("job"), []byte(fmt.Sprintf("webservice_%d", workerNum))},
+			{[]byte("instance"), []byte("1.2.3.4")},
+		},
 	}
-	for i := 0; i < rowsCount; i++ {
-		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d_%d", workerNum, rng.Intn(10)))
-		metricNameRaw := mn.marshalRaw(nil)
-		timestamp := rng.Int63n(1e10)
-		value := rng.NormFloat64() * 1e6
-
-		mr := MetricRow{
-			MetricNameRaw: metricNameRaw,
-			Timestamp:     timestamp,
-			Value:         value,
+	mrs := make([]MetricRow, rowsPerBatch)
+	for batch := range numBatches {
+		for i := 0; i < rowsPerBatch; i++ {
+			mn.MetricGroup = []byte(fmt.Sprintf("metric_%d_%d_%d", workerNum, batch, rng.Intn(rowsCount)))
+			mrs[i] = MetricRow{
+				MetricNameRaw: mn.marshalRaw(nil),
+				Timestamp:     rng.Int63n(1e10),
+				Value:         rng.NormFloat64() * 1e6,
+			}
 		}
-		s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
+		s.AddRows(mrs, defaultPrecisionBits)
 	}
 
 	// Verify the storage contains rows.
