@@ -29,8 +29,18 @@
       flex-grow: 1;
     }
 
-    &__execute {
+    &-execute {
+      position: relative;
       display: grid;
+
+      &__text {
+        position: absolute;
+
+        &_hidden {
+          position: relative;
+          visibility: hidden;
+        }
+      }
     }
 
     &-helpful {

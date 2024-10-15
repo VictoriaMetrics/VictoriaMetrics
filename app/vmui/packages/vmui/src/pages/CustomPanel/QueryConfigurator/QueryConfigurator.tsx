@@ -10,6 +10,7 @@ import {
   PlayIcon,
   PlusIcon,
   Prettify,
+  SpinnerIcon,
   VisibilityIcon,
   VisibilityOffIcon
 } from "../../../components/Main/Icons";
@@ -30,8 +31,10 @@ export interface QueryConfiguratorProps {
   setQueryErrors: Dispatch<SetStateAction<string[]>>;
   setHideError: Dispatch<SetStateAction<boolean>>;
   stats: QueryStats[];
+  isLoading?: boolean;
   onHideQuery?: (queries: number[]) => void
   onRunQuery: () => void;
+  abortFetch?: () => void;
   hideButtons?: {
     addQuery?: boolean;
     prettify?: boolean;
@@ -46,8 +49,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   setQueryErrors,
   setHideError,
   stats,
+  isLoading,
   onHideQuery,
   onRunQuery,
+  abortFetch,
   hideButtons
 }) => {
 
@@ -84,6 +89,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   };
 
   const handleRunQuery = () => {
+    if (isLoading) {
+      abortFetch && abortFetch();
+      return;
+    }
     updateHistory();
     queryDispatch({ type: "SET_QUERY", payload: stateQuery });
     timeDispatch({ type: "RUN_QUERY" });
@@ -271,9 +280,9 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
         <Button
           variant="contained"
           onClick={handleRunQuery}
-          startIcon={<PlayIcon/>}
+          startIcon={isLoading ? <SpinnerIcon/> : <PlayIcon/>}
         >
-          {isMobile ? "Execute" : "Execute Query"}
+          {`${isLoading ? "Cancel" : "Execute"} ${isMobile ? "" : "Query"}`}
         </Button>
       </div>
     </div>
