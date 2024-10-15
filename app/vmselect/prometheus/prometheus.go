@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -398,8 +399,13 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 				}
 				xb := exportBlockPool.Get().(*exportBlock)
 				xb.mn = &rs.MetricName
-				xb.timestamps = rs.Timestamps
-				xb.values = rs.Values
+				for i, v := range rs.Values {
+					if decimal.IsStaleNaN(v) {
+						continue
+					}
+					xb.values = append(xb.values, v)
+					xb.timestamps = append(xb.timestamps, rs.Timestamps[i])
+				}
 				if err := writeLineFunc(xb, workerID); err != nil {
 					return err
 				}
