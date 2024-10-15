@@ -272,7 +272,6 @@ func GetMaxUniqueTimeSeries() int {
 		defaultMaxUniqueTimeseries = *maxUniqueTimeseries
 		if defaultMaxUniqueTimeseries <= 0 {
 			defaultMaxUniqueTimeseries = calculateMaxUniqueTimeSeriesByResource(*maxConcurrentRequests, memory.Remaining())
-			logger.Infof("limiting -search.maxUniqueTimeseries to %d according to -search.maxConcurrentRequests=%d and remaining memory=%d bytes. To increase the limit, reduce -search.maxConcurrentRequests or increase memory available to the process.", defaultMaxUniqueTimeseries, *maxConcurrentRequests, memory.Remaining())
 		}
 	})
 	return defaultMaxUniqueTimeseries
@@ -286,7 +285,10 @@ func calculateMaxUniqueTimeSeriesByResource(maxConcurrentRequests, remainingMemo
 		logger.Warnf("limiting -search.maxUniqueTimeseries to %v because -search.maxConcurrentRequests=%d.", 2e9, maxConcurrentRequests)
 		return 2e9
 	}
+
 	// Calculate the max metrics limit for a single request in the worst-case concurrent scenario.
 	// The approximate size of 1 unique series that could occupy in the vmstorage is 200 bytes.
-	return remainingMemory / 200 / maxConcurrentRequests
+	mts := remainingMemory / 200 / maxConcurrentRequests
+	logger.Infof("limiting -search.maxUniqueTimeseries to %d according to -search.maxConcurrentRequests=%d and remaining memory=%d bytes. To increase the limit, reduce -search.maxConcurrentRequests or increase memory available to the process.", mts, maxConcurrentRequests, remainingMemory)
+	return mts
 }
