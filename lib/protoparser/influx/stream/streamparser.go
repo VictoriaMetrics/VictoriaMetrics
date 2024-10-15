@@ -69,7 +69,7 @@ func Parse(r io.Reader, isStreamMode, isGzipped bool, precision, db string, call
 		}
 		err = unmarshal(&ctx.rows, ctx.reqBuf.B, tsMultiplier)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot parse influx line protocol data: %s; To skip invalid lines switch to stream mode by passing Stream-Mode: \"1\" header with each request", err)
 		}
 		return callback(db, ctx.rows.Rows)
 	}
