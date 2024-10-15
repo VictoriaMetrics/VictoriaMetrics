@@ -235,34 +235,6 @@ func (csh *columnsHeader) reset() {
 	csh.constColumns = ccs[:0]
 }
 
-func (csh *columnsHeader) getConstColumnValue(name string) string {
-	if name == "_msg" {
-		name = ""
-	}
-	ccs := csh.constColumns
-	for i := range ccs {
-		cc := &ccs[i]
-		if cc.Name == name {
-			return cc.Value
-		}
-	}
-	return ""
-}
-
-func (csh *columnsHeader) getColumnHeader(name string) *columnHeader {
-	if name == "_msg" {
-		name = ""
-	}
-	chs := csh.columnHeaders
-	for i := range chs {
-		ch := &chs[i]
-		if ch.name == name {
-			return ch
-		}
-	}
-	return nil
-}
-
 func (csh *columnsHeader) resizeConstColumns(columnsLen int) []Field {
 	csh.constColumns = slicesutil.SetLength(csh.constColumns, columnsLen)
 	return csh.constColumns
@@ -289,10 +261,10 @@ func (csh *columnsHeader) marshal(dst []byte) []byte {
 	return dst
 }
 
-// unmarshal unmarshals csh from src.
+// unmarshalNoArena unmarshals csh from src.
 //
-// csh is valid until a.reset() is called.
-func (csh *columnsHeader) unmarshal(a *arena, src []byte) error {
+// csh is valid until src is changed.
+func (csh *columnsHeader) unmarshalNoArena(src []byte) error {
 	csh.reset()
 
 	// unmarshal columnHeaders
@@ -307,7 +279,7 @@ func (csh *columnsHeader) unmarshal(a *arena, src []byte) error {
 
 	chs := csh.resizeColumnHeaders(int(n))
 	for i := range chs {
-		tail, err := chs[i].unmarshal(a, src)
+		tail, err := chs[i].unmarshalNoArena(src)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal columnHeader %d out of %d columnHeaders: %w", i, len(chs), err)
 		}
@@ -327,7 +299,7 @@ func (csh *columnsHeader) unmarshal(a *arena, src []byte) error {
 
 	ccs := csh.resizeConstColumns(int(n))
 	for i := range ccs {
-		tail, err := ccs[i].unmarshal(a, src)
+		tail, err := ccs[i].unmarshalNoArena(src)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal constColumn %d out of %d columns: %w", i, len(ccs), err)
 		}
@@ -497,10 +469,10 @@ func (ch *columnHeader) marshalBloomFilters(dst []byte) []byte {
 	return dst
 }
 
-// unmarshal unmarshals ch from src and returns the tail left after unmarshaling.
+// unmarshalNoArena unmarshals ch from src and returns the tail left after unmarshaling.
 //
-// ch is valid until a.reset() is called.
-func (ch *columnHeader) unmarshal(a *arena, src []byte) ([]byte, error) {
+// ch is valid until src is changed.
+func (ch *columnHeader) unmarshalNoArena(src []byte) ([]byte, error) {
 	ch.reset()
 
 	srcOrig := src
@@ -511,7 +483,7 @@ func (ch *columnHeader) unmarshal(a *arena, src []byte) ([]byte, error) {
 		return srcOrig, fmt.Errorf("cannot unmarshal column name")
 	}
 	src = src[nSize:]
-	ch.name = a.copyBytesToString(data)
+	ch.name = bytesutil.ToUnsafeString(data)
 
 	// Unmarshal value type
 	if len(src) < 1 {
@@ -529,7 +501,7 @@ func (ch *columnHeader) unmarshal(a *arena, src []byte) ([]byte, error) {
 		}
 		src = tail
 	case valueTypeDict:
-		tail, err := ch.valuesDict.unmarshal(a, src)
+		tail, err := ch.valuesDict.unmarshalNoArena(src)
 		if err != nil {
 			return srcOrig, fmt.Errorf("cannot unmarshal dict at valueTypeDict for column %q: %w", ch.name, err)
 		}

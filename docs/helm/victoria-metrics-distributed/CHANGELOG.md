@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- Human-readable error about Helm version requirement
 
 ## 0.4.0
 

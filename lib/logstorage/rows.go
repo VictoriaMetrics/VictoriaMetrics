@@ -36,7 +36,7 @@ func (f *Field) marshal(dst []byte) []byte {
 	return dst
 }
 
-func (f *Field) unmarshal(a *arena, src []byte) ([]byte, error) {
+func (f *Field) unmarshalNoArena(src []byte) ([]byte, error) {
 	srcOrig := src
 
 	// Unmarshal field name
@@ -45,7 +45,7 @@ func (f *Field) unmarshal(a *arena, src []byte) ([]byte, error) {
 		return srcOrig, fmt.Errorf("cannot unmarshal field name")
 	}
 	src = src[nSize:]
-	f.Name = a.copyBytesToString(b)
+	f.Name = bytesutil.ToUnsafeString(b)
 
 	// Unmarshal field value
 	b, nSize = encoding.UnmarshalBytes(src)
@@ -53,7 +53,7 @@ func (f *Field) unmarshal(a *arena, src []byte) ([]byte, error) {
 		return srcOrig, fmt.Errorf("cannot unmarshal field value")
 	}
 	src = src[nSize:]
-	f.Value = a.copyBytesToString(b)
+	f.Value = bytesutil.ToUnsafeString(b)
 
 	return src, nil
 }
@@ -70,7 +70,11 @@ func (f *Field) marshalToJSON(dst []byte) []byte {
 }
 
 func (f *Field) marshalToLogfmt(dst []byte) []byte {
-	dst = append(dst, f.Name...)
+	name := f.Name
+	if name == "" {
+		name = "_msg"
+	}
+	dst = append(dst, name...)
 	dst = append(dst, '=')
 	if needLogfmtQuoting(f.Value) {
 		dst = quicktemplate.AppendJSONString(dst, f.Value, true)
@@ -126,13 +130,19 @@ func RenameField(fields []Field, oldName, newName string) {
 
 // MarshalFieldsToJSON appends JSON-marshaled fields to dst and returns the result.
 func MarshalFieldsToJSON(dst []byte, fields []Field) []byte {
+	fields = SkipLeadingFieldsWithoutValues(fields)
 	dst = append(dst, '{')
 	if len(fields) > 0 {
 		dst = fields[0].marshalToJSON(dst)
 		fields = fields[1:]
 		for i := range fields {
+			f := &fields[i]
+			if f.Value == "" {
+				// Skip fields without values
+				continue
+			}
 			dst = append(dst, ',')
-			dst = fields[i].marshalToJSON(dst)
+			dst = f.marshalToJSON(dst)
 		}
 	}
 	dst = append(dst, '}')
@@ -151,6 +161,15 @@ func MarshalFieldsToLogfmt(dst []byte, fields []Field) []byte {
 		dst = fields[i].marshalToLogfmt(dst)
 	}
 	return dst
+}
+
+// SkipLeadingFieldsWithoutValues skips leading fields without values.
+func SkipLeadingFieldsWithoutValues(fields []Field) []Field {
+	i := 0
+	for i < len(fields) && fields[i].Value == "" {
+		i++
+	}
+	return fields[i:]
 }
 
 func appendFields(a *arena, dst, src []Field) []Field {
