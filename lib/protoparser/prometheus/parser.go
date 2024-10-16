@@ -15,6 +15,7 @@ import (
 	"github.com/valyala/fastjson/fastfloat"
 )
 
+// ParseContentType parses content type header value to enum, which identifies a format of ingested data
 func ParseContentType(contentType string) ContentType {
 	if contentType != "" && strings.Contains(contentType, "application/vnd.google.protobuf") {
 		return ProtoHeader
@@ -22,6 +23,7 @@ func ParseContentType(contentType string) ContentType {
 	return TextHeader
 }
 
+// ContentType enum, which defines a type of intested data
 type ContentType int
 
 func (ct ContentType) String() string {
