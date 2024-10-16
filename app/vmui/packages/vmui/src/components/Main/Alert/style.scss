@@ -51,6 +51,8 @@
   &__content {
     filter: brightness(0.6);
     white-space: pre-line;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
   }
 
   &_success {

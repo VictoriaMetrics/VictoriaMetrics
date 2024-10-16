@@ -6201,7 +6201,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `2*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every second. The index datapoints value in general is much lower.",
+          "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `3*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every two seconds. The index datapoints value in general is much lower.",
           "fieldConfig": {
             "defaults": {
               "color": {

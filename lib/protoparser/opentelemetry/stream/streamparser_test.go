@@ -192,6 +192,21 @@ func TestParseStream(t *testing.T) {
 		},
 		true,
 	)
+
+	// Test exponential histograms
+	f(
+		[]*pb.Metric{
+			generateExpHistogram("test-histogram", "m/s"),
+		},
+		[]prompbmarshal.TimeSeries{
+			newPromPBTs("test_histogram_meters_per_second_bucket", 15000, 5.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.061e+00...1.067e+00")),
+			newPromPBTs("test_histogram_meters_per_second_bucket", 15000, 10.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.067e+00...1.073e+00")),
+			newPromPBTs("test_histogram_meters_per_second_bucket", 15000, 1.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("vmrange", "1.085e+00...1.091e+00")),
+			newPromPBTs("test_histogram_meters_per_second_count", 15000, 20.0, jobLabelValue, kvLabel("label1", "value1")),
+			newPromPBTs("test_histogram_meters_per_second_sum", 15000, 4578.0, jobLabelValue, kvLabel("label1", "value1")),
+		},
+		true,
+	)
 }
 
 func checkParseStream(data []byte, checkSeries func(tss []prompbmarshal.TimeSeries) error) error {
@@ -222,6 +237,30 @@ func attributesFromKV(k, v string) []*pb.KeyValue {
 			Key: k,
 			Value: &pb.AnyValue{
 				StringValue: &v,
+			},
+		},
+	}
+}
+
+func generateExpHistogram(name, unit string) *pb.Metric {
+	sum := float64(4578)
+	return &pb.Metric{
+		Name: name,
+		Unit: unit,
+		ExponentialHistogram: &pb.ExponentialHistogram{
+			AggregationTemporality: pb.AggregationTemporalityCumulative,
+			DataPoints: []*pb.ExponentialHistogramDataPoint{
+				{
+					Attributes:   attributesFromKV("label1", "value1"),
+					TimeUnixNano: uint64(15 * time.Second),
+					Count:        20,
+					Sum:          &sum,
+					Scale:        7,
+					Positive: &pb.Buckets{
+						Offset:       7,
+						BucketCounts: []uint64{0, 0, 0, 0, 5, 10, 0, 0, 1},
+					},
+				},
 			},
 		},
 	}

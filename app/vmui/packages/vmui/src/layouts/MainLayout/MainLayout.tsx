@@ -12,6 +12,7 @@ import useDeviceDetect from "../../hooks/useDeviceDetect";
 import ControlsMainLayout from "./ControlsMainLayout";
 import useFetchDefaultTimezone from "../../hooks/useFetchDefaultTimezone";
 import useFetchFlags from "../../hooks/useFetchFlags";
+import useFetchAppConfig from "../../hooks/useFetchAppConfig";
 
 const MainLayout: FC = () => {
   const appModeEnable = getAppModeEnable();
@@ -21,6 +22,7 @@ const MainLayout: FC = () => {
 
   useFetchDashboards();
   useFetchDefaultTimezone();
+  useFetchAppConfig();
   useFetchFlags();
 
   const setDocumentTitle = () => {

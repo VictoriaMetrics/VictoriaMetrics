@@ -18,11 +18,13 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.6.1
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/cheggaaa/pb/v3 v3.1.5
+	github.com/ergochat/readline v0.1.3
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/snappy v0.0.4
 	github.com/googleapis/gax-go/v2 v2.13.0
 	github.com/influxdata/influxdb v1.11.6
 	github.com/klauspost/compress v1.17.10
+	github.com/mattn/go-isatty v0.0.20
 	github.com/prometheus/prometheus v0.54.1
 	github.com/urfave/cli/v2 v2.27.4
 	github.com/valyala/fastjson v1.6.4
@@ -87,7 +89,6 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect

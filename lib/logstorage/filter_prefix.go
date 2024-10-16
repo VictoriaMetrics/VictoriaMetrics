@@ -59,8 +59,7 @@ func (fp *filterPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	prefix := fp.prefix
 
 	// Verify whether fp matches const column
-	csh := bs.getColumnsHeader()
-	v := csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchPrefix(v, prefix) {
 			bm.resetBits()
@@ -69,7 +68,7 @@ func (fp *filterPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether fp matches other columns
-	ch := csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		bm.resetBits()

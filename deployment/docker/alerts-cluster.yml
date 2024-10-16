@@ -40,7 +40,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          dashboard: http://localhost:3000/d/oS7Bi_0Wz?viewPanel=200&var-instance={{ $labels.instance }}"
+          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=200&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} (job={{ $labels.job }}) will run out of disk space soon"
           description: "Disk utilisation on instance {{ $labels.instance }} is more than 80%.\n
             Having less than 20% of free disk space could cripple merges processes and overall performance.

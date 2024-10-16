@@ -86,7 +86,8 @@ func (af *andStreamFilter) String() string {
 type streamTagFilter struct {
 	// tagName is the name for the tag to filter
 	tagName string
-	// op is operation such as `=`, `!=`, `=~` or `!~`
+
+	// op is operation such as `=`, `!=`, `=~`, `!~` or `:`
 	op string
 
 	// value is the value
@@ -164,20 +165,23 @@ func parseAndStreamFilter(lex *lexer) (*andStreamFilter, error) {
 }
 
 func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
-	tagName := lex.token
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing operation in _stream filter for %q field", tagName)
+	// parse tagName
+	tagName, err := parseStreamTagName(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse stream tag name: %w", err)
 	}
 	if !lex.isKeyword("=", "!=", "=~", "!~") {
 		return nil, fmt.Errorf("unsupported operation %q in _steam filter for %q field; supported operations: =, !=, =~, !~", lex.token, tagName)
 	}
+
+	// parse op
 	op := lex.token
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing _stream filter value for %q field", tagName)
-	}
-	value := lex.token
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing token after %q%s%q filter", tagName, op, value)
+	lex.nextToken()
+
+	// parse tag value
+	value, err := parseStreamTagValue(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse value for tag %q: %w", tagName, err)
 	}
 	stf := &streamTagFilter{
 		tagName: tagName,
@@ -192,6 +196,16 @@ func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
 		stf.regexp = re
 	}
 	return stf, nil
+}
+
+func parseStreamTagName(lex *lexer) (string, error) {
+	stopTokens := []string{"=", "!=", "=~", "!~", ",", "{", "}", "'", `"`, "`", ""}
+	return getCompoundTokenExt(lex, stopTokens)
+}
+
+func parseStreamTagValue(lex *lexer) (string, error) {
+	stopTokens := []string{",", "{", "}", "'", `"`, "`", ""}
+	return getCompoundTokenExt(lex, stopTokens)
 }
 
 func getStreamName() *streamName {

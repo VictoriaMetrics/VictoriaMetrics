@@ -1,0 +1,11 @@
+groups:
+  - name: foo
+    rules:
+      - alert: VMRows
+        expr: vm_rows > 0
+---
+groups:
+  - name: foo
+    rules:
+      - alert: VMRows
+        expr: vm_rows > 0

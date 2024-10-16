@@ -61,8 +61,7 @@ func (fp *filterPhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	phrase := fp.phrase
 
 	// Verify whether fp matches const column
-	csh := bs.getColumnsHeader()
-	v := csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchPhrase(v, phrase) {
 			bm.resetBits()
@@ -71,7 +70,7 @@ func (fp *filterPhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether fp matches other columns
-	ch := csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		// It matches anything only for empty phrase.

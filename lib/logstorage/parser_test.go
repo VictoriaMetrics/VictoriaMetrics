@@ -978,6 +978,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo | field_names y`, `foo | field_names as y`)
 	f(`foo | field_names`, `foo | field_names`)
 
+	// field_values pipe
+	f(`* | field_values x`, `* | field_values x`)
+	f(`* | field_values (x)`, `* | field_values x`)
+
 	// blocks_count pipe
 	f(`foo | blocks_count as x`, `foo | blocks_count as x`)
 	f(`foo | blocks_count y`, `foo | blocks_count as y`)
@@ -998,6 +1002,14 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | del foo`, `* | delete foo`)
 	f(`* | rm foo`, `* | delete foo`)
 	f(`* | DELETE foo, bar`, `* | delete foo, bar`)
+
+	// len pipe
+	f(`* | len(x)`, `* | len(x)`)
+	f(`* | len(x) as _msg`, `* | len(x)`)
+	f(`* | len(x) y`, `* | len(x) as y`)
+	f(`* | len  ( x ) as y`, `* | len(x) as y`)
+	f(`* | len x y`, `* | len(x) as y`)
+	f(`* | len x as y`, `* | len(x) as y`)
 
 	// limit and head pipe
 	f(`foo | limit`, `foo | limit 10`)
@@ -1184,6 +1196,11 @@ func TestParseQuerySuccess(t *testing.T) {
 	// filter pipe
 	f(`* | filter error ip:12.3.4.5 or warn`, `* | filter error ip:12.3.4.5 or warn`)
 	f(`foo | stats by (host) count() logs | filter logs:>50 | sort by (logs desc) | limit 10`, `foo | stats by (host) count(*) as logs | filter logs:>50 | sort by (logs desc) | limit 10`)
+	f(`* | error`, `* | filter error`)
+	f(`* | "by"`, `* | filter "by"`)
+	f(`* | "stats"`, `* | filter "stats"`)
+	f(`* | "count"`, `* | filter "count"`)
+	f(`* | foo:bar AND baz:<10`, `* | filter foo:bar baz:<10`)
 
 	// extract pipe
 	f(`* | extract "foo<bar>baz"`, `* | extract "foo<bar>baz"`)
@@ -1225,7 +1242,7 @@ func TestParseQueryFailure(t *testing.T) {
 		t.Helper()
 		q, err := ParseQuery(s)
 		if q != nil {
-			t.Fatalf("expecting nil result; got %s", q)
+			t.Fatalf("expecting nil result; got [%s]", q)
 		}
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
@@ -1519,6 +1536,12 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | delete foo,`)
 	f(`foo | delete foo,,`)
 
+	// invalid len pipe
+	f(`foo | len`)
+	f(`foo | len(`)
+	f(`foo | len()`)
+	f(`foo | len (x) y z`)
+
 	// invalid limit pipe value
 	f(`foo | limit bar`)
 	f(`foo | limit -123`)
@@ -1617,6 +1640,9 @@ func TestParseQueryFailure(t *testing.T) {
 	// stats result names identical to by fields
 	f(`foo | stats by (x) count() x`)
 
+	// missing stats function
+	f(`foo | by (bar)`)
+
 	// invalid sort pipe
 	f(`foo | sort bar`)
 	f(`foo | sort by`)
@@ -1650,6 +1676,14 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | filter | sort by (x)`)
 	f(`foo | filter (`)
 	f(`foo | filter )`)
+
+	f(`foo | filter stats`)
+	f(`foo | filter fields`)
+	f(`foo | filter by`)
+	f(`foo | count`)
+	f(`foo | filter count`)
+	f(`foo | (`)
+	f(`foo | )`)
 
 	// invalid extract pipe
 	f(`foo | extract`)
@@ -2078,6 +2112,7 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | rm x", true)
 	f("* | stats count() rows", false)
 	f("* | sort by (x)", false)
+	f("* | len(x)", true)
 	f("* | limit 10", false)
 	f("* | offset 10", false)
 	f("* | uniq (x)", false)
@@ -2114,6 +2149,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | field_values a", false)
 	f("* | filter foo", true)
 	f("* | format 'a<b>c'", true)
+	f("* | len(x)", true)
 	f("* | limit 10", false)
 	f("* | math a/b as c", true)
 	f("* | offset 10", false)

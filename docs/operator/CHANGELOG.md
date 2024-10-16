@@ -11,6 +11,8 @@ aliases:
   - /operator/changelog/index.html
 ---
 
+- [vmuser](https://docs.victoriametrics.com/operator/resources/vmuser/): fixes the protocol of generated CRD target access url for vminsert and vmstorage when TLS is enabled.
+
 ## [v0.48.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.3) - 29 Sep 2024
 
 - [vmcluster](https://docs.victoriametrics.com/operator/resources/vmcluster): properly apply global container registry from configuration. It was ignored for `VMCluster` since `v0.48.0` release. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1118) for details.

@@ -92,6 +92,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if vlselect.RequestHandler(w, r) {
 		return true
 	}
+	if vlstorage.RequestHandler(w, r) {
+		return true
+	}
 	return false
 }
 

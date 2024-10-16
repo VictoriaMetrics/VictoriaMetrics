@@ -685,6 +685,10 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 		return ptws[i].day > maxDay
 	})
 	ptws = ptws[:n]
+
+	// Copy the selected partitions, so they don't interfere with s.partitions.
+	ptws = append([]*partitionWrapper{}, ptws...)
+
 	for _, ptw := range ptws {
 		ptw.incRef()
 	}

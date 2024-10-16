@@ -1092,7 +1092,6 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 	again:
 		offset := int64(0)
 		tssCached := rollupResultCacheV.GetInstantValues(qt, expr, window, ec.Step, ec.EnforcedTagFilterss)
-		ec.QueryStats.addSeriesFetched(len(tssCached))
 		if len(tssCached) == 0 {
 			// Cache miss. Re-populate the missing data.
 			start := int64(fasttime.UnixTimestamp()*1000) - cacheTimestampOffset.Milliseconds()
@@ -1136,6 +1135,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 			deleteCachedSeries(qt)
 			goto again
 		}
+		ec.QueryStats.addSeriesFetched(len(tssCached))
 		return tssCached, offset, nil
 	}
 
@@ -1647,6 +1647,10 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 		ecNew = copyEvalConfig(ec)
 		ecNew.Start = start
 	}
+	// call to evalWithConfig also updates QueryStats.addSeriesFetched
+	// without checking whether tss has intersection with tssCached.
+	// So final number could be bigger than actual number of unique series.
+	// This discrepancy is acceptable, since seriesFetched stat is used as info only.
 	tss, err := evalWithConfig(ecNew)
 	if err != nil {
 		return nil, err

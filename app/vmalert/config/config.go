@@ -1,19 +1,20 @@
 package config
 
 import (
+	"bytes"
 	"crypto/md5"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"net/url"
 	"sort"
 	"strings"
-
-	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"gopkg.in/yaml.v2"
 )
 
 // Group contains list of Rules grouped into
@@ -298,16 +299,30 @@ func parseConfig(data []byte) ([]Group, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
-	g := struct {
+
+	var result []Group
+	type cfgFile struct {
 		Groups []Group `yaml:"groups"`
 		// Catches all undefined fields and must be empty after parsing.
 		XXX map[string]any `yaml:",inline"`
-	}{}
-	err = yaml.Unmarshal(data, &g)
-	if err != nil {
-		return nil, err
 	}
-	return g.Groups, checkOverflow(g.XXX, "config")
+
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	for {
+		var cf cfgFile
+		if err = decoder.Decode(&cf); err != nil {
+			if err == io.EOF { // EOF indicates no more documents to read
+				break
+			}
+			return nil, err
+		}
+		if err = checkOverflow(cf.XXX, "config"); err != nil {
+			return nil, err
+		}
+		result = append(result, cf.Groups...)
+	}
+
+	return result, nil
 }
 
 func checkOverflow(m map[string]any, ctx string) error {

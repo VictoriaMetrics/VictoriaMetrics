@@ -15,6 +15,8 @@ const router = {
   icons: "/icons",
   anomaly: "/anomaly",
   query: "/query",
+  downsamplingDebug: "/downsampling-filters-debug",
+  retentionDebug: "/retention-filters-debug",
 };
 
 export interface RouterOptionsHeader {
@@ -108,6 +110,14 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   [router.query]: {
     title: "Query",
     ...routerOptionsDefault
+  },
+  [router.downsamplingDebug]: {
+    title: "Downsampling filters debug",
+    header: {}
+  },
+  [router.retentionDebug]: {
+    title: "Retention filters debug",
+    header: {}
   }
 };
 

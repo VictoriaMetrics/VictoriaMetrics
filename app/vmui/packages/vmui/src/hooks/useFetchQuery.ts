@@ -34,7 +34,8 @@ interface FetchQueryReturn {
   queryStats: QueryStats[],
   warning?: string,
   traces?: Trace[],
-  isHistogram: boolean
+  isHistogram: boolean,
+  abortFetch: () => void
 }
 
 interface FetchDataParams {
@@ -160,6 +161,7 @@ export const useFetchQuery = ({
       const error = e as Error;
       if (error.name === "AbortError") {
         // Aborts are expected, don't show an error for them.
+        setIsLoading(false);
         return;
       }
       const helperText = "Please check your serverURL settings and confirm server availability.";
@@ -196,6 +198,13 @@ export const useFetchQuery = ({
     }
   },
   [serverUrl, period, displayType, customStep, hideQuery]);
+
+  const abortFetch = useCallback(() => {
+    fetchQueue.map(f => f.abort());
+    setFetchQueue([]);
+    setGraphData([]);
+    setLiveData([]);
+  }, [fetchQueue]);
 
   const [prevUrl, setPrevUrl] = useState<string[]>([]);
 
@@ -238,6 +247,7 @@ export const useFetchQuery = ({
     queryStats,
     warning,
     traces,
-    isHistogram
+    isHistogram,
+    abortFetch,
   };
 };

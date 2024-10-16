@@ -158,12 +158,10 @@ func (bd *blockData) mustReadFrom(a *arena, bh *blockHeader, sr *streamReaders) 
 	bb.B = bytesutil.ResizeNoCopyMayOverallocate(bb.B, int(columnsHeaderSize))
 	sr.columnsHeaderReader.MustReadFull(bb.B)
 
-	cshA := getArena()
 	csh := getColumnsHeader()
-	if err := csh.unmarshal(cshA, bb.B); err != nil {
+	if err := csh.unmarshalNoArena(bb.B); err != nil {
 		logger.Panicf("FATAL: %s: cannot unmarshal columnsHeader: %s", sr.columnsHeaderReader.Path(), err)
 	}
-	longTermBufPool.Put(bb)
 	chs := csh.columnHeaders
 	cds := bd.resizeColumnsData(len(chs))
 	for i := range chs {
@@ -171,7 +169,7 @@ func (bd *blockData) mustReadFrom(a *arena, bh *blockHeader, sr *streamReaders) 
 	}
 	bd.constColumns = appendFields(a, bd.constColumns[:0], csh.constColumns)
 	putColumnsHeader(csh)
-	putArena(cshA)
+	longTermBufPool.Put(bb)
 }
 
 // timestampsData contains the encoded timestamps data.

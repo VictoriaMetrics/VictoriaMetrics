@@ -394,7 +394,9 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 		return
 	}
 	if !q.CanLiveTail() {
-		httpserver.Errorf(w, r, "the query [%s] cannot be used in live tailing; see https://docs.victoriametrics.com/victorialogs/querying/#live-tailing for details", q)
+		httpserver.Errorf(w, r, "the query [%s] cannot be used in live tailing; "+
+			"see https://docs.victoriametrics.com/victorialogs/querying/#live-tailing for details", q)
+		return
 	}
 	q.Optimize()
 

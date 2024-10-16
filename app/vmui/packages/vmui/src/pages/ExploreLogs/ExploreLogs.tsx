@@ -4,7 +4,6 @@ import useStateSearchParams from "../../hooks/useStateSearchParams";
 import useSearchParamsFromObject from "../../hooks/useSearchParamsFromObject";
 import { useFetchLogs } from "./hooks/useFetchLogs";
 import { useAppState } from "../../state/common/StateContext";
-import Spinner from "../../components/Main/Spinner/Spinner";
 import Alert from "../../components/Main/Alert/Alert";
 import ExploreLogsHeader from "./ExploreLogsHeader/ExploreLogsHeader";
 import "./style.scss";
@@ -30,7 +29,7 @@ const ExploreLogs: FC = () => {
   const [period, setPeriod] = useState<TimeParams>(periodState);
   const [queryError, setQueryError] = useState<ErrorTypes | string>("");
 
-  const { logs, isLoading, error, fetchLogs } = useFetchLogs(serverUrl, query, limit);
+  const { logs, isLoading, error, fetchLogs, abortController } = useFetchLogs(serverUrl, query, limit);
   const { fetchLogHits, ...dataLogHits } = useFetchLogHits(serverUrl, query);
 
   const getPeriod = useCallback(() => {
@@ -70,10 +69,15 @@ const ExploreLogs: FC = () => {
     setQuery(prev => `_stream: ${val === "other" ? "{}" : val} AND (${prev})`);
   };
 
-  const handleUpdateQuery = () => {
-    setQuery(tmpQuery);
-    handleRunQuery();
-  };
+  const handleUpdateQuery = useCallback(() => {
+    if (isLoading || dataLogHits.isLoading) {
+      abortController.abort && abortController.abort();
+      dataLogHits.abortController.abort && dataLogHits.abortController.abort();
+    } else {
+      setQuery(tmpQuery);
+      handleRunQuery();
+    }
+  }, [isLoading, dataLogHits.isLoading]);
 
   useEffect(() => {
     if (query) handleRunQuery();
@@ -93,8 +97,8 @@ const ExploreLogs: FC = () => {
         onChange={setTmpQuery}
         onChangeLimit={handleChangeLimit}
         onRun={handleUpdateQuery}
+        isLoading={isLoading || dataLogHits.isLoading}
       />
-      {isLoading && <Spinner message={"Loading logs..."}/>}
       {error && <Alert variant="error">{error}</Alert>}
       {!error && (
         <ExploreLogsBarChart
@@ -102,10 +106,12 @@ const ExploreLogs: FC = () => {
           query={query}
           period={period}
           onApplyFilter={handleApplyFilter}
-          isLoading={isLoading ? false : dataLogHits.isLoading}
         />
       )}
-      <ExploreLogsBody data={logs}/>
+      <ExploreLogsBody
+        data={logs}
+        isLoading={isLoading}
+      />
     </div>
   );
 };
