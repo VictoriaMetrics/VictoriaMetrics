@@ -10,11 +10,11 @@ import (
 )
 
 func TestGetCommonLabelFilters(t *testing.T) {
-	f := func(metrics, contentType prometheus.ContentType, lfsExpected string) {
+	f := func(metrics string, contentType prometheus.ContentType, lfsExpected string) {
 		t.Helper()
 		var tss []*timeseries
 		var rows prometheus.Rows
-		rows.UnmarshalWithErrLogger(metrics, contentType.String(), func(errStr string) {
+		rows.UnmarshalWithErrLogger(metrics, contentType, func(errStr string) {
 			t.Fatalf("unexpected error when parsing %s: %s", metrics, errStr)
 		})
 		for _, row := range rows.Rows {
