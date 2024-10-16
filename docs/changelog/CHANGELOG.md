@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+
+BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/) fix: fix slice init length. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7161).
+
+
 ## [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
 
 Released at 2024-10-01
