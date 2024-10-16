@@ -14,6 +14,9 @@ import (
 
 // partHeader contains the information about a single part
 type partHeader struct {
+	// FormatVersion is the version of the part format
+	FormatVersion uint
+
 	// CompressedSizeBytes is physical size of the part
 	CompressedSizeBytes uint64
 
@@ -35,6 +38,7 @@ type partHeader struct {
 
 // reset resets ph for subsequent re-use
 func (ph *partHeader) reset() {
+	ph.FormatVersion = 0
 	ph.CompressedSizeBytes = 0
 	ph.UncompressedSizeBytes = 0
 	ph.RowsCount = 0
@@ -45,8 +49,8 @@ func (ph *partHeader) reset() {
 
 // String returns string represenation for ph.
 func (ph *partHeader) String() string {
-	return fmt.Sprintf("{CompressedSizeBytes=%d, UncompressedSizeBytes=%d, RowsCount=%d, BlocksCount=%d, MinTimestamp=%s, MaxTimestamp=%s}",
-		ph.CompressedSizeBytes, ph.UncompressedSizeBytes, ph.RowsCount, ph.BlocksCount, timestampToString(ph.MinTimestamp), timestampToString(ph.MaxTimestamp))
+	return fmt.Sprintf("{FormatVersion=%d, CompressedSizeBytes=%d, UncompressedSizeBytes=%d, RowsCount=%d, BlocksCount=%d, MinTimestamp=%s, MaxTimestamp=%s}",
+		ph.FormatVersion, ph.CompressedSizeBytes, ph.UncompressedSizeBytes, ph.RowsCount, ph.BlocksCount, timestampToString(ph.MinTimestamp), timestampToString(ph.MaxTimestamp))
 }
 
 func (ph *partHeader) mustReadMetadata(partPath string) {
@@ -62,8 +66,14 @@ func (ph *partHeader) mustReadMetadata(partPath string) {
 	}
 
 	// Perform various checks
+	if ph.FormatVersion > partFormatLatestVersion {
+		logger.Panicf("FATAL: unsupported part format version; got %d; mustn't exceed %d", partFormatLatestVersion)
+	}
 	if ph.MinTimestamp > ph.MaxTimestamp {
 		logger.Panicf("FATAL: MinTimestamp cannot exceed MaxTimestamp; got %d vs %d", ph.MinTimestamp, ph.MaxTimestamp)
+	}
+	if ph.BlocksCount > ph.RowsCount {
+		logger.Panicf("FATAL: BlocksCount=%d cannot exceed RowsCount=%d", ph.BlocksCount, ph.RowsCount)
 	}
 }
 
