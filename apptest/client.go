@@ -1,7 +1,6 @@
 package apptest
 
 import (
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
@@ -30,50 +29,6 @@ func newClient() *client {
 // closeConnections closes client connections.
 func (c *client) closeConnections() {
 	c.httpCli.CloseIdleConnections()
-}
-
-// apiV1Series retrieves the value of a metric that is made available by an app
-// at /metrics URL.
-func (c *client) getMetric(t *testing.T, metricsURL, metricName string) float64 {
-	t.Helper()
-
-	metrics := c.get(t, metricsURL, http.StatusOK)
-	for _, metric := range strings.Split(metrics, "\n") {
-		value, found := strings.CutPrefix(metric, metricName)
-		if found {
-			value = strings.Trim(value, " ")
-			res, err := strconv.ParseFloat(value, 64)
-			if err != nil {
-				t.Fatalf("could not parse metric value %s: %v", metric, err)
-			}
-			return res
-		}
-	}
-	t.Fatalf("metic not found: %s", metricName)
-	return 0
-}
-
-// apiV1SeriesResponse is an inmemory representation of the /api/v1/series
-// response.
-type apiV1SeriesResponse struct {
-	Status    string
-	IsPartial bool
-	Data      []map[string]string
-}
-
-// apiV1Series sends a query to a /api/v1/series endpoint and returns the list
-// of time series that match the query.
-func (c *client) apiV1Series(t *testing.T, seriesURL, matchQuery string) *apiV1SeriesResponse {
-	t.Helper()
-
-	values := url.Values{}
-	values.Add("match[]", matchQuery)
-	jsonRes := c.postForm(t, seriesURL, values, http.StatusOK)
-	var res apiV1SeriesResponse
-	if err := json.Unmarshal([]byte(jsonRes), &res); err != nil {
-		t.Fatalf("could not unmarshal /api/v1/series response: %v", err)
-	}
-	return &res
 }
 
 // postForm sends a HTTP GET request. Once the function receives a response, it
@@ -138,4 +93,38 @@ func readAllAndClose(t *testing.T, responseBody io.ReadCloser) string {
 		t.Fatalf("could not read response body: %d", err)
 	}
 	return string(b)
+}
+
+// servesMetrics is used to retrive the app's metrics.
+//
+// This type is expected to be embdded by the apps that serve metrics.
+type servesMetrics struct {
+	metricsURL string
+	cli        *client
+}
+
+// getMetric retrieves the value of a metric served by an app at /metrics URL.
+// The value is then converted to int.
+func (app *servesMetrics) getIntMetric(t *testing.T, metricName string) int {
+	return int(app.getMetric(t, metricName))
+}
+
+// getMetric retrieves the value of a metric served by an app at /metrics URL.
+func (app *servesMetrics) getMetric(t *testing.T, metricName string) float64 {
+	t.Helper()
+
+	metrics := app.cli.get(t, app.metricsURL, http.StatusOK)
+	for _, metric := range strings.Split(metrics, "\n") {
+		value, found := strings.CutPrefix(metric, metricName)
+		if found {
+			value = strings.Trim(value, " ")
+			res, err := strconv.ParseFloat(value, 64)
+			if err != nil {
+				t.Fatalf("could not parse metric value %s: %v", metric, err)
+			}
+			return res
+		}
+	}
+	t.Fatalf("metic not found: %s", metricName)
+	return 0
 }

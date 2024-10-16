@@ -10,17 +10,17 @@ import (
 
 type vmstorage struct {
 	*app
+	*servesMetrics
 	storageDataPath string
 	httpListenAddr  string
 	vminsertAddr    string
 	vmselectAddr    string
-	metricsURL      string
 }
 
-func mustStartVmstorage(t *testing.T, instance string, flags []string) *vmstorage {
+func mustStartVmstorage(t *testing.T, instance string, flags []string, cli *client) *vmstorage {
 	t.Helper()
 
-	app, err := startVmstorage(instance, flags)
+	app, err := startVmstorage(instance, flags, cli)
 	if err != nil {
 		t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -28,7 +28,7 @@ func mustStartVmstorage(t *testing.T, instance string, flags []string) *vmstorag
 	return app
 }
 
-func startVmstorage(instance string, flags []string) (*vmstorage, error) {
+func startVmstorage(instance string, flags []string, cli *client) (*vmstorage, error) {
 	app, stderrExtracts, err := startApp(instance, "../bin/vmstorage", flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-storageDataPath": fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
@@ -48,12 +48,15 @@ func startVmstorage(instance string, flags []string) (*vmstorage, error) {
 	}
 
 	return &vmstorage{
-		app:             app,
+		app: app,
+		servesMetrics: &servesMetrics{
+			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[1]),
+			cli:        cli,
+		},
 		storageDataPath: stderrExtracts[0],
 		httpListenAddr:  stderrExtracts[1],
 		vminsertAddr:    stderrExtracts[2],
 		vmselectAddr:    stderrExtracts[3],
-		metricsURL:      fmt.Sprintf("http://%s/metrics", stderrExtracts[1]),
 	}, nil
 }
 
