@@ -22,16 +22,17 @@ They aren't optimized specifically for logs. This results in the following issue
 - High RAM usage
 - High disk space usage
 - Non-trivial index setup
-- Inability to select more than 10K matching log lines in a single query
+- Inability to select more than 10K matching log lines in a single query with default configs
 
 VictoriaLogs is optimized specifically for logs. So it provides the following features useful for logs, which are missing in Elasticsearch:
 
 - Easy to setup and operate. There is no need in tuning configuration for optimal performance or in creating any indexes for various log types.
-  Just run VictoriaLogs on the most suitable hardware - and it automatically provides the best performance.
+  Just run VictoriaLogs on the most suitable hardware, ingest logs into it via [supported data ingestion protocols](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
+  and get the best available performance out of the box.
 - Up to 30x less RAM usage than Elasticsearch for the same workload.
 - Up to 15x less disk space usage than Elasticsearch for the same amounts of stored logs.
-- Ability to work with hundreds of terabytes of logs on a single node.
-- Very easy to use query language optimized for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
+- Ability to work efficiently with hundreds of terabytes of logs on a single node.
+- Easy to use query language optimized for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 - Fast full-text search over all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) out of the box.
 - Good integration with traditional command-line tools for log analysis. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
 
@@ -43,23 +44,25 @@ Both systems support [log stream](https://docs.victoriametrics.com/victorialogs/
 
 VictoriaLogs and Grafana Loki have the following differences:
 
-- Grafana Loki doesn't support high-cardinality log fields (aka labels) such as `user_id`, `trace_id` or `ip`.
-  It starts consuming huge amounts of RAM and working very slow when logs with high-cardinality fields are ingested into it.
+- VictoriaLogs is much easier to setup and operate than Grafana Loki. There is no need in non-trivial tuning -
+  it works great with default configuration.
+
+- VictoriaLogs performs typical full-text search queries up to 1000x faster than Grafana Loki.
+
+- Grafana Loki doesn't support log fields with many unique values (aka high cardinality labels) such as `user_id`, `trace_id` or `ip`.
+  It consumes huge amounts of RAM and slows down significantly when logs with high-cardinality fields are ingested into it.
   See [these docs](https://grafana.com/docs/loki/latest/best-practices/) for details.
 
-  VictoriaLogs supports high-cardinality [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-  It automatically indexes all the ingested log fields and allows performing fast full-text search over any field.
+  VictoriaLogs supports high-cardinality [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  out of the box without any additional configuration. It automatically indexes all the ingested log fields,
+  so fast full-text search over any log field works without issues.
 
 - Grafana Loki provides very inconvenient query language - [LogQL](https://grafana.com/docs/loki/latest/logql/).
   This query language is hard to use for typical log analysis tasks.
 
   VictoriaLogs provides easy to use query language for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 
-- VictoriaLogs performs typical full-text queries up to 1000x faster than Grafana Loki.
-
-- VictoriaLogs needs less storage space than Grafana Loki for the same amounts of logs.
-
-- VictoriaLogs is much easier to setup and operate than Grafana Loki.
+- VictoriaLogs usually needs less RAM and storage space than Grafana Loki for the same amounts of logs.
 
 
 ## What is the difference between VictoriaLogs and ClickHouse?
@@ -67,14 +70,12 @@ VictoriaLogs and Grafana Loki have the following differences:
 ClickHouse is an extremely fast and efficient analytical database. It can be used for logs storage, analysis and processing.
 VictoriaLogs is designed solely for logs. VictoriaLogs uses [similar design ideas as ClickHouse](#how-does-victorialogs-work) for achieving high performance.
 
-- ClickHouse is good for logs if you know the set of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) beforehand.
-  Then you can create a table with a column per each log field and achieve the maximum possible query performance.
+- ClickHouse is good for logs if you know the set of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  and the expected query types beforehand. Then you can create a table with a column per each log field, and use the most optimal settings for the table -
+  sort order, partitioning and indexing - for achieving the maximum possible storage efficiency and query performance.
 
-  If the set of log fields isn't known beforehand, or if it can change at any time, then ClickHouse can still be used,
-  but its' efficiency may suffer significantly depending on how you design the database schema for log storage.
-
-  ClickHouse efficiency highly depends on the used database schema. It must be optimized for the particular workload
-  for achieving high efficiency and query performance.
+  If the expected log fields or the expected query types aren't known beforehand, or if they may change over any time,
+  then ClickHouse can still be used, but its' efficiency may suffer significantly depending on how you design the database schema for log storage.
 
   VictoriaLogs works optimally with any log types out of the box - structured, unstructured and mixed.
   It works optimally with any sets of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
@@ -85,7 +86,7 @@ VictoriaLogs is designed solely for logs. VictoriaLogs uses [similar design idea
 
   VictoriaLogs provides easy to use query language with full-text search specifically optimized
   for log analysis - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
-  LogsQL is usually much easier to use than SQL for typical log analysis tasks, while some
+  LogsQL is usually easier to use than SQL for typical log analysis tasks, while some
   non-trivial analytics may require SQL power.
 
 - VictoriaLogs accepts logs from popular log shippers out of the box - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
@@ -97,8 +98,8 @@ VictoriaLogs is designed solely for logs. VictoriaLogs uses [similar design idea
 ## How does VictoriaLogs work?
 
 VictoriaLogs accepts logs as [JSON entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-It then stores every field value into a distinct data block. E.g. values for the same field across multiple log entries
-are stored in a single data block. This allow reading data blocks only for the needed fields during querying.
+Then it stores log fields into a distinct data block. E.g. values for the same log field across multiple log entries
+are stored in a single data block. This allows reading data blocks only for the needed fields during querying.
 
 Data blocks are compressed before being saved to persistent storage. This allows saving disk space and improving query performance
 when it is limited by disk read IO bandwidth.
@@ -117,9 +118,9 @@ On top of this, VictoriaLogs employs additional optimizations for achieving high
 - It uses [bloom filters](https://en.wikipedia.org/wiki/Bloom_filter) for skipping blocks without the given
   [word](https://docs.victoriametrics.com/victorialogs/logsql/#word-filter) or [phrase](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter).
 - It uses custom encoding and compression for fields with different data types.
-  For example, it encodes IP addresses as 4-byte tuples. Custom fields' encoding reduces data size on disk and improves query performance.
+  For example, it encodes IP addresses int 4 bytes. Custom fields' encoding reduces data size on disk and improves query performance.
 - It physically groups logs for the same [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
-  close to each other. This improves compression ratio, which helps reducing disk space usage. This also improves query performance
+  close to each other in the storage. This improves compression ratio, which helps reducing disk space usage. This also improves query performance
   by skipping blocks for unneeded streams when [stream filter](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter) is used.
 - It maintains sparse index for [log timestamps](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field),
   which allow improving query performance when [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) is used.

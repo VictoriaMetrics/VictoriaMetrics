@@ -48,7 +48,7 @@ for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.co
 sinks:
   vlogs:
     type: "loki"
-    endpoint = "http://localhost:9428/insert/loki/"
+    endpoint: "http://localhost:9428/insert/loki/"
     inputs:
       - your_input
     compression: gzip
@@ -132,7 +132,7 @@ sinks:
       _msg_field: message
       _time_field: timestamp
       _stream_fields: host,container_name
-    batch]
+    batch:
       max_events: 1000
 ```
 

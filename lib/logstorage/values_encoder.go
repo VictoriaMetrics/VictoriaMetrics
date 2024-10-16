@@ -1116,10 +1116,10 @@ func (vd *valuesDict) marshal(dst []byte) []byte {
 	return dst
 }
 
-// unmarshal unmarshals vd from src.
+// unmarshalNoArena unmarshals vd from src.
 //
-// vd is valid until a.reset() is called.
-func (vd *valuesDict) unmarshal(a *arena, src []byte) ([]byte, error) {
+// vd is valid until src is changed.
+func (vd *valuesDict) unmarshalNoArena(src []byte) ([]byte, error) {
 	vd.reset()
 
 	srcOrig := src
@@ -1135,7 +1135,7 @@ func (vd *valuesDict) unmarshal(a *arena, src []byte) ([]byte, error) {
 		}
 		src = src[nSize:]
 
-		v := a.copyBytesToString(data)
+		v := bytesutil.ToUnsafeString(data)
 		vd.values = append(vd.values, v)
 	}
 	return src, nil

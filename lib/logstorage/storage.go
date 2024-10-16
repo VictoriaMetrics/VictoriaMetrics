@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -113,6 +114,8 @@ type Storage struct {
 	// partitions is a list of partitions for the Storage.
 	//
 	// It must be accessed under partitionsLock.
+	//
+	// partitions are sorted by time.
 	partitions []*partitionWrapper
 
 	// ptwHot is the "hot" partition, were the last rows were ingested.
@@ -470,6 +473,33 @@ func (s *Storage) MustClose() {
 	s.flockF = nil
 
 	s.path = ""
+}
+
+// MustForceMerge force-merges parts in s partitions with names starting from the given partitionNamePrefix.
+//
+// Partitions are merged sequentially in order to reduce load on the system.
+func (s *Storage) MustForceMerge(partitionNamePrefix string) {
+	var ptws []*partitionWrapper
+
+	s.partitionsLock.Lock()
+	for _, ptw := range s.partitions {
+		if strings.HasPrefix(ptw.pt.name, partitionNamePrefix) {
+			ptw.incRef()
+			ptws = append(ptws, ptw)
+		}
+	}
+	s.partitionsLock.Unlock()
+
+	s.wg.Add(1)
+	defer s.wg.Done()
+
+	for _, ptw := range ptws {
+		logger.Infof("started force merge for partition %s", ptw.pt.name)
+		startTime := time.Now()
+		ptw.pt.mustForceMerge()
+		ptw.decRef()
+		logger.Infof("finished force merge for partition %s in %.3fs", ptw.pt.name, time.Since(startTime).Seconds())
+	}
 }
 
 // MustAddRows adds lr to s.

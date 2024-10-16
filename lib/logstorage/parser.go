@@ -714,13 +714,6 @@ func ParseQuery(s string) (*Query, error) {
 func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 	lex := newLexerAtTimestamp(s, timestamp)
 
-	// Verify the first token doesn't match pipe names.
-	firstToken := strings.ToLower(lex.rawToken)
-	if _, ok := pipeNames[firstToken]; ok {
-		return nil, fmt.Errorf("the query [%s] cannot start with pipe - it must start with madatory filter; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
-			"if the filter isn't missing, then please put the first word of the filter into quotes: %q", s, firstToken)
-	}
-
 	q, err := parseQuery(lex)
 	if err != nil {
 		return nil, err
@@ -759,9 +752,17 @@ func parseQuery(lex *lexer) (*Query, error) {
 }
 
 func parseFilter(lex *lexer) (filter, error) {
-	if lex.isKeyword("|", "") {
+	if lex.isKeyword("|", ")", "") {
 		return nil, fmt.Errorf("missing query")
 	}
+
+	// Verify the first token in the filter doesn't match pipe names.
+	firstToken := strings.ToLower(lex.rawToken)
+	if _, ok := pipeNames[firstToken]; ok {
+		return nil, fmt.Errorf("query filter cannot start with pipe keyword %q; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
+			"please put the first word of the filter into quotes", firstToken)
+	}
+
 	fo, err := parseFilterOr(lex, "")
 	if err != nil {
 		return nil, err
@@ -841,7 +842,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return f, nil
 	case lex.isKeyword("("):
 		if !lex.isSkippedSpace && !lex.isPrevToken("", ":", "(", "!", "-", "not") {
-			return nil, fmt.Errorf("missing whitespace before the search word %q", lex.prevToken)
+			return nil, fmt.Errorf("missing whitespace after the search word %q", lex.prevToken)
 		}
 		return parseParensFilter(lex, fieldName)
 	case lex.isKeyword(">"):
@@ -919,6 +920,10 @@ func getCompoundSuffix(lex *lexer, allowColon bool) string {
 
 func getCompoundToken(lex *lexer) (string, error) {
 	stopTokens := []string{",", "(", ")", "[", "]", "|", ""}
+	return getCompoundTokenExt(lex, stopTokens)
+}
+
+func getCompoundTokenExt(lex *lexer, stopTokens []string) (string, error) {
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
 	}

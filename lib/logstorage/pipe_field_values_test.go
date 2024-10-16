@@ -53,7 +53,7 @@ func TestPipeFieldValues(t *testing.T) {
 		},
 	})
 
-	f("field_values b", [][]Field{
+	f("field_values (b)", [][]Field{
 		{
 			{"a", `2`},
 			{"b", `3`},

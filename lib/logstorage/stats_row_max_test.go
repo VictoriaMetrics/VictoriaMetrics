@@ -110,7 +110,7 @@ func TestStatsRowMax(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", `{"a":"3","x":"","b":"54"}`},
+			{"x", `{"a":"3","b":"54"}`},
 		},
 	})
 
@@ -242,7 +242,7 @@ func TestStatsRowMax(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "1"},
-			{"x", `{"c":""}`},
+			{"x", `{}`},
 		},
 		{
 			{"a", "3"},

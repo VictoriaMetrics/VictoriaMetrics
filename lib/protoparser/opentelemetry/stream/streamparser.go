@@ -3,6 +3,7 @@ package stream
 import (
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"sync"
 
@@ -84,6 +85,14 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 			for _, p := range m.Histogram.DataPoints {
 				wr.appendSamplesFromHistogram(metricName, p)
 			}
+		case m.ExponentialHistogram != nil:
+			if m.ExponentialHistogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
+				rowsDroppedUnsupportedExponentialHistogram.Inc()
+				continue
+			}
+			for _, p := range m.ExponentialHistogram.DataPoints {
+				wr.appendSamplesFromExponentialHistogram(metricName, p)
+			}
 		default:
 			rowsDroppedUnsupportedMetricType.Inc()
 			logger.Warnf("unsupported type for metric %q", metricName)
@@ -156,6 +165,51 @@ func (wr *writeContext) appendSamplesFromHistogram(metricName string, p *pb.Hist
 	}
 	cumulative += p.BucketCounts[len(p.BucketCounts)-1]
 	wr.appendSampleWithExtraLabel(metricName+"_bucket", "le", "+Inf", t, float64(cumulative), isStale)
+}
+
+// appendSamplesFromExponentialHistogram appends histogram p to wr.tss
+func (wr *writeContext) appendSamplesFromExponentialHistogram(metricName string, p *pb.ExponentialHistogramDataPoint) {
+	t := int64(p.TimeUnixNano / 1e6)
+	isStale := (p.Flags)&uint32(1) != 0
+	wr.pointLabels = appendAttributesToPromLabels(wr.pointLabels[:0], p.Attributes)
+	wr.appendSample(metricName+"_count", t, float64(p.Count), isStale)
+	if p.Sum == nil {
+		// fast path, convert metric as simple counter.
+		// given buckets cannot be used for histogram functions.
+		// Negative threshold buckets MAY be used, but then the Histogram MetricPoint MUST NOT contain a sum value as it would no longer be a counter semantically.
+		// https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram
+		return
+	}
+
+	wr.appendSample(metricName+"_sum", t, *p.Sum, isStale)
+	if p.ZeroCount > 0 {
+		vmRange := fmt.Sprintf("%.3e...%.3e", 0.0, p.ZeroThreshold)
+		wr.appendSampleWithExtraLabel(metricName+"_bucket", "vmrange", vmRange, t, float64(p.ZeroCount), isStale)
+	}
+	ratio := math.Pow(2, -float64(p.Scale))
+	base := math.Pow(2, ratio)
+	if p.Positive != nil {
+		bound := math.Pow(2, float64(p.Positive.Offset)*ratio)
+		for i, s := range p.Positive.BucketCounts {
+			if s > 0 {
+				lowerBound := bound * math.Pow(base, float64(i))
+				upperBound := lowerBound * base
+				vmRange := fmt.Sprintf("%.3e...%.3e", lowerBound, upperBound)
+				wr.appendSampleWithExtraLabel(metricName+"_bucket", "vmrange", vmRange, t, float64(s), isStale)
+			}
+		}
+	}
+	if p.Negative != nil {
+		bound := math.Pow(2, -float64(p.Negative.Offset)*ratio)
+		for i, s := range p.Negative.BucketCounts {
+			if s > 0 {
+				upperBound := bound * math.Pow(base, float64(i))
+				lowerBound := upperBound / base
+				vmRange := fmt.Sprintf("%.3e...%.3e", lowerBound, upperBound)
+				wr.appendSampleWithExtraLabel(metricName+"_bucket", "vmrange", vmRange, t, float64(s), isStale)
+			}
+		}
+	}
 }
 
 // appendSample appends sample with the given metricName to wr.tss
@@ -300,8 +354,9 @@ func putWriteContext(wr *writeContext) {
 }
 
 var (
-	rowsRead                         = metrics.NewCounter(`vm_protoparser_rows_read_total{type="opentelemetry"}`)
-	rowsDroppedUnsupportedHistogram  = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_histogram_aggregation"}`)
-	rowsDroppedUnsupportedSum        = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_sum_aggregation"}`)
-	rowsDroppedUnsupportedMetricType = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_metric_type"}`)
+	rowsRead                                   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="opentelemetry"}`)
+	rowsDroppedUnsupportedHistogram            = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_histogram_aggregation"}`)
+	rowsDroppedUnsupportedExponentialHistogram = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_exponential_histogram_aggregation"}`)
+	rowsDroppedUnsupportedSum                  = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_sum_aggregation"}`)
+	rowsDroppedUnsupportedMetricType           = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_metric_type"}`)
 )

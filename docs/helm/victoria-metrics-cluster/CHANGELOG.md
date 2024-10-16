@@ -2,6 +2,37 @@
 
 - TODO
 
+## 0.14.2
+
+**Release date:** 2024-10-11
+
+![AppVersion: v1.104.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.104.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Human-readable error about Helm version requirement
+
+## 0.14.1
+
+**Release date:** 2024-10-04
+
+![AppVersion: v1.104.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.104.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Support extra storageNodes. Fail if no storageNodes set
+- Support enabling automatic discovery of vmstorage addresses using DNS SRV records in enterprise version
+- Added HPA with scaledown disabled by default
+- Allow excluding vmstorage nodes from vminsert. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1549)
+- Upgraded common chart dependency
+
+## 0.14.0
+
+**Release date:** 2024-10-02
+
+![AppVersion: v1.104.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.104.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- bump version of VM components to [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
+
 ## 0.13.7
 
 **Release date:** 2024-09-12

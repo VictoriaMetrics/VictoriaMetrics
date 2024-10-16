@@ -18,147 +18,7 @@ after applying all the configured [relabeling stages](https://docs.victoriametri
 **By default, stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples).
 It expects that the ingested samples have timestamps close to the current time. See [how to ignore old samples](#ignoring-old-samples).**
 
-## Configuration
-
-Stream aggregation can be configured via the following command-line flags:
-
-- `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
-  and at [vmagent](https://docs.victoriametrics.com/vmagent/).
-- `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/vmagent/) only. This flag can be specified individually
-  per each `-remoteWrite.url`, so the aggregation happens independently per each remote storage destination.
-  This allows writing different aggregates to different remote storage systems.
-
-These flags must point to a file containing [stream aggregation config](#stream-aggregation-config).
-The file may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
-
-By default, the following data is written to the storage when stream aggregation is enabled:
-
-- the aggregated samples;
-- the raw input samples, which didn't match any `match` option in the provided [config](#stream-aggregation-config).
-
-This behaviour can be changed via the following command-line flags:
-
-- `-streamAggr.keepInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) 
-  and [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
-  `-remoteWrite.streamAggr.keepInput` flag can be specified individually per each `-remoteWrite.url`.
-  If one of these flags is set, then all the input samples are written to the storage alongside the aggregated samples.
-- `-streamAggr.dropInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) 
-  and [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
-  `-remoteWrite.streamAggr.dropInput` flag can be specified individually per each `-remoteWrite.url`.
-  If one of these flags are set, then all the input samples are dropped, while only the aggregated samples are written to the storage.
-
-## Routing
-
-[Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) supports relabeling,
-deduplication and stream aggregation for all the received data, scraped or pushed. 
-The processed data is then stored in local storage and **can't be forwarded further**.
-
-[vmagent](https://docs.victoriametrics.com/vmagent/) supports relabeling, deduplication and stream aggregation for all 
-the received data, scraped or pushed. Then, the collected data will be forwarded to specified `-remoteWrite.url` destinations.
-The data processing order is the following:
-
-1. all the received data is relabeled according to the specified [`-remoteWrite.relabelConfig`](https://docs.victoriametrics.com/vmagent/#relabeling) (if it is set)
-1. all the received data is deduplicated according to specified [`-streamAggr.dedupInterval`](https://docs.victoriametrics.com/stream-aggregation/#deduplication)
-   (if it is set to duration bigger than 0)
-1. all the received data is aggregated according to specified [`-streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration) (if it is set)
-1. the resulting data is then replicated to each `-remoteWrite.url`
-1. data sent to each `-remoteWrite.url` can be additionally relabeled according to the corresponding `-remoteWrite.urlRelabelConfig` (set individually per URL)
-1. data sent to each `-remoteWrite.url` can be additionally deduplicated according to the corresponding `-remoteWrite.streamAggr.dedupInterval` (set individually per URL)
-1. data sent to each `-remoteWrite.url` can be additionally aggregated according to the corresponding `-remoteWrite.streamAggr.config` (set individually per URL)
-   It isn't recommended using `-streamAggr.config` and `-remoteWrite.streamAggr.config` simultaneously, unless you understand the complications.
-
-Typical scenarios for data routing with `vmagent`:
-
-1. **Aggregate incoming data and replicate to N destinations**. Specify [`-streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration) command-line flag
-   to aggregate the incoming data before replicating it to all the configured `-remoteWrite.url` destinations.
-2. **Individually aggregate incoming data for each destination**. Specify [`-remoteWrite.streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration)
-   command-line flag for each `-remoteWrite.url` destination. [Relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) via `-remoteWrite.urlRelabelConfig`
-   can be used for routing only the selected metrics to each `-remoteWrite.url` destination.
-
-## Deduplication
-
-[vmagent](https://docs.victoriametrics.com/vmagent/) supports online [de-duplication](https://docs.victoriametrics.com/#deduplication) of samples
-before sending them to the configured `-remoteWrite.url`. The de-duplication can be enabled via the following options:
-
-- By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag for all received data 
-  or via `-remoteWrite.streamAggr.dedupInterval` command-line flag for the particular `-remoteWrite.url` destination.
-  For example, `./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -remoteWrite.streamAggr.dedupInterval=30s` instructs `vmagent` to leave
-  only the last sample per each seen [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) per every 30 seconds.
-  The de-deduplication is performed after applying [relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) and
-  before performing the aggregation.
-
-- By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) 
-  in `-remoteWrite.streamAggr.config` or `-streamAggr.config` configs.
-
-[Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) supports two types of de-duplication:
-- After storing the duplicate samples to local storage. See [`-dedup.minScrapeInterval`](https://docs.victoriametrics.com/#deduplication) command-line option.
-- Before storing the duplicate samples to local storage. This type of de-duplication can be enabled via the following options:
-  - By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag.
-    For example, `./victoria-metrics -streamAggr.dedupInterval=30s` instructs VictoriaMetrics to leave only the last sample per each
-    seen [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) per every 30 seconds.
-    The de-duplication is performed after applying `-relabelConfig` [relabeling](https://docs.victoriametrics.com/#relabeling).
-
-  - By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) at `-streamAggr.config`.
-
-It is possible to drop the given labels before applying the de-duplication. See [these docs](#dropping-unneeded-labels).
-
-The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/#deduplication) at VictoriaMetrics.
-
-## Ignoring old samples
-
-By default, all the input samples are taken into account during stream aggregation. If samples with old timestamps 
-outside the current [aggregation interval](#stream-aggregation-config) must be ignored, then the following options can be used:
-
-- To pass `-streamAggr.ignoreOldSamples` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
-  or to [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
-  `-remoteWrite.streamAggr.ignoreOldSamples` flag can be specified individually per each `-remoteWrite.url`.
-  This enables ignoring old samples for all the [aggregation configs](#stream-aggregation-config).
-
-- To set `ignore_old_samples: true` option at the particular [aggregation config](#stream-aggregation-config).
-  This enables ignoring old samples for that particular aggregation config.
-
-## Ignore aggregation intervals on start
-
-Streaming aggregation results may be incorrect for some time after the restart of [vmagent](https://docs.victoriametrics.com/vmagent/)
-or [single-node VictoriaMetrics](https://docs.victoriametrics.com/) until all the buffered [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
-are sent from remote sources to the `vmagent` or single-node VictoriaMetrics via [supported data ingestion protocols](https://docs.victoriametrics.com/vmagent/#how-to-push-data-to-vmagent).
-In this case it may be a good idea to drop the aggregated data during the first `N` [aggregation intervals](#stream-aggregation-config)
-just after the restart of `vmagent` or single-node VictoriaMetrics. This can be done via the following options:
-
-- The `-streamAggr.ignoreFirstIntervals=N` command-line flag at `vmagent` and single-node VictoriaMetrics. This flag instructs skipping the first `N`
-  [aggregation intervals](#stream-aggregation-config) just after the restart across all the [configured stream aggregation configs](#configuration).
-
-  The `-remoteWrite.streamAggr.ignoreFirstIntervals` command-line flag can be specified individually per each `-remoteWrite.url` at [vmagent](https://docs.victoriametrics.com/vmagent/).
-
-- The `ignore_first_intervals: N` option at the particular [aggregation config](#stream-aggregation-config).
-
-See also:
-
-- [Flush time alignment](#flush-time-alignment)
-- [Ignoring old samples](#ignoring-old-samples)
-
-## Flush time alignment
-
-By default, the time for aggregated data flush is aligned by the `interval` option specified in [aggregate config](#stream-aggregation-config).
-
-For example:
-
-- if `interval: 1m` is set, then the aggregated data is flushed to the storage at the end of every minute
-- if `interval: 1h` is set, then the aggregated data is flushed to the storage at the end of every hour
-
-If you do not need such an alignment, then set `no_align_flush_to_interval: true` option in the [aggregate config](#stream-aggregation-config).
-In this case aggregated data flushes will be aligned to the `vmagent` start time or to [config reload](#configuration-update) time.
-
-The aggregated data on the first and the last interval is dropped during `vmagent` start, restart or [config reload](#configuration-update),
-since the first and the last aggregation intervals are incomplete, so they usually contain incomplete confusing data.
-If you need preserving the aggregated data on these intervals, then set `flush_on_shutdown: true` option in the [aggregate config](#stream-aggregation-config).
-
-See also:
-
-- [Ignore aggregation intervals on start](#ignore-aggregation-intervals-on-start)
-- [Ignoring old samples](#ignoring-old-samples)
-
-## Use cases
+# Use cases
 
 Stream aggregation can be used in the following cases:
 
@@ -167,7 +27,7 @@ Stream aggregation can be used in the following cases:
 * [Reducing the number of stored samples](#reducing-the-number-of-stored-samples)
 * [Reducing the number of stored series](#reducing-the-number-of-stored-series)
 
-### Statsd alternative
+## Statsd alternative
 
 Stream aggregation can be used as [statsd](https://github.com/statsd/statsd) alternative in the following cases:
 
@@ -180,7 +40,7 @@ Stream aggregation can be used as [statsd](https://github.com/statsd/statsd) alt
 Currently, streaming aggregation is available only for [supported data ingestion protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data)
 and not available for [Statsd metrics format](https://github.com/statsd/statsd/blob/master/docs/metric_types.md).
 
-### Recording rules alternative
+## Recording rules alternative
 
 Sometimes [alerting queries](https://docs.victoriametrics.com/vmalert/#alerting-rules) may require non-trivial amounts of CPU, RAM,
 disk IO and network bandwidth at metrics storage side. For example, if `http_request_duration_seconds` histogram is generated by thousands
@@ -212,8 +72,7 @@ See also [aggregating by labels](#aggregating-by-labels).
 
 Field `interval` is recommended to be set to a value at least several times higher than your metrics collect interval.
 
-
-### Reducing the number of stored samples
+## Reducing the number of stored samples
 
 If per-[series](https://docs.victoriametrics.com/keyconcepts/#time-series) samples are ingested at high frequency,
 then this may result in high disk space usage, since too much data must be stored to disk. This also may result
@@ -254,7 +113,7 @@ some_metric:5m_max
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [aggregating histograms](#aggregating-histograms) and [aggregating by labels](#aggregating-by-labels).
 
-### Reducing the number of stored series
+## Reducing the number of stored series
 
 Sometimes applications may generate too many [time series](https://docs.victoriametrics.com/keyconcepts/#time-series).
 For example, the `http_requests_total` metric may have `path` or `user` label with too big number of unique values.
@@ -279,7 +138,7 @@ http_requests_total:30s_without_path_user_total
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [aggregating histograms](#aggregating-histograms).
 
-### Counting input samples
+## Counting input samples
 
 If the monitored application generates event-based metrics, then it may be useful to count the number of such metrics
 at stream aggregation level.
@@ -305,8 +164,7 @@ clicks:30s_count_samples count2
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [aggregating by labels](#aggregating-by-labels).
 
-
-### Summing input metrics
+## Summing input metrics
 
 If the monitored application calculates some events and then sends the calculated number of events to VictoriaMetrics
 at irregular intervals or at too high frequency, then stream aggregation can be used for summing such events
@@ -332,8 +190,7 @@ clicks:1m_sum_samples sum2
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [aggregating by labels](#aggregating-by-labels).
 
-
-### Quantiles over input metrics
+## Quantiles over input metrics
 
 If the monitored application generates measurement metrics per each request, then it may be useful to calculate
 the pre-defined set of [percentiles](https://en.wikipedia.org/wiki/Percentile) over these measurements.
@@ -363,7 +220,7 @@ response_size_bytes:30s_quantiles{quantile="0.99"} value2
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [histograms over input metrics](#histograms-over-input-metrics) and [aggregating by labels](#aggregating-by-labels).
 
-### Histograms over input metrics
+## Histograms over input metrics
 
 If the monitored application generates measurement metrics per each request, then it may be useful to calculate
 a [histogram](https://docs.victoriametrics.com/keyconcepts/#histogram) over these metrics.
@@ -424,10 +281,10 @@ The resulting histogram buckets can be queried with [MetricsQL](https://docs.vic
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [quantiles over input metrics](#quantiles-over-input-metrics) and [aggregating by labels](#aggregating-by-labels).
 
-### Aggregating histograms
+## Aggregating histograms
 
 [Histogram](https://docs.victoriametrics.com/keyconcepts/#histogram) is a set of [counter](https://docs.victoriametrics.com/keyconcepts/#counter)
-metrics with different `vmrange` or `le` labels. As they're counters, the applicable aggregation output is 
+metrics with different `vmrange` or `le` labels. As they're counters, the applicable aggregation output is
 [total](https://docs.victoriametrics.com/stream-aggregation/#total):
 
 ```yaml
@@ -455,88 +312,41 @@ function:
 histogram_quantile(0.9, sum(rate(http_request_duration_seconds_bucket:1m_without_instance_total[5m])) by(le))
 ```
 
-Please note, histograms can be aggregated if their `le` labels are configured identically. 
+Please note, histograms can be aggregated if their `le` labels are configured identically.
 [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
 have no such requirement.
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [histograms over input metrics](#histograms-over-input-metrics) and [quantiles over input metrics](#quantiles-over-input-metrics).
 
-## Output metric names
+# Configuration
 
-Output metric names for stream aggregation are constructed according to the following pattern:
+Stream aggregation can be configured via the following command-line flags:
 
-```text
-<metric_name>:<interval>[_by_<by_labels>][_without_<without_labels>]_<output>
-```
+- `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
+  and at [vmagent](https://docs.victoriametrics.com/vmagent/).
+- `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/vmagent/) only. This flag can be specified individually
+  per each `-remoteWrite.url`, so the aggregation happens independently per each remote storage destination.
+  This allows writing different aggregates to different remote storage systems.
 
-- `<metric_name>` is the original metric name.
-- `<interval>` is the interval specified in the [stream aggregation config](#stream-aggregation-config).
-- `<by_labels>` is `_`-delimited sorted list of `by` labels specified in the [stream aggregation config](#stream-aggregation-config).
-  If the `by` list is missing in the config, then the `_by_<by_labels>` part isn't included in the output metric name.
-- `<without_labels>` is an optional `_`-delimited sorted list of `without` labels specified in the [stream aggregation config](#stream-aggregation-config).
-  If the `without` list is missing in the config, then the `_without_<without_labels>` part isn't included in the output metric name.
-- `<output>` is the aggregate used for constructing the output metric. The aggregate name is taken from the `outputs` list
-  at the corresponding [stream aggregation config](#stream-aggregation-config).
+These flags must point to a file containing [stream aggregation config](#stream-aggregation-config).
+The file may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
 
-Both input and output metric names can be modified if needed via relabeling according to [these docs](#relabeling).
+By default, the following data is written to the storage when stream aggregation is enabled:
 
-It is possible to leave the original metric name after the aggregation by specifying `keep_metric_names: true` option at [stream aggregation config](#stream-aggregation-config).
-The `keep_metric_names` option can be used if only a single output is set in [`outputs` list](#aggregation-outputs).
+- the aggregated samples;
+- the raw input samples, which didn't match any `match` option in the provided [config](#stream-aggregation-config).
 
-## Relabeling
+This behaviour can be changed via the following command-line flags:
 
-It is possible to apply [arbitrary relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) to input and output metrics
-during stream aggregation via `input_relabel_configs` and `output_relabel_configs` options in [stream aggregation config](#stream-aggregation-config).
-
-Relabeling rules inside `input_relabel_configs` are applied to samples matching the `match` filters before optional [deduplication](#deduplication).
-Relabeling rules inside `output_relabel_configs` are applied to aggregated samples before sending them to the remote storage.
-
-For example, the following config removes the `:1m_sum_samples` suffix added [to the output metric name](#output-metric-names):
-
-```yaml
-- interval: 1m
-  outputs: [sum_samples]
-  output_relabel_configs:
-  - source_labels: [__name__]
-    target_label: __name__
-    regex: "(.+):.+"
-```
-
-Another option to remove the suffix, which is added by stream aggregation, is to add `keep_metric_names: true` to the config:
-
-```yaml
-- interval: 1m
-  outputs: [sum_samples]
-  keep_metric_names: true
-```
-
-See also [dropping unneeded labels](#dropping-unneeded-labels).
-
-
-## Dropping unneeded labels
-
-If you need dropping some labels from input samples before [input relabeling](#relabeling), [de-duplication](#deduplication)
-and [stream aggregation](#aggregation-outputs), then the following options exist:
-
-- To specify comma-separated list of label names to drop in `-streamAggr.dropInputLabels` command-line flag
-  or via `-remoteWrite.streamAggr.dropInputLabels` individually per each `-remoteWrite.url`.
-  For example, `-streamAggr.dropInputLabels=replica,az` instructs to drop `replica` and `az` labels from input samples
-  before applying de-duplication and stream aggregation.
-
-- To specify `drop_input_labels` list with the labels to drop in [stream aggregation config](#stream-aggregation-config).
-  For example, the following config drops `replica` label from input samples with the name `process_resident_memory_bytes`
-  before calculating the average over one minute:
-
-  ```yaml
-  - match: process_resident_memory_bytes
-    interval: 1m
-    drop_input_labels: [replica]
-    outputs: [avg]
-    keep_metric_names: true
-  ```
-
-Typical use case is to drop `replica` label from samples, which are received from high availability replicas.
+- `-streamAggr.keepInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) 
+  and [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
+  `-remoteWrite.streamAggr.keepInput` flag can be specified individually per each `-remoteWrite.url`.
+  If one of these flags is set, then all the input samples are written to the storage alongside the aggregated samples.
+- `-streamAggr.dropInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) 
+  and [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
+  `-remoteWrite.streamAggr.dropInput` flag can be specified individually per each `-remoteWrite.url`.
+  If one of these flags are set, then all the input samples are dropped, while only the aggregated samples are written to the storage.
 
 ## Aggregation outputs
 
@@ -623,7 +433,7 @@ See also:
 ### histogram_bucket
 
 `histogram_bucket` returns [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
-  for the input [sample values](https://docs.victoriametrics.com/keyconcepts/#raw-samples) over the given `interval`.
+for the input [sample values](https://docs.victoriametrics.com/keyconcepts/#raw-samples) over the given `interval`.
 `histogram_bucket` makes sense only for aggregating [gauges](https://docs.victoriametrics.com/keyconcepts/#gauge).
 See how to aggregate regular histograms [here](#aggregating-histograms).
 
@@ -958,47 +768,6 @@ See also:
 - [max](#max)
 - [min](#min)
 
-
-## Aggregating by labels
-
-All the labels for the input metrics are preserved by default in the output metrics. For example,
-the input metric `foo{app="bar",instance="host1"}` results to the output metric `foo:1m_sum_samples{app="bar",instance="host1"}`
-when the following [stream aggregation config](#stream-aggregation-config) is used:
-
-```yaml
-- interval: 1m
-  outputs: [sum_samples]
-```
-
-The input labels can be removed via `without` list specified in the config. For example, the following config
-removes the `instance` label from output metrics by summing input samples across all the instances:
-
-```yaml
-- interval: 1m
-  without: [instance]
-  outputs: [sum_samples]
-```
-
-In this case the `foo{app="bar",instance="..."}` input metrics are transformed into `foo:1m_without_instance_sum_samples{app="bar"}`
-output metric according to [output metric naming](#output-metric-names).
-
-It is possible specifying the exact list of labels in the output metrics via `by` list.
-For example, the following config sums input samples by the `app` label:
-
-```yaml
-- interval: 1m
-  by: [app]
-  outputs: [sum_samples]
-```
-
-In this case the `foo{app="bar",instance="..."}` input metrics are transformed into `foo:1m_by_app_sum_samples{app="bar"}`
-output metric according to [output metric naming](#output-metric-names).
-
-The labels used in `by` and `without` lists can be modified via `input_relabel_configs` section - see [these docs](#relabeling).
-
-See also [aggregation outputs](#aggregation-outputs).
-
-
 ## Stream aggregation config
 
 Below is the format for stream aggregation config file, which may be referred via `-streamAggr.config` command-line flag at
@@ -1141,15 +910,241 @@ support the following approaches for hot reloading stream aggregation configs fr
 
 * By sending HTTP request to `/-/reload` endpoint (e.g. `http://vmagent:8429/-/reload` or `http://victoria-metrics:8428/-/reload).
 
+# Routing
 
-## Troubleshooting
+[Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) supports relabeling,
+deduplication and stream aggregation for all the received data, scraped or pushed. 
+The processed data is then stored in local storage and **can't be forwarded further**.
+
+[vmagent](https://docs.victoriametrics.com/vmagent/) supports relabeling, deduplication and stream aggregation for all 
+the received data, scraped or pushed. Then, the collected data will be forwarded to specified `-remoteWrite.url` destinations.
+The data processing order is the following:
+
+1. all the received data is relabeled according to the specified [`-remoteWrite.relabelConfig`](https://docs.victoriametrics.com/vmagent/#relabeling) (if it is set)
+1. all the received data is deduplicated according to specified [`-streamAggr.dedupInterval`](https://docs.victoriametrics.com/stream-aggregation/#deduplication)
+   (if it is set to duration bigger than 0)
+1. all the received data is aggregated according to specified [`-streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration) (if it is set)
+1. the resulting data is then replicated to each `-remoteWrite.url`
+1. data sent to each `-remoteWrite.url` can be additionally relabeled according to the corresponding `-remoteWrite.urlRelabelConfig` (set individually per URL)
+1. data sent to each `-remoteWrite.url` can be additionally deduplicated according to the corresponding `-remoteWrite.streamAggr.dedupInterval` (set individually per URL)
+1. data sent to each `-remoteWrite.url` can be additionally aggregated according to the corresponding `-remoteWrite.streamAggr.config` (set individually per URL)
+   It isn't recommended using `-streamAggr.config` and `-remoteWrite.streamAggr.config` simultaneously, unless you understand the complications.
+
+Typical scenarios for data routing with `vmagent`:
+
+1. **Aggregate incoming data and replicate to N destinations**. Specify [`-streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration) command-line flag
+   to aggregate the incoming data before replicating it to all the configured `-remoteWrite.url` destinations.
+2. **Individually aggregate incoming data for each destination**. Specify [`-remoteWrite.streamAggr.config`](https://docs.victoriametrics.com/stream-aggregation/#configuration)
+   command-line flag for each `-remoteWrite.url` destination. [Relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) via `-remoteWrite.urlRelabelConfig`
+   can be used for routing only the selected metrics to each `-remoteWrite.url` destination.
+
+# Deduplication
+
+[vmagent](https://docs.victoriametrics.com/vmagent/) supports online [de-duplication](https://docs.victoriametrics.com/#deduplication) of samples
+before sending them to the configured `-remoteWrite.url`. The de-duplication can be enabled via the following options:
+
+- By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag for all received data 
+  or via `-remoteWrite.streamAggr.dedupInterval` command-line flag for the particular `-remoteWrite.url` destination.
+  For example, `./vmagent -remoteWrite.url=http://remote-storage/api/v1/write -remoteWrite.streamAggr.dedupInterval=30s` instructs `vmagent` to leave
+  only the last sample per each seen [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) per every 30 seconds.
+  The de-deduplication is performed after applying [relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) and
+  before performing the aggregation.
+
+- By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) 
+  in `-remoteWrite.streamAggr.config` or `-streamAggr.config` configs.
+
+[Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) supports two types of de-duplication:
+- After storing the duplicate samples to local storage. See [`-dedup.minScrapeInterval`](https://docs.victoriametrics.com/#deduplication) command-line option.
+- Before storing the duplicate samples to local storage. This type of de-duplication can be enabled via the following options:
+  - By specifying the desired de-duplication interval via `-streamAggr.dedupInterval` command-line flag.
+    For example, `./victoria-metrics -streamAggr.dedupInterval=30s` instructs VictoriaMetrics to leave only the last sample per each
+    seen [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) per every 30 seconds.
+    The de-duplication is performed after applying `-relabelConfig` [relabeling](https://docs.victoriametrics.com/#relabeling).
+
+  - By specifying `dedup_interval` option individually per each [stream aggregation config](#stream-aggregation-config) at `-streamAggr.config`.
+
+It is possible to drop the given labels before applying the de-duplication. See [these docs](#dropping-unneeded-labels).
+
+The online de-duplication uses the same logic as [`-dedup.minScrapeInterval` command-line flag](https://docs.victoriametrics.com/#deduplication) at VictoriaMetrics.
+
+# Relabeling
+
+It is possible to apply [arbitrary relabeling](https://docs.victoriametrics.com/vmagent/#relabeling) to input and output metrics
+during stream aggregation via `input_relabel_configs` and `output_relabel_configs` options in [stream aggregation config](#stream-aggregation-config).
+
+Relabeling rules inside `input_relabel_configs` are applied to samples matching the `match` filters before optional [deduplication](#deduplication).
+Relabeling rules inside `output_relabel_configs` are applied to aggregated samples before sending them to the remote storage.
+
+For example, the following config removes the `:1m_sum_samples` suffix added [to the output metric name](#output-metric-names):
+
+```yaml
+- interval: 1m
+  outputs: [sum_samples]
+  output_relabel_configs:
+  - source_labels: [__name__]
+    target_label: __name__
+    regex: "(.+):.+"
+```
+
+Another option to remove the suffix, which is added by stream aggregation, is to add `keep_metric_names: true` to the config:
+
+```yaml
+- interval: 1m
+  outputs: [sum_samples]
+  keep_metric_names: true
+```
+
+See also [dropping unneeded labels](#dropping-unneeded-labels).
+
+# Advanced usage
+
+## Ignoring old samples
+
+By default, all the input samples are taken into account during stream aggregation. If samples with old timestamps 
+outside the current [aggregation interval](#stream-aggregation-config) must be ignored, then the following options can be used:
+
+- To pass `-streamAggr.ignoreOldSamples` command-line flag to [single-node VictoriaMetrics](https://docs.victoriametrics.com/)
+  or to [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
+  `-remoteWrite.streamAggr.ignoreOldSamples` flag can be specified individually per each `-remoteWrite.url`.
+  This enables ignoring old samples for all the [aggregation configs](#stream-aggregation-config).
+
+- To set `ignore_old_samples: true` option at the particular [aggregation config](#stream-aggregation-config).
+  This enables ignoring old samples for that particular aggregation config.
+
+## Ignore aggregation intervals on start
+
+Streaming aggregation results may be incorrect for some time after the restart of [vmagent](https://docs.victoriametrics.com/vmagent/)
+or [single-node VictoriaMetrics](https://docs.victoriametrics.com/) until all the buffered [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples)
+are sent from remote sources to the `vmagent` or single-node VictoriaMetrics via [supported data ingestion protocols](https://docs.victoriametrics.com/vmagent/#how-to-push-data-to-vmagent).
+In this case it may be a good idea to drop the aggregated data during the first `N` [aggregation intervals](#stream-aggregation-config)
+just after the restart of `vmagent` or single-node VictoriaMetrics. This can be done via the following options:
+
+- The `-streamAggr.ignoreFirstIntervals=N` command-line flag at `vmagent` and single-node VictoriaMetrics. This flag instructs skipping the first `N`
+  [aggregation intervals](#stream-aggregation-config) just after the restart across all the [configured stream aggregation configs](#configuration).
+
+  The `-remoteWrite.streamAggr.ignoreFirstIntervals` command-line flag can be specified individually per each `-remoteWrite.url` at [vmagent](https://docs.victoriametrics.com/vmagent/).
+
+- The `ignore_first_intervals: N` option at the particular [aggregation config](#stream-aggregation-config).
+
+See also:
+
+- [Flush time alignment](#flush-time-alignment)
+- [Ignoring old samples](#ignoring-old-samples)
+
+## Flush time alignment
+
+By default, the time for aggregated data flush is aligned by the `interval` option specified in [aggregate config](#stream-aggregation-config).
+
+For example:
+
+- if `interval: 1m` is set, then the aggregated data is flushed to the storage at the end of every minute
+- if `interval: 1h` is set, then the aggregated data is flushed to the storage at the end of every hour
+
+If you do not need such an alignment, then set `no_align_flush_to_interval: true` option in the [aggregate config](#stream-aggregation-config).
+In this case aggregated data flushes will be aligned to the `vmagent` start time or to [config reload](#configuration-update) time.
+
+The aggregated data on the first and the last interval is dropped during `vmagent` start, restart or [config reload](#configuration-update),
+since the first and the last aggregation intervals are incomplete, so they usually contain incomplete confusing data.
+If you need preserving the aggregated data on these intervals, then set `flush_on_shutdown: true` option in the [aggregate config](#stream-aggregation-config).
+
+See also:
+
+- [Ignore aggregation intervals on start](#ignore-aggregation-intervals-on-start)
+- [Ignoring old samples](#ignoring-old-samples)
+
+## Output metric names
+
+Output metric names for stream aggregation are constructed according to the following pattern:
+
+```text
+<metric_name>:<interval>[_by_<by_labels>][_without_<without_labels>]_<output>
+```
+
+- `<metric_name>` is the original metric name.
+- `<interval>` is the interval specified in the [stream aggregation config](#stream-aggregation-config).
+- `<by_labels>` is `_`-delimited sorted list of `by` labels specified in the [stream aggregation config](#stream-aggregation-config).
+  If the `by` list is missing in the config, then the `_by_<by_labels>` part isn't included in the output metric name.
+- `<without_labels>` is an optional `_`-delimited sorted list of `without` labels specified in the [stream aggregation config](#stream-aggregation-config).
+  If the `without` list is missing in the config, then the `_without_<without_labels>` part isn't included in the output metric name.
+- `<output>` is the aggregate used for constructing the output metric. The aggregate name is taken from the `outputs` list
+  at the corresponding [stream aggregation config](#stream-aggregation-config).
+
+Both input and output metric names can be modified if needed via relabeling according to [these docs](#relabeling).
+
+It is possible to leave the original metric name after the aggregation by specifying `keep_metric_names: true` option at [stream aggregation config](#stream-aggregation-config).
+The `keep_metric_names` option can be used if only a single output is set in [`outputs` list](#aggregation-outputs).
+
+## Aggregating by labels
+
+All the labels for the input metrics are preserved by default in the output metrics. For example,
+the input metric `foo{app="bar",instance="host1"}` results to the output metric `foo:1m_sum_samples{app="bar",instance="host1"}`
+when the following [stream aggregation config](#stream-aggregation-config) is used:
+
+```yaml
+- interval: 1m
+  outputs: [sum_samples]
+```
+
+The input labels can be removed via `without` list specified in the config. For example, the following config
+removes the `instance` label from output metrics by summing input samples across all the instances:
+
+```yaml
+- interval: 1m
+  without: [instance]
+  outputs: [sum_samples]
+```
+
+In this case the `foo{app="bar",instance="..."}` input metrics are transformed into `foo:1m_without_instance_sum_samples{app="bar"}`
+output metric according to [output metric naming](#output-metric-names).
+
+It is possible specifying the exact list of labels in the output metrics via `by` list.
+For example, the following config sums input samples by the `app` label:
+
+```yaml
+- interval: 1m
+  by: [app]
+  outputs: [sum_samples]
+```
+
+In this case the `foo{app="bar",instance="..."}` input metrics are transformed into `foo:1m_by_app_sum_samples{app="bar"}`
+output metric according to [output metric naming](#output-metric-names).
+
+The labels used in `by` and `without` lists can be modified via `input_relabel_configs` section - see [these docs](#relabeling).
+
+See also [aggregation outputs](#aggregation-outputs).
+
+## Dropping unneeded labels
+
+If you need dropping some labels from input samples before [input relabeling](#relabeling), [de-duplication](#deduplication)
+and [stream aggregation](#aggregation-outputs), then the following options exist:
+
+- To specify comma-separated list of label names to drop in `-streamAggr.dropInputLabels` command-line flag
+  or via `-remoteWrite.streamAggr.dropInputLabels` individually per each `-remoteWrite.url`.
+  For example, `-streamAggr.dropInputLabels=replica,az` instructs to drop `replica` and `az` labels from input samples
+  before applying de-duplication and stream aggregation.
+
+- To specify `drop_input_labels` list with the labels to drop in [stream aggregation config](#stream-aggregation-config).
+  For example, the following config drops `replica` label from input samples with the name `process_resident_memory_bytes`
+  before calculating the average over one minute:
+
+  ```yaml
+  - match: process_resident_memory_bytes
+    interval: 1m
+    drop_input_labels: [replica]
+    outputs: [avg]
+    keep_metric_names: true
+  ```
+
+Typical use case is to drop `replica` label from samples, which are received from high availability replicas.
+
+# Troubleshooting
 
 - [Unexpected spikes for `total` or `increase` outputs](#staleness).
 - [Lower than expected values for `total_prometheus` and `increase_prometheus` outputs](#staleness).
 - [High memory usage and CPU usage](#high-resource-usage).
 - [Unexpected results in vmagent cluster mode](#cluster-mode).
 
-### Staleness
+## Staleness
 
 The following outputs track the last seen per-series values in order to properly calculate output values:
 
@@ -1177,7 +1172,7 @@ These issues can be fixed in the following ways:
 - By specifying the `staleness_interval` option at [stream aggregation config](#stream-aggregation-config), so it covers the expected
   delays in data ingestion pipelines. By default, the `staleness_interval` equals to `2 x interval`.
 
-### High resource usage
+## High resource usage
 
 The following solutions can help reducing memory usage and CPU usage during streaming aggregation:
 
@@ -1187,7 +1182,7 @@ The following solutions can help reducing memory usage and CPU usage during stre
 - To generate lower number of output time series by using less specific [`by` list](#aggregating-by-labels) or more specific [`without` list](#aggregating-by-labels).
 - To drop unneeded long labels in input samples via [input_relabel_configs](#relabeling).
 
-### Cluster mode
+## Cluster mode
 
 If you use [vmagent in cluster mode](https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets) for streaming aggregation
 then be careful when using [`by` or `without` options](#aggregating-by-labels) or when modifying sample labels
@@ -1195,10 +1190,75 @@ via [relabeling](#relabeling), since incorrect usage may result in duplicates an
 
 For example, if more than one `vmagent` instance calculates [increase](#increase) for `http_requests_total` metric
 with `by: [path]` option, then all the `vmagent` instances will aggregate samples to the same set of time series with different `path` labels.
-The proper fix would be [adding an unique label](https://docs.victoriametrics.com/vmagent/#adding-labels-to-metrics) for all the output samples
+The proper fix would be [adding a unique label](https://docs.victoriametrics.com/vmagent/#adding-labels-to-metrics) for all the output samples
 produced by each `vmagent`, so they are aggregated into distinct sets of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series).
 These time series then can be aggregated later as needed during querying.
 
 If `vmagent` instances run in Docker or Kubernetes, then you can refer `POD_NAME` or `HOSTNAME` environment variables
-as an unique label value per each `vmagent` via `-remoteWrite.label=vmagent=%{HOSTNAME}` command-line flag.
+as a unique label value per each `vmagent` via `-remoteWrite.label=vmagent=%{HOSTNAME}` command-line flag.
 See [these docs](https://docs.victoriametrics.com/#environment-variables) on how to refer environment variables in VictoriaMetrics components.
+
+## Common mistakes
+
+### Put aggregator behind load balancer
+
+When configuring the aggregation rule, make sure that `vmagent` receives all the required data to satisfy the `match` rule.
+If traffic to the vmagent goes through the load balancer, it could happen that vmagent will be receiving only fraction of the data
+and produce incomplete aggregations.
+
+To keep aggregation results consistent, make sure that vmagent receives all the required data for aggregation. In case if you need to 
+split the load across multiple vmagents, try sharding the traffic among them via metric names or labels.
+For example, see how vmagent could consistently [shard data across remote write destinations](https://docs.victoriametrics.com/vmagent/#sharding-among-remote-storages)
+via `-remoteWrite.shardByURL.labels` or `-remoteWrite.shardByURL.ignoreLabels` cmd-line flags.
+
+### Create aggregator per each recording rule
+
+Stream aggregation can be used as alternative for [recording rules](#recording-rules-alternative).
+But creating an aggregation rule per each recording rule can lead to elevated resource usage on the vmagent,
+because the ingestion stream should be matched against every configured aggregation rule.
+
+To optimize this, we recommend merging together aggregations which only differ in match expressions. 
+For example, let's see the following list of recording rules:
+
+```yaml
+- expr: sum(rate(node_cpu_seconds_total{mode!="idle",mode!="iowait",mode!="steal"}[3m])) BY (instance)
+  record: instance:node_cpu:rate:sum
+- expr: sum(rate(node_network_receive_bytes_total[3m])) BY (instance)
+  record: instance:node_network_receive_bytes:rate:sum
+- expr: sum(rate(node_network_transmit_bytes_total[3m])) BY (instance)
+  record: instance:node_network_transmit_bytes:rate:sum
+```
+
+These rules can be effectively converted into a single aggregation rule:
+
+```yaml
+- match:
+  - node_cpu_seconds_total{mode!="idle",mode!="iowait",mode!="steal"}
+  - node_network_receive_bytes_total
+  - node_network_transmit_bytes_total
+  interval: 3m
+  outputs: [rate_sum]  
+  by:
+  - instance
+  output_relabel_configs:
+    - source_labels: [__name__]
+      target_label: __name__
+      regex: "(.+):.+"
+      replacement: "instance:$1:rate:sum"
+```
+
+**Note**: having separate aggregator for a certain `match` expression can only be justified when aggregator cannot keep up with all
+the data pushed to an aggregator within an aggregation interval.
+
+### Use identical --remoteWrite.streamAggr.config for all remote writes
+
+Each specified `-remoteWrite.streamAggr.config` aggregation config is processed independently on the copy of the data stream.
+So if you want to aggregate incoming data and replicate it across multiple destinations, it would be more efficient
+to use a global `-streamAggr.config` instead. In this way, vmagent will perform aggregation only once and then will replicate it
+across multiple `-remoteWrite.url`.
+
+### Use aggregated metrics like original ones
+
+Stream aggregation allows keeping original metric names after aggregation by using `keep_metric_names` setting.
+But the "meaning" of aggregated metrics is usually different to original ones after the aggregation.
+Make sure that you updated queries in your alerting rules and dashboards accordingly if you used `keep_metric_names` setting.

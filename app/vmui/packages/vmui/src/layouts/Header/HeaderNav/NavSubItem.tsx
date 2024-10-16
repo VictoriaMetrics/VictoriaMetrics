@@ -6,7 +6,7 @@ import Popper from "../../../components/Main/Popper/Popper";
 import NavItem from "./NavItem";
 import { useEffect } from "react";
 import useBoolean from "../../../hooks/useBoolean";
-import { NavigationItem, NavigationItemType } from "../../../constants/navigation";
+import { NavigationItem, NavigationItemType } from "../../../router/navigation";
 
 interface NavItemProps {
   activeMenu: string,

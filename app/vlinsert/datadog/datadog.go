@@ -40,6 +40,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		ts, err = strconv.ParseInt(tsValue, 10, 64)
 		if err != nil {
 			httpserver.Errorf(w, r, "could not parse dd-message-timestamp header value: %s", err)
+			return true
 		}
 		ts *= 1e6
 	} else {
@@ -50,6 +51,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		zr, err := common.GetGzipReader(reader)
 		if err != nil {
 			httpserver.Errorf(w, r, "cannot read gzipped logs request: %s", err)
+			return true
 		}
 		defer common.PutGzipReader(zr)
 		reader = zr
@@ -77,12 +79,13 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	lmp := cp.NewLogMessageProcessor()
 	n, err := readLogsRequest(ts, data, lmp.AddRow)
 	lmp.MustClose()
+	if n > 0 {
+		rowsIngestedTotal.Add(n)
+	}
 	if err != nil {
 		logger.Warnf("cannot decode log message in /api/v2/logs request: %s, stream fields: %s", err, cp.StreamFields)
 		return true
 	}
-
-	rowsIngestedTotal.Add(n)
 
 	// update v2LogsRequestDuration only for successfully parsed requests
 	// There is no need in updating v2LogsRequestDuration for request errors,
@@ -111,10 +114,10 @@ func readLogsRequest(ts int64, data []byte, processLogMessage func(int64, []logs
 	}
 
 	var fields []logstorage.Field
-	for _, r := range records {
+	for m, r := range records {
 		o, err := r.Object()
 		if err != nil {
-			return 0, fmt.Errorf("could not extract log record: %w", err)
+			return m + 1, fmt.Errorf("could not extract log record: %w", err)
 		}
 		o.Visit(func(k []byte, v *fastjson.Value) {
 			if err != nil {

@@ -1,10 +1,10 @@
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/)
 via the following ways:
 
-- [Web UI](#web-ui) - a web-based UI for querying logs
-- [Visualization in Grafana](#visualization-in-grafana)
-- [HTTP API](#http-api)
 - [Command-line interface](#command-line)
+- [HTTP API](#http-api)
+- [Web UI](#web-ui) - a web-based UI for querying logs
+- [Grafana plugin](#visualization-in-grafana)
 
 ## HTTP API
 
@@ -800,7 +800,10 @@ See also [command line interface](#command-line).
 
 ## Command-line
 
-VictoriaLogs integrates well with `curl` and other command-line tools during querying because of the following features:
+VictoriaLogs provides `vlogsqcli` interactive command-line tool for querying logs. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/).
+
+VictoriaLogs [querying API](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs) integrates well with `curl`
+and other Unix command-line tools because of the following features:
 
 - Matching log entries are sent to the response stream as soon as they are found.
   This allows forwarding the response stream to arbitrary [Unix pipes](https://en.wikipedia.org/wiki/Pipeline_(Unix))
@@ -825,7 +828,7 @@ curl http://localhost:9428/select/logsql/query -d 'query=error'
 If the command above returns "never-ending" response, then just press `ctrl+C` at any time in order to cancel the query.
 VictoriaLogs notices that the response stream is closed, so it cancels the query and stops consuming CPU, RAM and disk IO for this query.
 
-Then just use `head` command for investigating the returned log messages and narrowing down the query:
+Then use `head` command for investigating the returned log messages and narrowing down the query:
 
 ```sh
 curl http://localhost:9428/select/logsql/query -d 'query=error' | head -10
@@ -862,7 +865,8 @@ curl http://localhost:9428/select/logsql/query -d 'query=error AND "cannot open 
 ```
 
 Note that the `query` arg must be properly encoded with [percent encoding](https://en.wikipedia.org/wiki/URL_encoding) when passing it to `curl`
-or similar tools.
+or similar tools. It is highly recommended to use [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/) -
+it automatically performs all the needed encoding.
 
 The `pipe the query to "head" or "less" -> investigate the results -> refine the query` iteration
 can be repeated multiple times until the needed log messages are found.

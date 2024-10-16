@@ -81,5 +81,6 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
     isLoading: Object.values(isLoading).some(s => s),
     error,
     fetchLogs,
+    abortController: abortControllerRef.current
   };
 };

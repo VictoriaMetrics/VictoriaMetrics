@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
+	"golang.org/x/net/http2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -31,6 +33,8 @@ var (
 	apiServerTimeout      = flag.Duration("promscrape.kubernetes.apiServerTimeout", 30*time.Minute, "How frequently to reload the full state from Kubernetes API server")
 	attachNodeMetadataAll = flag.Bool("promscrape.kubernetes.attachNodeMetadataAll", false, "Whether to set attach_metadata.node=true for all the kubernetes_sd_configs at -promscrape.config . "+
 		"It is possible to set attach_metadata.node=false individually per each kubernetes_sd_configs . See https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs")
+	useHTTP2Client = flag.Bool("promscrape.kubernetes.useHTTP2Client", false, "Whether to use HTTP/2 client for connection to Kubernetes API server."+
+		" This may reduce amount of concurrent connections to API server when watching for a big number of Kubernetes objects.")
 )
 
 // WatchEvent is a watch event returned from API server endpoints if `watch=1` query arg is set.
@@ -243,20 +247,54 @@ type groupWatcher struct {
 	noAPIWatchers bool
 }
 
-func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) *groupWatcher {
+var (
+	httpClientsCache = make(map[string]*http.Client)
+	httpClientsLock  sync.Mutex
+)
+
+func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
+	key := fmt.Sprintf("authConfig=%s, proxyURL=%s", ac.String(), proxyURL)
+	httpClientsLock.Lock()
+	if c, ok := httpClientsCache[key]; ok {
+		httpClientsLock.Unlock()
+		return c
+	}
+
 	var proxy func(*http.Request) (*url.URL, error)
 	if proxyURL != nil {
 		proxy = http.ProxyURL(proxyURL)
 	}
-	client := &http.Client{
-		Transport: ac.NewRoundTripper(&http.Transport{
+	getTransport := func(cfg *tls.Config) http.RoundTripper {
+		return &http.Transport{
 			Proxy:               proxy,
 			TLSHandshakeTimeout: 10 * time.Second,
 			IdleConnTimeout:     *apiServerTimeout,
 			MaxIdleConnsPerHost: 100,
-		}),
-		Timeout: *apiServerTimeout,
+			TLSClientConfig:     cfg,
+		}
 	}
+	if *useHTTP2Client {
+		// proxy is not supported for http2 client
+		// see: https://github.com/golang/go/issues/26479
+		getTransport = func(cfg *tls.Config) http.RoundTripper {
+			return &http2.Transport{
+				IdleConnTimeout: *apiServerTimeout,
+				TLSClientConfig: cfg,
+				PingTimeout:     10 * time.Second,
+			}
+		}
+	}
+	c := &http.Client{
+		Transport: ac.NewRoundTripperFromGetter(getTransport),
+		Timeout:   *apiServerTimeout,
+	}
+	httpClientsCache[key] = c
+	httpClientsLock.Unlock()
+	return c
+}
+
+func newGroupWatcher(apiServer string, ac *promauth.Config, namespaces []string, selectors []Selector, attachNodeMetadata bool, proxyURL *url.URL) *groupWatcher {
+	client := getHTTPClient(ac, proxyURL)
 	ctx, cancel := context.WithCancel(context.Background())
 	gw := &groupWatcher{
 		apiServer:          apiServer,

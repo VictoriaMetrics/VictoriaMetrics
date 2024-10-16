@@ -1,5 +1,5 @@
 include:
- - ../compose.yml
+ - ../compose-base.yml
 services:
   agent:
     image: docker.io/datadog/agent:7.57.2

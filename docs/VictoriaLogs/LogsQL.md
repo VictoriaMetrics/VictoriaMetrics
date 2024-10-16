@@ -36,7 +36,7 @@ For example, the following query finds all the logs with `error` word:
 error
 ```
 
-See [how to send queries to VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
+It is recommended to use [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/) for querying VictoriaLogs.
 
 If the queried [word](#word) clashes with LogsQL keywords, then just wrap it into quotes.
 For example, the following query finds all the log messages with `and` [word](#word):
@@ -468,7 +468,7 @@ See also:
 
 ### _stream_id filter
 
-Every [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) in VictoriaMetrics is uniquely identified by `_stream_id` field.
+Every [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) in VictoriaLogs is uniquely identified by `_stream_id` field.
 The `_stream_id:...` filter allows quickly selecting all the logs belonging to the particular stream.
 
 For example, the following query selects all the logs, which belong to the [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
@@ -1304,6 +1304,7 @@ LogsQL supports the following pipes:
 - [`fields`](#fields-pipe) selects the given set of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`filter`](#filter-pipe) applies additional [filters](#filters) to results.
 - [`format`](#format-pipe) formats output field from input [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`len`](#len-pipe) calculates byte length of the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
 - [`limit`](#limit-pipe) limits the number selected logs.
 - [`math`](#math-pipe) performs mathematical calculations over [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`offset`](#offset-pipe) skips the given number of selected logs.
@@ -1758,6 +1759,22 @@ only if `ip` and `host` [fields](https://docs.victoriametrics.com/victorialogs/k
 _time:5m | format if (ip:* and host:*) "request from <ip>:<host>" as message
 ```
 
+### len pipe
+
+The `| len(field) as result` pipe stores byte length of the given `field` value into the `result` field.
+For example, the following query shows top 5 log entries with the maximum byte length of `_msg` field across
+logs for the last 5 minutes:
+
+```logsql
+_time:5m | len(_msg) as msg_len | sort by (msg_len desc) | limit 1
+```
+
+See also:
+
+- [`sum_len` stats function](#sum-len-stats)
+- [`sort` pipe](#sort-pipe)
+- [`limit` pipe](#limit-pipe)
+
 ### limit pipe
 
 If only a subset of selected logs must be processed, then `| limit N` [pipe](#pipes) can be used, where `N` can contain any [supported integer numeric value](#numeric-values).
@@ -2024,7 +2041,7 @@ The `<filters>` can contain arbitrary [filters](#filters). For example, the foll
 only if `user_type` field equals to `admin`:
 
 ```logsql
-_time:5m | replace if (user_type:=admin) replace ("secret", "***") at password
+_time:5m | replace if (user_type:=admin) ("secret", "***") at password
 ```
 
 ### replace_regexp pipe
@@ -2076,7 +2093,7 @@ The `<filters>` can contain arbitrary [filters](#filters). For example, the foll
 with `***` in the `foo` field only if `user_type` field equals to `admin`:
 
 ```logsql
-_time:5m | replace_regexp if (user_type:=admin) replace ("password: [^ ]+", "") at foo
+_time:5m | replace_regexp if (user_type:=admin) ("password: [^ ]+", "") at foo
 ```
 
 ### sort pipe
@@ -3027,10 +3044,10 @@ See also:
 
 ### sum_len stats
 
-`sum_len(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the sum of lengths of all the values
+`sum_len(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the sum of byte lengths of all the values
 for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
-For example, the following query returns the sum of lengths of [`_msg` fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+For example, the following query returns the sum of byte lengths of [`_msg` fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 across all the logs for the last 5 minutes:
 
 ```logsql
@@ -3040,6 +3057,7 @@ _time:5m | stats sum_len(_msg) messages_len
 See also:
 
 - [`count`](#count-stats)
+- [`len` pipe](#len-pipe)
 
 ### uniq_values stats
 

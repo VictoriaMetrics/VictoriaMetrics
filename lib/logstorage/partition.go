@@ -195,3 +195,8 @@ func (pt *partition) updateStats(ps *PartitionStats) {
 	pt.ddb.updateStats(&ps.DatadbStats)
 	pt.idb.updateStats(&ps.IndexdbStats)
 }
+
+// mustForceMerge runs forced merge for all the parts in pt.
+func (pt *partition) mustForceMerge() {
+	pt.ddb.mustForceMergeAllParts()
+}

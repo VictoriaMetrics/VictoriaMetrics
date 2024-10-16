@@ -9,7 +9,7 @@ import { AlignedData } from "uplot";
 import BarHitsChart from "../../../components/Chart/BarHitsChart/BarHitsChart";
 import Alert from "../../../components/Main/Alert/Alert";
 import { TimeParams } from "../../../types";
-import Spinner from "../../../components/Main/Spinner/Spinner";
+import LineLoader from "../../../components/Main/LineLoader/LineLoader";
 
 interface Props {
   query: string;
@@ -72,10 +72,7 @@ const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error, isLoading, onA
         "vm-block_mobile": isMobile,
       })}
     >
-      {isLoading && <Spinner
-        message={"Loading hits stats..."}
-        containerStyles={{ position: "absolute" }}
-      />}
+      {isLoading && <LineLoader/>}
       {!error && noDataMessage && (
         <div className="vm-explore-logs-chart__empty">
           <Alert variant="info">{noDataMessage}</Alert>

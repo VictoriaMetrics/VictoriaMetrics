@@ -15,6 +15,8 @@ import WithTemplate from "./pages/WithTemplate";
 import Relabel from "./pages/Relabel";
 import ActiveQueries from "./pages/ActiveQueries";
 import QueryAnalyzer from "./pages/QueryAnalyzer";
+import DownsamplingFilters from "./pages/DownsamplingFilters";
+import RetentionFilters from "./pages/RetentionFilters";
 
 const App: FC = () => {
   const [loadedTheme, setLoadedTheme] = useState(false);
@@ -73,6 +75,14 @@ const App: FC = () => {
                 <Route
                   path={router.icons}
                   element={<PreviewIcons/>}
+                />
+                <Route
+                  path={router.downsamplingDebug}
+                  element={<DownsamplingFilters/>}
+                />
+                <Route
+                  path={router.retentionDebug}
+                  element={<RetentionFilters/>}
                 />
               </Route>
             </Routes>

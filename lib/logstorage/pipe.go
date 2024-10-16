@@ -165,6 +165,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'format' pipe: %w", err)
 		}
 		return pf, nil
+	case lex.isKeyword("len"):
+		pl, err := parsePipeLen(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'len' pipe: %w", err)
+		}
+		return pl, nil
 	case lex.isKeyword("limit", "head"):
 		pl, err := parsePipeLimit(lex)
 		if err != nil {
@@ -301,6 +307,7 @@ var pipeNames = func() map[string]struct{} {
 		"fields", "keep",
 		"filter", "where",
 		"format",
+		"len",
 		"limit", "head",
 		"math", "eval",
 		"offset", "skip",
@@ -310,7 +317,7 @@ var pipeNames = func() map[string]struct{} {
 		"replace",
 		"replace_regexp",
 		"sort", "order",
-		"stats",
+		"stats", "by",
 		"stream_context",
 		"top",
 		"uniq",
