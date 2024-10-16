@@ -37,6 +37,8 @@ var (
 		"see https://docs.victoriametrics.com/victorialogs/data-ingestion/ ; see also -logNewStreams")
 	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which "+
 		"the storage stops accepting new data")
+
+	forceMergeAuthKey = flagutil.NewPassword("forceMergeAuthKey", "authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*")
 )
 
 // Init initializes vlstorage.
@@ -85,6 +87,28 @@ func Stop() {
 
 	strg.MustClose()
 	strg = nil
+}
+
+// RequestHandler is a storage request handler.
+func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
+	path := r.URL.Path
+	if path == "/internal/force_merge" {
+		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey) {
+			return true
+		}
+		// Run force merge in background
+		partitionNamePrefix := r.FormValue("partition_prefix")
+		go func() {
+			activeForceMerges.Inc()
+			defer activeForceMerges.Dec()
+			logger.Infof("forced merge for partition_prefix=%q has been started", partitionNamePrefix)
+			startTime := time.Now()
+			strg.MustForceMerge(partitionNamePrefix)
+			logger.Infof("forced merge for partition_prefix=%q has been successfully finished in %.3f seconds", partitionNamePrefix, time.Since(startTime).Seconds())
+		}()
+		return true
+	}
+	return false
 }
 
 var strg *logstorage.Storage
@@ -205,3 +229,5 @@ func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 	metrics.WriteCounterUint64(w, `vl_rows_dropped_total{reason="too_big_timestamp"}`, ss.RowsDroppedTooBigTimestamp)
 	metrics.WriteCounterUint64(w, `vl_rows_dropped_total{reason="too_small_timestamp"}`, ss.RowsDroppedTooSmallTimestamp)
 }
+
+var activeForceMerges = metrics.NewCounter("vl_active_force_merges")

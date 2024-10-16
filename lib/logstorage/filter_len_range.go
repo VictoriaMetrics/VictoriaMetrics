@@ -125,8 +125,7 @@ func (fr *filterLenRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	csh := bs.getColumnsHeader()
-	v := csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchLenRange(v, minLen, maxLen) {
 			bm.resetBits()
@@ -135,7 +134,7 @@ func (fr *filterLenRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		if !matchLenRange("", minLen, maxLen) {

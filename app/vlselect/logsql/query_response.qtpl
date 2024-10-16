@@ -6,15 +6,31 @@
 
 // JSONRow creates JSON row from the given fields.
 {% func JSONRow(columns []logstorage.BlockColumn, rowIdx int) %}
-{
-	{% code c := &columns[0] %}
+	{% code
+		i := 0
+		for i < len(columns) && columns[i].Values[rowIdx] == "" {
+			i++
+		}
+		columns = columns[i:]
+	%}
+	{% if len(columns) == 0 %}
+		{% return %}
+	{% endif %}
+	{
+	{% code	c := &columns[0] %}
 	{%q= c.Name %}:{%q= c.Values[rowIdx] %}
 	{% code columns = columns[1:] %}
 	{% for colIdx := range columns %}
-		{% code c := &columns[colIdx] %}
+		{% code
+			c := &columns[colIdx]
+			v := c.Values[rowIdx]
+		%}
+		{% if v == "" %}
+			{% continue %}
+		{% endif %}
 		,{%q= c.Name %}:{%q= c.Values[rowIdx] %}
 	{% endfor %}
-}{% newline %}
+	}{% newline %}
 {% endfunc %}
 
 // JSONRows prints formatted rows
@@ -23,7 +39,11 @@
 		{% return %}
 	{% endif %}
 	{% for _, fields := range rows %}
-	{
+		{% code fields = logstorage.SkipLeadingFieldsWithoutValues(fields) %}
+		{% if len(fields) == 0 %}
+			{% continue %}
+		{% endif %}
+		{
 		{% if len(fields) > 0 %}
 			{% code
 				f := fields[0]
@@ -31,10 +51,13 @@
 			%}
 			{%q= f.Name %}:{%q= f.Value %}
 			{% for _, f := range fields %}
+				{% if f.Value == "" %}
+					{% continue %}
+				{% endif %}
 				,{%q= f.Name %}:{%q= f.Value %}
 			{% endfor %}
 		{% endif %}
-	}{% newline %}
+		}{% newline %}
 	{% endfor %}
 {% endfunc %}
 

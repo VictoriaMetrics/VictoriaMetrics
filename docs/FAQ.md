@@ -214,7 +214,7 @@ We provide commercial support for both versions. [Contact us](mailto:info@victor
 
 The following commercial versions of VictoriaMetrics are available:
 
-* [VictoriaMetrics Cloud](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_vm_faq) – the most cost-efficient hosted monitoring platform, operated by VictoriaMetrics core team.
+* [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_faq) – the most cost-efficient hosted monitoring platform, operated by VictoriaMetrics core team.
 
 The following commercial versions of VictoriaMetrics are planned:
 
@@ -315,7 +315,7 @@ Yes. See [these docs](https://docs.victoriametrics.com/#graphite-api-usage).
 ## What is an active time series?
 
 A time series is uniquely identified by its name plus a set of its labels. For example, `temperature{city="NY",country="US"}` and `temperature{city="SF",country="US"}`
-are two distinct series, since they differ by the `city` label. A time series is considered active if it receives at least a single new sample during the last hour.
+are two distinct series, since they differ by the `city` label. A time series is considered active if it received at least a single sample during the last hour or it has been touched by queries during the last hour.
 The number of active time series is displayed on the official Grafana dashboard for VictoriaMetrics - see [these docs](https://docs.victoriametrics.com/#monitoring) for details.
 
 ## What is high churn rate?
