@@ -277,6 +277,11 @@ type SearchQuery struct {
 	AccountID uint32
 	ProjectID uint32
 
+	// TenantTokens and IsMultiTenant is artifical fields
+	// it's only exist at runtime and cannot be transefered
+	// via network calls due to keep communitcation protocol compatible
+	// TODO:@f41gh7 introduce breaking change to the protocol later
+	// and use TenantTokens instead of AccountID and ProjectID
 	TenantTokens  []TenantToken
 	IsMultiTenant bool
 
@@ -309,6 +314,8 @@ func NewSearchQuery(accountID, projectID uint32, start, end int64, tagFilterss [
 		maxMetrics = 2e9
 	}
 	return &SearchQuery{
+		AccountID:    accountID,
+		ProjectID:    projectID,
 		MinTimestamp: start,
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
@@ -505,6 +512,7 @@ func (sq *SearchQuery) Unmarshal(src []byte) ([]byte, error) {
 	sq.ProjectID = encoding.UnmarshalUint32(src)
 	src = src[4:]
 
+	sq.TenantTokens = []TenantToken{{AccountID: sq.AccountID, ProjectID: sq.ProjectID}}
 	minTs, nSize := encoding.UnmarshalVarInt64(src)
 	if nSize <= 0 {
 		return src, fmt.Errorf("cannot unmarshal MinTimestamp from varint")
