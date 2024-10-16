@@ -27,7 +27,6 @@ func TestBitmap(t *testing.T) {
 		}
 
 		bm.setBits()
-
 		if n := bm.onesCount(); n != i {
 			t.Fatalf("unexpected number of set bits; got %d; want %d", n, i)
 		}
@@ -104,6 +103,23 @@ func TestBitmap(t *testing.T) {
 		})
 		if bitsCount != 0 {
 			t.Fatalf("unexpected non-zero number of set bits remained: %d", bitsCount)
+		}
+
+		// Set bits via setBit() call
+		for i := 0; i < bitsLen; i++ {
+			if n := bm.onesCount(); n != i {
+				t.Fatalf("unexpected number of ones set; got %d; want %d", n, i)
+			}
+			if bm.isSetBit(i) {
+				t.Fatalf("the bit %d mustn't be set", i)
+			}
+			bm.setBit(i)
+			if !bm.isSetBit(i) {
+				t.Fatalf("the bit %d must be set", i)
+			}
+			if n := bm.onesCount(); n != i+1 {
+				t.Fatalf("unexpected number of ones set; got %d; want %d", n, i+1)
+			}
 		}
 
 		putBitmap(bm)

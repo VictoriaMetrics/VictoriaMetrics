@@ -4,6 +4,9 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/cespare/xxhash/v2"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -43,68 +46,132 @@ func (r *readerWithStats) Read(p []byte) (int, error) {
 }
 
 func (r *readerWithStats) MustClose() {
-	r.r.MustClose()
-	r.r = nil
+	if r.r != nil {
+		r.r.MustClose()
+		r.r = nil
+	}
 }
 
 // streamReaders contains readers for blockStreamReader
 type streamReaders struct {
+	columnNamesReader        readerWithStats
 	metaindexReader          readerWithStats
 	indexReader              readerWithStats
+	columnsHeaderIndexReader readerWithStats
 	columnsHeaderReader      readerWithStats
 	timestampsReader         readerWithStats
-	fieldValuesReader        readerWithStats
-	fieldBloomFilterReader   readerWithStats
-	messageValuesReader      readerWithStats
-	messageBloomFilterReader readerWithStats
+
+	messageBloomValuesReader bloomValuesReader
+	oldBloomValuesReader     bloomValuesReader
+	bloomValuesShards        [bloomValuesShardsCount]bloomValuesReader
+}
+
+type bloomValuesReader struct {
+	bloom  readerWithStats
+	values readerWithStats
+}
+
+func (r *bloomValuesReader) reset() {
+	r.bloom.reset()
+	r.values.reset()
+}
+
+func (r *bloomValuesReader) init(sr bloomValuesStreamReader) {
+	r.bloom.init(sr.bloom)
+	r.values.init(sr.values)
+}
+
+func (r *bloomValuesReader) totalBytesRead() uint64 {
+	return r.bloom.bytesRead + r.values.bytesRead
+}
+
+func (r *bloomValuesReader) MustClose() {
+	r.bloom.MustClose()
+	r.values.MustClose()
+}
+
+type bloomValuesStreamReader struct {
+	bloom  filestream.ReadCloser
+	values filestream.ReadCloser
 }
 
 func (sr *streamReaders) reset() {
+	sr.columnNamesReader.reset()
 	sr.metaindexReader.reset()
 	sr.indexReader.reset()
+	sr.columnsHeaderIndexReader.reset()
 	sr.columnsHeaderReader.reset()
 	sr.timestampsReader.reset()
-	sr.fieldValuesReader.reset()
-	sr.fieldBloomFilterReader.reset()
-	sr.messageValuesReader.reset()
-	sr.messageBloomFilterReader.reset()
+
+	sr.messageBloomValuesReader.reset()
+	sr.oldBloomValuesReader.reset()
+	for i := range sr.bloomValuesShards[:] {
+		sr.bloomValuesShards[i].reset()
+	}
 }
 
-func (sr *streamReaders) init(metaindexReader, indexReader, columnsHeaderReader, timestampsReader, fieldValuesReader, fieldBloomFilterReader,
-	messageValuesReader, messageBloomFilterReader filestream.ReadCloser,
+func (sr *streamReaders) init(columnNamesReader, metaindexReader, indexReader, columnsHeaderIndexReader, columnsHeaderReader, timestampsReader filestream.ReadCloser,
+	messageBloomValuesReader, oldBloomValuesReader bloomValuesStreamReader, bloomValuesShards [bloomValuesShardsCount]bloomValuesStreamReader,
 ) {
+	sr.columnNamesReader.init(columnNamesReader)
 	sr.metaindexReader.init(metaindexReader)
 	sr.indexReader.init(indexReader)
+	sr.columnsHeaderIndexReader.init(columnsHeaderIndexReader)
 	sr.columnsHeaderReader.init(columnsHeaderReader)
 	sr.timestampsReader.init(timestampsReader)
-	sr.fieldValuesReader.init(fieldValuesReader)
-	sr.fieldBloomFilterReader.init(fieldBloomFilterReader)
-	sr.messageValuesReader.init(messageValuesReader)
-	sr.messageBloomFilterReader.init(messageBloomFilterReader)
+
+	sr.messageBloomValuesReader.init(messageBloomValuesReader)
+	sr.oldBloomValuesReader.init(oldBloomValuesReader)
+	for i := range sr.bloomValuesShards[:] {
+		sr.bloomValuesShards[i].init(bloomValuesShards[i])
+	}
 }
 
 func (sr *streamReaders) totalBytesRead() uint64 {
 	n := uint64(0)
+
+	n += sr.columnNamesReader.bytesRead
 	n += sr.metaindexReader.bytesRead
 	n += sr.indexReader.bytesRead
+	n += sr.columnsHeaderIndexReader.bytesRead
 	n += sr.columnsHeaderReader.bytesRead
 	n += sr.timestampsReader.bytesRead
-	n += sr.fieldValuesReader.bytesRead
-	n += sr.fieldBloomFilterReader.bytesRead
-	n += sr.messageValuesReader.bytesRead
-	n += sr.messageBloomFilterReader.bytesRead
+
+	n += sr.messageBloomValuesReader.totalBytesRead()
+	n += sr.oldBloomValuesReader.totalBytesRead()
+	for i := range sr.bloomValuesShards[:] {
+		n += sr.bloomValuesShards[i].totalBytesRead()
+	}
+
 	return n
 }
 
 func (sr *streamReaders) MustClose() {
+	sr.columnNamesReader.MustClose()
 	sr.metaindexReader.MustClose()
 	sr.indexReader.MustClose()
+	sr.columnsHeaderIndexReader.MustClose()
 	sr.columnsHeaderReader.MustClose()
 	sr.timestampsReader.MustClose()
-	sr.fieldValuesReader.MustClose()
-	sr.fieldBloomFilterReader.MustClose()
-	sr.messageValuesReader.MustClose()
-	sr.messageBloomFilterReader.MustClose()
+
+	sr.messageBloomValuesReader.MustClose()
+	sr.oldBloomValuesReader.MustClose()
+	for i := range sr.bloomValuesShards[:] {
+		sr.bloomValuesShards[i].MustClose()
+	}
+}
+
+func (sr *streamReaders) getBloomValuesReaderForColumnName(name string, partFormatVersion uint) *bloomValuesReader {
+	if name == "" {
+		return &sr.messageBloomValuesReader
+	}
+	if partFormatVersion < 1 {
+		return &sr.oldBloomValuesReader
+	}
+
+	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(name))
+	idx := h % uint64(len(sr.bloomValuesShards))
+	return &sr.bloomValuesShards[idx]
 }
 
 // blockStreamReader is used for reading blocks in streaming manner from a part.
@@ -120,6 +187,12 @@ type blockStreamReader struct {
 
 	// streamReaders contains data readers in stream mode
 	streamReaders streamReaders
+
+	// columnNameIDs contains columnName->id mapping for all the column names seen in the part
+	columnNameIDs map[string]uint64
+
+	// columnNames constains id->columnName mapping for all the columns seen in the part
+	columnNames []string
 
 	// indexBlockHeaders contains the list of all the indexBlockHeader entries for the part
 	indexBlockHeaders []indexBlockHeader
@@ -155,6 +228,9 @@ func (bsr *blockStreamReader) reset() {
 	bsr.a.reset()
 	bsr.ph.reset()
 	bsr.streamReaders.reset()
+
+	bsr.columnNameIDs = nil
+	bsr.columnNames = nil
 
 	ihs := bsr.indexBlockHeaders
 	if len(ihs) > 10e3 {
@@ -195,17 +271,25 @@ func (bsr *blockStreamReader) MustInitFromInmemoryPart(mp *inmemoryPart) {
 	bsr.ph = mp.ph
 
 	// Initialize streamReaders
+	columnNamesReader := mp.columnNames.NewReader()
 	metaindexReader := mp.metaindex.NewReader()
 	indexReader := mp.index.NewReader()
+	columnsHeaderIndexReader := mp.columnsHeaderIndex.NewReader()
 	columnsHeaderReader := mp.columnsHeader.NewReader()
 	timestampsReader := mp.timestamps.NewReader()
-	fieldValuesReader := mp.fieldValues.NewReader()
-	fieldBloomFilterReader := mp.fieldBloomFilter.NewReader()
-	messageValuesReader := mp.messageValues.NewReader()
-	messageBloomFilterReader := mp.messageBloomFilter.NewReader()
 
-	bsr.streamReaders.init(metaindexReader, indexReader, columnsHeaderReader, timestampsReader,
-		fieldValuesReader, fieldBloomFilterReader, messageValuesReader, messageBloomFilterReader)
+	messageBloomValuesReader := mp.messageBloomValues.NewStreamReader()
+	var oldBloomValuesReader bloomValuesStreamReader
+	var bloomValuesShards [bloomValuesShardsCount]bloomValuesStreamReader
+	for i := range bloomValuesShards[:] {
+		bloomValuesShards[i] = mp.bloomValuesShards[i].NewStreamReader()
+	}
+
+	bsr.streamReaders.init(columnNamesReader, metaindexReader, indexReader, columnsHeaderIndexReader, columnsHeaderReader, timestampsReader,
+		messageBloomValuesReader, oldBloomValuesReader, bloomValuesShards)
+
+	// Read columnNames data
+	bsr.columnNames, bsr.columnNameIDs = mustReadColumnNames(&bsr.streamReaders.columnNamesReader)
 
 	// Read metaindex data
 	bsr.indexBlockHeaders = mustReadIndexBlockHeaders(bsr.indexBlockHeaders[:0], &bsr.streamReaders.metaindexReader)
@@ -219,30 +303,63 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 	// since they are usually deleted after the merge.
 	const nocache = true
 
-	metaindexPath := filepath.Join(path, metaindexFilename)
-	indexPath := filepath.Join(path, indexFilename)
-	columnsHeaderPath := filepath.Join(path, columnsHeaderFilename)
-	timestampsPath := filepath.Join(path, timestampsFilename)
-	fieldValuesPath := filepath.Join(path, fieldValuesFilename)
-	fieldBloomFilterPath := filepath.Join(path, fieldBloomFilename)
-	messageValuesPath := filepath.Join(path, messageValuesFilename)
-	messageBloomFilterPath := filepath.Join(path, messageBloomFilename)
-
 	bsr.ph.mustReadMetadata(path)
 
+	columnNamesPath := filepath.Join(path, columnNamesFilename)
+	metaindexPath := filepath.Join(path, metaindexFilename)
+	indexPath := filepath.Join(path, indexFilename)
+	columnsHeaderIndexPath := filepath.Join(path, columnsHeaderIndexFilename)
+	columnsHeaderPath := filepath.Join(path, columnsHeaderFilename)
+	timestampsPath := filepath.Join(path, timestampsFilename)
+
 	// Open data readers
+	var columnNamesReader filestream.ReadCloser
+	if bsr.ph.FormatVersion >= 1 {
+		columnNamesReader = filestream.MustOpen(columnNamesPath, nocache)
+	}
 	metaindexReader := filestream.MustOpen(metaindexPath, nocache)
 	indexReader := filestream.MustOpen(indexPath, nocache)
+	var columnsHeaderIndexReader filestream.ReadCloser
+	if bsr.ph.FormatVersion >= 1 {
+		columnsHeaderIndexReader = filestream.MustOpen(columnsHeaderIndexPath, nocache)
+	}
 	columnsHeaderReader := filestream.MustOpen(columnsHeaderPath, nocache)
 	timestampsReader := filestream.MustOpen(timestampsPath, nocache)
-	fieldValuesReader := filestream.MustOpen(fieldValuesPath, nocache)
-	fieldBloomFilterReader := filestream.MustOpen(fieldBloomFilterPath, nocache)
-	messageValuesReader := filestream.MustOpen(messageValuesPath, nocache)
-	messageBloomFilterReader := filestream.MustOpen(messageBloomFilterPath, nocache)
+
+	messageBloomFilterPath := filepath.Join(path, messageBloomFilename)
+	messageValuesPath := filepath.Join(path, messageValuesFilename)
+	messageBloomValuesReader := bloomValuesStreamReader{
+		bloom:  filestream.MustOpen(messageBloomFilterPath, nocache),
+		values: filestream.MustOpen(messageValuesPath, nocache),
+	}
+	var oldBloomValuesReader bloomValuesStreamReader
+	var bloomValuesShards [bloomValuesShardsCount]bloomValuesStreamReader
+	if bsr.ph.FormatVersion < 1 {
+		bloomPath := filepath.Join(path, oldBloomFilename)
+		oldBloomValuesReader.bloom = filestream.MustOpen(bloomPath, nocache)
+
+		valuesPath := filepath.Join(path, oldValuesFilename)
+		oldBloomValuesReader.values = filestream.MustOpen(valuesPath, nocache)
+	} else {
+		for i := range bloomValuesShards[:] {
+			shard := &bloomValuesShards[i]
+
+			bloomPath := getBloomFilePath(path, uint64(i))
+			shard.bloom = filestream.MustOpen(bloomPath, nocache)
+
+			valuesPath := getValuesFilePath(path, uint64(i))
+			shard.values = filestream.MustOpen(valuesPath, nocache)
+		}
+	}
 
 	// Initialize streamReaders
-	bsr.streamReaders.init(metaindexReader, indexReader, columnsHeaderReader, timestampsReader,
-		fieldValuesReader, fieldBloomFilterReader, messageValuesReader, messageBloomFilterReader)
+	bsr.streamReaders.init(columnNamesReader, metaindexReader, indexReader, columnsHeaderIndexReader, columnsHeaderReader, timestampsReader,
+		messageBloomValuesReader, oldBloomValuesReader, bloomValuesShards)
+
+	if bsr.ph.FormatVersion >= 1 {
+		// Read columnNames data
+		bsr.columnNames, bsr.columnNameIDs = mustReadColumnNames(&bsr.streamReaders.columnNamesReader)
+	}
 
 	// Read metaindex data
 	bsr.indexBlockHeaders = mustReadIndexBlockHeaders(bsr.indexBlockHeaders[:0], &bsr.streamReaders.metaindexReader)
@@ -282,7 +399,7 @@ func (bsr *blockStreamReader) NextBlock() bool {
 
 	// Read bsr.blockData
 	bsr.a.reset()
-	bsr.blockData.mustReadFrom(&bsr.a, bh, &bsr.streamReaders)
+	bsr.blockData.mustReadFrom(&bsr.a, bh, &bsr.streamReaders, bsr.ph.FormatVersion, bsr.columnNames)
 
 	bsr.globalUncompressedSizeBytes += bh.uncompressedSizeBytes
 	bsr.globalRowsCount += bh.rowsCount
@@ -342,7 +459,7 @@ func (bsr *blockStreamReader) nextIndexBlock() bool {
 	bb.B = ih.mustReadNextIndexBlock(bb.B[:0], &bsr.streamReaders)
 	bsr.blockHeaders = resetBlockHeaders(bsr.blockHeaders)
 	var err error
-	bsr.blockHeaders, err = unmarshalBlockHeaders(bsr.blockHeaders[:0], bb.B)
+	bsr.blockHeaders, err = unmarshalBlockHeaders(bsr.blockHeaders[:0], bb.B, bsr.ph.FormatVersion)
 	longTermBufPool.Put(bb)
 	if err != nil {
 		logger.Panicf("FATAL: %s: cannot unmarshal blockHeader entries: %s", bsr.streamReaders.indexReader.Path(), err)
