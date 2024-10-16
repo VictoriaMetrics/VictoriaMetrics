@@ -478,15 +478,19 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 	ps.byFields = addByTimeField(ps.byFields, step)
 
 	// extract by(...) field names from stats pipe
-	byFields := ps.byFields
-	fields := make([]string, len(byFields))
-	for i, f := range byFields {
-		fields[i] = f.name
+	byFields := make([]string, len(ps.byFields))
+	for i, f := range ps.byFields {
+		byFields[i] = f.name
 	}
 
-	resultNames := make([]string, len(ps.funcs))
-	for i, f := range ps.funcs {
-		resultNames[i] = f.resultName
+	// extract metric fields from stats pipe
+	metricFields := make(map[string]struct{}, len(ps.funcs))
+	for i := range ps.funcs {
+		f := &ps.funcs[i]
+		if slices.Contains(byFields, f.resultName) {
+			return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", f.resultName, ps, q)
+		}
+		metricFields[f.resultName] = struct{}{}
 	}
 
 	// verify that all the pipes after the idx do not add new fields
@@ -496,60 +500,98 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 		case *pipeSort, *pipeOffset, *pipeLimit, *pipeFilter:
 			// These pipes do not change the set of fields.
 		case *pipeMath:
-			// Allow pipeMath, since it adds additional metrics to the given set of fields.
-			for _, f := range t.entries {
-				resultNames = append(resultNames, f.resultField)
+			// Allow `| math ...` pipe, since it adds additional metrics to the given set of fields.
+			// Verify that the result fields at math pipe do not override byFields.
+			for _, me := range t.entries {
+				if slices.Contains(byFields, me.resultField) {
+					return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", me.resultField, t, q)
+				}
+				metricFields[me.resultField] = struct{}{}
 			}
 		case *pipeFields:
 			// `| fields ...` pipe must contain all the by(...) fields, otherwise it breaks output.
-			for _, f := range fields {
+			for _, f := range byFields {
 				if !slices.Contains(t.fields, f) {
 					return nil, fmt.Errorf("missing %q field at %q pipe in the query [%s]", f, p, q)
 				}
 			}
-			// field in `| fields ...` pipe must exist, otherwise it breaks output.
+
+			remainingMetricFields := make(map[string]struct{})
 			for _, f := range t.fields {
-				if !slices.Contains(fields, f) && !slices.Contains(resultNames, f) {
-					return nil, fmt.Errorf("unknown %q field at %q pipe in the query [%s]", f, p, q)
+				if _, ok := metricFields[f]; ok {
+					remainingMetricFields[f] = struct{}{}
 				}
 			}
+			metricFields = remainingMetricFields
 		case *pipeDelete:
 			// Disallow deleting by(...) fields, since this breaks output.
 			for _, f := range t.fields {
-				if slices.Contains(fields, f) {
+				if slices.Contains(byFields, f) {
 					return nil, fmt.Errorf("the %q field cannot be deleted via %q in the query [%s]", f, p, q)
 				}
-				for i := range resultNames {
-					if resultNames[i] == f {
-						resultNames = append(resultNames[:i], resultNames[i+1:]...)
-						break
-					}
-				}
+				delete(metricFields, f)
 			}
 		case *pipeCopy:
-			// Disallow copying by(...) fields, since this breaks output.
-			for _, f := range t.srcFields {
-				if slices.Contains(fields, f) {
-					return nil, fmt.Errorf("the %q field cannot be copied via %q in the query [%s]", f, p, q)
+			// Add copied fields to by(...) fields list.
+			for i := range t.srcFields {
+				fSrc := t.srcFields[i]
+				fDst := t.dstFields[i]
+
+				if slices.Contains(byFields, fDst) {
+					return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", fDst, t, q)
+				}
+				if _, ok := metricFields[fDst]; ok {
+					if _, ok := metricFields[fSrc]; !ok {
+						delete(metricFields, fDst)
+					}
+				}
+
+				if slices.Contains(byFields, fSrc) {
+					if !slices.Contains(byFields, fDst) {
+						byFields = append(byFields, fDst)
+					}
+				}
+				if _, ok := metricFields[fSrc]; ok {
+					metricFields[fDst] = struct{}{}
 				}
 			}
-			resultNames = append(resultNames, t.dstFields...)
 		case *pipeRename:
 			// Update by(...) fields with dst fields
-			for i, f := range t.srcFields {
-				if n := slices.Index(fields, f); n >= 0 {
-					fields[n] = t.dstFields[i]
+			for i := range t.srcFields {
+				fSrc := t.srcFields[i]
+				fDst := t.dstFields[i]
+
+				if slices.Contains(byFields, fDst) {
+					return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", fDst, t, q)
 				}
-				if n := slices.Index(resultNames, f); n >= 0 {
-					resultNames[n] = t.dstFields[i]
+				delete(metricFields, fDst)
+
+				if n := slices.Index(byFields, fSrc); n >= 0 {
+					byFields[n] = fDst
+				}
+				if _, ok := metricFields[fSrc]; ok {
+					delete(metricFields, fSrc)
+					metricFields[fDst] = struct{}{}
 				}
 			}
+		case *pipeFormat:
+			// Assume that `| format ...` pipe generates an additional by(...) label
+			if slices.Contains(byFields, t.resultField) {
+				return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", t.resultField, t, q)
+			} else {
+				byFields = append(byFields, t.resultField)
+			}
+			delete(metricFields, t.resultField)
 		default:
 			return nil, fmt.Errorf("the %q pipe cannot be put after %q pipe in the query [%s]", p, ps, q)
 		}
 	}
 
-	return fields, nil
+	if len(metricFields) == 0 {
+		return nil, fmt.Errorf("missing metric fields in the results of query [%s]", q)
+	}
+
+	return byFields, nil
 }
 
 func getLastPipeStatsIdx(pipes []pipe) int {
@@ -734,13 +776,14 @@ func ParseQuery(s string) (*Query, error) {
 
 // ParseStatsQuery parses s with needed stats query checks.
 func ParseStatsQuery(s string) (*Query, error) {
-	timestamp := time.Now().UnixNano()
-	query, err := ParseQueryAtTimestamp(s, timestamp)
+	q, err := ParseQuery(s)
 	if err != nil {
 		return nil, err
 	}
-	_, err = query.GetStatsByFields()
-	return query, err
+	if _, err := q.GetStatsByFields(); err != nil {
+		return nil, err
+	}
+	return q, nil
 }
 
 // ParseQueryAtTimestamp parses s in the context of the given timestamp.
