@@ -32,6 +32,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): reduce the initial health check interval for datasource. This reduces the time spent on evaluating rules by vmalert-tool. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6970).
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): allow specifying empty labels list `labels: '{}'` in the same way as promtool does. This improves compatibility between these tools.
 
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly apply replication factor when storage node groups are used and replication factor is configured via global value such as `-replicationFactor=2`. Previously, global replication factor was ignored for storage node groups. See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect) for more information about storage groups configuration.
+
 ## [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
 
 Released at 2024-10-02
