@@ -1039,8 +1039,6 @@ The shortlist of configuration flags is the following:
      Interval for checking for changes in '-rule' or '-notifier.config' files. By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes.
   -datasource.appendTypePrefix
      Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.
-  -datasource.applyIntervalAsTimeFilter
-     Only work for victoriaLogs rules. Whether to apply the evaluation interval as the time filter for the rules. (default false)
   -datasource.basicAuth.password string
      Optional basic auth password for -datasource.url
   -datasource.basicAuth.passwordFile string
