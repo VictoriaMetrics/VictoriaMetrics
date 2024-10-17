@@ -314,8 +314,6 @@ func NewSearchQuery(accountID, projectID uint32, start, end int64, tagFilterss [
 		maxMetrics = 2e9
 	}
 	return &SearchQuery{
-		AccountID:    accountID,
-		ProjectID:    projectID,
 		MinTimestamp: start,
 		MaxTimestamp: end,
 		TagFilterss:  tagFilterss,
