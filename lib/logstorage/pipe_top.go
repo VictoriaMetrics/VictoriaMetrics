@@ -201,8 +201,8 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 
 func (shard *pipeTopProcessorShard) updateState(v string, hits uint64) {
 	m := shard.getM()
-	pHits, ok := m[v]
-	if !ok {
+	pHits := m[v]
+	if pHits == nil {
 		vCopy := strings.Clone(v)
 		hits := uint64(0)
 		pHits = &hits
@@ -247,21 +247,11 @@ func (ptp *pipeTopProcessor) flush() error {
 	if n := ptp.stateSizeBudget.Load(); n <= 0 {
 		return fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", ptp.pt.String(), ptp.maxStateSize/(1<<20))
 	}
-	limit := ptp.pt.limit
-	if limit == 0 {
-		return nil
-	}
 
 	// merge state across shards in parallel
-	var entries []*pipeTopEntry
-	if len(ptp.shards) == 1 {
-		entries = getTopEntries(ptp.shards[0].getM(), limit, ptp.stopCh)
-	} else {
-		es, err := ptp.getTopEntriesParallel(limit)
-		if err != nil {
-			return err
-		}
-		entries = es
+	entries, err := ptp.mergeShardsParallel()
+	if err != nil {
+		return err
 	}
 	if needStop(ptp.stopCh) {
 		return nil
@@ -358,9 +348,18 @@ func (ptp *pipeTopProcessor) flush() error {
 	return nil
 }
 
-func (ptp *pipeTopProcessor) getTopEntriesParallel(limit uint64) ([]*pipeTopEntry, error) {
+func (ptp *pipeTopProcessor) mergeShardsParallel() ([]*pipeTopEntry, error) {
+	limit := ptp.pt.limit
+	if limit == 0 {
+		return nil, nil
+	}
+
 	shards := ptp.shards
 	shardsLen := len(shards)
+	if shardsLen == 1 {
+		entries := getTopEntries(shards[0].getM(), limit, ptp.stopCh)
+		return entries, nil
+	}
 
 	var wg sync.WaitGroup
 	perShardMaps := make([][]map[string]*uint64, shardsLen)
@@ -375,24 +374,30 @@ func (ptp *pipeTopProcessor) getTopEntriesParallel(limit uint64) ([]*pipeTopEntr
 			}
 
 			n := int64(0)
-			for k, pHitsSrc := range shards[idx].getM() {
+			nTotal := int64(0)
+			for k, pHits := range shards[idx].getM() {
 				if needStop(ptp.stopCh) {
 					return
 				}
 				h := xxhash.Sum64(bytesutil.ToUnsafeBytes(k))
 				m := shardMaps[h%uint64(len(shardMaps))]
-				n += updatePipeTopMap(m, k, pHitsSrc)
+				n += updatePipeTopMap(m, k, pHits)
 				if n > stateSizeBudgetChunk {
 					if nRemaining := ptp.stateSizeBudget.Add(-n); nRemaining < 0 {
 						return
 					}
+					nTotal += n
 					n = 0
 				}
 			}
+			nTotal += n
 			ptp.stateSizeBudget.Add(-n)
 
 			perShardMaps[idx] = shardMaps
+
+			// Clean the original map and return its state size budget back.
 			shards[idx].m = nil
+			ptp.stateSizeBudget.Add(nTotal)
 		}(i)
 	}
 	wg.Wait()
@@ -403,6 +408,7 @@ func (ptp *pipeTopProcessor) getTopEntriesParallel(limit uint64) ([]*pipeTopEntr
 		return nil, fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", ptp.pt.String(), ptp.maxStateSize/(1<<20))
 	}
 
+	// Obtain topN entries per each shard
 	entriess := make([][]*pipeTopEntry, shardsLen)
 	for i := range entriess {
 		wg.Add(1)
@@ -410,22 +416,30 @@ func (ptp *pipeTopProcessor) getTopEntriesParallel(limit uint64) ([]*pipeTopEntr
 			defer wg.Done()
 
 			m := perShardMaps[0][idx]
-			n := int64(0)
-			for _, shardMaps := range perShardMaps[1:] {
-				for k, pHitsSrc := range shardMaps[idx] {
+			for i := 1; i < len(perShardMaps); i++ {
+				n := int64(0)
+				nTotal := int64(0)
+				for k, pHits := range perShardMaps[i][idx] {
 					if needStop(ptp.stopCh) {
 						return
 					}
-					n += updatePipeTopMap(m, k, pHitsSrc)
+					n += updatePipeTopMap(m, k, pHits)
 					if n > stateSizeBudgetChunk {
 						if nRemaining := ptp.stateSizeBudget.Add(-n); nRemaining < 0 {
 							return
 						}
+						nTotal += n
 						n = 0
 					}
 				}
+				nTotal += n
+				ptp.stateSizeBudget.Add(-n)
+
+				// Clean the original map and return its state size budget back.
+				perShardMaps[i][idx] = nil
+				ptp.stateSizeBudget.Add(nTotal)
 			}
-			ptp.stateSizeBudget.Add(-n)
+			perShardMaps[0][idx] = nil
 
 			entriess[idx] = getTopEntries(m, ptp.pt.limit, ptp.stopCh)
 		}(i)
@@ -489,8 +503,8 @@ func getTopEntries(m map[string]*uint64, limit uint64, stopCh <-chan struct{}) [
 }
 
 func updatePipeTopMap(m map[string]*uint64, k string, pHitsSrc *uint64) int64 {
-	pHitsDst, ok := m[k]
-	if ok {
+	pHitsDst := m[k]
+	if pHitsDst != nil {
 		*pHitsDst += *pHitsSrc
 		return 0
 	}
