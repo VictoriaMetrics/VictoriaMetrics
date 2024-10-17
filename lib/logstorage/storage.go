@@ -244,9 +244,8 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 
 	// Load caches
 	mem := memory.Allowed()
-	streamIDCachePath := filepath.Join(path, cacheDirname, streamIDCacheFilename)
-	streamIDCache := workingsetcache.Load(streamIDCachePath, mem/16)
 
+	streamIDCache := workingsetcache.New(mem / 16)
 	filterStreamCache := workingsetcache.New(mem / 10)
 
 	s := &Storage{
@@ -457,11 +456,13 @@ func (s *Storage) MustClose() {
 	s.partitions = nil
 	s.ptwHot = nil
 
-	// Save caches
-	streamIDCachePath := filepath.Join(s.path, cacheDirname, streamIDCacheFilename)
-	if err := s.streamIDCache.Save(streamIDCachePath); err != nil {
-		logger.Panicf("FATAL: cannot save streamID cache to %q: %s", streamIDCachePath, err)
-	}
+	// Stop caches
+
+	// Do not persist caches, since they may become out of sync with partitions
+	// if partitions are deleted, restored from backups or copied from other sources
+	// between VictoriaLogs restarts. This may result in various issues
+	// during data ingestion and querying.
+
 	s.streamIDCache.Stop()
 	s.streamIDCache = nil
 
