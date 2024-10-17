@@ -30,6 +30,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix error messages rendering from overflowing the screen with long messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7207).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): properly add metrics tags for `opentsdb` migration source. Previously it could have empty values. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7161).
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): reduce the initial health check interval for datasource. This reduces the time spent on evaluating rules by vmalert-tool. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6970).
+* BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): allow specifying empty labels list `labels: '{}'` in the same way as promtool does. This improves compatibility between these tools.
 
 ## [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
 
