@@ -132,7 +132,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.16.3
+    image: victoriametrics/vmanomaly:v1.17.0
     # ...
     ports:
       - "8490:8490"
@@ -224,6 +224,76 @@ P.s. `infer` data volume will remain the same for both models, so it does not af
 **Data Volume Reduction**:
 - Old: 8064 hours/week (fit) + 168 hours/week (infer)
 - New:    4 hours/week (fit) + 168 hours/week (infer)
+
+## Handling large queries in vmanomaly
+
+
+If you're dealing with a large query in the `queries` argument of [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) (especially when running [within a scheduler using a long](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/?highlight=fit_window#periodic-scheduler) `fit_window`), you may encounter issues such as query timeouts (due to the `search.maxQueryDuration` server limit) or rejections (if the `search.maxPointsPerTimeseries` server limit is exceeded). 
+
+We recommend upgrading to [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170), which introduced the `max_points_per_query` argument (both global and [query-specific](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters)) for the [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). This argument overrides how `search.maxPointsPerTimeseries` flag handling (introduced in [v1.14.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1141)) is used in `vmanomaly` for splitting long `fit_window` queries into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead.
+
+By splitting long `fit_window` queries into smaller sub-intervals, this helps avoid hitting the `search.maxQueryDuration` limit, distributing the load across multiple subquery requests with minimal overhead. To resolve the issue, reduce `max_points_per_query` to a value lower than `search.maxPointsPerTimeseries` until the problem is gone:
+
+```yaml
+reader:
+  # other reader args
+  max_points_per_query: 10000  # reader-level constraint
+  queries:
+    sum_alerts:
+      expr: 'sum(ALERTS{alertstate=~'(pending|firing)'}) by (alertstate)'
+      max_points_per_query: 5000  # query-level override
+models:
+    prophet:
+      # other model args
+      queries: [
+        'sum_alerts',
+      ]
+# other config sections
+```
+
+### Alternative workaround for older versions
+
+If upgrading is not an option, you can partially address the issue by splitting your large query into smaller ones using appropriate label filters:
+
+For example, such query
+
+```yaml
+reader:
+  # other reader args
+  queries:
+    sum_alerts:
+      expr: 'sum(ALERTS{alertstate=~'(pending|firing)'}) by (alertstate)'
+models:
+    prophet:
+      # other model args
+      queries: [
+        'sum_alerts',
+      ]
+# other config sections
+```
+
+can be modified to:
+
+```yaml
+reader:
+  # other reader args
+  queries:
+    sum_alerts_pending:
+      expr: 'sum(ALERTS{alertstate='pending'}) by ()'
+    sum_alerts_firing:
+      expr: 'sum(ALERTS{alertstate='firing'}) by ()'
+models:
+    prophet:
+      # other model args
+      queries: [
+        'sum_alerts_pending',
+        'sum_alerts_firing',
+      ]
+# other config sections
+```
+
+Please note that this approach may not fully resolve the issue if subqueries are not evenly distributed in terms of returned timeseries. Additionally, this workaround is not suitable for queries used in [multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models#multivariate-models) (especially when using the [groupby](https://docs.victoriametrics.com/anomaly-detection/components/models/#group-by) argument).
+
 
 ## Scaling vmanomaly
 > **Note:** As of latest release we do not support cluster or auto-scaled version yet (though, it's in our roadmap for - better backends, more parallelization, etc.), so proposed workarounds should be addressed *manually*.
