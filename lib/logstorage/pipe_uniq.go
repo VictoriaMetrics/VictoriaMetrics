@@ -217,8 +217,8 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 
 func (shard *pipeUniqProcessorShard) updateState(v string, hits uint64) {
 	m := shard.getM()
-	pHits, ok := m[v]
-	if !ok {
+	pHits := m[v]
+	if pHits == nil {
 		vCopy := strings.Clone(v)
 		hits := uint64(0)
 		pHits = &hits
