@@ -28,6 +28,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway/): fix possible panic during parsing of a token without `vm_access` claim. This issue was introduced in v1.104.0.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix error messages rendering from overflowing the screen with long messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7207).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): fixed hot-reload on `max_scrape_size` change. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7260).
 
 ## [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
 
