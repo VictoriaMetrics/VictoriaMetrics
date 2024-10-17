@@ -277,9 +277,9 @@ type SearchQuery struct {
 	AccountID uint32
 	ProjectID uint32
 
-	// TenantTokens and IsMultiTenant is artifical fields
-	// it's only exist at runtime and cannot be transefered
-	// via network calls due to keep communitcation protocol compatible
+	// TenantTokens and IsMultiTenant is artificial fields
+	// they're only exist at runtime and cannot be transferred
+	// via network calls for keeping communication protocol compatibility
 	// TODO:@f41gh7 introduce breaking change to the protocol later
 	// and use TenantTokens instead of AccountID and ProjectID
 	TenantTokens  []TenantToken
