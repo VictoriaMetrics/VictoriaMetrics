@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.27.0](https://img.shields.io/badge/Version-0.27.0-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.27.5](https://img.shields.io/badge/Version-0.27.5-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-k8s-stack)
 
 Kubernetes monitoring on VictoriaMetrics stack. Includes VictoriaMetrics Operator, Grafana dashboards, ServiceScrapes and VMRules
@@ -20,7 +20,7 @@ Also it installs Custom Resources like [VMSingle](https://docs.victoriametrics.c
 
 By default, the operator [converts all existing prometheus-operator API objects](https://docs.victoriametrics.com/operator/quick-start#migration-from-prometheus-operator-objects) into corresponding VictoriaMetrics Operator objects.
 
-To enable metrics collection for kubernetes this chart installs multiple scrape configurations for kuberenetes components like kubelet and kube-proxy, etc. Metrics collection is done by [VMAgent](https://docs.victoriametrics.com/operator/quick-start#vmagent). So if want to ship metrics to external VictoriaMetrics database you can disable VMSingle installation by setting `vmsingle.enabled` to `false` and setting `vmagent.vmagentSpec.remoteWrite.url` to your external VictoriaMetrics database.
+To enable metrics collection for kubernetes this chart installs multiple scrape configurations for kubernetes components like kubelet and kube-proxy, etc. Metrics collection is done by [VMAgent](https://docs.victoriametrics.com/operator/quick-start#vmagent). So if want to ship metrics to external VictoriaMetrics database you can disable VMSingle installation by setting `vmsingle.enabled` to `false` and setting `vmagent.vmagentSpec.remoteWrite.url` to your external VictoriaMetrics database.
 
 This chart also installs bunch of dashboards and recording rules from [kube-prometheus](https://github.com/prometheus-operator/kube-prometheus) project.
 
@@ -493,7 +493,7 @@ tls: []
 <code class="language-yaml">configSecret: ""
 externalURL: ""
 image:
-    tag: v0.25.0
+    tag: v0.27.0
 port: "9093"
 routePrefix: /
 selectAllByDefault: true
@@ -621,23 +621,26 @@ selectAllByDefault: true
 </td>
     </tr>
     <tr>
-      <td>dashboards</td>
+      <td>defaultDashboards.dashboards</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">node-exporter-full: true
-operator: false
-vmalert: false
+<code class="language-yaml">node-exporter-full:
+    enabled: true
+victoriametrics-operator:
+    enabled: false
+victoriametrics-vmalert:
+    enabled: false
 </code>
 </pre>
 </td>
-      <td><p>Enable dashboards despite it&rsquo;s dependency is not installed</p>
+      <td><p>Create dashboards as ConfigMap despite dependency it requires is not installed</p>
 </td>
     </tr>
     <tr>
-      <td>dashboards.node-exporter-full</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
+      <td>defaultDashboards.dashboards.node-exporter-full</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
 </code>
 </pre>
 </td>
@@ -645,15 +648,46 @@ vmalert: false
 </td>
     </tr>
     <tr>
-      <td>defaultDashboardsEnabled</td>
+      <td>defaultDashboards.enabled</td>
       <td>bool</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
 </td>
-      <td><p>Create default dashboards</p>
+      <td><p>Enable custom dashboards installation</p>
 </td>
+    </tr>
+    <tr>
+      <td>defaultDashboards.grafanaOperator.allowCrossNamespaceImport</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>defaultDashboards.grafanaOperator.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Create dashboards as CRDs (reuqires grafana-operator to be installed)</p>
+</td>
+    </tr>
+    <tr>
+      <td>defaultDashboards.grafanaOperator.instanceSelector.matchLabels.dashboards</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">grafana
+</code>
+</pre>
+</td>
+      <td></td>
     </tr>
     <tr>
       <td>defaultRules</td>
@@ -1094,17 +1128,6 @@ vmsingle:
 </td>
     </tr>
     <tr>
-      <td>experimentalDashboardsEnabled</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
-</code>
-</pre>
-</td>
-      <td><p>Create experimental dashboards</p>
-</td>
-    </tr>
-    <tr>
       <td>externalVM</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -1295,21 +1318,6 @@ selector:
 </pre>
 </td>
       <td><p><a href="https://docs.victoriametrics.com/operator/api#vmservicescrapespec" target="_blank">Scrape configuration</a> for Grafana</p>
-</td>
-    </tr>
-    <tr>
-      <td>grafanaOperatorDashboardsFormat</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">allowCrossNamespaceImport: false
-enabled: false
-instanceSelector:
-    matchLabels:
-        dashboards: grafana
-</code>
-</pre>
-</td>
-      <td><p>Create dashboards as CRDs (reuqires grafana-operator to be installed)</p>
 </td>
     </tr>
     <tr>

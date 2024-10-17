@@ -1,0 +1,39 @@
+@use "src/styles/variables" as *;
+
+.vm-line-loader {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 2;
+  overflow: hidden;
+
+  &__background {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    background-color: $color-text;
+    opacity: 0.1;
+  }
+
+  &__line {
+    position: absolute;
+    width: 10%;
+    height: 100%;
+    background-color: $color-primary;
+    animation: slide 2s infinite linear;
+    opacity: 0.8;
+  }
+}
+
+@keyframes slide {
+  0% {
+    left: 0;
+  }
+  100% {
+    left: 100%;
+  }
+}

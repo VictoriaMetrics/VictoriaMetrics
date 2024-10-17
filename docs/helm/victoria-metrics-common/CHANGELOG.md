@@ -4,6 +4,22 @@
 
 - TODO
 
+## 0.0.16
+
+**Release date:** 2024-10-15
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Allow extract name prefix from app level fullnameOverride property
+
+## 0.0.15
+
+**Release date:** 2024-10-11
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Display compatibility error message
+
 ## 0.0.14
 
 **Release date:** 2024-10-04

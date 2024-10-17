@@ -40,7 +40,7 @@ services:
 #  storing logs and serving read queries.
   victorialogs:
     container_name: victorialogs
-    image: docker.io/victoriametrics/victoria-logs:v0.34.0-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.36.0-victorialogs
     command:
       - "--storageDataPath=/vlogs"
       - "--httpListenAddr=:9428"
@@ -65,6 +65,48 @@ services:
       - "--storageDataPath=/storage"
       - "--httpListenAddr=:8428"
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
+    networks:
+      - vm_net
+    restart: always
+
+  # vmalert executes alerting and recording rules
+  vmalert:
+    container_name: vmalert
+    image: victoriametrics/vmalert:v1.104.0
+    depends_on:
+      - "victoriametrics"
+      - "alertmanager"
+    ports:
+      - 8880:8880
+    volumes:
+      - ./alerts.yml:/etc/alerts/alerts.yml
+      - ./alerts-health.yml:/etc/alerts/alerts-health.yml
+      - ./alerts-vlogs.yml:/etc/alerts/alerts-vlogs.yml
+      - ./alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
+    command:
+      - "--datasource.url=http://victoriametrics:8428/"
+      - "--remoteRead.url=http://victoriametrics:8428/"
+      - "--remoteWrite.url=http://victoriametrics:8428/"
+      - "--notifier.url=http://alertmanager:9093/"
+      - "--rule=/etc/alerts/*.yml"
+      # display source of alerts in grafana
+      - "--external.url=http://127.0.0.1:3000" #grafana outside container
+      - '--external.alert.source=explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
+    networks:
+      - vm_net
+    restart: always
+
+  # alertmanager receives alerting notifications from vmalert
+  # and distributes them according to --config.file.
+  alertmanager:
+    container_name: alertmanager
+    image: prom/alertmanager:v0.27.0
+    volumes:
+      - ./alertmanager.yml:/config/alertmanager.yml
+    command:
+      - "--config.file=/config/alertmanager.yml"
+    ports:
+      - 9093:9093
     networks:
       - vm_net
     restart: always

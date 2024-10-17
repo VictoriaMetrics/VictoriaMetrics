@@ -17,6 +17,7 @@ const (
 	outputModeJSONMultiline  = outputMode(0)
 	outputModeJSONSingleline = outputMode(1)
 	outputModeLogfmt         = outputMode(2)
+	outputModeCompact        = outputMode(3)
 )
 
 func getOutputFormatter(outputMode outputMode) func(w io.Writer, fields []logstorage.Field) error {
@@ -31,6 +32,8 @@ func getOutputFormatter(outputMode outputMode) func(w io.Writer, fields []logsto
 		}
 	case outputModeLogfmt:
 		return writeLogfmtObject
+	case outputModeCompact:
+		return writeCompactObject
 	default:
 		panic(fmt.Errorf("BUG: unexpected outputMode=%d", outputMode))
 	}
@@ -94,8 +97,13 @@ func (jp *jsonPrettifier) prettifyJSONLines() error {
 		if err := jp.formatter(jp.bw, fields); err != nil {
 			return err
 		}
+
+		// Flush bw after every output line in order to show results as soon as they appear.
+		if err := jp.bw.Flush(); err != nil {
+			return err
+		}
 	}
-	return jp.bw.Flush()
+	return nil
 }
 
 func (jp *jsonPrettifier) Close() error {
@@ -159,6 +167,26 @@ func writeLogfmtObject(w io.Writer, fields []logstorage.Field) error {
 	data := logstorage.MarshalFieldsToLogfmt(nil, fields)
 	_, err := fmt.Fprintf(w, "%s\n", data)
 	return err
+}
+
+func writeCompactObject(w io.Writer, fields []logstorage.Field) error {
+	if len(fields) == 1 {
+		// Just write field value as is without name
+		_, err := fmt.Fprintf(w, "%s\n", fields[0].Value)
+		return err
+	}
+	if len(fields) == 2 && fields[0].Name == "_time" || fields[1].Name == "_time" {
+		// Write _time\tfieldValue as is
+		if fields[0].Name == "_time" {
+			_, err := fmt.Fprintf(w, "%s\t%s\n", fields[0].Value, fields[1].Value)
+			return err
+		}
+		_, err := fmt.Fprintf(w, "%s\t%s\n", fields[1].Value, fields[0].Value)
+		return err
+	}
+
+	// Fall back to logfmt
+	return writeLogfmtObject(w, fields)
 }
 
 func writeJSONObject(w io.Writer, fields []logstorage.Field, isMultiline bool) error {

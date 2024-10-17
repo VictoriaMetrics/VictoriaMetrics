@@ -63,7 +63,7 @@ func TestStatsRowAny(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", `{"a":"2","x":"","b":"3"}`},
+			{"x", `{"a":"2","b":"3"}`},
 		},
 	})
 
@@ -138,7 +138,7 @@ func TestStatsRowAny(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "1"},
-			{"x", `{"c":""}`},
+			{"x", `{}`},
 		},
 		{
 			{"a", "3"},
@@ -166,7 +166,7 @@ func TestStatsRowAny(t *testing.T) {
 		{
 			{"a", "1"},
 			{"b", "3"},
-			{"x", `{"c":""}`},
+			{"x", `{}`},
 		},
 		{
 			{"a", "1"},

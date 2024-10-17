@@ -265,6 +265,14 @@ release-victoria-metrics-windows-goarch: victoria-metrics-windows-$(GOARCH)-prod
 	cd bin && rm -rf \
 		victoria-metrics-windows-$(GOARCH)-prod.exe
 
+release-victoria-logs-bundle: \
+	release-victoria-logs \
+	release-vlogscli
+
+publish-victoria-logs-bundle: \
+	publish-victoria-logs \
+	publish-vlogscli
+
 release-victoria-logs:
 	$(MAKE_PARALLEL) release-victoria-logs-linux-386 \
 		release-victoria-logs-linux-amd64 \

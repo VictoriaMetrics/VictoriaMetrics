@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.35.2](https://img.shields.io/badge/Version-0.35.2-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.35.5](https://img.shields.io/badge/Version-0.35.5-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-operator)
 
 Victoria Metrics Operator
@@ -335,6 +335,22 @@ tag: ""
 </td>
     </tr>
     <tr>
+      <td>crd.cleanup.resources</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">limits:
+    cpu: 500m
+    memory: 256Mi
+requests:
+    cpu: 100m
+    memory: 56Mi
+</code>
+</pre>
+</td>
+      <td><p>Cleanup hook resources</p>
+</td>
+    </tr>
+    <tr>
       <td>crd.create</td>
       <td>bool</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -567,6 +583,17 @@ variant: ""
 </pre>
 </td>
       <td><p>Secret to pull images</p>
+</td>
+    </tr>
+    <tr>
+      <td>lifecycle</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Operator lifecycle. See <a href="https://kubernetes.io/docs/tasks/configure-pod-container/attach-handler-lifecycle-event/" target="_blank">this article</a> for details.</p>
 </td>
     </tr>
     <tr>
@@ -979,6 +1006,17 @@ tlsConfig: {}
 </pre>
 </td>
       <td><p>Configures monitoring with serviceScrape. VMServiceScrape must be pre-installed</p>
+</td>
+    </tr>
+    <tr>
+      <td>terminationGracePeriodSeconds</td>
+      <td>int</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">30
+</code>
+</pre>
+</td>
+      <td><p>Graceful pod termination timeout. See <a href="https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#hook-handler-execution" target="_blank">this article</a> for details.</p>
 </td>
     </tr>
     <tr>

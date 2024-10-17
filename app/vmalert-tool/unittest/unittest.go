@@ -250,7 +250,7 @@ checkCheck:
 			if readyCheckFunc() {
 				break checkCheck
 			}
-			time.Sleep(3 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}
 }

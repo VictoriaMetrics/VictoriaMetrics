@@ -36,7 +36,7 @@ For example, the following query finds all the logs with `error` word:
 error
 ```
 
-See [how to send queries to VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
+It is recommended to use [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/) for querying VictoriaLogs.
 
 If the queried [word](#word) clashes with LogsQL keywords, then just wrap it into quotes.
 For example, the following query finds all the log messages with `and` [word](#word):
@@ -468,7 +468,7 @@ See also:
 
 ### _stream_id filter
 
-Every [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) in VictoriaMetrics is uniquely identified by `_stream_id` field.
+Every [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) in VictoriaLogs is uniquely identified by `_stream_id` field.
 The `_stream_id:...` filter allows quickly selecting all the logs belonging to the particular stream.
 
 For example, the following query selects all the logs, which belong to the [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
