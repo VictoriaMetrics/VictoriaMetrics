@@ -49,7 +49,7 @@ func (d *RetentionDuration) String() string {
 
 // Set implements flag.Value interface
 // It assumes that value without unit should be parsed as `month` duration.
-// It returns an error iv value has `m` unit.
+// It returns an error if value has `m` unit.
 func (d *RetentionDuration) Set(value string) error {
 	if value == "" {
 		d.msecs = 0
