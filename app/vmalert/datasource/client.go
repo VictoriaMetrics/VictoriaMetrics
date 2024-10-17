@@ -47,6 +47,8 @@ type Client struct {
 	appendTypePrefix bool
 	queryStep        time.Duration
 	dataSourceType   datasourceType
+	// applyIntervalAsTimeFilter is only valid for vlogs datasource
+	applyIntervalAsTimeFilter bool
 
 	// evaluationInterval will help setting request's `step` param.
 	evaluationInterval time.Duration
@@ -74,8 +76,13 @@ func (s *Client) Clone() *Client {
 		appendTypePrefix: s.appendTypePrefix,
 		queryStep:        s.queryStep,
 
+		dataSourceType:     s.dataSourceType,
+		evaluationInterval: s.evaluationInterval,
+
 		// init map so it can be populated below
 		extraParams: url.Values{},
+
+		debug: s.debug,
 	}
 	if len(s.extraHeaders) > 0 {
 		ns.extraHeaders = make([]keyValue, len(s.extraHeaders))
@@ -94,6 +101,7 @@ func (s *Client) ApplyParams(params QuerierParams) *Client {
 		s.dataSourceType = toDatasourceType(params.DataSourceType)
 	}
 	s.evaluationInterval = params.EvaluationInterval
+	s.applyIntervalAsTimeFilter = params.ApplyIntervalAsTimeFilter
 	if params.QueryParams != nil {
 		if s.extraParams == nil {
 			s.extraParams = url.Values{}
@@ -133,6 +141,7 @@ func NewPrometheusClient(baseURL string, authCfg *promauth.Config, appendTypePre
 		authCfg:          authCfg,
 		datasourceURL:    strings.TrimSuffix(baseURL, "/"),
 		appendTypePrefix: appendTypePrefix,
+		queryStep:        *queryStep,
 		dataSourceType:   datasourcePrometheus,
 		extraParams:      url.Values{},
 	}
@@ -185,6 +194,10 @@ func (s *Client) Query(ctx context.Context, query string, ts time.Time) (Result,
 func (s *Client) QueryRange(ctx context.Context, query string, start, end time.Time) (res Result, err error) {
 	if s.dataSourceType == datasourceGraphite {
 		return res, fmt.Errorf("%q is not supported for QueryRange", s.dataSourceType)
+	}
+	// TODO: disable range query LogsQL with time filter now
+	if s.dataSourceType == datasourceVLogs && !s.applyIntervalAsTimeFilter {
+		return res, fmt.Errorf("range query is not supported for LogsQL with time filter: %q", query)
 	}
 	if start.IsZero() {
 		return res, fmt.Errorf("start param is missing")

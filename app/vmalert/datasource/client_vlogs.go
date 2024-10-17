@@ -13,7 +13,7 @@ func (s *Client) setVLogsInstantReqParams(r *http.Request, query string, timesta
 	}
 	q := r.URL.Query()
 	q.Set("time", timestamp.Format(time.RFC3339))
-	if *applyIntervalAsTimeFilter && s.evaluationInterval > 0 {
+	if s.applyIntervalAsTimeFilter && s.evaluationInterval > 0 {
 		q.Set("start", timestamp.Add(-s.evaluationInterval).Format(time.RFC3339))
 		q.Set("end", timestamp.Format(time.RFC3339))
 	}

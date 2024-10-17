@@ -515,6 +515,7 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 					return nil, fmt.Errorf("missing %q field at %q pipe in the query [%s]", f, p, q)
 				}
 			}
+
 			remainingMetricFields := make(map[string]struct{})
 			for _, f := range t.fields {
 				if _, ok := metricFields[f]; ok {
@@ -774,15 +775,36 @@ func ParseQuery(s string) (*Query, error) {
 }
 
 // ParseStatsQuery parses s with needed stats query checks.
-func ParseStatsQuery(s string) (*Query, error) {
+// with an additional check for the presence of a timeFilter in the q.filter.
+func ParseStatsQuery(s string) (*Query, bool, error) {
 	q, err := ParseQuery(s)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if _, err := q.GetStatsByFields(); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return q, nil
+	return q, hasTimeFilter(q.f), nil
+}
+
+// containAnyTimeFilter returns true when filter contains a global timeFilter,
+// such as: `_time: 5m`, `_time: 5m AND error`;
+// returns false when there is no timeFilter, for example: `error`,
+// or timeFilter is not a global one, like: `error OR (_time: 5m AND warn)`, `(_time: 5m AND error) OR (_time: 5m AND warn)`...
+func hasTimeFilter(f filter) bool {
+	if f != nil {
+		switch t := f.(type) {
+		case *filterAnd:
+			for _, subF := range t.filters {
+				if hasTimeFilter(subF) {
+					return true
+				}
+			}
+		case *filterTime:
+			return true
+		}
+	}
+	return false
 }
 
 // ParseQueryAtTimestamp parses s in the context of the given timestamp.

@@ -458,9 +458,14 @@ func TestVMRangeQuery(t *testing.T) {
 	_, err = gq.QueryRange(ctx, queryRender, start, end)
 	expectError(t, err, "is not supported")
 
-	// test victorialogs
+	// unsupported logsql
 	gq = s.BuildWithParams(QuerierParams{DataSourceType: string(datasourceVLogs), EvaluationInterval: 60 * time.Second})
 
+	res, err = gq.QueryRange(ctx, vlogsRangeQuery, start, end)
+	expectError(t, err, "is not supported")
+
+	// supported logsql
+	gq = s.BuildWithParams(QuerierParams{DataSourceType: string(datasourceVLogs), EvaluationInterval: 60 * time.Second, ApplyIntervalAsTimeFilter: true})
 	res, err = gq.QueryRange(ctx, vlogsRangeQuery, start, end)
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
@@ -567,6 +572,11 @@ func TestRequestParams(t *testing.T) {
 
 	// default params
 	f(false, &Client{dataSourceType: datasourcePrometheus}, func(t *testing.T, r *http.Request) {
+		exp := url.Values{"query": {query}, "time": {timestamp.Format(time.RFC3339)}}
+		checkEqualString(t, exp.Encode(), r.URL.RawQuery)
+	})
+
+	f(false, &Client{dataSourceType: datasourcePrometheus, applyIntervalAsTimeFilter: true}, func(t *testing.T, r *http.Request) {
 		exp := url.Values{"query": {query}, "time": {timestamp.Format(time.RFC3339)}}
 		checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 	})
@@ -699,11 +709,22 @@ func TestRequestParams(t *testing.T) {
 		checkEqualString(t, exp, r.URL.RawQuery)
 	})
 
+	// test vlogs
 	f(false, &Client{
 		dataSourceType:     datasourceVLogs,
 		evaluationInterval: time.Minute,
 	}, func(t *testing.T, r *http.Request) {
 		exp := url.Values{"query": {vlogsQuery}, "time": {timestamp.Format(time.RFC3339)}}
+		checkEqualString(t, exp.Encode(), r.URL.RawQuery)
+	})
+
+	f(false, &Client{
+		dataSourceType:            datasourceVLogs,
+		evaluationInterval:        time.Minute,
+		applyIntervalAsTimeFilter: true,
+	}, func(t *testing.T, r *http.Request) {
+		ts := timestamp.Format(time.RFC3339)
+		exp := url.Values{"query": {vlogsQuery}, "time": {ts}, "start": {timestamp.Add(-time.Minute).Format(time.RFC3339)}, "end": {ts}}
 		checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 	})
 
