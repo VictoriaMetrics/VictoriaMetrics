@@ -102,8 +102,7 @@ func (fr *filterIPv4Range) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	csh := bs.getColumnsHeader()
-	v := csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchIPv4Range(v, minValue, maxValue) {
 			bm.resetBits()
@@ -112,7 +111,7 @@ func (fr *filterIPv4Range) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		bm.resetBits()

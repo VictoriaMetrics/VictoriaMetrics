@@ -305,11 +305,10 @@ func (br *blockResult) initAllColumns() {
 
 	if !slices.Contains(unneededColumnNames, "_msg") {
 		// Add _msg column
-		csh := br.bs.getColumnsHeader()
-		v := csh.getConstColumnValue("_msg")
+		v := br.bs.getConstColumnValue("_msg")
 		if v != "" {
 			br.addConstColumn("_msg", v)
-		} else if ch := csh.getColumnHeader("_msg"); ch != nil {
+		} else if ch := br.bs.getColumnHeader("_msg"); ch != nil {
 			br.addColumn(ch)
 		} else {
 			br.addConstColumn("_msg", "")
@@ -317,9 +316,9 @@ func (br *blockResult) initAllColumns() {
 	}
 
 	// Add other const columns
-	csh := br.bs.getColumnsHeader()
-	for _, cc := range csh.constColumns {
-		if isMsgFieldName(cc.Name) {
+	ccs := br.bs.getConstColumns()
+	for _, cc := range ccs {
+		if cc.Name == "" {
 			continue
 		}
 		if !slices.Contains(unneededColumnNames, cc.Name) {
@@ -328,10 +327,10 @@ func (br *blockResult) initAllColumns() {
 	}
 
 	// Add other non-const columns
-	chs := csh.columnHeaders
+	chs := br.bs.getColumnHeaders()
 	for i := range chs {
 		ch := &chs[i]
-		if isMsgFieldName(ch.name) {
+		if ch.name == "" {
 			continue
 		}
 		if !slices.Contains(unneededColumnNames, ch.name) {
@@ -357,11 +356,10 @@ func (br *blockResult) initRequestedColumns() {
 		case "_time":
 			br.addTimeColumn()
 		default:
-			csh := br.bs.getColumnsHeader()
-			v := csh.getConstColumnValue(columnName)
+			v := br.bs.getConstColumnValue(columnName)
 			if v != "" {
 				br.addConstColumn(columnName, v)
-			} else if ch := csh.getColumnHeader(columnName); ch != nil {
+			} else if ch := br.bs.getColumnHeader(columnName); ch != nil {
 				br.addColumn(ch)
 			} else {
 				br.addConstColumn(columnName, "")
@@ -1733,7 +1731,7 @@ func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) 
 	if c.valueType != valueTypeDict {
 		logger.Panicf("BUG: unexpected column valueType=%d; want %d", c.valueType, valueTypeDict)
 	}
-	if uint64(br.rowsLen) == br.bs.bsw.bh.rowsCount {
+	if br.bs != nil && uint64(br.rowsLen) == br.bs.bsw.bh.rowsCount {
 		// Fast path - there is no need in reading encoded values
 		for _, v := range c.dictValues {
 			f(v)

@@ -21,7 +21,9 @@ The following options are available:
 - [To run Docker image](#docker)
 - [To run in Kubernetes with Helm charts](#kubernetes-with-helm-charts)
 
-> **Note**: Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130) there is a mode to keep anomaly detection models on host filesystem after `fit` stage (instead of keeping them in-memory by default); This may lead to **noticeable reduction of RAM used** on bigger setups. See instructions [here](https://docs.victoriametrics.com/anomaly-detection/faq/#resource-consumption-of-vmanomaly).
+> **Note**: Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130) there is a mode to keep anomaly detection models on host filesystem after `fit` stage (instead of keeping them in-memory by default); This may lead to **noticeable reduction of RAM used** on bigger setups. See instructions [here](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
+
+> **Note**: Starting from [v1.16.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1160), a similar optimization is available for data read from VictoriaMetrics TSDB. See instructions [here](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
 
 ### Docker
 
@@ -32,13 +34,13 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:latest
+docker pull victoriametrics/vmanomaly:v1.16.3
 ```
 
 2. (Optional step) tag the `vmanomaly` Docker image:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:latest vmanomaly
+docker image tag victoriametrics/vmanomaly:v1.16.3 vmanomaly
 ```
 
 3. Start the `vmanomaly` Docker container with a *license file*, use the command below.
@@ -50,7 +52,7 @@ export YOUR_CONFIG_FILE_PATH=path/to/config/file
 docker run -it -v $YOUR_LICENSE_FILE_PATH:/license \
                -v $YOUR_CONFIG_FILE_PATH:/config.yml \
                vmanomaly /config.yml \
-               --license-file=/license
+               --licenseFile=/license
 ```
 
 In case you found `PermissionError: [Errno 13] Permission denied:` in `vmanomaly` logs, set user/user group to 1000 in the run command above / in a docker-compose file:
@@ -62,7 +64,7 @@ docker run -it --user 1000:1000 \
                -v $YOUR_LICENSE_FILE_PATH:/license \
                -v $YOUR_CONFIG_FILE_PATH:/config.yml \
                vmanomaly /config.yml \
-               --license-file=/license
+               --licenseFile=/license
 ```
 
 ```yaml
@@ -70,13 +72,13 @@ docker run -it --user 1000:1000 \
 services:
   # ...
   vmanomaly:
-    image: victoriametrics/vmanomaly:latest
+    image: victoriametrics/vmanomaly:v1.16.3
     volumes:
         $YOUR_LICENSE_FILE_PATH:/license
         $YOUR_CONFIG_FILE_PATH:/config.yml
     command:
       - "/config.yml"
-      - "--license-file=/license"
+      - "--licenseFile=/license"
     # ...
 ```
 

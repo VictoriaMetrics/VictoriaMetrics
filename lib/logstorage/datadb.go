@@ -459,6 +459,7 @@ func assertIsInMerge(pws []*partWrapper) {
 // mustMergeParts merges pws to a single resulting part.
 //
 // if isFinal is set, then the resulting part is guaranteed to be saved to disk.
+// if isFinal is set, then the merge process cannot be interrupted.
 // The pws may remain unmerged after returning from the function if there is no enough disk space.
 //
 // All the parts inside pws must have isInMerge field set to true.
@@ -1225,4 +1226,49 @@ func getBlocksCount(pws []*partWrapper) uint64 {
 		n += pw.p.ph.BlocksCount
 	}
 	return n
+}
+
+func (ddb *datadb) mustForceMergeAllParts() {
+	// Flush inmemory parts to files before forced merge
+	ddb.mustFlushInmemoryPartsToFiles(true)
+
+	var pws []*partWrapper
+
+	// Collect all the file parts for forced merge
+	ddb.partsLock.Lock()
+	pws = appendAllPartsForMergeLocked(pws, ddb.smallParts)
+	pws = appendAllPartsForMergeLocked(pws, ddb.bigParts)
+	ddb.partsLock.Unlock()
+
+	// If len(pws) == 1, then the merge must run anyway.
+	// This allows applying the configured retention, removing the deleted data, etc.
+
+	// Merge pws optimally
+	wg := getWaitGroup()
+	for len(pws) > 0 {
+		pwsToMerge, pwsRemaining := getPartsForOptimalMerge(pws)
+		wg.Add(1)
+		bigPartsConcurrencyCh <- struct{}{}
+		go func(pwsChunk []*partWrapper) {
+			defer func() {
+				<-bigPartsConcurrencyCh
+				wg.Done()
+			}()
+
+			ddb.mustMergeParts(pwsChunk, false)
+		}(pwsToMerge)
+		pws = pwsRemaining
+	}
+	wg.Wait()
+	putWaitGroup(wg)
+}
+
+func appendAllPartsForMergeLocked(dst, src []*partWrapper) []*partWrapper {
+	for _, pw := range src {
+		if !pw.isInMerge {
+			pw.isInMerge = true
+			dst = append(dst, pw)
+		}
+	}
+	return dst
 }

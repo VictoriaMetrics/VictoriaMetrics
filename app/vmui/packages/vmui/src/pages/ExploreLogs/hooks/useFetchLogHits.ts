@@ -114,5 +114,6 @@ export const useFetchLogHits = (server: string, query: string) => {
     isLoading: Object.values(isLoading).some(s => s),
     error,
     fetchLogHits,
+    abortController: abortControllerRef.current
   };
 };

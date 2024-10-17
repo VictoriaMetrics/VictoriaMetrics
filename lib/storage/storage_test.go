@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -1390,9 +1389,6 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		if got, want := gotMetrics.RowsAddedTotal, opts.wantMetrics.RowsAddedTotal; got != want {
 			t.Fatalf("unexpected Metrics.RowsAddedTotal: got %d, want %d", got, want)
 		}
-		if got, want := gotMetrics.NaNValueRows, opts.wantMetrics.NaNValueRows; got != want {
-			t.Fatalf("unexpected Metrics.NaNValueRows: got %d, want %d", got, want)
-		}
 		if got, want := gotMetrics.InvalidRawMetricNames, opts.wantMetrics.InvalidRawMetricNames; got != want {
 			t.Fatalf("unexpected Metrics.InvalidRawMetricNames: got %d, want %d", got, want)
 		}
@@ -1445,22 +1441,6 @@ func TestStorageRowsNotAdded(t *testing.T) {
 		wantMetrics: &Metrics{
 			RowsReceivedTotal:   numRows,
 			TooBigTimestampRows: numRows,
-		},
-	})
-
-	minTimestamp = time.Now().UnixMilli()
-	maxTimestamp = minTimestamp + 1000
-	mrs = testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
-	for i := range numRows {
-		mrs[i].Value = math.NaN()
-	}
-	f(&options{
-		name: "NaN",
-		mrs:  mrs,
-		tr:   TimeRange{minTimestamp, maxTimestamp},
-		wantMetrics: &Metrics{
-			RowsReceivedTotal: numRows,
-			NaNValueRows:      numRows,
 		},
 	})
 

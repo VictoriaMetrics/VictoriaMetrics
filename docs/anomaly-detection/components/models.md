@@ -17,7 +17,7 @@ This section covers the `Models` component of VictoriaMetrics Anomaly Detection 
 - You can also integrate a **custom model**—see the [custom model guide](#custom-model-guide) for more details.
 - Models have **different types and properties**—refer to the [model types section](#model-types) for more information.
 
-> **Note:** Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), models can be dumped to disk instead of being stored in RAM. This option **slightly reduces inference speed but significantly decreases RAM usage**, particularly useful for larger setups. For more details, see the [relevant FAQ section](https://docs.victoriametrics.com/anomaly-detection/faq/#resource-consumption-of-vmanomaly).
+> **Note:** Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), models can be dumped to disk instead of being stored in RAM. This option **slightly reduces inference speed but significantly decreases RAM usage**, particularly useful for larger setups. For more details, see the [relevant FAQ section](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
 
 > **Note:** Starting from [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100) model section in config supports multiple models via aliasing. <br>Also, `vmanomaly` expects model section to be named `models`. Using old (flat) format with `model` key is deprecated and will be removed in future versions. Having `model` and `models` sections simultaneously in a config will result in only `models` being used:
 
@@ -126,7 +126,7 @@ models:
     provide_series: ['anomaly_score']  # only `anomaly_score` metric will be available for writing back to the database
 ```
 
-**Note** If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']`. Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
+> **Note**: If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']`. Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
 
 ### Detection direction
 Introduced in [1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#1130), `detection_direction` arg can help in reducing the number of [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) and increasing the accuracy, when domain knowledge suggest to identify anomalies occurring when actual values (`y`) are *above, below, or in both directions* relative to the expected values (`yhat`). Available choices are: `both`, `above_expected`, `below_expected`.
@@ -224,7 +224,46 @@ models:
     z_threshold: 3
     # if not set, equals to setting min_dev_from_expected == 0
     queries: ['normal_behavior']  # use the default where it's not needed
-```  
+```
+
+### Group By
+
+> **Note**: The `groupby` argument works only in combination with [multivariate models](#multivariate-models).
+
+Introduced in [v1.16.0](https://docs.victoriametrics.com/anomaly-detection/changelog#v1160), the `groupby` argument (`list[string]`) enables logical grouping within [multivariate models](#multivariate-models). When specified, **a separate multivariate model is trained for each unique combination of label values present in the `groupby` columns**.
+
+For example, to perform multivariate anomaly detection at the machine level while avoiding interference between different entities, you can set `groupby: [host]` or `groupby: [instance]`. This ensures that a **separate multivariate** model is trained for each individual entity (e.g., per host). Below is a simplified example illustrating how to track multivariate anomalies using CPU, RAM, and network data for each host.
+
+```yaml
+# other config sections ...
+reader:
+  # other reader params ...
+  # assume there are M unique hosts identified by the `host` label
+  queries:
+    # return one timeseries for each CPU mode per host, total = N*M timeseries
+    cpu: sum(rate(node_cpu_seconds_total[5m])) by (host, mode)
+    # return one timeseries per host, total = 1*M timeseries
+    ram: | 
+      (
+       (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) 
+       / node_memory_MemTotal_bytes
+      ) * 100 by (host)
+    # return one timeseries per host for both network receive and transmit data, total = 1*M timeseries
+    network: |
+      sum(rate(node_network_receive_bytes_total[5m])) by (host) 
+      + sum(rate(node_network_transmit_bytes_total[5m])) by (host)
+
+models:
+  iforest: # alias for the model
+    class: isolation_forest_multivariate
+    contamination: 0.01
+    # the multivariate model can be trained on 2+ timeseries returned by 1+ queries
+    queries: [cpu, ram, network]
+    # train a distinct multivariate model for each unique value found in the `host` label
+    # a single multivariate model will be trained on (N + 1 + 1) timeseries, total = M models
+    groupby: [host]
+```
+
 
 ## Model types
 
@@ -259,6 +298,8 @@ If during an inference, you got a series having **new labelset** (not present in
 For a multivariate type, **one shared model** is fit/used for inference on **all time series** simultaneously, defined in its [queries](#queries) arg. 
 
 For example, if you have some **multivariate** model to use 3 [MetricQL queries](https://docs.victoriametrics.com/metricsql/), each returning 5 time series, there will be one shared model created in total. Once fit, this model will expect **exactly 15 time series with exact same labelsets as an input**. This model will produce **one shared [output](#vmanomaly-output)**.
+
+> **Note:** Starting from [v1.16.0](https://docs.victoriametrics.com/anomaly-detection/changelog#v1160), N models — one for each unique combination of label values specified in the `groupby` [common argument](#group-by) — can be trained. This allows for context separation (e.g., one model per host, region, or other relevant grouping label), leading to improved accuracy and faster training. See an example [here](#group-by).
 
 If during an inference, you got a **different amount of series** or some series having a **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step. 
 
@@ -325,6 +366,7 @@ Infer stage
 - The ability to distribute the data load evenly between the initial `fit` and subsequent `infer` calls. For example, an online model can be fit on 10 `1m` datapoints during the initial `fit` stage once per month and then be gradually updated on the same 10 `1m` datapoints during each `infer` call each 10 minutes.
 - The model can adapt to new data patterns (gradually updating itself during each `infer` call) without needing to wait for the next `fit` call and one big re-training.
 - Slightly faster training/updating times compared to similar offline models.
+- Please refer to additional benefits for data-intensive setups in correspondent [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq#online-models) section.
 
 **Limitations**:
 
@@ -405,7 +447,7 @@ models:
 > **Note**: There are some expected limitations of Autotune mode:
 > - It can't be made on your [custom model](#custom-model-guide).
 > - It can't be applied to itself (like `tuned_class_name: 'model.auto.AutoTunedModel'`)
-> - `AutoTunedModel` can't be used on [rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-models) like [`RollingQuantile`](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-quantile) in combination with [on-disk model storage mode](https://docs.victoriametrics.com/anomaly-detection/faq/#resource-consumption-of-vmanomaly), as the rolling models exists only during `infer` calls and aren't persisted neither in RAM, nor on disk.
+> - `AutoTunedModel` can't be used on [rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-models) like [`RollingQuantile`](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-quantile) in combination with [on-disk model storage mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode), as the rolling models exists only during `infer` calls and aren't persisted neither in RAM, nor on disk.
 
 
 ### [Prophet](https://facebook.github.io/prophet/)
@@ -919,8 +961,8 @@ monitoring:
 ### 3. Running custom model
 Let's pull the docker image for `vmanomaly`:
 
-```sh 
-docker pull victoriametrics/vmanomaly:latest
+```sh
+docker pull victoriametrics/vmanomaly:v1.16.3
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -934,8 +976,8 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:latest /config.yaml \
---license-file=/license
+victoriametrics/vmanomaly:v1.16.3 /config.yaml \
+--licenseFile=/license
 ```
 
 Please find more detailed instructions (license, etc.) [here](https://docs.victoriametrics.com/anomaly-detection/overview/#run-vmanomaly-docker-container)
