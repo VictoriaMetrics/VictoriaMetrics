@@ -38,6 +38,9 @@ It is recommended to set up monitoring of these metrics via VictoriaMetrics
 (see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
 vmagent (see [these docs](https://docs.victoriametrics.com/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
 
+We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vlogs.yml)
+via [vmalert](https://docs.victoriametrics.com/vmalert/) or via Prometheus.
+
 VictoriaLogs emits its own logs to stdout. It is recommended to investigate these logs during troubleshooting.
 
 ## Upgrading
