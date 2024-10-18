@@ -112,6 +112,37 @@ This chart by default install multiple dashboards and recording rules from [kube
 you can disable dashboards with `defaultDashboardsEnabled: false` and `experimentalDashboardsEnabled: false`
 and rules can be configured under `defaultRules`
 
+### Adding external dashboards
+
+By default, this chart uses sidecar in order to provision default dashboards. If you want to add you own dashboards there are two ways to do it:
+
+- Add dashboards by creating a ConfigMap. An example ConfigMap:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    grafana_dashboard: "1"
+  name: grafana-dashboard
+data:
+  dashboard.json: |-
+      {...}
+```
+
+- Use init container provisioning. Note that this option requires disabling sidecar and will remove all default dashboards provided with this chart. An example configuration:
+```yaml
+grafana:
+  sidecar:
+    dashboards:
+      enabled: true
+  dashboards:
+    vmcluster:
+      gnetId: 11176
+      revision: 38
+      datasource: VictoriaMetrics
+```
+When using this approach, you can find dashboards for VictoriaMetrics components published [here](https://grafana.com/orgs/victoriametrics).
+
 ### Prometheus scrape configs
 This chart installs multiple scrape configurations for kubernetes monitoring. They are configured under `#ServiceMonitors` section in `values.yaml` file. For example if you want to configure scrape config for `kubelet` you should set it in values.yaml like this:
 ```yaml
