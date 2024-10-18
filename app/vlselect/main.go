@@ -23,7 +23,7 @@ var (
 		"See also -search.maxQueueDuration")
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the search request waits for execution when -search.maxConcurrentRequests "+
 		"limit is reached; see also -search.maxQueryDuration")
-	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution. It can be overridden on a per-query basis via 'timeout' query arg")
+	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution. It can be overridden to a smaller value on a per-query basis via 'timeout' query arg")
 )
 
 func getDefaultMaxConcurrentRequests() int {
