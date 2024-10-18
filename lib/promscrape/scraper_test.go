@@ -2,6 +2,7 @@ package promscrape
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -14,7 +15,8 @@ func TestScraperReload(t *testing.T) {
 		globalStopChan = make(chan struct{})
 		defer close(globalStopChan)
 
-		sg := newScraperGroup("static_configs", pushData, globalStopChan)
+		randName := rand.Int()
+		sg := newScraperGroup(fmt.Sprintf("static_configs_%d", randName), pushData, globalStopChan)
 		defer sg.stop()
 
 		scrapeConfigPath := "test-scrape.yaml"
@@ -36,11 +38,33 @@ func TestScraperReload(t *testing.T) {
 		newSws := newCfg.getStaticScrapeWork()
 		sg.update(newSws)
 		newChangesCount := sg.changesCount.Get()
-		fmt.Printf("old: %d, new: %d", oldChangesCount, newChangesCount)
 		if (newChangesCount != oldChangesCount) != reloadExpected {
 			t.Errorf("expected reload behaviour:\nexpected reload happen: %t\nactual reload happen: %t", reloadExpected, newChangesCount != oldChangesCount)
 		}
 	}
+	f(`
+scrape_configs:
+- job_name: node-exporter
+  static_configs:
+    - targets:
+        - localhost:8429`, `
+scrape_configs:
+- job_name: node-exporter
+  static_configs:
+    - targets:
+        - localhost:8429`, false)
+	f(`
+scrape_configs:
+- job_name: node-exporter
+  static_configs:
+    - targets:
+        - localhost:8429`, `
+scrape_configs:
+- job_name: node-exporter
+  static_configs:
+    - targets:
+        - localhost:8429
+        - localhost:8428`, true)
 	f(`
 scrape_configs:
 - job_name: node-exporter
