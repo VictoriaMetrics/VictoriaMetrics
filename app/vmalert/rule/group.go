@@ -324,14 +324,28 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 		g.infof("will start in %v", sleepBeforeStart)
 
 		sleepTimer := time.NewTimer(sleepBeforeStart)
-		select {
-		case <-ctx.Done():
-			sleepTimer.Stop()
-			return
-		case <-g.doneCh:
-			sleepTimer.Stop()
-			return
-		case <-sleepTimer.C:
+	randSleep:
+		for {
+			select {
+			case <-ctx.Done():
+				sleepTimer.Stop()
+				return
+			case <-g.doneCh:
+				sleepTimer.Stop()
+				return
+			case ng := <-g.updateCh:
+				g.mu.Lock()
+				err := g.updateWith(ng)
+				if err != nil {
+					logger.Errorf("group %q: failed to update: %s", g.Name, err)
+					g.mu.Unlock()
+					continue
+				}
+				g.mu.Unlock()
+				g.infof("reload successfully")
+			case <-sleepTimer.C:
+				break randSleep
+			}
 		}
 		evalTS = evalTS.Add(sleepBeforeStart)
 	}

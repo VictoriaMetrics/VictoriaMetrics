@@ -35,6 +35,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly apply replication factor when storage node groups are used and replication factor is configured via global value such as `-replicationFactor=2`. Previously, global replication factor was ignored for storage node groups. See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect) for more information about storage groups configuration.
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly process response in [multi-level cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup). Before, vmselect could return no data in multi-level setup. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7270) for details. The issue was introduced in [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040).
 
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): fix blocking hot-reload process if the old rule group hasn't started successfully.
+
 ## [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
 
 Released at 2024-10-02
