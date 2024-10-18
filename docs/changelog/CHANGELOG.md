@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+## [v1.105.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.105.0)
+
+Released at 2024-10-21
+
 **Update note 1: `-search.maxUniqueTimeseries` limit on `vmselect` can no longer exceed `-search.maxUniqueTimeseries` limit on `vmstorage`. If you don't set this flag at `vmstorage`, then it will be automatically calculated based on available resources. This can result into rejecting expensive read queries if they exceed auto-calculated limit. The limit can be overriden by manually setting `-search.maxUniqueTimeseries` at vmstorage, but for better reliability we recommend sticking to default values. Refer to the CHANGELOG below and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6930).**
 
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): add support of [exponential histograms](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exponentialhistogram) ingested via [OpenTelemetry protocol for metrics](https://docs.victoriametrics.com/#sending-data-via-opentelemetry). Such histograms will be automatically converted to [VictoriaMetrics histogram format](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6354).
