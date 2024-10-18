@@ -39,8 +39,8 @@ var (
 )
 
 var (
-	defaultMaxUniqueTimeseries int
-	once                       sync.Once
+	maxUniqueTimeseriesValue     int
+	maxUniqueTimeseriesValueOnce sync.Once
 )
 
 // NewVMSelectServer starts new server at the given addr, which serves vmselect requests from the given s.
@@ -266,19 +266,19 @@ func getMaxMetrics(sq *storage.SearchQuery) int {
 }
 
 // GetMaxUniqueTimeSeries returns the max metrics limit calculated by available resources.
-// The calculation is split into calculateMaxUniqueTimeSeriesByResource for unit testing.
+// The calculation is split into calculateMaxUniqueTimeSeriesForResource for unit testing.
 func GetMaxUniqueTimeSeries() int {
-	once.Do(func() {
-		defaultMaxUniqueTimeseries = *maxUniqueTimeseries
-		if defaultMaxUniqueTimeseries <= 0 {
-			defaultMaxUniqueTimeseries = calculateMaxUniqueTimeSeriesByResource(*maxConcurrentRequests, memory.Remaining())
+	maxUniqueTimeseriesValueOnce.Do(func() {
+		maxUniqueTimeseriesValue = *maxUniqueTimeseries
+		if maxUniqueTimeseriesValue <= 0 {
+			maxUniqueTimeseriesValue = calculateMaxUniqueTimeSeriesForResource(*maxConcurrentRequests, memory.Remaining())
 		}
 	})
-	return defaultMaxUniqueTimeseries
+	return maxUniqueTimeseriesValue
 }
 
-// calculateMaxUniqueTimeSeriesByResource calculate the max metrics limit calculated by available resources.
-func calculateMaxUniqueTimeSeriesByResource(maxConcurrentRequests, remainingMemory int) int {
+// calculateMaxUniqueTimeSeriesForResource calculate the max metrics limit calculated by available resources.
+func calculateMaxUniqueTimeSeriesForResource(maxConcurrentRequests, remainingMemory int) int {
 	if maxConcurrentRequests <= 0 {
 		// This line should NOT be reached unless the user has set an incorrect `search.maxConcurrentRequests`.
 		// In such cases, fallback to unlimited.
