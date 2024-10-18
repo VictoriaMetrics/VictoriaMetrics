@@ -175,6 +175,74 @@ func TestUpdateWith(t *testing.T) {
 	})
 }
 
+func TestUpdateDuringRandSleep(t *testing.T) {
+	// enable rand sleep to test group update during sleep
+	SkipRandSleepOnGroupStart = false
+	defer func() {
+		SkipRandSleepOnGroupStart = true
+	}()
+	rule := AlertingRule{
+		Name: "jobDown",
+		Expr: "up==0",
+		Labels: map[string]string{
+			"foo": "bar",
+		},
+	}
+	g := &Group{
+		Name: "test",
+		Rules: []Rule{
+			&rule,
+		},
+		// big interval ensures big enough randSleep during start process
+		Interval: 100 * time.Hour,
+		updateCh: make(chan *Group),
+	}
+	go g.Start(context.Background(), nil, nil, nil)
+
+	rule1 := AlertingRule{
+		Name: "jobDown",
+		Expr: "up{job=\"vmagent\"}==0",
+		Labels: map[string]string{
+			"foo": "bar",
+		},
+	}
+	g1 := &Group{
+		Rules: []Rule{
+			&rule1,
+		},
+	}
+	g.updateCh <- g1
+	time.Sleep(10 * time.Millisecond)
+	g.mu.RLock()
+	if g.Rules[0].(*AlertingRule).Expr != "up{job=\"vmagent\"}==0" {
+		t.Fatalf("expected to have updated rule expr")
+	}
+	g.mu.RUnlock()
+
+	rule2 := AlertingRule{
+		Name: "jobDown",
+		Expr: "up{job=\"vmagent\"}==0",
+		Labels: map[string]string{
+			"foo": "bar",
+			"baz": "qux",
+		},
+	}
+	g2 := &Group{
+		Rules: []Rule{
+			&rule2,
+		},
+	}
+	g.updateCh <- g2
+	time.Sleep(10 * time.Millisecond)
+	g.mu.RLock()
+	if len(g.Rules[0].(*AlertingRule).Labels) != 2 {
+		t.Fatalf("expected to have updated labels")
+	}
+	g.mu.RUnlock()
+
+	g.Close()
+}
+
 func TestGroupStart(t *testing.T) {
 	const (
 		rules = `
