@@ -122,6 +122,7 @@ func TestParse_Failure(t *testing.T) {
 	f([]string{"testdata/dir/rules3-bad.rules"}, "either `record` or `alert` must be set")
 	f([]string{"testdata/dir/rules4-bad.rules"}, "either `record` or `alert` must be set")
 	f([]string{"testdata/rules/rules1-bad.rules"}, "bad graphite expr")
+	f([]string{"testdata/rules/vlog-rules0-bad.rules"}, "bad LogsQL expr")
 	f([]string{"testdata/dir/rules6-bad.rules"}, "missing ':' in header")
 	f([]string{"testdata/rules/rules-multi-doc-bad.rules"}, "unknown fields")
 	f([]string{"testdata/rules/rules-multi-doc-duplicates-bad.rules"}, "duplicate")
@@ -267,6 +268,20 @@ func TestGroupValidate_Failure(t *testing.T) {
 		},
 	}, false, "either `record` or `alert` must be set")
 
+	f(&Group{
+		Name: "test graphite prometheus bad expr",
+		Type: NewVLogsType(),
+		Rules: []Rule{
+			{
+				Expr: "sum(up == 0 ) by (host)",
+				For:  promutils.NewDuration(10 * time.Millisecond),
+			},
+			{
+				Expr: "sumSeries(time('foo.bar',10))",
+			},
+		},
+	}, false, "invalid rule")
+
 	// validate expressions
 	f(&Group{
 		Name: "test",
@@ -297,6 +312,16 @@ func TestGroupValidate_Failure(t *testing.T) {
 			}},
 		},
 	}, true, "bad graphite expr")
+
+	f(&Group{
+		Name: "test vlogs",
+		Type: NewVLogsType(),
+		Rules: []Rule{
+			{Alert: "alert", Expr: "stats count(*) as requests", Labels: map[string]string{
+				"description": "some-description",
+			}},
+		},
+	}, true, "bad LogsQL expr")
 }
 
 func TestGroupValidate_Success(t *testing.T) {
@@ -336,7 +361,7 @@ func TestGroupValidate_Success(t *testing.T) {
 		},
 	}, false, false)
 
-	// validate annotiations
+	// validate annotations
 	f(&Group{
 		Name: "test",
 		Rules: []Rule{
@@ -359,6 +384,15 @@ func TestGroupValidate_Success(t *testing.T) {
 		Type: NewPrometheusType(),
 		Rules: []Rule{
 			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"description": "{{ value|query }}",
+			}},
+		},
+	}, false, true)
+	f(&Group{
+		Name: "test victorialogs",
+		Type: NewVLogsType(),
+		Rules: []Rule{
+			{Alert: "alert", Expr: " _time: 1m | stats count(*) as requests", Labels: map[string]string{
 				"description": "{{ value|query }}",
 			}},
 		},

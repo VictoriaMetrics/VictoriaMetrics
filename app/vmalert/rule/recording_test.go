@@ -266,3 +266,23 @@ func TestRecordingRuleExec_Negative(t *testing.T) {
 		t.Fatalf("cannot execute recroding rule: %s", err)
 	}
 }
+
+func TestSetIntervalAsTimeFilter(t *testing.T) {
+	f := func(s, dType string, expected bool) {
+		t.Helper()
+
+		if setIntervalAsTimeFilter(dType, s) != expected {
+			t.Fatalf("unexpected result for hasTimeFilter(%q);  want %v", s, expected)
+		}
+	}
+
+	f(`* | count()`, "prometheus", false)
+
+	f(`* | count()`, "vlogs", true)
+	f(`* | _time: 5m | count()`, "vlogs", true)
+	f(`error OR _time:5m  | count()`, "vlogs", true)
+	f(`(_time: 5m AND error) OR (_time: 5m AND warn) | count()`, "vlogs", true)
+
+	f(`_time:5m | count()`, "vlogs", false)
+	f(`error AND _time:5m  | count()`, "vlogs", false)
+}
