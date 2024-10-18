@@ -224,10 +224,11 @@ scrape_configs:
 	sws := cfg.getStaticScrapeWork()
 	swsExpected := []*ScrapeWork{
 		{
-			ScrapeURL:      "http://host1/metric/path1?x=y",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://host1/metric/path1?x=y",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "host1:80",
 				"job":      "abc",
@@ -235,10 +236,11 @@ scrape_configs:
 			jobNameOriginal: "abc",
 		},
 		{
-			ScrapeURL:      "https://host2/metric/path2?x=y",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "https://host2/metric/path2?x=y",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "host2:443",
 				"job":      "abc",
@@ -246,10 +248,11 @@ scrape_configs:
 			jobNameOriginal: "abc",
 		},
 		{
-			ScrapeURL:      "http://host3:1234/metric/path3?arg1=value1&x=y",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://host3:1234/metric/path3?arg1=value1&x=y",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "host3:1234",
 				"job":      "abc",
@@ -257,10 +260,11 @@ scrape_configs:
 			jobNameOriginal: "abc",
 		},
 		{
-			ScrapeURL:      "https://host4:1234/foo/bar?x=y",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "https://host4:1234/foo/bar?x=y",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "host4:1234",
 				"job":      "abc",
@@ -296,10 +300,11 @@ scrape_configs:
 	}
 	sws := cfg.getStaticScrapeWork()
 	swsExpected := []*ScrapeWork{{
-		ScrapeURL:      "http://black:9115/probe?module=dns_udp_example&target=8.8.8.8",
-		ScrapeInterval: defaultScrapeInterval,
-		ScrapeTimeout:  defaultScrapeTimeout,
-		MaxScrapeSize:  maxScrapeSize.N,
+		ScrapeURL:       "http://black:9115/probe?module=dns_udp_example&target=8.8.8.8",
+		ScrapeInterval:  defaultScrapeInterval,
+		ScrapeTimeout:   defaultScrapeTimeout,
+		ScrapeProtocols: defaultScrapeProtocols,
+		MaxScrapeSize:   maxScrapeSize.N,
 		Labels: promutils.NewLabelsFromMap(map[string]string{
 			"instance": "8.8.8.8",
 			"job":      "blackbox",
@@ -459,10 +464,11 @@ scrape_configs:
   - files: ["testdata/file_sd.json", "testdata/file_sd*.yml"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://host1/abc/de",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://host1/abc/de",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "host1:80",
 				"job":      "foo",
@@ -471,10 +477,11 @@ scrape_configs:
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:      "http://host2/abc/de",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://host2/abc/de",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "host2:80",
 				"job":      "foo",
@@ -483,10 +490,11 @@ scrape_configs:
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:      "http://localhost:9090/abc/de",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://localhost:9090/abc/de",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "localhost:9090",
 				"job":      "foo",
@@ -690,10 +698,11 @@ scrape_configs:
   - targets: ["s"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://s/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://s/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "s:80",
 				"job":      "aa",
@@ -712,10 +721,11 @@ scrape_configs:
   - targets: ["s"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://s/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://s/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "s:80",
 				"job":      "aa",
@@ -734,10 +744,11 @@ scrape_configs:
   - targets: ["s"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://s/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://s/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "s:80",
 				"job":      "aa",
@@ -756,10 +767,11 @@ scrape_configs:
   - targets: ["s"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://s/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://s/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "s:80",
 				"job":      "aa",
@@ -775,10 +787,11 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo.bar:1234/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://foo.bar:1234/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "foo",
@@ -797,10 +810,11 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo.bar:1234/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://foo.bar:1234/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "foo",
@@ -848,6 +862,7 @@ scrape_configs:
 			ScrapeURL:       "https://foo.bar/foo/bar?p=x%26y&p=%3D",
 			ScrapeInterval:  54 * time.Second,
 			ScrapeTimeout:   5 * time.Second,
+			ScrapeProtocols: defaultScrapeProtocols,
 			MaxScrapeSize:   maxScrapeSize.N,
 			HonorLabels:     true,
 			HonorTimestamps: true,
@@ -864,6 +879,7 @@ scrape_configs:
 			ScrapeURL:       "https://aaa/foo/bar?p=x%26y&p=%3D",
 			ScrapeInterval:  54 * time.Second,
 			ScrapeTimeout:   5 * time.Second,
+			ScrapeProtocols: defaultScrapeProtocols,
 			MaxScrapeSize:   maxScrapeSize.N,
 			HonorLabels:     true,
 			HonorTimestamps: true,
@@ -877,10 +893,11 @@ scrape_configs:
 			jobNameOriginal: "foo",
 		},
 		{
-			ScrapeURL:      "http://1.2.3.4/metrics",
-			ScrapeInterval: 8 * time.Second,
-			ScrapeTimeout:  8 * time.Second,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://1.2.3.4/metrics",
+			ScrapeInterval:  8 * time.Second,
+			ScrapeTimeout:   8 * time.Second,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "1.2.3.4:80",
 				"job":      "qwer",
@@ -888,10 +905,11 @@ scrape_configs:
 			jobNameOriginal: "qwer",
 		},
 		{
-			ScrapeURL:      "http://foobar/metrics",
-			ScrapeInterval: 8 * time.Second,
-			ScrapeTimeout:  8 * time.Second,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://foobar/metrics",
+			ScrapeInterval:  8 * time.Second,
+			ScrapeTimeout:   8 * time.Second,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "foobar:80",
 				"job":      "asdf",
@@ -936,10 +954,11 @@ scrape_configs:
   - targets: ["foo.bar:1234", "drop-this-target"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo.bar:1234/metrics?x=keep_me",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://foo.bar:1234/metrics?x=keep_me",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"hash":       "82",
 				"instance":   "foo.bar:1234",
@@ -978,10 +997,11 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "mailto://foo.bar:1234/abc.de?a=b",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "mailto://foo.bar:1234/abc.de?a=b",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "fake.addr",
 				"job":      "https",
@@ -1012,10 +1032,11 @@ scrape_configs:
   - targets: ["foo.bar:1234", "xyz"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo.bar:1234/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  1,
+			ScrapeURL:       "http://foo.bar:1234/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			MaxScrapeSize:   1,
+			ScrapeProtocols: defaultScrapeProtocols,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "3",
@@ -1035,10 +1056,11 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo.bar:1234/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  8 * 1024 * 1024,
+			ScrapeURL:       "http://foo.bar:1234/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   8 * 1024 * 1024,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "foo",
@@ -1053,10 +1075,11 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo.bar:1234/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://foo.bar:1234/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "foo",
@@ -1071,10 +1094,11 @@ scrape_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo.bar:1234/metrics",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://foo.bar:1234/metrics",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "foo",
@@ -1103,10 +1127,11 @@ scrape_configs:
       job: yyy
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://pp/metrics?a=c&a=xy",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://pp/metrics?a=c&a=xy",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"foo":      "bar",
 				"instance": "pp:80",
@@ -1156,10 +1181,11 @@ scrape_configs:
         replacement: true
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://127.0.0.1:9116/snmp?module=if_mib&target=192.168.1.2",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://127.0.0.1:9116/snmp?module=if_mib&target=192.168.1.2",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "192.168.1.2",
 				"job":      "snmp",
@@ -1185,10 +1211,11 @@ scrape_configs:
     target_label: __metrics_path__
 `, []*ScrapeWork{
 		{
-			ScrapeURL:      "http://foo.bar:1234/metricspath",
-			ScrapeInterval: defaultScrapeInterval,
-			ScrapeTimeout:  defaultScrapeTimeout,
-			MaxScrapeSize:  maxScrapeSize.N,
+			ScrapeURL:       "http://foo.bar:1234/metricspath",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
+			MaxScrapeSize:   maxScrapeSize.N,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
 				"instance": "foo.bar:1234",
 				"job":      "path wo slash",
@@ -1213,6 +1240,7 @@ scrape_configs:
 			ScrapeURL:           "http://foo.bar:1234/metrics",
 			ScrapeInterval:      time.Hour * 24 * 7,
 			ScrapeTimeout:       time.Hour * 24,
+			ScrapeProtocols:     defaultScrapeProtocols,
 			ScrapeAlignInterval: time.Hour * 24,
 			ScrapeOffset:        time.Hour * 24 * 2,
 			MaxScrapeSize:       maxScrapeSize.N,
@@ -1238,6 +1266,7 @@ scrape_configs:
 			ScrapeURL:       "http://foo.bar:1234/metrics",
 			ScrapeInterval:  defaultScrapeInterval,
 			ScrapeTimeout:   defaultScrapeTimeout,
+			ScrapeProtocols: defaultScrapeProtocols,
 			MaxScrapeSize:   maxScrapeSize.N,
 			jobNameOriginal: "foo",
 			Labels: promutils.NewLabelsFromMap(map[string]string{

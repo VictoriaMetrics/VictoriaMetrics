@@ -7,6 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
 func BenchmarkIsAutoMetricMiss(b *testing.B) {
@@ -74,7 +75,7 @@ vm_tcplistener_read_timeouts_total{name="https", addr=":443"} 12353
 vm_tcplistener_write_calls_total{name="http", addr=":80"} 3996
 vm_tcplistener_write_calls_total{name="https", addr=":443"} 132356
 `
-	readDataFunc := func(dst *bytesutil.ByteBuffer) error {
+	readDataFunc := func(dst *bytesutil.ByteBuffer, _ *parser.ContentType) error {
 		dst.B = append(dst.B, data...)
 		return nil
 	}
