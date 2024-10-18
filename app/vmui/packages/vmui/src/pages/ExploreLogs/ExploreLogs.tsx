@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useState } from "preact/compat";
+import React, { FC, useCallback, useEffect, useMemo, useState } from "preact/compat";
 import ExploreLogsBody from "./ExploreLogsBody/ExploreLogsBody";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
 import useSearchParamsFromObject from "../../hooks/useSearchParamsFromObject";
@@ -14,6 +14,7 @@ import ExploreLogsBarChart from "./ExploreLogsBarChart/ExploreLogsBarChart";
 import { useFetchLogHits } from "./hooks/useFetchLogHits";
 import { LOGS_ENTRIES_LIMIT } from "../../constants/logs";
 import { getTimeperiodForDuration, relativeTimeOptions } from "../../utils/time";
+import { useSearchParams } from "react-router-dom";
 
 const storageLimit = Number(getFromStorage("LOGS_LIMIT"));
 const defaultLimit = isNaN(storageLimit) ? LOGS_ENTRIES_LIMIT : storageLimit;
@@ -22,6 +23,8 @@ const ExploreLogs: FC = () => {
   const { serverUrl } = useAppState();
   const { duration, relativeTime, period: periodState } = useTimeState();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
+  const [searchParams] = useSearchParams();
+  const hideChart = useMemo(() => searchParams.get("hide_chart"), [searchParams]);
 
   const [limit, setLimit] = useStateSearchParams(defaultLimit, "limit");
   const [query, setQuery] = useStateSearchParams("*", "query");
@@ -49,7 +52,7 @@ const ExploreLogs: FC = () => {
     const newPeriod = getPeriod();
     setPeriod(newPeriod);
     fetchLogs(newPeriod).then((isSuccess) => {
-      isSuccess && fetchLogHits(newPeriod);
+      isSuccess && !hideChart && fetchLogHits(newPeriod);
     }).catch(e => e);
     setSearchParamsFromKeys( {
       query,
@@ -87,6 +90,10 @@ const ExploreLogs: FC = () => {
     handleRunQuery();
     setTmpQuery(query);
   }, [query]);
+
+  useEffect(() => {
+    !hideChart && fetchLogHits(period);
+  }, [hideChart]);
 
   return (
     <div className="vm-explore-logs">
