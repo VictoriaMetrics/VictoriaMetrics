@@ -178,6 +178,9 @@ func TestUpdateWith(t *testing.T) {
 func TestUpdateDuringRandSleep(t *testing.T) {
 	// enable rand sleep to test group update during sleep
 	SkipRandSleepOnGroupStart = false
+	defer func() {
+		SkipRandSleepOnGroupStart = true
+	}()
 	rule := AlertingRule{
 		Name: "jobDown",
 		Expr: "up==0",
