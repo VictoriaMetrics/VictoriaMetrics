@@ -2,6 +2,15 @@
 
 - TODO
 
+## 0.14.3
+
+**Release date:** 2024-10-18
+
+![AppVersion: v1.104.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.104.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Fixed HPA template name
+
 ## 0.14.2
 
 **Release date:** 2024-10-11
