@@ -316,8 +316,8 @@ func (br *blockResult) initAllColumns() {
 	}
 
 	// Add other const columns
-	ccs := br.bs.getConstColumns()
-	for _, cc := range ccs {
+	csh := br.bs.getColumnsHeader()
+	for _, cc := range csh.constColumns {
 		if cc.Name == "" {
 			continue
 		}
@@ -327,7 +327,7 @@ func (br *blockResult) initAllColumns() {
 	}
 
 	// Add other non-const columns
-	chs := br.bs.getColumnHeaders()
+	chs := csh.columnHeaders
 	for i := range chs {
 		ch := &chs[i]
 		if ch.name == "" {
