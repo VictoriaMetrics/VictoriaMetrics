@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 )
@@ -35,8 +36,11 @@ func NewToken(authToken string) (*Token, error) {
 // NewTokenPossibleMultitenant returns new Token for the given authToken.
 //
 // If authToken == "multitenant", then nil Token is returned.
-func NewTokenPossibleMultitenant(authToken string) (*Token, error) {
+func NewTokenPossibleMultitenant(authToken string, headers http.Header) (*Token, error) {
 	if authToken == "multitenant" {
+		if tenantID := headers.Get("TenantID"); tenantID != "" {
+			return NewToken(tenantID)
+		}
 		return nil, nil
 	}
 	return NewToken(authToken)
