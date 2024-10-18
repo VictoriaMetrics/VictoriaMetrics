@@ -20,6 +20,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: improve performance for [`top`](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe), [`uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe) and [`field_values`](https://docs.victoriametrics.com/victorialogs/logsql/#field_values-pipe) pipes on systems with many CPU cores when it is applied to [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with big number of unique values. For example, `_time:1d | top 5 (user_id)` should be executed much faster when `user_id` field contains millions of unique values.
 * FEATURE: improve performance for [`field_names` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#field_names-pipe) when it is applied to logs with hundreds of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix display of hits chart. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7133).
+
 ## [v0.36.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.36.0-victorialogs)
 
 Released at 2024-10-16
