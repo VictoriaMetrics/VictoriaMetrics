@@ -1373,7 +1373,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.disablePathAppend
      Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -remoteWrite.flushInterval duration
-     Defines interval of flushes to remote write endpoint (default 5s)
+     Defines interval of flushes to remote write endpoint (default 2s)
   -remoteWrite.headers string
      Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'
   -remoteWrite.idleConnTimeout duration
