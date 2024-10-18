@@ -376,7 +376,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -search.maxConcurrentRequests int
     	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 16)
   -search.maxQueryDuration duration
-    	The maximum duration for query execution. It can be overridden on a per-query basis via 'timeout' query arg (default 30s)
+    	The maximum duration for query execution. It can be overridden to a smaller value on a per-query basis via 'timeout' query arg (default 30s)
   -search.maxQueueDuration duration
     	The maximum time the search request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
   -storage.minFreeDiskSpaceBytes size
