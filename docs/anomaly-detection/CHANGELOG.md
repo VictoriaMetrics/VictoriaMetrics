@@ -11,6 +11,11 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.17.1
+Released: 2024-10-18
+
+- FIX: Fixed an issue occurred when [Prophet model](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) is trained on *constant* data (data consisting of the same value and no variation across time). The bug prevented the `fit` stage from completing successfully, resulting in the model instance not being stored in the model registry, after automated model cleanup was addded in [v1.17.0](#1170). 
+
 ## v1.17.0
 Released: 2024-10-17
 
