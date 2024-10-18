@@ -1,10 +1,7 @@
-# Docker compose FluentBit integration with VictoriaLogs
+# Docker compose DataDog Agent integration with VictoriaLogs
 
-The folder contains examples of [FluentBit](https://docs.fluentbit.io/manual) integration with VictoriaLogs using protocols:
+The folder contains examples of [DataDog agent](https://docs.datadoghq.com/agent) integration with VictoriaLogs using protocols:
 
-* [loki](./loki)
-* [jsonline single node](./jsonline)
-* [jsonline HA setup](./jsonline-ha)
 * [datadog](./datadog)
 
 To spin-up environment `cd` to any of listed above directories run the following command:
@@ -20,19 +17,13 @@ docker compose rm -f
 
 The docker compose file contains the following components:
 
-* fluentbit - logs collection agent configured to collect and write data to `victorialogs`
-* victorialogs - logs database, receives data from `fluentbit` agent
-* victoriametrics - metrics database, which collects metrics from `victorialogs` and `fluentbit` for observability purposes
+* datadog - Datadog logs collection agent, which is configured to collect and write data to `victorialogs`
+* victorialogs - VictoriaLogs log database, which accepts the data from `datadog`
+* victoriametrics - VictoriaMetrics metrics database, which collects metrics from `victorialogs` and `datadog`
 
 Querying the data
 
 * [vmui](https://docs.victoriametrics.com/victorialogs/querying/#vmui) - a web UI is accessible by `http://localhost:9428/select/vmui`
 * for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
-
-FluentBit configuration example can be found below:
-* [loki](./loki/fluent-bit.conf)
-* [jsonline single node](./jsonline/fluent-bit.conf)
-* [jsonline HA setup](./jsonline-ha/fluent-bit.conf)
-* [datadog](./datadog/fluent-bit.conf)
 
 Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.
