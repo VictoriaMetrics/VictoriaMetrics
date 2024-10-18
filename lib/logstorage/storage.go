@@ -11,9 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
 // StorageStats represents stats for the storage. It may be obtained by calling Storage.UpdateStats().
@@ -136,12 +134,12 @@ type Storage struct {
 	//
 	// It reduces the load on persistent storage during data ingestion by skipping
 	// the check whether the given stream is already registered in the persistent storage.
-	streamIDCache *workingsetcache.Cache
+	streamIDCache *cache
 
 	// filterStreamCache caches streamIDs keyed by (partition, []TenanID, StreamFilter).
 	//
 	// It reduces the load on persistent storage during querying by _stream:{...} filter.
-	filterStreamCache *workingsetcache.Cache
+	filterStreamCache *cache
 }
 
 type partitionWrapper struct {
@@ -243,10 +241,8 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	flockF := fs.MustCreateFlockFile(path)
 
 	// Load caches
-	mem := memory.Allowed()
-
-	streamIDCache := workingsetcache.New(mem / 16)
-	filterStreamCache := workingsetcache.New(mem / 10)
+	streamIDCache := newCache()
+	filterStreamCache := newCache()
 
 	s := &Storage{
 		path:                   path,
@@ -463,10 +459,10 @@ func (s *Storage) MustClose() {
 	// between VictoriaLogs restarts. This may result in various issues
 	// during data ingestion and querying.
 
-	s.streamIDCache.Stop()
+	s.streamIDCache.MustStop()
 	s.streamIDCache = nil
 
-	s.filterStreamCache.Stop()
+	s.filterStreamCache.MustStop()
 	s.filterStreamCache = nil
 
 	// release lock file
