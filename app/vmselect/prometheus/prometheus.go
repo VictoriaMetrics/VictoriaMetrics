@@ -70,8 +70,8 @@ var (
 )
 
 var (
-	once                       sync.Once
-	defaultMaxUniqueTimeseries int
+	maxUniqueTimeseriesValueOnce sync.Once
+	maxUniqueTimeseriesValue     int
 )
 
 // Default step used if not set.
@@ -1256,18 +1256,18 @@ func (sw *scalableWriter) flush() error {
 }
 
 // InitMaxUniqueTimeseries init the max metrics limit calculated by available resources.
-// The calculation is split into calculateMaxUniqueTimeSeriesByResource for unit testing.
+// The calculation is split into calculateMaxUniqueTimeSeriesForResource for unit testing.
 func InitMaxUniqueTimeseries(maxConcurrentRequests int) {
-	once.Do(func() {
-		defaultMaxUniqueTimeseries = *maxUniqueTimeseries
-		if defaultMaxUniqueTimeseries <= 0 {
-			defaultMaxUniqueTimeseries = calculateMaxUniqueTimeSeriesByResource(maxConcurrentRequests, memory.Remaining())
+	maxUniqueTimeseriesValueOnce.Do(func() {
+		maxUniqueTimeseriesValue = *maxUniqueTimeseries
+		if maxUniqueTimeseriesValue <= 0 {
+			maxUniqueTimeseriesValue = calculateMaxUniqueTimeSeriesForResource(maxConcurrentRequests, memory.Remaining())
 		}
 	})
 }
 
-// calculateMaxUniqueTimeSeriesByResource calculate the max metrics limit calculated by available resources.
-func calculateMaxUniqueTimeSeriesByResource(maxConcurrentRequests, remainingMemory int) int {
+// calculateMaxUniqueTimeSeriesForResource calculate the max metrics limit calculated by available resources.
+func calculateMaxUniqueTimeSeriesForResource(maxConcurrentRequests, remainingMemory int) int {
 	if maxConcurrentRequests <= 0 {
 		// This line should NOT be reached unless the user has set an incorrect `search.maxConcurrentRequests`.
 		// In such cases, fallback to unlimited.
@@ -1284,5 +1284,5 @@ func calculateMaxUniqueTimeSeriesByResource(maxConcurrentRequests, remainingMemo
 
 // GetMaxUniqueTimeSeries returns the max metrics limit calculated by available resources.
 func GetMaxUniqueTimeSeries() int {
-	return defaultMaxUniqueTimeseries
+	return maxUniqueTimeseriesValue
 }

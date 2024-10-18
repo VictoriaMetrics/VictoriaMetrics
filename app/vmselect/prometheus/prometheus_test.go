@@ -234,7 +234,7 @@ func TestGetLatencyOffsetMillisecondsFailure(t *testing.T) {
 func TestCalculateMaxMetricsLimitByResource(t *testing.T) {
 	f := func(maxConcurrentRequest, remainingMemory, expect int) {
 		t.Helper()
-		maxMetricsLimit := calculateMaxUniqueTimeSeriesByResource(maxConcurrentRequest, remainingMemory)
+		maxMetricsLimit := calculateMaxUniqueTimeSeriesForResource(maxConcurrentRequest, remainingMemory)
 		if maxMetricsLimit != expect {
 			t.Fatalf("unexpected max metrics limit: got %d, want %d", maxMetricsLimit, expect)
 		}
