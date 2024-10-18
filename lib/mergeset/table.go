@@ -574,6 +574,12 @@ type TableMetrics struct {
 	DataBlocksCacheRequests     uint64
 	DataBlocksCacheMisses       uint64
 
+	DataBlocksSparseCacheSize         uint64
+	DataBlocksSparseCacheSizeBytes    uint64
+	DataBlocksSparseCacheSizeMaxBytes uint64
+	DataBlocksSparseCacheRequests     uint64
+	DataBlocksSparseCacheMisses       uint64
+
 	IndexBlocksCacheSize         uint64
 	IndexBlocksCacheSizeBytes    uint64
 	IndexBlocksCacheSizeMaxBytes uint64
@@ -634,6 +640,12 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 	m.DataBlocksCacheSizeMaxBytes = uint64(ibCache.SizeMaxBytes())
 	m.DataBlocksCacheRequests = ibCache.Requests()
 	m.DataBlocksCacheMisses = ibCache.Misses()
+
+	m.DataBlocksSparseCacheSize = uint64(ibSparseCache.Len())
+	m.DataBlocksSparseCacheSizeBytes = uint64(ibSparseCache.SizeBytes())
+	m.DataBlocksSparseCacheSizeMaxBytes = uint64(ibSparseCache.SizeMaxBytes())
+	m.DataBlocksSparseCacheRequests = ibSparseCache.Requests()
+	m.DataBlocksSparseCacheMisses = ibSparseCache.Misses()
 
 	m.IndexBlocksCacheSize = uint64(idxbCache.Len())
 	m.IndexBlocksCacheSizeBytes = uint64(idxbCache.SizeBytes())
