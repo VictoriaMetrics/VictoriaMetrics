@@ -10,6 +10,7 @@ import BarHitsChart from "../../../components/Chart/BarHitsChart/BarHitsChart";
 import Alert from "../../../components/Main/Alert/Alert";
 import { TimeParams } from "../../../types";
 import LineLoader from "../../../components/Main/LineLoader/LineLoader";
+import { useSearchParams } from "react-router-dom";
 import { getHitsTimeParams } from "../../../utils/logs";
 
 interface Props {
@@ -24,6 +25,8 @@ interface Props {
 const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error, isLoading, onApplyFilter }) => {
   const { isMobile } = useDeviceDetect();
   const timeDispatch = useTimeDispatch();
+  const [searchParams] = useSearchParams();
+  const hideChart = useMemo(() => searchParams.get("hide_chart"), [searchParams]);
 
   const getYAxes = (logHits: LogHits[], timestamps: number[]) => {
     return logHits.map(hits => {
@@ -69,14 +72,16 @@ const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error, isLoading, onA
     const noData = data.every(d => d.length === 0);
     const noTimestamps = data[0].length === 0;
     const noValues = data[1].length === 0;
-    if (noData) {
+    if (hideChart) {
+      return "Chart hidden. Hits updates paused.";
+    } else if (noData) {
       return "No logs volume available\nNo volume information available for the current queries and time range.";
     } else if (noTimestamps) {
       return "No timestamp information available for the current queries and time range.";
     } else if (noValues) {
       return "No value information available for the current queries and time range.";
     } return "";
-  }, [data]);
+  }, [data, hideChart]);
 
   const setPeriod = ({ from, to }: {from: Date, to: Date}) => {
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
