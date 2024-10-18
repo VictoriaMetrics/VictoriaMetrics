@@ -711,12 +711,12 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   Queries, which need more memory, are rejected. Heavy queries, which select big number of time series,
   may exceed the per-query memory limit by a small percent. The total memory limit for concurrently executed queries can be estimated
   as `-search.maxMemoryPerQuery` multiplied by `-search.maxConcurrentRequests`.
-- `-search.maxUniqueTimeseries` at `vmselect` component limits the number of unique time series a single query can find and process.
-  By default, `vmselect` lets `vmstorage` to calculate the limit automatically based on the available resources and 
-  the maximum number of concurrent `vmselect` requests it can process (see: `-search.maxConcurrentRequests`).
-  Otherwise, `vmselect` passes the limit (which cannot exceed `vmstorage` limit) to `vmstorage` component, which keeps in memory some metainformation about the time series located
-  by each query and spends some CPU time for processing the found time series. This means that the maximum memory usage and CPU usage
-  a single query can use at `vmstorage` is proportional to `-search.maxUniqueTimeseries`.
+- `-search.maxUniqueTimeseries` at `vmstorage` component limits the number of unique time series a single query can find and process.
+  This means that the maximum memory usage and CPU usage a single query can use at `vmstorage` is proportional to `-search.maxUniqueTimeseries`.
+  By default, `vmstorage` calculates this limit automatically based on the available memory and the maximum number of concurrent read requests (see `-search.maxConcurrentRequests`).
+  The calculated limit will be printed during process start-up logs and exposed as `vm_search_max_unique_timeseries` metric.
+- `-search.maxUniqueTimeseries` at `vmselect` adjusts the limit with the same name at `vmstorage`. The vmstorage limit can be adjusted
+  only to **lower value** and can't exceed it. By default, vmselect doesn't apply limit adjustments.
 - `-search.maxQueryDuration` at `vmselect` limits the duration of a single query. If the query takes longer than the given duration, then it is canceled.
   This allows saving CPU and RAM at `vmselect` and `vmstorage` when executing unexpectedly heavy queries.
   The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via `-search.maxQueryDuration` command-line flag.
