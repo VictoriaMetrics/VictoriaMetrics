@@ -128,6 +128,21 @@ Released at 2024-08-28
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fix metric names registering in the per-day index for new dates for existing time series when making calls to `/tags/tagSeries` and `/tags/tagMultiSeries` handlers of [Graphite API](https://docs.victoriametrics.com/#graphite-api-usage). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6872/) for details.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly ignore deleted metrics when applying [retention filters](https://docs.victoriametrics.com/#retention-filters) and [downsampling](https://docs.victoriametrics.com/#downsampling). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6891) issue for the details.
 
+## [v1.102.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.5)
+
+Released at 2024-10-21
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix error messages rendering from overflowing the screen with long messages. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7207).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): properly add metrics tags for `opentsdb` migration source. Previously it could have empty values. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7161).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): support `m` unit for `minutes` duration in command-line flag `-streamAggr.dedupInterval`. Previously unit `m` wasn't supported correctly.
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly apply replication factor when storage node groups are used and replication factor is configured via global value such as `-replicationFactor=2`. Previously, global replication factor was ignored for storage node groups. See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect) for more information about storage groups configuration.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): properly apply configuration changes during hot-reload to rule groups that haven't started yet. Previously, configuration updates to such groups could have resulted into blocking all evaluations within the group, until vmalert restart.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/)  and [vmagent](https://docs.victoriametrics.com/vmagent/): properly update `max_scrape_size` param change during [hot-reload](https://docs.victoriametrics.com/vmagent/#configuration-update). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7260).
+
 ## [v1.102.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.4)
 
 Released at 2024-10-02
