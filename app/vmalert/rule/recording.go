@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -64,10 +65,11 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		File:      group.File,
 		metrics:   &recordingRuleMetrics{},
 		q: qb.BuildWithParams(datasource.QuerierParams{
-			DataSourceType:     group.Type.String(),
-			EvaluationInterval: group.Interval,
-			QueryParams:        group.Params,
-			Headers:            group.Headers,
+			DataSourceType:            group.Type.String(),
+			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
+			EvaluationInterval:        group.Interval,
+			QueryParams:               group.Params,
+			Headers:                   group.Headers,
 		}),
 	}
 
@@ -212,4 +214,13 @@ func (rr *RecordingRule) updateWith(r Rule) error {
 	rr.Labels = nr.Labels
 	rr.q = nr.q
 	return nil
+}
+
+// setIntervalAsTimeFilter returns true if given LogsQL has a time filter.
+func setIntervalAsTimeFilter(dType, expr string) bool {
+	if dType != "vlogs" {
+		return false
+	}
+	_, hasTimeFilterInExpr, _ := logstorage.ParseStatsQuery(expr)
+	return !hasTimeFilterInExpr
 }
