@@ -1,6 +1,7 @@
 package promscrape
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"testing"
@@ -91,7 +92,7 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 	}
 
 	readDataCalls := 0
-	sw.ReadData = func(_ *bytesutil.ByteBuffer) error {
+	sw.ReadData = func(_ *bytesutil.ByteBuffer, _ *parser.ContentType) error {
 		readDataCalls++
 		return fmt.Errorf("error when reading data")
 	}
@@ -131,8 +132,18 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		var sw scrapeWork
 		sw.Config = cfg
 
+		if len(cfg.ScrapeProtocols) > 0 && cfg.ScrapeProtocols[0] == PrometheusProto {
+			sw.contentType = parser.ProtoHeader
+			decoded, err := base64.StdEncoding.DecodeString(data)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			data = string(decoded)
+		}
+		fmt.Println("shit: ", cfg.ScrapeProtocols)
+
 		readDataCalls := 0
-		sw.ReadData = func(dst *bytesutil.ByteBuffer) error {
+		sw.ReadData = func(dst *bytesutil.ByteBuffer, _ *parser.ContentType) error {
 			readDataCalls++
 			dst.B = append(dst.B, data...)
 			return nil
@@ -187,6 +198,19 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_post_metric_relabeling 0 123
 		scrape_series_added 0 123
 		scrape_timeout_seconds 42 123
+	`)
+	f("rwEKOXByb21ldGhldXNfdGFyZ2V0X3NjcmFwZV9wb29sX2V4Y2VlZGVkX2xhYmVsX2xpbWl0c190b3RhbBJWVG90YWwgbnVtYmVyIG9mIHRpbWVzIHNjcmFwZSBwb29scyBoaXQgdGhlIGxhYmVsIGxpbWl0cywgZHVyaW5nIHN5bmMgb3IgY29uZmlnIHJlbG9hZC4YACIYGhYJAAAAAAAAAAAaCwjUsJavBhC6tZYl",
+		&ScrapeWork{
+			ScrapeProtocols: []ScrapeProtocol{PrometheusProto},
+		}, `
+		prometheus_target_scrape_pool_exceeded_label_limits_total 0 123
+                scrape_duration_seconds 1.728725013523e+09 123
+		up 1 123
+		scrape_response_size_bytes 177 123
+		scrape_samples_scraped 1 123
+		scrape_samples_post_metric_relabeling 1 123
+		scrape_series_added 1 123
+		scrape_timeout_seconds 0 123
 	`)
 	f(`
 		foo{bar="baz",empty_label=""} 34.45 3
@@ -745,6 +769,7 @@ func TestSendStaleSeries(t *testing.T) {
 			t.Fatalf("unexpected number of stale marks; got %d; want %d", staleMarks, staleMarksExpected)
 		}
 	}
+
 	generateScrape := func(n int) string {
 		w := strings.Builder{}
 		for i := 0; i < n; i++ {
@@ -767,7 +792,7 @@ func parsePromRow(data string) *parser.Row {
 	errLogger := func(s string) {
 		panic(fmt.Errorf("unexpected error when unmarshaling Prometheus rows: %s", s))
 	}
-	rows.UnmarshalWithErrLogger(data, errLogger)
+	rows.UnmarshalWithErrLogger(data, parser.TextHeader, errLogger)
 	if len(rows.Rows) != 1 {
 		panic(fmt.Errorf("unexpected number of rows parsed from %q; got %d; want %d", data, len(rows.Rows), 1))
 	}
@@ -775,7 +800,7 @@ func parsePromRow(data string) *parser.Row {
 }
 
 func parseData(data string) []prompbmarshal.TimeSeries {
-	return prompbmarshal.MustParsePromMetrics(data, 0)
+	return prompbmarshal.MustParsePromMetrics(data, parser.TextHeader, 0)
 }
 
 func expectEqualTimeseries(tss, tssExpected []prompbmarshal.TimeSeries) error {
