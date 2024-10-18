@@ -4,15 +4,14 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
 // StorageStats represents stats for the storage. It may be obtained by calling Storage.UpdateStats().
@@ -113,6 +112,8 @@ type Storage struct {
 	// partitions is a list of partitions for the Storage.
 	//
 	// It must be accessed under partitionsLock.
+	//
+	// partitions are sorted by time.
 	partitions []*partitionWrapper
 
 	// ptwHot is the "hot" partition, were the last rows were ingested.
@@ -133,12 +134,12 @@ type Storage struct {
 	//
 	// It reduces the load on persistent storage during data ingestion by skipping
 	// the check whether the given stream is already registered in the persistent storage.
-	streamIDCache *workingsetcache.Cache
+	streamIDCache *cache
 
 	// filterStreamCache caches streamIDs keyed by (partition, []TenanID, StreamFilter).
 	//
 	// It reduces the load on persistent storage during querying by _stream:{...} filter.
-	filterStreamCache *workingsetcache.Cache
+	filterStreamCache *cache
 }
 
 type partitionWrapper struct {
@@ -240,11 +241,8 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	flockF := fs.MustCreateFlockFile(path)
 
 	// Load caches
-	mem := memory.Allowed()
-	streamIDCachePath := filepath.Join(path, cacheDirname, streamIDCacheFilename)
-	streamIDCache := workingsetcache.Load(streamIDCachePath, mem/16)
-
-	filterStreamCache := workingsetcache.New(mem / 10)
+	streamIDCache := newCache()
+	filterStreamCache := newCache()
 
 	s := &Storage{
 		path:                   path,
@@ -454,15 +452,17 @@ func (s *Storage) MustClose() {
 	s.partitions = nil
 	s.ptwHot = nil
 
-	// Save caches
-	streamIDCachePath := filepath.Join(s.path, cacheDirname, streamIDCacheFilename)
-	if err := s.streamIDCache.Save(streamIDCachePath); err != nil {
-		logger.Panicf("FATAL: cannot save streamID cache to %q: %s", streamIDCachePath, err)
-	}
-	s.streamIDCache.Stop()
+	// Stop caches
+
+	// Do not persist caches, since they may become out of sync with partitions
+	// if partitions are deleted, restored from backups or copied from other sources
+	// between VictoriaLogs restarts. This may result in various issues
+	// during data ingestion and querying.
+
+	s.streamIDCache.MustStop()
 	s.streamIDCache = nil
 
-	s.filterStreamCache.Stop()
+	s.filterStreamCache.MustStop()
 	s.filterStreamCache = nil
 
 	// release lock file
@@ -470,6 +470,33 @@ func (s *Storage) MustClose() {
 	s.flockF = nil
 
 	s.path = ""
+}
+
+// MustForceMerge force-merges parts in s partitions with names starting from the given partitionNamePrefix.
+//
+// Partitions are merged sequentially in order to reduce load on the system.
+func (s *Storage) MustForceMerge(partitionNamePrefix string) {
+	var ptws []*partitionWrapper
+
+	s.partitionsLock.Lock()
+	for _, ptw := range s.partitions {
+		if strings.HasPrefix(ptw.pt.name, partitionNamePrefix) {
+			ptw.incRef()
+			ptws = append(ptws, ptw)
+		}
+	}
+	s.partitionsLock.Unlock()
+
+	s.wg.Add(1)
+	defer s.wg.Done()
+
+	for _, ptw := range ptws {
+		logger.Infof("started force merge for partition %s", ptw.pt.name)
+		startTime := time.Now()
+		ptw.pt.mustForceMerge()
+		ptw.decRef()
+		logger.Infof("finished force merge for partition %s in %.3fs", ptw.pt.name, time.Since(startTime).Seconds())
+	}
 }
 
 // MustAddRows adds lr to s.

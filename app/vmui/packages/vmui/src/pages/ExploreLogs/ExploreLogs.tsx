@@ -1,10 +1,9 @@
-import React, { FC, useCallback, useEffect, useState } from "preact/compat";
+import React, { FC, useCallback, useEffect, useMemo, useState } from "preact/compat";
 import ExploreLogsBody from "./ExploreLogsBody/ExploreLogsBody";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
 import useSearchParamsFromObject from "../../hooks/useSearchParamsFromObject";
 import { useFetchLogs } from "./hooks/useFetchLogs";
 import { useAppState } from "../../state/common/StateContext";
-import Spinner from "../../components/Main/Spinner/Spinner";
 import Alert from "../../components/Main/Alert/Alert";
 import ExploreLogsHeader from "./ExploreLogsHeader/ExploreLogsHeader";
 import "./style.scss";
@@ -15,6 +14,7 @@ import ExploreLogsBarChart from "./ExploreLogsBarChart/ExploreLogsBarChart";
 import { useFetchLogHits } from "./hooks/useFetchLogHits";
 import { LOGS_ENTRIES_LIMIT } from "../../constants/logs";
 import { getTimeperiodForDuration, relativeTimeOptions } from "../../utils/time";
+import { useSearchParams } from "react-router-dom";
 
 const storageLimit = Number(getFromStorage("LOGS_LIMIT"));
 const defaultLimit = isNaN(storageLimit) ? LOGS_ENTRIES_LIMIT : storageLimit;
@@ -23,6 +23,8 @@ const ExploreLogs: FC = () => {
   const { serverUrl } = useAppState();
   const { duration, relativeTime, period: periodState } = useTimeState();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
+  const [searchParams] = useSearchParams();
+  const hideChart = useMemo(() => searchParams.get("hide_chart"), [searchParams]);
 
   const [limit, setLimit] = useStateSearchParams(defaultLimit, "limit");
   const [query, setQuery] = useStateSearchParams("*", "query");
@@ -30,7 +32,7 @@ const ExploreLogs: FC = () => {
   const [period, setPeriod] = useState<TimeParams>(periodState);
   const [queryError, setQueryError] = useState<ErrorTypes | string>("");
 
-  const { logs, isLoading, error, fetchLogs } = useFetchLogs(serverUrl, query, limit);
+  const { logs, isLoading, error, fetchLogs, abortController } = useFetchLogs(serverUrl, query, limit);
   const { fetchLogHits, ...dataLogHits } = useFetchLogHits(serverUrl, query);
 
   const getPeriod = useCallback(() => {
@@ -50,7 +52,7 @@ const ExploreLogs: FC = () => {
     const newPeriod = getPeriod();
     setPeriod(newPeriod);
     fetchLogs(newPeriod).then((isSuccess) => {
-      isSuccess && fetchLogHits(newPeriod);
+      isSuccess && !hideChart && fetchLogHits(newPeriod);
     }).catch(e => e);
     setSearchParamsFromKeys( {
       query,
@@ -70,10 +72,15 @@ const ExploreLogs: FC = () => {
     setQuery(prev => `_stream: ${val === "other" ? "{}" : val} AND (${prev})`);
   };
 
-  const handleUpdateQuery = () => {
-    setQuery(tmpQuery);
-    handleRunQuery();
-  };
+  const handleUpdateQuery = useCallback(() => {
+    if (isLoading || dataLogHits.isLoading) {
+      abortController.abort && abortController.abort();
+      dataLogHits.abortController.abort && dataLogHits.abortController.abort();
+    } else {
+      setQuery(tmpQuery);
+      handleRunQuery();
+    }
+  }, [isLoading, dataLogHits.isLoading]);
 
   useEffect(() => {
     if (query) handleRunQuery();
@@ -84,6 +91,10 @@ const ExploreLogs: FC = () => {
     setTmpQuery(query);
   }, [query]);
 
+  useEffect(() => {
+    !hideChart && fetchLogHits(period);
+  }, [hideChart]);
+
   return (
     <div className="vm-explore-logs">
       <ExploreLogsHeader
@@ -93,8 +104,8 @@ const ExploreLogs: FC = () => {
         onChange={setTmpQuery}
         onChangeLimit={handleChangeLimit}
         onRun={handleUpdateQuery}
+        isLoading={isLoading || dataLogHits.isLoading}
       />
-      {isLoading && <Spinner message={"Loading logs..."}/>}
       {error && <Alert variant="error">{error}</Alert>}
       {!error && (
         <ExploreLogsBarChart
@@ -102,10 +113,12 @@ const ExploreLogs: FC = () => {
           query={query}
           period={period}
           onApplyFilter={handleApplyFilter}
-          isLoading={isLoading ? false : dataLogHits.isLoading}
         />
       )}
-      <ExploreLogsBody data={logs}/>
+      <ExploreLogsBody
+        data={logs}
+        isLoading={isLoading}
+      />
     </div>
   );
 };

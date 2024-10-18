@@ -74,13 +74,16 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		var rows Rows
-		rows.Unmarshal(s)
+		err := rows.Unmarshal(s)
+		if err == nil {
+			t.Fatal("unexpected nil error")
+		}
 		if len(rows.Rows) != 0 {
 			t.Fatalf("expecting zero rows; got %d rows", len(rows.Rows))
 		}
 
 		// Try again
-		rows.Unmarshal(s)
+		_ = rows.Unmarshal(s)
 		if len(rows.Rows) != 0 {
 			t.Fatalf("expecting zero rows; got %d rows", len(rows.Rows))
 		}
@@ -125,14 +128,17 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 func TestRowsUnmarshalSuccess(t *testing.T) {
 	f := func(s string, rowsExpected *Rows) {
 		t.Helper()
-		var rows Rows
-		rows.Unmarshal(s)
+		rows := Rows{IgnoreErrs: true}
+		err := rows.Unmarshal(s)
+		if err != nil {
+			t.Fatalf("unexpected err: %s", err)
+		}
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
 
 		// Try unmarshaling again
-		rows.Unmarshal(s)
+		_ = rows.Unmarshal(s)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
