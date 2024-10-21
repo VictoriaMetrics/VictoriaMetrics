@@ -120,7 +120,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	if p.disablePerMetricRequests {
 		pr := bar.NewProxyReader(reader)
 		if pr != nil {
-			reader = bar.NewProxyReader(reader)
+			reader = pr
 			fmt.Printf("Continue import process with filter %s:\n", f.String())
 		}
 	}
@@ -193,7 +193,15 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	var metrics = map[string][][]time.Time{
 		"": ranges,
 	}
+
+	format := nativeSingleProcessTpl
+	barPrefix := "Requests to make"
+	if p.interCluster {
+		barPrefix = fmt.Sprintf("Requests to make for tenant %s", tenantID)
+	}
+
 	if !p.disablePerMetricRequests {
+		format = fmt.Sprintf(nativeWithBackoffTpl, barPrefix)
 		metrics, err = p.explore(ctx, p.src, tenantID, ranges)
 		if err != nil {
 			return fmt.Errorf("failed to explore metric names: %s", err)
@@ -223,15 +231,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		log.Print(foundSeriesMsg)
 	}
 
-	barPrefix := "Requests to make"
-	if p.interCluster {
-		barPrefix = fmt.Sprintf("Requests to make for tenant %s", tenantID)
-	}
-
-	bar := barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, barPrefix), requestsToMake)
-	if p.disablePerMetricRequests {
-		bar = barpool.NewSingleProgress(nativeSingleProcessTpl, 0)
-	}
+	bar := barpool.NewSingleProgress(format, requestsToMake)
 	bar.Start()
 	defer bar.Finish()
 
@@ -365,6 +365,7 @@ func buildMatchWithFilter(filter string, metricName string) (string, error) {
 	if filter == metricName {
 		return filter, nil
 	}
+
 	nameFilter := fmt.Sprintf("__name__=%q", metricName)
 
 	tfss, err := searchutils.ParseMetricSelector(filter)
@@ -376,12 +377,14 @@ func buildMatchWithFilter(filter string, metricName string) (string, error) {
 	for _, tfs := range tfss {
 		var a []string
 		for _, tf := range tfs {
-			if len(tf.Key) == 0 {
+			if len(tf.Key) == 0 && metricName != "" {
 				continue
 			}
 			a = append(a, tf.String())
 		}
-		a = append(a, nameFilter)
+		if metricName != "" {
+			a = append(a, nameFilter)
+		}
 		filters = append(filters, strings.Join(a, ","))
 	}
 

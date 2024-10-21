@@ -293,6 +293,9 @@ func TestBuildMatchWithFilter_Success(t *testing.T) {
 	// only label with regexp
 	f(`{cluster=~".*"}`, "http_request_count_total", `{cluster=~".*",__name__="http_request_count_total"}`)
 
+	// only label with regexp, empty metric name
+	f(`{cluster=~".*"}`, "", `{cluster=~".*"}`)
+
 	// many labels in filter with regexp
 	f(`{cluster=~".*",job!=""}`, "http_request_count_total", `{cluster=~".*",job!="",__name__="http_request_count_total"}`)
 
@@ -307,4 +310,7 @@ func TestBuildMatchWithFilter_Success(t *testing.T) {
 
 	// metric name has negative regexp
 	f(`{__name__!~".*"}`, "http_request_count_total", `{__name__="http_request_count_total"}`)
+
+	// metric name has negative regex and metric name is empty
+	f(`{__name__!~".*"}`, "", `{__name__!~".*"}`)
 }
