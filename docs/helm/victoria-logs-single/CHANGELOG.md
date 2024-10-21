@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- Custom fluent-bit template to push data to multiple VLogs instances when replica count is greated than 1.
 
 ## 0.6.6
 
