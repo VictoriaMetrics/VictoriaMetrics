@@ -96,21 +96,28 @@ func TestAggregatorsFailure(t *testing.T) {
 	f(`
 - interval: 1m
   staleness_interval: 1foo
-  outputs: ["quantiles"]
+  outputs: ["avg"]
 `)
 
 	// staleness_interval should be > interval
 	f(`
 - interval: 1m
   staleness_interval: 30s
-  outputs: ["quantiles"]
+  outputs: ["avg"]
 `)
 
 	// staleness_interval should be multiple of interval
 	f(`
 - interval: 1m
   staleness_interval: 100s
-  outputs: ["quantiles"]
+  outputs: ["avg"]
+`)
+
+	// bad ignore_first_sample_interval
+	f(`
+- interval: 1m
+  ignore_first_sample_interval: 1foo
+  outputs: ["avg"]
 `)
 
 	// keep_metric_names is set for multiple inputs
