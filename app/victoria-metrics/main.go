@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syslog"
 )
 
 var (
@@ -84,6 +85,15 @@ func main() {
 	logger.Infof("started VictoriaMetrics in %.3f seconds", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
+	// TODO: Remove this log generator
+	go func() {
+		i := 1
+		for {
+			logger.Infof("Test log from routine:: log number: %d", i)
+			i++
+			time.Sleep(1 * time.Second)
+		}
+	}()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
 	pushmetrics.Stop()
@@ -104,6 +114,7 @@ func main() {
 	fs.MustStopDirRemover()
 
 	logger.Infof("the VictoriaMetrics has been stopped in %.3f seconds", time.Since(startTime).Seconds())
+	syslog.Stop()
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
