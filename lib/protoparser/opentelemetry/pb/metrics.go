@@ -151,12 +151,13 @@ func (sm *ScopeMetrics) unmarshalProtobuf(src []byte) (err error) {
 
 // Metric represents the corresponding OTEL protobuf message
 type Metric struct {
-	Name      string
-	Unit      string
-	Gauge     *Gauge
-	Sum       *Sum
-	Histogram *Histogram
-	Summary   *Summary
+	Name                 string
+	Unit                 string
+	Gauge                *Gauge
+	Sum                  *Sum
+	Histogram            *Histogram
+	ExponentialHistogram *ExponentialHistogram
+	Summary              *Summary
 }
 
 func (m *Metric) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -169,6 +170,8 @@ func (m *Metric) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 		m.Sum.marshalProtobuf(mm.AppendMessage(7))
 	case m.Histogram != nil:
 		m.Histogram.marshalProtobuf(mm.AppendMessage(9))
+	case m.ExponentialHistogram != nil:
+		m.ExponentialHistogram.marshalProtobuf(mm.AppendMessage(10))
 	case m.Summary != nil:
 		m.Summary.marshalProtobuf(mm.AppendMessage(11))
 	}
@@ -182,6 +185,7 @@ func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 	//     Gauge gauge = 5;
 	//     Sum sum = 7;
 	//     Histogram histogram = 9;
+	//     ExponentialHistogram exponential_histogram = 10;
 	//     Summary summary = 11;
 	//   }
 	// }
@@ -230,6 +234,15 @@ func (m *Metric) unmarshalProtobuf(src []byte) (err error) {
 			m.Histogram = &Histogram{}
 			if err := m.Histogram.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Histogram: %w", err)
+			}
+		case 10:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read ExponentialHistogram data")
+			}
+			m.ExponentialHistogram = &ExponentialHistogram{}
+			if err := m.ExponentialHistogram.unmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal ExponentialHistogram: %w", err)
 			}
 		case 11:
 			data, ok := fc.MessageData()
@@ -473,6 +486,52 @@ func (h *Histogram) unmarshalProtobuf(src []byte) (err error) {
 	return nil
 }
 
+// ExponentialHistogram represents the corresponding OTEL protobuf message
+type ExponentialHistogram struct {
+	DataPoints             []*ExponentialHistogramDataPoint
+	AggregationTemporality AggregationTemporality
+}
+
+func (h *ExponentialHistogram) marshalProtobuf(mm *easyproto.MessageMarshaler) {
+	for _, dp := range h.DataPoints {
+		dp.marshalProtobuf(mm.AppendMessage(1))
+	}
+	mm.AppendInt64(2, int64(h.AggregationTemporality))
+}
+
+func (h *ExponentialHistogram) unmarshalProtobuf(src []byte) (err error) {
+	// message ExponentialHistogram {
+	//   repeated ExponentialHistogramDataPoint data_points = 1;
+	//   AggregationTemporality aggregation_temporality = 2;
+	// }
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field in ExponentialHistogram: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read DataPoint")
+			}
+			h.DataPoints = append(h.DataPoints, &ExponentialHistogramDataPoint{})
+			dp := h.DataPoints[len(h.DataPoints)-1]
+			if err := dp.unmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal DataPoint: %w", err)
+			}
+		case 2:
+			at, ok := fc.Int64()
+			if !ok {
+				return fmt.Errorf("cannot read AggregationTemporality")
+			}
+			h.AggregationTemporality = AggregationTemporality(at)
+		}
+	}
+	return nil
+}
+
 // Summary represents the corresponding OTEL protobuf message
 type Summary struct {
 	DataPoints []*SummaryDataPoint
@@ -598,6 +657,200 @@ func (dp *HistogramDataPoint) unmarshalProtobuf(src []byte) (err error) {
 				return fmt.Errorf("cannot read Flags")
 			}
 			dp.Flags = flags
+		}
+	}
+	return nil
+}
+
+// ExponentialHistogramDataPoint represents the corresponding OTEL protobuf message
+type ExponentialHistogramDataPoint struct {
+	Attributes    []*KeyValue
+	TimeUnixNano  uint64
+	Count         uint64
+	Sum           *float64
+	Scale         int32
+	ZeroCount     uint64
+	Positive      *Buckets
+	Negative      *Buckets
+	Flags         uint32
+	Min           *float64
+	Max           *float64
+	ZeroThreshold float64
+}
+
+func (dp *ExponentialHistogramDataPoint) marshalProtobuf(mm *easyproto.MessageMarshaler) {
+	for _, a := range dp.Attributes {
+		a.marshalProtobuf(mm.AppendMessage(1))
+	}
+	mm.AppendFixed64(3, dp.TimeUnixNano)
+	mm.AppendFixed64(4, dp.Count)
+	if dp.Sum != nil {
+		mm.AppendDouble(5, *dp.Sum)
+	}
+	mm.AppendSint32(6, dp.Scale)
+	mm.AppendFixed64(7, dp.ZeroCount)
+	if dp.Positive != nil {
+		dp.Positive.marshalProtobuf(mm.AppendMessage(8))
+	}
+	if dp.Negative != nil {
+		dp.Negative.marshalProtobuf(mm.AppendMessage(9))
+	}
+	mm.AppendUint32(10, dp.Flags)
+	if dp.Min != nil {
+		mm.AppendDouble(12, *dp.Min)
+	}
+	if dp.Max != nil {
+		mm.AppendDouble(13, *dp.Max)
+	}
+	mm.AppendDouble(14, dp.ZeroThreshold)
+}
+
+func (dp *ExponentialHistogramDataPoint) unmarshalProtobuf(src []byte) (err error) {
+	// message ExponentialHistogramDataPoint {
+	//   repeated KeyValue attributes = 1;
+	//   fixed64 time_unix_nano = 3;
+	//   fixed64 count = 4;
+	//   optional double sum = 5;
+	//   sint32 scale = 6;
+	//   fixed64 zero_count = 7;
+	//   Buckets positive = 8;
+	//   Buckets negative = 9;
+	//   uint32 flags = 10;
+	//   optional double min = 12;
+	//   optional double max = 13;
+	//   double zero_threshold = 14;
+	// }
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field in ExponentialHistogramDataPoint: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read Attribute")
+			}
+			dp.Attributes = append(dp.Attributes, &KeyValue{})
+			a := dp.Attributes[len(dp.Attributes)-1]
+			if err := a.unmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal Attribute: %w", err)
+			}
+		case 3:
+			timeUnixNano, ok := fc.Fixed64()
+			if !ok {
+				return fmt.Errorf("cannot read TimeUnixNano")
+			}
+			dp.TimeUnixNano = timeUnixNano
+		case 4:
+			count, ok := fc.Fixed64()
+			if !ok {
+				return fmt.Errorf("cannot read Count")
+			}
+			dp.Count = count
+		case 5:
+			sum, ok := fc.Double()
+			if !ok {
+				return fmt.Errorf("cannot read Sum")
+			}
+			dp.Sum = &sum
+		case 6:
+			scale, ok := fc.Sint32()
+			if !ok {
+				return fmt.Errorf("cannot read Scale")
+			}
+			dp.Scale = scale
+		case 7:
+			zeroCount, ok := fc.Fixed64()
+			if !ok {
+				return fmt.Errorf("cannot read ZeroCount")
+			}
+			dp.ZeroCount = zeroCount
+		case 8:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read Positive")
+			}
+			dp.Positive = &Buckets{}
+			if err := dp.Positive.unmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal Positive: %w", err)
+			}
+		case 9:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read Negative")
+			}
+			dp.Negative = &Buckets{}
+			if err := dp.Negative.unmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal Negative: %w", err)
+			}
+		case 10:
+			flags, ok := fc.Uint32()
+			if !ok {
+				return fmt.Errorf("cannot read Flags")
+			}
+			dp.Flags = flags
+		case 12:
+			min, ok := fc.Double()
+			if !ok {
+				return fmt.Errorf("cannot read Min")
+			}
+			dp.Min = &min
+		case 13:
+			max, ok := fc.Double()
+			if !ok {
+				return fmt.Errorf("cannot read Max")
+			}
+			dp.Max = &max
+		case 14:
+			zeroThreshold, ok := fc.Double()
+			if !ok {
+				return fmt.Errorf("cannot read ZeroThreshold")
+			}
+			dp.ZeroThreshold = zeroThreshold
+		}
+	}
+	return nil
+}
+
+// Buckets represents the corresponding OTEL protobuf message
+type Buckets struct {
+	Offset       int32
+	BucketCounts []uint64
+}
+
+func (b *Buckets) marshalProtobuf(mm *easyproto.MessageMarshaler) {
+	mm.AppendSint32(1, b.Offset)
+	for _, bc := range b.BucketCounts {
+		mm.AppendUint64(2, bc)
+	}
+}
+
+func (b *Buckets) unmarshalProtobuf(src []byte) (err error) {
+	// message Buckets {
+	//   sint32 offset = 1;
+	//   repeated uint64 bucket_counts = 2;
+	// }
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field in HistogramDataPoint: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			offset, ok := fc.Sint32()
+			if !ok {
+				return fmt.Errorf("cannot read Offset")
+			}
+			b.Offset = offset
+		case 2:
+			bucketCounts, ok := fc.UnpackUint64s(b.BucketCounts)
+			if !ok {
+				return fmt.Errorf("cannot read BucketCounts")
+			}
+			b.BucketCounts = bucketCounts
 		}
 	}
 	return nil

@@ -2,6 +2,54 @@
 
 - TODO
 
+## 1.6.1
+
+**Release date:** 2024-10-18
+
+![AppVersion: v1.17.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.17.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Upgraded [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) to [1.17.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1171)
+
+## 1.6.0
+
+**Release date:** 2024-10-17
+
+![AppVersion: v1.17.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.17.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Upgraded [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) to [1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)
+
+## 1.5.2
+
+**Release date:** 2024-10-11
+
+![AppVersion: v1.16.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.16.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Human-readable error about Helm version requirement
+
+## 1.5.1
+
+**Release date:** 2024-10-04
+
+![AppVersion: v1.16.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.16.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Upgraded common chart dependency
+
+## 1.5.0
+
+**Release date:** 2024-10-03
+
+![AppVersion: v1.16.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.16.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Upgraded vmanomaly to [1.16.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1161)
+- Added the ability to enable persistence for models and data via `.Values.persistentVolume.dumpModels` and `.Values.persistentVolume.dumpData` variables respectively.
+- Fix default `podSecurityContext` configuration to ensure fs group matches container user.
+- Fix passing empty `tenant_id` in case tenant is not defined in values.
+
 ## 1.4.6
 
 **Release date:** 2024-09-16

@@ -1,6 +1,8 @@
 @use "src/styles/variables" as *;
 
 .vm-bar-hits-options {
+  display: flex;
+  align-items: center;
   position: absolute;
   top: $padding-small;
   right: $padding-small;

@@ -478,10 +478,19 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 	ps.byFields = addByTimeField(ps.byFields, step)
 
 	// extract by(...) field names from stats pipe
-	byFields := ps.byFields
-	fields := make([]string, len(byFields))
-	for i, f := range byFields {
-		fields[i] = f.name
+	byFields := make([]string, len(ps.byFields))
+	for i, f := range ps.byFields {
+		byFields[i] = f.name
+	}
+
+	// extract metric fields from stats pipe
+	metricFields := make(map[string]struct{}, len(ps.funcs))
+	for i := range ps.funcs {
+		f := &ps.funcs[i]
+		if slices.Contains(byFields, f.resultName) {
+			return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", f.resultName, ps, q)
+		}
+		metricFields[f.resultName] = struct{}{}
 	}
 
 	// verify that all the pipes after the idx do not add new fields
@@ -491,41 +500,98 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 		case *pipeSort, *pipeOffset, *pipeLimit, *pipeFilter:
 			// These pipes do not change the set of fields.
 		case *pipeMath:
-			// Allow pipeMath, since it adds additional metrics to the given set of fields.
+			// Allow `| math ...` pipe, since it adds additional metrics to the given set of fields.
+			// Verify that the result fields at math pipe do not override byFields.
+			for _, me := range t.entries {
+				if slices.Contains(byFields, me.resultField) {
+					return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", me.resultField, t, q)
+				}
+				metricFields[me.resultField] = struct{}{}
+			}
 		case *pipeFields:
 			// `| fields ...` pipe must contain all the by(...) fields, otherwise it breaks output.
-			for _, f := range fields {
+			for _, f := range byFields {
 				if !slices.Contains(t.fields, f) {
 					return nil, fmt.Errorf("missing %q field at %q pipe in the query [%s]", f, p, q)
 				}
 			}
+
+			remainingMetricFields := make(map[string]struct{})
+			for _, f := range t.fields {
+				if _, ok := metricFields[f]; ok {
+					remainingMetricFields[f] = struct{}{}
+				}
+			}
+			metricFields = remainingMetricFields
 		case *pipeDelete:
 			// Disallow deleting by(...) fields, since this breaks output.
 			for _, f := range t.fields {
-				if slices.Contains(fields, f) {
+				if slices.Contains(byFields, f) {
 					return nil, fmt.Errorf("the %q field cannot be deleted via %q in the query [%s]", f, p, q)
 				}
+				delete(metricFields, f)
 			}
 		case *pipeCopy:
-			// Disallow copying by(...) fields, since this breaks output.
-			for _, f := range t.srcFields {
-				if slices.Contains(fields, f) {
-					return nil, fmt.Errorf("the %q field cannot be copied via %q in the query [%s]", f, p, q)
+			// Add copied fields to by(...) fields list.
+			for i := range t.srcFields {
+				fSrc := t.srcFields[i]
+				fDst := t.dstFields[i]
+
+				if slices.Contains(byFields, fDst) {
+					return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", fDst, t, q)
+				}
+				if _, ok := metricFields[fDst]; ok {
+					if _, ok := metricFields[fSrc]; !ok {
+						delete(metricFields, fDst)
+					}
+				}
+
+				if slices.Contains(byFields, fSrc) {
+					if !slices.Contains(byFields, fDst) {
+						byFields = append(byFields, fDst)
+					}
+				}
+				if _, ok := metricFields[fSrc]; ok {
+					metricFields[fDst] = struct{}{}
 				}
 			}
 		case *pipeRename:
 			// Update by(...) fields with dst fields
-			for i, f := range t.srcFields {
-				if n := slices.Index(fields, f); n >= 0 {
-					fields[n] = t.dstFields[i]
+			for i := range t.srcFields {
+				fSrc := t.srcFields[i]
+				fDst := t.dstFields[i]
+
+				if slices.Contains(byFields, fDst) {
+					return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", fDst, t, q)
+				}
+				delete(metricFields, fDst)
+
+				if n := slices.Index(byFields, fSrc); n >= 0 {
+					byFields[n] = fDst
+				}
+				if _, ok := metricFields[fSrc]; ok {
+					delete(metricFields, fSrc)
+					metricFields[fDst] = struct{}{}
 				}
 			}
+		case *pipeFormat:
+			// Assume that `| format ...` pipe generates an additional by(...) label
+			if slices.Contains(byFields, t.resultField) {
+				return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", t.resultField, t, q)
+			} else {
+				byFields = append(byFields, t.resultField)
+			}
+			delete(metricFields, t.resultField)
 		default:
 			return nil, fmt.Errorf("the %q pipe cannot be put after %q pipe in the query [%s]", p, ps, q)
 		}
 	}
 
-	return fields, nil
+	if len(metricFields) == 0 {
+		return nil, fmt.Errorf("missing metric fields in the results of query [%s]", q)
+	}
+
+	return byFields, nil
 }
 
 func getLastPipeStatsIdx(pipes []pipe) int {
@@ -708,18 +774,23 @@ func ParseQuery(s string) (*Query, error) {
 	return ParseQueryAtTimestamp(s, timestamp)
 }
 
+// ParseStatsQuery parses s with needed stats query checks.
+func ParseStatsQuery(s string) (*Query, error) {
+	q, err := ParseQuery(s)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := q.GetStatsByFields(); err != nil {
+		return nil, err
+	}
+	return q, nil
+}
+
 // ParseQueryAtTimestamp parses s in the context of the given timestamp.
 //
-// E.g. _time:duration filters are ajusted according to the provided timestamp as _time:[timestamp-duration, duration].
+// E.g. _time:duration filters are adjusted according to the provided timestamp as _time:[timestamp-duration, duration].
 func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 	lex := newLexerAtTimestamp(s, timestamp)
-
-	// Verify the first token doesn't match pipe names.
-	firstToken := strings.ToLower(lex.rawToken)
-	if _, ok := pipeNames[firstToken]; ok {
-		return nil, fmt.Errorf("the query [%s] cannot start with pipe - it must start with madatory filter; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
-			"if the filter isn't missing, then please put the first word of the filter into quotes: %q", s, firstToken)
-	}
 
 	q, err := parseQuery(lex)
 	if err != nil {
@@ -759,9 +830,17 @@ func parseQuery(lex *lexer) (*Query, error) {
 }
 
 func parseFilter(lex *lexer) (filter, error) {
-	if lex.isKeyword("|", "") {
+	if lex.isKeyword("|", ")", "") {
 		return nil, fmt.Errorf("missing query")
 	}
+
+	// Verify the first token in the filter doesn't match pipe names.
+	firstToken := strings.ToLower(lex.rawToken)
+	if _, ok := pipeNames[firstToken]; ok {
+		return nil, fmt.Errorf("query filter cannot start with pipe keyword %q; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
+			"please put the first word of the filter into quotes", firstToken)
+	}
+
 	fo, err := parseFilterOr(lex, "")
 	if err != nil {
 		return nil, err
@@ -919,6 +998,10 @@ func getCompoundSuffix(lex *lexer, allowColon bool) string {
 
 func getCompoundToken(lex *lexer) (string, error) {
 	stopTokens := []string{",", "(", ")", "[", "]", "|", ""}
+	return getCompoundTokenExt(lex, stopTokens)
+}
+
+func getCompoundTokenExt(lex *lexer, stopTokens []string) (string, error) {
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
 	}

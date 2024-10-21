@@ -337,8 +337,8 @@ func (s *Storage) GetStreamFieldNames(ctx context.Context, tenantIDs []TenantID,
 
 	m := make(map[string]*uint64)
 	forEachStreamField(streams, func(f Field, hits uint64) {
-		pHits, ok := m[f.Name]
-		if !ok {
+		pHits := m[f.Name]
+		if pHits == nil {
 			nameCopy := strings.Clone(f.Name)
 			hitsLocal := uint64(0)
 			pHits = &hitsLocal
@@ -364,8 +364,8 @@ func (s *Storage) GetStreamFieldValues(ctx context.Context, tenantIDs []TenantID
 		if f.Name != fieldName {
 			return
 		}
-		pHits, ok := m[f.Value]
-		if !ok {
+		pHits := m[f.Value]
+		if pHits == nil {
 			valueCopy := strings.Clone(f.Value)
 			hitsLocal := uint64(0)
 			pHits = &hitsLocal
@@ -685,6 +685,10 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 		return ptws[i].day > maxDay
 	})
 	ptws = ptws[:n]
+
+	// Copy the selected partitions, so they don't interfere with s.partitions.
+	ptws = append([]*partitionWrapper{}, ptws...)
+
 	for _, ptw := range ptws {
 		ptw.incRef()
 	}

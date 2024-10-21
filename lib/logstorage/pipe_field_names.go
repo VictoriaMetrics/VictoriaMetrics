@@ -103,8 +103,8 @@ func (pfp *pipeFieldNamesProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	cs := br.getColumns()
 	for _, c := range cs {
-		pHits, ok := m[c.name]
-		if !ok {
+		pHits := m[c.name]
+		if pHits == nil {
 			nameCopy := strings.Clone(c.name)
 			hits := uint64(0)
 			pHits = &hits
@@ -128,8 +128,8 @@ func (pfp *pipeFieldNamesProcessor) flush() error {
 	shards = shards[1:]
 	for i := range shards {
 		for name, pHitsSrc := range shards[i].getM() {
-			pHits, ok := m[name]
-			if !ok {
+			pHits := m[name]
+			if pHits == nil {
 				m[name] = pHitsSrc
 			} else {
 				*pHits += *pHitsSrc

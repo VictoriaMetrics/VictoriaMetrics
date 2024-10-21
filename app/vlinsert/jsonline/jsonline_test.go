@@ -30,9 +30,9 @@ func TestProcessStreamInternal_Success(t *testing.T) {
 	msgField := "message"
 	rowsExpected := 3
 	timestampsExpected := []int64{1686026891735000000, 1686023292735000000, 1686026893735000000}
-	resultExpected := `{"@timestamp":"","log.offset":"71770","log.file.path":"/var/log/auth.log","_msg":"foobar"}
-{"@timestamp":"","_msg":"baz"}
-{"_msg":"xyz","@timestamp":"","x":"y"}`
+	resultExpected := `{"log.offset":"71770","log.file.path":"/var/log/auth.log","_msg":"foobar"}
+{"_msg":"baz"}
+{"_msg":"xyz","x":"y"}`
 	f(data, timeField, msgField, rowsExpected, timestampsExpected, resultExpected)
 }
 

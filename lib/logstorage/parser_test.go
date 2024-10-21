@@ -978,6 +978,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo | field_names y`, `foo | field_names as y`)
 	f(`foo | field_names`, `foo | field_names`)
 
+	// field_values pipe
+	f(`* | field_values x`, `* | field_values x`)
+	f(`* | field_values (x)`, `* | field_values x`)
+
 	// blocks_count pipe
 	f(`foo | blocks_count as x`, `foo | blocks_count as x`)
 	f(`foo | blocks_count y`, `foo | blocks_count as y`)
@@ -998,6 +1002,14 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | del foo`, `* | delete foo`)
 	f(`* | rm foo`, `* | delete foo`)
 	f(`* | DELETE foo, bar`, `* | delete foo, bar`)
+
+	// len pipe
+	f(`* | len(x)`, `* | len(x)`)
+	f(`* | len(x) as _msg`, `* | len(x)`)
+	f(`* | len(x) y`, `* | len(x) as y`)
+	f(`* | len  ( x ) as y`, `* | len(x) as y`)
+	f(`* | len x y`, `* | len(x) as y`)
+	f(`* | len x as y`, `* | len(x) as y`)
 
 	// limit and head pipe
 	f(`foo | limit`, `foo | limit 10`)
@@ -1184,6 +1196,11 @@ func TestParseQuerySuccess(t *testing.T) {
 	// filter pipe
 	f(`* | filter error ip:12.3.4.5 or warn`, `* | filter error ip:12.3.4.5 or warn`)
 	f(`foo | stats by (host) count() logs | filter logs:>50 | sort by (logs desc) | limit 10`, `foo | stats by (host) count(*) as logs | filter logs:>50 | sort by (logs desc) | limit 10`)
+	f(`* | error`, `* | filter error`)
+	f(`* | "by"`, `* | filter "by"`)
+	f(`* | "stats"`, `* | filter "stats"`)
+	f(`* | "count"`, `* | filter "count"`)
+	f(`* | foo:bar AND baz:<10`, `* | filter foo:bar baz:<10`)
 
 	// extract pipe
 	f(`* | extract "foo<bar>baz"`, `* | extract "foo<bar>baz"`)
@@ -1225,7 +1242,7 @@ func TestParseQueryFailure(t *testing.T) {
 		t.Helper()
 		q, err := ParseQuery(s)
 		if q != nil {
-			t.Fatalf("expecting nil result; got %s", q)
+			t.Fatalf("expecting nil result; got [%s]", q)
 		}
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
@@ -1519,6 +1536,12 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | delete foo,`)
 	f(`foo | delete foo,,`)
 
+	// invalid len pipe
+	f(`foo | len`)
+	f(`foo | len(`)
+	f(`foo | len()`)
+	f(`foo | len (x) y z`)
+
 	// invalid limit pipe value
 	f(`foo | limit bar`)
 	f(`foo | limit -123`)
@@ -1617,6 +1640,9 @@ func TestParseQueryFailure(t *testing.T) {
 	// stats result names identical to by fields
 	f(`foo | stats by (x) count() x`)
 
+	// missing stats function
+	f(`foo | by (bar)`)
+
 	// invalid sort pipe
 	f(`foo | sort bar`)
 	f(`foo | sort by`)
@@ -1650,6 +1676,14 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | filter | sort by (x)`)
 	f(`foo | filter (`)
 	f(`foo | filter )`)
+
+	f(`foo | filter stats`)
+	f(`foo | filter fields`)
+	f(`foo | filter by`)
+	f(`foo | count`)
+	f(`foo | filter count`)
+	f(`foo | (`)
+	f(`foo | )`)
 
 	// invalid extract pipe
 	f(`foo | extract`)
@@ -2078,6 +2112,7 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | rm x", true)
 	f("* | stats count() rows", false)
 	f("* | sort by (x)", false)
+	f("* | len(x)", true)
 	f("* | limit 10", false)
 	f("* | offset 10", false)
 	f("* | uniq (x)", false)
@@ -2114,6 +2149,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | field_values a", false)
 	f("* | filter foo", true)
 	f("* | format 'a<b>c'", true)
+	f("* | len(x)", true)
 	f("* | limit 10", false)
 	f("* | math a/b as c", true)
 	f("* | offset 10", false)
@@ -2204,6 +2240,10 @@ func TestQueryGetStatsByFieldsAddGroupingByTime_Failure(t *testing.T) {
 	f(`*`)
 	f(`_time:5m | count() | drop _time`)
 	f(`* | by (x) count() | keep x`)
+	f(`* | stats by (host) count() total | fields total`)
+	f(`* | stats by (host) count() total | delete host`)
+	f(`* | stats by (host) count() total | copy total as host`)
+	f(`* | stats by (host) count() total | rename host as server | fields host, total`)
 }
 
 func TestQueryGetStatsByFields_Success(t *testing.T) {
@@ -2240,17 +2280,39 @@ func TestQueryGetStatsByFields_Success(t *testing.T) {
 	// math pipe is allowed after stats
 	f(`foo | stats by (x) count() total, count() if (error) errors | math errors / total`, []string{"x"})
 
+	// derive math results
+	f(`foo | stats count() x | math x / 10 as y | rm x`, []string{})
+	f(`foo | stats by (z) count() x | math x / 10 as y | rm x`, []string{"z"})
+
 	// keep containing all the by(...) fields
-	f(`foo | stats by (x) count() total | keep x, y`, []string{"x"})
+	f(`foo | stats by (x) count() total | keep x, y, total`, []string{"x"})
+
+	// keep drops some metrics, but leaves others
+	f(`foo | stats by (x) count() y, count_uniq() z | keep x, z, abc`, []string{"x"})
 
 	// drop which doesn't contain by(...) fields
 	f(`foo | stats by (x) count() total | drop y`, []string{"x"})
+	f(`foo | stats by (x) count() total, count_uniq() z | drop z`, []string{"x"})
 
 	// copy which doesn't contain by(...) fields
 	f(`foo | stats by (x) count() total | copy total abc`, []string{"x"})
 
+	// copy by(...) fields
+	f(`foo | stats by (x) count() | copy x y, y z`, []string{"x", "y", "z"})
+
+	// copy metrics
+	f(`foo | stats by (x) count() y | copy y z | drop y`, []string{"x"})
+
 	// mv by(...) fields
 	f(`foo | stats by (x) count() total | mv x y`, []string{"y"})
+
+	// mv metrics
+	f(`foo | stats by (x) count() y | mv y z`, []string{"x"})
+	f(`foo | stats by (x) count() y | mv y z | rm y`, []string{"x"})
+
+	// format result is treated as by(...) field
+	f(`foo | count() | format "foo<bar>baz" as x`, []string{"x"})
+	f(`foo | by (x) count() | format "foo<bar>baz" as y`, []string{"x", "y"})
 }
 
 func TestQueryGetStatsByFields_Failure(t *testing.T) {
@@ -2281,7 +2343,6 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | field_names`)
 	f(`foo | count() | field_values abc`)
 	f(`foo | by (x) count() | fields a, b`)
-	f(`foo | count() | format "foo<bar>baz"`)
 	f(`foo | count() | pack_json`)
 	f(`foo | count() | pack_logfmt`)
 	f(`foo | rename x y`)
@@ -2295,5 +2356,31 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | unpack_syslog`)
 	f(`foo | count() | unroll by (x)`)
 
+	// drop by(...) field
 	f(`* | by (x) count() as rows | math rows * 10, rows / 10 | drop x`)
+
+	// missing metric fields
+	f(`* | count() x | fields y`)
+	f(`* | by (x) count() y | fields x`)
+
+	// math results override by(...) fields
+	f(`* | by (x) count() y | math y*100 as x`)
+
+	// copy to existing by(...) field
+	f(`* | by (x) count() | cp a x`)
+
+	// copy to the remaining metric field
+	f(`* | by (x) count() y | cp a y`)
+
+	// mv to existing by(...) field
+	f(`* | by (x) count() | mv a x`)
+
+	// mv to the remaining metric fields
+	f(`* | by (x) count() y | mv x y`)
+
+	// format to by(...) field
+	f(`* | by (x) count() | format 'foo' as x`)
+
+	// format to the remaining metric field
+	f(`* | by (x) count() y | format 'foo' as y`)
 }

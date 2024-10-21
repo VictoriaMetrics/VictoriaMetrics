@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"bytes"
 	"path/filepath"
 	"sort"
 
@@ -160,20 +159,18 @@ func (pt *partition) logIngestedRows(lr *LogRows) {
 }
 
 func (pt *partition) hasStreamIDInCache(sid *streamID) bool {
-	var result [1]byte
-
 	bb := bbPool.Get()
 	bb.B = pt.marshalStreamIDCacheKey(bb.B, sid)
-	value := pt.s.streamIDCache.Get(result[:0], bb.B)
+	_, ok := pt.s.streamIDCache.Get(bb.B)
 	bbPool.Put(bb)
 
-	return bytes.Equal(value, okValue)
+	return ok
 }
 
 func (pt *partition) putStreamIDToCache(sid *streamID) {
 	bb := bbPool.Get()
 	bb.B = pt.marshalStreamIDCacheKey(bb.B, sid)
-	pt.s.streamIDCache.Set(bb.B, okValue)
+	pt.s.streamIDCache.Set(bb.B, nil)
 	bbPool.Put(bb)
 }
 
@@ -182,8 +179,6 @@ func (pt *partition) marshalStreamIDCacheKey(dst []byte, sid *streamID) []byte {
 	dst = sid.marshal(dst)
 	return dst
 }
-
-var okValue = []byte("1")
 
 // debugFlush makes sure that all the recently ingested data data becomes searchable
 func (pt *partition) debugFlush() {
@@ -194,4 +189,9 @@ func (pt *partition) debugFlush() {
 func (pt *partition) updateStats(ps *PartitionStats) {
 	pt.ddb.updateStats(&ps.DatadbStats)
 	pt.idb.updateStats(&ps.IndexdbStats)
+}
+
+// mustForceMerge runs forced merge for all the parts in pt.
+func (pt *partition) mustForceMerge() {
+	pt.ddb.mustForceMergeAllParts()
 }

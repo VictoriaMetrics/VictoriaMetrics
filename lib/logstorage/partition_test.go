@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
 func TestPartitionLifecycle(t *testing.T) {
@@ -183,8 +182,8 @@ func TestPartitionMustAddRowsConcurrent(t *testing.T) {
 //
 // When the storage is no longer needed, closeTestStorage() must be called.
 func newTestStorage() *Storage {
-	streamIDCache := workingsetcache.New(1024 * 1024)
-	filterStreamCache := workingsetcache.New(1024 * 1024)
+	streamIDCache := newCache()
+	filterStreamCache := newCache()
 	return &Storage{
 		flushInterval:     time.Second,
 		streamIDCache:     streamIDCache,
@@ -194,6 +193,6 @@ func newTestStorage() *Storage {
 
 // closeTestStorage closes storage created via newTestStorage().
 func closeTestStorage(s *Storage) {
-	s.streamIDCache.Stop()
-	s.filterStreamCache.Stop()
+	s.streamIDCache.MustStop()
+	s.filterStreamCache.MustStop()
 }

@@ -30,30 +30,34 @@ func (f *Field) String() string {
 	return string(x)
 }
 
-func (f *Field) marshal(dst []byte) []byte {
-	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(f.Name))
+func (f *Field) marshal(dst []byte, marshalFieldName bool) []byte {
+	if marshalFieldName {
+		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(f.Name))
+	}
 	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(f.Value))
 	return dst
 }
 
-func (f *Field) unmarshal(a *arena, src []byte) ([]byte, error) {
+func (f *Field) unmarshalNoArena(src []byte, unmarshalFieldName bool) ([]byte, error) {
 	srcOrig := src
 
 	// Unmarshal field name
-	b, nSize := encoding.UnmarshalBytes(src)
-	if nSize <= 0 {
-		return srcOrig, fmt.Errorf("cannot unmarshal field name")
+	if unmarshalFieldName {
+		name, nSize := encoding.UnmarshalBytes(src)
+		if nSize <= 0 {
+			return srcOrig, fmt.Errorf("cannot unmarshal field name")
+		}
+		src = src[nSize:]
+		f.Name = bytesutil.ToUnsafeString(name)
 	}
-	src = src[nSize:]
-	f.Name = a.copyBytesToString(b)
 
 	// Unmarshal field value
-	b, nSize = encoding.UnmarshalBytes(src)
+	value, nSize := encoding.UnmarshalBytes(src)
 	if nSize <= 0 {
 		return srcOrig, fmt.Errorf("cannot unmarshal field value")
 	}
 	src = src[nSize:]
-	f.Value = a.copyBytesToString(b)
+	f.Value = bytesutil.ToUnsafeString(value)
 
 	return src, nil
 }
@@ -70,7 +74,11 @@ func (f *Field) marshalToJSON(dst []byte) []byte {
 }
 
 func (f *Field) marshalToLogfmt(dst []byte) []byte {
-	dst = append(dst, f.Name...)
+	name := f.Name
+	if name == "" {
+		name = "_msg"
+	}
+	dst = append(dst, name...)
 	dst = append(dst, '=')
 	if needLogfmtQuoting(f.Value) {
 		dst = quicktemplate.AppendJSONString(dst, f.Value, true)
@@ -91,11 +99,23 @@ func getFieldValue(fields []Field, name string) string {
 
 func needLogfmtQuoting(s string) bool {
 	for _, c := range s {
-		if !isTokenRune(c) {
+		if isLogfmtSpecialChar(c) {
 			return true
 		}
 	}
 	return false
+}
+
+func isLogfmtSpecialChar(c rune) bool {
+	if c <= 0x20 {
+		return true
+	}
+	switch c {
+	case '"', '\\':
+		return true
+	default:
+		return false
+	}
 }
 
 // RenameField renames field with the oldName to newName in Fields
@@ -114,13 +134,19 @@ func RenameField(fields []Field, oldName, newName string) {
 
 // MarshalFieldsToJSON appends JSON-marshaled fields to dst and returns the result.
 func MarshalFieldsToJSON(dst []byte, fields []Field) []byte {
+	fields = SkipLeadingFieldsWithoutValues(fields)
 	dst = append(dst, '{')
 	if len(fields) > 0 {
 		dst = fields[0].marshalToJSON(dst)
 		fields = fields[1:]
 		for i := range fields {
+			f := &fields[i]
+			if f.Value == "" {
+				// Skip fields without values
+				continue
+			}
 			dst = append(dst, ',')
-			dst = fields[i].marshalToJSON(dst)
+			dst = f.marshalToJSON(dst)
 		}
 	}
 	dst = append(dst, '}')
@@ -139,6 +165,15 @@ func MarshalFieldsToLogfmt(dst []byte, fields []Field) []byte {
 		dst = fields[i].marshalToLogfmt(dst)
 	}
 	return dst
+}
+
+// SkipLeadingFieldsWithoutValues skips leading fields without values.
+func SkipLeadingFieldsWithoutValues(fields []Field) []Field {
+	i := 0
+	for i < len(fields) && fields[i].Value == "" {
+		i++
+	}
+	return fields[i:]
 }
 
 func appendFields(a *arena, dst, src []Field) []Field {
