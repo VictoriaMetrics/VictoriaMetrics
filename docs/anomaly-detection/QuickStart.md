@@ -30,7 +30,7 @@ The following options are available:
 The `vmanomaly` service supports several command-line arguments to configure its behavior, including options for licensing, logging levels, and more. These arguments can be passed when starting the service via Docker or any other setup. Below is the list of available options:
 
 
-```text
+```shellhelp
 VictoriaMetrics Anomaly Detection Service
 
 positional arguments:
