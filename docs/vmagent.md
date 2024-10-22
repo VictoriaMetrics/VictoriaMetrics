@@ -575,6 +575,16 @@ generated metrics. But they still can be relabeled via `-remoteWrite.relabelConf
 VictoriaMetrics components support [Prometheus-compatible relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config)
 with [additional enhancements](#relabeling-enhancements). The relabeling can be defined in the following places processed by `vmagent`:
 
+* At the `global -> relabel_configs` section in `-promscrape.config` file.
+  This relabeling is used for modifying labels in discovered targets and for dropping unneeded targets.
+  Configuration from global section will be prepended to the `relabel_config` of targets from `scrape_config` section.
+  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling/) for details.
+
+* At the `global -> metric_relabel_configs` section in `-promscrape.config` file.
+  This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics.
+  Configuration from global section will be prepended to the `metric_relabel_config` of targets from `scrape_config` section.
+  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling/) for details.
+
 * At the `scrape_config -> relabel_configs` section in `-promscrape.config` file.
   This relabeling is used for modifying labels in discovered targets and for dropping unneeded targets.
   See [relabeling cookbook](https://docs.victoriametrics.com/relabeling/) for details.
