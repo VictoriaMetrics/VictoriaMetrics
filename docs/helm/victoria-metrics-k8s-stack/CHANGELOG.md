@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- Removed crds subchart as it's now included in operator
 
 ## 0.27.6
 
