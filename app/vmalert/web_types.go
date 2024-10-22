@@ -215,8 +215,10 @@ func recordingToAPI(rr *rule.RecordingRule) apiRule {
 		Updates:           rule.GetAllRuleState(rr),
 
 		// encode as strings to avoid rounding
-		ID:      fmt.Sprintf("%d", rr.ID()),
-		GroupID: fmt.Sprintf("%d", rr.GroupID),
+		ID:        fmt.Sprintf("%d", rr.ID()),
+		GroupID:   fmt.Sprintf("%d", rr.GroupID),
+		GroupName: rr.GroupName,
+		File:      rr.File,
 	}
 	if lastState.Err != nil {
 		r.LastError = lastState.Err.Error()
