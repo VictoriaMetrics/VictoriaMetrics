@@ -1091,7 +1091,7 @@ Report bugs and propose new features [here](https://github.com/VictoriaMetrics/V
 
 Below is the output for `/path/to/vminsert -help`:
 
-```
+```shellhelp
   -blockcache.missesBeforeCaching int
      The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -cacheExpireDuration duration
