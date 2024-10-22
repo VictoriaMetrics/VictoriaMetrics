@@ -64,7 +64,8 @@ A pull request should contain the following attributes:
 1. Try to not extend the scope of the pull requests outside the issue, do not make unrelated changes.
 1. Documentation update, if needed. For example, adding a new flag or changing behavior of existing flags or features 
   requires reflecting these changes in the documentation.
-1. A line in the [changelog](https://docs.victoriametrics.com/changelog/#tip) mentioning the change and related issue.
+1. A line in the [changelog](https://docs.victoriametrics.com/changelog/#tip) mentioning the change and related issue in a way
+  that would be clear to other readers even if they don't have the full context.
 1. Reviewers who you think have the best expertise on the matter.
 
 See good example of pull request [here](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6487).

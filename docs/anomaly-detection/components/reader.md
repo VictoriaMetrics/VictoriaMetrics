@@ -67,18 +67,22 @@ Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/chang
   - **High anomaly scores** (>1) when the *data falls outside the expected range*, indicating a data constraint violation.
   - **Lowest anomaly scores** (=0) when the *model's predictions (`yhat`) fall outside the expected range*, meaning uncertain predictions.
 
+- `max_points_per_query` (int): Introduced in [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170), optional arg overrides how `search.maxPointsPerTimeseries` flag (available since [v1.14.1](#v1141)) impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. If set on a query-level, it overrides the global `max_points_per_query` (reader-level).
+
 
 ### Per-query config example
 ```yaml
 reader:
   class: 'vm'
   sampling_period: '1m'
+  max_points_per_query: 10000
   # other reader params ...
   queries:
     ingestion_rate:
       expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
       step: '2m'  # overrides global `sampling_period` of 1m
       data_range: [10, 'inf']  # meaning only positive values > 10 are expected, i.e. a value `y` < 10 will trigger anomaly score > 1
+      max_points_per_query: 5000 # overrides reader-level value of 10000 for `ingestion_rate` query
 ```
 
 ### Config parameters
@@ -293,6 +297,17 @@ If True, then query will be performed from the last seen timestamp for a given s
 Introduced in [v1.15.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1151), it allows overriding the default `-search.latencyOffset` [flag of VictoriaMetrics](https://docs.victoriametrics.com/?highlight=search.latencyOffset#list-of-command-line-flags) (30s). The default value is set to 1ms, which should help in cases where `sampling_frequency` is low (10-60s) and `sampling_frequency` equals `infer_every` in the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/?highlight=infer_every#periodic-scheduler). This prevents users from receiving `service - WARNING - [Scheduler [scheduler_alias]] No data available for inference.` warnings in logs and allows for consecutive `infer` calls without gaps. To restore the old behavior, set it equal to your `-search.latencyOffset` [flag value]((https://docs.victoriametrics.com/?highlight=search.latencyOffset#list-of-command-line-flags)).
             </td>
         </tr>
+        <tr>
+            <td>
+`max_points_per_query`
+            </td>
+            <td>
+`10000`
+            </td>
+            <td>
+Introduced in [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170), optional arg overrides how `search.maxPointsPerTimeseries` flag (available since [v1.14.1](#v1141)) impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. You can also set it on [per-query](#per-query-parameters) basis to override this global one.
+            </td>
+        </tr>
     </tbody>
 </table>
 
@@ -312,16 +327,6 @@ reader:
   query_from_last_seen_timestamp: True  # false by default
   latency_offset: '1ms'
 ```
-
-<!-- ### mTLS protection
-
-Starting from [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163), `vmanomaly` supports [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) requests in its components, like [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer), and [Monitoring/Push](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters) to query from and write to [VictoriaMetrics Enterprise, configured in the same mode](https://docs.victoriametrics.com/#mtls-protection).
-
-Please see the description of next arguments in a [config](#config-parameters):
-- `verify_tls` (if string, acts similar to `-mtlsCAFile` command line arg of VictoriaMetrics).
-- `tls_cert_file` (if given, acts similar to `-tlsCertFile` command line arg of VictoriaMetrics).
-- `tls_key_file` (if given, acts similar to `-tlsKeyFile` command line arg of VictoriaMetrics). -->
-
 
 ### mTLS protection
 

@@ -30,30 +30,34 @@ func (f *Field) String() string {
 	return string(x)
 }
 
-func (f *Field) marshal(dst []byte) []byte {
-	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(f.Name))
+func (f *Field) marshal(dst []byte, marshalFieldName bool) []byte {
+	if marshalFieldName {
+		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(f.Name))
+	}
 	dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(f.Value))
 	return dst
 }
 
-func (f *Field) unmarshalNoArena(src []byte) ([]byte, error) {
+func (f *Field) unmarshalNoArena(src []byte, unmarshalFieldName bool) ([]byte, error) {
 	srcOrig := src
 
 	// Unmarshal field name
-	b, nSize := encoding.UnmarshalBytes(src)
-	if nSize <= 0 {
-		return srcOrig, fmt.Errorf("cannot unmarshal field name")
+	if unmarshalFieldName {
+		name, nSize := encoding.UnmarshalBytes(src)
+		if nSize <= 0 {
+			return srcOrig, fmt.Errorf("cannot unmarshal field name")
+		}
+		src = src[nSize:]
+		f.Name = bytesutil.ToUnsafeString(name)
 	}
-	src = src[nSize:]
-	f.Name = bytesutil.ToUnsafeString(b)
 
 	// Unmarshal field value
-	b, nSize = encoding.UnmarshalBytes(src)
+	value, nSize := encoding.UnmarshalBytes(src)
 	if nSize <= 0 {
 		return srcOrig, fmt.Errorf("cannot unmarshal field value")
 	}
 	src = src[nSize:]
-	f.Value = bytesutil.ToUnsafeString(b)
+	f.Value = bytesutil.ToUnsafeString(value)
 
 	return src, nil
 }

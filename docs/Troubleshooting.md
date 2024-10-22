@@ -129,9 +129,9 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    on the given `[start..end]` time range and check whether they are expected:
 
    ```sh
-   single-node: curl http://victoriametrics:8428/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...'
+   single-node: curl http://victoriametrics:8428/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...' -d 'reduce_mem_usage=1'
    
-   cluster: curl http://<vmselect>:8481/select/<tenantID>/prometheus/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...'
+   cluster: curl http://<vmselect>:8481/select/<tenantID>/prometheus/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...' -d 'reduce_mem_usage=1'
    ```
    Note that responses returned from [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
    and from [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) contain **evaluated** data

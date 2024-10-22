@@ -2,6 +2,15 @@
 
 - TODO
 
+## 0.35.5
+
+**Release date:** 2024-10-15
+
+![AppVersion: v0.48.4](https://img.shields.io/static/v1?label=AppVersion&message=v0.48.4&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updates operator to [v0.48.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.4) version
+
 ## 0.35.4
 
 **Release date:** 2024-10-11
