@@ -174,11 +174,6 @@ type Config struct {
 	// The parameter is only relevant for outputs: total, total_prometheus, increase, increase_prometheus and histogram_bucket.
 	StalenessInterval string `yaml:"staleness_interval,omitempty"`
 
-	// IgnoreFirstSampleInterval specifies the interval after which the agent begins sending samples.
-	// By default, it is set to the staleness interval, and it helps reduce the initial sample load after an agent restart.
-	// This parameter is relevant only for the following outputs: total, total_prometheus, increase, increase_prometheus, and histogram_bucket.
-	IgnoreFirstSampleInterval string `yaml:"ignore_first_sample_interval,omitempty"`
-
 	// Outputs is a list of output aggregate functions to produce.
 	//
 	// The following names are allowed:
@@ -491,16 +486,6 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		}
 	}
 
-	// check cfg.IgnoreFirstSampleInterval
-	// it's by default equals staleness interval to have backward compatibility, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7116
-	ignoreFirstSampleInterval := stalenessInterval
-	if cfg.IgnoreFirstSampleInterval != "" {
-		ignoreFirstSampleInterval, err = time.ParseDuration(cfg.IgnoreFirstSampleInterval)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse `ignore_first_sample_interval: %q`: %w", cfg.IgnoreFirstSampleInterval, err)
-		}
-	}
-
 	// Check cfg.DropInputLabels
 	dropInputLabels := opts.DropInputLabels
 	if v := cfg.DropInputLabels; v != nil {
@@ -558,6 +543,12 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	ignoreFirstIntervals := opts.IgnoreFirstIntervals
 	if v := cfg.IgnoreFirstIntervals; v != nil {
 		ignoreFirstIntervals = *v
+	}
+
+	// it's by default equals staleness interval to have backward compatibility, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7116
+	ignoreFirstSampleInterval := stalenessInterval
+	if v := cfg.IgnoreFirstIntervals; v != nil {
+		ignoreFirstSampleInterval = time.Duration(*v) * interval
 	}
 
 	// Initialize common metric labels

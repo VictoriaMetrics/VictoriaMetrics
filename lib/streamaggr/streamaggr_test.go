@@ -113,13 +113,6 @@ func TestAggregatorsFailure(t *testing.T) {
   outputs: ["avg"]
 `)
 
-	// bad ignore_first_sample_interval
-	f(`
-- interval: 1m
-  ignore_first_sample_interval: 1foo
-  outputs: ["avg"]
-`)
-
 	// keep_metric_names is set for multiple inputs
 	f(`
 - interval: 1m
