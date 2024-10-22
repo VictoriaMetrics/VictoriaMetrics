@@ -139,7 +139,7 @@ type blockSearch struct {
 
 	// cshCache is the columnsHeader associated with the given block.
 	//
-	// It is initialized lazily by calling getColumnsHeaderV0().
+	// It is initialized lazily by calling getColumnsHeader().
 	cshCache *columnsHeader
 
 	// seenStreams contains seen streamIDs for the recent searches.
@@ -240,7 +240,7 @@ func (bs *blockSearch) getConstColumnValue(name string) string {
 	}
 
 	if bs.partFormatVersion() < 1 {
-		csh := bs.getColumnsHeaderV0()
+		csh := bs.getColumnsHeader()
 		for _, cc := range csh.constColumns {
 			if cc.Name == name {
 				return cc.Value
@@ -288,7 +288,7 @@ func (bs *blockSearch) getColumnHeader(name string) *columnHeader {
 	}
 
 	if bs.partFormatVersion() < 1 {
-		csh := bs.getColumnsHeaderV0()
+		csh := bs.getColumnsHeader()
 		chs := csh.columnHeaders
 		for i := range chs {
 			ch := &chs[i]
@@ -337,48 +337,6 @@ func (bs *blockSearch) getColumnNameID(name string) (uint64, bool) {
 	return id, ok
 }
 
-func (bs *blockSearch) getColumnNameByID(id uint64) (string, bool) {
-	columnNames := bs.bsw.p.columnNames
-	if id >= uint64(len(columnNames)) {
-		return "", false
-	}
-	return columnNames[id], true
-}
-
-func (bs *blockSearch) getConstColumns() []Field {
-	if bs.partFormatVersion() < 1 {
-		csh := bs.getColumnsHeaderV0()
-		return csh.constColumns
-	}
-
-	chsIndex := bs.getColumnsHeaderIndex()
-	for _, cr := range chsIndex.constColumnsRefs {
-		columnName, ok := bs.getColumnNameByID(cr.columnNameID)
-		if !ok {
-			logger.Panicf("FATAL: %s: missing column name for id=%d", bs.bsw.p.path, cr.columnNameID)
-		}
-		_ = bs.getConstColumnValue(columnName)
-	}
-	return bs.ccsCache
-}
-
-func (bs *blockSearch) getColumnHeaders() []columnHeader {
-	if bs.partFormatVersion() < 1 {
-		csh := bs.getColumnsHeaderV0()
-		return csh.columnHeaders
-	}
-
-	chsIndex := bs.getColumnsHeaderIndex()
-	for _, cr := range chsIndex.columnHeadersRefs {
-		columnName, ok := bs.getColumnNameByID(cr.columnNameID)
-		if !ok {
-			logger.Panicf("FATAL: %s: missing column name for id=%d", bs.bsw.p.path, cr.columnNameID)
-		}
-		_ = bs.getColumnHeader(columnName)
-	}
-	return bs.chsCache
-}
-
 func (bs *blockSearch) getColumnsHeaderIndex() *columnsHeaderIndex {
 	if bs.partFormatVersion() < 1 {
 		logger.Panicf("BUG: getColumnsHeaderIndex() can be called only for part encoding v1+, while it has been called for v%d", bs.partFormatVersion())
@@ -395,18 +353,23 @@ func (bs *blockSearch) getColumnsHeaderIndex() *columnsHeaderIndex {
 	return bs.cshIndexCache
 }
 
-func (bs *blockSearch) getColumnsHeaderV0() *columnsHeader {
-	if bs.partFormatVersion() >= 1 {
-		logger.Panicf("BUG: getColumnsHeaderV0() can be called only for part encoding v0, while it has been called for v%d", bs.partFormatVersion())
-	}
-
+func (bs *blockSearch) getColumnsHeader() *columnsHeader {
 	if bs.cshCache == nil {
 		b := bs.getColumnsHeaderBlock()
 
-		bs.cshCache = getColumnsHeader()
-		if err := bs.cshCache.unmarshalNoArena(b, 0); err != nil {
+		csh := getColumnsHeader()
+		partFormatVersion := bs.partFormatVersion()
+		if err := csh.unmarshalNoArena(b, partFormatVersion); err != nil {
 			logger.Panicf("FATAL: %s: cannot unmarshal columns header: %s", bs.bsw.p.path, err)
 		}
+		if partFormatVersion >= 1 {
+			cshIndex := bs.getColumnsHeaderIndex()
+			if err := csh.setColumnNames(cshIndex, bs.bsw.p.columnNames); err != nil {
+				logger.Panicf("FATAL: %s: %s", bs.bsw.p.path, err)
+			}
+		}
+
+		bs.cshCache = csh
 	}
 	return bs.cshCache
 }

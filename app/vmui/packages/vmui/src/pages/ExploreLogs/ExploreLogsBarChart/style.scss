@@ -13,8 +13,12 @@
   }
 
   &__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     position: absolute;
-    transform: translateY(-25px);
+    top: 0;
+    bottom: 0;
     z-index: 2;
   }
 }

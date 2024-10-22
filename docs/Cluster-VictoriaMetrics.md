@@ -711,10 +711,12 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   Queries, which need more memory, are rejected. Heavy queries, which select big number of time series,
   may exceed the per-query memory limit by a small percent. The total memory limit for concurrently executed queries can be estimated
   as `-search.maxMemoryPerQuery` multiplied by `-search.maxConcurrentRequests`.
-- `-search.maxUniqueTimeseries` at `vmselect` component limits the number of unique time series a single query can find and process.
-  `vmselect` passes the limit to `vmstorage` component, which keeps in memory some metainformation about the time series located
-  by each query and spends some CPU time for processing the found time series. This means that the maximum memory usage and CPU usage
-  a single query can use at `vmstorage` is proportional to `-search.maxUniqueTimeseries`.
+- `-search.maxUniqueTimeseries` at `vmstorage` component limits the number of unique time series a single query can find and process.
+  This means that the maximum memory usage and CPU usage a single query can use at `vmstorage` is proportional to `-search.maxUniqueTimeseries`.
+  By default, `vmstorage` calculates this limit automatically based on the available memory and the maximum number of concurrent read requests (see `-search.maxConcurrentRequests`).
+  The calculated limit will be printed during process start-up logs and exposed as `vm_search_max_unique_timeseries` metric.
+- `-search.maxUniqueTimeseries` at `vmselect` adjusts the limit with the same name at `vmstorage`. The vmstorage limit can be adjusted
+  only to **lower value** and can't exceed it. By default, vmselect doesn't apply limit adjustments.
 - `-search.maxQueryDuration` at `vmselect` limits the duration of a single query. If the query takes longer than the given duration, then it is canceled.
   This allows saving CPU and RAM at `vmselect` and `vmstorage` when executing unexpectedly heavy queries.
   The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via `-search.maxQueryDuration` command-line flag.
@@ -1089,7 +1091,7 @@ Report bugs and propose new features [here](https://github.com/VictoriaMetrics/V
 
 Below is the output for `/path/to/vminsert -help`:
 
-```
+```shellhelp
   -blockcache.missesBeforeCaching int
      The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -cacheExpireDuration duration
@@ -1620,7 +1622,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxTagValueSuffixesPerSearch int
      The maximum number of tag value suffixes returned from /metrics/find (default 100000)
   -search.maxUniqueTimeseries int
-     The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage (default 300000)
+     The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage. The limit can't exceed the corresponding -search.maxUniqueTimeseries limit on vmstorage, it can be only set to lower values. (default 0)
   -search.maxWorkersPerQuery int
      The maximum number of CPU cores a single query can use. The default value should work good for most cases. The flag can be set to lower values for improving performance of big number of concurrently executed queries. The flag can be set to bigger values for improving performance of heavy queries, which scan big number of time series (>10K) and/or big number of samples (>100M). There is no sense in setting this flag to values bigger than the number of CPU cores available on the system (default 16)
   -search.minStalenessInterval duration
@@ -1894,7 +1896,7 @@ Below is the output for `/path/to/vmstorage -help`:
   -search.maxTagValues int
      The maximum number of tag values returned per search. See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration (default 100000)
   -search.maxUniqueTimeseries int
-     The maximum number of unique time series, which can be scanned during every query. This allows protecting against heavy queries, which select unexpectedly high number of series. Zero means 'no limit'. See also -search.max* command-line flags at vmselect
+     The maximum number of unique time series, which can be scanned during every query. This allows protecting against heavy queries, which select unexpectedly high number of series. When set to zero, the limit is automatically calculated based on -search.maxConcurrentRequests (inversely proportional) and memory available to the process (proportional). See also -search.max* command-line flags at vmselect.
   -smallMergeConcurrency int
      Deprecated: this flag does nothing
   -snapshotAuthKey value

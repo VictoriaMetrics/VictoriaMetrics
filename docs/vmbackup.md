@@ -127,6 +127,23 @@ which perform full object copy during server-side copying. This may be slow and 
 
 If the `-dst` already contains some data, then its' contents is synced with the `-origin` data. This allows making incremental server-side copies of backups.
 
+### Backups for VictoriaMetrics cluster
+
+`vmbackup` can be used for creating backups for [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/).
+In order to perform a complete backup for the cluster, `vmbackup` must be run on each `vmstorage` node in cluster. Backups must
+be placed into different directories on the remote storage in order to avoid conflicts between backups from different nodes.
+
+For example, when creating a backup with 3 `vmstorage` nodes, the following commands must be run:
+
+```sh
+vmstorage-1$ /vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.createURL=http://vmstorage1:8482/snapshot/create -dst=gs://<bucket>/vmstorage-1
+vmstorage-2$ /vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.createURL=http://vmstorage2:8482/snapshot/create -dst=gs://<bucket>/vmstorage-2
+vmstorage-3$ /vmbackup -storageDataPath=</path/to/vmstorage-data> -snapshot.createURL=http://vmstorage3:8482/snapshot/create -dst=gs://<bucket>/vmstorage-3
+````
+
+Note that `vmbackup` needs access to data folder of every `vmstorage` node. It is recommended to run `vmbackup` on the same machine where `vmstorage` is running.
+For Kubernetes deployments it is recommended to use [sidecar containers](https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/) for running `vmbackup` on the same pod with `vmstorage`.
+
 ## How does it work?
 
 The backup algorithm is the following:
@@ -308,7 +325,7 @@ Refer to the respective documentation for your object storage provider for more 
 
 Run `vmbackup -help` in order to see all the available options:
 
-```sh
+```shellhelp
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce backup duration (default 10)
   -configFilePath string

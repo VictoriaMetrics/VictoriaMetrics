@@ -11,6 +11,43 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.17.2
+Released: 2024-10-22
+
+- IMPROVEMENT: Added `vmanomaly_version_info` (service) and `vmanomaly_ui_version_info` (vmui) gauges to self-monitoring metrics.
+- IMPROVEMENT: Added `instance` and `job` labels to [pushed](https://docs.victoriametrics.com/keyconcepts/#push-model) metrics so they have the same labels as vmanomaly metrics that are [pulled](https://docs.victoriametrics.com/keyconcepts/#pull-model)/scraped. Metric labels can be customized via the [`extra_labels` argument](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/?highlight=extra_labels#push-config-parameters). By default job label will be `vmanomaly` and the instance label will be `f'{hostname}:{vmanomaly_port}`. See [monitoring.push](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters) for examples and details.
+- IMPROVEMENT: Added a subsection to [monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#logs-generated-by-vmanomaly) page with detailed per-component service logs, including reader and writer logs, error handling, metrics updates, and multi-tenancy warnings.
+- IMPROVEMENT: Added a new [Command-line arguments](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments) subsection to the [Quickstart guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/), providing details on available options for configuring `vmanomaly`.
+
+
+## v1.17.1
+Released: 2024-10-18
+
+- FIX: [Prophet models](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) no longer fail to train on *constant* data, data consisting of the same value and no variation across time. The bug prevented the `fit` stage from completing successfully, resulting in the model instance not being stored in the model registry, after automated model cleanup was added in [v1.17.0](#1170).
+
+## v1.17.0
+Released: 2024-10-17
+
+- FEATURE: Added `max_points_per_query` (global and [query-specific](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters)) [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) arg to control query chunking. This overrides how `search.maxPointsPerTimeseries` flag (introduced in [v1.14.1](#v1141)) is used in `vmanomaly` for splitting long `fit_window` queries into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead.
+
+- IMPROVEMENT: Enhanced the [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics for consistency across the components. Key changes include:
+  - Converted several [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics from `Summary` to `Histogram` to enable quantile calculation. This addresses the limitation of the `prometheus_client`'s [Summary](https://prometheus.github.io/client_python/instrumenting/summary/) implementation, which does not support quantiles. The change ensures metrics are more informative for performance analysis. Affected metrics are:
+    - `vmanomaly_reader_request_duration_seconds` ([VmReader](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics))
+    - `vmanomaly_reader_response_parsing_seconds` ([VmReader](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics))
+    - `vmanomaly_writer_request_duration_seconds` ([VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#writer-behaviour-metrics))
+    - `vmanomaly_writer_request_serialize_seconds` ([VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#writer-behaviour-metrics))
+  - Added a `query_key` label to the `vmanomaly_reader_response_parsing_seconds` [metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics) to provide finer granularity in tracking the performance of individual queries. This metric has also been switched from `Summary` to `Histogram` to align with the other metrics and support quantile calculations.
+  - Added `preset` and `scheduler_alias` keys to [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics) and [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#writer-behaviour-metrics) metrics for consistency in multi-[scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) setups.
+  - Renamed [Counters](https://prometheus.io/docs/concepts/metric_types/#counter) `vmanomaly_reader_response_count` to `vmanomaly_reader_responses` and `vmanomaly_writer_response_count` to `vmanomaly_writer_responses`.
+  - Updated [docs](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) for better clarity.
+
+- IMPROVEMENT: Accelerated performance of model fitting stages on multicore systems.
+- IMPROVEMENT: Optimized query handling in multi-[scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) setups by filtering [queries](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries) for each scheduler based on model requirements. This reduces unnecessary data fetching from VictoriaMetrics, ensuring only relevant queries are processed by the [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader), leading to better performance and efficiency of configs with multiple active schedulers.
+
+- IMPROVEMENT: Implemented automatic cleanup of files in subdirectories within `/tmp` ([generated by the Stan backend](https://mc-stan.org/cmdstanpy/users-guide/outputs.html) when utilizing [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) models) after each `fit` operation. This prevents the accumulation of unused data over time in `/tmp`, addressing a potential issue where these files would only be deleted upon termination of the current Python session or service, leading to uncontrolled disk growth.
+
+- FIX: Re-enable the `vmanomaly_reader_response_count` (now called `vmanomaly_reader_responses`) self-monitoring [metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics) for the [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), which was unintentionally disabled in previous releases and now updates correctly as intended.
+
 ## v1.16.3
 Released: 2024-10-08
 - IMPROVEMENT: Added `tls_cert_file` and `tls_key_file` arguments to support mTLS (mutual TLS) in `vmanomaly` components. This enhancement applies to the following components: [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer), and [Monitoring/Push](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters). You can also use these arguments in conjunction with `verify_tls` when it is set as a path to a custom CA certificate file.

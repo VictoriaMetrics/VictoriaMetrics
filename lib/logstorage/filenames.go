@@ -17,10 +17,7 @@ const (
 	metadataFilename = "metadata.json"
 	partsFilename    = "parts.json"
 
-	streamIDCacheFilename = "stream_id.bin"
-
 	indexdbDirname    = "indexdb"
 	datadbDirname     = "datadb"
-	cacheDirname      = "cache"
 	partitionsDirname = "partitions"
 )

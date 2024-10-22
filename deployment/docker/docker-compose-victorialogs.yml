@@ -36,11 +36,11 @@ services:
     networks:
       - vm_net
 
-#  VictoriaLogs instance, a single process responsible for
-#  storing logs and serving read queries.
+  #  VictoriaLogs instance, a single process responsible for
+  #  storing logs and serving read queries.
   victorialogs:
     container_name: victorialogs
-    image: docker.io/victoriametrics/victoria-logs:v0.36.0-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v0.37.0-victorialogs
     command:
       - "--storageDataPath=/vlogs"
       - "--httpListenAddr=:9428"
@@ -55,7 +55,7 @@ services:
   # scraping, storing metrics and serve read requests.
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.104.0
+    image: victoriametrics/victoria-metrics:v1.105.0
     ports:
       - 8428:8428
     volumes:
@@ -72,7 +72,7 @@ services:
   # vmalert executes alerting and recording rules
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.104.0
+    image: victoriametrics/vmalert:v1.105.0
     depends_on:
       - "victoriametrics"
       - "alertmanager"
