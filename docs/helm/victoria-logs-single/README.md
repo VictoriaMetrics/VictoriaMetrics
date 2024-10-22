@@ -175,26 +175,15 @@ Change the values according to the need of the environment in ``victoria-logs-si
             Nested_under kubernetes
             Add_prefix   kubernetes_
     outputs: |
-        [OUTPUT]
-            Name             http
-            Match            kube.*
-            Host             {{ include "victoria-logs.server.fullname" . }}
-            port             9428
-            compress         gzip
-            uri              /insert/jsonline
-            format           json_lines
-            json_date_format iso8601
-            header           AccountID 0
-            header           ProjectID 0
-            header           VL-Msg-Field log
-            header           VL-Time-Field date
-            header           VL-Stream-Fields stream,kubernetes_pod_name,kubernetes_container_name,kubernetes_namespace_name
+        @INCLUDE /fluent-bit/etc/conf/vl/output_*.conf
 daemonSetVolumeMounts:
     - mountPath: /var/log
       name: varlog
     - mountPath: /var/lib/docker/containers
       name: varlibdockercontainers
       readOnly: true
+    - mountPath: /fluent-bit/etc/conf/vl
+      name: victorialogs-outputs
 daemonSetVolumes:
     - hostPath:
         path: /var/log
@@ -202,6 +191,9 @@ daemonSetVolumes:
     - hostPath:
         path: /var/lib/docker/containers
       name: varlibdockercontainers
+    - configMap:
+        name: victorialogs-outputs
+      name: victorialogs-outputs
 enabled: false
 resources: {}
 </code>
@@ -241,20 +233,7 @@ resources: {}
       <td>tpl</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="tpl">
 <code class="language-yaml">fluent-bit.config.outputs: |
-  [OUTPUT]
-      Name             http
-      Match            kube.*
-      Host             {{ include "victoria-logs.server.fullname" . }}
-      port             9428
-      compress         gzip
-      uri              /insert/jsonline
-      format           json_lines
-      json_date_format iso8601
-      header           AccountID 0
-      header           ProjectID 0
-      header           VL-Msg-Field log
-      header           VL-Time-Field date
-      header           VL-Stream-Fields stream,kubernetes_pod_name,kubernetes_container_name,kubernetes_namespace_name
+  @INCLUDE /fluent-bit/etc/conf/vl/output_*.conf
  
 </code>
 </pre>
@@ -316,28 +295,6 @@ resources: {}
 </pre>
 </td>
       <td><p>Global name override</p>
-</td>
-    </tr>
-    <tr>
-      <td>global.victoriaLogs.server.fullnameOverride</td>
-      <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">null
-</code>
-</pre>
-</td>
-      <td><p>Overrides the full name of server component</p>
-</td>
-    </tr>
-    <tr>
-      <td>global.victoriaLogs.server.name</td>
-      <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">server
-</code>
-</pre>
-</td>
-      <td><p>Server container name</p>
 </td>
     </tr>
     <tr>
