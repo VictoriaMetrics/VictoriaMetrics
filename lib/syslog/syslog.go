@@ -111,23 +111,16 @@ func Init() {
 	syslogSendStopCh = make(chan struct{})
 	syslogSendWG.Add(1)
 	go func() {
-		fmt.Println("starting syslog sender")
 		syslogW.logSender()
-		fmt.Println("returned from syslog sender")
 		syslogSendWG.Done()
-		fmt.Println("syslog sender go routine exited")
 	}()
 }
 
 // Stop flushes all the log messages present in the buffered channel before shutting down
 func Stop() {
-	fmt.Println("Received Stop Signal for syslog sender")
 	close(syslogSendStopCh)
-	fmt.Println("waiting for syslog sender to complete sending of existing log messages")
 	syslogSendWG.Wait()
-	fmt.Println("successfully sent all the log messages")
 	syslogSendStopCh = nil
-	fmt.Println("completed shutdown of syslog sender")
 }
 
 // WriteInfo writes the log data to buffered channel. If the channel is full the oldest log data is dropped

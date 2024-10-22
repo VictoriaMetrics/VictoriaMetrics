@@ -85,15 +85,6 @@ func main() {
 	logger.Infof("started VictoriaMetrics in %.3f seconds", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
-	// TODO: Remove this log generator
-	go func() {
-		i := 1
-		for {
-			logger.Infof("Test log from routine:: log number: %d", i)
-			i++
-			time.Sleep(1 * time.Second)
-		}
-	}()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
 	pushmetrics.Stop()

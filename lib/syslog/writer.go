@@ -80,9 +80,7 @@ func (w *syslogWriter) logSender() {
 	for {
 		select {
 		case logEntry, ok := <-logChan:
-			fmt.Println("message available in log chan at time ", time.Now())
 			if ok {
-				fmt.Println("Sender sleeping for 5s before send")
 				time.Sleep(5 * time.Second)
 				_, err := w.send(logEntry.LogLevel, logEntry.Msg)
 				if err != nil {
@@ -90,10 +88,8 @@ func (w *syslogWriter) logSender() {
 						fmt.Fprintf(os.Stderr, "sendcase: unable to send %s message to syslog server after %d retries", logEntry.Msg, w.sysCfg.QueueConfig.Retries)
 					}
 				}
-				fmt.Println("Sender completed sleeping for 5s")
 			}
 		case <-syslogSendStopCh:
-			fmt.Println("stop chan signal received at ", time.Now())
 			close(logChan)
 			for logEntry := range logChan {
 				_, err := w.send(logEntry.LogLevel, logEntry.Msg)
