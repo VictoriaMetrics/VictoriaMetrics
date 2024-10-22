@@ -641,17 +641,6 @@ selectAllByDefault: true
 </td>
     </tr>
     <tr>
-      <td>crds</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">enabled: true
-</code>
-</pre>
-</td>
-      <td><p>Install VM operator CRDs</p>
-</td>
-    </tr>
-    <tr>
       <td>defaultDashboards.dashboards</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -2114,13 +2103,13 @@ selector:
       <td>victoria-metrics-operator</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">crd:
+<code class="language-yaml">crds:
     cleanup:
         enabled: true
         image:
             pullPolicy: IfNotPresent
             repository: bitnami/kubectl
-    create: false
+    plain: true
 enabled: true
 operator:
     disable_prometheus_converter: false
@@ -2130,6 +2119,17 @@ serviceMonitor:
 </pre>
 </td>
       <td><p>VictoriaMetrics Operator dependency chart configuration. More values can be found <a href="https://docs.victoriametrics.com/helm/victoriametrics-operator#parameters" target="_blank">here</a>. Also checkout <a href="https://docs.victoriametrics.com/operator/vars" target="_blank">here</a> possible ENV variables to configure operator behaviour</p>
+</td>
+    </tr>
+    <tr>
+      <td>victoria-metrics-operator.crds.plain</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
+</pre>
+</td>
+      <td><p>added temporary, till new operator version released</p>
 </td>
     </tr>
     <tr>
