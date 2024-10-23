@@ -8,6 +8,7 @@ import (
 	"time"
 
 	influx "github.com/influxdata/influxdb/client/v2"
+	"github.com/influxdata/influxdb/models"
 )
 
 type queryValues struct {
@@ -34,6 +35,26 @@ func parseResult(r influx.Result) ([]queryValues, error) {
 		}
 	}
 	return qValues, nil
+}
+
+// parseResultCheckTags checks if the series' tags in the result are identical to the original query condition.
+// When querying with condition like `WHERE a=1`, InfluxDB can return data with the tag `a=1` and data with the tag `a=1,b=1`.
+// However, the latter is not the same series. This function filters out those series.
+// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7301
+func parseResultCheckTags(s *Series, r influx.Result) ([]queryValues, error) {
+	if len(r.Err) > 0 {
+		return nil, fmt.Errorf("result error: %s", r.Err)
+	}
+
+	series := make([]models.Row, 0, len(r.Series))
+	for i := range r.Series {
+		if len(r.Series[i].Tags) == len(s.LabelPairs) {
+			series = append(series, r.Series[i])
+		}
+	}
+	// only Series field is replaced. Other fields can be omitted as they are not used.
+	r.Series = series
+	return parseResult(r)
 }
 
 func toFloat64(v any) (float64, error) {

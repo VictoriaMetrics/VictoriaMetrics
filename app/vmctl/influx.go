@@ -146,7 +146,7 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 	}
 
 	for {
-		time, values, err := cr.Next()
+		time, values, err := cr.Next(s)
 		if err != nil {
 			if err == io.EOF {
 				return nil
