@@ -50,6 +50,13 @@ func Init() {
 	logAllFlags()
 }
 
+// Stop stops the syslog routines if loggerOutput is syslog
+func Stop() {
+	if *loggerOutput == "syslog" {
+		syslog.Stop()
+	}
+}
+
 func initTimezone() {
 	tz, err := time.LoadLocation(*loggerTimezone)
 	if err != nil {

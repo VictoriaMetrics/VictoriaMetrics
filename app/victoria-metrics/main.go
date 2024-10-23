@@ -23,7 +23,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syslog"
 )
 
 var (
@@ -105,7 +104,8 @@ func main() {
 	fs.MustStopDirRemover()
 
 	logger.Infof("the VictoriaMetrics has been stopped in %.3f seconds", time.Since(startTime).Seconds())
-	syslog.Stop()
+	logger.Stop()
+
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
