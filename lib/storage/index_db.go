@@ -528,7 +528,7 @@ func (db *indexDB) getIndexSearch(deadline uint64) *indexSearch {
 
 // getIndexSearchSparse returns an indexSearch with sparse cache
 // It is useful for search operations that can scan through the large amount index entries
-// Without the need to keep all the entries in the cache
+// Without the need to keep all the entries in the caches used for queries
 // used in ENT version
 // nolint:unused
 func (db *indexDB) getIndexSearchSparse(deadline uint64) *indexSearch {
