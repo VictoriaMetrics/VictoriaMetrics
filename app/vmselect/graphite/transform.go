@@ -3151,7 +3151,7 @@ func transformRemoveEmptySeries(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSe
 			xff = xFilesFactor
 		}
 		n := aggrCount(s.Values)
-		if n/float64(len(s.Values)) < xff {
+		if n/float64(len(s.Values)) <= xff {
 			return nil, nil
 		}
 		s.expr = fe
