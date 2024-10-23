@@ -85,7 +85,7 @@ func (w *syslogWriter) logSender() {
 				_, err := w.send(logEntry.LogLevel, logEntry.Msg)
 				if err != nil {
 					if !w.sendWithRetry(logEntry) {
-						fmt.Fprintf(os.Stderr, "sendcase: unable to send %s message to syslog server after %d retries", logEntry.Msg, w.sysCfg.QueueConfig.Retries)
+						fmt.Fprintf(os.Stderr, "unable to send %s message to syslog server after %d retries", logEntry.Msg, w.sysCfg.QueueConfig.Retries)
 					}
 				}
 			}
@@ -106,7 +106,9 @@ func (w *syslogWriter) logSender() {
 func (w *syslogWriter) sendWithRetry(logEntry SyslogLogContent) bool {
 	duration, err := time.ParseDuration(w.sysCfg.QueueConfig.RetryDuration)
 	if err != nil {
-		fmt.Println("unable to parse retry duration")
+		fmt.Println("unable to parse retry duration. reason: ", err.Error())
+		fmt.Println("usign default value of 2s")
+		duration = defaultRetryDuration
 	}
 	for _ = range w.sysCfg.QueueConfig.Retries {
 		_, err := w.send(logEntry.LogLevel, logEntry.Msg)

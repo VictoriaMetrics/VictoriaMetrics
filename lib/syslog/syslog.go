@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"gopkg.in/yaml.v2"
 
@@ -64,6 +65,7 @@ const (
 	DEF_SYSLOG_SERVER_PORT         = 514
 	DEF_SYSLOG_FACILITY            = 16
 	DEF_SYSLOG_PROTOCOL            = "udp"
+	defaultRetryDuration           = 2 * time.Second
 )
 
 var (
