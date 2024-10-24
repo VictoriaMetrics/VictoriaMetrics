@@ -9,6 +9,7 @@ to restrict access to metrics to only those that belong to the tenant.
 * [Grafana](https://grafana.com/)
 * VictoriaMetrics single-node or cluster version
 * [vmgateway](https://docs.victoriametrics.com/vmgateway/)
+* An active license key. You can obtain a trial license key [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ## Configure identity service
 
@@ -96,7 +97,8 @@ Now starting vmgateway with enabled authentication is as simple as adding the `-
 In order to enable multi-tenant access, you must also specify the `-clusterMode=true` flag.
 
 ```sh
-./bin/vmgateway -eula \
+./bin/vmgateway \
+    -licenseFile=./vm-license.key
     -enable.auth=true \
     -clusterMode=true \
     -write.url=http://localhost:8480 \
@@ -162,7 +164,8 @@ vmgateway.
 To do this by using OpenID Connect discovery endpoint you need to specify the `-auth.oidcDiscoveryEndpoints` flag. For example:
 
 ```sh
-./bin/vmgateway -eula \
+./bin/vmgateway \
+    -licenseFile=./vm-license.key
     -enable.auth=true \
     -clusterMode=true \
     -write.url=http://localhost:8480 \
@@ -226,34 +229,34 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: change_me
 
   grafana:
-    image: grafana/grafana-oss:9.4.3
+    image: grafana/grafana:10.4.2
     network_mode: host
     volumes:
       - ./grafana.ini:/etc/grafana/grafana.ini
       - grafana_data:/var/lib/grafana/
 
   vmsingle:
-    image: victoriametrics/victoria-metrics:v1.91.0
+    image: victoriametrics/victoria-metrics:v1.105.0
     command:
       - -httpListenAddr=0.0.0.0:8429
 
   vmstorage:
-    image: victoriametrics/vmstorage:v1.91.0-cluster
+    image: victoriametrics/vmstorage:v1.105.0-cluster
 
   vminsert:
-    image: victoriametrics/vminsert:v1.91.0-cluster
+    image: victoriametrics/vminsert:v1.105.0-cluster
     command:
       - -storageNode=vmstorage:8400
       - -httpListenAddr=0.0.0.0:8480
 
   vmselect:
-    image: victoriametrics/vmselect:v1.91.0-cluster
+    image: victoriametrics/vmselect:v1.105.0-cluster
     command:
       - -storageNode=vmstorage:8401
       - -httpListenAddr=0.0.0.0:8481
 
   vmagent:
-    image: victoriametrics/vmagent:v1.91.0
+    image: victoriametrics/vmagent:v1.105.0
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
     command:
@@ -262,11 +265,14 @@ services:
       - -remoteWrite.url=http://vmsingle:8429/api/v1/write
 
   vmgateway-cluster:
-    image: victoriametrics/vmgateway:v1.91.0-enterprise
+    image: victoriametrics/vmgateway:v1.105.0-enterprise
     ports:
       - 8431:8431
+    volumes:
+      - ./vm-license.key:/opt/vm-license.key
     command:
-      - -eula
+      - -licenseFile=/opt/vm-license.key
+      - -license.forceOffline=true
       - -enable.auth=true
       - -clusterMode=true
       - -write.url=http://vminsert:8480
@@ -275,11 +281,13 @@ services:
       - -auth.oidcDiscoveryEndpoints=http://keycloak:8080/realms/master/.well-known/openid-configuration
 
   vmgateway-single:
-    image: victoriametrics/vmgateway:v1.91.0-enterprise
+    image: victoriametrics/vmgateway:v1.105.0-enterprise
     ports:
       - 8432:8431
+    volumes:
+      - ./vm-license.key:/opt/vm-license.key
     command:
-      - -eula
+      - -licenseFile=/opt/vm-license.key
       - -enable.auth=true
       - -write.url=http://vmsingle:8429
       - -read.url=http://vmsingle:8429
@@ -337,3 +345,69 @@ Both cluster and single node datasources now return metrics for `team=admin`.
 
 ![Admin cluster data](admin-cluster-data.webp)
 ![Admin single data](admin-single-data.webp)
+
+## Using oAuth for remote write with vmagent
+
+vmagent can be configured to use oAuth for remote write. This is in order to add authentication to the write requests.
+
+In order to create a client for vmagent to use, follow the steps below:
+
+1. Log in with admin credentials to your Keycloak instance
+1. Go to `Clients` -> `Create`.<br>
+   Use `OpenID Connect` as `Client Type`.<br>
+   Specify `vmagent` as `Client ID`.<br>
+   Click `Next`.<br>
+   ![Create client 1](vmagent-create-client-1.webp)
+1. Enable `Client authentication`.<br>
+   Enable `Authorization`.<br>
+   ![Create client 2](vmagent-create-client-2.webp)
+   Click `Next`.<br>
+1. Leave URLs section empty as vmagent will not use any.
+   ![Create client 3](vmagent-create-client-3.webp)
+   Click `Save`.<br>
+1. Go to `Clients` -> `vmagent` -> `Credentials`.<br>
+   ![Client secret](vmagent-client-secret.webp)
+   Copy the value of `Client secret`. It will be used later in vmagent configuration.<br>
+1. Go to `Clients` -> `vmagent` -> `Client scopes`.<br>
+   Click at `vmagent-dedicated` -> `Add mapper` -> `By configuration` -> `User attribute`.<br>
+   ![Create mapper 1](create-mapper-1.webp)
+   ![Create mapper 2](create-mapper-2.webp)
+   Configure the mapper as follows<br>
+   - `Name` as `vm_access`.
+   - `Token Claim Name` as `vm_access`.
+   - `User Attribute` as `vm_access`.
+   - `Claim JSON Type` as `JSON`.
+     Enable `Add to ID token` and `Add to access token`.<br>
+
+   ![Create mapper 3](create-mapper-3.webp)
+   Click `Save`.<br>
+1. Go to `Service account roles` -> click on `service-account-vmagent`.<br>
+   ![vmagent service account](vmagent-sa.webp)
+1. Go to `Attributes` tab and add an attribute.
+   Specify `vm_access` as `Key`.<br>
+   Specify `{"tenant_id" : {"account_id": 0, "project_id": 0 }}` as a value.<br>
+   ![User attributes](vmagent-sa-attributes.webp)
+   Click `Save`.
+
+Once iDP configuration is done, vmagent configuration needs to be updated to use oAuth for remote write:
+
+```yaml
+  vmagent:
+    image: victoriametrics/vmagent:v1.105.0
+    volumes:
+      - ./scrape.yaml:/etc/vmagent/config.yaml
+      - ./vmagent-client-secret:/etc/vmagent/oauth2-client-secret
+    command:
+      - -promscrape.config=/etc/vmagent/config.yaml
+      - -remoteWrite.url=http://vmgateway-cluster:8431/api/v1/write
+      - -remoteWrite.url=http://vmgateway-single:8431/api/v1/write
+      - -remoteWrite.oauth2.clientID={CLIENT_ID}
+      - -remoteWrite.oauth2.clientSecretFile=/etc/vmagent/oauth2-client-secret
+      - -remoteWrite.oauth2.tokenUrl=http://keycloak:8080/realms/master/protocol/openid-connect/token
+      - -remoteWrite.oauth2.scopes=openid
+```
+
+It is required to replace `{CLIENT_ID}` with the client ID and provide the client secret in `vmagent-client-secret` file.
+Note that vmagent will use the same token for both single-node and cluster vmgateway. vmgateway running in cluster mode
+will use tenant information from the token to route the request to the correct tenant. vmgateway running in single-node mode
+will just verify token validity.
