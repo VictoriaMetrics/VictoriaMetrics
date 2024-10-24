@@ -2384,3 +2384,25 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	// format to the remaining metric field
 	f(`* | by (x) count() y | format 'foo' as y`)
 }
+
+func TestHasTimeFilter(t *testing.T) {
+	f := func(qStr string, expected bool) {
+		t.Helper()
+
+		_, getTimeFilter, err := ParseStatsQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		if getTimeFilter != expected {
+			t.Fatalf("unexpected result for hasTimeFilter(%q); got %v; want %v", qStr, getTimeFilter, expected)
+		}
+	}
+
+	f(`* | count()`, false)
+	f(`* | _time: 5m | count()`, false)
+	f(`error OR _time:5m  | count()`, false)
+	f(`(_time: 5m AND error) OR (_time: 5m AND warn) | count()`, false)
+
+	f(`_time:5m | count()`, true)
+	f(`error AND _time:5m  | count()`, true)
+}

@@ -25,6 +25,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): properly set `group_name` and `file` fields for recording rules in `/api/v1/rules`.
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): fix issue with series matching for `vmctl vm-native` with `--vm-native-disable-per-metric-migration` flag enabled. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7309).
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): support writing rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) as the datasource. See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/).
+
 ## [v1.105.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.105.0)
 
 Released at 2024-10-21
