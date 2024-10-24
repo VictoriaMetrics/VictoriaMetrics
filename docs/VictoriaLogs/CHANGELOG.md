@@ -15,7 +15,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
-* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix incorrect updating of query and limit fields, as well as the reset of the display tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7279).
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix various glitches with updating query responses. The issue was introduced in [v0.36.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.36.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7279).
 
 ## [v0.37.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.37.0-victorialogs)
 
