@@ -199,7 +199,7 @@ func (cr *ChunkedResponse) Close() error {
 
 // Next reads the next part/chunk of time series.
 // Returns io.EOF when time series was read entirely.
-func (cr *ChunkedResponse) Next() ([]int64, []float64, error) {
+func (cr *ChunkedResponse) Next(s *Series) ([]int64, []float64, error) {
 	resp, err := cr.cr.NextResponse()
 	if err != nil {
 		return nil, nil, err
@@ -210,7 +210,7 @@ func (cr *ChunkedResponse) Next() ([]int64, []float64, error) {
 	if len(resp.Results) != 1 {
 		return nil, nil, fmt.Errorf("unexpected number of results in response: %d", len(resp.Results))
 	}
-	results, err := parseResult(resp.Results[0])
+	results, err := parseResultCheckTags(s, resp.Results[0])
 	if err != nil {
 		return nil, nil, err
 	}
