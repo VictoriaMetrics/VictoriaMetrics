@@ -4,32 +4,39 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sync"
+	"time"
 
 	"gopkg.in/yaml.v2"
-	
+
 	"github.com/VictoriaMetrics/metrics"
 )
 
+var (
+	syslogSendWG     sync.WaitGroup
+	syslogSendStopCh chan struct{}
+)
 
 type config struct {
 	SyslogConfig syslogConfig `yaml:"syslog"`
-	QueueConfig queueConfig   `yaml:"queue_config"`
+	QueueConfig  queueConfig  `yaml:"queue_config"`
 }
 
 type queueConfig struct {
-	Capacity int64 `yaml:"capacity,omitempty"`
-	Retries  int64 `yaml:"retries,omitempty"`
+	Capacity      int64  `yaml:"capacity,omitempty"`
+	Retries       int64  `yaml:"retries,omitempty"`
+	RetryDuration string `yaml:"retryDuration,omitempty"`
 }
 
 type syslogConfig struct {
-	RemoteHost  string    `yaml:"host"`
-	Port        int64     `yaml:"port,omitempty"`
-	Hostname    string    `yaml:"hostname,omitempty"`
-	Protocol    string    `yaml:"protocol,omitempty"`
-	RfcNum      int64     `yaml:"rfcNum,omitempty"`
-	Facility    int64     `yaml:"facility,omitempty"`
-	BasicAuth   basicAuth `yaml:"basic_auth,omitempty"`
-	Tls         tlsConfig `yaml:"tls,omitempty"`
+	RemoteHost string    `yaml:"host"`
+	Port       int64     `yaml:"port,omitempty"`
+	Hostname   string    `yaml:"hostname,omitempty"`
+	Protocol   string    `yaml:"protocol,omitempty"`
+	RfcNum     int64     `yaml:"rfcNum,omitempty"`
+	Facility   int64     `yaml:"facility,omitempty"`
+	BasicAuth  basicAuth `yaml:"basic_auth,omitempty"`
+	Tls        tlsConfig `yaml:"tls,omitempty"`
 }
 
 type basicAuth struct {
@@ -45,10 +52,9 @@ type tlsConfig struct {
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify,omitempty"`
 }
 
-
 // Log data to be written into the buffered channel and sent to the syslog server
 type SyslogLogContent struct {
-	Msg string
+	Msg      string
 	LogLevel string
 }
 
@@ -59,13 +65,13 @@ const (
 	DEF_SYSLOG_SERVER_PORT         = 514
 	DEF_SYSLOG_FACILITY            = 16
 	DEF_SYSLOG_PROTOCOL            = "udp"
+	defaultRetryDuration           = 2 * time.Second
 )
 
 var (
 	cfgFile = flag.String("syslogConfig", "", "Configuration file for syslog")
-	logChan      chan SyslogLogContent
+	logChan chan SyslogLogContent
 )
-
 
 // Init initializes the buffered channel and the syslog writer
 func Init() {
@@ -99,17 +105,28 @@ func Init() {
 		panic(fmt.Errorf("Syslog is configured but configuration file missing"))
 	}
 
-	// Initializes the buffered channel and the syslog writer 
+	// Initializes the buffered channel and the syslog writer
 	logChan = make(chan SyslogLogContent, sysCfg.QueueConfig.Capacity)
 	syslogW := &syslogWriter{framer: defaultFramer, formatter: defaultFormatter}
 	syslogW.sysCfg = sysCfg
-	
 	// watches the channel for log data written by the logger and forwards it to the syslog server
-	go syslogW.logSender();
+	syslogSendStopCh = make(chan struct{})
+	syslogSendWG.Add(1)
+	go func() {
+		syslogW.logSender()
+		syslogSendWG.Done()
+	}()
+}
+
+// Stop flushes all the log messages present in the buffered channel before shutting down
+func Stop() {
+	close(syslogSendStopCh)
+	syslogSendWG.Wait()
+	syslogSendStopCh = nil
 }
 
 // WriteInfo writes the log data to buffered channel. If the channel is full the oldest log data is dropped
-func WriteInfo(s SyslogLogContent) (error) {
+func WriteInfo(s SyslogLogContent) error {
 	channelSize := "vm_syslog_queue_size"
 	metrics.GetOrCreateGauge(channelSize, func() float64 {
 		return float64(len(logChan))

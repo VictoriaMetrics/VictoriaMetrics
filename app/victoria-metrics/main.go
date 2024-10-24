@@ -104,6 +104,8 @@ func main() {
 	fs.MustStopDirRemover()
 
 	logger.Infof("the VictoriaMetrics has been stopped in %.3f seconds", time.Since(startTime).Seconds())
+	logger.Stop()
+
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
