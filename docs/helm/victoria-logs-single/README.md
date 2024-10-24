@@ -1,4 +1,4 @@
- ![Version: 0.6.6](https://img.shields.io/badge/Version-0.6.6-informational?style=flat-square)
+ ![Version: 0.7.0](https://img.shields.io/badge/Version-0.7.0-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-logs-single)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -143,6 +143,69 @@ Change the values according to the need of the environment in ``victoria-logs-si
     <th class="helm-vars-description">Description</th>
   </thead>
   <tbody>
+    <tr>
+      <td>dashboards.annotations</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Dashboard annotations</p>
+</td>
+    </tr>
+    <tr>
+      <td>dashboards.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Create VictoriaLogs dashboards</p>
+</td>
+    </tr>
+    <tr>
+      <td>dashboards.grafanaOperator.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>dashboards.grafanaOperator.spec.allowCrossNamespaceImport</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>dashboards.grafanaOperator.spec.instanceSelector.matchLabels.dashboards</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">grafana
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>dashboards.labels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Dashboard labels</p>
+</td>
+    </tr>
     <tr>
       <td>extraObjects</td>
       <td>list</td>
