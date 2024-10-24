@@ -38,7 +38,7 @@ func parsePod(data []byte) (object, error) {
 
 // PodList implements k8s pod list.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#podlist-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podlist-v1-core
 type PodList struct {
 	Metadata ListMeta
 	Items    []*Pod
@@ -46,7 +46,7 @@ type PodList struct {
 
 // Pod implements k8s pod.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#pod-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#pod-v1-core
 type Pod struct {
 	Metadata ObjectMeta
 	Spec     PodSpec
@@ -55,7 +55,7 @@ type Pod struct {
 
 // PodSpec implements k8s pod spec.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#podspec-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podspec-v1-core
 type PodSpec struct {
 	NodeName       string
 	Containers     []Container
@@ -64,11 +64,12 @@ type PodSpec struct {
 
 // Container implements k8s container.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#container-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#container-v1-core
 type Container struct {
-	Name  string
-	Image string
-	Ports []ContainerPort
+	Name          string
+	Image         string
+	Ports         []ContainerPort
+	RestartPolicy string
 }
 
 // ContainerPort implements k8s container port.
@@ -80,7 +81,7 @@ type ContainerPort struct {
 
 // PodStatus implements k8s pod status.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#podstatus-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podstatus-v1-core
 type PodStatus struct {
 	Phase                 string
 	PodIP                 string
@@ -92,7 +93,7 @@ type PodStatus struct {
 
 // PodCondition implements k8s pod condition.
 //
-// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#podcondition-v1-core
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#podcondition-v1-core
 type PodCondition struct {
 	Type   string
 	Status string
@@ -198,11 +199,6 @@ func appendPodLabelsInternal(ms []*promutils.Labels, gw *groupWatcher, p *Pod, c
 	}
 	m := promutils.GetLabels()
 	m.Add("__address__", addr)
-	isInitStr := "false"
-	if isInit {
-		isInitStr = "true"
-	}
-	m.Add("__meta_kubernetes_pod_container_init", isInitStr)
 
 	containerID := getContainerID(p, c.Name, isInit)
 	if containerID != "" {
@@ -210,13 +206,18 @@ func appendPodLabelsInternal(ms []*promutils.Labels, gw *groupWatcher, p *Pod, c
 	}
 
 	p.appendCommonLabels(m, gw)
-	p.appendContainerLabels(m, c, cp)
+	p.appendContainerLabels(m, c, cp, isInit)
 	return append(ms, m)
 }
 
-func (p *Pod) appendContainerLabels(m *promutils.Labels, c *Container, cp *ContainerPort) {
+func (p *Pod) appendContainerLabels(m *promutils.Labels, c *Container, cp *ContainerPort, isInit bool) {
 	m.Add("__meta_kubernetes_pod_container_image", c.Image)
 	m.Add("__meta_kubernetes_pod_container_name", c.Name)
+	isInitStr := "false"
+	if isInit {
+		isInitStr = "true"
+	}
+	m.Add("__meta_kubernetes_pod_container_init", isInitStr)
 	if cp != nil {
 		m.Add("__meta_kubernetes_pod_container_port_name", cp.Name)
 		m.Add("__meta_kubernetes_pod_container_port_number", bytesutil.Itoa(cp.ContainerPort))
