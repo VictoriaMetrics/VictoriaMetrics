@@ -9,6 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -91,7 +92,7 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 		}
 
 		offsetMsecs := time.Now().UnixMilli()
-		inputTss := prompbmarshal.MustParsePromMetrics(input, offsetMsecs)
+		inputTss := prompbmarshal.MustParsePromMetrics(input, prometheus.TextHeader, offsetMsecs)
 		expectedTss := make([]prompbmarshal.TimeSeries, len(inputTss))
 
 		// copy inputTss to make sure it is not mutated during TryPush call
