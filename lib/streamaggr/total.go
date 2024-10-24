@@ -20,15 +20,7 @@ type totalAggrState struct {
 	keepFirstSample bool
 
 	// Time series state is dropped if no new samples are received during stalenessSecs.
-	//
-	// Aslo, the first sample per each new series is ignored during stalenessSecs even if keepFirstSample is set.
-	// see ignoreFirstSampleDeadline for more details.
 	stalenessSecs uint64
-
-	// The first sample per each new series is ignored until this unix timestamp deadline in seconds even if keepFirstSample is set.
-	// This allows avoiding an initial spike of the output values at startup when new time series
-	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
-	ignoreFirstSampleDeadline uint64
 }
 
 type totalStateValue struct {
@@ -45,22 +37,19 @@ type totalLastValueState struct {
 	deleteDeadline uint64
 }
 
-func newTotalAggrState(stalenessInterval, ignoreFirstSampleInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
+func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
-	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + roundDurationToSecs(ignoreFirstSampleInterval)
 
 	return &totalAggrState{
-		resetTotalOnFlush:         resetTotalOnFlush,
-		keepFirstSample:           keepFirstSample,
-		stalenessSecs:             stalenessSecs,
-		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
+		resetTotalOnFlush: resetTotalOnFlush,
+		keepFirstSample:   keepFirstSample,
+		stalenessSecs:     stalenessSecs,
 	}
 }
 
 func (as *totalAggrState) pushSamples(samples []pushSample) {
 	currentTime := fasttime.UnixTimestamp()
 	deleteDeadline := currentTime + as.stalenessSecs
-	keepFirstSample := as.keepFirstSample && currentTime > as.ignoreFirstSampleDeadline
 	for i := range samples {
 		s := &samples[i]
 		inputKey, outputKey := getInputOutputKey(s.key)
@@ -84,7 +73,7 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 		deleted := sv.deleted
 		if !deleted {
 			lv, ok := sv.lastValues[inputKey]
-			if ok || keepFirstSample {
+			if ok || as.keepFirstSample {
 				if s.timestamp < lv.timestamp {
 					// Skip out of order sample
 					sv.mu.Unlock()

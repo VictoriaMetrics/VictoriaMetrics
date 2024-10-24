@@ -545,12 +545,6 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		ignoreFirstIntervals = *v
 	}
 
-	// it's by default equals staleness interval to have backward compatibility, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7116
-	ignoreFirstSampleInterval := stalenessInterval
-	if v := cfg.IgnoreFirstIntervals; v != nil {
-		ignoreFirstSampleInterval = time.Duration(*v) * interval
-	}
-
 	// Initialize common metric labels
 	name := cfg.Name
 	if name == "" {
@@ -566,7 +560,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	aggrOutputs := make([]aggrOutput, len(cfg.Outputs))
 	outputsSeen := make(map[string]struct{}, len(cfg.Outputs))
 	for i, output := range cfg.Outputs {
-		as, err := newAggrState(output, outputsSeen, stalenessInterval, ignoreFirstSampleInterval)
+		as, err := newAggrState(output, outputsSeen, stalenessInterval)
 		if err != nil {
 			return nil, err
 		}
@@ -654,7 +648,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	return a, nil
 }
 
-func newAggrState(output string, outputsSeen map[string]struct{}, stalenessInterval, ignoreFirstSampleInterval time.Duration) (aggrState, error) {
+func newAggrState(output string, outputsSeen map[string]struct{}, stalenessInterval time.Duration) (aggrState, error) {
 	// check for duplicated output
 	if _, ok := outputsSeen[output]; ok {
 		return nil, fmt.Errorf("`outputs` list contains duplicate aggregation function: %s", output)
@@ -699,9 +693,9 @@ func newAggrState(output string, outputsSeen map[string]struct{}, stalenessInter
 	case "histogram_bucket":
 		return newHistogramBucketAggrState(stalenessInterval), nil
 	case "increase":
-		return newTotalAggrState(stalenessInterval, ignoreFirstSampleInterval, true, true), nil
+		return newTotalAggrState(stalenessInterval, true, true), nil
 	case "increase_prometheus":
-		return newTotalAggrState(stalenessInterval, ignoreFirstSampleInterval, true, false), nil
+		return newTotalAggrState(stalenessInterval, true, false), nil
 	case "last":
 		return newLastAggrState(), nil
 	case "max":
@@ -719,9 +713,9 @@ func newAggrState(output string, outputsSeen map[string]struct{}, stalenessInter
 	case "sum_samples":
 		return newSumSamplesAggrState(), nil
 	case "total":
-		return newTotalAggrState(stalenessInterval, ignoreFirstSampleInterval, false, true), nil
+		return newTotalAggrState(stalenessInterval, false, true), nil
 	case "total_prometheus":
-		return newTotalAggrState(stalenessInterval, ignoreFirstSampleInterval, false, false), nil
+		return newTotalAggrState(stalenessInterval, false, false), nil
 	case "unique_samples":
 		return newUniqueSamplesAggrState(), nil
 	default:
