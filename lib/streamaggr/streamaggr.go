@@ -481,6 +481,9 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		if stalenessInterval < interval {
 			return nil, fmt.Errorf("staleness_interval=%s cannot be smaller than interval=%s", cfg.StalenessInterval, cfg.Interval)
 		}
+		if stalenessInterval%interval != 0 {
+			return nil, fmt.Errorf("staleness_interval=%s must be a multiple of interval=%s", stalenessInterval, interval)
+		}
 	}
 
 	// Check cfg.DropInputLabels
