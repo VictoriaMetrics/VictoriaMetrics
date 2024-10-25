@@ -221,7 +221,11 @@ Change the values according to the need of the environment in ``victoria-logs-si
       <td>fluent-bit</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">config:
+<code class="language-yaml">args:
+    - --workdir=/fluent-bit/etc
+    - --config=/fluent-bit/etc/conf/fluent-bit.conf
+    - --enable-hot-reload
+config:
     filters: |
         [FILTER]
             Name                kubernetes
@@ -246,7 +250,7 @@ daemonSetVolumeMounts:
       name: varlibdockercontainers
       readOnly: true
     - mountPath: /fluent-bit/etc/conf/vl
-      name: victorialogs-outputs
+      name: vl-outputs
 daemonSetVolumes:
     - hostPath:
         path: /var/log
@@ -255,9 +259,21 @@ daemonSetVolumes:
         path: /var/lib/docker/containers
       name: varlibdockercontainers
     - configMap:
-        name: victorialogs-outputs
-      name: victorialogs-outputs
+        name: vl-outputs
+      name: vl-outputs
 enabled: false
+extraContainers: |
+    - name: reloader
+      image: {{ include "fluent-bit.image" .Values.hotReload.image }}
+      args:
+        - {{ printf "-webhook-url=http://localhost:%s/api/v2/reload" (toString .Values.metricsPort) }}
+        - -volume-dir=/watch/config
+        - -volume-dir=/watch/outputs
+      volumeMounts:
+        - name: config
+          mountPath: /watch/config
+        - name: vl-outputs
+          mountPath: /watch/outputs
 resources: {}
 </code>
 </pre>
