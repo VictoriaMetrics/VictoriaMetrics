@@ -10,12 +10,25 @@ url: /victorialogs/data-ingestion/datadog-agent/
 aliases:
   - /VictoriaLogs/data-ingestion/DataDogAgent.html
 ---
-Enable logs and specify a custom URL instead of default one for sending collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
+Datadog Agent doesn't support custom path prefix, so for this reason it's required to use [VMAuth](https://docs.victoriametrics.com/vmauth/) or any other
+reverse proxy to append `/insert/datadog` path prefix to all Datadog API logs requests.
+
+In case of [VMAuth](https://docs.victoriametrics.com/vmauth/) your config should look like:
+
+```yaml
+unauthorized_user:
+  url_map:
+    - src_paths:
+        - "/api/v2/logs"
+      url_prefix: "`<victoria-logs-base-url>`/insert/datadog/"
+```
+
+To start ingesting logs from DataDog agent please specify a custom URL instead of default one for sending collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
 
 ```yaml
 logs_enabled: true
 logs_config:
-  logs_dd_url: http://localhost:9428/
+  logs_dd_url: `<vmauth-base-url>`
   use_http: true
 ```
 
@@ -27,7 +40,13 @@ custom:
     apiKey: fakekey                 # Set any key, otherwise plugin fails
 provider:
   environment:
-    LOGS_DD_URL: <<vm-url>>/   # VictoriaLogs endpoint for DataDog
+    LOGS_DD_URL: `<vmauth-base-url>`/   # VictoriaLogs endpoint for DataDog
 ```
 
-Substitute the `localhost:9428` address with the real address of VictoriaLogs.
+Substitute the `<vmauth-base-url>` address with the real address of VMAuth proxy.
+
+See also:
+
+- [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
+- [Docker-compose demo for Datadog integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/datadog).

@@ -92,12 +92,26 @@ func TestReadLogsRequestSuccess(t *testing.T) {
 			"hostname":"127.0.0.1",
 			"message":"xyz",
 			"service":"test"
+		}, {
+			"ddsource": "nginx",
+			"ddtags":"tag1:value1,tag2:value2,",
+			"hostname":"127.0.0.1",
+                        "message":"xyz",
+                        "service":"test"
+                }, {
+			"ddsource":"nginx",
+			"ddtags":",tag1:value1,tag2:value2",
+			"hostname":"127.0.0.1",
+                        "message":"xyz",
+                        "service":"test"
 		}
 	]`
-	rowsExpected := 4
+	rowsExpected := 6
 	resultExpected := `{"ddsource":"nginx","tag1":"value1","tag2":"value2","hostname":"127.0.0.1","_msg":"bar","service":"test"}
 {"ddsource":"nginx","tag1":"value1","tag2":"value2","hostname":"127.0.0.1","_msg":"foobar","service":"test"}
 {"ddsource":"nginx","tag1":"value1","tag2":"value2","hostname":"127.0.0.1","_msg":"baz","service":"test"}
+{"ddsource":"nginx","tag1":"value1","tag2":"value2","hostname":"127.0.0.1","_msg":"xyz","service":"test"}
+{"ddsource":"nginx","tag1":"value1","tag2":"value2","hostname":"127.0.0.1","_msg":"xyz","service":"test"}
 {"ddsource":"nginx","tag1":"value1","tag2":"value2","hostname":"127.0.0.1","_msg":"xyz","service":"test"}`
 	f(data, rowsExpected, resultExpected)
 }

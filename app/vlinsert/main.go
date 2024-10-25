@@ -1,7 +1,6 @@
 package vlinsert
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -28,17 +27,6 @@ func Stop() {
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 
-	// agents, which do not support custom path prefix
-	switch path {
-	case "/api/v1/validate":
-		fmt.Fprintf(w, `{}`)
-		return true
-	case "/api/v2/logs":
-		if r.Header.Get("dd-api-key") != "" {
-			return datadog.RequestHandler(path, w, r)
-		}
-		return false
-	}
 	if !strings.HasPrefix(path, "/insert/") {
 		// Skip requests, which do not start with /insert/, since these aren't our requests.
 		return false
@@ -63,6 +51,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case strings.HasPrefix(path, "/journald/"):
 		path = strings.TrimPrefix(path, "/journald")
 		return journald.RequestHandler(path, w, r)
+	case strings.HasPrefix(path, "/datadog/"):
+		path = strings.TrimPrefix(path, "/datadog")
+		return datadog.RequestHandler(path, w, r)
 	default:
 		return false
 	}

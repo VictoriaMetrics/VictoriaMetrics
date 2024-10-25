@@ -12,7 +12,7 @@ sinks:
     type: datadog_logs
     inputs: [demo]
     default_api_key: test
-    endpoint: http://victorialogs:9428
+    endpoint: http://dd-logs:8427
     compression: gzip
     request:
       headers:
