@@ -2,7 +2,8 @@
 
 ## Next release
 
-- TODO
+- Added vm.podLabels template
+- Do no append default `<component>` prefix/suffix when `<component>.fullnameOverride` set
 
 ## 0.0.16
 
