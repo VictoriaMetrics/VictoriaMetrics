@@ -91,6 +91,7 @@ Released at 2024-11-04
 * FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards) for VM single-node, cluster, vmalert, vmagent, VictoriaLogs: add `Restarts` panel to show the events of process restarts. This panel should help correlate events of restart with unexpected behavior of processes.
 * FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmalert.yml): add alerting rule `RemoteWriteDroppingData` to track number of dropped samples that weren't sent to remote write URL.
 * FEATURE: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): use `evaluation_interval` as default `interval` value in [test_group](https://docs.victoriametrics.com/vmalert-tool/index.html#lttest_groupgt). This change aligns with promtool behavior.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent): ignore_first_sample_interval allows user to control when we send first metric to prometheus, overriding default staleness_interval * 2 behaviour.
 
 * BUGFIX: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards) for Single-node VictoriaMetrics, cluster: The free disk space calculation now will subtract the size of the `-storage.minFreeDiskSpaceBytes` flag to correctly display the remaining available space of Single-node VictoriaMetrics/vmstorage rather than the actual available disk space, as well as the full ETA. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7334) for the details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): properly set `group_name` and `file` fields for recording rules in `/api/v1/rules`.
@@ -98,8 +99,6 @@ Released at 2024-11-04
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic when ingesting samples which are outside of configured [retention filters](https://docs.victoriametrics.com/#retention-filters). This could happen when backfilling data with retention filters which exclude samples from the backfill range.
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): fix issue with series matching for `vmctl vm-native` with `--vm-native-disable-per-metric-migration` flag enabled. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7309).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the display of the link to vmalert. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5924).
-
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): staleness_interval no longer affects when vmagent starts sending the first samples.
 
 ## [v1.105.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.105.0)
 

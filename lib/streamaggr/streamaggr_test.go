@@ -75,21 +75,21 @@ func TestAggregatorsFailure(t *testing.T) {
 	f(`
 - interval: 1m
   dedup_interval: 1foo
-  outputs: ["quantiles"]
+  outputs: ["avg"]
 `)
 
 	// interval isn't multiple of dedup_interval
 	f(`
 - interval: 1m
   dedup_interval: 35s
-  outputs: ["quantiles"]
+  outputs: ["avg"]
 `)
 
 	// dedup_interval is bigger than dedup_interval
 	f(`
 - interval: 1m
   dedup_interval: 1h
-  outputs: ["quantiles"]
+  outputs: ["avg"]
 `)
 
 	// bad staleness_interval
@@ -103,13 +103,6 @@ func TestAggregatorsFailure(t *testing.T) {
 	f(`
 - interval: 1m
   staleness_interval: 30s
-  outputs: ["avg"]
-`)
-
-	// staleness_interval should be multiple of interval
-	f(`
-- interval: 1m
-  staleness_interval: 100s
   outputs: ["avg"]
 `)
 
@@ -554,6 +547,18 @@ foo 123
 bar{baz="qwe"} 4.34
 `, `bar:1m_total{baz="qwe"} 0
 foo:1m_total 0
+`, "11")
+
+	// total output for non-repeated series, ignore first sample 0s
+	f(`
+- interval: 1m
+  outputs: [total]
+  ignore_first_sample_interval: 0s
+`, `
+foo 123
+bar{baz="qwe"} 4.34
+`, `bar:1m_total{baz="qwe"} 4.34
+foo:1m_total 123
 `, "11")
 
 	// total_prometheus output for non-repeated series

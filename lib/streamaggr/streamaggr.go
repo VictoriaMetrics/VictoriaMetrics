@@ -174,6 +174,11 @@ type Config struct {
 	// The parameter is only relevant for outputs: total, total_prometheus, increase, increase_prometheus and histogram_bucket.
 	StalenessInterval string `yaml:"staleness_interval,omitempty"`
 
+	// IgnoreFirstSampleInterval specifies the interval after which the agent begins sending samples.
+	// By default, it is set to the staleness interval, and it helps reduce the initial sample load after an agent restart.
+	// This parameter is relevant only for the following outputs: total, total_prometheus, increase, increase_prometheus, and histogram_bucket.
+	IgnoreFirstSampleInterval string `yaml:"ignore_first_sample_interval,omitempty"`
+
 	// Outputs is a list of output aggregate functions to produce.
 	//
 	// The following names are allowed:
@@ -481,8 +486,15 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		if stalenessInterval < interval {
 			return nil, fmt.Errorf("staleness_interval=%s cannot be smaller than interval=%s", cfg.StalenessInterval, cfg.Interval)
 		}
-		if stalenessInterval%interval != 0 {
-			return nil, fmt.Errorf("staleness_interval=%s must be a multiple of interval=%s", stalenessInterval, interval)
+	}
+
+	// check cfg.IgnoreFirstSampleInterval
+	// it's by default equals staleness interval to have backward compatibility, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7116
+	ignoreFirstSampleInterval := stalenessInterval
+	if cfg.IgnoreFirstSampleInterval != "" {
+		ignoreFirstSampleInterval, err = time.ParseDuration(cfg.IgnoreFirstSampleInterval)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse `ignore_first_sample_interval: %q`: %w", cfg.IgnoreFirstSampleInterval, err)
 		}
 	}
 
@@ -560,7 +572,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	aggrOutputs := make([]aggrOutput, len(cfg.Outputs))
 	outputsSeen := make(map[string]struct{}, len(cfg.Outputs))
 	for i, output := range cfg.Outputs {
-		as, err := newAggrState(output, outputsSeen, stalenessInterval)
+		as, err := newAggrState(output, outputsSeen, stalenessInterval, ignoreFirstSampleInterval)
 		if err != nil {
 			return nil, err
 		}
@@ -648,7 +660,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	return a, nil
 }
 
-func newAggrState(output string, outputsSeen map[string]struct{}, stalenessInterval time.Duration) (aggrState, error) {
+func newAggrState(output string, outputsSeen map[string]struct{}, stalenessInterval, ignoreFirstSampleInterval time.Duration) (aggrState, error) {
 	// check for duplicated output
 	if _, ok := outputsSeen[output]; ok {
 		return nil, fmt.Errorf("`outputs` list contains duplicate aggregation function: %s", output)
@@ -693,9 +705,9 @@ func newAggrState(output string, outputsSeen map[string]struct{}, stalenessInter
 	case "histogram_bucket":
 		return newHistogramBucketAggrState(stalenessInterval), nil
 	case "increase":
-		return newTotalAggrState(stalenessInterval, true, true), nil
+		return newTotalAggrState(stalenessInterval, ignoreFirstSampleInterval, true, true), nil
 	case "increase_prometheus":
-		return newTotalAggrState(stalenessInterval, true, false), nil
+		return newTotalAggrState(stalenessInterval, ignoreFirstSampleInterval, true, false), nil
 	case "last":
 		return newLastAggrState(), nil
 	case "max":
@@ -713,9 +725,9 @@ func newAggrState(output string, outputsSeen map[string]struct{}, stalenessInter
 	case "sum_samples":
 		return newSumSamplesAggrState(), nil
 	case "total":
-		return newTotalAggrState(stalenessInterval, false, true), nil
+		return newTotalAggrState(stalenessInterval, ignoreFirstSampleInterval, false, true), nil
 	case "total_prometheus":
-		return newTotalAggrState(stalenessInterval, false, false), nil
+		return newTotalAggrState(stalenessInterval, ignoreFirstSampleInterval, false, false), nil
 	case "unique_samples":
 		return newUniqueSamplesAggrState(), nil
 	default:
