@@ -57,7 +57,7 @@ var valueEscaper = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
 
 func (s Series) fetchQuery(timeFilter string) string {
 	f := &strings.Builder{}
-	fmt.Fprintf(f, "select %q from %q", s.Field, s.Measurement)
+	fmt.Fprintf(f, "select * from %q", s.Measurement)
 	if len(s.LabelPairs) > 0 || len(timeFilter) > 0 {
 		f.WriteString(" where")
 	}

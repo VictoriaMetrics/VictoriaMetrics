@@ -46,9 +46,23 @@ func parseResultCheckTags(s *Series, r influx.Result) ([]queryValues, error) {
 		return nil, fmt.Errorf("result error: %s", r.Err)
 	}
 
+	validColumnsMap := make(map[string]bool)
+	for i := range s.LabelPairs {
+		validColumnsMap[s.LabelPairs[i].Name] = true
+	}
+	validColumnsMap[s.Field] = true
+	validColumnsMap["time"] = true
+
 	series := make([]models.Row, 0, len(r.Series))
 	for i := range r.Series {
-		if len(r.Series[i].Tags) == len(s.LabelPairs) {
+		valid := true
+		for j := range r.Series[i].Columns {
+			if !validColumnsMap[r.Series[i].Columns[j]] {
+				valid = false
+				break
+			}
+		}
+		if valid {
 			series = append(series, r.Series[i])
 		}
 	}
