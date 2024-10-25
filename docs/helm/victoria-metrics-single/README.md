@@ -591,11 +591,11 @@ loggerFormat: json
       <td>server.name</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">server
+<code class="language-yaml">null
 </code>
 </pre>
 </td>
-      <td><p>Server container name</p>
+      <td><p>Server resource name prefix</p>
 </td>
     </tr>
     <tr>
