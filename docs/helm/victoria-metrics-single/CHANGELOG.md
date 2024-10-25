@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- replaced chart templates with common ones
 
 ## 0.12.3
 
