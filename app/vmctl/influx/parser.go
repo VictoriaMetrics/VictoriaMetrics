@@ -8,7 +8,6 @@ import (
 	"time"
 
 	influx "github.com/influxdata/influxdb/client/v2"
-	"github.com/influxdata/influxdb/models"
 )
 
 type queryValues struct {
@@ -37,37 +36,61 @@ func parseResult(r influx.Result) ([]queryValues, error) {
 	return qValues, nil
 }
 
-// parseResultCheckTags checks if the series' tags in the result are identical to the original query condition.
-// When querying with condition like `WHERE a=1`, InfluxDB can return data with the tag `a=1` and data with the tag `a=1,b=1`.
-// However, the latter is not the same series. This function filters out those series.
-// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7301
+// parseResultCheckTags check rows return by InfluxDB and remove rows not belong to current series.
+// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7301.
 func parseResultCheckTags(s *Series, r influx.Result) ([]queryValues, error) {
 	if len(r.Err) > 0 {
 		return nil, fmt.Errorf("result error: %s", r.Err)
 	}
 
-	validColumnsMap := make(map[string]bool)
+	// This map contains all the desired column of the query result for current series.
+	// If a column (`Columns[i]` in influx.Result) not exists in map, this column must be declared by other series.
+	// A row (`values[i]` in influx.Result) is considered invalid if its unwanted column value is not null.
+	wantedColumns := make(map[string]bool)
 	for i := range s.LabelPairs {
-		validColumnsMap[s.LabelPairs[i].Name] = true
+		wantedColumns[s.LabelPairs[i].Name] = true
 	}
-	validColumnsMap[s.Field] = true
-	validColumnsMap["time"] = true
+	wantedColumns[s.Field] = true
+	wantedColumns["time"] = true // const from InfluxDB
 
-	series := make([]models.Row, 0, len(r.Series))
 	for i := range r.Series {
-		valid := true
-		for j := range r.Series[i].Columns {
-			if !validColumnsMap[r.Series[i].Columns[j]] {
-				valid = false
-				break
+		if len(s.LabelPairs)+2 > len(r.Series[i].Columns) {
+			// column in series fewer than query where condition. should never reach
+			return nil, fmt.Errorf(`wrong number of columns in result series, expected: %v, "%s" and "time", got %v`, s.LabelPairs, s.Field, r.Series[i].Columns)
+		}
+		// prepare a new values slice to replace the existing one.
+		values := make([][]interface{}, 0, len(r.Series[i].Values))
+
+		// prepare an unwanted column list
+		unwantedColumnIdx := make([]int, 0)
+		for idx := range r.Series[i].Columns {
+			if !wantedColumns[r.Series[i].Columns[idx]] {
+				unwantedColumnIdx = append(unwantedColumnIdx, idx)
 			}
 		}
-		if valid {
-			series = append(series, r.Series[i])
+
+		// go through each rows
+		for j := range r.Series[i].Values {
+			if len(r.Series[i].Columns) != len(r.Series[i].Values[j]) {
+				// column in a row does not match series columns. should never reach
+				return nil, fmt.Errorf(`wrong number of columns in result row, expected: %d, got: %d`, len(r.Series[i].Columns), len(r.Series[i].Values[j]))
+			}
+
+			// skip if value of unwanted column is not null.
+			skip := false
+			for _, idx := range unwantedColumnIdx {
+				if r.Series[i].Values[j][idx] != nil {
+					skip = true
+					break
+				}
+			}
+
+			if !skip {
+				values = append(values, r.Series[i].Values[j])
+			}
 		}
+		r.Series[i].Values = values
 	}
-	// only Series field is replaced. Other fields can be omitted as they are not used.
-	r.Series = series
 	return parseResult(r)
 }
 

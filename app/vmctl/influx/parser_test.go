@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+
+	influx "github.com/influxdata/influxdb/client/v2"
+	"github.com/influxdata/influxdb/models"
 )
 
 func TestSeriesUnmarshal(t *testing.T) {
@@ -78,4 +81,49 @@ func TestToFloat64_Success(t *testing.T) {
 	f(true, 1)
 	f(false, 0)
 	f(json.Number("123456.789"), 123456.789)
+}
+
+func TestParseResultCheckTags(t *testing.T) {
+	f := func(wantedColumn, queryColumn []string, queryRow []interface{}, drop, wantErr bool) {
+		t.Helper()
+		lp := make([]LabelPair, 0, len(wantedColumn))
+		for _, columnName := range wantedColumn {
+			lp = append(lp, LabelPair{Name: columnName, Value: ""})
+		}
+
+		series := &Series{
+			Measurement: "measurement",
+			Field:       "value",
+			LabelPairs:  lp,
+		}
+		ir := influx.Result{
+			Series: []models.Row{
+				{
+					Name:    "test_table",
+					Columns: append(queryColumn, "value", "time"),
+					Values:  [][]interface{}{append(queryRow, "10", "1729829153000000000")},
+				},
+			},
+		}
+		result, err := parseResultCheckTags(series, ir)
+		if wantErr != (err != nil) {
+			t.Fatalf("want err: %v, got error: %s", wantErr, err)
+		}
+
+		// should drop but not dropped
+		if err == nil && drop == (len(result[0].values) > 0) {
+			t.Fatalf("retained incorrect rows, wantedColumn %v, queryColumn %v, queryRow %v, dropped %v", wantedColumn, queryColumn, queryRow, !(len(result) > 0))
+		}
+	}
+
+	// only matched series columns
+	f([]string{"a", "b"}, []string{"a", "b"}, []interface{}{"1", "2"}, false, false)
+	// other series columns exist but row valid
+	f([]string{"a", "b"}, []string{"a", "b", "c", "d"}, []interface{}{"1", "2", nil, nil}, false, false)
+	// other series columns exist and no valid rows
+	f([]string{"a", "b"}, []string{"a", "b", "c", "d"}, []interface{}{"1", "2", "3", "4"}, true, false)
+	// invalid query result with fewer columns than expect
+	f([]string{"a", "b", "c", "d"}, []string{"a", "b"}, []interface{}{"1", "2"}, true, true)
+	// invalid query result with values of a row don't match columns
+	f([]string{"a", "b"}, []string{"a", "b"}, []interface{}{"1", "2", "3"}, true, true)
 }
