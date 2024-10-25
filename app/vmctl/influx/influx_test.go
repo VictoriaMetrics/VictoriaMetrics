@@ -21,7 +21,7 @@ func TestFetchQuery(t *testing.T) {
 				Value: "bar",
 			},
 		},
-	}, "", `select "value" from "cpu" where "foo"::tag='bar'`)
+	}, "", `select * from "cpu" where "foo"::tag='bar'`)
 
 	f(&Series{
 		Measurement: "cpu",
@@ -36,7 +36,7 @@ func TestFetchQuery(t *testing.T) {
 				Value: "qux",
 			},
 		},
-	}, "", `select "value" from "cpu" where "foo"::tag='bar' and "baz"::tag='qux'`)
+	}, "", `select * from "cpu" where "foo"::tag='bar' and "baz"::tag='qux'`)
 
 	f(&Series{
 		Measurement: "cpu",
@@ -47,7 +47,7 @@ func TestFetchQuery(t *testing.T) {
 				Value: "b'ar",
 			},
 		},
-	}, "time >= now()", `select "value" from "cpu" where "foo"::tag='b\'ar' and time >= now()`)
+	}, "time >= now()", `select * from "cpu" where "foo"::tag='b\'ar' and time >= now()`)
 
 	f(&Series{
 		Measurement: "cpu",
@@ -62,17 +62,17 @@ func TestFetchQuery(t *testing.T) {
 				Value: "dev-mapp'er-c'en'tos",
 			},
 		},
-	}, "time >= now()", `select "value" from "cpu" where "name"::tag='dev-mapper-centos\\x2dswap.swap' and "state"::tag='dev-mapp\'er-c\'en\'tos' and time >= now()`)
+	}, "time >= now()", `select * from "cpu" where "name"::tag='dev-mapper-centos\\x2dswap.swap' and "state"::tag='dev-mapp\'er-c\'en\'tos' and time >= now()`)
 
 	f(&Series{
 		Measurement: "cpu",
 		Field:       "value",
-	}, "time >= now()", `select "value" from "cpu" where time >= now()`)
+	}, "time >= now()", `select * from "cpu" where time >= now()`)
 
 	f(&Series{
 		Measurement: "cpu",
 		Field:       "value",
-	}, "", `select "value" from "cpu"`)
+	}, "", `select * from "cpu"`)
 }
 
 func TestTimeFilter(t *testing.T) {
