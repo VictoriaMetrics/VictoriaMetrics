@@ -91,7 +91,15 @@ func parseResultCheckTags(s *Series, r influx.Result) ([]queryValues, error) {
 		}
 		r.Series[i].Values = values
 	}
-	return parseResult(r)
+
+	// if more than 1 row exists after filtering, parse it into []queryValues.
+	// otherwise just return nil result.
+	for i := range r.Series {
+		if len(r.Series[i].Values) > 0 {
+			return parseResult(r)
+		}
+	}
+	return nil, nil
 }
 
 func toFloat64(v any) (float64, error) {
