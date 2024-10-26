@@ -111,7 +111,7 @@ func TestParseResultCheckTags(t *testing.T) {
 		}
 
 		// should drop but not dropped
-		if err == nil && drop == (len(result[0].values) > 0) {
+		if err == nil && drop == (result != nil && len(result[0].values) > 0) {
 			t.Fatalf("retained incorrect rows, wantedColumn %v, queryColumn %v, queryRow %v, dropped %v", wantedColumn, queryColumn, queryRow, !(len(result) > 0))
 		}
 	}
