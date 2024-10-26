@@ -1,6 +1,7 @@
 package prometheus
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"math"
@@ -31,6 +32,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
@@ -537,26 +539,54 @@ func resetRollupResultCaches() {
 			" For example: -selectNode=select-addr-1:8481,select-addr-2:8481")
 		return
 	}
-	for _, selectNode := range *selectNodes {
-		if _, _, err := net.SplitHostPort(selectNode); err != nil {
-			// Add missing port
-			selectNode += ":8481"
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var defaultPort uint16 = 8481
+	var resolvedAddrs []string
+	for _, host := range *selectNodes {
+		if strings.HasPrefix(host, "srv+") {
+			// The host has the format 'srv+realhost'. Strip 'srv+' prefix before performing the lookup.
+			srvHost := strings.TrimPrefix(host, "srv+")
+			_, addrs, err := netutil.Resolver.LookupSRV(ctx, "", "", srvHost)
+			if err != nil {
+				logger.Warnf("cannot discover vmselect SRV records for %s: %s; use it literally", host, err)
+				resolvedAddrs = []string{host}
+			} else {
+				resolvedAddrs = make([]string, len(addrs))
+				for i, addr := range addrs {
+					resolvedAddrs[i] = fmt.Sprintf("%s:%d", addr.Target, addr.Port)
+				}
+			}
+			for _, addr := range resolvedAddrs {
+				resetRollupResultCache(addr)
+			}
+		} else {
+			if _, _, err := net.SplitHostPort(host); err != nil {
+				// Add missing port
+				host += fmt.Sprintf(":%d", defaultPort)
+			}
+			resetRollupResultCache(host)
 		}
-		callURL := fmt.Sprintf("http://%s/internal/resetRollupResultCache", selectNode)
-		resp, err := httpClient.Get(callURL)
-		if err != nil {
-			logger.Errorf("error when accessing %q: %s", callURL, err)
-			resetRollupResultCacheErrors.Inc()
-			continue
-		}
-		if resp.StatusCode != http.StatusOK {
-			_ = resp.Body.Close()
-			logger.Errorf("unexpected status code at %q; got %d; want %d", callURL, resp.StatusCode, http.StatusOK)
-			resetRollupResultCacheErrors.Inc()
-			continue
-		}
-		_ = resp.Body.Close()
 	}
+}
+
+func resetRollupResultCache(selectNode string) {
+	callURL := fmt.Sprintf("http://%s/internal/resetRollupResultCache", selectNode)
+	resp, err := httpClient.Get(callURL)
+	if err != nil {
+		logger.Errorf("error when accessing %q: %s", callURL, err)
+		resetRollupResultCacheErrors.Inc()
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		_ = resp.Body.Close()
+		logger.Errorf("unexpected status code at %q; got %d; want %d", callURL, resp.StatusCode, http.StatusOK)
+		resetRollupResultCacheErrors.Inc()
+		return
+	}
+	_ = resp.Body.Close()
 }
 
 var (
