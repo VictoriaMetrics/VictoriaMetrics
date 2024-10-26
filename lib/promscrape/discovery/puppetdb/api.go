@@ -13,9 +13,9 @@ var configMap = discoveryutils.NewConfigMap()
 type apiConfig struct {
 	client *discoveryutils.Client
 
-	query             string `yaml:"query"`
-	includeParameters bool   `yaml:"include_parameters"`
-	port              int    `yaml:"port"`
+	query             string
+	includeParameters bool
+	port              int
 }
 
 func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {

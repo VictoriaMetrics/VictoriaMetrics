@@ -1573,7 +1573,7 @@ scrape_configs:
       # some parameters might not be rendered. The format of the parameters might
       # also change in future releases.
       #
-      # Note: Enabling this exposes parameters in the Prometheus UI and API. Make sure
+      # Note: Enabling this exposes parameters in the VMUI and API. Make sure
       # that you don't have secrets exposed as parameters if you enable this.
       # 
       # include_parameters: <boolean> | default false

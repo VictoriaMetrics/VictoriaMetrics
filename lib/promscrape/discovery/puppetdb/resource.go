@@ -1,11 +1,11 @@
 package puppetdb
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -16,8 +16,6 @@ import (
 const (
 	separator = ","
 )
-
-var matchContentTypeRegex = regexp.MustCompile(`^(?i:application\/json(;\s*charset=("utf-8"|utf-8))?)$`)
 
 type resource struct {
 	Certname    string     `json:"certname"`
@@ -33,13 +31,12 @@ type resource struct {
 
 type parameters map[string]interface{}
 
-// toLabels convert Parameters map into label-value map.
+// addToLabels add Parameters map to existing labels.
 // See: https://github.com/prometheus/prometheus/blob/685493187ec5f5734777769f595cf8418d49900d/discovery/puppetdb/resources.go#L39
-func (p *parameters) toLabels() map[string]string {
+func (p *parameters) addToLabels(keyPrefix string, m *promutils.Labels) {
 	if p == nil {
-		return nil
+		return
 	}
-	m := make(map[string]string, len(*p))
 
 	for k, v := range *p {
 		var labelValue string
@@ -76,10 +73,7 @@ func (p *parameters) toLabels() map[string]string {
 			labelValue = strings.Join(values, separator)
 		case map[string]interface{}:
 			subParameter := parameters(value)
-			prefix := discoveryutils.SanitizeLabelName(k + "_")
-			for subk, subv := range subParameter.toLabels() {
-				m[prefix+subk] = subv
-			}
+			subParameter.addToLabels(keyPrefix+discoveryutils.SanitizeLabelName(k+"_"), m)
 		default:
 			continue
 		}
@@ -87,9 +81,9 @@ func (p *parameters) toLabels() map[string]string {
 			continue
 		}
 		name := discoveryutils.SanitizeLabelName(k)
-		m[name] = labelValue
+		m.Add(keyPrefix+name, labelValue)
 	}
-	return m
+	return
 }
 
 func getResourceList(cfg *apiConfig) ([]resource, error) {
@@ -103,29 +97,19 @@ func getResourceList(cfg *apiConfig) ([]resource, error) {
 	}
 
 	modifyRequestFunc := func(request *http.Request) {
-		request.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
+		request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		request.Header.Set("Accept", "application/json")
 		request.Header.Set("Content-Type", "application/json")
 		request.Method = http.MethodPost
 	}
 
-	var responseContentType string
-	inspectResponseFunc := func(resp *http.Response) {
-		responseContentType = resp.Header.Get("Content-Type")
-	}
-
 	// https://www.puppet.com/docs/puppetdb/8/api/query/v4/overview#pdbqueryv4
-	resp, err := cfg.client.GetAPIResponseWithParamsCtx(cfg.client.Context(), "/pdb/query/v4", modifyRequestFunc, inspectResponseFunc)
+	resp, err := cfg.client.GetAPIResponseWithReqParams("/pdb/query/v4", modifyRequestFunc)
 	if err != nil {
 		return nil, err
 	}
 
-	if !matchContentTypeRegex.MatchString(responseContentType) {
-		return nil, fmt.Errorf("unsupported content type %s", responseContentType)
-	}
-
 	var resources []resource
-
 	if err = json.Unmarshal(resp, &resources); err != nil {
 		return nil, err
 	}
@@ -136,31 +120,29 @@ func getResourceList(cfg *apiConfig) ([]resource, error) {
 func getResourceLabels(resources []resource, cfg *apiConfig) []*promutils.Labels {
 	ms := make([]*promutils.Labels, 0, len(resources))
 
-	for _, resource := range resources {
+	for _, res := range resources {
 		m := promutils.NewLabels(18)
 
-		m.Add("__address__", discoveryutils.JoinHostPort(resource.Certname, cfg.port))
-		m.Add("__meta_puppetdb_certname", resource.Certname)
-		m.Add("__meta_puppetdb_environment", resource.Environment)
-		m.Add("__meta_puppetdb_exported", fmt.Sprintf("%t", resource.Exported))
-		m.Add("__meta_puppetdb_file", resource.File)
+		m.Add("__address__", discoveryutils.JoinHostPort(res.Certname, cfg.port))
+		m.Add("__meta_puppetdb_certname", res.Certname)
+		m.Add("__meta_puppetdb_environment", res.Environment)
+		m.Add("__meta_puppetdb_exported", fmt.Sprintf("%t", res.Exported))
+		m.Add("__meta_puppetdb_file", res.File)
 		m.Add("__meta_puppetdb_query", cfg.query)
-		m.Add("__meta_puppetdb_resource", resource.Resource)
-		m.Add("__meta_puppetdb_title", resource.Title)
-		m.Add("__meta_puppetdb_type", resource.Type)
+		m.Add("__meta_puppetdb_resource", res.Resource)
+		m.Add("__meta_puppetdb_title", res.Title)
+		m.Add("__meta_puppetdb_type", res.Type)
 
-		if len(resource.Tags) > 0 {
+		if len(res.Tags) > 0 {
 			//discoveryutils.AddTagsToLabels(m, resource.Tags, "__meta_puppetdb_tags", separator)
-			m.Add("__meta_puppetdb_tags", separator+strings.Join(resource.Tags, separator)+separator)
+			m.Add("__meta_puppetdb_tags", separator+strings.Join(res.Tags, separator)+separator)
 		}
 
 		// Parameters are not included by default. This should only be enabled
 		// on select resources as it might expose secrets on the Prometheus UI
 		// for certain resources.
 		if cfg.includeParameters {
-			for k, v := range resource.Parameters.toLabels() {
-				m.Add("__meta_puppetdb_parameter_"+k, v)
-			}
+			res.Parameters.addToLabels("__meta_puppetdb_parameter_", m)
 		}
 
 		ms = append(ms, m)
