@@ -83,7 +83,6 @@ func (p *parameters) addToLabels(keyPrefix string, m *promutils.Labels) {
 		name := discoveryutils.SanitizeLabelName(k)
 		m.Add(keyPrefix+name, labelValue)
 	}
-	return
 }
 
 func getResourceList(cfg *apiConfig) ([]resource, error) {
