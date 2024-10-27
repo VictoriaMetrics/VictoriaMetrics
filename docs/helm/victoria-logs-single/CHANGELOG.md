@@ -1,6 +1,7 @@
 ## Next release
 
-- Custom fluent-bit template to push data to multiple VLogs instances when replica count is greated than 1.
+- Added grafana dashboard. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1590)
+- Custom fluent-bit template to push data to multiple VLogs instances when replica count is greated than 1
 
 ## 0.6.6
 

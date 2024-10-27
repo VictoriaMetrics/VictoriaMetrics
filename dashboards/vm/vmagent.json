@@ -951,7 +951,7 @@
         "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows the persistent queue size of pending samples in bytes >2MB which hasn't been flushed to remote storage yet. \n\nIncreasing of value might be a sign of connectivity issues. In such cases, vmagent starts to flush pending data on disk with attempt to send it later once connection is restored.\n\nRemote write URLs are hidden by default but might be unveiled once `-remoteWrite.showURL` is set to true.\n\nClick on the line and choose Drilldown to show persistent queue size per instance.\n",
+      "description": "Shows the persistent queue size of pending samples in bytes >2MB which hasn't been flushed to remote storage yet. \n\nIncreasing of value might be a sign of connectivity issues. In such cases, vmagent starts to flush pending data on disk with attempt to send it later once connection is restored.\n\nRemote write URLs are hidden by default but might be unveiled once `-remoteWrite.showURL` is set to true.\n\nClick on the line and choose Drilldown to show the persistent queue size per instance.\n",
       "fieldConfig": {
         "defaults": {
           "color": {

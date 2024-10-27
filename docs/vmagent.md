@@ -567,6 +567,8 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
 If the target exports metrics with names clashing with the automatically generated metric names, then `vmagent` automatically
 adds `exported_` prefix to these metric names, so they don't clash with automatically generated metric names.
 
+Relabeling defined in `relabel_configs` or `metric_relabel_configs` of scrape config isn't applied to automatically
+generated metrics. But they still can be relabeled via `-remoteWrite.relabelConfig` before sending metrics to remote address.
 
 ## Relabeling
 
@@ -2013,6 +2015,8 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#openstack_sd_configs for details (default 30s)
   -promscrape.ovhcloudSDCheckInterval duration
      Interval for checking for changes in OVH Cloud VPS and dedicated server. This works only if ovhcloud_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#ovhcloud_sd_configs for details (default 30s)
+  -promscrape.puppetdbSDCheckInterval duration
+     Interval for checking for changes in PuppetDB API. This works only if puppetdb_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#puppetdb_sd_configs for details (default 30s)
   -promscrape.seriesLimitPerTarget int
      Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter for more info
   -promscrape.streamParse
