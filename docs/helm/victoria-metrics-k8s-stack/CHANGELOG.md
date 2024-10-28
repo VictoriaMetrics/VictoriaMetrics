@@ -8,6 +8,8 @@
 - Renamed `grafana.defaultDashboardsTimezone` to `defaultDashboards.defaultTimezone`
 - Removed `grafana.defaultDatasourceType` and default datasource type is picked from `defaultDatasources.victoriametrics.datasources[*].isDefault: true`
 - Removed crds subchart as it's now included in operator
+- Fixed additionalNotifiersConfig
+- Added `vmcluster.vmauth.<vminsert/vmselect>` and `externalVM.vmauth.<read/write>` to provide ability to override vmauth configs
 
 ## 0.27.6
 
