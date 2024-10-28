@@ -279,10 +279,12 @@ func TestSetIntervalAsTimeFilter(t *testing.T) {
 	f(`* | count()`, "prometheus", false)
 
 	f(`* | count()`, "vlogs", true)
-	f(`* | _time: 5m | count()`, "vlogs", true)
 	f(`error OR _time:5m  | count()`, "vlogs", true)
 	f(`(_time: 5m AND error) OR (_time: 5m AND warn) | count()`, "vlogs", true)
+	f(`* | error OR _time:5m | count()`, "vlogs", true)
 
 	f(`_time:5m | count()`, "vlogs", false)
-	f(`error AND _time:5m  | count()`, "vlogs", false)
+	f(`_time:2023-04-25T22:45:59Z | count()`, "vlogs", false)
+	f(`error AND _time:5m | count()`, "vlogs", false)
+	f(`* | error AND _time:5m | count()`, "vlogs", false)
 }

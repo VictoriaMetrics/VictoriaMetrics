@@ -43,7 +43,9 @@ type QuerierBuilder interface {
 // QuerierParams params for Querier.
 type QuerierParams struct {
 	DataSourceType string
-	// ApplyIntervalAsTimeFilter is only valid for vlogs datasource
+	// ApplyIntervalAsTimeFilter is only valid for vlogs datasource.
+	// Set to true if there is no [timeFilter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) in the rule expression,
+	// and we will add evaluation interval as an additional timeFilter when querying.
 	ApplyIntervalAsTimeFilter bool
 	EvaluationInterval        time.Duration
 	QueryParams               url.Values

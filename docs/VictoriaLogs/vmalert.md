@@ -8,7 +8,7 @@ menu:
 aliases:
 - /VictoriaLogs/vmalert.html
 ---
-VictoriaLogs provides log stats APIs [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats)  and [`/select/logsql/stats_query_range`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats), which return the log stats in the format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries). This allows users using VictoriaLogs as the datasource of [vmalert](https://docs.victoriametrics.com/vmalert/) and creating alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
+VictoriaLogs provides log stats APIs [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats)  and [`/select/logsql/stats_query_range`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats), which return the log stats in the format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries). This allows using VictoriaLogs as the datasource for [vmalert](https://docs.victoriametrics.com/vmalert/), creating alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 
 Note: This page only provides integration instructions for vmalert with VictoriaLogs, see full textbook of vmalert [here](https://docs.victoriametrics.com/vmalert).
 
@@ -16,7 +16,7 @@ Note: This page only provides integration instructions for vmalert with Victoria
 
 Run vmalert with the `-rule.defaultRuleType=vlogs` flag.
 ```
-./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration.
+./bin/vmalert -rule=alert.rules \            # Path to the files or http url with alerting and/or recording rules in YAML format.
     -datasource.url=http://localhost:9428 \  # VictoriaLogs address.
     -rule.defaultRuleType=vlogs \            # Change default rule type to VictoriaLogs.
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
@@ -24,28 +24,46 @@ Run vmalert with the `-rule.defaultRuleType=vlogs` flag.
     -remoteRead.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource to restore alerts state from
 ```
 
-See the full list of configuration flags in [configuration](#configuration) section.
+> See the full list of configuration flags and their descriptions in [configuration](#configuration) section.
 
-Each rule file may contain arbitrary number of [groups](https://docs.victoriametrics.com/vmalert/#groups), examples can be found in [Groups](#groups) section.
-
-```yaml
-groups:
-  [ - <rule_group> ]
-```
-> _To validate the syntax of configured rules simply run vmalert with `-rule` and `-dryRun` cmd-line flags._
-
+> Each rule file may contain arbitrary number of [groups](https://docs.victoriametrics.com/vmalert/#groups), examples can be found in [Groups](#groups) section.
 
 ![vmalert](vmalert_victorialogs.webp)
 
 ## Configuration
 
 ### Flags
-For a complete list of command-line flags, visit https://docs.victoriametrics.com/vmalert/#flags. The following flags are specifically related to the VictoriaLogs datasource:
+For a complete list of command-line flags, visit https://docs.victoriametrics.com/vmalert/#flags. The following are key flags related to the VictoriaLogs datasource:
 
 ```
+-datasource.url string
+   Datasource address supporting log stats APIs, which can be a single VictoriaLogs node or a proxy in front of VictoriaLogs. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record.
+-notifier.url array
+   Prometheus Alertmanager URL, e.g. http://127.0.0.1:9093. List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.
+   Supports an array of values separated by comma or specified via multiple flags.
+   Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+-remoteWrite.url string
+   Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.
+-remoteRead.url string
+   Optional URL to datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect.Remote read is used to restore alerts state.This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.
+-rule array
+   Path to the files or http url with alerting and/or recording rules in YAML format.
+   Supports hierarchical patterns and regexpes.
+   Examples:
+    -rule="/path/to/file". Path to a single file with alerting rules.
+    -rule="http://<some-server-addr>/path/to/rules". HTTP URL to a page with alerting rules.
+    -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod".
+    -rule="dir/**/*.yaml". Includes all the .yaml files in "dir" subfolders recursively.
+   Rule files support YAML multi-document. Files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
+   Enterprise version of vmalert supports S3 and GCS paths to rules.
+   For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
+   S3 and GCS paths support only matching by prefix, e.g. s3://bucket/dir/rule_ matches
+   all files with prefix rule_ in folder dir.
+   Supports an array of values separated by comma or specified via multiple flags.
+   Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
 -rule.defaultRuleType
-  Default type for rule expressions, can be overridden by type parameter inside the rule group. Supported values: "graphite", "prometheus" and "vlogs". 
-  Default is "prometheus", change it to "vlogs" if all of the rules are written with LogsQL.
+   Default type for rule expressions, can be overridden by type parameter inside the rule group. Supported values: "graphite", "prometheus" and "vlogs".
+   Default is "prometheus", change it to "vlogs" if all of the rules are written with LogsQL.
 -rule.evalDelay time
    Adjustment of the time parameter for rule evaluation requests to compensate intentional data delay from the datasource. Normally, should be equal to `-search.latencyOffset` (cm d-line flag configured for VictoriaMetrics single-node or vmselect).
    Since there is no intentional search delay in VictoriaLogs, `-rule.evalDelay` can be reduced to a few seconds to accommodate network and ingestion time.
@@ -100,7 +118,7 @@ groups:
 ## Time filter
 
 It's recommended to omit the [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) in the rule expression. By default, vmalert automatically appends the time filter `_time: <group_interval>` to the expression.
-For instance, below rule will be evaluated every 5 minutes, and will return the result with logs from the last 5 minutes.
+For instance, the rule below will be evaluated every 5 minutes, and will return the result with logs from the last 5 minutes.
 
 ```
 groups:

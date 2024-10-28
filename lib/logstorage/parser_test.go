@@ -2389,20 +2389,23 @@ func TestHasTimeFilter(t *testing.T) {
 	f := func(qStr string, expected bool) {
 		t.Helper()
 
-		_, getTimeFilter, err := ParseStatsQuery(qStr)
+		q, err := ParseStatsQuery(qStr)
 		if err != nil {
 			t.Fatalf("cannot parse [%s]: %s", qStr, err)
 		}
-		if getTimeFilter != expected {
-			t.Fatalf("unexpected result for hasTimeFilter(%q); got %v; want %v", qStr, getTimeFilter, expected)
+		if q.ContainAnyTimeFilter() != expected {
+			t.Fatalf("unexpected result for hasTimeFilter(%q); want %v", qStr, expected)
 		}
 	}
 
 	f(`* | count()`, false)
-	f(`* | _time: 5m | count()`, false)
 	f(`error OR _time:5m  | count()`, false)
 	f(`(_time: 5m AND error) OR (_time: 5m AND warn) | count()`, false)
+	f(`* | error OR _time:5m | count()`, false)
 
 	f(`_time:5m | count()`, true)
-	f(`error AND _time:5m  | count()`, true)
+	f(`_time:2023-04-25T22:45:59Z | count()`, true)
+	f(`error AND _time:5m | count()`, true)
+	f(`error AND (_time: 5m AND warn) | count()`, true)
+	f(`* | error AND _time:5m | count()`, true)
 }

@@ -31,8 +31,8 @@ please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriam
 
 ## Features
 
-* Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) TSDB and [MetricsQL](https://docs.victoriametrics.com/metricsql/) expressions validation;
-* Integration with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) TSDB and [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) expressions validation. See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/);
+* Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) and [MetricsQL](https://docs.victoriametrics.com/metricsql/);
+* Integration with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) and [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/);
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
   support;
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager) starting from [Alertmanager v0.16.0-alpha](https://github.com/prometheus/alertmanager/releases/tag/v0.16.0-alpha.0);
@@ -729,7 +729,7 @@ to set `-datasource.appendTypePrefix` flag to `true`, so vmalert can adjust URL 
 
 ## VictoriaLogs
 
-vmalert supports using [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) as the datasource and writing alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
+vmalert supports [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) as a datasource for writing alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/). See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
 
 ## Rules backfilling
 
@@ -1359,7 +1359,7 @@ The shortlist of configuration flags is the following:
      Optional path to client-side TLS certificate key to use when connecting to -remoteRead.url
   -remoteRead.tlsServerName string
      Optional TLS server name to use for connections to -remoteRead.url. By default, the server name from -remoteRead.url is used
-  -remoteRead.url vmalert
+  -remoteRead.url string
      Optional URL to datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect.Remote read is used to restore alerts state.This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.
   -remoteWrite.basicAuth.password string
      Optional basic auth password for -remoteWrite.url

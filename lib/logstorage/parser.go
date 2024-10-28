@@ -775,41 +775,52 @@ func ParseQuery(s string) (*Query, error) {
 }
 
 // ParseStatsQuery parses s with needed stats query checks.
-// with an additional check for the presence of a timeFilter in the q.filter.
-func ParseStatsQuery(s string) (*Query, bool, error) {
+func ParseStatsQuery(s string) (*Query, error) {
 	q, err := ParseQuery(s)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	if _, err := q.GetStatsByFields(); err != nil {
-		return nil, false, err
+		return nil, err
 	}
-	return q, hasTimeFilter(q.f), nil
+	return q, nil
 }
 
-// containAnyTimeFilter returns true when filter contains a global timeFilter,
-// such as: `_time: 5m`, `_time: 5m AND error`;
-// returns false when there is no timeFilter, for example: `error`,
-// or timeFilter is not a global one, like: `error OR (_time: 5m AND warn)`, `(_time: 5m AND error) OR (_time: 5m AND warn)`...
-func hasTimeFilter(f filter) bool {
-	if f != nil {
-		switch t := f.(type) {
-		case *filterAnd:
-			for _, subF := range t.filters {
-				if hasTimeFilter(subF) {
-					return true
-				}
+// ContainAnyTimeFilter returns true when query contains a global time filter.
+func (q *Query) ContainAnyTimeFilter() bool {
+	if hasTimeFilter(q.f) {
+		return true
+	}
+	for _, p := range q.pipes {
+		if pf, ok := p.(*pipeFilter); ok {
+			if hasTimeFilter(pf.f) {
+				return true
 			}
-		case *filterTime:
-			return true
 		}
+	}
+	return false
+}
+
+func hasTimeFilter(f filter) bool {
+	if f == nil {
+		return false
+	}
+	switch t := f.(type) {
+	case *filterAnd:
+		for _, subF := range t.filters {
+			if hasTimeFilter(subF) {
+				return true
+			}
+		}
+	case *filterTime:
+		return true
 	}
 	return false
 }
 
 // ParseQueryAtTimestamp parses s in the context of the given timestamp.
 //
-// E.g. _time:duration filters are ajusted according to the provided timestamp as _time:[timestamp-duration, duration].
+// E.g. _time:duration filters are adjusted according to the provided timestamp as _time:[timestamp-duration, duration].
 func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 	lex := newLexerAtTimestamp(s, timestamp)
 

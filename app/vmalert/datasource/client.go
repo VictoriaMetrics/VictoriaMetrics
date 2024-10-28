@@ -47,10 +47,13 @@ type Client struct {
 	appendTypePrefix bool
 	queryStep        time.Duration
 	dataSourceType   datasourceType
-	// applyIntervalAsTimeFilter is only valid for vlogs datasource
+	// ApplyIntervalAsTimeFilter is only valid for vlogs datasource.
+	// Set to true if there is no [timeFilter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) in the rule expression,
+	// and we will add evaluation interval as an additional timeFilter when querying.
 	applyIntervalAsTimeFilter bool
 
-	// evaluationInterval will help setting request's `step` param.
+	// evaluationInterval will help setting request's `step` param,
+	// or adding time filter for LogsQL expression.
 	evaluationInterval time.Duration
 	// extraParams contains params to be attached to each HTTP request
 	extraParams url.Values
@@ -68,27 +71,27 @@ type keyValue struct {
 }
 
 // Clone clones shared http client and other configuration to the new client.
-func (s *Client) Clone() *Client {
+func (c *Client) Clone() *Client {
 	ns := &Client{
-		c:                s.c,
-		authCfg:          s.authCfg,
-		datasourceURL:    s.datasourceURL,
-		appendTypePrefix: s.appendTypePrefix,
-		queryStep:        s.queryStep,
+		c:                c.c,
+		authCfg:          c.authCfg,
+		datasourceURL:    c.datasourceURL,
+		appendTypePrefix: c.appendTypePrefix,
+		queryStep:        c.queryStep,
 
-		dataSourceType:     s.dataSourceType,
-		evaluationInterval: s.evaluationInterval,
+		dataSourceType:     c.dataSourceType,
+		evaluationInterval: c.evaluationInterval,
 
 		// init map so it can be populated below
 		extraParams: url.Values{},
 
-		debug: s.debug,
+		debug: c.debug,
 	}
-	if len(s.extraHeaders) > 0 {
-		ns.extraHeaders = make([]keyValue, len(s.extraHeaders))
-		copy(ns.extraHeaders, s.extraHeaders)
+	if len(c.extraHeaders) > 0 {
+		ns.extraHeaders = make([]keyValue, len(c.extraHeaders))
+		copy(ns.extraHeaders, c.extraHeaders)
 	}
-	for k, v := range s.extraParams {
+	for k, v := range c.extraParams {
 		ns.extraParams[k] = v
 	}
 
@@ -96,42 +99,42 @@ func (s *Client) Clone() *Client {
 }
 
 // ApplyParams - changes given querier params.
-func (s *Client) ApplyParams(params QuerierParams) *Client {
+func (c *Client) ApplyParams(params QuerierParams) *Client {
 	if params.DataSourceType != "" {
-		s.dataSourceType = toDatasourceType(params.DataSourceType)
+		c.dataSourceType = toDatasourceType(params.DataSourceType)
 	}
-	s.evaluationInterval = params.EvaluationInterval
-	s.applyIntervalAsTimeFilter = params.ApplyIntervalAsTimeFilter
+	c.evaluationInterval = params.EvaluationInterval
+	c.applyIntervalAsTimeFilter = params.ApplyIntervalAsTimeFilter
 	if params.QueryParams != nil {
-		if s.extraParams == nil {
-			s.extraParams = url.Values{}
+		if c.extraParams == nil {
+			c.extraParams = url.Values{}
 		}
 		for k, vl := range params.QueryParams {
 			// custom query params are prior to default ones
-			if s.extraParams.Has(k) {
-				s.extraParams.Del(k)
+			if c.extraParams.Has(k) {
+				c.extraParams.Del(k)
 			}
 			for _, v := range vl {
 				// don't use .Set() instead of Del/Add since it is allowed
 				// for GET params to be duplicated
 				// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4908
-				s.extraParams.Add(k, v)
+				c.extraParams.Add(k, v)
 			}
 		}
 	}
 	if params.Headers != nil {
 		for key, value := range params.Headers {
 			kv := keyValue{key: key, value: value}
-			s.extraHeaders = append(s.extraHeaders, kv)
+			c.extraHeaders = append(c.extraHeaders, kv)
 		}
 	}
-	s.debug = params.Debug
-	return s
+	c.debug = params.Debug
+	return c
 }
 
 // BuildWithParams - implements interface.
-func (s *Client) BuildWithParams(params QuerierParams) Querier {
-	return s.Clone().ApplyParams(params)
+func (c *Client) BuildWithParams(params QuerierParams) Querier {
+	return c.Clone().ApplyParams(params)
 }
 
 // NewPrometheusClient returns a new prometheus datasource client.
@@ -148,12 +151,12 @@ func NewPrometheusClient(baseURL string, authCfg *promauth.Config, appendTypePre
 }
 
 // Query executes the given query and returns parsed response
-func (s *Client) Query(ctx context.Context, query string, ts time.Time) (Result, *http.Request, error) {
-	req, err := s.newQueryRequest(ctx, query, ts)
+func (c *Client) Query(ctx context.Context, query string, ts time.Time) (Result, *http.Request, error) {
+	req, err := c.newQueryRequest(ctx, query, ts)
 	if err != nil {
 		return Result{}, nil, err
 	}
-	resp, err := s.do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) && !netutil.IsTrivialNetworkError(err) {
 			// Return unexpected error to the caller.
@@ -161,11 +164,11 @@ func (s *Client) Query(ctx context.Context, query string, ts time.Time) (Result,
 		}
 		// Something in the middle between client and datasource might be closing
 		// the connection. So we do a one more attempt in hope request will succeed.
-		req, err = s.newQueryRequest(ctx, query, ts)
+		req, err = c.newQueryRequest(ctx, query, ts)
 		if err != nil {
 			return Result{}, nil, fmt.Errorf("second attempt: %w", err)
 		}
-		resp, err = s.do(req)
+		resp, err = c.do(req)
 		if err != nil {
 			return Result{}, nil, fmt.Errorf("second attempt: %w", err)
 		}
@@ -173,7 +176,7 @@ func (s *Client) Query(ctx context.Context, query string, ts time.Time) (Result,
 
 	// Process the received response.
 	var parseFn func(req *http.Request, resp *http.Response) (Result, error)
-	switch s.dataSourceType {
+	switch c.dataSourceType {
 	case datasourcePrometheus:
 		parseFn = parsePrometheusResponse
 	case datasourceGraphite:
@@ -181,7 +184,7 @@ func (s *Client) Query(ctx context.Context, query string, ts time.Time) (Result,
 	case datasourceVLogs:
 		parseFn = parseVLogsResponse
 	default:
-		logger.Panicf("BUG: unsupported datasource type %q to parse query response", s.dataSourceType)
+		logger.Panicf("BUG: unsupported datasource type %q to parse query response", c.dataSourceType)
 	}
 	result, err := parseFn(req, resp)
 	_ = resp.Body.Close()
@@ -191,13 +194,13 @@ func (s *Client) Query(ctx context.Context, query string, ts time.Time) (Result,
 // QueryRange executes the given query on the given time range.
 // For Prometheus type see https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
 // Graphite type isn't supported.
-func (s *Client) QueryRange(ctx context.Context, query string, start, end time.Time) (res Result, err error) {
-	if s.dataSourceType == datasourceGraphite {
-		return res, fmt.Errorf("%q is not supported for QueryRange", s.dataSourceType)
+func (c *Client) QueryRange(ctx context.Context, query string, start, end time.Time) (res Result, err error) {
+	if c.dataSourceType == datasourceGraphite {
+		return res, fmt.Errorf("%q is not supported for QueryRange", c.dataSourceType)
 	}
 	// TODO: disable range query LogsQL with time filter now
-	if s.dataSourceType == datasourceVLogs && !s.applyIntervalAsTimeFilter {
-		return res, fmt.Errorf("range query is not supported for LogsQL with time filter: %q", query)
+	if c.dataSourceType == datasourceVLogs && !c.applyIntervalAsTimeFilter {
+		return res, fmt.Errorf("range query is not supported for LogsQL expression %q because it contains time filter. Remove time filter from the expression and try again", query)
 	}
 	if start.IsZero() {
 		return res, fmt.Errorf("start param is missing")
@@ -205,11 +208,11 @@ func (s *Client) QueryRange(ctx context.Context, query string, start, end time.T
 	if end.IsZero() {
 		return res, fmt.Errorf("end param is missing")
 	}
-	req, err := s.newQueryRangeRequest(ctx, query, start, end)
+	req, err := c.newQueryRangeRequest(ctx, query, start, end)
 	if err != nil {
 		return res, err
 	}
-	resp, err := s.do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) && !netutil.IsTrivialNetworkError(err) {
 			// Return unexpected error to the caller.
@@ -217,11 +220,11 @@ func (s *Client) QueryRange(ctx context.Context, query string, start, end time.T
 		}
 		// Something in the middle between client and datasource might be closing
 		// the connection. So we do a one more attempt in hope request will succeed.
-		req, err = s.newQueryRangeRequest(ctx, query, start, end)
+		req, err = c.newQueryRangeRequest(ctx, query, start, end)
 		if err != nil {
 			return res, fmt.Errorf("second attempt: %w", err)
 		}
-		resp, err = s.do(req)
+		resp, err = c.do(req)
 		if err != nil {
 			return res, fmt.Errorf("second attempt: %w", err)
 		}
@@ -229,28 +232,28 @@ func (s *Client) QueryRange(ctx context.Context, query string, start, end time.T
 
 	// Process the received response.
 	var parseFn func(req *http.Request, resp *http.Response) (Result, error)
-	switch s.dataSourceType {
+	switch c.dataSourceType {
 	case datasourcePrometheus:
 		parseFn = parsePrometheusResponse
 	case datasourceVLogs:
 		parseFn = parseVLogsResponse
 	default:
-		logger.Panicf("BUG: unsupported datasource type %q to parse query range response", s.dataSourceType)
+		logger.Panicf("BUG: unsupported datasource type %q to parse query range response", c.dataSourceType)
 	}
 	res, err = parseFn(req, resp)
 	_ = resp.Body.Close()
 	return res, err
 }
 
-func (s *Client) do(req *http.Request) (*http.Response, error) {
+func (c *Client) do(req *http.Request) (*http.Response, error) {
 	ru := req.URL.Redacted()
 	if *showDatasourceURL {
 		ru = req.URL.String()
 	}
-	if s.debug {
+	if c.debug {
 		logger.Infof("DEBUG datasource request: executing %s request with params %q", req.Method, ru)
 	}
-	resp, err := s.c.Do(req)
+	resp, err := c.c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error getting response from %s: %w", ru, err)
 	}
@@ -262,62 +265,62 @@ func (s *Client) do(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-func (s *Client) newQueryRangeRequest(ctx context.Context, query string, start, end time.Time) (*http.Request, error) {
-	req, err := s.newRequest(ctx)
+func (c *Client) newQueryRangeRequest(ctx context.Context, query string, start, end time.Time) (*http.Request, error) {
+	req, err := c.newRequest(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create query_range request to datasource %q: %w", s.datasourceURL, err)
+		return nil, fmt.Errorf("cannot create query_range request to datasource %q: %w", c.datasourceURL, err)
 	}
-	switch s.dataSourceType {
+	switch c.dataSourceType {
 	case datasourcePrometheus:
-		s.setPrometheusRangeReqParams(req, query, start, end)
+		c.setPrometheusRangeReqParams(req, query, start, end)
 	case datasourceVLogs:
-		s.setVLogsRangeReqParams(req, query, start, end)
+		c.setVLogsRangeReqParams(req, query, start, end)
 	default:
-		logger.Panicf("BUG: unsupported datasource type %q to create range query request", s.dataSourceType)
+		logger.Panicf("BUG: unsupported datasource type %q to create range query request", c.dataSourceType)
 	}
 	return req, nil
 }
 
-func (s *Client) newQueryRequest(ctx context.Context, query string, ts time.Time) (*http.Request, error) {
-	req, err := s.newRequest(ctx)
+func (c *Client) newQueryRequest(ctx context.Context, query string, ts time.Time) (*http.Request, error) {
+	req, err := c.newRequest(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create query request to datasource %q: %w", s.datasourceURL, err)
+		return nil, fmt.Errorf("cannot create query request to datasource %q: %w", c.datasourceURL, err)
 	}
-	switch s.dataSourceType {
+	switch c.dataSourceType {
 	case datasourcePrometheus:
-		s.setPrometheusInstantReqParams(req, query, ts)
+		c.setPrometheusInstantReqParams(req, query, ts)
 	case datasourceGraphite:
-		s.setGraphiteReqParams(req, query)
+		c.setGraphiteReqParams(req, query)
 	case datasourceVLogs:
-		s.setVLogsInstantReqParams(req, query, ts)
+		c.setVLogsInstantReqParams(req, query, ts)
 	default:
-		logger.Panicf("BUG: unsupported datasource type %q to create query request", s.dataSourceType)
+		logger.Panicf("BUG: unsupported datasource type %q to create query request", c.dataSourceType)
 	}
 	return req, nil
 }
 
-func (s *Client) newRequest(ctx context.Context) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.datasourceURL, nil)
+func (c *Client) newRequest(ctx context.Context) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.datasourceURL, nil)
 	if err != nil {
-		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", s.datasourceURL, err)
+		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", c.datasourceURL, err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if s.authCfg != nil {
-		err = s.authCfg.SetHeaders(req, true)
+	if c.authCfg != nil {
+		err = c.authCfg.SetHeaders(req, true)
 		if err != nil {
 			return nil, err
 		}
 	}
-	for _, h := range s.extraHeaders {
+	for _, h := range c.extraHeaders {
 		req.Header.Set(h.key, h.value)
 	}
 	return req, nil
 }
 
 // setReqParams adds query and other extra params for the request.
-func (s *Client) setReqParams(r *http.Request, query string) {
+func (c *Client) setReqParams(r *http.Request, query string) {
 	q := r.URL.Query()
-	for k, vs := range s.extraParams {
+	for k, vs := range c.extraParams {
 		if q.Has(k) { // extraParams are prior to params in URL
 			q.Del(k)
 		}

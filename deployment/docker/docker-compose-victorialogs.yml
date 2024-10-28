@@ -69,21 +69,44 @@ services:
       - vm_net
     restart: always
 
-  # vmalert executes alerting and recording rules
+  # vmauth is a router and balancer for HTTP requests.
+  # It proxies query requests from vmalert to either VictoriaMetrics or VictoriaLogs,
+  # depending on the requested path.
+  vmauth:
+    container_name: vmauth
+    image: victoriametrics/vmauth:v1.105.0
+    depends_on:
+      - "victoriametrics"
+      - "victorialogs"
+    volumes:
+      - ./auth-mixed-datasource.yml:/etc/auth.yml
+    command:
+      - "--auth.config=/etc/auth.yml"
+    ports:
+      - 8427:8427
+    networks:
+      - vm_net
+    restart: always
+
+  # vmalert executes alerting and recording rules according to given rule type.
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:heads-vmalert-support-vlog-ds-0-gdd5f198-scratch
+    image: victoriametrics/vmalert:v1.105.0
     depends_on:
-      - "victorialogs"
-      - "victoriametrics"
+      - "vmauth"
       - "alertmanager"
+      - "victoriametrics"
     ports:
       - 8880:8880
     volumes:
-      - ./rules/vlogs-example-alerts.yml:/etc/alerts/vlogs.yml
+      # disable log-related rules for now, util vmalert supports vlogs type rule
+      # - ./rules/vlogs-example-alerts.yml:/etc/alerts/vlogs.yml
+      - ./rules/alerts.yml:/etc/alerts/alerts.yml
+      - ./rules/alerts-health.yml:/etc/alerts/alerts-health.yml
+      - ./rules/alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
+      - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
     command:
-      - "--datasource.url=http://victorialogs:9428/"
-      - "-rule.defaultRuleType=vlogs"
+      - "--datasource.url=http://vmauth:8427/"
       - "--remoteRead.url=http://victoriametrics:8428/"
       - "--remoteWrite.url=http://victoriametrics:8428/"
       - "--notifier.url=http://alertmanager:9093/"

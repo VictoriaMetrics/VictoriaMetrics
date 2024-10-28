@@ -1,5 +1,6 @@
 groups:
   - name: TestGroup
+    type: vlogs
     interval: 1m
     rules:
       - record: logCount

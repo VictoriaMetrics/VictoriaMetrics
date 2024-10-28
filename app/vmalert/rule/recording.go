@@ -221,6 +221,6 @@ func setIntervalAsTimeFilter(dType, expr string) bool {
 	if dType != "vlogs" {
 		return false
 	}
-	_, hasTimeFilterInExpr, _ := logstorage.ParseStatsQuery(expr)
-	return !hasTimeFilterInExpr
+	q, _ := logstorage.ParseStatsQuery(expr)
+	return !q.ContainAnyTimeFilter()
 }
