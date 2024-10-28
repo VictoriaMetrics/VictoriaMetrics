@@ -56,6 +56,7 @@ func (di *DictInt) Set(value string) error {
 		di.kvs = append(di.kvs, kIntValue{
 			v: v,
 		})
+		di.defaultValue = v
 		return nil
 	}
 	for _, x := range values {

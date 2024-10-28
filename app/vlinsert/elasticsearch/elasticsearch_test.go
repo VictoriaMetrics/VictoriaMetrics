@@ -86,10 +86,10 @@ func TestReadBulkRequest_Success(t *testing.T) {
 	msgField := "message"
 	rowsExpected := 4
 	timestampsExpected := []int64{1686026891735000000, 1686023292735000000, 1686026893735000000, 1686026893000000000}
-	resultExpected := `{"@timestamp":"","log.offset":"71770","log.file.path":"/var/log/auth.log","_msg":"foobar"}
-{"@timestamp":"","_msg":"baz"}
-{"_msg":"xyz","@timestamp":"","x":"y"}
-{"_msg":"qwe rty","@timestamp":""}`
+	resultExpected := `{"log.offset":"71770","log.file.path":"/var/log/auth.log","_msg":"foobar"}
+{"_msg":"baz"}
+{"_msg":"xyz","x":"y"}
+{"_msg":"qwe rty"}`
 	f(data, timeField, msgField, rowsExpected, timestampsExpected, resultExpected)
 }
 

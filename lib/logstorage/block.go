@@ -150,17 +150,12 @@ func (c *column) resizeValues(valuesLen int) []string {
 // mustWriteTo writes c to sw and updates ch accordingly.
 //
 // ch is valid until c is changed.
-func (c *column) mustWriteToNoArena(ch *columnHeader, sw *streamWriters) {
+func (c *column) mustWriteTo(ch *columnHeader, sw *streamWriters) {
 	ch.reset()
 
-	valuesWriter := &sw.fieldValuesWriter
-	bloomFilterWriter := &sw.fieldBloomFilterWriter
-	if c.name == "" {
-		valuesWriter = &sw.messageValuesWriter
-		bloomFilterWriter = &sw.messageBloomFilterWriter
-	}
-
 	ch.name = c.name
+
+	bloomValuesWriter := sw.getBloomValuesWriterForColumnName(ch.name)
 
 	// encode values
 	ve := getValuesEncoder()
@@ -176,15 +171,15 @@ func (c *column) mustWriteToNoArena(ch *columnHeader, sw *streamWriters) {
 	if ch.valuesSize > maxValuesBlockSize {
 		logger.Panicf("BUG: too valuesSize: %d bytes; mustn't exceed %d bytes", ch.valuesSize, maxValuesBlockSize)
 	}
-	ch.valuesOffset = valuesWriter.bytesWritten
-	valuesWriter.MustWrite(bb.B)
+	ch.valuesOffset = bloomValuesWriter.values.bytesWritten
+	bloomValuesWriter.values.MustWrite(bb.B)
 
 	// create and marshal bloom filter for c.values
 	if ch.valueType != valueTypeDict {
-		tokensBuf := getTokensBuf()
-		tokensBuf.A = tokenizeStrings(tokensBuf.A[:0], c.values)
-		bb.B = bloomFilterMarshal(bb.B[:0], tokensBuf.A)
-		putTokensBuf(tokensBuf)
+		hashesBuf := encoding.GetUint64s(0)
+		hashesBuf.A = tokenizeHashes(hashesBuf.A[:0], c.values)
+		bb.B = bloomFilterMarshalHashes(bb.B[:0], hashesBuf.A)
+		encoding.PutUint64s(hashesBuf)
 	} else {
 		// there is no need in ecoding bloom filter for dictionary type,
 		// since it isn't used during querying - all the dictionary values are available in ch.valuesDict
@@ -194,8 +189,8 @@ func (c *column) mustWriteToNoArena(ch *columnHeader, sw *streamWriters) {
 	if ch.bloomFilterSize > maxBloomFilterBlockSize {
 		logger.Panicf("BUG: too big bloomFilterSize: %d bytes; mustn't exceed %d bytes", ch.bloomFilterSize, maxBloomFilterBlockSize)
 	}
-	ch.bloomFilterOffset = bloomFilterWriter.bytesWritten
-	bloomFilterWriter.MustWrite(bb.B)
+	ch.bloomFilterOffset = bloomValuesWriter.bloom.bytesWritten
+	bloomValuesWriter.bloom.MustWrite(bb.B)
 }
 
 func (b *block) assertValid() {
@@ -436,7 +431,7 @@ func (b *block) InitFromBlockData(bd *blockData, sbu *stringsBlockUnmarshaler, v
 }
 
 // mustWriteTo writes b with the given sid to sw and updates bh accordingly.
-func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters) {
+func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters, g *columnNameIDGenerator) {
 	// Do not store the version used for encoding directly in the block data, since:
 	// - all the blocks in the same part use the same encoding
 	// - the block encoding version can be put in metadata file for the part (aka metadataFilename)
@@ -458,22 +453,13 @@ func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters) {
 
 	chs := csh.resizeColumnHeaders(len(cs))
 	for i := range cs {
-		cs[i].mustWriteToNoArena(&chs[i], sw)
+		cs[i].mustWriteTo(&chs[i], sw)
 	}
 	csh.constColumns = append(csh.constColumns[:0], b.constColumns...)
 
-	bb := longTermBufPool.Get()
-	bb.B = csh.marshal(bb.B)
+	csh.mustWriteTo(bh, sw, g)
 
 	putColumnsHeader(csh)
-
-	bh.columnsHeaderOffset = sw.columnsHeaderWriter.bytesWritten
-	bh.columnsHeaderSize = uint64(len(bb.B))
-	if bh.columnsHeaderSize > maxColumnsHeaderSize {
-		logger.Panicf("BUG: too big columnsHeaderSize: %d bytes; mustn't exceed %d bytes", bh.columnsHeaderSize, maxColumnsHeaderSize)
-	}
-	sw.columnsHeaderWriter.MustWrite(bb.B)
-	longTermBufPool.Put(bb)
 }
 
 // appendRowsTo appends log entries from b to dst.

@@ -14,6 +14,9 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/fastcache"
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -25,8 +28,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
-	"github.com/cespare/xxhash/v2"
 )
 
 const (
@@ -536,7 +537,21 @@ type indexSearch struct {
 	deadline uint64
 }
 
+// getIndexSearch returns an indexSearch with default configuration
 func (db *indexDB) getIndexSearch(accountID, projectID uint32, deadline uint64) *indexSearch {
+	return db.getIndexSearchInternal(accountID, projectID, deadline, false)
+}
+
+// getIndexSearchSparse returns an indexSearch with sparse cache
+// It is useful for search operations that can scan through the large amount index entries
+// Without the need to keep all the entries in the caches used for queries
+// used in ENT version
+// nolint:unused
+func (db *indexDB) getIndexSearchSparse(accountID, projectID uint32, deadline uint64) *indexSearch {
+	return db.getIndexSearchInternal(accountID, projectID, deadline, true)
+}
+
+func (db *indexDB) getIndexSearchInternal(accountID, projectID uint32, deadline uint64, sparse bool) *indexSearch {
 	v := db.indexSearchPool.Get()
 	if v == nil {
 		v = &indexSearch{
@@ -544,9 +559,9 @@ func (db *indexDB) getIndexSearch(accountID, projectID uint32, deadline uint64) 
 		}
 	}
 	is := v.(*indexSearch)
-	is.ts.Init(db.tb)
 	is.accountID = accountID
 	is.projectID = projectID
+	is.ts.Init(db.tb, sparse)
 	is.deadline = deadline
 	return is
 }
@@ -1716,6 +1731,45 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64, accoun
 	return dst, false
 }
 
+// searchMetricNameWithoutCache appends metric name for the given metricID to dst
+// and returns the result.
+// It does not cache the result and uses sparse cache for index scan.
+// used in ENT version
+// nolint:unused
+func (db *indexDB) searchMetricNameWithoutCache(dst []byte, metricID uint64, accountID, projectID uint32) ([]byte, bool) {
+	is := db.getIndexSearchSparse(accountID, projectID, noDeadline)
+	var ok bool
+	dst, ok = is.searchMetricName(dst, metricID)
+	db.putIndexSearch(is)
+	if ok {
+		// There is no need in verifying whether the given metricID is deleted,
+		// since the filtering must be performed before calling this func.
+		return dst, true
+	}
+
+	// Try searching in the external indexDB.
+	db.doExtDB(func(extDB *indexDB) {
+		is := extDB.getIndexSearchSparse(accountID, projectID, noDeadline)
+		dst, ok = is.searchMetricName(dst, metricID)
+		extDB.putIndexSearch(is)
+	})
+	if ok {
+		return dst, true
+	}
+
+	if db.s.wasMetricIDMissingBefore(metricID) {
+		// Cannot find the MetricName for the given metricID for the last 60 seconds.
+		// It is likely the indexDB contains incomplete set of metricID -> metricName entries
+		// after unclean shutdown or after restoring from a snapshot.
+		// Mark the metricID as deleted, so it is created again when new sample
+		// for the given time series is ingested next time.
+		db.missingMetricNamesForMetricID.Add(1)
+		db.deleteMetricIDs([]uint64{metricID})
+	}
+
+	return dst, false
+}
+
 // DeleteTSIDs marks as deleted all the TSIDs matching the given tfss and
 // updates or resets all caches where TSIDs and the corresponding MetricIDs may
 // be stored.
@@ -2426,7 +2480,7 @@ func (is *indexSearch) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilter
 
 func errTooManyTimeseries(maxMetrics int) error {
 	return fmt.Errorf("the number of matching timeseries exceeds %d; "+
-		"either narrow down the search or increase -search.max* command-line flag values at vmselect "+
+		"either narrow down the search or increase -search.max* command-line flag values "+
 		"(the most likely limit is -search.maxUniqueTimeseries); "+
 		"see https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics)
 }

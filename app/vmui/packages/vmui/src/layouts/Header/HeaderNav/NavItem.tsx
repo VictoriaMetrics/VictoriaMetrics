@@ -1,7 +1,7 @@
 import React, { FC } from "preact/compat";
 import { NavLink } from "react-router-dom";
 import classNames from "classnames";
-import { NavigationItemType } from "../../../constants/navigation";
+import { NavigationItemType } from "../../../router/navigation";
 
 interface NavItemProps {
   activeMenu: string,

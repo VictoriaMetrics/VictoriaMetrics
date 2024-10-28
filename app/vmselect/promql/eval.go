@@ -46,7 +46,7 @@ var (
 		"See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery")
 	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, "+
 		"so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
-	minWindowForInstantRollupOptimization = flagutil.NewDuration("search.minWindowForInstantRollupOptimization", "3h", "Enable cache-based optimization for repeated queries "+
+	minWindowForInstantRollupOptimization = flag.Duration("search.minWindowForInstantRollupOptimization", time.Hour*3, "Enable cache-based optimization for repeated queries "+
 		"to /api/v1/query (aka instant queries), which contain rollup functions with lookbehind window exceeding the given value")
 	maxBinaryOpPushdownLabelValues = flag.Int("search.maxBinaryOpPushdownLabelValues", 100, "The maximum number of values for a label in the first expression that can be extracted as a common label filter and pushed down to the second expression in a binary operation. "+
 		"A larger value makes the pushed-down filter more complex but fewer time series will be returned. This flag is useful when selective label contains numerous values, for example `instance`, and storage resources are abundant.")

@@ -23,15 +23,15 @@ or from [docker images](https://hub.docker.com/r/victoriametrics/vlogscli/tags):
 ### Running `vlogscli` from release binary
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.35.0-victorialogs/vlogscli-linux-amd64-v0.35.0-victorialogs.tar.gz
-tar xzf vlogscli-linux-amd64-v0.35.0-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.37.0-victorialogs/vlogscli-linux-amd64-v0.37.0-victorialogs.tar.gz
+tar xzf vlogscli-linux-amd64-v0.37.0-victorialogs.tar.gz
 ./vlogscli-prod
 ```
 
 ### Running `vlogscli` from Docker image
 
 ```sh
-docker run --rm -it docker.io/victoriametrics/vlogscli:v0.35.0-victorialogs
+docker run --rm -it docker.io/victoriametrics/vlogscli:v0.37.0-victorialogs
 ```
 
 ## Configuration
@@ -100,7 +100,7 @@ See also:
 
 If the query response exceeds vertical screen space, `vlogsql` pipes query response to `less` utility,
 so you can scroll the response as needed. This allows executing queries, which potentially
-may return billions of rows, without any problems at both VictoriaMetrics and `vlogsql` sides,
+may return billions of rows, without any problems at both VictoriaLogs and `vlogsql` sides,
 thanks to the way how `less` interacts with [`/select/logsql/query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs):
 
 - `less` reads the response when needed, e.g. when you scroll it down.
@@ -112,7 +112,7 @@ thanks to the way how `less` interacts with [`/select/logsql/query`](https://doc
   after the response stream is closed.
 
 See also [`less` docs](https://man7.org/linux/man-pages/man1/less.1.html) and
-[command-line integration docs for VictoriaMetrics](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
+[command-line integration docs for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/#command-line).
 
 
 ## Live tailing

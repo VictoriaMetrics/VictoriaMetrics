@@ -468,7 +468,7 @@ See also:
 
 ### _stream_id filter
 
-Every [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) in VictoriaMetrics is uniquely identified by `_stream_id` field.
+Every [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) in VictoriaLogs is uniquely identified by `_stream_id` field.
 The `_stream_id:...` filter allows quickly selecting all the logs belonging to the particular stream.
 
 For example, the following query selects all the logs, which belong to the [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)

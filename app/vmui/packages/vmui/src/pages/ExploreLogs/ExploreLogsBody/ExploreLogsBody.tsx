@@ -16,9 +16,11 @@ import TableLogs from "./TableLogs";
 import GroupLogs from "../GroupLogs/GroupLogs";
 import { DATE_TIME_FORMAT } from "../../../constants/date";
 import { marked } from "marked";
+import LineLoader from "../../../components/Main/LineLoader/LineLoader";
 
 export interface ExploreLogBodyProps {
   data: Logs[];
+  isLoading: boolean;
 }
 
 enum DisplayType {
@@ -33,7 +35,7 @@ const tabs = [
   { label: "JSON", value: DisplayType.json, icon: <CodeIcon/> },
 ];
 
-const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data }) => {
+const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
   const { isMobile } = useDeviceDetect();
   const { timezone } = useTimeState();
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
@@ -75,6 +77,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data }) => {
         "vm-block_mobile": isMobile,
       })}
     >
+      {isLoading && <LineLoader/>}
       <div
         className={classNames({
           "vm-explore-logs-body-header": true,
