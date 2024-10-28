@@ -11,6 +11,17 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.18.0
+Released: 2024-10-28
+
+- FEATURE: Introduced timezone-aware support in `VmReader` for accurate seasonality modeling, especially during DST shifts. A new `tz` argument enables timezone offset management at both global and [query-specific levels](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters).
+  - Enhanced [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) with a `tz_aware` argument (combined with `tz_seasonalities` and `tz_use_cyclical_encoding`) for timezone-aware timestamps. This addresses a [limitation in Prophet's native design](https://github.com/facebook/prophet/blob/dc1df4cb23a150e14858afb34c9442401c0eb2fc/python/prophet/forecaster.py#L288) that doesn't allow timezone-aware and DST-aware seasonality.
+
+- IMPROVEMENT: Enhanced error handling in [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) to provide clearer diagnostics and broader coverage.
+
+- FIX: Updated `vmanomaly_version_info` and `vmanomaly_ui_version_info` gauges to correctly set the version label value based on image tags.
+- FIX: The `n_samples_seen_` attribute now properly resets to 0 with each new `fit` call in [online model](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) classes ([`OnlineMADModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-mad) and [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)), ensuring accurate tracking of processed sample count.
+
 ## v1.17.2
 Released: 2024-10-22
 
