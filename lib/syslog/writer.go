@@ -36,9 +36,8 @@ func (w *syslogWriter) connect() (serverConn, error) {
 	if err == nil {
 		w.conn = conn
 		return conn, nil
-	} else {
-		return nil, err
 	}
+	return nil, err
 }
 
 // send forwards the log message to the syslog server
@@ -101,14 +100,14 @@ func (w *syslogWriter) logSender() {
 	}
 }
 
-func (w *syslogWriter) sendWithRetry(logEntry SyslogLogContent) bool {
+func (w *syslogWriter) sendWithRetry(logEntry LogContent) bool {
 	duration, err := time.ParseDuration(w.sysCfg.QueueConfig.RetryDuration)
 	if err != nil {
 		fmt.Println("unable to parse retry duration. reason: ", err.Error())
 		fmt.Println("using default value of 2s")
 		duration = defaultRetryDuration
 	}
-	for _ = range w.sysCfg.QueueConfig.Retries {
+	for range w.sysCfg.QueueConfig.Retries {
 		_, err := w.send(logEntry.LogLevel, logEntry.Msg)
 		if err != nil {
 			time.Sleep(duration)

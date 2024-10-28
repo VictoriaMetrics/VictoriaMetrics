@@ -14,15 +14,15 @@ type formatter func(priority int64, hostname, content string) string
 
 // truncateStartStr limits the length of string to max characters
 func truncateStartStr(s string, max int) string {
-	if (len(s) > max) {
-		return s[len(s) - max:]
+	if len(s) > max {
+		return s[len(s)-max:]
 	}
 	return s
 }
 
 // defaultFormatter provides an RFC 5424 compliant message.
 func defaultFormatter(priority int64, hostname, content string) string {
-	version := 1 
+	version := 1
 	timestamp := time.Now().Format(time.RFC3339)
 	appName := truncateStartStr(os.Args[0], appNameMaxLength)
 	// Construct the syslog message.

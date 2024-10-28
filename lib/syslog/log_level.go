@@ -14,9 +14,9 @@ const (
 
 // Mapping vm log levels to syslog severity
 var logLevelMap = map[string]int64{
-	"info":    INFO,
-	"warn":    WARN,
-	"error":   ERROR,
-	"fatal":   CRIT,
-	"panic":   EMERG,
+	"info":  INFO,
+	"warn":  WARN,
+	"error": ERROR,
+	"fatal": CRIT,
+	"panic": EMERG,
 }

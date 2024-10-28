@@ -36,7 +36,7 @@ type syslogConfig struct {
 	RfcNum     int64     `yaml:"rfcNum,omitempty"`
 	Facility   int64     `yaml:"facility,omitempty"`
 	BasicAuth  basicAuth `yaml:"basic_auth,omitempty"`
-	Tls        tlsConfig `yaml:"tls,omitempty"`
+	TLS        tlsConfig `yaml:"tls,omitempty"`
 }
 
 type basicAuth struct {
@@ -52,25 +52,23 @@ type tlsConfig struct {
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify,omitempty"`
 }
 
-// Log data to be written into the buffered channel and sent to the syslog server
-type SyslogLogContent struct {
+// LogContent contains log data to be written into the buffered channel and sent to the syslog server and the log level
+type LogContent struct {
 	Msg      string
 	LogLevel string
 }
 
 const (
-	DEF_QUEUE_SIZE_VALUE           = 1000
-	DEF_INSECURE_SKIP_VERIFY_VALUE = false
-	DEF_RFC_NUM_VALUE              = 3164
-	DEF_SYSLOG_SERVER_PORT         = 514
-	DEF_SYSLOG_FACILITY            = 16
-	DEF_SYSLOG_PROTOCOL            = "udp"
-	defaultRetryDuration           = 2 * time.Second
+	defaultQueueSizeValue   = 1000
+	defaultSyslogServerPort = 514
+	defaultSyslogFacility   = 16
+	defaultSyslogProtocol   = "udp"
+	defaultRetryDuration    = 2 * time.Second
 )
 
 var (
 	cfgFile = flag.String("syslogConfig", "", "Configuration file for syslog")
-	logChan chan SyslogLogContent
+	logChan chan LogContent
 )
 
 // Init initializes the buffered channel and the syslog writer
@@ -88,25 +86,25 @@ func Init() {
 			panic(err)
 		}
 		if sysCfg.QueueConfig.Capacity == 0 {
-			sysCfg.QueueConfig.Capacity = DEF_QUEUE_SIZE_VALUE
+			sysCfg.QueueConfig.Capacity = defaultQueueSizeValue
 		}
 
 		if sysCfg.SyslogConfig.Port == 0 {
-			sysCfg.SyslogConfig.Port = DEF_SYSLOG_SERVER_PORT
+			sysCfg.SyslogConfig.Port = defaultSyslogServerPort
 		}
 
 		if sysCfg.SyslogConfig.Protocol == "" {
-			sysCfg.SyslogConfig.Protocol = DEF_SYSLOG_PROTOCOL
+			sysCfg.SyslogConfig.Protocol = defaultSyslogProtocol
 		}
 		if sysCfg.SyslogConfig.Facility == 0 {
-			sysCfg.SyslogConfig.Facility = DEF_SYSLOG_FACILITY
+			sysCfg.SyslogConfig.Facility = defaultSyslogFacility
 		}
 	} else {
 		panic(fmt.Errorf("Syslog is configured but configuration file missing"))
 	}
 
 	// Initializes the buffered channel and the syslog writer
-	logChan = make(chan SyslogLogContent, sysCfg.QueueConfig.Capacity)
+	logChan = make(chan LogContent, sysCfg.QueueConfig.Capacity)
 	syslogW := &syslogWriter{framer: defaultFramer, formatter: defaultFormatter}
 	syslogW.sysCfg = sysCfg
 	// watches the channel for log data written by the logger and forwards it to the syslog server
@@ -126,7 +124,7 @@ func Stop() {
 }
 
 // WriteInfo writes the log data to buffered channel. If the channel is full the oldest log data is dropped
-func WriteInfo(s SyslogLogContent) error {
+func WriteInfo(s LogContent) {
 	channelSize := "vm_syslog_queue_size"
 	metrics.GetOrCreateGauge(channelSize, func() float64 {
 		return float64(len(logChan))
@@ -142,6 +140,4 @@ func WriteInfo(s SyslogLogContent) error {
 		metrics.GetOrCreateCounter(totalDroppedMsgs).Inc()
 		logChan <- s
 	}
-
-	return nil
 }
