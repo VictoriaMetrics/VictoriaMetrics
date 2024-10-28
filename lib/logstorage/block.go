@@ -227,7 +227,7 @@ func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) {
 	b.sortColumnsByName()
 }
 
-// mustInitiFromRows initializes b from rows.
+// mustInitFromRows initializes b from rows.
 //
 // b is valid until rows are changed.
 func (b *block) mustInitFromRows(rows [][]Field) {
