@@ -283,7 +283,7 @@ func logMessage(level, msg string, skipframes int) {
 			logMsg = fmt.Sprintf("%s\t%s\n", location, msg)
 		}
 
-		syslogMsg := syslog.SyslogLogContent{Msg: logMsg, LogLevel: levelLowercase}
+		syslogMsg := syslog.LogContent{Msg: logMsg, LogLevel: levelLowercase}
 		mu.Lock()
 		syslog.WriteInfo(syslogMsg)
 		mu.Unlock()

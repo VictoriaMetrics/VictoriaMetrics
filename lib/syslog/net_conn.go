@@ -12,7 +12,7 @@ type netConn struct {
 // writeString formats and frames message before writing it over the connection
 func (n *netConn) writeString(framer framer, formatter formatter, priority int64, hostname, msg string) error {
 	formattedMessage := framer(formatter(priority, hostname, msg))
-	_, err := n.conn.Write([]byte(formattedMessage+"\n"))
+	_, err := n.conn.Write([]byte(formattedMessage + "\n"))
 	return err
 }
 
