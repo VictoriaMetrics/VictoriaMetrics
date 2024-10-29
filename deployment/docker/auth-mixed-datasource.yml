@@ -1,5 +1,4 @@
-# balance load among vmselects
-# see https://docs.victoriametrics.com/vmauth/#load-balancing
+# route requests between VictoriaMetrics and VictoriaLogs
 unauthorized_user:
   url_map:
   - src_paths:
