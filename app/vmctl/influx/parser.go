@@ -50,7 +50,7 @@ func parseResultCheckTags(s *Series, r influx.Result) ([]queryValues, error) {
 	for i := range s.LabelPairs {
 		wantedColumns[s.LabelPairs[i].Name] = true
 	}
-	//wantedColumns[s.Field] = true
+	// Multiple fields might exist, and they should be allowed.
 	for i := range s.FieldList {
 		wantedColumns[s.FieldList[i]] = true
 	}
