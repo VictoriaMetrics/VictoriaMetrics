@@ -3,12 +3,12 @@ package logstorage
 // partFormatLatestVersion is the latest format version for parts.
 //
 // See partHeader.FormatVersion for details.
-const partFormatLatestVersion = 1
+const partFormatLatestVersion = 2
 
-// bloomValuesShardsCount is the number of shards for bloomFilename and valuesFilename files.
+// bloomValuesMaxShardsCount is the number of shards for bloomFilename and valuesFilename files.
 //
-// The partHeader.FormatVersion must be updated when this number changes.
-const bloomValuesShardsCount = 8
+// The partHeader.FormatVersion and partFormatLatestVersion must be updated when this number changes.
+const bloomValuesMaxShardsCount = 128
 
 // maxUncompressedIndexBlockSize contains the maximum length of uncompressed block with blockHeader entries aka index block.
 //
