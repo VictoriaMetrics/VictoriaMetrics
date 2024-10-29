@@ -51,10 +51,7 @@ func (pt *pipeTop) String() string {
 		s += " by (" + fieldNamesString(pt.byFields) + ")"
 	}
 	if pt.rankFieldName != "" {
-		s += " with rank"
-		if pt.rankFieldName != "rank" {
-			s += " as " + pt.rankFieldName
-		}
+		s += rankFieldNameString(pt.rankFieldName)
 	}
 	return s
 }
@@ -685,26 +682,43 @@ func parsePipeTop(lex *lexer) (*pipeTop, error) {
 		hitsFieldName: hitsFieldName,
 	}
 
-	if !lex.isKeyword("with") {
-		return pt, nil
+	if lex.isKeyword("rank") {
+		rankFieldName, err := parseRankFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse rank field name in [%s]: %w", pt, err)
+		}
+		pt.rankFieldName = rankFieldName
 	}
+	return pt, nil
+}
 
-	lex.nextToken()
+func parseRankFieldName(lex *lexer) (string, error) {
 	if !lex.isKeyword("rank") {
-		return nil, fmt.Errorf("missing 'rank' word after 'with' in [%s]", pt)
+		return "", fmt.Errorf("unexpected token: %q; want 'rank'", lex.token)
 	}
 	lex.nextToken()
-	pt.rankFieldName = "rank"
+
+	rankFieldName := "rank"
 	if lex.isKeyword("as") {
 		lex.nextToken()
 		if lex.isKeyword("", "|", ")", "(") {
-			return nil, fmt.Errorf("missing rank name in [%s as]", pt)
+			return "", fmt.Errorf("missing rank name")
 		}
 	}
-	if !lex.isKeyword("", "|", ")") {
-		pt.rankFieldName = lex.token
-		lex.nextToken()
+	if !lex.isKeyword("", "|", ")", "limit") {
+		s, err := getCompoundToken(lex)
+		if err != nil {
+			return "", err
+		}
+		rankFieldName = s
 	}
+	return rankFieldName, nil
+}
 
-	return pt, nil
+func rankFieldNameString(rankFieldName string) string {
+	s := " rank"
+	if rankFieldName != "rank" {
+		s += " as " + rankFieldName
+	}
+	return s
 }
