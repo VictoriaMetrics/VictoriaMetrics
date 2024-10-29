@@ -8,32 +8,44 @@ menu:
 aliases:
 - /VictoriaLogs/vmalert.html
 ---
-VictoriaLogs provides log stats APIs [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats)  and [`/select/logsql/stats_query_range`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats), which return the log stats in the format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries). This allows using VictoriaLogs as the datasource for [vmalert](https://docs.victoriametrics.com/vmalert/), creating alerting and recording rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
+[vmalert](https://docs.victoriametrics.com/vmalert/) integrates with VictoriaLogs via stats APIs [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats)
+and [`/select/logsql/stats_query_range`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats).
+These endpoints return the log stats in a format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries). 
+It allows using VictoriaLogs as the datasource in vmalert, creating alerting and recording rules via [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 
-Note: This page only provides integration instructions for vmalert with VictoriaLogs, see full textbook of vmalert [here](https://docs.victoriametrics.com/vmalert).
+_Note: This page provides only integration instructions for vmalert and VictoriaLogs. See the full textbook for vmalert [here](https://docs.victoriametrics.com/vmalert)._
 
 ## Quick Start
 
-Run vmalert with the `-rule.defaultRuleType=vlogs` flag.
+Run vmalert with `-rule.defaultRuleType=vlogs` cmd-line flag.
 ```
 ./bin/vmalert -rule=alert.rules \            # Path to the files or http url with alerting and/or recording rules in YAML format.
     -datasource.url=http://localhost:9428 \  # VictoriaLogs address.
-    -rule.defaultRuleType=vlogs \            # Change default rule type to VictoriaLogs.
+    -rule.defaultRuleType=vlogs \            # Set default rules type to VictoriaLogs.
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
-    -remoteWrite.url=http://localhost:8428 \ # Remote write compatible storage to persist rules and alerts state info (required if recording rules are used)
+    -remoteWrite.url=http://localhost:8428 \ # Remote write compatible storage to persist rules and alerts state info (required for recording rules)
     -remoteRead.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource to restore alerts state from
 ```
 
 > See the full list of configuration flags and their descriptions in [configuration](#configuration) section.
 
-> Each rule file may contain arbitrary number of [groups](https://docs.victoriametrics.com/vmalert/#groups), examples can be found in [Groups](#groups) section.
+> Each `-rule` file may contain arbitrary number of [groups](https://docs.victoriametrics.com/vmalert/#groups). 
+See examples in [Groups](#groups) section.
 
+With configuration example above, vmalert will perform the following interactions:
 ![vmalert](vmalert_victorialogs.webp)
+
+1. Rules listed in `-rule` file are executed against VictoriaLogs service configured via `-datasource.url`;
+2. Triggered alerting notifications are sent to [Alertmanager](https://github.com/prometheus/alertmanager) service configured via `-notifier.url`;
+3. Results of recording rules expressions and alerts state are persisted to Prometheus-compatible remote-write endpoint (i.e. VictoriaMetrics) configured via `-remoteWrite.url`;
+4. On vmalert restarts, alerts state [can be restored](https://docs.victoriametrics.com/vmalert/#alerts-state-on-restarts) by querying Prometheus-compatible HTTP API endpoint (i.e. VictoriaMetrics) configured via `-remoteRead.url`.
 
 ## Configuration
 
 ### Flags
-For a complete list of command-line flags, visit https://docs.victoriametrics.com/vmalert/#flags. The following are key flags related to the VictoriaLogs datasource:
+
+For a complete list of command-line flags, visit https://docs.victoriametrics.com/vmalert/#flags or execute `./vmalert --help` command.
+The following are key flags related to integration with VictoriaLogs:
 
 ```
 -datasource.url string
@@ -117,9 +129,9 @@ groups:
 
 ## Time filter
 
-It's recommended to omit the [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) in the rule expression. By default, vmalert automatically appends the time filter `_time: <group_interval>` to the expression.
-For instance, the rule below will be evaluated every 5 minutes, and will return the result with logs from the last 5 minutes.
-
+It's recommended to omit the [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) in rule expression.
+By default, vmalert automatically appends the time filter `_time: <group_interval>` to the expression.
+For instance, the rule below will be evaluated every 5 minutes, and will return the result with logs from the last 5 minutes:
 ```
 groups:
     interval: 5m
@@ -129,8 +141,8 @@ groups:
         annotations: "Connection from address {{$labels.ip}} has {{$$value}}% failed requests in last 5 minutes"
 ```
 
-User can also specify a customized time filter if needed. For example, below rule will be evaluated every 5 minutes, but will return the result with logs from the last 10 minutes.
-
+User can also specify a customized time filter if needed. For example, rule below will be evaluated every 5 minutes,
+but will calculate result over the logs from the last 10 minutes.
 ```
 groups:
     interval: 5m
@@ -148,7 +160,7 @@ vmalert supports alerting and recording rules backfilling (aka replay) against V
 ```
 ./bin/vmalert -rule=path/to/your.rules \        # path to files with rules you usually use with vmalert
     -datasource.url=http://localhost:9428 \     # VictoriaLogs address.
-    -rule.defaultRuleType=vlogs \               # Change default rule type to VictoriaLogs.
+    -rule.defaultRuleType=vlogs \               # Set default rule type to VictoriaLogs.
     -remoteWrite.url=http://localhost:8428 \    # Remote write compatible storage to persist rules and alerts state info
     -replay.timeFrom=2021-05-11T07:21:43Z \     # to start replay from
     -replay.timeTo=2021-05-29T18:40:43Z         # to finish replay by, is optional
@@ -158,7 +170,7 @@ See more details about backfilling [here](https://docs.victoriametrics.com/vmale
 
 ## Performance tip
 
-LogsQL allows users to obtain multiple statistics from a single expression.
+LogsQL allows users to obtain multiple stats from a single expression.
 For instance, the following query calculates 50th, 90th and 99th percentiles for the `request_duration_seconds` field over logs for the last 5 minutes:
 
 ```
