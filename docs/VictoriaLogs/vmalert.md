@@ -8,6 +8,9 @@ menu:
 aliases:
 - /VictoriaLogs/vmalert.html
 ---
+
+_Available from [TODO](https://docs.victoriametrics.com/changelog/#TODO) vmalert version and [v0.36.0](https://docs.victoriametrics.com/victorialogs/changelog/#v0360) VictoriaLogs version._
+
 [vmalert](https://docs.victoriametrics.com/vmalert/) integrates with VictoriaLogs via stats APIs [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats)
 and [`/select/logsql/stats_query_range`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats).
 These endpoints return the log stats in a format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries). 

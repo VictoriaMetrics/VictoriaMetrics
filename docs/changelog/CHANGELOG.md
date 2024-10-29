@@ -18,6 +18,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): support [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) as a datasource. See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): `-rule` cmd-line flag now supports multi-document YAML files. This could be useful when rules are retrieved via HTTP URL where multiple rule files were merged together in one response. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6753). Thanks to @Irene-123 for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6995).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): support scraping from Kubernetes Native Sidecars. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7287).
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add a separate cache type for storing sparse entries when performing large index scans. This significantly reduces memory usage when applying [downsampling filters](https://docs.victoriametrics.com/#downsampling) and [retention filters](https://docs.victoriametrics.com/#retention-filters) during background merge. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7182) for the details.
@@ -26,8 +27,6 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): properly set `group_name` and `file` fields for recording rules in `/api/v1/rules`.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic when ingesting samples which are outisde of configured [retention filters](https://docs.victoriametrics.com/#retention-filters). This could happen when backfilling data with retention filters which exclude samples from the backfill range.
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): fix issue with series matching for `vmctl vm-native` with `--vm-native-disable-per-metric-migration` flag enabled. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7309).
-
-* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): support writing rules using [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) with [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) as the datasource. See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/).
 
 ## [v1.105.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.105.0)
 
