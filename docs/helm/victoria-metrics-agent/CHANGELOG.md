@@ -2,6 +2,15 @@
 
 - TODO
 
+## 0.14.4
+
+**Release date:** 2024-10-29
+
+![AppVersion: v1.105.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.105.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Support HPA for Statefulset
+
 ## 0.14.3
 
 **Release date:** 2024-10-21

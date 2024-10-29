@@ -862,50 +862,6 @@ name: ""
 </td>
     </tr>
     <tr>
-      <td>rbac.annotations</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">{}
-</code>
-</pre>
-</td>
-      <td><p>Role/RoleBinding annotations</p>
-</td>
-    </tr>
-    <tr>
-      <td>rbac.create</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
-</code>
-</pre>
-</td>
-      <td><p>Enables Role/RoleBinding creation</p>
-</td>
-    </tr>
-    <tr>
-      <td>rbac.extraLabels</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">{}
-</code>
-</pre>
-</td>
-      <td><p>Role/RoleBinding labels</p>
-</td>
-    </tr>
-    <tr>
-      <td>rbac.namespaced</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">false
-</code>
-</pre>
-</td>
-      <td><p>If true and <code>rbac.enabled</code>, will deploy a Role/RoleBinding instead of a ClusterRole/ClusterRoleBinding</p>
-</td>
-    </tr>
-    <tr>
       <td>server.affinity</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -1242,7 +1198,7 @@ variant: ""
       <td>server.name</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">server
+<code class="language-yaml">""
 </code>
 </pre>
 </td>
