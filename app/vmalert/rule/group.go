@@ -213,7 +213,6 @@ func (g *Group) restore(ctx context.Context, qb datasource.QuerierBuilder, ts ti
 			continue
 		}
 		q := qb.BuildWithParams(datasource.QuerierParams{
-			DataSourceType:     g.Type.String(),
 			EvaluationInterval: g.Interval,
 			QueryParams:        g.Params,
 			Headers:            g.Headers,
