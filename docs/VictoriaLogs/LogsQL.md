@@ -2400,6 +2400,18 @@ For example, the following query is equivalent to the previous one:
 _time:5m | fields ip | top
 ```
 
+It is possible to set `rank` field per each returned entry for `top` pipe by adding `with rank`. For example, the following query sets the `rank` field per each returned `ip`:
+
+```logsql
+_time:5m | top 10 by (ip) with rank
+```
+
+The `rank` field can have other name. For example, the following query uses the `position` field name instead of `rank` field name in the output:
+
+```logsql
+_time:5m | top 10 by (ip) with rank as position
+```
+
 See also:
 
 - [`uniq` pipe](#uniq-pipe)
