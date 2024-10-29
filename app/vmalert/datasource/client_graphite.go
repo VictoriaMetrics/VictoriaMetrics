@@ -46,8 +46,8 @@ const (
 	graphitePrefix = "/graphite"
 )
 
-func (s *Client) setGraphiteReqParams(r *http.Request, query string) {
-	if s.appendTypePrefix {
+func (c *Client) setGraphiteReqParams(r *http.Request, query string) {
+	if c.appendTypePrefix {
 		r.URL.Path += graphitePrefix
 	}
 	r.URL.Path += graphitePath
@@ -58,7 +58,7 @@ func (s *Client) setGraphiteReqParams(r *http.Request, query string) {
 	q.Set("target", query)
 	q.Set("until", "now")
 
-	for k, vs := range s.extraParams {
+	for k, vs := range c.extraParams {
 		if q.Has(k) { // extraParams are prior to params in URL
 			q.Del(k)
 		}

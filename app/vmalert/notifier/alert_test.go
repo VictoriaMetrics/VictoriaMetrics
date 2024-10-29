@@ -33,7 +33,7 @@ func TestAlertExecTemplate(t *testing.T) {
 		qFn := func(_ string) ([]datasource.Metric, error) {
 			return []datasource.Metric{
 				{
-					Labels: []datasource.Label{
+					Labels: []prompbmarshal.Label{
 						{Name: "foo", Value: "bar"},
 						{Name: "baz", Value: "qux"},
 					},
@@ -41,7 +41,7 @@ func TestAlertExecTemplate(t *testing.T) {
 					Timestamps: []int64{1},
 				},
 				{
-					Labels: []datasource.Label{
+					Labels: []prompbmarshal.Label{
 						{Name: "foo", Value: "garply"},
 						{Name: "baz", Value: "fred"},
 					},
