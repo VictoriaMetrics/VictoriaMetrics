@@ -46,7 +46,7 @@ func parseResultCheckTags(s *Series, r influx.Result) ([]queryValues, error) {
 	// This map contains all the desired column of the query result for current series.
 	// If a column (`Columns[i]` in influx.Result) not exists in map, this column must be declared by other series.
 	// A row (`values[i]` in influx.Result) is considered invalid if its unwanted column value is not null.
-	wantedColumns := make(map[string]bool)
+	wantedColumns := make(map[string]bool, len(s.LabelPairs)+len(s.FieldList)+1)
 	for i := range s.LabelPairs {
 		wantedColumns[s.LabelPairs[i].Name] = true
 	}
