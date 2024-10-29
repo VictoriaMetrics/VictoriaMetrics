@@ -51,6 +51,11 @@ type Series struct {
 	Measurement string
 	Field       string
 	LabelPairs  []LabelPair
+
+	// FieldList store all field for this measurement.
+	// It's useful when a measurement contains multiple series with more than one fields.
+	// See influx.parseResultCheckTags function.
+	FieldList []string
 }
 
 var valueEscaper = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
@@ -150,6 +155,8 @@ func timeFilter(start, end string) string {
 // May contain non-existing time series.
 func (c *Client) Explore() ([]*Series, error) {
 	log.Printf("Exploring scheme for database %q", c.database)
+
+	// mFields is a `map[Measurement][]string{field1, field2, ...}`
 	mFields, err := c.fieldsByMeasurement()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get field keys: %s", err)
@@ -176,6 +183,7 @@ func (c *Client) Explore() ([]*Series, error) {
 				Measurement: s.Measurement,
 				Field:       field,
 				LabelPairs:  s.LabelPairs,
+				FieldList:   fields,
 			}
 			iSeries = append(iSeries, is)
 		}

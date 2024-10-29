@@ -50,7 +50,10 @@ func parseResultCheckTags(s *Series, r influx.Result) ([]queryValues, error) {
 	for i := range s.LabelPairs {
 		wantedColumns[s.LabelPairs[i].Name] = true
 	}
-	wantedColumns[s.Field] = true
+	//wantedColumns[s.Field] = true
+	for i := range s.FieldList {
+		wantedColumns[s.FieldList[i]] = true
+	}
 	wantedColumns["time"] = true // const from InfluxDB
 
 	for i := range r.Series {

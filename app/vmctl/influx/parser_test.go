@@ -95,13 +95,14 @@ func TestParseResultCheckTags(t *testing.T) {
 			Measurement: "measurement",
 			Field:       "value",
 			LabelPairs:  lp,
+			FieldList:   []string{"value", "value1"},
 		}
 		ir := influx.Result{
 			Series: []models.Row{
 				{
 					Name:    "test_table",
-					Columns: append(queryColumn, "value", "time"),
-					Values:  [][]interface{}{append(queryRow, "10", "1729829153000000000")},
+					Columns: append(queryColumn, "value", "value1", "time"),
+					Values:  [][]interface{}{append(queryRow, "10", "11", "1729829153000000000")},
 				},
 			},
 		}
