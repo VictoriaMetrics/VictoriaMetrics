@@ -2409,3 +2409,142 @@ func TestHasTimeFilter(t *testing.T) {
 	f(`error AND (_time: 5m AND warn) | count()`, true)
 	f(`* | error AND _time:5m | count()`, true)
 }
+
+func TestAddExtraFilters(t *testing.T) {
+	f := func(qStr string, extraFilters []Field, resultExpected string) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("unexpected error in ParseQuery: %s", err)
+		}
+		q.AddExtraFilters(extraFilters)
+
+		result := q.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(`*`, nil, `*`)
+	f(`_time:5m`, nil, `_time:5m`)
+	f(`foo _time:5m`, nil, `foo _time:5m`)
+
+	f(`*`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, "foo:=bar *")
+
+	f("_time:5m", []Field{
+		{
+			Name:  "fo o",
+			Value: "=ba:r !",
+		},
+	}, `"fo o":="=ba:r !" _time:5m`)
+
+	f("_time:5m {a=b}", []Field{
+		{
+			Name:  "fo o",
+			Value: "=ba:r !",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `"fo o":="=ba:r !" x:=y _time:5m {a="b"}`)
+
+	f(`a or (b c)`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, `foo:=bar (a or b c)`)
+}
+
+func TestAddExtraStreamFilters(t *testing.T) {
+	f := func(qStr string, extraFilters []Field, resultExpected string) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("unexpected error in ParseQuery: %s", err)
+		}
+		q.AddExtraStreamFilters(extraFilters)
+
+		result := q.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(`*`, nil, `*`)
+	f(`_time:5m`, nil, `_time:5m`)
+	f(`foo _time:5m`, nil, `foo _time:5m`)
+
+	f(`*`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, `{foo="bar"} *`)
+
+	f(`_time:5m`, []Field{
+		{
+			Name:  "fo o=",
+			Value: `"bar}`,
+		},
+	}, `{"fo o="="\"bar}"} _time:5m`)
+
+	f(`a b`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, `{foo="bar"} a b`)
+
+	f(`a or b {c="d"}`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `{foo="bar",x="y"} (a or b {c="d"})`)
+
+	f(`{c=~"d|e"}`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `{foo="bar",x="y",c=~"d|e"}`)
+
+	f(`a:b {c=~"d|e"}`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `a:b {foo="bar",x="y",c=~"d|e"}`)
+
+	f(`a:b {c=~"d|e"} {q!="w"} asdf`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `a:b {foo="bar",x="y",c=~"d|e"} {foo="bar",x="y",q!="w"} asdf`)
+}
