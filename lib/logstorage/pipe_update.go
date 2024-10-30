@@ -86,16 +86,19 @@ func (pup *pipeUpdateProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	hadUpdates := false
 	vPrev := ""
+	vNew := ""
 	for rowIdx, v := range values {
 		if bm.isSetBit(rowIdx) {
 			if !hadUpdates || vPrev != v {
 				vPrev = v
 				hadUpdates = true
 
-				v = pup.updateFunc(&shard.a, v)
+				vNew = pup.updateFunc(&shard.a, v)
 			}
+			shard.rc.addValue(vNew)
+		} else {
+			shard.rc.addValue(v)
 		}
-		shard.rc.addValue(v)
 	}
 
 	br.addResultColumn(&shard.rc)
