@@ -1017,6 +1017,20 @@ func parseCommonArgs(r *http.Request) (*logstorage.Query, []logstorage.TenantID,
 		q.AddTimeFilter(start, end)
 	}
 
+	// Parse optional extra_filters
+	extraFilters, err := getExtraFilters(r, "extra_filters")
+	if err != nil {
+		return nil, nil, err
+	}
+	q.AddExtraFilters(extraFilters)
+
+	// Parse optional extra_stream_filters
+	extraStreamFilters, err := getExtraFilters(r, "extra_stream_filters")
+	if err != nil {
+		return nil, nil, err
+	}
+	q.AddExtraStreamFilters(extraStreamFilters)
+
 	return q, tenantIDs, nil
 }
 
@@ -1031,4 +1045,17 @@ func getTimeNsec(r *http.Request, argName string) (int64, bool, error) {
 		return 0, false, fmt.Errorf("cannot parse %s=%s: %w", argName, s, err)
 	}
 	return nsecs, true, nil
+}
+
+func getExtraFilters(r *http.Request, argName string) ([]logstorage.Field, error) {
+	s := r.FormValue(argName)
+	if s == "" {
+		return nil, nil
+	}
+
+	var p logstorage.JSONParser
+	if err := p.ParseLogMessage([]byte(s)); err != nil {
+		return nil, fmt.Errorf("cannot parse %s: %w", argName, err)
+	}
+	return p.Fields, nil
 }
