@@ -22,7 +22,7 @@ import (
 type CommonParams struct {
 	TenantID     logstorage.TenantID
 	TimeField    string
-	MsgField     string
+	MsgFields    []string
 	StreamFields []string
 	IgnoreFields []string
 
@@ -53,6 +53,10 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		msgField = msgf
 	} else if msgf = r.Header.Get("VL-Msg-Field"); msgf != "" {
 		msgField = msgf
+	}
+	var msgFields []string
+	if msgField != "" {
+		msgFields = strings.Split(msgField, ",")
 	}
 
 	streamFields := httputils.GetArray(r, "_stream_fields")
@@ -89,7 +93,7 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 	cp := &CommonParams{
 		TenantID:        tenantID,
 		TimeField:       timeField,
-		MsgField:        msgField,
+		MsgFields:       msgFields,
 		StreamFields:    streamFields,
 		IgnoreFields:    ignoreFields,
 		Debug:           debug,
@@ -106,7 +110,9 @@ func GetCommonParamsForSyslog(tenantID logstorage.TenantID) *CommonParams {
 	cp := &CommonParams{
 		TenantID:  tenantID,
 		TimeField: "timestamp",
-		MsgField:  "message",
+		MsgFields: []string{
+			"message",
+		},
 		StreamFields: []string{
 			"hostname",
 			"app_name",
