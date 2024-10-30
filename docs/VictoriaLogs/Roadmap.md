@@ -26,5 +26,5 @@ The following functionality is planned in the future versions of VictoriaLogs:
 - [ ] Ability to make instant snapshots and backups in the way [similar to VictoriaMetrics](https://docs.victoriametrics.com/#how-to-work-with-snapshots).
 - [ ] Cluster version of VictoriaLogs.
 - [ ] Ability to store data to object storage (such as S3, GCS, Minio).
-- [ ] Alerting on LogsQL queries.
+- [x] [Alerting on LogsQL queries](https://docs.victoriametrics.com/victorialogs/vmalert/).
 - [ ] Data migration tool from Grafana Loki to VictoriaLogs (similar to [vmctl](https://docs.victoriametrics.com/vmctl/)).
