@@ -101,7 +101,7 @@ Bumping the limits may significantly improve build speed.
 ### Public Announcement
 
 * Publish message in Slack  at <https://victoriametrics.slack.com>
-* Post at Twitter at <https://twitter.com/MetricsVictoria>
+* Post at X (Twitter) at <https://x.com/VictoriaMetrics>
 * Post in Reddit at <https://www.reddit.com/r/VictoriaMetrics/>
 * Post in LinkedIn at <https://www.linkedin.com/company/victoriametrics/>
 * Publish message in Telegram at <https://t.me/VictoriaMetrics_en> and <https://t.me/VictoriaMetrics_ru1>
