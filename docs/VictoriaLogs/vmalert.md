@@ -5,6 +5,7 @@ menu:
   docs:
     parent: "victorialogs"
     weight: 10
+    identifier: "victorialogs-vmalert"
 aliases:
 - /VictoriaLogs/vmalert.html
 ---
