@@ -1,14 +1,17 @@
-package apptest
+package tests
 
 import (
 	"fmt"
 	"math/rand/v2"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
 func TestVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.T) {
-	defer testRemoveAll(t)
+	tc := apptest.NewTestCase(t)
+	defer tc.Close()
 
 	// Set up the following cluster configuration:
 	//
@@ -19,25 +22,24 @@ func TestVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.T) {
 	// - vmselect points to the two vmstorages and is expected to query both
 	//   vmstorages and build the full result out of the two partial results.
 
-	cli := newClient()
-	defer cli.closeConnections()
+	cli := tc.Client()
 
-	vmstorage1 := mustStartVmstorage(t, "vmstorage-1", []string{
-		"-storageDataPath=" + t.Name() + "/vmstorage-1",
+	vmstorage1 := apptest.MustStartVmstorage(t, "vmstorage-1", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-1",
 	}, cli)
-	defer vmstorage1.stop()
-	vmstorage2 := mustStartVmstorage(t, "vmstorage-2", []string{
-		"-storageDataPath=" + t.Name() + "/vmstorage-2",
+	defer vmstorage1.Stop()
+	vmstorage2 := apptest.MustStartVmstorage(t, "vmstorage-2", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-2",
 	}, cli)
-	defer vmstorage2.stop()
-	vminsert := mustStartVminsert(t, "vminsert", []string{
-		"-storageNode=" + vmstorage1.vminsertAddr + "," + vmstorage2.vminsertAddr,
+	defer vmstorage2.Stop()
+	vminsert := apptest.MustStartVminsert(t, "vminsert", []string{
+		"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
 	}, cli)
-	defer vminsert.stop()
-	vmselect := mustStartVmselect(t, "vmselect", []string{
-		"-storageNode=" + vmstorage1.vmselectAddr + "," + vmstorage2.vmselectAddr,
+	defer vminsert.Stop()
+	vmselect := apptest.MustStartVmselect(t, "vmselect", []string{
+		"-storageNode=" + vmstorage1.VmselectAddr() + "," + vmstorage2.VmselectAddr(),
 	}, cli)
-	defer vmselect.stop()
+	defer vmselect.Stop()
 
 	// Insert 1000 unique time series and verify the that inserted data has been
 	// indeed sharded by checking various metrics exposed by vminsert and
@@ -51,14 +53,14 @@ func TestVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.T) {
 	for i := range numMetrics {
 		records[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
 	}
-	vminsert.prometheusAPIV1ImportPrometheus(t, "0", records)
+	vminsert.PrometheusAPIV1ImportPrometheus(t, "0", records)
 	time.Sleep(2 * time.Second)
 
-	numMetrics1 := vmstorage1.getIntMetric(t, "vm_vminsert_metrics_read_total")
+	numMetrics1 := vmstorage1.GetIntMetric(t, "vm_vminsert_metrics_read_total")
 	if numMetrics1 == 0 {
 		t.Fatalf("storage-1 has no time series")
 	}
-	numMetrics2 := vmstorage2.getIntMetric(t, "vm_vminsert_metrics_read_total")
+	numMetrics2 := vmstorage2.GetIntMetric(t, "vm_vminsert_metrics_read_total")
 	if numMetrics2 == 0 {
 		t.Fatalf("storage-2 has no time series")
 	}
@@ -69,7 +71,7 @@ func TestVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.T) {
 	// Retrieve all time series and verify that vmselect serves the complete set
 	//of time series.
 
-	series := vmselect.prometheusAPIV1Series(t, "0", `{__name__=~".*"}`)
+	series := vmselect.PrometheusAPIV1Series(t, "0", `{__name__=~".*"}`)
 	if got, want := series.Status, "success"; got != want {
 		t.Fatalf("unexpected /ap1/v1/series response status: got %s, want %s", got, want)
 	}

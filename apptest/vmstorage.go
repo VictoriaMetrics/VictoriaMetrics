@@ -8,19 +8,24 @@ import (
 	"time"
 )
 
-type vmstorage struct {
+// Vmstorage holds the state of a vmstorage app and provides vmstorage-specific
+// functions.
+type Vmstorage struct {
 	*app
-	*servesMetrics
+	*ServesMetrics
+
 	storageDataPath string
 	httpListenAddr  string
 	vminsertAddr    string
 	vmselectAddr    string
 }
 
-func mustStartVmstorage(t *testing.T, instance string, flags []string, cli *client) *vmstorage {
+// MustStartVmstorage is a test helper function that starts an instance of
+// vmstorage and fails the test if the app fails to start.
+func MustStartVmstorage(t *testing.T, instance string, flags []string, cli *Client) *Vmstorage {
 	t.Helper()
 
-	app, err := startVmstorage(instance, flags, cli)
+	app, err := StartVmstorage(instance, flags, cli)
 	if err != nil {
 		t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -28,8 +33,11 @@ func mustStartVmstorage(t *testing.T, instance string, flags []string, cli *clie
 	return app
 }
 
-func startVmstorage(instance string, flags []string, cli *client) (*vmstorage, error) {
-	app, stderrExtracts, err := startApp(instance, "../bin/vmstorage", flags, &appOptions{
+// StartVmstorage starts an instance of vmstorage with the given flags. It also
+// sets the default flags and populates the app instance state with runtime
+// values extracted from the application log (such as httpListenAddr)
+func StartVmstorage(instance string, flags []string, cli *Client) (*Vmstorage, error) {
+	app, stderrExtracts, err := startApp(instance, "../../bin/vmstorage", flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-storageDataPath": fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
 			"-httpListenAddr":  "127.0.0.1:0",
@@ -47,9 +55,9 @@ func startVmstorage(instance string, flags []string, cli *client) (*vmstorage, e
 		return nil, err
 	}
 
-	return &vmstorage{
+	return &Vmstorage{
 		app: app,
-		servesMetrics: &servesMetrics{
+		ServesMetrics: &ServesMetrics{
 			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[1]),
 			cli:        cli,
 		},
@@ -60,7 +68,20 @@ func startVmstorage(instance string, flags []string, cli *client) (*vmstorage, e
 	}, nil
 }
 
-func (app *vmstorage) String() string {
+// VminsertAddr returns the address at which the vmstorage process is listening
+// for vminsert connections.
+func (app *Vmstorage) VminsertAddr() string {
+	return app.vminsertAddr
+}
+
+// VmselectAddr returns the address at which the vmstorage process is listening
+// for vmselect connections.
+func (app *Vmstorage) VmselectAddr() string {
+	return app.vmselectAddr
+}
+
+// String returns the string representation of the vmstorage app state.
+func (app *Vmstorage) String() string {
 	return fmt.Sprintf("{app: %s storageDataPath: %q httpListenAddr: %q vminsertAddr: %q vmselectAddr: %q}", []any{
 		app.app, app.storageDataPath, app.httpListenAddr, app.vminsertAddr, app.vmselectAddr}...)
 }

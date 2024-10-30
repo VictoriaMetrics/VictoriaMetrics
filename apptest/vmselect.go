@@ -9,18 +9,23 @@ import (
 	"testing"
 )
 
-type vmselect struct {
+// Vmselect holds the state of a vmselect app and provides vmselect-specific
+// functions.
+type Vmselect struct {
 	*app
-	*servesMetrics
+	*ServesMetrics
+
 	httpListenAddr          string
 	clusternativeListenAddr string
-	cli                     *client
+	cli                     *Client
 }
 
-func mustStartVmselect(t *testing.T, instance string, flags []string, cli *client) *vmselect {
+// MustStartVmselect is a test helper function that starts an instance of
+// vmselect and fails the test if the app fails to start.
+func MustStartVmselect(t *testing.T, instance string, flags []string, cli *Client) *Vmselect {
 	t.Helper()
 
-	app, err := startVmselect(instance, flags, cli)
+	app, err := StartVmselect(instance, flags, cli)
 	if err != nil {
 		t.Fatalf("Could not start %s: %v", instance, err)
 	}
@@ -28,8 +33,11 @@ func mustStartVmselect(t *testing.T, instance string, flags []string, cli *clien
 	return app
 }
 
-func startVmselect(instance string, flags []string, cli *client) (*vmselect, error) {
-	app, stderrExtracts, err := startApp(instance, "../bin/vmselect", flags, &appOptions{
+// StartVmselect starts an instance of vmselect with the given flags. It also
+// sets the default flags and populates the app instance state with runtime
+// values extracted from the application log (such as httpListenAddr)
+func StartVmselect(instance string, flags []string, cli *Client) (*Vmselect, error) {
+	app, stderrExtracts, err := startApp(instance, "../../bin/vmselect", flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-httpListenAddr":          "127.0.0.1:0",
 			"-clusternativeListenAddr": "127.0.0.1:0",
@@ -43,9 +51,9 @@ func startVmselect(instance string, flags []string, cli *client) (*vmselect, err
 		return nil, err
 	}
 
-	return &vmselect{
+	return &Vmselect{
 		app: app,
-		servesMetrics: &servesMetrics{
+		ServesMetrics: &ServesMetrics{
 			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[0]),
 			cli:        cli,
 		},
@@ -55,30 +63,39 @@ func startVmselect(instance string, flags []string, cli *client) (*vmselect, err
 	}, nil
 }
 
-// prometheusAPIV1SeriesResponse is an inmemory representation of the
+// ClusternativeListenAddr returns the address at which the vmselect process is
+// listening for connections from other vmselect apps.
+func (app *Vmselect) ClusternativeListenAddr() string {
+	return app.clusternativeListenAddr
+}
+
+// PrometheusAPIV1SeriesResponse is an inmemory representation of the
 // /prometheus/api/v1/series response.
-type prometheusAPIV1SeriesResponse struct {
+type PrometheusAPIV1SeriesResponse struct {
 	Status    string
 	IsPartial bool
 	Data      []map[string]string
 }
 
-// apiV1Series sends a query to a /prometheus/api/v1/series endpoint and returns
-// the list of time series that match the query.
-func (app *vmselect) prometheusAPIV1Series(t *testing.T, tenant, matchQuery string) *prometheusAPIV1SeriesResponse {
+// PrometheusAPIV1Series sends a query to a /prometheus/api/v1/series endpoint
+// and returns the list of time series that match the query.
+//
+// See https://docs.victoriametrics.com/url-examples/#apiv1series
+func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, tenant, matchQuery string) *PrometheusAPIV1SeriesResponse {
 	t.Helper()
 
 	seriesURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/series", app.httpListenAddr, tenant)
 	values := url.Values{}
 	values.Add("match[]", matchQuery)
-	jsonRes := app.cli.postForm(t, seriesURL, values, http.StatusOK)
-	var res prometheusAPIV1SeriesResponse
+	jsonRes := app.cli.PostForm(t, seriesURL, values, http.StatusOK)
+	var res PrometheusAPIV1SeriesResponse
 	if err := json.Unmarshal([]byte(jsonRes), &res); err != nil {
 		t.Fatalf("could not unmarshal /api/v1/series response: %v", err)
 	}
 	return &res
 }
 
-func (app *vmselect) String() string {
+// String returns the string representation of the vmselect app state.
+func (app *Vmselect) String() string {
 	return fmt.Sprintf("{app: %s httpListenAddr: %q}", app.app, app.httpListenAddr)
 }

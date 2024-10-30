@@ -1,19 +1,17 @@
-package apptest
+package tests
 
 import (
 	"fmt"
 	"math/rand/v2"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
 func TestMultilevelSelect(t *testing.T) {
-	t.Skip("currently fails")
-
-	defer testRemoveAll(t)
-
-	cli := newClient()
-	defer cli.closeConnections()
+	tc := apptest.NewTestCase(t)
+	defer tc.Close()
 
 	// Set up the following multi-level cluster configuration:
 	//
@@ -22,22 +20,24 @@ func TestMultilevelSelect(t *testing.T) {
 	// vmisert writes data into vmstorage.
 	// vmselect (L2) reads that data via vmselect (L1).
 
-	vmstorage := mustStartVmstorage(t, "vmstorage", []string{
-		"-storageDataPath=" + t.Name() + "/vmstorage",
+	cli := tc.Client()
+
+	vmstorage := apptest.MustStartVmstorage(t, "vmstorage", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage",
 	}, cli)
-	defer vmstorage.stop()
-	vminsert := mustStartVminsert(t, "vminsert", []string{
-		"-storageNode=" + vmstorage.vminsertAddr,
+	defer vmstorage.Stop()
+	vminsert := apptest.MustStartVminsert(t, "vminsert", []string{
+		"-storageNode=" + vmstorage.VminsertAddr(),
 	}, cli)
-	defer vminsert.stop()
-	vmselectL1 := mustStartVmselect(t, "vmselect-level1", []string{
-		"-storageNode=" + vmstorage.vmselectAddr,
+	defer vminsert.Stop()
+	vmselectL1 := apptest.MustStartVmselect(t, "vmselect-level1", []string{
+		"-storageNode=" + vmstorage.VmselectAddr(),
 	}, cli)
-	defer vmselectL1.stop()
-	vmselectL2 := mustStartVmselect(t, "vmselect-level2", []string{
-		"-storageNode=" + vmselectL1.clusternativeListenAddr,
+	defer vmselectL1.Stop()
+	vmselectL2 := apptest.MustStartVmselect(t, "vmselect-level2", []string{
+		"-storageNode=" + vmselectL1.ClusternativeListenAddr(),
 	}, cli)
-	defer vmselectL2.stop()
+	defer vmselectL2.Stop()
 
 	// Insert 1000 unique time series.Wait for 2 seconds to let vmstorage
 	// flush pending items so they become searchable.
@@ -47,13 +47,13 @@ func TestMultilevelSelect(t *testing.T) {
 	for i := range numMetrics {
 		records[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
 	}
-	vminsert.prometheusAPIV1ImportPrometheus(t, "0", records)
+	vminsert.PrometheusAPIV1ImportPrometheus(t, "0", records)
 	time.Sleep(2 * time.Second)
 
 	// Retrieve all time series and verify that vmselect (L1) serves the complete
 	// set of time series.
 
-	seriesL1 := vmselectL1.prometheusAPIV1Series(t, "0", `{__name__=~".*"}`)
+	seriesL1 := vmselectL1.PrometheusAPIV1Series(t, "0", `{__name__=~".*"}`)
 	if got, want := len(seriesL1.Data), numMetrics; got != want {
 		t.Fatalf("unexpected level-1 series count: got %d, want %d", got, want)
 	}
@@ -61,7 +61,7 @@ func TestMultilevelSelect(t *testing.T) {
 	// Retrieve all time series and verify that vmselect (L2) serves the complete
 	// set of time series.
 
-	seriesL2 := vmselectL2.prometheusAPIV1Series(t, "0", `{__name__=~".*"}`)
+	seriesL2 := vmselectL2.PrometheusAPIV1Series(t, "0", `{__name__=~".*"}`)
 	if got, want := len(seriesL2.Data), numMetrics; got != want {
 		t.Fatalf("unexpected level-2 series count: got %d, want %d", got, want)
 	}

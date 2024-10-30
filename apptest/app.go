@@ -85,7 +85,7 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 
 	extracts, err := extractREs(reExtractors, timeout)
 	if err != nil {
-		app.stop()
+		app.Stop()
 		return nil, nil, err
 	}
 
@@ -111,7 +111,7 @@ func setDefaultFlags(flags []string, defaultFlags map[string]string) []string {
 
 // stop sends the app process a SIGINT signal and waits until it terminates
 // gracefully.
-func (app *app) stop() {
+func (app *app) Stop() {
 	if err := app.process.Signal(os.Interrupt); err != nil {
 		log.Fatalf("Could not send SIGINT signal to %s process: %v", app.instance, err)
 	}
@@ -120,6 +120,7 @@ func (app *app) stop() {
 	}
 }
 
+// String returns the string representation of the app state.
 func (app *app) String() string {
 	return fmt.Sprintf("{instance: %q binary: %q flags: %q}", app.instance, app.binary, app.flags)
 }
@@ -173,10 +174,12 @@ func (app *app) writeToStderr(line string) bool {
 // finish its work.
 func extractREs(reExtractors []*reExtractor, timeout <-chan time.Time) ([]string, error) {
 	n := len(reExtractors)
+	notFoundREs := make(map[int]string)
 	extracts := make([]string, n)
 	cases := make([]reflect.SelectCase, n+1)
 	for i, x := range reExtractors {
 		cases[i] = x.selectCase
+		notFoundREs[i] = x.re.String()
 	}
 	cases[n] = reflect.SelectCase{
 		Dir:  reflect.SelectRecv,
@@ -186,9 +189,19 @@ func extractREs(reExtractors []*reExtractor, timeout <-chan time.Time) ([]string
 	for notFound := n; notFound > 0; {
 		i, value, _ := reflect.Select(cases)
 		if i == n {
-			return nil, fmt.Errorf("could not extract some or all items from stderr: %q", extracts)
+			// n-th select case means timeout.
+
+			values := func(m map[int]string) []string {
+				s := []string{}
+				for _, v := range m {
+					s = append(s, v)
+				}
+				return s
+			}
+			return nil, fmt.Errorf("could not extract some or all regexps from stderr: %q", values(notFoundREs))
 		}
 		extracts[i] = value.String()
+		delete(notFoundREs, i)
 		notFound--
 	}
 	return extracts, nil
