@@ -795,7 +795,7 @@ See also:
 
 ## Extra filters
 
-Alls the [HTTP querying APIs](#http-api) provided by VictoriaLogs support the following optional query args:
+All the [HTTP querying APIs](#http-api) provided by VictoriaLogs support the following optional query args:
 
 - `extra_filters` - this arg may contain extra [`field:=value`](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter) filters, which must be applied
   to the `query` before returning the results.
