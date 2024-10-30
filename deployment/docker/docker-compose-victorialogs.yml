@@ -40,7 +40,7 @@ services:
   #  storing logs and serving read queries.
   victorialogs:
     container_name: victorialogs
-    image: victoriametrics/victoria-logs:v0.39.0-victorialogs
+    image: victoriametrics/victoria-logs:v0.40.0-victorialogs
     command:
       - "--storageDataPath=/vlogs"
       - "--httpListenAddr=:9428"
