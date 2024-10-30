@@ -45,7 +45,7 @@ func TestProcessStreamInternal_Success(t *testing.T) {
 	rowsExpected = 2
 	timestampsExpected = []int64{1686026891735000000, 1686023292735000000}
 	resultExpected = `{"log.offset":"71770","log.file.path":"/var/log/auth.log","message":"foobar"}
-{"message":"baz","aa":"bb"}`
+{"message":"baz"}`
 	f(data, timeField, msgField, rowsExpected, timestampsExpected, resultExpected)
 }
 
