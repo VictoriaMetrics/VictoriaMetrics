@@ -114,12 +114,6 @@ func serve(addr string, useProxyProtocol bool, rh RequestHandler, idx int) {
 	if tlsEnable.GetOptionalArg(idx) {
 		scheme = "https"
 	}
-	hostAddr := addr
-	if strings.HasPrefix(hostAddr, ":") {
-		hostAddr = "127.0.0.1" + hostAddr
-	}
-	logger.Infof("starting server at %s://%s/", scheme, hostAddr)
-	logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, hostAddr)
 	var tlsConfig *tls.Config
 	if tlsEnable.GetOptionalArg(idx) {
 		certFile := tlsCertFile.GetOptionalArg(idx)
@@ -134,6 +128,9 @@ func serve(addr string, useProxyProtocol bool, rh RequestHandler, idx int) {
 	ln, err := netutil.NewTCPListener(scheme, addr, useProxyProtocol, tlsConfig)
 	if err != nil {
 		logger.Fatalf("cannot start http server at %s: %s", addr, err)
+	} else {
+		logger.Infof("started server at %s://%s/", scheme, ln.Addr())
+		logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, ln.Addr())
 	}
 	serveWithListener(addr, ln, rh)
 }
