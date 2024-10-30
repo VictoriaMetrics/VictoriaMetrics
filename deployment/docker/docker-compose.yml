@@ -72,10 +72,10 @@ services:
     ports:
       - 8880:8880
     volumes:
-      - ./alerts.yml:/etc/alerts/alerts.yml
-      - ./alerts-health.yml:/etc/alerts/alerts-health.yml
-      - ./alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
-      - ./alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
+      - ./rules/alerts.yml:/etc/alerts/alerts.yml
+      - ./rules/alerts-health.yml:/etc/alerts/alerts-health.yml
+      - ./rules/alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
+      - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
     command:
       - "--datasource.url=http://victoriametrics:8428/"
       - "--remoteRead.url=http://victoriametrics:8428/"

@@ -31,6 +31,20 @@ you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
 
 See [Quick start docs](https://docs.victoriametrics.com/victorialogs/quickstart/) for start working with VictoriaLogs.
 
+## Tuning
+
+* No need in tuning for VictoriaLogs - it uses reasonable defaults for command-line flags, which are automatically adjusted for the available CPU and RAM resources.
+* No need in tuning for Operating System - VictoriaLogs is optimized for default OS settings.
+  The only option is increasing the limit on [the number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a).
+* The recommended filesystem is `ext4`, the recommended persistent storage is [persistent HDD-based disk on GCP](https://cloud.google.com/compute/docs/disks/#pdspecs),
+  since it is protected from hardware failures via internal replication and it can be [resized on the fly](https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd).
+  If you plan to store more than 1TB of data on `ext4` partition or plan extending it to more than 16TB,
+  then the following options are recommended to pass to `mkfs.ext4`:
+
+```sh
+mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
+```
+
 ## Monitoring
 
 VictoriaLogs exposes internal metrics in Prometheus exposition format at `http://localhost:9428/metrics` page.
@@ -376,7 +390,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -search.maxConcurrentRequests int
     	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 16)
   -search.maxQueryDuration duration
-    	The maximum duration for query execution. It can be overridden on a per-query basis via 'timeout' query arg (default 30s)
+    	The maximum duration for query execution. It can be overridden to a smaller value on a per-query basis via 'timeout' query arg (default 30s)
   -search.maxQueueDuration duration
     	The maximum time the search request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
   -storage.minFreeDiskSpaceBytes size

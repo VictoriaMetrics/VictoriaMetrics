@@ -1,6 +1,7 @@
 ## Next release
 
-- TODO
+- multiple paths for a host in ingress
+- support HPA for vmselect statefulset
 
 ## 0.14.6
 
