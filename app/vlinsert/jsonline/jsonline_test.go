@@ -35,6 +35,18 @@ func TestProcessStreamInternal_Success(t *testing.T) {
 {"_msg":"baz"}
 {"_msg":"xyz","x":"y"}`
 	f(data, timeField, msgField, rowsExpected, timestampsExpected, resultExpected)
+
+	// Non-existing msgField
+	data = `{"@timestamp":"2023-06-06T04:48:11.735Z","log":{"offset":71770,"file":{"path":"/var/log/auth.log"}},"message":"foobar"}
+{"@timestamp":"2023-06-06T04:48:12.735+01:00","message":"baz"}
+`
+	timeField = "@timestamp"
+	msgField = "foobar"
+	rowsExpected = 2
+	timestampsExpected = []int64{1686026891735000000, 1686023292735000000}
+	resultExpected = `{"log.offset":"71770","log.file.path":"/var/log/auth.log","message":"foobar"}
+{"message":"baz","aa":"bb"}`
+	f(data, timeField, msgField, rowsExpected, timestampsExpected, resultExpected)
 }
 
 func TestProcessStreamInternal_Failure(t *testing.T) {

@@ -1,6 +1,7 @@
 package insertutils
 
 import (
+	"flag"
 	"net/http"
 	"strings"
 	"sync"
@@ -14,6 +15,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+)
+
+var (
+	defaultMsgValue = flag.String("defaultMsgValue", "missing _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field",
+		"Default value for _msg field if the ingested log entry doesn't contain it; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field")
 )
 
 // CommonParams contains common HTTP parameters used by log ingestion APIs.
@@ -140,6 +146,8 @@ type logMessageProcessor struct {
 	stopCh        chan struct{}
 	lastFlushTime time.Time
 
+	tmpFields []logstorage.Field
+
 	cp *CommonParams
 	lr *logstorage.LogRows
 }
@@ -182,20 +190,15 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 		return
 	}
 
-	// _msg field must be non-empty according to VictoriaLogs data model.
-	// See https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field
-	msgExist := false
-	for i := range fields {
-		if fields[i].Name == "_msg" {
-			msgExist = len(fields[i].Value) > 0
-			break
-		}
-	}
-	if !msgExist {
-		rf := logstorage.RowFormatter(fields)
-		logger.Warnf("dropping log line without _msg field; %s", rf)
-		rowsDroppedTotalMsgNotValid.Inc()
-		return
+	if *defaultMsgValue != "" && !hasMsgField(fields) {
+		// The log entry doesn't contain mandatory _msg field. Add _msg field with default value then
+		// according to https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field .
+		lmp.tmpFields = append(lmp.tmpFields[:0], fields...)
+		lmp.tmpFields = append(lmp.tmpFields, logstorage.Field{
+			Name:  "_msg",
+			Value: *defaultMsgValue,
+		})
+		fields = lmp.tmpFields
 	}
 
 	lmp.lr.MustAdd(lmp.cp.TenantID, timestamp, fields)
@@ -209,6 +212,15 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 	if lmp.lr.NeedFlush() {
 		lmp.flushLocked()
 	}
+}
+
+func hasMsgField(fields []logstorage.Field) bool {
+	for _, f := range fields {
+		if f.Name == "_msg" {
+			return len(f.Value) > 0
+		}
+	}
+	return false
 }
 
 // flushLocked must be called under locked lmp.mu.
@@ -247,5 +259,4 @@ func (cp *CommonParams) NewLogMessageProcessor() LogMessageProcessor {
 var (
 	rowsDroppedTotalDebug         = metrics.NewCounter(`vl_rows_dropped_total{reason="debug"}`)
 	rowsDroppedTotalTooManyFields = metrics.NewCounter(`vl_rows_dropped_total{reason="too_many_fields"}`)
-	rowsDroppedTotalMsgNotValid   = metrics.NewCounter(`vl_rows_dropped_total{reason="msg_not_exist"}`)
 )
