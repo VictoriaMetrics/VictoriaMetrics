@@ -1,6 +1,8 @@
 ## Next release
 
-- TODO
+- replaced chart templates with common ones
+- multiple paths for a host in ingress
+- Added ability to override PVC name for Deployment
 
 ## 0.12.3
 

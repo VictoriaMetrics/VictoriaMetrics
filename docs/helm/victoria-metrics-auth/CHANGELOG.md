@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- multiple paths for a host in ingress
 
 ## 0.7.3
 

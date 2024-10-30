@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- Migrated to common templates
 
 ## 0.36.0
 

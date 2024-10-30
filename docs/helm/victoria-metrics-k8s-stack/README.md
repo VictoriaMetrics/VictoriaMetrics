@@ -526,6 +526,7 @@ externalURL: ""
 image:
     tag: v0.27.0
 port: "9093"
+replicaCount: 1
 routePrefix: /
 selectAllByDefault: true
 </code>
@@ -1248,12 +1249,43 @@ vmsingle:
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
 <code class="language-yaml">read:
     url: ""
+vmauth:
+    read:
+        - src_paths:
+            - /select/.*
+          url_prefix:
+            - /
+    write:
+        - src_paths:
+            - /insert/.*
+          url_prefix:
+            - /
 write:
     url: ""
 </code>
 </pre>
 </td>
       <td><p>External VM read and write URLs</p>
+</td>
+    </tr>
+    <tr>
+      <td>externalVM.vmauth</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">read:
+    - src_paths:
+        - /select/.*
+      url_prefix:
+        - /
+write:
+    - src_paths:
+        - /insert/.*
+      url_prefix:
+        - /
+</code>
+</pre>
+</td>
+      <td><p>Custom VMAuth config, url_prefix requires only path, which will be appended to a read and write base URL. To disable auth for read or write empty list for component config <code>externalVM.vmauth.&lt;component&gt;: []</code></p>
 </td>
     </tr>
     <tr>
@@ -2771,6 +2803,26 @@ vmstorage:
 </pre>
 </td>
       <td><p>Data retention period. Possible units character: h(ours), d(ays), w(eeks), y(ears), if no unit character specified - month. The minimum retention period is 24h. See these <a href="https://docs.victoriametrics.com/single-server-victoriametrics/#retention" target="_blank">docs</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>vmcluster.vmauth</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">vminsert:
+    - src_paths:
+        - /insert/.*
+      url_prefix:
+        - /
+vmselect:
+    - src_paths:
+        - /select/.*
+      url_prefix:
+        - /
+</code>
+</pre>
+</td>
+      <td><p>Custom VMAuth config, url_prefix requires only path, which will be appended to a select and insert base URL. To disable auth for vmselect or vminsert empty list for component config <code>vmcluster.vmauth.&lt;component&gt;: []</code></p>
 </td>
     </tr>
     <tr>
