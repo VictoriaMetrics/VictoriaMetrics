@@ -4130,7 +4130,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the restarts of the cluster components",
+          "description": "Shows the number of restarts per job. The chart can be useful when restart annotations are not enough, i.e. when one needs to know which instances of which job restarted and whether there is a pattern in those restarts (for example, one particular instance of a job restarts every hour). Such data could then be correlated with other metrics of the system and may explain its system misbehavior.",
           "fieldConfig": {
             "defaults": {
               "color": {
