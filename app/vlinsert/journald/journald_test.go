@@ -12,7 +12,7 @@ func TestPushJournaldOk(t *testing.T) {
 		tlp := &insertutils.TestLogMessageProcessor{}
 		cp := &insertutils.CommonParams{
 			TimeField: "__REALTIME_TIMESTAMP",
-			MsgField:  "MESSAGE",
+			MsgFields: []string{"MESSAGE"},
 		}
 		n, err := parseJournaldRequest([]byte(src), tlp, cp)
 		if err != nil {
@@ -48,7 +48,7 @@ func TestPushJournald_Failure(t *testing.T) {
 		tlp := &insertutils.TestLogMessageProcessor{}
 		cp := &insertutils.CommonParams{
 			TimeField: "__REALTIME_TIMESTAMP",
-			MsgField:  "MESSAGE",
+			MsgFields: []string{"MESSAGE"},
 		}
 		_, err := parseJournaldRequest([]byte(data), tlp, cp)
 		if err == nil {

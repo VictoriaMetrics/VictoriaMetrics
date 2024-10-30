@@ -15,6 +15,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: allow specifying a list of log fields, which contain log message, via `_msg_field` query arg and via `VL-Msg-Field` HTTP request header. For example, `_msg_field=message,event.message` instructs obtaining [message field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) from the first non-empty field out of the `message` and `event.message` fields. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
+
 * BUGFIX: fix `runtime error: index out of range [0] with length 0` panic during low-rate data ingestion. The panic has been introduced in [v0.38.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.38.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7391).
 
 ## [v0.38.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.38.0-victorialogs)

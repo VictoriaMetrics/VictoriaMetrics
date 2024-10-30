@@ -128,9 +128,10 @@ log entry, which can be ingested into VictoriaLogs:
 ```
 
 If the actual log message has other than `_msg` field name, then it is possible to specify the real log message field
-via `_msg_field` query arg during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+via `_msg_field` query arg or via `VL-Msg-Field` HTTP header during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 For example, if log message is located in the `event.original` field, then specify `_msg_field=event.original` query arg
 during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for more details.
 
 ### Time field
 
