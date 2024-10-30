@@ -312,7 +312,10 @@ func (bsw *blockStreamWriter) MustInitForFilePart(path string, nocache bool, blo
 
 func adjustBloomValuesShardsCount(n uint64) uint64 {
 	if n == 0 {
-		return n
+		// At least a single shard is needed for writing potential non-const fields,
+		// which can appear after merging of const fields.
+		// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7391
+		return 1
 	}
 
 	n = 1 << bits.Len64(n-1)
