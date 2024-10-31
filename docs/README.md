@@ -960,6 +960,13 @@ VictoriaMetrics accepts `limit` query arg at [/api/v1/series](https://docs.victo
 for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest of series.
 If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
 
+VictoriaMetrics returns an extra object `stats` in JSON response for [`/api/v1/query`](https://docs.victoriametrics.com/keyconcepts/#instant-query)
+and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyconcepts/#range-query) APIs. This object contains two
+fields: `executionTimeMsec` with number of milliseconds the request took and `seriesFetched` with number of series that
+were fetched from database before filtering. The `seriesFetched` field is effectively used by vmalert for detecting
+[misconfigured rule expressions](https://docs.victoriametrics.com/vmalert/#never-firing-alerts). Please note, `seriesFetched`
+provides approximate number of series, it is not recommended to rely on it in tests.
+
 Additionally, VictoriaMetrics provides the following handlers:
 
 * `/vmui` - Basic Web UI. See [these docs](#vmui).
