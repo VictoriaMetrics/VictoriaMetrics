@@ -262,9 +262,11 @@ func (cfg *Config) getJobNames() []string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
-	ScrapeInterval *promutils.Duration `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout  *promutils.Duration `yaml:"scrape_timeout,omitempty"`
-	ExternalLabels *promutils.Labels   `yaml:"external_labels,omitempty"`
+	ScrapeInterval       *promutils.Duration         `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout        *promutils.Duration         `yaml:"scrape_timeout,omitempty"`
+	ExternalLabels       *promutils.Labels           `yaml:"external_labels,omitempty"`
+	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
+	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 }
 
 // ScrapeConfig represents essential parts for `scrape_config` section of Prometheus config.
@@ -918,11 +920,23 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config for `job_name` %q: %w", jobName, err)
 	}
-	relabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.RelabelConfigs)
+	rcs := sc.RelabelConfigs
+	if len(globalCfg.RelabelConfigs) > 0 {
+		rcs = make([]promrelabel.RelabelConfig, 0, len(globalCfg.RelabelConfigs)+len(sc.RelabelConfigs))
+		rcs = append(rcs, globalCfg.RelabelConfigs...)
+		rcs = append(rcs, sc.RelabelConfigs...)
+	}
+	relabelConfigs, err := promrelabel.ParseRelabelConfigs(rcs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
-	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.MetricRelabelConfigs)
+	mrcs := sc.MetricRelabelConfigs
+	if len(globalCfg.MetricRelabelConfigs) > 0 {
+		mrcs = make([]promrelabel.RelabelConfig, 0, len(globalCfg.MetricRelabelConfigs)+len(sc.MetricRelabelConfigs))
+		mrcs = append(mrcs, globalCfg.MetricRelabelConfigs...)
+		mrcs = append(mrcs, sc.MetricRelabelConfigs...)
+	}
+	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(mrcs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
