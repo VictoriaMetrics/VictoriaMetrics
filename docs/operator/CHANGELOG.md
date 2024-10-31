@@ -11,6 +11,10 @@ aliases:
   - /operator/changelog/index.html
 ---
 
+ - [vmcluster](https://docs.victoriametrics.com/operator/resources/vmcluster): adds `requestsLoadBalancer` configuration to the `VMCluster.spec`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1130) for details.
+ - [vmcluster](https://docs.victoriametrics.com/operator/resources/vmcluster): properly configure monitoring for `VMCluster` with enabled `backup`.
+
+
 ## [v0.48.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.4) - 15 Oct 2024
 
 - [api](https://docs.victoriametrics.com/operator/api): adds new fields `maxDiskUsagePerUrl` and`forceVMProto` to the `VMagent` `remoteWriteSpec`
