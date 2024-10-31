@@ -78,7 +78,7 @@ groups:
         expr: increase(vmalert_remotewrite_dropped_rows_total[5m]) > 0
         for: 5m
         labels:
-          severity: warning
+          severity: critical
         annotations:
           summary: "vmalert instance {{ $labels.instance }} is dropping data sent to remote write URL"
           description: "vmalert instance {{ $labels.instance }} is failing to send results of alerting or recording rules 
@@ -89,7 +89,7 @@ groups:
         expr: increase(vmalert_alerts_send_errors_total[5m]) > 0
         for: 15m
         labels:
-          severity: critical
+          severity: warning
         annotations:
           summary: "vmalert instance {{ $labels.instance }} is failing to send notifications to Alertmanager"
           description: "vmalert instance {{ $labels.instance }} is failing to send alert notifications to \"{{ $labels.addr }}\".
