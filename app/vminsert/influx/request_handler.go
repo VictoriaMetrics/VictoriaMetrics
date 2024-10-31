@@ -9,7 +9,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
@@ -150,7 +149,7 @@ type pushCtx struct {
 	Common         common.InsertCtx
 	metricNameBuf  []byte
 	metricGroupBuf []byte
-	originLabels   []prompb.Label
+	originLabels   []prompbmarshal.Label
 }
 
 func (ctx *pushCtx) reset() {
@@ -160,7 +159,7 @@ func (ctx *pushCtx) reset() {
 
 	originLabels := ctx.originLabels
 	for i := range originLabels {
-		originLabels[i] = prompb.Label{}
+		originLabels[i] = prompbmarshal.Label{}
 	}
 	ctx.originLabels = originLabels[:0]
 }
