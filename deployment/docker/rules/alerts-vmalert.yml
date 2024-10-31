@@ -89,7 +89,7 @@ groups:
         expr: increase(vmalert_alerts_send_errors_total[5m]) > 0
         for: 15m
         labels:
-          severity: warning
+          severity: critical
         annotations:
           summary: "vmalert instance {{ $labels.instance }} is failing to send notifications to Alertmanager"
           description: "vmalert instance {{ $labels.instance }} is failing to send alert notifications to \"{{ $labels.addr }}\".
