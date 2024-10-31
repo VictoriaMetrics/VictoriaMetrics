@@ -61,8 +61,6 @@ func parseResultCheckTags(s *Series, r influx.Result) ([]queryValues, error) {
 			// column in series fewer than query where condition. should never reach
 			return nil, fmt.Errorf(`wrong number of columns in result series, expected: %v, "%s" and "time", got %v`, s.LabelPairs, s.Field, r.Series[i].Columns)
 		}
-		// prepare a new values slice to replace the existing one.
-		values := make([][]interface{}, 0, len(r.Series[i].Values))
 
 		// prepare an unwanted column list
 		unwantedColumnIdx := make([]int, 0)
@@ -71,6 +69,9 @@ func parseResultCheckTags(s *Series, r influx.Result) ([]queryValues, error) {
 				unwantedColumnIdx = append(unwantedColumnIdx, idx)
 			}
 		}
+
+		// prepare a new values slice to replace the existing one.
+		values := make([][]interface{}, 0, len(r.Series[i].Values))
 
 		// go through each rows
 		for j := range r.Series[i].Values {
