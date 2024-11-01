@@ -2,7 +2,9 @@ package insertutils
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +33,7 @@ type CommonParams struct {
 	MsgFields    []string
 	StreamFields []string
 	IgnoreFields []string
+	ExtraFields  []logstorage.Field
 
 	Debug           bool
 	DebugRequestURI string
@@ -45,48 +48,25 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		return nil, err
 	}
 
-	// Extract time field name from _time_field query arg or header
 	timeField := "_time"
-	if tf := r.FormValue("_time_field"); tf != "" {
-		timeField = tf
-	} else if tf = r.Header.Get("VL-Time-Field"); tf != "" {
+	if tf := httputils.GetRequestValue(r, "_time_field", "VL-Time-Field"); tf != "" {
 		timeField = tf
 	}
 
-	// Extract message field name from _msg_field query arg or header
-	msgField := ""
-	if msgf := r.FormValue("_msg_field"); msgf != "" {
-		msgField = msgf
-	} else if msgf = r.Header.Get("VL-Msg-Field"); msgf != "" {
-		msgField = msgf
-	}
-	var msgFields []string
-	if msgField != "" {
-		msgFields = strings.Split(msgField, ",")
+	msgFields := httputils.GetArray(r, "_msg_field", "VL-Msg-Field")
+	streamFields := httputils.GetArray(r, "_stream_fields", "VL-Stream-Fields")
+	ignoreFields := httputils.GetArray(r, "ignore_fields", "VL-Ignore-Fields")
+
+	extraFields, err := getExtraFields(r)
+	if err != nil {
+		return nil, err
 	}
 
-	streamFields := httputils.GetArray(r, "_stream_fields")
-	if len(streamFields) == 0 {
-		if sf := r.Header.Get("VL-Stream-Fields"); len(sf) > 0 {
-			streamFields = strings.Split(sf, ",")
-		}
-	}
-	ignoreFields := httputils.GetArray(r, "ignore_fields")
-	if len(ignoreFields) == 0 {
-		if f := r.Header.Get("VL-Ignore-Fields"); len(f) > 0 {
-			ignoreFields = strings.Split(f, ",")
-		}
-	}
-
-	debug := httputils.GetBool(r, "debug")
-	if !debug {
-		if dh := r.Header.Get("VL-Debug"); len(dh) > 0 {
-			hv := strings.ToLower(dh)
-			switch hv {
-			case "", "0", "f", "false", "no":
-			default:
-				debug = true
-			}
+	debug := false
+	if dv := httputils.GetRequestValue(r, "debug", "VL-Debug"); dv != "" {
+		debug, err = strconv.ParseBool(dv)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse debug=%q: %w", dv, err)
 		}
 	}
 	debugRequestURI := ""
@@ -102,12 +82,33 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		MsgFields:       msgFields,
 		StreamFields:    streamFields,
 		IgnoreFields:    ignoreFields,
+		ExtraFields:     extraFields,
 		Debug:           debug,
 		DebugRequestURI: debugRequestURI,
 		DebugRemoteAddr: debugRemoteAddr,
 	}
 
 	return cp, nil
+}
+
+func getExtraFields(r *http.Request) ([]logstorage.Field, error) {
+	efs := httputils.GetArray(r, "extra_fields", "VL-Extra-Fields")
+	if len(efs) == 0 {
+		return nil, nil
+	}
+
+	extraFields := make([]logstorage.Field, len(efs))
+	for i, ef := range efs {
+		n := strings.Index(ef, "=")
+		if n <= 0 || n == len(ef)-1 {
+			return nil, fmt.Errorf(`invalid extra_field format: %q; must be in the form "field=value"`, ef)
+		}
+		extraFields[i] = logstorage.Field{
+			Name:  ef[:n],
+			Value: ef[n+1:],
+		}
+	}
+	return extraFields, nil
 }
 
 // GetCommonParamsForSyslog returns common params needed for parsing syslog messages and storing them to the given tenantID.
@@ -145,8 +146,6 @@ type logMessageProcessor struct {
 	wg            sync.WaitGroup
 	stopCh        chan struct{}
 	lastFlushTime time.Time
-
-	tmpFields []logstorage.Field
 
 	cp *CommonParams
 	lr *logstorage.LogRows
@@ -190,17 +189,6 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 		return
 	}
 
-	if *defaultMsgValue != "" && !hasMsgField(fields) {
-		// The log entry doesn't contain mandatory _msg field. Add _msg field with default value then
-		// according to https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field .
-		lmp.tmpFields = append(lmp.tmpFields[:0], fields...)
-		lmp.tmpFields = append(lmp.tmpFields, logstorage.Field{
-			Name:  "_msg",
-			Value: *defaultMsgValue,
-		})
-		fields = lmp.tmpFields
-	}
-
 	lmp.lr.MustAdd(lmp.cp.TenantID, timestamp, fields)
 	if lmp.cp.Debug {
 		s := lmp.lr.GetRowString(0)
@@ -212,15 +200,6 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 	if lmp.lr.NeedFlush() {
 		lmp.flushLocked()
 	}
-}
-
-func hasMsgField(fields []logstorage.Field) bool {
-	for _, f := range fields {
-		if f.Name == "_msg" {
-			return len(f.Value) > 0
-		}
-	}
-	return false
 }
 
 // flushLocked must be called under locked lmp.mu.
@@ -244,7 +223,7 @@ func (lmp *logMessageProcessor) MustClose() {
 //
 // MustClose() must be called on the returned LogMessageProcessor when it is no longer needed.
 func (cp *CommonParams) NewLogMessageProcessor() LogMessageProcessor {
-	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
+	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.ExtraFields, *defaultMsgValue)
 	lmp := &logMessageProcessor{
 		cp: cp,
 		lr: lr,
