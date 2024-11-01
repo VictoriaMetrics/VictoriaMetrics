@@ -51,19 +51,16 @@ type Series struct {
 	Measurement string
 	Field       string
 	LabelPairs  []LabelPair
-
-	// FieldList store all field for this measurement.
-	// It's useful when a measurement contains multiple series with more than one fields.
-	// See influx.parseResultCheckTags function.
-	FieldList []string
+	// ExcludeLabels contains labels in measurement whose value must be nil
+	ExcludedLabels []string
 }
 
 var valueEscaper = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
 
 func (s Series) fetchQuery(timeFilter string) string {
 	f := &strings.Builder{}
-	fmt.Fprintf(f, "select * from %q", s.Measurement)
-	if len(s.LabelPairs) > 0 || len(timeFilter) > 0 {
+	fmt.Fprintf(f, "select %q from %q", s.Field, s.Measurement)
+	if len(s.LabelPairs) > 0 || len(timeFilter) > 0 || len(s.ExcludedLabels) > 0 {
 		f.WriteString(" where")
 	}
 	for i, pair := range s.LabelPairs {
@@ -73,13 +70,22 @@ func (s Series) fetchQuery(timeFilter string) string {
 			f.WriteString(" and")
 		}
 	}
-	if len(timeFilter) > 0 {
+	for _, label := range s.ExcludedLabels {
 		if len(s.LabelPairs) > 0 {
+			f.WriteString(" and")
+		}
+		fmt.Fprintf(f, " %q::tag=''", label)
+	}
+
+	if len(timeFilter) > 0 {
+		if len(s.LabelPairs) > 0 || len(s.ExcludedLabels) > 0 {
 			f.WriteString(" and")
 		}
 		fmt.Fprintf(f, " %s", timeFilter)
 	}
-	return f.String()
+	q := f.String()
+	log.Printf("fetching series with query: %s", q)
+	return q
 }
 
 // LabelPair is the key-value record
@@ -165,7 +171,10 @@ func (c *Client) Explore() ([]*Series, error) {
 	if len(mFields) < 1 {
 		return nil, fmt.Errorf("found no numeric fields for import in database %q", c.database)
 	}
-
+	measurementTags, err := c.getTagKeys()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tags of measurements: %s", err)
+	}
 	series, err := c.getSeries()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get series: %s", err)
@@ -178,17 +187,35 @@ func (c *Client) Explore() ([]*Series, error) {
 			log.Printf("skip measurement %q since it has no fields", s.Measurement)
 			continue
 		}
+		tagSet, ok := measurementTags[s.Measurement]
+		if !ok {
+			return nil, fmt.Errorf("failed to find tags of measurement %s", s.Measurement)
+		}
 		for _, field := range fields {
 			is := &Series{
-				Measurement: s.Measurement,
-				Field:       field,
-				LabelPairs:  s.LabelPairs,
-				FieldList:   fields,
+				Measurement:    s.Measurement,
+				Field:          field,
+				LabelPairs:     s.LabelPairs,
+				ExcludedLabels: getExcludeLabels(tagSet, s.LabelPairs),
 			}
 			iSeries = append(iSeries, is)
 		}
 	}
 	return iSeries, nil
+}
+
+func getExcludeLabels(tagSet map[string]struct{}, LabelPairs []LabelPair) []string {
+	labelMap := make(map[string]struct{})
+	for _, pair := range LabelPairs {
+		labelMap[pair.Name] = struct{}{}
+	}
+	result := make([]string, 0, len(labelMap)-len(LabelPairs))
+	for tag := range tagSet {
+		if _, ok := labelMap[tag]; !ok {
+			result = append(result, tag)
+		}
+	}
+	return result
 }
 
 // ChunkedResponse is a wrapper over influx.ChunkedResponse.
@@ -207,7 +234,7 @@ func (cr *ChunkedResponse) Close() error {
 
 // Next reads the next part/chunk of time series.
 // Returns io.EOF when time series was read entirely.
-func (cr *ChunkedResponse) Next(s *Series) ([]int64, []float64, error) {
+func (cr *ChunkedResponse) Next() ([]int64, []float64, error) {
 	resp, err := cr.cr.NextResponse()
 	if err != nil {
 		return nil, nil, err
@@ -218,7 +245,7 @@ func (cr *ChunkedResponse) Next(s *Series) ([]int64, []float64, error) {
 	if len(resp.Results) != 1 {
 		return nil, nil, fmt.Errorf("unexpected number of results in response: %d", len(resp.Results))
 	}
-	results, err := parseResultCheckTags(s, resp.Results[0])
+	results, err := parseResult(resp.Results[0])
 	if err != nil {
 		return nil, nil, err
 	}
@@ -362,6 +389,54 @@ func (c *Client) getSeries() ([]*Series, error) {
 		}
 	}
 	log.Printf("found %d series", len(result))
+	return result, nil
+}
+
+func (c *Client) getTagKeys() (map[string]map[string]struct{}, error) {
+	com := "show tag keys"
+	q := influx.Query{
+		Command:         com,
+		Database:        c.database,
+		RetentionPolicy: c.retention,
+		Chunked:         true,
+		ChunkSize:       c.chunkSize,
+	}
+
+	log.Printf("fetching tag keys: %s", stringify(q))
+	cr, err := c.QueryAsChunk(q)
+	if err != nil {
+		return nil, fmt.Errorf("error while executing query %q: %s", q.Command, err)
+	}
+
+	const tagKey = "tagKey"
+	result := make(map[string]map[string]struct{})
+	for {
+		resp, err := cr.NextResponse()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		if resp.Error() != nil {
+			return nil, fmt.Errorf("response error for query %q: %s", q.Command, resp.Error())
+		}
+		qValues, err := parseResult(resp.Results[0])
+		if err != nil {
+			return nil, err
+		}
+		for _, qv := range qValues {
+			if result[qv.name] == nil {
+				result[qv.name] = make(map[string]struct{}, len(qv.values[tagKey]))
+			}
+			for _, tk := range qv.values[tagKey] {
+				result[qv.name][tk.(string)] = struct{}{}
+			}
+		}
+	}
+	for measurement, tags := range result {
+		log.Printf("found %d tag(s) for measurement %s", len(tags), measurement)
+	}
 	return result, nil
 }
 
