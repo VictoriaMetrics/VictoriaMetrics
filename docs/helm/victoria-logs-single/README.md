@@ -1,4 +1,4 @@
- ![Version: 0.6.6](https://img.shields.io/badge/Version-0.6.6-informational?style=flat-square)
+ ![Version: 0.7.1](https://img.shields.io/badge/Version-0.7.1-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-logs-single)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -144,6 +144,69 @@ Change the values according to the need of the environment in ``victoria-logs-si
   </thead>
   <tbody>
     <tr>
+      <td>dashboards.annotations</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Dashboard annotations</p>
+</td>
+    </tr>
+    <tr>
+      <td>dashboards.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Create VictoriaLogs dashboards</p>
+</td>
+    </tr>
+    <tr>
+      <td>dashboards.grafanaOperator.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>dashboards.grafanaOperator.spec.allowCrossNamespaceImport</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>dashboards.grafanaOperator.spec.instanceSelector.matchLabels.dashboards</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">grafana
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>dashboards.labels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Dashboard labels</p>
+</td>
+    </tr>
+    <tr>
       <td>extraObjects</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -158,7 +221,11 @@ Change the values according to the need of the environment in ``victoria-logs-si
       <td>fluent-bit</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">config:
+<code class="language-yaml">args:
+    - --workdir=/fluent-bit/etc
+    - --config=/fluent-bit/etc/conf/fluent-bit.conf
+    - --enable-hot-reload
+config:
     filters: |
         [FILTER]
             Name                kubernetes
@@ -175,26 +242,15 @@ Change the values according to the need of the environment in ``victoria-logs-si
             Nested_under kubernetes
             Add_prefix   kubernetes_
     outputs: |
-        [OUTPUT]
-            Name             http
-            Match            kube.*
-            Host             {{ include "victoria-logs.server.fullname" . }}
-            port             9428
-            compress         gzip
-            uri              /insert/jsonline
-            format           json_lines
-            json_date_format iso8601
-            header           AccountID 0
-            header           ProjectID 0
-            header           VL-Msg-Field log
-            header           VL-Time-Field date
-            header           VL-Stream-Fields stream,kubernetes_pod_name,kubernetes_container_name,kubernetes_namespace_name
+        @INCLUDE /fluent-bit/etc/conf/vl/output_*.conf
 daemonSetVolumeMounts:
     - mountPath: /var/log
       name: varlog
     - mountPath: /var/lib/docker/containers
       name: varlibdockercontainers
       readOnly: true
+    - mountPath: /fluent-bit/etc/conf/vl
+      name: vl-outputs
 daemonSetVolumes:
     - hostPath:
         path: /var/log
@@ -202,7 +258,22 @@ daemonSetVolumes:
     - hostPath:
         path: /var/lib/docker/containers
       name: varlibdockercontainers
+    - configMap:
+        name: vl-outputs
+      name: vl-outputs
 enabled: false
+extraContainers: |
+    - name: reloader
+      image: {{ include "fluent-bit.image" .Values.hotReload.image }}
+      args:
+        - {{ printf "-webhook-url=http://localhost:%s/api/v2/reload" (toString .Values.metricsPort) }}
+        - -volume-dir=/watch/config
+        - -volume-dir=/watch/outputs
+      volumeMounts:
+        - name: config
+          mountPath: /watch/config
+        - name: vl-outputs
+          mountPath: /watch/outputs
 resources: {}
 </code>
 </pre>
@@ -241,20 +312,7 @@ resources: {}
       <td>tpl</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="tpl">
 <code class="language-yaml">fluent-bit.config.outputs: |
-  [OUTPUT]
-      Name             http
-      Match            kube.*
-      Host             {{ include "victoria-logs.server.fullname" . }}
-      port             9428
-      compress         gzip
-      uri              /insert/jsonline
-      format           json_lines
-      json_date_format iso8601
-      header           AccountID 0
-      header           ProjectID 0
-      header           VL-Msg-Field log
-      header           VL-Time-Field date
-      header           VL-Stream-Fields stream,kubernetes_pod_name,kubernetes_container_name,kubernetes_namespace_name
+  @INCLUDE /fluent-bit/etc/conf/vl/output_*.conf
  
 </code>
 </pre>
@@ -316,28 +374,6 @@ resources: {}
 </pre>
 </td>
       <td><p>Global name override</p>
-</td>
-    </tr>
-    <tr>
-      <td>global.victoriaLogs.server.fullnameOverride</td>
-      <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">null
-</code>
-</pre>
-</td>
-      <td><p>Overrides the full name of server component</p>
-</td>
-    </tr>
-    <tr>
-      <td>global.victoriaLogs.server.name</td>
-      <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">server
-</code>
-</pre>
-</td>
-      <td><p>Server container name</p>
 </td>
     </tr>
     <tr>
@@ -737,6 +773,17 @@ loggerFormat: json
 </pre>
 </td>
       <td><p>Mount path. Server data Persistent Volume mount root path.</p>
+</td>
+    </tr>
+    <tr>
+      <td>server.persistentVolume.name</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Override Persistent Volume Claim name</p>
 </td>
     </tr>
     <tr>

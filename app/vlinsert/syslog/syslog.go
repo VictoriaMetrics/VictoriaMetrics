@@ -514,12 +514,14 @@ func processLine(line []byte, currentYear int, timezone *time.Location, useLocal
 		}
 		ts = nsecs
 	}
-	logstorage.RenameField(p.Fields, "message", "_msg")
+	logstorage.RenameField(p.Fields, msgFields, "_msg")
 	lmp.AddRow(ts, p.Fields)
 	logstorage.PutSyslogParser(p)
 
 	return nil
 }
+
+var msgFields = []string{"message"}
 
 var (
 	rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="syslog"}`)

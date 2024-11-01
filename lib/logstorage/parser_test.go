@@ -1885,12 +1885,12 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | fields x,f1 | filter foo f1:bar | rm f2`, `f1,x`, ``)
 	f(`* | rm x,f1 | filter foo f1:bar`, `*`, `f1,x`)
 
-	f(`* | field_names as foo`, `*`, `_time`)
-	f(`* | field_names foo | fields bar`, `*`, `_time`)
-	f(`* | field_names foo | fields foo`, `*`, `_time`)
-	f(`* | field_names foo | rm foo`, `*`, `_time`)
-	f(`* | field_names foo | rm bar`, `*`, `_time`)
-	f(`* | field_names foo | rm _time`, `*`, `_time`)
+	f(`* | field_names as foo`, ``, ``)
+	f(`* | field_names foo | fields bar`, ``, ``)
+	f(`* | field_names foo | fields foo`, ``, ``)
+	f(`* | field_names foo | rm foo`, ``, ``)
+	f(`* | field_names foo | rm bar`, ``, ``)
+	f(`* | field_names foo | rm _time`, ``, ``)
 	f(`* | fields x,y | field_names as bar | fields baz`, `x,y`, ``)
 	f(`* | rm x,y | field_names as bar | fields baz`, `*`, `x,y`)
 
@@ -2012,7 +2012,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | extract if (q:w p:a) "<f1>bar" from x | count() r1`, `p,q`, ``)
 	f(`* | extract_regexp "(?P<f1>.*)bar" from x | count() r1`, ``, ``)
 	f(`* | extract_regexp if (q:w p:a) "(?P<f1>.*)bar" from x | count() r1`, `p,q`, ``)
-	f(`* | field_names | count() r1`, `*`, `_time`)
+	f(`* | field_names | count() r1`, ``, ``)
 	f(`* | limit 10 | field_names as abc | count() r1`, `*`, ``)
 	f(`* | blocks_count | count() r1`, ``, ``)
 	f(`* | limit 10 | blocks_count as abc | count() r1`, ``, ``)
@@ -2240,6 +2240,10 @@ func TestQueryGetStatsByFieldsAddGroupingByTime_Failure(t *testing.T) {
 	f(`*`)
 	f(`_time:5m | count() | drop _time`)
 	f(`* | by (x) count() | keep x`)
+	f(`* | stats by (host) count() total | fields total`)
+	f(`* | stats by (host) count() total | delete host`)
+	f(`* | stats by (host) count() total | copy total as host`)
+	f(`* | stats by (host) count() total | rename host as server | fields host, total`)
 }
 
 func TestQueryGetStatsByFields_Success(t *testing.T) {
@@ -2276,17 +2280,39 @@ func TestQueryGetStatsByFields_Success(t *testing.T) {
 	// math pipe is allowed after stats
 	f(`foo | stats by (x) count() total, count() if (error) errors | math errors / total`, []string{"x"})
 
+	// derive math results
+	f(`foo | stats count() x | math x / 10 as y | rm x`, []string{})
+	f(`foo | stats by (z) count() x | math x / 10 as y | rm x`, []string{"z"})
+
 	// keep containing all the by(...) fields
-	f(`foo | stats by (x) count() total | keep x, y`, []string{"x"})
+	f(`foo | stats by (x) count() total | keep x, y, total`, []string{"x"})
+
+	// keep drops some metrics, but leaves others
+	f(`foo | stats by (x) count() y, count_uniq() z | keep x, z, abc`, []string{"x"})
 
 	// drop which doesn't contain by(...) fields
 	f(`foo | stats by (x) count() total | drop y`, []string{"x"})
+	f(`foo | stats by (x) count() total, count_uniq() z | drop z`, []string{"x"})
 
 	// copy which doesn't contain by(...) fields
 	f(`foo | stats by (x) count() total | copy total abc`, []string{"x"})
 
+	// copy by(...) fields
+	f(`foo | stats by (x) count() | copy x y, y z`, []string{"x", "y", "z"})
+
+	// copy metrics
+	f(`foo | stats by (x) count() y | copy y z | drop y`, []string{"x"})
+
 	// mv by(...) fields
 	f(`foo | stats by (x) count() total | mv x y`, []string{"y"})
+
+	// mv metrics
+	f(`foo | stats by (x) count() y | mv y z`, []string{"x"})
+	f(`foo | stats by (x) count() y | mv y z | rm y`, []string{"x"})
+
+	// format result is treated as by(...) field
+	f(`foo | count() | format "foo<bar>baz" as x`, []string{"x"})
+	f(`foo | by (x) count() | format "foo<bar>baz" as y`, []string{"x", "y"})
 }
 
 func TestQueryGetStatsByFields_Failure(t *testing.T) {
@@ -2317,7 +2343,6 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | field_names`)
 	f(`foo | count() | field_values abc`)
 	f(`foo | by (x) count() | fields a, b`)
-	f(`foo | count() | format "foo<bar>baz"`)
 	f(`foo | count() | pack_json`)
 	f(`foo | count() | pack_logfmt`)
 	f(`foo | rename x y`)
@@ -2331,5 +2356,195 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | unpack_syslog`)
 	f(`foo | count() | unroll by (x)`)
 
+	// drop by(...) field
 	f(`* | by (x) count() as rows | math rows * 10, rows / 10 | drop x`)
+
+	// missing metric fields
+	f(`* | count() x | fields y`)
+	f(`* | by (x) count() y | fields x`)
+
+	// math results override by(...) fields
+	f(`* | by (x) count() y | math y*100 as x`)
+
+	// copy to existing by(...) field
+	f(`* | by (x) count() | cp a x`)
+
+	// copy to the remaining metric field
+	f(`* | by (x) count() y | cp a y`)
+
+	// mv to existing by(...) field
+	f(`* | by (x) count() | mv a x`)
+
+	// mv to the remaining metric fields
+	f(`* | by (x) count() y | mv x y`)
+
+	// format to by(...) field
+	f(`* | by (x) count() | format 'foo' as x`)
+
+	// format to the remaining metric field
+	f(`* | by (x) count() y | format 'foo' as y`)
+}
+
+func TestHasTimeFilter(t *testing.T) {
+	f := func(qStr string, expected bool) {
+		t.Helper()
+
+		q, err := ParseStatsQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		if q.ContainAnyTimeFilter() != expected {
+			t.Fatalf("unexpected result for hasTimeFilter(%q); want %v", qStr, expected)
+		}
+	}
+
+	f(`* | count()`, false)
+	f(`error OR _time:5m  | count()`, false)
+	f(`(_time: 5m AND error) OR (_time: 5m AND warn) | count()`, false)
+	f(`* | error OR _time:5m | count()`, false)
+
+	f(`_time:5m | count()`, true)
+	f(`_time:2023-04-25T22:45:59Z | count()`, true)
+	f(`error AND _time:5m | count()`, true)
+	f(`error AND (_time: 5m AND warn) | count()`, true)
+	f(`* | error AND _time:5m | count()`, true)
+}
+
+func TestAddExtraFilters(t *testing.T) {
+	f := func(qStr string, extraFilters []Field, resultExpected string) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("unexpected error in ParseQuery: %s", err)
+		}
+		q.AddExtraFilters(extraFilters)
+
+		result := q.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(`*`, nil, `*`)
+	f(`_time:5m`, nil, `_time:5m`)
+	f(`foo _time:5m`, nil, `foo _time:5m`)
+
+	f(`*`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, "foo:=bar *")
+
+	f("_time:5m", []Field{
+		{
+			Name:  "fo o",
+			Value: "=ba:r !",
+		},
+	}, `"fo o":="=ba:r !" _time:5m`)
+
+	f("_time:5m {a=b}", []Field{
+		{
+			Name:  "fo o",
+			Value: "=ba:r !",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `"fo o":="=ba:r !" x:=y _time:5m {a="b"}`)
+
+	f(`a or (b c)`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, `foo:=bar (a or b c)`)
+}
+
+func TestAddExtraStreamFilters(t *testing.T) {
+	f := func(qStr string, extraFilters []Field, resultExpected string) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("unexpected error in ParseQuery: %s", err)
+		}
+		q.AddExtraStreamFilters(extraFilters)
+
+		result := q.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(`*`, nil, `*`)
+	f(`_time:5m`, nil, `_time:5m`)
+	f(`foo _time:5m`, nil, `foo _time:5m`)
+
+	f(`*`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, `{foo="bar"} *`)
+
+	f(`_time:5m`, []Field{
+		{
+			Name:  "fo o=",
+			Value: `"bar}`,
+		},
+	}, `{"fo o="="\"bar}"} _time:5m`)
+
+	f(`a b`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, `{foo="bar"} a b`)
+
+	f(`a or b {c="d"}`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `{foo="bar",x="y"} (a or b {c="d"})`)
+
+	f(`{c=~"d|e"}`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `{foo="bar",x="y",c=~"d|e"}`)
+
+	f(`a:b {c=~"d|e"}`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `a:b {foo="bar",x="y",c=~"d|e"}`)
+
+	f(`a:b {c=~"d|e"} {q!="w"} asdf`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `a:b {foo="bar",x="y",c=~"d|e"} {foo="bar",x="y",q!="w"} asdf`)
 }

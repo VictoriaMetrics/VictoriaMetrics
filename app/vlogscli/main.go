@@ -69,8 +69,8 @@ func main() {
 		fatalf("cannot initialize readline: %s", err)
 	}
 
-	fmt.Fprintf(rl, "sending queries to %s\n", *datasourceURL)
-
+	fmt.Fprintf(rl, "sending queries to -datasource.url=%s\n", *datasourceURL)
+	fmt.Fprintf(rl, `type ? and press enter to see available commands`+"\n")
 	runReadlineLoop(rl, &incompleteLine)
 
 	if err := rl.Close(); err != nil {
@@ -252,7 +252,7 @@ func isHelpCommand(s string) bool {
 }
 
 func printCommandsHelp(w io.Writer) {
-	fmt.Fprintf(w, "%s", `List of available commands:
+	fmt.Fprintf(w, "%s", `Available commands:
 \q - quit
 \h - show this help
 \s - singleline json output mode
@@ -260,6 +260,8 @@ func printCommandsHelp(w io.Writer) {
 \c - compact output
 \logfmt - logfmt output mode
 \tail <query> - live tail <query> results
+
+See https://docs.victoriametrics.com/victorialogs/querying/vlogscli/ for more details
 `)
 }
 

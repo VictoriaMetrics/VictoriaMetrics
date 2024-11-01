@@ -115,8 +115,9 @@ func TestParseEndpointsListSuccess(t *testing.T) {
 
 func TestGetEndpointsLabels(t *testing.T) {
 	type testArgs struct {
-		containerPorts map[string][]ContainerPort
-		endpointPorts  []EndpointPort
+		containerPorts     map[string][]ContainerPort
+		initContainerPorts map[string][]ContainerPort
+		endpointPorts      []EndpointPort
 	}
 	f := func(t *testing.T, args testArgs, wantLabels []*promutils.Labels) {
 		t.Helper()
@@ -176,6 +177,14 @@ func TestGetEndpointsLabels(t *testing.T) {
 			Metadata: ObjectMeta{
 				Labels: promutils.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
 			},
+		}
+		for cn, ports := range args.initContainerPorts {
+			pod.Spec.InitContainers = append(pod.Spec.InitContainers, Container{
+				Name:          cn,
+				Image:         "test-init-image",
+				Ports:         ports,
+				RestartPolicy: "Always",
+			})
 		}
 		for cn, ports := range args.containerPorts {
 			pod.Spec.Containers = append(pod.Spec.Containers, Container{
@@ -301,6 +310,7 @@ func TestGetEndpointsLabels(t *testing.T) {
 				"__meta_kubernetes_node_labelpresent_node_label": "true",
 				"__meta_kubernetes_node_name":                    "test-node",
 				"__meta_kubernetes_pod_container_image":          "test-image",
+				"__meta_kubernetes_pod_container_init":           "false",
 				"__meta_kubernetes_pod_container_name":           "metrics",
 				"__meta_kubernetes_pod_container_port_name":      "http-metrics",
 				"__meta_kubernetes_pod_container_port_number":    "8428",
@@ -347,6 +357,54 @@ func TestGetEndpointsLabels(t *testing.T) {
 				"__meta_kubernetes_node_labelpresent_node_label": "true",
 				"__meta_kubernetes_node_name":                    "test-node",
 				"__meta_kubernetes_pod_container_image":          "test-image",
+				"__meta_kubernetes_pod_container_init":           "false",
+				"__meta_kubernetes_pod_container_name":           "metrics",
+				"__meta_kubernetes_pod_container_port_name":      "web",
+				"__meta_kubernetes_pod_container_port_number":    "8428",
+				"__meta_kubernetes_pod_container_port_protocol":  "sdc",
+				"__meta_kubernetes_pod_host_ip":                  "4.5.6.7",
+				"__meta_kubernetes_pod_ip":                       "192.168.15.1",
+				"__meta_kubernetes_pod_name":                     "test-pod",
+				"__meta_kubernetes_pod_node_name":                "test-node",
+				"__meta_kubernetes_pod_phase":                    "abc",
+				"__meta_kubernetes_pod_ready":                    "unknown",
+				"__meta_kubernetes_pod_uid":                      "pod-uid",
+				"__meta_kubernetes_service_cluster_ip":           "1.2.3.4",
+				"__meta_kubernetes_service_name":                 "test-eps",
+				"__meta_kubernetes_service_type":                 "service-type",
+			}),
+		})
+	})
+
+	t.Run("1 init container port from endpoint", func(t *testing.T) {
+		f(t, testArgs{
+			initContainerPorts: map[string][]ContainerPort{"metrics": {{
+				Name:          "web",
+				ContainerPort: 8428,
+				Protocol:      "sdc",
+			}}},
+			endpointPorts: []EndpointPort{
+				{
+					Name:     "web",
+					Port:     8428,
+					Protocol: "xabc",
+				},
+			},
+		}, []*promutils.Labels{
+			promutils.NewLabelsFromMap(map[string]string{
+				"__address__": "10.13.15.15:8428",
+				"__meta_kubernetes_endpoint_address_target_kind": "Pod",
+				"__meta_kubernetes_endpoint_address_target_name": "test-pod",
+				"__meta_kubernetes_endpoint_port_name":           "web",
+				"__meta_kubernetes_endpoint_port_protocol":       "xabc",
+				"__meta_kubernetes_endpoint_ready":               "true",
+				"__meta_kubernetes_endpoints_name":               "test-eps",
+				"__meta_kubernetes_namespace":                    "default",
+				"__meta_kubernetes_node_label_node_label":        "xyz",
+				"__meta_kubernetes_node_labelpresent_node_label": "true",
+				"__meta_kubernetes_node_name":                    "test-node",
+				"__meta_kubernetes_pod_container_image":          "test-init-image",
+				"__meta_kubernetes_pod_container_init":           "true",
 				"__meta_kubernetes_pod_container_name":           "metrics",
 				"__meta_kubernetes_pod_container_port_name":      "web",
 				"__meta_kubernetes_pod_container_port_number":    "8428",

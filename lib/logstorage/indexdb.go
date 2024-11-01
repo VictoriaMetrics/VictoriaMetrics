@@ -166,7 +166,7 @@ func (idb *indexdb) getIndexSearch() *indexSearch {
 		}
 	}
 	is := v.(*indexSearch)
-	is.ts.Init(idb.tb)
+	is.ts.Init(idb.tb, false)
 	return is
 }
 
@@ -500,13 +500,14 @@ func (idb *indexdb) marshalStreamFilterCacheKey(dst []byte, tenantIDs []TenantID
 func (idb *indexdb) loadStreamIDsFromCache(tenantIDs []TenantID, sf *StreamFilter) ([]streamID, bool) {
 	bb := bbPool.Get()
 	bb.B = idb.marshalStreamFilterCacheKey(bb.B[:0], tenantIDs, sf)
-	data := idb.s.filterStreamCache.GetBig(nil, bb.B)
+	v, ok := idb.s.filterStreamCache.Get(bb.B)
 	bbPool.Put(bb)
-	if len(data) == 0 {
+	if !ok {
 		// Cache miss
 		return nil, false
 	}
 	// Cache hit - unpack streamIDs from data.
+	data := *(v.(*[]byte))
 	n, nSize := encoding.UnmarshalVarUint64(data)
 	if nSize <= 0 {
 		logger.Panicf("BUG: unexpected error when unmarshaling the number of streamIDs from cache")
@@ -537,7 +538,7 @@ func (idb *indexdb) storeStreamIDsToCache(tenantIDs []TenantID, sf *StreamFilter
 	// Store marshaled streamIDs to cache.
 	bb := bbPool.Get()
 	bb.B = idb.marshalStreamFilterCacheKey(bb.B[:0], tenantIDs, sf)
-	idb.s.filterStreamCache.SetBig(bb.B, b)
+	idb.s.filterStreamCache.Set(bb.B, &b)
 	bbPool.Put(bb)
 }
 

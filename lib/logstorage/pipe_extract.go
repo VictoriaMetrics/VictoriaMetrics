@@ -192,13 +192,13 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.resultValues = slicesutil.SetLength(shard.resultValues, len(rcs))
 	resultValues := shard.resultValues
 
-	hadUpdates := false
+	needUpdates := true
 	vPrev := ""
 	for rowIdx, v := range values {
 		if bm.isSetBit(rowIdx) {
-			if !hadUpdates || vPrev != v {
+			if needUpdates || vPrev != v {
 				vPrev = v
-				hadUpdates = true
+				needUpdates = false
 
 				ptn.apply(v)
 
@@ -219,6 +219,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 			for i, c := range resultColumns {
 				resultValues[i] = c.getValueAtRow(br, rowIdx)
 			}
+			needUpdates = true
 		}
 
 		for i, v := range resultValues {

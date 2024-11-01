@@ -1,4 +1,5 @@
 import router, { routerOptions } from "./index";
+import { getTenantIdFromUrl } from "../utils/tenants";
 
 export enum NavigationItemType {
   internalLink,
@@ -24,10 +25,12 @@ interface NavigationConfig {
  * Special case for alert link
  */
 const getAlertLink = (url: string, showAlertLink: boolean) => {
-  // see more https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=vmalertproxyurl#vmalert
+  // see more https://docs.victoriametrics.com/cluster-victoriametrics/#vmalert
+  const isCluster = !!getTenantIdFromUrl(url);
+  const value = isCluster ? `${url}/vmalert` : url.replace(/\/prometheus$/, "/vmalert");
   return {
     label: "Alerts",
-    value: `${url}/vmalert`,
+    value,
     type: NavigationItemType.externalLink,
     hide: !showAlertLink,
   };

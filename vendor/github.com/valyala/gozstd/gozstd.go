@@ -29,9 +29,10 @@ static size_t ZSTD_decompress_usingDDict_wrapper(uintptr_t ctx, uintptr_t dst, s
     return ZSTD_decompress_usingDDict((ZSTD_DCtx*)ctx, (void*)dst, dstCapacity, (const void*)src, srcSize, (const ZSTD_DDict*)ddict);
 }
 
-static unsigned long long ZSTD_getFrameContentSize_wrapper(uintptr_t src, size_t srcSize) {
-    return ZSTD_getFrameContentSize((const void*)src, srcSize);
+static unsigned long long ZSTD_findDecompressedSize_wrapper(uintptr_t src, size_t srcSize) {
+    return ZSTD_findDecompressedSize((const void*)src, srcSize);
 }
+
 */
 import "C"
 
@@ -254,7 +255,7 @@ func decompress(dctx, dctxDict *dctxWrapper, dst, src []byte, dd *DDict) ([]byte
 	}
 
 	// Slow path - resize dst to fit decompressed data.
-	decompressBound := int(C.ZSTD_getFrameContentSize_wrapper(
+	decompressBound := int(C.ZSTD_findDecompressedSize_wrapper(
 		C.uintptr_t(uintptr(unsafe.Pointer(&src[0]))), C.size_t(len(src))))
 	// Prevent from GC'ing of src during CGO call above.
 	runtime.KeepAlive(src)

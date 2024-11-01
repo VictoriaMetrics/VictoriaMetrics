@@ -10,13 +10,13 @@ import (
 	"github.com/VictoriaMetrics/metricsql"
 )
 
-// NewDuration returns new `duration` flag with the given name, defaultValue and description.
+// NewRetentionDuration returns new `duration` flag with the given name, defaultValue and description.
 //
 // DefaultValue is in months.
-func NewDuration(name string, defaultValue string, description string) *Duration {
-	description += "\nThe following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). " +
+func NewRetentionDuration(name string, defaultValue string, description string) *RetentionDuration {
+	description += "\nThe following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). " +
 		"If suffix isn't set, then the duration is counted in months"
-	d := &Duration{}
+	d := &RetentionDuration{}
 	if err := d.Set(defaultValue); err != nil {
 		panic(fmt.Sprintf("BUG: can not parse default value %s for flag %s", defaultValue, name))
 	}
@@ -24,8 +24,8 @@ func NewDuration(name string, defaultValue string, description string) *Duration
 	return d
 }
 
-// Duration is a flag for holding duration.
-type Duration struct {
+// RetentionDuration is a flag for holding duration for retention period.
+type RetentionDuration struct {
 	// msecs contains parsed duration in milliseconds.
 	msecs int64
 
@@ -33,22 +33,24 @@ type Duration struct {
 }
 
 // Duration returns d as time.Duration
-func (d *Duration) Duration() time.Duration {
+func (d *RetentionDuration) Duration() time.Duration {
 	return time.Millisecond * time.Duration(d.msecs)
 }
 
 // Milliseconds returns d in milliseconds
-func (d *Duration) Milliseconds() int64 {
+func (d *RetentionDuration) Milliseconds() int64 {
 	return d.msecs
 }
 
 // String implements flag.Value interface
-func (d *Duration) String() string {
+func (d *RetentionDuration) String() string {
 	return d.valueString
 }
 
 // Set implements flag.Value interface
-func (d *Duration) Set(value string) error {
+// It assumes that value without unit should be parsed as `month` duration.
+// It returns an error if value has `m` unit.
+func (d *RetentionDuration) Set(value string) error {
 	if value == "" {
 		d.msecs = 0
 		d.valueString = ""

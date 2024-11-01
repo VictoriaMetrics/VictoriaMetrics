@@ -2518,8 +2518,10 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `basicAuth` | BasicAuth allow an endpoint to authenticate over basic authentication | _[BasicAuth](#basicauth)_ | false |
 | `bearerTokenSecret` | Optional bearer auth token to use for -remoteWrite.url | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
+| `forceVMProto` | ForceVMProto forces using VictoriaMetrics protocol for sending data to -remoteWrite.url | _boolean_ | false |
 | `headers` | Headers allow configuring custom http headers<br />Must be in form of semicolon separated header with value<br />e.g.<br />headerName: headerValue<br />vmagent supports since 1.79.0 version | _string array_ | false |
 | `inlineUrlRelabelConfig` | InlineUrlRelabelConfig defines relabeling config for remoteWriteURL, it can be defined at crd spec. | _[RelabelConfig](#relabelconfig) array_ | false |
+| `maxDiskUsage` | MaxDiskUsage defines the maximum file-based buffer size in bytes for -remoteWrite.url | _string_ | false |
 | `oauth2` | OAuth2 defines auth configuration | _[OAuth2](#oauth2)_ | false |
 | `sendTimeout` | Timeout for sending a single block of data to -remoteWrite.url (default 1m0s) | _string_ | false |
 | `streamAggrConfig` | StreamAggrConfig defines stream aggregation configuration for VMAgent for -remoteWrite.url | _[StreamAggrConfig](#streamaggrconfig)_ | false |

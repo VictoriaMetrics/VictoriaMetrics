@@ -1,0 +1,43 @@
+# File contains default list of alerts for VictoriaLogs single server.
+# The alerts below are just recommendations and may require some updates
+# and threshold calibration according to every specific setup.
+groups:
+  - name: vlogs
+    interval: 30s
+    concurrency: 2
+    rules:
+      - alert: DiskRunsOutOfSpace
+        expr: |
+          sum(vl_data_size_bytes) by(job, instance) /
+          (
+           sum(vl_free_disk_space_bytes) by(job, instance) +
+           sum(vl_data_size_bytes) by(job, instance)
+          ) > 0.8
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} (job={{ $labels.job }}) will run out of disk space soon"
+          description: "Disk utilisation on instance {{ $labels.instance }} is more than 80%.\n
+            Having less than 20% of free disk space could cripple merge processes and overall performance.
+            Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
+
+      - alert: RequestErrorsToAPI
+        expr: increase(vl_http_errors_total[5m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Too many errors served for path {{ $labels.path }} (instance {{ $labels.instance }})"
+          description: "Requests to path {{ $labels.path }} are receiving errors.
+            Please verify if clients are sending correct requests."
+
+      - alert: RowsRejectedOnIngestion
+        expr: rate(vl_rows_dropped_total[5m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Some rows are rejected on \"{{ $labels.instance }}\" on ingestion attempt"
+          description: "VictoriaLogs is rejecting to ingest rows on \"{{ $labels.instance }}\" due to the
+            following reason: \"{{ $labels.reason }}\""

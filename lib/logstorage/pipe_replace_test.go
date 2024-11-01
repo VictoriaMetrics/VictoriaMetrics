@@ -49,12 +49,24 @@ func TestPipeReplace(t *testing.T) {
 			{"bar", `cde`},
 		},
 		{
+			{"_msg", `a_bc_def`},
+		},
+		{
+			{"_msg", `1234`},
+		},
+		{
 			{"_msg", `1234`},
 		},
 	}, [][]Field{
 		{
 			{"_msg", `a-bc-def`},
 			{"bar", `cde`},
+		},
+		{
+			{"_msg", `a-bc-def`},
+		},
+		{
+			{"_msg", `1234`},
 		},
 		{
 			{"_msg", `1234`},

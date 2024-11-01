@@ -133,13 +133,12 @@ func Init(extraParams url.Values) (QuerierBuilder, error) {
 		return nil, fmt.Errorf("failed to set request auth header to datasource %q: %w", *addr, err)
 	}
 
-	return &VMStorage{
+	return &Client{
 		c:                &http.Client{Transport: tr},
 		authCfg:          authCfg,
 		datasourceURL:    strings.TrimSuffix(*addr, "/"),
 		appendTypePrefix: *appendTypePrefix,
 		queryStep:        *queryStep,
-		dataSourceType:   datasourcePrometheus,
 		extraParams:      extraParams,
 	}, nil
 }

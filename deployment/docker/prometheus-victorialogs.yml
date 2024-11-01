@@ -5,6 +5,9 @@ scrape_configs:
   - job_name: 'victoriametrics'
     static_configs:
       - targets: ['victoriametrics:8428']
+  - job_name: 'vmalert'
+    static_configs:
+      - targets: [ 'vmalert:8880' ]
   - job_name: 'victorialogs'
     static_configs:
       - targets: ['victorialogs:9428']

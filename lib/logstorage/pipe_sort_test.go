@@ -11,6 +11,7 @@ func TestParsePipeSortSuccess(t *testing.T) {
 	}
 
 	f(`sort`)
+	f(`sort rank`)
 	f(`sort rank as foo`)
 	f(`sort by (x)`)
 	f(`sort by (x) limit 10`)
@@ -26,7 +27,6 @@ func TestParsePipeSortFailure(t *testing.T) {
 	}
 
 	f(`sort a`)
-	f(`sort rank`)
 	f(`sort by`)
 	f(`sort by(x) foo`)
 	f(`sort by(x) limit`)

@@ -6,7 +6,7 @@ import useStateSearchParams from "../../../../hooks/useStateSearchParams";
 import { useSearchParams } from "react-router-dom";
 import Button from "../../../Main/Button/Button";
 import classNames from "classnames";
-import { SettingsIcon } from "../../../Main/Icons";
+import { SettingsIcon, VisibilityIcon, VisibilityOffIcon } from "../../../Main/Icons";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import Popper from "../../../Main/Popper/Popper";
 import useBoolean from "../../../../hooks/useBoolean";
@@ -27,12 +27,14 @@ const BarHitsOptions: FC<Props> = ({ onChange }) => {
   const [graphStyle, setGraphStyle] = useStateSearchParams(GRAPH_STYLES.LINE_STEPPED, "graph");
   const [stacked, setStacked] = useStateSearchParams(false, "stacked");
   const [fill, setFill] = useStateSearchParams(false, "fill");
+  const [hideChart, setHideChart] = useStateSearchParams(false, "hide_chart");
 
   const options: GraphOptions = useMemo(() => ({
     graphStyle,
     stacked,
     fill,
-  }), [graphStyle, stacked, fill]);
+    hideChart,
+  }), [graphStyle, stacked, fill, hideChart]);
 
   const handleChangeGraphStyle = (val: string) => () => {
     setGraphStyle(val as GRAPH_STYLES);
@@ -52,24 +54,41 @@ const BarHitsOptions: FC<Props> = ({ onChange }) => {
     setSearchParams(searchParams);
   };
 
+  const toggleHideChart = () => {
+    setHideChart(prev => {
+      const newVal = !prev;
+      newVal ? searchParams.set("hide_chart", "true") : searchParams.delete("hide_chart");
+      setSearchParams(searchParams);
+      return newVal;
+    });
+  };
+
   useEffect(() => {
     onChange(options);
   }, [options]);
 
   return (
-    <div
-      className="vm-bar-hits-options"
-      ref={optionsButtonRef}
-    >
-      <Tooltip title="Graph settings">
+    <div className="vm-bar-hits-options">
+      <Tooltip title={hideChart ? "Show chart and resume hits updates" : "Hide chart and pause hits updates"}>
         <Button
           variant="text"
           color="primary"
-          startIcon={<SettingsIcon/>}
-          onClick={toggleOpenOptions}
+          startIcon={hideChart ? <VisibilityOffIcon/> : <VisibilityIcon/>}
+          onClick={toggleHideChart}
           ariaLabel="settings"
         />
       </Tooltip>
+      <div ref={optionsButtonRef}>
+        <Tooltip title="Graph settings">
+          <Button
+            variant="text"
+            color="primary"
+            startIcon={<SettingsIcon/>}
+            onClick={toggleOpenOptions}
+            ariaLabel="settings"
+          />
+        </Tooltip>
+      </div>
       <Popper
         open={openOptions}
         placement="bottom-right"

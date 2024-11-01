@@ -33,11 +33,14 @@ const BarHitsChart: FC<Props> = ({ logHits, data: _data, period, setPeriod, onAp
     graphStyle: GRAPH_STYLES.LINE_STEPPED,
     stacked: false,
     fill: false,
+    hideChart: false,
   });
 
   const { xRange, setPlotScale } = usePlotScale({ period, setPeriod });
   const { onReadyChart, isPanning } = useReadyChart(setPlotScale);
   useZoomChart({ uPlotInst, xRange, setPlotScale });
+
+  const isEmptyData = useMemo(() => _data.every(d => d.length === 0), [_data]);
 
   const { data, bands } = useMemo(() => {
     return graphOptions.stacked ? stack(_data, () => false) : { data: _data, bands: [] };
@@ -88,26 +91,33 @@ const BarHitsChart: FC<Props> = ({ logHits, data: _data, period, setPeriod, onAp
   }, [data]);
 
   return (
-    <div className="vm-bar-hits-chart__wrapper">
-      <div
-        className={classNames({
-          "vm-bar-hits-chart": true,
-          "vm-bar-hits-chart_panning": isPanning
-        })}
-        ref={containerRef}
-      >
+    <div
+      className={classNames({
+        "vm-bar-hits-chart__wrapper": true,
+        "vm-bar-hits-chart__wrapper_hidden": graphOptions.hideChart
+      })}
+    >
+      {!graphOptions.hideChart && (
         <div
-          className="vm-line-chart__u-plot"
-          ref={uPlotRef}
-        />
-        <BarHitsTooltip
-          uPlotInst={uPlotInst}
-          data={_data}
-          focusDataIdx={focusDataIdx}
-        />
-      </div>
+          className={classNames({
+            "vm-bar-hits-chart": true,
+            "vm-bar-hits-chart_panning": isPanning
+          })}
+          ref={containerRef}
+        >
+          <div
+            className="vm-line-chart__u-plot"
+            ref={uPlotRef}
+          />
+          <BarHitsTooltip
+            uPlotInst={uPlotInst}
+            data={_data}
+            focusDataIdx={focusDataIdx}
+          />
+        </div>
+      )}
       <BarHitsOptions onChange={setGraphOptions}/>
-      {uPlotInst && (
+      {uPlotInst && !isEmptyData && !graphOptions.hideChart && (
         <BarHitsLegend
           uPlotInst={uPlotInst}
           onApplyFilter={onApplyFilter}

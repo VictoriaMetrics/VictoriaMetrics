@@ -74,6 +74,17 @@ groups:
           description: "vmalert instance {{ $labels.instance }} is failing to push metrics generated via alerting 
             or recording rules to the configured remote write URL. Check vmalert's logs for detailed error message."
 
+      - alert: RemoteWriteDroppingData
+        expr: increase(vmalert_remotewrite_dropped_rows_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "vmalert instance {{ $labels.instance }} is dropping data sent to remote write URL"
+          description: "vmalert instance {{ $labels.instance }} is failing to send results of alerting or recording rules 
+            to the configured remote write URL. This may result into gaps in recording rules or alerts state.
+            Check vmalert's logs for detailed error message."
+
       - alert: AlertmanagerErrors
         expr: increase(vmalert_alerts_send_errors_total[5m]) > 0
         for: 15m

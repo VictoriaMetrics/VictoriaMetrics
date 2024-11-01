@@ -57,16 +57,18 @@ Outer:
 					continue Outer
 				}
 				metricsqlMetricExpr, ok := metricsqlExpr.(*metricsql.MetricExpr)
-				if !ok {
+				if !ok || len(metricsqlMetricExpr.LabelFilterss) > 1 {
 					checkErrs = append(checkErrs, fmt.Errorf("\n    expr: %q, time: %s, err: %v", mt.Expr,
-						mt.EvalTime.Duration().String(), fmt.Errorf("got unsupported metricsql type")))
+						mt.EvalTime.Duration().String(), fmt.Errorf("got invalid exp_samples: %q", s.Labels)))
 					continue Outer
 				}
-				for _, l := range metricsqlMetricExpr.LabelFilterss[0] {
-					expLb = append(expLb, datasource.Label{
-						Name:  l.Label,
-						Value: l.Value,
-					})
+				if len(metricsqlMetricExpr.LabelFilterss) > 0 {
+					for _, l := range metricsqlMetricExpr.LabelFilterss[0] {
+						expLb = append(expLb, datasource.Label{
+							Name:  l.Label,
+							Value: l.Value,
+						})
+					}
 				}
 			}
 			sort.Slice(expLb, func(i, j int) bool {

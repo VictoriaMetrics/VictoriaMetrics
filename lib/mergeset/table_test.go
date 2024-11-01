@@ -139,9 +139,9 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	tb2 := MustOpenTable(snapshot2, nil, nil, &isReadOnly)
 
 	var ts, ts1, ts2 TableSearch
-	ts.Init(tb)
-	ts1.Init(tb1)
-	ts2.Init(tb2)
+	ts.Init(tb, false)
+	ts1.Init(tb1, false)
+	ts2.Init(tb2, false)
 	for i := 0; i < itemsCount; i++ {
 		key := []byte(fmt.Sprintf("item %d", i))
 		if err := ts.FirstItemWithPrefix(key); err != nil {

@@ -75,7 +75,7 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 	f(GetLogRows(nil, nil), 0, 0)
 
 	// Check how inmemoryPart works with a single stream
-	f(newTestLogRows(1, 1, 0), 1, 0.8)
+	f(newTestLogRows(1, 1, 0), 1, 0.7)
 	f(newTestLogRows(1, 2, 0), 1, 0.9)
 	f(newTestLogRows(1, 10, 0), 1, 2.0)
 	f(newTestLogRows(1, 1000, 0), 1, 7.1)
@@ -83,9 +83,9 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 
 	// Check how inmemoryPart works with multiple streams
 	f(newTestLogRows(2, 1, 0), 2, 0.8)
-	f(newTestLogRows(10, 1, 0), 10, 0.9)
-	f(newTestLogRows(100, 1, 0), 100, 1.0)
-	f(newTestLogRows(10, 5, 0), 10, 1.4)
+	f(newTestLogRows(10, 1, 0), 10, 1.1)
+	f(newTestLogRows(100, 1, 0), 100, 1.2)
+	f(newTestLogRows(10, 5, 0), 10, 1.5)
 	f(newTestLogRows(10, 1000, 0), 10, 7.2)
 	f(newTestLogRows(100, 100, 0), 100, 5.0)
 }
@@ -192,14 +192,14 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 	f([]*LogRows{GetLogRows(nil, nil), GetLogRows(nil, nil)}, 0, 0)
 
 	// Check merge with a single reader
-	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 0.8)
+	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 0.7)
 	f([]*LogRows{newTestLogRows(1, 10, 0)}, 1, 2.0)
 	f([]*LogRows{newTestLogRows(1, 100, 0)}, 1, 4.9)
 	f([]*LogRows{newTestLogRows(1, 1000, 0)}, 1, 7.1)
 	f([]*LogRows{newTestLogRows(1, 10000, 0)}, 1, 7.4)
-	f([]*LogRows{newTestLogRows(10, 1, 0)}, 10, 0.9)
-	f([]*LogRows{newTestLogRows(100, 1, 0)}, 100, 1.0)
-	f([]*LogRows{newTestLogRows(1000, 1, 0)}, 1000, 1.0)
+	f([]*LogRows{newTestLogRows(10, 1, 0)}, 10, 1.1)
+	f([]*LogRows{newTestLogRows(100, 1, 0)}, 100, 1.3)
+	f([]*LogRows{newTestLogRows(1000, 1, 0)}, 1000, 1.2)
 	f([]*LogRows{newTestLogRows(10, 10, 0)}, 10, 2.1)
 	f([]*LogRows{newTestLogRows(10, 100, 0)}, 10, 4.9)
 

@@ -110,25 +110,36 @@ func (ih *indexBlockHeader) unmarshal(src []byte) ([]byte, error) {
 	return src[32:], nil
 }
 
+// mustWriteIndexBlockHeaders writes metaindexData to w.
+func mustWriteIndexBlockHeaders(w *writerWithStats, metaindexData []byte) {
+	bb := longTermBufPool.Get()
+	bb.B = encoding.CompressZSTDLevel(bb.B[:0], metaindexData, 1)
+	w.MustWrite(bb.B)
+	if len(bb.B) < 1024*1024 {
+		longTermBufPool.Put(bb)
+	}
+}
+
 // mustReadIndexBlockHeaders reads indexBlockHeader entries from r, appends them to dst and returns the result.
 func mustReadIndexBlockHeaders(dst []indexBlockHeader, r *readerWithStats) []indexBlockHeader {
 	data, err := io.ReadAll(r)
 	if err != nil {
-		logger.Panicf("FATAL: cannot read indexBlockHeader entries from %s: %s", r.Path(), err)
+		logger.Panicf("FATAL: %s: cannot read indexBlockHeader entries: %s", r.Path(), err)
 	}
 
 	bb := longTermBufPool.Get()
 	bb.B, err = encoding.DecompressZSTD(bb.B[:0], data)
 	if err != nil {
-		logger.Panicf("FATAL: cannot decompress indexBlockHeader entries from %s: %s", r.Path(), err)
+		logger.Panicf("FATAL: %s: cannot decompress indexBlockHeader entries: %s", r.Path(), err)
 	}
 	dst, err = unmarshalIndexBlockHeaders(dst, bb.B)
 	if len(bb.B) < 1024*1024 {
 		longTermBufPool.Put(bb)
 	}
 	if err != nil {
-		logger.Panicf("FATAL: cannot parse indexBlockHeader entries from %s: %s", r.Path(), err)
+		logger.Panicf("FATAL: %s: cannot parse indexBlockHeader entries: %s", r.Path(), err)
 	}
+
 	return dst
 }
 

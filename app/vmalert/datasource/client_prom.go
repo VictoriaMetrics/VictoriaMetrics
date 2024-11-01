@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/query' path "+
+	disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/query' or '/select/logsql/stats_query' path "+
 		"to the configured -datasource.url and -remoteRead.url")
 	disableStepParam = flag.Bool("datasource.disableStepParam", false, "Whether to disable adding 'step' param to the issued instant queries. "+
 		"This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. "+
@@ -171,7 +171,7 @@ const (
 func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result, err error) {
 	r := &promResponse{}
 	if err = json.NewDecoder(resp.Body).Decode(r); err != nil {
-		return res, fmt.Errorf("error parsing prometheus metrics for %s: %w", req.URL.Redacted(), err)
+		return res, fmt.Errorf("error parsing response from %s: %w", req.URL.Redacted(), err)
 	}
 	if r.Status == statusError {
 		return res, fmt.Errorf("response error, query: %s, errorType: %s, error: %s", req.URL.Redacted(), r.ErrorType, r.Error)
@@ -218,7 +218,7 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result
 	return res, nil
 }
 
-func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string, timestamp time.Time) {
+func (s *Client) setPrometheusInstantReqParams(r *http.Request, query string, timestamp time.Time) {
 	if s.appendTypePrefix {
 		r.URL.Path += "/prometheus"
 	}
@@ -238,10 +238,10 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 		q.Set("step", fmt.Sprintf("%ds", int(s.queryStep.Seconds())))
 	}
 	r.URL.RawQuery = q.Encode()
-	s.setPrometheusReqParams(r, query)
+	s.setReqParams(r, query)
 }
 
-func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, start, end time.Time) {
+func (s *Client) setPrometheusRangeReqParams(r *http.Request, query string, start, end time.Time) {
 	if s.appendTypePrefix {
 		r.URL.Path += "/prometheus"
 	}
@@ -257,19 +257,5 @@ func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, s
 		q.Set("step", fmt.Sprintf("%ds", int(s.evaluationInterval.Seconds())))
 	}
 	r.URL.RawQuery = q.Encode()
-	s.setPrometheusReqParams(r, query)
-}
-
-func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
-	q := r.URL.Query()
-	for k, vs := range s.extraParams {
-		if q.Has(k) { // extraParams are prior to params in URL
-			q.Del(k)
-		}
-		for _, v := range vs {
-			q.Add(k, v)
-		}
-	}
-	q.Set("query", query)
-	r.URL.RawQuery = q.Encode()
+	s.setReqParams(r, query)
 }
