@@ -1771,7 +1771,7 @@ _time:5m | len(_msg) as msg_len | sort by (msg_len desc) | limit 1
 
 See also:
 
-- [`sum_len` stats function](#sum-len-stats)
+- [`sum_len` stats function](#sum_len-stats)
 - [`sort` pipe](#sort-pipe)
 - [`limit` pipe](#limit-pipe)
 
