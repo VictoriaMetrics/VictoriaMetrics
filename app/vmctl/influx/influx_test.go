@@ -75,9 +75,9 @@ func TestFetchQuery(t *testing.T) {
 	}, "", `select "value" from "cpu"`)
 
 	f(&Series{
-		Measurement:  "cpu",
-		Field:        "value1",
-		ExcludedTags: []string{"e1", "e2", "e3"},
+		Measurement: "cpu",
+		Field:       "value1",
+		EmptyTags:   []string{"e1", "e2", "e3"},
 	}, "", `select "value1" from "cpu" where "e1"::tag='' and "e2"::tag='' and "e3"::tag=''`)
 }
 

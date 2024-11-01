@@ -52,8 +52,8 @@ type Series struct {
 	Field       string
 	LabelPairs  []LabelPair
 
-	// ExcludedTags contains tags in measurement whose value must be empty.
-	ExcludedTags []string
+	// EmptyTags contains tags in measurement whose value must be empty.
+	EmptyTags []string
 }
 
 var valueEscaper = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
@@ -62,18 +62,18 @@ func (s Series) fetchQuery(timeFilter string) string {
 	f := &strings.Builder{}
 	fmt.Fprintf(f, "select %q from %q", s.Field, s.Measurement)
 
-	conditions := make([]string, 0, len(s.LabelPairs)+len(s.ExcludedTags)+1)
+	conditions := make([]string, 0, len(s.LabelPairs)+len(s.EmptyTags)+1)
 	for _, pair := range s.LabelPairs {
 		conditions = append(conditions, fmt.Sprintf("%q::tag='%s'", pair.Name, valueEscaper.Replace(pair.Value)))
 	}
-	for _, label := range s.ExcludedTags {
+	for _, label := range s.EmptyTags {
 		conditions = append(conditions, fmt.Sprintf("%q::tag=''", label))
 	}
 	if len(timeFilter) > 0 {
 		conditions = append(conditions, timeFilter)
 	}
 
-	if len(s.LabelPairs) > 0 || len(timeFilter) > 0 || len(s.ExcludedTags) > 0 {
+	if len(s.LabelPairs) > 0 || len(timeFilter) > 0 || len(s.EmptyTags) > 0 {
 		f.WriteString(fmt.Sprintf(" where %s", strings.Join(conditions, " and ")))
 	}
 
@@ -145,7 +145,7 @@ func timeFilter(start, end string) string {
 }
 
 // Explore checks the existing data schema in influx
-// by checking available fields and series,
+// by checking available (non-empty) tags, fields and measurements
 // which unique combination represents all possible
 // time series existing in database.
 // The explore required to reduce the load on influx
@@ -190,10 +190,10 @@ func (c *Client) Explore() ([]*Series, error) {
 		}
 		for _, field := range fields {
 			is := &Series{
-				Measurement:  s.Measurement,
-				Field:        field,
-				LabelPairs:   s.LabelPairs,
-				ExcludedTags: getExcludeLabels(tags, s.LabelPairs),
+				Measurement: s.Measurement,
+				Field:       field,
+				LabelPairs:  s.LabelPairs,
+				EmptyTags:   getEmptyTags(tags, s.LabelPairs),
 			}
 			iSeries = append(iSeries, is)
 		}
@@ -201,13 +201,15 @@ func (c *Client) Explore() ([]*Series, error) {
 	return iSeries, nil
 }
 
-func getExcludeLabels(tagSet map[string]struct{}, LabelPairs []LabelPair) []string {
+// getEmptyTags Tags represent all tags of a measurement. LabelPairs represent tags of a specific series.
+// This function returns tags from a measurement that are missing in a specific series.
+func getEmptyTags(tags map[string]struct{}, LabelPairs []LabelPair) []string {
 	labelMap := make(map[string]struct{})
 	for _, pair := range LabelPairs {
 		labelMap[pair.Name] = struct{}{}
 	}
 	result := make([]string, 0, len(labelMap)-len(LabelPairs))
-	for tag := range tagSet {
+	for tag := range tags {
 		if _, ok := labelMap[tag]; !ok {
 			result = append(result, tag)
 		}
