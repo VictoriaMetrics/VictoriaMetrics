@@ -157,8 +157,6 @@ For example, the following [log entry](#data-model) contains valid timestamp wit
 }
 ```
 
-If timezone information is missing in the `_time` field value, then the local timezone of the host where VictoriaLogs runs is used.
-
 If the actual timestamp has other than `_time` field name, then it is possible to specify the real timestamp
 field via `_time_field` query arg during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 For example, if timestamp is located in the `event.created` field, then specify `_time_field=event.created` query arg
