@@ -51,8 +51,9 @@ type Series struct {
 	Measurement string
 	Field       string
 	LabelPairs  []LabelPair
-	// ExcludeLabels contains labels in measurement whose value must be nil
-	ExcludedLabels []string
+
+	// ExcludedTags contains tags in measurement whose value must be empty.
+	ExcludedTags []string
 }
 
 var valueEscaper = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
@@ -60,29 +61,22 @@ var valueEscaper = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
 func (s Series) fetchQuery(timeFilter string) string {
 	f := &strings.Builder{}
 	fmt.Fprintf(f, "select %q from %q", s.Field, s.Measurement)
-	if len(s.LabelPairs) > 0 || len(timeFilter) > 0 || len(s.ExcludedLabels) > 0 {
-		f.WriteString(" where")
+
+	conditions := make([]string, 0, len(s.LabelPairs)+len(s.ExcludedTags)+1)
+	for _, pair := range s.LabelPairs {
+		conditions = append(conditions, fmt.Sprintf("%q::tag='%s'", pair.Name, valueEscaper.Replace(pair.Value)))
 	}
-	for i, pair := range s.LabelPairs {
-		pairV := valueEscaper.Replace(pair.Value)
-		fmt.Fprintf(f, " %q::tag='%s'", pair.Name, pairV)
-		if i != len(s.LabelPairs)-1 {
-			f.WriteString(" and")
-		}
+	for _, label := range s.ExcludedTags {
+		conditions = append(conditions, fmt.Sprintf("%q::tag=''", label))
 	}
-	for _, label := range s.ExcludedLabels {
-		if len(s.LabelPairs) > 0 {
-			f.WriteString(" and")
-		}
-		fmt.Fprintf(f, " %q::tag=''", label)
+	if len(timeFilter) > 0 {
+		conditions = append(conditions, timeFilter)
 	}
 
-	if len(timeFilter) > 0 {
-		if len(s.LabelPairs) > 0 || len(s.ExcludedLabels) > 0 {
-			f.WriteString(" and")
-		}
-		fmt.Fprintf(f, " %s", timeFilter)
+	if len(s.LabelPairs) > 0 || len(timeFilter) > 0 || len(s.ExcludedTags) > 0 {
+		f.WriteString(fmt.Sprintf(" where %s", strings.Join(conditions, " and ")))
 	}
+
 	q := f.String()
 	log.Printf("fetching series with query: %s", q)
 	return q
@@ -129,7 +123,7 @@ func NewClient(cfg Config) (*Client, error) {
 }
 
 // Database returns database name
-func (c Client) Database() string {
+func (c *Client) Database() string {
 	return c.database
 }
 
@@ -162,7 +156,7 @@ func timeFilter(start, end string) string {
 func (c *Client) Explore() ([]*Series, error) {
 	log.Printf("Exploring scheme for database %q", c.database)
 
-	// mFields is a `map[Measurement][]string{field1, field2, ...}`
+	// {"measurement1": ["value1", "value2"]}
 	mFields, err := c.fieldsByMeasurement()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get field keys: %s", err)
@@ -171,10 +165,13 @@ func (c *Client) Explore() ([]*Series, error) {
 	if len(mFields) < 1 {
 		return nil, fmt.Errorf("found no numeric fields for import in database %q", c.database)
 	}
-	measurementTags, err := c.getTagKeys()
+
+	// {"measurement1": {"tag1", "tag2"}}
+	measurementTags, err := c.getMeasurementTags()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tags of measurements: %s", err)
 	}
+
 	series, err := c.getSeries()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get series: %s", err)
@@ -187,16 +184,16 @@ func (c *Client) Explore() ([]*Series, error) {
 			log.Printf("skip measurement %q since it has no fields", s.Measurement)
 			continue
 		}
-		tagSet, ok := measurementTags[s.Measurement]
+		tags, ok := measurementTags[s.Measurement]
 		if !ok {
 			return nil, fmt.Errorf("failed to find tags of measurement %s", s.Measurement)
 		}
 		for _, field := range fields {
 			is := &Series{
-				Measurement:    s.Measurement,
-				Field:          field,
-				LabelPairs:     s.LabelPairs,
-				ExcludedLabels: getExcludeLabels(tagSet, s.LabelPairs),
+				Measurement:  s.Measurement,
+				Field:        field,
+				LabelPairs:   s.LabelPairs,
+				ExcludedTags: getExcludeLabels(tags, s.LabelPairs),
 			}
 			iSeries = append(iSeries, is)
 		}
@@ -392,7 +389,10 @@ func (c *Client) getSeries() ([]*Series, error) {
 	return result, nil
 }
 
-func (c *Client) getTagKeys() (map[string]map[string]struct{}, error) {
+// getMeasurementTags get the tags for each measurement.
+// tags are placed in a map without values (similar to a set) for quick lookups:
+// {"measurement1": {"tag1", "tag2"}, "measurement2": {"tag3", "tag4"}}
+func (c *Client) getMeasurementTags() (map[string]map[string]struct{}, error) {
 	com := "show tag keys"
 	q := influx.Query{
 		Command:         com,
