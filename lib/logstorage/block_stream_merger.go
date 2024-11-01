@@ -146,7 +146,7 @@ func (bsm *blockStreamMerger) mustWriteBlock(bd *blockData, bsw *blockStreamWrit
 			bsm.bd.copyFrom(&bsm.a, bd)
 			bsm.uniqueFields = uniqueFields
 		}
-	case bsm.uniqueFields+uniqueFields >= maxColumnsPerBlock:
+	case bsm.uniqueFields+uniqueFields > maxColumnsPerBlock:
 		// Cannot merge bd with bsm.rows, because too many columns will be created.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4762
 		//
