@@ -7,6 +7,8 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/url"
+	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -53,8 +55,12 @@ var (
 		"If set to true, the query model becomes closer to InfluxDB data model. If set to true, then -search.maxLookback and -search.maxStalenessInterval are ignored")
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
-	selectNodes = flagutil.NewArrayString("selectNode", "Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN")
-
+	selectNodes = flagutil.NewArrayString("selectNode", "Comma-separated addresses of vmselect nodes. "+
+		"They can be passed as: "+
+		"1) DNS SRV records: srv+vmselect-service, "+
+		"2) URL with optional path prefix: http://vmselect-node:8481/prefix, "+
+		"3) Address without scheme and path prefix: vmselect-node:8481, "+
+		"4) Hostname without port: vmselect-node")
 	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage. "+
 		"The limit can't exceed the corresponding -search.maxUniqueTimeseries limit on vmstorage, it can be only set to lower values.")
 	maxFederateSeries   = flag.Int("search.maxFederateSeries", 1e6, "The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage")
@@ -74,6 +80,34 @@ var (
 		"match too many time series. The downside is that superfluous labels or series could be returned, which do not match the extra filters. "+
 		"See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration")
 )
+
+var selectURLs []*url.URL
+
+// Init initializes module variables
+func Init() {
+	if len(*selectNodes) == 0 {
+		logger.Warnf("missing -selectNode flag, cache reset request wont be propagated to the other vmselect nodes." +
+			"This can be fixed by enumerating all the vmselect node addresses in `-selectNode` command line flag. " +
+			" For example: -selectNode=select-addr-1:8481,select-addr-2:8481")
+		return
+	}
+	selectURLs = make([]*url.URL, len(*selectNodes))
+	var err error
+	for i, node := range *selectNodes {
+		selectURL := node
+		if !strings.HasPrefix(selectURL, "http://") && !strings.HasPrefix(selectURL, "https://") {
+			if _, _, err := net.SplitHostPort(selectURL); err != nil {
+				// Add missing port
+				selectURL += ":8481"
+			}
+			selectURL = fmt.Sprintf("http://%s", selectURL)
+		}
+		selectURLs[i], err = url.Parse(selectURL)
+		if err != nil {
+			logger.Fatalf("failed to parse select node %q: %s", node, err)
+		}
+	}
+}
 
 // Default step used if not set.
 const defaultStep = 5 * 60 * 1000
@@ -533,56 +567,42 @@ func resetRollupResultCaches() {
 	// Reset local cache before checking whether selectNodes list is empty.
 	// This guarantees that at least local cache is reset if selectNodes list is empty.
 	promql.ResetRollupResultCache()
-	if len(*selectNodes) == 0 {
-		logger.Warnf("missing -selectNode flag, cache reset request wont be propagated to the other vmselect nodes." +
-			"This can be fixed by enumerating all the vmselect node addresses in `-selectNode` command line flag. " +
-			" For example: -selectNode=select-addr-1:8481,select-addr-2:8481")
-		return
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	var defaultPort uint16 = 8481
-	var resolvedAddrs []string
-	for _, host := range *selectNodes {
-		if strings.HasPrefix(host, "srv+") {
-			// The host has the format 'srv+realhost'. Strip 'srv+' prefix before performing the lookup.
-			srvHost := strings.TrimPrefix(host, "srv+")
-			_, addrs, err := netutil.Resolver.LookupSRV(ctx, "", "", srvHost)
-			if err != nil {
-				logger.Warnf("cannot discover vmselect SRV records for %s: %s; use it literally", host, err)
-				resolvedAddrs = []string{host}
-			} else {
-				resolvedAddrs = make([]string, len(addrs))
-				for i, addr := range addrs {
-					resolvedAddrs[i] = fmt.Sprintf("%s:%d", addr.Target, addr.Port)
-				}
-			}
-			for _, addr := range resolvedAddrs {
-				resetRollupResultCache(addr)
-			}
-		} else {
-			if _, _, err := net.SplitHostPort(host); err != nil {
-				// Add missing port
-				host += fmt.Sprintf(":%d", defaultPort)
-			}
-			resetRollupResultCache(host)
+	for _, selectURL := range selectURLs {
+		host := selectURL.Hostname()
+		if !strings.HasPrefix(host, "srv+") {
+			resetRollupResultCache(selectURL)
+			continue
+		}
+		// The host has the format 'srv+realhost'. Strip 'srv+' prefix before performing the lookup.
+		srvHost := strings.TrimPrefix(host, "srv+")
+		_, addrs, err := netutil.Resolver.LookupSRV(ctx, "", "", srvHost)
+		if err != nil {
+			logger.Warnf("cannot discover vmselect SRV records for %s: %s; use it literally", host, err)
+			continue
+		}
+		for _, addr := range addrs {
+			resolvedURL := *selectURL
+			resolvedURL.Host = fmt.Sprintf("%s:%d", addr.Target, addr.Port)
+			resetRollupResultCache(&resolvedURL)
 		}
 	}
 }
 
-func resetRollupResultCache(selectNode string) {
-	callURL := fmt.Sprintf("http://%s/internal/resetRollupResultCache", selectNode)
-	resp, err := httpClient.Get(callURL)
+func resetRollupResultCache(selectURL *url.URL) {
+	selectURL.Path = path.Join(selectURL.Path, "/internal/resetRollupResultCache")
+	resp, err := httpClient.Get(selectURL.String())
 	if err != nil {
-		logger.Errorf("error when accessing %q: %s", callURL, err)
+		logger.Errorf("error when accessing %q: %s", selectURL, err)
 		resetRollupResultCacheErrors.Inc()
 		return
 	}
 	if resp.StatusCode != http.StatusOK {
 		_ = resp.Body.Close()
-		logger.Errorf("unexpected status code at %q; got %d; want %d", callURL, resp.StatusCode, http.StatusOK)
+		logger.Errorf("unexpected status code at %q; got %d; want %d", selectURL, resp.StatusCode, http.StatusOK)
 		resetRollupResultCacheErrors.Inc()
 		return
 	}
