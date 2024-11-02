@@ -6,7 +6,7 @@
 - Fluentd - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/fluentd/).
 - Logstash - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/logstash/).
 - Vector - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector/).
-- Promtail (aka Grafana Loki) - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/).
+- Promtail (aka Grafana Loki, Grafana Agent or Grafana Alloy) - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/).
 - Telegraf - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/telegraf/).
 - OpenTelemetry Collector - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/).
 - Journald - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/).
