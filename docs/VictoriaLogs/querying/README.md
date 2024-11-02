@@ -1,6 +1,7 @@
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/)
 via the following ways:
 
+- [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/)
 - [Command-line interface](#command-line)
 - [HTTP API](#http-api)
 - [Web UI](#web-ui) - a web-based UI for querying logs
@@ -106,6 +107,7 @@ with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 
 See also:
 
+- [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/)
 - [Extra filters](#extra-filters)
 - [Live tailing](#live-tailing)
 - [Querying hits stats](#querying-hits-stats)
@@ -161,6 +163,7 @@ with `vl_live_tailing_requests` metric.
 
 See also:
 
+- [Live tailing in vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/#live-tailing)
 - [Extra filters](#extra-filters)
 - [Querying logs](#querying-logs)
 - [Querying streams](#querying-streams)
