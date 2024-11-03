@@ -1193,7 +1193,7 @@ If you have suggestions for improvements or have found a bug - please open an is
   Note that tracking each dropped target requires up to 10Kb of RAM. Therefore, big values for `-promscrape.maxDroppedTargets`
   may result in increased memory usage if a big number of scrape targets are dropped during relabeling.
 
-* It is recommended increaseing `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` [metric](#monitoring)
+* It is recommended increasing `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` [metric](#monitoring)
   grows constantly. It is also recommended increasing `-remoteWrite.maxBlockSize` and `-remoteWrite.maxRowsPerBlock` command-line flags in this case.
   This can improve data ingestion performance to the configured remote storage systems at the cost of higher memory usage.
 

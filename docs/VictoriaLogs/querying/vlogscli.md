@@ -14,7 +14,7 @@ It has the following features:
 - It supports scrolling and searching over query results in the same way as `less` command does - see [these docs](#scrolling-query-results).
 - It supports canceling long-running queries at any time via `Ctrl+C`.
 - It supports query history - see [these docs](#query-history).
-- It supports diffent formats for query results (JSON, logfmt, compact, etc.) - see [these docs](#output-modes).
+- It supports different formats for query results (JSON, logfmt, compact, etc.) - see [these docs](#output-modes).
 - It supports live tailing - see [these docs](#live-tailing).
 
 This tool can be obtained from the linked release pages at the [changelog](https://docs.victoriametrics.com/victorialogs/changelog/)

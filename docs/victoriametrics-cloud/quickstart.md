@@ -169,7 +169,7 @@ If you forgot your password, it can be restored in the following way:
 
 1. Enter a new password on the Profile page and press `Save`:
    
-     ![Restpre password profile fields](quick_start_restore_password_profile_fields.webp)
+     ![Restore password profile fields](quick_start_restore_password_profile_fields.webp)
    
 
 ## Creating deployments

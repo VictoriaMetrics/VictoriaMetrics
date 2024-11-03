@@ -733,7 +733,7 @@ Please read carefully and verify as you go.
 
 By default, Mimir uses the `prometheus` path prefix so specifying the source
 should be as simple as `--remote-read-src-addr=http://<mimir>:9009/prometheus`.
-But if prefix was overriden via `prometheus_http_prefix`, then source address should be updated
+But if prefix was overridden via `prometheus_http_prefix`, then source address should be updated
 to `--remote-read-src-addr=http://<mimir>:9009/{prometheus_http_prefix}`.
 
 Mimir supports [streamed remote read API](https://prometheus.io/blog/2019/10/10/remote-read-meets-streaming/),
