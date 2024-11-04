@@ -16,3 +16,6 @@ dashboards-sync:
 	SRC=vmalert.json D_UID=LzldHAVnz TITLE="VictoriaMetrics - vmalert" $(MAKE) dashboard-copy
 	SRC=vmauth.json D_UID=nbuo5Mr4k TITLE="VictoriaMetrics - vmauth" $(MAKE) dashboard-copy
 	SRC=operator.json D_UID=1H179hunk TITLE="VictoriaMetrics - operator" $(MAKE) dashboard-copy
+	SRC=backupmanager.json D_UID=gF-lxRdVz TITLE="VictoriaMetrics - backupmanager" $(MAKE) dashboard-copy
+	SRC=clusterbytenant.json D_UID=IZFqd3lMz TITLE="VictoriaMetrics Cluster Per Tenant Statistic" $(MAKE) dashboard-copy
+	SRC=victorialogs.json D_UID=OqPIZTX4z TITLE="VictoriaLogs" $(MAKE) dashboard-copy
