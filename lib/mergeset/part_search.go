@@ -36,8 +36,6 @@ type partSearch struct {
 
 	ib        *inmemoryBlock
 	ibItemIdx int
-
-	sparse bool
 }
 
 func (ps *partSearch) reset() {
@@ -59,11 +57,10 @@ func (ps *partSearch) reset() {
 // Init initializes ps for search in the p.
 //
 // Use Seek for search in p.
-func (ps *partSearch) Init(p *part, sparse bool) {
+func (ps *partSearch) Init(p *part) {
 	ps.reset()
 
 	ps.p = p
-	ps.sparse = sparse
 }
 
 // Seek seeks for the first item greater or equal to k in ps.
@@ -302,22 +299,18 @@ func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 }
 
 func (ps *partSearch) getInmemoryBlock(bh *blockHeader) (*inmemoryBlock, error) {
-	cache := ibCache
-	if ps.sparse {
-		cache = ibSparseCache
-	}
 	ibKey := blockcache.Key{
 		Part:   ps.p,
 		Offset: bh.itemsBlockOffset,
 	}
-	b := cache.GetBlock(ibKey)
+	b := ibCache.GetBlock(ibKey)
 	if b == nil {
 		ib, err := ps.readInmemoryBlock(bh)
 		if err != nil {
 			return nil, err
 		}
 		b = ib
-		cache.PutBlock(ibKey, b)
+		ibCache.PutBlock(ibKey, b)
 	}
 	ib := b.(*inmemoryBlock)
 	return ib, nil
