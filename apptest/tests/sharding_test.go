@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
-func TestVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.T) {
+func TestClusterVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Close()
 

@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
-func TestMultilevelSelect(t *testing.T) {
+func TestClusterMultilevelSelect(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Close()
 
