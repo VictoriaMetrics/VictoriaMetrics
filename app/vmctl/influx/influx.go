@@ -201,8 +201,8 @@ func (c *Client) Explore() ([]*Series, error) {
 	return iSeries, nil
 }
 
-// getEmptyTags Tags represent all tags of a measurement. LabelPairs represent tags of a specific series.
-// This function returns tags from a measurement that are missing in a specific series.
+// getEmptyTags returns tags of a measurement that are missing in a specific series.
+// Tags represent all tags of a measurement. LabelPairs represent tags of a specific series.
 func getEmptyTags(tags map[string]struct{}, LabelPairs []LabelPair) []string {
 	labelMap := make(map[string]struct{})
 	for _, pair := range LabelPairs {
