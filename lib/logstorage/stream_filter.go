@@ -93,6 +93,7 @@ type streamTagFilter struct {
 	// value is the value
 	value string
 
+	// regexp is initialized for `=~` and `!~` op.
 	regexp *regexutil.PromRegex
 }
 

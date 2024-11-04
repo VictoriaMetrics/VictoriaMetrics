@@ -1885,12 +1885,12 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | fields x,f1 | filter foo f1:bar | rm f2`, `f1,x`, ``)
 	f(`* | rm x,f1 | filter foo f1:bar`, `*`, `f1,x`)
 
-	f(`* | field_names as foo`, `*`, `_time`)
-	f(`* | field_names foo | fields bar`, `*`, `_time`)
-	f(`* | field_names foo | fields foo`, `*`, `_time`)
-	f(`* | field_names foo | rm foo`, `*`, `_time`)
-	f(`* | field_names foo | rm bar`, `*`, `_time`)
-	f(`* | field_names foo | rm _time`, `*`, `_time`)
+	f(`* | field_names as foo`, ``, ``)
+	f(`* | field_names foo | fields bar`, ``, ``)
+	f(`* | field_names foo | fields foo`, ``, ``)
+	f(`* | field_names foo | rm foo`, ``, ``)
+	f(`* | field_names foo | rm bar`, ``, ``)
+	f(`* | field_names foo | rm _time`, ``, ``)
 	f(`* | fields x,y | field_names as bar | fields baz`, `x,y`, ``)
 	f(`* | rm x,y | field_names as bar | fields baz`, `*`, `x,y`)
 
@@ -2012,7 +2012,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | extract if (q:w p:a) "<f1>bar" from x | count() r1`, `p,q`, ``)
 	f(`* | extract_regexp "(?P<f1>.*)bar" from x | count() r1`, ``, ``)
 	f(`* | extract_regexp if (q:w p:a) "(?P<f1>.*)bar" from x | count() r1`, `p,q`, ``)
-	f(`* | field_names | count() r1`, `*`, `_time`)
+	f(`* | field_names | count() r1`, ``, ``)
 	f(`* | limit 10 | field_names as abc | count() r1`, `*`, ``)
 	f(`* | blocks_count | count() r1`, ``, ``)
 	f(`* | limit 10 | blocks_count as abc | count() r1`, ``, ``)
@@ -2383,4 +2383,168 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 
 	// format to the remaining metric field
 	f(`* | by (x) count() y | format 'foo' as y`)
+}
+
+func TestHasTimeFilter(t *testing.T) {
+	f := func(qStr string, expected bool) {
+		t.Helper()
+
+		q, err := ParseStatsQuery(qStr)
+		if err != nil {
+			t.Fatalf("cannot parse [%s]: %s", qStr, err)
+		}
+		if q.ContainAnyTimeFilter() != expected {
+			t.Fatalf("unexpected result for hasTimeFilter(%q); want %v", qStr, expected)
+		}
+	}
+
+	f(`* | count()`, false)
+	f(`error OR _time:5m  | count()`, false)
+	f(`(_time: 5m AND error) OR (_time: 5m AND warn) | count()`, false)
+	f(`* | error OR _time:5m | count()`, false)
+
+	f(`_time:5m | count()`, true)
+	f(`_time:2023-04-25T22:45:59Z | count()`, true)
+	f(`error AND _time:5m | count()`, true)
+	f(`error AND (_time: 5m AND warn) | count()`, true)
+	f(`* | error AND _time:5m | count()`, true)
+}
+
+func TestAddExtraFilters(t *testing.T) {
+	f := func(qStr string, extraFilters []Field, resultExpected string) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("unexpected error in ParseQuery: %s", err)
+		}
+		q.AddExtraFilters(extraFilters)
+
+		result := q.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(`*`, nil, `*`)
+	f(`_time:5m`, nil, `_time:5m`)
+	f(`foo _time:5m`, nil, `foo _time:5m`)
+
+	f(`*`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, "foo:=bar *")
+
+	f("_time:5m", []Field{
+		{
+			Name:  "fo o",
+			Value: "=ba:r !",
+		},
+	}, `"fo o":="=ba:r !" _time:5m`)
+
+	f("_time:5m {a=b}", []Field{
+		{
+			Name:  "fo o",
+			Value: "=ba:r !",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `"fo o":="=ba:r !" x:=y _time:5m {a="b"}`)
+
+	f(`a or (b c)`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, `foo:=bar (a or b c)`)
+}
+
+func TestAddExtraStreamFilters(t *testing.T) {
+	f := func(qStr string, extraFilters []Field, resultExpected string) {
+		t.Helper()
+
+		q, err := ParseQuery(qStr)
+		if err != nil {
+			t.Fatalf("unexpected error in ParseQuery: %s", err)
+		}
+		q.AddExtraStreamFilters(extraFilters)
+
+		result := q.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(`*`, nil, `*`)
+	f(`_time:5m`, nil, `_time:5m`)
+	f(`foo _time:5m`, nil, `foo _time:5m`)
+
+	f(`*`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, `{foo="bar"} *`)
+
+	f(`_time:5m`, []Field{
+		{
+			Name:  "fo o=",
+			Value: `"bar}`,
+		},
+	}, `{"fo o="="\"bar}"} _time:5m`)
+
+	f(`a b`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+	}, `{foo="bar"} a b`)
+
+	f(`a or b {c="d"}`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `{foo="bar",x="y"} (a or b {c="d"})`)
+
+	f(`{c=~"d|e"}`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `{foo="bar",x="y",c=~"d|e"}`)
+
+	f(`a:b {c=~"d|e"}`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `a:b {foo="bar",x="y",c=~"d|e"}`)
+
+	f(`a:b {c=~"d|e"} {q!="w"} asdf`, []Field{
+		{
+			Name:  "foo",
+			Value: "bar",
+		},
+		{
+			Name:  "x",
+			Value: "y",
+		},
+	}, `a:b {foo="bar",x="y",c=~"d|e"} {foo="bar",x="y",q!="w"} asdf`)
 }

@@ -71,12 +71,24 @@ func TestPipeReplaceRegexp(t *testing.T) {
 			{"bar", `cde`},
 		},
 		{
+			{"_msg", `a_bc_d/ef`},
+		},
+		{
+			{"_msg", `1234`},
+		},
+		{
 			{"_msg", `1234`},
 		},
 	}, [][]Field{
 		{
 			{"_msg", `a-bc-d-ef`},
 			{"bar", `cde`},
+		},
+		{
+			{"_msg", `a-bc-d-ef`},
+		},
+		{
+			{"_msg", `1234`},
 		},
 		{
 			{"_msg", `1234`},

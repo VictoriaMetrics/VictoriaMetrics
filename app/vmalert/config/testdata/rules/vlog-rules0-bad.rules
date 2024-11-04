@@ -1,0 +1,10 @@
+groups:
+  - name: InvalidStatsLogsql
+    type: vlogs
+    interval: 5m
+    rules:
+      - record: MissingFilter
+        expr: 'stats count(*) as requests'
+      - record: MissingStatsPipe
+        expr: 'service: "nginx"'
+

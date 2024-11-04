@@ -1,6 +1,25 @@
 ## Next release
 
-- TODO
+- Added ability to override PVC name for Deployment
+
+## 0.7.1
+
+**Release date:** 2024-10-25
+
+![AppVersion: v0.37.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.37.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Support multiple paths for a single ingress domain
+
+## 0.7.0
+
+**Release date:** 2024-10-25
+
+![AppVersion: v0.37.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.37.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Added grafana dashboard. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1590)
+- Custom fluent-bit template to push data to multiple VLogs instances when replica count is greated than 1
 
 ## 0.6.6
 

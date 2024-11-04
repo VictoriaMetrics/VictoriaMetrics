@@ -1,0 +1,29 @@
+groups:
+  - name: RequestCount
+    type: vlogs
+    interval: 5m
+    rules:
+      - record: nginxRequestCount
+        expr: 'env: "test" AND service: "nginx" | stats count(*) as requests'
+        annotations:
+          description: "Service nginx on env test accepted {{$labels.requests}} requests in the last 5 minutes"
+      - record: prodRequestCount
+        expr: 'env: "prod" | stats by (service) count(*) as requests'
+        annotations:
+          description: "Service {{$labels.service}} on env prod accepted {{$labels.requests}} requests in the last 5 minutes"
+  - name: ServiceLog
+    type: vlogs
+    interval: 5m
+    rules:
+      - alert: HasErrorLog
+        expr: 'env: "prod" AND status:~"error|warn" | stats by (service) count(*) as errorLog | filter errorLog:>0'
+        annotations:
+          description: "Service {{$labels.service}} generated {{$labels.errorLog}} error logs in the last 5 minutes"
+  - name: ServiceRequest
+    type: vlogs
+    interval: 10m
+    rules:
+      - alert: TooManyFailedRequest
+        expr: '* | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip) count() if (code:!~200) as failed, count() as total| math failed / total as failed_percentage| filter failed_percentage :> 0.01 | fields ip,failed_percentage'
+        annotations:
+          description: "Connection from address {{$labels.ip}} has {{$value}} failed requests ratio in last 10 minutes"

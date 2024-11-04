@@ -337,6 +337,14 @@ func (bs *blockSearch) getColumnNameID(name string) (uint64, bool) {
 	return id, ok
 }
 
+func (bs *blockSearch) getColumnNameByID(columnNameID uint64) string {
+	columnNames := bs.bsw.p.columnNames
+	if columnNameID >= uint64(len(columnNames)) {
+		logger.Panicf("FATAL: %s: too big columnNameID=%d; it must be smaller than %d", bs.bsw.p.path, columnNameID, len(columnNames))
+	}
+	return columnNames[columnNameID]
+}
+
 func (bs *blockSearch) getColumnsHeaderIndex() *columnsHeaderIndex {
 	if bs.partFormatVersion() < 1 {
 		logger.Panicf("BUG: getColumnsHeaderIndex() can be called only for part encoding v1+, while it has been called for v%d", bs.partFormatVersion())

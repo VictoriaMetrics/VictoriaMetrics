@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 type readerWithStats struct {
@@ -63,7 +64,7 @@ type streamReaders struct {
 
 	messageBloomValuesReader bloomValuesReader
 	oldBloomValuesReader     bloomValuesReader
-	bloomValuesShards        [bloomValuesShardsCount]bloomValuesReader
+	bloomValuesShards        []bloomValuesReader
 }
 
 type bloomValuesReader struct {
@@ -105,13 +106,14 @@ func (sr *streamReaders) reset() {
 
 	sr.messageBloomValuesReader.reset()
 	sr.oldBloomValuesReader.reset()
-	for i := range sr.bloomValuesShards[:] {
+	for i := range sr.bloomValuesShards {
 		sr.bloomValuesShards[i].reset()
 	}
+	sr.bloomValuesShards = sr.bloomValuesShards[:0]
 }
 
 func (sr *streamReaders) init(columnNamesReader, metaindexReader, indexReader, columnsHeaderIndexReader, columnsHeaderReader, timestampsReader filestream.ReadCloser,
-	messageBloomValuesReader, oldBloomValuesReader bloomValuesStreamReader, bloomValuesShards [bloomValuesShardsCount]bloomValuesStreamReader,
+	messageBloomValuesReader, oldBloomValuesReader bloomValuesStreamReader, bloomValuesShards []bloomValuesStreamReader,
 ) {
 	sr.columnNamesReader.init(columnNamesReader)
 	sr.metaindexReader.init(metaindexReader)
@@ -122,7 +124,9 @@ func (sr *streamReaders) init(columnNamesReader, metaindexReader, indexReader, c
 
 	sr.messageBloomValuesReader.init(messageBloomValuesReader)
 	sr.oldBloomValuesReader.init(oldBloomValuesReader)
-	for i := range sr.bloomValuesShards[:] {
+
+	sr.bloomValuesShards = slicesutil.SetLength(sr.bloomValuesShards, len(bloomValuesShards))
+	for i := range sr.bloomValuesShards {
 		sr.bloomValuesShards[i].init(bloomValuesShards[i])
 	}
 }
@@ -139,7 +143,7 @@ func (sr *streamReaders) totalBytesRead() uint64 {
 
 	n += sr.messageBloomValuesReader.totalBytesRead()
 	n += sr.oldBloomValuesReader.totalBytesRead()
-	for i := range sr.bloomValuesShards[:] {
+	for i := range sr.bloomValuesShards {
 		n += sr.bloomValuesShards[i].totalBytesRead()
 	}
 
@@ -156,7 +160,7 @@ func (sr *streamReaders) MustClose() {
 
 	sr.messageBloomValuesReader.MustClose()
 	sr.oldBloomValuesReader.MustClose()
-	for i := range sr.bloomValuesShards[:] {
+	for i := range sr.bloomValuesShards {
 		sr.bloomValuesShards[i].MustClose()
 	}
 }
@@ -169,8 +173,12 @@ func (sr *streamReaders) getBloomValuesReaderForColumnName(name string, partForm
 		return &sr.oldBloomValuesReader
 	}
 
-	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(name))
-	idx := h % uint64(len(sr.bloomValuesShards))
+	n := len(sr.bloomValuesShards)
+	idx := uint64(0)
+	if n > 1 {
+		h := xxhash.Sum64(bytesutil.ToUnsafeBytes(name))
+		idx = h % uint64(n)
+	}
 	return &sr.bloomValuesShards[idx]
 }
 
@@ -280,9 +288,8 @@ func (bsr *blockStreamReader) MustInitFromInmemoryPart(mp *inmemoryPart) {
 
 	messageBloomValuesReader := mp.messageBloomValues.NewStreamReader()
 	var oldBloomValuesReader bloomValuesStreamReader
-	var bloomValuesShards [bloomValuesShardsCount]bloomValuesStreamReader
-	for i := range bloomValuesShards[:] {
-		bloomValuesShards[i] = mp.bloomValuesShards[i].NewStreamReader()
+	bloomValuesShards := []bloomValuesStreamReader{
+		mp.fieldBloomValues.NewStreamReader(),
 	}
 
 	bsr.streamReaders.init(columnNamesReader, metaindexReader, indexReader, columnsHeaderIndexReader, columnsHeaderReader, timestampsReader,
@@ -333,7 +340,7 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 		values: filestream.MustOpen(messageValuesPath, nocache),
 	}
 	var oldBloomValuesReader bloomValuesStreamReader
-	var bloomValuesShards [bloomValuesShardsCount]bloomValuesStreamReader
+	var bloomValuesShards []bloomValuesStreamReader
 	if bsr.ph.FormatVersion < 1 {
 		bloomPath := filepath.Join(path, oldBloomFilename)
 		oldBloomValuesReader.bloom = filestream.MustOpen(bloomPath, nocache)
@@ -341,7 +348,8 @@ func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 		valuesPath := filepath.Join(path, oldValuesFilename)
 		oldBloomValuesReader.values = filestream.MustOpen(valuesPath, nocache)
 	} else {
-		for i := range bloomValuesShards[:] {
+		bloomValuesShards = make([]bloomValuesStreamReader, bsr.ph.BloomValuesShardsCount)
+		for i := range bloomValuesShards {
 			shard := &bloomValuesShards[i]
 
 			bloomPath := getBloomFilePath(path, uint64(i))

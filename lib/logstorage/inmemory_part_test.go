@@ -22,7 +22,7 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 
 		// make a copy of lr - it is used for comapring the results later,
 		// since lr may be modified by inmemoryPart.mustInitFromRows()
-		lrOrig := GetLogRows(nil, nil)
+		lrOrig := GetLogRows(nil, nil, nil, "")
 		for i, timestamp := range lr.timestamps {
 			if timestamp < minTimestampExpected {
 				minTimestampExpected = timestamp
@@ -72,7 +72,7 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 		}
 	}
 
-	f(GetLogRows(nil, nil), 0, 0)
+	f(GetLogRows(nil, nil, nil, ""), 0, 0)
 
 	// Check how inmemoryPart works with a single stream
 	f(newTestLogRows(1, 1, 0), 1, 0.7)
@@ -108,7 +108,7 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 		maxTimestampExpected := int64(math.MinInt64)
 
 		// make a copy of rrss in order to compare the results after merge.
-		lrOrig := GetLogRows(nil, nil)
+		lrOrig := GetLogRows(nil, nil, nil, "")
 		for _, lr := range lrs {
 			uncompressedSizeBytesExpected += uncompressedRowsSizeBytes(lr.rows)
 			rowsCountExpected += len(lr.timestamps)
@@ -188,8 +188,8 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 
 	// Check empty readers
 	f(nil, 0, 0)
-	f([]*LogRows{GetLogRows(nil, nil)}, 0, 0)
-	f([]*LogRows{GetLogRows(nil, nil), GetLogRows(nil, nil)}, 0, 0)
+	f([]*LogRows{GetLogRows(nil, nil, nil, "")}, 0, 0)
+	f([]*LogRows{GetLogRows(nil, nil, nil, ""), GetLogRows(nil, nil, nil, "")}, 0, 0)
 
 	// Check merge with a single reader
 	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 0.7)
@@ -235,7 +235,7 @@ func newTestLogRows(streams, rowsPerStream int, seed int64) *LogRows {
 	streamTags := []string{
 		"some-stream-tag",
 	}
-	lr := GetLogRows(streamTags, nil)
+	lr := GetLogRows(streamTags, nil, nil, "")
 	rng := rand.New(rand.NewSource(seed))
 	var fields []Field
 	for i := 0; i < streams; i++ {
@@ -322,7 +322,7 @@ func checkEqualRows(lrResult, lrOrig *LogRows) error {
 //
 // This function is for testing and debugging purposes only.
 func (mp *inmemoryPart) readLogRows(sbu *stringsBlockUnmarshaler, vd *valuesDecoder) *LogRows {
-	lr := GetLogRows(nil, nil)
+	lr := GetLogRows(nil, nil, nil, "")
 	bsr := getBlockStreamReader()
 	defer putBlockStreamReader(bsr)
 	bsr.MustInitFromInmemoryPart(mp)

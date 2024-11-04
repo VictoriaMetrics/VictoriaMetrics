@@ -15,12 +15,44 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: add an ability to specify extra fields for logs ingested via [HTTP-based data ingestion protocols](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-apis). See `extra_fields` query arg and `VL-Extra-Fields` HTTP header in [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
+
+## [v0.40.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.40.0-victorialogs)
+
+Released at 2024-10-31
+
+* FEATURE: add support for extra filters across all the [HTTP querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api). See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#extra-filters) for details. This is needed for implementing quick filtering on field values at [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7365).
+
+* BUGFIX: properly apply [`replace`](https://docs.victoriametrics.com/victorialogs/logsql/#replace-pipe) and [`replace_regexp`](https://docs.victoriametrics.com/victorialogs/logsql/#replace_regexp-pipe) pipes to identical values in adjacent log entries. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7162).
+* BUGFIX: properly apply [`extract`](https://docs.victoriametrics.com/victorialogs/logsql/#extract-pipe) and [`extract_regexp`](https://docs.victoriametrics.com/victorialogs/logsql/#extract_regexp-pipe) pipe with additional `if (...)` filter (aka [conditional extract](https://docs.victoriametrics.com/victorialogs/logsql/#conditional-extract) and [conditional extract_regexp](https://docs.victoriametrics.com/victorialogs/logsql/#conditional-extract_regexp)).
+
+## [v0.39.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.39.0-victorialogs)
+
+Released at 2024-10-30
+
+* FEATURE: allow specifying a list of log fields, which may contain log message, via `_msg_field` query arg and via `VL-Msg-Field` HTTP request header. For example, `_msg_field=message,event.message` instructs obtaining [message field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) from the first non-empty field out of the `message` and `event.message` fields. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
+* FEATURE: accept logs without [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field). In this case the `_msg` field is automatically set to the value specified in the `-defaultMsgValue` command-line flag.
+
+* BUGFIX: fix `runtime error: index out of range [0] with length 0` panic during low-rate data ingestion. The panic has been introduced in [v0.38.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.38.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7391).
+
+## [v0.38.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.38.0-victorialogs)
+
+Released at 2024-10-29
+
+* FEATURE: added the ability to receive systemd (journald) logs over network. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4618).
+* FEATURE: improve performance for queries over large volume of logs with big number of [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) (aka `wide events`).
+* FEATURE: improve performance for [`/select/logsql/field_values` HTTP endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-field-values).
+* FEATURE: improve performance for [`field_values` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#field_values-pipe) when it is applied directly to [log filter](https://docs.victoriametrics.com/victorialogs/logsql/#filters).
+* FEATURE: add an ability to return `rank` field from [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe). For example, the following query returns `1..5` rank per each returned `ip` with the biggest number of logs over the last 5 minute: `_time:5m | top 5 by (ip) rank`.
+
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix various glitches with updating query responses. The issue was introduced in [v0.36.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.36.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7279).
+
 ## [v0.37.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.37.0-victorialogs)
 
 Released at 2024-10-18
 
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add ability to hide hits chart. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7117).
-* FEATURE: add basic [alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vlogs.yml) for VictoriaLogs process. See details at [monitoring docs](https://docs.victoriametrics.com/victorialogs/#monitoring).
+* FEATURE: add basic [alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vlogs.yml) for VictoriaLogs process. See details at [monitoring docs](https://docs.victoriametrics.com/victorialogs/#monitoring).
 * FEATURE: improve [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) performance on systems with many CPU cores when `by(...)` fields contain big number of unique values. For example, `_time:1d | stats by (user_id) count() x` should be executed much faster when `user_id` field contains millions of unique values.
 * FEATURE: improve performance for [`top`](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe), [`uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe) and [`field_values`](https://docs.victoriametrics.com/victorialogs/logsql/#field_values-pipe) pipes on systems with many CPU cores when it is applied to [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with big number of unique values. For example, `_time:1d | top 5 (user_id)` should be executed much faster when `user_id` field contains millions of unique values.
 * FEATURE: improve performance for [`field_names` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#field_names-pipe) when it is applied to logs with hundreds of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).

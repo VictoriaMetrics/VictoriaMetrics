@@ -745,6 +745,9 @@ func (pt *partition) mustMergeInmemoryParts(pws []*partWrapper) []*partWrapper {
 			}()
 
 			pw := pt.mustMergeInmemoryPartsFinal(pwsChunk)
+			if pw == nil {
+				return
+			}
 
 			pwsResultLock.Lock()
 			pwsResult = append(pwsResult, pw)
@@ -805,6 +808,11 @@ func (pt *partition) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrappe
 		logger.Panicf("FATAL: cannot merge inmemoryBlocks: %s", err)
 	}
 	mpDst.ph = *ph
+
+	// resulting part is empty, no need to create a part wrapper
+	if ph.BlocksCount == 0 {
+		return nil
+	}
 
 	return newPartWrapperFromInmemoryPart(mpDst, flushToDiskDeadline)
 }

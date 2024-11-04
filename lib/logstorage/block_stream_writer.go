@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"math/bits"
 	"path/filepath"
 	"sync"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // writerWithStats writes data to w and tracks the total amounts of data written at bytesWritten.
@@ -53,7 +55,7 @@ type streamWriters struct {
 	timestampsWriter         writerWithStats
 
 	messageBloomValuesWriter bloomValuesWriter
-	bloomValuesShards        [bloomValuesShardsCount]bloomValuesWriter
+	bloomValuesShards        []bloomValuesWriter
 }
 
 type bloomValuesWriter struct {
@@ -94,13 +96,14 @@ func (sw *streamWriters) reset() {
 	sw.timestampsWriter.reset()
 
 	sw.messageBloomValuesWriter.reset()
-	for i := range sw.bloomValuesShards[:] {
+	for i := range sw.bloomValuesShards {
 		sw.bloomValuesShards[i].reset()
 	}
+	sw.bloomValuesShards = sw.bloomValuesShards[:0]
 }
 
 func (sw *streamWriters) init(columnNamesWriter, metaindexWriter, indexWriter, columnsHeaderIndexWriter, columnsHeaderWriter, timestampsWriter filestream.WriteCloser,
-	messageBloomValuesWriter bloomValuesStreamWriter, bloomValuesShards [bloomValuesShardsCount]bloomValuesStreamWriter,
+	messageBloomValuesWriter bloomValuesStreamWriter, bloomValuesShards []bloomValuesStreamWriter,
 ) {
 	sw.columnNamesWriter.init(columnNamesWriter)
 	sw.metaindexWriter.init(metaindexWriter)
@@ -110,7 +113,8 @@ func (sw *streamWriters) init(columnNamesWriter, metaindexWriter, indexWriter, c
 	sw.timestampsWriter.init(timestampsWriter)
 
 	sw.messageBloomValuesWriter.init(messageBloomValuesWriter)
-	for i := range sw.bloomValuesShards[:] {
+	sw.bloomValuesShards = slicesutil.SetLength(sw.bloomValuesShards, len(bloomValuesShards))
+	for i := range sw.bloomValuesShards {
 		sw.bloomValuesShards[i].init(bloomValuesShards[i])
 	}
 }
@@ -126,7 +130,7 @@ func (sw *streamWriters) totalBytesWritten() uint64 {
 	n += sw.timestampsWriter.bytesWritten
 
 	n += sw.messageBloomValuesWriter.totalBytesWritten()
-	for i := range sw.bloomValuesShards[:] {
+	for i := range sw.bloomValuesShards {
 		n += sw.bloomValuesShards[i].totalBytesWritten()
 	}
 
@@ -142,7 +146,7 @@ func (sw *streamWriters) MustClose() {
 	sw.timestampsWriter.MustClose()
 
 	sw.messageBloomValuesWriter.MustClose()
-	for i := range sw.bloomValuesShards[:] {
+	for i := range sw.bloomValuesShards {
 		sw.bloomValuesShards[i].MustClose()
 	}
 }
@@ -152,8 +156,12 @@ func (sw *streamWriters) getBloomValuesWriterForColumnName(name string) *bloomVa
 		return &sw.messageBloomValuesWriter
 	}
 
-	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(name))
-	idx := h % uint64(len(sw.bloomValuesShards))
+	n := len(sw.bloomValuesShards)
+	idx := uint64(0)
+	if n > 1 {
+		h := xxhash.Sum64(bytesutil.ToUnsafeBytes(name))
+		idx = h % uint64(n)
+	}
 	return &sw.bloomValuesShards[idx]
 }
 
@@ -167,6 +175,9 @@ type blockStreamWriter struct {
 
 	// sidFirst is the streamID for the first block in the current indexBlock
 	sidFirst streamID
+
+	// bloomValuesFieldsCount is the number of fields with (bloom, values) pairs in the output part.
+	bloomValuesFieldsCount uint64
 
 	// minTimestampLast is the minimum timestamp seen for the last written block
 	minTimestampLast int64
@@ -213,6 +224,7 @@ func (bsw *blockStreamWriter) reset() {
 	bsw.streamWriters.reset()
 	bsw.sidLast.reset()
 	bsw.sidFirst.reset()
+	bsw.bloomValuesFieldsCount = 0
 	bsw.minTimestampLast = 0
 	bsw.minTimestamp = 0
 	bsw.maxTimestamp = 0
@@ -243,9 +255,8 @@ func (bsw *blockStreamWriter) MustInitForInmemoryPart(mp *inmemoryPart) {
 
 	messageBloomValues := mp.messageBloomValues.NewStreamWriter()
 
-	var bloomValuesShards [bloomValuesShardsCount]bloomValuesStreamWriter
-	for i := range bloomValuesShards[:] {
-		bloomValuesShards[i] = mp.bloomValuesShards[i].NewStreamWriter()
+	bloomValuesShards := []bloomValuesStreamWriter{
+		mp.fieldBloomValues.NewStreamWriter(),
 	}
 
 	bsw.streamWriters.init(&mp.columnNames, &mp.metaindex, &mp.index, &mp.columnsHeaderIndex, &mp.columnsHeader, &mp.timestamps, messageBloomValues, bloomValuesShards)
@@ -254,7 +265,7 @@ func (bsw *blockStreamWriter) MustInitForInmemoryPart(mp *inmemoryPart) {
 // MustInitForFilePart initializes bsw for writing data to file part located at path.
 //
 // if nocache is true, then the written data doesn't go to OS page cache.
-func (bsw *blockStreamWriter) MustInitForFilePart(path string, nocache bool) {
+func (bsw *blockStreamWriter) MustInitForFilePart(path string, nocache bool, bloomValuesShardsCount uint64) {
 	bsw.reset()
 
 	fs.MustMkdirFailIfExist(path)
@@ -284,8 +295,9 @@ func (bsw *blockStreamWriter) MustInitForFilePart(path string, nocache bool) {
 		values: filestream.MustCreate(messageValuesPath, nocache),
 	}
 
-	var bloomValuesShards [bloomValuesShardsCount]bloomValuesStreamWriter
-	for i := range bloomValuesShards[:] {
+	bloomValuesShardsCount = adjustBloomValuesShardsCount(bloomValuesShardsCount)
+	bloomValuesShards := make([]bloomValuesStreamWriter, bloomValuesShardsCount)
+	for i := range bloomValuesShards {
 		shard := &bloomValuesShards[i]
 
 		bloomPath := getBloomFilePath(path, uint64(i))
@@ -296,6 +308,21 @@ func (bsw *blockStreamWriter) MustInitForFilePart(path string, nocache bool) {
 	}
 
 	bsw.streamWriters.init(columnNamesWriter, metaindexWriter, indexWriter, columnsHeaderIndexWriter, columnsHeaderWriter, timestampsWriter, messageBloomValuesWriter, bloomValuesShards)
+}
+
+func adjustBloomValuesShardsCount(n uint64) uint64 {
+	if n == 0 {
+		// At least a single shard is needed for writing potential non-const fields,
+		// which can appear after merging of const fields.
+		// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7391
+		return 1
+	}
+
+	n = 1 << bits.Len64(n-1)
+	if n > bloomValuesMaxShardsCount {
+		n = bloomValuesMaxShardsCount
+	}
+	return n
 }
 
 // MustWriteRows writes timestamps with rows under the given sid to bsw.
@@ -348,11 +375,18 @@ func (bsw *blockStreamWriter) mustWriteBlockInternal(sid *streamID, b *block, bd
 	bsw.sidLast = *sid
 
 	bh := getBlockHeader()
+	columnsLen := 0
 	if b != nil {
 		b.mustWriteTo(sid, bh, &bsw.streamWriters, &bsw.columnNameIDGenerator)
+		columnsLen = len(b.columns)
 	} else {
 		bd.mustWriteTo(bh, &bsw.streamWriters, &bsw.columnNameIDGenerator)
+		columnsLen = len(bd.columnsData)
 	}
+	if bsw.bloomValuesFieldsCount < uint64(columnsLen) {
+		bsw.bloomValuesFieldsCount = uint64(columnsLen)
+	}
+
 	th := &bh.timestampsHeader
 	if bsw.globalRowsCount == 0 || th.minTimestamp < bsw.globalMinTimestamp {
 		bsw.globalMinTimestamp = th.minTimestamp
@@ -407,6 +441,8 @@ func (bsw *blockStreamWriter) Finalize(ph *partHeader) {
 	ph.BlocksCount = bsw.globalBlocksCount
 	ph.MinTimestamp = bsw.globalMinTimestamp
 	ph.MaxTimestamp = bsw.globalMaxTimestamp
+	ph.BloomValuesShardsCount = uint64(len(bsw.streamWriters.bloomValuesShards))
+	ph.BloomValuesFieldsCount = bsw.bloomValuesFieldsCount
 
 	bsw.mustFlushIndexBlock(bsw.indexBlockData)
 

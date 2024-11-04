@@ -34,6 +34,12 @@ type partHeader struct {
 
 	// MaxTimestamp is the maximum timestamp seen in the part
 	MaxTimestamp int64
+
+	// BloomValuesShardsCount is the number of (bloom, values) shards in the part.
+	BloomValuesShardsCount uint64
+
+	// BloomValuesFieldsCount is the number of fields with (bloom, values) pairs in the given part.
+	BloomValuesFieldsCount uint64
 }
 
 // reset resets ph for subsequent re-use
@@ -45,12 +51,16 @@ func (ph *partHeader) reset() {
 	ph.BlocksCount = 0
 	ph.MinTimestamp = 0
 	ph.MaxTimestamp = 0
+	ph.BloomValuesShardsCount = 0
+	ph.BloomValuesFieldsCount = 0
 }
 
 // String returns string represenation for ph.
 func (ph *partHeader) String() string {
-	return fmt.Sprintf("{FormatVersion=%d, CompressedSizeBytes=%d, UncompressedSizeBytes=%d, RowsCount=%d, BlocksCount=%d, MinTimestamp=%s, MaxTimestamp=%s}",
-		ph.FormatVersion, ph.CompressedSizeBytes, ph.UncompressedSizeBytes, ph.RowsCount, ph.BlocksCount, timestampToString(ph.MinTimestamp), timestampToString(ph.MaxTimestamp))
+	return fmt.Sprintf("{FormatVersion=%d, CompressedSizeBytes=%d, UncompressedSizeBytes=%d, RowsCount=%d, BlocksCount=%d, "+
+		"MinTimestamp=%s, MaxTimestamp=%s, BloomValuesShardsCount=%d, BloomValuesFieldsCount=%d}",
+		ph.FormatVersion, ph.CompressedSizeBytes, ph.UncompressedSizeBytes, ph.RowsCount, ph.BlocksCount,
+		timestampToString(ph.MinTimestamp), timestampToString(ph.MaxTimestamp), ph.BloomValuesShardsCount, ph.BloomValuesFieldsCount)
 }
 
 func (ph *partHeader) mustReadMetadata(partPath string) {
@@ -63,6 +73,19 @@ func (ph *partHeader) mustReadMetadata(partPath string) {
 	}
 	if err := json.Unmarshal(metadata, ph); err != nil {
 		logger.Panicf("FATAL: cannot parse %q: %s", metadataPath, err)
+	}
+
+	if ph.FormatVersion <= 1 {
+		if ph.BloomValuesShardsCount != 0 {
+			logger.Panicf("FATAL: unexpected BloomValuesShardsCount for FormatVersion<=1; got %d; want 0", ph.BloomValuesShardsCount)
+		}
+		if ph.BloomValuesFieldsCount != 0 {
+			logger.Panicf("FATAL: unexpected BloomValuesFieldsCount for FormatVersion<=1; got %d; want 0", ph.BloomValuesFieldsCount)
+		}
+		if ph.FormatVersion == 1 {
+			ph.BloomValuesShardsCount = 8
+			ph.BloomValuesFieldsCount = bloomValuesMaxShardsCount
+		}
 	}
 
 	// Perform various checks
