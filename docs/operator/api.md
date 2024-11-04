@@ -651,7 +651,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `auth_identity` | The identity to use for authentication. | _string_ | false |
 | `auth_password` | AuthPassword defines secret name and key at CRD namespace. | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
-| `auth_secret` | AuthSecret defines secrent name and key at CRD namespace.<br />It must contain the CRAM-MD5 secret. | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
+| `auth_secret` | AuthSecret defines secret name and key at CRD namespace.<br />It must contain the CRAM-MD5 secret. | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
 | `auth_username` | The username to use for authentication. | _string_ | false |
 | `from` | The sender address.<br />fallback to global setting if empty | _string_ | false |
 | `headers` | Further headers email header key/value pairs. Overrides any headers<br />previously set by the notification implementation. | _object (keys:string, values:string)_ | true |
@@ -2091,7 +2091,7 @@ _Appears in:_
 
 | Field | Description | Scheme | Required |
 | --- | --- | --- | --- |
-| `ca` | Stuct containing the CA cert to use for the targets. | _[SecretOrConfigMap](#secretorconfigmap)_ | false |
+| `ca` | Struct containing the CA cert to use for the targets. | _[SecretOrConfigMap](#secretorconfigmap)_ | false |
 | `caFile` | Path to the CA cert in the container to use for the targets. | _string_ | false |
 | `cert` | Struct containing the client cert file for the targets. | _[SecretOrConfigMap](#secretorconfigmap)_ | false |
 | `certFile` | Path to the client cert file in the container for the targets. | _string_ | false |

@@ -131,7 +131,7 @@ aliases:
 | VM_FILTERPROMETHEUSCONVERTERLABELPREFIXES | - | false | allows filtering for converted labels, labels with matched prefix will be ignored |
 | VM_FILTERPROMETHEUSCONVERTERANNOTATIONPREFIXES | - | false | allows filtering for converted annotations, annotations with matched prefix will be ignored |
 | VM_CLUSTERDOMAINNAME | - | false | Defines domain name suffix for in-cluster addresses most known ClusterDomainName is .cluster.local |
-| VM_APPREADYTIMEOUT | 80s | false | Defines deadline for deploymnet/statefulset to transit into ready state to wait for transition to ready state |
+| VM_APPREADYTIMEOUT | 80s | false | Defines deadline for deployment/statefulset to transit into ready state to wait for transition to ready state |
 | VM_PODWAITREADYTIMEOUT | 80s | false | Defines single pod deadline to wait for transition to ready state |
 | VM_PODWAITREADYINTERVALCHECK | 5s | false | Defines poll interval for pods ready check at statefulset rollout update |
 | VM_FORCERESYNCINTERVAL | 60s | false | configures force resync interval for VMAgent, VMAlert, VMAlertmanager and VMAuth. |
