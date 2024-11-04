@@ -17,7 +17,11 @@ export const displayTypeTabs: DisplayTab[] = [
   { value: DisplayType.table, icon: <TableIcon/>, label: "Table", prometheusCode: 1 }
 ];
 
-export const DisplayTypeSwitch: FC = () => {
+interface Props {
+  tabFilter?: (tab: DisplayTab) => boolean
+}
+
+export const DisplayTypeSwitch: FC<Props> = ({ tabFilter }) => {
 
   const { displayType } = useCustomPanelState();
   const dispatch = useCustomPanelDispatch();
@@ -26,10 +30,12 @@ export const DisplayTypeSwitch: FC = () => {
     dispatch({ type: "SET_DISPLAY_TYPE", payload: newValue as DisplayType ?? displayType });
   };
 
+  const items = displayTypeTabs.filter(tabFilter ?? (() => true));
+
   return (
     <Tabs
       activeItem={displayType}
-      items={displayTypeTabs}
+      items={items}
       onChange={handleChange}
     />
   );

@@ -11,6 +11,7 @@ interface QueryEditorAutocompleteProps {
   anchorEl: React.RefObject<HTMLElement>;
   caretPosition: [number, number]; // [start, end]
   hasHelperText: boolean;
+  includeFunctions: boolean;
   onSelect: (val: string, caretPosition: number) => void;
   onFoundOptions: (val: AutocompleteOptions[]) => void;
 }
@@ -20,11 +21,12 @@ const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   anchorEl,
   caretPosition,
   hasHelperText,
+  includeFunctions,
   onSelect,
   onFoundOptions
 }) => {
   const [offsetPos, setOffsetPos] = useState({ top: 0, left: 0 });
-  const metricsqlFunctions = useGetMetricsQL();
+  const metricsqlFunctions = useGetMetricsQL(includeFunctions);
 
   const values = useMemo(() => {
     if (caretPosition[0] !== caretPosition[1]) return { beforeCursor: value, afterCursor: "" };

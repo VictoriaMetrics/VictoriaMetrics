@@ -23,6 +23,7 @@ export interface QueryEditorProps {
   stats?: QueryStats;
   label: string;
   disabled?: boolean
+  includeFunctions?: boolean;
 }
 
 const QueryEditor: FC<QueryEditorProps> = ({
@@ -35,7 +36,8 @@ const QueryEditor: FC<QueryEditorProps> = ({
   error,
   stats,
   label,
-  disabled = false
+  disabled = false,
+  includeFunctions = true
 }) => {
   const { autocompleteQuick } = useQueryState();
   const { isMobile } = useDeviceDetect();
@@ -143,6 +145,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
           anchorEl={autocompleteAnchorEl}
           caretPosition={caretPosition}
           hasHelperText={Boolean(warning || error)}
+          includeFunctions={includeFunctions}
           onSelect={handleSelect}
           onFoundOptions={handleChangeFoundOptions}
         />

@@ -17,6 +17,7 @@ import ActiveQueries from "./pages/ActiveQueries";
 import QueryAnalyzer from "./pages/QueryAnalyzer";
 import DownsamplingFilters from "./pages/DownsamplingFilters";
 import RetentionFilters from "./pages/RetentionFilters";
+import RawQueryPage from "./pages/RawQueryPage";
 
 const App: FC = () => {
   const [loadedTheme, setLoadedTheme] = useState(false);
@@ -35,6 +36,10 @@ const App: FC = () => {
                 <Route
                   path={router.home}
                   element={<CustomPanel/>}
+                />
+                <Route
+                  path={router.rawQuery}
+                  element={<RawQueryPage/>}
                 />
                 <Route
                   path={router.metrics}
