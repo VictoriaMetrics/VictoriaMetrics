@@ -8,14 +8,6 @@ import (
 	"time"
 )
 
-// PrometheusAPIV1SeriesResponse is an inmemory representation of the
-// /prometheus/api/v1/series response.
-type PrometheusAPIV1SeriesResponse struct {
-	Status    string
-	IsPartial bool
-	Data      []map[string]string
-}
-
 // PrometheusAPIV1QueryResponse is an inmemory representation of the
 // /prometheus/api/v1/query or /prometheus/api/v1/query_range response.
 type PrometheusAPIV1QueryResponse struct {
@@ -24,7 +16,7 @@ type PrometheusAPIV1QueryResponse struct {
 }
 
 // NewPrometheusAPIV1QueryResponse is a test helper function that creates a new
-// instance of NewPrometheusAPIV1QueryResponse by unmarshalling a json string.
+// instance of PrometheusAPIV1QueryResponse by unmarshalling a json string.
 func NewPrometheusAPIV1QueryResponse(t *testing.T, s string) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
@@ -88,4 +80,24 @@ func (s *Sample) UnmarshalJSON(b []byte) error {
 		return fmt.Errorf("could not parse sample value %q: %w", v, err)
 	}
 	return nil
+}
+
+// PrometheusAPIV1SeriesResponse is an inmemory representation of the
+// /prometheus/api/v1/series response.
+type PrometheusAPIV1SeriesResponse struct {
+	Status    string
+	IsPartial bool
+	Data      []map[string]string
+}
+
+// NewPrometheusAPIV1SeriesResponse is a test helper function that creates a new
+// instance of PrometheusAPIV1SeriesResponse by unmarshalling a json string.
+func NewPrometheusAPIV1SeriesResponse(t *testing.T, s string) *PrometheusAPIV1SeriesResponse {
+	t.Helper()
+
+	res := &PrometheusAPIV1SeriesResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal series response: %v", err)
+	}
+	return res
 }

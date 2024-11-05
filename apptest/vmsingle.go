@@ -9,8 +9,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // Vmsingle holds the state of a vmsingle app and provides vmsingle-specific
@@ -26,6 +24,7 @@ type Vmsingle struct {
 	prometheusAPIV1ImportPrometheusURL string
 	prometheusAPIV1QueryURL            string
 	prometheusAPIV1QueryRangeURL       string
+	prometheusAPIV1SeriesURL           string
 }
 
 // MustStartVmsingle is a test helper function that starts an instance of
@@ -72,6 +71,7 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 		prometheusAPIV1ImportPrometheusURL: fmt.Sprintf("http://%s/prometheus/api/v1/import/prometheus", stderrExtracts[1]),
 		prometheusAPIV1QueryURL:            fmt.Sprintf("http://%s/prometheus/api/v1/query", stderrExtracts[1]),
 		prometheusAPIV1QueryRangeURL:       fmt.Sprintf("http://%s/prometheus/api/v1/query_range", stderrExtracts[1]),
+		prometheusAPIV1SeriesURL:           fmt.Sprintf("http://%s/prometheus/api/v1/series", stderrExtracts[1]),
 	}, nil
 }
 
@@ -108,7 +108,6 @@ func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query, time, step, timeo
 	values.Add("step", step)
 	values.Add("timeout", timeout)
 	res := app.cli.PostForm(t, app.prometheusAPIV1QueryURL, values, http.StatusOK)
-
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -127,8 +126,20 @@ func (app *Vmsingle) PrometheusAPIV1QueryRange(t *testing.T, query, start, end, 
 	values.Add("step", step)
 	values.Add("timeout", timeout)
 	res := app.cli.PostForm(t, app.prometheusAPIV1QueryRangeURL, values, http.StatusOK)
-	logger.Errorf(string(res))
 	return NewPrometheusAPIV1QueryResponse(t, res)
+}
+
+// PrometheusAPIV1Series sends a query to a /prometheus/api/v1/series endpoint
+// and returns the list of time series that match the query.
+//
+// See https://docs.victoriametrics.com/url-examples/#apiv1series
+func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string) *PrometheusAPIV1SeriesResponse {
+	t.Helper()
+
+	values := url.Values{}
+	values.Add("match[]", matchQuery)
+	res := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values, http.StatusOK)
+	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
 // String returns the string representation of the vmsingle app state.

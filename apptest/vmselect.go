@@ -1,7 +1,6 @@
 package apptest
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -69,6 +68,43 @@ func (app *Vmselect) ClusternativeListenAddr() string {
 	return app.clusternativeListenAddr
 }
 
+// PrometheusAPIV1Query is a test helper function that performs PromQL/MetricsQL
+// instant query by sending a HTTP POST request to /prometheus/api/v1/query
+// vmsingle endpoint.
+//
+// See https://docs.victoriametrics.com/url-examples/#apiv1query
+func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, tenant, query, time, step, timeout string) *PrometheusAPIV1QueryResponse {
+	t.Helper()
+
+	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/query", app.httpListenAddr, tenant)
+	values := url.Values{}
+	values.Add("query", query)
+	values.Add("time", time)
+	values.Add("step", step)
+	values.Add("timeout", timeout)
+	res := app.cli.PostForm(t, queryURL, values, http.StatusOK)
+	return NewPrometheusAPIV1QueryResponse(t, res)
+}
+
+// PrometheusAPIV1QueryRange is a test helper function that performs
+// PromQL/MetricsQL range query by sending a HTTP POST request to
+// /prometheus/api/v1/query_range vmsingle endpoint.
+//
+// See https://docs.victoriametrics.com/url-examples/#apiv1query_range
+func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, tenant, query, start, end, step, timeout string) *PrometheusAPIV1QueryResponse {
+	t.Helper()
+
+	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/query_range", app.httpListenAddr, tenant)
+	values := url.Values{}
+	values.Add("query", query)
+	values.Add("start", start)
+	values.Add("end", end)
+	values.Add("step", step)
+	values.Add("timeout", timeout)
+	res := app.cli.PostForm(t, queryURL, values, http.StatusOK)
+	return NewPrometheusAPIV1QueryResponse(t, res)
+}
+
 // PrometheusAPIV1Series sends a query to a /prometheus/api/v1/series endpoint
 // and returns the list of time series that match the query.
 //
@@ -79,12 +115,8 @@ func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, tenant, matchQuery stri
 	seriesURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/series", app.httpListenAddr, tenant)
 	values := url.Values{}
 	values.Add("match[]", matchQuery)
-	jsonRes := app.cli.PostForm(t, seriesURL, values, http.StatusOK)
-	var res PrometheusAPIV1SeriesResponse
-	if err := json.Unmarshal([]byte(jsonRes), &res); err != nil {
-		t.Fatalf("could not unmarshal /prometheus/api/v1/series response: %v", err)
-	}
-	return &res
+	res := app.cli.PostForm(t, seriesURL, values, http.StatusOK)
+	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
 // String returns the string representation of the vmselect app state.
