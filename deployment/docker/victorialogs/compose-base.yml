@@ -18,7 +18,7 @@ services:
       retries: 10
 
   dd-logs:
-    image: docker.io/victoriametrics/vmauth:v1.105.0
+    image: docker.io/victoriametrics/vmauth:v1.106.0
     restart: on-failure
     volumes:
       - ./:/etc/vmauth
