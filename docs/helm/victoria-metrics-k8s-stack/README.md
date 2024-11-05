@@ -707,7 +707,7 @@ victoriametrics-vmalert:
 </code>
 </pre>
 </td>
-      <td><p>Create dashboards as CRDs (reuqires grafana-operator to be installed)</p>
+      <td><p>Create dashboards as CRDs (requires grafana-operator to be installed)</p>
 </td>
     </tr>
     <tr>

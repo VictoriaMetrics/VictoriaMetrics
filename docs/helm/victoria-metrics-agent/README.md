@@ -464,7 +464,7 @@ strategy: {}
 </code>
 </pre>
 </td>
-      <td><p>Deployment stragegy. Check <a href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy" target="_blank">here</a> for details</p>
+      <td><p>Deployment strategy. Check <a href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy" target="_blank">here</a> for details</p>
 </td>
     </tr>
     <tr>
@@ -947,7 +947,7 @@ name: ""
 </code>
 </pre>
 </td>
-      <td><p>Persistant volume annotations</p>
+      <td><p>Persistent volume annotations</p>
 </td>
     </tr>
     <tr>
@@ -980,7 +980,7 @@ name: ""
 </code>
 </pre>
 </td>
-      <td><p>Persistant volume additional labels</p>
+      <td><p>Persistent volume additional labels</p>
 </td>
     </tr>
     <tr>
@@ -1305,7 +1305,7 @@ periodSeconds: 15
 </code>
 </pre>
 </td>
-      <td><p>Service load balacner IP</p>
+      <td><p>Service load balancer IP</p>
 </td>
     </tr>
     <tr>
