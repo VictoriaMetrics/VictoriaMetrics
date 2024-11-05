@@ -10,7 +10,7 @@ aliases:
 - /VictoriaLogs/vmalert.html
 ---
 
-_Available from [next](https://docs.victoriametrics.com/changelog/#tip) vmalert version and [v0.36.0](https://docs.victoriametrics.com/victorialogs/changelog/#v0360) VictoriaLogs version._
+_Available from [v1.106.0](https://docs.victoriametrics.com/changelog/#v11060) vmalert version and [v0.36.0](https://docs.victoriametrics.com/victorialogs/changelog/#v0360) VictoriaLogs version._
 
 [vmalert](https://docs.victoriametrics.com/vmalert/) integrates with VictoriaLogs via stats APIs [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats)
 and [`/select/logsql/stats_query_range`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats).

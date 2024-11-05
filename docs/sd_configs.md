@@ -1549,7 +1549,7 @@ The list of discovered OVH Cloud targets is refreshed at the interval, which can
 
 ## puppetdb_sd_configs
 
-_Available from [next](https://docs.victoriametrics.com/changelog/#tip) version._
+_Available from [v1.106.0](https://docs.victoriametrics.com/changelog/#v11060) version._
 
 PuppetDB SD configuration allows retrieving scrape targets from [PuppetDB](https://www.puppet.com/docs/puppetdb/8/overview.html) resources.
 
