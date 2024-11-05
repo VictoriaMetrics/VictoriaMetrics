@@ -8,6 +8,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/valyala/fastjson"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -15,8 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/fastjson"
 )
 
 var parserPool fastjson.ParserPool
@@ -140,7 +141,7 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 			if err != nil {
 				return rowsIngested, fmt.Errorf("unexpected contents of `values` item; want array; got %q", line)
 			}
-			if len(lineA) != 2 {
+			if len(lineA) < 2 {
 				return rowsIngested, fmt.Errorf("unexpected number of values in `values` item array %q; got %d want 2", line, len(lineA))
 			}
 
