@@ -368,7 +368,7 @@ Label names [description](#labelnames)
 
 > **Note**: There is a new label key `model_alias` introduced in multi-model support [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100). This label key adjustment was made to preserve unique label set production during writing produced metrics back to VictoriaMetrics.
 
-> **Note**: as a part of [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics enchancement ([v.1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)), new metrics, like `vmanomaly_model_run_errors`, was added. Some of them changed the type (`Summary` -> `Histogram`), like `vmanomaly_model_run_duration_seconds`.
+> **Note**: as a part of [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics enhancement ([v.1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)), new metrics, like `vmanomaly_model_run_errors`, was added. Some of them changed the type (`Summary` -> `Histogram`), like `vmanomaly_model_run_duration_seconds`.
 
 <table class="params">
     <thead>

@@ -663,7 +663,7 @@ storageClassName: ""
 </code>
 </pre>
 </td>
-      <td><p>Persistant volume annotations</p>
+      <td><p>Persistent volume annotations</p>
 </td>
     </tr>
     <tr>

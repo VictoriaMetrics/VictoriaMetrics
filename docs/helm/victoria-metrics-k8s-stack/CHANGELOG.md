@@ -10,6 +10,7 @@
 - Removed crds subchart as it's now included in operator
 - Fixed additionalNotifiersConfig
 - Added `vmcluster.vmauth.<vminsert/vmselect>` and `externalVM.vmauth.<read/write>` to provide ability to override vmauth configs
+- Removed unused serviceaccount
 
 ## 0.27.6
 
@@ -168,7 +169,7 @@
 
 - Merged ingress templates
 - Removed custom VMServiceScrape for operator
-- Added ability to override default Prometheus-compatible datatasources with all available parameters. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/860).
+- Added ability to override default Prometheus-compatible datasources with all available parameters. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/860).
 - Do not use `grafana.dashboards` and `grafana.dashboardProviders`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1312).
 - Migrated Node Exporter dashboard into chart
 - Deprecated `grafana.sidecar.jsonData`, `grafana.provisionDefaultDatasource` in a favour of `grafana.sidecar.datasources.default` slice of datasources.
@@ -191,7 +192,7 @@
 ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
 
 - fixed vmalert ingress name typo
-- Added ability to override default Prometheus-compatible datatasources with all available parameters. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/860).
+- Added ability to override default Prometheus-compatible datasources with all available parameters. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/860).
 - Do not use `grafana.dashboards` and `grafana.dashboardProviders`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1312).
 
 ## 0.25.8

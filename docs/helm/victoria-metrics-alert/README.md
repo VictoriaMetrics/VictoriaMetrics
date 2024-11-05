@@ -428,7 +428,7 @@ tag: v0.25.0
 </code>
 </pre>
 </td>
-      <td><p>Persistant volume annotations</p>
+      <td><p>Persistent volume annotations</p>
 </td>
     </tr>
     <tr>
@@ -699,7 +699,7 @@ labels: {}
 </code>
 </pre>
 </td>
-      <td><p>Service load balacner IP</p>
+      <td><p>Service load balancer IP</p>
 </td>
     </tr>
     <tr>
@@ -755,6 +755,17 @@ labels: {}
 </pre>
 </td>
       <td><p>Node tolerations for server scheduling to nodes with taints. Details are <a href="https://kubernetes.io/docs/concepts/configuration/assign-pod-node/" target="_blank">here</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>alertmanager.webConfig</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Alertmanager web configuration</p>
 </td>
     </tr>
     <tr>
@@ -1630,7 +1641,7 @@ tokenFile: ""
 </code>
 </pre>
 </td>
-      <td><p>Service load balacner IP</p>
+      <td><p>Service load balancer IP</p>
 </td>
     </tr>
     <tr>

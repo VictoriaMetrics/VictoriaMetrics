@@ -628,7 +628,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>Persistant volume annotations</p>
+      <td><p>Persistent volume annotations</p>
 </td>
     </tr>
     <tr>
@@ -1266,7 +1266,7 @@ scrape_configs:
 </code>
 </pre>
 </td>
-      <td><p>Service load balacner IP</p>
+      <td><p>Service load balancer IP</p>
 </td>
     </tr>
     <tr>
