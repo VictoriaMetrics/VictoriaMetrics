@@ -69,14 +69,6 @@ func (app *Vmselect) ClusternativeListenAddr() string {
 	return app.clusternativeListenAddr
 }
 
-// PrometheusAPIV1SeriesResponse is an inmemory representation of the
-// /prometheus/api/v1/series response.
-type PrometheusAPIV1SeriesResponse struct {
-	Status    string
-	IsPartial bool
-	Data      []map[string]string
-}
-
 // PrometheusAPIV1Series sends a query to a /prometheus/api/v1/series endpoint
 // and returns the list of time series that match the query.
 //
@@ -90,7 +82,7 @@ func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, tenant, matchQuery stri
 	jsonRes := app.cli.PostForm(t, seriesURL, values, http.StatusOK)
 	var res PrometheusAPIV1SeriesResponse
 	if err := json.Unmarshal([]byte(jsonRes), &res); err != nil {
-		t.Fatalf("could not unmarshal /api/v1/series response: %v", err)
+		t.Fatalf("could not unmarshal /prometheus/api/v1/series response: %v", err)
 	}
 	return &res
 }
