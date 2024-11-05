@@ -1,6 +1,15 @@
 ## Next release
 
-- TODO
+- `vmauthIngestGlobal` was changed to `write.global.vmauth`
+- `vmauthQueryGlobal` was changed to `read.global.vmauth`
+- `availabilityZones[*].allowIngest` was changed to `availabilityZones[*].write.allow`
+- `availabilityZones[*].allowRead` was changed to `availabilityZones[*].read.allow`
+- `availabilityZones[*].nodeSelector` was moved to `availabilityZones[*].common.spec.nodeSelector`
+- `availabilityZones[*].extraAffinity` was moved to `availabilityZones[*].common.spec.affinity`
+- `availabilityZones[*].topologySpreadConstraints` was moved to `availabilityZones[*].common.spec.topologySpreadConstraints`
+- `availabilityZones[*].vmauthIngest` was moved to `availabilityZones[*].write.vmauth`
+- `availabilityZones[*].vmauthQueryPerZone` was moved to `availabilityZones[*].read.perZone.vmauth`
+- `availabilityZones[*].vmauthCrossAZQuery` was moved to `availabilityZones[*].read.crossZone.vmauth`
 
 ## 0.4.2
 
