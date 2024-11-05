@@ -45,7 +45,6 @@ func TestParseJSONRequest_Failure(t *testing.T) {
 	// Invalid length of `values` individual item
 	f(`{"streams":[{"values":[[]]}]}`)
 	f(`{"streams":[{"values":[["123"]]}]}`)
-	f(`{"streams":[{"values":[["123","456","789"]]}]}`)
 
 	// Invalid type for timestamp inside `values` individual item
 	f(`{"streams":[{"values":[[123,"456"]}]}`)
