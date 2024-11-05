@@ -21,7 +21,7 @@ _Note: This page provides only integration instructions for vmalert and Victoria
 
 ## Quick Start
 
-Run vmalert with `-rule.defaultRuleType=vlogs` cmd-line flag.
+Run vmalert with following arguments.
 ```
 ./bin/vmalert -rule=alert.rules \            # Path to the files or http url with alerting and/or recording rules in YAML format.
     -datasource.url=http://localhost:9428 \  # VictoriaLogs address.
@@ -30,6 +30,7 @@ Run vmalert with `-rule.defaultRuleType=vlogs` cmd-line flag.
     -remoteWrite.url=http://localhost:8428 \ # Remote write compatible storage to persist rules and alerts state info (required for recording rules)
     -remoteRead.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource to restore alerts state from
 ```
+_Note: If you are using vmalert with existing rules that do not specify a `type:`, then exclude the `-rule.defaultRuleType=vlogs` flag. This will require setting `type: vlogs` for each group but, will prevent existing rules from breaking.
 
 > See the full list of configuration flags and their descriptions in [configuration](#configuration) section.
 
@@ -97,6 +98,7 @@ Examples:
 ```
 groups:
   - name: ServiceLog
+    type: vlogs
     interval: 5m
     rules:
       - alert: HasErrorLog
@@ -105,6 +107,7 @@ groups:
           description: "Service {{$labels.service}} generated {{$labels.errorLog}} error logs in the last 5 minutes"
 
   - name: ServiceRequest
+    type: vlogs
     interval: 5m
     rules:
       - alert: TooManyFailedRequest
@@ -119,6 +122,7 @@ Examples:
 ```
 groups:
   - name: RequestCount
+    type: vlogs
     interval: 5m
     rules:
       - record: nginxRequestCount
@@ -138,6 +142,8 @@ By default, vmalert automatically appends the time filter `_time: <group_interva
 For instance, the rule below will be evaluated every 5 minutes, and will return the result with logs from the last 5 minutes:
 ```
 groups:
+  - name: RequestAlerts
+    type: vlogs
     interval: 5m
     rules:
       - alert: TooManyFailedRequest
@@ -149,6 +155,8 @@ User can also specify a customized time filter if needed. For example, rule belo
 but will calculate result over the logs from the last 10 minutes.
 ```
 groups:
+  - name: RequestAlerts
+    type: vlogs
     interval: 5m
     rules:
       - alert: TooManyFailedRequest
@@ -188,6 +196,7 @@ This expression can also be used in recording rules as follows:
 ```
 groups:
   - name: requestDuration
+    type: vlogs
     interval: 5m
     rules:
       - record: requestDurationQuantile
