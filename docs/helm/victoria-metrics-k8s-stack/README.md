@@ -134,7 +134,7 @@ data:
 grafana:
   sidecar:
     dashboards:
-      enabled: true
+      enabled: false
   dashboards:
     vmcluster:
       gnetId: 11176
@@ -2142,39 +2142,6 @@ selector:
 </pre>
 </td>
       <td><p>Install prometheus operator CRDs</p>
-</td>
-    </tr>
-    <tr>
-      <td>serviceAccount.annotations</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">{}
-</code>
-</pre>
-</td>
-      <td><p>Annotations to add to the service account</p>
-</td>
-    </tr>
-    <tr>
-      <td>serviceAccount.create</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
-</code>
-</pre>
-</td>
-      <td><p>Specifies whether a service account should be created</p>
-</td>
-    </tr>
-    <tr>
-      <td>serviceAccount.name</td>
-      <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">""
-</code>
-</pre>
-</td>
-      <td><p>The name of the service account to use. If not set and create is true, a name is generated using the fullname template</p>
 </td>
     </tr>
     <tr>
