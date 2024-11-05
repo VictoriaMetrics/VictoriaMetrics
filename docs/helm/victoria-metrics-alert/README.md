@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.3](https://img.shields.io/badge/Version-0.12.3-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.4](https://img.shields.io/badge/Version-0.12.4-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-alert)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -428,7 +428,7 @@ tag: v0.25.0
 </code>
 </pre>
 </td>
-      <td><p>Persistent volume annotations</p>
+      <td><p>Persistant volume annotations</p>
 </td>
     </tr>
     <tr>
@@ -699,7 +699,7 @@ labels: {}
 </code>
 </pre>
 </td>
-      <td><p>Service load balancer IP</p>
+      <td><p>Service load balacner IP</p>
 </td>
     </tr>
     <tr>
@@ -1641,7 +1641,7 @@ tokenFile: ""
 </code>
 </pre>
 </td>
-      <td><p>Service load balancer IP</p>
+      <td><p>Service load balacner IP</p>
 </td>
     </tr>
     <tr>

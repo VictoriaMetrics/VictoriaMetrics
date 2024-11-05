@@ -1,8 +1,8 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.5.3](https://img.shields.io/badge/Version-0.5.3-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.5.4](https://img.shields.io/badge/Version-0.5.4-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-gateway)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
-Victoria Metrics Gateway - Auth & Rate-Limiting proxy for Victoria Metrics
+Victoria Metrics Gateway - Auth & Rate-Limitting proxy for Victoria Metrics
 
 # Table of Content
 
@@ -880,7 +880,7 @@ runAsUser: 1000
 </code>
 </pre>
 </td>
-      <td><p>Service load balancer IP</p>
+      <td><p>Service load balacner IP</p>
 </td>
     </tr>
     <tr>

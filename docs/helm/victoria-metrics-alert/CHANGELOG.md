@@ -1,6 +1,16 @@
 ## Next release
 
+- TODO
+
+## 0.12.4
+
+**Release date:** 2024-11-05
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
 - use common templates
+- bump version of VM components to [v1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0)
 
 ## 0.12.3
 
@@ -80,7 +90,7 @@
 - Removed support for `policy/v1beta1/PodDisruptionBudget`
 - Added `.Values.global.imagePullSecrets` and `.Values.global.image.registry`
 - Added `.Values.alertmanager.emptyDir` to customize default cache directory
-- Added alertmanager service `.Values.alertmanager.service.externalTrafficPolicy` and `.Values.alertmanager.service.healthCheckNodePort`
+- Addded alertmanager service `.Values.alertmanager.service.externalTrafficPolicy` and `.Values.alertmanager.service.healthCheckNodePort`
 - Use static container names in a pod
 - Removed `networking.k8s.io/v1beta1/Ingress` and `extensions/v1beta1/Ingress` support
 - Added `.Values.server.service.ipFamilies`, `.Values.server.service.ipFamilyPolicy`, `.Values.alertmanager.service.ipFamilies` and `.Values.alertmanager.service.ipFamilyPolicy` for services IP family management
