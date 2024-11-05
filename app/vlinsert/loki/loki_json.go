@@ -168,6 +168,20 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 				Name:  "_msg",
 				Value: bytesutil.ToUnsafeString(msg),
 			})
+
+			// parse structured metadata
+			if len(lineA) > 2 {
+				structuredMetadata, err := lineA[2].Object()
+				if err != nil {
+					return rowsIngested, fmt.Errorf("unexpected structured metadata: %q, err: %v", lineA[2], err)
+				}
+				structuredMetadata.Visit(func(key []byte, v *fastjson.Value) {
+					fields = append(fields, logstorage.Field{
+						Name:  bytesutil.ToUnsafeString(key),
+						Value: bytesutil.ToUnsafeString(v.GetStringBytes()),
+					})
+				})
+			}
 			lmp.AddRow(ts, fields)
 		}
 		rowsIngested += len(lines)

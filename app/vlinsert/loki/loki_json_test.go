@@ -117,5 +117,6 @@ func TestParseJSONRequest_Success(t *testing.T) {
 {"x":"y","_msg":"yx"}`)
 
 	// values with metadata
-	f(`{"streams":[{"values":[["1577836800000000001", "foo bar", {"metadata_1": "md_value"}]]}]}`, []int64{1577836800000000001}, `{"_msg":"foo bar"}`)
+	f(`{"streams":[{"values":[["1577836800000000001", "foo bar", {"metadata_1": "md_value"}]]}]}`, []int64{1577836800000000001}, `{"_msg":"foo bar","metadata_1":"md_value"}`)
+	f(`{"streams":[{"values":[["1577836800000000001", "foo bar", {}]]}]}`, []int64{1577836800000000001}, `{"_msg":"foo bar"}`)
 }
