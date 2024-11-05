@@ -1,6 +1,16 @@
 ## Next release
 
+- TODO
+
+## 0.5.4
+
+**Release date:** 2024-11-05
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
 - multiple paths for a host in ingress
+- bump version of VM components to [v1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0)
 
 ## 0.5.3
 
@@ -68,7 +78,7 @@
 ![AppVersion: v1.102.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.102.1&color=success&logo=)
 ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
 
-**Update note**: main container name was changed to `vmgateway`, which will recreate a pod.
+**Update note**: main container name was changed to `vmgateway`, which will reacreate a pod.
 
 **Update note**: requires Helm 3.14+
 
