@@ -1,6 +1,7 @@
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/)
 via the following ways:
 
+- [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/)
 - [Command-line interface](#command-line)
 - [HTTP API](#http-api)
 - [Web UI](#web-ui) - a web-based UI for querying logs
@@ -21,6 +22,7 @@ VictoriaLogs provides the following HTTP endpoints:
 - [`/select/logsql/stream_field_values`](#querying-stream-field-values) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field values.
 - [`/select/logsql/field_names`](#querying-field-names) for querying [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names.
 - [`/select/logsql/field_values`](#querying-field-values) for querying [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values.
+
 
 ### Querying logs
 
@@ -105,6 +107,8 @@ with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 
 See also:
 
+- [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/)
+- [Extra filters](#extra-filters)
 - [Live tailing](#live-tailing)
 - [Querying hits stats](#querying-hits-stats)
 - [Querying log stats](#querying-log-stats)
@@ -126,7 +130,7 @@ curl -N http://localhost:9428/select/logsql/tail -d 'query=error'
 ```
 
 The `-N` command-line flag is essential to pass to `curl` during live tailing, since otherwise curl may delay displaying matching logs
-because of internal response bufferring.
+because of internal response buffering.
 
 The `<query>` must conform the following rules:
 
@@ -159,6 +163,8 @@ with `vl_live_tailing_requests` metric.
 
 See also:
 
+- [Live tailing in vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/#live-tailing)
+- [Extra filters](#extra-filters)
 - [Querying logs](#querying-logs)
 - [Querying streams](#querying-streams)
 
@@ -276,6 +282,7 @@ curl http://localhost:9428/select/logsql/hits -H 'AccountID: 12' -H 'ProjectID: 
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying logs](#querying-logs)
 - [Querying log stats](#querying-log-stats)
 - [Querying log range stats](#querying-log-range-stats)
@@ -348,6 +355,7 @@ The `/select/logsql/stats_query` API is useful for generating Prometheus-compati
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying log range stats](#querying-log-range-stats)
 - [Querying logs](#querying-logs)
 - [Querying hits stats](#querying-hits-stats)
@@ -441,6 +449,7 @@ The `/select/logsql/stats_query_range` API is useful for generating Prometheus-c
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying log stats](#querying-log-stats)
 - [Querying logs](#querying-logs)
 - [Querying hits stats](#querying-hits-stats)
@@ -499,6 +508,7 @@ curl http://localhost:9428/select/logsql/stream_ids -H 'AccountID: 12' -H 'Proje
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying streams](#querying-streams)
 - [Querying logs](#querying-logs)
 - [Querying hits stats](#querying-hits-stats)
@@ -556,6 +566,7 @@ curl http://localhost:9428/select/logsql/streams -H 'AccountID: 12' -H 'ProjectI
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying stream_ids](#querying-stream_ids)
 - [Querying logs](#querying-logs)
 - [Querying hits stats](#querying-hits-stats)
@@ -610,6 +621,7 @@ curl http://localhost:9428/select/logsql/stream_field_names -H 'AccountID: 12' -
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying stream field names](#querying-stream-field-names)
 - [Querying field values](#querying-field-values)
 - [Querying streams](#querying-streams)
@@ -664,6 +676,7 @@ curl http://localhost:9428/select/logsql/stream_field_values -H 'AccountID: 12' 
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying stream field values](#querying-stream-field-values)
 - [Querying field names](#querying-field-names)
 - [Querying streams](#querying-streams)
@@ -717,6 +730,7 @@ curl http://localhost:9428/select/logsql/field_names -H 'AccountID: 12' -H 'Proj
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying stream field names](#querying-stream-field-names)
 - [Querying field values](#querying-field-values)
 - [Querying streams](#querying-streams)
@@ -775,10 +789,33 @@ curl http://localhost:9428/select/logsql/field_values -H 'AccountID: 12' -H 'Pro
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying stream field values](#querying-stream-field-values)
 - [Querying field names](#querying-field-names)
 - [Querying streams](#querying-streams)
 - [HTTP API](#http-api)
+
+
+## Extra filters
+
+All the [HTTP querying APIs](#http-api) provided by VictoriaLogs support the following optional query args:
+
+- `extra_filters` - this arg may contain extra [`field:=value`](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter) filters, which must be applied
+  to the `query` before returning the results.
+- `extra_stream_filters` - this arg may contain extra [`{field="value"}`](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter) filters,
+  which must be applied to the `query` before returning results.
+
+The filters must be passed as JSON object with `"field":"value"` entries. For example, the following JSON object applies `namespace:=my-app and env:prod` filter to the `query`
+passed to [HTTP querying APIs](#http-api):
+
+```json
+{
+  "namespace":"my-app",
+  "env":"prod"
+}
+```
+
+The JSON object must be properly encoded with [percent encoding](https://en.wikipedia.org/wiki/Percent-encoding) before being passed to VictoriaLogs.
 
 
 ## Web UI

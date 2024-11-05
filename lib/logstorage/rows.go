@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/valyala/quicktemplate"
 
@@ -118,14 +119,15 @@ func isLogfmtSpecialChar(c rune) bool {
 	}
 }
 
-// RenameField renames field with the oldName to newName in Fields
-func RenameField(fields []Field, oldName, newName string) {
-	if oldName == "" {
+// RenameField renames the first non-empty field with the name from oldNames list to newName in Fields
+func RenameField(fields []Field, oldNames []string, newName string) {
+	if len(oldNames) == 0 {
+		// Nothing to rename
 		return
 	}
 	for i := range fields {
 		f := &fields[i]
-		if f.Name == oldName {
+		if f.Value != "" && slices.Contains(oldNames, f.Name) {
 			f.Name = newName
 			return
 		}

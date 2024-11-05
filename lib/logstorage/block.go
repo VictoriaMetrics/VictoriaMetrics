@@ -227,7 +227,7 @@ func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) {
 	b.sortColumnsByName()
 }
 
-// mustInitiFromRows initializes b from rows.
+// mustInitFromRows initializes b from rows.
 //
 // b is valid until rows are changed.
 func (b *block) mustInitFromRows(rows [][]Field) {
@@ -432,10 +432,6 @@ func (b *block) InitFromBlockData(bd *blockData, sbu *stringsBlockUnmarshaler, v
 
 // mustWriteTo writes b with the given sid to sw and updates bh accordingly.
 func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters, g *columnNameIDGenerator) {
-	// Do not store the version used for encoding directly in the block data, since:
-	// - all the blocks in the same part use the same encoding
-	// - the block encoding version can be put in metadata file for the part (aka metadataFilename)
-
 	b.assertValid()
 	bh.reset()
 

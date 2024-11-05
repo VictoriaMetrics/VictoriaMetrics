@@ -4,6 +4,31 @@
 
 - TODO
 
+## 0.0.19
+
+**Release date:** 2024-11-04
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- TODO
+
+## 0.0.18
+
+**Release date:** 2024-10-29
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- vm.managed.fullname template modify prefixes
+
+## 0.0.17
+
+**Release date:** 2024-10-25
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Added vm.podLabels template
+- Do no append default `<component>` prefix/suffix when `<component>.fullnameOverride` set
+
 ## 0.0.16
 
 **Release date:** 2024-10-15

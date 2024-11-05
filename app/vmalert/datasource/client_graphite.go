@@ -46,7 +46,7 @@ const (
 	graphitePrefix = "/graphite"
 )
 
-func (s *VMStorage) setGraphiteReqParams(r *http.Request, query string) {
+func (s *Client) setGraphiteReqParams(r *http.Request, query string) {
 	if s.appendTypePrefix {
 		r.URL.Path += graphitePrefix
 	}

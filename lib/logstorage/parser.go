@@ -411,6 +411,108 @@ func (q *Query) AddTimeFilter(start, end int64) {
 	}
 }
 
+// AddExtraStreamFilters adds stream filters to q in the form `{f1.Name=f1.Value, ..., fN.Name=fN.Value}`
+func (q *Query) AddExtraStreamFilters(filters []Field) {
+	if len(filters) == 0 {
+		return
+	}
+
+	fa, ok := q.f.(*filterAnd)
+	if !ok {
+		if fs, ok := q.f.(*filterStream); ok {
+			addExtraStreamFilters(fs, filters)
+			return
+		}
+
+		fa = &filterAnd{
+			filters: []filter{
+				newEmptyFilterStream(),
+				q.f,
+			},
+		}
+		q.f = fa
+	}
+
+	hasStreamFilters := false
+	for _, f := range fa.filters {
+		if _, ok := f.(*filterStream); ok {
+			hasStreamFilters = true
+			break
+		}
+	}
+	if !hasStreamFilters {
+		var dst []filter
+		dst = append(dst, newEmptyFilterStream())
+		fa.filters = append(dst, fa.filters...)
+	}
+
+	for _, f := range fa.filters {
+		if fs, ok := f.(*filterStream); ok {
+			addExtraStreamFilters(fs, filters)
+		}
+	}
+}
+
+func newEmptyFilterStream() *filterStream {
+	return &filterStream{
+		f: &StreamFilter{},
+	}
+}
+
+func addExtraStreamFilters(fs *filterStream, filters []Field) {
+	f := fs.f
+	if len(f.orFilters) == 0 {
+		f.orFilters = []*andStreamFilter{
+			{
+				tagFilters: appendExtraStreamFilters(nil, filters),
+			},
+		}
+		return
+	}
+	for _, af := range f.orFilters {
+		af.tagFilters = appendExtraStreamFilters(af.tagFilters, filters)
+	}
+}
+
+func appendExtraStreamFilters(orig []*streamTagFilter, filters []Field) []*streamTagFilter {
+	var dst []*streamTagFilter
+	for _, f := range filters {
+		dst = append(dst, &streamTagFilter{
+			tagName: f.Name,
+			op:      "=",
+			value:   f.Value,
+		})
+	}
+	return append(dst, orig...)
+}
+
+// AddExtraFilters adds filters to q in the form of `f1.Name:=f1.Value AND ... fN.Name:=fN.Value`
+func (q *Query) AddExtraFilters(filters []Field) {
+	if len(filters) == 0 {
+		return
+	}
+
+	fa, ok := q.f.(*filterAnd)
+	if !ok {
+		fa = &filterAnd{
+			filters: []filter{q.f},
+		}
+		q.f = fa
+	}
+	fa.filters = addExtraFilters(fa.filters, filters)
+}
+
+func addExtraFilters(orig []filter, filters []Field) []filter {
+	var dst []filter
+	for _, f := range filters {
+		dst = append(dst, &filterExact{
+			fieldName: f.Name,
+			value:     f.Value,
+		})
+	}
+	return append(dst, orig...)
+}
+
 // AddPipeLimit adds `| limit n` pipe to q.
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe
@@ -784,6 +886,38 @@ func ParseStatsQuery(s string) (*Query, error) {
 		return nil, err
 	}
 	return q, nil
+}
+
+// ContainAnyTimeFilter returns true when query contains a global time filter.
+func (q *Query) ContainAnyTimeFilter() bool {
+	if hasTimeFilter(q.f) {
+		return true
+	}
+	for _, p := range q.pipes {
+		if pf, ok := p.(*pipeFilter); ok {
+			if hasTimeFilter(pf.f) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasTimeFilter(f filter) bool {
+	if f == nil {
+		return false
+	}
+	switch t := f.(type) {
+	case *filterAnd:
+		for _, subF := range t.filters {
+			if hasTimeFilter(subF) {
+				return true
+			}
+		}
+	case *filterTime:
+		return true
+	}
+	return false
 }
 
 // ParseQueryAtTimestamp parses s in the context of the given timestamp.

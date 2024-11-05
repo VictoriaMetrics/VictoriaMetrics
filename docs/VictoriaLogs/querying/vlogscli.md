@@ -14,7 +14,7 @@ It has the following features:
 - It supports scrolling and searching over query results in the same way as `less` command does - see [these docs](#scrolling-query-results).
 - It supports canceling long-running queries at any time via `Ctrl+C`.
 - It supports query history - see [these docs](#query-history).
-- It supports diffent formats for query results (JSON, logfmt, compact, etc.) - see [these docs](#output-modes).
+- It supports different formats for query results (JSON, logfmt, compact, etc.) - see [these docs](#output-modes).
 - It supports live tailing - see [these docs](#live-tailing).
 
 This tool can be obtained from the linked release pages at the [changelog](https://docs.victoriametrics.com/victorialogs/changelog/)
@@ -23,15 +23,15 @@ or from [docker images](https://hub.docker.com/r/victoriametrics/vlogscli/tags):
 ### Running `vlogscli` from release binary
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.37.0-victorialogs/vlogscli-linux-amd64-v0.37.0-victorialogs.tar.gz
-tar xzf vlogscli-linux-amd64-v0.37.0-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.40.0-victorialogs/vlogscli-linux-amd64-v0.40.0-victorialogs.tar.gz
+tar xzf vlogscli-linux-amd64-v0.40.0-victorialogs.tar.gz
 ./vlogscli-prod
 ```
 
 ### Running `vlogscli` from Docker image
 
 ```sh
-docker run --rm -it docker.io/victoriametrics/vlogscli:v0.37.0-victorialogs
+docker run --rm -it docker.io/victoriametrics/vlogscli:v0.40.0-victorialogs
 ```
 
 ## Configuration

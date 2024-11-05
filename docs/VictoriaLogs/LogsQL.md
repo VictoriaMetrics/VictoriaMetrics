@@ -181,7 +181,7 @@ _time:5m log.level:error {app!~"buggy_app|foobar"}
 ```
 
 This query skips scanning for [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) from `buggy_app` and `foobar` apps.
-It inpsects only `log.level` and [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) labels.
+It inspects only `log.level` and [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) labels.
 This significantly reduces disk read IO and CPU time needed for performing the query.
 
 LogsQL also provides [functions for statistics calculation](#stats-pipe) over the selected logs. For example, the following query returns the number of logs
@@ -381,7 +381,7 @@ See also:
 - `Mon` or `Monday`
 - `Tue` or `Tuesday`
 - `Wed` or `Wednesday`
-- `Thu` or `Thusday`
+- `Thu` or `Thursday`
 - `Fri` or `Friday`
 - `Sat` or `Saturday`
 
@@ -1342,7 +1342,7 @@ Multiple fields can be copied with a single `| copy ...` pipe. For example, the 
 is copied to `message`:
 
 ```logsql
-_time:5m | copy _time as timestmap, _msg as message
+_time:5m | copy _time as timestamp, _msg as message
 ```
 
 The `as` keyword is optional.
@@ -1771,7 +1771,7 @@ _time:5m | len(_msg) as msg_len | sort by (msg_len desc) | limit 1
 
 See also:
 
-- [`sum_len` stats function](#sum-len-stats)
+- [`sum_len` stats function](#sum_len-stats)
 - [`sort` pipe](#sort-pipe)
 - [`limit` pipe](#limit-pipe)
 
@@ -2169,6 +2169,7 @@ It is recommended limiting the number of logs before sorting with the following 
 
 See also:
 
+- [`top` pipe](#top-pipe)
 - [`stats` pipe](#stats-pipe)
 - [`limit` pipe](#limit-pipe)
 - [`offset` pipe](#offset-pipe)
@@ -2400,10 +2401,23 @@ For example, the following query is equivalent to the previous one:
 _time:5m | fields ip | top
 ```
 
+It is possible to set `rank` field per each returned entry for `top` pipe by adding `with rank`. For example, the following query sets the `rank` field per each returned `ip`:
+
+```logsql
+_time:5m | top 10 by (ip) rank
+```
+
+The `rank` field can have other name. For example, the following query uses the `position` field name instead of `rank` field name in the output:
+
+```logsql
+_time:5m | top 10 by (ip) rank as position
+```
+
 See also:
 
 - [`uniq` pipe](#uniq-pipe)
 - [`stats` pipe](#stats-pipe)
+- [`sort` pipe](#sort-pipe)
 
 ### uniq pipe
 
@@ -2747,9 +2761,9 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`count`](#count-stats) returns the number of log entries.
 - [`count_empty`](#count_empty-stats) returns the number logs with empty [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`count_uniq`](#count_uniq-stats) returns the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`max`](#max-stats) returns the maximum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`max`](#max-stats) returns the maximum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`median`](#median-stats) returns the [median](https://en.wikipedia.org/wiki/Median) value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`min`](#min-stats) returns the minumum value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`min`](#min-stats) returns the minimum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`quantile`](#quantile-stats) returns the given quantile for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`row_any`](#row_any-stats) returns a sample [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) per each selected [stats group](#stats-by-fields).
 - [`row_max`](#row_max-stats) returns the [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the minimum value at the given field.
@@ -3095,7 +3109,7 @@ See also:
 
 ### values stats
 
-`values(field1, ..., fieldN)` [stats pipe fuction](#stats-pipe-functions) returns all the values (including empty values)
+`values(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) returns all the values (including empty values)
 for the mentioned [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 The returned values are encoded in JSON array.
 

@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.3](https://img.shields.io/badge/Version-0.12.3-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.4](https://img.shields.io/badge/Version-0.12.4-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-single)
 
 Victoria Metrics Single version - high-performance, cost-effective and scalable TSDB, long-term remote storage for Prometheus
@@ -591,11 +591,11 @@ loggerFormat: json
       <td>server.name</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">server
+<code class="language-yaml">null
 </code>
 </pre>
 </td>
-      <td><p>Server container name</p>
+      <td><p>Server resource name prefix</p>
 </td>
     </tr>
     <tr>
@@ -673,6 +673,17 @@ loggerFormat: json
 </pre>
 </td>
       <td><p>Mount path. Server data Persistent Volume mount root path.</p>
+</td>
+    </tr>
+    <tr>
+      <td>server.persistentVolume.name</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Override Persistent Volume Claim name</p>
 </td>
     </tr>
     <tr>

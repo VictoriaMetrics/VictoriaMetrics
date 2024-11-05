@@ -960,6 +960,13 @@ VictoriaMetrics accepts `limit` query arg at [/api/v1/series](https://docs.victo
 for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest of series.
 If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
 
+VictoriaMetrics returns an extra object `stats` in JSON response for [`/api/v1/query`](https://docs.victoriametrics.com/keyconcepts/#instant-query)
+and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyconcepts/#range-query) APIs. This object contains two
+fields: `executionTimeMsec` with number of milliseconds the request took and `seriesFetched` with number of series that
+were fetched from database before filtering. The `seriesFetched` field is effectively used by vmalert for detecting
+[misconfigured rule expressions](https://docs.victoriametrics.com/vmalert/#never-firing-alerts). Please note, `seriesFetched`
+provides approximate number of series, it is not recommended to rely on it in tests.
+
 Additionally, VictoriaMetrics provides the following handlers:
 
 * `/vmui` - Basic Web UI. See [these docs](#vmui).
@@ -1590,7 +1597,7 @@ The format follows [JSON streaming concept](https://jsonlines.org/), e.g. each l
 
 ```json
 {
-  // metric contans metric name plus labels for a particular time series
+  // metric contains metric name plus labels for a particular time series
   "metric":{
     "__name__": "metric_name",  // <- this is metric name
 
@@ -1715,7 +1722,7 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   This means that the maximum memory usage and CPU usage a single query can use is proportional to `-search.maxUniqueTimeseries`.
 - `-search.maxQueryDuration` limits the duration of a single query. If the query takes longer than the given duration, then it is canceled.
   This allows saving CPU and RAM when executing unexpected heavy queries.
-  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via `-search.maxQueryDuration` command-line flag.
+  The limit can be overridden to a smaller value by passing `timeout` GET parameter.
 - `-search.maxConcurrentRequests` limits the number of concurrent requests VictoriaMetrics can process. Bigger number of concurrent requests usually means
   bigger memory usage. For example, if a single query needs 100 MiB of additional memory during its execution, then 100 concurrent queries may need `100 * 100 MiB = 10 GiB`
   of additional memory. So it is better to limit the number of concurrent queries, while pausing additional incoming queries if the concurrency limit is reached.
@@ -1771,7 +1778,7 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
 - `-search.maxLabelsAPIDuration` limits the duration for requests to [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels),
   [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
   or [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series).
-  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
+  The limit can be overridden to a smaller value by passing `timeout` GET parameter.
   These endpoints are used mostly by Grafana for auto-completion of label names and label values. Queries to these endpoints may take big amounts of CPU time and memory
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPIDuration` to quite low value in order to limit CPU and memory usage.
@@ -2042,7 +2049,7 @@ Important notes:
   So the IndexDB size can grow big under [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
   even for small retentions configured via `-retentionFilter`.
 
-Retention filters configuration can be tested in enterprise version of vmui on the page `Tools.Retnetion filters debug`.
+Retention filters configuration can be tested in enterprise version of vmui on the page `Tools.Retention filters debug`.
 It is safe updating `-retentionFilter` during VictoriaMetrics restarts - the updated retention filters are applied eventually
 to historical data.
 
@@ -2064,7 +2071,7 @@ The `-downsampling.period` command-line flag can be specified multiple times in 
 For example, `-downsampling.period=30d:5m,180d:1h` instructs leaving the last sample per each 5-minute interval for samples older than 30 days,
 while leaving the last sample per each 1-hour interval for samples older than 180 days.
 
-VictoriaMetrics supports configuring independent downsampling per different sets of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+VictoriaMetrics supports (_available from [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000)_) configuring independent downsampling per different sets of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 via `-downsampling.period=filter:offset:interval` syntax. In this case the given `offset:interval` downsampling is applied only to time series matching the given `filter`.
 The `filter` can contain arbitrary [series filter](https://docs.victoriametrics.com/keyconcepts/#filtering).
 For example, `-downsampling.period='{__name__=~"(node|process)_.*"}:1d:1m` instructs VictoriaMetrics to deduplicate samples older than one day with one minute interval
@@ -2696,7 +2703,7 @@ Contact us with any questions regarding VictoriaMetrics at [info@victoriametrics
 Feel free asking any questions regarding VictoriaMetrics:
 
 * [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
-* [Twitter](https://twitter.com/VictoriaMetrics/)
+* [X (Twitter)](https://x.com/VictoriaMetrics/)
 * [Linkedin](https://www.linkedin.com/company/victoriametrics/)
 * [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
 * [Telegram-en](https://t.me/VictoriaMetrics_en)
@@ -2727,7 +2734,7 @@ Requirements for changes to docs:
 
 - Keep backward compatibility of existing links. Avoid changing anchors or deleting pages as they could have been
   used or posted in other docs, GitHub issues, stackoverlow answers, etc.
-- Keep docs clear, concise and simple. Try using as simple wording as possible, without loosing the clarity.
+- Keep docs clear, concise and simple. Try using as simple wording as possible, without sacrificing clarity.
 - Keep docs consistent. When modifying existing docs, verify that other places referencing to this doc are still relevant.
 - Prefer improving the existing docs instead of adding new ones.
 - Use absolute links. This simplifies moving docs between different files.
@@ -3090,6 +3097,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#openstack_sd_configs for details (default 30s)
   -promscrape.ovhcloudSDCheckInterval duration
      Interval for checking for changes in OVH Cloud VPS and dedicated server. This works only if ovhcloud_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#ovhcloud_sd_configs for details (default 30s)
+  -promscrape.puppetdbSDCheckInterval duration
+     Interval for checking for changes in PuppetDB API. This works only if puppetdb_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#puppetdb_sd_configs for details (default 30s)
   -promscrape.seriesLimitPerTarget int
      Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter for more info
   -promscrape.streamParse
@@ -3183,7 +3192,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxPointsSubqueryPerTimeseries int
      The maximum number of points per series, which can be generated by subquery. See https://valyala.medium.com/prometheus-subqueries-in-victoriametrics-9b1492b720b3 (default 100000)
   -search.maxQueryDuration duration
-     The maximum duration for query execution. It can be overridden on a per-query basis via 'timeout' query arg (default 30s)
+     The maximum duration for query execution. It can be overridden to a smaller value on a per-query basis via 'timeout' query arg (default 30s)
   -search.maxQueryLen size
      The maximum search query length in bytes
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16384)
@@ -3257,9 +3266,6 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
   -storage.cacheSizeIndexDBDataBlocks size
      Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
-  -storage.cacheSizeIndexDBDataBlocksSparse size
-     Overrides max size for indexdb/dataBlocksSparse cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.cacheSizeIndexDBIndexBlocks size
      Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning

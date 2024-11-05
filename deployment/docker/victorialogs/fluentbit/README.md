@@ -2,9 +2,11 @@
 
 The folder contains examples of [FluentBit](https://docs.fluentbit.io/manual) integration with VictoriaLogs using protocols:
 
+* [datadog](./datadog)
 * [loki](./loki)
 * [jsonline single node](./jsonline)
 * [jsonline HA setup](./jsonline-ha)
+* [otlp](./otlp)
 
 To spin-up environment `cd` to any of listed above directories run the following command:
 ```
@@ -29,8 +31,10 @@ Querying the data
 * for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line)
 
 FluentBit configuration example can be found below:
+* [datadog](./datadog/fluent-bit.conf)
 * [loki](./loki/fluent-bit.conf)
 * [jsonline single node](./jsonline/fluent-bit.conf)
 * [jsonline HA setup](./jsonline-ha/fluent-bit.conf)
+* [otlp](./otlp/fluent-bit.conf)
 
 Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.

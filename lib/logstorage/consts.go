@@ -3,12 +3,12 @@ package logstorage
 // partFormatLatestVersion is the latest format version for parts.
 //
 // See partHeader.FormatVersion for details.
-const partFormatLatestVersion = 1
+const partFormatLatestVersion = 2
 
-// bloomValuesShardsCount is the number of shards for bloomFilename and valuesFilename files.
+// bloomValuesMaxShardsCount is the number of shards for bloomFilename and valuesFilename files.
 //
-// The partHeader.FormatVersion must be updated when this number changes.
-const bloomValuesShardsCount = 8
+// The partHeader.FormatVersion and partFormatLatestVersion must be updated when this number changes.
+const bloomValuesMaxShardsCount = 128
 
 // maxUncompressedIndexBlockSize contains the maximum length of uncompressed block with blockHeader entries aka index block.
 //
@@ -26,9 +26,8 @@ const maxRowsPerBlock = 8 * 1024 * 1024
 // maxColumnsPerBlock is the maximum number of columns per block.
 //
 // It isn't recommended setting this value to too big value, because this may result
-// in excess memory usage during data ingestion and significant slowdown during query execution,
-// since every column header is unpacked in every matching block during query execution.
-const maxColumnsPerBlock = 1_000
+// in excess memory usage during data ingestion and significant slowdown during query execution.
+const maxColumnsPerBlock = 2_000
 
 // MaxFieldNameSize is the maximum size in bytes for field name.
 //
