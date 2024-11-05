@@ -2,7 +2,7 @@
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-gateway)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
-Victoria Metrics Gateway - Auth & Rate-Limitting proxy for Victoria Metrics
+Victoria Metrics Gateway - Auth & Rate-Limiting proxy for Victoria Metrics
 
 # Table of Content
 
@@ -880,7 +880,7 @@ runAsUser: 1000
 </code>
 </pre>
 </td>
-      <td><p>Service load balacner IP</p>
+      <td><p>Service load balancer IP</p>
 </td>
     </tr>
     <tr>

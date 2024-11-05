@@ -344,7 +344,7 @@ spec:
 After enabling enterprise version you can use [Multitenancy](https://docs.victoriametrics.com/vmalert#multitenancy)
 feature in `VMAlert`.
 
-For that you need to set `clusterMode` commad-line flag 
+For that you need to set `clusterMode` command-line flag 
 with [extraArgs](./#extra-arguments)
 and specify `tenant` field for groups 
 in [VMRule](https://docs.victoriametrics.com/operator/resources/vmrule#enterprise-features):

@@ -92,7 +92,7 @@ Get the pods lists by running these commands:
 ```console
 kubectl get pods -A | grep 'victoria-metrics'
 
-# or list all resorces of victoria-metrics
+# or list all resources of victoria-metrics
 
 kubectl get all -n NAMESPACE | grep victoria
 ```

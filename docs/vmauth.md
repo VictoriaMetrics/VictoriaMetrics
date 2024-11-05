@@ -645,7 +645,7 @@ For example, if `some-addr` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) 
 then `url_prefix: http://srv+some-addr/some/path` is automatically resolved into `url_prefix: http://some-host:12345/some/path`.
 The DNS SRV resolution is performed every time new connection to the `url_prefix` backend is established.
 
-See also [discovering backend addressess](#discovering-backend-ips).
+See also [discovering backend addresses](#discovering-backend-ips).
 
 ## Modifying HTTP headers
 

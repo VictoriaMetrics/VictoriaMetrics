@@ -130,7 +130,7 @@ curl -N http://localhost:9428/select/logsql/tail -d 'query=error'
 ```
 
 The `-N` command-line flag is essential to pass to `curl` during live tailing, since otherwise curl may delay displaying matching logs
-because of internal response bufferring.
+because of internal response buffering.
 
 The `<query>` must conform the following rules:
 
