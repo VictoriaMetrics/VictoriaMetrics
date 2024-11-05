@@ -10,6 +10,7 @@
 - Removed crds subchart as it's now included in operator
 - Fixed additionalNotifiersConfig
 - Added `vmcluster.vmauth.<vminsert/vmselect>` and `externalVM.vmauth.<read/write>` to provide ability to override vmauth configs
+- Removed unused serviceaccount
 
 ## 0.27.6
 
