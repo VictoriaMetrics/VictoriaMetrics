@@ -1110,9 +1110,7 @@ func (vd *valuesDict) marshal(dst []byte) []byte {
 		logger.Panicf("BUG: valuesDict may contain max %d items; got %d items", maxDictLen, len(values))
 	}
 	dst = append(dst, byte(len(values)))
-	for _, v := range values {
-		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(v))
-	}
+	dst = marshalStrings(dst, values)
 	return dst
 }
 

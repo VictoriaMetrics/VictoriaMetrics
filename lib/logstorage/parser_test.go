@@ -2047,6 +2047,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | unpack_logfmt if (q:w p:a) from x fields(a,b) | count() r1`, `p,q`, ``)
 	f(`* | unroll (a, b) | count() r1`, `a,b`, ``)
 	f(`* | unroll if (q:w p:a) (a, b) | count() r1`, `a,b,p,q`, ``)
+	f(`* | join on (a, b) (xxx) | count() r1`, `a,b`, ``)
 }
 
 func TestQueryClone(t *testing.T) {
@@ -2167,6 +2168,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | unpack_logfmt", true)
 	f("* | unpack_syslog", true)
 	f("* | unroll by (a)", true)
+	f("* | join by (a) (b)", true)
 }
 
 func TestQueryDropAllPipes(t *testing.T) {
@@ -2355,6 +2357,7 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | unpack_logfmt`)
 	f(`foo | count() | unpack_syslog`)
 	f(`foo | count() | unroll by (x)`)
+	f(`foo | count() | join by (x) (y)`)
 
 	// drop by(...) field
 	f(`* | by (x) count() as rows | math rows * 10, rows / 10 | drop x`)
