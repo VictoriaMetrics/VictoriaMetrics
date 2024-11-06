@@ -2,10 +2,12 @@ package tenantmetrics
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestCreateMetricNameError(t *testing.T) {
@@ -86,5 +88,36 @@ func TestCounterMapConcurrent(t *testing.T) {
 	}
 	if n := cm.Get(&auth.Token{AccountID: 1, ProjectID: 3}).Get(); n != concurrency*10*5 {
 		t.Fatalf("unexpected counter value; got %d; want %d", n, concurrency*10*5)
+	}
+}
+
+func BenchmarkCounterMapGrowth(b *testing.B) {
+	benchmarks := []struct {
+		name   string
+		n      uint32
+		nProcs int
+	}{
+		{name: "n=100,nProcs=GOMAXPROCS", n: 100, nProcs: runtime.GOMAXPROCS(0)},
+		{name: "n=100", n: 100, nProcs: 2},
+		{name: "n=1000", n: 1000, nProcs: 2},
+		{name: "n=10000", n: 10000, nProcs: 2},
+	}
+
+	for _, bm := range benchmarks {
+		b.Run(bm.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				cm := NewCounterMap("foobar")
+				eg := errgroup.Group{}
+				for j := 0; j < bm.nProcs; j++ {
+					eg.Go(func() error {
+						for i := uint32(0); i < bm.n; i++ {
+							cm.Get(&auth.Token{AccountID: i, ProjectID: i}).Inc()
+						}
+						return nil
+					})
+				}
+				_ = eg.Wait()
+			}
+		})
 	}
 }
