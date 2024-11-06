@@ -50,7 +50,7 @@ func TestVmsingleKeyConceptsQuery(t *testing.T) {
 	testRangeQuery(t, vmsingle, opts)
 }
 
-// TestVmsingleKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
+// TestClusterKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
 func TestClusterKeyConceptsQuery(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Close()
