@@ -21,20 +21,19 @@ _Note: This page provides only integration instructions for vmalert and Victoria
 
 ## Quick Start
 
-Run vmalert with `-rule.defaultRuleType=vlogs` cmd-line flag.
+Run vmalert with the following settings:
 ```sh
 ./bin/vmalert -rule=alert.rules \            # Path to the files or http url with alerting and/or recording rules in YAML format.
     -datasource.url=http://localhost:9428 \  # VictoriaLogs address.
-    -rule.defaultRuleType=vlogs \            # Set default rules type to VictoriaLogs.
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
     -remoteWrite.url=http://localhost:8428 \ # Remote write compatible storage to persist rules and alerts state info (required for recording rules)
     -remoteRead.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource to restore alerts state from
 ```
 
-> See the full list of configuration flags and their descriptions in [configuration](#configuration) section.
+> Note: By default, vmalert assumes configured rules have `prometheus` type and will validate them accordingly. For rules in [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) specify `type: vlogs` on [Group level](#groups). Or set `-rule.defaultRuleType=vlogs` cmd-line flag to automatically apply `type: vlogs` to all groups.
 
-> Each `-rule` file may contain arbitrary number of [groups](https://docs.victoriametrics.com/vmalert/#groups). 
-See examples in [Groups](#groups) section.
+Each `-rule` file may contain arbitrary number of [groups](https://docs.victoriametrics.com/vmalert/#groups). 
+See examples in [Groups](#groups) section. See the full list of configuration flags and their descriptions in [configuration](#configuration) section.
 
 With configuration example above, vmalert will perform the following interactions:
 ![vmalert](vmalert_victorialogs.webp)
@@ -97,6 +96,7 @@ Examples:
 ```yaml
 groups:
   - name: ServiceLog
+    type: vlogs
     interval: 5m
     rules:
       - alert: HasErrorLog
@@ -105,6 +105,7 @@ groups:
           description: "Service {{$labels.service}} generated {{$labels.errorLog}} error logs in the last 5 minutes"
 
   - name: ServiceRequest
+    type: vlogs
     interval: 5m
     rules:
       - alert: TooManyFailedRequest
@@ -119,6 +120,7 @@ Examples:
 ```yaml
 groups:
   - name: RequestCount
+    type: vlogs
     interval: 5m
     rules:
       - record: nginxRequestCount
@@ -139,6 +141,7 @@ For instance, the rule below will be evaluated every 5 minutes, and will return 
 ```yaml
 groups:
     - name: Requests
+      type: vlogs
       interval: 5m
       rules:
         - alert: TooManyFailedRequest
@@ -152,6 +155,7 @@ but will calculate result over the logs from the last 10 minutes.
 ```yaml
 groups:
     - name: Requests
+      type: vlogs
       interval: 5m
       rules:
         - alert: TooManyFailedRequest
@@ -192,6 +196,7 @@ This expression can also be used in recording rules as follows:
 ```yaml
 groups:
   - name: requestDuration
+    type: vlogs
     interval: 5m
     rules:
       - record: requestDurationQuantile
