@@ -51,6 +51,10 @@ func TestParseJSONRequest_Failure(t *testing.T) {
 
 	// Invalid type for log message
 	f(`{"streams":[{"values":[["123",1234]]}]}`)
+	// invalid structured metadata type
+	f(`{"streams":[{"values":[["1577836800000000001", "foo bar", ["metadata_1", "md_value"]]]}]}`)
+	// structured metadata with unexpected value type
+	f(`{"streams":[{"values":[["1577836800000000001", "foo bar", {"metadata_1": 1}]] }]}`)
 }
 
 func TestParseJSONRequest_Success(t *testing.T) {

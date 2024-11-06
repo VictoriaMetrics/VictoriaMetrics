@@ -173,14 +173,27 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 			if len(lineA) > 2 {
 				structuredMetadata, err := lineA[2].Object()
 				if err != nil {
-					return rowsIngested, fmt.Errorf("unexpected structured metadata: %q, err: %v", lineA[2], err)
+					return rowsIngested, fmt.Errorf("unexpected structured metadata type for %q; want JSON object", lineA[2])
 				}
-				structuredMetadata.Visit(func(key []byte, v *fastjson.Value) {
+
+				structuredMetadata.Visit(func(k []byte, v *fastjson.Value) {
+					if err != nil {
+						return
+					}
+					vStr, errLocal := v.StringBytes()
+					if errLocal != nil {
+						err = fmt.Errorf("unexpected structuredMetadata label value type for %q:%q; want string", k, v)
+						return
+					}
+
 					fields = append(fields, logstorage.Field{
-						Name:  bytesutil.ToUnsafeString(key),
-						Value: bytesutil.ToUnsafeString(v.GetStringBytes()),
+						Name:  bytesutil.ToUnsafeString(k),
+						Value: bytesutil.ToUnsafeString(vStr),
 					})
 				})
+				if err != nil {
+					return rowsIngested, fmt.Errorf("error when parsing line `structuredMetadata` object: %w", err)
+				}
 			}
 			lmp.AddRow(ts, fields)
 		}
