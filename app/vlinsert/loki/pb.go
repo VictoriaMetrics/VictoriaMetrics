@@ -17,7 +17,7 @@ var mp easyproto.MarshalerPool
 
 // PushRequest represents Loki PushRequest
 //
-// See https://github.com/grafana/loki/blob/4220737a52da7ab6c9346b12d5a5d7bedbcd641d/pkg/push/push.proto#L14C1-L14C20
+// See https://github.com/grafana/loki/blob/ada4b7b8713385fbe9f5984a5a0aaaddf1a7b851/pkg/push/push.proto#L14
 type PushRequest struct {
 	Streams []Stream
 
@@ -87,7 +87,7 @@ func (pr *PushRequest) unmarshalProtobuf(entriesBuf []Entry, labelPairBuf []Labe
 
 // Stream represents Loki stream.
 //
-// See https://github.com/grafana/loki/blob/4220737a52da7ab6c9346b12d5a5d7bedbcd641d/pkg/push/push.proto#L23
+// See https://github.com/grafana/loki/blob/ada4b7b8713385fbe9f5984a5a0aaaddf1a7b851/pkg/push/push.proto#L23
 type Stream struct {
 	Labels  string
 	Entries []Entry
@@ -139,7 +139,7 @@ func (s *Stream) unmarshalProtobuf(entriesBuf []Entry, labelPairBuf []LabelPair,
 
 // Entry represents Loki entry.
 //
-// See https://github.com/grafana/loki/blob/4220737a52da7ab6c9346b12d5a5d7bedbcd641d/pkg/push/push.proto#L38
+// See https://github.com/grafana/loki/blob/ada4b7b8713385fbe9f5984a5a0aaaddf1a7b851/pkg/push/push.proto#L38
 type Entry struct {
 	Timestamp          time.Time
 	Line               string
@@ -203,7 +203,7 @@ func (e *Entry) unmarshalProtobuf(labelPairBuf []LabelPair, src []byte) ([]Label
 
 // LabelPair represents Loki label pair.
 //
-// See https://github.com/grafana/loki/blob/4220737a52da7ab6c9346b12d5a5d7bedbcd641d/pkg/push/push.proto#L33
+// See https://github.com/grafana/loki/blob/ada4b7b8713385fbe9f5984a5a0aaaddf1a7b851/pkg/push/push.proto#L33
 type LabelPair struct {
 	Name  string
 	Value string

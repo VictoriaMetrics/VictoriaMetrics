@@ -407,6 +407,13 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 	refreshInterval := time.Millisecond * time.Duration(refreshIntervalMsecs)
 
+	startOffsetMsecs, err := httputils.GetDuration(r, "start_offset", 5*1000)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	startOffset := startOffsetMsecs * 1e6
+
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	tp := newTailProcessor(cancel)
 
@@ -414,6 +421,7 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 	defer ticker.Stop()
 
 	end := time.Now().UnixNano()
+	start := end - startOffset
 	doneCh := ctxWithCancel.Done()
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -421,14 +429,12 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 	qOrig := q
 	for {
-		start := end - tailOffsetNsecs
-		end = time.Now().UnixNano()
-
 		q = qOrig.Clone(end)
 		q.AddTimeFilter(start, end)
 		// q.Optimize() call is needed for converting '*' into filterNoop.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6785#issuecomment-2358547733
 		q.Optimize()
+
 		if err := vlstorage.RunQuery(ctxWithCancel, tenantIDs, q, tp.writeBlock); err != nil {
 			httpserver.Errorf(w, r, "cannot execute tail query [%s]: %s", q, err)
 			return
@@ -447,6 +453,8 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 		case <-doneCh:
 			return
 		case <-ticker.C:
+			start = end - tailOffsetNsecs
+			end = time.Now().UnixNano()
 		}
 	}
 }
