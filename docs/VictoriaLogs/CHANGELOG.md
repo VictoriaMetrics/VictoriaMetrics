@@ -15,12 +15,12 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: support [structured metadata](https://grafana.com/docs/loki/latest/get-started/labels/structured-metadata/) when ingesting logs with [Grafana Loki ingestion protocol](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7431).
 * FEATURE: add [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe), which can be used for performing SQL-like joins.
 * FEATURE: support returning historical logs from [live tailing API](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing) via `start_offset` query arg. For example, request to `/select/logsql/tail?query=*&start_offset=5m` returns logs for the last 5 minutes before starting returning live tailing logs for the given `query`.
 * FEATURE: add an ability to specify extra fields for logs ingested via [HTTP-based data ingestion protocols](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-apis). See `extra_fields` query arg and `VL-Extra-Fields` HTTP header in [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
 * FEATURE: add [`block_stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#block_stats-pipe) for returning various per-block stats. This pipe is useful for debugging.
 
-* BUGFIX: properly parse structured metadata when ingesting logs with [Loki ingestion protocol](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/). The issue has been introduced in [v0.3.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.3.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7431) for the details.
 * BUGFIX: properly sort fields with floating-point numbers by [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe). Previously floating-point numbers could be improperly sorted because they were treated as strings, and [natural sorting](https://en.wikipedia.org/wiki/Natural_sort_order) was incorrectly applied to them. For example, `0.123` was treated as bigger than `0.9`.
 
 ## [v0.40.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.40.0-victorialogs)

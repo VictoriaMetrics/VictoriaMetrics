@@ -108,9 +108,6 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 			labels = o
 		}
 		labels.Visit(func(k []byte, v *fastjson.Value) {
-			if err != nil {
-				return
-			}
 			vStr, errLocal := v.StringBytes()
 			if errLocal != nil {
 				err = fmt.Errorf("unexpected label value type for %q:%q; want string", k, v)
@@ -141,8 +138,8 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 			if err != nil {
 				return rowsIngested, fmt.Errorf("unexpected contents of `values` item; want array; got %q", line)
 			}
-			if len(lineA) < 2 {
-				return rowsIngested, fmt.Errorf("unexpected number of values in `values` item array %q; got %d want 2", line, len(lineA))
+			if len(lineA) < 2 || len(lineA) > 3 {
+				return rowsIngested, fmt.Errorf("unexpected number of values in `values` item array %q; got %d want 2 or 3", line, len(lineA))
 			}
 
 			// parse timestamp
@@ -169,7 +166,7 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 				Value: bytesutil.ToUnsafeString(msg),
 			})
 
-			// parse structured metadata
+			// parse structured metadata - see https://grafana.com/docs/loki/latest/reference/loki-http-api/#ingest-logs
 			if len(lineA) > 2 {
 				structuredMetadata, err := lineA[2].Object()
 				if err != nil {
@@ -177,12 +174,9 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 				}
 
 				structuredMetadata.Visit(func(k []byte, v *fastjson.Value) {
-					if err != nil {
-						return
-					}
 					vStr, errLocal := v.StringBytes()
 					if errLocal != nil {
-						err = fmt.Errorf("unexpected structuredMetadata label value type for %q:%q; want string", k, v)
+						err = fmt.Errorf("unexpected label value type for %q:%q; want string", k, v)
 						return
 					}
 
@@ -192,7 +186,7 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 					})
 				})
 				if err != nil {
-					return rowsIngested, fmt.Errorf("error when parsing line `structuredMetadata` object: %w", err)
+					return rowsIngested, fmt.Errorf("error when parsing `structuredMetadata` object: %w", err)
 				}
 			}
 			lmp.AddRow(ts, fields)
