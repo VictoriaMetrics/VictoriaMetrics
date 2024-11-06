@@ -1787,7 +1787,7 @@ _time:5m | format if (ip:* and host:*) "request from <ip>:<host>" as message
 
 ### join pipe
 
-The `| join by (<fields>) (<query>)` pipe joins the current results with the `<query>` results by the given set of comma-separated `<fields>`.
+The `| join by (<fields>) (<query>)` [pipe](#pipes) joins the current results with the `<query>` results by the given set of comma-separated `<fields>`.
 This pipe works in the following way:
 
 1. It executes the `<query>` and remembers its' results. It may contain arbitrary [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/).
