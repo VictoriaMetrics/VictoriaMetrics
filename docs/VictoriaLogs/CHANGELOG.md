@@ -21,6 +21,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: add [`block_stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#block_stats-pipe) for returning various per-block stats. This pipe is useful for debugging.
 
 * BUGFIX: properly parse structured metadata when ingesting logs with [Loki ingestion protocol](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/). The issue has been introduced in [v0.3.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.3.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7431) for the details.
+* BUGFIX: properly sort fields with floating-point numbers by [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe). Previously floating-point numbers could be improperly sorted because they were treated as strings, and [natural sorting](https://en.wikipedia.org/wiki/Natural_sort_order) was incorrectly applied to them. For example, `0.123` was treated as bigger than `0.9`.
 
 ## [v0.40.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.40.0-victorialogs)
 
