@@ -1,6 +1,7 @@
 ## Next release
 
 - Added ability to override PVC name for Deployment
+- Updated dashboards
 
 ## 0.7.1
 
