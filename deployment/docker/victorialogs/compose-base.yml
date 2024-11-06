@@ -17,6 +17,13 @@ services:
       timeout: 1s
       retries: 10
 
+  dd-logs:
+    image: docker.io/victoriametrics/vmauth:v1.106.0
+    restart: on-failure
+    volumes:
+      - ./:/etc/vmauth
+    command: -auth.config=/etc/vmauth/vmauth.yaml
+
   victorialogs:
     extends: .victorialogs
     ports:

@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- use common templates
 
 ## 1.6.3
 
