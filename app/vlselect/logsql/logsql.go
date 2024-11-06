@@ -414,13 +414,20 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 	startOffset := startOffsetMsecs * 1e6
 
+	endOffsetMsecs, err := httputils.GetDuration(r, "offset", 1000)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	endOffset := endOffsetMsecs * 1e6
+
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	tp := newTailProcessor(cancel)
 
 	ticker := time.NewTicker(refreshInterval)
 	defer ticker.Stop()
 
-	end := time.Now().UnixNano()
+	end := time.Now().UnixNano() - endOffset
 	start := end - startOffset
 	doneCh := ctxWithCancel.Done()
 	flusher, ok := w.(http.Flusher)
@@ -454,7 +461,7 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 			return
 		case <-ticker.C:
 			start = end - tailOffsetNsecs
-			end = time.Now().UnixNano()
+			end = time.Now().UnixNano() - endOffset
 		}
 	}
 }

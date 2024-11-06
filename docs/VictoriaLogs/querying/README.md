@@ -155,6 +155,13 @@ which were ingested into VictoriaLogs during the last hour, before starting live
 curl -N http://localhost:9428/select/logsql/tail -d 'query=*' -d 'start_offset=1h'
 ```
 
+Live tailing performs a continuous best-effort search for matching logs in real time. Out of order or late logs may not appear in the live tailing results.
+As a workaround, VictoriaLogs applies a small query delay of 1 second by default. This delay can be changed by passing an `offset` argument in seconds:
+
+```sh
+curl -N http://localhost:9428/select/logsql/tail -d 'query=*' -d 'offset=30s'
+```
+
 **Performance tip**: live tailing works the best if it matches newly ingested logs at relatively slow rate (e.g. up to 1K matching logs per second),
 e.g. it is optimized for the case when real humans inspect the output of live tailing in the real time. If live tailing returns logs at too high rate,
 then it is recommended adding more specific [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters) to the `<query>`, so it matches less logs.

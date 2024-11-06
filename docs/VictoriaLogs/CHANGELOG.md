@@ -15,6 +15,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: allow specifying a custom `offset` in milliseconds for the [`/select/logsql/tail` HTTP endpoint](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing). See `offset` argument in [these docs](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing).
+
 ## [v0.41.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.41.0-victorialogs)
 
 Released at 2024-11-06
