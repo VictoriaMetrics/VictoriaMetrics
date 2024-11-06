@@ -29,7 +29,7 @@ queries to them:
 The integration tests themselves reside in `tests/*_test.go` files. Apart from having
 the `_test` suffix, there are no strict rules of how to name a file, but the
 name should reflect the prevailing purpose of the tests located in that file.
-For example, `sharding_test.go` aims at testing data sharding. 
+For example, `sharding_test.go` aims at testing data sharding.
 
 Since integration tests start applications in a separate process, they require
 the application binary files to be built and put into the `bin` directory. The
