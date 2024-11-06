@@ -10,6 +10,8 @@
 - `availabilityZones[*].vmauthIngest` was moved to `availabilityZones[*].write.vmauth`
 - `availabilityZones[*].vmauthQueryPerZone` was moved to `availabilityZones[*].read.perZone.vmauth`
 - `availabilityZones[*].vmauthCrossAZQuery` was moved to `availabilityZones[*].read.crossZone.vmauth`
+- set default DNS domain to `cluster.local.`
+- updated common dependency 0.0.19 -> 0.0.20
 
 ## 0.4.2
 
