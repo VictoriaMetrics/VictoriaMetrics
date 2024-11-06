@@ -22,7 +22,7 @@ _Note: This page provides only integration instructions for vmalert and Victoria
 ## Quick Start
 
 Run vmalert with `-rule.defaultRuleType=vlogs` cmd-line flag.
-```
+```sh
 ./bin/vmalert -rule=alert.rules \            # Path to the files or http url with alerting and/or recording rules in YAML format.
     -datasource.url=http://localhost:9428 \  # VictoriaLogs address.
     -rule.defaultRuleType=vlogs \            # Set default rules type to VictoriaLogs.
@@ -51,7 +51,7 @@ With configuration example above, vmalert will perform the following interaction
 For a complete list of command-line flags, visit https://docs.victoriametrics.com/vmalert/#flags or execute `./vmalert --help` command.
 The following are key flags related to integration with VictoriaLogs:
 
-```
+```shellhelp
 -datasource.url string
    Datasource address supporting log stats APIs, which can be a single VictoriaLogs node or a proxy in front of VictoriaLogs. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record.
 -notifier.url array
@@ -94,7 +94,7 @@ Check the complete group attributes [here](https://docs.victoriametrics.com/vmal
 #### Alerting rules
 
 Examples:
-```
+```yaml
 groups:
   - name: ServiceLog
     interval: 5m
@@ -108,7 +108,7 @@ groups:
     interval: 5m
     rules:
       - alert: TooManyFailedRequest
-        expr: '* | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip, code) count() if (code:~4.*) as failed, count() as total| math failed / total as failed_percentage| filter failed_percentage :> 0.01 | fields ip,failed_percentage'
+        expr: '* | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip) count() if (code:~4.*) as failed, count() as total| math failed / total as failed_percentage| filter failed_percentage :> 0.01 | fields ip,failed_percentage'
         annotations:
           description: "Connection from address {{$labels.ip}} has {{$value}}% failed requests in last 5 minutes"
 ```
@@ -116,7 +116,7 @@ groups:
 #### Recording rules
 
 Examples:
-```
+```yaml
 groups:
   - name: RequestCount
     interval: 5m
@@ -136,24 +136,28 @@ groups:
 It's recommended to omit the [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) in rule expression.
 By default, vmalert automatically appends the time filter `_time: <group_interval>` to the expression.
 For instance, the rule below will be evaluated every 5 minutes, and will return the result with logs from the last 5 minutes:
-```
+```yaml
 groups:
-    interval: 5m
-    rules:
-      - alert: TooManyFailedRequest
-        expr: '* | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip, code) count() if (code:~4.*) as failed, count() as total| math failed / total as failed_percentage| filter failed_percentage :> 0.01 | fields ip,failed_percentage'
-        annotations: "Connection from address {{$labels.ip}} has {{$$value}}% failed requests in last 5 minutes"
+    - name: Requests
+      interval: 5m
+      rules:
+        - alert: TooManyFailedRequest
+          expr: '* | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip) count() if (code:~4.*) as failed, count() as total| math failed / total as failed_percentage| filter failed_percentage :> 0.01 | fields ip,failed_percentage'
+          annotations: 
+            description: "Connection from address {{$labels.ip}} has {{$value}}% failed requests in last 5 minutes"
 ```
 
 User can also specify a customized time filter if needed. For example, rule below will be evaluated every 5 minutes,
 but will calculate result over the logs from the last 10 minutes.
-```
+```yaml
 groups:
-    interval: 5m
-    rules:
-      - alert: TooManyFailedRequest
-        expr: '_time: 10m | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip, code) count() if (code:~4.*) as failed, count() as total| math failed / total as failed_percentage| filter failed_percentage :> 0.01 | fields ip,failed_percentage'
-        annotations: "Connection from address {{$labels.ip}} has {{$$value}}% failed requests in last 10 minutes"
+    - name: Requests
+      interval: 5m
+      rules:
+        - alert: TooManyFailedRequest
+          expr: '_time: 10m | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip) count() if (code:~4.*) as failed, count() as total| math failed / total as failed_percentage| filter failed_percentage :> 0.01 | fields ip,failed_percentage'
+          annotations:
+           description: "Connection from address {{$labels.ip}} has {{$value}}% failed requests in last 10 minutes"
 ```
 
 Please note, vmalert doesn't support [backfilling](#rules-backfilling) for rules with a customized time filter now. (Might be added in future)
@@ -161,7 +165,7 @@ Please note, vmalert doesn't support [backfilling](#rules-backfilling) for rules
 ## Rules backfilling
 
 vmalert supports alerting and recording rules backfilling (aka replay) against VictoriaLogs as the datasource. 
-```
+```sh
 ./bin/vmalert -rule=path/to/your.rules \        # path to files with rules you usually use with vmalert
     -datasource.url=http://localhost:9428 \     # VictoriaLogs address.
     -rule.defaultRuleType=vlogs \               # Set default rule type to VictoriaLogs.
@@ -177,7 +181,7 @@ See more details about backfilling [here](https://docs.victoriametrics.com/vmale
 LogsQL allows users to obtain multiple stats from a single expression.
 For instance, the following query calculates 50th, 90th and 99th percentiles for the `request_duration_seconds` field over logs for the last 5 minutes:
 
-```
+```logsql
 _time:5m | stats
   quantile(0.5, request_duration_seconds) p50,
   quantile(0.9, request_duration_seconds) p90,
@@ -185,7 +189,7 @@ _time:5m | stats
 ```
 
 This expression can also be used in recording rules as follows:
-```
+```yaml
 groups:
   - name: requestDuration
     interval: 5m
