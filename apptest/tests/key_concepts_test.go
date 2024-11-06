@@ -27,10 +27,8 @@ var docData = []string{
 	"foo_bar 4.00 1652170560000", // 2022-05-10T08:16:00Z
 }
 
-// TestVmsingleInstantQueryDocs verifies the statements made in the
-// `Instant query` section of the VictoriaMetrics documentation. See:
-// https://docs.victoriametrics.com/keyconcepts/#instant-query
-func TestVmsingleInstantQueryDocs(t *testing.T) {
+// TestVmsingleKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
+func TestVmsingleKeyConceptsQuery(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Close()
 
@@ -42,15 +40,69 @@ func TestVmsingleInstantQueryDocs(t *testing.T) {
 	}, cli)
 	defer vmsingle.Stop()
 
+	opts := apptest.QueryOpts{Timeout: "5s"}
+
 	// Insert example data from documentation.
-	vmsingle.PrometheusAPIV1ImportPrometheus(t, docData)
+	vmsingle.PrometheusAPIV1ImportPrometheus(t, docData, opts)
 	vmsingle.ForceFlush(t)
 
+	testInstantQuery(t, vmsingle, opts)
+	testRangeQuery(t, vmsingle, opts)
+}
+
+// TestVmsingleKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
+func TestClusterKeyConceptsQuery(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Close()
+
+	// Set up the following cluster configuration:
+	//
+	// - two vmstorage instances
+	// - vminsert points to the two vmstorages, its replication setting
+	//   is off which means it will only shard the incoming data across the two
+	//   vmstorages.
+	// - vmselect points to the two vmstorages and is expected to query both
+	//   vmstorages and build the full result out of the two partial results.
+
+	cli := tc.Client()
+
+	vmstorage1 := apptest.MustStartVmstorage(t, "vmstorage-1", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-1",
+	}, cli)
+	defer vmstorage1.Stop()
+	vmstorage2 := apptest.MustStartVmstorage(t, "vmstorage-2", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage-2",
+	}, cli)
+	defer vmstorage2.Stop()
+	vminsert := apptest.MustStartVminsert(t, "vminsert", []string{
+		"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
+	}, cli)
+	defer vminsert.Stop()
+	vmselect := apptest.MustStartVmselect(t, "vmselect", []string{
+		"-storageNode=" + vmstorage1.VmselectAddr() + "," + vmstorage2.VmselectAddr(),
+	}, cli)
+	defer vmselect.Stop()
+
+	opts := apptest.QueryOpts{Timeout: "5s", Tenant: "0"}
+
+	// Insert example data from documentation.
+	vminsert.PrometheusAPIV1ImportPrometheus(t, docData, opts)
+	vmstorage1.ForceFlush(t)
+	vmstorage2.ForceFlush(t)
+
+	testInstantQuery(t, vmselect, opts)
+	testRangeQuery(t, vmselect, opts)
+}
+
+// vmsingleInstantQuery verifies the statements made in the
+// `Instant query` section of the VictoriaMetrics documentation. See:
+// https://docs.victoriametrics.com/keyconcepts/#instant-query
+func testInstantQuery(t *testing.T, q apptest.PrometheusQuerier, opts apptest.QueryOpts) {
 	// Get the value of the foo_bar time series at 2022-05-10Z08:03:00Z with the
 	// step of 5m and timeout 5s. There is no sample at exactly this timestamp.
 	// Therefore, VictoriaMetrics will search for the nearest sample within the
 	// [time-5m..time] interval.
-	got := vmsingle.PrometheusAPIV1Query(t, "foo_bar", "2022-05-10T08:03:00.000Z", "5m", "5s")
+	got := q.PrometheusAPIV1Query(t, "foo_bar", "2022-05-10T08:03:00.000Z", "5m", opts)
 	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[{"metric":{"__name__":"foo_bar"},"value":[1652169780,"3"]}]}}`)
 	opt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
 	if diff := cmp.Diff(got, want, opt); diff != "" {
@@ -62,35 +114,20 @@ func TestVmsingleInstantQueryDocs(t *testing.T) {
 	// Therefore, VictoriaMetrics will search for the nearest sample within the
 	// [time-1m..time] interval. Since the nearest sample is 2m away and the
 	// step is 1m, then the VictoriaMetrics must return empty response.
-	got = vmsingle.PrometheusAPIV1Query(t, "foo_bar", "2022-05-10T08:18:00.000Z", "1m", "5s")
+	got = q.PrometheusAPIV1Query(t, "foo_bar", "2022-05-10T08:18:00.000Z", "1m", opts)
 	if len(got.Data.Result) > 0 {
 		t.Errorf("unexpected response: got non-empty result, want empty result:\n%v", got)
 	}
 }
 
-// TestVmsingleRangeQueryDocs verifies the statements made in the
+// vmsingleRangeQuery verifies the statements made in the
 // `Range query` section of the VictoriaMetrics documentation. See:
 // https://docs.victoriametrics.com/keyconcepts/#range-query
-func TestVmsingleRangeQueryDocs(t *testing.T) {
-	tc := apptest.NewTestCase(t)
-	defer tc.Close()
-
-	cli := tc.Client()
-
-	vmsingle := apptest.MustStartVmsingle(t, "vmsingle", []string{
-		"-storageDataPath=" + tc.Dir() + "/vmstorage",
-		"-retentionPeriod=100y",
-	}, cli)
-	defer vmsingle.Stop()
-
-	// Insert example data from documentation.
-	vmsingle.PrometheusAPIV1ImportPrometheus(t, docData)
-	vmsingle.ForceFlush(t)
-
+func testRangeQuery(t *testing.T, q apptest.PrometheusQuerier, opts apptest.QueryOpts) {
 	// Get the values of the foo_bar time series for
 	// [2022-05-10Z07:59:00Z..2022-05-10Z08:17:00Z] time interval with the step
 	// of 1m and timeout 5s.
-	got := vmsingle.PrometheusAPIV1QueryRange(t, "foo_bar", "2022-05-10T07:59:00.000Z", "2022-05-10T08:17:00.000Z", "1m", "5s")
+	got := q.PrometheusAPIV1QueryRange(t, "foo_bar", "2022-05-10T07:59:00.000Z", "2022-05-10T08:17:00.000Z", "1m", opts)
 	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "foo_bar"}, "values": []}]}}`)
 	s := make([]*apptest.Sample, 17)
 	// Sample for 2022-05-10T07:59:00Z is missing because the time series has

@@ -8,6 +8,24 @@ import (
 	"time"
 )
 
+// PrometheusQuerier contains methods available to Prometheus-like HTTP API for Querying
+type PrometheusQuerier interface {
+	PrometheusAPIV1Query(t *testing.T, query, time, step string, opts QueryOpts) *PrometheusAPIV1QueryResponse
+	PrometheusAPIV1QueryRange(t *testing.T, query, start, end, step string, opts QueryOpts) *PrometheusAPIV1QueryResponse
+	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
+}
+
+// PrometheusWriter contains methods available to Prometheus-like HTTP API for Writing new data
+type PrometheusWriter interface {
+	PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
+}
+
+// QueryOpts contains various params used for querying or ingesting data
+type QueryOpts struct {
+	Tenant  string
+	Timeout string
+}
+
 // PrometheusAPIV1QueryResponse is an inmemory representation of the
 // /prometheus/api/v1/query or /prometheus/api/v1/query_range response.
 type PrometheusAPIV1QueryResponse struct {

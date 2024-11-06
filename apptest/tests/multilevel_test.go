@@ -47,13 +47,13 @@ func TestClusterMultilevelSelect(t *testing.T) {
 	for i := range numMetrics {
 		records[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
 	}
-	vminsert.PrometheusAPIV1ImportPrometheus(t, "0", records)
+	vminsert.PrometheusAPIV1ImportPrometheus(t, records, apptest.QueryOpts{Tenant: "0"})
 	time.Sleep(2 * time.Second)
 
 	// Retrieve all time series and verify that vmselect (L1) serves the complete
 	// set of time series.
 
-	seriesL1 := vmselectL1.PrometheusAPIV1Series(t, "0", `{__name__=~".*"}`)
+	seriesL1 := vmselectL1.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{Tenant: "0"})
 	if got, want := len(seriesL1.Data), numMetrics; got != want {
 		t.Fatalf("unexpected level-1 series count: got %d, want %d", got, want)
 	}
@@ -61,7 +61,7 @@ func TestClusterMultilevelSelect(t *testing.T) {
 	// Retrieve all time series and verify that vmselect (L2) serves the complete
 	// set of time series.
 
-	seriesL2 := vmselectL2.PrometheusAPIV1Series(t, "0", `{__name__=~".*"}`)
+	seriesL2 := vmselectL2.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{Tenant: "0"})
 	if got, want := len(seriesL2.Data), numMetrics; got != want {
 		t.Fatalf("unexpected level-2 series count: got %d, want %d", got, want)
 	}

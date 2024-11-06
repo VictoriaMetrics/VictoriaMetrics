@@ -53,7 +53,7 @@ func TestClusterVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.
 	for i := range numMetrics {
 		records[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
 	}
-	vminsert.PrometheusAPIV1ImportPrometheus(t, "0", records)
+	vminsert.PrometheusAPIV1ImportPrometheus(t, records, apptest.QueryOpts{Tenant: "0"})
 	time.Sleep(2 * time.Second)
 
 	numMetrics1 := vmstorage1.GetIntMetric(t, "vm_vminsert_metrics_read_total")
@@ -71,7 +71,7 @@ func TestClusterVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.
 	// Retrieve all time series and verify that vmselect serves the complete set
 	//of time series.
 
-	series := vmselect.PrometheusAPIV1Series(t, "0", `{__name__=~".*"}`)
+	series := vmselect.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{Tenant: "0"})
 	if got, want := series.Status, "success"; got != want {
 		t.Fatalf("unexpected /ap1/v1/series response status: got %s, want %s", got, want)
 	}
