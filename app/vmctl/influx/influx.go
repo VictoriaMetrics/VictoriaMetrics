@@ -59,10 +59,7 @@ type Series struct {
 var valueEscaper = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
 
 func (s Series) fetchQuery(timeFilter string) string {
-	f := &strings.Builder{}
-	fmt.Fprintf(f, "select %q from %q", s.Field, s.Measurement)
-
-	conditions := make([]string, 0, len(s.LabelPairs)+len(s.EmptyTags)+1)
+	conditions := make([]string, 0, len(s.LabelPairs)+len(s.EmptyTags))
 	for _, pair := range s.LabelPairs {
 		conditions = append(conditions, fmt.Sprintf("%q::tag='%s'", pair.Name, valueEscaper.Replace(pair.Value)))
 	}
@@ -73,12 +70,11 @@ func (s Series) fetchQuery(timeFilter string) string {
 		conditions = append(conditions, timeFilter)
 	}
 
-	if len(s.LabelPairs) > 0 || len(timeFilter) > 0 || len(s.EmptyTags) > 0 {
-		f.WriteString(fmt.Sprintf(" where %s", strings.Join(conditions, " and ")))
+	q := fmt.Sprintf("select %q from %q", s.Field, s.Measurement)
+	if len(conditions) > 0 {
+		q += fmt.Sprintf(" where %s", strings.Join(conditions, " and "))
 	}
 
-	q := f.String()
-	log.Printf("fetching series with query: %s", q)
 	return q
 }
 
@@ -188,12 +184,13 @@ func (c *Client) Explore() ([]*Series, error) {
 		if !ok {
 			return nil, fmt.Errorf("failed to find tags of measurement %s", s.Measurement)
 		}
+		emptyTags := getEmptyTags(tags, s.LabelPairs)
 		for _, field := range fields {
 			is := &Series{
 				Measurement: s.Measurement,
 				Field:       field,
 				LabelPairs:  s.LabelPairs,
-				EmptyTags:   getEmptyTags(tags, s.LabelPairs),
+				EmptyTags:   emptyTags,
 			}
 			iSeries = append(iSeries, is)
 		}
@@ -411,6 +408,7 @@ func (c *Client) getMeasurementTags() (map[string]map[string]struct{}, error) {
 	}
 
 	const tagKey = "tagKey"
+	var tagsCount int
 	result := make(map[string]map[string]struct{})
 	for {
 		resp, err := cr.NextResponse()
@@ -433,12 +431,11 @@ func (c *Client) getMeasurementTags() (map[string]map[string]struct{}, error) {
 			}
 			for _, tk := range qv.values[tagKey] {
 				result[qv.name][tk.(string)] = struct{}{}
+				tagsCount++
 			}
 		}
 	}
-	for measurement, tags := range result {
-		log.Printf("found %d tag(s) for measurement %s", len(tags), measurement)
-	}
+	log.Printf("found %d tag(s) for %d measurements", tagsCount, len(result))
 	return result, nil
 }
 
