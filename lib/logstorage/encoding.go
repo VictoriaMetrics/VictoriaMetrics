@@ -243,12 +243,23 @@ func marshalBytesBlock(dst, src []byte) []byte {
 
 	// Compress the block
 	dst = append(dst, marshalBytesTypeZSTD)
+	compressLevel := getCompressLevel(len(src))
 	bb := bbPool.Get()
-	bb.B = encoding.CompressZSTDLevel(bb.B[:0], src, 1)
+	bb.B = encoding.CompressZSTDLevel(bb.B[:0], src, compressLevel)
 	dst = encoding.MarshalVarUint64(dst, uint64(len(bb.B)))
 	dst = append(dst, bb.B...)
 	bbPool.Put(bb)
 	return dst
+}
+
+func getCompressLevel(dataLen int) int {
+	if dataLen <= 512 {
+		return 1
+	}
+	if dataLen <= 4*1024 {
+		return 2
+	}
+	return 3
 }
 
 func unmarshalBytesBlock(dst, src []byte) ([]byte, []byte, error) {

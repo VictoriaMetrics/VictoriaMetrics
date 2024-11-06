@@ -99,6 +99,12 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 
 func parsePipe(lex *lexer) (pipe, error) {
 	switch {
+	case lex.isKeyword("block_stats"):
+		ps, err := parsePipeBlockStats(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'block_stats' pipe: %w", err)
+		}
+		return ps, nil
 	case lex.isKeyword("blocks_count"):
 		pc, err := parsePipeBlocksCount(lex)
 		if err != nil {
@@ -302,6 +308,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 
 var pipeNames = func() map[string]struct{} {
 	a := []string{
+		"block_stats",
 		"blocks_count",
 		"copy", "cp",
 		"delete", "del", "rm", "drop",

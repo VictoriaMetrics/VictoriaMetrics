@@ -349,9 +349,11 @@ func (q *Query) Clone(timestamp int64) *Query {
 func (q *Query) CanReturnLastNResults() bool {
 	for _, p := range q.pipes {
 		switch p.(type) {
-		case *pipeBlocksCount,
+		case *pipeBlockStats,
+			*pipeBlocksCount,
 			*pipeFieldNames,
 			*pipeFieldValues,
+			*pipeJoin,
 			*pipeLimit,
 			*pipeOffset,
 			*pipeTop,

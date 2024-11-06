@@ -134,10 +134,10 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	fields := shard.fields
 	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+		if needStop(pup.stopCh) {
+			return
+		}
 		if bm.isSetBit(rowIdx) {
-			if needStop(pup.stopCh) {
-				return
-			}
 			shard.writeUnrolledFields(pu.fields, columnValues, rowIdx)
 		} else {
 			fields = fields[:0]
