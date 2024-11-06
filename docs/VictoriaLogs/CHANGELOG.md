@@ -15,6 +15,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v0.41.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.41.0-victorialogs)
+
+Released at 2024-11-06
+
 * FEATURE: support [structured metadata](https://grafana.com/docs/loki/latest/get-started/labels/structured-metadata/) when ingesting logs with [Grafana Loki ingestion protocol](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7431).
 * FEATURE: add [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe), which can be used for performing SQL-like joins.
 * FEATURE: support returning historical logs from [live tailing API](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing) via `start_offset` query arg. For example, request to `/select/logsql/tail?query=*&start_offset=5m` returns logs for the last 5 minutes before starting returning live tailing logs for the given `query`.
