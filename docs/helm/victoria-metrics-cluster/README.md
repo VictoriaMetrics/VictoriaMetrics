@@ -167,7 +167,7 @@ Change the values according to the need of the environment in ``victoria-metrics
       <td>global.cluster</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">dnsDomain: cluster.local
+<code class="language-yaml">dnsDomain: cluster.local.
 </code>
 </pre>
 </td>

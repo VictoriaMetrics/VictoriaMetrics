@@ -1,6 +1,7 @@
 ## Next release
 
-- Fix Deployment/StatefulSets when `serviceAccount.name` is empty and `serviceAccount.create: false`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1683).
+- fix Deployment/StatefulSets when `serviceAccount.name` is empty and `serviceAccount.create: false`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1683).
+- set default DNS domain to `cluster.local.`
 
 ## 0.37.0
 

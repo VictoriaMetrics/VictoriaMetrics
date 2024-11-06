@@ -455,6 +455,17 @@ tenant_id: ""
 </td>
     </tr>
     <tr>
+      <td>global.cluster.dnsDomain</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">cluster.local.
+</code>
+</pre>
+</td>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
+</td>
+    </tr>
+    <tr>
       <td>global.compatibility</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -765,6 +776,17 @@ minAvailable: 1
 </pre>
 </td>
       <td><p>See <code>kubectl explain poddisruptionbudget.spec</code> for more. Details are <a href="https://kubernetes.io/docs/tasks/run-application/configure-pdb/" target="_blank">here</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>podLabels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Labels to be added to pod</p>
 </td>
     </tr>
     <tr>
