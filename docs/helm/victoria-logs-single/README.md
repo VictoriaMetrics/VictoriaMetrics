@@ -1,4 +1,4 @@
- ![Version: 0.7.1](https://img.shields.io/badge/Version-0.7.1-informational?style=flat-square)
+ ![Version: 0.7.2](https://img.shields.io/badge/Version-0.7.2-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-logs-single)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -241,6 +241,16 @@ config:
             Operation    lift
             Nested_under kubernetes
             Add_prefix   kubernetes_
+        [FILTER]
+            Name          parser
+            Match         *
+            Parser        json
+            Key_Name      log
+            Reserve_Data  On
+        [FILTER]
+            Name   modify
+            Match  *
+            Rename log msg
     outputs: |
         @INCLUDE /fluent-bit/etc/conf/vl/output_*.conf
 daemonSetVolumeMounts:
@@ -300,6 +310,16 @@ resources: {}
       Operation    lift
       Nested_under kubernetes
       Add_prefix   kubernetes_
+  [FILTER]
+      Name          parser
+      Match         *
+      Parser        json
+      Key_Name      log
+      Reserve_Data  On
+  [FILTER]
+      Name   modify
+      Match  *
+      Rename log msg
  
 </code>
 </pre>

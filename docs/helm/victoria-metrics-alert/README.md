@@ -498,15 +498,25 @@ tag: v0.25.0
 </td>
     </tr>
     <tr>
-      <td>alertmanager.podMetadata</td>
+      <td>alertmanager.podAnnotations</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">annotations: {}
-labels: {}
+<code class="language-yaml">{}
 </code>
 </pre>
 </td>
-      <td><p>Alertmanager Pod metadata</p>
+      <td><p>Alertmanager Pod annotations</p>
+</td>
+    </tr>
+    <tr>
+      <td>alertmanager.podLabels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Alertmanager Pod labels</p>
 </td>
     </tr>
     <tr>

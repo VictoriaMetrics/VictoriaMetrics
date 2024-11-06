@@ -768,6 +768,17 @@ minAvailable: 1
 </td>
     </tr>
     <tr>
+      <td>podLabels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Labels to be added to pod</p>
+</td>
+    </tr>
+    <tr>
       <td>podMonitor.annotations</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">

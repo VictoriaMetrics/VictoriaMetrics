@@ -1,6 +1,8 @@
 ## Next release
 
-- Fix Deployment/StatefulSets when `serviceAccount.name` is empty and `serviceAccount.create: false`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1683).
+- changed `alertmanager.podMetadata.labels` to `alertmanager.podLabels`
+- changed `alertmanager.podMetadata.annotations` to `alertmanager.podAnnotations`
+- fix Deployment/StatefulSets when `serviceAccount.name` is empty and `serviceAccount.create: false`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1683).
 
 ## 0.12.4
 

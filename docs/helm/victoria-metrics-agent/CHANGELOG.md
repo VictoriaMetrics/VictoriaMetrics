@@ -1,5 +1,16 @@
 ## Next release
 
+- TODO
+
+## 0.14.6
+
+**Release date:** 2024-11-06
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Use only podLabels as extra labels for pods
+- Renamed `.Values.statefulset` to `.Values.statefulSet` for consistency
 - Fix Deployment/StatefulSets when `serviceAccount.name` is empty and `serviceAccount.create: false`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1683).
 
 ## 0.14.5

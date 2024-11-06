@@ -1,6 +1,7 @@
 ## Next release
 
 - use common templates
+- added podLabels and podAnnotations to add extra pod labels and annotations
 
 ## 1.6.3
 
