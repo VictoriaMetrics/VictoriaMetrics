@@ -218,7 +218,7 @@ For additional tips on writing LogsQL, refer to this [doc](https://docs.victoria
 
 ## Frequently Asked Questions
 
-* How to use [multitenancy](https://docs.victoriametrics.com/victorialogs/#multitenancy) in vmalert?
+* How to use [multitenancy](https://docs.victoriametrics.com/victorialogs/#multitenancy) in rules?
   * vmalert doesn't support multi-tenancy for VictoriaLogs in the same way as it [supports it for VictoriaMetrics in ENT version](https://docs.victoriametrics.com/vmalert/#multitenancy).
     However, it is possible to specify the queried tenant from VictoriaLogs datasource via `headers` param in [Group config](https://docs.victoriametrics.com/vmalert/#groups).
     For example, the following config will execute all the rules within the group against tenant with `AccountID=1` and `ProjectID=2`:
@@ -231,7 +231,8 @@ For additional tips on writing LogsQL, refer to this [doc](https://docs.victoria
           rules: ...
     ```
 * How to use one vmalert for VictoriaLogs and VictoriaMetrics rules in the same time?
-  * vmalert allows having many groups with different rule types (`vlogs`, `prometheus`, `graphite`).
+  * We recommend running separate instances of vmalert for VictoriaMetrics and VictoriaLogs.
+    However, vmalert allows having many groups with different rule types (`vlogs`, `prometheus`, `graphite`).
     But only one `-datasource.url` cmd-line flag can be specified, so it can't be configured with more than 1 datasource.
     However, VictoriaMetrics and VictoriaLogs datasources have different query path prefixes, and it is possible to use [vmauth](https://docs.victoriametrics.com/vmauth/) to route requests of different types between datasources.
     See example of vmauth config for such routing below:
