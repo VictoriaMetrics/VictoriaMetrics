@@ -475,11 +475,12 @@ requests:
       <td>global.cluster.dnsDomain</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">cluster.local
+<code class="language-yaml">cluster.local.
 </code>
 </pre>
 </td>
-      <td></td>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
+</td>
     </tr>
     <tr>
       <td>global.compatibility</td>

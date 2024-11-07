@@ -2,7 +2,15 @@
 
 ## Next release
 
-- TODO
+- Added ability to disable name truncation
+
+## 0.0.20
+
+**Release date:** 2024-11-06
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Fixed boolean args rendering
 
 ## 0.0.19
 
