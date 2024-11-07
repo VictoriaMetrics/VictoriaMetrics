@@ -27,19 +27,6 @@ type Vmsingle struct {
 	prometheusAPIV1SeriesURL           string
 }
 
-// MustStartVmsingle is a test helper function that starts an instance of
-// vmsingle and fails the test if the app fails to start.
-func MustStartVmsingle(t *testing.T, instance string, flags []string, cli *Client) *Vmsingle {
-	t.Helper()
-
-	app, err := StartVmsingle(instance, flags, cli)
-	if err != nil {
-		t.Fatalf("Could not start %s: %v", instance, err)
-	}
-
-	return app
-}
-
 // StartVmsingle starts an instance of vmsingle with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr).
@@ -75,8 +62,8 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 	}, nil
 }
 
-// ForceFlush is a test helper function that forces the flushing of insterted
-// data so it becomes available for searching immediately.
+// ForceFlush is a test helper function that forces the flushing of inserted
+// data, so it becomes available for searching immediately.
 func (app *Vmsingle) ForceFlush(t *testing.T) {
 	t.Helper()
 

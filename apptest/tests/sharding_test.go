@@ -11,7 +11,7 @@ import (
 
 func TestClusterVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.T) {
 	tc := apptest.NewTestCase(t)
-	defer tc.Close()
+	defer tc.Stop()
 
 	// Set up the following cluster configuration:
 	//
@@ -22,24 +22,18 @@ func TestClusterVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.
 	// - vmselect points to the two vmstorages and is expected to query both
 	//   vmstorages and build the full result out of the two partial results.
 
-	cli := tc.Client()
-
-	vmstorage1 := apptest.MustStartVmstorage(t, "vmstorage-1", []string{
+	vmstorage1 := tc.MustStartVmstorage("vmstorage-1", []string{
 		"-storageDataPath=" + tc.Dir() + "/vmstorage-1",
-	}, cli)
-	defer vmstorage1.Stop()
-	vmstorage2 := apptest.MustStartVmstorage(t, "vmstorage-2", []string{
+	})
+	vmstorage2 := tc.MustStartVmstorage("vmstorage-2", []string{
 		"-storageDataPath=" + tc.Dir() + "/vmstorage-2",
-	}, cli)
-	defer vmstorage2.Stop()
-	vminsert := apptest.MustStartVminsert(t, "vminsert", []string{
+	})
+	vminsert := tc.MustStartVminsert("vminsert", []string{
 		"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
-	}, cli)
-	defer vminsert.Stop()
-	vmselect := apptest.MustStartVmselect(t, "vmselect", []string{
+	})
+	vmselect := tc.MustStartVmselect("vmselect", []string{
 		"-storageNode=" + vmstorage1.VmselectAddr() + "," + vmstorage2.VmselectAddr(),
-	}, cli)
-	defer vmselect.Stop()
+	})
 
 	// Insert 1000 unique time series and verify the that inserted data has been
 	// indeed sharded by checking various metrics exposed by vminsert and

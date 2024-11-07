@@ -23,19 +23,6 @@ type Vmstorage struct {
 	forceFlushURL string
 }
 
-// MustStartVmstorage is a test helper function that starts an instance of
-// vmstorage and fails the test if the app fails to start.
-func MustStartVmstorage(t *testing.T, instance string, flags []string, cli *Client) *Vmstorage {
-	t.Helper()
-
-	app, err := StartVmstorage(instance, flags, cli)
-	if err != nil {
-		t.Fatalf("Could not start %s: %v", instance, err)
-	}
-
-	return app
-}
-
 // StartVmstorage starts an instance of vmstorage with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
@@ -85,8 +72,8 @@ func (app *Vmstorage) VmselectAddr() string {
 	return app.vmselectAddr
 }
 
-// ForceFlush is a test helper function that forces the flushing of insterted
-// data so it becomes available for searching immediately.
+// ForceFlush is a test helper function that forces the flushing of inserted
+// data, so it becomes available for searching immediately.
 func (app *Vmstorage) ForceFlush(t *testing.T) {
 	t.Helper()
 
@@ -97,4 +84,10 @@ func (app *Vmstorage) ForceFlush(t *testing.T) {
 func (app *Vmstorage) String() string {
 	return fmt.Sprintf("{app: %s storageDataPath: %q httpListenAddr: %q vminsertAddr: %q vmselectAddr: %q}", []any{
 		app.app, app.storageDataPath, app.httpListenAddr, app.vminsertAddr, app.vmselectAddr}...)
+}
+
+type Cluster struct {
+	selects  []*Vmselect
+	inserts  []*Vminsert
+	storages []*Vmstorage
 }

@@ -19,19 +19,6 @@ type Vmselect struct {
 	cli                     *Client
 }
 
-// MustStartVmselect is a test helper function that starts an instance of
-// vmselect and fails the test if the app fails to start.
-func MustStartVmselect(t *testing.T, instance string, flags []string, cli *Client) *Vmselect {
-	t.Helper()
-
-	app, err := StartVmselect(instance, flags, cli)
-	if err != nil {
-		t.Fatalf("Could not start %s: %v", instance, err)
-	}
-
-	return app
-}
-
 // StartVmselect starts an instance of vmselect with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
