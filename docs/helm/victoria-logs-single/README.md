@@ -1,4 +1,4 @@
- ![Version: 0.7.1](https://img.shields.io/badge/Version-0.7.1-informational?style=flat-square)
+ ![Version: 0.7.3](https://img.shields.io/badge/Version-0.7.3-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-logs-single)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -144,6 +144,106 @@ Change the values according to the need of the environment in ``victoria-logs-si
   </thead>
   <tbody>
     <tr>
+      <td>config.accountID</td>
+      <td>int</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">0
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>config.msgFields[0]</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">msg
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>config.msgFields[1]</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">_msg
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>config.msgFields[2]</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">message
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>config.projectID</td>
+      <td>int</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">0
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>config.streamFields[0]</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">stream
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>config.streamFields[1]</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">kubernetes_pod_name
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>config.streamFields[2]</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">kubernetes_container_name
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>config.streamFields[3]</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">kubernetes_namespace_name
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>config.timeFields[0]</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">date
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
       <td>dashboards.annotations</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -241,6 +341,16 @@ config:
             Operation    lift
             Nested_under kubernetes
             Add_prefix   kubernetes_
+        [FILTER]
+            Name          parser
+            Match         *
+            Parser        json
+            Key_Name      log
+            Reserve_Data  On
+        [FILTER]
+            Name   modify
+            Match  *
+            Rename log msg
     outputs: |
         @INCLUDE /fluent-bit/etc/conf/vl/output_*.conf
 daemonSetVolumeMounts:
@@ -300,6 +410,16 @@ resources: {}
       Operation    lift
       Nested_under kubernetes
       Add_prefix   kubernetes_
+  [FILTER]
+      Name          parser
+      Match         *
+      Parser        json
+      Key_Name      log
+      Reserve_Data  On
+  [FILTER]
+      Name   modify
+      Match  *
+      Rename log msg
  
 </code>
 </pre>
@@ -329,6 +449,17 @@ resources: {}
 </pre>
 </td>
       <td><p>Enable deployment of fluent-bit</p>
+</td>
+    </tr>
+    <tr>
+      <td>global.cluster.dnsDomain</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">cluster.local.
+</code>
+</pre>
+</td>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
