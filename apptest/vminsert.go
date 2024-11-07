@@ -64,10 +64,10 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 // /prometheus/api/v1/import/prometheus vminsert endpoint.
 //
 // See https://docs.victoriametrics.com/url-examples/#apiv1importprometheus
-func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, tenant string, records []string) {
+func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, tenant)
+	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, opts.Tenant)
 	app.cli.Post(t, url, "text/plain", strings.Join(records, "\n"), http.StatusNoContent)
 }
 
