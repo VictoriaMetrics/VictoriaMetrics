@@ -85,9 +85,3 @@ func (app *Vmstorage) String() string {
 	return fmt.Sprintf("{app: %s storageDataPath: %q httpListenAddr: %q vminsertAddr: %q vmselectAddr: %q}", []any{
 		app.app, app.storageDataPath, app.httpListenAddr, app.vminsertAddr, app.vmselectAddr}...)
 }
-
-type Cluster struct {
-	selects  []*Vmselect
-	inserts  []*Vminsert
-	storages []*Vmstorage
-}
