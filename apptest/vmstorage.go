@@ -2,6 +2,7 @@ package apptest
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"regexp"
 	"testing"
@@ -18,6 +19,8 @@ type Vmstorage struct {
 	httpListenAddr  string
 	vminsertAddr    string
 	vmselectAddr    string
+
+	forceFlushURL string
 }
 
 // MustStartVmstorage is a test helper function that starts an instance of
@@ -65,6 +68,8 @@ func StartVmstorage(instance string, flags []string, cli *Client) (*Vmstorage, e
 		httpListenAddr:  stderrExtracts[1],
 		vminsertAddr:    stderrExtracts[2],
 		vmselectAddr:    stderrExtracts[3],
+
+		forceFlushURL: fmt.Sprintf("http://%s/internal/force_flush", stderrExtracts[1]),
 	}, nil
 }
 
@@ -78,6 +83,14 @@ func (app *Vmstorage) VminsertAddr() string {
 // for vmselect connections.
 func (app *Vmstorage) VmselectAddr() string {
 	return app.vmselectAddr
+}
+
+// ForceFlush is a test helper function that forces the flushing of insterted
+// data so it becomes available for searching immediately.
+func (app *Vmstorage) ForceFlush(t *testing.T) {
+	t.Helper()
+
+	app.cli.Get(t, app.forceFlushURL, http.StatusOK)
 }
 
 // String returns the string representation of the vmstorage app state.
