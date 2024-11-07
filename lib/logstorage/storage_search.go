@@ -217,8 +217,10 @@ func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Qu
 	return s.runValuesWithHitsQuery(ctx, tenantIDs, q)
 }
 
-func (s *Storage) getJoinMap(ctx context.Context, tenantIDs []TenantID, q *Query, byFields []string) (map[string][][]Field, error) {
+func (s *Storage) getJoinMap(ctx context.Context, tenantIDs []TenantID, q *Query, byFields []string, prefix string) (map[string][][]Field, error) {
 	// TODO: track memory usage
+
+	logger.Infof("DEBUG: byFields=%q, prefix=%q", byFields, prefix)
 
 	m := make(map[string][][]Field)
 	var mLock sync.Mutex
@@ -229,8 +231,15 @@ func (s *Storage) getJoinMap(ctx context.Context, tenantIDs []TenantID, q *Query
 
 		cs := br.getColumns()
 		columnNames := make([]string, len(cs))
+		byValuesIdxs := make([]int, len(cs))
 		for i := range cs {
-			columnNames[i] = strings.Clone(cs[i].name)
+			name := strings.Clone(cs[i].name)
+			idx := slices.Index(byFields, name)
+			if prefix != "" && idx < 0 {
+				name = prefix + name
+			}
+			columnNames[i] = name
+			byValuesIdxs[i] = idx
 		}
 
 		byValues := make([]string, len(byFields))
@@ -242,16 +251,17 @@ func (s *Storage) getJoinMap(ctx context.Context, tenantIDs []TenantID, q *Query
 			for j := range cs {
 				name := columnNames[j]
 				v := cs[j].getValueAtRow(br, rowIdx)
-				if cIdx := slices.Index(byFields, name); cIdx >= 0 {
+				if cIdx := byValuesIdxs[j]; cIdx >= 0 {
 					byValues[cIdx] = v
 					continue
 				}
 				if v == "" {
 					continue
 				}
+				value := strings.Clone(v)
 				fields = append(fields, Field{
 					Name:  name,
-					Value: strings.Clone(v),
+					Value: value,
 				})
 			}
 
@@ -526,15 +536,15 @@ func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, 
 	return qNew, nil
 }
 
-type getJoinMapFunc func(q *Query, byFields []string) (map[string][][]Field, error)
+type getJoinMapFunc func(q *Query, byFields []string, prefix string) (map[string][][]Field, error)
 
 func (s *Storage) initJoinMaps(ctx context.Context, tenantIDs []TenantID, q *Query) (*Query, error) {
 	if !hasJoinPipes(q.pipes) {
 		return q, nil
 	}
 
-	getJoinMap := func(q *Query, byFields []string) (map[string][][]Field, error) {
-		return s.getJoinMap(ctx, tenantIDs, q, byFields)
+	getJoinMap := func(q *Query, byFields []string, prefix string) (map[string][][]Field, error) {
+		return s.getJoinMap(ctx, tenantIDs, q, byFields, prefix)
 	}
 
 	pipesNew := make([]pipe, len(q.pipes))

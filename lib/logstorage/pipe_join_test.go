@@ -12,6 +12,7 @@ func TestParsePipeJoinSuccess(t *testing.T) {
 
 	f(`join by (foo) (error)`)
 	f(`join by (foo, bar) (a:b | fields x, y)`)
+	f(`join by (foo) (a:b) prefix c`)
 }
 
 func TestParsePipeJoinFailure(t *testing.T) {
@@ -31,6 +32,8 @@ func TestParsePipeJoinFailure(t *testing.T) {
 	f(`join by (x) ()`)
 	f(`join by (x) (`)
 	f(`join by (x) (abc`)
+	f(`join (x) (y) prefix`)
+	f(`join (x) (y) prefix |`)
 }
 
 func TestPipeJoinUpdateNeededFields(t *testing.T) {

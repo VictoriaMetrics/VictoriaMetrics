@@ -18,12 +18,19 @@ type pipeJoin struct {
 	// q is a query for obtaining results for joining
 	q *Query
 
+	// prefix is the prefix to add to log fields from q query
+	prefix string
+
 	// m contains results for joining. They are automatically initialized during query execution
 	m map[string][][]Field
 }
 
 func (pj *pipeJoin) String() string {
-	return fmt.Sprintf("join by (%s) (%s)", fieldNamesString(pj.byFields), pj.q.String())
+	s := fmt.Sprintf("join by (%s) (%s)", fieldNamesString(pj.byFields), pj.q.String())
+	if pj.prefix != "" {
+		s += " prefix " + quoteTokenIfNeeded(pj.prefix)
+	}
+	return s
 }
 
 func (pj *pipeJoin) canLiveTail() bool {
@@ -43,7 +50,7 @@ func (pj *pipeJoin) initFilterInValues(_ map[string][]string, _ getFieldValuesFu
 }
 
 func (pj *pipeJoin) initJoinMap(getJoinMapFunc getJoinMapFunc) (pipe, error) {
-	m, err := getJoinMapFunc(pj.q, pj.byFields)
+	m, err := getJoinMapFunc(pj.q, pj.byFields, pj.prefix)
 	if err != nil {
 		return nil, fmt.Errorf("cannot execute query at pipe [%s]: %w", pj, err)
 	}
@@ -88,8 +95,9 @@ type pipeJoinProcessorShard struct {
 type pipeJoinProcessorShardNopad struct {
 	wctx pipeUnpackWriteContext
 
-	byValues []string
-	tmpBuf   []byte
+	byValues     []string
+	byValuesIdxs []int
+	tmpBuf       []byte
 }
 
 func (pjp *pipeJoinProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -105,12 +113,19 @@ func (pjp *pipeJoinProcessor) writeBlock(workerID uint, br *blockResult) {
 	byValues := shard.byValues
 
 	cs := br.getColumns()
+	shard.byValuesIdxs = slicesutil.SetLength(shard.byValuesIdxs, len(cs))
+	byValuesIdxs := shard.byValuesIdxs
+	for i := range cs {
+		name := cs[i].name
+		byValuesIdxs[i] = slices.Index(pj.byFields, name)
+
+	}
+
 	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 		clear(byValues)
-		for i := range cs {
-			name := cs[i].name
-			if cIdx := slices.Index(pj.byFields, name); cIdx >= 0 {
-				byValues[cIdx] = cs[i].getValueAtRow(br, rowIdx)
+		for j := range cs {
+			if cIdx := byValuesIdxs[j]; cIdx >= 0 {
+				byValues[cIdx] = cs[j].getValueAtRow(br, rowIdx)
 			}
 		}
 
@@ -178,6 +193,15 @@ func parsePipeJoin(lex *lexer) (*pipeJoin, error) {
 	pj := &pipeJoin{
 		byFields: byFields,
 		q:        q,
+	}
+
+	if lex.isKeyword("prefix") {
+		lex.nextToken()
+		prefix, err := getCompoundToken(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read prefix for [%s]: %w", pj, err)
+		}
+		pj.prefix = prefix
 	}
 
 	return pj, nil

@@ -1817,6 +1817,16 @@ _time:1d {app="app1"} | stats by (user) count() app1_hits
   | filter app2_hits:*
 ```
 
+It is possible adding a prefix to all the field names returned by the `<query>` by specifying the needed prefix after the `<query>`.
+For example, the following query adds `app2.` prefix to all `<query>` log fields:
+
+```logsql
+_time:1d {app="app1"} | stats by (user) count() app1_hits
+  | join by (user) (
+    _time:1d {app="app2"} | stats by (user) count() app2_hits
+  ) prefix "app2."
+```
+
 **Performance tips**:
 
 - Make sure that the `<query>` in the `join` pipe returns relatively small number of results, since they are kept in RAM during execution of `join` pipe.
