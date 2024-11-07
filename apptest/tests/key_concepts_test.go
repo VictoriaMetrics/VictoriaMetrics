@@ -27,8 +27,8 @@ var docData = []string{
 	"foo_bar 4.00 1652170560000", // 2022-05-10T08:16:00Z
 }
 
-// TestVmsingleKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
-func TestVmsingleKeyConceptsQuery(t *testing.T) {
+// TestSingleKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
+func TestSingleKeyConceptsQuery(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Close()
 
@@ -105,7 +105,7 @@ func testInstantQuery(t *testing.T, q apptest.PrometheusQuerier, opts apptest.Qu
 	got := q.PrometheusAPIV1Query(t, "foo_bar", "2022-05-10T08:03:00.000Z", "5m", opts)
 	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[{"metric":{"__name__":"foo_bar"},"value":[1652169780,"3"]}]}}`)
 	opt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
-	if diff := cmp.Diff(got, want, opt); diff != "" {
+	if diff := cmp.Diff(want, got, opt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
@@ -153,7 +153,7 @@ func testRangeQuery(t *testing.T, q apptest.PrometheusQuerier, opts apptest.Quer
 	s[16] = apptest.NewSample(t, "2022-05-10T08:17:00Z", 4)
 	want.Data.Result[0].Samples = s
 	opt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
-	if diff := cmp.Diff(got, want, opt); diff != "" {
+	if diff := cmp.Diff(want, got, opt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 }
