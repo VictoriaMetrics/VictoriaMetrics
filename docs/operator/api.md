@@ -1728,7 +1728,7 @@ _Appears in:_
 | `params` | Params optional HTTP URL parameters added to each rule request | _[Values](#values)_ | false |
 | `rules` | Rules list of alert rules | _[Rule](#rule) array_ | true |
 | `tenant` | Tenant id for group, can be used only with enterprise version of vmalert.<br />See more details [here](https://docs.victoriametrics.com/vmalert#multitenancy). | _string_ | false |
-| `type` | Type defines datasource type for enterprise version of vmalert<br />possible values - prometheus,graphite | _string_ | false |
+| `type` | Type defines datasource type for enterprise version of vmalert<br />possible values - prometheus,graphite,vlogs | _string_ | false |
 
 
 

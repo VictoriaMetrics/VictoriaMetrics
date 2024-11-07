@@ -13,6 +13,10 @@ aliases:
 
 ## tip
 
+- [vmrule](https://docs.victoriametrics.com/operator/resources/vmrule/): properly validate rules for [vlogs](https://docs.victoriametrics.com/victorialogs/vmalert/) group `type`.
+- [operator](https://docs.victoriametrics.com/operator/): properly apply changes to the [converted](https://docs.victoriametrics.com/operator/migration/#objects-conversion) `VMScrapeConfig` during operator start-up.
+
+
 ## [v0.49.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.0) - 15 Oct 2024
 
 - [operator](https://docs.victoriametrics.com/operator/): properly apply `useStrictSecurity: true` to the `initContainers` for `VMAuth`, `VMAgent` and `VMAlertmanager`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1134) for details.
@@ -23,8 +27,6 @@ aliases:
 - [operator](https://docs.victoriametrics.com/operator/): fixed operator reconcile on storage size change
 - [operator](https://docs.victoriametrics.com/operator/): fixed converting AlertmanagerConfig to VMAlertmanagerConfig
 - [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.6).
-
-
 
 ## [v0.48.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.4) - 15 Oct 2024
 
