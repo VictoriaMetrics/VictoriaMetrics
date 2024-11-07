@@ -9,12 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/logsql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -217,6 +218,10 @@ func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		logsqlStreamsRequests.Inc()
 		logsql.ProcessStreamsRequest(ctx, w, r)
 		return true
+	case "/select/admin/tenants":
+		logsqlAdminTenantsRequests.Inc()
+		logsql.ProcessAdminTenantsRequest(ctx, w, r)
+		return true
 	default:
 		return false
 	}
@@ -247,4 +252,5 @@ var (
 	logsqlStreamIDsRequests         = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_ids"}`)
 	logsqlStreamsRequests           = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/streams"}`)
 	logsqlTailRequests              = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/tail"}`)
+	logsqlAdminTenantsRequests      = metrics.NewCounter(`vl_http_requests_total{path="/admin/tenants"}`)
 )

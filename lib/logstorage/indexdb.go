@@ -437,6 +437,53 @@ func (is *indexSearch) getStreamIDsForTagRegexp(tenantID TenantID, tagName strin
 	return ids
 }
 
+func (is *indexSearch) getTenantIDs() []string {
+	tenants := make(map[string]struct{})
+	ts := &is.ts
+	kb := &is.kb
+
+	tID := TenantID{0, 0}
+
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixStreamID, tID)
+	ts.Seek(kb.B)
+
+	for ts.NextItem() {
+		_, prefix, err := unmarshalCommonPrefix(&tID, ts.Item)
+		if err != nil {
+			logger.Panicf("FATAL: cannot unmarshal tenantID: %s", err)
+		}
+		if prefix != nsPrefixStreamID {
+			// Reached the end of enteris with the needed prefix.
+			break
+		}
+		tenant := fmt.Sprintf("%d:%d", tID.AccountID, tID.ProjectID)
+		tenants[tenant] = struct{}{}
+		// Seek for the next (accountID, projectID)
+		tID.ProjectID++
+		if tID.ProjectID == 0 {
+			tID.AccountID++
+			if tID.AccountID == 0 {
+				// Reached the end (accountID, projectID) space
+				break
+			}
+		}
+
+		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixStreamID, tID)
+		ts.Seek(kb.B)
+	}
+
+	if err := ts.Error(); err != nil {
+		logger.Panicf("FATAL: error when performing search: %s", err)
+	}
+
+	tenantIDs := make([]string, 0)
+	for tenantID := range tenants {
+		tenantIDs = append(tenantIDs, tenantID)
+	}
+
+	return tenantIDs
+}
+
 func (idb *indexdb) mustRegisterStream(streamID *streamID, streamTagsCanonical []byte) {
 	st := GetStreamTags()
 	mustUnmarshalStreamTags(st, streamTagsCanonical)
@@ -540,6 +587,13 @@ func (idb *indexdb) storeStreamIDsToCache(tenantIDs []TenantID, sf *StreamFilter
 	bb.B = idb.marshalStreamFilterCacheKey(bb.B[:0], tenantIDs, sf)
 	idb.s.filterStreamCache.Set(bb.B, &b)
 	bbPool.Put(bb)
+}
+
+func (idb *indexdb) searchTenants() []string {
+	is := idb.getIndexSearch()
+	defer idb.putIndexSearch(is)
+
+	return is.getTenantIDs()
 }
 
 type batchItems struct {

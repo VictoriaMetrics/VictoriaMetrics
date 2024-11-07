@@ -839,6 +839,45 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 }
 
+// ProcessAdminTenantsRequest processes /select/logsql/admin_tenants request.
+func ProcessAdminTenantsRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+
+	start, okStart, err := getTimeNsec(r, "start")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	end, okEnd, err := getTimeNsec(r, "end")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	if !okStart {
+		start = math.MinInt64
+	}
+	if !okEnd {
+		end = math.MaxInt64
+	}
+
+	bw := getBufferedWriter(w)
+	defer func() {
+		bw.FlushIgnoreErrors()
+		putBufferedWriter(bw)
+	}()
+	w.Header().Set("Content-Type", "application/json")
+
+	tenants, err := vlstorage.GetTenantIDs(ctx, start, end)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot obtain tenantIDs: %s", err)
+		return
+	}
+
+	bb := blockResultPool.Get()
+	WriteTenantsResponse(bb, tenants)
+	bw.WriteIgnoreErrors(bb.B)
+	blockResultPool.Put(bb)
+}
+
 var blockResultPool bytesutil.ByteBufferPool
 
 type row struct {

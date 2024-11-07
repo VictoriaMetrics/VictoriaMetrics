@@ -176,6 +176,11 @@ func GetStreamIDs(ctx context.Context, tenantIDs []logstorage.TenantID, q *logst
 	return strg.GetStreamIDs(ctx, tenantIDs, q, limit)
 }
 
+// GetTenantIDs returns tenantIDs in the storage.
+func GetTenantIDs(ctx context.Context, start, end int64) ([]string, error) {
+	return strg.GetTenantIDs(ctx, start, end)
+}
+
 func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {
 	var ss logstorage.StorageStats
 	strg.UpdateStats(&ss)
