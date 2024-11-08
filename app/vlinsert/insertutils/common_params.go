@@ -112,7 +112,7 @@ func getExtraFields(r *http.Request) ([]logstorage.Field, error) {
 }
 
 // GetCommonParamsForSyslog returns common params needed for parsing syslog messages and storing them to the given tenantID.
-func GetCommonParamsForSyslog(tenantID logstorage.TenantID) *CommonParams {
+func GetCommonParamsForSyslog(tenantID logstorage.TenantID, ignoreFields []string, extraFields []logstorage.Field) *CommonParams {
 	// See https://docs.victoriametrics.com/victorialogs/logsql/#unpack_syslog-pipe
 	cp := &CommonParams{
 		TenantID:  tenantID,
@@ -125,6 +125,8 @@ func GetCommonParamsForSyslog(tenantID logstorage.TenantID) *CommonParams {
 			"app_name",
 			"proc_id",
 		},
+		IgnoreFields: ignoreFields,
+		ExtraFields:  extraFields,
 	}
 
 	return cp
