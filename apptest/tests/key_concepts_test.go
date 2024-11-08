@@ -30,15 +30,12 @@ var docData = []string{
 // TestSingleKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
 func TestSingleKeyConceptsQuery(t *testing.T) {
 	tc := apptest.NewTestCase(t)
-	defer tc.Close()
+	defer tc.Stop()
 
-	cli := tc.Client()
-
-	vmsingle := apptest.MustStartVmsingle(t, "vmsingle", []string{
+	vmsingle := tc.MustStartVmsingle("vmsingle", []string{
 		"-storageDataPath=" + tc.Dir() + "/vmstorage",
 		"-retentionPeriod=100y",
-	}, cli)
-	defer vmsingle.Stop()
+	})
 
 	opts := apptest.QueryOpts{Timeout: "5s"}
 
@@ -53,7 +50,7 @@ func TestSingleKeyConceptsQuery(t *testing.T) {
 // TestClusterKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
 func TestClusterKeyConceptsQuery(t *testing.T) {
 	tc := apptest.NewTestCase(t)
-	defer tc.Close()
+	defer tc.Stop()
 
 	// Set up the following cluster configuration:
 	//
@@ -64,26 +61,20 @@ func TestClusterKeyConceptsQuery(t *testing.T) {
 	// - vmselect points to the two vmstorages and is expected to query both
 	//   vmstorages and build the full result out of the two partial results.
 
-	cli := tc.Client()
-
-	vmstorage1 := apptest.MustStartVmstorage(t, "vmstorage-1", []string{
+	vmstorage1 := tc.MustStartVmstorage("vmstorage-1", []string{
 		"-storageDataPath=" + tc.Dir() + "/vmstorage-1",
 		"-retentionPeriod=100y",
-	}, cli)
-	defer vmstorage1.Stop()
-	vmstorage2 := apptest.MustStartVmstorage(t, "vmstorage-2", []string{
+	})
+	vmstorage2 := tc.MustStartVmstorage("vmstorage-2", []string{
 		"-storageDataPath=" + tc.Dir() + "/vmstorage-2",
 		"-retentionPeriod=100y",
-	}, cli)
-	defer vmstorage2.Stop()
-	vminsert := apptest.MustStartVminsert(t, "vminsert", []string{
+	})
+	vminsert := tc.MustStartVminsert("vminsert", []string{
 		"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
-	}, cli)
-	defer vminsert.Stop()
-	vmselect := apptest.MustStartVmselect(t, "vmselect", []string{
+	})
+	vmselect := tc.MustStartVmselect("vmselect", []string{
 		"-storageNode=" + vmstorage1.VmselectAddr() + "," + vmstorage2.VmselectAddr(),
-	}, cli)
-	defer vmselect.Stop()
+	})
 
 	opts := apptest.QueryOpts{Timeout: "5s", Tenant: "0"}
 
