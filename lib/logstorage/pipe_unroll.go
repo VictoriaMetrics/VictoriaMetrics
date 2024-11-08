@@ -36,10 +36,6 @@ func (pu *pipeUnroll) canLiveTail() bool {
 	return true
 }
 
-func (pu *pipeUnroll) optimize() {
-	pu.iff.optimizeFilterIn()
-}
-
 func (pu *pipeUnroll) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }

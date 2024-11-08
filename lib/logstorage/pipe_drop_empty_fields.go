@@ -21,10 +21,6 @@ func (pd *pipeDropEmptyFields) canLiveTail() bool {
 	return true
 }
 
-func (pd *pipeDropEmptyFields) optimize() {
-	// nothing to do
-}
-
 func (pd *pipeDropEmptyFields) hasFilterInWithQuery() bool {
 	return false
 }

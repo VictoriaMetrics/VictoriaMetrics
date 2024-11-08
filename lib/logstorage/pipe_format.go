@@ -87,10 +87,6 @@ func (pf *pipeFormat) updateNeededFields(neededFields, unneededFields fieldsSet)
 	}
 }
 
-func (pf *pipeFormat) optimize() {
-	pf.iff.optimizeFilterIn()
-}
-
 func (pf *pipeFormat) hasFilterInWithQuery() bool {
 	return pf.iff.hasFilterInWithQuery()
 }

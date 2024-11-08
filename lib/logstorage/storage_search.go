@@ -220,8 +220,6 @@ func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Qu
 func (s *Storage) getJoinMap(ctx context.Context, tenantIDs []TenantID, q *Query, byFields []string, prefix string) (map[string][][]Field, error) {
 	// TODO: track memory usage
 
-	logger.Infof("DEBUG: byFields=%q, prefix=%q", byFields, prefix)
-
 	m := make(map[string][][]Field)
 	var mLock sync.Mutex
 	writeBlockResult := func(_ uint, br *blockResult) {

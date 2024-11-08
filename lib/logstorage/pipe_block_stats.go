@@ -22,10 +22,6 @@ func (ps *pipeBlockStats) canLiveTail() bool {
 	return false
 }
 
-func (ps *pipeBlockStats) optimize() {
-	// nothing to do
-}
-
 func (ps *pipeBlockStats) hasFilterInWithQuery() bool {
 	return false
 }

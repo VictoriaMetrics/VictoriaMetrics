@@ -58,10 +58,6 @@ func (pr *pipeRename) updateNeededFields(neededFields, unneededFields fieldsSet)
 	}
 }
 
-func (pr *pipeRename) optimize() {
-	// nothing to do
-}
-
 func (pr *pipeRename) hasFilterInWithQuery() bool {
 	return false
 }
