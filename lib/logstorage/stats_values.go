@@ -91,12 +91,13 @@ func (svp *statsValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColum
 	}
 
 	values := svp.values
+	vPrev := ""
 	for _, v := range c.getValues(br) {
-		if len(values) == 0 || values[len(values)-1] != v {
-			v = strings.Clone(v)
-			stateSizeIncrease += len(v)
+		if len(values) == 0 || v != vPrev {
+			vPrev = strings.Clone(v)
+			stateSizeIncrease += len(vPrev)
 		}
-		values = append(values, v)
+		values = append(values, vPrev)
 	}
 	svp.values = values
 
