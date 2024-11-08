@@ -661,7 +661,7 @@ curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"m
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://<vminsert>:8480/insert/42/opentsdb/api/put
+curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://<vminsert>:4242/insert/42/opentsdb/api/put
 ```
 
 
