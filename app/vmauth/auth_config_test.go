@@ -777,6 +777,28 @@ func TestGetLeastLoadedBackendURL(t *testing.T) {
 	fn(7, 7, 7)
 }
 
+func TestBrokenBackend(t *testing.T) {
+	up := mustParseURLs([]string{
+		"http://node1:343",
+		"http://node2:343",
+		"http://node3:343",
+	})
+	up.loadBalancingPolicy = "least_loaded"
+	pbus := up.bus.Load()
+	bus := *pbus
+
+	// explicitly mark one of the backends as broken
+	bus[1].setBroken()
+
+	// broken backend should never return while there are healthy backends
+	for i := 0; i < 1e3; i++ {
+		b := up.getBackendURL()
+		if b.isBroken() {
+			t.Fatalf("unexpected broken backend %q", b.url)
+		}
+	}
+}
+
 func getRegexs(paths []string) []*Regex {
 	var sps []*Regex
 	for _, path := range paths {
