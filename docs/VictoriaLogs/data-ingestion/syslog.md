@@ -71,6 +71,7 @@ See also:
 - [Security](#security)
 - [Compression](#compression)
 - [Multitenancy](#multitenancy)
+- [Stream fields](#stream-fields)
 - [Dropping fields](#dropping-fields)
 - [Adding extra fields](#adding-extra-fields)
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
