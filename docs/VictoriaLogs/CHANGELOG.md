@@ -25,6 +25,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: [syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): allow adding the specified [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) during data ingestion. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#adding-extra-fields). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7354).
 * FEATURE: [Loki data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/#loki-json-api): show the original request body on parse errors. This should simplify debugging. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7490).
 
+* BUGFIX: [`values` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#values-stats): fix a bug, which could lead to corrupted results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7458).
 * BUGFIX: [HTTP querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api): properly take into account the `end` query arg when calculating time range for [`_time:duration` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter). Previously the `_time:duration` filter was treated as `_time:[now-duration, now)`, while it should be treated as `_time:[end-duration, end)`.
 
 ## [v0.41.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.41.0-victorialogs)
