@@ -316,6 +316,7 @@ For example, `_time:2023-10-20` matches all the logs for `2023-10-20` day accord
 
 It is possible to specify generic offset for the selected time range by appending `offset` after the `_time` filter. Examples:
 
+- `_time:offset 1h` matches logs until `now-1h`.
 - `_time:5m offset 1h` matches logs on the time range `(now-1h5m, now-1h]`.
 - `_time:2023-07Z offset 5h30m` matches logs on July, 2023 by UTC with offset 5h30m.
 - `_time:[2023-02-01Z, 2023-03-01Z) offset 1w` matches logs the week before the time range `[2023-02-01Z, 2023-03-01Z)` by UTC.

@@ -2070,6 +2070,20 @@ func getWeekRangeArg(lex *lexer) (time.Weekday, string, error) {
 }
 
 func parseFilterTimeRange(lex *lexer) (*filterTime, error) {
+	if lex.isKeyword("offset") {
+		ft := &filterTime{
+			minTimestamp: math.MinInt64,
+			maxTimestamp: lex.currentTimestamp,
+		}
+		offset, offsetStr, err := parseTimeOffset(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse offset for _time filter []: %w", err)
+		}
+		ft.maxTimestamp -= offset
+		ft.stringRepr = offsetStr
+		return ft, nil
+	}
+
 	ft, err := parseFilterTime(lex)
 	if err != nil {
 		return nil, err
@@ -2077,20 +2091,33 @@ func parseFilterTimeRange(lex *lexer) (*filterTime, error) {
 	if !lex.isKeyword("offset") {
 		return ft, nil
 	}
+
+	offset, offsetStr, err := parseTimeOffset(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse offset for _time filter [%s]: %w", ft, err)
+	}
+	ft.minTimestamp -= offset
+	ft.maxTimestamp -= offset
+	ft.stringRepr += " " + offsetStr
+	return ft, nil
+}
+
+func parseTimeOffset(lex *lexer) (int64, string, error) {
+	if !lex.isKeyword("offset") {
+		return 0, "", fmt.Errorf("unexpected token %q; want 'offset'", lex.token)
+	}
 	lex.nextToken()
+
 	s, err := getCompoundToken(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse offset in _time filter: %w", err)
+		return 0, "", err
 	}
 	d, ok := tryParseDuration(s)
 	if !ok {
-		return nil, fmt.Errorf("cannot parse offset %q for _time filter %s", s, ft)
+		return 0, "", fmt.Errorf("cannot parse duration [%s]", s)
 	}
 	offset := int64(d)
-	ft.minTimestamp -= offset
-	ft.maxTimestamp -= offset
-	ft.stringRepr += " offset " + s
-	return ft, nil
+	return offset, "offset " + s, nil
 }
 
 func parseFilterTime(lex *lexer) (*filterTime, error) {
