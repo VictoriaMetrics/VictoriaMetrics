@@ -962,14 +962,29 @@ func parseCommonArgs(r *http.Request) (*logstorage.Query, []logstorage.TenantID,
 	}
 	tenantIDs := []logstorage.TenantID{tenantID}
 
+	// Parse optional start and end args
+	start, okStart, err := getTimeNsec(r, "start")
+	if err != nil {
+		return nil, nil, err
+	}
+	end, okEnd, err := getTimeNsec(r, "end")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Parse optional time arg
 	timestamp, okTime, err := getTimeNsec(r, "time")
 	if err != nil {
 		return nil, nil, err
 	}
 	if !okTime {
-		// If time arg is missing, then evaluate query at the current timestamp
-		timestamp = time.Now().UnixNano()
+		// If time arg is missing, then evaluate query either at the end timestamp (if it is set)
+		// or at the current timestamp (if end query arg isn't set)
+		if okEnd {
+			timestamp = end
+		} else {
+			timestamp = time.Now().UnixNano()
+		}
 	}
 
 	// decrease timestamp by one nanosecond in order to avoid capturing logs belonging
@@ -983,16 +998,8 @@ func parseCommonArgs(r *http.Request) (*logstorage.Query, []logstorage.TenantID,
 		return nil, nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
 
-	// Parse optional start and end args
-	start, okStart, err := getTimeNsec(r, "start")
-	if err != nil {
-		return nil, nil, err
-	}
-	end, okEnd, err := getTimeNsec(r, "end")
-	if err != nil {
-		return nil, nil, err
-	}
 	if okStart || okEnd {
+		// Add _time:[start, end] filter if start or end args were set.
 		if !okStart {
 			start = math.MinInt64
 		}

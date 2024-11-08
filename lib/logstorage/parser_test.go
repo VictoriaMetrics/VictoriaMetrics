@@ -700,6 +700,14 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("level: ( ((error or warn*) and re(foo))) (not (bar))", `(level:error or level:warn*) level:~foo !bar`)
 	f("!(foo bar or baz and not aa*)", `!(foo bar or baz !aa*)`)
 
+	// nested AND filters
+	f(`(foo AND bar) AND (baz AND x:y)`, `foo bar baz x:y`)
+	f(`(foo AND bar) OR (baz AND x:y)`, `foo bar or baz x:y`)
+
+	// nested OR filters
+	f(`(foo OR bar) OR (baz OR x:y)`, `foo or bar or baz or x:y`)
+	f(`(foo OR bar) AND (baz OR x:y)`, `(foo or bar) (baz or x:y)`)
+
 	// prefix search
 	f(`'foo'* and (a:x* and x:* or y:i(""*)) and i("abc def"*)`, `foo* (a:x* x:* or y:i(*)) i("abc def"*)`)
 
@@ -2421,16 +2429,17 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`* | by (x) count() y | format 'foo' as y`)
 }
 
-func TestHasTimeFilter(t *testing.T) {
-	f := func(qStr string, expected bool) {
+func TestQueryHasGlobalTimeFilter(t *testing.T) {
+	f := func(qStr string, resultExpected bool) {
 		t.Helper()
 
-		q, err := ParseStatsQuery(qStr)
+		q, err := ParseStatsQuery(qStr, 0)
 		if err != nil {
 			t.Fatalf("cannot parse [%s]: %s", qStr, err)
 		}
-		if q.ContainAnyTimeFilter() != expected {
-			t.Fatalf("unexpected result for hasTimeFilter(%q); want %v", qStr, expected)
+		result := q.HasGlobalTimeFilter()
+		if result != resultExpected {
+			t.Fatalf("unexpected result for hasTimeFilter(%q); got %v; want %v", qStr, result, resultExpected)
 		}
 	}
 

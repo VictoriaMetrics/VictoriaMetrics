@@ -531,7 +531,7 @@ func (q *Query) AddPipeLimit(n uint64) {
 	})
 }
 
-// optimize tries optimizing the query.
+// optimize applies various optimations to q.
 func (q *Query) optimize() {
 	q.pipes = optimizeSortOffsetPipes(q.pipes)
 	q.pipes = optimizeSortLimitPipes(q.pipes)
@@ -554,6 +554,12 @@ func (q *Query) optimize() {
 			pf.isFirstPipe = true
 		}
 	}
+
+	// flatten nested AND filters
+	q.f = flattenFiltersAnd(q.f)
+
+	// flatten nested OR filters
+	q.f = flattenFiltersOr(q.f)
 
 	// Substitute '*' prefixFilter with filterNoop in order to avoid reading _msg data.
 	q.f = removeStarFilters(q.f)
@@ -732,6 +738,78 @@ func addByTimeField(byFields []*byStatsField, step int64) []*byStatsField {
 		})
 	}
 	return dstFields
+}
+
+func flattenFiltersAnd(f filter) filter {
+	visitFunc := func(f filter) bool {
+		fa, ok := f.(*filterAnd)
+		if !ok {
+			return false
+		}
+		for _, f := range fa.filters {
+			if _, ok := f.(*filterAnd); ok {
+				return true
+			}
+		}
+		return false
+	}
+	copyFunc := func(f filter) (filter, error) {
+		fa := f.(*filterAnd)
+
+		var resultFilters []filter
+		for _, f := range fa.filters {
+			child, ok := f.(*filterAnd)
+			if !ok {
+				resultFilters = append(resultFilters, f)
+				continue
+			}
+			resultFilters = append(resultFilters, child.filters...)
+		}
+		return &filterAnd{
+			filters: resultFilters,
+		}, nil
+	}
+	f, err := copyFilter(f, visitFunc, copyFunc)
+	if err != nil {
+		logger.Fatalf("BUG: unexpected error: %s", err)
+	}
+	return f
+}
+
+func flattenFiltersOr(f filter) filter {
+	visitFunc := func(f filter) bool {
+		fo, ok := f.(*filterOr)
+		if !ok {
+			return false
+		}
+		for _, f := range fo.filters {
+			if _, ok := f.(*filterOr); ok {
+				return true
+			}
+		}
+		return false
+	}
+	copyFunc := func(f filter) (filter, error) {
+		fo := f.(*filterOr)
+
+		var resultFilters []filter
+		for _, f := range fo.filters {
+			child, ok := f.(*filterOr)
+			if !ok {
+				resultFilters = append(resultFilters, f)
+				continue
+			}
+			resultFilters = append(resultFilters, child.filters...)
+		}
+		return &filterOr{
+			filters: resultFilters,
+		}, nil
+	}
+	f, err := copyFilter(f, visitFunc, copyFunc)
+	if err != nil {
+		logger.Fatalf("BUG: unexpected error: %s", err)
+	}
+	return f
 }
 
 func removeStarFilters(f filter) filter {
@@ -915,9 +993,9 @@ func ParseQuery(s string) (*Query, error) {
 	return ParseQueryAtTimestamp(s, timestamp)
 }
 
-// ParseStatsQuery parses s with needed stats query checks.
-func ParseStatsQuery(s string) (*Query, error) {
-	q, err := ParseQuery(s)
+// ParseStatsQuery parses LogsQL query s at the given timestamp with the needed stats query checks.
+func ParseStatsQuery(s string, timestamp int64) (*Query, error) {
+	q, err := ParseQueryAtTimestamp(s, timestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -927,29 +1005,12 @@ func ParseStatsQuery(s string) (*Query, error) {
 	return q, nil
 }
 
-// ContainAnyTimeFilter returns true when query contains a global time filter.
-func (q *Query) ContainAnyTimeFilter() bool {
-	if hasTimeFilter(q.f) {
-		return true
-	}
-	for _, p := range q.pipes {
-		if pf, ok := p.(*pipeFilter); ok {
-			if hasTimeFilter(pf.f) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func hasTimeFilter(f filter) bool {
-	if f == nil {
-		return false
-	}
-	switch t := f.(type) {
+// HasGlobalTimeFilter returns true when query contains a global time filter.
+func (q *Query) HasGlobalTimeFilter() bool {
+	switch t := q.f.(type) {
 	case *filterAnd:
 		for _, subF := range t.filters {
-			if hasTimeFilter(subF) {
+			if _, ok := subF.(*filterTime); ok {
 				return true
 			}
 		}
