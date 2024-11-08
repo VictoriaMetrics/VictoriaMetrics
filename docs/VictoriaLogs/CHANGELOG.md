@@ -16,6 +16,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * FEATURE: [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe): add an ability to add prefix to all the log field names from the joined query, by using `| join by (<by_fields>) (<query>) prefix "some_prefix"` syntax.
+* FEATURE: [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter): allow specifying offset without time range. For example, `_time:offset 1d` matches all the logs until `now-1d` in the [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field). This is useful when building graphs for time ranges with some offset in the past.
 
 ## [v0.41.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.41.0-victorialogs)
 

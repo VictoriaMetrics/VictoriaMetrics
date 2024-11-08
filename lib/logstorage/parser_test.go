@@ -761,7 +761,9 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`_time:[2023-01-05, 2023-01-06) OFFset 5m`, `_time:[2023-01-05,2023-01-06) offset 5m`)
 	f(`_time:(2023-01-05, 2023-01-06] OFFset 5m`, `_time:(2023-01-05,2023-01-06] offset 5m`)
 	f(`_time:(2023-01-05, 2023-01-06) OFFset 5m`, `_time:(2023-01-05,2023-01-06) offset 5m`)
-	f(`_time:1h offset 5m`, `_time:1h offset 5m`)
+	f(`_time:1h offset 5.3m`, `_time:1h offset 5.3m`)
+	f(`_time:offset 1d`, `_time:offset 1d`)
+	f(`_time:offset -1.5d`, `_time:offset -1.5d`)
 	f(`_time:1h "offSet"`, `_time:1h "offSet"`) // "offset" is a search word, since it is quoted
 	f(`_time:1h (Offset)`, `_time:1h "Offset"`) // "offset" is a search word, since it is in parens
 	f(`_time:1h "and"`, `_time:1h "and"`)       // "and" is a search word, since it is quoted
@@ -1356,6 +1358,8 @@ func TestParseQueryFailure(t *testing.T) {
 	f("_time:234foo")
 	f("_time:5m offset")
 	f("_time:10m offset foobar")
+	f("_time:offset")
+	f("_time:offset foobar")
 
 	// invalid day_range filters
 	f("_time:day_range")
@@ -1373,7 +1377,7 @@ func TestParseQueryFailure(t *testing.T) {
 	f("_time:week_range[Mon,")
 	f("_time:week_range[Mon,bar")
 	f("_time:week_range[Mon,Fri")
-	f("_time:week_range[Mon,Fri] offset")
+	f("_time:week_range[Mon,Fri] offset foobar")
 
 	// long query with error
 	f(`very long query with error aaa ffdfd fdfdfd fdfd:( ffdfdfdfdfd`)
