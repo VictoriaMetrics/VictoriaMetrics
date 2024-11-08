@@ -74,9 +74,9 @@ func (sup *statsUniqValuesProcessor) updateStatsForAllRowsColumn(c *blockResultC
 	stateSizeIncrease := 0
 	if c.valueType == valueTypeDict {
 		// collect unique non-zero c.dictValues
-		for _, v := range c.dictValues {
+		c.forEachDictValue(br, func(v string) {
 			stateSizeIncrease += sup.updateState(v)
-		}
+		})
 		return stateSizeIncrease
 	}
 
@@ -181,14 +181,12 @@ func (sup *statsUniqValuesProcessor) updateState(v string) int {
 		// Skip empty values
 		return 0
 	}
-
-	stateSizeIncrease := 0
-	if _, ok := sup.m[v]; !ok {
-		vCopy := strings.Clone(v)
-		sup.m[vCopy] = struct{}{}
-		stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy))
+	if _, ok := sup.m[v]; ok {
+		return 0
 	}
-	return stateSizeIncrease
+	vCopy := strings.Clone(v)
+	sup.m[vCopy] = struct{}{}
+	return len(vCopy) + int(unsafe.Sizeof(vCopy))
 }
 
 func (sup *statsUniqValuesProcessor) limitReached() bool {
