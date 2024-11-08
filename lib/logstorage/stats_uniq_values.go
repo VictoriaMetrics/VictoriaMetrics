@@ -65,24 +65,16 @@ func (sup *statsUniqValuesProcessor) updateStatsForAllRows(br *blockResult) int 
 }
 
 func (sup *statsUniqValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColumn, br *blockResult) int {
-	stateSizeIncrease := 0
 	if c.isConst {
 		// collect unique const values
 		v := c.valuesEncoded[0]
-		if v == "" {
-			// skip empty values
-			return stateSizeIncrease
-		}
-		stateSizeIncrease += sup.updateState(v)
-		return stateSizeIncrease
+		return sup.updateState(v)
 	}
+
+	stateSizeIncrease := 0
 	if c.valueType == valueTypeDict {
 		// collect unique non-zero c.dictValues
 		for _, v := range c.dictValues {
-			if v == "" {
-				// skip empty values
-				continue
-			}
 			stateSizeIncrease += sup.updateState(v)
 		}
 		return stateSizeIncrease
@@ -91,10 +83,6 @@ func (sup *statsUniqValuesProcessor) updateStatsForAllRowsColumn(c *blockResultC
 	// slow path - collect unique values across all rows
 	values := c.getValues(br)
 	for i, v := range values {
-		if v == "" {
-			// skip empty values
-			continue
-		}
 		if i > 0 && values[i-1] == v {
 			// This value has been already counted.
 			continue
@@ -126,38 +114,23 @@ func (sup *statsUniqValuesProcessor) updateStatsForRow(br *blockResult, rowIdx i
 }
 
 func (sup *statsUniqValuesProcessor) updateStatsForRowColumn(c *blockResultColumn, br *blockResult, rowIdx int) int {
-	stateSizeIncrease := 0
 	if c.isConst {
 		// collect unique const values
 		v := c.valuesEncoded[0]
-		if v == "" {
-			// skip empty values
-			return stateSizeIncrease
-		}
-		stateSizeIncrease += sup.updateState(v)
-		return stateSizeIncrease
+		return sup.updateState(v)
 	}
+
 	if c.valueType == valueTypeDict {
 		// collect unique non-zero c.dictValues
 		valuesEncoded := c.getValuesEncoded(br)
 		dictIdx := valuesEncoded[rowIdx][0]
 		v := c.dictValues[dictIdx]
-		if v == "" {
-			// skip empty values
-			return stateSizeIncrease
-		}
-		stateSizeIncrease += sup.updateState(v)
-		return stateSizeIncrease
+		return sup.updateState(v)
 	}
 
 	// collect unique values for the given rowIdx.
 	v := c.getValueAtRow(br, rowIdx)
-	if v == "" {
-		// skip empty values
-		return stateSizeIncrease
-	}
-	stateSizeIncrease += sup.updateState(v)
-	return stateSizeIncrease
+	return sup.updateState(v)
 }
 
 func (sup *statsUniqValuesProcessor) mergeState(sfp statsProcessor) {
@@ -204,6 +177,11 @@ func sortStrings(a []string) {
 }
 
 func (sup *statsUniqValuesProcessor) updateState(v string) int {
+	if v == "" {
+		// Skip empty values
+		return 0
+	}
+
 	stateSizeIncrease := 0
 	if _, ok := sup.m[v]; !ok {
 		vCopy := strings.Clone(v)
