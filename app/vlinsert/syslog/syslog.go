@@ -3,11 +3,13 @@ package syslog
 import (
 	"bufio"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,10 +37,20 @@ var (
 	syslogTimezone = flag.String("syslog.timezone", "Local", "Timezone to use when parsing timestamps in RFC3164 syslog messages. Timezone must be a valid IANA Time Zone. "+
 		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 . See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
 
-	syslogTenantIDTCP = flagutil.NewArrayString("syslog.tenantID.tcp", "TenantID for logs ingested via the corresponding -syslog.listenAddr.tcp. "+
-		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
-	syslogTenantIDUDP = flagutil.NewArrayString("syslog.tenantID.udp", "TenantID for logs ingested via the corresponding -syslog.listenAddr.udp. "+
-		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
+	ignoreFieldsTCP = flagutil.NewArrayString("syslog.ignoreFields.tcp", "Fields to ignore at logs ingested via the corresponding -syslog.listenAddr.tcp. "+
+		`See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#dropping-fields`)
+	ignoreFieldsUDP = flagutil.NewArrayString("syslog.ignoreFields.udp", "Fields to ignore at logs ingested via the corresponding -syslog.listenAddr.udp. "+
+		`See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#dropping-fields`)
+
+	extraFieldsTCP = flagutil.NewArrayString("syslog.extraFields.tcp", "Fields to add to logs ingested via the corresponding -syslog.listenAddr.tcp. "+
+		`See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#adding-extra-fields`)
+	extraFieldsUDP = flagutil.NewArrayString("syslog.extraFields.udp", "Fields to add to logs ingested via the corresponding -syslog.listenAddr.udp. "+
+		`See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#adding-extra-fields`)
+
+	tenantIDTCP = flagutil.NewArrayString("syslog.tenantID.tcp", "TenantID for logs ingested via the corresponding -syslog.listenAddr.tcp. "+
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#multitenancy")
+	tenantIDUDP = flagutil.NewArrayString("syslog.tenantID.udp", "TenantID for logs ingested via the corresponding -syslog.listenAddr.udp. "+
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#multitenancy")
 
 	listenAddrTCP = flagutil.NewArrayString("syslog.listenAddr.tcp", "Comma-separated list of TCP addresses to listen to for Syslog messages. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
@@ -150,7 +162,7 @@ func runUDPListener(addr string, argIdx int) {
 		logger.Fatalf("cannot start UDP syslog server at %q: %s", addr, err)
 	}
 
-	tenantIDStr := syslogTenantIDUDP.GetOptionalArg(argIdx)
+	tenantIDStr := tenantIDUDP.GetOptionalArg(argIdx)
 	tenantID, err := logstorage.ParseTenantID(tenantIDStr)
 	if err != nil {
 		logger.Fatalf("cannot parse -syslog.tenantID.udp=%q for -syslog.listenAddr.udp=%q: %s", tenantIDStr, addr, err)
@@ -161,9 +173,21 @@ func runUDPListener(addr string, argIdx int) {
 
 	useLocalTimestamp := useLocalTimestampUDP.GetOptionalArg(argIdx)
 
+	ignoreFieldsStr := ignoreFieldsUDP.GetOptionalArg(argIdx)
+	ignoreFields, err := parseIgnoreFields(ignoreFieldsStr)
+	if err != nil {
+		logger.Fatalf("cannot parse -syslog.ignoreFields.udp=%q for -syslog.listenAddr.udp=%q: %s", ignoreFieldsStr, addr, err)
+	}
+
+	extraFieldsStr := extraFieldsUDP.GetOptionalArg(argIdx)
+	extraFields, err := parseExtraFields(extraFieldsStr)
+	if err != nil {
+		logger.Fatalf("cannot parse -syslog.extraFields.udp=%q for -syslog.listenAddr.udp=%q: %s", extraFieldsStr, addr, err)
+	}
+
 	doneCh := make(chan struct{})
 	go func() {
-		serveUDP(ln, tenantID, compressMethod, useLocalTimestamp)
+		serveUDP(ln, tenantID, compressMethod, useLocalTimestamp, ignoreFields, extraFields)
 		close(doneCh)
 	}()
 
@@ -193,7 +217,7 @@ func runTCPListener(addr string, argIdx int) {
 		logger.Fatalf("syslog: cannot start TCP listener at %s: %s", addr, err)
 	}
 
-	tenantIDStr := syslogTenantIDTCP.GetOptionalArg(argIdx)
+	tenantIDStr := tenantIDTCP.GetOptionalArg(argIdx)
 	tenantID, err := logstorage.ParseTenantID(tenantIDStr)
 	if err != nil {
 		logger.Fatalf("cannot parse -syslog.tenantID.tcp=%q for -syslog.listenAddr.tcp=%q: %s", tenantIDStr, addr, err)
@@ -204,9 +228,21 @@ func runTCPListener(addr string, argIdx int) {
 
 	useLocalTimestamp := useLocalTimestampTCP.GetOptionalArg(argIdx)
 
+	ignoreFieldsStr := ignoreFieldsTCP.GetOptionalArg(argIdx)
+	ignoreFields, err := parseIgnoreFields(ignoreFieldsStr)
+	if err != nil {
+		logger.Fatalf("cannot parse -syslog.ignoreFields.tcp=%q for -syslog.listenAddr.tcp=%q: %s", ignoreFieldsStr, addr, err)
+	}
+
+	extraFieldsStr := extraFieldsTCP.GetOptionalArg(argIdx)
+	extraFields, err := parseExtraFields(extraFieldsStr)
+	if err != nil {
+		logger.Fatalf("cannot parse -syslog.extraFields.tcp=%q for -syslog.listenAddr.tcp=%q: %s", extraFieldsStr, addr, err)
+	}
+
 	doneCh := make(chan struct{})
 	go func() {
-		serveTCP(ln, tenantID, compressMethod, useLocalTimestamp)
+		serveTCP(ln, tenantID, compressMethod, useLocalTimestamp, ignoreFields, extraFields)
 		close(doneCh)
 	}()
 
@@ -228,7 +264,7 @@ func checkCompressMethod(compressMethod, addr, protocol string) {
 	}
 }
 
-func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool) {
+func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool, ignoreFields []string, extraFields []logstorage.Field) {
 	gomaxprocs := cgroup.AvailableCPUs()
 	var wg sync.WaitGroup
 	localAddr := ln.LocalAddr()
@@ -236,7 +272,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod st
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			cp := insertutils.GetCommonParamsForSyslog(tenantID)
+			cp := insertutils.GetCommonParamsForSyslog(tenantID, ignoreFields, extraFields)
 			var bb bytesutil.ByteBuffer
 			bb.B = bytesutil.ResizeNoCopyNoOverallocate(bb.B, 64*1024)
 			for {
@@ -270,7 +306,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod st
 	wg.Wait()
 }
 
-func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool) {
+func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool, ignoreFields []string, extraFields []logstorage.Field) {
 	var cm ingestserver.ConnsMap
 	cm.Init("syslog")
 
@@ -300,7 +336,7 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod stri
 
 		wg.Add(1)
 		go func() {
-			cp := insertutils.GetCommonParamsForSyslog(tenantID)
+			cp := insertutils.GetCommonParamsForSyslog(tenantID, ignoreFields, extraFields)
 			if err := processStream(c, compressMethod, useLocalTimestamp, cp); err != nil {
 				logger.Errorf("syslog: cannot process TCP data at %q: %s", addr, err)
 			}
@@ -531,3 +567,35 @@ var (
 	udpRequestsTotal = metrics.NewCounter(`vl_udp_reqests_total{type="syslog"}`)
 	udpErrorsTotal   = metrics.NewCounter(`vl_udp_errors_total{type="syslog"}`)
 )
+
+func parseIgnoreFields(s string) ([]string, error) {
+	if s == "" {
+		return nil, nil
+	}
+
+	var a []string
+	err := json.Unmarshal([]byte(s), &a)
+	return a, err
+}
+
+func parseExtraFields(s string) ([]logstorage.Field, error) {
+	if s == "" {
+		return nil, nil
+	}
+
+	var m map[string]string
+	if err := json.Unmarshal([]byte(s), &m); err != nil {
+		return nil, err
+	}
+	fields := make([]logstorage.Field, 0, len(m))
+	for k, v := range m {
+		fields = append(fields, logstorage.Field{
+			Name:  k,
+			Value: v,
+		})
+	}
+	sort.Slice(fields, func(i, j int) bool {
+		return fields[i].Name < fields[j].Name
+	})
+	return fields, nil
+}

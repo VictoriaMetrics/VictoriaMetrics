@@ -71,6 +71,8 @@ See also:
 - [Security](#security)
 - [Compression](#compression)
 - [Multitenancy](#multitenancy)
+- [Dropping fields](#dropping-fields)
+- [Adding extra fields](#adding-extra-fields)
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 
@@ -130,6 +132,28 @@ For example, the following command starts VictoriaLogs, which writes syslog mess
 
 ```sh
 ./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.tenantID.tcp=12:34
+```
+
+## Dropping fields
+
+VictoriaLogs supports `-syslog.ignoreFields.tcp` and `-syslog.ignoreFields.udp` command-line flags for skipping
+the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) during inestion
+of Syslog logs into `-syslog.listenAddr.tcp` and `-syslog.listenAddr.udp` addresses.
+For example, the following command starts VictoriaLogs, which drops `proc_id` and `msg_id` fields from logs received at TCP port 514:
+
+```sh
+./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.ignoreFields.tcp='["prod_id","msg_id"]'
+```
+
+## Adding extra fields
+
+VictoriaLogs supports -`syslog.extraFields.tcp` and `-syslog.extraFields.udp` command-line flags for adding
+the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) during data ingestion
+of Syslog logs into `-syslog.listenAddr.tcp` and `-syslog.listenAddr.udp` addresses.
+For example, the following command starts VictoriaLogs, which adds `source=foo` and `abc=def` fields to logs received at TCP port 514:
+
+```sh
+./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.extraFields.tcp='{"source":"foo","abc":"def"}'
 ```
 
 ## Multiple configs
