@@ -134,7 +134,7 @@ for limiting the amounts of exported logs.
 
 ## I want to ingest logs without message field, is that possible?
 
-Starting from version `v0.30.0`, VictoriaLogs started blocking the ingestion of logs **without a message field**, as it is a requirement of the VictoriaLogs data model (https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field). 
+Starting from version `v0.30.0`, VictoriaLogs started blocking the ingestion of logs **without a message field**, as it is a requirement of the [VictoriaLogs data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field). 
 
 However, some logs do not have a message field and only contain other fields, such as logs in [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7056#issuecomment-2434189718) and [this slack thread](https://victoriametrics.slack.com/archives/C05UNTPAEDN/p1730982146818249). Therefore, starting from version `v0.39.0`, logs without a message field are **allowed to be ingested**, 
 and their message field will be recorded as: 
