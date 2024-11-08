@@ -244,6 +244,13 @@ VictoriaLogs has very low overhead for per-tenant management, so it is OK to hav
 
 VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/vmauth/) or similar tools for per-tenant authorization.
 
+## Security
+
+It is expected that VictoriaLogs runs in a protected environment, which is unreachable from the Internet without proper authorization.
+It is recommended providing access to VictoriaLogs [data ingestion APIs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
+and [querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) via [vmauth](https://docs.victoriametrics.com/vmauth/)
+or similar authorization proxies.
+
 ## Benchmarks
 
 Here is a [benchmark suite](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/logs-benchmark) for comparing data ingestion performance
