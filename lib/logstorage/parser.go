@@ -335,7 +335,7 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 	}
 }
 
-// Clone returns a copy of q.
+// Clone returns a copy of q at the given timestamp.
 func (q *Query) Clone(timestamp int64) *Query {
 	qStr := q.String()
 	qCopy, err := ParseQueryAtTimestamp(qStr, timestamp)
@@ -343,6 +343,16 @@ func (q *Query) Clone(timestamp int64) *Query {
 		logger.Panicf("BUG: cannot parse %q: %s", qStr, err)
 	}
 	return qCopy
+}
+
+// CloneWithTimeFilter clones q at the given timestamp and adds _time:[start, end] filter to the cloned q.
+func (q *Query) CloneWithTimeFilter(timestamp, start, end int64) *Query {
+	q = q.Clone(timestamp)
+	q.AddTimeFilter(start, end)
+	// q.Optimize() call is needed for converting '*' into filterNoop.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6785#issuecomment-2358547733
+	q.Optimize()
+	return q
 }
 
 // CanReturnLastNResults returns true if time range filter at q can be adjusted for returning the last N results.
