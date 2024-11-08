@@ -148,12 +148,28 @@ The `<query>` must conform the following rules:
   across multiple streams.
 
 Live tailing supports returning historical logs, which were ingested into VictoriaLogs before the start of live tailing. Pass `start_offset=<d>` query
-arg to `/select/logsql/tail` where `<d>` is the duration for returning historical logs. For example, the following request returns historical logs
+arg to `/select/logsql/tail` where `<d>` is the duration for returning historical logs. For example, the following command returns historical logs
 which were ingested into VictoriaLogs during the last hour, before starting live tailing:
 
 ```sh
 curl -N http://localhost:9428/select/logsql/tail -d 'query=*' -d 'start_offset=1h'
 ```
+
+Live tailing delays delivering new logs for one second, so they could be properly delivered from log collectors to VictoriaLogs.
+This delay can be changed via `offset` query arg. For example, the following command delays delivering new logs for 30 seconds:
+
+```sh
+curl -N http://localhost:9428/select/logsql/tail -d 'query=*' -d 'offset=30s'
+```
+
+Live tailing checks for new logs every second. The frequency for the check can be changed via `refresh_interval` query arg.
+For example, the following command instructs live tailing to check for new logs every 10 seconds:
+
+```sh
+curl -N http://localhost:9428/select/logsql/tail -d 'query=*' -d 'refresh_interval=10s'
+```
+
+It isn't recommended setting too low value for `refresh_interval` query arg, since this may increase load on VictoriaLogs without measurable benefits.
 
 **Performance tip**: live tailing works the best if it matches newly ingested logs at relatively slow rate (e.g. up to 1K matching logs per second),
 e.g. it is optimized for the case when real humans inspect the output of live tailing in the real time. If live tailing returns logs at too high rate,
