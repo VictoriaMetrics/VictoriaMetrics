@@ -430,6 +430,22 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Compression method for syslog messages received at the corresponding -syslog.listenAddr.udp. Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#compression
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.extraFields.tcp array
+    	Fields to add to logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#adding-extra-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.extraFields.udp array
+    	Fields to add to logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#adding-extra-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.ignoreFields.tcp array
+    	Fields to ignore at logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#dropping-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.ignoreFields.udp array
+    	Fields to ignore at logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#dropping-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.listenAddr.tcp array
     	Comma-separated list of TCP addresses to listen to for Syslog messages. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
     	Supports an array of values separated by comma or specified via multiple flags.
@@ -438,12 +454,20 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Comma-separated list of UDP address to listen to for Syslog messages. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.streamFields.tcp array
+    	Fields to use as log stream labels for logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#stream-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.streamFields.udp array
+    	Fields to use as log stream labels for logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#stream-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.tenantID.tcp array
-    	TenantID for logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
+    	TenantID for logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#multitenancy
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.tenantID.udp array
-    	TenantID for logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
+    	TenantID for logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#multitenancy
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.timezone string

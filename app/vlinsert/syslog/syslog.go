@@ -37,6 +37,11 @@ var (
 	syslogTimezone = flag.String("syslog.timezone", "Local", "Timezone to use when parsing timestamps in RFC3164 syslog messages. Timezone must be a valid IANA Time Zone. "+
 		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 . See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
 
+	streamFieldsTCP = flagutil.NewArrayString("syslog.streamFields.tcp", "Fields to use as log stream labels for logs ingested via the corresponding -syslog.listenAddr.tcp. "+
+		`See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#stream-fields`)
+	streamFieldsUDP = flagutil.NewArrayString("syslog.streamFields.udp", "Fields to use as log stream labels for logs ingested via the corresponding -syslog.listenAddr.udp. "+
+		`See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#stream-fields`)
+
 	ignoreFieldsTCP = flagutil.NewArrayString("syslog.ignoreFields.tcp", "Fields to ignore at logs ingested via the corresponding -syslog.listenAddr.tcp. "+
 		`See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#dropping-fields`)
 	ignoreFieldsUDP = flagutil.NewArrayString("syslog.ignoreFields.udp", "Fields to ignore at logs ingested via the corresponding -syslog.listenAddr.udp. "+
@@ -173,8 +178,14 @@ func runUDPListener(addr string, argIdx int) {
 
 	useLocalTimestamp := useLocalTimestampUDP.GetOptionalArg(argIdx)
 
+	streamFieldsStr := streamFieldsUDP.GetOptionalArg(argIdx)
+	streamFields, err := parseFieldsList(streamFieldsStr)
+	if err != nil {
+		logger.Fatalf("cannot parse -syslog.streamFields.udp=%q for -syslog.listenAddr.udp=%q: %s", streamFieldsStr, addr, err)
+	}
+
 	ignoreFieldsStr := ignoreFieldsUDP.GetOptionalArg(argIdx)
-	ignoreFields, err := parseIgnoreFields(ignoreFieldsStr)
+	ignoreFields, err := parseFieldsList(ignoreFieldsStr)
 	if err != nil {
 		logger.Fatalf("cannot parse -syslog.ignoreFields.udp=%q for -syslog.listenAddr.udp=%q: %s", ignoreFieldsStr, addr, err)
 	}
@@ -187,7 +198,7 @@ func runUDPListener(addr string, argIdx int) {
 
 	doneCh := make(chan struct{})
 	go func() {
-		serveUDP(ln, tenantID, compressMethod, useLocalTimestamp, ignoreFields, extraFields)
+		serveUDP(ln, tenantID, compressMethod, useLocalTimestamp, streamFields, ignoreFields, extraFields)
 		close(doneCh)
 	}()
 
@@ -228,8 +239,14 @@ func runTCPListener(addr string, argIdx int) {
 
 	useLocalTimestamp := useLocalTimestampTCP.GetOptionalArg(argIdx)
 
+	streamFieldsStr := streamFieldsTCP.GetOptionalArg(argIdx)
+	streamFields, err := parseFieldsList(streamFieldsStr)
+	if err != nil {
+		logger.Fatalf("cannot parse -syslog.streamFields.tcp=%q for -syslog.listenAddr.tcp=%q: %s", streamFieldsStr, addr, err)
+	}
+
 	ignoreFieldsStr := ignoreFieldsTCP.GetOptionalArg(argIdx)
-	ignoreFields, err := parseIgnoreFields(ignoreFieldsStr)
+	ignoreFields, err := parseFieldsList(ignoreFieldsStr)
 	if err != nil {
 		logger.Fatalf("cannot parse -syslog.ignoreFields.tcp=%q for -syslog.listenAddr.tcp=%q: %s", ignoreFieldsStr, addr, err)
 	}
@@ -242,7 +259,7 @@ func runTCPListener(addr string, argIdx int) {
 
 	doneCh := make(chan struct{})
 	go func() {
-		serveTCP(ln, tenantID, compressMethod, useLocalTimestamp, ignoreFields, extraFields)
+		serveTCP(ln, tenantID, compressMethod, useLocalTimestamp, streamFields, ignoreFields, extraFields)
 		close(doneCh)
 	}()
 
@@ -264,7 +281,7 @@ func checkCompressMethod(compressMethod, addr, protocol string) {
 	}
 }
 
-func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool, ignoreFields []string, extraFields []logstorage.Field) {
+func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool, streamFields, ignoreFields []string, extraFields []logstorage.Field) {
 	gomaxprocs := cgroup.AvailableCPUs()
 	var wg sync.WaitGroup
 	localAddr := ln.LocalAddr()
@@ -272,7 +289,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod st
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			cp := insertutils.GetCommonParamsForSyslog(tenantID, ignoreFields, extraFields)
+			cp := insertutils.GetCommonParamsForSyslog(tenantID, streamFields, ignoreFields, extraFields)
 			var bb bytesutil.ByteBuffer
 			bb.B = bytesutil.ResizeNoCopyNoOverallocate(bb.B, 64*1024)
 			for {
@@ -306,7 +323,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod st
 	wg.Wait()
 }
 
-func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool, ignoreFields []string, extraFields []logstorage.Field) {
+func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool, streamFields, ignoreFields []string, extraFields []logstorage.Field) {
 	var cm ingestserver.ConnsMap
 	cm.Init("syslog")
 
@@ -336,7 +353,7 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod stri
 
 		wg.Add(1)
 		go func() {
-			cp := insertutils.GetCommonParamsForSyslog(tenantID, ignoreFields, extraFields)
+			cp := insertutils.GetCommonParamsForSyslog(tenantID, streamFields, ignoreFields, extraFields)
 			if err := processStream(c, compressMethod, useLocalTimestamp, cp); err != nil {
 				logger.Errorf("syslog: cannot process TCP data at %q: %s", addr, err)
 			}
@@ -568,7 +585,7 @@ var (
 	udpErrorsTotal   = metrics.NewCounter(`vl_udp_errors_total{type="syslog"}`)
 )
 
-func parseIgnoreFields(s string) ([]string, error) {
+func parseFieldsList(s string) ([]string, error) {
 	if s == "" {
 		return nil, nil
 	}
