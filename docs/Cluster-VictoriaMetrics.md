@@ -116,7 +116,7 @@ such as [Graphite](https://docs.victoriametrics.com/#how-to-send-data-from-graph
 
 _For better performance prefer specifying [tenants in read URL](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)._
 
-`vmselect` can execute queries over multiple [tenants](#multitenancy) {{% available_from "v1.104.0" %}} via special `multitenant` endpoints `http://vmselect:8481/select/multitenant/<suffix>`.
+`vmselect` can execute {{% available_from "v1.104.0" %}} queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints `http://vmselect:8481/select/multitenant/<suffix>`.
 Currently supported endpoints for `<suffix>` are:
 - `/prometheus/api/v1/query`
 - `/prometheus/api/v1/query_range`
