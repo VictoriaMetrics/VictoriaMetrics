@@ -40,6 +40,11 @@ var (
 	syslogTenantIDUDP = flagutil.NewArrayString("syslog.tenantID.udp", "TenantID for logs ingested via the corresponding -syslog.listenAddr.udp. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
 
+	streamFieldsTCP = flagutil.NewArrayString("syslog.streamFields.tcp", "Stream fields for logs ingested via the corresponding -syslog.listenAddr.tcp. "+
+		"See https://docs.victoriametrics.com/victorialogs/dataingestion/syslog/")
+	streamFieldsUDP = flagutil.NewArrayString("syslog.streamFields.udp", "Stream fields for logs ingested via the corresponding -syslog.listenAddr.udp. "+
+		"See https://docs.victoriametrics.com/victorialogs/dataingestion/syslog/")
+
 	listenAddrTCP = flagutil.NewArrayString("syslog.listenAddr.tcp", "Comma-separated list of TCP addresses to listen to for Syslog messages. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/")
 	listenAddrUDP = flagutil.NewArrayString("syslog.listenAddr.udp", "Comma-separated list of UDP address to listen to for Syslog messages. "+
@@ -70,6 +75,31 @@ var (
 	useLocalTimestampUDP = flagutil.NewArrayBool("syslog.useLocalTimestamp.udp", "Whether to use local timestamp instead of the original timestamp for the ingested syslog messages "+
 		"at the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#log-timestamps")
 )
+
+type commonParamsFn func() *insertutils.CommonParams
+
+func getCommonParamsFn(tenantID logstorage.TenantID, streamFields []string) commonParamsFn {
+	if len(streamFields) == 0 {
+		streamFields = []string{
+			"hostname",
+			"app_name",
+			"proc_id",
+		}
+	}
+	return func() *insertutils.CommonParams {
+		// See https://docs.victoriametrics.com/victorialogs/logsql/#unpack_syslog-pipe
+		cp := &insertutils.CommonParams{
+			TenantID:  tenantID,
+			TimeField: "timestamp",
+			MsgFields: []string{
+				"message",
+			},
+			StreamFields: streamFields,
+		}
+
+		return cp
+	}
+}
 
 // MustInit initializes syslog parser at the given -syslog.listenAddr.tcp and -syslog.listenAddr.udp ports
 //
@@ -156,6 +186,8 @@ func runUDPListener(addr string, argIdx int) {
 		logger.Fatalf("cannot parse -syslog.tenantID.udp=%q for -syslog.listenAddr.udp=%q: %s", tenantIDStr, addr, err)
 	}
 
+	streamFields := strings.Split(streamFieldsUDP.GetOptionalArg(argIdx), "^^")
+	getCommonParams := getCommonParamsFn(tenantID, streamFields)
 	compressMethod := compressMethodUDP.GetOptionalArg(argIdx)
 	checkCompressMethod(compressMethod, addr, "udp")
 
@@ -163,7 +195,7 @@ func runUDPListener(addr string, argIdx int) {
 
 	doneCh := make(chan struct{})
 	go func() {
-		serveUDP(ln, tenantID, compressMethod, useLocalTimestamp)
+		serveUDP(ln, compressMethod, useLocalTimestamp, getCommonParams)
 		close(doneCh)
 	}()
 
@@ -199,6 +231,8 @@ func runTCPListener(addr string, argIdx int) {
 		logger.Fatalf("cannot parse -syslog.tenantID.tcp=%q for -syslog.listenAddr.tcp=%q: %s", tenantIDStr, addr, err)
 	}
 
+	streamFields := strings.Split(streamFieldsTCP.GetOptionalArg(argIdx), "^^")
+	getCommonParams := getCommonParamsFn(tenantID, streamFields)
 	compressMethod := compressMethodTCP.GetOptionalArg(argIdx)
 	checkCompressMethod(compressMethod, addr, "tcp")
 
@@ -206,7 +240,7 @@ func runTCPListener(addr string, argIdx int) {
 
 	doneCh := make(chan struct{})
 	go func() {
-		serveTCP(ln, tenantID, compressMethod, useLocalTimestamp)
+		serveTCP(ln, compressMethod, useLocalTimestamp, getCommonParams)
 		close(doneCh)
 	}()
 
@@ -228,7 +262,7 @@ func checkCompressMethod(compressMethod, addr, protocol string) {
 	}
 }
 
-func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool) {
+func serveUDP(ln net.PacketConn, compressMethod string, useLocalTimestamp bool, getCommonParams commonParamsFn) {
 	gomaxprocs := cgroup.AvailableCPUs()
 	var wg sync.WaitGroup
 	localAddr := ln.LocalAddr()
@@ -236,7 +270,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod st
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			cp := insertutils.GetCommonParamsForSyslog(tenantID)
+			cp := getCommonParams()
 			var bb bytesutil.ByteBuffer
 			bb.B = bytesutil.ResizeNoCopyNoOverallocate(bb.B, 64*1024)
 			for {
@@ -270,7 +304,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod st
 	wg.Wait()
 }
 
-func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod string, useLocalTimestamp bool) {
+func serveTCP(ln net.Listener, compressMethod string, useLocalTimestamp bool, getCommonParams commonParamsFn) {
 	var cm ingestserver.ConnsMap
 	cm.Init("syslog")
 
@@ -300,7 +334,7 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod stri
 
 		wg.Add(1)
 		go func() {
-			cp := insertutils.GetCommonParamsForSyslog(tenantID)
+			cp := getCommonParams()
 			if err := processStream(c, compressMethod, useLocalTimestamp, cp); err != nil {
 				logger.Errorf("syslog: cannot process TCP data at %q: %s", addr, err)
 			}

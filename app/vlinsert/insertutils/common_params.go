@@ -111,25 +111,6 @@ func getExtraFields(r *http.Request) ([]logstorage.Field, error) {
 	return extraFields, nil
 }
 
-// GetCommonParamsForSyslog returns common params needed for parsing syslog messages and storing them to the given tenantID.
-func GetCommonParamsForSyslog(tenantID logstorage.TenantID) *CommonParams {
-	// See https://docs.victoriametrics.com/victorialogs/logsql/#unpack_syslog-pipe
-	cp := &CommonParams{
-		TenantID:  tenantID,
-		TimeField: "timestamp",
-		MsgFields: []string{
-			"message",
-		},
-		StreamFields: []string{
-			"hostname",
-			"app_name",
-			"proc_id",
-		},
-	}
-
-	return cp
-}
-
 // LogMessageProcessor is an interface for log message processors.
 type LogMessageProcessor interface {
 	// AddRow must add row to the LogMessageProcessor with the given timestamp and the given fields.

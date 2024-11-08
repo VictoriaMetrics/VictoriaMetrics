@@ -42,7 +42,7 @@ from the received Syslog lines:
 - [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) - log timestamp. See also [log timestamps](#log-timestamps)
 - [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) - the `MESSAGE` field from the supported syslog formats above
 - `hostname`, `app_name` and `proc_id` - [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) for unique identification
-  over every log stream
+  over every log stream, which can be changed using `-syslog.streamFields.tcp` or `-syslog.streamFields.udp` flag.
 - `priority`, `facility` and `severity` - these fields are extracted from `<PRI>` field
 - `format` - this field is set to either `rfc3164` or `rfc5424` depending on the format of the parsed syslog line
 - `msg_id` - `MSGID` field from log line in `RFC5424` format.
@@ -70,6 +70,7 @@ See also:
 - [Log timestamps](#log-timestamps)
 - [Security](#security)
 - [Compression](#compression)
+- [Stream fields](#stream-fields)
 - [Multitenancy](#multitenancy)
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
@@ -120,6 +121,13 @@ For example, the following command starts VictoriaLogs, which accepts gzip-compr
 ```sh
 ./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.compressMethod.tcp=gzip
 ```
+
+## Stream fields
+
+By default VictoriaLogs uses `hostname`, `app_name` and `proc_id` as stream fields for all TCP and UTP ports. To override default behavior use
+`-syslog.streamFields.tcp` and `-syslog.streamFields.udp` flags. To pass multiple stream fields to a single port use `^^` separator. Comma separates fields for different
+ports. Example: `-syslog.streamFields.tcp=hostname^^app_name,hostname^^proc_id` - passes `hostname`, `app_name` stream fields for first syslog TCP server and
+`hostname`, `proc_id` for a second syslog TCP server.
 
 ## Multitenancy
 
