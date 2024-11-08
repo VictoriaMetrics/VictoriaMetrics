@@ -17,7 +17,7 @@ func isTerminal() bool {
 	return isatty.IsTerminal(os.Stdout.Fd()) && isatty.IsTerminal(os.Stderr.Fd())
 }
 
-func readWithLess(r io.Reader) error {
+func readWithLess(r io.Reader, wrapLongLines bool) error {
 	if !isTerminal() {
 		// Just write everything to stdout if no terminal is available.
 		_, err := io.Copy(os.Stdout, r)
@@ -48,7 +48,11 @@ func readWithLess(r io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("cannot find 'less' command: %w", err)
 	}
-	p, err := os.StartProcess(path, []string{"less", "-F", "-X"}, &os.ProcAttr{
+	opts := []string{"less", "-F", "-X"}
+	if !wrapLongLines {
+		opts = append(opts, "-S")
+	}
+	p, err := os.StartProcess(path, opts, &os.ProcAttr{
 		Env:   append(os.Environ(), "LESSCHARSET=utf-8"),
 		Files: []*os.File{pr, os.Stdout, os.Stderr},
 	})
