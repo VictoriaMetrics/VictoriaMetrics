@@ -37,10 +37,6 @@ func (pj *pipeJoin) canLiveTail() bool {
 	return true
 }
 
-func (pj *pipeJoin) optimize() {
-	pj.q.Optimize()
-}
-
 func (pj *pipeJoin) hasFilterInWithQuery() bool {
 	return false
 }

@@ -39,10 +39,6 @@ func (pf *pipeFieldNames) updateNeededFields(neededFields, unneededFields fields
 	unneededFields.reset()
 }
 
-func (pf *pipeFieldNames) optimize() {
-	// nothing to do
-}
-
 func (pf *pipeFieldNames) hasFilterInWithQuery() bool {
 	return false
 }

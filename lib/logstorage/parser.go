@@ -349,9 +349,6 @@ func (q *Query) Clone(timestamp int64) *Query {
 func (q *Query) CloneWithTimeFilter(timestamp, start, end int64) *Query {
 	q = q.Clone(timestamp)
 	q.AddTimeFilter(start, end)
-	// q.Optimize() call is needed for converting '*' into filterNoop.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6785#issuecomment-2358547733
-	q.Optimize()
 	return q
 }
 
@@ -534,8 +531,8 @@ func (q *Query) AddPipeLimit(n uint64) {
 	})
 }
 
-// Optimize tries optimizing the query.
-func (q *Query) Optimize() {
+// optimize tries optimizing the query.
+func (q *Query) optimize() {
 	q.pipes = optimizeSortOffsetPipes(q.pipes)
 	q.pipes = optimizeSortLimitPipes(q.pipes)
 	q.pipes = optimizeUniqLimitPipes(q.pipes)
@@ -560,14 +557,6 @@ func (q *Query) Optimize() {
 
 	// Substitute '*' prefixFilter with filterNoop in order to avoid reading _msg data.
 	q.f = removeStarFilters(q.f)
-
-	// Call Optimize for queries from 'in(query)' filters.
-	optimizeFilterIn(q.f)
-
-	// Optimize individual pipes.
-	for _, p := range q.pipes {
-		p.optimize()
-	}
 }
 
 // GetStatsByFields returns `by (...)` fields from the last `stats` pipe at q.
@@ -746,6 +735,7 @@ func addByTimeField(byFields []*byStatsField, step int64) []*byStatsField {
 }
 
 func removeStarFilters(f filter) filter {
+	// Substitute `*` filterPrefix with filterNoop
 	visitFunc := func(f filter) bool {
 		fp, ok := f.(*filterPrefix)
 		return ok && isMsgFieldName(fp.fieldName) && fp.prefix == ""
@@ -758,6 +748,43 @@ func removeStarFilters(f filter) filter {
 	if err != nil {
 		logger.Fatalf("BUG: unexpected error: %s", err)
 	}
+
+	// Drop filterNoop inside filterAnd
+	visitFunc = func(f filter) bool {
+		fa, ok := f.(*filterAnd)
+		if !ok {
+			return false
+		}
+		for _, f := range fa.filters {
+			if _, ok := f.(*filterNoop); ok {
+				return true
+			}
+		}
+		return false
+	}
+	copyFunc = func(f filter) (filter, error) {
+		fa := f.(*filterAnd)
+		var resultFilters []filter
+		for _, f := range fa.filters {
+			if _, ok := f.(*filterNoop); !ok {
+				resultFilters = append(resultFilters, f)
+			}
+		}
+		if len(resultFilters) == 0 {
+			return &filterNoop{}, nil
+		}
+		if len(resultFilters) == 1 {
+			return resultFilters[0], nil
+		}
+		return &filterAnd{
+			filters: resultFilters,
+		}, nil
+	}
+	f, err = copyFilter(f, visitFunc, copyFunc)
+	if err != nil {
+		logger.Fatalf("BUG: unexpected error: %s", err)
+	}
+
 	return f
 }
 
@@ -946,6 +973,7 @@ func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 		return nil, fmt.Errorf("unexpected unparsed tail after [%s]; context: [%s]; tail: [%s]", q, lex.context(), lex.s)
 	}
 	q.timestamp = timestamp
+	q.optimize()
 	return q, nil
 }
 

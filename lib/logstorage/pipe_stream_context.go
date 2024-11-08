@@ -55,10 +55,6 @@ func (pc *pipeStreamContext) updateNeededFields(neededFields, unneededFields fie
 	unneededFields.removeFields(neededFieldsForStreamContext)
 }
 
-func (pc *pipeStreamContext) optimize() {
-	// nothing to do
-}
-
 func (pc *pipeStreamContext) hasFilterInWithQuery() bool {
 	return false
 }

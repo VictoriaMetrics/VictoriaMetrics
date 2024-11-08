@@ -45,10 +45,6 @@ func (pr *pipeReplace) updateNeededFields(neededFields, unneededFields fieldsSet
 	updateNeededFieldsForUpdatePipe(neededFields, unneededFields, pr.field, pr.iff)
 }
 
-func (pr *pipeReplace) optimize() {
-	pr.iff.optimizeFilterIn()
-}
-
 func (pr *pipeReplace) hasFilterInWithQuery() bool {
 	return pr.iff.hasFilterInWithQuery()
 }

@@ -982,7 +982,6 @@ func parseCommonArgs(r *http.Request) (*logstorage.Query, []logstorage.TenantID,
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
-	q.Optimize()
 
 	// Parse optional start and end args
 	start, okStart, err := getTimeNsec(r, "start")

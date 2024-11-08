@@ -45,10 +45,6 @@ func (pe *pipeExtract) canLiveTail() bool {
 	return true
 }
 
-func (pe *pipeExtract) optimize() {
-	pe.iff.optimizeFilterIn()
-}
-
 func (pe *pipeExtract) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }

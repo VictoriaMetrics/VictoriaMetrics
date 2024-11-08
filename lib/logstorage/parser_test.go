@@ -534,19 +534,28 @@ func TestParseFilterPrefix(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fp, ok := q.f.(*filterPrefix)
-		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterPrefix; filter: %s", q.f, q.f)
-		}
-		if fp.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", fp.fieldName, fieldNameExpected)
-		}
-		if fp.prefix != prefixExpected {
-			t.Fatalf("unexpected prefix; got %q; want %q", fp.prefix, prefixExpected)
+		switch f := q.f.(type) {
+		case *filterPrefix:
+			if f.fieldName != fieldNameExpected {
+				t.Fatalf("unexpected fieldName; got %q; want %q", f.fieldName, fieldNameExpected)
+			}
+			if f.prefix != prefixExpected {
+				t.Fatalf("unexpected prefix; got %q; want %q", f.prefix, prefixExpected)
+			}
+		case *filterNoop:
+			if fieldNameExpected != "" {
+				t.Fatalf("expecting non-empty fieldName %q", fieldNameExpected)
+			}
+			if prefixExpected != "" {
+				t.Fatalf("expecting non-empty prefix %q", prefixExpected)
+			}
+		default:
+			t.Fatalf("unexpected filter type; got %T; want *filterPrefix or *filterNoop; filter: %s", q.f, q.f)
 		}
 	}
 
 	f(`*`, ``, ``)
+	f(`f:*`, `f`, ``)
 	f(`""*`, ``, ``)
 	f(`foo*`, ``, `foo`)
 	f(`abc-de.fg:foo-bar+baz*`, `abc-de.fg`, `foo-bar+baz`)
@@ -695,8 +704,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`'foo'* and (a:x* and x:* or y:i(""*)) and i("abc def"*)`, `foo* (a:x* x:* or y:i(*)) i("abc def"*)`)
 
 	// This isn't a prefix search - it equals to `foo AND *`
-	f(`foo *`, `foo *`)
-	f(`"foo" *`, `foo *`)
+	f(`foo *`, `foo`)
+	f(`"foo" *`, `foo`)
 
 	// empty filter
 	f(`"" or foo:"" and not bar:""`, `"" or foo:"" !bar:""`)
@@ -1197,13 +1206,13 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | uniq limit 10`, `* | uniq limit 10`)
 
 	// filter pipe
-	f(`* | filter error ip:12.3.4.5 or warn`, `* | filter error ip:12.3.4.5 or warn`)
-	f(`foo | stats by (host) count() logs | filter logs:>50 | sort by (logs desc) | limit 10`, `foo | stats by (host) count(*) as logs | filter logs:>50 | sort by (logs desc) | limit 10`)
-	f(`* | error`, `* | filter error`)
-	f(`* | "by"`, `* | filter "by"`)
-	f(`* | "stats"`, `* | filter "stats"`)
-	f(`* | "count"`, `* | filter "count"`)
-	f(`* | foo:bar AND baz:<10`, `* | filter foo:bar baz:<10`)
+	f(`* | filter error ip:12.3.4.5 or warn`, `error ip:12.3.4.5 or warn`)
+	f(`foo | stats by (host) count() logs | filter logs:>50 | sort by (logs desc) | limit 10`, `foo | stats by (host) count(*) as logs | filter logs:>50 | sort by (logs desc) limit 10`)
+	f(`* | error`, `error`)
+	f(`* | "by"`, `"by"`)
+	f(`* | "stats" *`, `"stats"`)
+	f(`* | * "count"`, `"count"`)
+	f(`* | foo:bar AND baz:<10`, `foo:bar baz:<10`)
 
 	// extract pipe
 	f(`* | extract "foo<bar>baz"`, `* | extract "foo<bar>baz"`)
@@ -1734,7 +1743,6 @@ func TestQueryGetNeededColumns(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse query [%s]: %s", s, err)
 		}
-		q.Optimize()
 
 		needed, unneeded := q.getNeededColumns()
 		neededColumns := strings.Join(needed, ",")
@@ -2200,7 +2208,6 @@ func TestQueryDropAllPipes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse [%s]: %s", qStr, err)
 		}
-		q.Optimize()
 		q.DropAllPipes()
 		result := q.String()
 		if result != resultExpected {

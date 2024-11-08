@@ -33,10 +33,6 @@ func (pp *pipePackLogfmt) updateNeededFields(neededFields, unneededFields fields
 	updateNeededFieldsForPipePack(neededFields, unneededFields, pp.resultField, pp.fields)
 }
 
-func (pp *pipePackLogfmt) optimize() {
-	// nothing to do
-}
-
 func (pp *pipePackLogfmt) hasFilterInWithQuery() bool {
 	return false
 }

@@ -89,10 +89,6 @@ func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (ps *pipeSort) optimize() {
-	// nothing to do
-}
-
 func (ps *pipeSort) hasFilterInWithQuery() bool {
 	return false
 }

@@ -54,10 +54,6 @@ func (pc *pipeCopy) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (pc *pipeCopy) optimize() {
-	// Nothing to do
-}
-
 func (pc *pipeCopy) hasFilterInWithQuery() bool {
 	return false
 }
