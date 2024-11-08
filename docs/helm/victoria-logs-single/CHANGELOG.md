@@ -1,6 +1,15 @@
 ## Next release
 
-- TODO
+**Update note 1**: In a response to multiple collector related configuration feature requests and inability to use fluent-bit YAML configuration parser to provide
+ability easily override parts of default configuration we've considered using Vector as a default logs collector instead of fluent-bit.
+Please consider using [vector chart docs](https://github.com/vectordotdev/helm-charts/tree/develop/charts/vector) values under `vector` key
+to update your agent configuration if you are using it.
+
+- Allow selecting multiple/all instances in a dashboard. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1699)
+- Upgraded VictoriaLogs 0.40.0 -> 0.41.0
+- Replaced default fluent-bit collector with vector
+- Parsed json fields are now nested into `log` key. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1708)
+- updated common dependency 0.0.19 -> 0.0.21
 
 ## 0.7.3
 
