@@ -136,7 +136,7 @@ for limiting the amounts of exported logs.
 
 Starting from version `v0.30.0`, VictoriaLogs started blocking the ingestion of logs **without a message field**, as it is a requirement of the VictoriaLogs data model (https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field). 
 
-However, some logs do not have a message field and only contain other fields, such as [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7056#issuecomment-2434189718) and [this slack thread](https://victoriametrics.slack.com/archives/C05UNTPAEDN/p1730982146818249). Therefore, starting from version `v0.39.0`, logs without a message field are **allowed to be ingested**, 
+However, some logs do not have a message field and only contain other fields, such as logs in [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7056#issuecomment-2434189718) and [this slack thread](https://victoriametrics.slack.com/archives/C05UNTPAEDN/p1730982146818249). Therefore, starting from version `v0.39.0`, logs without a message field are **allowed to be ingested**, 
 and their message field will be recorded as: 
 ```json
 {"_msg": "missing _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field"}
@@ -146,13 +146,16 @@ The default message field value can be changed using the `-defaultMsgValue` flag
 
 Please note that the message field is **crucial** for VictoriaLogs, so it is important to fill it with meaningful content.
 
+## What if my logs have multiple message fields candidates?
+
 When ingesting with VictoriaLogs, the message fields is specified through `_msg_field` param, which can accept **multiple fields**, and the **first non-empty field** will be used as the message field. 
-Here is an example URL when using Promtail to send logs to VictoriaLogs:
-```
-http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app&_msg=message,body
+Here is an example URL when pushing logs to VictoriaLogs with Promtail:
+```yaml
+clients:
+  - url: http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app&_msg=message,body
 ```
 
-For the following log, its _msg will be `foo bar in message`:
+For the following log, its `_msg` will be `foo bar in message`:
 ```json
 {
   "message": "foo bar in message",
@@ -160,7 +163,7 @@ For the following log, its _msg will be `foo bar in message`:
 }
 ```
 
-And for the following log, its _msg will be `foo bar in body`:
+And for the following log, its `_msg` will be `foo bar in body`:
 ```json
 {
   "message": "",
