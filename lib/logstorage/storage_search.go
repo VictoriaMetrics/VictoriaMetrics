@@ -394,7 +394,7 @@ func (s *Storage) GetStreamIDs(ctx context.Context, tenantIDs []TenantID, q *Que
 	return s.GetFieldValues(ctx, tenantIDs, q, "_stream_id", limit)
 }
 
-// GetTenantIDs returns tenantIDs for the given q.
+// GetTenantIDs returns tenantIDs for the given start and end.
 func (s *Storage) GetTenantIDs(ctx context.Context, start, end int64) ([]string, error) {
 	return s.getTenantIDs(ctx, start, end)
 }
@@ -420,7 +420,7 @@ func (s *Storage) getTenantIDs(ctx context.Context, start, end int64) ([]string,
 	for tid := range m {
 		tenants = append(tenants, tid)
 	}
-	sort.Strings(tenants)
+	slices.Sort(tenants)
 	return tenants, nil
 }
 

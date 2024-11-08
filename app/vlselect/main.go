@@ -252,5 +252,5 @@ var (
 	logsqlStreamIDsRequests         = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_ids"}`)
 	logsqlStreamsRequests           = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/streams"}`)
 	logsqlTailRequests              = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/tail"}`)
-	logsqlAdminTenantsRequests      = metrics.NewCounter(`vl_http_requests_total{path="/admin/tenants"}`)
+	logsqlAdminTenantsRequests      = metrics.NewCounter(`vl_http_requests_total{path="/select/admin/tenants"}`)
 )

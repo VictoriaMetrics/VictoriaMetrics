@@ -3,6 +3,7 @@ package logstorage
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -254,5 +255,76 @@ func TestStorageSearchStreamIDs(t *testing.T) {
 }
 
 func TestGetTenantsIds(t *testing.T) {
+	t.Parallel()
 
+	path := t.Name()
+	const partitionName = "foobar"
+	s := newTestStorage()
+	mustCreateIndexdb(path)
+	idb := mustOpenIndexdb(path, partitionName, s)
+
+	tenantIDs := []TenantID{
+		{AccountID: 0, ProjectID: 0},
+		{AccountID: 0, ProjectID: 1},
+		{AccountID: 1, ProjectID: 0},
+		{AccountID: 1, ProjectID: 1},
+		{AccountID: 123, ProjectID: 567},
+	}
+	getStreamIDForTags := func(tags map[string]string) ([]streamID, []byte) {
+		st := GetStreamTags()
+		for k, v := range tags {
+			st.Add(k, v)
+		}
+		streamTagsCanonical := st.MarshalCanonical(nil)
+		PutStreamTags(st)
+		id := hash128(streamTagsCanonical)
+		sids := make([]streamID, 0, len(tenantIDs))
+		for _, tenantID := range tenantIDs {
+			sid := streamID{
+				tenantID: tenantID,
+				id:       id,
+			}
+
+			sids = append(sids, sid)
+		}
+
+		return sids, streamTagsCanonical
+	}
+
+	// Create indexdb entries
+	const jobsCount = 7
+	const instancesCount = 5
+	for i := 0; i < jobsCount; i++ {
+		for j := 0; j < instancesCount; j++ {
+			sids, streamTagsCanonical := getStreamIDForTags(map[string]string{
+				"job":      fmt.Sprintf("job-%d", i),
+				"instance": fmt.Sprintf("instance-%d", j),
+			})
+			for _, sid := range sids {
+				idb.mustRegisterStream(&sid, streamTagsCanonical)
+			}
+
+		}
+	}
+	idb.debugFlush()
+
+	f := func(expectedTenantIDs []string) {
+		t.Helper()
+		tenantIDs := idb.searchTenants()
+		slices.Sort(tenantIDs)
+		slices.Sort(expectedTenantIDs)
+		if !reflect.DeepEqual(tenantIDs, expectedTenantIDs) {
+			fs.MustRemoveAll(path)
+			t.Fatalf("unexpected tensntIds; got %v; want %v", tenantIDs, expectedTenantIDs)
+		}
+	}
+
+	expectedTenantIDs := []string{"1:1", "123:567", "0:0", "0:1", "1:0"}
+
+	f(expectedTenantIDs)
+
+	mustCloseIndexdb(idb)
+	fs.MustRemoveAll(path)
+
+	closeTestStorage(s)
 }
