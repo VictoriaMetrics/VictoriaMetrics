@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- updated common dependency 0.0.20 -> 0.0.23
 
 ## 0.12.6
 

@@ -3,7 +3,7 @@
 - use common templates
 - set default DNS domain to `cluster.local.`
 - added podLabels and podAnnotations to add extra pod labels and annotations
-- updated common dependency 0.0.19 -> 0.0.20
+- updated common dependency 0.0.19 -> 0.0.23
 
 ## 1.6.3
 
