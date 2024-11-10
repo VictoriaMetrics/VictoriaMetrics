@@ -4,7 +4,7 @@
 - changed `alertmanager.podMetadata.annotations` to `alertmanager.podAnnotations`
 - fix Deployment/StatefulSets when `serviceAccount.name` is empty and `serviceAccount.create: false`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1683).
 - set default DNS domain to `cluster.local.`
-- updated common dependency 0.0.19 -> 0.0.20
+- updated common dependency 0.0.19 -> 0.0.23
 
 ## 0.12.4
 
