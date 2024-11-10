@@ -197,7 +197,7 @@ Therefore, for a complete data **backup**, you need to run the `rsync` command *
 
 ```sh
 # example of rsync to remote host
-rsync -avh --progress <path-to-victorialogs-data> <username>@<host>:<path-to-victorialogs-backup>
+rsync -avh --progress --delete <path-to-victorialogs-data> <username>@<host>:<path-to-victorialogs-backup>
 ```
 
 The first `rsync` will sync the majority of the data, which can be time-consuming.
@@ -227,7 +227,7 @@ VictoriaLogs will automatically load this data upon startup.
 
 ```sh
 # example of rsync from remote backup to local
-rsync -avh --progress <username>@<host>:<path-to-victorialogs-backup> <path-to-victorialogs-data>
+rsync -avh --progress --delete <username>@<host>:<path-to-victorialogs-backup> <path-to-victorialogs-data>
 ```
 
 It is also possible to use **the disk snapshot** in order to perform a backup. This feature could be provided by your operating system,
