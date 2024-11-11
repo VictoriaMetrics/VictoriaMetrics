@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"testing/quick"
 	"time"
@@ -671,7 +672,7 @@ func TestStorageDeleteSeries(t *testing.T) {
 	s := MustOpenStorage(path, 0, 0, 0)
 
 	// Verify no label names exist
-	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, 0, 0, nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, 0, 0, nil, TimeRange{}, 1e5, 1e9, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		t.Fatalf("error in SearchLabelNamesWithFiltersOnTimeRange() at the start: %s", err)
 	}
@@ -720,7 +721,7 @@ func TestStorageDeleteSeries(t *testing.T) {
 	})
 
 	// Verify no more tag keys exist
-	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, 0, 0, nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, 0, 0, nil, TimeRange{}, 1e5, 1e9, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		t.Fatalf("error in SearchLabelNamesWithFiltersOnTimeRange after the test: %s", err)
 	}
@@ -779,7 +780,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	s.DebugFlush()
 
 	// Verify tag values exist
-	tvs, err := s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, string(workerTag), nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	tvs, err := s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, string(workerTag), nil, TimeRange{}, 1e5, 1e9, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange before metrics removal: %w", err)
 	}
@@ -788,7 +789,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	}
 
 	// Verify tag keys exist
-	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID, projectID, nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID, projectID, nil, TimeRange{}, 1e5, 1e9, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelNamesWithFiltersOnTimeRange before metrics removal: %w", err)
 	}
@@ -804,7 +805,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	metricBlocksCount := func(tfs *TagFilters) int {
 		// Verify the number of blocks
 		n := 0
-		sr.Init(nil, s, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		sr.Init(nil, s, []*TagFilters{tfs}, tr, 1e5, noDeadline, &atomic.Uint64{})
 		for sr.NextMetricBlock() {
 			n++
 		}
@@ -823,7 +824,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 		if n := metricBlocksCount(tfs); n == 0 {
 			return fmt.Errorf("expecting non-zero number of metric blocks for tfs=%s", tfs)
 		}
-		deletedCount, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9)
+		deletedCount, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9, &atomic.Uint64{})
 		if err != nil {
 			return fmt.Errorf("cannot delete metrics: %w", err)
 		}
@@ -835,7 +836,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 		}
 
 		// Try deleting empty tfss
-		deletedCount, err = s.DeleteSeries(nil, nil, 1e9)
+		deletedCount, err = s.DeleteSeries(nil, nil, 1e9, &atomic.Uint64{})
 		if err != nil {
 			return fmt.Errorf("cannot delete empty tfss: %w", err)
 		}
@@ -852,7 +853,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	if n := metricBlocksCount(tfs); n != 0 {
 		return fmt.Errorf("expecting zero metric blocks after deleting all the metrics; got %d blocks", n)
 	}
-	tvs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, string(workerTag), nil, TimeRange{}, 1e5, 1e9, noDeadline)
+	tvs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, string(workerTag), nil, TimeRange{}, 1e5, 1e9, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange after all the metrics are removed: %w", err)
 	}
@@ -905,7 +906,7 @@ func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 	}
 	maxSeries := numSeries - 1
-	count, err := s.DeleteSeries(nil, []*TagFilters{tfs}, maxSeries)
+	count, err := s.DeleteSeries(nil, []*TagFilters{tfs}, maxSeries, &atomic.Uint64{})
 	if err == nil {
 		t.Errorf("expected an error but there hasn't been one")
 	}
@@ -956,7 +957,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// cache is still empty.
 	s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
 	s.DebugFlush()
-	gotMetrics, err := s.SearchMetricNames(nil, tfss, tr, 1, noDeadline)
+	gotMetrics, err := s.SearchMetricNames(nil, tfss, tr, 1, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		t.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
 	}
@@ -980,7 +981,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	// Delete the metric added earlier and ensure that the tsidCache and
 	// tagFiltersToMetricIDsCache have been reset and the deletedMetricIDs
 	// cache is now contains ID of the deleted metric.
-	numDeletedSeries, err := s.DeleteSeries(nil, tfss, 1)
+	numDeletedSeries, err := s.DeleteSeries(nil, tfss, 1, &atomic.Uint64{})
 	if err != nil {
 		t.Fatalf("DeleteSeries() failed unexpectedly: %v", err)
 	}
@@ -1084,7 +1085,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		"instance",
 		"job",
 	}
-	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID, projectID, nil, TimeRange{}, 100, 1e9, noDeadline)
+	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID, projectID, nil, TimeRange{}, 100, 1e9, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelNamesWithFiltersOnTimeRange: %w", err)
 	}
@@ -1094,7 +1095,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	}
 
 	// Verify that SearchLabelNamesWithFiltersOnTimeRange returns empty results for incorrect accountID, projectID
-	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID+1, projectID+1, nil, TimeRange{}, 100, 1e9, noDeadline)
+	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID+1, projectID+1, nil, TimeRange{}, 100, 1e9, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		return fmt.Errorf("error in SearchTagKeys for incorrect accountID, projectID: %w", err)
 	}
@@ -1110,7 +1111,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		MinTimestamp: start,
 		MaxTimestamp: end,
 	}
-	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID, projectID, nil, tr, 100, 1e9, noDeadline)
+	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID, projectID, nil, tr, 100, 1e9, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelNamesWithFiltersOnTimeRange: %w", err)
 	}
@@ -1120,7 +1121,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	}
 
 	// Verify that SearchLabelNamesWithFiltersOnTimeRange with the specified time range returns empty results for incrorrect accountID, projectID
-	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID+1, projectID+1, nil, tr, 100, 1e9, noDeadline)
+	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, accountID+1, projectID+1, nil, tr, 100, 1e9, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		return fmt.Errorf("error in SearchTagKeysOnTimeRange for incorrect accountID, projectID: %w", err)
 	}
@@ -1129,7 +1130,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	}
 
 	// Verify that SearchLabelValuesWithFiltersOnTimeRange returns correct result.
-	addIDs, err := s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, "add_id", nil, TimeRange{}, addsCount+100, 1e9, noDeadline)
+	addIDs, err := s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, "add_id", nil, TimeRange{}, addsCount+100, 1e9, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange: %w", err)
 	}
@@ -1139,7 +1140,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	}
 
 	// Verify that SearchLabelValuesWithFiltersOnTimeRange return empty results for incorrect accountID, projectID
-	addIDs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID+1, projectID+1, "add_id", nil, TimeRange{}, addsCount+100, 1e9, noDeadline)
+	addIDs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID+1, projectID+1, "add_id", nil, TimeRange{}, addsCount+100, 1e9, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		return fmt.Errorf("error in SearchTagValues for incorrect accountID, projectID: %w", err)
 	}
@@ -1148,7 +1149,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	}
 
 	// Verify that SearchLabelValuesWithFiltersOnTimeRange with the specified time range returns correct result.
-	addIDs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, "add_id", nil, tr, addsCount+100, 1e9, noDeadline)
+	addIDs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID, projectID, "add_id", nil, tr, addsCount+100, 1e9, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange: %w", err)
 	}
@@ -1158,7 +1159,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	}
 
 	// Verify that SearchLabelValuesWithFiltersOnTimeRange returns empty results for incorrect accountID, projectID
-	addIDs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID+1, projectID+1, "addd_id", nil, tr, addsCount+100, 1e9, noDeadline)
+	addIDs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, accountID+1, projectID+1, "addd_id", nil, tr, addsCount+100, 1e9, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange for incorrect accoundID, projectID: %w", err)
 	}
@@ -1171,7 +1172,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	if err := tfs.Add([]byte("add_id"), []byte("0"), false, false); err != nil {
 		return fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
 	}
-	metricNames, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, metricsPerAdd*addsCount*100+100, noDeadline)
+	metricNames, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, metricsPerAdd*addsCount*100+100, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		return fmt.Errorf("error in SearchMetricNames: %w", err)
 	}
@@ -1198,7 +1199,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	if err := tfs.Add([]byte("add_id"), []byte("0"), false, false); err != nil {
 		return fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
 	}
-	metricNames, err = s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, metricsPerAdd*addsCount*100+100, noDeadline)
+	metricNames, err = s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, metricsPerAdd*addsCount*100+100, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		return fmt.Errorf("error in SearchMetricNames for incorrect accountID, projectID: %w", err)
 	}
@@ -1475,7 +1476,7 @@ func testCountAllMetricNamesNoExtDB(tfss *TagFilters, is *indexSearch, tr TimeRa
 	if err := tfss.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 	}
-	metricIDs, err := is.searchMetricIDs(nil, []*TagFilters{tfss}, tr, 1e9)
+	metricIDs, err := is.searchMetricIDs(nil, []*TagFilters{tfss}, tr, 1e9, &atomic.Uint64{})
 	if err != nil {
 		panic(fmt.Sprintf("searchMetricIDs failed unexpectedly: %v", err))
 	}
@@ -1718,7 +1719,7 @@ func testCountAllMetricNames(s *Storage, accountID, projectID uint32, tr TimeRan
 	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 	}
-	names, err := s.SearchMetricNames(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
+	names, err := s.SearchMetricNames(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline, &atomic.Uint64{})
 	if err != nil {
 		panic(fmt.Sprintf("SeachMetricNames() failed unexpectedly: %v", err))
 	}
@@ -1775,7 +1776,7 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 			tfss = append(tfss, tfs)
 		}
 
-		names, err := s.SearchMetricNames(nil, tfss, opts.tr, opts.maxMetrics, noDeadline)
+		names, err := s.SearchMetricNames(nil, tfss, opts.tr, opts.maxMetrics, noDeadline, &atomic.Uint64{})
 		gotErr := err != nil
 		if gotErr != opts.wantErr {
 			t.Errorf("SeachMetricNames(%v, %v, %d): unexpected error: got %v, want error to happen %v", []any{
@@ -1949,7 +1950,8 @@ func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
 	if err := tfsAll.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 	}
-	ids, err := s.idb().searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
+	readMetricIDs := atomic.Uint64{}
+	ids, err := s.idb().searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline, &readMetricIDs)
 	if err != nil {
 		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))
 	}
@@ -2254,7 +2256,7 @@ func assertCounts(t *testing.T, s *Storage, want *counts, strict bool) {
 
 	for date, wantStatus := range want.dateTSDBStatuses {
 		dt := time.UnixMilli(int64(date) * msecPerDay).UTC()
-		gotStatus, err := s.GetTSDBStatus(nil, 0, 0, nil, date, "", 10, 1e6, noDeadline)
+		gotStatus, err := s.GetTSDBStatus(nil, 0, 0, nil, date, "", 10, 1e6, noDeadline, &atomic.Uint64{})
 		if err != nil {
 			t.Fatalf("GetTSDBStatus(%v) failed unexpectedly: %v", dt, err)
 		}

@@ -1197,11 +1197,11 @@ func nextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64) int64
 // SearchMetricNames returns marshaled metric names matching the given tfss on the given tr.
 //
 // The marshaled metric names must be unmarshaled via MetricName.UnmarshalString().
-func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
+func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64, readMetricIDs *atomic.Uint64) ([]string, error) {
 	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
-	metricIDs, err := s.idb().searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+	metricIDs, err := s.idb().searchMetricIDs(qt, tfss, tr, maxMetrics, deadline, readMetricIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -1337,8 +1337,8 @@ var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 // If the number of the series exceeds maxMetrics, no series will be deleted and
 // an error will be returned. Otherwise, the funciton returns the number of
 // metrics deleted.
-func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
-	deletedCount, err := s.idb().DeleteTSIDs(qt, tfss, maxMetrics)
+func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int, readMetricIDs *atomic.Uint64) (int, error) {
+	deletedCount, err := s.idb().DeleteTSIDs(qt, tfss, maxMetrics, readMetricIDs)
 	if err != nil {
 		return deletedCount, fmt.Errorf("cannot delete tsids: %w", err)
 	}
@@ -1352,14 +1352,14 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 
 // SearchLabelNamesWithFiltersOnTimeRange searches for label names matching the given tfss on tr.
 func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, tr TimeRange,
-	maxLabelNames, maxMetrics int, deadline uint64,
+	maxLabelNames, maxMetrics int, deadline uint64, readMetricIDs *atomic.Uint64,
 ) ([]string, error) {
-	return s.idb().SearchLabelNamesWithFiltersOnTimeRange(qt, accountID, projectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
+	return s.idb().SearchLabelNamesWithFiltersOnTimeRange(qt, accountID, projectID, tfss, tr, maxLabelNames, maxMetrics, deadline, readMetricIDs)
 }
 
 // SearchLabelValuesWithFiltersOnTimeRange searches for label values for the given labelName, filters and tr.
 func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, labelName string, tfss []*TagFilters,
-	tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64,
+	tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64, readMetricIDs *atomic.Uint64,
 ) ([]string, error) {
 	idb := s.idb()
 
@@ -1371,7 +1371,7 @@ func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer
 		// tfss contains only a single filter on labelName. It is faster searching for label values
 		// without any filters and limits and then later applying the filter and the limit to the found label values.
 		qt.Printf("search for up to %d values for the label %q on the time range %s", maxMetrics, labelName, &tr)
-		lvs, err := idb.SearchLabelValuesWithFiltersOnTimeRange(qt, accountID, projectID, labelName, nil, tr, maxMetrics, maxMetrics, deadline)
+		lvs, err := idb.SearchLabelValuesWithFiltersOnTimeRange(qt, accountID, projectID, labelName, nil, tr, maxMetrics, maxMetrics, deadline, readMetricIDs)
 		if err != nil {
 			return nil, err
 		}
@@ -1394,7 +1394,7 @@ func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer
 		qt.Printf("fall back to slow search because only a subset of label values is found")
 	}
 
-	return idb.SearchLabelValuesWithFiltersOnTimeRange(qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+	return idb.SearchLabelValuesWithFiltersOnTimeRange(qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline, readMetricIDs)
 }
 
 func filterLabelValues(accountID, projectID uint32, lvs []string, tf *tagFilter, key string) []string {
@@ -1616,8 +1616,8 @@ func (s *Storage) SearchTenants(qt *querytracer.Tracer, tr TimeRange, deadline u
 }
 
 // GetTSDBStatus returns TSDB status data for /api/v1/status/tsdb
-func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
-	return s.idb().GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
+func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64, readMetricIDs *atomic.Uint64) (*TSDBStatus, error) {
+	return s.idb().GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline, readMetricIDs)
 }
 
 // MetricRow is a metric to insert into storage.

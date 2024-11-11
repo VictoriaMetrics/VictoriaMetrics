@@ -146,7 +146,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		}
 		for i := 0; i < b.N; i++ {
 			is := db.getIndexSearch(tfs.accountID, tfs.projectID, noDeadline)
-			metricIDs, err := is.searchMetricIDs(nil, tfss, tr, 2e9)
+			metricIDs, err := is.searchMetricIDs(nil, tfss, tr, 2e9, &atomic.Uint64{})
 			db.putIndexSearch(is)
 			if err != nil {
 				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
