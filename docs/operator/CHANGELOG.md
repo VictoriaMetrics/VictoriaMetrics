@@ -15,6 +15,7 @@ aliases:
 
 - [vmrule](https://docs.victoriametrics.com/operator/resources/vmrule/): properly validate rules for [vlogs](https://docs.victoriametrics.com/victorialogs/vmalert/) group `type`.
 - [operator](https://docs.victoriametrics.com/operator/): properly apply changes to the [converted](https://docs.victoriametrics.com/operator/migration/#objects-conversion) `VMScrapeConfig` during operator start-up.
+- [operator](https://docs.victoriametrics.com/operator/): properly set  `operational` update status for CRDs. Previously, `operational` status could be set before rollout finishes at Kubernetes due to bug at Kubernetes `controller-manager`.
 
 
 ## [v0.49.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.0) - 15 Oct 2024
