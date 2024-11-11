@@ -26,9 +26,6 @@ type pipe interface {
 	// The returned pipeProcessor may call cancel() at any time in order to notify the caller to stop sending new data to it.
 	newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor
 
-	// optimize must optimize the pipe
-	optimize()
-
 	// hasFilterInWithQuery must return true of pipe contains 'in(subquery)' filter (recursively).
 	hasFilterInWithQuery() bool
 
@@ -99,6 +96,12 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 
 func parsePipe(lex *lexer) (pipe, error) {
 	switch {
+	case lex.isKeyword("block_stats"):
+		ps, err := parsePipeBlockStats(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'block_stats' pipe: %w", err)
+		}
+		return ps, nil
 	case lex.isKeyword("blocks_count"):
 		pc, err := parsePipeBlocksCount(lex)
 		if err != nil {
@@ -165,6 +168,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'format' pipe: %w", err)
 		}
 		return pf, nil
+	case lex.isKeyword("join"):
+		pj, err := parsePipeJoin(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'join' pipe: %w", err)
+		}
+		return pj, nil
 	case lex.isKeyword("len"):
 		pl, err := parsePipeLen(lex)
 		if err != nil {
@@ -296,6 +305,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 
 var pipeNames = func() map[string]struct{} {
 	a := []string{
+		"block_stats",
 		"blocks_count",
 		"copy", "cp",
 		"delete", "del", "rm", "drop",
@@ -307,6 +317,7 @@ var pipeNames = func() map[string]struct{} {
 		"fields", "keep",
 		"filter", "where",
 		"format",
+		"join",
 		"len",
 		"limit", "head",
 		"math", "eval",

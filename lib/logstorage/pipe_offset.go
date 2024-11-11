@@ -24,10 +24,6 @@ func (po *pipeOffset) updateNeededFields(_, _ fieldsSet) {
 	// nothing to do
 }
 
-func (po *pipeOffset) optimize() {
-	// nothing to do
-}
-
 func (po *pipeOffset) hasFilterInWithQuery() bool {
 	return false
 }

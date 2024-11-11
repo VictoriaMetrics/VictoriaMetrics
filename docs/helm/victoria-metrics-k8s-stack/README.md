@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.27.6](https://img.shields.io/badge/Version-0.27.6-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.28.3](https://img.shields.io/badge/Version-0.28.3-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-k8s-stack)
 
 Kubernetes monitoring on VictoriaMetrics stack. Includes VictoriaMetrics Operator, Grafana dashboards, ServiceScrapes and VMRules
@@ -134,7 +134,7 @@ data:
 grafana:
   sidecar:
     dashboards:
-      enabled: true
+      enabled: false
   dashboards:
     vmcluster:
       gnetId: 11176
@@ -1311,6 +1311,17 @@ write:
 </td>
     </tr>
     <tr>
+      <td>global.cluster.dnsDomain</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">cluster.local.
+</code>
+</pre>
+</td>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
+</td>
+    </tr>
+    <tr>
       <td>global.clusterLabel</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -2142,39 +2153,6 @@ selector:
 </pre>
 </td>
       <td><p>Install prometheus operator CRDs</p>
-</td>
-    </tr>
-    <tr>
-      <td>serviceAccount.annotations</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">{}
-</code>
-</pre>
-</td>
-      <td><p>Annotations to add to the service account</p>
-</td>
-    </tr>
-    <tr>
-      <td>serviceAccount.create</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
-</code>
-</pre>
-</td>
-      <td><p>Specifies whether a service account should be created</p>
-</td>
-    </tr>
-    <tr>
-      <td>serviceAccount.name</td>
-      <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">""
-</code>
-</pre>
-</td>
-      <td><p>The name of the service account to use. If not set and create is true, a name is generated using the fullname template</p>
 </td>
     </tr>
     <tr>

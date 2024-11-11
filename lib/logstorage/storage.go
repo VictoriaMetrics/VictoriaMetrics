@@ -549,7 +549,7 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 		}
 		lrPart := m[day]
 		if lrPart == nil {
-			lrPart = GetLogRows(nil, nil)
+			lrPart = GetLogRows(nil, nil, nil, "")
 			m[day] = lrPart
 		}
 		lrPart.mustAddInternal(lr.streamIDs[i], ts, lr.rows[i], lr.streamTagsCanonicals[i])

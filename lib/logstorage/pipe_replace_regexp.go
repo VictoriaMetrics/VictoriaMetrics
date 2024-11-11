@@ -45,10 +45,6 @@ func (pr *pipeReplaceRegexp) updateNeededFields(neededFields, unneededFields fie
 	updateNeededFieldsForUpdatePipe(neededFields, unneededFields, pr.field, pr.iff)
 }
 
-func (pr *pipeReplaceRegexp) optimize() {
-	pr.iff.optimizeFilterIn()
-}
-
 func (pr *pipeReplaceRegexp) hasFilterInWithQuery() bool {
 	return pr.iff.hasFilterInWithQuery()
 }

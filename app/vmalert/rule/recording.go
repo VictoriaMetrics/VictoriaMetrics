@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
@@ -221,6 +222,9 @@ func setIntervalAsTimeFilter(dType, expr string) bool {
 	if dType != "vlogs" {
 		return false
 	}
-	q, _ := logstorage.ParseStatsQuery(expr)
-	return !q.ContainAnyTimeFilter()
+	q, err := logstorage.ParseStatsQuery(expr, 0)
+	if err != nil {
+		logger.Panicf("BUG: the LogsQL query must be valid here; got error: %s; query=[%s]", err, expr)
+	}
+	return !q.HasGlobalTimeFilter()
 }

@@ -123,12 +123,6 @@ func (ps *pipeStats) updateNeededFields(neededFields, unneededFields fieldsSet) 
 	unneededFields.reset()
 }
 
-func (ps *pipeStats) optimize() {
-	for _, f := range ps.funcs {
-		f.iff.optimizeFilterIn()
-	}
-}
-
 func (ps *pipeStats) hasFilterInWithQuery() bool {
 	for _, f := range ps.funcs {
 		if f.iff.hasFilterInWithQuery() {

@@ -58,10 +58,6 @@ func (pu *pipeUniq) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (pu *pipeUniq) optimize() {
-	// nothing to do
-}
-
 func (pu *pipeUniq) hasFilterInWithQuery() bool {
 	return false
 }

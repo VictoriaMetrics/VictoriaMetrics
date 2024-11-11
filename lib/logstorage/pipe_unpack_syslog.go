@@ -54,10 +54,6 @@ func (pu *pipeUnpackSyslog) updateNeededFields(neededFields, unneededFields fiel
 	updateNeededFieldsForUnpackPipe(pu.fromField, nil, pu.keepOriginalFields, false, pu.iff, neededFields, unneededFields)
 }
 
-func (pu *pipeUnpackSyslog) optimize() {
-	pu.iff.optimizeFilterIn()
-}
-
 func (pu *pipeUnpackSyslog) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }

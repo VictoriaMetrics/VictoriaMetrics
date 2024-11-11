@@ -41,10 +41,6 @@ func (pl *pipeLen) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (pl *pipeLen) optimize() {
-	// Nothing to do
-}
-
 func (pl *pipeLen) hasFilterInWithQuery() bool {
 	return false
 }

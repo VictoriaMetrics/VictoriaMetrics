@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.3](https://img.shields.io/badge/Version-0.12.3-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.4](https://img.shields.io/badge/Version-0.12.4-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-alert)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -498,15 +498,25 @@ tag: v0.25.0
 </td>
     </tr>
     <tr>
-      <td>alertmanager.podMetadata</td>
+      <td>alertmanager.podAnnotations</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">annotations: {}
-labels: {}
+<code class="language-yaml">{}
 </code>
 </pre>
 </td>
-      <td><p>Alertmanager Pod metadata</p>
+      <td><p>Alertmanager Pod annotations</p>
+</td>
+    </tr>
+    <tr>
+      <td>alertmanager.podLabels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Alertmanager Pod labels</p>
 </td>
     </tr>
     <tr>
@@ -758,6 +768,17 @@ labels: {}
 </td>
     </tr>
     <tr>
+      <td>alertmanager.webConfig</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Alertmanager web configuration</p>
+</td>
+    </tr>
+    <tr>
       <td>extraObjects</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -766,6 +787,17 @@ labels: {}
 </pre>
 </td>
       <td><p>Add extra specs dynamically to this chart</p>
+</td>
+    </tr>
+    <tr>
+      <td>global.cluster.dnsDomain</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">cluster.local.
+</code>
+</pre>
+</td>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>

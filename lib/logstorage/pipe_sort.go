@@ -14,7 +14,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // pipeSort processes '| sort ...' queries.
@@ -88,10 +87,6 @@ func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
 			unneededFields.remove(bf.name)
 		}
 	}
-}
-
-func (ps *pipeSort) optimize() {
-	// nothing to do
 }
 
 func (ps *pipeSort) hasFilterInWithQuery() bool {
@@ -738,9 +733,9 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 			continue
 		}
 		if isDesc {
-			return stringsutil.LessNatural(sB, sA)
+			return lessString(sB, sA)
 		}
-		return stringsutil.LessNatural(sA, sB)
+		return lessString(sA, sB)
 	}
 	return false
 }

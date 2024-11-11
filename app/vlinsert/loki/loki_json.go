@@ -8,6 +8,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/valyala/fastjson"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -15,8 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/fastjson"
 )
 
 var parserPool fastjson.ParserPool
@@ -56,7 +57,7 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 	n, err := parseJSONRequest(data, lmp)
 	lmp.MustClose()
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse Loki json request: %s", err)
+		httpserver.Errorf(w, r, "cannot parse Loki json request: %s; data=%s", err, data)
 		return
 	}
 
@@ -84,7 +85,7 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 
 	streamsV := v.Get("streams")
 	if streamsV == nil {
-		return 0, fmt.Errorf("missing `streams` item in the parsed JSON: %q", v)
+		return 0, fmt.Errorf("missing `streams` item in the parsed JSON")
 	}
 	streams, err := streamsV.Array()
 	if err != nil {
@@ -107,9 +108,6 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 			labels = o
 		}
 		labels.Visit(func(k []byte, v *fastjson.Value) {
-			if err != nil {
-				return
-			}
 			vStr, errLocal := v.StringBytes()
 			if errLocal != nil {
 				err = fmt.Errorf("unexpected label value type for %q:%q; want string", k, v)
@@ -127,7 +125,7 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 		// populate messages from `values` array
 		linesV := stream.Get("values")
 		if linesV == nil {
-			return rowsIngested, fmt.Errorf("missing `values` item in the parsed JSON %q", stream)
+			return rowsIngested, fmt.Errorf("missing `values` item in the parsed `stream` object %q", stream)
 		}
 		lines, err := linesV.Array()
 		if err != nil {
@@ -140,8 +138,8 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 			if err != nil {
 				return rowsIngested, fmt.Errorf("unexpected contents of `values` item; want array; got %q", line)
 			}
-			if len(lineA) != 2 {
-				return rowsIngested, fmt.Errorf("unexpected number of values in `values` item array %q; got %d want 2", line, len(lineA))
+			if len(lineA) < 2 || len(lineA) > 3 {
+				return rowsIngested, fmt.Errorf("unexpected number of values in `values` item array %q; got %d want 2 or 3", line, len(lineA))
 			}
 
 			// parse timestamp
@@ -167,6 +165,30 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 				Name:  "_msg",
 				Value: bytesutil.ToUnsafeString(msg),
 			})
+
+			// parse structured metadata - see https://grafana.com/docs/loki/latest/reference/loki-http-api/#ingest-logs
+			if len(lineA) > 2 {
+				structuredMetadata, err := lineA[2].Object()
+				if err != nil {
+					return rowsIngested, fmt.Errorf("unexpected structured metadata type for %q; want JSON object", lineA[2])
+				}
+
+				structuredMetadata.Visit(func(k []byte, v *fastjson.Value) {
+					vStr, errLocal := v.StringBytes()
+					if errLocal != nil {
+						err = fmt.Errorf("unexpected label value type for %q:%q; want string", k, v)
+						return
+					}
+
+					fields = append(fields, logstorage.Field{
+						Name:  bytesutil.ToUnsafeString(k),
+						Value: bytesutil.ToUnsafeString(vStr),
+					})
+				})
+				if err != nil {
+					return rowsIngested, fmt.Errorf("error when parsing `structuredMetadata` object: %w", err)
+				}
+			}
 			lmp.AddRow(ts, fields)
 		}
 		rowsIngested += len(lines)

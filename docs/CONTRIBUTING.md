@@ -63,7 +63,8 @@ A pull request should contain the following attributes:
    To run tests and code checks locally execute commands `make tests-full` and `make check-all`.
 1. Try to not extend the scope of the pull requests outside the issue, do not make unrelated changes.
 1. Documentation update, if needed. For example, adding a new flag or changing behavior of existing flags or features 
-  requires reflecting these changes in the documentation.
+   requires reflecting these changes in the documentation. For new features add `{{%/* available_from "#" */%}}` shortcode
+   to the documentation. It will be later automatically replaced with an actual release version.
 1. A line in the [changelog](https://docs.victoriametrics.com/changelog/#tip) mentioning the change and related issue in a way
   that would be clear to other readers even if they don't have the full context.
 1. Reviewers who you think have the best expertise on the matter.

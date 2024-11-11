@@ -49,6 +49,17 @@ func visitFilters(filters []filter, visitFunc func(f filter) bool) bool {
 //
 // It doesn't copy other filters by returning them as is.
 func copyFilter(f filter, visitFunc func(f filter) bool, copyFunc func(f filter) (filter, error)) (filter, error) {
+	f, err := copyFilterInternal(f, visitFunc, copyFunc)
+	if err != nil {
+		return nil, err
+	}
+	if !visitFunc(f) {
+		return f, nil
+	}
+	return copyFunc(f)
+}
+
+func copyFilterInternal(f filter, visitFunc func(f filter) bool, copyFunc func(f filter) (filter, error)) (filter, error) {
 	switch t := f.(type) {
 	case *filterAnd:
 		filters, err := copyFilters(t.filters, visitFunc, copyFunc)
@@ -78,11 +89,7 @@ func copyFilter(f filter, visitFunc func(f filter) bool, copyFunc func(f filter)
 		}
 		return fn, nil
 	default:
-		if !visitFunc(t) {
-			// Nothing to copy
-			return t, nil
-		}
-		return copyFunc(t)
+		return f, nil
 	}
 }
 

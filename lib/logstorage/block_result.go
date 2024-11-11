@@ -1726,7 +1726,9 @@ func (c *blockResultColumn) getValuesEncoded(br *blockResult) []string {
 	return c.valuesEncoded
 }
 
-// forEachDictValue calls f for every value in the column dictionary.
+// forEachDictValue calls f for every matching value in the column dictionary.
+//
+// It properly skips non-matching dict values.
 func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) {
 	if c.valueType != valueTypeDict {
 		logger.Panicf("BUG: unexpected column valueType=%d; want %d", c.valueType, valueTypeDict)
@@ -1756,7 +1758,9 @@ func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) 
 	encoding.PutUint64s(a)
 }
 
-// forEachDictValueWithHits calls f for every value in the column dictionary.
+// forEachDictValueWithHits calls f for every matching value in the column dictionary.
+//
+// It properly skips non-matching dict values.
 //
 // hits is the number of rows with the given value v in the column.
 func (c *blockResultColumn) forEachDictValueWithHits(br *blockResult, f func(v string, hits uint64)) {

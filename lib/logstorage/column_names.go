@@ -5,7 +5,6 @@ import (
 	"io"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -52,10 +51,7 @@ func getColumnNameIDs(columnNames []string) (map[string]uint64, error) {
 
 func marshalColumnNames(dst []byte, columnNames []string) []byte {
 	data := encoding.MarshalVarUint64(nil, uint64(len(columnNames)))
-
-	for _, name := range columnNames {
-		data = encoding.MarshalBytes(data, bytesutil.ToUnsafeBytes(name))
-	}
+	data = marshalStrings(data, columnNames)
 
 	dst = encoding.CompressZSTDLevel(dst, data, 1)
 
