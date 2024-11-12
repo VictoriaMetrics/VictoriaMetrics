@@ -319,7 +319,7 @@ Label names [description](#labelnames)
             <td>The total number of bytes received in responses for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
-`query_key`, `scheduler_alias`, `preset`
+`url`, `query_key`, `scheduler_alias`, `preset`
             </td>
         </tr>
         <tr>
@@ -331,7 +331,7 @@ Label names [description](#labelnames)
             <td>The total time (in seconds) taken for data parsing at each `step` (json, dataframe) for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
-`step`, `query_key`, `scheduler_alias`, `preset`
+`step`, `url`, `query_key`, `scheduler_alias`, `preset`
             </td>
         </tr>
         <tr>
@@ -343,7 +343,7 @@ Label names [description](#labelnames)
             <td>The total number of timeseries received from VictoriaMetrics for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
-`query_key`, `scheduler_alias`, `preset`
+`url`, `query_key`, `scheduler_alias`, `preset`
             </td>
         </tr>
         <tr>
@@ -355,7 +355,7 @@ Label names [description](#labelnames)
             <td>The total number of datapoints received from VictoriaMetrics for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
-`query_key`, `scheduler_alias`, `preset`
+`url`, `query_key`, `scheduler_alias`, `preset`
             </td>
         </tr>
     </tbody>
@@ -530,7 +530,7 @@ Label names [description](#labelnames)
             <td>The total time (in seconds) taken for serializing data for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
-`query_key`, `scheduler_alias`, `preset`
+`url`, `query_key`, `scheduler_alias`, `preset`
             </td>
         </tr>
         <tr>
@@ -542,7 +542,7 @@ Label names [description](#labelnames)
             <td>The total number of datapoints sent to VictoriaMetrics for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
-`query_key`, `scheduler_alias`, `preset`
+`url`, `query_key`, `scheduler_alias`, `preset`
             </td>
         </tr>
         <tr>
@@ -552,7 +552,8 @@ Label names [description](#labelnames)
             <td>`Counter`</td>
             <td>The total number of timeseries sent to VictoriaMetrics for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
-`query_key`, `scheduler_alias`, `preset`
+
+`url`, `query_key`, `scheduler_alias`, `preset`
             </td>
         </tr>
     </tbody>
