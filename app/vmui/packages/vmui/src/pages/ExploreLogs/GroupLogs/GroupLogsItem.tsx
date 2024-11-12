@@ -1,13 +1,15 @@
-import React, { FC, useEffect, useMemo, useState } from "preact/compat";
+import React, { FC, memo, useMemo } from "preact/compat";
 import { Logs } from "../../../api/types";
 import "./style.scss";
 import useBoolean from "../../../hooks/useBoolean";
-import Button from "../../../components/Main/Button/Button";
-import Tooltip from "../../../components/Main/Tooltip/Tooltip";
-import { ArrowDownIcon, CopyIcon } from "../../../components/Main/Icons";
-import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
+import { ArrowDownIcon } from "../../../components/Main/Icons";
 import classNames from "classnames";
 import { useLogsState } from "../../../state/logsPanel/LogsStateContext";
+import dayjs from "dayjs";
+import { DATE_TIME_FORMAT } from "../../../constants/date";
+import { useTimeState } from "../../../state/time/TimeStateContext";
+import GroupLogsFieldRow from "./GroupLogsFieldRow";
+import { marked } from "marked";
 
 interface Props {
   log: Logs;
@@ -20,39 +22,30 @@ const GroupLogsItem: FC<Props> = ({ log }) => {
   } = useBoolean(false);
 
   const { markdownParsing } = useLogsState();
+  const { timezone } = useTimeState();
 
-  const excludeKeys = ["_msg", "_vmui_time", "_vmui_data", "_vmui_markdown"];
-  const fields = Object.entries(log).filter(([key]) => !excludeKeys.includes(key));
+  const formattedTime = useMemo(() => {
+    if (!log._time) return "";
+    return dayjs(log._time).tz().format(`${DATE_TIME_FORMAT}.SSS`);
+  }, [log._time, timezone]);
+
+  const formattedMarkdown = useMemo(() => {
+    if (!markdownParsing || !log._msg) return "";
+    return marked(log._msg.replace(/```/g, "\n```\n")) as string;
+  }, [log._msg, markdownParsing]);
+
+  const fields = useMemo(() => Object.entries(log).filter(([key]) => key !== "_msg"), [log]);
   const hasFields = fields.length > 0;
 
   const displayMessage = useMemo(() => {
     if (log._msg) return log._msg;
     if (!hasFields) return;
-    const dataObject = fields.reduce<{[key: string]: string}>((obj, [key, value]) => {
+    const dataObject = fields.reduce<{ [key: string]: string }>((obj, [key, value]) => {
       obj[key] = value;
       return obj;
     }, {});
     return JSON.stringify(dataObject);
   }, [log, fields, hasFields]);
-
-  const copyToClipboard = useCopyToClipboard();
-  const [copied, setCopied] = useState<number | null>(null);
-
-  const createCopyHandler = (copyValue:  string, rowIndex: number) => async () => {
-    if (copied === rowIndex) return;
-    try {
-      await copyToClipboard(copyValue);
-      setCopied(rowIndex);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  useEffect(() => {
-    if (copied === null) return;
-    const timeout = setTimeout(() => setCopied(null), 2000);
-    return () => clearTimeout(timeout);
-  }, [copied]);
 
   return (
     <div className="vm-group-logs-row">
@@ -74,10 +67,10 @@ const GroupLogsItem: FC<Props> = ({ log }) => {
         <div
           className={classNames({
             "vm-group-logs-row-content__time": true,
-            "vm-group-logs-row-content__time_missing": !log._vmui_time
+            "vm-group-logs-row-content__time_missing": !formattedTime
           })}
         >
-          {log._vmui_time || "timestamp missing"}
+          {formattedTime || "timestamp missing"}
         </div>
         <div
           className={classNames({
@@ -85,7 +78,7 @@ const GroupLogsItem: FC<Props> = ({ log }) => {
             "vm-group-logs-row-content__msg_empty-msg": !log._msg,
             "vm-group-logs-row-content__msg_missing": !displayMessage
           })}
-          dangerouslySetInnerHTML={markdownParsing && log._vmui_markdown ? { __html: log._vmui_markdown } : undefined}
+          dangerouslySetInnerHTML={(markdownParsing && formattedMarkdown) ? { __html: formattedMarkdown } : undefined}
         >
           {displayMessage || "-"}
         </div>
@@ -94,28 +87,12 @@ const GroupLogsItem: FC<Props> = ({ log }) => {
         <div className="vm-group-logs-row-fields">
           <table>
             <tbody>
-              {fields.map(([key, value], i) => (
-                <tr
+              {fields.map(([key, value]) => (
+                <GroupLogsFieldRow
                   key={key}
-                  className="vm-group-logs-row-fields-item"
-                >
-                  <td className="vm-group-logs-row-fields-item-controls">
-                    <div className="vm-group-logs-row-fields-item-controls__wrapper">
-                      <Tooltip title={copied === i ? "Copied" : "Copy to clipboard"}>
-                        <Button
-                          variant="text"
-                          color="gray"
-                          size="small"
-                          startIcon={<CopyIcon/>}
-                          onClick={createCopyHandler(`${key}: "${value}"`, i)}
-                          ariaLabel="copy to clipboard"
-                        />
-                      </Tooltip>
-                    </div>
-                  </td>
-                  <td className="vm-group-logs-row-fields-item__key">{key}</td>
-                  <td className="vm-group-logs-row-fields-item__value">{value}</td>
-                </tr>
+                  field={key}
+                  value={value}
+                />
               ))}
             </tbody>
           </table>
@@ -125,4 +102,4 @@ const GroupLogsItem: FC<Props> = ({ log }) => {
   );
 };
 
-export default GroupLogsItem;
+export default memo(GroupLogsItem);
