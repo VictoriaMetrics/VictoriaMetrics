@@ -872,7 +872,7 @@ Importing tips:
 1. When migrating data from VM cluster to Single-node VictoriaMetrics, vmctl will use the `/api/v1/export/native` API of the VM cluster, 
    which attaches `vm_account_id` and `vm_project_id` labels to each time series. If you don't need to distinguish between tenants 
    or simply want to remove these labels, try setting the `--vm-native-disable-binary-protocol` flag, which will use the `/api/v1/export` API, 
-   exporting and importing data in JSON format.
+   exporting and importing data in JSON format. Deduplication should be enabled at `-vm-native-src-addr` side if needed.
 1. Migrating data from VM cluster which had replication (`-replicationFactor` > 1) enabled won't produce the same amount
    of data copies for the destination database, and will result only in creating duplicates. To remove duplicates,
    destination database need to be configured with `-dedup.minScrapeInterval=1ms`. To restore the replication factor
