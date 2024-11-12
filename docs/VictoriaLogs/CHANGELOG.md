@@ -15,6 +15,14 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.0.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.0.0-victorialogs)
+
+Released at 2024-11-12
+
+This release is identical to [v0.42.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.42.0-victorialogs).
+VictoriaLogs reached production quality since the [initial v0.1.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.1.0-victorialogs) 1.5 years ago,
+so it can be safely used in production.
+
 ## [v0.42.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.42.0-victorialogs)
 
 Released at 2024-11-08
