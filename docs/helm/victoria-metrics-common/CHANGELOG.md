@@ -2,7 +2,8 @@
 
 ## Next release
 
-- TODO
+- Disabled impact of `<component>.name` on resource name to avoid confusion
+- Fixed `vm.app.name` template for appCtx that contains slice
 
 ## 0.0.23
 
