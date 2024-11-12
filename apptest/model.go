@@ -20,6 +20,20 @@ type PrometheusWriter interface {
 	PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
 }
 
+// StorageFlusher defines a method that forces the flushing of data inserted
+// into the storage, so it becomes available for searching immediately.
+type StorageFlusher interface {
+	ForceFlush(t *testing.T)
+}
+
+// PrometheusWriteQuerier encompasses the methods for writing, flushing and
+// querying the data.
+type PrometheusWriteQuerier interface {
+	PrometheusWriter
+	PrometheusQuerier
+	StorageFlusher
+}
+
 // QueryOpts contains various params used for querying or ingesting data
 type QueryOpts struct {
 	Tenant  string
