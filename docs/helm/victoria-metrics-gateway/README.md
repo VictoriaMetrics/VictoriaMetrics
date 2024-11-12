@@ -368,7 +368,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>Full name prefix</p>
+      <td><p>Override resources fullname</p>
 </td>
     </tr>
     <tr>
@@ -626,7 +626,7 @@ name: ""
 </code>
 </pre>
 </td>
-      <td><p>Full name suffix</p>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>
