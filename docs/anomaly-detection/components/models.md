@@ -984,7 +984,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.18.0
+docker pull victoriametrics/vmanomaly:v1.18.1
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -998,7 +998,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.18.0 /config.yaml \
+victoriametrics/vmanomaly:v1.18.1 /config.yaml \
 --licenseFile=/license
 ```
 
