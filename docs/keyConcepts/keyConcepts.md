@@ -581,7 +581,9 @@ Params:
   If the `end` isn't set, then the `end` is automatically set to the current time.
 * `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) 
   between data points, which must be returned from the range query.
-  The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `end` timestamps.
+  The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `start+N*step` timestamps,
+  where `N` is the whole number of steps that fit between `start` and `end`.
+  `end` is included only when it equals to `start+N*step`.
   If the `step` isn't set, then it default to `5m` (5 minutes).
 * `timeout` - optional query timeout. For example, `timeout=5s`. Query is canceled when the timeout is reached.
   By default the timeout is set to the value of `-search.maxQueryDuration` command-line flag passed to single-node VictoriaMetrics
@@ -589,8 +591,8 @@ Params:
 
 The result of Range query is a list of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 matching the filter in `query` expression. Each returned series contains `(timestamp, value)` results for the `query` executed
-at `start`, `start+step`, `start+2*step`, ..., `end` timestamps. In other words, Range query is an [Instant query](#instant-query)
-executed independently at `start`, `start+step`, ..., `end` timestamps.
+at `start`, `start+step`, `start+2*step`, ..., `start+N*step` timestamps. In other words, Range query is an [Instant query](#instant-query)
+executed independently at `start`, `start+step`, ..., `start+N*step` timestamps.
 
 For example, to get the values of `foo_bar` during the time range from `2022-05-10T07:59:00Z` to `2022-05-10T08:17:00Z`,
 we need to issue a range query:
