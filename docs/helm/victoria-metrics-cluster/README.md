@@ -683,7 +683,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>VMAuth container name</p>
+      <td><p>Override default <code>app</code> label name</p>
 </td>
     </tr>
     <tr>
@@ -1486,7 +1486,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>VMInsert name</p>
+      <td><p>Override default <code>app</code> label name</p>
 </td>
     </tr>
     <tr>
@@ -2334,7 +2334,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>VMSelect container name</p>
+      <td><p>Override default <code>app</code> label name</p>
 </td>
     </tr>
     <tr>
@@ -3205,7 +3205,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>VMStorage container name</p>
+      <td><p>Override default <code>app</code> label name</p>
 </td>
     </tr>
     <tr>

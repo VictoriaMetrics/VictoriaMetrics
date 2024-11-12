@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.4](https://img.shields.io/badge/Version-0.12.4-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.5](https://img.shields.io/badge/Version-0.12.5-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-alert)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -273,6 +273,17 @@ route:
 </pre>
 </td>
       <td><p>Extra Volumes for the pod</p>
+</td>
+    </tr>
+    <tr>
+      <td>alertmanager.fullnameOverride</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Override Alertmanager resources fullname</p>
 </td>
     </tr>
     <tr>
@@ -894,6 +905,17 @@ name: ""
 </td>
     </tr>
     <tr>
+      <td>nameOverride</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Override chart name</p>
+</td>
+    </tr>
+    <tr>
       <td>server.affinity</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -1087,7 +1109,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>Full name prefix override</p>
+      <td><p>Override vmalert resources fullname</p>
 </td>
     </tr>
     <tr>
@@ -1234,18 +1256,7 @@ variant: ""
 </code>
 </pre>
 </td>
-      <td><p>Override fullname suffix</p>
-</td>
-    </tr>
-    <tr>
-      <td>server.nameOverride</td>
-      <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">""
-</code>
-</pre>
-</td>
-      <td><p>Full name suffix override</p>
+      <td><p>Override default <code>app</code> label name</p>
 </td>
     </tr>
     <tr>
