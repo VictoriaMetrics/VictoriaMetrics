@@ -1,11 +1,12 @@
 package tests
 
 import (
+	"testing"
+	"time"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"testing"
-	"time"
 )
 
 // Data used in examples in
@@ -45,6 +46,7 @@ func TestSingleKeyConceptsQuery(t *testing.T) {
 
 	testInstantQuery(t, vmsingle, opts)
 	testRangeQuery(t, vmsingle, opts)
+	testRangeQueryIsEquivalentToManyInstantQueries(t, vmsingle, opts)
 }
 
 // TestClusterKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
@@ -87,13 +89,14 @@ func TestClusterKeyConceptsQuery(t *testing.T) {
 
 	testInstantQuery(t, vmselect, opts)
 	testRangeQuery(t, vmselect, opts)
+	testRangeQueryIsEquivalentToManyInstantQueries(t, vmselect, opts)
 }
 
-// vmsingleInstantQuery verifies the statements made in the
-// `Instant query` section of the VictoriaMetrics documentation. See:
+// testInstantQuery verifies the statements made in the `Instant query` section
+// of the VictoriaMetrics documentation. See:
 // https://docs.victoriametrics.com/keyconcepts/#instant-query
 func testInstantQuery(t *testing.T, q apptest.PrometheusQuerier, opts apptest.QueryOpts) {
-	// Get the value of the foo_bar time series at 2022-05-10Z08:03:00Z with the
+	// Get the value of the foo_bar time series at 2022-05-10T08:03:00Z with the
 	// step of 5m and timeout 5s. There is no sample at exactly this timestamp.
 	// Therefore, VictoriaMetrics will search for the nearest sample within the
 	// [time-5m..time] interval.
@@ -104,7 +107,7 @@ func testInstantQuery(t *testing.T, q apptest.PrometheusQuerier, opts apptest.Qu
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	// Get the value of the foo_bar time series at 2022-05-10Z08:18:00Z with the
+	// Get the value of the foo_bar time series at 2022-05-10T08:18:00Z with the
 	// step of 1m and timeout 5s. There is no sample at this timestamp.
 	// Therefore, VictoriaMetrics will search for the nearest sample within the
 	// [time-1m..time] interval. Since the nearest sample is 2m away and the
@@ -115,40 +118,117 @@ func testInstantQuery(t *testing.T, q apptest.PrometheusQuerier, opts apptest.Qu
 	}
 }
 
-// vmsingleRangeQuery verifies the statements made in the
-// `Range query` section of the VictoriaMetrics documentation. See:
+// testRangeQuery verifies the statements made in the `Range query` section of
+// the VictoriaMetrics documentation. See:
 // https://docs.victoriametrics.com/keyconcepts/#range-query
 func testRangeQuery(t *testing.T, q apptest.PrometheusQuerier, opts apptest.QueryOpts) {
-	// Get the values of the foo_bar time series for
-	// [2022-05-10Z07:59:00Z..2022-05-10Z08:17:00Z] time interval with the step
-	// of 1m and timeout 5s.
-	got := q.PrometheusAPIV1QueryRange(t, "foo_bar", "2022-05-10T07:59:00.000Z", "2022-05-10T08:17:00.000Z", "1m", opts)
-	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "foo_bar"}, "values": []}]}}`)
-	s := make([]*apptest.Sample, 17)
-	// Sample for 2022-05-10T07:59:00Z is missing because the time series has
-	// samples only starting from 8:00.
-	s[0] = apptest.NewSample(t, "2022-05-10T08:00:00Z", 1)
-	s[1] = apptest.NewSample(t, "2022-05-10T08:01:00Z", 2)
-	s[2] = apptest.NewSample(t, "2022-05-10T08:02:00Z", 3)
-	s[3] = apptest.NewSample(t, "2022-05-10T08:03:00Z", 3)
-	s[4] = apptest.NewSample(t, "2022-05-10T08:04:00Z", 5)
-	s[5] = apptest.NewSample(t, "2022-05-10T08:05:00Z", 5)
-	s[6] = apptest.NewSample(t, "2022-05-10T08:06:00Z", 5.5)
-	s[7] = apptest.NewSample(t, "2022-05-10T08:07:00Z", 5.5)
-	s[8] = apptest.NewSample(t, "2022-05-10T08:08:00Z", 4)
-	s[9] = apptest.NewSample(t, "2022-05-10T08:09:00Z", 4)
-	// Sample for 2022-05-10T08:10:00Z is missing because there is no sample
-	// within the [8:10 - 1m .. 8:10] interval.
-	s[10] = apptest.NewSample(t, "2022-05-10T08:11:00Z", 3.5)
-	s[11] = apptest.NewSample(t, "2022-05-10T08:12:00Z", 3.25)
-	s[12] = apptest.NewSample(t, "2022-05-10T08:13:00Z", 3)
-	s[13] = apptest.NewSample(t, "2022-05-10T08:14:00Z", 2)
-	s[14] = apptest.NewSample(t, "2022-05-10T08:15:00Z", 1)
-	s[15] = apptest.NewSample(t, "2022-05-10T08:16:00Z", 4)
-	s[16] = apptest.NewSample(t, "2022-05-10T08:17:00Z", 4)
-	want.Data.Result[0].Samples = s
-	opt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
-	if diff := cmp.Diff(want, got, opt); diff != "" {
-		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	f := func(start, end, step string, wantSamples []*apptest.Sample) {
+		t.Helper()
+
+		got := q.PrometheusAPIV1QueryRange(t, "foo_bar", start, end, step, opts)
+		want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "foo_bar"}, "values": []}]}}`)
+		want.Data.Result[0].Samples = wantSamples
+		opt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
+		if diff := cmp.Diff(want, got, opt); diff != "" {
+			t.Errorf("unexpected response (-want, +got):\n%s", diff)
+		}
 	}
+
+	// Verify the statement that the query result for
+	// [2022-05-10T07:59:00Z..2022-05-10T08:17:00Z] time range and 1m step will
+	// contain 17 points.
+	f("2022-05-10T07:59:00.000Z", "2022-05-10T08:17:00.000Z", "1m", []*apptest.Sample{
+		// Sample for 2022-05-10T07:59:00Z is missing because the time series has
+		// samples only starting from 8:00.
+		apptest.NewSample(t, "2022-05-10T08:00:00Z", 1),
+		apptest.NewSample(t, "2022-05-10T08:01:00Z", 2),
+		apptest.NewSample(t, "2022-05-10T08:02:00Z", 3),
+		apptest.NewSample(t, "2022-05-10T08:03:00Z", 3),
+		apptest.NewSample(t, "2022-05-10T08:04:00Z", 5),
+		apptest.NewSample(t, "2022-05-10T08:05:00Z", 5),
+		apptest.NewSample(t, "2022-05-10T08:06:00Z", 5.5),
+		apptest.NewSample(t, "2022-05-10T08:07:00Z", 5.5),
+		apptest.NewSample(t, "2022-05-10T08:08:00Z", 4),
+		apptest.NewSample(t, "2022-05-10T08:09:00Z", 4),
+		// Sample for 2022-05-10T08:10:00Z is missing because there is no sample
+		// within the [8:10 - 1m .. 8:10] interval.
+		apptest.NewSample(t, "2022-05-10T08:11:00Z", 3.5),
+		apptest.NewSample(t, "2022-05-10T08:12:00Z", 3.25),
+		apptest.NewSample(t, "2022-05-10T08:13:00Z", 3),
+		apptest.NewSample(t, "2022-05-10T08:14:00Z", 2),
+		apptest.NewSample(t, "2022-05-10T08:15:00Z", 1),
+		apptest.NewSample(t, "2022-05-10T08:16:00Z", 4),
+		apptest.NewSample(t, "2022-05-10T08:17:00Z", 4),
+	})
+
+	// Verify the statement that a query is executed at start, start+step,
+	// start+2*step, …, step+N*step timestamps, where N is the whole number
+	// of steps that fit between start and end.
+	f("2022-05-10T08:00:01.000Z", "2022-05-10T08:02:00.000Z", "1m", []*apptest.Sample{
+		apptest.NewSample(t, "2022-05-10T08:00:01Z", 1),
+		apptest.NewSample(t, "2022-05-10T08:01:01Z", 2),
+	})
+
+	// Verify the statement that a query is executed at start, start+step,
+	// start+2*step, …, end timestamps, when end = start + N*step.
+	f("2022-05-10T08:00:00.000Z", "2022-05-10T08:02:00.000Z", "1m", []*apptest.Sample{
+		apptest.NewSample(t, "2022-05-10T08:00:00Z", 1),
+		apptest.NewSample(t, "2022-05-10T08:01:00Z", 2),
+		apptest.NewSample(t, "2022-05-10T08:02:00Z", 3),
+	})
+
+	// If the step isn’t set, then it defaults to 5m (5 minutes).
+	f("2022-05-10T07:59:00.000Z", "2022-05-10T08:17:00.000Z", "", []*apptest.Sample{
+		// Sample for 2022-05-10T07:59:00Z is missing because the time series has
+		// samples only starting from 8:00.
+		apptest.NewSample(t, "2022-05-10T08:04:00Z", 5),
+		apptest.NewSample(t, "2022-05-10T08:09:00Z", 4),
+		apptest.NewSample(t, "2022-05-10T08:14:00Z", 2),
+	})
+}
+
+// testRangeQueryIsEquivalentToManyInstantQueries verifies the statement made in
+// the `Range query` section of the VictoriaMetrics documentation that a range
+// query is actually an instant query executed 1 + (start-end)/step times on the
+// time range from start to end. See:
+// https://docs.victoriametrics.com/keyconcepts/#range-query
+func testRangeQueryIsEquivalentToManyInstantQueries(t *testing.T, q apptest.PrometheusQuerier, opts apptest.QueryOpts) {
+	f := func(timestamp string, want *apptest.Sample) {
+		t.Helper()
+
+		gotInstant := q.PrometheusAPIV1Query(t, "foo_bar", timestamp, "1m", opts)
+		if want == nil {
+			if got, want := len(gotInstant.Data.Result), 0; got != want {
+				t.Errorf("unexpected instant result size: got %d, want %d", got, want)
+			}
+		} else {
+			got := gotInstant.Data.Result[0].Sample
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("unexpected instant sample (-want, +got):\n%s", diff)
+			}
+		}
+	}
+
+	rangeRes := q.PrometheusAPIV1QueryRange(t, "foo_bar", "2022-05-10T07:59:00.000Z", "2022-05-10T08:17:00.000Z", "1m", opts)
+	rangeSamples := rangeRes.Data.Result[0].Samples
+
+	f("2022-05-10T07:59:00.000Z", nil)
+	f("2022-05-10T08:00:00.000Z", rangeSamples[0])
+	f("2022-05-10T08:01:00.000Z", rangeSamples[1])
+	f("2022-05-10T08:02:00.000Z", rangeSamples[2])
+	f("2022-05-10T08:03:00.000Z", rangeSamples[3])
+	f("2022-05-10T08:04:00.000Z", rangeSamples[4])
+	f("2022-05-10T08:05:00.000Z", rangeSamples[5])
+	f("2022-05-10T08:06:00.000Z", rangeSamples[6])
+	f("2022-05-10T08:07:00.000Z", rangeSamples[7])
+	f("2022-05-10T08:08:00.000Z", rangeSamples[8])
+	f("2022-05-10T08:09:00.000Z", rangeSamples[9])
+	f("2022-05-10T08:10:00.000Z", nil)
+	f("2022-05-10T08:11:00.000Z", rangeSamples[10])
+	f("2022-05-10T08:12:00.000Z", rangeSamples[11])
+	f("2022-05-10T08:13:00.000Z", rangeSamples[12])
+	f("2022-05-10T08:14:00.000Z", rangeSamples[13])
+	f("2022-05-10T08:15:00.000Z", rangeSamples[14])
+	f("2022-05-10T08:16:00.000Z", rangeSamples[15])
+	f("2022-05-10T08:17:00.000Z", rangeSamples[16])
 }
