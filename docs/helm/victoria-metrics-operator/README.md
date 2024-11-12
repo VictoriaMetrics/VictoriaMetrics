@@ -351,6 +351,17 @@ requests:
 </td>
     </tr>
     <tr>
+      <td>crds.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
+</pre>
+</td>
+      <td><p>manages CRD creation. Disables CRD creation only in combination with <code>crds.plain: false</code> due to helm dependency conditions limitation</p>
+</td>
+    </tr>
+    <tr>
       <td>crds.plain</td>
       <td>bool</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -468,7 +479,7 @@ requests:
 </code>
 </pre>
 </td>
-      <td><p>Overrides the full name of server component</p>
+      <td><p>Overrides the full name of server component resources</p>
 </td>
     </tr>
     <tr>
@@ -616,7 +627,7 @@ variant: ""
 </code>
 </pre>
 </td>
-      <td><p>VM operatror deployment name override</p>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>

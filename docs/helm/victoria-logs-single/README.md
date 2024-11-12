@@ -270,7 +270,7 @@ Change the values according to the need of the environment in ``victoria-logs-si
 </code>
 </pre>
 </td>
-      <td><p>Global name override</p>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>
@@ -1121,13 +1121,22 @@ readOnlyRootFilesystem: true
       <td>vector</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">customConfig:
+<code class="language-yaml">containerPorts:
+    - containerPort: 9090
+      name: prom-exporter
+      protocol: TCP
+customConfig:
     api:
         address: 127.0.0.1:8686
         enabled: false
         playground: true
     data_dir: /vector-data-dir
     sinks:
+        exporter:
+            address: 0.0.0.0:9090
+            inputs:
+                - internal_metrics
+            type: prometheus_exporter
         vlogs:
             api_version: v8
             compression: gzip
@@ -1146,6 +1155,8 @@ readOnlyRootFilesystem: true
                     VL-Time-Field: timestamp
             type: elasticsearch
     sources:
+        internal_metrics:
+            type: internal_metrics
         k8s:
             type: kubernetes_logs
     transforms:
@@ -1158,13 +1169,10 @@ readOnlyRootFilesystem: true
             type: remap
 dataDir: /vector-data-dir
 enabled: false
-env:
-    - name: VECTOR_SELF_NODE_NAME
-      valueFrom:
-        fieldRef:
-            fieldPath: spec.nodeName
 existingConfigMaps:
     - vl-config
+podMonitor:
+    enabled: false
 resources: {}
 role: Agent
 service:
