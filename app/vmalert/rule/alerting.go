@@ -457,15 +457,13 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	}
 	var numActivePending int
 	var tss []prompbmarshal.TimeSeries
-	// store alerts' labels which are `FIRING => INACTIVE`, `PENDING => INACTIVE` or `PENDING => FIRING` in this iteration,
-	// need to create stale time series for them later.
 	for h, a := range ar.alerts {
 		// if alert wasn't updated in this iteration
 		// means it is resolved already
 		if _, ok := updated[h]; !ok {
 			if a.State == notifier.StatePending {
 				// alert was in Pending state - it is not active anymore
-				// add stale time series for it
+				// add stale time series
 				tss = append(tss, pendingAlertStaleTimeSeries(a.Labels, ts.Unix(), true)...)
 
 				delete(ar.alerts, h)
@@ -485,7 +483,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				if ts.Sub(a.KeepFiringSince) >= ar.KeepFiringFor {
 					a.State = notifier.StateInactive
 					a.ResolvedAt = ts
-					// add stale time series for it
+					// add stale time series
 					tss = append(tss, firingAlertStaleTimeSeries(a.Labels, ts.Unix())...)
 
 					ar.logDebugf(ts, a, "FIRING => INACTIVE: is absent in current evaluation round")
@@ -500,7 +498,7 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 			a.Start = ts
 			alertsFired.Inc()
 			if ar.For > 0 {
-				// add stale time series for it
+				// add stale time series
 				tss = append(tss, pendingAlertStaleTimeSeries(a.Labels, ts.Unix(), false)...)
 			}
 			ar.logDebugf(ts, a, "PENDING => FIRING: %s since becoming active at %v", ts.Sub(a.ActiveAt), a.ActiveAt)
