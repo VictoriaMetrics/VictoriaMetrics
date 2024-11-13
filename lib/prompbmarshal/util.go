@@ -27,7 +27,7 @@ func (wr *WriteRequest) Reset() {
 // ResetTimeSeries clears all the GC references from tss and returns an empty tss ready for further use.
 func ResetTimeSeries(tss []TimeSeries) []TimeSeries {
 	clear(tss)
-	return tss[:0]
+	return make([]TimeSeries, 0)
 }
 
 // MustParsePromMetrics parses metrics in Prometheus text exposition format from s and returns them.
