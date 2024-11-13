@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"net/http"
 	"net/url"
 	"path"
@@ -51,7 +53,16 @@ func dropPrefixParts(path string, parts int) string {
 	return path
 }
 
-func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, h http.Header) (*URLPrefix, HeadersConf) {
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, h http.Header, r *http.Request) (*URLPrefix, HeadersConf) {
+	var start, end, time int64
+	if r != nil {
+		req, err := httputils.DumpRequest(r)
+		if err != nil {
+			logger.Errorf("cannot dump request: %s", err)
+			return nil, HeadersConf{}
+		}
+		start, end, time = getQueryRangeTime(req)
+	}
 	for _, e := range ui.URLMaps {
 		if !matchAnyRegex(e.SrcHosts, u.Host) {
 			continue
@@ -65,13 +76,45 @@ func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, h http.Header) (*URLPrefi
 		if !matchAnyHeader(e.SrcHeaders, h) {
 			continue
 		}
-
+		if !matchRelativeTimeRange(e.RelativeTimeRangeConfig, start, end, time) {
+			continue
+		}
 		return e.URLPrefix, e.HeadersConf
 	}
 	if ui.URLPrefix != nil {
 		return ui.URLPrefix, ui.HeadersConf
 	}
 	return nil, HeadersConf{}
+}
+
+func matchRelativeTimeRange(tr *RelativeTimeRangeConfig, startTime int64, endTime int64, time int64) bool {
+	if tr == nil {
+		return true
+	}
+	trStart, trEnd := tr.TimeWindow()
+	if trStart.IsZero() || trEnd.IsZero() {
+		return false
+	}
+	// support instant query and query range
+	return (time >= 0 && time >= trStart.UnixMilli() && time <= trEnd.UnixMilli()) ||
+		(startTime >= 0 && endTime >= 0 && startTime >= trStart.UnixMilli() && endTime <= trEnd.UnixMilli())
+}
+
+func getQueryRangeTime(r *http.Request) (int64, int64, int64) {
+	start, err := httputils.GetTime(r, "start", 0)
+	if err != nil {
+		return 0, 0, 0
+	}
+	end, err := httputils.GetTime(r, "end", 0)
+	if err != nil {
+		return 0, 0, 0
+	}
+	// for instant query
+	t, err := httputils.GetTime(r, "time", 0)
+	if err != nil {
+		return 0, 0, 0
+	}
+	return start, end, t
 }
 
 func matchAnyRegex(rs []*Regex, s string) bool {

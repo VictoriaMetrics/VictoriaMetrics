@@ -95,7 +95,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, hc := ui.getURLPrefixAndHeaders(u, nil)
+		up, hc := ui.getURLPrefixAndHeaders(u, nil, nil)
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
 		}
@@ -273,7 +273,7 @@ func TestUserInfoGetBackendURL_SRV(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, _ := ui.getURLPrefixAndHeaders(u, nil)
+		up, _ := ui.getURLPrefixAndHeaders(u, nil, nil)
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
 		}
@@ -351,7 +351,7 @@ func TestUserInfoGetBackendURL_SRVZeroBackends(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, _ := ui.getURLPrefixAndHeaders(u, nil)
+		up, _ := ui.getURLPrefixAndHeaders(u, nil, nil)
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
 		}
@@ -399,7 +399,7 @@ func TestCreateTargetURLFailure(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, hc := ui.getURLPrefixAndHeaders(u, nil)
+		up, hc := ui.getURLPrefixAndHeaders(u, nil, nil)
 		if up != nil {
 			t.Fatalf("unexpected non-empty up=%#v", up)
 		}
