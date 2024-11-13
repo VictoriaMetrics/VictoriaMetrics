@@ -11,6 +11,11 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.18.2
+Released: 2024-11-13
+
+- IMPROVEMENT: Enhanced the flexibility of the [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) for tz-aware data (`tz_aware = True`). The `tz_seasonalities` argument has been reformatted to align with the structure of the existing `seasonalities` argument. For more details, refer to the [model section here](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet). Additionally, tz-aware support for `ProphetModel` has been added to [`AutoTuned`](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned) model wrapper. This feature is automatically enabled if the data is timezone-aware and its timezone is not set to the default ('UTC'), otherwise default timezone-free optimization flow will be used.
+
 ## v1.18.1
 Released: 2024-11-12
 
