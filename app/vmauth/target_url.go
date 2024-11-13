@@ -53,16 +53,7 @@ func dropPrefixParts(path string, parts int) string {
 	return path
 }
 
-func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, h http.Header, r *http.Request) (*URLPrefix, HeadersConf) {
-	var start, end, time int64
-	if r != nil {
-		req, err := httputils.DumpRequest(r)
-		if err != nil {
-			logger.Errorf("cannot dump request: %s", err)
-			return nil, HeadersConf{}
-		}
-		start, end, time = getQueryRangeTime(req)
-	}
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, h http.Header, queryTimeParams map[string]int64) (*URLPrefix, HeadersConf) {
 	for _, e := range ui.URLMaps {
 		if !matchAnyRegex(e.SrcHosts, u.Host) {
 			continue
@@ -76,7 +67,7 @@ func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, h http.Header, r *http.Re
 		if !matchAnyHeader(e.SrcHeaders, h) {
 			continue
 		}
-		if !matchRelativeTimeRange(e.RelativeTimeRangeConfig, start, end, time) {
+		if !matchRelativeTimeRange(e.RelativeTimeRangeConfig, queryTimeParams) {
 			continue
 		}
 		return e.URLPrefix, e.HeadersConf
@@ -87,7 +78,7 @@ func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, h http.Header, r *http.Re
 	return nil, HeadersConf{}
 }
 
-func matchRelativeTimeRange(tr *RelativeTimeRangeConfig, startTime int64, endTime int64, time int64) bool {
+func matchRelativeTimeRange(tr *RelativeTimeRangeConfig, queryTimeParams map[string]int64) bool {
 	if tr == nil {
 		return true
 	}
@@ -95,26 +86,38 @@ func matchRelativeTimeRange(tr *RelativeTimeRangeConfig, startTime int64, endTim
 	if trStart.IsZero() || trEnd.IsZero() {
 		return false
 	}
+	var start, end, time int64
+	if queryTimeParams != nil {
+		for paramName, value := range queryTimeParams {
+			switch paramName {
+			case "start":
+				start = value
+			case "end":
+				end = value
+			case "time":
+				time = value
+			}
+		}
+	}
 	// support instant query and query range
 	return (time >= 0 && time >= trStart.UnixMilli() && time <= trEnd.UnixMilli()) ||
-		(startTime >= 0 && endTime >= 0 && startTime >= trStart.UnixMilli() && endTime <= trEnd.UnixMilli())
+		(start >= 0 && end >= 0 && start >= trStart.UnixMilli() && end <= trEnd.UnixMilli())
 }
 
-func getQueryRangeTime(r *http.Request) (int64, int64, int64) {
-	start, err := httputils.GetTime(r, "start", 0)
+func getQueryRangeTime(r *http.Request) map[string]int64 {
+	paramMap := make(map[string]int64)
+	req, err := httputils.DumpRequest(r)
 	if err != nil {
-		return 0, 0, 0
+		logger.Errorf("cannot dump request: %s", err)
+		return paramMap
 	}
-	end, err := httputils.GetTime(r, "end", 0)
-	if err != nil {
-		return 0, 0, 0
+	for _, param := range queryTimeParams {
+		time, err := httputils.GetTime(req, param, 0)
+		if err == nil {
+			paramMap[param] = time
+		}
 	}
-	// for instant query
-	t, err := httputils.GetTime(r, "time", 0)
-	if err != nil {
-		return 0, 0, 0
-	}
-	return start, end, t
+	return paramMap
 }
 
 func matchAnyRegex(rs []*Regex, s string) bool {
@@ -178,3 +181,5 @@ func normalizeURL(uOrig *url.URL) *url.URL {
 	}
 	return &u
 }
+
+var queryTimeParams = []string{"start", "end", "time"}

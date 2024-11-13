@@ -46,13 +46,15 @@ func GetTime(r *http.Request, argKey string, defaultMs int64) (int64, error) {
 // DumpRequest returns a copy of r with Body replaced with a new io.ReadCloser, as deep copy of the original body.
 func DumpRequest(r *http.Request) (*http.Request, error) {
 	dump := r.Clone(r.Context())
-	var b bytes.Buffer
-	_, err := b.ReadFrom(r.Body)
-	if err != nil {
-		return nil, err
+	if r.Body != nil {
+		var b bytes.Buffer
+		_, err := b.ReadFrom(r.Body)
+		if err != nil {
+			return nil, err
+		}
+		r.Body = io.NopCloser(&b)
+		dump.Body = io.NopCloser(bytes.NewReader(b.Bytes()))
 	}
-	r.Body = io.NopCloser(&b)
-	dump.Body = io.NopCloser(bytes.NewReader(b.Bytes()))
 	return dump, nil
 }
 
