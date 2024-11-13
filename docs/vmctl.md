@@ -1134,17 +1134,6 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 Run `vmctl -help` in order to see all the available options.
 
-Flags available for all commands:
-
-```shellhelp
-  -s
-     Whether to run in silent mode. If set to true no confirmation prompts will appear. (default false)
-  -verbose
-     Whether to enable verbosity in logs output. (default false)
-  -disable-progress-bar
-     Whether to disable progress bar during the import. (default false)
-```
-
 Commands:
 ```shellhelp
   influx
@@ -1161,12 +1150,21 @@ Commands:
      Migrate time series between VictoriaMetrics installations.
 ```
 
+Flags available for all commands:
+
+```shellhelp
+  -s
+     Whether to run in silent mode. If set to true no confirmation prompts will appear. (default false)
+  -verbose
+     Whether to enable verbosity in logs output. (default false)
+  -disable-progress-bar
+     Whether to disable progress bar during the import. (default false)
+```
+
 Flags available only for the `opentsdb` command:
 
 ```shellhelp
 ./vmctl influx -help
-
-# There are flags available for influx, opentsdb, prometheus and remote-read as well. See below.
 
    --influx-addr value
      InfluxDB server addr (default: "http://localhost:8086")
@@ -1205,14 +1203,15 @@ Flags available only for the `opentsdb` command:
      Optional TLS server name to use for connections to -influx-addr. By default, the server name from -influx-addr is used
    --influx-insecure-skip-verify
      Whether to skip tls verification when connecting to -influx-addr (default: false)
+
+# There are flags available for influx, opentsdb, prometheus and remote-read commands. See below.
 ```
+
 
 Flags available only for the `opentsdb` command:
 
 ```shellhelp
 ./vmctl opentsdb -help
-
-# There are flags available for influx, opentsdb, prometheus and remote-read as well. See below.
 
    --otsdb-addr value
      OpenTSDB server addr (default: "http://localhost:4242")
@@ -1245,14 +1244,14 @@ Flags available only for the `opentsdb` command:
      Optional TLS server name to use for connections to -otsdb-addr. By default, the server name from -otsdb-addr is used
    --otsdb-insecure-skip-verify
      Whether to skip tls verification when connecting to -otsdb-addr (default: false)
+
+# There are flags available for influx, opentsdb, prometheus and remote-read commands. See below.
 ```
 
 Flags available only for the `prometheus` command:
 
 ```shellhelp
 ./vmctl prometheus -help
-
-# There are flags available for influx, opentsdb, prometheus and remote-read as well. See below.
 
    --prom-snapshot value
      Path to Prometheus snapshot. Pls see for details https://www.robustperception.io/taking-snapshots-of-prometheus-data
@@ -1266,14 +1265,14 @@ Flags available only for the `prometheus` command:
      Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.
    --prom-filter-label-value value
      Prometheus regular expression to filter label from "prom-filter-label" flag. (default: ".*")
+
+# There are flags available for influx, opentsdb, prometheus and remote-read commands. See below.
 ```
 
 Flags available only for the `remote-read` command:
 
 ```shellhelp
 ./vmctl remote-read -help
-
-# There are flags available for influx, opentsdb, prometheus and remote-read as well. See below.
 
    --remote-read-concurrency value
      Number of concurrently running remote read readers (default: 1)
@@ -1317,6 +1316,8 @@ Flags available only for the `remote-read` command:
      Whether to skip TLS certificate verification when connecting to the remote read address (default: false)
    --remote-read-disable-path-append
      Whether to disable automatic appending of the /api/v1/read suffix to --remote-read-src-addr (default: false)
+
+# There are flags available for influx, opentsdb, prometheus and remote-read commands. See below.
 ```
 
 Flags available only for the `verify-block` command:
