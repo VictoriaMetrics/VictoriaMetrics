@@ -16,7 +16,8 @@ import (
 var (
 	disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/query' or '/select/logsql/stats_query' path "+
 		"to the configured -datasource.url and -remoteRead.url")
-	disableStepParam = flag.Bool("datasource.disableStepParam", false, "Whether to disable adding 'step' param to the issued instant queries. "+
+	disableStepParam = flag.Bool("datasource.disableStepParam", false, "Whether to disable adding 'step' param in instant queries to the configured -datasource.url and -remoteRead.url. "+
+		"Only valid for prometheus datasource. "+
 		"This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. "+
 		"It is not recommended to enable this flag if you use vmalert with VictoriaMetrics.")
 )
