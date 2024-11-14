@@ -3,7 +3,9 @@ package apptest
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -132,4 +134,20 @@ func NewPrometheusAPIV1SeriesResponse(t *testing.T, s string) *PrometheusAPIV1Se
 		t.Fatalf("could not unmarshal series response: %v", err)
 	}
 	return res
+}
+
+// Sort sorts the response data.
+func (r *PrometheusAPIV1SeriesResponse) Sort() {
+	str := func(m map[string]string) string {
+		s := []string{}
+		for k, v := range m {
+			s = append(s, k+v)
+		}
+		slices.Sort(s)
+		return strings.Join(s, "")
+	}
+
+	slices.SortFunc(r.Data, func(a, b map[string]string) int {
+		return strings.Compare(str(a), str(b))
+	})
 }

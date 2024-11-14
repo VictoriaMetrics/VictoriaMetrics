@@ -1,10 +1,12 @@
 package apptest
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/google/go-cmp/cmp"
 )
 
 // TestCase holds the state and defines clean-up procedure common for all test
@@ -111,7 +113,6 @@ type vmcluster struct {
 }
 
 func (c *vmcluster) ForceFlush(t *testing.T) {
-	time.Sleep(2 * time.Second)
 	for _, s := range c.vmstorages {
 		s.ForceFlush(t)
 	}
@@ -150,4 +151,79 @@ func (tc *TestCase) MustStartCluster() PrometheusWriteQuerier {
 
 func (tc *TestCase) addApp(app Stopper) {
 	tc.startedApps = append(tc.startedApps, app)
+}
+
+// AssertOptions hold the assertion params, such as got and wanted values as
+// well as the message that should be included into the assertion error message
+// in case of failure.
+//
+// In VictoriaMetrics (especially the cluster version) the inserted data does
+// not become visible for querying right away. Therefore, the first comparisons
+// may fail. AssertOptions allow to configure how many times the actual result
+// must be retrieved and compared with the expected one and for long to wait
+// between the retries. If these two params (`Retries` and `Period`) are not
+// set, the default values will be used.
+//
+// If it is known that the data is available, then the retry functionality can
+// be disabled by setting the `DoNotRetry` field.
+//
+// AssertOptions are used by the TestCase.Assert() method, and this method uses
+// cmp.Diff() from go-cmp package for comparing got and wanted values.
+// AssertOptions, therefore, allows to pass cmp.Options to cmp.Diff() via
+// `CmpOpts` field.
+//
+// Finally the `FailNow` field controls whether the assertion should fail using
+// `testing.T.Errorf()` or `testing.T.Fatalf()`.
+type AssertOptions struct {
+	Msg        string
+	Got        func() any
+	Want       any
+	CmpOpts    []cmp.Option
+	DoNotRetry bool
+	Retries    int
+	Period     time.Duration
+	FailNow    bool
+}
+
+// Assert compares the actual result with the expected one possibly multiple
+// times in order to account for the fact that the inserted data does not become
+// available for querying right away (especially in cluster version of
+// VictoriaMetrics).
+func (tc *TestCase) Assert(opts *AssertOptions) {
+	tc.t.Helper()
+
+	const (
+		defaultRetries = 20
+		defaultPeriod  = 100 * time.Millisecond
+	)
+
+	if opts.DoNotRetry {
+		opts.Retries = 1
+		opts.Period = 0
+	} else {
+		if opts.Retries <= 0 {
+			opts.Retries = defaultRetries
+		}
+		if opts.Period <= 0 {
+			opts.Period = defaultPeriod
+		}
+	}
+
+	var diff string
+
+	for range opts.Retries {
+		diff = cmp.Diff(opts.Want, opts.Got(), opts.CmpOpts...)
+		if diff == "" {
+			return
+		}
+		time.Sleep(opts.Period)
+	}
+
+	msg := fmt.Sprintf("%s (-want, +got):\n%s", opts.Msg, diff)
+
+	if opts.FailNow {
+		tc.t.Fatal(msg)
+	} else {
+		tc.t.Error(msg)
+	}
 }
