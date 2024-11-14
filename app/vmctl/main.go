@@ -266,7 +266,7 @@ func main() {
 			},
 			{
 				Name:   "vm-native",
-				Usage:  "Migrate time series between VictoriaMetrics installations via native binary format",
+				Usage:  "Migrate time series between VictoriaMetrics installations",
 				Flags:  mergeFlags(globalFlags, vmNativeFlags),
 				Before: beforeFn,
 				Action: func(c *cli.Context) error {

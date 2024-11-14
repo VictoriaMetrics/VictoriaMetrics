@@ -11,6 +11,11 @@ aliases:
 - /VictoriaLogs/FAQ.html
 - /VictoriaLogs/faq.html
 ---
+
+## Is VictoriaLogs ready for production use?
+
+Yes. VictoriaLogs is ready for production use starting from [v1.0.0](https://docs.victoriametrics.com/victorialogs/changelog/).
+
 ## What is the difference between VictoriaLogs and Elasticsearch (OpenSearch)?
 
 Both Elasticsearch and VictoriaLogs allow ingesting structured and unstructured logs

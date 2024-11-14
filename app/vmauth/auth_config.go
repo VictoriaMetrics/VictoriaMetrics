@@ -860,21 +860,22 @@ func (ui *UserInfo) initURLs() error {
 	loadBalancingPolicy := *defaultLoadBalancingPolicy
 	dropSrcPathPrefixParts := 0
 	discoverBackendIPs := *discoverBackendIPsGlobal
+	if ui.RetryStatusCodes != nil {
+		retryStatusCodes = ui.RetryStatusCodes
+	}
+	if ui.LoadBalancingPolicy != "" {
+		loadBalancingPolicy = ui.LoadBalancingPolicy
+	}
+	if ui.DropSrcPathPrefixParts != nil {
+		dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
+	}
+	if ui.DiscoverBackendIPs != nil {
+		discoverBackendIPs = *ui.DiscoverBackendIPs
+	}
+
 	if ui.URLPrefix != nil {
 		if err := ui.URLPrefix.sanitizeAndInitialize(); err != nil {
 			return err
-		}
-		if ui.RetryStatusCodes != nil {
-			retryStatusCodes = ui.RetryStatusCodes
-		}
-		if ui.LoadBalancingPolicy != "" {
-			loadBalancingPolicy = ui.LoadBalancingPolicy
-		}
-		if ui.DropSrcPathPrefixParts != nil {
-			dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
-		}
-		if ui.DiscoverBackendIPs != nil {
-			discoverBackendIPs = *ui.DiscoverBackendIPs
 		}
 		ui.URLPrefix.retryStatusCodes = retryStatusCodes
 		ui.URLPrefix.dropSrcPathPrefixParts = dropSrcPathPrefixParts
