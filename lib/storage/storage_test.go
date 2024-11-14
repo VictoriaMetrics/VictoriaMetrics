@@ -457,6 +457,34 @@ func TestNextRetentionDeadlineSeconds(t *testing.T) {
 		}
 	}
 
+	//------------------------------------------------------------------------//
+
+	// Initial cluster configuration with 12 month (or 365 days) retention.
+	f("2023-01-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+
+	// Restarts during that period do not change the retention deadline:
+	f("2023-03-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+	f("2023-06-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+	f("2023-09-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+	f("2023-12-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+	f("2023-12-19T03:59:59Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+
+	// At 2023-12-19T04:00:00Z the rotation occurs. New deadline is 2024-12-18T04:00:00Z
+	// Restarts during that period do not change the new deadline:
+	f("2023-12-19T04:00:01Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
+	f("2024-01-01T00:00:00Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
+	f("2024-03-01T00:00:00Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
+	f("2024-06-01T00:00:00Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
+	f("2024-09-01T00:00:00Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
+	f("2024-11-12T00:00:00Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
+
+	// Now restart again but with the new retention period od 25 months.
+	// The closest date that is a multiple of 25 months is 2024-02-07T04:00:00Z.
+	// However, the vmstorage will pick the next one:
+	f("2024-11-12T00:00:00Z", (2*365+30)*24*time.Hour, 0, "2026-03-08T04:00:00Z")
+
+	//------------------------------------------------------------------------//
+
 	f("2023-07-22T12:44:35Z", 24*time.Hour, 0, "2023-07-23T04:00:00Z")
 	f("2023-07-22T03:44:35Z", 24*time.Hour, 0, "2023-07-22T04:00:00Z")
 	f("2023-07-22T04:44:35Z", 24*time.Hour, 0, "2023-07-23T04:00:00Z")
