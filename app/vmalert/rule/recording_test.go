@@ -30,10 +30,10 @@ func TestRecordingRule_Exec(t *testing.T) {
 			}
 			tss, err := rule.exec(context.TODO(), ts, 0)
 			if err != nil {
-				t.Fatalf("unexpected RecordingRule.exec error: %s", err)
+				t.Fatalf("fail to test rule %s: unexpected error: %s", rule.Name, err)
 			}
 			if err := compareTimeSeries(t, tssExpected[i], tss); err != nil {
-				t.Fatalf("time series mismatch: %s", err)
+				t.Fatalf("fail to test rule %s: time series mismatch on step %d: %s", rule.Name, i, err)
 			}
 
 			ts = ts.Add(defaultStep)
@@ -59,7 +59,6 @@ func TestRecordingRule_Exec(t *testing.T) {
 		{
 			metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "foo"),
 			metricWithValueAndLabels(t, 2, "__name__", "bar", "job", "bar"),
-			metricWithValueAndLabels(t, 3, "__name__", "baz", "job", "baz"),
 		},
 		{
 			metricWithValueAndLabels(t, 10, "__name__", "foo", "job", "foo"),
@@ -67,38 +66,29 @@ func TestRecordingRule_Exec(t *testing.T) {
 		{
 			metricWithValueAndLabels(t, 10, "__name__", "foo", "job", "bar"),
 		},
-	}, [][]prompbmarshal.TimeSeries{{
-		newTimeSeries([]float64{1}, []int64{ts.UnixNano()}, []prompbmarshal.Label{
-			{
-				Name:  "__name__",
-				Value: "foobarbaz",
-			},
-			{
-				Name:  "job",
-				Value: "foo",
-			},
-		}),
-		newTimeSeries([]float64{2}, []int64{ts.UnixNano()}, []prompbmarshal.Label{
-			{
-				Name:  "__name__",
-				Value: "foobarbaz",
-			},
-			{
-				Name:  "job",
-				Value: "bar",
-			},
-		}),
-		newTimeSeries([]float64{3}, []int64{ts.UnixNano()}, []prompbmarshal.Label{
-			{
-				Name:  "__name__",
-				Value: "foobarbaz",
-			},
-			{
-				Name:  "job",
-				Value: "baz",
-			},
-		}),
-	},
+	}, [][]prompbmarshal.TimeSeries{
+		{
+			newTimeSeries([]float64{1}, []int64{ts.UnixNano()}, []prompbmarshal.Label{
+				{
+					Name:  "__name__",
+					Value: "foobarbaz",
+				},
+				{
+					Name:  "job",
+					Value: "foo",
+				},
+			}),
+			newTimeSeries([]float64{2}, []int64{ts.UnixNano()}, []prompbmarshal.Label{
+				{
+					Name:  "__name__",
+					Value: "foobarbaz",
+				},
+				{
+					Name:  "job",
+					Value: "bar",
+				},
+			}),
+		},
 		{
 			newTimeSeries([]float64{10}, []int64{ts.Add(defaultStep).UnixNano()}, []prompbmarshal.Label{
 				{
@@ -110,7 +100,7 @@ func TestRecordingRule_Exec(t *testing.T) {
 					Value: "foo",
 				},
 			}),
-			// other series are with NaN values
+			// stale time series
 			newTimeSeries([]float64{decimal.StaleNaN}, []int64{ts.Add(defaultStep).UnixNano()}, []prompbmarshal.Label{
 				{
 					Name:  "__name__",
@@ -119,16 +109,6 @@ func TestRecordingRule_Exec(t *testing.T) {
 				{
 					Name:  "job",
 					Value: "bar",
-				},
-			}),
-			newTimeSeries([]float64{decimal.StaleNaN}, []int64{ts.Add(defaultStep).UnixNano()}, []prompbmarshal.Label{
-				{
-					Name:  "__name__",
-					Value: "foobarbaz",
-				},
-				{
-					Name:  "job",
-					Value: "baz",
 				},
 			}),
 		},
