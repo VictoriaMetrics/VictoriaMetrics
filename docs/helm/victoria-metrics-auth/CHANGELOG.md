@@ -1,7 +1,8 @@
 ## Next release
 
 - set default DNS domain to `cluster.local.`
-- updated common dependency 0.0.19 -> 0.0.23
+- updated common dependency 0.0.19 -> 0.0.26
+- added init containers
 
 ## 0.7.5
 

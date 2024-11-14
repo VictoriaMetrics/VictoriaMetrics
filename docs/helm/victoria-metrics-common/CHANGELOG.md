@@ -2,6 +2,22 @@
 
 ## Next release
 
+- do not append key only if it's passed to a template
+
+## 0.0.25
+
+**Release date:** 2024-11-12
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fixed adding suffix for `vm.plain.fullname`
+
+## 0.0.24
+
+**Release date:** 2024-11-12
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
 - Disabled impact of `<component>.name` on resource name to avoid confusion
 - Fixed `vm.app.name` template for appCtx that contains slice
 
