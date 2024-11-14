@@ -441,6 +441,16 @@ func TestMetricRowMarshalUnmarshal(t *testing.T) {
 	}
 }
 
+func TestNextRetentionDeadlineSeconds_PrintUntilNow(t *testing.T) {
+	// retention := 365 * 24 * time.Hour
+	retention := (365 + 30) * 24 * time.Hour
+	d := nextRetentionDeadlineSeconds(0, int64(retention.Seconds()), 0)
+	for ; d <= time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC).Unix(); d += int64(retention.Seconds()) {
+		deadline := time.Unix(d, 0).UTC().Format(time.RFC3339)
+		fmt.Println(deadline)
+	}
+}
+
 func TestNextRetentionDeadlineSeconds(t *testing.T) {
 	f := func(currentTime string, retention, offset time.Duration, deadlineExpected string) {
 		t.Helper()
@@ -478,10 +488,11 @@ func TestNextRetentionDeadlineSeconds(t *testing.T) {
 	f("2024-09-01T00:00:00Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
 	f("2024-11-12T00:00:00Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
 
-	// Now restart again but with the new retention period od 25 months.
-	// The closest date that is a multiple of 25 months is 2024-02-07T04:00:00Z.
-	// However, the vmstorage will pick the next one:
-	f("2024-11-12T00:00:00Z", (2*365+30)*24*time.Hour, 0, "2026-03-08T04:00:00Z")
+	// Now restart again but with the new retention period of 13 months.
+	// The closest date that is a multiple of 13 months is 2025-02-26T04:00:00Z.
+	// The current IndexDB will contain 15 months of data when that deadline is
+	// reached.
+	f("2024-11-12T00:00:00Z", (365+30)*24*time.Hour, 0, "2025-02-26T04:00:00Z")
 
 	//------------------------------------------------------------------------//
 
