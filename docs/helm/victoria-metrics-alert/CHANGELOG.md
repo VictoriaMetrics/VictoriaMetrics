@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- Updated context for serviceaccount name
 
 ## 0.12.5
 
