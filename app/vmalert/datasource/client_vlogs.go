@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func (s *Client) setVLogsInstantReqParams(r *http.Request, query string, timestamp time.Time) {
+func (c *Client) setVLogsInstantReqParams(r *http.Request, query string, timestamp time.Time) {
 	// there is no type path prefix in victorialogs APIs right now, ignore appendTypePrefix.
 	if !*disablePathAppend {
 		r.URL.Path += "/select/logsql/stats_query"
@@ -16,15 +16,15 @@ func (s *Client) setVLogsInstantReqParams(r *http.Request, query string, timesta
 	q.Set("time", timestamp.Format(time.RFC3339))
 	// set the `start` and `end` params if applyIntervalAsTimeFilter is enabled(time filter is missing in the rule expr),
 	// so the query will be executed in time range [timestamp - evaluationInterval, timestamp].
-	if s.applyIntervalAsTimeFilter && s.evaluationInterval > 0 {
-		q.Set("start", timestamp.Add(-s.evaluationInterval).Format(time.RFC3339))
+	if c.applyIntervalAsTimeFilter && c.evaluationInterval > 0 {
+		q.Set("start", timestamp.Add(-c.evaluationInterval).Format(time.RFC3339))
 		q.Set("end", timestamp.Format(time.RFC3339))
 	}
 	r.URL.RawQuery = q.Encode()
-	s.setReqParams(r, query)
+	c.setReqParams(r, query)
 }
 
-func (s *Client) setVLogsRangeReqParams(r *http.Request, query string, start, end time.Time) {
+func (c *Client) setVLogsRangeReqParams(r *http.Request, query string, start, end time.Time) {
 	// there is no type path prefix in victorialogs APIs right now, ignore appendTypePrefix.
 	if !*disablePathAppend {
 		r.URL.Path += "/select/logsql/stats_query_range"
@@ -33,11 +33,11 @@ func (s *Client) setVLogsRangeReqParams(r *http.Request, query string, start, en
 	q.Add("start", start.Format(time.RFC3339))
 	q.Add("end", end.Format(time.RFC3339))
 	// set step as evaluationInterval by default
-	if s.evaluationInterval > 0 {
-		q.Set("step", fmt.Sprintf("%ds", int(s.evaluationInterval.Seconds())))
+	if c.evaluationInterval > 0 {
+		q.Set("step", fmt.Sprintf("%ds", int(c.evaluationInterval.Seconds())))
 	}
 	r.URL.RawQuery = q.Encode()
-	s.setReqParams(r, query)
+	c.setReqParams(r, query)
 }
 
 func parseVLogsResponse(req *http.Request, resp *http.Response) (res Result, err error) {
