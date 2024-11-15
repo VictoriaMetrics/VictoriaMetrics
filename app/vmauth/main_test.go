@@ -90,6 +90,20 @@ User-Agent: vmauth
 X-Forwarded-For: 12.34.56.78, 42.2.3.84`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
+	// routing of all failed to authorize requests to unauthorized_user (issue #7543)
+	cfgStr = `
+unauthorized_user:
+  url_prefix: "{BACKEND}/foo"
+  keep_original_host: true`
+	requestURL = "http://foo:invalid-secret@some-host.com/abc/def"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=200
+requested_url=http://some-host.com/foo/abc/def`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
 	// keep_original_host
 	cfgStr = `
 unauthorized_user:

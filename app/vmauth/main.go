@@ -123,6 +123,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	ui := getUserInfoByAuthTokens(ats)
 	if ui == nil {
+		uu := authConfig.Load().UnauthorizedUser
+		if uu != nil {
+			processUserRequest(w, r, uu)
+			return true
+		}
+
 		invalidAuthTokenRequests.Inc()
 		if *logInvalidAuthTokens {
 			err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
