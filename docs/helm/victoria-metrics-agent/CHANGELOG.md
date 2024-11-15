@@ -1,7 +1,18 @@
 ## Next release
 
+- TODO
+
+## 0.14.7
+
+**Release date:** 2024-11-12
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
 - set default DNS domain to `cluster.local.`
-- updated common dependency 0.0.19 -> 0.0.20
+- updated common dependency 0.0.19 -> 0.0.23
+- added template for configmap name
+- fixed statefulset variable name typo
 
 ## 0.14.6
 

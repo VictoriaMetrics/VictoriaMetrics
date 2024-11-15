@@ -456,12 +456,15 @@ models:
 
 > **Note**: `ProphetModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
 
+
+> **Note**: Starting with [v1.18.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1182), the format for `tz_seasonalities` has been updated to enhance flexibility. Previously, it accepted a list of strings (e.g., `['hod', 'minute']`). Now, it follows the same structure as custom seasonalities defined in the `seasonalities` argument (e.g., `{"name": "hod", "fourier_order": 5, "mode": "additive"}`). This change is backward-compatible, so older configurations will be automatically converted to the new format using default values.
+
 *Parameters specific for vmanomaly*:
 
 * `class` (string) - model class name `"model.prophet.ProphetModel"` (or `prophet` starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#1130) with class alias support)
 * `seasonalities` (list[dict], optional): Additional seasonal components to include in Prophet. See Prophet’s [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors.html#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) documentation for details.
 - `tz_aware` (bool): (Available since [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180)) Enables handling of timezone-aware timestamps. Default is `False`. Should be used with `tz_seasonalities` and `tz_use_cyclical_encoding` parameters.
-- `tz_seasonalities` (list[str]): (Available since [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180)) Specifies timezone-aware seasonal components. Requires `tz_aware=True`. Supported options include `minute`, `hod` (hour of the day), `dow` (day of the week), and `month` (month of the year).
+- `tz_seasonalities` (list[dict]): (Available since [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180)) Specifies timezone-aware seasonal components. Requires `tz_aware=True`. Supported options include `minute`, `hod` (hour of day), `dow` (day of week), and `month` (month of year). Starting with [v1.18.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1182), users can configure additional parameters for each seasonality, such as `fourier_order`, `prior_scale`, and `mode`. For more details, please refer to the **Timezone-unaware** configuration example below.
 - `tz_use_cyclical_encoding` (bool): (Available since [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180)) If set to `True`, applies [cyclical encoding technique](https://www.kaggle.com/code/avanwyk/encoding-cyclical-features-for-deep-learning) to timezone-aware seasonalities. Should be used with `tz_aware=True` and `tz_seasonalities`.
 
 > **Note**: Apart from standard [`vmanomaly` output](#vmanomaly-output), Prophet model can provide additional metrics.
@@ -489,6 +492,7 @@ models:
       - name: 'hourly'
         period: 0.04166666666
         fourier_order: 30
+        prior_scale: 20
     # inner model args (key-value pairs) accepted by
     # https://facebook.github.io/prophet/docs/quick_start.html#python-api
     args:
@@ -504,8 +508,13 @@ models:
     class: 'prophet'  # or 'model.prophet.ProphetModel' until v1.13.0
     provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
     tz_aware: True
-    tz_seasonalities: ['hod', 'dow']  # intra-day + intra-week seasonality, no intra-year / sub-hour seasonality
-    tz_use_cyclical_encoding: False
+    tz_use_cyclical_encoding: True
+    tz_seasonalities: # intra-day + intra-week seasonality, no intra-year / sub-hour seasonality
+      - name: 'hod'  # intra-day seasonality, hour of the day
+        fourier_order: 5  # keep it 3-8 based on intraday pattern complexity
+        prior_scale: 10
+      - name: 'dow'  # intra-week seasonality, time of the week
+        fourier_order: 2  # keep it 2-4, as dependencies are learned separately for each weekday
     # inner model args (key-value pairs) accepted by
     # https://facebook.github.io/prophet/docs/quick_start.html#python-api
     args:
@@ -984,7 +993,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.18.0
+docker pull victoriametrics/vmanomaly:v1.18.2
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -998,7 +1007,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.18.0 /config.yaml \
+victoriametrics/vmanomaly:v1.18.2 /config.yaml \
 --licenseFile=/license
 ```
 

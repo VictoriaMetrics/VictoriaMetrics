@@ -1,4 +1,4 @@
-![Version: 1.6.3](https://img.shields.io/badge/Version-1.6.3-informational?style=flat-square)
+![Version: 1.6.4](https://img.shields.io/badge/Version-1.6.4-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-anomaly)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 [![GitHub license](https://img.shields.io/github/license/VictoriaMetrics/VictoriaMetrics.svg)](https://github.com/VictoriaMetrics/helm-charts/blob/master/LICENSE)
@@ -451,7 +451,7 @@ tenant_id: ""
 </code>
 </pre>
 </td>
-      <td><p>Full name prefix override</p>
+      <td><p>Override resources fullname</p>
 </td>
     </tr>
     <tr>
@@ -621,7 +621,7 @@ name: ""
 </code>
 </pre>
 </td>
-      <td><p>Full name suffix override</p>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>

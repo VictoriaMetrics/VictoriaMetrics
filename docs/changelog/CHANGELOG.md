@@ -18,11 +18,14 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.23.1 to Go1.23.3. See the list of issues addressed in [Go1.23.2](https://github.com/golang/go/issues?q=milestone%3AGo1.23.2+label%3ACherryPickApproved) and [Go1.23.3](https://github.com/golang/go/issues?q=milestone%3AGo1.23.3+label%3ACherryPickApproved).
+
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): drop rows that do not belong to the current series during import. The dropped rows should belong to another series whose tags are a superset of the current series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7301) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7330). Thanks to @dpedu for reporting and cooperating with the test.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): keep the order of resulting time series when `limit_offset` is applied. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7068).
 * BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): properly handle xFilesFactor=0 for `transformRemoveEmptySeries` function. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7337) for details.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth): properly check availability of all the backends before giving up when proxying requests. Previously, vmauth could return an error even if there were healthy backends available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3061) for details.
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Properly return query results for search requests after index rotation. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7417) for details.
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Properly handle [multitenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) query request errors and correctly perform search for available tenants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
 
 ## [v1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0)
 

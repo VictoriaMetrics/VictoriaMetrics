@@ -11,6 +11,30 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.18.2
+Released: 2024-11-13
+
+- IMPROVEMENT: Enhanced the flexibility of the [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) for tz-aware data (`tz_aware = True`). The `tz_seasonalities` argument has been reformatted to align with the structure of the existing `seasonalities` argument. For more details, refer to the [model section here](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet). Additionally, tz-aware support for `ProphetModel` has been added to [`AutoTuned`](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned) model wrapper. This feature is automatically enabled if the data is timezone-aware and its timezone is not set to the default ('UTC'), otherwise default timezone-free optimization flow will be used.
+
+## v1.18.1
+Released: 2024-11-12
+
+- IMPROVEMENT: Added a [reader-level](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) `data_range` argument, allowing users to define a default *valid* data range for all input queries in `queries`. Individual queries can still override this default with their own `data_range` if needed.
+- IMPROVEMENT: Added the `url` label to enhance labelset consistency across [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) in both [reader](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics) and [writer](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#writer-behaviour-metrics) components. Metrics affected:
+  - `vmanomaly_reader_received_bytes`
+  - `vmanomaly_reader_response_parsing_seconds`
+  - `vmanomaly_reader_timeseries_received`
+  - `vmanomaly_reader_datapoints_received`
+  - `vmanomaly_writer_request_serialize_seconds`
+  - `vmanomaly_writer_datapoints_sent`
+  - `vmanomaly_writer_timeseries_sent`
+
+- FIX: Resolved an issue where [rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-models) incorrectly set their last seen `infer` timestamp during *first* `fit_infer` call, resulting in output being produced for *every datapoint* within the `fit_window` on its *first invocation*.
+- FIX: Resolved an issue in multi-[scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) configurations where [self-monitoring metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) values were overwriting each other.
+- FIX: Resolved an issue causing incorrect `query_key` label values in the `vmanomaly_model_datapoints_produced` [self-monitoring metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#models-behaviour-metrics) for [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models).
+- FIX: Resolved an issue that caused the `vmanomaly_model_runs` [self-monitoring metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#models-behaviour-metrics) to miss increments for [rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-models).
+- FIX: Aligned the calculations of `vmanomaly_model_datapoints_accepted` and `vmanomaly_model_datapoints_produced` [self-monitoring model metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#models-behaviour-metrics) across all stages (`fit`, `infer`, and `fit_infer`) for consistency.
+
 ## v1.18.0
 Released: 2024-10-28
 

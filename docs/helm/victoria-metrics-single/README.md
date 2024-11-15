@@ -606,7 +606,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>Server resource name prefix</p>
+      <td><p>Override default <code>app</code> label name</p>
 </td>
     </tr>
     <tr>

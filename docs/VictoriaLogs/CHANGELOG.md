@@ -15,10 +15,32 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.0.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.0.0-victorialogs)
+
+Released at 2024-11-12
+
+This release is identical to [v0.42.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.42.0-victorialogs).
+
+VictoriaLogs gained all [the planned features](https://docs.victoriametrics.com/victorialogs/)
+since the [initial v0.1.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.1.0-victorialogs) 1.5 years ago,
+and is ready for production!
+
+## [v0.42.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.42.0-victorialogs)
+
+Released at 2024-11-08
+
 * FEATURE: [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe): add an ability to add prefix to all the log field names from the joined query, by using `| join by (<by_fields>) (<query>) prefix "some_prefix"` syntax.
 * FEATURE: [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter): allow specifying offset without time range. For example, `_time:offset 1d` matches all the logs until `now-1d` in the [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field). This is useful when building graphs for time ranges with some offset in the past.
 * FEATURE: [`/select/logsql/tail` HTTP endpoint](): support for `offset` query arg, which can be used for delayed emission of matching logs during live tailing. Thanks to @Fusl for the initial idea and implementation in [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7428).
+* FEATURE: [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/): allow enabling and disabling wrapping of long lines, which do not fit screen width, with `\wrap_long_lines` command.
+* FEATURE: [syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): allow overriding default [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) during data ingestion. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#stream-fields). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7480).
+* FEATURE: [syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): allow adding arbitrary [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) via `[label1=value1 ... labelN=valueN]` syntax inside Syslog messages. For example, `<165>1 2024-06-03T17:42:00.000Z example.com appname 12345 ID47 [field1=value1 field2=value2] some message`.
+* FEATURE: [syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): allow dropping the specified [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) during data ingestion. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#dropping-fields).
+* FEATURE: [syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): allow adding the specified [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) during data ingestion. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#adding-extra-fields). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7354).
+* FEATURE: [Loki data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/#loki-json-api): show the original request body on parse errors. This should simplify debugging. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7490).
 
+* BUGFIX: [`values` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#values-stats): fix a bug, which could lead to corrupted results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7458).
+* BUGFIX: [`uniq_values`](https://docs.victoriametrics.com/victorialogs/logsql/#uniq_values-stats), [`min`](https://docs.victoriametrics.com/victorialogs/logsql/#min-stats), [`max`](https://docs.victoriametrics.com/victorialogs/logsql/#max-stats), [`row_min`](https://docs.victoriametrics.com/victorialogs/logsql/#row_min-stats) and [`row_max`](https://docs.victoriametrics.com/victorialogs/logsql/#row_max-stats) stats functions: fix a bug, which could return non-matching field values for these functions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7458).
 * BUGFIX: [HTTP querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api): properly take into account the `end` query arg when calculating time range for [`_time:duration` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter). Previously the `_time:duration` filter was treated as `_time:[now-duration, now)`, while it should be treated as `_time:[end-duration, end)`.
 
 ## [v0.41.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.41.0-victorialogs)

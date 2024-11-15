@@ -1,6 +1,35 @@
 ## Next release
 
-- TODO
+- Removed redundant `VECTOR_SELF_NODE_NAME` env variable from vector values. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1727).
+- Added Vector dashboard. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1721).
+
+## 0.8.1
+
+**Release date:** 2024-11-08
+
+![AppVersion: v0.41.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.41.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.21 -> 0.0.23
+- added `log.message` to a list of default vector message fields
+
+## 0.8.0
+
+**Release date:** 2024-11-08
+
+![AppVersion: v0.41.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.41.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Update note 1**: In a response to multiple collector related configuration feature requests and inability to use fluent-bit YAML configuration parser to provide
+ability easily override parts of default configuration we've considered using Vector as a default logs collector instead of fluent-bit.
+Please consider using [vector chart docs](https://github.com/vectordotdev/helm-charts/tree/develop/charts/vector) values under `vector` key
+to update your agent configuration if you are using it.
+
+- Allow selecting multiple/all instances in a dashboard. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1699)
+- Upgraded VictoriaLogs 0.40.0 -> 0.41.0
+- Replaced default fluent-bit collector with vector
+- Parsed json fields are now nested into `log` key. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1708)
+- updated common dependency 0.0.19 -> 0.0.21
 
 ## 0.7.3
 

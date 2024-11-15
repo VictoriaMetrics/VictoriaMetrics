@@ -462,16 +462,11 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 
 	// Slow path - select other backend urls.
 	n := atomicCounter.Add(1) - 1
-	buMin := bus[n%uint32(len(bus))]
 	for i := uint32(0); i < uint32(len(bus)); i++ {
 		idx := (n + i) % uint32(len(bus))
 		bu := bus[idx]
 		if bu.isBroken() {
 			continue
-		}
-		if buMin.isBroken() {
-			// verify that buMin isn't set as broken
-			buMin = bu
 		}
 		if bu.concurrentRequests.Load() == 0 {
 			// Fast path - return the backend with zero concurrently executed requests.
@@ -482,12 +477,13 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 	}
 
 	// Slow path - return the backend with the minimum number of concurrently executed requests.
+	buMin := bus[n%uint32(len(bus))]
 	minRequests := buMin.concurrentRequests.Load()
 	for _, bu := range bus {
 		if bu.isBroken() {
 			continue
 		}
-		if n := bu.concurrentRequests.Load(); n < minRequests {
+		if n := bu.concurrentRequests.Load(); n < minRequests || buMin.isBroken() {
 			buMin = bu
 			minRequests = n
 		}
@@ -864,21 +860,22 @@ func (ui *UserInfo) initURLs() error {
 	loadBalancingPolicy := *defaultLoadBalancingPolicy
 	dropSrcPathPrefixParts := 0
 	discoverBackendIPs := *discoverBackendIPsGlobal
+	if ui.RetryStatusCodes != nil {
+		retryStatusCodes = ui.RetryStatusCodes
+	}
+	if ui.LoadBalancingPolicy != "" {
+		loadBalancingPolicy = ui.LoadBalancingPolicy
+	}
+	if ui.DropSrcPathPrefixParts != nil {
+		dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
+	}
+	if ui.DiscoverBackendIPs != nil {
+		discoverBackendIPs = *ui.DiscoverBackendIPs
+	}
+
 	if ui.URLPrefix != nil {
 		if err := ui.URLPrefix.sanitizeAndInitialize(); err != nil {
 			return err
-		}
-		if ui.RetryStatusCodes != nil {
-			retryStatusCodes = ui.RetryStatusCodes
-		}
-		if ui.LoadBalancingPolicy != "" {
-			loadBalancingPolicy = ui.LoadBalancingPolicy
-		}
-		if ui.DropSrcPathPrefixParts != nil {
-			dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
-		}
-		if ui.DiscoverBackendIPs != nil {
-			discoverBackendIPs = *ui.DiscoverBackendIPs
 		}
 		ui.URLPrefix.retryStatusCodes = retryStatusCodes
 		ui.URLPrefix.dropSrcPathPrefixParts = dropSrcPathPrefixParts

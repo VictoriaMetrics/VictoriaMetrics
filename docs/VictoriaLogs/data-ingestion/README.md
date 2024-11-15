@@ -258,7 +258,7 @@ additionally to [HTTP query args](#http-query-string-parameters):
 - `VL-Ignore-Fields` - an optional comma-separated list of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names,
   which must be ignored during data ingestion.
 
-- `VL-Extra-Field` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+- `VL-Extra-Fields` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
   which must be added to all the ingested logs. The format of every `extra_fields` entry is `field_name=field_value`.
   If the log entry contains fields from the `extra_fields`, then they are overwritten by the values specified in `extra_fields`.
 

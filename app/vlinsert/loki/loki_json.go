@@ -57,7 +57,7 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 	n, err := parseJSONRequest(data, lmp)
 	lmp.MustClose()
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse Loki json request: %s", err)
+		httpserver.Errorf(w, r, "cannot parse Loki json request: %s; data=%s", err, data)
 		return
 	}
 
@@ -85,7 +85,7 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 
 	streamsV := v.Get("streams")
 	if streamsV == nil {
-		return 0, fmt.Errorf("missing `streams` item in the parsed JSON: %q", v)
+		return 0, fmt.Errorf("missing `streams` item in the parsed JSON")
 	}
 	streams, err := streamsV.Array()
 	if err != nil {
@@ -125,7 +125,7 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 		// populate messages from `values` array
 		linesV := stream.Get("values")
 		if linesV == nil {
-			return rowsIngested, fmt.Errorf("missing `values` item in the parsed JSON %q", stream)
+			return rowsIngested, fmt.Errorf("missing `values` item in the parsed `stream` object %q", stream)
 		}
 		lines, err := linesV.Array()
 		if err != nil {

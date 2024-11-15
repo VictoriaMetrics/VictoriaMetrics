@@ -3,16 +3,17 @@ package rule
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 // RecordingRule is a Rule that supposed
@@ -33,6 +34,8 @@ type RecordingRule struct {
 	// state stores recent state changes
 	// during evaluations
 	state *ruleState
+
+	lastEvaluation map[string]struct{}
 
 	metrics *recordingRuleMetrics
 }
@@ -113,7 +116,7 @@ func (rr *RecordingRule) execRange(ctx context.Context, start, end time.Time) ([
 	var tss []prompbmarshal.TimeSeries
 	for _, s := range res.Data {
 		ts := rr.toTimeSeries(s)
-		key := stringifyLabels(ts)
+		key := stringifyLabels(ts.Labels)
 		if _, ok := duplicates[key]; ok {
 			return nil, fmt.Errorf("original metric %v; resulting labels %q: %w", s.Labels, key, errDuplicate)
 		}
@@ -155,28 +158,47 @@ func (rr *RecordingRule) exec(ctx context.Context, ts time.Time, limit int) ([]p
 		return nil, curState.Err
 	}
 
-	duplicates := make(map[string]struct{}, len(qMetrics))
+	curEvaluation := make(map[string]struct{}, len(qMetrics))
+	lastEvaluation := rr.lastEvaluation
 	var tss []prompbmarshal.TimeSeries
 	for _, r := range qMetrics {
 		ts := rr.toTimeSeries(r)
-		key := stringifyLabels(ts)
-		if _, ok := duplicates[key]; ok {
+		key := stringifyLabels(ts.Labels)
+		if _, ok := curEvaluation[key]; ok {
 			curState.Err = fmt.Errorf("original metric %v; resulting labels %q: %w", r, key, errDuplicate)
 			return nil, curState.Err
 		}
-		duplicates[key] = struct{}{}
+		curEvaluation[key] = struct{}{}
+		delete(lastEvaluation, key)
 		tss = append(tss, ts)
 	}
+	// check for stale time series
+	for k := range lastEvaluation {
+		tss = append(tss, prompbmarshal.TimeSeries{
+			Labels: stringToLabels(k),
+			Samples: []prompbmarshal.Sample{
+				{Value: decimal.StaleNaN, Timestamp: ts.UnixNano() / 1e6},
+			}})
+	}
+	rr.lastEvaluation = curEvaluation
 	return tss, nil
 }
 
-func stringifyLabels(ts prompbmarshal.TimeSeries) string {
-	labels := ts.Labels
-	if len(labels) > 1 {
-		sort.Slice(labels, func(i, j int) bool {
-			return labels[i].Name < labels[j].Name
-		})
+func stringToLabels(s string) []prompbmarshal.Label {
+	labels := strings.Split(s, ",")
+	rLabels := make([]prompbmarshal.Label, 0, len(labels))
+	for i := range labels {
+		if label := strings.Split(labels[i], "="); len(label) == 2 {
+			rLabels = append(rLabels, prompbmarshal.Label{
+				Name:  label[0],
+				Value: label[1],
+			})
+		}
 	}
+	return rLabels
+}
+
+func stringifyLabels(labels []prompbmarshal.Label) string {
 	b := strings.Builder{}
 	for i, l := range labels {
 		b.WriteString(l.Name)
@@ -190,19 +212,27 @@ func stringifyLabels(ts prompbmarshal.TimeSeries) string {
 }
 
 func (rr *RecordingRule) toTimeSeries(m datasource.Metric) prompbmarshal.TimeSeries {
-	labels := make(map[string]string)
-	for _, l := range m.Labels {
-		labels[l.Name] = l.Value
+	if preN := promrelabel.GetLabelByName(m.Labels, "__name__"); preN != nil {
+		preN.Value = rr.Name
+	} else {
+		m.Labels = append(m.Labels, prompbmarshal.Label{
+			Name:  "__name__",
+			Value: rr.Name,
+		})
 	}
-	labels["__name__"] = rr.Name
-	// override existing labels with configured ones
-	for k, v := range rr.Labels {
-		if _, ok := labels[k]; ok && labels[k] != v {
-			labels[fmt.Sprintf("exported_%s", k)] = labels[k]
+	for k := range rr.Labels {
+		prevLabel := promrelabel.GetLabelByName(m.Labels, k)
+		if prevLabel != nil && prevLabel.Value != rr.Labels[k] {
+			// Rename the prevLabel to "exported_" + label.Name
+			prevLabel.Name = fmt.Sprintf("exported_%s", prevLabel.Name)
 		}
-		labels[k] = v
+		m.Labels = append(m.Labels, prompbmarshal.Label{
+			Name:  k,
+			Value: rr.Labels[k],
+		})
 	}
-	return newTimeSeries(m.Values, m.Timestamps, labels)
+	ts := newTimeSeries(m.Values, m.Timestamps, m.Labels)
+	return ts
 }
 
 // updateWith copies all significant fields.

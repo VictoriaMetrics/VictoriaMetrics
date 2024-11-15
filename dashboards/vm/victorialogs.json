@@ -171,7 +171,7 @@
         "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows the datapoints ingestion rate.",
+      "description": "Shows the logs ingestion rate.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -584,7 +584,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(vl_http_requests_total{job=~\"$job\", instance=~\"$instance\", path!~\".*(/insert|/metrics)\"}[$__rate_interval]))",
+          "expr": "sum(rate(vl_http_requests_total{job=~\"$job\", instance=~\"$instance\", path=~\"/select/.*\"}[$__rate_interval]))",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -683,7 +683,7 @@
         "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
-      "description": "How many datapoints are inserted into storage per second",
+      "description": "How many logs are inserted into storage per second",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -782,7 +782,7 @@
           "refId": "A"
         }
       ],
-      "title": "Datapoints ingestion rate ",
+      "title": "Logs ingestion rate ",
       "type": "timeseries"
     },
     {
@@ -1110,12 +1110,117 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "victoriametrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "Shows the number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. Normally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. ",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "axisSoftMin": 0,
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 0,
+          "links": [],
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "id": 62,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "9.1.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) by(job)",
+          "format": "time_series",
+          "instant": false,
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Restarts ($job)",
+      "type": "timeseries"
+    },
+    {
       "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 22
+        "y": 30
       },
       "id": 28,
       "panels": [
@@ -1169,8 +1274,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1186,7 +1290,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3
+            "y": 11
           },
           "id": 38,
           "options": {
@@ -1276,8 +1380,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1293,7 +1396,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3
+            "y": 11
           },
           "id": 40,
           "options": {
@@ -1433,8 +1536,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1450,7 +1552,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 11
+            "y": 19
           },
           "id": 42,
           "options": {
@@ -1539,8 +1641,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1556,7 +1657,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 11
+            "y": 19
           },
           "id": 44,
           "options": {
@@ -1649,8 +1750,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1682,7 +1782,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 27
           },
           "id": 46,
           "options": {
@@ -1774,8 +1874,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1807,7 +1906,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 27
           },
           "id": 48,
           "options": {
@@ -1912,8 +2011,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1929,7 +2027,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 35
           },
           "id": 50,
           "options": {
@@ -2018,8 +2116,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2048,7 +2145,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 35
           },
           "id": 52,
           "options": {
@@ -2151,8 +2248,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2168,7 +2264,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 43
           },
           "id": 54,
           "options": {
@@ -2257,8 +2353,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2287,7 +2382,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 35
+            "y": 43
           },
           "id": 56,
           "options": {
@@ -2394,8 +2489,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2411,7 +2505,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 51
           },
           "id": 58,
           "options": {
@@ -2502,8 +2596,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2519,7 +2612,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 51
           },
           "id": 60,
           "options": {
@@ -2611,8 +2704,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2628,7 +2720,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 59
           },
           "id": 61,
           "options": {
@@ -2725,8 +2817,8 @@
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
         "hide": 0,
-        "includeAll": false,
-        "multi": false,
+        "includeAll": true,
+        "multi": true,
         "name": "instance",
         "options": [],
         "query": {

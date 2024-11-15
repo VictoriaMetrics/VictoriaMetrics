@@ -187,6 +187,10 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 				RetryStatusCodes:       []int{},
 				DropSrcPathPrefixParts: intp(0),
 			},
+			{
+				SrcPaths:  getRegexs([]string{"/metrics"}),
+				URLPrefix: mustParseURL("http://metrics-server"),
+			},
 		},
 		URLPrefix: mustParseURL("http://default-server"),
 		HeadersConf: HeadersConf{
@@ -206,6 +210,35 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		"bb: aaa", "x: y", []int{502}, "least_loaded", 2)
 	f(ui, "https://foo-host/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "", "", []int{}, "least_loaded", 0)
 	f(ui, "https://foo-host/foo/bar/api/v1/query_range", "http://default-server/api/v1/query_range", "bb: aaa", "x: y", []int{502}, "least_loaded", 2)
+	f(ui, "https://foo-host/metrics", "http://metrics-server", "", "", []int{502}, "least_loaded", 2)
+
+	// Complex routing with `url_map` without global url_prefix
+	ui = &UserInfo{
+		URLMaps: []URLMap{
+			{
+				SrcPaths:               getRegexs([]string{"/api/v1/write"}),
+				URLPrefix:              mustParseURL("http://vminsert/0/prometheus"),
+				RetryStatusCodes:       []int{},
+				DropSrcPathPrefixParts: intp(0),
+			},
+			{
+				SrcPaths:  getRegexs([]string{"/metrics/a/b"}),
+				URLPrefix: mustParseURL("http://metrics-server"),
+			},
+		},
+		HeadersConf: HeadersConf{
+			RequestHeaders: []*Header{
+				mustNewHeader("'bb: aaa'"),
+			},
+			ResponseHeaders: []*Header{
+				mustNewHeader("'x: y'"),
+			},
+		},
+		RetryStatusCodes:       []int{502},
+		DropSrcPathPrefixParts: intp(2),
+	}
+	f(ui, "https://foo-host/api/v1/write", "http://vminsert/0/prometheus/api/v1/write", "", "", []int{}, "least_loaded", 0)
+	f(ui, "https://foo-host/metrics/a/b", "http://metrics-server/b", "", "", []int{502}, "least_loaded", 2)
 
 	// Complex routing regexp paths in `url_map`
 	ui = &UserInfo{
