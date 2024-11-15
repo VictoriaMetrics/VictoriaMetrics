@@ -119,6 +119,7 @@ See also [case studies](https://docs.victoriametrics.com/casestudies/).
 * [Improving histogram usability for Prometheus and Grafana](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
 * [Why irate from Prometheus doesn't capture spikes](https://valyala.medium.com/why-irate-from-prometheus-doesnt-capture-spikes-45f9896d7832)
 * [VictoriaMetrics: PromQL compliance](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e)
+* [How do open source solutions for logs work: Elasticsearch, Loki and VictoriaLogs](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f)
 
 ### Tutorials, guides and how-to articles
 
