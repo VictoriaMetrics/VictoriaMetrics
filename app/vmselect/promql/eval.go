@@ -1112,9 +1112,9 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		return offset >= maxOffset
 	}
 
-	at := ec.AuthTokens[0]
-	if ec.IsMultiTenant {
-		at = nil
+	var at *auth.Token
+	if !ec.IsMultiTenant {
+		at = ec.AuthTokens[0]
 	}
 	deleteCachedSeries := func(qt *querytracer.Tracer) {
 		rollupResultCacheV.DeleteInstantValues(qt, at, expr, window, ec.Step, ec.EnforcedTagFilterss)
