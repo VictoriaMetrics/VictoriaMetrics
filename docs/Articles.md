@@ -92,7 +92,7 @@ See also [case studies](https://docs.victoriametrics.com/casestudies/).
 ### Announcements
 
 * [Open-source strategy at VictoriaMetrics](https://www.youtube.com/watch?v=-DbbIZzFHIY)
-* [Open-sourcing VictoriaMetrics](https://blog.usejournal.com/open-sourcing-victoriametrics-f31e34485c2b)
+* [Open-sourcing VictoriaMetrics](https://valyala.medium.com/open-sourcing-victoriametrics-f31e34485c2b)
 * [VictoriaMetrics — creating the best remote storage for Prometheus](https://faun.pub/victoriametrics-creating-the-best-remote-storage-for-prometheus-5d92d66787ac)
 * [Anomaly Detection in VictoriaMetrics](https://victoriametrics.medium.com/anomaly-detection-in-victoriametrics-9528538786a7)
 
