@@ -1,6 +1,7 @@
 ## Next release
 
-- TODO
+- updated context for serviceaccount name
+- updated common dependency 0.0.23 -> 0.0.28
 
 ## 0.12.5
 

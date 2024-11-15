@@ -1,6 +1,6 @@
 ## Next release
 
-- updated common dependency 0.0.20 -> 0.0.23
+- updated common dependency 0.0.20 -> 0.0.28
 
 ## 0.12.6
 

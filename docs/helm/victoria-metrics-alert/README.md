@@ -1051,6 +1051,8 @@ username: ""
 <code class="language-yaml">envflag.enable: "true"
 envflag.prefix: VM_
 loggerFormat: json
+rule:
+    - /config/alert-rules.yaml
 </code>
 </pre>
 </td>
@@ -1087,7 +1089,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>Extra Volume Mounts for the container</p>
+      <td><p>Extra Volume Mounts for the container. Expects a lice of <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#volumemount-v1-core" target="_blank">volume mounts</a></p>
 </td>
     </tr>
     <tr>
