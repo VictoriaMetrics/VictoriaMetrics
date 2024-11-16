@@ -14,6 +14,7 @@ Please find the changelog for VictoriaMetrics Anomaly Detection below.
 ## v1.18.3
 Released: 2024-11-14
 
+- IMPROVEMENT: Introduced [self-monitoring guide](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/) for `vmanomaly`.
 - FIX: This patch release resolves an issue that could cause a service crash when parallelizing data processing with `VmReader`. Affected releases: [v1.18.1](#v1181) - [v1.18.2](#v1182).
 
 ## v1.18.2
