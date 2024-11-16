@@ -45,12 +45,15 @@ func (tlp *testLogMessageProcessor) AddRow(timestamp int64, fields []logstorage.
 func (tlp *testLogMessageProcessor) MustClose() {
 }
 
+func (tlp *testLogMessageProcessor) UpdateStreamFields(_ []logstorage.Field) {
+}
+
 func TestParseProtobufRequest_Success(t *testing.T) {
 	f := func(s string, timestampsExpected []int64, resultExpected string) {
 		t.Helper()
 
 		tlp := &testLogMessageProcessor{}
-		n, err := parseJSONRequest([]byte(s), tlp)
+		n, err := parseJSONRequest([]byte(s), tlp, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -62,7 +65,7 @@ func TestParseProtobufRequest_Success(t *testing.T) {
 		encodedData := snappy.Encode(nil, data)
 
 		tlp2 := &insertutils.TestLogMessageProcessor{}
-		n, err = parseProtobufRequest(encodedData, tlp2)
+		n, err = parseProtobufRequest(encodedData, tlp2, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}

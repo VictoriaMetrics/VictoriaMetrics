@@ -24,6 +24,10 @@ func (tlp *TestLogMessageProcessor) AddRow(timestamp int64, fields []logstorage.
 func (tlp *TestLogMessageProcessor) MustClose() {
 }
 
+// UpdateStreamFields updates streamFields in tlp.
+func (tlp *TestLogMessageProcessor) UpdateStreamFields(_ []logstorage.Field) {
+}
+
 // Verify verifies the number of rows, timestamps and results after AddRow calls.
 func (tlp *TestLogMessageProcessor) Verify(rowsExpected int, timestampsExpected []int64, resultExpected string) error {
 	result := strings.Join(tlp.rows, "\n")
@@ -50,4 +54,8 @@ func (blp *BenchmarkLogMessageProcessor) AddRow(_ int64, _ []logstorage.Field) {
 
 // MustClose implements LogMessageProcessor interface.
 func (blp *BenchmarkLogMessageProcessor) MustClose() {
+}
+
+// UpdateStreamFields implements LogMessageProcessor interface.
+func (blp *BenchmarkLogMessageProcessor) UpdateStreamFields(_ []logstorage.Field) {
 }

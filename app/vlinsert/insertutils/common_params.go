@@ -144,6 +144,9 @@ type LogMessageProcessor interface {
 
 	// MustClose() must flush all the remaining fields and free up resources occupied by LogMessageProcessor.
 	MustClose()
+
+	// UpdateStreamFields reinits LogMessageProcessor with new stream fields
+	UpdateStreamFields(streamFields []logstorage.Field)
 }
 
 type logMessageProcessor struct {
@@ -214,6 +217,17 @@ func (lmp *logMessageProcessor) flushLocked() {
 	lmp.lr.ResetKeepSettings()
 }
 
+// flushResetStreamFields flushes rows and updates stream fields
+func (lmp *logMessageProcessor) flushResetStreamFields(streamFields []logstorage.Field) {
+	if !lmp.lr.StreamFieldsChanged(streamFields) {
+		return
+	}
+
+	lmp.lastFlushTime = time.Now()
+	vlstorage.MustAddRows(lmp.lr)
+	lmp.lr.ResetStreamFields(streamFields)
+}
+
 // MustClose flushes the remaining data to the underlying storage and closes lmp.
 func (lmp *logMessageProcessor) MustClose() {
 	close(lmp.stopCh)
@@ -222,6 +236,11 @@ func (lmp *logMessageProcessor) MustClose() {
 	lmp.flushLocked()
 	logstorage.PutLogRows(lmp.lr)
 	lmp.lr = nil
+}
+
+// UpdateStreamFields reinits LogMessageProcessor with new stream fields
+func (lmp *logMessageProcessor) UpdateStreamFields(streamFields []logstorage.Field) {
+	lmp.flushResetStreamFields(streamFields)
 }
 
 // NewLogMessageProcessor returns new LogMessageProcessor for the given cp.

@@ -67,7 +67,8 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 	}
 
 	lmp := cp.NewLogMessageProcessor()
-	n, err := pushProtobufRequest(data, lmp)
+	useDefaultStreamFields := len(cp.StreamFields) == 0
+	n, err := pushProtobufRequest(data, lmp, useDefaultStreamFields)
 	lmp.MustClose()
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse OpenTelemetry protobuf request: %s", err)
@@ -91,7 +92,7 @@ var (
 	requestProtobufDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
 )
 
-func pushProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, error) {
+func pushProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefaultStreamFields bool) (int, error) {
 	var req pb.ExportLogsServiceRequest
 	if err := req.UnmarshalProtobuf(data); err != nil {
 		errorsTotal.Inc()
@@ -108,6 +109,9 @@ func pushProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) (int,
 			commonFields[i].Value = attr.Value.FormatString()
 		}
 		commonFieldsLen := len(commonFields)
+		if useDefaultStreamFields {
+			lmp.UpdateStreamFields(commonFields)
+		}
 		for _, sc := range rl.ScopeLogs {
 			var scopeIngested int
 			commonFields, scopeIngested = pushFieldsFromScopeLogs(&sc, commonFields[:commonFieldsLen], lmp)

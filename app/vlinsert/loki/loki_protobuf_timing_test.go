@@ -31,7 +31,7 @@ func benchmarkParseProtobufRequest(b *testing.B, streams, rows, labels int) {
 	b.RunParallel(func(pb *testing.PB) {
 		body := getProtobufBody(streams, rows, labels)
 		for pb.Next() {
-			_, err := parseProtobufRequest(body, blp)
+			_, err := parseProtobufRequest(body, blp, false)
 			if err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
 			}

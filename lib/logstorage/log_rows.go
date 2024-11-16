@@ -126,6 +126,32 @@ func (lr *LogRows) ResetKeepSettings() {
 	lr.sf = nil
 }
 
+// StreamFieldsChanged checks if passed stream fields differ from lr.streamFields
+func (lr *LogRows) StreamFieldsChanged(streamFields []Field) bool {
+	sfs := lr.streamFields
+	if len(sfs) != len(streamFields) {
+		return true
+	}
+	for _, f := range streamFields {
+		if _, ok := sfs[f.Name]; !ok {
+			return true
+		}
+	}
+	return false
+}
+
+// ResetStreamFields same as ResetKeepSettings, but additionally updates lr.streamFields
+func (lr *LogRows) ResetStreamFields(streamFields []Field) {
+	lr.ResetKeepSettings()
+	sfs := lr.streamFields
+	for k := range sfs {
+		delete(sfs, k)
+	}
+	for _, f := range streamFields {
+		sfs[f.Name] = struct{}{}
+	}
+}
+
 // NeedFlush returns true if lr contains too much data, so it must be flushed to the storage.
 func (lr *LogRows) NeedFlush() bool {
 	return len(lr.a.b) > (maxUncompressedBlockSize/8)*7

@@ -54,7 +54,8 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 		return
 	}
 	lmp := cp.NewLogMessageProcessor()
-	n, err := parseJSONRequest(data, lmp)
+	useDefaultStreamFields := len(cp.StreamFields) == 0
+	n, err := parseJSONRequest(data, lmp, useDefaultStreamFields)
 	lmp.MustClose()
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse Loki json request: %s; data=%s", err, data)
@@ -75,7 +76,7 @@ var (
 	requestJSONDuration   = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
-func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, error) {
+func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefaultStreamFields bool) (int, error) {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
 	v, err := p.ParseBytes(data)
@@ -120,6 +121,10 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, er
 		})
 		if err != nil {
 			return rowsIngested, fmt.Errorf("error when parsing `stream` object: %w", err)
+		}
+
+		if useDefaultStreamFields {
+			lmp.UpdateStreamFields(commonFields)
 		}
 
 		// populate messages from `values` array

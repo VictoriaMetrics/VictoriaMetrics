@@ -15,6 +15,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [vlinsert](https://docs.victoriametrics.com/victorialogs/): use Loki message stream fields and Opentelemetry common attributes as VictoriaLogs stream fields if none were passed via HTTP headers or query args. This is useful for agents, which do not support setting custom headers or query args.
+
 ## [v1.0.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.0.0-victorialogs)
 
 Released at 2024-11-12
