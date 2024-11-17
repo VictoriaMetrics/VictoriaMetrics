@@ -38,6 +38,8 @@ var (
 	suppressScrapeErrorsDelay = flag.Duration("promscrape.suppressScrapeErrorsDelay", 0, "The delay for suppressing repeated scrape errors logging per each scrape targets. "+
 		"This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors")
 	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent/#stream-parsing-mode")
+	firstPromscrapeInterval       = flag.Duration("promscrape.firstScrapeInterval", 0, "Calculate start time for the first scrape from ScrapeURL and labels. By default is disabled. "+
+		"If you want to see the first datapoint faster, just set this value to cover the scrape interval for spread load on the first scrape")
 )
 
 // ScrapeWork represents a unit of work for scraping Prometheus metrics.
@@ -271,6 +273,7 @@ func (sw *scrapeWork) finalizeLastScrape() {
 func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) {
 	var randSleep uint64
 	scrapeInterval := sw.Config.ScrapeInterval
+	firstScrapeInterval := sw.getFirstScrapeInternal(scrapeInterval)
 	scrapeAlignInterval := sw.Config.ScrapeAlignInterval
 	scrapeOffset := sw.Config.ScrapeOffset
 	if scrapeOffset > 0 {
@@ -294,10 +297,10 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 		// See https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets
 		key := fmt.Sprintf("clusterName=%s, clusterMemberID=%d, ScrapeURL=%s, Labels=%s", *clusterName, clusterMemberID, sw.Config.ScrapeURL, sw.Config.Labels.String())
 		h := xxhash.Sum64(bytesutil.ToUnsafeBytes(key))
-		randSleep = uint64(float64(scrapeInterval) * (float64(h) / (1 << 64)))
-		sleepOffset := uint64(time.Now().UnixNano()) % uint64(scrapeInterval)
+		randSleep = uint64(float64(firstScrapeInterval) * (float64(h) / (1 << 64)))
+		sleepOffset := uint64(time.Now().UnixNano()) % uint64(firstScrapeInterval)
 		if randSleep < sleepOffset {
-			randSleep += uint64(scrapeInterval)
+			randSleep += uint64(firstScrapeInterval)
 		}
 		randSleep -= sleepOffset
 	} else {
@@ -353,6 +356,14 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 			sw.scrapeAndLogError(timestamp, t)
 		}
 	}
+}
+
+func (sw *scrapeWork) getFirstScrapeInternal(scrapeInterval time.Duration) time.Duration {
+	if *firstPromscrapeInterval > 0 {
+		return *firstPromscrapeInterval
+	}
+
+	return scrapeInterval
 }
 
 func (sw *scrapeWork) logError(s string) {

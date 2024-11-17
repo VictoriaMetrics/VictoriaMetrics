@@ -2041,6 +2041,8 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Interval for checking for changes in Vultr. This works only if vultr_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#vultr_sd_configs for details  (default 30s)
   -promscrape.yandexcloudSDCheckInterval duration
      Interval for checking for changes in Yandex Cloud API. This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#yandexcloud_sd_configs for details (default 30s)
+  -promscrape.firstScrapeInterval duration
+     Interval for calculate start time for the first scrape from ScrapeURL and labels. By default is disabled. If you want to see the first datapoint faster, just set this value to cover the scrape interval for spread load on the first scrape. (default 0s)
   -pushmetrics.disableCompression
      Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array
