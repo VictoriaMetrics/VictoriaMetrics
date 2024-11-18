@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.5](https://img.shields.io/badge/Version-0.12.5-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.6](https://img.shields.io/badge/Version-0.12.6-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-alert)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -1051,6 +1051,8 @@ username: ""
 <code class="language-yaml">envflag.enable: "true"
 envflag.prefix: VM_
 loggerFormat: json
+rule:
+    - /config/alert-rules.yaml
 </code>
 </pre>
 </td>
@@ -1087,7 +1089,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>Extra Volume Mounts for the container</p>
+      <td><p>Extra Volume Mounts for the container. Expects a lice of <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#volumemount-v1-core" target="_blank">volume mounts</a></p>
 </td>
     </tr>
     <tr>
