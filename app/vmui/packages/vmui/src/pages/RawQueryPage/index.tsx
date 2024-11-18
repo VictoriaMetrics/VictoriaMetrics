@@ -81,9 +81,13 @@ const RawQueryPage: FC = () => {
           <div className="vm-explore-metrics-header-description">
             <p>
               This page provides a dedicated view for querying and displaying raw data directly from VictoriaMetrics.
-              Users often assume that the <Hyperlink href="https://docs.victoriametrics.com/keyconcepts/#query-data">Query
+              Users often assume that the <Hyperlink
+                underlined
+                href="https://docs.victoriametrics.com/keyconcepts/#query-data"
+              >Query
               API</Hyperlink> returns data exactly as stored, but data samples and timestamps may be modified by the API.
               For more details, see <Hyperlink
+                underlined
                 href="https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-export-data-in-json-line-format"
               >How
               to export data in JSON line format</Hyperlink>

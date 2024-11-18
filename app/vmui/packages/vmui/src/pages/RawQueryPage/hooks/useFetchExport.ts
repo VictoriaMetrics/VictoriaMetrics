@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
-import { MetricBase, MetricResult, RawMetricResult } from "../../../api/types";
+import { MetricBase, MetricResult, ExportMetricResult } from "../../../api/types";
 import { ErrorTypes, SeriesLimits } from "../../../types";
 import { useQueryState } from "../../../state/query/QueryStateContext";
 import { useTimeState } from "../../../state/time/TimeStateContext";
@@ -24,7 +24,7 @@ interface FetchQueryReturn {
   abortFetch: () => void
 }
 
-const parseLineToJSON = (line: string): RawMetricResult | null => {
+const parseLineToJSON = (line: string): ExportMetricResult | null => {
   try {
     return JSON.parse(line);
   } catch (e) {
@@ -74,6 +74,7 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
     try {
       const tempData: MetricBase[] = [];
       const seriesLimit = showAllSeries ? Infinity : +stateSeriesLimits[displayType] || Infinity;
+      console.log(+stateSeriesLimits[displayType]);
       let counter = 1;
       let totalLength = 0;
 
@@ -97,14 +98,16 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
           setQueryErrors(prev => [...prev, ""]);
           const freeTempSize = seriesLimit - tempData.length;
           const lines = text.split("\n").filter(line => line);
-          const linesLimited = lines.slice(0, freeTempSize);
-          const responseData = linesLimited.map(parseLineToJSON).filter(line => line) as RawMetricResult[];
-          const metricResult = responseData.map((d: RawMetricResult) => ({
-            group: counter,
-            metric: d.metric,
-            values: d.values.map((value, index) => [(d.timestamps[index]/1000), value]),
-          }));
-          tempData.push(...metricResult);
+          const lineLimited = lines.slice(0, freeTempSize).sort();
+          lineLimited.forEach((line: string) => {
+            const jsonLine = parseLineToJSON(line);
+            if (!jsonLine) return;
+            tempData.push({
+              group: counter,
+              metric: jsonLine.metric,
+              values: jsonLine.values.map((value, index) => [(jsonLine.timestamps[index]/1000), value]),
+            } as MetricBase);
+          });
           totalLength += lines.length;
         }
 
@@ -130,12 +133,11 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
 
   useEffect(() => {
     if (!fetchUrl?.length) return;
-    fetchData({
-      fetchUrl,
-      stateSeriesLimits,
-      showAllSeries,
-    });
-    return () => abortControllerRef.current?.abort();
+    const timer = setTimeout(fetchData, 400, { fetchUrl, stateSeriesLimits, showAllSeries });
+    return () => {
+      abortControllerRef.current?.abort();
+      clearTimeout(timer);
+    };
   }, [fetchUrl, stateSeriesLimits, showAllSeries]);
 
   return {

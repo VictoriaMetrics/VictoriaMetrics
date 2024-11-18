@@ -15,7 +15,7 @@ export interface InstantMetricResult extends MetricBase {
   values?: [number, string][]
 }
 
-export interface RawMetricResult extends MetricBase {
+export interface ExportMetricResult extends MetricBase {
   values: number[];
   timestamps: number[];
 }
