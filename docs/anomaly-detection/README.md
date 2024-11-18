@@ -35,7 +35,7 @@ Enhance your knowledge with our handbook on Anomaly Detection & Root Cause Analy
 * Follow the [`#anomaly-detection`](https://victoriametrics.com/blog/tags/anomaly-detection/) tag in our blog
 
 ## Product Updates
-Stay up-to-date with the latest improvements and features in VictoriaMetrics Anomaly Detection by following our [blog post series](https://victoriametrics.com/blog/victoriamerics-anomaly-detection-updates-2024-q1-2/).
+Stay up-to-date with the latest improvements and features in VictoriaMetrics Anomaly Detection, and the rest of our products on our [blog](https://victoriametrics.com/blog/tags/product-updates/).
 
 ## Frequently Asked Questions (FAQ)
 Got questions about VictoriaMetrics Anomaly Detection? Chances are, we've got the answers ready for you. 
