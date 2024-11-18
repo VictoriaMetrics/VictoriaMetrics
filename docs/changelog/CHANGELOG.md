@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): Properly return `200 OK` HTTP status code when importing data via [Pushgateway protocol](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format) using [multitenant URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7571).
+
 ## [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1)
 
 Released at 2024-11-15
@@ -467,7 +469,7 @@ Released at 2024-04-26
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): auto-suggestion triggers at any cursor position in the query input. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5864).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): update error messages on the Query page for enhanced clarity. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6177).
 
-* BUGFIX: [downsampling](https://docs.victoriametrics.com/#downsampling): skip unnecessary index lookups if downsampling wasn't set for ENT versions of VictoriaMetrics. Before, users of VictoriaMetrics ENT could have experience elevated CPU usage even if no downsampling was configured. The issue was introduced in [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000).  
+* BUGFIX: [downsampling](https://docs.victoriametrics.com/#downsampling): skip unnecessary index lookups if downsampling wasn't set for ENT versions of VictoriaMetrics. Before, users of VictoriaMetrics ENT could have experience elevated CPU usage even if no downsampling was configured. The issue was introduced in [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000).
 * BUGFIX: [downsampling](https://docs.victoriametrics.com/#downsampling): properly populate downsampling metadata for data parts created by VictoriaMetrics ENT versions lower than v1.100.0. The bug could trigger the downsampling actions for parts that were downsampled already. This bug doesn't have any negative effect apart from spending extra CPU resources on the repeated downsampling. The issue was introduced in [v1.100.0](https://docs.victoriametrics.com/changelog/#v11000).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): supported any status codes from the range 200-299 from alertmanager. Previously, only 200 status code considered a successful action. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6110).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): avoid blocking `/api/v1/rules`, `/api/v1/alerts`, `/metrics` APIs when alerting rule uses template functions `query`, which could takes a while to execute. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6079).
