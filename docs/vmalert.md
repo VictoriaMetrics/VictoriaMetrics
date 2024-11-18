@@ -1384,7 +1384,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.maxBatchSize int
      Defines max number of timeseries to be flushed at once (default 10000)
   -remoteWrite.maxQueueSize int
-     Defines the max number of pending datapoints to remote write endpoint (default 1000000)
+     Defines the max number of pending datapoints to remote write endpoint (default 100000)
   -remoteWrite.oauth2.clientID string
      Optional OAuth2 clientID to use for -remoteWrite.url
   -remoteWrite.oauth2.clientSecret string

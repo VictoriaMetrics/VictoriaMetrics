@@ -27,7 +27,7 @@ var defaultConcurrency = cgroup.AvailableCPUs() * 2
 
 const (
 	defaultMaxBatchSize  = 1e4
-	defaultMaxQueueSize  = 1e6
+	defaultMaxQueueSize  = 1e5
 	defaultFlushInterval = 2 * time.Second
 	defaultWriteTimeout  = 30 * time.Second
 )
