@@ -13,7 +13,7 @@ aliases:
 
 ## tip
 
-- TODO
+- [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1).
 
 ## [v0.49.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.1) - 11 Nov 2024
 
@@ -31,7 +31,7 @@ aliases:
 - [vmalertmanager](https://docs.victoriametrics.com/operator/resources/vmalertmanager): properly trigger reload when `ConfigMap` provided via `.spec.configMap` are changed.
 - [operator](https://docs.victoriametrics.com/operator/): fixed operator reconcile on storage size change
 - [operator](https://docs.victoriametrics.com/operator/): fixed converting AlertmanagerConfig to VMAlertmanagerConfig
-- [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.6).
+- [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0).
 
 ## [v0.48.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.4) - 15 Oct 2024
 
