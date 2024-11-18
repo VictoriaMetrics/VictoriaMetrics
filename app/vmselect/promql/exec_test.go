@@ -9274,6 +9274,75 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`limit_offset(5, 0, sort_by_label_numeric_desc(multiple_labels_numbers_special_chars, "foo"))`, func(t *testing.T) {
+		t.Parallel()
+		q := `limit_offset(5, 0, sort_by_label_numeric_desc((
+                        label_set(3, "foo", "1:0:3"),
+			label_set(4, "foo", "5:0:15"),
+			label_set(1, "foo", "1:0:2"),
+			label_set(5, "foo", "7:0:15"),
+			label_set(7, "foo", "3:0:1"),
+			label_set(6, "foo", "1:0:2"),
+			label_set(8, "foo", "9:0:15")
+                ), "foo"))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{8, 8, 8, 8, 8, 8},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("9:0:15"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{5, 5, 5, 5, 5, 5},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("7:0:15"),
+			},
+		}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4, 4, 4, 4, 4, 4},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("5:0:15"),
+			},
+		}
+		r4 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{7, 7, 7, 7, 7, 7},
+			Timestamps: timestampsExpected,
+		}
+		r4.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("3:0:1"),
+			},
+		}
+		r5 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{3, 3, 3, 3, 3, 3},
+			Timestamps: timestampsExpected,
+		}
+		r5.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("1:0:3"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3, r4, r5}
+		f(q, resultExpected)
+	})
 	t.Run(`sort_by_label_numeric(alias_numbers_with_special_chars)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_by_label_numeric((

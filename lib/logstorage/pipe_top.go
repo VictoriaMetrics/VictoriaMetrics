@@ -71,10 +71,6 @@ func (pt *pipeTop) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (pt *pipeTop) optimize() {
-	// nothing to do
-}
-
 func (pt *pipeTop) hasFilterInWithQuery() bool {
 	return false
 }

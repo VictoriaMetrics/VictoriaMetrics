@@ -50,26 +50,3 @@ func parseIfFilter(lex *lexer) (*ifFilter, error) {
 
 	return iff, nil
 }
-
-func (iff *ifFilter) optimizeFilterIn() {
-	if iff == nil {
-		return
-	}
-
-	optimizeFilterIn(iff.f)
-}
-
-func optimizeFilterIn(f filter) {
-	if f == nil {
-		return
-	}
-
-	visitFunc := func(f filter) bool {
-		fi, ok := f.(*filterIn)
-		if ok && fi.q != nil {
-			fi.q.Optimize()
-		}
-		return false
-	}
-	_ = visitFilter(f, visitFunc)
-}

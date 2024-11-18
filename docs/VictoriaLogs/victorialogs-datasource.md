@@ -79,7 +79,7 @@ Please find the example of provisioning Grafana instance with VictoriaLogs datas
        grafana:
          image: grafana/grafana:11.0.0
          environment:
-         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.6.2/victorialogs-datasource-v0.6.2.zip;victorialogs-datasource
+         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.7.0/victorialogs-datasource-v0.7.0.zip;victorialogs-datasource
          - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victorialogs-datasource
          ports:
          - 3000:3000/tcp
@@ -107,7 +107,7 @@ Option 1. Using Grafana provisioning:
 
 ``` yaml
 env:
-  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.6.2/victorialogs-datasource-v0.6.2.zip;victorialogs-datasource"
+  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.7.0/victorialogs-datasource-v0.7.0.zip;victorialogs-datasource"
   GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: "victorialogs-datasource"
 ```
 
@@ -115,7 +115,7 @@ Option 2. Using Grafana plugins section in `values.yaml`:
 
 ``` yaml
 plugins:
-  - https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.6.2/victorialogs-datasource-v0.6.2.zip;victorialogs-datasource
+  - https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.7.0/victorialogs-datasource-v0.7.0.zip;victorialogs-datasource
 ```
 
 Option 3. Using init container:

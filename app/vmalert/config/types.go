@@ -71,7 +71,7 @@ func (t *Type) ValidateExpr(expr string) error {
 			return fmt.Errorf("bad prometheus expr: %q, err: %w", expr, err)
 		}
 	case "vlogs":
-		if _, err := logstorage.ParseStatsQuery(expr); err != nil {
+		if _, err := logstorage.ParseStatsQuery(expr, 0); err != nil {
 			return fmt.Errorf("bad LogsQL expr: %q, err: %w", expr, err)
 		}
 	default:

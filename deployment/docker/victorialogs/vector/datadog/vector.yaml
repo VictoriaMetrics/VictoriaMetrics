@@ -1,0 +1,28 @@
+api:
+  enabled: true
+  address: 0.0.0.0:8686
+sources:
+  vector_metrics:
+    type: internal_metrics
+  demo:
+    type: demo_logs
+    format: json
+sinks:
+  datadog:
+    type: datadog_logs
+    inputs: [demo]
+    default_api_key: test
+    endpoint: http://dd-logs:8427
+    compression: gzip
+    request:
+      headers:
+        dd-protocol: test  # required by VictoriaLogs
+        AccountID: "0"
+        ProjectID: "0"
+        VL-Stream-Fields: "service,host"
+  victoriametrics:
+    type: prometheus_remote_write
+    endpoint: http://victoriametrics:8428/api/v1/write
+    inputs: [vector_metrics]
+    healthcheck:
+      enabled: false

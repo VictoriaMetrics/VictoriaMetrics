@@ -159,7 +159,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.18.0
+    image: victoriametrics/vmanomaly:v1.18.3
     # ...
     ports:
       - "8490:8490"

@@ -1597,7 +1597,7 @@ The format follows [JSON streaming concept](https://jsonlines.org/), e.g. each l
 
 ```json
 {
-  // metric contans metric name plus labels for a particular time series
+  // metric contains metric name plus labels for a particular time series
   "metric":{
     "__name__": "metric_name",  // <- this is metric name
 
@@ -2049,7 +2049,7 @@ Important notes:
   So the IndexDB size can grow big under [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
   even for small retentions configured via `-retentionFilter`.
 
-Retention filters configuration can be tested in enterprise version of vmui on the page `Tools.Retnetion filters debug`.
+Retention filters configuration can be tested in enterprise version of vmui on the page `Tools.Retention filters debug`.
 It is safe updating `-retentionFilter` during VictoriaMetrics restarts - the updated retention filters are applied eventually
 to historical data.
 
@@ -2071,7 +2071,7 @@ The `-downsampling.period` command-line flag can be specified multiple times in 
 For example, `-downsampling.period=30d:5m,180d:1h` instructs leaving the last sample per each 5-minute interval for samples older than 30 days,
 while leaving the last sample per each 1-hour interval for samples older than 180 days.
 
-VictoriaMetrics supports configuring independent downsampling per different sets of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+VictoriaMetrics supports{{% available_from "v1.100.0" %}} configuring independent downsampling per different sets of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 via `-downsampling.period=filter:offset:interval` syntax. In this case the given `offset:interval` downsampling is applied only to time series matching the given `filter`.
 The `filter` can contain arbitrary [series filter](https://docs.victoriametrics.com/keyconcepts/#filtering).
 For example, `-downsampling.period='{__name__=~"(node|process)_.*"}:1d:1m` instructs VictoriaMetrics to deduplicate samples older than one day with one minute interval

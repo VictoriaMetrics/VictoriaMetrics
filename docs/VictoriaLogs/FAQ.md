@@ -11,6 +11,11 @@ aliases:
 - /VictoriaLogs/FAQ.html
 - /VictoriaLogs/faq.html
 ---
+
+## Is VictoriaLogs ready for production use?
+
+Yes. VictoriaLogs is ready for production use starting from [v1.0.0](https://docs.victoriametrics.com/victorialogs/changelog/).
+
 ## What is the difference between VictoriaLogs and Elasticsearch (OpenSearch)?
 
 Both Elasticsearch and VictoriaLogs allow ingesting structured and unstructured logs
@@ -29,7 +34,7 @@ VictoriaLogs is optimized specifically for logs. So it provides the following fe
 - Easy to setup and operate. There is no need in tuning configuration for optimal performance or in creating any indexes for various log types.
   Just run VictoriaLogs on the most suitable hardware, ingest logs into it via [supported data ingestion protocols](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
   and get the best available performance out of the box.
-- Up to 30x less RAM usage than Elasticsearch for the same workload.
+- Up to 30x less RAM usage than Elasticsearch for the same workload. See [this article](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f) for details.
 - Up to 15x less disk space usage than Elasticsearch for the same amounts of stored logs.
 - Ability to work efficiently with hundreds of terabytes of logs on a single node.
 - Easy to use query language optimized for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
@@ -131,3 +136,42 @@ Just send the query with the needed [filters](https://docs.victoriametrics.com/v
 to [`/select/logsql/query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs) - VictoriaLogs will return
 the requested logs as a [stream of JSON lines](https://jsonlines.org/). It is recommended specifying [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter)
 for limiting the amounts of exported logs.
+
+## I want to ingest logs without message field, is that possible?
+
+Starting from version `v0.30.0`, VictoriaLogs started blocking the ingestion of logs **without a message field**, as it is a requirement of the [VictoriaLogs data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field). 
+
+However, some logs do not have a message field and only contain other fields, such as logs in [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7056#issuecomment-2434189718) and [this slack thread](https://victoriametrics.slack.com/archives/C05UNTPAEDN/p1730982146818249). Therefore, starting from version `v0.39.0`, logs without a message field are **allowed to be ingested**, 
+and their message field will be recorded as: 
+```json
+{"_msg": "missing _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field"}
+```
+
+The default message field value can be changed using the `-defaultMsgValue` flag, for example, `-defaultMsgValue=foo`.
+
+Please note that the message field is **crucial** for VictoriaLogs, so it is important to fill it with meaningful content.
+
+## What if my logs have multiple message fields candidates?
+
+When ingesting with VictoriaLogs, the message fields is specified through `_msg_field` param, which can accept **multiple fields**, and the **first non-empty field** will be used as the message field. 
+Here is an example URL when pushing logs to VictoriaLogs with Promtail:
+```yaml
+clients:
+  - url: http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app&_msg=message,body
+```
+
+For the following log, its `_msg` will be `foo bar in message`:
+```json
+{
+  "message": "foo bar in message",
+  "body": "foo bar in body"
+}
+```
+
+And for the following log, its `_msg` will be `foo bar in body`:
+```json
+{
+  "message": "",
+  "body": "foo bar in body"
+}
+```

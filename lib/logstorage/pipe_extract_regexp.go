@@ -47,10 +47,6 @@ func (pe *pipeExtractRegexp) canLiveTail() bool {
 	return true
 }
 
-func (pe *pipeExtractRegexp) optimize() {
-	pe.iff.optimizeFilterIn()
-}
-
 func (pe *pipeExtractRegexp) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }

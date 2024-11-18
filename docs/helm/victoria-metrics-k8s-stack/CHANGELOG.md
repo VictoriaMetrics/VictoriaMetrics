@@ -1,5 +1,55 @@
 ## Next release
 
+- updated common dependency 0.0.21 -> 0.0.23
+
+## 0.28.3
+
+**Release date:** 2024-11-08
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated dashboards
+- set default DNS domain to `cluster.local.`
+- fixed disabling recording rules in `.Values.defaultRules`
+- updated common dependency 0.0.19 -> 0.0.21
+- fixed cluster variable in etcd dashboard
+
+## 0.28.2
+
+**Release date:** 2024-11-06
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Updated dashboards
+- Fixed vmauth spec context
+
+## 0.28.1
+
+**Release date:** 2024-11-05
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Fix templating of labels for `VMAlertmanager` CRD.
+
+## 0.28.0
+
+**Release date:** 2024-11-05
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Update vm-operator to v0.49.0 release
+
+## 0.27.7
+
+**Release date:** 2024-11-05
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
 - Added alertmanager datasource. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1592)
 - Renamed `grafana.sidecar.dashboards.additionalDashboardLabels` to `defaultDashboards.labels`
 - Renamed `grafana.sidecar.dashboards.additionalDashboardAnnotations` to `defaultDashboards.annotations`
@@ -10,6 +60,8 @@
 - Removed crds subchart as it's now included in operator
 - Fixed additionalNotifiersConfig
 - Added `vmcluster.vmauth.<vminsert/vmselect>` and `externalVM.vmauth.<read/write>` to provide ability to override vmauth configs
+- Removed unused serviceaccount
+- bump version of VM components to [v1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0)
 
 ## 0.27.6
 
