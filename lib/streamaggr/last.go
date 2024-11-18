@@ -12,46 +12,45 @@ type lastAggrState struct {
 }
 
 type lastStateValue struct {
-	mu        sync.Mutex
-	last      float64
-	timestamp int64
-	deleted   bool
+	mu             sync.Mutex
+	last           float64
+	timestamp      int64
+	deleted        bool
+	defined        bool
+	deleteDeadline int64
 }
 
 func newLastAggrState() *lastAggrState {
 	return &lastAggrState{}
 }
 
-func (as *lastAggrState) pushSamples(samples []pushSample) {
+func (as *lastAggrState) pushSamples(samples []pushSample, deleteDeadline int64, includeInputKey bool) {
 	for i := range samples {
 		s := &samples[i]
-		outputKey := getOutputKey(s.key)
+		outputKey := getOutputKey(s.key, includeInputKey)
 
 	again:
 		v, ok := as.m.Load(outputKey)
 		if !ok {
 			// The entry is missing in the map. Try creating it.
-			v = &lastStateValue{
-				last:      s.value,
-				timestamp: s.timestamp,
-			}
+			v = &lastStateValue{}
 			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
-			if !loaded {
-				// The new entry has been successfully created.
-				continue
+			if loaded {
+				// Use the entry created by a concurrent goroutine.
+				v = vNew
 			}
-			// Use the entry created by a concurrent goroutine.
-			v = vNew
 		}
 		sv := v.(*lastStateValue)
 		sv.mu.Lock()
 		deleted := sv.deleted
 		if !deleted {
-			if s.timestamp >= sv.timestamp {
+			if !sv.defined || s.timestamp >= sv.timestamp {
 				sv.last = s.value
 				sv.timestamp = s.timestamp
+				sv.deleteDeadline = deleteDeadline
 			}
+			sv.defined = true
 		}
 		sv.mu.Unlock()
 		if deleted {
@@ -70,6 +69,14 @@ func (as *lastAggrState) flushState(ctx *flushCtx) {
 
 		sv := v.(*lastStateValue)
 		sv.mu.Lock()
+		if ctx.flushTimestamp > sv.deleteDeadline {
+			sv.deleted = true
+			sv.mu.Unlock()
+			key := k.(string)
+			ctx.a.lc.Delete(bytesutil.ToUnsafeBytes(key), ctx.flushTimestamp)
+			m.Delete(k)
+			return true
+		}
 		last := sv.last
 		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
 		sv.deleted = true

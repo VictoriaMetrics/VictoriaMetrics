@@ -47,19 +47,6 @@ var supportedOutputs = []string{
 	"unique_samples",
 }
 
-var (
-	// lc contains information about all compressed labels for streaming aggregation
-	lc promutils.LabelsCompressor
-
-	_ = metrics.NewGauge(`vm_streamaggr_labels_compressor_size_bytes`, func() float64 {
-		return float64(lc.SizeBytes())
-	})
-
-	_ = metrics.NewGauge(`vm_streamaggr_labels_compressor_items_count`, func() float64 {
-		return float64(lc.ItemsCount())
-	})
-)
-
 // LoadFromFile loads Aggregators from the given path and uses the given pushFunc for pushing the aggregated data.
 //
 // opts can contain additional options. If opts is nil, then default options are used.
@@ -373,13 +360,15 @@ type aggregator struct {
 
 	keepMetricNames  bool
 	ignoreOldSamples bool
+	includeInputKey  bool
 
 	by                  []string
 	without             []string
 	aggregateOnlyByTime bool
 
 	// interval is the interval between flushes
-	interval time.Duration
+	interval          time.Duration
+	stalenessInterval int64
 
 	// dedupInterval is optional deduplication interval for incoming samples
 	dedupInterval time.Duration
@@ -389,6 +378,9 @@ type aggregator struct {
 
 	// aggrOutputs contains aggregate states for the given outputs
 	aggrOutputs []aggrOutput
+
+	// lc is used for compressing series keys before passing them to dedupAggr and aggrState
+	lc *promutils.LabelsCompressor
 
 	// minTimestamp is used for ignoring old samples when ignoreOldSamples is set
 	minTimestamp atomic.Int64
@@ -424,7 +416,7 @@ type aggrState interface {
 	// pushSamples must push samples to the aggrState.
 	//
 	// samples[].key must be cloned by aggrState, since it may change after returning from pushSamples.
-	pushSamples(samples []pushSample)
+	pushSamples(samples []pushSample, deleteDeadline int64, includeInputKey bool)
 
 	// flushState must flush aggrState data to ctx.
 	flushState(ctx *flushCtx)
@@ -556,10 +548,14 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	}
 	aggrOutputs := make([]aggrOutput, len(cfg.Outputs))
 	outputsSeen := make(map[string]struct{}, len(cfg.Outputs))
+	includeInputKey := false
 	for i, output := range cfg.Outputs {
-		as, err := newAggrState(output, outputsSeen, stalenessInterval)
+		as, ik, err := newAggrState(output, outputsSeen)
 		if err != nil {
 			return nil, err
+		}
+		if ik {
+			includeInputKey = true
 		}
 		aggrOutputs[i] = aggrOutput{
 			as: as,
@@ -592,9 +588,11 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 		by:                  by,
 		without:             without,
 		aggregateOnlyByTime: aggregateOnlyByTime,
+		lc:                  promutils.NewLabelsCompressor(),
 
-		interval:      interval,
-		dedupInterval: dedupInterval,
+		interval:          interval,
+		dedupInterval:     dedupInterval,
+		stalenessInterval: stalenessInterval.Milliseconds(),
 
 		aggrOutputs: aggrOutputs,
 
@@ -614,17 +612,24 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	}
 
 	if dedupInterval > 0 {
-		a.da = newDedupAggr()
+		includeInputKey = true
+		a.da = newDedupAggr(a.lc)
 
 		_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_size_bytes{%s}`, metricLabels), func() float64 {
-			n := a.da.sizeBytes()
-			return float64(n)
+			return float64(a.da.sizeBytes())
 		})
 		_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_items_count{%s}`, metricLabels), func() float64 {
-			n := a.da.itemsCount()
-			return float64(n)
+			return float64(a.da.itemsCount())
+		})
+		_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_labels_compressor_size_bytes{%s}`, metricLabels), func() float64 {
+			return float64(a.lc.SizeBytes())
+		})
+		_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_labels_compressor_items_count{%s}`, metricLabels), func() float64 {
+			return float64(a.lc.ItemsCount())
 		})
 	}
+
+	a.includeInputKey = includeInputKey
 
 	alignFlushToInterval := !opts.NoAlignFlushToInterval
 	if v := cfg.NoAlignFlushToInterval; v != nil {
@@ -645,20 +650,20 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	return a, nil
 }
 
-func newAggrState(output string, outputsSeen map[string]struct{}, stalenessInterval time.Duration) (aggrState, error) {
+func newAggrState(output string, outputsSeen map[string]struct{}) (aggrState, bool, error) {
 	// check for duplicated output
 	if _, ok := outputsSeen[output]; ok {
-		return nil, fmt.Errorf("`outputs` list contains duplicate aggregation function: %s", output)
+		return nil, true, fmt.Errorf("`outputs` list contains duplicate aggregation function: %s", output)
 	}
 	outputsSeen[output] = struct{}{}
 
 	if strings.HasPrefix(output, "quantiles(") {
 		if !strings.HasSuffix(output, ")") {
-			return nil, fmt.Errorf("missing closing brace for `quantiles()` output")
+			return nil, false, fmt.Errorf("missing closing brace for `quantiles()` output")
 		}
 		argsStr := output[len("quantiles(") : len(output)-1]
 		if len(argsStr) == 0 {
-			return nil, fmt.Errorf("`quantiles()` must contain at least one phi")
+			return nil, false, fmt.Errorf("`quantiles()` must contain at least one phi")
 		}
 		args := strings.Split(argsStr, ",")
 		phis := make([]float64, len(args))
@@ -666,57 +671,57 @@ func newAggrState(output string, outputsSeen map[string]struct{}, stalenessInter
 			arg = strings.TrimSpace(arg)
 			phi, err := strconv.ParseFloat(arg, 64)
 			if err != nil {
-				return nil, fmt.Errorf("cannot parse phi=%q for quantiles(%s): %w", arg, argsStr, err)
+				return nil, false, fmt.Errorf("cannot parse phi=%q for quantiles(%s): %w", arg, argsStr, err)
 			}
 			if phi < 0 || phi > 1 {
-				return nil, fmt.Errorf("phi inside quantiles(%s) must be in the range [0..1]; got %v", argsStr, phi)
+				return nil, false, fmt.Errorf("phi inside quantiles(%s) must be in the range [0..1]; got %v", argsStr, phi)
 			}
 			phis[i] = phi
 		}
 		if _, ok := outputsSeen["quantiles"]; ok {
-			return nil, fmt.Errorf("`outputs` list contains duplicated `quantiles()` function, please combine multiple phi* like `quantiles(0.5, 0.9)`")
+			return nil, false, fmt.Errorf("`outputs` list contains duplicated `quantiles()` function, please combine multiple phi* like `quantiles(0.5, 0.9)`")
 		}
 		outputsSeen["quantiles"] = struct{}{}
-		return newQuantilesAggrState(phis), nil
+		return newQuantilesAggrState(phis), false, nil
 	}
 
 	switch output {
 	case "avg":
-		return newAvgAggrState(), nil
+		return newAvgAggrState(), false, nil
 	case "count_samples":
-		return newCountSamplesAggrState(), nil
+		return newCountSamplesAggrState(), false, nil
 	case "count_series":
-		return newCountSeriesAggrState(), nil
+		return newCountSeriesAggrState(), true, nil
 	case "histogram_bucket":
-		return newHistogramBucketAggrState(stalenessInterval), nil
+		return newHistogramBucketAggrState(), false, nil
 	case "increase":
-		return newTotalAggrState(stalenessInterval, true, true), nil
+		return newTotalAggrState(true, true), true, nil
 	case "increase_prometheus":
-		return newTotalAggrState(stalenessInterval, true, false), nil
+		return newTotalAggrState(true, false), true, nil
 	case "last":
-		return newLastAggrState(), nil
+		return newLastAggrState(), false, nil
 	case "max":
-		return newMaxAggrState(), nil
+		return newMaxAggrState(), false, nil
 	case "min":
-		return newMinAggrState(), nil
+		return newMinAggrState(), false, nil
 	case "rate_avg":
-		return newRateAggrState(stalenessInterval, true), nil
+		return newRateAggrState(true), true, nil
 	case "rate_sum":
-		return newRateAggrState(stalenessInterval, false), nil
+		return newRateAggrState(false), true, nil
 	case "stddev":
-		return newStddevAggrState(), nil
+		return newStddevAggrState(), false, nil
 	case "stdvar":
-		return newStdvarAggrState(), nil
+		return newStdvarAggrState(), false, nil
 	case "sum_samples":
-		return newSumSamplesAggrState(), nil
+		return newSumSamplesAggrState(), false, nil
 	case "total":
-		return newTotalAggrState(stalenessInterval, false, true), nil
+		return newTotalAggrState(false, true), true, nil
 	case "total_prometheus":
-		return newTotalAggrState(stalenessInterval, false, false), nil
+		return newTotalAggrState(false, false), true, nil
 	case "unique_samples":
-		return newUniqueSamplesAggrState(), nil
+		return newUniqueSamplesAggrState(), false, nil
 	default:
-		return nil, fmt.Errorf("unsupported output=%q; supported values: %s; see https://docs.victoriametrics.com/stream-aggregation/", output, supportedOutputs)
+		return nil, false, fmt.Errorf("unsupported output=%q; supported values: %s; see https://docs.victoriametrics.com/stream-aggregation/", output, supportedOutputs)
 	}
 }
 
@@ -823,8 +828,10 @@ func (a *aggregator) dedupFlush() {
 	}
 
 	startTime := time.Now()
+	timestamp := startTime.UnixMilli()
+	deleteDeadline := timestamp + a.stalenessInterval
 
-	a.da.flush(a.pushSamples)
+	a.da.flush(a.pushSamples, timestamp, deleteDeadline)
 
 	d := time.Since(startTime)
 	a.dedupFlushDuration.Update(d.Seconds())
@@ -902,6 +909,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	minTimestamp := a.minTimestamp.Load()
 
 	nowMsec := time.Now().UnixMilli()
+	deleteDeadline := nowMsec + a.stalenessInterval
 	var maxLagMsec int64
 	for idx, ts := range tss {
 		if !a.match.Match(ts.Labels) {
@@ -930,7 +938,7 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 		}
 
 		bufLen := len(buf)
-		buf = compressLabels(buf, inputLabels.Labels, outputLabels.Labels)
+		buf = compressLabels(buf, a.lc, inputLabels.Labels, outputLabels.Labels, a.includeInputKey, deleteDeadline)
 		// key remains valid only by the end of this function and can't be reused after
 		// do not intern key because number of unique keys could be too high
 		key := bytesutil.ToUnsafeString(buf[bufLen:])
@@ -964,52 +972,60 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 	ctx.buf = buf
 
 	if a.da != nil {
-		a.da.pushSamples(samples)
+		a.da.pushSamples(samples, deleteDeadline)
 	} else {
-		a.pushSamples(samples)
+		a.pushSamples(samples, deleteDeadline)
 	}
 }
 
-func compressLabels(dst []byte, inputLabels, outputLabels []prompbmarshal.Label) []byte {
+func compressLabels(dst []byte, lc *promutils.LabelsCompressor, inputLabels, outputLabels []prompbmarshal.Label, includeInputKey bool, deleteDeadline int64) []byte {
 	bb := bbPool.Get()
-	bb.B = lc.Compress(bb.B, inputLabels)
-	dst = encoding.MarshalVarUint64(dst, uint64(len(bb.B)))
-	dst = append(dst, bb.B...)
-	bbPool.Put(bb)
-	dst = lc.Compress(dst, outputLabels)
+	bb.B = lc.Compress(bb.B, outputLabels, deleteDeadline)
+	if includeInputKey {
+		dst = encoding.MarshalVarUint64(dst, uint64(len(bb.B)))
+		dst = append(dst, bb.B...)
+		bbPool.Put(bb)
+		dst = lc.Compress(dst, inputLabels, deleteDeadline)
+	} else {
+		dst = append(dst, bb.B...)
+		bbPool.Put(bb)
+	}
 	return dst
 }
 
-func decompressLabels(dst []prompbmarshal.Label, key string) []prompbmarshal.Label {
+func decompressLabels(dst []prompbmarshal.Label, lc *promutils.LabelsCompressor, key string) []prompbmarshal.Label {
 	return lc.Decompress(dst, bytesutil.ToUnsafeBytes(key))
 }
 
-func getOutputKey(key string) string {
+func getOutputKey(key string, includeInputKey bool) string {
 	src := bytesutil.ToUnsafeBytes(key)
-	inputKeyLen, nSize := encoding.UnmarshalVarUint64(src)
-	if nSize <= 0 {
-		logger.Panicf("BUG: cannot unmarshal inputKeyLen from uvarint")
+	outputKey := src
+	if includeInputKey {
+		outputKeyLen, nSize := encoding.UnmarshalVarUint64(src)
+		if nSize <= 0 {
+			logger.Panicf("BUG: cannot unmarshal outputKeyLen from uvarint")
+		}
+		src = src[nSize:]
+		outputKey = src[:outputKeyLen]
 	}
-	src = src[nSize:]
-	outputKey := src[inputKeyLen:]
 	return bytesutil.ToUnsafeString(outputKey)
 }
 
 func getInputOutputKey(key string) (string, string) {
 	src := bytesutil.ToUnsafeBytes(key)
-	inputKeyLen, nSize := encoding.UnmarshalVarUint64(src)
+	outputKeyLen, nSize := encoding.UnmarshalVarUint64(src)
 	if nSize <= 0 {
-		logger.Panicf("BUG: cannot unmarshal inputKeyLen from uvarint")
+		logger.Panicf("BUG: cannot unmarshal outputKeyLen from uvarint")
 	}
 	src = src[nSize:]
-	inputKey := src[:inputKeyLen]
-	outputKey := src[inputKeyLen:]
+	outputKey := src[:outputKeyLen]
+	inputKey := src[outputKeyLen:]
 	return bytesutil.ToUnsafeString(inputKey), bytesutil.ToUnsafeString(outputKey)
 }
 
-func (a *aggregator) pushSamples(samples []pushSample) {
+func (a *aggregator) pushSamples(samples []pushSample, deleteDeadline int64) {
 	for _, ao := range a.aggrOutputs {
-		ao.as.pushSamples(samples)
+		ao.as.pushSamples(samples, deleteDeadline, a.includeInputKey)
 	}
 }
 
@@ -1169,7 +1185,7 @@ func (ctx *flushCtx) flushSeries() {
 func (ctx *flushCtx) appendSeries(key, suffix string, value float64) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels = decompressLabels(ctx.labels, key)
+	ctx.labels = decompressLabels(ctx.labels, ctx.a.lc, key)
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}
@@ -1191,7 +1207,7 @@ func (ctx *flushCtx) appendSeries(key, suffix string, value float64) {
 func (ctx *flushCtx) appendSeriesWithExtraLabel(key, suffix string, value float64, extraName, extraValue string) {
 	labelsLen := len(ctx.labels)
 	samplesLen := len(ctx.samples)
-	ctx.labels = decompressLabels(ctx.labels, key)
+	ctx.labels = decompressLabels(ctx.labels, ctx.a.lc, key)
 	if !ctx.a.keepMetricNames {
 		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.a.suffix, suffix)
 	}

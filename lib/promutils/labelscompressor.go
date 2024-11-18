@@ -11,14 +11,75 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
+type queue struct {
+	in      chan uint64
+	out     chan uint64
+	storage []uint64
+}
+
+func newQueue() *queue {
+	q := &queue{
+		out: make(chan uint64),
+		in:  make(chan uint64),
+	}
+	go func() {
+		defer close(q.out)
+		for {
+			if len(q.storage) == 0 {
+				item, ok := <-q.in
+				if !ok {
+					return
+				}
+				q.storage = append(q.storage, item)
+				continue
+			}
+
+			select {
+			case item, ok := <-q.in:
+				if ok {
+					q.storage = append(q.storage, item)
+				} else {
+					// unwind storage
+					for _, item := range q.storage {
+						q.out <- item
+					}
+
+					return
+				}
+			case q.out <- q.storage[0]:
+				if len(q.storage) == 1 {
+					q.storage = nil
+				} else {
+					q.storage = q.storage[1:]
+				}
+			}
+		}
+	}()
+	return q
+}
+
+type compressedLabel struct {
+	mu             sync.Mutex
+	code           uint64
+	deleted        bool
+	deleteDeadline int64
+}
+
 // LabelsCompressor compresses []prompbmarshal.Label into short binary strings
 type LabelsCompressor struct {
 	labelToIdx sync.Map
 	idxToLabel labelsMap
+	freeIdxs   *queue
 
 	nextIdx atomic.Uint64
 
 	totalSizeBytes atomic.Uint64
+}
+
+func NewLabelsCompressor() *LabelsCompressor {
+	return &LabelsCompressor{
+		freeIdxs: newQueue(),
+	}
 }
 
 // SizeBytes returns the size of lc data in bytes
@@ -28,13 +89,60 @@ func (lc *LabelsCompressor) SizeBytes() uint64 {
 
 // ItemsCount returns the number of items in lc
 func (lc *LabelsCompressor) ItemsCount() uint64 {
-	return lc.nextIdx.Load()
+	return lc.nextIdx.Load() - uint64(len(lc.freeIdxs.storage))
+}
+
+// Delete adds stale labels idx to lc.freeIdxs list
+func (lc *LabelsCompressor) Delete(src []byte, ts int64) {
+	labelsLen, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		logger.Panicf("BUG: cannot unmarshal labels length from uvarint")
+	}
+	tail := src[nSize:]
+	if labelsLen == 0 {
+		// fast path - nothing to decode
+		if len(tail) > 0 {
+			logger.Panicf("BUG: unexpected non-empty tail left; len(tail)=%d; tail=%X", len(tail), tail)
+		}
+		return
+	}
+
+	a := encoding.GetUint64s(int(labelsLen))
+	var err error
+	tail, err = encoding.UnmarshalVarUint64s(a.A, tail)
+	if err != nil {
+		logger.Panicf("BUG: cannot unmarshal label indexes: %s", err)
+	}
+	if len(tail) > 0 {
+		logger.Panicf("BUG: unexpected non-empty tail left: len(tail)=%d; tail=%X", len(tail), tail)
+	}
+	for _, idx := range a.A {
+		label, ok := lc.idxToLabel.Load(idx)
+		if !ok {
+			logger.Panicf("BUG: missing label for idx=%d", idx)
+		}
+		v, ok := lc.labelToIdx.Load(label)
+		if !ok {
+			continue
+		}
+		cl := v.(compressedLabel)
+		cl.mu.Lock()
+		if cl.deleteDeadline < ts {
+			cl.deleted = true
+			cl.mu.Unlock()
+			lc.freeIdxs.in <- idx
+		} else {
+			cl.mu.Unlock()
+		}
+
+	}
+	encoding.PutUint64s(a)
 }
 
 // Compress compresses labels, appends the compressed labels to dst and returns the result.
 //
 // It is safe calling Compress from concurrent goroutines.
-func (lc *LabelsCompressor) Compress(dst []byte, labels []prompbmarshal.Label) []byte {
+func (lc *LabelsCompressor) Compress(dst []byte, labels []prompbmarshal.Label, deleteDeadline int64) []byte {
 	if len(labels) == 0 {
 		// Fast path
 		return append(dst, 0)
@@ -42,22 +150,27 @@ func (lc *LabelsCompressor) Compress(dst []byte, labels []prompbmarshal.Label) [
 
 	a := encoding.GetUint64s(len(labels) + 1)
 	a.A[0] = uint64(len(labels))
-	lc.compress(a.A[1:], labels)
+	lc.compress(a.A[1:], labels, deleteDeadline)
 	dst = encoding.MarshalVarUint64s(dst, a.A)
 	encoding.PutUint64s(a)
 	return dst
 }
 
-func (lc *LabelsCompressor) compress(dst []uint64, labels []prompbmarshal.Label) {
+func (lc *LabelsCompressor) compress(dst []uint64, labels []prompbmarshal.Label, deleteDeadline int64) {
 	if len(labels) == 0 {
 		return
 	}
 	_ = dst[len(labels)-1]
 	for i, label := range labels {
+	again:
 		v, ok := lc.labelToIdx.Load(label)
 		if !ok {
-			idx := lc.nextIdx.Add(1)
-			v = idx
+			var idx uint64
+			select {
+			case idx = <-lc.freeIdxs.out:
+			default:
+				idx = lc.nextIdx.Add(1)
+			}
 			labelCopy := cloneLabel(label)
 
 			// Must store idxToLabel entry before labelToIdx,
@@ -66,6 +179,10 @@ func (lc *LabelsCompressor) compress(dst []uint64, labels []prompbmarshal.Label)
 			// We might store duplicated entries for single label with different indexes,
 			// and it's fine, see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7118.
 			lc.idxToLabel.Store(idx, labelCopy)
+			v = &compressedLabel{
+				deleteDeadline: deleteDeadline,
+				code:           idx,
+			}
 			vNew, loaded := lc.labelToIdx.LoadOrStore(labelCopy, v)
 			if loaded {
 				// This label has been stored by a concurrent goroutine with different index,
@@ -78,7 +195,17 @@ func (lc *LabelsCompressor) compress(dst []uint64, labels []prompbmarshal.Label)
 			entrySizeBytes := labelSizeBytes + uint64(2*(unsafe.Sizeof(label)+unsafe.Sizeof(&label))+unsafe.Sizeof(v))
 			lc.totalSizeBytes.Add(entrySizeBytes)
 		}
-		dst[i] = v.(uint64)
+		cl := v.(*compressedLabel)
+		dst[i] = cl.code
+		cl.mu.Lock()
+		deleted := cl.deleted
+		if !deleted {
+			cl.deleteDeadline = deleteDeadline
+		}
+		cl.mu.Unlock()
+		if deleted {
+			goto again
+		}
 	}
 }
 

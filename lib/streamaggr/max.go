@@ -12,35 +12,33 @@ type maxAggrState struct {
 }
 
 type maxStateValue struct {
-	mu      sync.Mutex
-	max     float64
-	deleted bool
+	mu             sync.Mutex
+	max            float64
+	deleted        bool
+	defined        bool
+	deleteDeadline int64
 }
 
 func newMaxAggrState() *maxAggrState {
 	return &maxAggrState{}
 }
 
-func (as *maxAggrState) pushSamples(samples []pushSample) {
+func (as *maxAggrState) pushSamples(samples []pushSample, deleteDeadline int64, includeInputKey bool) {
 	for i := range samples {
 		s := &samples[i]
-		outputKey := getOutputKey(s.key)
+		outputKey := getOutputKey(s.key, includeInputKey)
 
 	again:
 		v, ok := as.m.Load(outputKey)
 		if !ok {
 			// The entry is missing in the map. Try creating it.
-			v = &maxStateValue{
-				max: s.value,
-			}
+			v = &maxStateValue{}
 			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
-			if !loaded {
-				// The new entry has been successfully created.
-				continue
+			if loaded {
+				// Use the entry created by a concurrent goroutine.
+				v = vNew
 			}
-			// Use the entry created by a concurrent goroutine.
-			v = vNew
 		}
 		sv := v.(*maxStateValue)
 		sv.mu.Lock()
@@ -49,6 +47,10 @@ func (as *maxAggrState) pushSamples(samples []pushSample) {
 			if s.value > sv.max {
 				sv.max = s.value
 			}
+			if !sv.defined {
+				sv.defined = true
+			}
+			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
 		if deleted {
@@ -67,9 +69,21 @@ func (as *maxAggrState) flushState(ctx *flushCtx) {
 
 		sv := v.(*maxStateValue)
 		sv.mu.Lock()
+		if ctx.flushTimestamp > sv.deleteDeadline {
+			sv.deleted = true
+			sv.mu.Unlock()
+			key := k.(string)
+			ctx.a.lc.Delete(bytesutil.ToUnsafeBytes(key), ctx.flushTimestamp)
+			m.Delete(k)
+			return true
+		}
+		if !sv.defined {
+			sv.mu.Unlock()
+			return true
+		}
 		max := sv.max
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
+		sv.max = 0
+		sv.defined = false
 		sv.mu.Unlock()
 
 		key := k.(string)

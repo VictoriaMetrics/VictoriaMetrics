@@ -13,16 +13,17 @@ type countSeriesAggrState struct {
 }
 
 type countSeriesStateValue struct {
-	mu      sync.Mutex
-	m       map[uint64]struct{}
-	deleted bool
+	mu             sync.Mutex
+	m              map[uint64]struct{}
+	deleted        bool
+	deleteDeadline int64
 }
 
 func newCountSeriesAggrState() *countSeriesAggrState {
 	return &countSeriesAggrState{}
 }
 
-func (as *countSeriesAggrState) pushSamples(samples []pushSample) {
+func (as *countSeriesAggrState) pushSamples(samples []pushSample, deleteDeadline int64, _ bool) {
 	for i := range samples {
 		s := &samples[i]
 		inputKey, outputKey := getInputOutputKey(s.key)
@@ -36,18 +37,14 @@ func (as *countSeriesAggrState) pushSamples(samples []pushSample) {
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			v = &countSeriesStateValue{
-				m: map[uint64]struct{}{
-					h: {},
-				},
+				m: make(map[uint64]struct{}),
 			}
 			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
-			if !loaded {
-				// The entry has been added to the map.
-				continue
+			if loaded {
+				// Update the entry created by a concurrent goroutine.
+				v = vNew
 			}
-			// Update the entry created by a concurrent goroutine.
-			v = vNew
 		}
 		sv := v.(*countSeriesStateValue)
 		sv.mu.Lock()
@@ -56,6 +53,7 @@ func (as *countSeriesAggrState) pushSamples(samples []pushSample) {
 			if _, ok := sv.m[h]; !ok {
 				sv.m[h] = struct{}{}
 			}
+			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
 		if deleted {
@@ -74,9 +72,21 @@ func (as *countSeriesAggrState) flushState(ctx *flushCtx) {
 
 		sv := v.(*countSeriesStateValue)
 		sv.mu.Lock()
+		if ctx.flushTimestamp > sv.deleteDeadline {
+			sv.deleted = true
+			sv.mu.Unlock()
+			key := k.(string)
+			ctx.a.lc.Delete(bytesutil.ToUnsafeBytes(key), ctx.flushTimestamp)
+			m.Delete(k)
+			return true
+		}
 		n := len(sv.m)
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
+		if n == 0 {
+			sv.mu.Unlock()
+			return true
+		}
+
+		sv.m = make(map[uint64]struct{})
 		sv.mu.Unlock()
 
 		key := k.(string)

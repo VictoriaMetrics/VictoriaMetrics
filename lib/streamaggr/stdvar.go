@@ -12,21 +12,22 @@ type stdvarAggrState struct {
 }
 
 type stdvarStateValue struct {
-	mu      sync.Mutex
-	count   float64
-	avg     float64
-	q       float64
-	deleted bool
+	mu             sync.Mutex
+	count          float64
+	avg            float64
+	q              float64
+	deleted        bool
+	deleteDeadline int64
 }
 
 func newStdvarAggrState() *stdvarAggrState {
 	return &stdvarAggrState{}
 }
 
-func (as *stdvarAggrState) pushSamples(samples []pushSample) {
+func (as *stdvarAggrState) pushSamples(samples []pushSample, deleteDeadline int64, includeInputKey bool) {
 	for i := range samples {
 		s := &samples[i]
-		outputKey := getOutputKey(s.key)
+		outputKey := getOutputKey(s.key, includeInputKey)
 
 	again:
 		v, ok := as.m.Load(outputKey)
@@ -49,6 +50,7 @@ func (as *stdvarAggrState) pushSamples(samples []pushSample) {
 			avg := sv.avg + (s.value-sv.avg)/sv.count
 			sv.q += (s.value - sv.avg) * (s.value - avg)
 			sv.avg = avg
+			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
 		if deleted {
@@ -67,9 +69,22 @@ func (as *stdvarAggrState) flushState(ctx *flushCtx) {
 
 		sv := v.(*stdvarStateValue)
 		sv.mu.Lock()
+		if ctx.flushTimestamp > sv.deleteDeadline {
+			sv.deleted = true
+			sv.mu.Unlock()
+			key := k.(string)
+			ctx.a.lc.Delete(bytesutil.ToUnsafeBytes(key), ctx.flushTimestamp)
+			m.Delete(k)
+			return true
+		}
+		if sv.count == 0 {
+			sv.mu.Unlock()
+			return true
+		}
 		stdvar := sv.q / sv.count
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
+		sv.q = 0
+		sv.count = 0
+		sv.avg = 0
 		sv.mu.Unlock()
 
 		key := k.(string)

@@ -12,41 +12,46 @@ type sumSamplesAggrState struct {
 }
 
 type sumSamplesStateValue struct {
-	mu      sync.Mutex
-	sum     float64
-	deleted bool
+	mu             sync.Mutex
+	sum            float64
+	deleted        bool
+	defined        bool
+	deleteDeadline int64
 }
 
 func newSumSamplesAggrState() *sumSamplesAggrState {
 	return &sumSamplesAggrState{}
 }
 
-func (as *sumSamplesAggrState) pushSamples(samples []pushSample) {
+func (as *sumSamplesAggrState) pushSamples(samples []pushSample, deleteDeadline int64, includeInputKey bool) {
 	for i := range samples {
 		s := &samples[i]
-		outputKey := getOutputKey(s.key)
+		outputKey := getOutputKey(s.key, includeInputKey)
 
 	again:
 		v, ok := as.m.Load(outputKey)
 		if !ok {
 			// The entry is missing in the map. Try creating it.
-			v = &sumSamplesStateValue{
-				sum: s.value,
-			}
+			v = &sumSamplesStateValue{}
 			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
-			if !loaded {
-				// The new entry has been successfully created.
-				continue
+			if loaded {
+				// Use the entry created by a concurrent goroutine.
+				v = vNew
 			}
-			// Use the entry created by a concurrent goroutine.
-			v = vNew
 		}
 		sv := v.(*sumSamplesStateValue)
 		sv.mu.Lock()
+		if !sv.defined {
+			sv.defined = true
+		}
 		deleted := sv.deleted
 		if !deleted {
 			sv.sum += s.value
+			sv.deleteDeadline = deleteDeadline
+			if !sv.defined {
+				sv.defined = true
+			}
 		}
 		sv.mu.Unlock()
 		if deleted {
@@ -65,9 +70,22 @@ func (as *sumSamplesAggrState) flushState(ctx *flushCtx) {
 
 		sv := v.(*sumSamplesStateValue)
 		sv.mu.Lock()
+		if ctx.flushTimestamp > sv.deleteDeadline {
+			sv.deleted = true
+			sv.mu.Unlock()
+			key := k.(string)
+			ctx.a.lc.Delete(bytesutil.ToUnsafeBytes(key), ctx.flushTimestamp)
+			m.Delete(k)
+			return true
+		}
+		if !sv.defined {
+			sv.mu.Unlock()
+			return true
+		}
+
 		sum := sv.sum
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
+		sv.defined = false
+		sv.sum = 0
 		sv.mu.Unlock()
 
 		key := k.(string)

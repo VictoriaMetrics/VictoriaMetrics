@@ -16,8 +16,10 @@ import (
 // Deduplicator deduplicates samples per each time series.
 type Deduplicator struct {
 	da *dedupAggr
+	lc *promutils.LabelsCompressor
 
-	dropLabels []string
+	dropLabels        []string
+	stalenessInterval int64
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
@@ -40,12 +42,15 @@ type Deduplicator struct {
 // MustStop must be called on the returned deduplicator in order to free up occupied resources.
 func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration, dropLabels []string, alias string) *Deduplicator {
 	d := &Deduplicator{
-		da:         newDedupAggr(),
-		dropLabels: dropLabels,
+		dropLabels:        dropLabels,
+		stalenessInterval: 2 * dedupInterval.Milliseconds(),
+		lc:                promutils.NewLabelsCompressor(),
 
 		stopCh: make(chan struct{}),
 		ms:     metrics.NewSet(),
 	}
+
+	d.da = newDedupAggr(d.lc)
 
 	ms := d.ms
 
@@ -56,6 +61,12 @@ func NewDeduplicator(pushFunc PushFunc, dedupInterval time.Duration, dropLabels 
 	})
 	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_dedup_state_items_count{%s}`, metricLabels), func() float64 {
 		return float64(d.da.itemsCount())
+	})
+	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_labels_compressor_size_bytes{%s}`, metricLabels), func() float64 {
+		return float64(d.lc.SizeBytes())
+	})
+	_ = ms.NewGauge(fmt.Sprintf(`vm_streamaggr_labels_compressor_items_count{%s}`, metricLabels), func() float64 {
+		return float64(d.lc.ItemsCount())
 	})
 
 	d.dedupFlushDuration = ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels))
@@ -87,6 +98,7 @@ func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 	pss := ctx.pss
 	labels := &ctx.labels
 	buf := ctx.buf
+	deleteDeadline := time.Now().UnixMilli() + d.stalenessInterval
 
 	dropLabels := d.dropLabels
 	for _, ts := range tss {
@@ -101,7 +113,7 @@ func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 		labels.Sort()
 
 		bufLen := len(buf)
-		buf = lc.Compress(buf, labels.Labels)
+		buf = d.lc.Compress(buf, labels.Labels, deleteDeadline)
 		key := bytesutil.ToUnsafeString(buf[bufLen:])
 		for _, s := range ts.Samples {
 			pss = append(pss, pushSample{
@@ -112,7 +124,7 @@ func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 		}
 	}
 
-	d.da.pushSamples(pss)
+	d.da.pushSamples(pss, deleteDeadline)
 
 	ctx.pss = pss
 	ctx.buf = buf
@@ -145,7 +157,8 @@ func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration) {
 	startTime := time.Now()
 
 	timestamp := startTime.UnixMilli()
-	d.da.flush(func(pss []pushSample) {
+	deleteDeadline := timestamp + d.stalenessInterval
+	d.da.flush(func(pss []pushSample, deleteDeadline int64) {
 		ctx := getDeduplicatorFlushCtx()
 
 		tss := ctx.tss
@@ -153,7 +166,7 @@ func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration) {
 		samples := ctx.samples
 		for _, ps := range pss {
 			labelsLen := len(labels)
-			labels = decompressLabels(labels, ps.key)
+			labels = decompressLabels(labels, d.lc, ps.key)
 
 			samplesLen := len(samples)
 			samples = append(samples, prompbmarshal.Sample{
@@ -172,7 +185,7 @@ func (d *Deduplicator) flush(pushFunc PushFunc, dedupInterval time.Duration) {
 		ctx.labels = labels
 		ctx.samples = samples
 		putDeduplicatorFlushCtx(ctx)
-	})
+	}, timestamp, deleteDeadline)
 
 	duration := time.Since(startTime)
 	d.dedupFlushDuration.Update(duration.Seconds())

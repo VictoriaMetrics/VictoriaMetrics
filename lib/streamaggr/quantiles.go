@@ -16,9 +16,10 @@ type quantilesAggrState struct {
 }
 
 type quantilesStateValue struct {
-	mu      sync.Mutex
-	h       *histogram.Fast
-	deleted bool
+	mu             sync.Mutex
+	h              *histogram.Fast
+	deleted        bool
+	deleteDeadline int64
 }
 
 func newQuantilesAggrState(phis []float64) *quantilesAggrState {
@@ -27,10 +28,10 @@ func newQuantilesAggrState(phis []float64) *quantilesAggrState {
 	}
 }
 
-func (as *quantilesAggrState) pushSamples(samples []pushSample) {
+func (as *quantilesAggrState) pushSamples(samples []pushSample, deleteDeadline int64, includeInputKey bool) {
 	for i := range samples {
 		s := &samples[i]
-		outputKey := getOutputKey(s.key)
+		outputKey := getOutputKey(s.key, includeInputKey)
 
 	again:
 		v, ok := as.m.Load(outputKey)
@@ -53,6 +54,7 @@ func (as *quantilesAggrState) pushSamples(samples []pushSample) {
 		deleted := sv.deleted
 		if !deleted {
 			sv.h.Update(s.value)
+			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
 		if deleted {
@@ -74,10 +76,16 @@ func (as *quantilesAggrState) flushState(ctx *flushCtx) {
 
 		sv := v.(*quantilesStateValue)
 		sv.mu.Lock()
+		if ctx.flushTimestamp > sv.deleteDeadline {
+			sv.deleted = true
+			sv.mu.Unlock()
+			key := k.(string)
+			ctx.a.lc.Delete(bytesutil.ToUnsafeBytes(key), ctx.flushTimestamp)
+			m.Delete(k)
+			return true
+		}
 		quantiles = sv.h.Quantiles(quantiles[:0], phis)
-		histogram.PutFast(sv.h)
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
+		sv.h.Reset()
 		sv.mu.Unlock()
 
 		key := k.(string)

@@ -2,10 +2,8 @@ package streamaggr
 
 import (
 	"sync"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // rateAggrState calculates output=rate_avg and rate_sum, e.g. the average per-second increase rate for counter metrics.
@@ -14,22 +12,19 @@ type rateAggrState struct {
 
 	// isAvg is set to true if rate_avg() must be calculated instead of rate_sum().
 	isAvg bool
-
-	// Time series state is dropped if no new samples are received during stalenessSecs.
-	stalenessSecs uint64
 }
 
 type rateStateValue struct {
 	mu             sync.Mutex
 	lastValues     map[string]rateLastValueState
-	deleteDeadline uint64
+	deleteDeadline int64
 	deleted        bool
 }
 
 type rateLastValueState struct {
 	value          float64
 	timestamp      int64
-	deleteDeadline uint64
+	deleteDeadline int64
 
 	// increase stores cumulative increase for the current time series on the current aggregation interval
 	increase float64
@@ -38,17 +33,13 @@ type rateLastValueState struct {
 	prevTimestamp int64
 }
 
-func newRateAggrState(stalenessInterval time.Duration, isAvg bool) *rateAggrState {
-	stalenessSecs := roundDurationToSecs(stalenessInterval)
+func newRateAggrState(isAvg bool) *rateAggrState {
 	return &rateAggrState{
-		isAvg:         isAvg,
-		stalenessSecs: stalenessSecs,
+		isAvg: isAvg,
 	}
 }
 
-func (as *rateAggrState) pushSamples(samples []pushSample) {
-	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + as.stalenessSecs
+func (as *rateAggrState) pushSamples(samples []pushSample, deleteDeadline int64, _ bool) {
 	for i := range samples {
 		s := &samples[i]
 		inputKey, outputKey := getInputOutputKey(s.key)
@@ -106,11 +97,9 @@ func (as *rateAggrState) pushSamples(samples []pushSample) {
 }
 
 func (as *rateAggrState) flushState(ctx *flushCtx) {
-	currentTime := fasttime.UnixTimestamp()
-
 	suffix := as.getSuffix()
 
-	as.removeOldEntries(currentTime)
+	as.removeOldEntries(ctx)
 
 	m := &as.m
 	m.Range(func(k, v any) bool {
@@ -156,16 +145,18 @@ func (as *rateAggrState) getSuffix() string {
 	return "rate_sum"
 }
 
-func (as *rateAggrState) removeOldEntries(currentTime uint64) {
+func (as *rateAggrState) removeOldEntries(ctx *flushCtx) {
 	m := &as.m
 	m.Range(func(k, v any) bool {
 		sv := v.(*rateStateValue)
 
 		sv.mu.Lock()
-		if currentTime > sv.deleteDeadline {
+		if ctx.flushTimestamp > sv.deleteDeadline {
 			// Mark the current entry as deleted
 			sv.deleted = true
 			sv.mu.Unlock()
+			key := k.(string)
+			ctx.a.lc.Delete(bytesutil.ToUnsafeBytes(key), ctx.flushTimestamp)
 			m.Delete(k)
 			return true
 		}
@@ -173,7 +164,7 @@ func (as *rateAggrState) removeOldEntries(currentTime uint64) {
 		// Delete outdated entries in sv.lastValues
 		lvs := sv.lastValues
 		for k1, lv := range lvs {
-			if currentTime > lv.deleteDeadline {
+			if ctx.flushTimestamp > lv.deleteDeadline {
 				delete(lvs, k1)
 			}
 		}

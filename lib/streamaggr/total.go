@@ -3,10 +3,9 @@ package streamaggr
 import (
 	"math"
 	"sync"
-	"time"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // totalAggrState calculates output=total, total_prometheus, increase and increase_prometheus.
@@ -19,48 +18,37 @@ type totalAggrState struct {
 	// Whether to take into account the first sample in new time series when calculating the output value.
 	keepFirstSample bool
 
-	// Time series state is dropped if no new samples are received during stalenessSecs.
-	//
-	// Aslo, the first sample per each new series is ignored during stalenessSecs even if keepFirstSample is set.
-	// see ignoreFirstSampleDeadline for more details.
-	stalenessSecs uint64
-
-	// The first sample per each new series is ignored until this unix timestamp deadline in seconds even if keepFirstSample is set.
+	// The first sample per each new series is ignored first two intervals
 	// This allows avoiding an initial spike of the output values at startup when new time series
-	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
-	ignoreFirstSampleDeadline uint64
+	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSamples.
+	ignoreFirstSamples atomic.Int32
 }
 
 type totalStateValue struct {
 	mu             sync.Mutex
 	lastValues     map[string]totalLastValueState
 	total          float64
-	deleteDeadline uint64
+	deleteDeadline int64
 	deleted        bool
 }
 
 type totalLastValueState struct {
 	value          float64
 	timestamp      int64
-	deleteDeadline uint64
+	deleteDeadline int64
 }
 
-func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
-	stalenessSecs := roundDurationToSecs(stalenessInterval)
-	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + stalenessSecs
-
-	return &totalAggrState{
-		resetTotalOnFlush:         resetTotalOnFlush,
-		keepFirstSample:           keepFirstSample,
-		stalenessSecs:             stalenessSecs,
-		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
+func newTotalAggrState(resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
+	as := &totalAggrState{
+		resetTotalOnFlush: resetTotalOnFlush,
+		keepFirstSample:   keepFirstSample,
 	}
+	as.ignoreFirstSamples.Store(2)
+	return as
 }
 
-func (as *totalAggrState) pushSamples(samples []pushSample) {
-	currentTime := fasttime.UnixTimestamp()
-	deleteDeadline := currentTime + as.stalenessSecs
-	keepFirstSample := as.keepFirstSample && currentTime > as.ignoreFirstSampleDeadline
+func (as *totalAggrState) pushSamples(samples []pushSample, deleteDeadline int64, _ bool) {
+	keepFirstSample := as.keepFirstSample && as.ignoreFirstSamples.Load() <= 0
 	for i := range samples {
 		s := &samples[i]
 		inputKey, outputKey := getInputOutputKey(s.key)
@@ -116,11 +104,9 @@ func (as *totalAggrState) pushSamples(samples []pushSample) {
 }
 
 func (as *totalAggrState) flushState(ctx *flushCtx) {
-	currentTime := fasttime.UnixTimestamp()
-
 	suffix := as.getSuffix()
 
-	as.removeOldEntries(currentTime)
+	as.removeOldEntries(ctx)
 
 	m := &as.m
 	m.Range(func(k, v any) bool {
@@ -143,6 +129,10 @@ func (as *totalAggrState) flushState(ctx *flushCtx) {
 		}
 		return true
 	})
+	ignoreFirstSamples := as.ignoreFirstSamples.Load()
+	if ignoreFirstSamples > 0 {
+		as.ignoreFirstSamples.Add(-1)
+	}
 }
 
 func (as *totalAggrState) getSuffix() string {
@@ -159,16 +149,18 @@ func (as *totalAggrState) getSuffix() string {
 	return "total_prometheus"
 }
 
-func (as *totalAggrState) removeOldEntries(currentTime uint64) {
+func (as *totalAggrState) removeOldEntries(ctx *flushCtx) {
 	m := &as.m
 	m.Range(func(k, v any) bool {
 		sv := v.(*totalStateValue)
 
 		sv.mu.Lock()
-		if currentTime > sv.deleteDeadline {
+		if ctx.flushTimestamp > sv.deleteDeadline {
 			// Mark the current entry as deleted
 			sv.deleted = true
 			sv.mu.Unlock()
+			key := k.(string)
+			ctx.a.lc.Delete(bytesutil.ToUnsafeBytes(key), ctx.flushTimestamp)
 			m.Delete(k)
 			return true
 		}
@@ -176,7 +168,7 @@ func (as *totalAggrState) removeOldEntries(currentTime uint64) {
 		// Delete outdated entries in sv.lastValues
 		lvs := sv.lastValues
 		for k1, lv := range lvs {
-			if currentTime > lv.deleteDeadline {
+			if ctx.flushTimestamp > lv.deleteDeadline {
 				delete(lvs, k1)
 			}
 		}

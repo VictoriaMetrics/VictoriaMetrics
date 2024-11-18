@@ -12,37 +12,34 @@ type uniqueSamplesAggrState struct {
 }
 
 type uniqueSamplesStateValue struct {
-	mu      sync.Mutex
-	m       map[float64]struct{}
-	deleted bool
+	mu             sync.Mutex
+	m              map[float64]struct{}
+	deleted        bool
+	deleteDeadline int64
 }
 
 func newUniqueSamplesAggrState() *uniqueSamplesAggrState {
 	return &uniqueSamplesAggrState{}
 }
 
-func (as *uniqueSamplesAggrState) pushSamples(samples []pushSample) {
+func (as *uniqueSamplesAggrState) pushSamples(samples []pushSample, deleteDeadline int64, includeInputKey bool) {
 	for i := range samples {
 		s := &samples[i]
-		outputKey := getOutputKey(s.key)
+		outputKey := getOutputKey(s.key, includeInputKey)
 
 	again:
 		v, ok := as.m.Load(outputKey)
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			v = &uniqueSamplesStateValue{
-				m: map[float64]struct{}{
-					s.value: {},
-				},
+				m: make(map[float64]struct{}),
 			}
 			outputKey = bytesutil.InternString(outputKey)
 			vNew, loaded := as.m.LoadOrStore(outputKey, v)
-			if !loaded {
-				// The new entry has been successfully created.
-				continue
+			if loaded {
+				// Use the entry created by a concurrent goroutine.
+				v = vNew
 			}
-			// Use the entry created by a concurrent goroutine.
-			v = vNew
 		}
 		sv := v.(*uniqueSamplesStateValue)
 		sv.mu.Lock()
@@ -51,6 +48,7 @@ func (as *uniqueSamplesAggrState) pushSamples(samples []pushSample) {
 			if _, ok := sv.m[s.value]; !ok {
 				sv.m[s.value] = struct{}{}
 			}
+			sv.deleteDeadline = deleteDeadline
 		}
 		sv.mu.Unlock()
 		if deleted {
@@ -69,13 +67,21 @@ func (as *uniqueSamplesAggrState) flushState(ctx *flushCtx) {
 
 		sv := v.(*uniqueSamplesStateValue)
 		sv.mu.Lock()
+		if ctx.flushTimestamp > sv.deleteDeadline {
+			sv.deleted = true
+			sv.mu.Unlock()
+			key := k.(string)
+			ctx.a.lc.Delete(bytesutil.ToUnsafeBytes(key), ctx.flushTimestamp)
+			m.Delete(k)
+			return true
+		}
 		n := len(sv.m)
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
+		sv.m = make(map[float64]struct{})
 		sv.mu.Unlock()
-
-		key := k.(string)
-		ctx.appendSeries(key, "unique_samples", float64(n))
+		if n > 0 {
+			key := k.(string)
+			ctx.appendSeries(key, "unique_samples", float64(n))
+		}
 		return true
 	})
 }
