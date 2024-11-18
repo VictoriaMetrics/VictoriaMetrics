@@ -42,7 +42,9 @@ groups:
             Consider to increase the limit as fast as possible.
 
       - alert: TooHighCPUUsage
-        expr: sum(rate(process_cpu_seconds_total{job=~".*vmanomaly.*"}[5m])) by (job, instance) > 0.9
+        expr: > 
+          sum(rate(process_cpu_seconds_total{job=~".*vmanomaly.*"}[5m])) by (job, instance) /
+          sum(vmanomaly_cpu_cores_available{job=~".*vmanomaly.*"}[5m]) by (job, instance) > 0.9
         for: 5m
         labels:
           severity: critical
@@ -51,6 +53,18 @@ groups:
           description: >
             Too high CPU usage may be a sign of insufficient resources and make process unstable.
             Consider to either increase available CPU resources or decrease the load on the process.
+
+      - alert: TooHighMemoryUsage
+        expr: (min_over_time(process_resident_memory_bytes[10m]) / vmanomaly_available_memory_bytes) > 0.85
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "It is more than 85% of memory used by \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
+          description: |
+            Too high memory usage may result into multiple issues such as OOMs or degraded performance.
+            E.g. it can be caused by high churn rate in your input data.
+            Consider to either increase available memory or decrease the load on the process.
 
   - name: vmanomaly-issues
     rules:

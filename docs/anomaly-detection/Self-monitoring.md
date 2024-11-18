@@ -24,6 +24,9 @@ The self-monitoring assets of `vmanomaly` include Grafana dashboard and accompan
 
 ## Grafana Dashboard
 
+> **Note**: Recent revision of Grafana dashboard is designed to work with metrics produced by `vmanomaly` version [v1.18.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1184) or higher.
+
+
 ### Overview
 
 To visualize and interact with the self-monitoring metrics, `vmanomaly` provides a [Grafana Dashboard](https://grafana.com/grafana/dashboards/22337/). It offers an overview of service health (per job, instance) and performance metrics from different operational stages, including model behavior, reader, and writer components.
@@ -131,6 +134,7 @@ These alerting rules complements the [dashboard](#grafana-dashboard) to monitor 
 - **`ServiceDown`**: Alerts if an instance is down for more than 5 minutes, indicating a service outage.
 - **`ProcessNearFDLimits`**: Alerts when the number of available file descriptors falls below 100, which could lead to severe degradation if the limit is exhausted.
 - **`TooHighCPUUsage`**: Alerts when CPU usage exceeds 90% for a continuous 5-minute period, indicating possible resource exhaustion and the need to adjust resource allocation or load.
+- **`TooHighMemoryUsage`**: Alerts when RAM usage exceeds 85% for a continuous 5-minute period and the need to adjust resource allocation or load.
 
 <img src="firing-alerts-example-too-many-restarts.webp" alt="firing-alerts-example-too-many-restarts" width="800px"/>
 

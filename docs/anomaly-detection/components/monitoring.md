@@ -272,7 +272,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 `vmanomaly_available_memory_bytes`
             </td>
             <td>Gauge</td>
-            <td>Virtual memory size in bytes, available to the process. Added in [v1.18.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1182)</td>
+            <td>Virtual memory size in bytes, available to the process. Added in [v1.18.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1184)</td>
         </tr>
         <tr>
             <td>
@@ -280,7 +280,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 `vmanomaly_cpu_cores_available`
             </td>
             <td>Gauge</td>
-            <td>Number of (logical) CPU cores available to the process. Added in [v1.18.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1182)</td>
+            <td>Number of (logical) CPU cores available to the process. Added in [v1.18.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1184)</td>
         </tr>
     </tbody>
 </table>
