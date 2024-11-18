@@ -1,4 +1,4 @@
- ![Version: 0.7.0](https://img.shields.io/badge/Version-0.7.0-informational?style=flat-square)
+ ![Version: 0.8.1](https://img.shields.io/badge/Version-0.8.1-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-logs-single)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -15,15 +15,15 @@ Victoria Logs Single version - high-performance, cost-effective and scalable log
 This chart will do the following:
 
 * Rollout Victoria Logs Single.
-* (optional) Rollout [fluentbit](https://fluentbit.io/) to collect logs from pods.
+* (optional) Rollout [vector](https://vector.dev/) to collect logs from pods.
 
 Chart allows to configure logs collection from Kubernetes pods to VictoriaLogs.
-In order to do that you need to enable fluentbit:
+In order to do that you need to enable vector:
 ```yaml
-fluent-bit:
+vector:
   enabled: true
 ```
-By default, fluentbit will forward logs to VictoriaLogs installation deployed by this chart.
+By default, vector will forward logs to VictoriaLogs installation deployed by this chart.
 
 ## How to install
 
@@ -218,101 +218,14 @@ Change the values according to the need of the environment in ``victoria-logs-si
 </td>
     </tr>
     <tr>
-      <td>fluent-bit</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">config:
-    filters: |
-        [FILTER]
-            Name                kubernetes
-            Match               kube.*
-            Merge_Log           On
-            Keep_Log            On
-            K8S-Logging.Parser  On
-            K8S-Logging.Exclude On
-        [FILTER]
-            Name         nest
-            Match        *
-            Wildcard     pod_name
-            Operation    lift
-            Nested_under kubernetes
-            Add_prefix   kubernetes_
-    outputs: |
-        @INCLUDE /fluent-bit/etc/conf/vl/output_*.conf
-daemonSetVolumeMounts:
-    - mountPath: /var/log
-      name: varlog
-    - mountPath: /var/lib/docker/containers
-      name: varlibdockercontainers
-      readOnly: true
-    - mountPath: /fluent-bit/etc/conf/vl
-      name: victorialogs-outputs
-daemonSetVolumes:
-    - hostPath:
-        path: /var/log
-      name: varlog
-    - hostPath:
-        path: /var/lib/docker/containers
-      name: varlibdockercontainers
-    - configMap:
-        name: victorialogs-outputs
-      name: victorialogs-outputs
-enabled: false
-resources: {}
-</code>
-</pre>
-</td>
-      <td><p>Values for <a href="https://fluent.github.io/helm-charts/" target="_blank">fluent-bit helm chart</a></p>
-</td>
-    </tr>
-    <tr>
-      <td>fluent-bit.config.filters</td>
-      <td>tpl</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="tpl">
-<code class="language-yaml">fluent-bit.config.filters: |
-  [FILTER]
-      Name                kubernetes
-      Match               kube.*
-      Merge_Log           On
-      Keep_Log            On
-      K8S-Logging.Parser  On
-      K8S-Logging.Exclude On
-  [FILTER]
-      Name         nest
-      Match        *
-      Wildcard     pod_name
-      Operation    lift
-      Nested_under kubernetes
-      Add_prefix   kubernetes_
- 
-</code>
-</pre>
-</td>
-      <td><p>FluentBit configuration filters</p>
-</td>
-    </tr>
-    <tr>
-      <td>fluent-bit.config.outputs</td>
-      <td>tpl</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="tpl">
-<code class="language-yaml">fluent-bit.config.outputs: |
-  @INCLUDE /fluent-bit/etc/conf/vl/output_*.conf
- 
-</code>
-</pre>
-</td>
-      <td><p>Note that Host must be replaced to match your VictoriaLogs service name Default format points to VictoriaLogs service.</p>
-</td>
-    </tr>
-    <tr>
-      <td>fluent-bit.enabled</td>
-      <td>bool</td>
+      <td>global.cluster.dnsDomain</td>
+      <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">false
+<code class="language-yaml">cluster.local.
 </code>
 </pre>
 </td>
-      <td><p>Enable deployment of fluent-bit</p>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
@@ -357,7 +270,7 @@ resources: {}
 </code>
 </pre>
 </td>
-      <td><p>Global name override</p>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>
@@ -757,6 +670,17 @@ loggerFormat: json
 </pre>
 </td>
       <td><p>Mount path. Server data Persistent Volume mount root path.</p>
+</td>
+    </tr>
+    <tr>
+      <td>server.persistentVolume.name</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Override Persistent Volume Claim name</p>
 </td>
     </tr>
     <tr>
@@ -1191,6 +1115,83 @@ readOnlyRootFilesystem: true
 </pre>
 </td>
       <td><p>Pod topologySpreadConstraints</p>
+</td>
+    </tr>
+    <tr>
+      <td>vector</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">containerPorts:
+    - containerPort: 9090
+      name: prom-exporter
+      protocol: TCP
+customConfig:
+    api:
+        address: 127.0.0.1:8686
+        enabled: false
+        playground: true
+    data_dir: /vector-data-dir
+    sinks:
+        exporter:
+            address: 0.0.0.0:9090
+            inputs:
+                - internal_metrics
+            type: prometheus_exporter
+        vlogs:
+            api_version: v8
+            compression: gzip
+            endpoints: << include "vlogs.es.urls" . >>
+            healthcheck:
+                enabled: false
+            inputs:
+                - parser
+            mode: bulk
+            request:
+                headers:
+                    AccountID: "0"
+                    ProjectID: "0"
+                    VL-Msg-Field: message,msg,_msg,log.msg,log.message,log
+                    VL-Stream-Fields: stream,kubernetes.pod_name,kubernetes.container_name,kubernetes.pod_namespace
+                    VL-Time-Field: timestamp
+            type: elasticsearch
+    sources:
+        internal_metrics:
+            type: internal_metrics
+        k8s:
+            type: kubernetes_logs
+    transforms:
+        parser:
+            inputs:
+                - k8s
+            source: |
+                .log = parse_json(.message) ?? .message
+                del(.message)
+            type: remap
+dataDir: /vector-data-dir
+enabled: false
+existingConfigMaps:
+    - vl-config
+podMonitor:
+    enabled: false
+resources: {}
+role: Agent
+service:
+    enabled: false
+</code>
+</pre>
+</td>
+      <td><p>Values for <a href="https://github.com/vectordotdev/helm-charts/tree/develop/charts/vector" target="_blank">vector helm chart</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>vector.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Enable deployment of vector</p>
 </td>
     </tr>
   </tbody>

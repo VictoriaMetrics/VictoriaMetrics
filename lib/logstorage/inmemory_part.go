@@ -22,7 +22,7 @@ type inmemoryPart struct {
 	timestamps         bytesutil.ByteBuffer
 
 	messageBloomValues bloomValuesBuffer
-	bloomValuesShards  [bloomValuesShardsCount]bloomValuesBuffer
+	fieldBloomValues   bloomValuesBuffer
 }
 
 type bloomValuesBuffer struct {
@@ -61,9 +61,7 @@ func (mp *inmemoryPart) reset() {
 	mp.timestamps.Reset()
 
 	mp.messageBloomValues.reset()
-	for i := range mp.bloomValuesShards[:] {
-		mp.bloomValuesShards[i].reset()
-	}
+	mp.fieldBloomValues.reset()
 }
 
 // mustInitFromRows initializes mp from lr.
@@ -127,15 +125,11 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	fs.MustWriteSync(messageBloomFilterPath, mp.messageBloomValues.bloom.B)
 	fs.MustWriteSync(messageValuesPath, mp.messageBloomValues.values.B)
 
-	for i := range mp.bloomValuesShards[:] {
-		shard := &mp.bloomValuesShards[i]
+	bloomPath := getBloomFilePath(path, 0)
+	fs.MustWriteSync(bloomPath, mp.fieldBloomValues.bloom.B)
 
-		bloomPath := getBloomFilePath(path, uint64(i))
-		fs.MustWriteSync(bloomPath, shard.bloom.B)
-
-		valuesPath := getValuesFilePath(path, uint64(i))
-		fs.MustWriteSync(valuesPath, shard.values.B)
-	}
+	valuesPath := getValuesFilePath(path, 0)
+	fs.MustWriteSync(valuesPath, mp.fieldBloomValues.values.B)
 
 	mp.ph.mustWriteMetadata(path)
 

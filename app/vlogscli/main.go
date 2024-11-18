@@ -69,8 +69,8 @@ func main() {
 		fatalf("cannot initialize readline: %s", err)
 	}
 
-	fmt.Fprintf(rl, "sending queries to %s\n", *datasourceURL)
-
+	fmt.Fprintf(rl, "sending queries to -datasource.url=%s\n", *datasourceURL)
+	fmt.Fprintf(rl, `type ? and press enter to see available commands`+"\n")
 	runReadlineLoop(rl, &incompleteLine)
 
 	if err := rl.Close(); err != nil {
@@ -91,6 +91,7 @@ func runReadlineLoop(rl *readline.Instance, incompleteLine *string) {
 	}
 
 	outputMode := outputModeJSONMultiline
+	wrapLongLines := false
 	s := ""
 	for {
 		line, err := rl.ReadLine()
@@ -99,7 +100,7 @@ func runReadlineLoop(rl *readline.Instance, incompleteLine *string) {
 			case io.EOF:
 				if s != "" {
 					// This is non-interactive query execution.
-					executeQuery(context.Background(), rl, s, outputMode)
+					executeQuery(context.Background(), rl, s, outputMode, wrapLongLines)
 				}
 				return
 			case readline.ErrInterrupt:
@@ -163,6 +164,18 @@ func runReadlineLoop(rl *readline.Instance, incompleteLine *string) {
 			s = ""
 			continue
 		}
+		if s == `\wrap_long_lines` {
+			if wrapLongLines {
+				wrapLongLines = false
+				fmt.Fprintf(rl, "wrapping of long lines is disabled\n")
+			} else {
+				wrapLongLines = true
+				fmt.Fprintf(rl, "wrapping of long lines is enabled\n")
+			}
+			historyLines = pushToHistory(rl, historyLines, s)
+			s = ""
+			continue
+		}
 		if line != "" && !strings.HasSuffix(line, ";") {
 			// Assume the query is incomplete and allow the user finishing the query on the next line
 			s += "\n"
@@ -172,7 +185,7 @@ func runReadlineLoop(rl *readline.Instance, incompleteLine *string) {
 
 		// Execute the query
 		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-		executeQuery(ctx, rl, s, outputMode)
+		executeQuery(ctx, rl, s, outputMode, wrapLongLines)
 		cancel()
 
 		historyLines = pushToHistory(rl, historyLines, s)
@@ -252,18 +265,21 @@ func isHelpCommand(s string) bool {
 }
 
 func printCommandsHelp(w io.Writer) {
-	fmt.Fprintf(w, "%s", `List of available commands:
+	fmt.Fprintf(w, "%s", `Available commands:
 \q - quit
 \h - show this help
 \s - singleline json output mode
 \m - multiline json output mode
 \c - compact output
 \logfmt - logfmt output mode
+\wrap_long_lines - toggles wrapping long lines
 \tail <query> - live tail <query> results
+
+See https://docs.victoriametrics.com/victorialogs/querying/vlogscli/ for more details
 `)
 }
 
-func executeQuery(ctx context.Context, output io.Writer, qStr string, outputMode outputMode) {
+func executeQuery(ctx context.Context, output io.Writer, qStr string, outputMode outputMode, wrapLongLines bool) {
 	if strings.HasPrefix(qStr, `\tail `) {
 		tailQuery(ctx, output, qStr, outputMode)
 		return
@@ -277,7 +293,7 @@ func executeQuery(ctx context.Context, output io.Writer, qStr string, outputMode
 		_ = respBody.Close()
 	}()
 
-	if err := readWithLess(respBody); err != nil {
+	if err := readWithLess(respBody, wrapLongLines); err != nil {
 		fmt.Fprintf(output, "error when reading query response: %s\n", err)
 		return
 	}

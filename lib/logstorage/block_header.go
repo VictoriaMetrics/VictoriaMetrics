@@ -67,10 +67,6 @@ func (bh *blockHeader) copyFrom(src *blockHeader) {
 
 // marshal appends the marshaled bh to dst and returns the result.
 func (bh *blockHeader) marshal(dst []byte) []byte {
-	// Do not store the version used for encoding directly in the block header, since:
-	// - all the block headers in the same part use the same encoding
-	// - the format encoding version is stored in metadata file for the part (aka metadataFilename)
-
 	dst = bh.streamID.marshal(dst)
 	dst = encoding.MarshalVarUint64(dst, bh.uncompressedSizeBytes)
 	dst = encoding.MarshalVarUint64(dst, bh.rowsCount)

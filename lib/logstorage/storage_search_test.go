@@ -47,7 +47,7 @@ func TestStorageRunQuery(t *testing.T) {
 		for j := 0; j < streamsPerTenant; j++ {
 			streamIDValue := fmt.Sprintf("stream_id=%d", j)
 			for k := 0; k < blocksPerStream; k++ {
-				lr := GetLogRows(streamTags, nil)
+				lr := GetLogRows(streamTags, nil, nil, "")
 				for m := 0; m < rowsPerBlock; m++ {
 					timestamp := baseTimestamp + int64(m)*1e9 + int64(k)
 					// Append stream fields
@@ -729,6 +729,55 @@ func TestStorageRunQuery(t *testing.T) {
 			},
 		})
 	})
+	t.Run("pipe-join", func(t *testing.T) {
+		f(t, `'message 5' | stats by (instance) count() x
+			| join on (instance) (
+				'block 0' instance:host-1 | stats by (instance)
+					count() total,
+					count_uniq(stream-id) streams,
+					count_uniq(stream-id) x
+			)`, [][]Field{
+			{
+				{"instance", "host-0:234"},
+				{"x", "55"},
+			},
+			{
+				{"instance", "host-2:234"},
+				{"x", "55"},
+			},
+			{
+				{"instance", "host-1:234"},
+				{"x", "55"},
+				{"total", "77"},
+				{"streams", "1"},
+			},
+		})
+	})
+	t.Run("pipe-join-prefix", func(t *testing.T) {
+		f(t, `'message 5' | stats by (instance) count() x
+			| join on (instance) (
+				'block 0' instance:host-1 | stats by (instance)
+					count() total,
+					count_uniq(stream-id) streams,
+					count_uniq(stream-id) x
+			) prefix "abc."`, [][]Field{
+			{
+				{"instance", "host-0:234"},
+				{"x", "55"},
+			},
+			{
+				{"instance", "host-2:234"},
+				{"x", "55"},
+			},
+			{
+				{"instance", "host-1:234"},
+				{"x", "55"},
+				{"abc.total", "77"},
+				{"abc.streams", "1"},
+				{"abc.x", "1"},
+			},
+		})
+	})
 
 	// Close the storage and delete its data
 	s.MustClose()
@@ -774,7 +823,7 @@ func TestStorageSearch(t *testing.T) {
 		allTenantIDs = append(allTenantIDs, tenantID)
 		for j := 0; j < streamsPerTenant; j++ {
 			for k := 0; k < blocksPerStream; k++ {
-				lr := GetLogRows(streamTags, nil)
+				lr := GetLogRows(streamTags, nil, nil, "")
 				for m := 0; m < rowsPerBlock; m++ {
 					timestamp := baseTimestamp + int64(m)*1e9 + int64(k)
 					// Append stream fields

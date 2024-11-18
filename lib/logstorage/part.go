@@ -41,7 +41,8 @@ type part struct {
 
 	messageBloomValues bloomValuesReaderAt
 	oldBloomValues     bloomValuesReaderAt
-	bloomValuesShards  [bloomValuesShardsCount]bloomValuesReaderAt
+
+	bloomValuesShards []bloomValuesReaderAt
 }
 
 type bloomValuesReaderAt struct {
@@ -76,14 +77,15 @@ func mustOpenInmemoryPart(pt *partition, mp *inmemoryPart) *part {
 	p.columnsHeaderFile = &mp.columnsHeader
 	p.timestampsFile = &mp.timestamps
 
+	// Open files with bloom filters and column values
 	p.messageBloomValues.bloom = &mp.messageBloomValues.bloom
 	p.messageBloomValues.values = &mp.messageBloomValues.values
 
-	// Open files with bloom filters and column values
-	for i := range p.bloomValuesShards[:] {
-		shard := &p.bloomValuesShards[i]
-		shard.bloom = &mp.bloomValuesShards[i].bloom
-		shard.values = &mp.bloomValuesShards[i].values
+	p.bloomValuesShards = []bloomValuesReaderAt{
+		{
+			bloom:  &mp.fieldBloomValues.bloom,
+			values: &mp.fieldBloomValues.values,
+		},
 	}
 
 	return &p
@@ -140,7 +142,8 @@ func mustOpenFilePart(pt *partition, path string) *part {
 		valuesPath := filepath.Join(path, oldValuesFilename)
 		p.oldBloomValues.values = fs.MustOpenReaderAt(valuesPath)
 	} else {
-		for i := range p.bloomValuesShards[:] {
+		p.bloomValuesShards = make([]bloomValuesReaderAt, p.ph.BloomValuesShardsCount)
+		for i := range p.bloomValuesShards {
 			shard := &p.bloomValuesShards[i]
 
 			bloomPath := getBloomFilePath(path, uint64(i))
@@ -166,7 +169,7 @@ func mustClosePart(p *part) {
 	if p.ph.FormatVersion < 1 {
 		p.oldBloomValues.MustClose()
 	} else {
-		for i := range p.bloomValuesShards[:] {
+		for i := range p.bloomValuesShards {
 			p.bloomValuesShards[i].MustClose()
 		}
 	}
@@ -183,8 +186,12 @@ func (p *part) getBloomValuesFileForColumnName(name string) *bloomValuesReaderAt
 		return &p.oldBloomValues
 	}
 
-	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(name))
-	idx := h % uint64(len(p.bloomValuesShards))
+	n := len(p.bloomValuesShards)
+	idx := uint64(0)
+	if n > 1 {
+		h := xxhash.Sum64(bytesutil.ToUnsafeBytes(name))
+		idx = h % uint64(n)
+	}
 	return &p.bloomValuesShards[idx]
 }
 

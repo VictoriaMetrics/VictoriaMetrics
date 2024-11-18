@@ -16,7 +16,7 @@ services:
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/victorialogs.json:/var/lib/grafana/dashboards/vl.json
     environment:
-      - "GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.5.0/victorialogs-datasource-v0.5.0.zip;victorialogs-datasource"
+      - "GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.6.2/victorialogs-datasource-v0.6.2.zip;victorialogs-datasource"
       - "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victorialogs-datasource"
     networks:
       - vm_net
@@ -26,7 +26,7 @@ services:
   # and forwards them to VictoriaLogs
   fluentbit:
     container_name: fluentbit
-    image: cr.fluentbit.io/fluent/fluent-bit:2.1.4
+    image: fluent/fluent-bit:2.1.4
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
@@ -40,7 +40,7 @@ services:
   #  storing logs and serving read queries.
   victorialogs:
     container_name: victorialogs
-    image: docker.io/victoriametrics/victoria-logs:v0.37.0-victorialogs
+    image: victoriametrics/victoria-logs:v1.0.0-victorialogs
     command:
       - "--storageDataPath=/vlogs"
       - "--httpListenAddr=:9428"
@@ -55,7 +55,7 @@ services:
   # scraping, storing metrics and serve read requests.
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.105.0
+    image: victoriametrics/victoria-metrics:v1.106.1
     ports:
       - 8428:8428
     volumes:
@@ -69,29 +69,51 @@ services:
       - vm_net
     restart: always
 
-  # vmalert executes alerting and recording rules
-  vmalert:
-    container_name: vmalert
-    image: victoriametrics/vmalert:v1.105.0
+  # vmauth is a router and balancer for HTTP requests.
+  # It proxies query requests from vmalert to either VictoriaMetrics or VictoriaLogs,
+  # depending on the requested path.
+  vmauth:
+    container_name: vmauth
+    image: victoriametrics/vmauth:v1.106.1
     depends_on:
       - "victoriametrics"
+      - "victorialogs"
+    volumes:
+      - ./auth-mixed-datasource.yml:/etc/auth.yml
+    command:
+      - "--auth.config=/etc/auth.yml"
+    ports:
+      - 8427:8427
+    networks:
+      - vm_net
+    restart: always
+
+  # vmalert executes alerting and recording rules according to given rule type.
+  vmalert:
+    container_name: vmalert
+    image: victoriametrics/vmalert:v1.106.1
+    depends_on:
+      - "vmauth"
       - "alertmanager"
+      - "victoriametrics"
     ports:
       - 8880:8880
     volumes:
-      - ./alerts.yml:/etc/alerts/alerts.yml
-      - ./alerts-health.yml:/etc/alerts/alerts-health.yml
-      - ./alerts-vlogs.yml:/etc/alerts/alerts-vlogs.yml
-      - ./alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
+      - ./rules/alerts.yml:/etc/alerts/alerts.yml
+      - ./rules/alerts-vlogs.yml:/etc/alerts/vlogs.yml
+      - ./rules/alerts-health.yml:/etc/alerts/alerts-health.yml
+      - ./rules/alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
+      - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
+      # vlogs rule
+      - ./rules/vlogs-example-alerts.yml:/etc/alerts/vlogs-example-alerts.yml
     command:
-      - "--datasource.url=http://victoriametrics:8428/"
+      - "--datasource.url=http://vmauth:8427/"
       - "--remoteRead.url=http://victoriametrics:8428/"
       - "--remoteWrite.url=http://victoriametrics:8428/"
       - "--notifier.url=http://alertmanager:9093/"
       - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana
       - "--external.url=http://127.0.0.1:3000" #grafana outside container
-      - '--external.alert.source=explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
     networks:
       - vm_net
     restart: always

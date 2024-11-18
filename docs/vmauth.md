@@ -645,7 +645,7 @@ For example, if `some-addr` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) 
 then `url_prefix: http://srv+some-addr/some/path` is automatically resolved into `url_prefix: http://some-host:12345/some/path`.
 The DNS SRV resolution is performed every time new connection to the `url_prefix` backend is established.
 
-See also [discovering backend addressess](#discovering-backend-ips).
+See also [discovering backend addresses](#discovering-backend-ips).
 
 ## Modifying HTTP headers
 
@@ -1059,7 +1059,7 @@ See also [security recommendations](#security).
 
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended setting up regular scraping of this page
 either via [vmagent](https://docs.victoriametrics.com/vmagent/) or via Prometheus-compatible scraper, so the exported metrics could be analyzed later.
-Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/21394) and [alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmauth.yml)
+Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/21394) and [alerting rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmauth.yml)
 for `vmauth` monitoring.
 
 If you use Google Cloud Managed Prometheus for scraping metrics from VictoriaMetrics components, then pass `-metrics.exposeMetadata`

@@ -48,6 +48,7 @@ reader:
       expr: 'avg(vm_blocks)'  # initial MetricsQL expression
       step: '10s'  # individual step for this query, will be filled with `sampling_period` from the root level
       data_range: ['-inf', 'inf']  # by default, no constraints applied on data range
+      tz: 'UTC'  # by default, tz-free data is used throughout the model lifecycle
       # new query-level arguments will be added in backward-compatible way in future releases
 ```
 
@@ -67,7 +68,11 @@ Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/chang
   - **High anomaly scores** (>1) when the *data falls outside the expected range*, indicating a data constraint violation.
   - **Lowest anomaly scores** (=0) when the *model's predictions (`yhat`) fall outside the expected range*, meaning uncertain predictions.
 
+  > **Note**: if not set explicitly (or if older config style prior to [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)) is used, then it is set to reader-level `data_range` arg (since [v1.18.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1181))
+
 - `max_points_per_query` (int): Introduced in [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170), optional arg overrides how `search.maxPointsPerTimeseries` flag (available since [v1.14.1](#v1141)) impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. If set on a query-level, it overrides the global `max_points_per_query` (reader-level).
+
+- `tz` (string): Introduced in [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180), this optional argument enables timezone specification per query, overriding the reader’s default `tz`. This setting helps to account for local timezone shifts, such as [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models that are sensitive to seasonal variations (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)).
 
 
 ### Per-query config example
@@ -83,6 +88,7 @@ reader:
       step: '2m'  # overrides global `sampling_period` of 1m
       data_range: [10, 'inf']  # meaning only positive values > 10 are expected, i.e. a value `y` < 10 will trigger anomaly score > 1
       max_points_per_query: 5000 # overrides reader-level value of 10000 for `ingestion_rate` query
+      tz: 'America/New_York'  # to override reader-wise `tz`
 ```
 
 ### Config parameters
@@ -308,6 +314,28 @@ Introduced in [v1.15.1](https://docs.victoriametrics.com/anomaly-detection/chang
 Introduced in [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170), optional arg overrides how `search.maxPointsPerTimeseries` flag (available since [v1.14.1](#v1141)) impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. You can also set it on [per-query](#per-query-parameters) basis to override this global one.
             </td>
         </tr>
+        <tr>
+            <td>
+`tz`
+            </td>
+            <td>
+`UTC`
+            </td>
+            <td>
+Introduced in [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180), this optional argument specifies the [IANA](https://nodatime.org/TimeZones) timezone to account for local shifts, like [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models sensitive to seasonal patterns (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)). Defaults to `UTC` if not set and can be overridden on a [per-query basis](#per-query-parameters).
+            </td>
+        </tr>
+        <tr>
+            <td>
+`data_range`
+            </td>
+            <td>
+`["-inf", "inf"]`
+            </td>
+            <td>
+Added in [v1.18.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180), this optional argument allows defining **valid** data ranges for input of all the queries in `queries`. Defaults to `["-inf", "inf"]` if not set and can be overridden on a [per-query basis](#per-query-parameters).
+            </td>
+        </tr>
     </tbody>
 </table>
 
@@ -318,11 +346,14 @@ reader:
   class: "vm"  # or "reader.vm.VmReader" until v1.13.0
   datasource_url: "https://play.victoriametrics.com/"
   tenant_id: "0:0"
+  tz: 'America/New_York'
+  data_range: [1, 'inf']  # reader-level
   queries:
     ingestion_rate:
       expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
-      step: '1m' # can override global `sampling_period` on per-query level
-      data_range: [0, 'inf']
+      step: '1m' # can override reader-level `sampling_period` on per-query level
+      data_range: [0, 'inf']  # if set, overrides reader-level data_range
+      tz: 'Australia/Sydney'  # if set, overrides reader-level tz
   sampling_period: '1m'
   query_from_last_seen_timestamp: True  # false by default
   latency_offset: '1ms'

@@ -11,6 +11,50 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.18.3
+Released: 2024-11-14
+
+- FIX: This patch release resolves an issue that could cause a service crash when parallelizing data processing with `VmReader`. Affected releases: [v1.18.1](#v1181) - [v1.18.2](#v1182).
+
+## v1.18.2
+Released: 2024-11-13
+
+> **Note**: In release [v1.18.1](#v1181), an issue was identified that could lead to a service crash during parallelized data processing with [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). Please update to patch [v1.18.3](#v1183), which resolves this issue.
+
+- IMPROVEMENT: Enhanced the flexibility of the [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) for tz-aware data (`tz_aware = True`). The `tz_seasonalities` argument has been reformatted to align with the structure of the existing `seasonalities` argument. For more details, refer to the [model section here](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet). Additionally, tz-aware support for `ProphetModel` has been added to [`AutoTuned`](https://docs.victoriametrics.com/anomaly-detection/components/models/#autotuned) model wrapper. This feature is automatically enabled if the data is timezone-aware and its timezone is not set to the default ('UTC'), otherwise default timezone-free optimization flow will be used.
+
+## v1.18.1
+Released: 2024-11-12
+
+> **Note**: In release [v1.18.1](#v1181), an issue was identified that could lead to a service crash during parallelized data processing with [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). Please update to patch [v1.18.3](#v1183), which resolves this issue.
+
+- IMPROVEMENT: Added a [reader-level](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) `data_range` argument, allowing users to define a default *valid* data range for all input queries in `queries`. Individual queries can still override this default with their own `data_range` if needed.
+- IMPROVEMENT: Added the `url` label to enhance labelset consistency across [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) in both [reader](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#reader-behaviour-metrics) and [writer](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#writer-behaviour-metrics) components. Metrics affected:
+  - `vmanomaly_reader_received_bytes`
+  - `vmanomaly_reader_response_parsing_seconds`
+  - `vmanomaly_reader_timeseries_received`
+  - `vmanomaly_reader_datapoints_received`
+  - `vmanomaly_writer_request_serialize_seconds`
+  - `vmanomaly_writer_datapoints_sent`
+  - `vmanomaly_writer_timeseries_sent`
+
+- FIX: Resolved an issue where [rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-models) incorrectly set their last seen `infer` timestamp during *first* `fit_infer` call, resulting in output being produced for *every datapoint* within the `fit_window` on its *first invocation*.
+- FIX: Resolved an issue in multi-[scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) configurations where [self-monitoring metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) values were overwriting each other.
+- FIX: Resolved an issue causing incorrect `query_key` label values in the `vmanomaly_model_datapoints_produced` [self-monitoring metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#models-behaviour-metrics) for [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models).
+- FIX: Resolved an issue that caused the `vmanomaly_model_runs` [self-monitoring metric](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#models-behaviour-metrics) to miss increments for [rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-models).
+- FIX: Aligned the calculations of `vmanomaly_model_datapoints_accepted` and `vmanomaly_model_datapoints_produced` [self-monitoring model metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#models-behaviour-metrics) across all stages (`fit`, `infer`, and `fit_infer`) for consistency.
+
+## v1.18.0
+Released: 2024-10-28
+
+- FEATURE: Introduced timezone-aware support in `VmReader` for accurate seasonality modeling, especially during DST shifts. A new `tz` argument enables timezone offset management at both global and [query-specific levels](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters).
+  - Enhanced [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) with a `tz_aware` argument (combined with `tz_seasonalities` and `tz_use_cyclical_encoding`) for timezone-aware timestamps. This addresses a [limitation in Prophet's native design](https://github.com/facebook/prophet/blob/dc1df4cb23a150e14858afb34c9442401c0eb2fc/python/prophet/forecaster.py#L288) that doesn't allow timezone-aware and DST-aware seasonality.
+
+- IMPROVEMENT: Enhanced error handling in [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) to provide clearer diagnostics and broader coverage.
+
+- FIX: Updated `vmanomaly_version_info` and `vmanomaly_ui_version_info` gauges to correctly set the version label value based on image tags.
+- FIX: The `n_samples_seen_` attribute now properly resets to 0 with each new `fit` call in [online model](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) classes ([`OnlineMADModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-mad) and [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)), ensuring accurate tracking of processed sample count.
+
 ## v1.17.2
 Released: 2024-10-22
 

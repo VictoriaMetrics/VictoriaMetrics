@@ -5,7 +5,7 @@ menu:
     identifier: vm-single-version
     parent: victoriametrics
     weight: 1
-title: Single version
+title: Single-node version
 aliases:
   - /Single-server-VictoriaMetrics.html
 ---

@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.14.3](https://img.shields.io/badge/Version-0.14.3-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.14.7](https://img.shields.io/badge/Version-0.14.7-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-agent)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -448,8 +448,7 @@ scrape_configs:
       <td>deployment</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">enabled: true
-strategy: {}
+<code class="language-yaml">strategy: {}
 </code>
 </pre>
 </td>
@@ -543,7 +542,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>Extra labels for Pods, Deployment and Statefulset</p>
+      <td><p>Extra labels for Deployment and Statefulset</p>
 </td>
     </tr>
     <tr>
@@ -598,7 +597,18 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>Overrides the fullname prefix</p>
+      <td><p>Override resources fullname</p>
+</td>
+    </tr>
+    <tr>
+      <td>global.cluster.dnsDomain</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">cluster.local.
+</code>
+</pre>
+</td>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
@@ -914,7 +924,7 @@ name: ""
 </code>
 </pre>
 </td>
-      <td><p>Overrides fullname suffix</p>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>
@@ -1156,9 +1166,9 @@ periodSeconds: 15
     </tr>
     <tr>
       <td>remoteWrite</td>
-      <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">null
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
 </code>
 </pre>
 </td>
@@ -1441,7 +1451,7 @@ periodSeconds: 15
 </td>
     </tr>
     <tr>
-      <td>statefulset</td>
+      <td>statefulSet</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
 <code class="language-yaml">clusterMode: false
@@ -1455,7 +1465,7 @@ updateStrategy: {}
 </td>
     </tr>
     <tr>
-      <td>statefulset.clusterMode</td>
+      <td>statefulSet.clusterMode</td>
       <td>bool</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
 <code class="language-yaml">false
@@ -1466,7 +1476,7 @@ updateStrategy: {}
 </td>
     </tr>
     <tr>
-      <td>statefulset.replicationFactor</td>
+      <td>statefulSet.replicationFactor</td>
       <td>int</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
 <code class="language-yaml">1
@@ -1477,7 +1487,7 @@ updateStrategy: {}
 </td>
     </tr>
     <tr>
-      <td>statefulset.updateStrategy</td>
+      <td>statefulSet.updateStrategy</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
 <code class="language-yaml">{}

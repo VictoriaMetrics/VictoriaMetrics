@@ -211,7 +211,15 @@ func TestPipeExtract(t *testing.T) {
 			{"x", `a foo=cc baz=aa b`},
 			{"bar", "abc"},
 		},
+		{
+			{"x", `a foo=cc baz=aa b`},
+		},
 	}, [][]Field{
+		{
+			{"x", `a foo=cc baz=aa b`},
+			{"bar", `cc`},
+			{"xx", `aa b`},
+		},
 		{
 			{"x", `a foo=cc baz=aa b`},
 			{"bar", `cc`},

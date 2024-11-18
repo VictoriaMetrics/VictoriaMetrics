@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -64,7 +65,7 @@ func getCommonParams(r *http.Request) (*insertutils.CommonParams, error) {
 	if len(cp.IgnoreFields) == 0 {
 		cp.IgnoreFields = *journaldIgnoreFields
 	}
-	cp.MsgField = "MESSAGE"
+	cp.MsgFields = []string{"MESSAGE"}
 	return cp, nil
 }
 
@@ -233,7 +234,7 @@ func parseJournaldRequest(data []byte, lmp insertutils.LogMessageProcessor, cp *
 			continue
 		}
 
-		if name == cp.MsgField {
+		if slices.Contains(cp.MsgFields, name) {
 			name = "_msg"
 		}
 

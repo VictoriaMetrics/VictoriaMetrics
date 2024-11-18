@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -34,8 +35,11 @@ type pipeTop struct {
 	// limitStr is string representation of the limit.
 	limitStr string
 
-	// if hitsFieldName isn't empty, then the number of hits per each unique value is returned in this field.
+	// the number of hits per each unique value is returned in this field.
 	hitsFieldName string
+
+	// if rankFieldName isn't empty, then the rank per each unique value is returned in this field.
+	rankFieldName string
 }
 
 func (pt *pipeTop) String() string {
@@ -45,6 +49,9 @@ func (pt *pipeTop) String() string {
 	}
 	if len(pt.byFields) > 0 {
 		s += " by (" + fieldNamesString(pt.byFields) + ")"
+	}
+	if pt.rankFieldName != "" {
+		s += rankFieldNameString(pt.rankFieldName)
 	}
 	return s
 }
@@ -62,10 +69,6 @@ func (pt *pipeTop) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	} else {
 		neededFields.addFields(pt.byFields)
 	}
-}
-
-func (pt *pipeTop) optimize() {
-	// nothing to do
 }
 
 func (pt *pipeTop) hasFilterInWithQuery() bool {
@@ -273,8 +276,20 @@ func (ptp *pipeTopProcessor) flush() error {
 		return dst
 	}
 
+	addRankField := func(dst []Field, rank int) []Field {
+		if ptp.pt.rankFieldName == "" {
+			return dst
+		}
+		rankStr := strconv.Itoa(rank + 1)
+		dst = append(dst, Field{
+			Name:  ptp.pt.rankFieldName,
+			Value: rankStr,
+		})
+		return dst
+	}
+
 	if len(byFields) == 0 {
-		for _, e := range entries {
+		for i, e := range entries {
 			if needStop(ptp.stopCh) {
 				return nil
 			}
@@ -300,11 +315,12 @@ func (ptp *pipeTopProcessor) flush() error {
 				})
 			}
 			rowFields = addHitsField(rowFields, e.hits)
+			rowFields = addRankField(rowFields, i)
 			wctx.writeRow(rowFields)
 		}
 	} else if len(byFields) == 1 {
 		fieldName := byFields[0]
-		for _, e := range entries {
+		for i, e := range entries {
 			if needStop(ptp.stopCh) {
 				return nil
 			}
@@ -314,10 +330,11 @@ func (ptp *pipeTopProcessor) flush() error {
 				Value: e.k,
 			})
 			rowFields = addHitsField(rowFields, e.hits)
+			rowFields = addRankField(rowFields, i)
 			wctx.writeRow(rowFields)
 		}
 	} else {
-		for _, e := range entries {
+		for i, e := range entries {
 			if needStop(ptp.stopCh) {
 				return nil
 			}
@@ -339,6 +356,7 @@ func (ptp *pipeTopProcessor) flush() error {
 				fieldIdx++
 			}
 			rowFields = addHitsField(rowFields, e.hits)
+			rowFields = addRankField(rowFields, i)
 			wctx.writeRow(rowFields)
 		}
 	}
@@ -660,5 +678,43 @@ func parsePipeTop(lex *lexer) (*pipeTop, error) {
 		hitsFieldName: hitsFieldName,
 	}
 
+	if lex.isKeyword("rank") {
+		rankFieldName, err := parseRankFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse rank field name in [%s]: %w", pt, err)
+		}
+		pt.rankFieldName = rankFieldName
+	}
 	return pt, nil
+}
+
+func parseRankFieldName(lex *lexer) (string, error) {
+	if !lex.isKeyword("rank") {
+		return "", fmt.Errorf("unexpected token: %q; want 'rank'", lex.token)
+	}
+	lex.nextToken()
+
+	rankFieldName := "rank"
+	if lex.isKeyword("as") {
+		lex.nextToken()
+		if lex.isKeyword("", "|", ")", "(") {
+			return "", fmt.Errorf("missing rank name")
+		}
+	}
+	if !lex.isKeyword("", "|", ")", "limit") {
+		s, err := getCompoundToken(lex)
+		if err != nil {
+			return "", err
+		}
+		rankFieldName = s
+	}
+	return rankFieldName, nil
+}
+
+func rankFieldNameString(rankFieldName string) string {
+	s := " rank"
+	if rankFieldName != "rank" {
+		s += " as " + rankFieldName
+	}
+	return s
 }

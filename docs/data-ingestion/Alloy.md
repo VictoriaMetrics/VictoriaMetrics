@@ -52,7 +52,7 @@ After the configuration has been updated, Alloy must be reloaded or restarted fo
 In the example below we will be using the node exporter component built into Alloy to generate metrics,
 but any Prometheus scrape target can forward data to VictoriaMetrics.
 Metrics are forwarded from the scrape target to VictoriaMetrics by creating a `prometheus.remote_write` component
-and configuring the `promethues.scrape` component to forward metrics to the `prometheus.remote_write` component.
+and configuring the `prometheus.scrape` component to forward metrics to the `prometheus.remote_write` component.
 
 ```Alloy
 prometheus.exporter.unix "nodeexporter" {}

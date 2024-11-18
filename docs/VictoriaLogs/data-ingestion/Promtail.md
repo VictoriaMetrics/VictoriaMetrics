@@ -11,15 +11,16 @@ aliases:
   - /victorialogs/data-ingestion/Promtail.html
   - /victorialogs/data-ingestion/promtail.html
 ---
-[Promtail](https://grafana.com/docs/loki/latest/clients/promtail/) is a default log shipper for Grafana Loki.
-Promtail can be configured to send the collected logs to VictoriaLogs according to the following docs.
+[Promtail](https://grafana.com/docs/loki/latest/clients/promtail/), [Grafana Agent](https://grafana.com/docs/agent/latest/)
+and [Grafana Alloy](https://grafana.com/docs/alloy/latest/) are default log collectors for Grafana Loki.
+They can be configured to send the collected logs to VictoriaLogs according to the following docs.
 
 Specify [`clients`](https://grafana.com/docs/loki/latest/clients/promtail/configuration/#clients) section in the configuration file
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
 ```yaml
 clients:
-  - url: http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app
+  - url: "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app"
 ```
 
 Substitute `localhost:9428` address inside `clients` with the real TCP address of VictoriaLogs.
@@ -40,7 +41,7 @@ and inspecting VictoriaLogs logs then:
 
 ```yaml
 clients:
-  - url: http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app&debug=1
+  - url: "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app&debug=1"
 ```
 
 If some [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) must be skipped
@@ -49,7 +50,7 @@ For example, the following config instructs VictoriaLogs to ignore `filename` an
 
 ```yaml
 clients:
-  - url: http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app&ignore_fields=filename,stream
+  - url: 'http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app&ignore_fields=filename,stream'
 ```
 
 By default the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy).
@@ -60,7 +61,7 @@ For example, the following config instructs VictoriaLogs to store logs in the `(
 
 ```yaml
 clients:
-  - url: http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app&debug=1
+  - url: "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app&debug=1"
     tenant_id: "12:34"
 ```
 

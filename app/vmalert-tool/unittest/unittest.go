@@ -270,6 +270,9 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	// tear down vmstorage and clean the data dir
 	defer tearDown()
 
+	if tg.Interval == nil {
+		tg.Interval = promutils.NewDuration(evalInterval)
+	}
 	err := writeInputSeries(tg.InputSeries, tg.Interval, testStartTime, testPromWriteHTTPPath)
 	if err != nil {
 		return []error{err}

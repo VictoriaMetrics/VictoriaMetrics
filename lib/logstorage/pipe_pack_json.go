@@ -33,10 +33,6 @@ func (pp *pipePackJSON) updateNeededFields(neededFields, unneededFields fieldsSe
 	updateNeededFieldsForPipePack(neededFields, unneededFields, pp.resultField, pp.fields)
 }
 
-func (pp *pipePackJSON) optimize() {
-	// nothing to do
-}
-
 func (pp *pipePackJSON) hasFilterInWithQuery() bool {
 	return false
 }

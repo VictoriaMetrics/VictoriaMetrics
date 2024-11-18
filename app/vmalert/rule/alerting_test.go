@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
@@ -28,7 +29,7 @@ func TestAlertingRuleToTimeSeries(t *testing.T) {
 		rule.alerts[alert.ID] = alert
 		tss := rule.toTimeSeries(timestamp.Unix())
 		if err := compareTimeSeries(t, tssExpected, tss); err != nil {
-			t.Fatalf("timeseries mismatch: %s", err)
+			t.Fatalf("timeseries mismatch for rule %q: %s", rule.Name, err)
 		}
 	}
 
@@ -36,14 +37,23 @@ func TestAlertingRuleToTimeSeries(t *testing.T) {
 		State:    notifier.StateFiring,
 		ActiveAt: timestamp.Add(time.Second),
 	}, []prompbmarshal.TimeSeries{
-		newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
-			"__name__":      alertMetricName,
-			alertStateLabel: notifier.StateFiring.String(),
+		newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: alertMetricName,
+			},
+			{
+				Name:  alertStateLabel,
+				Value: notifier.StateFiring.String(),
+			},
 		}),
 		newTimeSeries([]float64{float64(timestamp.Add(time.Second).Unix())},
 			[]int64{timestamp.UnixNano()},
-			map[string]string{
-				"__name__": alertForStateMetricName,
+			[]prompbmarshal.Label{
+				{
+					Name:  "__name__",
+					Value: alertForStateMetricName,
+				},
 			}),
 	})
 
@@ -54,18 +64,40 @@ func TestAlertingRuleToTimeSeries(t *testing.T) {
 			"instance": "bar",
 		},
 	}, []prompbmarshal.TimeSeries{
-		newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
-			"__name__":      alertMetricName,
-			alertStateLabel: notifier.StateFiring.String(),
-			"job":           "foo",
-			"instance":      "bar",
-		}),
+		newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()},
+			[]prompbmarshal.Label{
+				{
+					Name:  "__name__",
+					Value: alertMetricName,
+				},
+				{
+					Name:  alertStateLabel,
+					Value: notifier.StateFiring.String(),
+				},
+				{
+					Name:  "job",
+					Value: "foo",
+				},
+				{
+					Name:  "instance",
+					Value: "bar",
+				},
+			}),
 		newTimeSeries([]float64{float64(timestamp.Add(time.Second).Unix())},
 			[]int64{timestamp.UnixNano()},
-			map[string]string{
-				"__name__": alertForStateMetricName,
-				"job":      "foo",
-				"instance": "bar",
+			[]prompbmarshal.Label{
+				{
+					Name:  "__name__",
+					Value: alertForStateMetricName,
+				},
+				{
+					Name:  "job",
+					Value: "foo",
+				},
+				{
+					Name:  "instance",
+					Value: "bar",
+				},
 			}),
 	})
 
@@ -73,18 +105,29 @@ func TestAlertingRuleToTimeSeries(t *testing.T) {
 		State: notifier.StateFiring, ActiveAt: timestamp.Add(time.Second),
 		Labels: map[string]string{
 			alertStateLabel: "foo",
-			"__name__":      "bar",
 		},
 	}, []prompbmarshal.TimeSeries{
-		newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
-			"__name__":      alertMetricName,
-			alertStateLabel: notifier.StateFiring.String(),
+		newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: alertMetricName,
+			},
+			{
+				Name:  alertStateLabel,
+				Value: notifier.StateFiring.String(),
+			},
 		}),
 		newTimeSeries([]float64{float64(timestamp.Add(time.Second).Unix())},
 			[]int64{timestamp.UnixNano()},
-			map[string]string{
-				"__name__":      alertForStateMetricName,
-				alertStateLabel: "foo",
+			[]prompbmarshal.Label{
+				{
+					Name:  "__name__",
+					Value: alertForStateMetricName,
+				},
+				{
+					Name:  alertStateLabel,
+					Value: "foo",
+				},
 			}),
 	})
 
@@ -92,14 +135,23 @@ func TestAlertingRuleToTimeSeries(t *testing.T) {
 		State:    notifier.StateFiring,
 		ActiveAt: timestamp.Add(time.Second),
 	}, []prompbmarshal.TimeSeries{
-		newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
-			"__name__":      alertMetricName,
-			alertStateLabel: notifier.StateFiring.String(),
+		newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: alertMetricName,
+			},
+			{
+				Name:  alertStateLabel,
+				Value: notifier.StateFiring.String(),
+			},
 		}),
 		newTimeSeries([]float64{float64(timestamp.Add(time.Second).Unix())},
 			[]int64{timestamp.UnixNano()},
-			map[string]string{
-				"__name__": alertForStateMetricName,
+			[]prompbmarshal.Label{
+				{
+					Name:  "__name__",
+					Value: alertForStateMetricName,
+				},
 			}),
 	})
 
@@ -107,12 +159,21 @@ func TestAlertingRuleToTimeSeries(t *testing.T) {
 		State:    notifier.StatePending,
 		ActiveAt: timestamp.Add(time.Second),
 	}, []prompbmarshal.TimeSeries{
-		newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, map[string]string{
-			"__name__":      alertMetricName,
-			alertStateLabel: notifier.StatePending.String(),
+		newTimeSeries([]float64{1}, []int64{timestamp.UnixNano()}, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: alertMetricName,
+			},
+			{
+				Name:  alertStateLabel,
+				Value: notifier.StatePending.String(),
+			},
 		}),
-		newTimeSeries([]float64{float64(timestamp.Add(time.Second).Unix())}, []int64{timestamp.UnixNano()}, map[string]string{
-			"__name__": alertForStateMetricName,
+		newTimeSeries([]float64{float64(timestamp.Add(time.Second).Unix())}, []int64{timestamp.UnixNano()}, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: alertForStateMetricName,
+			},
 		}),
 	})
 }
@@ -124,7 +185,9 @@ func TestAlertingRule_Exec(t *testing.T) {
 		alert  *notifier.Alert
 	}
 
-	f := func(rule *AlertingRule, steps [][]datasource.Metric, alertsExpected map[int][]testAlert) {
+	ts, _ := time.Parse(time.RFC3339, "2024-10-29T00:00:00Z")
+
+	f := func(rule *AlertingRule, steps [][]datasource.Metric, alertsExpected map[int][]testAlert, tssExpected map[int][]prompbmarshal.TimeSeries) {
 		t.Helper()
 
 		fq := &datasource.FakeQuerier{}
@@ -134,12 +197,18 @@ func TestAlertingRule_Exec(t *testing.T) {
 			Name: "TestRule_Exec",
 		}
 		rule.GroupID = fakeGroup.ID()
-		ts := time.Now()
 		for i, step := range steps {
 			fq.Reset()
 			fq.Add(step...)
-			if _, err := rule.exec(context.TODO(), ts, 0); err != nil {
+			tss, err := rule.exec(context.TODO(), ts, 0)
+			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
+			}
+			// check generate time series
+			if _, ok := tssExpected[i]; ok {
+				if err := compareTimeSeries(t, tssExpected[i], tss); err != nil {
+					t.Fatalf("generated time series mismatch for rule %q in step %d: %s", rule.Name, i, err)
+				}
 			}
 
 			// shift the execution timestamp before the next iteration
@@ -174,13 +243,21 @@ func TestAlertingRule_Exec(t *testing.T) {
 		}
 	}
 
-	f(newTestAlertingRule("empty", 0), [][]datasource.Metric{}, nil)
+	f(newTestAlertingRule("empty", 0), [][]datasource.Metric{}, nil, nil)
 
-	f(newTestAlertingRule("empty labels", 0), [][]datasource.Metric{
+	f(newTestAlertingRule("empty_labels", 0), [][]datasource.Metric{
 		{datasource.Metric{Values: []float64{1}, Timestamps: []int64{1}}},
 	}, map[int][]testAlert{
 		0: {{alert: &notifier.Alert{State: notifier.StateFiring}}},
-	})
+	},
+		map[int][]prompbmarshal.TimeSeries{
+			0: {
+				{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "empty_labels"}, {Name: "alertstate", Value: "firing"}},
+					Samples: []prompbmarshal.Sample{{Value: 1, Timestamp: ts.UnixNano() / 1e6}}},
+				{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertForStateMetricName}, {Name: "alertname", Value: "empty_labels"}},
+					Samples: []prompbmarshal.Sample{{Value: float64(ts.Unix()), Timestamp: ts.UnixNano() / 1e6}}},
+			},
+		})
 
 	f(newTestAlertingRule("single-firing=>inactive=>firing=>inactive=>inactive", 0), [][]datasource.Metric{
 		{metricWithLabels(t, "name", "foo")},
@@ -194,6 +271,25 @@ func TestAlertingRule_Exec(t *testing.T) {
 		2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
 		3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
 		4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
+	}, map[int][]prompbmarshal.TimeSeries{
+		0: {
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "single-firing=>inactive=>firing=>inactive=>inactive"}, {Name: "alertstate", Value: "firing"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: 1, Timestamp: ts.UnixNano() / 1e6}}},
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertForStateMetricName}, {Name: "alertname", Value: "single-firing=>inactive=>firing=>inactive=>inactive"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: float64(ts.Unix()), Timestamp: ts.UnixNano() / 1e6}}},
+		},
+		1: {
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "single-firing=>inactive=>firing=>inactive=>inactive"}, {Name: "alertstate", Value: "firing"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: decimal.StaleNaN, Timestamp: ts.Add(defaultStep).UnixNano() / 1e6}}},
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertForStateMetricName}, {Name: "alertname", Value: "single-firing=>inactive=>firing=>inactive=>inactive"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: decimal.StaleNaN, Timestamp: ts.Add(defaultStep).UnixNano() / 1e6}}},
+		},
+		2: {
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "single-firing=>inactive=>firing=>inactive=>inactive"}, {Name: "alertstate", Value: "firing"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: 1, Timestamp: ts.Add(2*defaultStep).UnixNano() / 1e6}}},
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertForStateMetricName}, {Name: "alertname", Value: "single-firing=>inactive=>firing=>inactive=>inactive"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: float64(ts.Add(2 * defaultStep).Unix()), Timestamp: ts.Add(2*defaultStep).UnixNano() / 1e6}}},
+		},
 	})
 
 	f(newTestAlertingRule("single-firing=>inactive=>firing=>inactive=>inactive=>firing", 0), [][]datasource.Metric{
@@ -210,7 +306,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 		3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
 		4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
 		5: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
-	})
+	}, nil)
 
 	f(newTestAlertingRule("multiple-firing", 0), [][]datasource.Metric{
 		{
@@ -224,7 +320,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 			{labels: []string{"name", "foo1"}, alert: &notifier.Alert{State: notifier.StateFiring}},
 			{labels: []string{"name", "foo2"}, alert: &notifier.Alert{State: notifier.StateFiring}},
 		},
-	})
+	}, nil)
 
 	// 1: fire first alert
 	// 2: fire second alert, set first inactive
@@ -233,27 +329,57 @@ func TestAlertingRule_Exec(t *testing.T) {
 		{metricWithLabels(t, "name", "foo")},
 		{metricWithLabels(t, "name", "foo1")},
 		{metricWithLabels(t, "name", "foo2")},
-	},
-		map[int][]testAlert{
-			0: {
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
-			},
-			1: {
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
-				{labels: []string{"name", "foo1"}, alert: &notifier.Alert{State: notifier.StateFiring}},
-			},
-			2: {
-				{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
-				{labels: []string{"name", "foo1"}, alert: &notifier.Alert{State: notifier.StateInactive}},
-				{labels: []string{"name", "foo2"}, alert: &notifier.Alert{State: notifier.StateFiring}},
-			},
-		})
+	}, map[int][]testAlert{
+		0: {
+			{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+		},
+		1: {
+			{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
+			{labels: []string{"name", "foo1"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+		},
+		2: {
+			{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}},
+			{labels: []string{"name", "foo1"}, alert: &notifier.Alert{State: notifier.StateInactive}},
+			{labels: []string{"name", "foo2"}, alert: &notifier.Alert{State: notifier.StateFiring}},
+		},
+	}, map[int][]prompbmarshal.TimeSeries{
+		0: {
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "multiple-steps-firing"}, {Name: "alertstate", Value: "firing"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: 1, Timestamp: ts.UnixNano() / 1e6}}},
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertForStateMetricName}, {Name: "alertname", Value: "multiple-steps-firing"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: float64(ts.Unix()), Timestamp: ts.UnixNano() / 1e6}}},
+		},
+		1: {
+			// stale time series for foo, `firing -> inactive`
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "multiple-steps-firing"}, {Name: "alertstate", Value: "firing"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: decimal.StaleNaN, Timestamp: ts.Add(defaultStep).UnixNano() / 1e6}}},
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertForStateMetricName}, {Name: "alertname", Value: "multiple-steps-firing"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: decimal.StaleNaN, Timestamp: ts.Add(defaultStep).UnixNano() / 1e6}}},
+			// new time series for foo1
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "multiple-steps-firing"}, {Name: "alertstate", Value: "firing"}, {Name: "name", Value: "foo1"}},
+				Samples: []prompbmarshal.Sample{{Value: 1, Timestamp: ts.Add(defaultStep).UnixNano() / 1e6}}},
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertForStateMetricName}, {Name: "alertname", Value: "multiple-steps-firing"}, {Name: "name", Value: "foo1"}},
+				Samples: []prompbmarshal.Sample{{Value: float64(ts.Add(defaultStep).Unix()), Timestamp: ts.Add(defaultStep).UnixNano() / 1e6}}},
+		},
+		2: {
+			// stale time series for foo1
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "multiple-steps-firing"}, {Name: "alertstate", Value: "firing"}, {Name: "name", Value: "foo1"}},
+				Samples: []prompbmarshal.Sample{{Value: decimal.StaleNaN, Timestamp: ts.Add(2*defaultStep).UnixNano() / 1e6}}},
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertForStateMetricName}, {Name: "alertname", Value: "multiple-steps-firing"}, {Name: "name", Value: "foo1"}},
+				Samples: []prompbmarshal.Sample{{Value: decimal.StaleNaN, Timestamp: ts.Add(2*defaultStep).UnixNano() / 1e6}}},
+			// new time series for foo2
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "multiple-steps-firing"}, {Name: "alertstate", Value: "firing"}, {Name: "name", Value: "foo2"}},
+				Samples: []prompbmarshal.Sample{{Value: 1, Timestamp: ts.Add(2*defaultStep).UnixNano() / 1e6}}},
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertForStateMetricName}, {Name: "alertname", Value: "multiple-steps-firing"}, {Name: "name", Value: "foo2"}},
+				Samples: []prompbmarshal.Sample{{Value: float64(ts.Add(2 * defaultStep).Unix()), Timestamp: ts.Add(2*defaultStep).UnixNano() / 1e6}}},
+		},
+	})
 
 	f(newTestAlertingRule("for-pending", time.Minute), [][]datasource.Metric{
 		{metricWithLabels(t, "name", "foo")},
 	}, map[int][]testAlert{
 		0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
-	})
+	}, nil)
 
 	f(newTestAlertingRule("for-fired", defaultStep), [][]datasource.Metric{
 		{metricWithLabels(t, "name", "foo")},
@@ -261,6 +387,22 @@ func TestAlertingRule_Exec(t *testing.T) {
 	}, map[int][]testAlert{
 		0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
 		1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
+	}, map[int][]prompbmarshal.TimeSeries{
+		0: {
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "for-fired"}, {Name: "alertstate", Value: "pending"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: 1, Timestamp: ts.UnixNano() / 1e6}}},
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertForStateMetricName}, {Name: "alertname", Value: "for-fired"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: float64(ts.Unix()), Timestamp: ts.UnixNano() / 1e6}}},
+		},
+		1: {
+			// stale time series for `pending -> firing`
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "for-fired"}, {Name: "alertstate", Value: "pending"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: decimal.StaleNaN, Timestamp: ts.Add(defaultStep).UnixNano() / 1e6}}},
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "for-fired"}, {Name: "alertstate", Value: "firing"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: 1, Timestamp: ts.Add(defaultStep).UnixNano() / 1e6}}},
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertForStateMetricName}, {Name: "alertname", Value: "for-fired"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: float64(ts.Add(defaultStep).Unix()), Timestamp: ts.Add(defaultStep).UnixNano() / 1e6}}},
+		},
 	})
 
 	f(newTestAlertingRule("for-pending=>empty", time.Second), [][]datasource.Metric{
@@ -272,6 +414,26 @@ func TestAlertingRule_Exec(t *testing.T) {
 		0: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
 		1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
 		2: {},
+	}, map[int][]prompbmarshal.TimeSeries{
+		0: {
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "for-pending=>empty"}, {Name: "alertstate", Value: "pending"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: 1, Timestamp: ts.UnixNano() / 1e6}}},
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertForStateMetricName}, {Name: "alertname", Value: "for-pending=>empty"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: float64(ts.Unix()), Timestamp: ts.UnixNano() / 1e6}}},
+		},
+		1: {
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "for-pending=>empty"}, {Name: "alertstate", Value: "pending"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: 1, Timestamp: ts.Add(defaultStep).UnixNano() / 1e6}}},
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertForStateMetricName}, {Name: "alertname", Value: "for-pending=>empty"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: float64(ts.Unix()), Timestamp: ts.Add(defaultStep).UnixNano() / 1e6}}},
+		},
+		// stale time series for `pending -> inactive`
+		2: {
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertMetricName}, {Name: "alertname", Value: "for-pending=>empty"}, {Name: "alertstate", Value: "pending"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: decimal.StaleNaN, Timestamp: ts.Add(2*defaultStep).UnixNano() / 1e6}}},
+			{Labels: []prompbmarshal.Label{{Name: "__name__", Value: alertForStateMetricName}, {Name: "alertname", Value: "for-pending=>empty"}, {Name: "name", Value: "foo"}},
+				Samples: []prompbmarshal.Sample{{Value: decimal.StaleNaN, Timestamp: ts.Add(2*defaultStep).UnixNano() / 1e6}}},
+		},
 	})
 
 	f(newTestAlertingRule("for-pending=>firing=>inactive=>pending=>firing", defaultStep), [][]datasource.Metric{
@@ -287,7 +449,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 		2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
 		3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
 		4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
-	})
+	}, nil)
 
 	f(newTestAlertingRuleWithCustomFields("for-pending=>firing=>keepfiring=>firing", defaultStep, 0, defaultStep, nil), [][]datasource.Metric{
 		{metricWithLabels(t, "name", "foo")},
@@ -300,7 +462,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 		1: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
 		2: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
 		3: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
-	})
+	}, nil)
 
 	f(newTestAlertingRuleWithCustomFields("for-pending=>firing=>keepfiring=>keepfiring=>inactive=>pending=>firing", defaultStep, 0, 2*defaultStep, nil), [][]datasource.Metric{
 		{metricWithLabels(t, "name", "foo")},
@@ -321,7 +483,7 @@ func TestAlertingRule_Exec(t *testing.T) {
 		4: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateInactive}}},
 		5: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StatePending}}},
 		6: {{labels: []string{"name", "foo"}, alert: &notifier.Alert{State: notifier.StateFiring}}},
-	})
+	}, nil)
 }
 
 func TestAlertingRuleExecRange(t *testing.T) {
@@ -477,7 +639,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		{Values: []float64{1, 1, 1}, Timestamps: []int64{1, 3, 5}},
 		{
 			Values: []float64{1, 1}, Timestamps: []int64{1, 5},
-			Labels: []datasource.Label{{Name: "foo", Value: "bar"}},
+			Labels: []prompbmarshal.Label{{Name: "foo", Value: "bar"}},
 		},
 	}, []*notifier.Alert{
 		{State: notifier.StatePending, ActiveAt: time.Unix(1, 0)},
@@ -523,7 +685,7 @@ func TestAlertingRuleExecRange(t *testing.T) {
 		{Values: []float64{1, 1}, Timestamps: []int64{1, 100}},
 		{
 			Values: []float64{1, 1}, Timestamps: []int64{1, 5},
-			Labels: []datasource.Label{{Name: "foo", Value: "bar"}},
+			Labels: []prompbmarshal.Label{{Name: "foo", Value: "bar"}},
 		},
 	}, []*notifier.Alert{
 		{
@@ -1047,7 +1209,7 @@ func newTestAlertingRuleWithCustomFields(name string, waitFor, evalInterval, kee
 
 func TestAlertingRule_ToLabels(t *testing.T) {
 	metric := datasource.Metric{
-		Labels: []datasource.Label{
+		Labels: []prompbmarshal.Label{
 			{Name: "instance", Value: "0.0.0.0:8800"},
 			{Name: "group", Value: "vmalert"},
 			{Name: "alertname", Value: "ConfigurationReloadFailure"},

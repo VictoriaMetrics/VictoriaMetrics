@@ -1,6 +1,26 @@
 ## Next release
 
-- TODO
+- `vmauthIngestGlobal` was changed to `write.global.vmauth`
+- `vmauthQueryGlobal` was changed to `read.global.vmauth`
+- `availabilityZones[*].allowIngest` was changed to `availabilityZones[*].write.allow`
+- `availabilityZones[*].allowRead` was changed to `availabilityZones[*].read.allow`
+- `availabilityZones[*].nodeSelector` was moved to `availabilityZones[*].common.spec.nodeSelector`
+- `availabilityZones[*].extraAffinity` was moved to `availabilityZones[*].common.spec.affinity`
+- `availabilityZones[*].topologySpreadConstraints` was moved to `availabilityZones[*].common.spec.topologySpreadConstraints`
+- `availabilityZones[*].vmauthIngest` was moved to `availabilityZones[*].write.vmauth`
+- `availabilityZones[*].vmauthQueryPerZone` was moved to `availabilityZones[*].read.perZone.vmauth`
+- `availabilityZones[*].vmauthCrossAZQuery` was moved to `availabilityZones[*].read.crossZone.vmauth`
+- set default DNS domain to `cluster.local.`
+- updated common dependency 0.0.19 -> 0.0.23
+
+## 0.4.2
+
+**Release date:** 2024-11-05
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- bump version of VM components to [v1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0)
 
 ## 0.4.1
 

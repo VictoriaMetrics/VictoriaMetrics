@@ -1463,9 +1463,7 @@ The list of discovered OpenStack targets is refreshed at the interval, which can
 
 ## ovhcloud_sd_configs
 
-_Available from [v1.104](https://docs.victoriametrics.com/changelog/#v11040) version._
-
-OVH Cloud SD configuration allows retrieving scrape targets from [OVH Cloud VPS](https://www.ovhcloud.com/en/vps/) 
+OVH Cloud SD configuration{{% available_from "v1.104.0" %}} allows retrieving scrape targets from [OVH Cloud VPS](https://www.ovhcloud.com/en/vps/) 
 and [OVH Cloud dedicated server](https://ovhcloud.com/en/bare-metal/).
 
 Configuration example:
@@ -1549,9 +1547,7 @@ The list of discovered OVH Cloud targets is refreshed at the interval, which can
 
 ## puppetdb_sd_configs
 
-_Available from [TODO](https://docs.victoriametrics.com/changelog/#TODO) version._
-
-PuppetDB SD configuration allows retrieving scrape targets from [PuppetDB](https://www.puppet.com/docs/puppetdb/8/overview.html) resources.
+PuppetDB SD configuration{{% available_from "v1.106.0" %}} allows retrieving scrape targets from [PuppetDB](https://www.puppet.com/docs/puppetdb/8/overview.html) resources.
 
 This SD discovers resources and will create a target for each resource returned by the API.
 

@@ -40,7 +40,7 @@ which aren't always backward compatible with [PromQL](https://prometheus.io/docs
 >by default, rules execution is sequential within one group, but persistence of execution results to remote storage is asynchronous. Hence, user shouldn’t rely on chaining of recording rules when result of previous recording rule is reused in the next one;
 
 For example, you have recording rule A and alerting rule B in the same group, and rule B's expression is based on A's results.
-Rule B won't get the latest data of A, since data didn't persist to remote storage yet. 
+Rule B won't get the latest data of A, since data didn't persist to remote storage yet.
 The workaround is to divide them in two groups and put groupA in front of groupB (or use `group_eval_order` to define the evaluation order).
 In this way, vmalert-tool makes sure that the results of groupA must be written to storage before evaluating groupB:
 
@@ -54,7 +54,7 @@ groups:
   rules:
   - alert: B
     expr: A >= 0.75
-    for: 1m 
+    for: 1m
 ```
 
 ### Test file format
@@ -84,7 +84,7 @@ tests:
 
 ```yaml
 # Interval between samples for input series
-interval: <duration>
+[ interval: <duration> | default = evaluation_interval ]
 # Time series to persist into the database according to configured <interval> before running tests.
 input_series:
   [ - <series> ]

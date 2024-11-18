@@ -1,6 +1,20 @@
 ## Next release
 
-- TODO
+- fix Deployment/StatefulSets when `serviceAccount.name` is empty and `serviceAccount.create: false`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1683).
+- set default DNS domain to `cluster.local.`
+- updated common dependency 0.0.19 -> 0.0.23
+- added back `crds.enabled: false` option, which disables CRD creation, but due to limitation of dependencies condition it allows to disable only in combination with `crds.plain: false`
+
+## 0.37.0
+
+**Release date:** 2024-11-05
+
+![AppVersion: v0.49.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.49.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Migrated to common templates
+- updates operator to [v0.49.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.0) version
+
 
 ## 0.36.0
 

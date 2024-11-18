@@ -530,10 +530,15 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 	srcSize := uint64(0)
 	srcRowsCount := uint64(0)
 	srcBlocksCount := uint64(0)
+	bloomValuesShardsCount := uint64(0)
 	for _, pw := range pws {
-		srcSize += pw.p.ph.CompressedSizeBytes
-		srcRowsCount += pw.p.ph.RowsCount
-		srcBlocksCount += pw.p.ph.BlocksCount
+		ph := &pw.p.ph
+		srcSize += ph.CompressedSizeBytes
+		srcRowsCount += ph.RowsCount
+		srcBlocksCount += ph.BlocksCount
+		if ph.BloomValuesFieldsCount > bloomValuesShardsCount {
+			bloomValuesShardsCount = ph.BloomValuesFieldsCount
+		}
 	}
 	bsw := getBlockStreamWriter()
 	var mpNew *inmemoryPart
@@ -542,7 +547,7 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 		bsw.MustInitForInmemoryPart(mpNew)
 	} else {
 		nocache := dstPartType == partBig
-		bsw.MustInitForFilePart(dstPartPath, nocache)
+		bsw.MustInitForFilePart(dstPartPath, nocache, bloomValuesShardsCount)
 	}
 
 	// Merge source parts to destination part.

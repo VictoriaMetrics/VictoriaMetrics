@@ -221,10 +221,6 @@ func (me *mathExpr) updateNeededFields(neededFields fieldsSet) {
 	}
 }
 
-func (pm *pipeMath) optimize() {
-	// nothing to do
-}
-
 func (pm *pipeMath) hasFilterInWithQuery() bool {
 	return false
 }

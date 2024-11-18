@@ -2,7 +2,66 @@
 
 ## Next release
 
+- Disabled impact of `<component>.name` on resource name to avoid confusion
+- Fixed `vm.app.name` template for appCtx that contains slice
+
+## 0.0.23
+
+**Release date:** 2024-11-08
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fix: context cleanup
+
+## 0.0.22
+
+**Release date:** 2024-11-08
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Removed unused cases from `vm.fullname`
+
+## 0.0.21
+
+**Release date:** 2024-11-07
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Added ability to disable name truncation
+- Truncate `/` from `vm.url` output
+
+## 0.0.20
+
+**Release date:** 2024-11-06
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Fixed boolean args rendering
+
+## 0.0.19
+
+**Release date:** 2024-11-04
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
 - TODO
+
+## 0.0.18
+
+**Release date:** 2024-10-29
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- vm.managed.fullname template modify prefixes
+
+## 0.0.17
+
+**Release date:** 2024-10-25
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Added vm.podLabels template
+- Do no append default `<component>` prefix/suffix when `<component>.fullnameOverride` set
 
 ## 0.0.16
 

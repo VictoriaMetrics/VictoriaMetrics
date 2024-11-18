@@ -86,5 +86,5 @@ func Init() (datasource.QuerierBuilder, error) {
 		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
 	c := &http.Client{Transport: tr}
-	return datasource.NewVMStorage(*addr, authCfg, 0, false, c), nil
+	return datasource.NewPrometheusClient(*addr, authCfg, false, c), nil
 }

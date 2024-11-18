@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.27.6](https://img.shields.io/badge/Version-0.27.6-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.28.3](https://img.shields.io/badge/Version-0.28.3-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-k8s-stack)
 
 Kubernetes monitoring on VictoriaMetrics stack. Includes VictoriaMetrics Operator, Grafana dashboards, ServiceScrapes and VMRules
@@ -134,7 +134,7 @@ data:
 grafana:
   sidecar:
     dashboards:
-      enabled: true
+      enabled: false
   dashboards:
     vmcluster:
       gnetId: 11176
@@ -526,6 +526,7 @@ externalURL: ""
 image:
     tag: v0.27.0
 port: "9093"
+replicaCount: 1
 routePrefix: /
 selectAllByDefault: true
 </code>
@@ -1248,12 +1249,43 @@ vmsingle:
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
 <code class="language-yaml">read:
     url: ""
+vmauth:
+    read:
+        - src_paths:
+            - /select/.*
+          url_prefix:
+            - /
+    write:
+        - src_paths:
+            - /insert/.*
+          url_prefix:
+            - /
 write:
     url: ""
 </code>
 </pre>
 </td>
       <td><p>External VM read and write URLs</p>
+</td>
+    </tr>
+    <tr>
+      <td>externalVM.vmauth</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">read:
+    - src_paths:
+        - /select/.*
+      url_prefix:
+        - /
+write:
+    - src_paths:
+        - /insert/.*
+      url_prefix:
+        - /
+</code>
+</pre>
+</td>
+      <td><p>Custom VMAuth config, url_prefix requires only path, which will be appended to a read and write base URL. To disable auth for read or write empty list for component config <code>externalVM.vmauth.&lt;component&gt;: []</code></p>
 </td>
     </tr>
     <tr>
@@ -1276,6 +1308,17 @@ write:
 </pre>
 </td>
       <td><p>Resource full name prefix override</p>
+</td>
+    </tr>
+    <tr>
+      <td>global.cluster.dnsDomain</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">cluster.local.
+</code>
+</pre>
+</td>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
@@ -2113,39 +2156,6 @@ selector:
 </td>
     </tr>
     <tr>
-      <td>serviceAccount.annotations</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">{}
-</code>
-</pre>
-</td>
-      <td><p>Annotations to add to the service account</p>
-</td>
-    </tr>
-    <tr>
-      <td>serviceAccount.create</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
-</code>
-</pre>
-</td>
-      <td><p>Specifies whether a service account should be created</p>
-</td>
-    </tr>
-    <tr>
-      <td>serviceAccount.name</td>
-      <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">""
-</code>
-</pre>
-</td>
-      <td><p>The name of the service account to use. If not set and create is true, a name is generated using the fullname template</p>
-</td>
-    </tr>
-    <tr>
       <td>tenant</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -2771,6 +2781,26 @@ vmstorage:
 </pre>
 </td>
       <td><p>Data retention period. Possible units character: h(ours), d(ays), w(eeks), y(ears), if no unit character specified - month. The minimum retention period is 24h. See these <a href="https://docs.victoriametrics.com/single-server-victoriametrics/#retention" target="_blank">docs</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>vmcluster.vmauth</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">vminsert:
+    - src_paths:
+        - /insert/.*
+      url_prefix:
+        - /
+vmselect:
+    - src_paths:
+        - /select/.*
+      url_prefix:
+        - /
+</code>
+</pre>
+</td>
+      <td><p>Custom VMAuth config, url_prefix requires only path, which will be appended to a select and insert base URL. To disable auth for vmselect or vminsert empty list for component config <code>vmcluster.vmauth.&lt;component&gt;: []</code></p>
 </td>
     </tr>
     <tr>

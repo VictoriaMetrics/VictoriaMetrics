@@ -575,6 +575,16 @@ generated metrics. But they still can be relabeled via `-remoteWrite.relabelConf
 VictoriaMetrics components support [Prometheus-compatible relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config)
 with [additional enhancements](#relabeling-enhancements). The relabeling can be defined in the following places processed by `vmagent`:
 
+* At the `global -> relabel_configs` section in `-promscrape.config` file{{% available_from "v1.106.0" %}}.
+  This relabeling is used for modifying labels in discovered targets and for dropping unneeded targets.
+  Configuration from global section will be prepended to the `relabel_config` of targets from `scrape_config` section.
+  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling/) for details.
+
+* At the `global -> metric_relabel_configs` section in `-promscrape.config` file{{% available_from "v1.106.0" %}}.
+  This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics.
+  Configuration from global section will be prepended to the `metric_relabel_config` of targets from `scrape_config` section.
+  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling/) for details.
+
 * At the `scrape_config -> relabel_configs` section in `-promscrape.config` file.
   This relabeling is used for modifying labels in discovered targets and for dropping unneeded targets.
   See [relabeling cookbook](https://docs.victoriametrics.com/relabeling/) for details.
@@ -1031,7 +1041,7 @@ When this limit is reached, `vmagent` drops the oldest data from disk in order t
 There are cases when it is better disabling on-disk persistence for pending data at `vmagent` side:
 
 - When the persistent disk performance isn't enough for the given data processing rate.
-- When it is better to buffer pending data at the client side instead of bufferring it at `vmagent` side in the `-remoteWrite.tmpDataPath` folder.
+- When it is better to buffer pending data at the client side instead of buffering it at `vmagent` side in the `-remoteWrite.tmpDataPath` folder.
 - When the data is already buffered at [Kafka side](#reading-metrics-from-kafka) or at [Google PubSub side](#reading-metrics-from-pubsub).
 - When it is better to drop pending data instead of buffering it.
 
@@ -1181,7 +1191,7 @@ If you have suggestions for improvements or have found a bug - please open an is
   Note that tracking each dropped target requires up to 10Kb of RAM. Therefore, big values for `-promscrape.maxDroppedTargets`
   may result in increased memory usage if a big number of scrape targets are dropped during relabeling.
 
-* It is recommended increaseing `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` [metric](#monitoring)
+* It is recommended increasing `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` [metric](#monitoring)
   grows constantly. It is also recommended increasing `-remoteWrite.maxBlockSize` and `-remoteWrite.maxRowsPerBlock` command-line flags in this case.
   This can improve data ingestion performance to the configured remote storage systems at the cost of higher memory usage.
 
@@ -2229,7 +2239,7 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.streamAggr.ignoreFirstIntervals array
-     Number of aggregation intervals to skip after the start for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. Increase this value if you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving bufferred delayed data from clients pushing data into the vmagent. See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start
+     Number of aggregation intervals to skip after the start for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. Increase this value if you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving buffered delayed data from clients pushing data into the vmagent. See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start
   -remoteWrite.streamAggr.ignoreOldSamples array
      Whether to ignore input samples with old timestamps outside the current aggregation interval for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples
      Supports array of values separated by comma or specified via multiple flags.
