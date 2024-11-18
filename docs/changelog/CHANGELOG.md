@@ -24,6 +24,8 @@ Released at 2024-11-15
 
 * SECURITY: upgrade Go builder from Go1.23.1 to Go1.23.3. See the list of issues addressed in [Go1.23.2](https://github.com/golang/go/issues?q=milestone%3AGo1.23.2+label%3ACherryPickApproved) and [Go1.23.3](https://github.com/golang/go/issues?q=milestone%3AGo1.23.3+label%3ACherryPickApproved).
 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): reduces memory and CPU usage for high volume of triggered alerting rules. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6894) for details.
+
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): drop rows that do not belong to the current series during import. The dropped rows should belong to another series whose tags are a superset of the current series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7301) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7330). Thanks to @dpedu for reporting and cooperating with the test.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): keep the order of resulting time series when `limit_offset` is applied. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7068).
 * BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): properly handle xFilesFactor=0 for `transformRemoveEmptySeries` function. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7337) for details.
@@ -34,6 +36,38 @@ Released at 2024-11-15
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Optimize resources usage for configured [downsampling](https://docs.victoriametrics.com/#downsampling) with time-series filter. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7440) for details.
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Properly return query results for search requests after index rotation. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7417) for details.
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Properly handle [multitenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) query request errors and correctly perform search for available tenants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
+
+## [v1.102.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.7)
+
+Released at 2024-11-15
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* SECURITY: upgrade Go builder from Go1.23.1 to Go1.23.3. See the list of issues addressed in [Go1.23.2](https://github.com/golang/go/issues?q=milestone%3AGo1.23.2+label%3ACherryPickApproved) and [Go1.23.3](https://github.com/golang/go/issues?q=milestone%3AGo1.23.3+label%3ACherryPickApproved).
+
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): drop rows that do not belong to the current series during import. The dropped rows should belong to another series whose tags are a superset of the current series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7301) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7330). Thanks to @dpedu for reporting and cooperating with the test.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): keep the order of resulting time series when `limit_offset` is applied. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7068).
+* BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): properly handle xFilesFactor=0 for `transformRemoveEmptySeries` function. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7337) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth): properly check availability of all the backends before giving up when proxying requests. Previously, vmauth could return an error even if there were healthy backends available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3061) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fixed unauthorized routing behavior inconsistency. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7543) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly inherit [`drop_src_path_prefix_parts`](https://docs.victoriametrics.com/vmauth/#dropping-request-path-prefix), [`load_balancing_policy`](https://docs.victoriametrics.com/vmauth/#high-availability), [`retry_status_codes`](https://docs.victoriametrics.com/vmauth/#load-balancing) and [`discover_backend_ips`](https://docs.victoriametrics.com/vmauth/#discovering-backend-ips) options by `url_map` entries if `url_prefix` option isn't set at the [user config level](https://docs.victoriametrics.com/vmauth/#auth-config). These options were inherited only when the `url_prefix` option was set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7519).
+* BUGFIX: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards): add `file` label filter to vmalert dashboard panels. Previously, metrics from groups with the same name but different rule files could be mixed in the results.
+
+## [v1.97.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.12)
+
+Released at 2024-11-15
+
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): drop rows that do not belong to the current series during import. The dropped rows should belong to another series whose tags are a superset of the current series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7301) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7330). Thanks to @dpedu for reporting and cooperating with the test.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): keep the order of resulting time series when `limit_offset` is applied. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7068).
+* BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): properly handle xFilesFactor=0 for `transformRemoveEmptySeries` function. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7337) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth): properly check availability of all the backends before giving up when proxying requests. Previously, vmauth could return an error even if there were healthy backends available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3061) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fixed unauthorized routing behavior inconsistency. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7543) for details.
 
 ## [v1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0)
 
