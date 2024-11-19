@@ -144,7 +144,7 @@ func (app *ServesMetrics) GetMetricsByPrefix(t *testing.T, prefix string) []floa
 
 		parts := strings.Split(metric, " ")
 		if len(parts) < 2 {
-			continue
+			t.Fatalf("unexpected record format: got %q, want metric name and value separated by a space", metric)
 		}
 
 		value, err := strconv.ParseFloat(parts[len(parts)-1], 64)
