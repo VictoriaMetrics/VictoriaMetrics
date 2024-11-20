@@ -510,7 +510,13 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		w.WriteHeader(http.StatusNoContent)
+		statusCode := http.StatusNoContent
+		if strings.HasPrefix(p.Suffix, "prometheus/api/v1/import/prometheus/metrics/job/") {
+			// Return 200 status code for pushgateway requests.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636
+			statusCode = http.StatusOK
+		}
+		w.WriteHeader(statusCode)
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "datadog/") {
