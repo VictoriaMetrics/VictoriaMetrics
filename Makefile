@@ -219,7 +219,7 @@ test-full-386:
 	DISABLE_FSYNC_FOR_TESTING=1 GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 integration-test: all
-	go test ./apptest/... -skip="^TestSingle.*" -v
+	go test ./apptest/... -skip="^TestSingle.*"
 
 benchmark:
 	go test -bench=. ./lib/...
