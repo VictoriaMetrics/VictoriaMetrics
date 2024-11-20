@@ -40,6 +40,7 @@ Released at 2024-11-15
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Optimize resources usage for configured [downsampling](https://docs.victoriametrics.com/#downsampling) with time-series filter. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7440) for details.
 * BUGFIX: `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Properly return query results for search requests after index rotation. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7417) for details.
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Properly handle [multitenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) query request errors and correctly perform search for available tenants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
+* BUGFIX: `vmagent`, `vminsert` and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fix a performance issue with tenant metrics counters across large numbers of tenants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7482) for details.
 
 ## [v1.102.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.7)
 
