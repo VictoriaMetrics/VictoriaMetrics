@@ -3,7 +3,9 @@ package apptest
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +23,20 @@ type PrometheusQuerier interface {
 type PrometheusWriter interface {
 	PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts)
 	PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
+}
+
+// StorageFlusher defines a method that forces the flushing of data inserted
+// into the storage, so it becomes available for searching immediately.
+type StorageFlusher interface {
+	ForceFlush(t *testing.T)
+}
+
+// PrometheusWriteQuerier encompasses the methods for writing, flushing and
+// querying the data.
+type PrometheusWriteQuerier interface {
+	PrometheusWriter
+	PrometheusQuerier
+	StorageFlusher
 }
 
 // QueryOpts contains various params used for querying or ingesting data
@@ -121,4 +137,20 @@ func NewPrometheusAPIV1SeriesResponse(t *testing.T, s string) *PrometheusAPIV1Se
 		t.Fatalf("could not unmarshal series response: %v", err)
 	}
 	return res
+}
+
+// Sort sorts the response data.
+func (r *PrometheusAPIV1SeriesResponse) Sort() {
+	str := func(m map[string]string) string {
+		s := []string{}
+		for k, v := range m {
+			s = append(s, k+v)
+		}
+		slices.Sort(s)
+		return strings.Join(s, "")
+	}
+
+	slices.SortFunc(r.Data, func(a, b map[string]string) int {
+		return strings.Compare(str(a), str(b))
+	})
 }

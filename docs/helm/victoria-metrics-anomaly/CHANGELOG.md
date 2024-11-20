@@ -1,5 +1,44 @@
 ## Next release
 
+- TODO
+
+## 1.6.7
+
+**Release date:** 2024-11-18
+
+![AppVersion: v1.18.4](https://img.shields.io/static/v1?label=AppVersion&message=v1.18.4&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Upgraded ['vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) to [1.18.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1184).
+- updated common dependency 0.0.23 -> 0.0.28
+
+## 1.6.6
+
+**Release date:** 2024-11-14
+
+![AppVersion: v1.18.3](https://img.shields.io/static/v1?label=AppVersion&message=v1.18.3&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Upgraded ['vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) to [1.18.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1183). This is a patch release that fixes a service crash during parallelized data processing with [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader).
+
+
+## 1.6.5
+
+**Release date:** 2024-11-13
+
+![AppVersion: v1.18.2](https://img.shields.io/static/v1?label=AppVersion&message=v1.18.2&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Upgraded [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) to [1.18.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1182)
+
+## 1.6.4
+
+**Release date:** 2024-11-12
+
+![AppVersion: v1.18.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.18.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Upgraded [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) to [1.18.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1181)
 - use common templates
 - set default DNS domain to `cluster.local.`
 - added podLabels and podAnnotations to add extra pod labels and annotations

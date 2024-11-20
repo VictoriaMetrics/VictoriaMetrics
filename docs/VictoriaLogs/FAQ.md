@@ -11,6 +11,11 @@ aliases:
 - /VictoriaLogs/FAQ.html
 - /VictoriaLogs/faq.html
 ---
+
+## Is VictoriaLogs ready for production use?
+
+Yes. VictoriaLogs is ready for production use starting from [v1.0.0](https://docs.victoriametrics.com/victorialogs/changelog/).
+
 ## What is the difference between VictoriaLogs and Elasticsearch (OpenSearch)?
 
 Both Elasticsearch and VictoriaLogs allow ingesting structured and unstructured logs
@@ -29,7 +34,7 @@ VictoriaLogs is optimized specifically for logs. So it provides the following fe
 - Easy to setup and operate. There is no need in tuning configuration for optimal performance or in creating any indexes for various log types.
   Just run VictoriaLogs on the most suitable hardware, ingest logs into it via [supported data ingestion protocols](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
   and get the best available performance out of the box.
-- Up to 30x less RAM usage than Elasticsearch for the same workload.
+- Up to 30x less RAM usage than Elasticsearch for the same workload. See [this article](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f) for details.
 - Up to 15x less disk space usage than Elasticsearch for the same amounts of stored logs.
 - Ability to work efficiently with hundreds of terabytes of logs on a single node.
 - Easy to use query language optimized for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).

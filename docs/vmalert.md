@@ -157,8 +157,8 @@ name: <string>
 # up group's evaluation duration (exposed via `vmalert_iteration_duration_seconds` metric).
 [ concurrency: <integer> | default = 1 ]
 
-# Optional type for expressions inside the rules. Supported values: "graphite" and "prometheus".
-# By default, "prometheus" type is used.
+# Optional type for expressions inside rules to override the `-rule.defaultRuleType(default is "prometheus")` cmd-line flag.
+# Supported values: "graphite", "prometheus" and "vlogs"(check https://docs.victoriametrics.com/victorialogs/vmalert/ for details).
 [ type: <string> ]
 
 # Optional
@@ -1052,7 +1052,7 @@ The shortlist of configuration flags is the following:
   -datasource.disableKeepAlive
      Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alive and will only use the connection to the server for a single HTTP request.
   -datasource.disableStepParam
-     Whether to disable adding 'step' param to the issued instant queries. This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. It is not recommended to enable this flag if you use vmalert with VictoriaMetrics.
+     Whether to disable adding 'step' param in instant queries to the configured -datasource.url and -remoteRead.url. Only valid for prometheus datasource. This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. It is not recommended to enable this flag if you use vmalert with VictoriaMetrics.
   -datasource.headers string
      Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.idleConnTimeout duration
@@ -1074,11 +1074,11 @@ The shortlist of configuration flags is the following:
   -datasource.oauth2.tokenUrl string
      Optional OAuth2 tokenURL to use for -datasource.url
   -datasource.queryStep duration
-     How far a value can fallback to when evaluating queries. For example, if -datasource.queryStep=15s then param "step" with value "15s" will be added to every query. If set to 0, rule's evaluation interval will be used instead. (default 5m0s)
+     How far a value can fallback to when evaluating queries to the configured -datasource.url and -remoteRead.url. Only valid for prometheus datasource. For example, if -datasource.queryStep=15s then param "step" with value "15s" will be added to every query. If set to 0, rule's evaluation interval will be used instead. (default 5m0s)
   -datasource.queryTimeAlignment
      Deprecated: please use "eval_alignment" in rule group instead. Whether to align "time" parameter with evaluation interval. Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. See more details at https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
-     Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
+     Adds "round_digits" GET param to datasource requests which limits the number of digits after the decimal point in response values. Only valid for VictoriaMetrics as the datasource.
   -datasource.showURL
      Whether to avoid stripping sensitive information such as auth headers or passwords from URLs in log messages or UI and exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -datasource.tlsCAFile string
@@ -1384,7 +1384,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.maxBatchSize int
      Defines max number of timeseries to be flushed at once (default 10000)
   -remoteWrite.maxQueueSize int
-     Defines the max number of pending datapoints to remote write endpoint (default 1000000)
+     Defines the max number of pending datapoints to remote write endpoint (default 100000)
   -remoteWrite.oauth2.clientID string
      Optional OAuth2 clientID to use for -remoteWrite.url
   -remoteWrite.oauth2.clientSecret string
