@@ -11,6 +11,11 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.18.4
+Released: 2024-11-18
+
+- IMPROVEMENT: Introduced [self-monitoring guide](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/) for `vmanomaly`. Added metrics for total RAM `vmanomaly_available_memory_bytes` and the number of logical CPU cores `vmanomaly_cpu_cores_available` to the [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly).
+
 ## v1.18.3
 Released: 2024-11-14
 

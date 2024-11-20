@@ -157,8 +157,8 @@ name: <string>
 # up group's evaluation duration (exposed via `vmalert_iteration_duration_seconds` metric).
 [ concurrency: <integer> | default = 1 ]
 
-# Optional type for expressions inside the rules. Supported values: "graphite" and "prometheus".
-# By default, "prometheus" type is used.
+# Optional type for expressions inside rules to override the `-rule.defaultRuleType(default is "prometheus")` cmd-line flag.
+# Supported values: "graphite", "prometheus" and "vlogs"(check https://docs.victoriametrics.com/victorialogs/vmalert/ for details).
 [ type: <string> ]
 
 # Optional
@@ -1384,7 +1384,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.maxBatchSize int
      Defines max number of timeseries to be flushed at once (default 10000)
   -remoteWrite.maxQueueSize int
-     Defines the max number of pending datapoints to remote write endpoint (default 1000000)
+     Defines the max number of pending datapoints to remote write endpoint (default 100000)
   -remoteWrite.oauth2.clientID string
      Optional OAuth2 clientID to use for -remoteWrite.url
   -remoteWrite.oauth2.clientSecret string
