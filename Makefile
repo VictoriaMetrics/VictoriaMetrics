@@ -528,7 +528,7 @@ test-full-386:
 	DISABLE_FSYNC_FOR_TESTING=1 GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 integration-test: victoria-metrics vmagent vmalert vmauth
-	go test ./apptest/... -skip="^TestCluster.*"
+	go test ./apptest/... -skip="^TestCluster.*" -v
 
 benchmark:
 	go test -bench=. ./lib/...

@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Vminsert holds the state of a vminsert app and provides vminsert-specific
@@ -55,10 +56,47 @@ func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, opts.Tenant)
+	wantRowsSentCount := app.rpcRowsSentTotal(t) + len(records)
 	app.cli.Post(t, url, "text/plain", strings.Join(records, "\n"), http.StatusNoContent)
+	app.waitUntilSent(t, wantRowsSentCount)
 }
 
 // String returns the string representation of the vminsert app state.
 func (app *Vminsert) String() string {
 	return fmt.Sprintf("{app: %s httpListenAddr: %q}", app.app, app.httpListenAddr)
+}
+
+// waitUntilSent waits until vminsert sends buffered data to vmstorage.
+//
+// Waiting is implemented a retrieving the value of `vm_rpc_rows_sent_total`
+// metric and checking whether it is equal or greater than the wanted value.
+// If it is, then the data has been sent to vmstorage.
+//
+// Unreliable if the records are inserted concurrently.
+func (app *Vminsert) waitUntilSent(t *testing.T, wantRowsSentCount int) {
+	t.Helper()
+
+	const (
+		retries = 20
+		period  = 100 * time.Millisecond
+	)
+
+	for range retries {
+		if app.rpcRowsSentTotal(t) >= wantRowsSentCount {
+			return
+		}
+		time.Sleep(period)
+	}
+	t.Fatalf("timed out while waiting for inserted rows to be sent to vmstorage")
+}
+
+// rpcRowsSentTotal retrieves the values of all vminsert
+// `vm_rpc_rows_sent_total` metrics (there will be one for each vmstorage) and
+// returns their integer sum.
+func (app *Vminsert) rpcRowsSentTotal(t *testing.T) int {
+	total := 0.0
+	for _, v := range app.GetMetricsByPrefix(t, "vm_rpc_rows_sent_total") {
+		total += v
+	}
+	return int(total)
 }
