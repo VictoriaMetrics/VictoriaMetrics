@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 // PrometheusQuerier contains methods available to Prometheus-like HTTP API for Querying
@@ -17,6 +19,7 @@ type PrometheusQuerier interface {
 
 // PrometheusWriter contains methods available to Prometheus-like HTTP API for Writing new data
 type PrometheusWriter interface {
+	PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts)
 	PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts)
 }
 

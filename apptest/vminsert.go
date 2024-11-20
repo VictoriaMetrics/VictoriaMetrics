@@ -6,6 +6,9 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/golang/snappy"
 )
 
 // Vminsert holds the state of a vminsert app and provides vminsert-specific
@@ -45,6 +48,18 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 	}, nil
 }
 
+// PrometheusAPIV1Write is a test helper function that inserts a
+// collection of records in Prometheus remote-write format by sending a HTTP
+// POST request to /prometheus/api/v1/write vminsert endpoint.
+func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/write", app.httpListenAddr, opts.Tenant)
+	wr := pb.WriteRequest{Timeseries: records}
+	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
+	app.cli.Post(t, url, "application/x-protobuf", data, http.StatusNoContent)
+}
+
 // PrometheusAPIV1ImportPrometheus is a test helper function that inserts a
 // collection of records in Prometheus text exposition format for the given
 // tenant by sending a HTTP POST request to
@@ -55,7 +70,8 @@ func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, opts.Tenant)
-	app.cli.Post(t, url, "text/plain", strings.Join(records, "\n"), http.StatusNoContent)
+	data := []byte(strings.Join(records, "\n"))
+	app.cli.Post(t, url, "text/plain", data, http.StatusNoContent)
 }
 
 // String returns the string representation of the vminsert app state.
