@@ -1888,6 +1888,8 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 	}
 	// Send the query to all the storage nodes in parallel.
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any {
+		// Use a separate variable for each goroutine
+		var err error
 		res := execSearchQuery(qt, sq, func(qt *querytracer.Tracer, rd []byte, _ storage.TenantToken) any {
 			sn.searchRequests.Inc()
 			err = sn.processSearchQuery(qt, rd, f, workerID, deadline)
