@@ -2,7 +2,6 @@ package tests
 
 import (
 	"testing"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
@@ -29,67 +28,41 @@ var docData = []string{
 }
 
 // TestSingleKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
+// for vm-single.
 func TestSingleKeyConceptsQuery(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	vmsingle := tc.MustStartVmsingle("vmsingle", []string{
+	sut := tc.MustStartVmsingle("vmsingle", []string{
 		"-storageDataPath=" + tc.Dir() + "/vmstorage",
 		"-retentionPeriod=100y",
 	})
 
-	opts := apptest.QueryOpts{Timeout: "5s"}
-
-	// Insert example data from documentation.
-	vmsingle.PrometheusAPIV1ImportPrometheus(t, docData, opts)
-	vmsingle.ForceFlush(t)
-
-	testInstantQuery(t, vmsingle, opts)
-	testRangeQuery(t, vmsingle, opts)
-	testRangeQueryIsEquivalentToManyInstantQueries(t, vmsingle, opts)
+	testKeyConceptsQueryData(t, sut)
 }
 
-// TestClusterKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
-func TestClusterKeyConceptsQuery(t *testing.T) {
+// TestClusterKeyConceptsQueryData verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
+// for vm-cluster.
+func TestClusterKeyConceptsQueryData(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	// Set up the following cluster configuration:
-	//
-	// - two vmstorage instances
-	// - vminsert points to the two vmstorages, its replication setting
-	//   is off which means it will only shard the incoming data across the two
-	//   vmstorages.
-	// - vmselect points to the two vmstorages and is expected to query both
-	//   vmstorages and build the full result out of the two partial results.
+	sut := tc.MustStartCluster()
 
-	vmstorage1 := tc.MustStartVmstorage("vmstorage-1", []string{
-		"-storageDataPath=" + tc.Dir() + "/vmstorage-1",
-		"-retentionPeriod=100y",
-	})
-	vmstorage2 := tc.MustStartVmstorage("vmstorage-2", []string{
-		"-storageDataPath=" + tc.Dir() + "/vmstorage-2",
-		"-retentionPeriod=100y",
-	})
-	vminsert := tc.MustStartVminsert("vminsert", []string{
-		"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
-	})
-	vmselect := tc.MustStartVmselect("vmselect", []string{
-		"-storageNode=" + vmstorage1.VmselectAddr() + "," + vmstorage2.VmselectAddr(),
-	})
+	testKeyConceptsQueryData(t, sut)
+}
 
+// testClusterKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
+func testKeyConceptsQueryData(t *testing.T, sut apptest.PrometheusWriteQuerier) {
 	opts := apptest.QueryOpts{Timeout: "5s", Tenant: "0"}
 
 	// Insert example data from documentation.
-	vminsert.PrometheusAPIV1ImportPrometheus(t, docData, opts)
-	time.Sleep(2 * time.Second)
+	sut.PrometheusAPIV1ImportPrometheus(t, docData, opts)
+	sut.ForceFlush(t)
 
-	vmstorage1.ForceFlush(t)
-	vmstorage2.ForceFlush(t)
-
-	testInstantQuery(t, vmselect, opts)
-	testRangeQuery(t, vmselect, opts)
-	testRangeQueryIsEquivalentToManyInstantQueries(t, vmselect, opts)
+	testInstantQuery(t, sut, opts)
+	testRangeQuery(t, sut, opts)
+	testRangeQueryIsEquivalentToManyInstantQueries(t, sut, opts)
 }
 
 // testInstantQuery verifies the statements made in the `Instant query` section
