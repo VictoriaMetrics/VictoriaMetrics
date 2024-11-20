@@ -51,7 +51,7 @@ var (
 
 const (
 	testStoragePath = "vmalert-unittest"
-	testLogLevel    = "ERROR"
+	testLogLevel    = "WARN"
 )
 
 // UnitTest runs unittest for files
