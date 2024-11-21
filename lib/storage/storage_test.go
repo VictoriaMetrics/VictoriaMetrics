@@ -491,6 +491,7 @@ func TestNextRetentionDeadlineSeconds(t *testing.T) {
 
 	// The test cases below confirm that it is possible to pick a retention
 	// period such that the previous IndexDB may be removed earlier than it should be.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7609
 
 	// Cluster is configured with 12 month retentionPeriod on 2023-01-01.
 	f("2023-01-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
