@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- fixed multiple ingress rendering. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1777)
 
 ## 0.7.7
 

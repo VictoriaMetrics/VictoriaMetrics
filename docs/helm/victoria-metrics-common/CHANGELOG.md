@@ -2,7 +2,7 @@
 
 ## Next release
 
-- TODO
+- support template rendering in `vm.app.name` template
 
 ## 0.0.29
 
