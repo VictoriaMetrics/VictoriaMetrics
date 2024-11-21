@@ -18,6 +18,33 @@ import Hyperlink from "../../components/Main/Hyperlink/Hyperlink";
 import { CloseIcon } from "../../components/Main/Icons";
 import Button from "../../components/Main/Button/Button";
 
+const RawSamplesLink = () => (
+  <Hyperlink
+    href="https://docs.victoriametrics.com/keyconcepts/#raw-samples"
+    underlined
+  >
+    raw samples
+  </Hyperlink>
+);
+
+const QueryDataLink = () => (
+  <Hyperlink
+    underlined
+    href="https://docs.victoriametrics.com/keyconcepts/#query-data"
+  >
+    Query API
+  </Hyperlink>
+);
+
+const TimeSeriesSelectorLink = () => (
+  <Hyperlink
+    underlined
+    href="https://docs.victoriametrics.com/keyconcepts/#filtering"
+  >
+    time series selector
+  </Hyperlink>
+);
+
 const RawQueryPage: FC = () => {
   useSetQueryParams();
   const { isMobile } = useDeviceDetect();
@@ -37,7 +64,7 @@ const RawQueryPage: FC = () => {
     warning,
     queryErrors,
     setQueryErrors,
-    abortFetch
+    abortFetch,
   } = useFetchExport({ hideQuery, showAllSeries });
 
   const controlsRef = useRef<HTMLDivElement>(null);
@@ -80,12 +107,10 @@ const RawQueryPage: FC = () => {
         <Alert variant="info">
           <div className="vm-explore-metrics-header-description">
             <p>
-              This page provides a dedicated view for querying and displaying raw samples from VictoriaMetrics.
-              Users often assume that the <Hyperlink
-                underlined
-                href="https://docs.victoriametrics.com/keyconcepts/#query-data"
-              >Query
-              API</Hyperlink> returns data exactly as stored, but data samples and timestamps may be modified by the API.
+              This page provides a dedicated view for querying and displaying <RawSamplesLink/> from VictoriaMetrics.
+              It expects only <TimeSeriesSelectorLink/> as a query argument.
+              Users often assume that the <QueryDataLink/> returns data exactly as stored,
+              but data samples and timestamps may be modified by the API.
             </p>
             <Button
               variant="text"

@@ -205,7 +205,7 @@ const filterPoints = (self: uPlot, seriesIdx: number): number[] | null => {
     }
   }
 
-  return indices.length > 0 ? indices : null;
+  return indices;
 };
 
 type GetStrokeSeriesArgs = {

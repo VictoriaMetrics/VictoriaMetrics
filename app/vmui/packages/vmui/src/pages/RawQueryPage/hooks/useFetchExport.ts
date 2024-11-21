@@ -74,7 +74,6 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
     try {
       const tempData: MetricBase[] = [];
       const seriesLimit = showAllSeries ? Infinity : +stateSeriesLimits[displayType] || Infinity;
-      console.log(+stateSeriesLimits[displayType]);
       let counter = 1;
       let totalLength = 0;
 
