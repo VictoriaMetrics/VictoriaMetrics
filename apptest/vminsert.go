@@ -7,6 +7,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/golang/snappy"
 )
 
 // Vminsert holds the state of a vminsert app and provides vminsert-specific
@@ -46,6 +49,20 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 	}, nil
 }
 
+// PrometheusAPIV1Write is a test helper function that inserts a
+// collection of records in Prometheus remote-write format by sending a HTTP
+// POST request to /prometheus/api/v1/write vminsert endpoint.
+func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/write", app.httpListenAddr, opts.Tenant)
+	wr := pb.WriteRequest{Timeseries: records}
+	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
+	app.sendBlocking(t, len(records), func() {
+		app.cli.Post(t, url, "application/x-protobuf", data, http.StatusNoContent)
+	})
+}
+
 // PrometheusAPIV1ImportPrometheus is a test helper function that inserts a
 // collection of records in Prometheus text exposition format for the given
 // tenant by sending a HTTP POST request to
@@ -56,9 +73,10 @@ func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 	t.Helper()
 
 	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, opts.Tenant)
-	wantRowsSentCount := app.rpcRowsSentTotal(t) + len(records)
-	app.cli.Post(t, url, "text/plain", strings.Join(records, "\n"), http.StatusNoContent)
-	app.waitUntilSent(t, wantRowsSentCount)
+	data := []byte(strings.Join(records, "\n"))
+	app.sendBlocking(t, len(records), func() {
+		app.cli.Post(t, url, "text/plain", data, http.StatusNoContent)
+	})
 }
 
 // String returns the string representation of the vminsert app state.
@@ -66,21 +84,29 @@ func (app *Vminsert) String() string {
 	return fmt.Sprintf("{app: %s httpListenAddr: %q}", app.app, app.httpListenAddr)
 }
 
-// waitUntilSent waits until vminsert sends buffered data to vmstorage.
+// sendBlocking sends the data to vmstorage by executing `send` function and
+// waits until the data is actually sent.
+//
+// vminsert does not send the data immediately. It first puts the data into a
+// buffer. Then a background goroutine takes the data from the buffer sends it
+// to the vmstorage. This happens every 200ms.
 //
 // Waiting is implemented a retrieving the value of `vm_rpc_rows_sent_total`
 // metric and checking whether it is equal or greater than the wanted value.
 // If it is, then the data has been sent to vmstorage.
 //
 // Unreliable if the records are inserted concurrently.
-func (app *Vminsert) waitUntilSent(t *testing.T, wantRowsSentCount int) {
+// TODO(rtm0): Put sending and waiting into a critical section to make reliable?
+func (app *Vminsert) sendBlocking(t *testing.T, numRecordsToSend int, send func()) {
 	t.Helper()
+
+	send()
 
 	const (
 		retries = 20
 		period  = 100 * time.Millisecond
 	)
-
+	wantRowsSentCount := app.rpcRowsSentTotal(t) + numRecordsToSend
 	for range retries {
 		if app.rpcRowsSentTotal(t) >= wantRowsSentCount {
 			return

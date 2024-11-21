@@ -55,9 +55,28 @@ func (app *Vmselect) ClusternativeListenAddr() string {
 	return app.clusternativeListenAddr
 }
 
+// PrometheusAPIV1Export is a test helper function that performs the export of
+// raw samples in JSON line format by sending a HTTP POST request to
+// /prometheus/api/v1/export vmselect endpoint.
+//
+// See https://docs.victoriametrics.com/url-examples/#apiv1export
+func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query, start, end string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
+	t.Helper()
+
+	exportURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/export", app.httpListenAddr, opts.Tenant)
+	values := url.Values{}
+	values.Add("match[]", query)
+	values.Add("start", start)
+	values.Add("end", end)
+	values.Add("timeout", opts.Timeout)
+	values.Add("format", "promapi")
+	res := app.cli.PostForm(t, exportURL, values, http.StatusOK)
+	return NewPrometheusAPIV1QueryResponse(t, res)
+}
+
 // PrometheusAPIV1Query is a test helper function that performs PromQL/MetricsQL
 // instant query by sending a HTTP POST request to /prometheus/api/v1/query
-// vmsingle endpoint.
+// vmselect endpoint.
 //
 // See https://docs.victoriametrics.com/url-examples/#apiv1query
 func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query, time, step string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
@@ -75,7 +94,7 @@ func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query, time, step string
 
 // PrometheusAPIV1QueryRange is a test helper function that performs
 // PromQL/MetricsQL range query by sending a HTTP POST request to
-// /prometheus/api/v1/query_range vmsingle endpoint.
+// /prometheus/api/v1/query_range vmselect endpoint.
 //
 // See https://docs.victoriametrics.com/url-examples/#apiv1query_range
 func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, query, start, end, step string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
