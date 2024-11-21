@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): Properly return `200 OK` HTTP status code when importing data via [Pushgateway protocol](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format) using [multitenant URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7571).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return result for binary operation `^` aka pow at query requests for `NaN` values. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7359) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix rendering of isolated data points on the graph that are not connected to other points.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): fix alert states restoration when the alert got resolved shortly before the vmalert process shuts down. Previously, this could result in false alerts.
 
 ## [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1)
 
