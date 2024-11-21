@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- Removed unsupported selectNodes SRV discovery
 
 ## 0.14.12
 
