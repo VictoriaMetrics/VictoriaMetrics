@@ -347,7 +347,10 @@ tag: v0.25.0
       <td>alertmanager.ingress.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: alertmanager.local
+  path:
+    - /
+  port: web
 </code>
 </pre>
 </td>
@@ -1177,7 +1180,10 @@ variant: ""
       <td>server.ingress.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: vmalert.local
+  path:
+    - /
+  port: http
 </code>
 </pre>
 </td>
