@@ -263,7 +263,7 @@ Change the values according to the need of the environment in ``victoria-logs-si
 </td>
     </tr>
     <tr>
-      <td>global.nameOverride</td>
+      <td>nameOverride</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
 <code class="language-yaml">""

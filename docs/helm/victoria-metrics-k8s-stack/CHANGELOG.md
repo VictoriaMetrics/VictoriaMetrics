@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- Fixed ability to override CR names using `<component>.name`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1778)
 
 ## 0.28.4
 
