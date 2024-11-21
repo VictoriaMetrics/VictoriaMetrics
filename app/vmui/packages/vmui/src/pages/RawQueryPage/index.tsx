@@ -80,7 +80,7 @@ const RawQueryPage: FC = () => {
         <Alert variant="info">
           <div className="vm-explore-metrics-header-description">
             <p>
-              This page provides a dedicated view for querying and displaying raw data directly from VictoriaMetrics.
+              This page provides a dedicated view for querying and displaying raw samples from VictoriaMetrics.
               Users often assume that the <Hyperlink
                 underlined
                 href="https://docs.victoriametrics.com/keyconcepts/#query-data"
