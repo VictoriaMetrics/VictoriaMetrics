@@ -2,6 +2,14 @@
 
 ## Next release
 
+- fixed minor typo in vm.labels
+
+## 0.0.30
+
+**Release date:** 2024-11-21
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
 - support template rendering in `vm.app.name` template
 
 ## 0.0.29
