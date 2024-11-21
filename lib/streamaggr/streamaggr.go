@@ -489,7 +489,7 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 	}
 
 	// check cfg.IgnoreFirstSampleInterval
-	// it's by default equals staleness interval to have backward compatibility, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7116
+	// by default, it equals to the staleness interval to have backward compatibility, see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7116
 	ignoreFirstSampleInterval := stalenessInterval
 	if cfg.IgnoreFirstSampleInterval != "" {
 		ignoreFirstSampleInterval, err = time.ParseDuration(cfg.IgnoreFirstSampleInterval)

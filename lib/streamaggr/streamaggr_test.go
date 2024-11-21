@@ -75,35 +75,42 @@ func TestAggregatorsFailure(t *testing.T) {
 	f(`
 - interval: 1m
   dedup_interval: 1foo
-  outputs: ["avg"]
+  outputs: ["quantiles"]
 `)
 
 	// interval isn't multiple of dedup_interval
 	f(`
 - interval: 1m
   dedup_interval: 35s
-  outputs: ["avg"]
+  outputs: ["quantiles"]
 `)
 
 	// dedup_interval is bigger than dedup_interval
 	f(`
 - interval: 1m
   dedup_interval: 1h
-  outputs: ["avg"]
+  outputs: ["quantiles"]
 `)
 
 	// bad staleness_interval
 	f(`
 - interval: 1m
   staleness_interval: 1foo
-  outputs: ["avg"]
+  outputs: ["quantiles"]
 `)
 
 	// staleness_interval should be > interval
 	f(`
 - interval: 1m
   staleness_interval: 30s
-  outputs: ["avg"]
+  outputs: ["quantiles"]
+`)
+
+	// staleness_interval should be multiple of interval
+	f(`
+- interval: 1m
+  staleness_interval: 100s
+  outputs: ["quantiles"]
 `)
 
 	// keep_metric_names is set for multiple inputs
