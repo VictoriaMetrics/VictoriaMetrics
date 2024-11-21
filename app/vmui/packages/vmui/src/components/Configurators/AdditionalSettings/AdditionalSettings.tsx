@@ -81,7 +81,7 @@ const AdditionalSettingsControls: FC<Props & {isMobile?: boolean}> = ({ isMobile
       )}
       {!hideButtons?.reduceMemUsage && (
         <Switch
-          label={"Disable deduplication feature"}
+          label={"Disable deduplication"}
           value={reduceMemUsage}
           onChange={onChangeReduceMemUsage}
           fullWidth={isMobile}
