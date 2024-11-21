@@ -104,4 +104,16 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
+
+	// Verify that exported data contains stale NaN.
+
+	got = sut.PrometheusAPIV1Export(t, `{__name__="metric"}`, "2024-01-01T00:01:00.000Z", "2024-01-01T00:02:00.000Z", opts)
+	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
+	s = make([]*apptest.Sample, 2)
+	s[0] = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
+	s[1] = apptest.NewSample(t, "2024-01-01T00:02:00Z", decimal.StaleNaN)
+	want.Data.Result[0].Samples = s
+	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
 }

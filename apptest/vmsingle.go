@@ -31,6 +31,7 @@ type Vmsingle struct {
 	prometheusAPIV1WriteURL            string
 
 	// vmselect URLs.
+	prometheusAPIV1ExportURL     string
 	prometheusAPIV1QueryURL      string
 	prometheusAPIV1QueryRangeURL string
 	prometheusAPIV1SeriesURL     string
@@ -66,6 +67,7 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 		forceFlushURL:                      fmt.Sprintf("http://%s/internal/force_flush", stderrExtracts[1]),
 		prometheusAPIV1ImportPrometheusURL: fmt.Sprintf("http://%s/prometheus/api/v1/import/prometheus", stderrExtracts[1]),
 		prometheusAPIV1WriteURL:            fmt.Sprintf("http://%s/prometheus/api/v1/write", stderrExtracts[1]),
+		prometheusAPIV1ExportURL:           fmt.Sprintf("http://%s/prometheus/api/v1/export", stderrExtracts[1]),
 		prometheusAPIV1QueryURL:            fmt.Sprintf("http://%s/prometheus/api/v1/query", stderrExtracts[1]),
 		prometheusAPIV1QueryRangeURL:       fmt.Sprintf("http://%s/prometheus/api/v1/query_range", stderrExtracts[1]),
 		prometheusAPIV1SeriesURL:           fmt.Sprintf("http://%s/prometheus/api/v1/series", stderrExtracts[1]),
@@ -101,6 +103,24 @@ func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 
 	data := []byte(strings.Join(records, "\n"))
 	app.cli.Post(t, app.prometheusAPIV1ImportPrometheusURL, "text/plain", data, http.StatusNoContent)
+}
+
+// PrometheusAPIV1Export is a test helper function that performs the export of
+// raw samples in JSON line format by sending a HTTP POST request to
+// /prometheus/api/v1/export vmsingle endpoint.
+//
+// See https://docs.victoriametrics.com/url-examples/#apiv1export
+func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query, start, end string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
+	t.Helper()
+
+	values := url.Values{}
+	values.Add("match[]", query)
+	values.Add("start", start)
+	values.Add("end", end)
+	values.Add("timeout", opts.Timeout)
+	values.Add("format", "promapi")
+	res := app.cli.PostForm(t, app.prometheusAPIV1ExportURL, values, http.StatusOK)
+	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
 // PrometheusAPIV1Query is a test helper function that performs PromQL/MetricsQL

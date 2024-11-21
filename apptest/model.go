@@ -14,6 +14,7 @@ import (
 
 // PrometheusQuerier contains methods available to Prometheus-like HTTP API for Querying
 type PrometheusQuerier interface {
+	PrometheusAPIV1Export(t *testing.T, query, start, end string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1Query(t *testing.T, query, time, step string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1QueryRange(t *testing.T, query, start, end, step string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
