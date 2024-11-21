@@ -54,6 +54,17 @@ func (tc *TestCase) Stop() {
 	}
 }
 
+// MustStartDefaultVmsingle is a test helper function that starts an instance of
+// vmsingle with defaults suitable for most tests.
+func (tc *TestCase) MustStartDefaultVmsingle() *Vmsingle {
+	tc.t.Helper()
+
+	return tc.MustStartVmsingle("vmsingle", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmsingle",
+		"-retentionPeriod=100y",
+	})
+}
+
 // MustStartVmsingle is a test helper function that starts an instance of
 // vmsingle and fails the test if the app fails to start.
 func (tc *TestCase) MustStartVmsingle(instance string, flags []string) *Vmsingle {
@@ -118,7 +129,8 @@ func (c *vmcluster) ForceFlush(t *testing.T) {
 	}
 }
 
-// MustStartCluster is a typical cluster configuration.
+// MustStartDefaultCluster is a typical cluster configuration suitable for most
+// tests.
 //
 // The cluster consists of two vmstorages, one vminsert and one vmselect, no
 // data replication.
@@ -128,7 +140,7 @@ func (c *vmcluster) ForceFlush(t *testing.T) {
 // vmselect) but instead just need a typical cluster configuration to verify
 // some business logic (such as API surface, or MetricsQL). Such cluster
 // tests usually come paired with corresponding vmsingle tests.
-func (tc *TestCase) MustStartCluster() PrometheusWriteQuerier {
+func (tc *TestCase) MustStartDefaultCluster() PrometheusWriteQuerier {
 	tc.t.Helper()
 
 	vmstorage1 := tc.MustStartVmstorage("vmstorage-1", []string{

@@ -33,10 +33,7 @@ func TestSingleKeyConceptsQuery(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	sut := tc.MustStartVmsingle("vmsingle", []string{
-		"-storageDataPath=" + tc.Dir() + "/vmstorage",
-		"-retentionPeriod=100y",
-	})
+	sut := tc.MustStartDefaultVmsingle()
 
 	testKeyConceptsQueryData(t, sut)
 }
@@ -47,7 +44,7 @@ func TestClusterKeyConceptsQueryData(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	sut := tc.MustStartCluster()
+	sut := tc.MustStartDefaultCluster()
 
 	testKeyConceptsQueryData(t, sut)
 }
