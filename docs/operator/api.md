@@ -1963,6 +1963,30 @@ _Appears in:_
 | `urls` | URLs allows setting multiple urls for load-balancing at vmauth-side. | _string array_ | false |
 
 
+#### StatusMetadata
+
+
+
+StatusMetadata holds metadata of application update status
+
+
+
+_Appears in:_
+- [VLogsStatus](#vlogsstatus)
+- [VMAgentStatus](#vmagentstatus)
+- [VMAlertStatus](#vmalertstatus)
+- [VMAlertmanagerStatus](#vmalertmanagerstatus)
+- [VMAuthStatus](#vmauthstatus)
+- [VMClusterStatus](#vmclusterstatus)
+- [VMSingleStatus](#vmsinglestatus)
+
+| Field | Description | Scheme | Required |
+| --- | --- | --- | --- |
+| `observedGeneration` | ObservedGeneration defines current generation picked by operator for the<br />reconcile | _integer_ | true |
+| `reason` | Reason defines fail reason for reconcile process | _string_ | true |
+| `updateStatus` | UpdateStatus defines a status for update rollout | _[UpdateStatus](#updatestatus)_ | true |
+
+
 #### StorageSpec
 
 
@@ -2368,6 +2392,8 @@ UpdateStatus defines status for application
 
 
 _Appears in:_
+- [StatusMetadata](#statusmetadata)
+- [VLogsStatus](#vlogsstatus)
 - [VMAgentStatus](#vmagentstatus)
 - [VMAlertStatus](#vmalertstatus)
 - [VMAlertmanagerStatus](#vmalertmanagerstatus)
@@ -2407,6 +2433,7 @@ _Appears in:_
 
 
 
+VLogs is fast, cost-effective and scalable logs database.
 VLogs is the Schema for the vlogs API
 
 
