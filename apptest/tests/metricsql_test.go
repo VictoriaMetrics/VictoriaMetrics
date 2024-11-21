@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -11,56 +12,95 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
+func millis(s string) int64 {
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		panic(fmt.Sprintf("could not parse time %q: %v", s, err))
+	}
+	return t.UnixMilli()
+}
+
 var staleNaNsData = func() []pb.TimeSeries {
-	ts1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
-	ts2 := time.Date(2024, 1, 1, 0, 1, 0, 0, time.UTC).UnixMilli()
 	return []pb.TimeSeries{
 		{
-			Labels: []pb.Label{{"__name__", "metric"}},
+			Labels: []pb.Label{
+				{
+					Name:  "__name__",
+					Value: "metric",
+				},
+			},
 			Samples: []pb.Sample{
-				{1.0, ts1},
-				{decimal.StaleNaN, ts2}},
+				{
+					Value:     1,
+					Timestamp: millis("2024-01-01T00:01:00Z"),
+				},
+				{
+					Value:     decimal.StaleNaN,
+					Timestamp: millis("2024-01-01T00:02:00Z"),
+				},
+			},
 		},
 	}
 }()
 
-func TestSingleInstantQueryStaleNaNs(t *testing.T) {
+func TestSingleInstantQueryDoesNotReturnStaleNaNs(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	sut := tc.MustStartVmsingle("vmsingle", []string{
-		"-storageDataPath=" + tc.Dir() + "/vmstorage",
-		"-retentionPeriod=100y",
-	})
+	sut := tc.MustStartDefaultVmsingle()
 
-	testInstantQueryStaleNaNs(t, sut)
+	testInstantQueryDoesNotReturnStaleNaNs(t, sut)
 }
 
-func TestClusterInstantQueryStaleNaNs(t *testing.T) {
+func TestClusterInstantQueryDoesNotReturnStaleNaNs(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	sut := tc.MustStartCluster()
+	sut := tc.MustStartDefaultCluster()
 
-	testInstantQueryStaleNaNs(t, sut)
+	testInstantQueryDoesNotReturnStaleNaNs(t, sut)
 }
 
-func testInstantQueryStaleNaNs(t *testing.T, sut apptest.PrometheusWriteQuerier) {
+func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.PrometheusWriteQuerier) {
 	opts := apptest.QueryOpts{Timeout: "5s", Tenant: "0"}
 
 	sut.PrometheusAPIV1Write(t, staleNaNsData, opts)
 	sut.ForceFlush(t)
 
-	got := sut.PrometheusAPIV1Query(t, "metric[5m]", "2024-01-01T00:04:00.000Z", "5m", opts)
-	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
-	s := make([]*apptest.Sample, 2)
-	s[0] = apptest.NewSample(t, "2024-01-01T00:00:00Z", 1.0)
-	s[1] = apptest.NewSample(t, "2024-01-01T00:01:00Z", decimal.StaleNaN)
-	want.Data.Result[0].Samples = s
+	var got, want *apptest.PrometheusAPIV1QueryResponse
 	cmpOptions := []cmp.Option{
 		cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
 		cmpopts.EquateNaNs(),
 	}
+
+	// Verify that instant query returns the first point.
+
+	got = sut.PrometheusAPIV1Query(t, "metric", "2024-01-01T00:01:00.000Z", "5m", opts)
+	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}}]}}`)
+	want.Data.Result[0].Sample = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
+	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
+	// Verify that instant query does not return stale NaN.
+
+	got = sut.PrometheusAPIV1Query(t, "metric", "2024-01-01T00:02:00.000Z", "5m", opts)
+	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": []}}`)
+	// Empty response, stale NaN is not included into response
+	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
+	// Verify that instant query with default rollup function returns stale NaN
+	// while it must not.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5806
+
+	got = sut.PrometheusAPIV1Query(t, "metric[2m]", "2024-01-01T00:02:00.000Z", "5m", opts)
+	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
+	s := make([]*apptest.Sample, 2)
+	s[0] = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
+	s[1] = apptest.NewSample(t, "2024-01-01T00:02:00Z", decimal.StaleNaN)
+	want.Data.Result[0].Samples = s
 	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
