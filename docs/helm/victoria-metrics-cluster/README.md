@@ -635,7 +635,10 @@ loggerFormat: json
       <td>vmauth.ingress.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: vmauth.local
+  path:
+    - /insert
+  port: http
 </code>
 </pre>
 </td>
@@ -1427,7 +1430,10 @@ loggerFormat: json
       <td>vminsert.ingress.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: vminsert.local
+  path:
+    - /insert
+  port: http
 </code>
 </pre>
 </td>
@@ -2275,7 +2281,10 @@ loggerFormat: json
       <td>vmselect.ingress.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: vmselect.local
+  path:
+    - /select
+  port: http
 </code>
 </pre>
 </td>

@@ -1,4 +1,4 @@
-![Type: library](https://img.shields.io/badge/Type-library-informational?style=flat-square) ![Version: 0.0.30](https://img.shields.io/badge/Version-0.0.30-informational?style=flat-square)
+![Type: library](https://img.shields.io/badge/Type-library-informational?style=flat-square) ![Version: 0.0.31](https://img.shields.io/badge/Version-0.0.31-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-common)
 
 Victoria Metrics Common - contains shared templates for all Victoria Metrics helm charts
