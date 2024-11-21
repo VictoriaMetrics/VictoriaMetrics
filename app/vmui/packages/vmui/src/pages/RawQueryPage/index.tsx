@@ -86,11 +86,6 @@ const RawQueryPage: FC = () => {
                 href="https://docs.victoriametrics.com/keyconcepts/#query-data"
               >Query
               API</Hyperlink> returns data exactly as stored, but data samples and timestamps may be modified by the API.
-              For more details, see <Hyperlink
-                underlined
-                href="https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-export-data-in-json-line-format"
-              >How
-              to export data in JSON line format</Hyperlink>
             </p>
             <Button
               variant="text"
