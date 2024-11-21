@@ -157,8 +157,8 @@ name: <string>
 # up group's evaluation duration (exposed via `vmalert_iteration_duration_seconds` metric).
 [ concurrency: <integer> | default = 1 ]
 
-# Optional type for expressions inside the rules. Supported values: "graphite" and "prometheus".
-# By default, "prometheus" type is used.
+# Optional type for expressions inside rules to override the `-rule.defaultRuleType(default is "prometheus")` cmd-line flag.
+# Supported values: "graphite", "prometheus" and "vlogs"(check https://docs.victoriametrics.com/victorialogs/vmalert/ for details).
 [ type: <string> ]
 
 # Optional
@@ -1057,8 +1057,6 @@ The shortlist of configuration flags is the following:
      Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.idleConnTimeout duration
      Defines a duration for idle (keep-alive connections) to exist. Consider settings this value less to the value of "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors. (default 50s)
-  -datasource.lookback duration
-     Deprecated: please adjust "-search.latencyOffset" at datasource side or specify "latency_offset" in rule group's params. Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
@@ -1075,8 +1073,6 @@ The shortlist of configuration flags is the following:
      Optional OAuth2 tokenURL to use for -datasource.url
   -datasource.queryStep duration
      How far a value can fallback to when evaluating queries to the configured -datasource.url and -remoteRead.url. Only valid for prometheus datasource. For example, if -datasource.queryStep=15s then param "step" with value "15s" will be added to every query. If set to 0, rule's evaluation interval will be used instead. (default 5m0s)
-  -datasource.queryTimeAlignment
-     Deprecated: please use "eval_alignment" in rule group instead. Whether to align "time" parameter with evaluation interval. Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. See more details at https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
      Adds "round_digits" GET param to datasource requests which limits the number of digits after the decimal point in response values. Only valid for VictoriaMetrics as the datasource.
   -datasource.showURL
@@ -1331,8 +1327,6 @@ The shortlist of configuration flags is the following:
      Optional HTTP headers to send with each request to the corresponding -remoteRead.url. For example, -remoteRead.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteRead.url. Multiple headers must be delimited by '^^': -remoteRead.headers='header1:value1^^header2:value2'
   -remoteRead.idleConnTimeout duration
      Defines a duration for idle (keep-alive connections) to exist. Consider settings this value less to the value of "-http.idleConnTimeout". It must prevent possible "write: broken pipe" and "read: connection reset by peer" errors. (default 50s)
-  -remoteRead.ignoreRestoreErrors
-     Whether to ignore errors from remote storage when restoring alerts state on startup. DEPRECATED - this flag has no effect and will be removed in the next releases. (default true)
   -remoteRead.lookback duration
      Lookback defines how far to look into past for alerts timeseries. For example, if lookback=1h then range from now() to now()-1h will be scanned. (default 1h0m0s)
   -remoteRead.oauth2.clientID string
@@ -1384,7 +1378,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.maxBatchSize int
      Defines max number of timeseries to be flushed at once (default 10000)
   -remoteWrite.maxQueueSize int
-     Defines the max number of pending datapoints to remote write endpoint (default 1000000)
+     Defines the max number of pending datapoints to remote write endpoint (default 100000)
   -remoteWrite.oauth2.clientID string
      Optional OAuth2 clientID to use for -remoteWrite.url
   -remoteWrite.oauth2.clientSecret string
