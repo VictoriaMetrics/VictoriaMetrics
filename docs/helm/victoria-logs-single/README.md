@@ -263,7 +263,7 @@ Change the values according to the need of the environment in ``victoria-logs-si
 </td>
     </tr>
     <tr>
-      <td>global.nameOverride</td>
+      <td>nameOverride</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
 <code class="language-yaml">""
@@ -544,7 +544,10 @@ loggerFormat: json
       <td>server.ingress.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: vlogs.local
+  path:
+    - /
+  port: http
 </code>
 </pre>
 </td>

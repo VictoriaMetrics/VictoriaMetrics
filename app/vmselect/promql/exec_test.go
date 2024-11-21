@@ -9398,6 +9398,18 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2, r3, r4}
 		f(q, resultExpected)
 	})
+	t.Run("nan^any", func(t *testing.T) {
+		t.Parallel()
+		q := `(hour(time()*1e4) == 4)^1`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 4, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+
 }
 
 func TestExecError(t *testing.T) {

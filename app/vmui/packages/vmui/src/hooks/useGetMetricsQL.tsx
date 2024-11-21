@@ -48,7 +48,7 @@ const processGroups = (groups: NodeListOf<Element>): AutocompleteOptions[] => {
   }).filter(Boolean) as AutocompleteOptions[];
 };
 
-const useGetMetricsQL = () => {
+const useGetMetricsQL = (includeFunctions: boolean) => {
   const { metricsQLFunctions } = useQueryState();
   const queryDispatch = useQueryDispatch();
 
@@ -60,6 +60,7 @@ const useGetMetricsQL = () => {
   };
 
   useEffect(() => {
+    if (!includeFunctions || metricsQLFunctions.length) return;
     const fetchMarkdown = async () => {
       try {
         const resp = await fetch(MetricsQL);
@@ -70,12 +71,10 @@ const useGetMetricsQL = () => {
         console.error("Error fetching or processing the MetricsQL.md file:", e);
       }
     };
-
-    if (metricsQLFunctions.length) return;
     fetchMarkdown();
   }, []);
 
-  return metricsQLFunctions;
+  return includeFunctions ? metricsQLFunctions : [];
 };
 
 export default useGetMetricsQL;
