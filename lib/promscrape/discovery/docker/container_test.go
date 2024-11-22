@@ -2,6 +2,7 @@ package docker
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
@@ -641,7 +642,7 @@ func TestDockerMultiNetworkLabels(t *testing.T) {
 		}),
 	}
 	labelss := addContainersLabels(containers, networkLabels, 80, "localhost", false)
-	discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+	discoveryutils.TestEqualLabelss(t, sortLabelss(labelss), sortLabelss(labelssExpected))
 
 	// matchFirstNetwork = true, so labels of `dockersd_private1` are removed
 	labelssExpected = []*promutils.Labels{
@@ -679,5 +680,12 @@ func TestDockerMultiNetworkLabels(t *testing.T) {
 		}),
 	}
 	labelss = addContainersLabels(containers, networkLabels, 80, "localhost", true)
-	discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+	discoveryutils.TestEqualLabelss(t, sortLabelss(labelss), sortLabelss(labelssExpected))
+}
+
+func sortLabelss(labelss []*promutils.Labels) []*promutils.Labels {
+	sort.Slice(labelss, func(i, j int) bool {
+		return labelss[i].Get("__address__") < labelss[j].Get("__address__")
+	})
+	return labelss
 }
