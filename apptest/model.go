@@ -3,6 +3,7 @@ package apptest
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -14,9 +15,9 @@ import (
 
 // PrometheusQuerier contains methods available to Prometheus-like HTTP API for Querying
 type PrometheusQuerier interface {
-	PrometheusAPIV1Export(t *testing.T, query, start, end string, opts QueryOpts) *PrometheusAPIV1QueryResponse
-	PrometheusAPIV1Query(t *testing.T, query, time, step string, opts QueryOpts) *PrometheusAPIV1QueryResponse
-	PrometheusAPIV1QueryRange(t *testing.T, query, start, end, step string, opts QueryOpts) *PrometheusAPIV1QueryResponse
+	PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
+	PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
+	PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
 }
 
@@ -42,8 +43,43 @@ type PrometheusWriteQuerier interface {
 
 // QueryOpts contains various params used for querying or ingesting data
 type QueryOpts struct {
-	Tenant  string
-	Timeout string
+	Tenant       string
+	Timeout      string
+	Start        string
+	End          string
+	Time         string
+	Step         string
+	ExtraFilters []string
+	ExtraLabels  []string
+}
+
+// returns tenant with optional default value
+func (qos *QueryOpts) getTenant() string {
+	if qos.Tenant == "" {
+		return "0"
+	}
+	return qos.Tenant
+}
+
+func urlValuesFromQueryOpts(qos QueryOpts) url.Values {
+	uv := make(url.Values)
+	addNonEmpty := func(name string, values ...string) {
+		for _, value := range values {
+			if len(value) == 0 {
+				continue
+			}
+			uv.Add(name, value)
+		}
+	}
+	addNonEmpty("start", qos.Start)
+	addNonEmpty("end", qos.End)
+	addNonEmpty("time", qos.Time)
+	addNonEmpty("step", qos.Step)
+	addNonEmpty("timeout", qos.Timeout)
+	addNonEmpty("extra_label", qos.ExtraLabels...)
+	addNonEmpty("extra_filters", qos.ExtraFilters...)
+
+	return uv
 }
 
 // PrometheusAPIV1QueryResponse is an inmemory representation of the
@@ -60,7 +96,7 @@ func NewPrometheusAPIV1QueryResponse(t *testing.T, s string) *PrometheusAPIV1Que
 
 	res := &PrometheusAPIV1QueryResponse{}
 	if err := json.Unmarshal([]byte(s), res); err != nil {
-		t.Fatalf("could not unmarshal query response: %v", err)
+		t.Fatalf("could not unmarshal query response data=\n%s\n: %v", string(s), err)
 	}
 	return res
 }
@@ -101,7 +137,7 @@ func NewSample(t *testing.T, timeStr string, value float64) *Sample {
 // UnmarshalJSON populates the sample fields from a JSON string.
 func (s *Sample) UnmarshalJSON(b []byte) error {
 	var (
-		ts int64
+		ts float64
 		v  string
 	)
 	raw := []any{&ts, &v}
@@ -111,7 +147,7 @@ func (s *Sample) UnmarshalJSON(b []byte) error {
 	if got, want := len(raw), 2; got != want {
 		return fmt.Errorf("unexpected number of fields: got %d, want %d (raw sample: %s)", got, want, string(b))
 	}
-	s.Timestamp = ts
+	s.Timestamp = int64(ts)
 	var err error
 	s.Value, err = strconv.ParseFloat(v, 64)
 	if err != nil {
@@ -135,7 +171,7 @@ func NewPrometheusAPIV1SeriesResponse(t *testing.T, s string) *PrometheusAPIV1Se
 
 	res := &PrometheusAPIV1SeriesResponse{}
 	if err := json.Unmarshal([]byte(s), res); err != nil {
-		t.Fatalf("could not unmarshal series response: %v", err)
+		t.Fatalf("could not unmarshal series response data:\n%s\n err: %v", string(s), err)
 	}
 	return res
 }
