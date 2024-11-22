@@ -791,7 +791,7 @@ func TestGroup_Restore(t *testing.T) {
 
 	// one active alert with state restore
 	ts := time.Now().Truncate(time.Hour)
-	fqr.Set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
+	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
 		stateMetric("foo", ts))
 	fn(
 		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)}},
@@ -804,7 +804,7 @@ func TestGroup_Restore(t *testing.T) {
 
 	// two rules, two active alerts, one with state restored
 	ts = time.Now().Truncate(time.Hour)
-	fqr.Set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}[3600s])`,
+	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}[3600s])`,
 		stateMetric("bar", ts))
 	fn(
 		[]config.Rule{
@@ -824,9 +824,9 @@ func TestGroup_Restore(t *testing.T) {
 
 	// two rules, two active alerts, two with state restored
 	ts = time.Now().Truncate(time.Hour)
-	fqr.Set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
+	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
 		stateMetric("foo", ts))
-	fqr.Set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}[3600s])`,
+	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}[3600s])`,
 		stateMetric("bar", ts))
 	fn(
 		[]config.Rule{
@@ -846,7 +846,7 @@ func TestGroup_Restore(t *testing.T) {
 
 	// one active alert but wrong state restore
 	ts = time.Now().Truncate(time.Hour)
-	fqr.Set(`last_over_time(ALERTS_FOR_STATE{alertname="bar",alertgroup="TestRestore"}[3600s])`,
+	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertname="bar",alertgroup="TestRestore"}[3600s])`,
 		stateMetric("wrong alert", ts))
 	fn(
 		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)}},
@@ -859,7 +859,7 @@ func TestGroup_Restore(t *testing.T) {
 
 	// one active alert with labels
 	ts = time.Now().Truncate(time.Hour)
-	fqr.Set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
+	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
 		stateMetric("foo", ts, "env", "dev"))
 	fn(
 		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "dev"}, For: promutils.NewDuration(time.Second)}},
@@ -872,7 +872,7 @@ func TestGroup_Restore(t *testing.T) {
 
 	// one active alert with restore labels missmatch
 	ts = time.Now().Truncate(time.Hour)
-	fqr.Set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
+	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
 		stateMetric("foo", ts, "env", "dev", "team", "foo"))
 	fn(
 		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "dev"}, For: promutils.NewDuration(time.Second)}},
