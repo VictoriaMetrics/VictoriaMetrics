@@ -433,7 +433,7 @@ func TestAddContainerLabels(t *testing.T) {
 }
 
 func TestDockerMultiNetworkLabels(t *testing.T) {
-	networkJson := []byte(`[
+	networkJSON := []byte(`[
   {
     "Name": "dockersd_private",
     "Id": "e804771e55254a360fdb70dfdd78d3610fdde231b14ef2f837a00ac1eeb9e601",
@@ -489,7 +489,7 @@ func TestDockerMultiNetworkLabels(t *testing.T) {
     "Labels": {}
   }
 ]`)
-	containerJson := []byte(`[
+	containerJSON := []byte(`[
   {
     "Id": "f84b2a0cfaa58d9e70b0657e2b3c6f44f0e973de4163a871299b4acf127b224f",
     "Names": [
@@ -562,13 +562,13 @@ func TestDockerMultiNetworkLabels(t *testing.T) {
 ]
 `)
 
-	networks, err := parseNetworks(networkJson)
+	networks, err := parseNetworks(networkJSON)
 	if err != nil {
 		t.Fatalf("fail to parse networks: %v", err)
 	}
 	networkLabels := getNetworkLabelsByNetworkID(networks)
 
-	containers, err := parseContainers(containerJson)
+	containers, err := parseContainers(containerJSON)
 	if err != nil {
 		t.Fatalf("parseContainers() error: %s", err)
 	}

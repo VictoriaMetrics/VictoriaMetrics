@@ -88,7 +88,7 @@ func addContainersLabels(containers []container, networkLabels map[string]*promu
 			// Try to lookup shared networks
 			for {
 				if isContainer(networkMode) {
-					tmpContainer, exists := allContainers[ConnectedContainer(networkMode)]
+					tmpContainer, exists := allContainers[connectedContainer(networkMode)]
 					if !exists {
 						break
 					}
@@ -178,7 +178,7 @@ func containerID(val string) (idOrName string, ok bool) {
 	return v, true
 }
 
-func ConnectedContainer(val string) (idOrName string) {
+func connectedContainer(val string) (idOrName string) {
 	idOrName, _ = containerID(val)
 	return idOrName
 
