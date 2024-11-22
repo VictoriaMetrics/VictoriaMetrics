@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
-func TePParseContainers(t *testing.T) {
+func TestParseContainers(t *testing.T) {
 	f := func(data string, resultExpected []container) {
 		t.Helper()
 
@@ -189,7 +189,7 @@ func TestAddContainerLabels(t *testing.T) {
 	f := func(c container, networkLabels map[string]*promutils.Labels, labelssExpected []*promutils.Labels) {
 		t.Helper()
 
-		labelss := addContainersLabels([]container{c}, networkLabels, 8012, "foobar")
+		labelss := addContainersLabels([]container{c}, networkLabels, 8012, "foobar", false)
 		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
 	}
 
@@ -430,4 +430,254 @@ func TestAddContainerLabels(t *testing.T) {
 		}),
 	}
 	f(c, networkLabels, labelssExpected)
+}
+
+func TestDockerMultiNetworkLabels(t *testing.T) {
+	networkJson := []byte(`[
+  {
+    "Name": "dockersd_private",
+    "Id": "e804771e55254a360fdb70dfdd78d3610fdde231b14ef2f837a00ac1eeb9e601",
+    "Created": "2022-03-25T09:21:17.718370976+08:00",
+    "Scope": "local",
+    "Driver": "bridge",
+    "EnableIPv6": false,
+    "IPAM": {
+      "Driver": "default",
+      "Options": null,
+      "Config": [
+        {
+          "Subnet": "172.20.0.1/16"
+        }
+      ]
+    },
+    "Internal": false,
+    "Attachable": false,
+    "Ingress": false,
+    "ConfigFrom": {
+      "Network": ""
+    },
+    "ConfigOnly": false,
+    "Containers": {},
+    "Options": {},
+    "Labels": {}
+  },
+  {
+    "Name": "dockersd_private1",
+    "Id": "bfcf66a6b64f7d518f009e34290dc3f3c66a08164257ad1afc3bd31d75f656e8",
+    "Created": "2022-03-25T09:21:17.718370976+08:00",
+    "Scope": "local",
+    "Driver": "bridge",
+    "EnableIPv6": false,
+    "IPAM": {
+      "Driver": "default",
+      "Options": null,
+      "Config": [
+        {
+          "Subnet": "172.21.0.1/16"
+        }
+      ]
+    },
+    "Internal": false,
+    "Attachable": false,
+    "Ingress": false,
+    "ConfigFrom": {
+      "Network": ""
+    },
+    "ConfigOnly": false,
+    "Containers": {},
+    "Options": {},
+    "Labels": {}
+  }
+]`)
+	containerJson := []byte(`[
+  {
+    "Id": "f84b2a0cfaa58d9e70b0657e2b3c6f44f0e973de4163a871299b4acf127b224f",
+    "Names": [
+      "/dockersd_multi_networks"
+    ],
+    "Image": "mysql:5.7.29",
+    "ImageID": "sha256:16ae2f4625ba63a250462bedeece422e741de9f0caf3b1d89fd5b257aca80cd1",
+    "Command": "mysqld",
+    "Created": 1616273136,
+    "Ports": [
+      {
+        "PrivatePort": 3306,
+        "Type": "tcp"
+      },
+      {
+        "PrivatePort": 33060,
+        "Type": "tcp"
+      }
+    ],
+    "Labels": {
+      "com.docker.compose.project": "dockersd",
+      "com.docker.compose.service": "mysql",
+      "com.docker.compose.version": "2.2.2"
+    },
+    "State": "running",
+    "Status": "Up 40 seconds",
+    "HostConfig": {
+      "NetworkMode": "dockersd_private_none"
+    },
+    "NetworkSettings": {
+      "Networks": {
+        "dockersd_private": {
+          "IPAMConfig": null,
+          "Links": null,
+          "Aliases": null,
+          "NetworkID": "e804771e55254a360fdb70dfdd78d3610fdde231b14ef2f837a00ac1eeb9e601",
+          "EndpointID": "972d6807997369605ace863af58de6cb90c787a5bf2ffc4105662d393ae539b7",
+          "Gateway": "172.20.0.1",
+          "IPAddress": "172.20.0.3",
+          "IPPrefixLen": 16,
+          "IPv6Gateway": "",
+          "GlobalIPv6Address": "",
+          "GlobalIPv6PrefixLen": 0,
+          "MacAddress": "02:42:ac:14:00:02",
+          "DriverOpts": null
+        },
+        "dockersd_private1": {
+          "IPAMConfig": {},
+          "Links": null,
+          "Aliases": [
+            "mysql",
+            "mysql",
+            "f9ade4b83199"
+          ],
+          "NetworkID": "bfcf66a6b64f7d518f009e34290dc3f3c66a08164257ad1afc3bd31d75f656e8",
+          "EndpointID": "91a98405344ee1cb7d977cafabe634837876651544b32da20a5e0155868e6f5f",
+          "Gateway": "172.21.0.1",
+          "IPAddress": "172.21.0.3",
+          "IPPrefixLen": 24,
+          "IPv6Gateway": "",
+          "GlobalIPv6Address": "",
+          "GlobalIPv6PrefixLen": 0,
+          "MacAddress": "02:42:ac:15:00:02",
+          "DriverOpts": null
+        }
+      }
+    },
+    "Mounts": []
+  }
+]
+`)
+
+	networks, err := parseNetworks(networkJson)
+	if err != nil {
+		t.Fatalf("fail to parse networks: %v", err)
+	}
+	networkLabels := getNetworkLabelsByNetworkID(networks)
+
+	containers, err := parseContainers(containerJson)
+	if err != nil {
+		t.Fatalf("parseContainers() error: %s", err)
+	}
+
+	// matchFirstNetwork = false
+	labelssExpected := []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
+			"__address__":                "172.20.0.3:3306",
+			"__meta_docker_container_id": "f84b2a0cfaa58d9e70b0657e2b3c6f44f0e973de4163a871299b4acf127b224f",
+			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
+			"__meta_docker_container_label_com_docker_compose_service": "mysql",
+			"__meta_docker_container_label_com_docker_compose_version": "2.2.2",
+			"__meta_docker_container_name":                             "/dockersd_multi_networks",
+			"__meta_docker_container_network_mode":                     "dockersd_private_none",
+			"__meta_docker_network_id":                                 "e804771e55254a360fdb70dfdd78d3610fdde231b14ef2f837a00ac1eeb9e601",
+			"__meta_docker_network_ingress":                            "false",
+			"__meta_docker_network_internal":                           "false",
+			"__meta_docker_network_ip":                                 "172.20.0.3",
+			"__meta_docker_network_name":                               "dockersd_private",
+			"__meta_docker_network_scope":                              "local",
+			"__meta_docker_port_private":                               "3306",
+		}),
+		promutils.NewLabelsFromMap(map[string]string{
+			"__address__":                "172.20.0.3:33060",
+			"__meta_docker_container_id": "f84b2a0cfaa58d9e70b0657e2b3c6f44f0e973de4163a871299b4acf127b224f",
+			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
+			"__meta_docker_container_label_com_docker_compose_service": "mysql",
+			"__meta_docker_container_label_com_docker_compose_version": "2.2.2",
+			"__meta_docker_container_name":                             "/dockersd_multi_networks",
+			"__meta_docker_container_network_mode":                     "dockersd_private_none",
+			"__meta_docker_network_id":                                 "e804771e55254a360fdb70dfdd78d3610fdde231b14ef2f837a00ac1eeb9e601",
+			"__meta_docker_network_ingress":                            "false",
+			"__meta_docker_network_internal":                           "false",
+			"__meta_docker_network_ip":                                 "172.20.0.3",
+			"__meta_docker_network_name":                               "dockersd_private",
+			"__meta_docker_network_scope":                              "local",
+			"__meta_docker_port_private":                               "33060",
+		}),
+		promutils.NewLabelsFromMap(map[string]string{
+			"__address__":                "172.21.0.3:3306",
+			"__meta_docker_container_id": "f84b2a0cfaa58d9e70b0657e2b3c6f44f0e973de4163a871299b4acf127b224f",
+			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
+			"__meta_docker_container_label_com_docker_compose_service": "mysql",
+			"__meta_docker_container_label_com_docker_compose_version": "2.2.2",
+			"__meta_docker_container_name":                             "/dockersd_multi_networks",
+			"__meta_docker_container_network_mode":                     "dockersd_private_none",
+			"__meta_docker_network_id":                                 "bfcf66a6b64f7d518f009e34290dc3f3c66a08164257ad1afc3bd31d75f656e8",
+			"__meta_docker_network_ingress":                            "false",
+			"__meta_docker_network_internal":                           "false",
+			"__meta_docker_network_ip":                                 "172.21.0.3",
+			"__meta_docker_network_name":                               "dockersd_private1",
+			"__meta_docker_network_scope":                              "local",
+			"__meta_docker_port_private":                               "3306",
+		}),
+		promutils.NewLabelsFromMap(map[string]string{
+			"__address__":                "172.21.0.3:33060",
+			"__meta_docker_container_id": "f84b2a0cfaa58d9e70b0657e2b3c6f44f0e973de4163a871299b4acf127b224f",
+			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
+			"__meta_docker_container_label_com_docker_compose_service": "mysql",
+			"__meta_docker_container_label_com_docker_compose_version": "2.2.2",
+			"__meta_docker_container_name":                             "/dockersd_multi_networks",
+			"__meta_docker_container_network_mode":                     "dockersd_private_none",
+			"__meta_docker_network_id":                                 "bfcf66a6b64f7d518f009e34290dc3f3c66a08164257ad1afc3bd31d75f656e8",
+			"__meta_docker_network_ingress":                            "false",
+			"__meta_docker_network_internal":                           "false",
+			"__meta_docker_network_ip":                                 "172.21.0.3",
+			"__meta_docker_network_name":                               "dockersd_private1",
+			"__meta_docker_network_scope":                              "local",
+			"__meta_docker_port_private":                               "33060",
+		}),
+	}
+	labelss := addContainersLabels(containers, networkLabels, 80, "localhost", false)
+	discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
+
+	// matchFirstNetwork = true, so labels of `dockersd_private1` are removed
+	labelssExpected = []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
+			"__address__":                "172.20.0.3:3306",
+			"__meta_docker_container_id": "f84b2a0cfaa58d9e70b0657e2b3c6f44f0e973de4163a871299b4acf127b224f",
+			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
+			"__meta_docker_container_label_com_docker_compose_service": "mysql",
+			"__meta_docker_container_label_com_docker_compose_version": "2.2.2",
+			"__meta_docker_container_name":                             "/dockersd_multi_networks",
+			"__meta_docker_container_network_mode":                     "dockersd_private_none",
+			"__meta_docker_network_id":                                 "e804771e55254a360fdb70dfdd78d3610fdde231b14ef2f837a00ac1eeb9e601",
+			"__meta_docker_network_ingress":                            "false",
+			"__meta_docker_network_internal":                           "false",
+			"__meta_docker_network_ip":                                 "172.20.0.3",
+			"__meta_docker_network_name":                               "dockersd_private",
+			"__meta_docker_network_scope":                              "local",
+			"__meta_docker_port_private":                               "3306",
+		}),
+		promutils.NewLabelsFromMap(map[string]string{
+			"__address__":                "172.20.0.3:33060",
+			"__meta_docker_container_id": "f84b2a0cfaa58d9e70b0657e2b3c6f44f0e973de4163a871299b4acf127b224f",
+			"__meta_docker_container_label_com_docker_compose_project": "dockersd",
+			"__meta_docker_container_label_com_docker_compose_service": "mysql",
+			"__meta_docker_container_label_com_docker_compose_version": "2.2.2",
+			"__meta_docker_container_name":                             "/dockersd_multi_networks",
+			"__meta_docker_container_network_mode":                     "dockersd_private_none",
+			"__meta_docker_network_id":                                 "e804771e55254a360fdb70dfdd78d3610fdde231b14ef2f837a00ac1eeb9e601",
+			"__meta_docker_network_ingress":                            "false",
+			"__meta_docker_network_internal":                           "false",
+			"__meta_docker_network_ip":                                 "172.20.0.3",
+			"__meta_docker_network_name":                               "dockersd_private",
+			"__meta_docker_network_scope":                              "local",
+			"__meta_docker_port_private":                               "33060",
+		}),
+	}
+	labelss = addContainersLabels(containers, networkLabels, 80, "localhost", true)
+	discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
 }

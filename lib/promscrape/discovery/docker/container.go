@@ -3,7 +3,9 @@ package docker
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -48,7 +50,7 @@ func getContainersLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 	if err != nil {
 		return nil, err
 	}
-	return addContainersLabels(containers, networkLabels, cfg.port, cfg.hostNetworkingHost), nil
+	return addContainersLabels(containers, networkLabels, cfg.port, cfg.hostNetworkingHost, cfg.matchFirstNetwork), nil
 }
 
 func getContainers(cfg *apiConfig) ([]container, error) {
@@ -67,14 +69,54 @@ func parseContainers(data []byte) ([]container, error) {
 	return containers, nil
 }
 
-func addContainersLabels(containers []container, networkLabels map[string]*promutils.Labels, defaultPort int, hostNetworkingHost string) []*promutils.Labels {
+func addContainersLabels(containers []container, networkLabels map[string]*promutils.Labels, defaultPort int, hostNetworkingHost string, matchFirstNetwork bool) []*promutils.Labels {
+	allContainers := make(map[string]container)
+	for _, c := range containers {
+		allContainers[c.ID] = c
+	}
+
 	var ms []*promutils.Labels
 	for i := range containers {
 		c := &containers[i]
 		if len(c.Names) == 0 {
 			continue
 		}
-		for _, n := range c.NetworkSettings.Networks {
+
+		networks := c.NetworkSettings.Networks
+		networkMode := c.HostConfig.NetworkMode
+		if len(networks) == 0 {
+			// Try to lookup shared networks
+			for {
+				if isContainer(networkMode) {
+					tmpContainer, exists := allContainers[ConnectedContainer(networkMode)]
+					if !exists {
+						break
+					}
+					networks = tmpContainer.NetworkSettings.Networks
+					networkMode = tmpContainer.HostConfig.NetworkMode
+					if len(networks) > 0 {
+						break
+					}
+				} else {
+					break
+				}
+			}
+		}
+
+		if matchFirstNetwork && len(networks) > 1 {
+			// Sort networks by name and take first network.
+			keys := make([]string, 0, len(networks))
+			for k := range networks {
+				keys = append(keys, k)
+			}
+			if len(keys) > 0 {
+				sort.Strings(keys)
+				firstNetworkMode := keys[0]
+				firstNetwork := networks[firstNetworkMode]
+				networks = map[string]containerNetwork{firstNetworkMode: firstNetwork}
+			}
+		}
+		for _, n := range networks {
 			var added bool
 			for _, p := range c.Ports {
 				if p.Type != "tcp" {
@@ -121,4 +163,23 @@ func addCommonLabels(m *promutils.Labels, c *container, networkLabels *promutils
 		m.Add(discoveryutils.SanitizeLabelName("__meta_docker_container_label_"+k), v)
 	}
 	m.AddFrom(networkLabels)
+}
+
+func isContainer(val string) bool {
+	_, ok := containerID(val)
+	return ok
+}
+
+func containerID(val string) (idOrName string, ok bool) {
+	k, v, hasSep := strings.Cut(val, ":")
+	if !hasSep || k != "container" {
+		return "", false
+	}
+	return v, true
+}
+
+func ConnectedContainer(val string) (idOrName string) {
+	idOrName, _ = containerID(val)
+	return idOrName
+
 }
