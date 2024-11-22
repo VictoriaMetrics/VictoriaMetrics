@@ -711,7 +711,8 @@ func (ar *AlertingRule) restore(ctx context.Context, q datasource.Querier, ts ti
 	for k, v := range ar.Labels {
 		labelsFilter += fmt.Sprintf(",%s=%q", k, v)
 	}
-	expr := fmt.Sprintf("last_over_time(%s{%s%s}[%ds])",
+	// use `default_rollup()` instead of `last_over_time()` here to accounts for possible staleness markers
+	expr := fmt.Sprintf("default_rollup(%s{%s%s}[%ds])",
 		alertForStateMetricName, nameStr, labelsFilter, int(lookback.Seconds()))
 
 	res, _, err := q.Query(ctx, expr, ts)
