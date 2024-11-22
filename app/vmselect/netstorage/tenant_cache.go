@@ -24,12 +24,15 @@ var (
 func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.Deadline) ([]storage.TenantToken, error) {
 	qt.Printf("fetching tenants on timeRange=%s", tr.String())
 
+	initTenantsCacheVOnce.Do(func() {
+		tenantsCacheV = newTenantsCache(*tenantsCacheDuration)
+	})
+
 	cached := tenantsCacheV.get(tr)
 	qt.Printf("fetched %d tenants from cache", len(cached))
 	if len(cached) > 0 {
 		return cached, nil
 	}
-
 	tenants, err := Tenants(qt, tr, deadline)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain tenants: %w", err)
@@ -53,10 +56,10 @@ func TenantsCached(qt *querytracer.Tracer, tr storage.TimeRange, deadline search
 	return tt, nil
 }
 
-var tenantsCacheV = func() *tenantsCache {
-	tc := newTenantsCache(*tenantsCacheDuration)
-	return tc
-}()
+var (
+	initTenantsCacheVOnce sync.Once
+	tenantsCacheV         *tenantsCache
+)
 
 type tenantsCacheItem struct {
 	tenants []storage.TenantToken
@@ -97,11 +100,14 @@ func newTenantsCache(expiration time.Duration) *tenantsCache {
 
 func (tc *tenantsCache) cleanupLocked() {
 	expires := time.Now().Add(tc.itemExpiration)
-	for i := len(tc.items) - 1; i >= 0; i-- {
-		if tc.items[i].expires.Before(expires) {
-			tc.items = append(tc.items[:i], tc.items[i+1:]...)
+	itemsTmp := tc.items[:0]
+	for _, item := range tc.items {
+		if item.expires.After(expires) {
+			itemsTmp = append(itemsTmp, item)
 		}
 	}
+
+	tc.items = itemsTmp
 }
 
 func (tc *tenantsCache) put(tr storage.TimeRange, tenants []storage.TenantToken) {
@@ -147,13 +153,15 @@ func (tc *tenantsCache) getInternal(tr storage.TimeRange) []storage.TenantToken 
 	if len(tc.items) == 0 {
 		return nil
 	}
+	ct := time.Now()
 
 	result := make(map[storage.TenantToken]struct{})
 	cleanupNeeded := false
 	for idx := range tc.items {
 		ci := tc.items[idx]
-		if ci.expires.Before(time.Now()) {
+		if ci.expires.Before(ct) {
 			cleanupNeeded = true
+			continue
 		}
 
 		if hasIntersection(tr, ci.tr) {
