@@ -303,7 +303,7 @@ func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 	format := r.FormValue("format")
 	maxRowsPerLine := int(fastfloat.ParseInt64BestEffort(r.FormValue("max_rows_per_line")))
 	reduceMemUsage := httputils.GetBool(r, "reduce_mem_usage")
-	if err := exportHandler(nil, w, cp, format, maxRowsPerLine, reduceMemUsage); err != nil {
+	if err := exportHandler(nil, w, cp, format, maxRowsPerLine, reduceMemUsage, false); err != nil {
 		return fmt.Errorf("error when exporting data on the time range (start=%d, end=%d): %w", cp.start, cp.end, err)
 	}
 	return nil
@@ -311,8 +311,7 @@ func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 
 var exportDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export"}`)
 
-func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonParams, format string, maxRowsPerLine int, reduceMemUsage bool) error {
-	var dropStale bool
+func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonParams, format string, maxRowsPerLine int, reduceMemUsage bool, dropStaleNaNs bool) error {
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	sw := newScalableWriter(bw)
@@ -330,7 +329,6 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 			return sw.maybeFlushBuffer(bb)
 		}
 	} else if format == "promapi" {
-		dropStale = true
 		WriteExportPromAPIHeader(bw)
 		var firstLineOnce atomic.Bool
 		var firstLineSent atomic.Bool
@@ -405,7 +403,7 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 				}
 				xb := exportBlockPool.Get().(*exportBlock)
 				xb.mn = &rs.MetricName
-				if dropStale {
+				if dropStaleNaNs {
 					for i, v := range rs.Values {
 						if decimal.IsStaleNaN(v) {
 							continue
@@ -763,7 +761,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 			end:      end,
 			filterss: filterss,
 		}
-		if err := exportHandler(qt, w, cp, "promapi", 0, false); err != nil {
+		if err := exportHandler(qt, w, cp, "promapi", 0, false, true); err != nil {
 			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
 		}
 		return nil

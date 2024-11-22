@@ -118,6 +118,7 @@ func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query, start, end strin
 	values.Add("start", start)
 	values.Add("end", end)
 	values.Add("timeout", opts.Timeout)
+	values.Add("format", "promapi")
 	res := app.cli.PostForm(t, app.prometheusAPIV1ExportURL, values, http.StatusOK)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }

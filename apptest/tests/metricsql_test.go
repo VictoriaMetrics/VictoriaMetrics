@@ -91,9 +91,7 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	// Verify that instant query with default rollup function returns stale NaN
-	// while it must not.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5806
+	// Verify that instant query with default rollup function does not include stale NaN.
 
 	got = sut.PrometheusAPIV1Query(t, "metric[2m]", "2024-01-01T00:02:00.000Z", "5m", opts)
 	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
