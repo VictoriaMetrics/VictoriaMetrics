@@ -28,6 +28,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return result for binary operation `^` aka pow at query requests for `NaN` values. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7359) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix rendering of isolated data points on the graph that are not connected to other points.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): improve the correctness of alert [state restoration](https://docs.victoriametrics.com/vmalert/#alerts-state-on-restarts). Previously, it could result in false-positive alerts if alert was resolved shortly before vmalert restart.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/): drop stale nans when query range vectors from instant query api.
 
 ## [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1)
 

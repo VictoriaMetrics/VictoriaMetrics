@@ -38,6 +38,14 @@ var staleNaNsData = func() []pb.TimeSeries {
 					Value:     decimal.StaleNaN,
 					Timestamp: millis("2024-01-01T00:02:00Z"),
 				},
+				{
+					Value:     decimal.StaleNaN,
+					Timestamp: millis("2024-01-01T00:03:00Z"),
+				},
+				{
+					Value:     decimal.StaleNaN,
+					Timestamp: millis("2024-01-01T00:04:00Z"),
+				},
 			},
 		},
 	}
@@ -82,7 +90,7 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	// Verify that instant query does not return stale NaN.
+	// Verify that instant query  returns empty if first sample is stale NaN.
 
 	got = sut.PrometheusAPIV1Query(t, "metric", "2024-01-01T00:02:00.000Z", "5m", opts)
 	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": []}}`)
@@ -102,6 +110,12 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
+	got = sut.PrometheusAPIV1Query(t, "metric[2m]", "2024-01-01T00:04:00.000Z", "5m", opts)
+	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": []}}`)
+	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
 	// Verify that exported data contains stale NaN.
 
 	got = sut.PrometheusAPIV1Export(t, `{__name__="metric"}`, "2024-01-01T00:01:00.000Z", "2024-01-01T00:02:00.000Z", opts)
@@ -109,6 +123,16 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 	s = make([]*apptest.Sample, 2)
 	s[0] = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
 	s[1] = apptest.NewSample(t, "2024-01-01T00:02:00Z", decimal.StaleNaN)
+	want.Data.Result[0].Samples = s
+	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
+	got = sut.PrometheusAPIV1Export(t, `{__name__="metric"}`, "2024-01-01T00:03:00.000Z", "2024-01-01T00:04:00.000Z", opts)
+	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
+	s = make([]*apptest.Sample, 2)
+	s[0] = apptest.NewSample(t, "2024-01-01T00:03:00Z", decimal.StaleNaN)
+	s[1] = apptest.NewSample(t, "2024-01-01T00:04:00Z", decimal.StaleNaN)
 	want.Data.Result[0].Samples = s
 	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
