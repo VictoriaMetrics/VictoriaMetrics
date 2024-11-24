@@ -58,6 +58,12 @@ It increases cluster availability, and simplifies cluster maintenance as well as
 
 > Note that `vmselect` despite being stateless still requires some disk space (a few GBs) for temporary caches. Refer to the `-cacheDataPath` command-line flag for more details.
 
+## vmui
+
+VictoriaMetrics cluster version provides UI for query troubleshooting and exploration. The UI is available at 
+`http://<vmselect>:8481/select/<accountID>/vmui/` in each `vmeselect` service.
+The UI allows exploring query results via graphs and tables. See more details about [vmui](https://docs.victoriametrics.com/#vmui).
+
 ## Multitenancy
 
 VictoriaMetrics cluster supports multiple isolated tenants (aka namespaces).
