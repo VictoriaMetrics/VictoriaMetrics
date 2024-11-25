@@ -6,6 +6,7 @@
 - updated common dependency 0.0.28 -> 0.0.29
 - bump operator chart version to 0.38.0
 - replaced all `<component>.vmauth` params to `vmauth.spec` to provide more flexibility in vmauth configuration. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1793)
+- synced dashboards
 
 ## 0.28.4
 
