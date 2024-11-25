@@ -42,10 +42,12 @@ export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[],
 
   return (d: MetricResult, i: number): SeriesItem => {
     const metricInfo = isAnomalyUI ? isForecast(data[i].metric) : null;
-    const label = isAnomalyUI ? metricInfo?.group || "" : getNameForMetric(d, alias[d.group - 1]);
+    const aliasValue = alias[d.group - 1];
+    const label = isAnomalyUI ? metricInfo?.group || "" : getNameForMetric(d, aliasValue);
 
     return {
       label,
+      hasAlias: Boolean(aliasValue),
       dash: getDashSeries(metricInfo),
       width: getWidthSeries(metricInfo),
       stroke: getStrokeSeries({ metricInfo, label, isAnomalyUI, colorState }),
@@ -88,6 +90,7 @@ export const getLegendItem = (s: SeriesItem, group: number): LegendItemType => (
   freeFormFields: s.freeFormFields,
   statsFormatted: s.statsFormatted,
   median: s.median,
+  hasAlias: s.hasAlias || false,
 });
 
 export const getHideSeries = ({ hideSeries, legend, metaKey, series, isAnomalyView }: HideSeriesArgs): string[] => {
