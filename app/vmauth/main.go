@@ -661,7 +661,7 @@ func debugInfo(u *url.URL, h http.Header) string {
 	fmt.Fprintf(s, "path: %q; ", u.Path)
 	fmt.Fprintf(s, "args: %q; ", u.Query().Encode())
 	fmt.Fprint(s, "headers:")
-	h.WriteSubset(s, nil)
+	_ = h.WriteSubset(s, nil)
 	fmt.Fprint(s, ")")
 	return s.String()
 }
