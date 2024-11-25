@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"net/textproto"
 	"net/url"
 	"os"
@@ -199,12 +198,11 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 				return
 			}
 			missingRouteRequests.Inc()
-			dump, err := httputil.DumpRequest(r, false)
-			if err != nil {
-				httpserver.Errorf(w, r, "failed to dump HTTP request: %s", err)
-				return
+			var di string
+			if ui.DumpRequestOnErrors {
+				di = debugInfo(u, r.Header)
 			}
-			httpserver.Errorf(w, r, "missing route for %q (%q)", u.String(), dump)
+			httpserver.Errorf(w, r, "missing route for %q%s", u.String(), di)
 			return
 		}
 		up, hc = ui.DefaultURL, ui.HeadersConf
@@ -655,4 +653,15 @@ func (rtb *readTrackingBody) Close() error {
 	}
 
 	return nil
+}
+
+func debugInfo(u *url.URL, h http.Header) string {
+	s := &strings.Builder{}
+	fmt.Fprintf(s, " (host: %q; ", u.Host)
+	fmt.Fprintf(s, "path: %q; ", u.Path)
+	fmt.Fprintf(s, "args: %q; ", u.Query().Encode())
+	fmt.Fprint(s, "headers:")
+	h.WriteSubset(s, nil)
+	fmt.Fprint(s, ")")
+	return s.String()
 }
