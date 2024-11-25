@@ -360,7 +360,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=400
-remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /abc?de=fg; missing route for http://some-host.com/abc?de=fg`
+remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /abc?de=fg; missing route for "http://some-host.com/abc?de=fg" ("GET /abc?de=fg HTTP/1.1\r\nHost: some-host.com\r\nConnection: Some-Header,Other-Header\r\nPass-Header: abc\r\nSome-Header: foobar\r\nX-Forwarded-For: 12.34.56.78\r\n\r\n")`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// missing default_url and default url_prefix for unauthorized user when there are configs for authorized users

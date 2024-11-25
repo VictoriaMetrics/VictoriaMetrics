@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/textproto"
 	"net/url"
 	"os"
@@ -198,7 +199,12 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 				return
 			}
 			missingRouteRequests.Inc()
-			httpserver.Errorf(w, r, "missing route for %s", u.String())
+			dump, err := httputil.DumpRequest(r, false)
+			if err != nil {
+				httpserver.Errorf(w, r, "failed to dump HTTP request: %s", err)
+				return
+			}
+			httpserver.Errorf(w, r, "missing route for %q (%q)", u.String(), dump)
 			return
 		}
 		up, hc = ui.DefaultURL, ui.HeadersConf
