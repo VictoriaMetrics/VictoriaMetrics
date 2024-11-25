@@ -25,7 +25,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	vminsert := tc.MustStartVminsert("vminsert", []string{
 		"-storageNode=" + vmstorage.VminsertAddr(),
 	})
-	vmselect := tc.MustStartVmselect("vmselect-level1", []string{
+	vmselect := tc.MustStartVmselect("vmselect", []string{
 		"-storageNode=" + vmstorage.VmselectAddr(),
 		"-search.tenantCacheExpireDuration=0",
 	})
@@ -38,7 +38,9 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 
 	// test for empty tenants request
 	got := vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
-		Tenant: "multitenant", Step: "5m", Time: "2022-05-10T08:03:00.000Z",
+		Tenant: "multitenant",
+		Step:   "5m",
+		Time:   "2022-05-10T08:03:00.000Z",
 	})
 	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[]}}`)
 	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
@@ -63,10 +65,13 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 
 	//  /api/v1/query
 	want = apptest.NewPrometheusAPIV1QueryResponse(t,
-		`{"data":{"result":[
+		`{"data":
+       {"result":[
           {"metric":{"__name__":"foo_bar","vm_account_id":"1","vm_project_id": "1"},"value":[1652169900,"3"]},
           {"metric":{"__name__":"foo_bar","vm_account_id":"1","vm_project_id":"15"},"value":[1652169900,"3"]}
-    ]}}`,
+                 ]
+       }
+     }`,
 	)
 	got = vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
 		Tenant: "multitenant",
@@ -77,20 +82,22 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	}
 
 	// /api/v1/query_range aggregated by tenant labels
-	got = vmselect.PrometheusAPIV1QueryRange(t,
-		"sum(foo_bar) by(vm_account_id,vm_project_id)",
-		apptest.QueryOpts{
-			Tenant: "multitenant",
-			Start:  "2022-05-10T07:59:00.000Z",
-			End:    "2022-05-10T08:05:00.000Z",
-			Step:   "1m",
-		})
+	query := "sum(foo_bar) by(vm_account_id,vm_project_id)"
+	got = vmselect.PrometheusAPIV1QueryRange(t, query, apptest.QueryOpts{
+		Tenant: "multitenant",
+		Start:  "2022-05-10T07:59:00.000Z",
+		End:    "2022-05-10T08:05:00.000Z",
+		Step:   "1m",
+	})
 
 	want = apptest.NewPrometheusAPIV1QueryResponse(t,
-		`{"data": {"result": [
-        {"metric": {"vm_account_id": "1","vm_project_id":"1"}, "values": [[1652169600,"1"],[1652169660,"2"],[1652169720,"3"],[1652169780,"3"]]},
-        {"metric": {"vm_account_id": "1","vm_project_id":"15"}, "values": [[1652169600,"1"],[1652169660,"2"],[1652169720,"3"],[1652169780,"3"]]}
-    ]}}`)
+		`{"data": 
+        {"result": [
+          {"metric": {"vm_account_id": "1","vm_project_id":"1"}, "values": [[1652169600,"1"],[1652169660,"2"],[1652169720,"3"],[1652169780,"3"]]},
+          {"metric": {"vm_account_id": "1","vm_project_id":"15"}, "values": [[1652169600,"1"],[1652169660,"2"],[1652169720,"3"],[1652169780,"3"]]}
+                   ]
+        }
+     }`)
 	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -102,7 +109,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
         {"__name__":"foo_bar", "vm_account_id":"1", "vm_project_id":"1"},
         {"__name__":"foo_bar", "vm_account_id":"1", "vm_project_id":"15"}
               ]
-    }`)
+     }`)
 	wantSR.Sort()
 
 	gotSR := vmselect.PrometheusAPIV1Series(t, "foo_bar", apptest.QueryOpts{
@@ -127,10 +134,13 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 
 	//  /api/v1/query with query filters
 	want = apptest.NewPrometheusAPIV1QueryResponse(t,
-		`{"data":{"result":[
+		`{"data":
+        {"result":[
 	         {"metric":{"__name__":"foo_bar","vm_account_id":"5","vm_project_id": "0"},"value":[1652169900,"1"]},
 	         {"metric":{"__name__":"foo_bar","vm_account_id":"5","vm_project_id":"15"},"value":[1652169900,"3"]}
-	   ]}}`,
+	                ]
+        }
+    }`,
 	)
 	got = vmselect.PrometheusAPIV1Query(t, `foo_bar{vm_account_id="5"}`, apptest.QueryOpts{
 		Time:   instantCT,

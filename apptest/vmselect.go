@@ -63,7 +63,7 @@ func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 	t.Helper()
 
 	exportURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/export", app.httpListenAddr, opts.getTenant())
-	values := urlValuesFromQueryOpts(opts)
+	values := opts.asURLValues()
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
 	res := app.cli.PostForm(t, exportURL, values, http.StatusOK)
@@ -79,7 +79,7 @@ func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query string, opts Query
 	t.Helper()
 
 	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/query", app.httpListenAddr, opts.getTenant())
-	values := urlValuesFromQueryOpts(opts)
+	values := opts.asURLValues()
 	values.Add("query", query)
 
 	res := app.cli.PostForm(t, queryURL, values, http.StatusOK)
@@ -95,7 +95,7 @@ func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, query string, opts 
 	t.Helper()
 
 	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/query_range", app.httpListenAddr, opts.getTenant())
-	values := urlValuesFromQueryOpts(opts)
+	values := opts.asURLValues()
 	values.Add("query", query)
 
 	res := app.cli.PostForm(t, queryURL, values, http.StatusOK)
@@ -110,7 +110,7 @@ func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 	t.Helper()
 
 	seriesURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/series", app.httpListenAddr, opts.getTenant())
-	values := urlValuesFromQueryOpts(opts)
+	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
 	res := app.cli.PostForm(t, seriesURL, values, http.StatusOK)

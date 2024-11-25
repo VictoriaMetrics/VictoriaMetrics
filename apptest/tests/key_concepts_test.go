@@ -53,7 +53,7 @@ func TestClusterKeyConceptsQueryData(t *testing.T) {
 func testKeyConceptsQueryData(t *testing.T, sut apptest.PrometheusWriteQuerier) {
 
 	// Insert example data from documentation.
-	sut.PrometheusAPIV1ImportPrometheus(t, docData, apptest.QueryOpts{Timeout: "5"})
+	sut.PrometheusAPIV1ImportPrometheus(t, docData, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
 	testInstantQuery(t, sut)
@@ -178,7 +178,11 @@ func testRangeQueryIsEquivalentToManyInstantQueries(t *testing.T, q apptest.Prom
 		}
 	}
 
-	rangeRes := q.PrometheusAPIV1QueryRange(t, "foo_bar", apptest.QueryOpts{Start: "2022-05-10T07:59:00.000Z", End: "2022-05-10T08:17:00.000Z", Step: "1m"})
+	rangeRes := q.PrometheusAPIV1QueryRange(t, "foo_bar", apptest.QueryOpts{
+		Start: "2022-05-10T07:59:00.000Z",
+		End:   "2022-05-10T08:17:00.000Z",
+		Step:  "1m",
+	})
 	rangeSamples := rangeRes.Data.Result[0].Samples
 
 	f("2022-05-10T07:59:00.000Z", nil)

@@ -111,7 +111,7 @@ func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 // See https://docs.victoriametrics.com/url-examples/#apiv1export
 func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
-	values := urlValuesFromQueryOpts(opts)
+	values := opts.asURLValues()
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
 
@@ -127,7 +127,7 @@ func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
-	values := urlValuesFromQueryOpts(opts)
+	values := opts.asURLValues()
 	values.Add("query", query)
 	res := app.cli.PostForm(t, app.prometheusAPIV1QueryURL, values, http.StatusOK)
 	return NewPrometheusAPIV1QueryResponse(t, res)
@@ -141,7 +141,7 @@ func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query string, opts Query
 func (app *Vmsingle) PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
-	values := urlValuesFromQueryOpts(opts)
+	values := opts.asURLValues()
 	values.Add("query", query)
 
 	res := app.cli.PostForm(t, app.prometheusAPIV1QueryRangeURL, values, http.StatusOK)
@@ -155,7 +155,7 @@ func (app *Vmsingle) PrometheusAPIV1QueryRange(t *testing.T, query string, opts 
 func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse {
 	t.Helper()
 
-	values := urlValuesFromQueryOpts(opts)
+	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
 	res := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values, http.StatusOK)

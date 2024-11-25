@@ -53,15 +53,7 @@ type QueryOpts struct {
 	ExtraLabels  []string
 }
 
-// returns tenant with optional default value
-func (qos *QueryOpts) getTenant() string {
-	if qos.Tenant == "" {
-		return "0"
-	}
-	return qos.Tenant
-}
-
-func urlValuesFromQueryOpts(qos QueryOpts) url.Values {
+func (qos *QueryOpts) asURLValues() url.Values {
 	uv := make(url.Values)
 	addNonEmpty := func(name string, values ...string) {
 		for _, value := range values {
@@ -80,6 +72,14 @@ func urlValuesFromQueryOpts(qos QueryOpts) url.Values {
 	addNonEmpty("extra_filters", qos.ExtraFilters...)
 
 	return uv
+}
+
+// getTenant returns tenant with optional default value
+func (qos *QueryOpts) getTenant() string {
+	if qos.Tenant == "" {
+		return "0"
+	}
+	return qos.Tenant
 }
 
 // PrometheusAPIV1QueryResponse is an inmemory representation of the
