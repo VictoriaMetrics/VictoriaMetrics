@@ -29,6 +29,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix rendering of isolated data points on the graph that are not connected to other points.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): improve the correctness of alert [state restoration](https://docs.victoriametrics.com/vmalert/#alerts-state-on-restarts). Previously, it could result in false-positive alerts if alert was resolved shortly before vmalert restart.
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Properly handle [multitenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) query request errors and correctly perform search for available tenants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details. This is follow-up after [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1) release changes.
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly set `multitenant` cache expiration duration with `search.tenantCacheExpireDuration`. Previously flag always used default value.
 
 ## [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1)
 
