@@ -348,6 +348,44 @@ $ helm show crds vm/victoria-metrics-k8s-stack --version [YOUR_CHART_VERSION] | 
 
 All other manual actions upgrades listed below:
 
+### Upgrade to 0.29.0
+
+To provide more flexibility for VMAuth configuration all `<component>.vmauth` params were moved to `vmauth.spec`.
+Also `.vm.write` and `.vm.read` variables are available in `vmauth.spec`, which represent `vmsingle`, `vminsert`, `externalVM.write` and `vmsingle`, `vmselect`, `externalVM.read` parsed URLs respectively.
+
+If your configuration in version < 0.29.0 looked like below:
+
+```
+vmcluster:
+  vmauth:
+    vmselect:
+      - src_paths:
+          - /select/.*
+        url_prefix:
+          - /
+    vminsert:
+      - src_paths:
+          - /insert/.*
+        url_prefix:
+          - /
+```
+
+In 0.29.0 it should look like:
+
+```
+vmauth:
+  spec:
+    unauthorizedAccessConfig:
+      - src_paths:
+          - '{{ .vm.read.path }}/.*'
+        url_prefix:
+          - '{{ urlJoin (omit .vm.read "path") }}/'
+      - src_paths:
+          - '{{ .vm.write.path }}/.*'
+        url_prefix:
+          - '{{ urlJoin (omit .vm.write "path") }}/'
+```
+
 ### Upgrade to 0.13.0
 
 - node-exporter starting from version 4.0.0 is using the Kubernetes recommended labels. Therefore you have to delete the daemonset before you upgrade.
@@ -1249,43 +1287,12 @@ vmsingle:
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
 <code class="language-yaml">read:
     url: ""
-vmauth:
-    read:
-        - src_paths:
-            - /select/.*
-          url_prefix:
-            - /
-    write:
-        - src_paths:
-            - /insert/.*
-          url_prefix:
-            - /
 write:
     url: ""
 </code>
 </pre>
 </td>
       <td><p>External VM read and write URLs</p>
-</td>
-    </tr>
-    <tr>
-      <td>externalVM.vmauth</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">read:
-    - src_paths:
-        - /select/.*
-      url_prefix:
-        - /
-write:
-    - src_paths:
-        - /insert/.*
-      url_prefix:
-        - /
-</code>
-</pre>
-</td>
-      <td><p>Custom VMAuth config, url_prefix requires only path, which will be appended to a read and write base URL. To disable auth for read or write empty list for component config <code>externalVM.vmauth.&lt;component&gt;: []</code></p>
 </td>
     </tr>
     <tr>
@@ -2408,10 +2415,15 @@ selectAllByDefault: true
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
 <code class="language-yaml">discover_backend_ips: true
 port: "8427"
+unauthorizedAccessConfig:
+    - src_paths:
+        - '{{ .vm.read.path }}/.*'
+      url_prefix:
+        - '{{ urlJoin (omit .vm.read "path") }}/'
 </code>
 </pre>
 </td>
-      <td><p>Full spec for VMAuth CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmauthspec" target="_blank">here</a></p>
+      <td><p>Full spec for VMAuth CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmauthspec" target="_blank">here</a> It&rsquo;s possible to use given below predefined variables in spec: * <code>{{ .vm.read }}</code> - parsed vmselect, vmsingle or externalVM.read URL * <code>{{ .vm.write }}</code> - parsed vminsert, vmsingle or externalVM.write URL</p>
 </td>
     </tr>
     <tr>
@@ -2781,26 +2793,6 @@ vmstorage:
 </pre>
 </td>
       <td><p>Data retention period. Possible units character: h(ours), d(ays), w(eeks), y(ears), if no unit character specified - month. The minimum retention period is 24h. See these <a href="https://docs.victoriametrics.com/single-server-victoriametrics/#retention" target="_blank">docs</a></p>
-</td>
-    </tr>
-    <tr>
-      <td>vmcluster.vmauth</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">vminsert:
-    - src_paths:
-        - /insert/.*
-      url_prefix:
-        - /
-vmselect:
-    - src_paths:
-        - /select/.*
-      url_prefix:
-        - /
-</code>
-</pre>
-</td>
-      <td><p>Custom VMAuth config, url_prefix requires only path, which will be appended to a select and insert base URL. To disable auth for vmselect or vminsert empty list for component config <code>vmcluster.vmauth.&lt;component&gt;: []</code></p>
 </td>
     </tr>
     <tr>
