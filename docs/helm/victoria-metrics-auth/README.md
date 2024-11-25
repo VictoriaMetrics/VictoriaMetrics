@@ -429,7 +429,10 @@ loggerFormat: json
       <td>ingress.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: vmauth.local
+  path:
+    - /
+  port: http
 </code>
 </pre>
 </td>
@@ -506,7 +509,10 @@ loggerFormat: json
       <td>ingressInternal.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: vmauth.local
+  path:
+    - /
+  port: http
 </code>
 </pre>
 </td>

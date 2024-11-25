@@ -1,6 +1,8 @@
 ## Next release
 
-- TODO
+- removed unsupported selectNodes SRV discovery
+- updated common dependency 0.0.28 -> 0.0.31
+- fixed app.kubernetes.io/version tag override if custom tag is set. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1766).
 
 ## 0.14.12
 
