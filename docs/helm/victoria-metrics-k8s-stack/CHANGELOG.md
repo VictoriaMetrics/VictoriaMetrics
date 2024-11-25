@@ -1,5 +1,14 @@
 ## Next release
 
+- TODO
+
+## 0.29.0
+
+**Release date:** 2024-11-25
+
+![AppVersion: v1.106.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
 **Update note**: This release contains breaking changes. please follow [upgrade guide](./#upgrade-to-0290)
 
 - fixed ability to override CR names using `<component>.name`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1778)
@@ -7,6 +16,7 @@
 - bump operator chart version to 0.38.0
 - replaced all `<component>.vmauth` params to `vmauth.spec` to provide more flexibility in vmauth configuration. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1793)
 - synced dashboards
+- updates operator to [v0.50.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.0) version
 
 ## 0.28.4
 
