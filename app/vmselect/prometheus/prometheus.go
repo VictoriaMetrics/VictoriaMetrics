@@ -22,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -404,7 +403,7 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 				xb := exportBlockPool.Get().(*exportBlock)
 				xb.mn = &rs.MetricName
 				if dropStaleNaNs {
-					values, timestamps := filterStaleNaNs(rs.Values, rs.Timestamps)
+					values, timestamps := promql.DropStaleNaNs(rs.Values, rs.Timestamps)
 					xb.timestamps = timestamps
 					xb.values = values
 				} else {
@@ -460,36 +459,6 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 		WriteExportPromAPIFooter(bw, qt)
 	}
 	return bw.Flush()
-}
-
-func filterStaleNaNs(values []float64, timestamps []int64) ([]float64, []int64) {
-	var staleNaNs int
-	var dstValues []float64
-	var dstTimestamps []int64
-	for _, v := range values {
-		if decimal.IsStaleNaN(v) {
-			staleNaNs++
-		}
-	}
-	if staleNaNs == 0 {
-		// Fast path: values have no Prometheus staleness marks.
-		return values, timestamps
-	}
-	if staleNaNs == len(values) {
-		// Fast path: values are all Prometheus staleness marks.
-		return dstValues, dstTimestamps
-	}
-	// Slow path: drop Prometheus staleness marks from values.
-	dstValues = values[:0]
-	dstTimestamps = timestamps[:0]
-	for i, v := range values {
-		if decimal.IsStaleNaN(v) {
-			continue
-		}
-		dstValues = append(dstValues, v)
-		dstTimestamps = append(dstTimestamps, timestamps[i])
-	}
-	return dstValues, dstTimestamps
 }
 
 type exportBlock struct {

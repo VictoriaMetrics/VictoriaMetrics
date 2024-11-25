@@ -1801,7 +1801,7 @@ func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string,
 	defer qt.Done()
 	var samplesScannedTotal atomic.Uint64
 	err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
-		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
+		rs.Values, rs.Timestamps = dropStaleNaNsIfNeeded(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
 		ts := getTimeseries()
 		defer putTimeseries(ts)
@@ -1844,7 +1844,7 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 	seriesByWorkerID := tsw.byWorkerID
 	seriesLen := rss.Len()
 	err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
-		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
+		rs.Values, rs.Timestamps = dropStaleNaNsIfNeeded(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
 		for _, rc := range rcs {
 			if tsm := newTimeseriesMap(funcName, keepMetricNames, sharedTimestamps, &rs.MetricName); tsm != nil {
@@ -1973,7 +1973,7 @@ func sumNoOverflow(a, b int64) int64 {
 	return a + b
 }
 
-func dropStaleNaNs(funcName string, values []float64, timestamps []int64) ([]float64, []int64) {
+func dropStaleNaNsIfNeeded(funcName string, values []float64, timestamps []int64) ([]float64, []int64) {
 	if *noStaleMarkers || funcName == "default_rollup" || funcName == "stale_samples_over_time" {
 		// Do not drop Prometheus staleness marks (aka stale NaNs) for default_rollup() function,
 		// since it uses them for Prometheus-style staleness detection.
@@ -1981,21 +1981,29 @@ func dropStaleNaNs(funcName string, values []float64, timestamps []int64) ([]flo
 		// to calculate the number of staleness markers.
 		return values, timestamps
 	}
-	// Remove Prometheus staleness marks, so non-default rollup functions don't hit NaN values.
-	hasStaleSamples := false
+	return DropStaleNaNs(values, timestamps)
+}
+
+func DropStaleNaNs(values []float64, timestamps []int64) ([]float64, []int64) {
+	var staleNaNs int
+	var dstValues []float64
+	var dstTimestamps []int64
 	for _, v := range values {
 		if decimal.IsStaleNaN(v) {
-			hasStaleSamples = true
-			break
+			staleNaNs++
 		}
 	}
-	if !hasStaleSamples {
+	if staleNaNs == 0 {
 		// Fast path: values have no Prometheus staleness marks.
 		return values, timestamps
 	}
+	if staleNaNs == len(values) {
+		// Fast path: values are all Prometheus staleness marks.
+		return dstValues, dstTimestamps
+	}
 	// Slow path: drop Prometheus staleness marks from values.
-	dstValues := values[:0]
-	dstTimestamps := timestamps[:0]
+	dstValues = values[:0]
+	dstTimestamps = timestamps[:0]
 	for i, v := range values {
 		if decimal.IsStaleNaN(v) {
 			continue
