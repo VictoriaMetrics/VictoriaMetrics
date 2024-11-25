@@ -1574,6 +1574,9 @@ exporters:
     encoding: proto
     endpoint: http://<collector/vmagent>.<namespace>.svc.cluster.local:<port>/opentelemetry
 ```
+> Note, [cluster version of VM](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format) expects specifying tenant ID, i.e. `http://<vminsert>:<port>/insert/<accountID>/opentelemetry`.
+> See more about [multitenancy](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy).
+
 Remember to add the exporter to the desired service pipeline in order to activate the exporter.
 ```yaml
 service:
