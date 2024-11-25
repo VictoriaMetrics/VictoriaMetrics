@@ -92,7 +92,7 @@ when different tenants have different amounts of data and different query load.
 See also [multitenancy via labels](#multitenancy-via-labels).
 
 
-## Multitenancy via labels
+### Multitenancy via labels
 
 **Writes**
 
