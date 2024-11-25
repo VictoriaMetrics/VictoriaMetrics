@@ -87,17 +87,16 @@ func addContainersLabels(containers []container, networkLabels map[string]*promu
 		if len(networks) == 0 {
 			// Try to lookup shared networks
 			for {
-				if isContainer(networkMode) {
-					tmpContainer, exists := allContainers[connectedContainer(networkMode)]
-					if !exists {
-						break
-					}
-					networks = tmpContainer.NetworkSettings.Networks
-					networkMode = tmpContainer.HostConfig.NetworkMode
-					if len(networks) > 0 {
-						break
-					}
-				} else {
+				if !isContainer(networkMode) {
+					break
+				}
+				tmpContainer, exists := allContainers[connectedContainer(networkMode)]
+				if !exists {
+					break
+				}
+				networks = tmpContainer.NetworkSettings.Networks
+				networkMode = tmpContainer.HostConfig.NetworkMode
+				if len(networks) > 0 {
 					break
 				}
 			}
@@ -109,12 +108,10 @@ func addContainersLabels(containers []container, networkLabels map[string]*promu
 			for k := range networks {
 				keys = append(keys, k)
 			}
-			if len(keys) > 0 {
-				sort.Strings(keys)
-				firstNetworkMode := keys[0]
-				firstNetwork := networks[firstNetworkMode]
-				networks = map[string]containerNetwork{firstNetworkMode: firstNetwork}
-			}
+			sort.Strings(keys)
+			firstNetworkMode := keys[0]
+			firstNetwork := networks[firstNetworkMode]
+			networks = map[string]containerNetwork{firstNetworkMode: firstNetwork}
 		}
 		for _, n := range networks {
 			var added bool
