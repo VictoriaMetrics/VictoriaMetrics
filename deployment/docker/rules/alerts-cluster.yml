@@ -34,7 +34,8 @@ groups:
           sum(vm_data_size_bytes) by(job, instance) /
           (
            sum(vm_free_disk_space_bytes) by(job, instance) +
-           sum(vm_data_size_bytes) by(job, instance)
+           sum(vm_data_size_bytes) by(job, instance) -
+           sum(label_value(flag{name="storage.minFreeDiskSpaceBytes"}, "value")) by (job, instance)
           ) > 0.8
         for: 30m
         labels:
