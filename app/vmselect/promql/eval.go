@@ -1984,6 +1984,7 @@ func dropStaleNaNsIfNeeded(funcName string, values []float64, timestamps []int64
 	return DropStaleNaNs(values, timestamps)
 }
 
+// DropStaleNaNs drops Prometheus staleness marks.
 func DropStaleNaNs(values []float64, timestamps []int64) ([]float64, []int64) {
 	var staleNaNs int
 	var dstValues []float64
