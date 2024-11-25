@@ -1,6 +1,11 @@
 ## Next release
 
-- Fixed ability to override CR names using `<component>.name`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1778)
+**Update note**: This release contains breaking changes. please follow [upgrade guide](./#upgrade-to-0290)
+
+- fixed ability to override CR names using `<component>.name`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1778)
+- updated common dependency 0.0.28 -> 0.0.29
+- bump operator chart version to 0.38.0
+- replaced all `<component>.vmauth` params to `vmauth.spec` to provide more flexibility in vmauth configuration. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1793)
 
 ## 0.28.4
 
