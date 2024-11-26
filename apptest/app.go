@@ -15,10 +15,11 @@ import (
 
 // Regular expressions for runtime information to extract from the app logs.
 var (
-	storageDataPathRE = regexp.MustCompile(`successfully opened storage "(.*)"`)
-	httpListenAddrRE  = regexp.MustCompile(`started server at http://(.*:\d{1,5})/`)
-	vminsertAddrRE    = regexp.MustCompile(`accepting vminsert conns at (.*:\d{1,5})$`)
-	vmselectAddrRE    = regexp.MustCompile(`accepting vmselect conns at (.*:\d{1,5})$`)
+	storageDataPathRE     = regexp.MustCompile(`successfully opened storage "(.*)"`)
+	httpListenAddrRE      = regexp.MustCompile(`started server at http://(.*:\d{1,5})/`)
+	vminsertAddrRE        = regexp.MustCompile(`accepting vminsert conns at (.*:\d{1,5})$`)
+	vmselectAddrRE        = regexp.MustCompile(`accepting vmselect conns at (.*:\d{1,5})$`)
+	vminsertStorageNodeRE = regexp.MustCompile(`successfully dialed -storageNode="(.*:\d{1,5})"`)
 )
 
 // app represents an instance of some VictoriaMetrics server (such as vmstorage,

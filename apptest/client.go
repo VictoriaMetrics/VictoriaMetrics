@@ -104,9 +104,24 @@ type ServesMetrics struct {
 	cli        *Client
 }
 
+// GetIntMetricGt retrieves thevalue of a metric served by an app at /metrics
+// URL, converts the value to int and returns it if it is greater than `want`.
+// Otherwise it fails the test.
+func (app *ServesMetrics) GetIntMetricGt(t *testing.T, metricName string, want int) int {
+	t.Helper()
+
+	got := app.GetIntMetric(t, metricName)
+	if got <= want {
+		t.Fatalf("unexpected %s metric value: got %d, want > %d", metricName, got, want)
+	}
+	return got
+}
+
 // GetIntMetric retrieves the value of a metric served by an app at /metrics URL.
 // The value is then converted to int.
 func (app *ServesMetrics) GetIntMetric(t *testing.T, metricName string) int {
+	t.Helper()
+
 	return int(app.GetMetric(t, metricName))
 }
 

@@ -115,12 +115,14 @@ func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, query, start, end, 
 // and returns the list of time series that match the query.
 //
 // See https://docs.victoriametrics.com/url-examples/#apiv1series
-func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse {
+func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery, start, end string, opts QueryOpts) *PrometheusAPIV1SeriesResponse {
 	t.Helper()
 
 	seriesURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/series", app.httpListenAddr, opts.Tenant)
 	values := url.Values{}
 	values.Add("match[]", matchQuery)
+	values.Add("start", start)
+	values.Add("end", end)
 	res := app.cli.PostForm(t, seriesURL, values, http.StatusOK)
 	return NewPrometheusAPIV1SeriesResponse(t, res)
 }

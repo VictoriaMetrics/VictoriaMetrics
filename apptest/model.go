@@ -17,7 +17,7 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1Export(t *testing.T, query, start, end string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1Query(t *testing.T, query, time, step string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1QueryRange(t *testing.T, query, start, end, step string, opts QueryOpts) *PrometheusAPIV1QueryResponse
-	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
+	PrometheusAPIV1Series(t *testing.T, matchQuery, start, end string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
 }
 
 // PrometheusWriter contains methods available to Prometheus-like HTTP API for Writing new data
@@ -141,7 +141,7 @@ func NewPrometheusAPIV1SeriesResponse(t *testing.T, s string) *PrometheusAPIV1Se
 }
 
 // Sort sorts the response data.
-func (r *PrometheusAPIV1SeriesResponse) Sort() {
+func (r *PrometheusAPIV1SeriesResponse) Sort() *PrometheusAPIV1SeriesResponse {
 	str := func(m map[string]string) string {
 		s := []string{}
 		for k, v := range m {
@@ -154,4 +154,6 @@ func (r *PrometheusAPIV1SeriesResponse) Sort() {
 	slices.SortFunc(r.Data, func(a, b map[string]string) int {
 		return strings.Compare(str(a), str(b))
 	})
+
+	return r
 }

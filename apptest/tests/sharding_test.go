@@ -75,7 +75,7 @@ func TestClusterVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.
 	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/series response",
 		Got: func() any {
-			res := vmselect.PrometheusAPIV1Series(t, `{__name__=~".*"}`, qopts)
+			res := vmselect.PrometheusAPIV1Series(t, `{__name__=~".*"}`, "", "", qopts)
 			res.Sort()
 			return res
 		},

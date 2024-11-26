@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
+// See: https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup
 func TestClusterMultilevelSelect(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
@@ -55,7 +56,7 @@ func TestClusterMultilevelSelect(t *testing.T) {
 	// vmselect (L2) serve the complete set of time series.
 
 	got := func(app *apptest.Vmselect) any {
-		res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, qopts)
+		res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, "", "", qopts)
 		res.Sort()
 		return res
 	}

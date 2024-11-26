@@ -165,6 +165,15 @@ func (tc *TestCase) addApp(app Stopper) {
 	tc.startedApps = append(tc.startedApps, app)
 }
 
+// ForceFlush flushes zero or more storages.
+func (tc *TestCase) ForceFlush(apps ...StorageFlusher) {
+	tc.t.Helper()
+
+	for _, app := range apps {
+		app.ForceFlush(tc.t)
+	}
+}
+
 // AssertOptions hold the assertion params, such as got and wanted values as
 // well as the message that should be included into the assertion error message
 // in case of failure.

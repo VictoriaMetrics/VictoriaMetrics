@@ -22,17 +22,35 @@ type Vminsert struct {
 	cli            *Client
 }
 
+// storageNodeCount counts the number of storage nodes passed to vminsert via
+// command line flags.
+func storageNodeCount(flags []string) int {
+	for _, flag := range flags {
+		if storageNodes, found := strings.CutPrefix(flag, "-storageNode="); found {
+			return len(strings.Split(storageNodes, ","))
+		}
+	}
+	return 0
+}
+
 // StartVminsert starts an instance of vminsert with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
 func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, error) {
+	extractREs := []*regexp.Regexp{
+		httpListenAddrRE,
+	}
+	// Add storateNode REs to block until vminsert establishes connections with
+	// all storage nodes. The extracted values are unused.
+	for range storageNodeCount(flags) {
+		extractREs = append(extractREs, vminsertStorageNodeRE)
+	}
+
 	app, stderrExtracts, err := startApp(instance, "../../bin/vminsert", flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-httpListenAddr": "127.0.0.1:0",
 		},
-		extractREs: []*regexp.Regexp{
-			httpListenAddrRE,
-		},
+		extractREs: extractREs,
 	})
 	if err != nil {
 		return nil, err
