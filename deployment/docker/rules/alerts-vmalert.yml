@@ -18,25 +18,25 @@ groups:
             Check vmalert's logs for detailed error message."
 
       - alert: AlertingRulesError
-        expr: sum(increase(vmalert_alerting_rules_errors_total[5m])) without(alertname, id) > 0
+        expr: sum(increase(vmalert_alerting_rules_errors_total[5m])) without(id) > 0
         for: 5m
         labels:
           severity: warning
         annotations:
           dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=13&var-instance={{ $labels.instance }}&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
           summary: "Alerting rules are failing for vmalert instance {{ $labels.instance }}"
-          description: "Alerting rules execution is failing for group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\".
+          description: "Alerting rules execution is failing for \"{{ $labels.alertname }}\" from group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\".
             Check vmalert's logs for detailed error message."
 
       - alert: RecordingRulesError
-        expr: sum(increase(vmalert_recording_rules_errors_total[5m])) without(recording, id) > 0
+        expr: sum(increase(vmalert_recording_rules_errors_total[5m])) without(id) > 0
         for: 5m
         labels:
           severity: warning
         annotations:
           dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=30&var-instance={{ $labels.instance }}&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
           summary: "Recording rules are failing for vmalert instance {{ $labels.instance }}"
-          description: "Recording rules execution is failing for group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\".
+          description: "Recording rules execution is failing for \"{{ $labels.recording }}\" from group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\".
             Check vmalert's logs for detailed error message."
 
       - alert: RecordingRulesNoData
