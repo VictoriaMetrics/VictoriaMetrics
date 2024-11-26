@@ -29,7 +29,7 @@ groups:
             Check vmalert's logs for detailed error message."
 
       - alert: RecordingRulesError
-        expr: sum(increase(vmalert_recording_rules_errors_total[5m])) without(recording, id) > 0
+        expr: sum(increase(vmalert_recording_rules_errors_total[5m])) without(id) > 0
         for: 5m
         labels:
           severity: warning
