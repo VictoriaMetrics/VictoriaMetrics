@@ -1,6 +1,8 @@
 ## Next release
 
 - updated common dependency 0.0.31 -> 0.0.32
+- synced rules and dashboards
+- added .Values.dashboards.namespace to override default namespace for dashboards
 
 ## 0.8.3
 
