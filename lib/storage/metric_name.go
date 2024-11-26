@@ -14,7 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
@@ -573,7 +573,7 @@ func SetMaxLabelsPerTimeseries(maxLabels int) {
 // MarshalMetricNameRaw marshals labels to dst and returns the result.
 //
 // The result must be unmarshaled with MetricName.UnmarshalRaw
-func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prompb.Label) []byte {
+func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prompbmarshal.Label) []byte {
 	// Calculate the required space for dst.
 	dstLen := len(dst)
 	dstSize := dstLen + 8
@@ -633,7 +633,7 @@ var (
 	TooLongLabelValues atomic.Uint64
 )
 
-func trackDroppedLabels(labels, droppedLabels []prompb.Label, accountID, projectID uint32) {
+func trackDroppedLabels(labels, droppedLabels []prompbmarshal.Label, accountID, projectID uint32) {
 	MetricsWithDroppedLabels.Add(1)
 	select {
 	case <-droppedLabelsLogTicker.C:
@@ -646,7 +646,7 @@ func trackDroppedLabels(labels, droppedLabels []prompb.Label, accountID, project
 	}
 }
 
-func trackTruncatedLabels(labels []prompb.Label, truncated *prompb.Label, accountID, projectID uint32) {
+func trackTruncatedLabels(labels []prompbmarshal.Label, truncated *prompbmarshal.Label, accountID, projectID uint32) {
 	TooLongLabelValues.Add(1)
 	select {
 	case <-truncatedLabelsLogTicker.C:
@@ -664,8 +664,8 @@ var (
 	truncatedLabelsLogTicker = time.NewTicker(5 * time.Second)
 )
 
-func labelsToString(labels []prompb.Label) string {
-	labelsCopy := append([]prompb.Label{}, labels...)
+func labelsToString(labels []prompbmarshal.Label) string {
+	labelsCopy := append([]prompbmarshal.Label{}, labels...)
 	sort.Slice(labelsCopy, func(i, j int) bool {
 		return string(labelsCopy[i].Name) < string(labelsCopy[j].Name)
 	})
@@ -688,7 +688,7 @@ func labelsToString(labels []prompb.Label) string {
 }
 
 // MarshalMetricLabelRaw marshals label to dst.
-func MarshalMetricLabelRaw(dst []byte, label *prompb.Label) []byte {
+func MarshalMetricLabelRaw(dst []byte, label *prompbmarshal.Label) []byte {
 	dst = marshalStringFast(dst, label.Name)
 	dst = marshalStringFast(dst, label.Value)
 	return dst
