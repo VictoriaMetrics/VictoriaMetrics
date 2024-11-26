@@ -1,4 +1,4 @@
- ![Version: 0.8.3](https://img.shields.io/badge/Version-0.8.3-informational?style=flat-square)
+ ![Version: 0.8.4](https://img.shields.io/badge/Version-0.8.4-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-logs-single)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -204,6 +204,17 @@ Change the values according to the need of the environment in ``victoria-logs-si
 </pre>
 </td>
       <td><p>Dashboard labels</p>
+</td>
+    </tr>
+    <tr>
+      <td>dashboards.namespace</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Override default namespace, where to create dashboards</p>
 </td>
     </tr>
     <tr>
