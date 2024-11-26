@@ -1,6 +1,7 @@
 package apptest
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"net/url"
@@ -36,13 +37,13 @@ func (c *Client) CloseConnections() {
 // the response body to the caller.
 func (c *Client) Get(t *testing.T, url string, wantStatusCode int) string {
 	t.Helper()
-	return c.do(t, http.MethodGet, url, "", "", wantStatusCode)
+	return c.do(t, http.MethodGet, url, "", nil, wantStatusCode)
 }
 
 // Post sends a HTTP POST request. Once the function receives a response, it
 // checks whether the response status code matches the expected one and returns
 // the response body to the caller.
-func (c *Client) Post(t *testing.T, url, contentType, data string, wantStatusCode int) string {
+func (c *Client) Post(t *testing.T, url, contentType string, data []byte, wantStatusCode int) string {
 	t.Helper()
 	return c.do(t, http.MethodPost, url, contentType, data, wantStatusCode)
 }
@@ -52,16 +53,16 @@ func (c *Client) Post(t *testing.T, url, contentType, data string, wantStatusCod
 // matches the expected one and returns the response body to the caller.
 func (c *Client) PostForm(t *testing.T, url string, data url.Values, wantStatusCode int) string {
 	t.Helper()
-	return c.Post(t, url, "application/x-www-form-urlencoded", data.Encode(), wantStatusCode)
+	return c.Post(t, url, "application/x-www-form-urlencoded", []byte(data.Encode()), wantStatusCode)
 }
 
 // do prepares a HTTP request, sends it to the server, receives the response
 // from the server, ensures then response code matches the expected one, reads
 // the rentire response body and returns it to the caller.
-func (c *Client) do(t *testing.T, method, url, contentType, data string, wantStatusCode int) string {
+func (c *Client) do(t *testing.T, method, url, contentType string, data []byte, wantStatusCode int) string {
 	t.Helper()
 
-	req, err := http.NewRequest(method, url, strings.NewReader(data))
+	req, err := http.NewRequest(method, url, bytes.NewReader(data))
 	if err != nil {
 		t.Fatalf("could not create a HTTP request: %v", err)
 	}
@@ -127,4 +128,32 @@ func (app *ServesMetrics) GetMetric(t *testing.T, metricName string) float64 {
 	}
 	t.Fatalf("metic not found: %s", metricName)
 	return 0
+}
+
+// GetMetricsByPrefix retrieves the values of all metrics that start with given
+// prefix.
+func (app *ServesMetrics) GetMetricsByPrefix(t *testing.T, prefix string) []float64 {
+	t.Helper()
+
+	values := []float64{}
+
+	metrics := app.cli.Get(t, app.metricsURL, http.StatusOK)
+	for _, metric := range strings.Split(metrics, "\n") {
+		if !strings.HasPrefix(metric, prefix) {
+			continue
+		}
+
+		parts := strings.Split(metric, " ")
+		if len(parts) < 2 {
+			t.Fatalf("unexpected record format: got %q, want metric name and value separated by a space", metric)
+		}
+
+		value, err := strconv.ParseFloat(parts[len(parts)-1], 64)
+		if err != nil {
+			t.Fatalf("could not parse metric value %s: %v", metric, err)
+		}
+
+		values = append(values, value)
+	}
+	return values
 }

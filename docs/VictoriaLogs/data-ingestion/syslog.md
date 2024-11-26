@@ -41,8 +41,8 @@ from the received Syslog lines:
 
 - [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) - log timestamp. See also [log timestamps](#log-timestamps)
 - [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) - the `MESSAGE` field from the supported syslog formats above
-- `hostname`, `app_name` and `proc_id` - [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) for unique identification
-  over every log stream
+- `hostname`, `app_name` and `proc_id` - for unique identification of [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+  It is possible to change the list of fields for log streams - see [these docs](#stream-fields).
 - `priority`, `facility` and `severity` - these fields are extracted from `<PRI>` field
 - `format` - this field is set to either `rfc3164` or `rfc5424` depending on the format of the parsed syslog line
 - `msg_id` - `MSGID` field from log line in `RFC5424` format.
@@ -71,6 +71,9 @@ See also:
 - [Security](#security)
 - [Compression](#compression)
 - [Multitenancy](#multitenancy)
+- [Stream fields](#stream-fields)
+- [Dropping fields](#dropping-fields)
+- [Adding extra fields](#adding-extra-fields)
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 
@@ -130,6 +133,40 @@ For example, the following command starts VictoriaLogs, which writes syslog mess
 
 ```sh
 ./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.tenantID.tcp=12:34
+```
+
+## Stream fields
+
+VictoriaLogs uses `(hostname, app_name, proc_id)` fields as labels for [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) by default.
+It is possible setting other set of labels via `-syslog.streamFields.tcp` and `-syslog.streamFields.udp` command-line flags
+for logs insted via the corresponding `-syslog.listenAddr.tcp` and `-syslog.listenAddr.dup` addresses.
+For example, the following command starts VictoriaLogs, which uses `(hostname, app_name)` fields as log stream labels
+for logs received at TCP port 514:
+
+```sh
+./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.streamFields.tcp='["hostname","app_name"]'
+```
+
+## Dropping fields
+
+VictoriaLogs supports `-syslog.ignoreFields.tcp` and `-syslog.ignoreFields.udp` command-line flags for skipping
+the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) during inestion
+of Syslog logs into `-syslog.listenAddr.tcp` and `-syslog.listenAddr.udp` addresses.
+For example, the following command starts VictoriaLogs, which drops `proc_id` and `msg_id` fields from logs received at TCP port 514:
+
+```sh
+./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.ignoreFields.tcp='["prod_id","msg_id"]'
+```
+
+## Adding extra fields
+
+VictoriaLogs supports -`syslog.extraFields.tcp` and `-syslog.extraFields.udp` command-line flags for adding
+the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) during data ingestion
+of Syslog logs into `-syslog.listenAddr.tcp` and `-syslog.listenAddr.udp` addresses.
+For example, the following command starts VictoriaLogs, which adds `source=foo` and `abc=def` fields to logs received at TCP port 514:
+
+```sh
+./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.extraFields.tcp='{"source":"foo","abc":"def"}'
 ```
 
 ## Multiple configs

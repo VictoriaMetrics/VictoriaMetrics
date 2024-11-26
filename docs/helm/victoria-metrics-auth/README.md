@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.7.3](https://img.shields.io/badge/Version-0.7.3-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.7.7](https://img.shields.io/badge/Version-0.7.7-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-auth)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -234,7 +234,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>Labels to be added to the deployment and pods</p>
+      <td><p>Labels to be added to the deployment</p>
 </td>
     </tr>
     <tr>
@@ -278,7 +278,18 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>Full name prefix override</p>
+      <td><p>Override resources fullname</p>
+</td>
+    </tr>
+    <tr>
+      <td>global.cluster.dnsDomain</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">cluster.local.
+</code>
+</pre>
+</td>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
@@ -418,7 +429,10 @@ loggerFormat: json
       <td>ingress.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: vmauth.local
+  path:
+    - /
+  port: http
 </code>
 </pre>
 </td>
@@ -495,7 +509,10 @@ loggerFormat: json
       <td>ingressInternal.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: vmauth.local
+  path:
+    - /
+  port: http
 </code>
 </pre>
 </td>
@@ -533,6 +550,17 @@ loggerFormat: json
 </pre>
 </td>
       <td><p>Array of TLS objects</p>
+</td>
+    </tr>
+    <tr>
+      <td>initContainers</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Init containers for vmauth</p>
 </td>
     </tr>
     <tr>
@@ -602,7 +630,7 @@ name: ""
 </code>
 </pre>
 </td>
-      <td><p>Full name suffix override</p>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>
@@ -637,6 +665,17 @@ labels: {}
 </pre>
 </td>
       <td><p>See <code>kubectl explain poddisruptionbudget.spec</code> for more. Official guide is <a href="https://kubernetes.io/docs/tasks/run-application/configure-pdb/" target="_blank">here</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>podLabels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Labels to be added to pod</p>
 </td>
     </tr>
     <tr>

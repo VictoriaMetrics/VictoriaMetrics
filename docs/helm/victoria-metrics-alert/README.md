@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.3](https://img.shields.io/badge/Version-0.12.3-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.6](https://img.shields.io/badge/Version-0.12.6-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-alert)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -276,6 +276,17 @@ route:
 </td>
     </tr>
     <tr>
+      <td>alertmanager.fullnameOverride</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Override Alertmanager resources fullname</p>
+</td>
+    </tr>
+    <tr>
       <td>alertmanager.image</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -336,7 +347,10 @@ tag: v0.25.0
       <td>alertmanager.ingress.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: alertmanager.local
+  path:
+    - /
+  port: web
 </code>
 </pre>
 </td>
@@ -498,15 +512,25 @@ tag: v0.25.0
 </td>
     </tr>
     <tr>
-      <td>alertmanager.podMetadata</td>
+      <td>alertmanager.podAnnotations</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">annotations: {}
-labels: {}
+<code class="language-yaml">{}
 </code>
 </pre>
 </td>
-      <td><p>Alertmanager Pod metadata</p>
+      <td><p>Alertmanager Pod annotations</p>
+</td>
+    </tr>
+    <tr>
+      <td>alertmanager.podLabels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Alertmanager Pod labels</p>
 </td>
     </tr>
     <tr>
@@ -758,6 +782,17 @@ labels: {}
 </td>
     </tr>
     <tr>
+      <td>alertmanager.webConfig</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Alertmanager web configuration</p>
+</td>
+    </tr>
+    <tr>
       <td>extraObjects</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -766,6 +801,17 @@ labels: {}
 </pre>
 </td>
       <td><p>Add extra specs dynamically to this chart</p>
+</td>
+    </tr>
+    <tr>
+      <td>global.cluster.dnsDomain</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">cluster.local.
+</code>
+</pre>
+</td>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
@@ -859,6 +905,17 @@ name: ""
 </pre>
 </td>
       <td><p>Existing secret name</p>
+</td>
+    </tr>
+    <tr>
+      <td>nameOverride</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>
@@ -997,6 +1054,8 @@ username: ""
 <code class="language-yaml">envflag.enable: "true"
 envflag.prefix: VM_
 loggerFormat: json
+rule:
+    - /config/alert-rules.yaml
 </code>
 </pre>
 </td>
@@ -1033,7 +1092,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>Extra Volume Mounts for the container</p>
+      <td><p>Extra Volume Mounts for the container. Expects a lice of <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#volumemount-v1-core" target="_blank">volume mounts</a></p>
 </td>
     </tr>
     <tr>
@@ -1055,7 +1114,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>Full name prefix override</p>
+      <td><p>Override vmalert resources fullname</p>
 </td>
     </tr>
     <tr>
@@ -1121,7 +1180,10 @@ variant: ""
       <td>server.ingress.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: vmalert.local
+  path:
+    - /
+  port: http
 </code>
 </pre>
 </td>
@@ -1202,18 +1264,7 @@ variant: ""
 </code>
 </pre>
 </td>
-      <td><p>Override fullname suffix</p>
-</td>
-    </tr>
-    <tr>
-      <td>server.nameOverride</td>
-      <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">""
-</code>
-</pre>
-</td>
-      <td><p>Full name suffix override</p>
+      <td><p>Override default <code>app</code> label name</p>
 </td>
     </tr>
     <tr>

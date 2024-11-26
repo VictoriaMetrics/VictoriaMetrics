@@ -65,11 +65,15 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
     return groupByMultipleKeys(logs, [groupBy]).map((item) => {
       const streamValue = item.values[0]?.[groupBy] || "";
       const pairs = getStreamPairs(streamValue);
+      // values sorting by time
+      const values = item.values.sort((a,b) => new Date(b._time).getTime() - new Date(a._time).getTime());
       return {
-        ...item,
+        keys: item.keys,
+        keysString: item.keys.join(""),
+        values,
         pairs,
       };
-    });
+    }).sort((a, b) => a.keysString.localeCompare(b.keysString)); // groups sorting
   }, [logs, groupBy]);
 
   const handleClickByPair = (value: string) => async (e: MouseEvent<HTMLDivElement>) => {
@@ -117,7 +121,7 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
         {groupData.map((item, i) => (
           <div
             className="vm-group-logs-section"
-            key={item.keys.join("")}
+            key={item.keysString}
           >
             <Accordion
               key={String(expandGroups[i])}
@@ -129,7 +133,7 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
                   {item.pairs.map((pair) => (
                     <Tooltip
                       title={copied === pair ? "Copied" : "Copy to clipboard"}
-                      key={`${item.keys.join("")}_${pair}`}
+                      key={`${item.keysString}_${pair}`}
                       placement={"top-center"}
                     >
                       <div

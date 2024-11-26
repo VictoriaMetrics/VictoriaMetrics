@@ -18,6 +18,7 @@ The VictoriaLogs datasource plugin allows you to query and visualize
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) data in [Grafana](https://grafana.com).
 
 * [Installation](#installation)
+* [Getting started development](#getting-started-development)
 * [How to make new release](#how-to-make-new-release)
 * [Notes](#notes)
 * [License](#license)
@@ -79,7 +80,7 @@ Please find the example of provisioning Grafana instance with VictoriaLogs datas
        grafana:
          image: grafana/grafana:11.0.0
          environment:
-         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.6.2/victorialogs-datasource-v0.6.2.zip;victorialogs-datasource
+         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.8.0/victorialogs-datasource-v0.8.0.zip;victorialogs-datasource
          - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victorialogs-datasource
          ports:
          - 3000:3000/tcp
@@ -107,7 +108,7 @@ Option 1. Using Grafana provisioning:
 
 ``` yaml
 env:
-  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.6.2/victorialogs-datasource-v0.6.2.zip;victorialogs-datasource"
+  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.8.0/victorialogs-datasource-v0.8.0.zip;victorialogs-datasource"
   GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: "victorialogs-datasource"
 ```
 
@@ -115,7 +116,7 @@ Option 2. Using Grafana plugins section in `values.yaml`:
 
 ``` yaml
 plugins:
-  - https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.6.2/victorialogs-datasource-v0.6.2.zip;victorialogs-datasource
+  - https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.8.0/victorialogs-datasource-v0.8.0.zip;victorialogs-datasource
 ```
 
 Option 3. Using init container:
@@ -158,7 +159,7 @@ sidecar:
 
 See more about chart settings [here](https://github.com/grafana/helm-charts/blob/541d97051de87a309362e02d08741ffc868cfcd6/charts/grafana/values.yaml)
 
-Option 4 would be to build custom Grafana image with plugin based on same installation instructions.
+Option 4. would be to build custom Grafana image with plugin based on same installation instructions.
 
 #### Grafana operator
 

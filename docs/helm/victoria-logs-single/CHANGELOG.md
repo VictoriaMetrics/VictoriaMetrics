@@ -1,6 +1,80 @@
 ## Next release
 
-- Added ability to override PVC name for Deployment
+- updated common dependency 0.0.31 -> 0.0.32
+
+## 0.8.3
+
+**Release date:** 2024-11-25
+
+![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- removed duplicated app label from dashboards. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1795).
+- synced dashboards
+
+## 0.8.2
+
+**Release date:** 2024-11-22
+
+![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Removed redundant `VECTOR_SELF_NODE_NAME` env variable from vector values. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1727).
+- Added Vector dashboard. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1721).
+- updated common dependency 0.0.23 -> 0.0.31
+- fixed app.kubernetes.io/version tag override if custom tag is set. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1766).
+- Upgraded VictoriaLogs 0.41.0 -> 1.0.0
+
+## 0.8.1
+
+**Release date:** 2024-11-08
+
+![AppVersion: v0.41.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.41.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.21 -> 0.0.23
+- added `log.message` to a list of default vector message fields
+
+## 0.8.0
+
+**Release date:** 2024-11-08
+
+![AppVersion: v0.41.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.41.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Update note 1**: In a response to multiple collector related configuration feature requests and inability to use fluent-bit YAML configuration parser to provide
+ability easily override parts of default configuration we've considered using Vector as a default logs collector instead of fluent-bit.
+Please consider using [vector chart docs](https://github.com/vectordotdev/helm-charts/tree/develop/charts/vector) values under `vector` key
+to update your agent configuration if you are using it.
+
+- Allow selecting multiple/all instances in a dashboard. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1699)
+- Upgraded VictoriaLogs 0.40.0 -> 0.41.0
+- Replaced default fluent-bit collector with vector
+- Parsed json fields are now nested into `log` key. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1708)
+- updated common dependency 0.0.19 -> 0.0.21
+
+## 0.7.3
+
+**Release date:** 2024-11-06
+
+![AppVersion: v0.40.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.40.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- set default DNS domain to `cluster.local.`
+- made message, time, stream fields configurable. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1695)
+
+## 0.7.2
+
+**Release date:** 2024-11-06
+
+![AppVersion: v0.40.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.40.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- added ability to override PVC name for Deployment
+- updated dashboards
+- added JSON parsing
+- upgraded victorialogs 0.37.0 -> 0.40.0
+- made configurable service port in fluent-bit output config. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1693)
 
 ## 0.7.1
 

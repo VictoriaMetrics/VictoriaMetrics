@@ -58,6 +58,12 @@ It increases cluster availability, and simplifies cluster maintenance as well as
 
 > Note that `vmselect` despite being stateless still requires some disk space (a few GBs) for temporary caches. Refer to the `-cacheDataPath` command-line flag for more details.
 
+## vmui
+
+VictoriaMetrics cluster version provides UI for query troubleshooting and exploration. The UI is available at 
+`http://<vmselect>:8481/select/<accountID>/vmui/` in each `vmeselect` service.
+The UI allows exploring query results via graphs and tables. See more details about [vmui](https://docs.victoriametrics.com/#vmui).
+
 ## Multitenancy
 
 VictoriaMetrics cluster supports multiple isolated tenants (aka namespaces).
@@ -86,7 +92,7 @@ when different tenants have different amounts of data and different query load.
 See also [multitenancy via labels](#multitenancy-via-labels).
 
 
-## Multitenancy via labels
+### Multitenancy via labels
 
 **Writes**
 
@@ -114,10 +120,9 @@ such as [Graphite](https://docs.victoriametrics.com/#how-to-send-data-from-graph
 
 **Reads**
 
-_Available from [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040)._
 _For better performance prefer specifying [tenants in read URL](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)._
 
-`vmselect` can execute queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints `http://vmselect:8481/select/multitenant/<suffix>`.
+`vmselect` can execute {{% available_from "v1.104.0" %}} queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints `http://vmselect:8481/select/multitenant/<suffix>`.
 Currently supported endpoints for `<suffix>` are:
 - `/prometheus/api/v1/query`
 - `/prometheus/api/v1/query_range`

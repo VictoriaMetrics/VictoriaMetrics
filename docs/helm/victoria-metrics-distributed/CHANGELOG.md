@@ -1,6 +1,29 @@
 ## Next release
 
-- TODO
+- updated common dependency 0.0.28 -> 0.0.32
+
+## 0.5.0
+
+**Release date:** 2024-11-18
+
+![AppVersion: v1.106.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Update note**: This release contains breaking changes. please follow [upgrade guide](./#upgrade-to-050)
+
+- set default DNS domain to `cluster.local.`
+- added `.Values.zoneTpl` to define a default configuration for each `.Values.availabilityZones`
+- updated common dependency 0.0.19 -> 0.0.28
+- bump version of VM components to [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1)
+
+## 0.4.2
+
+**Release date:** 2024-11-05
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- bump version of VM components to [v1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0)
 
 ## 0.4.1
 

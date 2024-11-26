@@ -78,6 +78,7 @@ _Appears in:_
 - [VMAgentSpec](#vmagentspec)
 - [VMAlertSpec](#vmalertspec)
 - [VMAlertmanagerSpec](#vmalertmanagerspec)
+- [VMAuthLoadBalancerSpec](#vmauthloadbalancerspec)
 - [VMAuthSpec](#vmauthspec)
 - [VMInsert](#vminsert)
 - [VMSelect](#vmselect)
@@ -352,6 +353,7 @@ _Appears in:_
 - [VMAgentSpec](#vmagentspec)
 - [VMAlertSpec](#vmalertspec)
 - [VMAlertmanagerSpec](#vmalertmanagerspec)
+- [VMAuthLoadBalancerSpec](#vmauthloadbalancerspec)
 - [VMAuthSpec](#vmauthspec)
 - [VMInsert](#vminsert)
 - [VMSelect](#vmselect)
@@ -426,6 +428,7 @@ _Appears in:_
 - [VMAgentSpec](#vmagentspec)
 - [VMAlertSpec](#vmalertspec)
 - [VMAlertmanagerSpec](#vmalertmanagerspec)
+- [VMAuthLoadBalancerSpec](#vmauthloadbalancerspec)
 - [VMAuthSpec](#vmauthspec)
 - [VMInsert](#vminsert)
 - [VMSelect](#vmselect)
@@ -727,6 +730,7 @@ _Appears in:_
 - [VMAgentSpec](#vmagentspec)
 - [VMAlertSpec](#vmalertspec)
 - [VMAlertmanagerSpec](#vmalertmanagerspec)
+- [VMAuthLoadBalancerSpec](#vmauthloadbalancerspec)
 - [VMAuthSpec](#vmauthspec)
 - [VMInsert](#vminsert)
 - [VMSelect](#vmselect)
@@ -770,6 +774,7 @@ _Appears in:_
 - [VMAgentSpec](#vmagentspec)
 - [VMAlertSpec](#vmalertspec)
 - [VMAlertmanagerSpec](#vmalertmanagerspec)
+- [VMAuthLoadBalancerSpec](#vmauthloadbalancerspec)
 - [VMAuthSpec](#vmauthspec)
 - [VMInsert](#vminsert)
 - [VMSelect](#vmselect)
@@ -797,6 +802,7 @@ _Appears in:_
 - [VMAgentSpec](#vmagentspec)
 - [VMAlertSpec](#vmalertspec)
 - [VMAlertmanagerSpec](#vmalertmanagerspec)
+- [VMAuthLoadBalancerSpec](#vmauthloadbalancerspec)
 - [VMAuthSpec](#vmauthspec)
 - [VMInsert](#vminsert)
 - [VMSelect](#vmselect)
@@ -929,6 +935,23 @@ _Appears in:_
 | `scrape_interval` | ScrapeInterval is the same as Interval and has priority over it.<br />one of scrape_interval or interval can be used | _string_ | false |
 | `seriesLimit` | SeriesLimit defines per-scrape limit on number of unique time series<br />a single target can expose during all the scrapes on the time window of 24h. | _integer_ | false |
 | `vm_scrape_params` | VMScrapeParams defines VictoriaMetrics specific scrape parameters | _[VMScrapeParams](#vmscrapeparams)_ | false |
+
+
+#### ExternalConfig
+
+
+
+ExternalConfig defines external source of configuration
+
+
+
+_Appears in:_
+- [VMAuthSpec](#vmauthspec)
+
+| Field | Description | Scheme | Required |
+| --- | --- | --- | --- |
+| `localPath` | LocalPath contains static path to a config, which is managed externally for cases<br />when using secrets is not applicable, e.g.: Vault sidecar. | _string_ | false |
+| `secretRef` | SecretRef defines selector for externally managed secret which contains configuration | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
 
 
 #### FileSDConfig
@@ -1068,6 +1091,7 @@ _Appears in:_
 - [VMAgentSpec](#vmagentspec)
 - [VMAlertSpec](#vmalertspec)
 - [VMAlertmanagerSpec](#vmalertmanagerspec)
+- [VMAuthLoadBalancerSpec](#vmauthloadbalancerspec)
 - [VMAuthSpec](#vmauthspec)
 - [VMBackup](#vmbackup)
 - [VMInsert](#vminsert)
@@ -1704,7 +1728,7 @@ _Appears in:_
 | `params` | Params optional HTTP URL parameters added to each rule request | _[Values](#values)_ | false |
 | `rules` | Rules list of alert rules | _[Rule](#rule) array_ | true |
 | `tenant` | Tenant id for group, can be used only with enterprise version of vmalert.<br />See more details [here](https://docs.victoriametrics.com/vmalert#multitenancy). | _string_ | false |
-| `type` | Type defines datasource type for enterprise version of vmalert<br />possible values - prometheus,graphite | _string_ | false |
+| `type` | Type defines datasource type for enterprise version of vmalert<br />possible values - prometheus,graphite,vlogs | _string_ | false |
 
 
 
@@ -1744,6 +1768,7 @@ _Appears in:_
 - [VMAgentSpec](#vmagentspec)
 - [VMAlertSpec](#vmalertspec)
 - [VMAlertmanagerSpec](#vmalertmanagerspec)
+- [VMAuthLoadBalancerSpec](#vmauthloadbalancerspec)
 - [VMAuthSpec](#vmauthspec)
 - [VMInsert](#vminsert)
 - [VMSelect](#vmselect)
@@ -1938,6 +1963,30 @@ _Appears in:_
 | `urls` | URLs allows setting multiple urls for load-balancing at vmauth-side. | _string array_ | false |
 
 
+#### StatusMetadata
+
+
+
+StatusMetadata holds metadata of application update status
+
+
+
+_Appears in:_
+- [VLogsStatus](#vlogsstatus)
+- [VMAgentStatus](#vmagentstatus)
+- [VMAlertStatus](#vmalertstatus)
+- [VMAlertmanagerStatus](#vmalertmanagerstatus)
+- [VMAuthStatus](#vmauthstatus)
+- [VMClusterStatus](#vmclusterstatus)
+- [VMSingleStatus](#vmsinglestatus)
+
+| Field | Description | Scheme | Required |
+| --- | --- | --- | --- |
+| `observedGeneration` | ObservedGeneration defines current generation picked by operator for the<br />reconcile | _integer_ | true |
+| `reason` | Reason defines fail reason for reconcile process | _string_ | true |
+| `updateStatus` | UpdateStatus defines a status for update rollout | _[UpdateStatus](#updatestatus)_ | true |
+
+
 #### StorageSpec
 
 
@@ -2012,6 +2061,7 @@ _Appears in:_
 | `output_relabel_configs` | OutputRelabelConfigs is an optional relabeling rules, which are applied<br />on the aggregated output before being sent to remote storage. | _[RelabelConfig](#relabelconfig) array_ | false |
 | `outputs` | Outputs is a list of output aggregate functions to produce.<br /><br />The following names are allowed:<br /><br />- total - aggregates input counters<br />- increase - counts the increase over input counters<br />- count_series - counts the input series<br />- count_samples - counts the input samples<br />- sum_samples - sums the input samples<br />- last - the last biggest sample value<br />- min - the minimum sample value<br />- max - the maximum sample value<br />- avg - the average value across all the samples<br />- stddev - standard deviation across all the samples<br />- stdvar - standard variance across all the samples<br />- histogram_bucket - creates VictoriaMetrics histogram for input samples<br />- quantiles(phi1, ..., phiN) - quantiles' estimation for phi in the range [0..1]<br /><br />The output time series will have the following names:<br /><br />  input_name:aggr_<interval>_<output> | _string array_ | true |
 | `staleness_interval` | Staleness interval is interval after which the series state will be reset if no samples have been sent during it.<br />The parameter is only relevant for outputs: total, total_prometheus, increase, increase_prometheus and histogram_bucket. | _string_ | false |
+| `ignore_first_sample_interval` | IgnoreFirstSampleInterval specifies the interval after which the agent begins sending samples.<br />By default, it is set to the `staleness_interval`. It helps reducing the initial sample load after the agent restart.<br />This parameter is relevant only for the following outputs: total, total_prometheus, increase, increase_prometheus, and histogram_bucket. We recommend setting it to 0s unless you observe unexpected spikes in produced values. | _string_ | false |
 | `without` | Without is an optional list of labels, which must be excluded when grouping input series.<br /><br />See also By.<br /><br />If neither By nor Without are set, then the Outputs are calculated<br />individually per each input time series. | _string array_ | false |
 
 
@@ -2343,6 +2393,8 @@ UpdateStatus defines status for application
 
 
 _Appears in:_
+- [StatusMetadata](#statusmetadata)
+- [VLogsStatus](#vlogsstatus)
 - [VMAgentStatus](#vmagentstatus)
 - [VMAlertStatus](#vmalertstatus)
 - [VMAlertmanagerStatus](#vmalertmanagerstatus)
@@ -2382,6 +2434,7 @@ _Appears in:_
 
 
 
+VLogs is fast, cost-effective and scalable logs database.
 VLogs is the Schema for the vlogs API
 
 
@@ -3003,6 +3056,82 @@ VMAuth is the Schema for the vmauths API
 | `spec` |  | _[VMAuthSpec](#vmauthspec)_ | true |
 
 
+#### VMAuthLoadBalancer
+
+
+
+VMAuthLoadBalancer configures vmauth as a load balancer
+for the requests
+
+
+
+_Appears in:_
+- [VMClusterSpec](#vmclusterspec)
+
+| Field | Description | Scheme | Required |
+| --- | --- | --- | --- |
+| `disableInsertBalancing` |  | _boolean_ | true |
+| `disableSelectBalancing` |  | _boolean_ | true |
+| `enabled` |  | _boolean_ | true |
+| `spec` |  | _[VMAuthLoadBalancerSpec](#vmauthloadbalancerspec)_ | true |
+
+
+#### VMAuthLoadBalancerSpec
+
+
+
+VMAuthLoadBalancerSpec defines configuration spec for VMAuth used as load-balancer
+for VMCluster component
+
+
+
+_Appears in:_
+- [VMAuthLoadBalancer](#vmauthloadbalancer)
+
+| Field | Description | Scheme | Required |
+| --- | --- | --- | --- |
+| `affinity` | Affinity If specified, the pod's scheduling constraints. | _[Affinity](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#affinity-v1-core)_ | false |
+| `configMaps` | ConfigMaps is a list of ConfigMaps in the same namespace as the Application<br />object, which shall be mounted into the Application container<br />at /etc/vm/configs/CONFIGMAP_NAME folder | _string array_ | false |
+| `containers` | Containers property allows to inject additions sidecars or to patch existing containers.<br />It can be useful for proxies, backup, etc. | _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#container-v1-core) array_ | false |
+| `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | false |
+| `dnsConfig` | Specifies the DNS parameters of a pod.<br />Parameters specified here will be merged to the generated DNS<br />configuration based on DNSPolicy. | _[PodDNSConfig](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#poddnsconfig-v1-core)_ | false |
+| `dnsPolicy` | DNSPolicy sets DNS policy for the pod | _[DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#dnspolicy-v1-core)_ | false |
+| `extraArgs` | ExtraArgs that will be passed to the application container<br />for example remoteWrite.tmpDataPath: /tmp | _object (keys:string, values:string)_ | false |
+| `extraEnvs` | ExtraEnvs that will be passed to the application container | _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core) array_ | false |
+| `hostAliases` | HostAliases provides mapping for ip and hostname,<br />that would be propagated to pod,<br />cannot be used with HostNetwork. | _[HostAlias](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#hostalias-v1-core) array_ | false |
+| `hostNetwork` | HostNetwork controls whether the pod may use the node network namespace | _boolean_ | false |
+| `host_aliases` | HostAliasesUnderScore provides mapping for ip and hostname,<br />that would be propagated to pod,<br />cannot be used with HostNetwork.<br />Has Priority over hostAliases field | _[HostAlias](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#hostalias-v1-core) array_ | false |
+| `image` | Image - docker image settings<br />if no specified operator uses default version from operator config | _[Image](#image)_ | false |
+| `imagePullSecrets` | ImagePullSecrets An optional list of references to secrets in the same namespace<br />to use for pulling images from registries<br />see https://kubernetes.io/docs/concepts/containers/images/#referring-to-an-imagepullsecrets-on-a-pod | _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core) array_ | false |
+| `initContainers` | InitContainers allows adding initContainers to the pod definition.<br />Any errors during the execution of an initContainer will lead to a restart of the Pod.<br />More info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/ | _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#container-v1-core) array_ | false |
+| `logFormat` | LogFormat for vmauth<br />default or json | _string_ | false |
+| `logLevel` | LogLevel for vmauth container. | _string_ | false |
+| `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
+| `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
+| `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
+| `podDisruptionBudget` | PodDisruptionBudget created by operator | _[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec)_ | false |
+| `podMetadata` | Common params for scheduling<br />PodMetadata configures Labels and Annotations which are propagated to the vmauth lb pods. | _[EmbeddedObjectMetadata](#embeddedobjectmetadata)_ | true |
+| `port` | Port listen address | _string_ | false |
+| `priorityClassName` | PriorityClassName class assigned to the Pods | _string_ | false |
+| `readinessGates` | ReadinessGates defines pod readiness gates | _[PodReadinessGate](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#podreadinessgate-v1-core) array_ | true |
+| `replicaCount` | ReplicaCount is the expected size of the Application. | _integer_ | false |
+| `resources` | Resources container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | false |
+| `revisionHistoryLimitCount` | The number of old ReplicaSets to retain to allow rollback in deployment or<br />maximum number of revisions that will be maintained in the Deployment revision history.<br />Has no effect at StatefulSets<br />Defaults to 10. | _integer_ | false |
+| `runtimeClassName` | RuntimeClassName - defines runtime class for kubernetes pod.<br />https://kubernetes.io/docs/concepts/containers/runtime-class/ | _string_ | false |
+| `schedulerName` | SchedulerName - defines kubernetes scheduler name | _string_ | false |
+| `secrets` | Secrets is a list of Secrets in the same namespace as the Application<br />object, which shall be mounted into the Application container<br />at /etc/vm/secrets/SECRET_NAME folder | _string array_ | false |
+| `securityContext` | SecurityContext holds pod-level security attributes and common container settings.<br />This defaults to the default PodSecurityContext. | _[SecurityContext](#securitycontext)_ | false |
+| `serviceScrapeSpec` | ServiceScrapeSpec that will be added to vmauthlb VMServiceScrape spec | _[VMServiceScrapeSpec](#vmservicescrapespec)_ | false |
+| `serviceSpec` | AdditionalServiceSpec defines service override configuration for vmauth lb deployment<br />it'll be only applied to vmclusterlb- service | _[AdditionalServiceSpec](#additionalservicespec)_ | true |
+| `terminationGracePeriodSeconds` | TerminationGracePeriodSeconds period for container graceful termination | _integer_ | false |
+| `tolerations` | Tolerations If specified, the pod's tolerations. | _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#toleration-v1-core) array_ | false |
+| `topologySpreadConstraints` | TopologySpreadConstraints embedded kubernetes pod configuration option,<br />controls how pods are spread across your cluster among failure-domains<br />such as regions, zones, nodes, and other user-defined topology domains<br />https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/ | _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#topologyspreadconstraint-v1-core) array_ | false |
+| `useDefaultResources` | UseDefaultResources controls resource settings<br />By default, operator sets built-in resource requirements | _boolean_ | false |
+| `useStrictSecurity` | UseStrictSecurity enables strict security mode for component<br />it restricts disk writes access<br />uses non-root user out of the box<br />drops not needed security permissions | _boolean_ | false |
+| `volumeMounts` | VolumeMounts allows configuration of additional VolumeMounts on the output Deployment/StatefulSet definition.<br />VolumeMounts specified will be appended to other VolumeMounts in the Application container | _[VolumeMount](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volumemount-v1-core) array_ | false |
+| `volumes` | Volumes allows configuration of additional volumes on the output Deployment/StatefulSet definition.<br />Volumes specified will be appended to other volumes that are generated.<br />/ +optional | _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | true |
+
+
 #### VMAuthSpec
 
 
@@ -3021,7 +3150,7 @@ _Appears in:_
 | `configReloaderExtraArgs` | ConfigReloaderExtraArgs that will be passed to  VMAuths config-reloader container<br />for example resyncInterval: "30s" | _object (keys:string, values:string)_ | false |
 | `configReloaderImageTag` | ConfigReloaderImageTag defines image:tag for config-reloader container | _string_ | false |
 | `configReloaderResources` | ConfigReloaderResources config-reloader container resource request and limits, https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/<br />if not defined default resources from operator config will be used | _[ResourceRequirements](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#resourcerequirements-v1-core)_ | false |
-| `configSecret` | ConfigSecret is the name of a Kubernetes Secret in the same namespace as the<br />VMAuth object, which contains auth configuration for vmauth,<br />configuration must be inside secret key: config.yaml.<br />It must be created and managed manually.<br />If it's defined, configuration for vmauth becomes unmanaged and operator'll not create any related secrets/config-reloaders | _string_ | false |
+| `configSecret` | ConfigSecret is the name of a Kubernetes Secret in the same namespace as the<br />VMAuth object, which contains auth configuration for vmauth,<br />configuration must be inside secret key: config.yaml.<br />It must be created and managed manually.<br />If it's defined, configuration for vmauth becomes unmanaged and operator'll not create any related secrets/config-reloaders<br />Deprecated, use externalConfig.secretRef instead | _string_ | true |
 | `containers` | Containers property allows to inject additions sidecars or to patch existing containers.<br />It can be useful for proxies, backup, etc. | _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#container-v1-core) array_ | false |
 | `default_url` | DefaultURLs backend url for non-matching paths filter<br />usually used for default backend with error message | _string array_ | true |
 | `disableSelfServiceScrape` | DisableSelfServiceScrape controls creation of VMServiceScrape by operator<br />for the application.<br />Has priority over `VM_DISABLESELFSERVICESCRAPECREATION` operator env variable | _boolean_ | false |
@@ -3029,6 +3158,7 @@ _Appears in:_
 | `dnsConfig` | Specifies the DNS parameters of a pod.<br />Parameters specified here will be merged to the generated DNS<br />configuration based on DNSPolicy. | _[PodDNSConfig](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#poddnsconfig-v1-core)_ | false |
 | `dnsPolicy` | DNSPolicy sets DNS policy for the pod | _[DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#dnspolicy-v1-core)_ | false |
 | `drop_src_path_prefix_parts` | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.<br />See [here](https://docs.victoriametrics.com/vmauth#dropping-request-path-prefix) for more details. | _integer_ | false |
+| `externalConfig` | ExternalConfig defines a source of external VMAuth configuration.<br />If it's defined, configuration for vmauth becomes unmanaged and operator'll not create any related secrets/config-reloaders | _[ExternalConfig](#externalconfig)_ | false |
 | `extraArgs` | ExtraArgs that will be passed to the application container<br />for example remoteWrite.tmpDataPath: /tmp | _object (keys:string, values:string)_ | false |
 | `extraEnvs` | ExtraEnvs that will be passed to the application container | _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core) array_ | false |
 | `headers` | Headers represent additional http headers, that vmauth uses<br />in form of ["header_key: header_value"]<br />multiple values for header key:<br />["header_key: value1,value2"]<br />it's available since 1.68.0 version of vmauth | _string array_ | false |
@@ -3157,6 +3287,7 @@ _Appears in:_
 | `license` | License allows to configure license key to be used for enterprise features.<br />Using license key is supported starting from VictoriaMetrics v1.94.0.<br />See [here](https://docs.victoriametrics.com/enterprise) | _[License](#license)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
 | `replicationFactor` | ReplicationFactor defines how many copies of data make among<br />distinct storage nodes | _integer_ | false |
+| `requestsLoadBalancer` | RequestsLoadBalancer configures load-balancing for vminsert and vmselect requests<br />it helps to evenly spread load across pods<br />usually it's not possible with kubernetes TCP based service | _[VMAuthLoadBalancer](#vmauthloadbalancer)_ | true |
 | `retentionPeriod` | RetentionPeriod for the stored metrics<br />Note VictoriaMetrics has data/ and indexdb/ folders<br />metrics from data/ removed eventually as soon as partition leaves retention period<br />reverse index data at indexdb rotates once at the half of configured<br />[retention period](https://docs.victoriametrics.com/Single-server-VictoriaMetrics/#retention) | _string_ | true |
 | `serviceAccountName` | ServiceAccountName is the name of the ServiceAccount to use to run the<br />VMSelect, VMStorage and VMInsert Pods. | _string_ | false |
 | `useStrictSecurity` | UseStrictSecurity enables strict security mode for component<br />it restricts disk writes access<br />uses non-root user out of the box<br />drops not needed security permissions | _boolean_ | false |
@@ -3704,6 +3835,7 @@ _Appears in:_
 - [VMAgentSpec](#vmagentspec)
 - [VMAlertSpec](#vmalertspec)
 - [VMAlertmanagerSpec](#vmalertmanagerspec)
+- [VMAuthLoadBalancerSpec](#vmauthloadbalancerspec)
 - [VMAuthSpec](#vmauthspec)
 - [VMInsert](#vminsert)
 - [VMSelect](#vmselect)
@@ -3793,8 +3925,8 @@ _Appears in:_
 | `serviceAccountName` | ServiceAccountName is the name of the ServiceAccount to use to run the pods | _string_ | false |
 | `serviceScrapeSpec` | ServiceScrapeSpec that will be added to vmsingle VMServiceScrape spec | _[VMServiceScrapeSpec](#vmservicescrapespec)_ | false |
 | `serviceSpec` | ServiceSpec that will be added to vmsingle service spec | _[AdditionalServiceSpec](#additionalservicespec)_ | false |
-| `storage` | Storage is the definition of how storage will be used by the VMSingle<br />by default it`s empty dir | _[PersistentVolumeClaimSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#persistentvolumeclaimspec-v1-core)_ | false |
-| `storageDataPath` | StorageDataPath disables spec.storage option and overrides arg for victoria-metrics binary --storageDataPath,<br />its users responsibility to mount proper device into given path. | _string_ | false |
+| `storage` | Storage is the definition of how storage will be used by the VMSingle<br />by default it`s empty dir<br />this option is ignored if storageDataPath is set | _[PersistentVolumeClaimSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#persistentvolumeclaimspec-v1-core)_ | false |
+| `storageDataPath` | StorageDataPath disables spec.storage option and overrides arg for victoria-metrics binary --storageDataPath,<br />its users responsibility to mount proper device into given path.<br />It requires to provide spec.volumes and spec.volumeMounts with at least 1 value | _string_ | false |
 | `storageMetadata` | StorageMeta defines annotations and labels attached to PVC for given vmsingle CR | _[EmbeddedObjectMetadata](#embeddedobjectmetadata)_ | false |
 | `streamAggrConfig` | StreamAggrConfig defines stream aggregation configuration for VMSingle | _[StreamAggrConfig](#streamaggrconfig)_ | true |
 | `terminationGracePeriodSeconds` | TerminationGracePeriodSeconds period for container graceful termination | _integer_ | false |

@@ -380,6 +380,8 @@ See also [security docs](#security), [routing docs](#routing) and [load balancin
 - [Multiple parts](#routing-by-multiple-parts)
 
 See also [authorization](#authorization) and [load balancing](#load-balancing).
+For debug purposes, extra logging for failed requests can be enabled by setting `dump_request_on_errors: true` {{% available_from "#" %}}
+on user level. Please note, such logging may expose sensitive info and is recommended to use only for debugging.
 
 ### Routing by path
 
@@ -645,7 +647,7 @@ For example, if `some-addr` [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) 
 then `url_prefix: http://srv+some-addr/some/path` is automatically resolved into `url_prefix: http://some-host:12345/some/path`.
 The DNS SRV resolution is performed every time new connection to the `url_prefix` backend is established.
 
-See also [discovering backend addressess](#discovering-backend-ips).
+See also [discovering backend addresses](#discovering-backend-ips).
 
 ## Modifying HTTP headers
 
@@ -953,6 +955,8 @@ users:
   #
   # Regular expressions are allowed in `src_paths` and `src_hosts` entries.
 - username: "foobar"
+  # log requests that failed url_map rules, for debugging purposes
+  dump_request_on_errors: true
   url_map:
   - src_paths:
     - "/api/v1/query"

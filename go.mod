@@ -10,7 +10,7 @@ require (
 	github.com/VictoriaMetrics/easyproto v0.1.4
 	github.com/VictoriaMetrics/fastcache v1.12.2
 	github.com/VictoriaMetrics/metrics v1.35.1
-	github.com/VictoriaMetrics/metricsql v0.79.0
+	github.com/VictoriaMetrics/metricsql v0.80.0
 	github.com/aws/aws-sdk-go-v2 v1.31.0
 	github.com/aws/aws-sdk-go-v2/config v1.27.38
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.24
@@ -21,6 +21,7 @@ require (
 	github.com/ergochat/readline v0.1.3
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/snappy v0.0.4
+	github.com/google/go-cmp v0.6.0
 	github.com/googleapis/gax-go/v2 v2.13.0
 	github.com/influxdata/influxdb v1.11.6
 	github.com/klauspost/compress v1.17.10
@@ -35,7 +36,7 @@ require (
 	github.com/valyala/quicktemplate v1.8.0
 	golang.org/x/net v0.29.0
 	golang.org/x/oauth2 v0.23.0
-	golang.org/x/sys v0.25.0
+	golang.org/x/sys v0.27.0
 	google.golang.org/api v0.199.0
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -79,7 +80,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect

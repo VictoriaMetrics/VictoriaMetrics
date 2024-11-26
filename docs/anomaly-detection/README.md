@@ -1,17 +1,19 @@
-In the dynamic and complex world of system monitoring, VictoriaMetrics Anomaly Detection, being a part of our [Enterprise offering](https://victoriametrics.com/products/enterprise/), stands as a pivotal tool for achieving advanced observability. It empowers SREs and DevOps teams by automating the intricate task of identifying abnormal behavior in time-series data. It goes beyond traditional threshold-based alerting, utilizing machine learning techniques to not only detect anomalies but also minimize false positives, thus reducing alert fatigue. By providing simplified alerting mechanisms atop of [unified anomaly scores](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output), it enables teams to spot and address potential issues faster, ensuring system reliability and operational efficiency.
+In the dynamic and complex world of system monitoring, [VictoriaMetrics Anomaly Detection](https://victoriametrics.com/products/enterprise/anomaly-detection/) (or shortly, `vmanomaly`), being a part of our [Enterprise offering](https://victoriametrics.com/products/enterprise/), stands as a pivotal tool for achieving advanced observability. It empowers SREs and DevOps teams by automating the identification of abnormal behavior in time-series data. It goes beyond traditional threshold-based alerting, utilizing machine learning techniques to not only detect anomalies but also minimize false positives, thus reducing alert fatigue. By providing simplified alerting mechanisms atop of [unified anomaly scores](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output), it enables teams to spot and address potential issues faster, ensuring system reliability and operational efficiency.
 
 ## Practical Guides and Installation
-Begin your VictoriaMetrics Anomaly Detection journey with ease using our guides and installation instructions:
 
-- **Quickstart**: Check out how to get `vmanomaly` up and running [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/).
-- **Overview**: Find out how `vmanomaly` service operates [here](https://docs.victoriametrics.com/anomaly-detection/overview/)
-- **Integration**: Integrate anomaly detection into your observability ecosystem. Get started [here](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/).
-- **Anomaly Detection Presets**: Enable anomaly detection on predefined set of indicators, that require frequently changing static thresholds for alerting. Find more information [here](https://docs.victoriametrics.com/anomaly-detection/presets/).
+Get started with VictoriaMetrics Anomaly Detection efficiently by following our guides and installation options:
 
-- **Installation Options**: Select the method that aligns with your technical requirements:
-    - **Docker Installation**: Suitable for containerized environments. See [Docker guide](https://docs.victoriametrics.com/anomaly-detection/overview/#run-vmanomaly-docker-container).
-    - **Helm Chart Installation**: Appropriate for those using Kubernetes. See our [Helm charts](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-anomaly).
+- **Quickstart**: Learn how to quickly set up `vmanomaly` by following the [Quickstart Guide](https://docs.victoriametrics.com/anomaly-detection/quickstart/).
+- **Overview**: Understand the architecture and operation of the `vmanomaly` service [here](https://docs.victoriametrics.com/anomaly-detection/overview/).
+- **Integration**: Integrate anomaly detection into your existing observability stack. Find detailed steps [here](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/).
+- **Anomaly Detection Presets**: Enable anomaly detection on predefined sets of metrics that require frequent static threshold changes for alerting. Learn more [here](https://docs.victoriametrics.com/anomaly-detection/presets/).
 
+- **Installation Options**: Choose the installation method that best fits your infrastructure:
+    - **Docker Installation**: Ideal for containerized environments. Follow the [Docker Installation Guide](https://docs.victoriametrics.com/anomaly-detection/overview/#run-vmanomaly-docker-container).
+    - **Helm Chart Installation**: Recommended for Kubernetes deployments. See our [Helm charts](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-anomaly).
+
+- **Self-Monitoring**: Ensure `vmanomaly` is functioning optimally with built-in self-monitoring capabilities. Use the provided Grafana dashboards and alerting rules to track service health and operational metrics. Find the complete docs [here](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/).
 
 > **Note**: starting from [v1.5.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v150) `vmanomaly` requires a [license key](https://docs.victoriametrics.com/anomaly-detection/overview/#licensing) to run. You can obtain a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
 
@@ -31,6 +33,9 @@ Enhance your knowledge with our handbook on Anomaly Detection & Root Cause Analy
     - [Types of Anomalies in Time Series Data](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/)
     - [Techniques and Models for Anomaly Detection](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-3/)
 * Follow the [`#anomaly-detection`](https://victoriametrics.com/blog/tags/anomaly-detection/) tag in our blog
+
+## Product Updates
+Stay up-to-date with the latest improvements and features in VictoriaMetrics Anomaly Detection, and the rest of our products on our [blog](https://victoriametrics.com/blog/tags/product-updates/).
 
 ## Frequently Asked Questions (FAQ)
 Got questions about VictoriaMetrics Anomaly Detection? Chances are, we've got the answers ready for you. 

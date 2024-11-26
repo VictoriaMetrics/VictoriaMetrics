@@ -90,6 +90,20 @@ User-Agent: vmauth
 X-Forwarded-For: 12.34.56.78, 42.2.3.84`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
+	// routing of all failed to authorize requests to unauthorized_user (issue #7543)
+	cfgStr = `
+unauthorized_user:
+  url_prefix: "{BACKEND}/foo"
+  keep_original_host: true`
+	requestURL = "http://foo:invalid-secret@some-host.com/abc/def"
+	backendHandler = func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "requested_url=http://%s%s", r.Host, r.URL)
+	}
+	responseExpected = `
+statusCode=200
+requested_url=http://some-host.com/foo/abc/def`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
 	// keep_original_host
 	cfgStr = `
 unauthorized_user:
@@ -346,7 +360,27 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=400
-remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /abc?de=fg; missing route for http://some-host.com/abc?de=fg`
+remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /abc?de=fg; missing route for "http://some-host.com/abc?de=fg"`
+	f(cfgStr, requestURL, backendHandler, responseExpected)
+
+	// missing default_url and default url_prefix for unauthorized user with dump_request_on_errors enabled
+	cfgStr = `
+unauthorized_user:
+  dump_request_on_errors: true
+  url_map:
+  - src_paths: ["/foo/.+"]
+    url_prefix: {BACKEND}/x-foo/`
+	requestURL = "http://some-host.com/abc?de=fg"
+	backendHandler = func(_ http.ResponseWriter, _ *http.Request) {
+		panic(fmt.Errorf("backend handler shouldn't be called"))
+	}
+	responseExpected = `
+statusCode=400
+remoteAddr: "42.2.3.84:6789, X-Forwarded-For: 12.34.56.78"; requestURI: /abc?de=fg; missing route for "http://some-host.com/abc?de=fg" (host: "some-host.com"; path: "/abc"; args: "de=fg"; headers:Connection: Some-Header,Other-Header
+Pass-Header: abc
+Some-Header: foobar
+X-Forwarded-For: 12.34.56.78
+)`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 
 	// missing default_url and default url_prefix for unauthorized user when there are configs for authorized users

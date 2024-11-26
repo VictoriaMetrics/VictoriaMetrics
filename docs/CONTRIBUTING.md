@@ -63,7 +63,8 @@ A pull request should contain the following attributes:
    To run tests and code checks locally execute commands `make tests-full` and `make check-all`.
 1. Try to not extend the scope of the pull requests outside the issue, do not make unrelated changes.
 1. Documentation update, if needed. For example, adding a new flag or changing behavior of existing flags or features 
-  requires reflecting these changes in the documentation.
+   requires reflecting these changes in the documentation. For new features add `{{%/* available_from "#" */%}}` shortcode
+   to the documentation. It will be later automatically replaced with an actual release version.
 1. A line in the [changelog](https://docs.victoriametrics.com/changelog/#tip) mentioning the change and related issue in a way
   that would be clear to other readers even if they don't have the full context.
 1. Reviewers who you think have the best expertise on the matter.
@@ -94,7 +95,7 @@ We are open to third-party pull requests provided they follow [KISS design princ
 
 Adhering `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and debugged by wider audience.
 
-Due to `KISS`, [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) has no the following "features" popular in distributed computing world:
+Due to `KISS`, [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) has none of the following "features" popular in distributed computing world:
 
 - Fragile gossip protocols. See [failed attempt in Thanos](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md).
 - Hard-to-understand-and-implement-properly [Paxos protocols](https://www.quora.com/In-distributed-systems-what-is-a-simple-explanation-of-the-Paxos-algorithm).

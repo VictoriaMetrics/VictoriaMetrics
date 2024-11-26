@@ -60,10 +60,6 @@ func (pu *pipeUnpackJSON) updateNeededFields(neededFields, unneededFields fields
 	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, neededFields, unneededFields)
 }
 
-func (pu *pipeUnpackJSON) optimize() {
-	pu.iff.optimizeFilterIn()
-}
-
 func (pu *pipeUnpackJSON) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }

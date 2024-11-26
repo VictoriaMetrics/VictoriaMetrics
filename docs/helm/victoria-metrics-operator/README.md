@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.36.0](https://img.shields.io/badge/Version-0.36.0-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.39.1](https://img.shields.io/badge/Version-0.39.1-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-operator)
 
 Victoria Metrics Operator
@@ -351,6 +351,17 @@ requests:
 </td>
     </tr>
     <tr>
+      <td>crds.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
+</pre>
+</td>
+      <td><p>manages CRD creation. Disables CRD creation only in combination with <code>crds.plain: false</code> due to helm dependency conditions limitation</p>
+</td>
+    </tr>
+    <tr>
       <td>crds.plain</td>
       <td>bool</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -468,18 +479,19 @@ requests:
 </code>
 </pre>
 </td>
-      <td><p>Overrides the full name of server component</p>
+      <td><p>Overrides the full name of server component resources</p>
 </td>
     </tr>
     <tr>
       <td>global.cluster.dnsDomain</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">cluster.local
+<code class="language-yaml">cluster.local.
 </code>
 </pre>
 </td>
-      <td></td>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
+</td>
     </tr>
     <tr>
       <td>global.compatibility</td>
@@ -615,7 +627,7 @@ variant: ""
 </code>
 </pre>
 </td>
-      <td><p>VM operatror deployment name override</p>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>
