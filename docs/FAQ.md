@@ -29,7 +29,7 @@ Yes. See [these benchmarks](https://docs.victoriametrics.com/articles/#benchmark
 
 See [these docs](https://docs.victoriametrics.com/quick-start/).
 
-## Hot to contribute to VictoriaMetrics?
+## How to contribute to VictoriaMetrics?
 
 See [these docs](https://docs.victoriametrics.com/contributing/).
 

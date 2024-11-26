@@ -2,6 +2,25 @@
 
 - TODO
 
+## 0.39.1
+
+**Release date:** 2024-11-25
+
+![AppVersion: v0.50.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.50.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.31 -> 0.0.32
+
+## 0.39.0
+
+**Release date:** 2024-11-25
+
+![AppVersion: v0.50.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.50.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.28 -> 0.0.31
+- fixed app.kubernetes.io/version tag override if custom tag is set. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1766).
+
 ## 0.38.0
 
 **Release date:** 2024-11-18
@@ -14,7 +33,7 @@
 - updated common dependency 0.0.19 -> 0.0.28
 - added back `crds.enabled: false` option, which disables CRD creation, but due to limitation of dependencies condition it allows to disable only in combination with `crds.plain: false`
 - disabled cleanup, while `crds.enabled: false`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1563).
-- updates operator to [v0.49.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.1) version
+- updates operator to [v0.50.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.0) version
 
 ## 0.37.0
 
