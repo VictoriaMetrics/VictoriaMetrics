@@ -19,6 +19,7 @@
     justify-content: center;
     height: 30px;
     min-width: 30px;
+    color: $color-text;
     padding: 0 $padding-small;
     border-radius: $border-radius-small;
     transition: background-color 0.3s;
@@ -33,7 +34,7 @@
     &_disabled {
       cursor: default;
       pointer-events: none;
-      color: inherit;
+      color: $color-text-disabled;
     }
 
     &:hover {
@@ -49,6 +50,7 @@
     }
 
     &:disabled {
+      color: $color-text-disabled;
       cursor: default;
       pointer-events: none;
     }

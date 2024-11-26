@@ -33,9 +33,9 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
 
   const parseLineToJSON = (line: string): Logs | null => {
     try {
-      return JSON.parse(line);
+      return line && JSON.parse(line);
     } catch (e) {
-      console.error("Failed to parse line to JSON", e);
+      console.error(`Failed to parse "${line}" to JSON\n`, e);
       return null;
     }
   };
