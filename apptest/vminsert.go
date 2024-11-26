@@ -55,7 +55,7 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/write", app.httpListenAddr, opts.Tenant)
+	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/write", app.httpListenAddr, opts.getTenant())
 	wr := pb.WriteRequest{Timeseries: records}
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	app.sendBlocking(t, len(records), func() {
@@ -72,7 +72,12 @@ func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries,
 func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
-	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, opts.Tenant)
+	url := fmt.Sprintf("http://%s/insert/%s/prometheus/api/v1/import/prometheus", app.httpListenAddr, opts.getTenant())
+	uv := opts.asURLValues()
+	uvs := uv.Encode()
+	if len(uvs) > 0 {
+		url += "?" + uvs
+	}
 	data := []byte(strings.Join(records, "\n"))
 	app.sendBlocking(t, len(records), func() {
 		app.cli.Post(t, url, "text/plain", data, http.StatusNoContent)

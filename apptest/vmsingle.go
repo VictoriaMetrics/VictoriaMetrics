@@ -3,7 +3,6 @@ package apptest
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -110,15 +109,12 @@ func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 // /prometheus/api/v1/export vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/url-examples/#apiv1export
-func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query, start, end string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
+func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
-
-	values := url.Values{}
+	values := opts.asURLValues()
 	values.Add("match[]", query)
-	values.Add("start", start)
-	values.Add("end", end)
-	values.Add("timeout", opts.Timeout)
 	values.Add("format", "promapi")
+
 	res := app.cli.PostForm(t, app.prometheusAPIV1ExportURL, values, http.StatusOK)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
@@ -128,14 +124,11 @@ func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query, start, end strin
 // vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/url-examples/#apiv1query
-func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query, time, step string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
+func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
-	values := url.Values{}
+	values := opts.asURLValues()
 	values.Add("query", query)
-	values.Add("time", time)
-	values.Add("step", step)
-	values.Add("timeout", opts.Timeout)
 	res := app.cli.PostForm(t, app.prometheusAPIV1QueryURL, values, http.StatusOK)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
@@ -145,15 +138,12 @@ func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query, time, step string
 // /prometheus/api/v1/query_range vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/url-examples/#apiv1query_range
-func (app *Vmsingle) PrometheusAPIV1QueryRange(t *testing.T, query, start, end, step string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
+func (app *Vmsingle) PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
-	values := url.Values{}
+	values := opts.asURLValues()
 	values.Add("query", query)
-	values.Add("start", start)
-	values.Add("end", end)
-	values.Add("step", step)
-	values.Add("timeout", opts.Timeout)
+
 	res := app.cli.PostForm(t, app.prometheusAPIV1QueryRangeURL, values, http.StatusOK)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
@@ -162,11 +152,12 @@ func (app *Vmsingle) PrometheusAPIV1QueryRange(t *testing.T, query, start, end, 
 // and returns the list of time series that match the query.
 //
 // See https://docs.victoriametrics.com/url-examples/#apiv1series
-func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, _ QueryOpts) *PrometheusAPIV1SeriesResponse {
+func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse {
 	t.Helper()
 
-	values := url.Values{}
+	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
+
 	res := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values, http.StatusOK)
 	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
