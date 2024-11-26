@@ -17,7 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
@@ -214,15 +214,15 @@ func processFlags() {
 func fillStorage(series []vm.TimeSeries) error {
 	var mrs []storage.MetricRow
 	for _, series := range series {
-		var labels []prompb.Label
+		var labels []prompbmarshal.Label
 		for _, lp := range series.LabelPairs {
-			labels = append(labels, prompb.Label{
+			labels = append(labels, prompbmarshal.Label{
 				Name:  lp.Name,
 				Value: lp.Value,
 			})
 		}
 		if series.Name != "" {
-			labels = append(labels, prompb.Label{
+			labels = append(labels, prompbmarshal.Label{
 				Name:  "__name__",
 				Value: series.Name,
 			})
