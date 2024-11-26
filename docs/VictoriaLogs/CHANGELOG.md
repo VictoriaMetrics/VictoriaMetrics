@@ -18,8 +18,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: add an ability to specify extra fields for logs ingested via [HTTP-based data ingestion protocols](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-apis). See `extra_fields` query arg and `VL-Extra-Fields` HTTP header in [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add frontend-only pagination for table view.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): improve memory consumption during data processing. This enhancement reduces the overall memory footprint, leading to better performance and stability. 
-
-* OPTIMIZATION: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): reduced memory usage across all tabs for improved performance and stability. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7185).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): reduce memory usage across all tabs for improved performance and stability. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7185).
 
 ## [v0.40.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.40.0-victorialogs)
 
