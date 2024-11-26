@@ -10,9 +10,9 @@ menu:
 
 VictoriaMetrics Cloud charges for three key components:
 
-1. Compute: The cost of deployment installation.
-2. Storage: The storage used by the deployment.
-3. Network: External (egress) network usage.
+- **Compute**: The cost of deployment installation.
+- **Storage**: The storage used by the deployment.
+- **Network**: External (egress) network usage.
 
 This breakdown will help you to better understand and manage your costs. Usage data is sent hourly to the payment provider (AWS or Stripe). Detailed billing information is available via the [Billing Page](https://console.victoriametrics.cloud/billing) of your VictoriaMetrics Cloud account.
 
@@ -24,11 +24,11 @@ Each deployment operates with predefined configurations and limits, protecting y
 
 This ensures predictable costs and proactive alerts for workload anomalies.
 
-Note: VictoriaMetrics Cloud does not store or process your payment information. We rely on trusted API providers (Stripe, AWS) for secure payment processing.
+__Note__: VictoriaMetrics Cloud does not store or process your payment information. We rely on trusted API providers (Stripe, AWS) for secure payment processing.
 
 ## Pricing
 
-Pricing begins at $190/month for the Starter Tier. To view other tiers and their costs, navigate to the [Create New Deployment](https://console.victoriametrics.cloud/deployments/create) section in the VictoriaMetrics Cloud application.
+Pricing begins at **$190/month** for the Starter Tier. To view other tiers and their costs, navigate to the [Create New Deployment](https://console.victoriametrics.cloud/deployments/create) section in the VictoriaMetrics Cloud application.
 
 Our aim is to make pricing information easy to access and understand. If you have any questions or feedback on our pricing, please contact us.
 
@@ -51,9 +51,9 @@ A graph is also available to display the daily cost breakdown for the selected m
 
 VictoriaMetrics Cloud supports the following payment options:
 
-1. Credit Card
-2. AWS Marketplace
-3. ACH Transfers
+- Credit Card
+- AWS Marketplace
+- ACH Transfers
 
 You can add multiple payment methods and set one as the primary. Backup payment methods are used if the primary fails. More details are available via the [Payment Methods](https://console.victoriametrics.cloud/billing) tab of the Billing Page.
 
@@ -83,6 +83,7 @@ Invoices are also accessible on the Invoices Page, which provides:
 
 For AWS Marketplace billing, check the AWS Portal for invoice information.
 
+---
 
 ## FAQ
 
