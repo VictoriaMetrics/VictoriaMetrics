@@ -93,6 +93,7 @@ func TestGetVirtualMachinesSuccess(t *testing.T) {
 				c:              c,
 				apiServerHost:  u.Hostname(),
 				subscriptionID: "some-id",
+				resourceGroup:  "some-resource-group",
 				refreshToken: func() (string, time.Duration, error) {
 					return "auth-token", 0, nil
 				},
