@@ -380,7 +380,7 @@ See also [security docs](#security), [routing docs](#routing) and [load balancin
 - [Multiple parts](#routing-by-multiple-parts)
 
 See also [authorization](#authorization) and [load balancing](#load-balancing).
-For debug purposes, extra logging for failed requests can be enabled by setting `dump_request_on_errors: true`
+For debug purposes, extra logging for failed requests can be enabled by setting `dump_request_on_errors: true` {{% available_from "#" %}}
 on user level. Please note, such logging may expose sensitive info and is recommended to use only for debugging.
 
 ### Routing by path
