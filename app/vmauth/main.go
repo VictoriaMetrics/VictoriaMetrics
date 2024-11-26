@@ -198,7 +198,11 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 				return
 			}
 			missingRouteRequests.Inc()
-			httpserver.Errorf(w, r, "missing route for %s", u.String())
+			var di string
+			if ui.DumpRequestOnErrors {
+				di = debugInfo(u, r.Header)
+			}
+			httpserver.Errorf(w, r, "missing route for %q%s", u.String(), di)
 			return
 		}
 		up, hc = ui.DefaultURL, ui.HeadersConf
@@ -649,4 +653,15 @@ func (rtb *readTrackingBody) Close() error {
 	}
 
 	return nil
+}
+
+func debugInfo(u *url.URL, h http.Header) string {
+	s := &strings.Builder{}
+	fmt.Fprintf(s, " (host: %q; ", u.Host)
+	fmt.Fprintf(s, "path: %q; ", u.Path)
+	fmt.Fprintf(s, "args: %q; ", u.Query().Encode())
+	fmt.Fprint(s, "headers:")
+	_ = h.WriteSubset(s, nil)
+	fmt.Fprint(s, ")")
+	return s.String()
 }
