@@ -31,8 +31,9 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 `vmgateway` supports jwt based authentication. With jwt payload can be configured to give access to specific tenants and labels as well as to read/write.
 
-jwt token must be in following format:
+jwt token must be in one of the following formats:
 
+with `vm_access` claim as JSON object
 ```json
 {
   "exp": 1617304574,
@@ -48,6 +49,15 @@ jwt token must be in following format:
       "extra_filters": ["{env=~\"prod|dev\",team!=\"test\"}"],
       "mode": 1
   }
+}
+```
+
+or with `vm_access` claim as string
+
+```json
+{
+  "exp": 1617304574,
+  "vm_access": "{\"tenant_id\":{\"account_id\":1,\"project_id\":5},\"extra_labels\":{\"team\":\"dev\",\"project\":\"mobile\"},\"extra_filters\": [\"{env=~\\\"prod|dev\\\",team!=\\\"test\\\"}\"],\"mode\":1}"
 }
 ```
 
