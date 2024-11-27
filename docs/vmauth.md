@@ -1086,6 +1086,8 @@ It is recommended protecting the following endpoints with authKeys:
 * `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users couldn't access [vmauth metrics](#monitoring).
 * `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users couldn't access [profiling information](#profiling).
 
+As an alternative, it's possible to serve internal API routes at the different listen address with command-line flag `-httpInternalListenAddr=127.0.0.1:8426`. {{% available_from "#" %}}
+
 `vmauth` also supports the ability to restrict access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
 
 ## Automatic issuing of TLS certificates
@@ -1288,6 +1290,11 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
      Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpAuthHeader array
      HTTP request header to use for obtaining authorization tokens. By default auth tokens are read from Authorization request header
+     Supports an array of values separated by comma or specified via multiple flags.
+     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -httpInternalListenAddr array
+     TCP address to listen for incoming internal API http requests. Such as /health, /-/reload, /debug/pprof, etc.
+     If flag is set, vmauth no longer serves internal API at -httpListenAddr.
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr array

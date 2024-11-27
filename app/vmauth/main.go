@@ -31,7 +31,11 @@ import (
 )
 
 var (
-	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "TCP address to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol")
+	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "TCP address to listen for incoming http requests. "+
+		"By default, serves internal API and proxy requests. "+
+		" See also -tls, -httpListenAddr.useProxyProtocol and -httpInternalListenAddr.")
+	httpInternalListenAddr = flagutil.NewArrayString("httpInternalListenAddr", "TCP address to listen for incoming internal API http requests. Such as /health, /-/reload, /debug/pprof, etc. "+
+		"If flag is set, vmauth no longer serves internal API at -httpListenAddr.")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -91,7 +95,19 @@ func main() {
 	logger.Infof("starting vmauth at %q...", listenAddrs)
 	startTime := time.Now()
 	initAuthConfig()
-	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
+	disableInternalRoutes := len(*httpInternalListenAddr) > 0
+	serveOpts := &httpserver.ServeOptions{
+		UseProxyProtocol:     useProxyProtocol,
+		DisableBuiltinRoutes: disableInternalRoutes,
+	}
+	rh := wrapRequstHandlerWithInternalRoutes
+	if disableInternalRoutes {
+		rh = requestHandler
+	}
+	go httpserver.ServeWithOpts(listenAddrs, rh, serveOpts)
+	if len(*httpInternalListenAddr) > 0 {
+		go httpserver.Serve(*httpInternalListenAddr, nil, internalRequestHandler)
+	}
 	logger.Infof("started vmauth in %.3f seconds", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
@@ -109,7 +125,7 @@ func main() {
 	logger.Infof("successfully stopped vmauth in %.3f seconds", time.Since(startTime).Seconds())
 }
 
-func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+func internalRequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	switch r.URL.Path {
 	case "/-/reload":
 		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey) {
@@ -120,6 +136,17 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusOK)
 		return true
 	}
+	return false
+}
+
+func wrapRequstHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bool {
+	if internalRequestHandler(w, r) {
+		return true
+	}
+	return requestHandler(w, r)
+}
+
+func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {
