@@ -51,7 +51,6 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "cannot parse Loki protobuf request: %s", err)
 		return
 	}
-	bytesIngestedProtobufTotal.Add(len(data))
 	rowsIngestedProtobufTotal.Add(n)
 
 	// update requestProtobufDuration only for successfully parsed requests
@@ -127,6 +126,7 @@ func parseProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) (int
 		}
 		rowsIngested += len(stream.Entries)
 	}
+	bytesIngestedProtobufTotal.Add(len(buf))
 	return rowsIngested, nil
 }
 

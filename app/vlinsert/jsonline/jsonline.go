@@ -118,14 +118,15 @@ func readLine(sc *bufio.Scanner, timeField string, msgFields []string, lmp inser
 	logstorage.RenameField(p.Fields, msgFields, "_msg")
 	lmp.AddRow(ts, p.Fields)
 	logstorage.PutJSONParser(p)
-
+	bytesIngestedTotal.Add(len(line))
 	return true, nil
 }
 
 var lineBufferPool bytesutil.ByteBufferPool
 
 var (
-	rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="jsonline"}`)
+	rowsIngestedTotal  = metrics.NewCounter(`vl_rows_ingested_total{type="jsonline"}`)
+	bytesIngestedTotal = metrics.NewCounter(`vl_bytes_ingested_total{type="jsonline"}`)
 
 	requestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/jsonline"}`)
 	errorsTotal   = metrics.NewCounter(`vl_http_errors_total{path="/insert/jsonline"}`)
