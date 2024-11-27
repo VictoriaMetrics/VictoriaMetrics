@@ -1,7 +1,9 @@
 package pb
 
 import (
+	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -169,6 +171,9 @@ type LogRecord struct {
 	SeverityText   string
 	Body           AnyValue
 	Attributes     []*KeyValue
+	Flags          uint32
+	TraceId        []byte
+	SpanId         []byte
 }
 
 func (lr *LogRecord) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -240,6 +245,24 @@ func (lr *LogRecord) unmarshalProtobuf(src []byte) (err error) {
 			if err := a.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Attribute: %w", err)
 			}
+		case 8:
+			data, ok := fc.Uint32()
+			if !ok {
+				continue
+			}
+			lr.Flags = data
+		case 9:
+			data, ok := fc.Bytes()
+			if !ok {
+				continue
+			}
+			lr.TraceId = data
+		case 10:
+			data, ok := fc.Bytes()
+			if !ok {
+				continue
+			}
+			lr.SpanId = data
 		}
 	}
 	return nil
@@ -266,6 +289,18 @@ func (lr *LogRecord) ExtractTimestampNano() int64 {
 	default:
 		return time.Now().UnixNano()
 	}
+}
+
+func (lr *LogRecord) FormatFlags() string {
+	return strconv.FormatUint(uint64(lr.Flags), 10)
+}
+
+func (lr *LogRecord) FormatTraceId() string {
+	return hex.EncodeToString(lr.TraceId)
+}
+
+func (lr *LogRecord) FormatSpanId() string {
+	return hex.EncodeToString(lr.SpanId)
 }
 
 // https://github.com/open-telemetry/opentelemetry-collector/blob/cd1f7623fe67240e32e74735488c3db111fad47b/pdata/plog/severity_number.go#L41
