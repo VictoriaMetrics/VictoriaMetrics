@@ -83,6 +83,19 @@ type server struct {
 // In such cases the caller must serve the request.
 type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 
+// ServeOptions defiens optional parameters for http server
+type ServeOptions struct {
+	// UseProxyProtocol if is set to true for the corresponding addr, then the incoming connections are accepted via proxy protocol.
+	// See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+	UseProxyProtocol *flagutil.ArrayBool
+	// DisableBuiltinRoutes if set to true for the corresponding addr, then the http will not serve built-in routes, such as:
+	// /health, /debug/pprof and few others
+	// In addition basic auth check and authKey checks will be disabled for the given addr
+	//
+	// Mostly required by http proxy servers, which peforms own authorization and requests routing
+	DisableBuiltinRoutes *flagutil.ArrayBool
+}
+
 // Serve starts an http server on the given addrs with the given optional rh.
 //
 // By default all the responses are transparently compressed, since egress traffic is usually expensive.
@@ -97,22 +110,53 @@ func Serve(addrs []string, useProxyProtocol *flagutil.ArrayBool, rh RequestHandl
 			return false
 		}
 	}
+	opts := ServeOptions{
+		UseProxyProtocol: useProxyProtocol,
+	}
 	for idx, addr := range addrs {
 		if addr == "" {
 			continue
 		}
-		useProxyProto := false
-		if useProxyProtocol != nil {
-			useProxyProto = useProxyProtocol.GetOptionalArg(idx)
-		}
-		go serve(addr, useProxyProto, rh, idx)
+		go serve(addr, rh, idx, &opts)
 	}
 }
 
-func serve(addr string, useProxyProtocol bool, rh RequestHandler, idx int) {
+// ServeWithOpts starts an http server on the given addrs with the given optional request handlers.
+//
+// By default all the responses are transparently compressed, since egress traffic is usually expensive.
+//
+// The compression can be disabled by specifying -http.disableResponseCompression command-line flag.
+func ServeWithOpts(addrs []string, rhs []RequestHandler, opts *ServeOptions) {
+	if len(rhs) == 0 {
+		rhs = []RequestHandler{
+			func(_ http.ResponseWriter, _ *http.Request) bool {
+				return false
+			},
+		}
+	}
+	for idx, addr := range addrs {
+		if addr == "" {
+			continue
+		}
+		rh := rhs[0]
+		if idx < len(rhs) {
+			rh = rhs[idx]
+		}
+		go serve(addr, rh, idx, opts)
+	}
+}
+
+func serve(addr string, rh RequestHandler, idx int, opts *ServeOptions) {
 	scheme := "http"
 	if tlsEnable.GetOptionalArg(idx) {
 		scheme = "https"
+	}
+	useProxyProto, disableBuiltinRoutes := false, false
+	if opts.UseProxyProtocol != nil {
+		useProxyProto = opts.UseProxyProtocol.GetOptionalArg(idx)
+	}
+	if opts.DisableBuiltinRoutes != nil {
+		disableBuiltinRoutes = opts.DisableBuiltinRoutes.GetOptionalArg(idx)
 	}
 	var tlsConfig *tls.Config
 	if tlsEnable.GetOptionalArg(idx) {
@@ -125,20 +169,22 @@ func serve(addr string, useProxyProtocol bool, rh RequestHandler, idx int) {
 		}
 		tlsConfig = tc
 	}
-	ln, err := netutil.NewTCPListener(scheme, addr, useProxyProtocol, tlsConfig)
+	ln, err := netutil.NewTCPListener(scheme, addr, useProxyProto, tlsConfig)
 	if err != nil {
 		logger.Fatalf("cannot start http server at %s: %s", addr, err)
-	} else {
-		logger.Infof("started server at %s://%s/", scheme, ln.Addr())
+	}
+	logger.Infof("started server at %s://%s/", scheme, ln.Addr())
+	if !disableBuiltinRoutes {
 		logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, ln.Addr())
 	}
-	serveWithListener(addr, ln, rh)
+
+	serveWithListener(addr, ln, rh, disableBuiltinRoutes)
 }
 
-func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
+func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableBuiltinRoutes bool) {
 	var s server
+
 	s.s = &http.Server{
-		Handler: gzipHandler(&s, rh),
 
 		// Disable http/2, since it doesn't give any advantages for VictoriaMetrics services.
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
@@ -162,6 +208,19 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 			return context.WithValue(ctx, connDeadlineTimeKey, &deadline)
 		}
 	}
+	rhw := rh
+	if !disableBuiltinRoutes {
+		rhw = func(w http.ResponseWriter, r *http.Request) bool {
+			return builtinRoutesHandler(&s, r, w, rh)
+		}
+	}
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerWrapper(w, r, rhw)
+	})
+	if !*disableResponseCompression {
+		h = gzipHandlerWrapper(h)
+	}
+	s.s.Handler = h
 
 	serversLock.Lock()
 	servers[addr] = &s
@@ -244,16 +303,6 @@ func stop(addr string) error {
 	return nil
 }
 
-func gzipHandler(s *server, rh RequestHandler) http.HandlerFunc {
-	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handlerWrapper(s, w, r, rh)
-	})
-	if *disableResponseCompression {
-		return h
-	}
-	return gzipHandlerWrapper(h)
-}
-
 var gzipHandlerWrapper = func() func(http.Handler) http.HandlerFunc {
 	hw, err := gzhttp.NewWrapper(gzhttp.CompressionLevel(1))
 	if err != nil {
@@ -278,7 +327,7 @@ var hostname = func() string {
 	return h
 }()
 
-func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh RequestHandler) {
+func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 	// All the VictoriaMetrics code assumes that panic stops the process.
 	// Unfortunately, the standard net/http.Server recovers from panics in request handlers,
 	// so VictoriaMetrics state can become inconsistent after the recovered panic.
@@ -310,12 +359,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		h.Set("Connection", "close")
 	}
 	path := r.URL.Path
-	if strings.HasSuffix(path, "/favicon.ico") {
-		w.Header().Set("Cache-Control", "max-age=3600")
-		faviconRequests.Inc()
-		w.Write(faviconData)
-		return
-	}
+
 	prefix := GetPathPrefix()
 	if prefix != "" {
 		// Trim -http.pathPrefix from path
@@ -336,13 +380,40 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		path = path[len(prefix)-1:]
 		r.URL.Path = path
 	}
+
+	w = &responseWriterWithAbort{
+		ResponseWriter: w,
+	}
+	if rh(w, r) {
+		return
+	}
+
+	Errorf(w, r, "unsupported path requested: %q", r.URL.Path)
+	unsupportedRequestErrors.Inc()
+}
+
+func builtinRoutesHandler(s *server, r *http.Request, w http.ResponseWriter, rh RequestHandler) bool {
+	if !isProtectedByAuthFlag(r.URL.Path) && !CheckBasicAuth(w, r) {
+		return true
+	}
+
+	h := w.Header()
+
+	path := r.URL.Path
+	if strings.HasSuffix(path, "/favicon.ico") {
+		w.Header().Set("Cache-Control", "max-age=3600")
+		faviconRequests.Inc()
+		w.Write(faviconData)
+		return true
+	}
+
 	switch r.URL.Path {
 	case "/health":
 		h.Set("Content-Type", "text/plain; charset=utf-8")
 		deadline := s.shutdownDelayDeadline.Load()
 		if deadline <= 0 {
 			w.Write([]byte("OK"))
-			return
+			return true
 		}
 		// Return non-OK response during grace period before shutting down the server.
 		// Load balancers must notify these responses and re-route new requests to other servers.
@@ -353,7 +424,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		}
 		errMsg := fmt.Sprintf("The server is in delayed shutdown mode, which will end in %.3fs", d.Seconds())
 		http.Error(w, errMsg, http.StatusServiceUnavailable)
-		return
+		return true
 	case "/ping":
 		// This is needed for compatibility with InfluxDB agents.
 		// See https://docs.influxdata.com/influxdb/v1.7/tools/api/#ping-http-endpoint
@@ -362,64 +433,57 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 			status = http.StatusOK
 		}
 		w.WriteHeader(status)
-		return
+		return true
 	case "/metrics":
 		metricsRequests.Inc()
 		if !CheckAuthFlag(w, r, metricsAuthKey) {
-			return
+			return true
 		}
 		startTime := time.Now()
 		h.Set("Content-Type", "text/plain; charset=utf-8")
 		appmetrics.WritePrometheusMetrics(w)
 		metricsHandlerDuration.UpdateDuration(startTime)
-		return
+		return true
 	case "/flags":
 		if !CheckAuthFlag(w, r, flagsAuthKey) {
-			return
+			return true
 		}
 		h.Set("Content-Type", "text/plain; charset=utf-8")
 		flagutil.WriteFlags(w)
-		return
+		return true
 	case "/-/healthy":
 		// This is needed for Prometheus compatibility
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1833
 		fmt.Fprintf(w, "VictoriaMetrics is Healthy.\n")
-		return
+		return true
 	case "/-/ready":
 		// This is needed for Prometheus compatibility
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1833
 		fmt.Fprintf(w, "VictoriaMetrics is Ready.\n")
-		return
+		return true
 	case "/robots.txt":
 		// This prevents search engines from indexing contents
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4128
 		fmt.Fprintf(w, "User-agent: *\nDisallow: /\n")
-		return
+		return true
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
 			pprofRequests.Inc()
 			if !CheckAuthFlag(w, r, pprofAuthKey) {
-				return
+				return true
 			}
 			pprofHandler(r.URL.Path[len("/debug/pprof/"):], w, r)
-			return
+			return true
 		}
 
 		if !isProtectedByAuthFlag(r.URL.Path) && !CheckBasicAuth(w, r) {
-			return
+			return true
 		}
-
-		w = &responseWriterWithAbort{
-			ResponseWriter: w,
-		}
-		if rh(w, r) {
-			return
-		}
-
-		Errorf(w, r, "unsupported path requested: %q", r.URL.Path)
-		unsupportedRequestErrors.Inc()
-		return
 	}
+	// if s.additionalBuiltInRoutes != nil && s.additionalBuiltInRoutes(w, r) {
+	// 	return true
+	// }
+	return rh(w, r)
 }
 
 func isProtectedByAuthFlag(path string) bool {

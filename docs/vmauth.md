@@ -1281,6 +1281,11 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
      TCP address to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -httpListenAddr.disableBuiltinRoutes array
+     Whether to disable built-in routes for the corresponding -httpListenAddr. 
+     This option allows proper routing of requests to backends with the same built-in routes, such as /metrics.
+     It is recommended to disable built-in routes for the main -httpListenAddr and expose them via an additional -httpListenAddr.
+     Empty values are set to false.
   -httpListenAddr.useProxyProtocol array
      Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
      Supports array of values separated by comma or specified via multiple flags.
