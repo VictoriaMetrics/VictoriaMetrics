@@ -136,7 +136,24 @@ func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, 
 			Name:  "severity",
 			Value: lr.FormatSeverity(),
 		})
-
+		if lr.Flags > 0 {
+			fields = append(fields, logstorage.Field{
+				Name:  "_flags",
+				Value: lr.FormatFlags(),
+			})
+		}
+		if len(lr.TraceId) > 0 {
+			fields = append(fields, logstorage.Field{
+				Name:  "_trace_id",
+				Value: lr.FormatTraceId(),
+			})
+		}
+		if len(lr.SpanId) > 0 {
+			fields = append(fields, logstorage.Field{
+				Name:  "_span_id",
+				Value: lr.FormatSpanId(),
+			})
+		}
 		lmp.AddRow(lr.ExtractTimestampNano(), fields)
 	}
 	return fields, len(sc.LogRecords)
