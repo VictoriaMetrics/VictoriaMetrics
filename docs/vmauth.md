@@ -380,6 +380,8 @@ See also [security docs](#security), [routing docs](#routing) and [load balancin
 - [Multiple parts](#routing-by-multiple-parts)
 
 See also [authorization](#authorization) and [load balancing](#load-balancing).
+For debug purposes, extra logging for failed requests can be enabled by setting `dump_request_on_errors: true` {{% available_from "#" %}}
+on user level. Please note, such logging may expose sensitive info and is recommended to use only for debugging.
 
 ### Routing by path
 
@@ -953,6 +955,8 @@ users:
   #
   # Regular expressions are allowed in `src_paths` and `src_hosts` entries.
 - username: "foobar"
+  # log requests that failed url_map rules, for debugging purposes
+  dump_request_on_errors: true
   url_map:
   - src_paths:
     - "/api/v1/query"
@@ -1195,6 +1199,8 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
      Whether to discover backend IPs via periodic DNS queries to hostnames specified in url_prefix. This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/vmauth/#discovering-backend-ips
   -discoverBackendIPsInterval duration
      The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. Too low value may lead to DNS errors (default 10s)
+  -dryRun
+        Whether to check only config files without running vmauth. The auth configuration file is validated. The -auth.config flag must be specified.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
