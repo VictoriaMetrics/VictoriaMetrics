@@ -20,11 +20,15 @@ const AdditionalSettingsControls: FC<Props & {isMobile?: boolean}> = ({ isMobile
   const { autocomplete } = useQueryState();
   const queryDispatch = useQueryDispatch();
 
-  const { nocache, isTracingEnabled } = useCustomPanelState();
+  const { nocache, isTracingEnabled, reduceMemUsage } = useCustomPanelState();
   const customPanelDispatch = useCustomPanelDispatch();
 
   const onChangeCache = () => {
     customPanelDispatch({ type: "TOGGLE_NO_CACHE" });
+  };
+
+  const onChangeReduceMemUsage = () => {
+    customPanelDispatch({ type: "TOGGLE_REDUCE_MEM_USAGE" });
   };
 
   const onChangeQueryTracing = () => {
@@ -67,12 +71,22 @@ const AdditionalSettingsControls: FC<Props & {isMobile?: boolean}> = ({ isMobile
           />
         </Tooltip>
       )}
-      <Switch
-        label={"Disable cache"}
-        value={nocache}
-        onChange={onChangeCache}
-        fullWidth={isMobile}
-      />
+      {!hideButtons?.disableCache && (
+        <Switch
+          label={"Disable cache"}
+          value={nocache}
+          onChange={onChangeCache}
+          fullWidth={isMobile}
+        />
+      )}
+      {!hideButtons?.reduceMemUsage && (
+        <Switch
+          label={"Disable deduplication"}
+          value={reduceMemUsage}
+          onChange={onChangeReduceMemUsage}
+          fullWidth={isMobile}
+        />
+      )}
       {!hideButtons?.traceQuery && (
         <Switch
           label={"Trace query"}

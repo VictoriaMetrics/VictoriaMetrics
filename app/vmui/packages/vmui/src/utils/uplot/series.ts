@@ -185,7 +185,27 @@ const getPointsSeries = (metricInfo: ForecastMetricInfo | null): uPlotSeries.Poi
   if (isAnomalyMetric) {
     return { size: 8, width: 4, space: 0 };
   }
-  return { size: 4.2, width: 1.4 };
+  return {
+    size: 4,
+    width: 0,
+    show: true,
+    filter: filterPoints,
+  };
+};
+
+const filterPoints = (self: uPlot, seriesIdx: number): number[] | null => {
+  const data  = self.data[seriesIdx];
+  const indices = [];
+
+  for (let i = 0; i < data.length; i++) {
+    const prev = data[i - 1];
+    const next = data[i + 1];
+    if (prev === null && next === null) {
+      indices.push(i);
+    }
+  }
+
+  return indices;
 };
 
 type GetStrokeSeriesArgs = {

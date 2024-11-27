@@ -67,6 +67,7 @@ type UserInfo struct {
 	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
 	DiscoverBackendIPs     *bool       `yaml:"discover_backend_ips,omitempty"`
 	URLMaps                []URLMap    `yaml:"url_map,omitempty"`
+	DumpRequestOnErrors    bool        `yaml:"dump_request_on_errors,omitempty"`
 	HeadersConf            HeadersConf `yaml:",inline"`
 	MaxConcurrentRequests  int         `yaml:"max_concurrent_requests,omitempty"`
 	DefaultURL             *URLPrefix  `yaml:"default_url,omitempty"`

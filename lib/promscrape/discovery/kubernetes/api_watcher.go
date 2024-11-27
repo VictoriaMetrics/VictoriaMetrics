@@ -23,6 +23,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -267,6 +268,7 @@ func getHTTPClient(ac *promauth.Config, proxyURL *url.URL) *http.Client {
 	getTransport := func(cfg *tls.Config) http.RoundTripper {
 		return &http.Transport{
 			Proxy:               proxy,
+			DialContext:         netutil.Dialer.DialContext,
 			TLSHandshakeTimeout: 10 * time.Second,
 			IdleConnTimeout:     *apiServerTimeout,
 			MaxIdleConnsPerHost: 100,

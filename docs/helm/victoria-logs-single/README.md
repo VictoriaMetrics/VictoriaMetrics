@@ -1,4 +1,4 @@
- ![Version: 0.8.1](https://img.shields.io/badge/Version-0.8.1-informational?style=flat-square)
+ ![Version: 0.8.3](https://img.shields.io/badge/Version-0.8.3-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-logs-single)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -263,7 +263,7 @@ Change the values according to the need of the environment in ``victoria-logs-si
 </td>
     </tr>
     <tr>
-      <td>global.nameOverride</td>
+      <td>nameOverride</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
 <code class="language-yaml">""
@@ -544,7 +544,10 @@ loggerFormat: json
       <td>server.ingress.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: vlogs.local
+  path:
+    - /
+  port: http
 </code>
 </pre>
 </td>

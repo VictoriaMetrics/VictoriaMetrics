@@ -61,6 +61,7 @@ var (
 		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
 	backendTLSServerName = flag.String("backend.TLSServerName", "", "Optional TLS ServerName, which must be sent to HTTPS backend. "+
 		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
+	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmauth. The auth configuration file is validated. The -auth.config flag must be specified.")
 )
 
 func main() {
@@ -70,6 +71,16 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+
+	if *dryRun {
+		if len(*authConfigPath) == 0 {
+			logger.Fatalf("missing required `-auth.config` command-line flag")
+		}
+		if _, err := reloadAuthConfig(); err != nil {
+			logger.Fatalf("failed to parse %q: %s", *authConfigPath, err)
+		}
+		return
+	}
 
 	listenAddrs := *httpListenAddrs
 	if len(listenAddrs) == 0 {
@@ -123,6 +134,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	ui := getUserInfoByAuthTokens(ats)
 	if ui == nil {
+		uu := authConfig.Load().UnauthorizedUser
+		if uu != nil {
+			processUserRequest(w, r, uu)
+			return true
+		}
+
 		invalidAuthTokenRequests.Inc()
 		if *logInvalidAuthTokens {
 			err := fmt.Errorf("cannot authorize request with auth tokens %q", ats)
@@ -192,7 +209,11 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 				return
 			}
 			missingRouteRequests.Inc()
-			httpserver.Errorf(w, r, "missing route for %s", u.String())
+			var di string
+			if ui.DumpRequestOnErrors {
+				di = debugInfo(u, r.Header)
+			}
+			httpserver.Errorf(w, r, "missing route for %q%s", u.String(), di)
 			return
 		}
 		up, hc = ui.DefaultURL, ui.HeadersConf
@@ -643,4 +664,15 @@ func (rtb *readTrackingBody) Close() error {
 	}
 
 	return nil
+}
+
+func debugInfo(u *url.URL, h http.Header) string {
+	s := &strings.Builder{}
+	fmt.Fprintf(s, " (host: %q; ", u.Host)
+	fmt.Fprintf(s, "path: %q; ", u.Path)
+	fmt.Fprintf(s, "args: %q; ", u.Query().Encode())
+	fmt.Fprint(s, "headers:")
+	_ = h.WriteSubset(s, nil)
+	fmt.Fprint(s, ")")
+	return s.String()
 }

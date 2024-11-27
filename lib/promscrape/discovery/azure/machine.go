@@ -190,9 +190,16 @@ type scaleSet struct {
 }
 
 // See https://docs.microsoft.com/en-us/rest/api/compute/virtual-machine-scale-sets/list-all
+// and https://learn.microsoft.com/en-us/rest/api/compute/virtual-machine-scale-sets/list (need resourceGroup)
 func listScaleSetRefs(ac *apiConfig) ([]scaleSet, error) {
 	// https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Compute/virtualMachineScaleSets?api-version=2022-03-01
-	apiURL := "/subscriptions/" + ac.subscriptionID + "/providers/Microsoft.Compute/virtualMachineScaleSets?api-version=2022-03-01"
+	apiURL := "/subscriptions/" + ac.subscriptionID
+	if ac.resourceGroup != "" {
+		// special case filter by resourceGroup
+		// https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Compute/virtualMachineScaleSets?api-version=2022-03-01
+		apiURL += "/resourceGroups/" + ac.resourceGroup
+	}
+	apiURL += "/providers/Microsoft.Compute/virtualMachineScaleSets?api-version=2022-03-01"
 	var sss []scaleSet
 	err := visitAllAPIObjects(ac, apiURL, func(data json.RawMessage) error {
 		var ss scaleSet
