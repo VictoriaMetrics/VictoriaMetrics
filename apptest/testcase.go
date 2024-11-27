@@ -15,17 +15,18 @@ type TestCase struct {
 	t   *testing.T
 	cli *Client
 
-	startedApps []Stopper
+	startedApps map[string]Stopper
 }
 
 // Stopper is an interface of objects that needs to be stopped via Stop() call
 type Stopper interface {
+	Name() string
 	Stop()
 }
 
 // NewTestCase creates a new test case.
 func NewTestCase(t *testing.T) *TestCase {
-	return &TestCase{t, NewClient(), nil}
+	return &TestCase{t, NewClient(), make(map[string]Stopper)}
 }
 
 // Dir returns the directory name that should be used by as the -storageDataDir.
@@ -162,7 +163,19 @@ func (tc *TestCase) MustStartDefaultCluster() PrometheusWriteQuerier {
 }
 
 func (tc *TestCase) addApp(app Stopper) {
-	tc.startedApps = append(tc.startedApps, app)
+	if _, alreadyStarted := tc.startedApps[app.Name()]; alreadyStarted {
+		tc.t.Fatalf("%s has already been started", app.Name())
+	}
+	tc.startedApps[app.Name()] = app
+}
+
+// StopApp stops the given app and removes it from the collection of started
+// apps.
+func (tc *TestCase) StopApp(app Stopper) {
+	if app, exists := tc.startedApps[app.Name()]; exists {
+		app.Stop()
+		delete(tc.startedApps, app.Name())
+	}
 }
 
 // ForceFlush flushes zero or more storages.

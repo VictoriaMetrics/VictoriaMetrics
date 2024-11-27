@@ -7,7 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 // See: https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
@@ -311,6 +314,106 @@ func TestClusterReplication_VmselectDeduplication(t *testing.T) {
 	}
 	assertExport(vmselect, replicationFactor)
 	assertExport(vmselectDedup, 1)
+}
+
+// TestClusterReplication_NoPartialResponse checks how vmselect handles some
+// vmstorage nodes being unavailable.
+//
+// By default in such cases, vmselect must mark responses as partial. However,
+// passing -replicationFactor=N command-line flag to vmselect instructs it to
+// not mark responses as partial if less than -replicationFactor vmstorage
+// nodes are unavailable during the query.
+//
+// See: https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
+func TestClusterReplication_NoPartialResponse(t *testing.T) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	const (
+		replicationFactor = 2
+		vmstorageCount    = 2*replicationFactor + 1
+	)
+
+	vmstorages := make([]*at.Vmstorage, vmstorageCount)
+	vminsertAddrs := make([]string, vmstorageCount)
+	vmselectAddrs := make([]string, vmstorageCount)
+	for i := range vmstorageCount {
+		instance := fmt.Sprintf("vmstorage-%d", i)
+		vmstorages[i] = tc.MustStartVmstorage(instance, []string{
+			"-storageDataPath=" + tc.Dir() + "/" + instance,
+			"-retentionPeriod=100y",
+		})
+		vminsertAddrs[i] = vmstorages[i].VminsertAddr()
+		vmselectAddrs[i] = vmstorages[i].VmselectAddr()
+	}
+
+	vminsert := tc.MustStartVminsert("vminsert", []string{
+		"-storageNode=" + strings.Join(vminsertAddrs, ","),
+		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
+	})
+	vmselect := tc.MustStartVmselect("vmselect", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+	})
+	vmselectRF := tc.MustStartVmselect("vmselect-rf", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
+	})
+
+	// Insert data.
+
+	const numRecs = 1000
+	recs := make([]string, numRecs)
+	for i := range numRecs {
+		recs[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
+	}
+	vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	tc.ForceFlush(vmstorages...)
+
+	// Verify partial vs full response.
+
+	assertSeries := func(app *at.Vmselect, wantPartial bool) {
+		t.Helper()
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /api/v1/series response",
+			Got: func() any {
+				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{}).Sort()
+			},
+			Want: &at.PrometheusAPIV1SeriesResponse{
+				Status:    "success",
+				IsPartial: wantPartial,
+			},
+			CmpOpts: []cmp.Option{
+				cmpopts.IgnoreFields(apptest.PrometheusAPIV1SeriesResponse{}, "Data"),
+			},
+		})
+	}
+
+	mustReturnPartialResponse := true
+	mustReturnFullResponse := false
+
+	// All vmstorage replicates are available so both vmselects must return full
+	// response.
+	assertSeries(vmselect, mustReturnFullResponse)
+	assertSeries(vmselectRF, mustReturnFullResponse)
+
+	// Stop replicationFactor-1 vmstorage nodes.
+	// vmselect is not aware about the replication factor and therefore must
+	// return partial response.
+	// vmselectRF is aware about the replication factor and therefore it knows
+	// that the remaining vmstorage nodes must still be able to provide full
+	// response.
+	for i := range replicationFactor - 1 {
+		tc.StopApp(vmstorages[i])
+	}
+	assertSeries(vmselect, mustReturnPartialResponse)
+	assertSeries(vmselectRF, mustReturnFullResponse)
+
+	// Stop one more vmstorage. At this point the remaining vmstorage nodes are
+	// not enough to provide the full dataset. Therefore both vmselects must
+	// return partial response.
+	tc.StopApp(vmstorages[replicationFactor])
+	assertSeries(vmselect, mustReturnPartialResponse)
+	assertSeries(vmselectRF, mustReturnPartialResponse)
 }
 
 // See: https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect
