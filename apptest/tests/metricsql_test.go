@@ -107,7 +107,6 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 	// Verify that instant query with default rollup function does not include stale NaN.
 
 	got = sut.PrometheusAPIV1Query(t, "metric[2m]", apptest.QueryOpts{
-		Step: "5m",
 		Time: "2024-01-01T00:02:00.000Z",
 	})
 	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
@@ -118,8 +117,14 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	got = sut.PrometheusAPIV1Query(t, "metric[2m]", "2024-01-01T00:04:00.000Z", "5m", opts)
-	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": []}}`)
+	got = sut.PrometheusAPIV1Query(t, "metric[2m]", apptest.QueryOpts{
+		Step: "5m",
+		Time: "2024-01-01T00:02:00.000Z",
+	})
+	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
+	s = make([]*apptest.Sample, 1)
+	s[0] = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
+	want.Data.Result[0].Samples = s
 	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -138,7 +143,10 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	got = sut.PrometheusAPIV1Export(t, `{__name__="metric"}`, "2024-01-01T00:03:00.000Z", "2024-01-01T00:04:00.000Z", opts)
+	got = sut.PrometheusAPIV1Export(t, `{__name__="metric"}`, apptest.QueryOpts{
+		Start: "2024-01-01T00:03:00.000Z",
+		End:   "2024-01-01T00:04:00.000Z",
+	})
 	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": []}}`)
 	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
