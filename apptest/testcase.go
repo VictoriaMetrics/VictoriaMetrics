@@ -2,6 +2,8 @@ package apptest
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -132,6 +134,23 @@ func (c *vmcluster) ForceFlush(t *testing.T) {
 	for _, s := range c.vmstorages {
 		s.ForceFlush(t)
 	}
+}
+
+// MustStartVmauth is a test helper function that starts an instance of
+// vmauth and fails the test if the app fails to start.
+func (tc *TestCase) MustStartVmauth(instance string, flags []string, configFileYAML string) *Vmauth {
+	tc.t.Helper()
+
+	configFilePath := path.Join(tc.t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configFilePath, []byte(configFileYAML), os.ModePerm); err != nil {
+		tc.t.Fatalf("cannot init vmauth: config file write failed: %s", err)
+	}
+	app, err := StartVmauth(instance, flags, tc.cli, configFilePath)
+	if err != nil {
+		tc.t.Fatalf("Could not start %s: %v", instance, err)
+	}
+	tc.addApp(instance, app)
+	return app
 }
 
 // MustStartDefaultCluster starts a typical cluster configuration with default
