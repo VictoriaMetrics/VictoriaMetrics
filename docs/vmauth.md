@@ -1199,6 +1199,8 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
      Whether to discover backend IPs via periodic DNS queries to hostnames specified in url_prefix. This may be useful when url_prefix points to a hostname with dynamically scaled instances behind it. See https://docs.victoriametrics.com/vmauth/#discovering-backend-ips
   -discoverBackendIPsInterval duration
      The interval for re-discovering backend IPs if -discoverBackendIPs command-line flag is set. Too low value may lead to DNS errors (default 10s)
+  -dryRun
+        Whether to check only config files without running vmauth. The auth configuration file is validated. The -auth.config flag must be specified.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
