@@ -166,7 +166,7 @@ func (tc *TestCase) addApp(app Stopper) {
 }
 
 // ForceFlush flushes zero or more storages.
-func (tc *TestCase) ForceFlush(apps ...StorageFlusher) {
+func (tc *TestCase) ForceFlush(apps ...*Vmstorage) {
 	tc.t.Helper()
 
 	for _, app := range apps {

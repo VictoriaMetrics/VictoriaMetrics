@@ -22,15 +22,15 @@ type Vminsert struct {
 	cli            *Client
 }
 
-// storageNodeCount counts the number of storage nodes passed to vminsert via
-// command line flags.
-func storageNodeCount(flags []string) int {
+// storageNodes returns the storage node addresses passed to vminsert via
+// -storageNode command line flag.
+func storageNodes(flags []string) []string {
 	for _, flag := range flags {
 		if storageNodes, found := strings.CutPrefix(flag, "-storageNode="); found {
-			return len(strings.Split(storageNodes, ","))
+			return strings.Split(storageNodes, ",")
 		}
 	}
-	return 0
+	return nil
 }
 
 // StartVminsert starts an instance of vminsert with the given flags. It also
@@ -42,8 +42,9 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 	}
 	// Add storateNode REs to block until vminsert establishes connections with
 	// all storage nodes. The extracted values are unused.
-	for range storageNodeCount(flags) {
-		extractREs = append(extractREs, vminsertStorageNodeRE)
+	for _, sn := range storageNodes(flags) {
+		logRecord := fmt.Sprintf("successfully dialed -storageNode=\"%s\"", sn)
+		extractREs = append(extractREs, regexp.MustCompile(logRecord))
 	}
 
 	app, stderrExtracts, err := startApp(instance, "../../bin/vminsert", flags, &appOptions{
