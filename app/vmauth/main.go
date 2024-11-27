@@ -61,6 +61,7 @@ var (
 		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
 	backendTLSServerName = flag.String("backend.TLSServerName", "", "Optional TLS ServerName, which must be sent to HTTPS backend. "+
 		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
+	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmauth. The auth configuration file is validated. The -auth.config flag must be specified.")
 )
 
 func main() {
@@ -70,6 +71,16 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+
+	if *dryRun {
+		if len(*authConfigPath) == 0 {
+			logger.Fatalf("missing required `-auth.config` command-line flag")
+		}
+		if _, err := reloadAuthConfig(); err != nil {
+			logger.Fatalf("failed to parse %q: %s", *authConfigPath, err)
+		}
+		return
+	}
 
 	listenAddrs := *httpListenAddrs
 	if len(listenAddrs) == 0 {
