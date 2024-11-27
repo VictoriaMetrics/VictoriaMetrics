@@ -22,17 +22,22 @@ services:
       - vm_net
     restart: always
 
-  # fluentbit is logs collector. It collects logs according to fluent-bit.conf
+  # vector is logs collector. It collects logs according to vector.yaml
   # and forwards them to VictoriaLogs
-  fluentbit:
-    container_name: fluentbit
-    image: fluent/fluent-bit:2.1.4
+  vector:
+    image: docker.io/timberio/vector:0.42.X-distroless-libc
     volumes:
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - ./fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: /var/lib/docker
+        target: /var/lib/docker
+      - ./vector.yaml:/etc/vector/vector.yaml:ro
     depends_on: [victorialogs]
     ports:
-      - "5140:5140"
+      - "8686:8686"
+    user: root
     networks:
       - vm_net
 
