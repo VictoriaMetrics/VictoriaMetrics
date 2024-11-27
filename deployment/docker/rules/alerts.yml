@@ -28,6 +28,25 @@ groups:
             for {{ $value | humanizeDuration }} on instance {{ $labels.instance }}.\n
             Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
 
+      - alert: NodeBecomesReadonlyIn3Days
+        expr: |
+          sum(vm_free_disk_space_bytes - vm_free_disk_space_limit_bytes) without(path) /
+          (
+            rate(vm_rows_added_to_storage_total[1d]) * (
+              sum(vm_data_size_bytes{type!~"indexdb.*"}) without(type) /
+              sum(vm_rows{type!~"indexdb.*"}) without(type)
+            )
+          ) < 3 * 24 * 3600 > 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=113&var-instance={{ $labels.instance }}"
+          summary: "Instance {{ $labels.instance }} will become read-only in 3 days"
+          description: "Taking into account current ingestion rate and free disk space
+              instance {{ $labels.instance }} is writable for {{ $value | humanizeDuration }}.\n
+              Consider to limit the ingestion rate, decrease retention or scale the disk space up if possible."
+
       - alert: DiskRunsOutOfSpace
         expr: |
           sum(vm_data_size_bytes) by(job, instance) /
