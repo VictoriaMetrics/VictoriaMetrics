@@ -128,7 +128,7 @@ func handleJournald(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "cannot parse Journald protobuf request: %s", err)
 		return
 	}
-
+	bytesIngestedJournaldTotal.Add(len(data))
 	rowsIngestedJournaldTotal.Add(n)
 
 	// update requestJournaldDuration only for successfully parsed requests
@@ -138,7 +138,8 @@ func handleJournald(r *http.Request, w http.ResponseWriter) {
 }
 
 var (
-	rowsIngestedJournaldTotal = metrics.NewCounter(`vl_rows_ingested_total{type="journald", format="journald"}`)
+	rowsIngestedJournaldTotal  = metrics.NewCounter(`vl_rows_ingested_total{type="journald", format="journald"}`)
+	bytesIngestedJournaldTotal = metrics.NewCounter(`vl_bytes_ingested_total{type="journald", format="journald"}`)
 
 	requestsJournaldTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/journald/upload",format="journald"}`)
 	errorsTotal           = metrics.NewCounter(`vl_http_errors_total{path="/insert/journald/upload",format="journald"}`)

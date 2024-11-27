@@ -107,7 +107,7 @@ func readLine(sc *bufio.Scanner, timeField string, msgFields []string, lmp inser
 		}
 		line = sc.Bytes()
 	}
-
+	metrics.NewCounter("foo").Add(len(line))
 	p := logstorage.GetJSONParser()
 	if err := p.ParseLogMessage(line); err != nil {
 		return false, fmt.Errorf("cannot parse json-encoded log entry: %w", err)

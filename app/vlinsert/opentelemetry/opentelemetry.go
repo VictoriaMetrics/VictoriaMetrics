@@ -73,7 +73,7 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "cannot parse OpenTelemetry protobuf request: %s", err)
 		return
 	}
-
+	bytesIngestedProtobufTotal.Add(len(data))
 	rowsIngestedProtobufTotal.Add(n)
 
 	// update requestProtobufDuration only for successfully parsed requests
@@ -83,7 +83,8 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 }
 
 var (
-	rowsIngestedProtobufTotal = metrics.NewCounter(`vl_rows_ingested_total{type="opentelemetry",format="protobuf"}`)
+	rowsIngestedProtobufTotal  = metrics.NewCounter(`vl_rows_ingested_total{type="opentelemetry",format="protobuf"}`)
+	bytesIngestedProtobufTotal = metrics.NewCounter(`vl_bytes_ingested_total{type="opentelemetry",format="protobuf"}`)
 
 	requestsProtobufTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
 	errorsTotal           = metrics.NewCounter(`vl_http_errors_total{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)

@@ -60,7 +60,7 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "cannot parse Loki json request: %s; data=%s", err, data)
 		return
 	}
-
+	bytesIngestedJSONTotal.Add(len(data))
 	rowsIngestedJSONTotal.Add(n)
 
 	// update requestJSONDuration only for successfully parsed requests
@@ -70,9 +70,10 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 }
 
 var (
-	requestsJSONTotal     = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="json"}`)
-	rowsIngestedJSONTotal = metrics.NewCounter(`vl_rows_ingested_total{type="loki",format="json"}`)
-	requestJSONDuration   = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
+	requestsJSONTotal      = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="json"}`)
+	rowsIngestedJSONTotal  = metrics.NewCounter(`vl_rows_ingested_total{type="loki",format="json"}`)
+	bytesIngestedJSONTotal = metrics.NewCounter(`vl_bytes_ingested_total{type="loki",format="json"}`)
+	requestJSONDuration    = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
 func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, error) {

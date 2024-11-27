@@ -130,6 +130,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 var (
 	bulkRequestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/elasticsearch/_bulk"}`)
 	rowsIngestedTotal   = metrics.NewCounter(`vl_rows_ingested_total{type="elasticsearch_bulk"}`)
+	bytesIngestedTotal  = metrics.NewCounter(`vl_bytes_ingested_total{type="elasticsearch_bulk"}`)
 	bulkRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
 )
 
@@ -212,6 +213,7 @@ func readBulkLine(sc *bufio.Scanner, timeField string, msgFields []string, lmp i
 		return false, fmt.Errorf("cannot parse json-encoded log entry: %w", err)
 	}
 
+	bytesIngestedTotal.Add(len(line))
 	ts, err := extractTimestampFromFields(timeField, p.Fields)
 	if err != nil {
 		return false, fmt.Errorf("cannot parse timestamp: %w", err)

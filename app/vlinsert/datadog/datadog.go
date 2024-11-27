@@ -88,6 +88,7 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 	n, err := readLogsRequest(ts, data, lmp.AddRow)
 	lmp.MustClose()
 	if n > 0 {
+		bytesIngestedTotal.Add(len(data))
 		rowsIngestedTotal.Add(n)
 	}
 	if err != nil {
@@ -106,6 +107,7 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 var (
 	v2LogsRequestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/datadog/api/v2/logs"}`)
 	rowsIngestedTotal     = metrics.NewCounter(`vl_rows_ingested_total{type="datadog"}`)
+	bytesIngestedTotal    = metrics.NewCounter(`vl_bytes_ingested_total{type="datadog"}`)
 	v2LogsRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/datadog/api/v2/logs"}`)
 )
 

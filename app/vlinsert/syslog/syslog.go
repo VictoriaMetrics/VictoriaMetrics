@@ -428,7 +428,6 @@ func processUncompressedStream(r io.Reader, useLocalTimestamp bool, lmp insertut
 		if !ok {
 			break
 		}
-
 		currentYear := int(globalCurrentYear.Load())
 		err := processLine(slr.line, currentYear, globalTimezone, useLocalTimestamp, lmp)
 		if err != nil {
@@ -436,6 +435,7 @@ func processUncompressedStream(r io.Reader, useLocalTimestamp bool, lmp insertut
 			return fmt.Errorf("cannot read line #%d: %s", n, err)
 		}
 		n++
+		bytesIngestedTotal.Add(len(slr.line))
 		rowsIngestedTotal.Inc()
 	}
 	return slr.Error()
@@ -577,7 +577,8 @@ func processLine(line []byte, currentYear int, timezone *time.Location, useLocal
 var msgFields = []string{"message"}
 
 var (
-	rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="syslog"}`)
+	rowsIngestedTotal  = metrics.NewCounter(`vl_rows_ingested_total{type="syslog"}`)
+	bytesIngestedTotal = metrics.NewCounter(`vl_bytes_ingested_total{type="syslog"}`)
 
 	errorsTotal = metrics.NewCounter(`vl_errors_total{type="syslog"}`)
 
