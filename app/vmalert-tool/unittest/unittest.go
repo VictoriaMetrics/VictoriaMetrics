@@ -74,8 +74,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 		logger.Fatalf("failed to load test files %q: %v", files, err)
 	}
 	if len(testfiles) == 0 {
-		fmt.Println("no test file found")
-		return false
+		logger.Fatalf("no test file found")
 	}
 
 	labels := make(map[string]string)

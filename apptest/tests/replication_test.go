@@ -62,8 +62,7 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 			ts = ts.Add(1 * time.Minute)
 		}
 	}
-	qopts := at.QueryOpts{Tenant: "0"}
-	vminsert.PrometheusAPIV1ImportPrometheus(t, recs, qopts)
+	vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
 	tc.ForceFlush(vmstorage1, vmstorage2, vmstorage3)
 
 	// Verify that each strorage node has metrics and that metric count across
@@ -85,7 +84,10 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, "2024-01-01T00:00:00Z", "2024-01-31T00:00:00Z", qopts).Sort()
+				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+					Start: "2024-01-01T00:00:00Z",
+					End:   "2024-01-31T00:00:00Z",
+				}).Sort()
 			},
 			Want: &at.PrometheusAPIV1SeriesResponse{
 				Status:    "success",
@@ -119,7 +121,10 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				return app.PrometheusAPIV1Query(t, "metric_1", "2024-01-01T00:05:00Z", "5m", qopts)
+				return app.PrometheusAPIV1Query(t, "metric_1", at.QueryOpts{
+					Time: "2024-01-01T00:05:00Z",
+					Step: "5m",
+				})
 			},
 			Want: &at.PrometheusAPIV1QueryResponse{
 				Status: "success",
@@ -158,7 +163,10 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				return app.PrometheusAPIV1Query(t, "metric_1[5m]", "2024-01-01T00:05:00Z", "5m", qopts)
+				return app.PrometheusAPIV1Query(t, "metric_1[5m]", at.QueryOpts{
+					Time: "2024-01-01T00:05:00Z",
+					Step: "5m",
+				})
 			},
 			Want: &at.PrometheusAPIV1QueryResponse{
 				Status: "success",
@@ -209,7 +217,11 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query_range response",
 			Got: func() any {
-				return app.PrometheusAPIV1QueryRange(t, "metric_1", "2024-01-01T00:00:00Z", "2024-01-01T00:10:00Z", "5m", qopts)
+				return app.PrometheusAPIV1QueryRange(t, "metric_1", at.QueryOpts{
+					Start: "2024-01-01T00:00:00Z",
+					End:   "2024-01-01T00:10:00Z",
+					Step:  "5m",
+				})
 			},
 			Want: &at.PrometheusAPIV1QueryResponse{
 				Status: "success",
@@ -247,7 +259,10 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/export response",
 			Got: func() any {
-				return app.PrometheusAPIV1Export(t, `{__name__="metric_1"}`, "2024-01-01T00:00:00Z", "2024-01-01T00:03:00Z", qopts)
+				return app.PrometheusAPIV1Export(t, `{__name__="metric_1"}`, at.QueryOpts{
+					Start: "2024-01-01T00:00:00Z",
+					End:   "2024-01-01T00:03:00Z",
+				})
 			},
 			Want: &at.PrometheusAPIV1QueryResponse{
 				Status: "success",
