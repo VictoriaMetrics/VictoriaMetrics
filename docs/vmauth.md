@@ -827,6 +827,38 @@ users:
     allow_list: [127.0.0.1]
 ```
 
+By default, the client's TCP address is utilized for IP filtering. In scenarios where `vmauth` operates behind a reverse proxy, it is advisable to configure `vmauth` to retrieve the client IP address from an [HTTP header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For) (e.g., `X-Forwarded-For`) {{% available_from "#" %}} or via the [Proxy Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) for TCP load balancers. This can be achieved using the global configuration flags:
+
+* `-httpRealIPHeader=X-Forwarded-For` {{% available_from "#" %}}
+* `-httpListenAddr.useProxyProtocol=true`
+
+### Security Considerations
+**HTTP headers are inherently untrustworthy.** It is strongly recommended to implement additional security measures, such as:
+
+* Dropping  `X-Forwarded-For` headers at the internet-facing reverse proxy (e.g., before traffic reaches `vmauth`).
+* Do not use `-httpRealIPHeader` at internet-facing `vmauth`.
+
+See additional recommendations at [link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#security_and_privacy_concerns)
+
+### Per-User Configuration
+The values of `httpRealIPHeader` {{% available_from "#" %}} can be changed on a per-user basis within the user-specific configuration.
+
+```yaml
+users:
+- username: "foobar"
+  password: "***"
+  url_prefix: "http://localhost:8428"
+  ip_filters:
+    allow_list: [127.0.0.1]
+    real_ip_header: X-Forwarded-For
+- username: "foobar"
+  password: "***"
+  url_prefix: "http://localhost:8428"
+  ip_filters:
+    allow_list: [127.0.0.1]
+    real_ip_header: CF-Connecting-IP
+```
+
 See config example of using IP filters [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/example_config_ent.yml).
 
 ## Reading auth tokens from other HTTP headers
@@ -1253,6 +1285,8 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
      Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
+ -httpRealIPHeader string
+        HTTP request header to use for obtaining IP address of client for applying 'ip_filters'. By default vmauth uses IP address of TCP the client. Useful if vmauth is behind reverse-proxy
   -idleConnTimeout duration
     The timeout for HTTP keep-alive connections to backend services. It is recommended setting this value to values smaller than -http.idleConnTimeout set at backend services (default 50s)
   -internStringCacheExpireDuration duration

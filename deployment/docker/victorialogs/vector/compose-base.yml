@@ -2,7 +2,7 @@ include:
  - ../compose-base.yml
 services:
   vector:
-    image: docker.io/timberio/vector:0.40.0-distroless-static
+    image: docker.io/timberio/vector:0.42.X-distroless-libc
     restart: on-failure
     volumes:
       - type: bind

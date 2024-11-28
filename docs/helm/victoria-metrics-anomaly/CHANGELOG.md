@@ -1,5 +1,15 @@
 ## Next release
 
+- TODO
+
+## 1.6.8
+
+**Release date:** 2024-11-27
+
+![AppVersion: v1.18.5](https://img.shields.io/static/v1?label=AppVersion&message=v1.18.5&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Upgraded ['vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) to [1.18.5](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1185).
 - updated common dependency 0.0.28 -> 0.0.32
 - fixed app.kubernetes.io/version tag override if custom tag is set. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1766).
 
