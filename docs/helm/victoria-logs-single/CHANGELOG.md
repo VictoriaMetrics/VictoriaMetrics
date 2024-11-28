@@ -2,6 +2,24 @@
 
 - TODO
 
+## 0.8.7
+
+**Release date:** 2024-11-28
+
+![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.32 -> 0.0.33
+
+## 0.8.6
+
+**Release date:** 2024-11-28
+
+![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Use only pod FQDN for statefulsets in `vm.es.urls` template
+
 ## 0.8.5
 
 **Release date:** 2024-11-27

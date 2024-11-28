@@ -503,8 +503,9 @@ scrape_configs:
       <td>extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
+httpListenAddr: :8429
 loggerFormat: json
 </code>
 </pre>
