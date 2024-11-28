@@ -837,6 +837,7 @@ By default, the client's TCP address is utilized for IP filtering. In scenarios 
 
 * Dropping  `X-Forwarded-For` headers at the internet-facing reverse proxy (e.g., before traffic reaches `vmauth`).
 * Do not use `-httpRealIPHeader` at internet-facing `vmauth`.
+* Add `removeXFFHTTPHeaderValue` for the internet-facing `vmauth`. It instructs `vmauth` to replace value of `X-Forwarded-For` HTTP header with `remoteAddr` of the client. 
 
 See additional recommendations at [link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#security_and_privacy_concerns)
 
@@ -1372,6 +1373,8 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
   -reloadAuthKey value
      Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
+  -removeXFFHTTPHeaderValue
+        Whether to remove X-Forwarded-For HTTP header value from remote client request before proxying it to backend. It's recommend to set if vmauth is internet-facing.
   -responseTimeout duration
      The timeout for receiving a response from backend (default 5m0s)
   -retryStatusCodes array

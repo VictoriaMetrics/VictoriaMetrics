@@ -61,7 +61,9 @@ var (
 		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
 	backendTLSServerName = flag.String("backend.TLSServerName", "", "Optional TLS ServerName, which must be sent to HTTPS backend. "+
 		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
-	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmauth. The auth configuration file is validated. The -auth.config flag must be specified.")
+	dryRun                   = flag.Bool("dryRun", false, "Whether to check only config files without running vmauth. The auth configuration file is validated. The -auth.config flag must be specified.")
+	removeXFFHTTPHeaderValue = flag.Bool(`removeXFFHTTPHeaderValue`, false, "Whether to remove X-Forwarded-For HTTP header value from remote client request before proxying it to backend. "+
+		"It's recommend to set if vmauth is internet-facing.")
 )
 
 func main() {
@@ -392,7 +394,7 @@ func sanitizeRequestHeaders(r *http.Request) *http.Request {
 		// X-Forwarded-For information as a comma+space
 		// separated list and fold multiple headers into one.
 		prior := req.Header["X-Forwarded-For"]
-		if len(prior) > 0 {
+		if len(prior) > 0 && !*removeXFFHTTPHeaderValue {
 			clientIP = strings.Join(prior, ", ") + ", " + clientIP
 		}
 		req.Header.Set("X-Forwarded-For", clientIP)
