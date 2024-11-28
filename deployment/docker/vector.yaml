@@ -4,10 +4,14 @@ api:
 sources:
   docker:
     type: docker_logs
+  demo:
+    type: demo_logs
+    format: apache_common
+    interval: 10
   vector_metrics:
     type: internal_metrics
 transforms:
-  parser:
+  msg_parser:
     type: remap
     inputs: [docker]
     source: |
@@ -15,7 +19,7 @@ transforms:
 sinks:
   elasticsearch:
     type: elasticsearch
-    inputs: [parser]
+    inputs: [demo, msg_parser]
     endpoints: [http://victorialogs:9428/insert/elasticsearch/]
     mode: bulk
     api_version: v8
@@ -24,11 +28,11 @@ sinks:
       enabled: false
     request:
       headers:
-        AccountID: "0"
-        ProjectID: "0"
         VL-Stream-Fields: source_type,label.com.docker.compose.service
         VL-Time-Field: timestamp
-        VL-Msg-Field: message.msg,message
+        VL-Msg-Field: message,log
+        AccountID: "0"
+        ProjectID: "0"
   victoriametrics:
     type: prometheus_remote_write
     endpoint: http://victoriametrics:8428/api/v1/write

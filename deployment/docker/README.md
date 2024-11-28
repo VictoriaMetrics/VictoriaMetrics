@@ -182,8 +182,8 @@ make docker-victorialogs-up
 
 VictoriaLogs will be accessible on the `--httpListenAddr=:9428` port.
 In addition to VictoriaLogs server, the docker compose contains the following componetns:
-* [fluentbit](https://docs.fluentbit.io/manual) service for collecting docker logs and sending them to VictoriaLogs;
-* VictoriaMetrics single server to collect metrics from `VictoriaLogs` and `fluentbit`;
+* [vector](https://vector.dev/guides/) service for collecting docker logs and sending them to VictoriaLogs;
+* VictoriaMetrics single server to collect metrics from `VictoriaLogs` and `vector`;
 * [grafana](#grafana) is configured with [VictoriaLogs datasource](https://github.com/VictoriaMetrics/victorialogs-datasource).
 
 To access Grafana use link [http://localhost:3000](http://localhost:3000).
@@ -200,9 +200,13 @@ make docker-victorialogs-down
 ```
 
 Please see more examples on integration of VictoriaLogs with other log shippers below:
-* [filebeat-docker](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat-docker) 
-* [filebeat-syslog](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat-syslog) 
-* [fluentbit-docker](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit-docker) 
+* [filebeat](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat) 
+* [fluentbit](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit) 
 * [logstash](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash) 
 * [promtail](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/promtail) 
-* [vector-docker](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/vector-docker)
+* [vector](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/vector)
+* [datadog-agent](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/datadog-agent)
+* [journald](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/journald)
+* [opentelemetry-collector](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/opentelemetry-collector)
+* [telegraf](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/telegraf)
+* [fluentd]((https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentd)
