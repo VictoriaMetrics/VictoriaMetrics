@@ -29,6 +29,11 @@ func NewTestCase(t *testing.T) *TestCase {
 	return &TestCase{t, NewClient(), make(map[string]Stopper)}
 }
 
+// T returns the test state.
+func (tc *TestCase) T() *testing.T {
+	return tc.t
+}
+
 // Dir returns the directory name that should be used by as the -storageDataDir.
 func (tc *TestCase) Dir() string {
 	return tc.t.Name()

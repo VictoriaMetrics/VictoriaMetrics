@@ -13,31 +13,76 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
+type clusterWithReplication struct {
+	vmstorages     []*at.Vmstorage
+	vminsert       *at.Vminsert
+	vmselect       *at.Vmselect
+	vmselectDedup  *at.Vmselect
+	vmselectRF     *at.Vmselect
+	vmselectRFSkip *at.Vmselect
+}
+
+func newClusterWithReplication(tc *at.TestCase, replicationFactor int) *clusterWithReplication {
+	tc.T().Helper()
+
+	c := &clusterWithReplication{}
+
+	vmstorageCount := 2*replicationFactor + 1
+
+	c.vmstorages = make([]*at.Vmstorage, vmstorageCount)
+	vminsertAddrs := make([]string, vmstorageCount)
+	vmselectAddrs := make([]string, vmstorageCount)
+	for i := range vmstorageCount {
+		instance := fmt.Sprintf("vmstorage-%d", i)
+		c.vmstorages[i] = tc.MustStartVmstorage(instance, []string{
+			"-storageDataPath=" + tc.Dir() + "/" + instance,
+			"-retentionPeriod=100y",
+		})
+		vminsertAddrs[i] = c.vmstorages[i].VminsertAddr()
+		vmselectAddrs[i] = c.vmstorages[i].VmselectAddr()
+	}
+
+	c.vminsert = tc.MustStartVminsert("vminsert", []string{
+		"-storageNode=" + strings.Join(vminsertAddrs, ","),
+		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
+	})
+
+	// An instace of vmselect that knows nothing about data replication.
+	c.vmselect = tc.MustStartVmselect("vmselect", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+	})
+
+	// An instance of vmselect that deduplicates data retrieved from the
+	// storage.
+	c.vmselectDedup = tc.MustStartVmselect("vmselect-dedup", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+		"-dedup.minScrapeInterval=1ms",
+	})
+
+	// An instance of vmselect that knows about the data replication factor.
+	c.vmselectRF = tc.MustStartVmselect("vmselect-rf", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
+	})
+
+	// An instance of vmselect that knows about the data replication factor
+	// and skips slow replicas.
+	c.vmselectRFSkip = tc.MustStartVmselect("vmselect-rf-skip", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
+		"-search.skipSlowReplicas",
+	})
+
+	return c
+}
+
 // See: https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
 func TestClusterReplication_DataIsWrittenSeveralTimes(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	const (
-		replicationFactor = 2
-		vmstorageCount    = 2*replicationFactor + 1
-	)
-
-	vmstorages := make([]*at.Vmstorage, vmstorageCount)
-	vminsertAddrs := make([]string, vmstorageCount)
-	for i := range vmstorageCount {
-		instance := fmt.Sprintf("vmstorage-%d", i)
-		vmstorages[i] = tc.MustStartVmstorage(instance, []string{
-			"-storageDataPath=" + tc.Dir() + "/" + instance,
-			"-retentionPeriod=100y",
-		})
-		vminsertAddrs[i] = vmstorages[i].VminsertAddr()
-	}
-
-	vminsert := tc.MustStartVminsert("vminsert", []string{
-		"-storageNode=" + strings.Join(vminsertAddrs, ","),
-		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
-	})
+	const replicationFactor = 2
+	c := newClusterWithReplication(tc, replicationFactor)
 
 	// Insert data.
 
@@ -46,8 +91,8 @@ func TestClusterReplication_DataIsWrittenSeveralTimes(t *testing.T) {
 	for i := range numRecs {
 		recs[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
 	}
-	vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
-	tc.ForceFlush(vmstorages...)
+	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	tc.ForceFlush(c.vmstorages...)
 
 	// Verify that each strorage node has metrics and that total metric count across
 	// all vmstorages is replicationFactor*numRecs.
@@ -61,10 +106,10 @@ func TestClusterReplication_DataIsWrittenSeveralTimes(t *testing.T) {
 		return got
 	}
 
-	cnts := make([]int, vmstorageCount)
+	cnts := make([]int, len(c.vmstorages))
 	var got int
-	for i := range vmstorageCount {
-		cnts[i] = getMetricsReadTotal(vmstorages[i])
+	for i, vmstorage := range c.vmstorages {
+		cnts[i] = getMetricsReadTotal(vmstorage)
 		got += cnts[i]
 	}
 	want := replicationFactor * numRecs
@@ -85,35 +130,8 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	const (
-		replicationFactor = 2
-		vmstorageCount    = 2*replicationFactor + 1
-	)
-
-	vmstorages := make([]*at.Vmstorage, vmstorageCount)
-	vminsertAddrs := make([]string, vmstorageCount)
-	vmselectAddrs := make([]string, vmstorageCount)
-	for i := range vmstorageCount {
-		instance := fmt.Sprintf("vmstorage-%d", i)
-		vmstorages[i] = tc.MustStartVmstorage(instance, []string{
-			"-storageDataPath=" + tc.Dir() + "/" + instance,
-			"-retentionPeriod=100y",
-		})
-		vminsertAddrs[i] = vmstorages[i].VminsertAddr()
-		vmselectAddrs[i] = vmstorages[i].VmselectAddr()
-	}
-
-	vminsert := tc.MustStartVminsert("vminsert", []string{
-		"-storageNode=" + strings.Join(vminsertAddrs, ","),
-		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
-	})
-	vmselect := tc.MustStartVmselect("vmselect", []string{
-		"-storageNode=" + strings.Join(vmselectAddrs, ","),
-	})
-	vmselectDedup := tc.MustStartVmselect("vmselect-dedup", []string{
-		"-storageNode=" + strings.Join(vmselectAddrs, ","),
-		"-dedup.minScrapeInterval=1ms",
-	})
+	const replicationFactor = 2
+	c := newClusterWithReplication(tc, replicationFactor)
 
 	// Insert data.
 
@@ -130,8 +148,8 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 			ts = ts.Add(1 * time.Minute)
 		}
 	}
-	vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
-	tc.ForceFlush(vmstorages...)
+	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	tc.ForceFlush(c.vmstorages...)
 
 	// Check /api/v1/series response.
 	//
@@ -160,8 +178,8 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 			},
 		})
 	}
-	assertSeries(vmselect)
-	assertSeries(vmselectDedup)
+	assertSeries(c.vmselect)
+	assertSeries(c.vmselectDedup)
 
 	// Check /api/v1/query response.
 	//
@@ -192,8 +210,8 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 			},
 		})
 	}
-	assertQuery(vmselect)
-	assertQuery(vmselectDedup)
+	assertQuery(c.vmselect)
+	assertQuery(c.vmselectDedup)
 
 	// Check /api/v1/query response (range vector queries)
 	//
@@ -240,8 +258,8 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 			},
 		})
 	}
-	assertQueryRangeVector(vmselect, replicationFactor)
-	assertQueryRangeVector(vmselectDedup, 1)
+	assertQueryRangeVector(c.vmselect, replicationFactor)
+	assertQueryRangeVector(c.vmselectDedup, 1)
 
 	// Check /api/v1/query_range response.
 	//
@@ -276,8 +294,8 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 			},
 		})
 	}
-	assertQueryRange(vmselect)
-	assertQueryRange(vmselectDedup)
+	assertQueryRange(c.vmselect)
+	assertQueryRange(c.vmselectDedup)
 
 	// Check /api/v1/export response.
 	//
@@ -312,8 +330,8 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 			},
 		})
 	}
-	assertExport(vmselect, replicationFactor)
-	assertExport(vmselectDedup, 1)
+	assertExport(c.vmselect, replicationFactor)
+	assertExport(c.vmselectDedup, 1)
 }
 
 // TestClusterReplication_NoPartialResponse checks how vmselect handles some
@@ -329,35 +347,8 @@ func TestClusterReplication_PartialResponse(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	const (
-		replicationFactor = 2
-		vmstorageCount    = 2*replicationFactor + 1
-	)
-
-	vmstorages := make([]*at.Vmstorage, vmstorageCount)
-	vminsertAddrs := make([]string, vmstorageCount)
-	vmselectAddrs := make([]string, vmstorageCount)
-	for i := range vmstorageCount {
-		instance := fmt.Sprintf("vmstorage-%d", i)
-		vmstorages[i] = tc.MustStartVmstorage(instance, []string{
-			"-storageDataPath=" + tc.Dir() + "/" + instance,
-			"-retentionPeriod=100y",
-		})
-		vminsertAddrs[i] = vmstorages[i].VminsertAddr()
-		vmselectAddrs[i] = vmstorages[i].VmselectAddr()
-	}
-
-	vminsert := tc.MustStartVminsert("vminsert", []string{
-		"-storageNode=" + strings.Join(vminsertAddrs, ","),
-		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
-	})
-	vmselect := tc.MustStartVmselect("vmselect", []string{
-		"-storageNode=" + strings.Join(vmselectAddrs, ","),
-	})
-	vmselectRF := tc.MustStartVmselect("vmselect-rf", []string{
-		"-storageNode=" + strings.Join(vmselectAddrs, ","),
-		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
-	})
+	const replicationFactor = 2
+	c := newClusterWithReplication(tc, replicationFactor)
 
 	// Insert data.
 
@@ -366,8 +357,8 @@ func TestClusterReplication_PartialResponse(t *testing.T) {
 	for i := range numRecs {
 		recs[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
 	}
-	vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
-	tc.ForceFlush(vmstorages...)
+	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	tc.ForceFlush(c.vmstorages...)
 
 	// Verify partial vs full response.
 
@@ -393,8 +384,8 @@ func TestClusterReplication_PartialResponse(t *testing.T) {
 
 	// All vmstorage replicates are available so both vmselects must return full
 	// response.
-	assertSeries(vmselect, mustReturnFullResponse)
-	assertSeries(vmselectRF, mustReturnFullResponse)
+	assertSeries(c.vmselect, mustReturnFullResponse)
+	assertSeries(c.vmselectRF, mustReturnFullResponse)
 
 	// Stop replicationFactor-1 vmstorage nodes.
 	// vmselect is not aware about the replication factor and therefore must
@@ -403,17 +394,17 @@ func TestClusterReplication_PartialResponse(t *testing.T) {
 	// that the remaining vmstorage nodes must still be able to provide full
 	// response.
 	for i := range replicationFactor - 1 {
-		tc.StopApp(vmstorages[i])
+		tc.StopApp(c.vmstorages[i])
 	}
-	assertSeries(vmselect, mustReturnPartialResponse)
-	assertSeries(vmselectRF, mustReturnFullResponse)
+	assertSeries(c.vmselect, mustReturnPartialResponse)
+	assertSeries(c.vmselectRF, mustReturnFullResponse)
 
 	// Stop one more vmstorage. At this point the remaining vmstorage nodes are
 	// not enough to provide the full dataset. Therefore both vmselects must
 	// return partial response.
-	tc.StopApp(vmstorages[replicationFactor])
-	assertSeries(vmselect, mustReturnPartialResponse)
-	assertSeries(vmselectRF, mustReturnPartialResponse)
+	tc.StopApp(c.vmstorages[replicationFactor])
+	assertSeries(c.vmselect, mustReturnPartialResponse)
+	assertSeries(c.vmselectRF, mustReturnPartialResponse)
 }
 
 // TestClusterReplication_SkipSlowReplicas checks that vmselect skips the
@@ -436,37 +427,8 @@ func TestClusterReplication_SkipSlowReplicas(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	const (
-		replicationFactor = 2
-		vmstorageCount    = 2*replicationFactor + 1
-	)
-
-	vmstorages := make([]*at.Vmstorage, vmstorageCount)
-	vminsertAddrs := make([]string, vmstorageCount)
-	vmselectAddrs := make([]string, vmstorageCount)
-	for i := range vmstorageCount {
-		instance := fmt.Sprintf("vmstorage-%d", i)
-		vmstorages[i] = tc.MustStartVmstorage(instance, []string{
-			"-storageDataPath=" + tc.Dir() + "/" + instance,
-			"-retentionPeriod=100y",
-		})
-		vminsertAddrs[i] = vmstorages[i].VminsertAddr()
-		vmselectAddrs[i] = vmstorages[i].VmselectAddr()
-	}
-
-	vminsert := tc.MustStartVminsert("vminsert", []string{
-		"-storageNode=" + strings.Join(vminsertAddrs, ","),
-		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
-	})
-	vmselect := tc.MustStartVmselect("vmselect", []string{
-		"-storageNode=" + strings.Join(vmselectAddrs, ","),
-		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
-	})
-	vmselectSkip := tc.MustStartVmselect("vmselect-skip", []string{
-		"-storageNode=" + strings.Join(vmselectAddrs, ","),
-		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
-		"-search.skipSlowReplicas",
-	})
+	const replicationFactor = 2
+	c := newClusterWithReplication(tc, replicationFactor)
 
 	// Insert data.
 
@@ -482,8 +444,8 @@ func TestClusterReplication_SkipSlowReplicas(t *testing.T) {
 		wantSeries.Data[i] = map[string]string{"__name__": name}
 	}
 	wantSeries.Sort()
-	vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
-	tc.ForceFlush(vmstorages...)
+	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	tc.ForceFlush(c.vmstorages...)
 
 	// Verify skipping slow replicas by counting the number of skipSlowReplicas
 	// messages in request trace.
@@ -505,11 +467,6 @@ func TestClusterReplication_SkipSlowReplicas(t *testing.T) {
 		}
 
 	}
-	assertSeries(vmselect, 0)
-	assertSeries(vmselectSkip, replicationFactor-1)
-}
-
-// See: https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect
-func TestClusterReplicationGroups(t *testing.T) {
-	t.Skip("not implemented")
+	assertSeries(c.vmselectRF, 0)
+	assertSeries(c.vmselectRFSkip, replicationFactor-1)
 }
