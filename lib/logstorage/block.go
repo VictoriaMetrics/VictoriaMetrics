@@ -218,21 +218,28 @@ func (b *block) assertValid() {
 // It is expected that timestamps are sorted.
 //
 // b is valid until rows are changed.
-func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) {
+//
+// Returns offset of the processed timestamps and rows
+func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) (offset int) {
 	b.reset()
 
 	assertTimestampsSorted(timestamps)
-	b.timestamps = append(b.timestamps, timestamps...)
-	b.mustInitFromRows(rows)
+	if len(timestamps) != len(rows) {
+		logger.Panicf("BUG: len of timestamps %d and rows %d must be equal", len(timestamps), len(rows))
+	}
+	offset = b.mustInitFromRows(timestamps, rows)
 	b.sortColumnsByName()
+	return
 }
 
 // mustInitFromRows initializes b from rows.
 //
 // b is valid until rows are changed.
-func (b *block) mustInitFromRows(rows [][]Field) {
-	rowsLen := len(rows)
-	if rowsLen == 0 {
+//
+// Returns offset of processed timestamps and rows
+func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) (offset int) {
+	offset = len(rows)
+	if offset == 0 {
 		// Nothing to do
 		return
 	}
@@ -249,35 +256,47 @@ func (b *block) mustInitFromRows(rows [][]Field) {
 			} else {
 				c := b.extendColumns()
 				c.name = f.Name
-				values := c.resizeValues(rowsLen)
+				values := c.resizeValues(offset)
 				for j := range rows {
 					values[j] = rows[j][i].Value
 				}
 			}
 		}
+		b.timestamps = append(b.timestamps, timestamps...)
 		return
 	}
 
 	// Slow path - log entries contain different set of fields
 
 	// Determine indexes for columns
+
+	offset = 0
 	columnIdxs := getColumnIdxs()
 	for i := range rows {
 		fields := rows[i]
+		// split rows by the limit
+		if len(columnIdxs)+len(fields) > maxColumnsPerBlock {
+			break
+		}
 		for j := range fields {
 			name := fields[j].Name
 			if _, ok := columnIdxs[name]; !ok {
 				columnIdxs[name] = len(columnIdxs)
 			}
 		}
+		offset++
 	}
+	rows = rows[:offset]
+	timestamps = timestamps[:offset]
+
+	b.timestamps = append(b.timestamps, timestamps...)
 
 	// Initialize columns
 	cs := b.resizeColumns(len(columnIdxs))
 	for name, idx := range columnIdxs {
 		c := &cs[idx]
 		c.name = name
-		c.resizeValues(rowsLen)
+		c.resizeValues(offset)
 	}
 
 	// Write rows to block
@@ -306,6 +325,7 @@ func (b *block) mustInitFromRows(rows [][]Field) {
 		cs = cs[:len(cs)-1]
 	}
 	b.columns = cs
+	return
 }
 
 func swapColumns(a, b *column) {
