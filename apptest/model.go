@@ -51,6 +51,7 @@ type QueryOpts struct {
 	Step         string
 	ExtraFilters []string
 	ExtraLabels  []string
+	Trace        string
 }
 
 func (qos *QueryOpts) asURLValues() url.Values {
@@ -70,6 +71,7 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("timeout", qos.Timeout)
 	addNonEmpty("extra_label", qos.ExtraLabels...)
 	addNonEmpty("extra_filters", qos.ExtraFilters...)
+	addNonEmpty("trace", qos.Trace)
 
 	return uv
 }
@@ -162,6 +164,7 @@ type PrometheusAPIV1SeriesResponse struct {
 	Status    string
 	IsPartial bool
 	Data      []map[string]string
+	Trace     *Trace
 }
 
 // NewPrometheusAPIV1SeriesResponse is a test helper function that creates a new
@@ -192,4 +195,42 @@ func (r *PrometheusAPIV1SeriesResponse) Sort() *PrometheusAPIV1SeriesResponse {
 	})
 
 	return r
+}
+
+// Trace provides the description and the duration of some unit of work that has
+// been performed during the request processing.
+type Trace struct {
+	DurationMsec float64 `json:"duration_msec"`
+	Message      string
+	Children     []*Trace
+}
+
+// String returns string representation of the trace.
+func (t *Trace) String() string {
+	return t.stringWithIndent("")
+}
+
+func (t *Trace) stringWithIndent(indent string) string {
+	s := indent + fmt.Sprintf("{duration_msec: %.3f msg: %q", t.DurationMsec, t.Message)
+	if len(t.Children) > 0 {
+		s += " children: ["
+		for _, c := range t.Children {
+			s += "\n" + c.stringWithIndent(indent+" ")
+		}
+		s += "]"
+	}
+	return s + "}"
+}
+
+// Contains counts how many trace messages contain substring s.
+func (t *Trace) Contains(s string) int {
+	var times int
+	if strings.Contains(t.Message, s) {
+		times++
+	}
+
+	for _, c := range t.Children {
+		times += c.Contains(s)
+	}
+	return times
 }

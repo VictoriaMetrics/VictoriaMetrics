@@ -19,7 +19,7 @@ func TestClusterReplication_DataIsWrittenSeveralTimes(t *testing.T) {
 	defer tc.Stop()
 
 	const (
-		replicationFactor = 3
+		replicationFactor = 2
 		vmstorageCount    = 2*replicationFactor + 1
 	)
 
@@ -81,7 +81,7 @@ func TestClusterReplication_DataIsWrittenSeveralTimes(t *testing.T) {
 // flag. See mergeSortBlocks() in app/vmselect/netstorage/netstorage.go.
 //
 // See: https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
-func TestClusterReplication_VmselectDeduplication(t *testing.T) {
+func TestClusterReplication_Deduplication(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
@@ -325,7 +325,7 @@ func TestClusterReplication_VmselectDeduplication(t *testing.T) {
 // nodes are unavailable during the query.
 //
 // See: https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
-func TestClusterReplication_NoPartialResponse(t *testing.T) {
+func TestClusterReplication_PartialResponse(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
@@ -414,6 +414,99 @@ func TestClusterReplication_NoPartialResponse(t *testing.T) {
 	tc.StopApp(vmstorages[replicationFactor])
 	assertSeries(vmselect, mustReturnPartialResponse)
 	assertSeries(vmselectRF, mustReturnPartialResponse)
+}
+
+// TestClusterReplication_SkipSlowReplicas checks that vmselect skips the
+// results from slower replicas if the results that have been received from
+// other replicas are enough to construct full response.
+//
+// By default, even if a vmselect knows about the vmstorage replication (via
+// -replicationFactor flag) it will still wait for results from all the
+// vmstorage nodes. A vmselect can be configured to skip slow replicas
+// using -search.skipSlowReplicas flag.
+//
+// Say a vmselect points to N vmstorage nodes and its -replicationFactor is R.
+// Then only R nodes out of N will contain the searched data, while N-R node
+// will not contain it. Therefore the vmselect must receive responses from at
+// least N-R+1 nodes to construct the full response. The responses from the rest
+// of the nodes (R-1) can be skipped.
+//
+// See: https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
+func TestClusterReplication_SkipSlowReplicas(t *testing.T) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	const (
+		replicationFactor = 2
+		vmstorageCount    = 2*replicationFactor + 1
+	)
+
+	vmstorages := make([]*at.Vmstorage, vmstorageCount)
+	vminsertAddrs := make([]string, vmstorageCount)
+	vmselectAddrs := make([]string, vmstorageCount)
+	for i := range vmstorageCount {
+		instance := fmt.Sprintf("vmstorage-%d", i)
+		vmstorages[i] = tc.MustStartVmstorage(instance, []string{
+			"-storageDataPath=" + tc.Dir() + "/" + instance,
+			"-retentionPeriod=100y",
+		})
+		vminsertAddrs[i] = vmstorages[i].VminsertAddr()
+		vmselectAddrs[i] = vmstorages[i].VmselectAddr()
+	}
+
+	vminsert := tc.MustStartVminsert("vminsert", []string{
+		"-storageNode=" + strings.Join(vminsertAddrs, ","),
+		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
+	})
+	vmselect := tc.MustStartVmselect("vmselect", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
+	})
+	vmselectSkip := tc.MustStartVmselect("vmselect-skip", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
+		"-search.skipSlowReplicas",
+	})
+
+	// Insert data.
+
+	const numRecs = 1000
+	recs := make([]string, numRecs)
+	wantSeries := &at.PrometheusAPIV1SeriesResponse{
+		Status: "success",
+		Data:   make([]map[string]string, numRecs),
+	}
+	for i := range numRecs {
+		name := fmt.Sprintf("metric_%d", i)
+		recs[i] = fmt.Sprintf("%s %d", name, rand.IntN(1000))
+		wantSeries.Data[i] = map[string]string{"__name__": name}
+	}
+	wantSeries.Sort()
+	vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	tc.ForceFlush(vmstorages...)
+
+	// Verify skipping slow replicas by counting the number of skipSlowReplicas
+	// messages in request trace.
+
+	assertSeries := func(app *at.Vmselect, want int) {
+		t.Helper()
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /api/v1/series response",
+			Got: func() any {
+				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{}).Sort()
+			},
+			Want: wantSeries,
+		})
+
+		res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{Trace: "1"})
+		got := res.Trace.Contains("cancel request because -search.skipSlowReplicas is set and every group returned the needed number of responses according to replicationFactor")
+		if got != want {
+			t.Errorf("unexpected number of skipSlowReplicas messages in request trace: got %d, want %d (full trace:\n%v)", got, want, res.Trace)
+		}
+
+	}
+	assertSeries(vmselect, 0)
+	assertSeries(vmselectSkip, replicationFactor-1)
 }
 
 // See: https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect
