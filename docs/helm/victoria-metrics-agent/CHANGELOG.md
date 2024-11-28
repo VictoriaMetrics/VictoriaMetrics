@@ -1,6 +1,7 @@
 ## Next release
 
 - updated common dependency 0.0.31 -> 0.0.32
+- Added service.targetPort and serviceMonitor.targetPort to add ability to point service to one of extraContainers port, like oauth2-proxy
 
 ## 0.14.9
 
