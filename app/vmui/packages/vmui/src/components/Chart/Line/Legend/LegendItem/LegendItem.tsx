@@ -56,19 +56,23 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange, isHeatmap, isAnomal
       )}
       <div className="vm-legend-item-info">
         <span className="vm-legend-item-info__label">
-          {legend.freeFormFields["__name__"]}
-          {!!freeFormFields.length && <>&#123;</>}
-          {freeFormFields.map((f, i) => (
-            <span
-              className="vm-legend-item-info__free-fields"
-              key={f.key}
-              onClick={createHandlerCopy(f.freeField)}
-              title="copy to clipboard"
-            >
-              {f.freeField}{i + 1 < freeFormFields.length && ","}
-            </span>
-          ))}
-          {!!freeFormFields.length && <>&#125;</>}
+          {legend.hasAlias ? legend.label : (
+            <>
+              {legend.freeFormFields["__name__"]}
+              {!!freeFormFields.length && <>&#123;</>}
+              {freeFormFields.map((f, i) => (
+                <span
+                  className="vm-legend-item-info__free-fields"
+                  key={f.key}
+                  onClick={createHandlerCopy(f.freeField)}
+                  title="copy to clipboard"
+                >
+                  {f.freeField}{i + 1 < freeFormFields.length && ","}
+                </span>
+              ))}
+              {!!freeFormFields.length && <>&#125;</>}
+            </>
+          )}
         </span>
       </div>
       {!isHeatmap && showStats && (
