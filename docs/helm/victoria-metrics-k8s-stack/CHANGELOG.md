@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- synced rules
 
 ## 0.29.1
 

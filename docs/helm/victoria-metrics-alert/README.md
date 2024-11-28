@@ -741,7 +741,7 @@ tag: v0.25.0
       <td>alertmanager.service.servicePort</td>
       <td>int</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">8880
+<code class="language-yaml">9093
 </code>
 </pre>
 </td>

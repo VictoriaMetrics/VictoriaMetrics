@@ -1344,6 +1344,17 @@ periodSeconds: 15
 </td>
     </tr>
     <tr>
+      <td>service.targetPort</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">http
+</code>
+</pre>
+</td>
+      <td><p>Target port</p>
+</td>
+    </tr>
+    <tr>
       <td>service.type</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -1451,6 +1462,17 @@ periodSeconds: 15
 </pre>
 </td>
       <td><p>Service Monitor relabelings</p>
+</td>
+    </tr>
+    <tr>
+      <td>serviceMonitor.targetPort</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">http
+</code>
+</pre>
+</td>
+      <td><p>Service Monitor targetPort</p>
 </td>
     </tr>
     <tr>
