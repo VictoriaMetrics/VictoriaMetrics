@@ -57,17 +57,6 @@ groups:
           description: "Requests to path {{ $labels.path }} are receiving errors.
             Please verify if clients are sending correct requests."
 
-      - alert: RowsRejectedOnIngestion
-        expr: rate(vm_rows_ignored_total[5m]) > 0
-        for: 15m
-        labels:
-          severity: warning
-        annotations:
-          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=58&var-instance={{ $labels.instance }}"
-          summary: "Some rows are rejected on \"{{ $labels.instance }}\" on ingestion attempt"
-          description: "VM is rejecting to ingest rows on \"{{ $labels.instance }}\" due to the
-            following reason: \"{{ $labels.reason }}\""
-
       - alert: TooHighChurnRate
         expr: |
           (
@@ -119,15 +108,3 @@ groups:
           description: "High rate of slow inserts on \"{{ $labels.instance }}\" may be a sign of resource exhaustion
             for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series.
             See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183"
-
-      - alert: LabelsLimitExceededOnIngestion
-        expr: increase(vm_metrics_with_dropped_labels_total[5m]) > 0
-        for: 15m
-        labels:
-          severity: warning
-        annotations:
-          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=74&var-instance={{ $labels.instance }}"
-          summary: "Metrics ingested in ({{ $labels.instance }}) are exceeding labels limit"
-          description: "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n
-           This prevents ingestion of metrics with too many labels. Please verify that `-maxLabelsPerTimeseries` is configured
-           correctly or that clients which send these metrics aren't misbehaving."

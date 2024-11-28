@@ -7,6 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite/stream"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -39,8 +40,8 @@ func insertRows(rows []parser.Row) error {
 		if hasRelabeling {
 			ctx.ApplyRelabeling()
 		}
-		if len(ctx.Labels) == 0 {
-			// Skip metric without labels.
+		if len(ctx.Labels) == 0 || storage.ExceedingLabelsLimits(ctx.Labels) {
+			// Skip metric without labels or with exceeding labels.
 			continue
 		}
 		ctx.SortLabelsIfNeeded()

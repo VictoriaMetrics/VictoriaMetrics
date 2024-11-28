@@ -4,6 +4,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -58,8 +59,8 @@ func push(ctx *common.InsertCtx, tss []prompbmarshal.TimeSeries) {
 			ctx.AddLabel(label.Name, label.Value)
 		}
 		ctx.ApplyRelabeling()
-		if len(ctx.Labels) == 0 {
-			// Skip metric without labels.
+		if len(ctx.Labels) == 0 || storage.ExceedingLabelsLimits(ctx.Labels) {
+			// Skip metric without labels or with exceeding labels.
 			continue
 		}
 		ctx.SortLabelsIfNeeded()

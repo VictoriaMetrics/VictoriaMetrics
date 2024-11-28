@@ -18,7 +18,13 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+**Update note 1: meaning of `-maxLabelsPerTimeseries` and `-maxLabelValueLen` has been changed. Previously, excessive labels, label names and values were truncated and could result in silent data collision. With the new change time series that are hitting the limits will be dropped instead.**
+
 * SECURITY: upgrade Go builder from Go1.23.3 to Go1.23.4. See the list of issues addressed in [Go1.23.4](https://github.com/golang/go/issues?q=milestone%3AGo1.23.4+label%3ACherryPickApproved).
+
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent): support `-maxLabelsPerTimeseries`, `-maxLabelNameLen` and `-maxLabelValueLen` flags to limit amount of labels, label name and value length for pushed or scraped series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6928).
+* FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/): change meaning of `-maxLabelsPerTimeseries`, `-maxLabelNameLen` and `-maxLabelValueLen`. Previously, excessive labels, label names and values were truncated and could result in silent data collision. With the new change time series that are hitting the limits will be dropped instead. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6928)
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent) and [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/): support `-maxLabelNameLen` flag to limit label name for pushed or scraped series.
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly parse the query rolloup window specified in milliseconds. Previous implementation could lead to precision issues resulting in the parsed window being smaller by 1ms. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5796) for details.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fix requests routing by host when using `src_hosts`. Previously, request header could be ignored.

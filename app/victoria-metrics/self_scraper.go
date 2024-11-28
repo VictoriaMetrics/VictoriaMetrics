@@ -68,6 +68,10 @@ func selfScraper(scrapeInterval time.Duration) {
 				t := &r.Tags[j]
 				labels = addLabel(labels, t.Key, t.Value)
 			}
+			if storage.ExceedingLabelsLimits(labels) {
+				// Skip metric with exceeding labels.
+				continue
+			}
 			if len(mrs) < cap(mrs) {
 				mrs = mrs[:len(mrs)+1]
 			} else {
