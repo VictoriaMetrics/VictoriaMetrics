@@ -164,7 +164,7 @@ How often to completely retrain the models. If not set, value of `infer_every` i
             </td>
             <td>
 
-Available since [v1.18.5](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1185). Specifies when to initiate the first `fit_every` call. Accepts either an ISO 8601 datetime or a time in HH:MM format. If the specified time is in the past, the next suitable time is calculated based on the `fit_every` interval. For the HH:MM format, if the time is in the past, it will be scheduled for the same time on the following day, respecting the `tz` argument if provided.
+Available since [v1.18.5](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1185). Specifies when to initiate the first `fit_every` call. Accepts either an ISO 8601 datetime or a time in HH:MM format. If the specified time is in the past, the next suitable time is calculated based on the `fit_every` interval. For the HH:MM format, if the time is in the past, it will be scheduled for the same time on the following day, respecting the `tz` argument if provided. By default, the timezone defaults to `UTC`.
             </td>
         </tr>
         <tr>
