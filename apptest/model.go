@@ -131,7 +131,7 @@ func NewSample(t *testing.T, timeStr string, value float64) *Sample {
 	if err != nil {
 		t.Fatalf("could not parse RFC3339 time %q: %v", timeStr, err)
 	}
-	return &Sample{parsedTime.Unix(), value}
+	return &Sample{parsedTime.UnixMilli(), value}
 }
 
 // UnmarshalJSON populates the sample fields from a JSON string.
@@ -147,7 +147,7 @@ func (s *Sample) UnmarshalJSON(b []byte) error {
 	if got, want := len(raw), 2; got != want {
 		return fmt.Errorf("unexpected number of fields: got %d, want %d (raw sample: %s)", got, want, string(b))
 	}
-	s.Timestamp = int64(ts)
+	s.Timestamp = int64(ts * 1000)
 	var err error
 	s.Value, err = strconv.ParseFloat(v, 64)
 	if err != nil {
