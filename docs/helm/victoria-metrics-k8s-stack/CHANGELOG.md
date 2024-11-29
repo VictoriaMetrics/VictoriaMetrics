@@ -1,6 +1,7 @@
 ## Next release
 
 - synced rules
+- updated common dependency 0.0.32 -> 0.0.33
 
 ## 0.29.1
 

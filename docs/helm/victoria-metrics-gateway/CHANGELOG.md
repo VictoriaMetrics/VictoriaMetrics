@@ -1,6 +1,6 @@
 ## Next release
 
-- updated common dependency 0.0.28 -> 0.0.32
+- updated common dependency 0.0.28 -> 0.0.33
 - fixed app.kubernetes.io/version tag override if custom tag is set. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1766).
 
 ## 0.5.7
