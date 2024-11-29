@@ -62,8 +62,8 @@ var (
 	backendTLSServerName = flag.String("backend.TLSServerName", "", "Optional TLS ServerName, which must be sent to HTTPS backend. "+
 		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
 	dryRun                   = flag.Bool("dryRun", false, "Whether to check only config files without running vmauth. The auth configuration file is validated. The -auth.config flag must be specified.")
-	removeXFFHTTPHeaderValue = flag.Bool(`removeXFFHTTPHeaderValue`, false, "Whether to remove X-Forwarded-For HTTP header value from remote client request before proxying it to backend. "+
-		"It's recommend to set if vmauth is internet-facing.")
+	removeXFFHTTPHeaderValue = flag.Bool(`removeXFFHTTPHeaderValue`, false, "Whether to remove the X-Forwarded-For HTTP header value from client requests before forwarding them to the backend. "+
+		"Recommended when vmauth is exposed to the internet.")
 )
 
 func main() {

@@ -1374,7 +1374,7 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
      Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
   -removeXFFHTTPHeaderValue
-        Whether to remove X-Forwarded-For HTTP header value from remote client request before proxying it to backend. It's recommend to set if vmauth is internet-facing.
+        Whether to remove the X-Forwarded-For HTTP header value from client requests before forwarding them to the backend. Recommended when vmauth is exposed to the internet.
   -responseTimeout duration
      The timeout for receiving a response from backend (default 5m0s)
   -retryStatusCodes array
