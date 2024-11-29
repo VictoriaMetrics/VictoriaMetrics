@@ -274,7 +274,6 @@ func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) (offset int
 	columnIdxs := getColumnIdxs()
 	for i := range rows {
 		fields := rows[i]
-		// split rows by the limit
 		if len(columnIdxs)+len(fields) > maxColumnsPerBlock {
 			break
 		}
@@ -286,6 +285,8 @@ func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) (offset int
 		}
 		offset++
 	}
+
+	// keep only rows that fit maxColumnsPerBlock limit
 	rows = rows[:offset]
 	timestamps = timestamps[:offset]
 
