@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+## [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
+
+Released at 2023-11-29
+
 **Update note 1: cmd-line flags `-datasource.lookback`, `datasource.queryTimeAlignment` and `remoteRead.ignoreRestoreErrors` on [vmalert](https://docs.victoriametrics.com/vmalert/) have been removed. Those flags were all deprecated before [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).**
 
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert): revert the default value of `-remoteWrite.maxQueueSize` from `1_000_000` to `100_000`. It was bumped in [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0), which increases memory usage and is not needed for most setups. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7471).
@@ -43,6 +47,36 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): print an error message if no rule group is found in `rule_files`.
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Properly handle [multitenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) query request errors and correctly perform search for available tenants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details. This is follow-up after [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1) release changes.
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly set `multitenant` cache expiration duration with `search.tenantCacheExpireDuration`. Previously flag always used default value.
+
+## [v1.102.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.8)
+
+Released at 2024-11-29
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): properly parse `multitenant` token value for multitenant endpoints. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7694).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): Properly return `200 OK` HTTP status code when importing data via [Pushgateway protocol](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format) using [multitenant URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7571).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): Properly set `TCP` connection timeout for `Kubernetes API server` connection for metric scrapping with `kubernetes_sd_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7127).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): fix the `resource_group` filter for Azure service discovery on virtual machine scale sets. Previously, this filter did not apply to virtual machine scale sets, causing all virtual machines to be discovered. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7630).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly init `ip_filters` for `unauthorized_user` config section. Previously it was ignored and `vmauth` didn't apply `ip_filter` for `unauthorized` access.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return result for binary operation `^` aka pow at query requests for `NaN` values. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7359) for details.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix for `showLegend` and `alias` flags in predefined panels. [See this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7565)
+
+## [v1.97.13](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.13)
+
+Released at 2024-11-29
+
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): Properly return `200 OK` HTTP status code when importing data via [Pushgateway protocol](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format) using [multitenant URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7571).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): Properly set `TCP` connection timeout for `Kubernetes API server` connection for metric scrapping with `kubernetes_sd_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7127).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): fix the `resource_group` filter for Azure service discovery on virtual machine scale sets. Previously, this filter did not apply to virtual machine scale sets, causing all virtual machines to be discovered. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7630).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly init `ip_filters` for `unauthorized_user` config section. Previously it was ignored and `vmauth` didn't apply `ip_filter` for `unauthorized` access.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return result for binary operation `^` aka pow at query requests for `NaN` values. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7359) for details.
 
 ## [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1)
 
