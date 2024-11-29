@@ -384,8 +384,9 @@ extraLabels: {}
       <td>server.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
+httpListenAddr: :8428
 loggerFormat: json
 </code>
 </pre>
@@ -1529,7 +1530,7 @@ scrape_configs:
       <td>server.vmbackupmanager.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
 loggerFormat: json
 </code>
