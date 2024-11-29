@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+## [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
+
+Released at 2023-11-29
+
 **Update note 1: cmd-line flags `-datasource.lookback`, `datasource.queryTimeAlignment` and `remoteRead.ignoreRestoreErrors` on [vmalert](https://docs.victoriametrics.com/vmalert/) have been removed. Those flags were all deprecated before [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).**
 
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert): revert the default value of `-remoteWrite.maxQueueSize` from `1_000_000` to `100_000`. It was bumped in [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0), which increases memory usage and is not needed for most setups. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7471).
