@@ -13,7 +13,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Returns some or all (up to 1,000) of the objects in a bucket. You can use the
 // request parameters as selection criteria to return a subset of the objects in a
