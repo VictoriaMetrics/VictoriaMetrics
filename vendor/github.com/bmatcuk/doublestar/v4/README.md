@@ -89,6 +89,19 @@ Note: users should _not_ count on the returned error,
 `doublestar.ErrBadPattern`, being equal to `path.ErrBadPattern`.
 
 
+### MatchUnvalidated
+
+```go
+func MatchUnvalidated(pattern, name string) bool
+```
+
+MatchUnvalidated can provide a small performance improvement if you don't care
+about whether or not the pattern is valid (perhaps because you already ran
+`ValidatePattern`). Note that there's really only one case where this
+performance improvement is realized: when pattern matching reaches the end of
+`name` before reaching the end of `pattern`, such as `Match("a/b/c", "a")`.
+
+
 ### PathMatch
 
 ```go
@@ -104,6 +117,20 @@ Note: this is meant as a drop-in replacement for `filepath.Match()`. It assumes
 that both `pattern` and `name` are using the system's path separator. If you
 can't be sure of that, use `filepath.ToSlash()` on both `pattern` and `name`,
 and then use the `Match()` function instead.
+
+
+### PathMatchUnvalidated
+
+```go
+func PathMatchUnvalidated(pattern, name string) bool
+```
+
+PathMatchUnvalidated can provide a small performance improvement if you don't
+care about whether or not the pattern is valid (perhaps because you already ran
+`ValidatePattern`). Note that there's really only one case where this
+performance improvement is realized: when pattern matching reaches the end of
+`name` before reaching the end of `pattern`, such as `Match("a/b/c", "a")`.
+
 
 ### GlobOption
 
@@ -386,6 +413,8 @@ I started this project in 2014 in my spare time and have been maintaining it
 ever since. In that time, it has grown into one of the most popular globbing
 libraries in the Go ecosystem. So, if **doublestar** is a useful library in
 your project, consider [sponsoring] my work! I'd really appreciate it!
+
+[![MASV](../sponsors/MASV.png?raw=true)](https://massive.io/)
 
 Thanks for sponsoring me!
 

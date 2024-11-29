@@ -679,8 +679,8 @@ func NewRoundTripperFromConfigWithContext(ctx context.Context, cfg HTTPClientCon
 	if err != nil {
 		return nil, err
 	}
-	if tlsSettings.CA == nil || tlsSettings.CA.Immutable() {
-		// No need for a RoundTripper that reloads the CA file automatically.
+	if tlsSettings.immutable() {
+		// No need for a RoundTripper that reloads the files automatically.
 		return newRT(tlsConfig)
 	}
 	return NewTLSRoundTripperWithContext(ctx, tlsConfig, tlsSettings, newRT)
@@ -914,7 +914,7 @@ func (rt *oauth2RoundTripper) newOauth2TokenSource(req *http.Request, secret str
 	if err != nil {
 		return nil, nil, err
 	}
-	if tlsSettings.CA == nil || tlsSettings.CA.Immutable() {
+	if tlsSettings.immutable() {
 		t, _ = tlsTransport(tlsConfig)
 	} else {
 		t, err = NewTLSRoundTripperWithContext(req.Context(), tlsConfig, tlsSettings, tlsTransport)
@@ -1257,6 +1257,10 @@ type TLSRoundTripperSettings struct {
 	CA   SecretReader
 	Cert SecretReader
 	Key  SecretReader
+}
+
+func (t *TLSRoundTripperSettings) immutable() bool {
+	return (t.CA == nil || t.CA.Immutable()) && (t.Cert == nil || t.Cert.Immutable()) && (t.Key == nil || t.Key.Immutable())
 }
 
 func NewTLSRoundTripper(
