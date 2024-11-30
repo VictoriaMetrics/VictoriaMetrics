@@ -392,8 +392,9 @@ func (b *block) resizeColumns(columnsLen int) []column {
 
 func (b *block) sortColumnsByName() {
 	if len(b.columns)+len(b.constColumns) > maxColumnsPerBlock {
-		logger.Panicf("BUG: too big number of columns detected in the block: %d; the number of columns mustn't exceed %d",
-			len(b.columns)+len(b.constColumns), maxColumnsPerBlock)
+		columnNames := b.getColumnNames()
+		logger.Panicf("BUG: too big number of columns detected in the block: %d; the number of columns mustn't exceed %d; columns: %s",
+			len(b.columns)+len(b.constColumns), maxColumnsPerBlock, columnNames)
 	}
 
 	cs := getColumnsSorter()
@@ -405,6 +406,17 @@ func (b *block) sortColumnsByName() {
 	ccs.columns = b.constColumns
 	sort.Sort(ccs)
 	putConstColumnsSorter(ccs)
+}
+
+func (b *block) getColumnNames() []string {
+	a := make([]string, 0, len(b.columns)+len(b.constColumns))
+	for _, c := range b.columns {
+		a = append(a, c.name)
+	}
+	for _, c := range b.constColumns {
+		a = append(a, c.Name)
+	}
+	return a
 }
 
 // Len returns the number of log entries in b.
