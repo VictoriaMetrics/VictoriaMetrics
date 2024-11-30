@@ -101,7 +101,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		lmp := cp.NewLogMessageProcessor()
+		lmp := cp.NewLogMessageProcessor("elasticsearch_bulk")
 		isGzip := r.Header.Get("Content-Encoding") == "gzip"
 		n, err := readBulkRequest(r.Body, isGzip, cp.TimeField, cp.MsgFields, lmp)
 		lmp.MustClose()

@@ -53,7 +53,7 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	lmp := cp.NewLogMessageProcessor()
+	lmp := cp.NewLogMessageProcessor("loki_json")
 	n, err := parseJSONRequest(data, lmp)
 	lmp.MustClose()
 	if err != nil {
@@ -71,7 +71,7 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 
 var (
 	requestsJSONTotal     = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="json"}`)
-	rowsIngestedJSONTotal = metrics.NewCounter(`vl_rows_ingested_total{type="loki",format="json"}`)
+	rowsIngestedJSONTotal = metrics.NewCounter(`vl_rows_ingested_total{type="loki_json"}`)
 	requestJSONDuration   = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
