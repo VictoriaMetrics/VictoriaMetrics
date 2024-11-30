@@ -219,33 +219,37 @@ func (b *block) assertValid() {
 //
 // b is valid until rows are changed.
 //
-// Returns offset of the processed timestamps and rows
-func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) (offset int) {
+// Returns the number of the processed timestamps and rows.
+// If the returned number is smaller than len(rows), then the rest of rows aren't processed.
+func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) int {
 	b.reset()
 
 	assertTimestampsSorted(timestamps)
-	if len(timestamps) != len(rows) {
-		logger.Panicf("BUG: len of timestamps %d and rows %d must be equal", len(timestamps), len(rows))
-	}
-	offset = b.mustInitFromRows(timestamps, rows)
+	rowsProcessed := b.mustInitFromRows(timestamps, rows)
 	b.sortColumnsByName()
-	return
+	return rowsProcessed
 }
 
-// mustInitFromRows initializes b from rows.
+// mustInitFromRows initializes b from the given timestamps and rows.
 //
 // b is valid until rows are changed.
 //
-// Returns offset of processed timestamps and rows
-func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) (offset int) {
-	offset = len(rows)
-	if offset == 0 {
+// Returns the number of the processed timestamps and rows.
+// If the returned number is smaller than len(rows), then the rest of rows aren't processed.
+func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) int {
+	if len(timestamps) != len(rows) {
+		logger.Panicf("BUG: len of timestamps %d and rows %d must be equal", len(timestamps), len(rows))
+	}
+
+	rowsLen := len(rows)
+	if rowsLen == 0 {
 		// Nothing to do
-		return
+		return 0
 	}
 
 	if areSameFieldsInRows(rows) {
 		// Fast path - all the log entries have the same fields
+		b.timestamps = append(b.timestamps, timestamps...)
 		fields := rows[0]
 		for i := range fields {
 			f := &fields[i]
@@ -256,23 +260,22 @@ func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) (offset int
 			} else {
 				c := b.extendColumns()
 				c.name = f.Name
-				values := c.resizeValues(offset)
+				values := c.resizeValues(rowsLen)
 				for j := range rows {
 					values[j] = rows[j][i].Value
 				}
 			}
 		}
-		b.timestamps = append(b.timestamps, timestamps...)
-		return
+		return rowsLen
 	}
 
 	// Slow path - log entries contain different set of fields
 
 	// Determine indexes for columns
 
-	offset = 0
 	columnIdxs := getColumnIdxs()
-	for i := range rows {
+	i := 0
+	for i < len(rows) {
 		fields := rows[i]
 		if len(columnIdxs)+len(fields) > maxColumnsPerBlock {
 			break
@@ -283,12 +286,13 @@ func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) (offset int
 				columnIdxs[name] = len(columnIdxs)
 			}
 		}
-		offset++
+		i++
 	}
+	rowsProcessed := i
 
 	// keep only rows that fit maxColumnsPerBlock limit
-	rows = rows[:offset]
-	timestamps = timestamps[:offset]
+	rows = rows[:rowsProcessed]
+	timestamps = timestamps[:rowsProcessed]
 
 	b.timestamps = append(b.timestamps, timestamps...)
 
@@ -297,7 +301,7 @@ func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) (offset int
 	for name, idx := range columnIdxs {
 		c := &cs[idx]
 		c.name = name
-		c.resizeValues(offset)
+		c.resizeValues(len(rows))
 	}
 
 	// Write rows to block
@@ -326,7 +330,7 @@ func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) (offset int
 		cs = cs[:len(cs)-1]
 	}
 	b.columns = cs
-	return
+	return rowsProcessed
 }
 
 func swapColumns(a, b *column) {
