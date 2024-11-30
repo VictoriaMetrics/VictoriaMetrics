@@ -66,7 +66,7 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 		return
 	}
 
-	lmp := cp.NewLogMessageProcessor()
+	lmp := cp.NewLogMessageProcessor("opentelelemtry_protobuf")
 	n, err := pushProtobufRequest(data, lmp)
 	lmp.MustClose()
 	if err != nil {
@@ -83,7 +83,7 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 }
 
 var (
-	rowsIngestedProtobufTotal = metrics.NewCounter(`vl_rows_ingested_total{type="opentelemetry",format="protobuf"}`)
+	rowsIngestedProtobufTotal = metrics.NewCounter(`vl_rows_ingested_total{type="opentelemetry_protobuf"}`)
 
 	requestsProtobufTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
 	errorsTotal           = metrics.NewCounter(`vl_http_errors_total{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)

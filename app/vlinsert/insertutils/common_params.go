@@ -154,6 +154,8 @@ type logMessageProcessor struct {
 
 	cp *CommonParams
 	lr *logstorage.LogRows
+
+	processedBytesTotal *metrics.Counter
 }
 
 func (lmp *logMessageProcessor) initPeriodicFlush() {
@@ -187,6 +189,9 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 	lmp.mu.Lock()
 	defer lmp.mu.Unlock()
 
+	n := getApproxJSONRowLen(fields)
+	lmp.processedBytesTotal.Add(n)
+
 	if len(fields) > *MaxFieldsPerLine {
 		rf := logstorage.RowFormatter(fields)
 		logger.Warnf("dropping log line with %d fields; it exceeds -insert.maxFieldsPerLine=%d; %s", len(fields), *MaxFieldsPerLine, rf)
@@ -205,6 +210,16 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 	if lmp.lr.NeedFlush() {
 		lmp.flushLocked()
 	}
+}
+
+// getApproxJSONRowLen returns an approximate length of the log entry with the given fields if represented as JSON.
+func getApproxJSONRowLen(fields []logstorage.Field) int {
+	n := len("{}\n")
+	n += len(`"_time":""`) + len(time.RFC3339Nano)
+	for _, f := range fields {
+		n += len(`,"":""`) + len(f.Name) + len(f.Value)
+	}
+	return n
 }
 
 // flushLocked must be called under locked lmp.mu.
@@ -227,11 +242,14 @@ func (lmp *logMessageProcessor) MustClose() {
 // NewLogMessageProcessor returns new LogMessageProcessor for the given cp.
 //
 // MustClose() must be called on the returned LogMessageProcessor when it is no longer needed.
-func (cp *CommonParams) NewLogMessageProcessor() LogMessageProcessor {
+func (cp *CommonParams) NewLogMessageProcessor(protocolName string) LogMessageProcessor {
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.ExtraFields, *defaultMsgValue)
+	processedBytesTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vl_bytes_ingested_total{type=%q}", protocolName))
 	lmp := &logMessageProcessor{
 		cp: cp,
 		lr: lr,
+
+		processedBytesTotal: processedBytesTotal,
 
 		stopCh: make(chan struct{}),
 	}

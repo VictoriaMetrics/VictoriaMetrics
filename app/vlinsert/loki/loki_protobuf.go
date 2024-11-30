@@ -44,7 +44,7 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	lmp := cp.NewLogMessageProcessor()
+	lmp := cp.NewLogMessageProcessor("loki_protobuf")
 	n, err := parseProtobufRequest(data, lmp)
 	lmp.MustClose()
 	if err != nil {
@@ -62,7 +62,7 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 
 var (
 	requestsProtobufTotal     = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push",format="protobuf"}`)
-	rowsIngestedProtobufTotal = metrics.NewCounter(`vl_rows_ingested_total{type="loki",format="protobuf"}`)
+	rowsIngestedProtobufTotal = metrics.NewCounter(`vl_rows_ingested_total{type="loki_protobuf"}`)
 	requestProtobufDuration   = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="protobuf"}`)
 )
 

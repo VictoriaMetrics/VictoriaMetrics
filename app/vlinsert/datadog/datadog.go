@@ -84,7 +84,7 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	lmp := cp.NewLogMessageProcessor()
+	lmp := cp.NewLogMessageProcessor("datadog")
 	n, err := readLogsRequest(ts, data, lmp.AddRow)
 	lmp.MustClose()
 	if n > 0 {
