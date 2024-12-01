@@ -385,7 +385,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.18.5
+    image: victoriametrics/vmanomaly:v1.18.6
     depends_on:
       - "victoriametrics"
     ports:
@@ -402,7 +402,7 @@ services:
       - "--licenseFile=/license"
   alertmanager:
     container_name: alertmanager
-    image: prom/alertmanager:v0.25.0
+    image: prom/alertmanager:v0.27.0
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
     command:
