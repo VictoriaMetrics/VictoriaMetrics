@@ -311,6 +311,7 @@ func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 var exportDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export"}`)
 
 func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonParams, format string, maxRowsPerLine int, reduceMemUsage bool) error {
+	var dropStaleNaNs bool
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	sw := newScalableWriter(bw)
@@ -328,6 +329,7 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 			return sw.maybeFlushBuffer(bb)
 		}
 	} else if format == "promapi" {
+		dropStaleNaNs = true
 		WriteExportPromAPIHeader(bw)
 		var firstLineOnce atomic.Bool
 		var firstLineSent atomic.Bool
@@ -402,10 +404,18 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 				}
 				xb := exportBlockPool.Get().(*exportBlock)
 				xb.mn = &rs.MetricName
-				xb.timestamps = rs.Timestamps
-				xb.values = rs.Values
-				if err := writeLineFunc(xb, workerID); err != nil {
-					return err
+				if dropStaleNaNs {
+					values, timestamps := promql.DropStaleNaNs(rs.Values, rs.Timestamps)
+					xb.timestamps = timestamps
+					xb.values = values
+				} else {
+					xb.timestamps = rs.Timestamps
+					xb.values = rs.Values
+				}
+				if len(xb.timestamps) > 0 {
+					if err := writeLineFunc(xb, workerID); err != nil {
+						return err
+					}
 				}
 				xb.reset()
 				exportBlockPool.Put(xb)

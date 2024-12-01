@@ -38,6 +38,14 @@ var staleNaNsData = func() []pb.TimeSeries {
 					Value:     decimal.StaleNaN,
 					Timestamp: millis("2024-01-01T00:02:00Z"),
 				},
+				{
+					Value:     decimal.StaleNaN,
+					Timestamp: millis("2024-01-01T00:03:00Z"),
+				},
+				{
+					Value:     decimal.StaleNaN,
+					Timestamp: millis("2024-01-01T00:04:00Z"),
+				},
 			},
 		},
 	}
@@ -84,7 +92,7 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	// Verify that instant query does not return stale NaN.
+	// Verify that instant query  returns empty if first sample is stale NaN.
 
 	got = sut.PrometheusAPIV1Query(t, "metric", apptest.QueryOpts{
 		Step: "5m",
@@ -96,34 +104,50 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	// Verify that instant query with default rollup function returns stale NaN
-	// while it must not.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5806
+	// Verify that instant query with default rollup function does not include stale NaN.
+
+	got = sut.PrometheusAPIV1Query(t, "metric[2m]", apptest.QueryOpts{
+		Time: "2024-01-01T00:02:00.000Z",
+	})
+	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
+	s := make([]*apptest.Sample, 1)
+	s[0] = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
+	want.Data.Result[0].Samples = s
+	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
 
 	got = sut.PrometheusAPIV1Query(t, "metric[2m]", apptest.QueryOpts{
 		Step: "5m",
 		Time: "2024-01-01T00:02:00.000Z",
 	})
 	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
-	s := make([]*apptest.Sample, 2)
+	s = make([]*apptest.Sample, 1)
 	s[0] = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
-	s[1] = apptest.NewSample(t, "2024-01-01T00:02:00Z", decimal.StaleNaN)
 	want.Data.Result[0].Samples = s
 	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	// Verify that exported data contains stale NaN.
+	// Verify that exported data does not contain stale NaNs if format is promapi.
 
 	got = sut.PrometheusAPIV1Export(t, `{__name__="metric"}`, apptest.QueryOpts{
 		Start: "2024-01-01T00:01:00.000Z",
 		End:   "2024-01-01T00:02:00.000Z",
 	})
 	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
-	s = make([]*apptest.Sample, 2)
+	s = make([]*apptest.Sample, 1)
 	s[0] = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
-	s[1] = apptest.NewSample(t, "2024-01-01T00:02:00Z", decimal.StaleNaN)
 	want.Data.Result[0].Samples = s
+	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
+	got = sut.PrometheusAPIV1Export(t, `{__name__="metric"}`, apptest.QueryOpts{
+		Start: "2024-01-01T00:03:00.000Z",
+		End:   "2024-01-01T00:04:00.000Z",
+	})
+	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": []}}`)
 	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
