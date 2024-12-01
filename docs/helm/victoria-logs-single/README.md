@@ -1158,7 +1158,11 @@ readOnlyRootFilesystem: true
       <td>vector</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">containerPorts:
+<code class="language-yaml">args:
+    - -w
+    - --config-dir
+    - /etc/vector/
+containerPorts:
     - containerPort: 9090
       name: prom-exporter
       protocol: TCP
