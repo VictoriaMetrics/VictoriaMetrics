@@ -59,6 +59,10 @@ There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push
 
 ## Push Config parameters
 
+By default, metrics are pushed only after the completion of specific stages, e.g., `fit`, `infer`, or `fit_infer` (for each [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) if using a multi-scheduler configuration).
+
+Starting with [v1.18.7](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1187), the `push_frequency` parameter (default value: `15m`) can be configured to initiate *additional* periodic metric pushes at consistent intervals. This enhances the self-monitoring capabilities of `vmanomaly` by aligning more closely with pull-based monitoring behavior, especially in setups with infrequent schedules (e.g., long `fit_every` or `infer_every` intervals in [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler)), mitigating data staleness. To disable scheduled metric pushes, set the `push_frequency` parameter to an empty string in the configuration file, as demonstrated in the examples below.
+
 <table class="params">
     <thead>
         <tr>
@@ -122,9 +126,11 @@ Deprecated since [v1.8.0](https://docs.victoriametrics.com/anomaly-detection/cha
         </tr>
         <tr>
             <td>
+
 `bearer_token`
             </td>
             <td>
+
 `token`
             </td>
             <td>
@@ -133,9 +139,11 @@ Token is passed in the standard format with header: `Authorization: bearer {toke
         </tr>
         <tr>
             <td>
+
 `bearer_token_file`
             </td>
             <td>
+
 `path_to_file`
             </td>
             <td>
@@ -144,9 +152,11 @@ Path to a file, which contains token, that is passed in the standard format with
         </tr>
         <tr>
             <td>
+
 `verify_tls`
             </td>
             <td>
+
 `false`
             </td>
             <td>
@@ -157,9 +167,11 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
         </tr>
         <tr>
             <td>
+
 `tls_cert_file`
             </td>
             <td>
+
 `path/to/cert.crt`
             </td>
             <td>
@@ -168,9 +180,11 @@ Path to a file with the client certificate, i.e. `client.crt`. Available since [
         </tr>
         <tr>
             <td>
+
 `tls_key_file`
             </td>
             <td>
+
 `path/to/key.crt`
             </td>
             <td>
@@ -187,6 +201,17 @@ Path to a file with the client certificate key, i.e. `client.key`. Available sin
 `"5s"`
             </td>
             <td>Stop waiting for a response after a given number of seconds.</td>
+        </tr>
+        <tr>
+            <td>
+
+`push_frequency`
+            </td>
+            <td>
+
+`"15m"`
+            </td>
+            <td>Frequency for scheduled pushing of metrics, e.g., '30m'. Suggested to be less than the staleness interval `-search.maxStalenessInterval` Set to empty string to disable *scheduled* pushing. Available since [v1.18.7](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1187)</td>
         </tr>
         <tr>
             <td>
@@ -213,6 +238,7 @@ monitoring:
     password: "PASSWORD"
     verify_tls: False
     timeout: "5s"
+    push_frequency: "15m"  # set to "" to disable scheduled pushes and leave only fit/infer based
     extra_labels:
       job: "vmanomaly-push"
       test: "test-1"
