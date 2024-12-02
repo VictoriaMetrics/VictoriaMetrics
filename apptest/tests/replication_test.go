@@ -394,7 +394,7 @@ func TestClusterReplication_PartialResponse(t *testing.T) {
 	// that the remaining vmstorage nodes must still be able to provide full
 	// response.
 	for i := range replicationFactor - 1 {
-		tc.StopApp(c.vmstorages[i])
+		tc.StopApp(c.vmstorages[i].Name())
 	}
 	assertSeries(c.vmselect, mustReturnPartialResponse)
 	assertSeries(c.vmselectRF, mustReturnFullResponse)
@@ -402,7 +402,7 @@ func TestClusterReplication_PartialResponse(t *testing.T) {
 	// Stop one more vmstorage. At this point the remaining vmstorage nodes are
 	// not enough to provide the full dataset. Therefore both vmselects must
 	// return partial response.
-	tc.StopApp(c.vmstorages[replicationFactor])
+	tc.StopApp(c.vmstorages[replicationFactor].Name())
 	assertSeries(c.vmselect, mustReturnPartialResponse)
 	assertSeries(c.vmselectRF, mustReturnPartialResponse)
 }

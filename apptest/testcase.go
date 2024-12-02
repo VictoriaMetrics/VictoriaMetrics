@@ -20,7 +20,6 @@ type TestCase struct {
 
 // Stopper is an interface of objects that needs to be stopped via Stop() call
 type Stopper interface {
-	Name() string
 	Stop()
 }
 
@@ -80,7 +79,7 @@ func (tc *TestCase) MustStartVmsingle(instance string, flags []string) *Vmsingle
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
-	tc.addApp(app)
+	tc.addApp(instance, app)
 	return app
 }
 
@@ -93,7 +92,7 @@ func (tc *TestCase) MustStartVmstorage(instance string, flags []string) *Vmstora
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
-	tc.addApp(app)
+	tc.addApp(instance, app)
 	return app
 }
 
@@ -106,7 +105,7 @@ func (tc *TestCase) MustStartVmselect(instance string, flags []string) *Vmselect
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
-	tc.addApp(app)
+	tc.addApp(instance, app)
 	return app
 }
 
@@ -119,7 +118,7 @@ func (tc *TestCase) MustStartVminsert(instance string, flags []string) *Vminsert
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
-	tc.addApp(app)
+	tc.addApp(instance, app)
 	return app
 }
 
@@ -167,19 +166,19 @@ func (tc *TestCase) MustStartDefaultCluster() PrometheusWriteQuerier {
 	return &vmcluster{vminsert, vmselect, []*Vmstorage{vmstorage1, vmstorage2}}
 }
 
-func (tc *TestCase) addApp(app Stopper) {
-	if _, alreadyStarted := tc.startedApps[app.Name()]; alreadyStarted {
-		tc.t.Fatalf("%s has already been started", app.Name())
+func (tc *TestCase) addApp(instance string, app Stopper) {
+	if _, alreadyStarted := tc.startedApps[instance]; alreadyStarted {
+		tc.t.Fatalf("%s has already been started", instance)
 	}
-	tc.startedApps[app.Name()] = app
+	tc.startedApps[instance] = app
 }
 
-// StopApp stops the given app and removes it from the collection of started
-// apps.
-func (tc *TestCase) StopApp(app Stopper) {
-	if app, exists := tc.startedApps[app.Name()]; exists {
+// StopApp stops the app identified by the `instance` name and removes it from
+// the collection of started apps.
+func (tc *TestCase) StopApp(instance string) {
+	if app, exists := tc.startedApps[instance]; exists {
 		app.Stop()
-		delete(tc.startedApps, app.Name())
+		delete(tc.startedApps, instance)
 	}
 }
 
