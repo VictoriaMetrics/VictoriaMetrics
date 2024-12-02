@@ -146,4 +146,4 @@ Here are a Docker-compose demos, which start VictoriaLogs and push logs to it vi
 - [Promtail demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/promtail)
 
 You can use [this Helm chart](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-logs-single/README.md)
-as a demo for running Fluentbit in Kubernetes with VictoriaLogs.
+as a demo for running Vector in Kubernetes with VictoriaLogs.
