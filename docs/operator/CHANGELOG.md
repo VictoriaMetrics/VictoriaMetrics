@@ -21,6 +21,8 @@ aliases:
 - [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1).
 - [vmoperator](https://docs.victoriametrics.com/operator/): add new variable `VM_VMSERVICESCRAPEDEFAULT_ENFORCEENDPOINTSLICES` to use `endpointslices` instead of `endpoints` as discovery role for VMServiceScrape when generate scrape config for VMAgent.
 - [vmoperator](https://docs.victoriametrics.com/operator/): adds new flag `loggerJSONFields` to the operator logger configuration. It allows to change json encoder fields. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1157) for details.
+- [vmoperator](https://docs.victoriametrics.com/operator/): fix the behaviors of `vmagentSpec.ScrapeConfigSelector` and `vmagentSpec.scrapeConfigNamespaceSelector` when `vmagentSpec.selectAllByDefault=false`. Previously, the VMScrapeConfig could be ignored.
+- [vmoperator](https://docs.victoriametrics.com/operator/): fix the behaviors of `xxxNamespaceSelector` when `vmagentSpec.selectAllByDefault=true`. See [this doc](https://docs.victoriametrics.com/operator/resources/vmagent/#scraping) for detailed rules.
 - [api](https://docs.victoriametrics.com/operator/api): adds new status field `observedGeneration`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1155) for details.
 - [api](https://docs.victoriametrics.com/operator/api): unify `updateStatus` field for CRD objects. It replaces `status`, `clusterStatus` and `singleStatus` for `VLogs`, `VMCluster` and `VMSingle` with generic `updateStatus`.
 - [alerts]: added cluster label for multicluster alerts.
