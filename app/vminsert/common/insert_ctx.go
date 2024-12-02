@@ -1,8 +1,10 @@
 package common
 
 import (
+	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
+	"github.com/VictoriaMetrics/metrics"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
@@ -12,6 +14,40 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+)
+
+var (
+	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmsingle can receive per second. Data ingestion is paused when the limit is exceeded. "+
+		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
+)
+
+// StartIngestionRateLimiter starts ingestion rate limiter.
+//
+// Ingestion rate limiter must be started before Init() call.
+//
+// StopIngestionRateLimiter must be called before Stop() call in order to unblock all the callers
+// to ingestion rate limiter. Otherwise deadlock may occur at Stop() call.
+func StartIngestionRateLimiter() {
+	if *maxIngestionRate <= 0 {
+		return
+	}
+	ingestionRateLimitReached := metrics.NewCounter(`vmagent_max_ingestion_rate_limit_reached_total`)
+	ingestionRateLimiterStopCh = make(chan struct{})
+	ingestionRateLimiter = ratelimiter.New(int64(*maxIngestionRate), ingestionRateLimitReached, ingestionRateLimiterStopCh)
+}
+
+// StopIngestionRateLimiter stops ingestion rate limiter.
+func StopIngestionRateLimiter() {
+	if ingestionRateLimiterStopCh == nil {
+		return
+	}
+	close(ingestionRateLimiterStopCh)
+	ingestionRateLimiterStopCh = nil
+}
+
+var (
+	ingestionRateLimiter       *ratelimiter.RateLimiter
+	ingestionRateLimiterStopCh chan struct{}
 )
 
 // InsertCtx contains common bits for data points insertion.
@@ -78,7 +114,7 @@ func (ctx *InsertCtx) WriteDataPointExt(metricNameRaw []byte, labels []prompbmar
 }
 
 func (ctx *InsertCtx) addRow(metricNameRaw []byte, timestamp int64, value float64) error {
-	vminsert.IngestionRateLimiter.Register(1)
+	ingestionRateLimiter.Register(1)
 	mrs := ctx.mrs
 	if cap(mrs) > len(mrs) {
 		mrs = mrs[:len(mrs)+1]
