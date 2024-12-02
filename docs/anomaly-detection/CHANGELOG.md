@@ -11,8 +11,25 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.18.7
+Released: 2024-12-02
+
+- IMPROVEMENT: Introduced a new `push_frequency` parameter for the [monitoring.push component](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters), with a default value of 15m. This enhancement ensures better alignment with pull-based monitoring behavior and improves [self-monitoring experience](https://docs.victoriametrics.com/anomaly-detection/self-monitoring) of `vmanomaly` in setups with infrequent schedules (e.g., rare `fit_every` or `infer_every` intervals) to deal with data staleness.
+
+- FIX: Fixed a bug, introduced in [v1.18.5](#v1185), that prevented the [monitoring.push component](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters) from properly instantiating and pushing [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly).
+
+## v1.18.6
+Released: 2024-12-01
+
+> **Note**: Release [v1.18.5](#v1185) contained an issue that prevented the [monitoring.push component](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters) from properly instantiating and pushing [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly). This issue has been resolved in patch [v1.18.7](#v1187), please update to apply the fix.
+
+- FIX: Assure proper validation of [BacktestingScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) arguments, if specified in ISO-8601 format, preventing service crashes due to validation errors.
+
+
 ## v1.18.5
 Released: 2024-11-27
+
+> **Note**: This release contained an issue that prevented the [monitoring.push component](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters) from properly instantiating and pushing [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly). This issue has been resolved in patch [v1.18.7](#v1187), please update to apply the fix.
 
 - IMPROVEMENT: Introduced the ability to run `vmanomaly` using a configuration directory. This enhancement allows users to recursively merge multiple full configuration files (previously limited to merging specific sections, such as `reader`) and execute a single instance of the service with the combined configuration.
 - IMPROVEMENT: Added a new utility, `config_splitter.py`, to streamline the process of splitting a single configuration file into multiple standalone configurations. The configurations are split by specified entities like `schedulers`, `models`, `queries` or `extra_filters`. The split configurations can be saved to a designated directory. It simplifies scaling `vmanomaly` and enhances user experience by automating the process of separating config files so they can be run on separate instances of vmanomaly. For more details, refer to [this section](https://docs.victoriametrics.com/anomaly-detection/faq/#splitting-the-config).
