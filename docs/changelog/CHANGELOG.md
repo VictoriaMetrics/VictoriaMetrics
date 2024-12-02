@@ -20,7 +20,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
 
-Released at 2023-11-29
+Released at 2024-11-29
 
 **Update note 1: cmd-line flags `-datasource.lookback`, `datasource.queryTimeAlignment` and `remoteRead.ignoreRestoreErrors` on [vmalert](https://docs.victoriametrics.com/vmalert/) have been removed. Those flags were deprecated before [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).**
 
