@@ -4,6 +4,7 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"net/http"
 	"strings"
 	"time"
@@ -65,6 +66,8 @@ var (
 		"See also -opentsdbHTTPListenAddr.useProxyProtocol")
 	opentsdbHTTPUseProxyProtocol = flag.Bool("opentsdbHTTPListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted "+
 		"at -opentsdbHTTPListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
+	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmsingle can receive per second. Data ingestion is paused when the limit is exceeded. "+
+		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
 	configAuthKey          = flagutil.NewPassword("configAuthKey", "Authorization key for accessing /config page. It must be passed via authKey query arg. It overrides -httpAuth.*")
 	reloadAuthKey          = flagutil.NewPassword("reloadAuthKey", "Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings.")
 	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 30, "The maximum number of labels accepted per time series. Superfluous labels are dropped. In this case the vm_metrics_with_dropped_labels_total metric at /metrics page is incremented")
@@ -82,6 +85,35 @@ var (
 var staticFiles embed.FS
 
 var staticServer = http.FileServer(http.FS(staticFiles))
+
+// StartIngestionRateLimiter starts ingestion rate limiter.
+//
+// Ingestion rate limiter must be started before Init() call.
+//
+// StopIngestionRateLimiter must be called before Stop() call in order to unblock all the callers
+// to ingestion rate limiter. Otherwise deadlock may occur at Stop() call.
+func StartIngestionRateLimiter() {
+	if *maxIngestionRate <= 0 {
+		return
+	}
+	ingestionRateLimitReached := metrics.NewCounter(`vmagent_max_ingestion_rate_limit_reached_total`)
+	ingestionRateLimiterStopCh = make(chan struct{})
+	IngestionRateLimiter = ratelimiter.New(int64(*maxIngestionRate), ingestionRateLimitReached, ingestionRateLimiterStopCh)
+}
+
+// StopIngestionRateLimiter stops ingestion rate limiter.
+func StopIngestionRateLimiter() {
+	if ingestionRateLimiterStopCh == nil {
+		return
+	}
+	close(ingestionRateLimiterStopCh)
+	ingestionRateLimiterStopCh = nil
+}
+
+var (
+	IngestionRateLimiter       *ratelimiter.RateLimiter
+	ingestionRateLimiterStopCh chan struct{}
+)
 
 // Init initializes vminsert.
 func Init() {

@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
@@ -77,6 +78,7 @@ func (ctx *InsertCtx) WriteDataPointExt(metricNameRaw []byte, labels []prompbmar
 }
 
 func (ctx *InsertCtx) addRow(metricNameRaw []byte, timestamp int64, value float64) error {
+	vminsert.IngestionRateLimiter.Register(1)
 	mrs := ctx.mrs
 	if cap(mrs) > len(mrs) {
 		mrs = mrs[:len(mrs)+1]

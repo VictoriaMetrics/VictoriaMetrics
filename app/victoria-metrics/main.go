@@ -76,6 +76,7 @@ func main() {
 	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
+	vminsert.StartIngestionRateLimiter()
 	vminsert.Init()
 
 	startSelfScraper()
@@ -86,6 +87,7 @@ func main() {
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
+	vminsert.StopIngestionRateLimiter()
 	pushmetrics.Stop()
 
 	stopSelfScraper()
