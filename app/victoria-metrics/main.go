@@ -40,7 +40,7 @@ var (
 		"Bigger intervals may help increase the lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
 		"Smaller intervals increase disk IO load. Minimum supported value is 1s")
 	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmsingle can receive per second. Data ingestion is paused when the limit is exceeded. "+
-		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
+		"By default there are no limits on samples ingestion rate.")
 )
 
 func main() {
