@@ -10,11 +10,11 @@ func TestSingleMaxIngestionRateIncrementsMetric(t *testing.T) {
 	defer tc.Stop()
 	sut := tc.MustStartVmsingle("vmsingle", []string{"-maxIngestionRate=5"})
 	sut.PrometheusAPIV1ImportPrometheus(t, docData, apptest.QueryOpts{})
-	max_ingestion_rate := sut.GetMetric(t, "vm_max_ingestion_rate_limit_reached_total")
-	if max_ingestion_rate <= 0 {
+	maxIngestionRateMetric := sut.GetMetric(t, "vm_max_ingestion_rate_limit_reached_total")
+	if maxIngestionRateMetric <= 0 {
 		t.Errorf("Max Ingestion Rate metric not set unexpectedly")
 	} else {
-		t.Logf("MAX INGEST RATE HIT %d times", int(max_ingestion_rate))
+		t.Logf("MAX INGEST RATE HIT %d times", int(maxIngestionRateMetric))
 	}
 	sut.ForceFlush(t)
 }
@@ -23,8 +23,8 @@ func TestSingleMaxIngestionRateDoesNotIncrementsMetric(t *testing.T) {
 	defer tc.Stop()
 	sut := tc.MustStartVmsingle("vmsingle", []string{"-maxIngestionRate=15"})
 	sut.PrometheusAPIV1ImportPrometheus(t, docData, apptest.QueryOpts{})
-	max_ingestion_rate := sut.GetMetric(t, "vm_max_ingestion_rate_limit_reached_total")
-	if max_ingestion_rate > 0 {
+	maxIngestionRateMetric := sut.GetMetric(t, "vm_max_ingestion_rate_limit_reached_total")
+	if maxIngestionRateMetric > 0 {
 		t.Errorf("Max Ingestion Rate set")
 	} else {
 		t.Logf("MAX INGEST RATE NOT SET as expected")
