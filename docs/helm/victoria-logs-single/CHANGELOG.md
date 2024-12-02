@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- enable watch-config in vector by default
 
 ## 0.8.7
 
