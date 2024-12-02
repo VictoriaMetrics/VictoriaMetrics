@@ -11,6 +11,12 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.18.6
+Released: 2024-12-01
+
+- FIX: Assure proper validation of [BacktestingScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#backtesting-scheduler) arguments, if specified in ISO-8601 format, preventing service crashes due to validation errors.
+
+
 ## v1.18.5
 Released: 2024-11-27
 

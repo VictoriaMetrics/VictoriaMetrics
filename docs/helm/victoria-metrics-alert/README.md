@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.6](https://img.shields.io/badge/Version-0.12.6-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.13.0](https://img.shields.io/badge/Version-0.13.0-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-alert)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -1051,8 +1051,9 @@ username: ""
       <td>server.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
+httpListenAddr: :8880
 loggerFormat: json
 rule:
     - /config/alert-rules.yaml

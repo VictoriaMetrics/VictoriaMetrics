@@ -1,7 +1,17 @@
 ## Next release
 
-- updated common dependency 0.0.31 -> 0.0.32
+- TODO
+
+## 0.15.0
+
+**Release date:** 2024-12-02
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.31 -> 0.0.33
 - Added service.targetPort and serviceMonitor.targetPort to add ability to point service to one of extraContainers port, like oauth2-proxy
+- bump version of VM components to [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
 
 ## 0.14.9
 

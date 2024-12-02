@@ -1,4 +1,4 @@
- ![Version: 0.8.5](https://img.shields.io/badge/Version-0.8.5-informational?style=flat-square)
+ ![Version: 0.8.8](https://img.shields.io/badge/Version-0.8.8-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-logs-single)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -388,8 +388,9 @@ extraLabels: {}
       <td>server.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
+httpListenAddr: :9428
 loggerFormat: json
 </code>
 </pre>
@@ -1157,7 +1158,11 @@ readOnlyRootFilesystem: true
       <td>vector</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">containerPorts:
+<code class="language-yaml">args:
+    - -w
+    - --config-dir
+    - /etc/vector/
+containerPorts:
     - containerPort: 9090
       name: prom-exporter
       protocol: TCP
@@ -1208,8 +1213,6 @@ dataDir: /vector-data-dir
 enabled: false
 existingConfigMaps:
     - vl-config
-podMonitor:
-    enabled: false
 resources: {}
 role: Agent
 service:

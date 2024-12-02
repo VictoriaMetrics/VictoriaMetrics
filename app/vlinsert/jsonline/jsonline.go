@@ -52,7 +52,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		reader = zr
 	}
 
-	lmp := cp.NewLogMessageProcessor()
+	lmp := cp.NewLogMessageProcessor("jsonline")
 	err = processStreamInternal(reader, cp.TimeField, cp.MsgFields, lmp)
 	lmp.MustClose()
 

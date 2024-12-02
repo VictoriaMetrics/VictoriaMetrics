@@ -14,7 +14,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Returns the request payment configuration of a bucket. To use this version of
 // the operation, you must be the bucket owner. For more information, see [Requester Pays Buckets].

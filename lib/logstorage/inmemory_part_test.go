@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -88,6 +89,13 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 	f(newTestLogRows(10, 5, 0), 10, 1.5)
 	f(newTestLogRows(10, 1000, 0), 10, 7.2)
 	f(newTestLogRows(100, 100, 0), 100, 5.0)
+
+	// check block overflow with unique tag rows
+	f(newTestLogRowsUniqTags(5, 21, 100), 10, 0.4)
+	f(newTestLogRowsUniqTags(5, 10, 100), 5, 0.5)
+	f(newTestLogRowsUniqTags(1, 2001, 1), 2, 1.4)
+	f(newTestLogRowsUniqTags(15, 20, 250), 45, 0.6)
+
 }
 
 func checkCompressionRate(t *testing.T, ph *partHeader, compressionRateExpected float64) {
@@ -338,6 +346,36 @@ func (mp *inmemoryPart) readLogRows(sbu *stringsBlockUnmarshaler, vd *valuesDeco
 			lr.streamIDs[len(lr.streamIDs)-1] = streamID
 		}
 		tmp.reset()
+	}
+	return lr
+}
+
+func newTestLogRowsUniqTags(streams, rowsPerStream, uniqFieldsPerRow int) *LogRows {
+	streamTags := []string{
+		"some-stream-tag",
+	}
+	lr := GetLogRows(streamTags, nil, nil, "")
+	var fields []Field
+	for i := 0; i < streams; i++ {
+		tenantID := TenantID{
+			AccountID: 0,
+			ProjectID: 0,
+		}
+		for j := 0; j < rowsPerStream; j++ {
+			// Add stream tags
+			fields = append(fields[:0], Field{
+				Name:  "some-stream-tag",
+				Value: fmt.Sprintf("some-stream-value-%d", i),
+			})
+			// Add the remaining unique tags
+			for k := 0; k < uniqFieldsPerRow; k++ {
+				fields = append(fields, Field{
+					Name:  fmt.Sprintf("field_%d_%d_%d", i, j, k),
+					Value: fmt.Sprintf("value_%d_%d_%d", i, j, k),
+				})
+			}
+			lr.MustAdd(tenantID, time.Now().UnixMilli(), fields)
+		}
 	}
 	return lr
 }
