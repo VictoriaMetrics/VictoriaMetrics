@@ -1,7 +1,6 @@
 package common
 
 import (
-	"flag"
 	"fmt"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/metrics"
@@ -16,24 +15,19 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
-var (
-	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmsingle can receive per second. Data ingestion is paused when the limit is exceeded. "+
-		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
-)
-
 // StartIngestionRateLimiter starts ingestion rate limiter.
 //
 // Ingestion rate limiter must be started before Init() call.
 //
 // StopIngestionRateLimiter must be called before Stop() call in order to unblock all the callers
 // to ingestion rate limiter. Otherwise deadlock may occur at Stop() call.
-func StartIngestionRateLimiter() {
-	if *maxIngestionRate <= 0 {
+func StartIngestionRateLimiter(maxIngestionRate int) {
+	if maxIngestionRate <= 0 {
 		return
 	}
-	ingestionRateLimitReached := metrics.NewCounter(`vmagent_max_ingestion_rate_limit_reached_total`)
+	ingestionRateLimitReached := metrics.NewCounter(`vm_max_ingestion_rate_limit_reached_total`)
 	ingestionRateLimiterStopCh = make(chan struct{})
-	ingestionRateLimiter = ratelimiter.New(int64(*maxIngestionRate), ingestionRateLimitReached, ingestionRateLimiterStopCh)
+	ingestionRateLimiter = ratelimiter.New(int64(maxIngestionRate), ingestionRateLimitReached, ingestionRateLimiterStopCh)
 }
 
 // StopIngestionRateLimiter stops ingestion rate limiter.
