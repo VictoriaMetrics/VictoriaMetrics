@@ -120,7 +120,7 @@ func handleJournald(r *http.Request, w http.ResponseWriter) {
 		return
 	}
 
-	lmp := cp.NewLogMessageProcessor()
+	lmp := cp.NewLogMessageProcessor("journald")
 	n, err := parseJournaldRequest(data, lmp, cp)
 	lmp.MustClose()
 	if err != nil {
@@ -138,12 +138,12 @@ func handleJournald(r *http.Request, w http.ResponseWriter) {
 }
 
 var (
-	rowsIngestedJournaldTotal = metrics.NewCounter(`vl_rows_ingested_total{type="journald", format="journald"}`)
+	rowsIngestedJournaldTotal = metrics.NewCounter(`vl_rows_ingested_total{type="journald"}`)
 
-	requestsJournaldTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/journald/upload",format="journald"}`)
-	errorsTotal           = metrics.NewCounter(`vl_http_errors_total{path="/insert/journald/upload",format="journald"}`)
+	requestsJournaldTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/journald/upload"}`)
+	errorsTotal           = metrics.NewCounter(`vl_http_errors_total{path="/insert/journald/upload"}`)
 
-	requestJournaldDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/journald/upload",format="journald"}`)
+	requestJournaldDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/journald/upload"}`)
 )
 
 // See https://systemd.io/JOURNAL_EXPORT_FORMATS/#journal-export-format

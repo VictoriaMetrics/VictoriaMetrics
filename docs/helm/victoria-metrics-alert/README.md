@@ -741,7 +741,7 @@ tag: v0.25.0
       <td>alertmanager.service.servicePort</td>
       <td>int</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">8880
+<code class="language-yaml">9093
 </code>
 </pre>
 </td>
@@ -1051,8 +1051,9 @@ username: ""
       <td>server.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
+httpListenAddr: :8880
 loggerFormat: json
 rule:
     - /config/alert-rules.yaml

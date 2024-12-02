@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.14.12](https://img.shields.io/badge/Version-0.14.12-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.14.13](https://img.shields.io/badge/Version-0.14.13-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-cluster)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -425,8 +425,9 @@ name: ""
       <td>vmauth.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
+httpListenAddr: :8427
 loggerFormat: json
 </code>
 </pre>
@@ -1219,8 +1220,9 @@ timeoutSeconds: 5
       <td>vminsert.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
+httpListenAddr: :8480
 loggerFormat: json
 </code>
 </pre>
@@ -2061,6 +2063,7 @@ timeoutSeconds: 5
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
 <code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
+httpListenAddr: :8481
 loggerFormat: json
 </code>
 </pre>
@@ -2998,8 +3001,9 @@ timeoutSeconds: 5
       <td>vmstorage.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
+httpListenAddr: :8482
 loggerFormat: json
 </code>
 </pre>
@@ -3867,7 +3871,7 @@ timeoutSeconds: 5
       <td>vmstorage.vmbackupmanager.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
 loggerFormat: json
 </code>

@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
+	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/prompb"
 	"github.com/prometheus/prometheus/storage/remote"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
@@ -238,7 +239,7 @@ func processStreamResponse(body io.ReadCloser, callback StreamCallback) error {
 	bb := bbPool.Get()
 	defer func() { bbPool.Put(bb) }()
 
-	stream := remote.NewChunkedReader(body, remote.DefaultChunkedReadLimit, bb.B)
+	stream := remote.NewChunkedReader(body, config.DefaultChunkedReadLimit, bb.B)
 	for {
 		res := &prompb.ChunkedReadResponse{}
 		err := stream.NextProto(res)

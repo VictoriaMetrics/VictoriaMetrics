@@ -12,7 +12,10 @@ func TestBlockMustInitFromRows(t *testing.T) {
 		b := getBlock()
 		defer putBlock(b)
 
-		b.MustInitFromRows(timestamps, rows)
+		rowsProcessed := b.MustInitFromRows(timestamps, rows)
+		if rowsProcessed != len(rows) {
+			t.Fatalf("unexpected rowsProcessed; got %d; want %d", rowsProcessed, len(rows))
+		}
 		if b.uncompressedSizeBytes() >= maxUncompressedBlockSize {
 			t.Fatalf("expecting non-full block")
 		}
@@ -168,7 +171,10 @@ func TestBlockMustInitFromRowsFullBlock(t *testing.T) {
 
 	b := getBlock()
 	defer putBlock(b)
-	b.MustInitFromRows(timestamps, rows)
+	rowsProcessed := b.MustInitFromRows(timestamps, rows)
+	if rowsProcessed != len(rows) {
+		t.Fatalf("unexpected rowsProcessed; got %d; want %d", rowsProcessed, len(rows))
+	}
 	b.assertValid()
 	if n := b.Len(); n != len(rows) {
 		t.Fatalf("unexpected total log entries; got %d; want %d", n, len(rows))
@@ -176,4 +182,36 @@ func TestBlockMustInitFromRowsFullBlock(t *testing.T) {
 	if n := b.uncompressedSizeBytes(); n < maxUncompressedBlockSize {
 		t.Fatalf("expecting full block with %d bytes; got %d bytes", maxUncompressedBlockSize, n)
 	}
+}
+
+func TestBlockMustInitWithNonEmptyOffset(t *testing.T) {
+	f := func(rowsCount int, fieldsPerRow int, expectedRowsProcessed int) {
+		t.Helper()
+		timestamps := make([]int64, rowsCount)
+		rows := make([][]Field, rowsCount)
+		for i := range timestamps {
+			fields := make([]Field, fieldsPerRow)
+			for j := range fields {
+				fields[j] = Field{
+					Name:  fmt.Sprintf("field_%d_%d", i, j),
+					Value: "very very looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong value",
+				}
+			}
+			rows[i] = fields
+		}
+		b := getBlock()
+		defer putBlock(b)
+		rowsProcessed := b.MustInitFromRows(timestamps, rows)
+		if rowsProcessed != expectedRowsProcessed {
+			t.Fatalf("unexpected rowsProcessed; got %d; want %d", rowsProcessed, expectedRowsProcessed)
+		}
+		b.assertValid()
+		if n := b.Len(); n != rowsProcessed {
+			t.Fatalf("unexpected total log entries; got %d; want %d", n, rowsProcessed)
+		}
+	}
+	f(10, 300, 6)
+	f(10, 10, 10)
+	f(15, 30, 15)
+	f(maxColumnsPerBlock+1000, 1, maxColumnsPerBlock)
 }

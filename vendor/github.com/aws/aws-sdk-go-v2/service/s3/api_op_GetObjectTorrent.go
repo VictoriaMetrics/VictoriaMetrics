@@ -14,7 +14,7 @@ import (
 	"io"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Returns torrent files from a bucket. BitTorrent can save you bandwidth when
 // you're distributing large files.

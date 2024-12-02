@@ -1,4 +1,4 @@
- ![Version: 0.8.3](https://img.shields.io/badge/Version-0.8.3-informational?style=flat-square)
+ ![Version: 0.8.7](https://img.shields.io/badge/Version-0.8.7-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-logs-single)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -207,6 +207,17 @@ Change the values according to the need of the environment in ``victoria-logs-si
 </td>
     </tr>
     <tr>
+      <td>dashboards.namespace</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Override default namespace, where to create dashboards</p>
+</td>
+    </tr>
+    <tr>
       <td>extraObjects</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -377,8 +388,9 @@ extraLabels: {}
       <td>server.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
+httpListenAddr: :9428
 loggerFormat: json
 </code>
 </pre>
@@ -989,6 +1001,17 @@ readOnlyRootFilesystem: true
 </td>
     </tr>
     <tr>
+      <td>server.service.targetPort</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">http
+</code>
+</pre>
+</td>
+      <td><p>Target port</p>
+</td>
+    </tr>
+    <tr>
       <td>server.service.type</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -1066,6 +1089,17 @@ readOnlyRootFilesystem: true
 </td>
     </tr>
     <tr>
+      <td>server.serviceMonitor.targetPort</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">http
+</code>
+</pre>
+</td>
+      <td><p>Service Monitor target port</p>
+</td>
+    </tr>
+    <tr>
       <td>server.statefulSet.enabled</td>
       <td>bool</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -1130,7 +1164,7 @@ readOnlyRootFilesystem: true
       protocol: TCP
 customConfig:
     api:
-        address: 127.0.0.1:8686
+        address: 0.0.0.0:8686
         enabled: false
         playground: true
     data_dir: /vector-data-dir
@@ -1170,6 +1204,7 @@ customConfig:
                 .log = parse_json(.message) ?? .message
                 del(.message)
             type: remap
+customConfigNamespace: ""
 dataDir: /vector-data-dir
 enabled: false
 existingConfigMaps:
@@ -1184,6 +1219,17 @@ service:
 </pre>
 </td>
       <td><p>Values for <a href="https://github.com/vectordotdev/helm-charts/tree/develop/charts/vector" target="_blank">vector helm chart</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>vector.customConfigNamespace</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Forces custom configuration creation in a given namespace even if vector.enabled is false</p>
 </td>
     </tr>
     <tr>

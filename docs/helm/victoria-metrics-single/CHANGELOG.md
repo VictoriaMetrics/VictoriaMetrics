@@ -1,7 +1,8 @@
 ## Next release
 
-- updated common dependency 0.0.28 -> 0.0.32
+- updated common dependency 0.0.28 -> 0.0.33
 - fixed app.kubernetes.io/version tag override if custom tag is set. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1766).
+- Added service.targetPort and serviceMonitor.targetPort to add ability to point service to one of extraContainers port, like oauth2-proxy
 
 ## 0.12.7
 

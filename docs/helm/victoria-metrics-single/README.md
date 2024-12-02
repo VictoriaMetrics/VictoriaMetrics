@@ -384,8 +384,9 @@ extraLabels: {}
       <td>server.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
+httpListenAddr: :8428
 loggerFormat: json
 </code>
 </pre>
@@ -1306,6 +1307,17 @@ scrape_configs:
 </td>
     </tr>
     <tr>
+      <td>server.service.targetPort</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">http
+</code>
+</pre>
+</td>
+      <td><p>Target port</p>
+</td>
+    </tr>
+    <tr>
       <td>server.service.type</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -1380,6 +1392,17 @@ scrape_configs:
 </pre>
 </td>
       <td><p>Service Monitor relabelings</p>
+</td>
+    </tr>
+    <tr>
+      <td>server.serviceMonitor.targetPort</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">http
+</code>
+</pre>
+</td>
+      <td><p>Service Monitor target port</p>
 </td>
     </tr>
     <tr>
@@ -1507,7 +1530,7 @@ scrape_configs:
       <td>server.vmbackupmanager.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
 loggerFormat: json
 </code>
