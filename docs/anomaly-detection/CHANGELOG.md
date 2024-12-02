@@ -11,6 +11,18 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.18.5
+Released: 2024-11-27
+
+- IMPROVEMENT: Introduced the ability to run `vmanomaly` using a configuration directory. This enhancement allows users to recursively merge multiple full configuration files (previously limited to merging specific sections, such as `reader`) and execute a single instance of the service with the combined configuration.
+- IMPROVEMENT: Added a new utility, `config_splitter.py`, to streamline the process of splitting a single configuration file into multiple standalone configurations. The configurations are split by specified entities like `schedulers`, `models`, `queries` or `extra_filters`. The split configurations can be saved to a designated directory. It simplifies scaling `vmanomaly` and enhances user experience by automating the process of separating config files so they can be run on separate instances of vmanomaly. For more details, refer to [this section](https://docs.victoriametrics.com/anomaly-detection/faq/#splitting-the-config).
+- IMPROVEMENT: Introduced the ability to configure the [`PeriodicScheduler`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/?highlight=start_from#periodic-scheduler) to start at a specific time using the `start_from` and `tz` parameters. The `start_from` parameter accepts either `HH:MM` or [ISO 8601 formats](https://en.wikipedia.org/wiki/ISO_8601), with `tz` defaulting to `UTC`. If `start_from` is in the past, the next valid start time is automatically calculated based on the `fit_every` interval.
+
+## v1.18.4
+Released: 2024-11-18
+
+- IMPROVEMENT: Introduced [self-monitoring guide](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/) for `vmanomaly`. Added metrics for total RAM `vmanomaly_available_memory_bytes` and the number of logical CPU cores `vmanomaly_cpu_cores_available` to the [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly).
+
 ## v1.18.3
 Released: 2024-11-14
 

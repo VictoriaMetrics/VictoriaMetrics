@@ -1,25 +1,20 @@
-# logfmt
-
 [![Go Reference](https://pkg.go.dev/badge/github.com/go-logfmt/logfmt.svg)](https://pkg.go.dev/github.com/go-logfmt/logfmt)
 [![Go Report Card](https://goreportcard.com/badge/go-logfmt/logfmt)](https://goreportcard.com/report/go-logfmt/logfmt)
 [![Github Actions](https://github.com/go-logfmt/logfmt/actions/workflows/test.yml/badge.svg)](https://github.com/go-logfmt/logfmt/actions/workflows/test.yml)
-[![Coverage Status](https://coveralls.io/repos/github/go-logfmt/logfmt/badge.svg?branch=master)](https://coveralls.io/github/go-logfmt/logfmt?branch=main)
+[![Coverage Status](https://coveralls.io/repos/github/go-logfmt/logfmt/badge.svg?branch=master)](https://coveralls.io/github/go-logfmt/logfmt?branch=master)
+
+# logfmt
 
 Package logfmt implements utilities to marshal and unmarshal data in the [logfmt
-format][fmt]. It provides an API similar to [encoding/json][json] and
-[encoding/xml][xml].
-
-[fmt]: https://brandur.org/logfmt
-[json]: https://pkg.go.dev/encoding/json
-[xml]: https://pkg.go.dev/encoding/xml
+format](https://brandur.org/logfmt). It provides an API similar to
+[encoding/json](http://golang.org/pkg/encoding/json/) and
+[encoding/xml](http://golang.org/pkg/encoding/xml/).
 
 The logfmt format was first documented by Brandur Leach in [this
-article][origin]. The format has not been formally standardized. The most
-authoritative public specification to date has been the documentation of a Go
-Language [package][parser] written by Blake Mizerany and Keith Rarick.
-
-[origin]: https://brandur.org/logfmt
-[parser]: https://pkg.go.dev/github.com/kr/logfmt
+article](https://brandur.org/logfmt). The format has not been formally
+standardized. The most authoritative public specification to date has been the
+documentation of a Go Language [package](http://godoc.org/github.com/kr/logfmt)
+written by Blake Mizerany and Keith Rarick.
 
 ## Goals
 
@@ -35,7 +30,4 @@ standard as a goal.
 
 ## Versioning
 
-This project publishes releases according to the Go language guidelines for
-[developing and publishing modules][pub].
-
-[pub]: https://go.dev/doc/modules/developing
+Package logfmt publishes releases via [semver](http://semver.org/) compatible Git tags prefixed with a single 'v'.

@@ -20,13 +20,12 @@ import { getStreamPairs } from "../../../utils/logs";
 
 const WITHOUT_GROUPING = "No Grouping";
 
-interface TableLogsProps {
+interface Props {
   logs: Logs[];
-  columns: string[];
   settingsRef: React.RefObject<HTMLElement>;
 }
 
-const GroupLogs: FC<TableLogsProps> = ({ logs, settingsRef }) => {
+const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
   const { isDarkTheme } = useAppState();
   const copyToClipboard = useCopyToClipboard();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -46,19 +45,21 @@ const GroupLogs: FC<TableLogsProps> = ({ logs, settingsRef }) => {
   const expandAll = useMemo(() => expandGroups.every(Boolean), [expandGroups]);
 
   const logsKeys = useMemo(() => {
-    const excludeKeys = ["_msg", "_time", "_vmui_time", "_vmui_data", "_vmui_markdown"];
+    const excludeKeys = ["_msg", "_time"];
     const uniqKeys = Array.from(new Set(logs.map(l => Object.keys(l)).flat()));
-    const keys = [WITHOUT_GROUPING, ...uniqKeys.filter(k => !excludeKeys.includes(k))];
+    return [WITHOUT_GROUPING, ...uniqKeys.filter(k => !excludeKeys.includes(k))];
+  }, [logs]);
 
-    if (!searchKey) return keys;
+  const filteredLogsKeys = useMemo(() => {
+    if (!searchKey) return logsKeys;
     try {
       const regexp = new RegExp(searchKey, "i");
-      const found = keys.filter((item) => regexp.test(item));
-      return found.sort((a,b) => (a.match(regexp)?.index || 0) - (b.match(regexp)?.index || 0));
+      return logsKeys.filter(item => regexp.test(item))
+        .sort((a, b) => (a.match(regexp)?.index || 0) - (b.match(regexp)?.index || 0));
     } catch (e) {
       return [];
     }
-  }, [logs, searchKey]);
+  }, [logsKeys, searchKey]);
 
   const groupData = useMemo(() => {
     return groupByMultipleKeys(logs, [groupBy]).map((item) => {
@@ -94,16 +95,15 @@ const GroupLogs: FC<TableLogsProps> = ({ logs, settingsRef }) => {
 
   const handleToggleExpandAll = useCallback(() => {
     setExpandGroups(new Array(groupData.length).fill(!expandAll));
-  }, [expandAll]);
+  }, [expandAll, groupData.length]);
 
-  const handleChangeExpand = (i: number) => (value: boolean) => {
+  const handleChangeExpand = useCallback((i: number) => (value: boolean) => {
     setExpandGroups((prev) => {
       const newExpandGroups = [...prev];
       newExpandGroups[i] = value;
       return newExpandGroups;
     });
-
-  };
+  }, []);
 
   useEffect(() => {
     if (copied === null) return;
@@ -170,7 +170,7 @@ const GroupLogs: FC<TableLogsProps> = ({ logs, settingsRef }) => {
           <Tooltip title={expandAll ? "Collapse All" : "Expand All"}>
             <Button
               variant="text"
-              startIcon={expandAll ? <CollapseIcon/> : <ExpandIcon/> }
+              startIcon={expandAll ? <CollapseIcon/> : <ExpandIcon/>}
               onClick={handleToggleExpandAll}
               ariaLabel={expandAll ? "Collapse All" : "Expand All"}
             />
@@ -179,7 +179,7 @@ const GroupLogs: FC<TableLogsProps> = ({ logs, settingsRef }) => {
             <div ref={optionsButtonRef}>
               <Button
                 variant="text"
-                startIcon={<StorageIcon/> }
+                startIcon={<StorageIcon/>}
                 onClick={toggleOpenOptions}
                 ariaLabel={"Group by"}
               />
@@ -201,7 +201,7 @@ const GroupLogs: FC<TableLogsProps> = ({ logs, settingsRef }) => {
                     type="search"
                   />
                 </div>
-                {logsKeys.map(id => (
+                {filteredLogsKeys.map(id => (
                   <div
                     className={classNames({
                       "vm-list-item": true,

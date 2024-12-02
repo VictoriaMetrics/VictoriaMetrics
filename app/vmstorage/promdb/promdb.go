@@ -9,12 +9,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/go-kit/kit/log"
 	"github.com/oklog/ulid"
 	"github.com/prometheus/prometheus/model/labels"
 	promstorage "github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
+	"log/slog"
 )
 
 var prometheusDataPath = flag.String("prometheusDataPath", "", "Optional path to readonly historical Prometheus data")
@@ -32,10 +32,7 @@ func Init(retentionMsecs int64) {
 	if *prometheusDataPath == "" {
 		return
 	}
-	l := log.LoggerFunc(func(a ...interface{}) error {
-		logger.Infof("%v", a)
-		return nil
-	})
+	l := slog.New(slog.Default().Handler())
 	opts := tsdb.DefaultOptions()
 	opts.RetentionDuration = retentionMsecs
 
@@ -110,7 +107,7 @@ func GetLabelNamesOnTimeRange(tr storage.TimeRange, deadline searchutils.Deadlin
 	}
 	defer mustCloseQuerier(q)
 
-	names, _, err := q.LabelNames(ctx)
+	names, _, err := q.LabelNames(ctx, nil)
 	// Make full copy of names, since they cannot be used after q is closed.
 	names = copyStringsWithMemory(names)
 	return names, err
@@ -130,7 +127,7 @@ func GetLabelValuesOnTimeRange(labelName string, tr storage.TimeRange, deadline 
 	}
 	defer mustCloseQuerier(q)
 
-	values, _, err := q.LabelValues(ctx, labelName)
+	values, _, err := q.LabelValues(ctx, labelName, nil)
 	// Make full copy of values, since they cannot be used after q is closed.
 	values = copyStringsWithMemory(values)
 	return values, err

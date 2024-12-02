@@ -15,11 +15,13 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // When you enable versioning on a bucket for the first time, it might take a
-// short amount of time for the change to be fully propagated. We recommend that
-// you wait for 15 minutes after enabling versioning before issuing write
+// short amount of time for the change to be fully propagated. While this change is
+// propagating, you may encounter intermittent HTTP 404 NoSuchKey errors for
+// requests to objects created or updated after enabling versioning. We recommend
+// that you wait for 15 minutes after enabling versioning before issuing write
 // operations ( PUT or DELETE ) on objects in the bucket.
 //
 // Sets the versioning state of an existing bucket.

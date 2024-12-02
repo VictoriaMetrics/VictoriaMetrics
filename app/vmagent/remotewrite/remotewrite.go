@@ -99,9 +99,6 @@ var (
 	// rwctxsGlobal contains statically populated entries when -remoteWrite.url is specified.
 	rwctxsGlobal []*remoteWriteCtx
 
-	// Data without tenant id is written to defaultAuthToken if -enableMultitenantHandlers is specified.
-	defaultAuthToken = &auth.Token{}
-
 	// ErrQueueFullHTTPRetry must be returned when TryPush() returns false.
 	ErrQueueFullHTTPRetry = &httpserver.ErrorWithStatusCode{
 		Err: fmt.Errorf("remote storage systems cannot keep up with the data ingestion rate; retry the request later " +
@@ -209,7 +206,7 @@ func Init() {
 
 	initStreamAggrConfigGlobal()
 
-	rwctxsGlobal = newRemoteWriteCtxs(nil, *remoteWriteURLs)
+	rwctxsGlobal = newRemoteWriteCtxs(*remoteWriteURLs)
 
 	disableOnDiskQueues := []bool(*disableOnDiskQueue)
 	disableOnDiskQueueAny = slices.Contains(disableOnDiskQueues, true)
@@ -294,7 +291,7 @@ var (
 	relabelConfigTimestamp    = metrics.NewCounter(`vmagent_relabel_config_last_reload_success_timestamp_seconds`)
 )
 
-func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
+func newRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
 	if len(urls) == 0 {
 		logger.Panicf("BUG: urls must be non-empty")
 	}
@@ -316,11 +313,6 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 			logger.Fatalf("invalid -remoteWrite.url=%q: %s", remoteWriteURL, err)
 		}
 		sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
-		if at != nil {
-			// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
-			remoteWriteURL.Path = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", remoteWriteURL.Path, at.AccountID, at.ProjectID)
-			sanitizedURL = fmt.Sprintf("%s:%d:%d", sanitizedURL, at.AccountID, at.ProjectID)
-		}
 		if *showRemoteWriteURL {
 			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
 		}
@@ -410,11 +402,6 @@ func TryPush(at *auth.Token, wr *prompbmarshal.WriteRequest) bool {
 
 func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnFailure bool) bool {
 	tss := wr.Timeseries
-
-	if at == nil && MultitenancyEnabled() {
-		// Write data to default tenant if at isn't set when multitenancy is enabled.
-		at = defaultAuthToken
-	}
 
 	var tenantRctx *relabelCtx
 	if at != nil {

@@ -74,8 +74,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 		logger.Fatalf("failed to load test files %q: %v", files, err)
 	}
 	if len(testfiles) == 0 {
-		fmt.Println("no test file found")
-		return false
+		logger.Fatalf("no test file found")
 	}
 
 	labels := make(map[string]string)
@@ -97,8 +96,8 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	var failed bool
 	for fileName, file := range testfiles {
 		if err := ruleUnitTest(fileName, file, labels); err != nil {
-			fmt.Println("  FAILED")
-			fmt.Printf("\nfailed to run unit test for file %q: \n%v", fileName, err)
+			fmt.Println("FAILED")
+			fmt.Printf("failed to run unit test for file %q: \n%v", fileName, err)
 			failed = true
 		} else {
 			fmt.Println("  SUCCESS")
@@ -109,7 +108,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 }
 
 func ruleUnitTest(filename string, content []byte, externalLabels map[string]string) []error {
-	fmt.Println("\nUnit Testing: ", filename)
+	fmt.Println("\n\nUnit Testing: ", filename)
 	var unitTestInp unitTestFile
 	if err := yaml.UnmarshalStrict(content, &unitTestInp); err != nil {
 		return []error{fmt.Errorf("failed to unmarshal file: %w", err)}
@@ -138,6 +137,9 @@ func ruleUnitTest(filename string, content []byte, externalLabels map[string]str
 	testGroups, err := vmalertconfig.Parse(unitTestInp.RuleFiles, nil, true)
 	if err != nil {
 		return []error{fmt.Errorf("failed to parse `rule_files`: %w", err)}
+	}
+	if len(testGroups) == 0 {
+		return []error{fmt.Errorf("found no rule group in %v", unitTestInp.RuleFiles)}
 	}
 
 	var errs []error
