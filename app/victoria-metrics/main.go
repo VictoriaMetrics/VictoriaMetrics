@@ -39,6 +39,8 @@ var (
 		"The saved data survives unclean shutdowns such as OOM crash, hardware reset, SIGKILL, etc. "+
 		"Bigger intervals may help increase the lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
 		"Smaller intervals increase disk IO load. Minimum supported value is 1s")
+	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmsingle can receive per second. Data ingestion is paused when the limit is exceeded. "+
+		"By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit")
 )
 
 func main() {
@@ -76,7 +78,7 @@ func main() {
 	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
-	vminsertcommon.StartIngestionRateLimiter()
+	vminsertcommon.StartIngestionRateLimiter(*maxIngestionRate)
 	vminsert.Init()
 
 	startSelfScraper()
@@ -87,7 +89,6 @@ func main() {
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
-	vminsertcommon.StopIngestionRateLimiter()
 	pushmetrics.Stop()
 
 	stopSelfScraper()
@@ -99,6 +100,7 @@ func main() {
 	}
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 	vminsert.Stop()
+	vminsertcommon.StopIngestionRateLimiter()
 
 	vmstorage.Stop()
 	vmselect.Stop()
