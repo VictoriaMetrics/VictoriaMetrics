@@ -2,6 +2,16 @@
 
 - TODO
 
+## 0.8.8
+
+**Release date:** 2024-12-02
+
+![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- enable watch-config in vector by default
+- exclude default service port, when serviceMonitor.targetPort is defined
+
 ## 0.8.7
 
 **Release date:** 2024-11-28
