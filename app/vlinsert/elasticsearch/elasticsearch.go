@@ -1,8 +1,6 @@
 package elasticsearch
 
 import (
-	"bufio"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -103,7 +101,8 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		}
 		lmp := cp.NewLogMessageProcessor("elasticsearch_bulk")
 		isGzip := r.Header.Get("Content-Encoding") == "gzip"
-		n, err := readBulkRequest(r.Body, isGzip, cp.TimeField, cp.MsgFields, lmp)
+		streamName := fmt.Sprintf("remoteAddr=%s, requestURI=%q", httpserver.GetQuotedRemoteAddr(r), r.RequestURI)
+		n, err := readBulkRequest(streamName, r.Body, isGzip, cp.TimeField, cp.MsgFields, lmp)
 		lmp.MustClose()
 		if err != nil {
 			logger.Warnf("cannot decode log message #%d in /_bulk request: %s, stream fields: %s", n, err, cp.StreamFields)
@@ -133,7 +132,7 @@ var (
 	bulkRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
 )
 
-func readBulkRequest(r io.Reader, isGzip bool, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) (int, error) {
+func readBulkRequest(streamName string, r io.Reader, isGzip bool, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) (int, error) {
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
 	if isGzip {
@@ -148,17 +147,12 @@ func readBulkRequest(r io.Reader, isGzip bool, timeField string, msgFields []str
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 
-	lb := lineBufferPool.Get()
-	defer lineBufferPool.Put(lb)
-
-	lb.B = bytesutil.ResizeNoCopyNoOverallocate(lb.B, insertutils.MaxLineSizeBytes.IntN())
-	sc := bufio.NewScanner(wcr)
-	sc.Buffer(lb.B, len(lb.B))
+	lr := insertutils.NewLineReader(streamName, wcr)
 
 	n := 0
 	nCheckpoint := 0
 	for {
-		ok, err := readBulkLine(sc, timeField, msgFields, lmp)
+		ok, err := readBulkLine(lr, timeField, msgFields, lmp)
 		wcr.DecConcurrency()
 		if err != nil || !ok {
 			rowsIngestedTotal.Add(n - nCheckpoint)
@@ -172,24 +166,16 @@ func readBulkRequest(r io.Reader, isGzip bool, timeField string, msgFields []str
 	}
 }
 
-var lineBufferPool bytesutil.ByteBufferPool
-
-func readBulkLine(sc *bufio.Scanner, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) (bool, error) {
+func readBulkLine(lr *insertutils.LineReader, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) (bool, error) {
 	var line []byte
 
 	// Read the command, must be "create" or "index"
 	for len(line) == 0 {
-		if !sc.Scan() {
-			if err := sc.Err(); err != nil {
-				if errors.Is(err, bufio.ErrTooLong) {
-					return false, fmt.Errorf(`cannot read "create" or "index" command, since its size exceeds -insert.maxLineSizeBytes=%d`,
-						insertutils.MaxLineSizeBytes.IntN())
-				}
-				return false, err
-			}
-			return false, nil
+		if !lr.NextLine() {
+			err := lr.Err()
+			return false, err
 		}
-		line = sc.Bytes()
+		line = lr.Line
 	}
 	lineStr := bytesutil.ToUnsafeString(line)
 	if !strings.Contains(lineStr, `"create"`) && !strings.Contains(lineStr, `"index"`) {
@@ -197,16 +183,13 @@ func readBulkLine(sc *bufio.Scanner, timeField string, msgFields []string, lmp i
 	}
 
 	// Decode log message
-	if !sc.Scan() {
-		if err := sc.Err(); err != nil {
-			if errors.Is(err, bufio.ErrTooLong) {
-				return false, fmt.Errorf("cannot read log message, since its size exceeds -insert.maxLineSizeBytes=%d", insertutils.MaxLineSizeBytes.IntN())
-			}
+	if !lr.NextLine() {
+		if err := lr.Err(); err != nil {
 			return false, err
 		}
 		return false, fmt.Errorf(`missing log message after the "create" or "index" command`)
 	}
-	line = sc.Bytes()
+	line = lr.Line
 	p := logstorage.GetJSONParser()
 	if err := p.ParseLogMessage(line); err != nil {
 		return false, fmt.Errorf("cannot parse json-encoded log entry: %w", err)
