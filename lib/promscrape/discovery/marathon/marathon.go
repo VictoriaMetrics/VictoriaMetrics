@@ -52,12 +52,12 @@ func (sdc *SDConfig) MustStop() {
 func getAppsLabels(apps *AppList) []*promutils.Labels {
 	ms := make([]*promutils.Labels, 0, len(apps.Apps))
 	for _, a := range apps.Apps {
-		ms = append(ms, getAppLabels(&a))
+		ms = append(ms, getAppLabels(&a)...)
 	}
 	return ms
 }
 
-func getAppLabels(app *app) *promutils.Labels {
+func getAppLabels(app *app) []*promutils.Labels {
 	m := promutils.NewLabels(5)
 
 	m.Add("__meta_marathon_app", app.ID)
@@ -98,9 +98,16 @@ func getAppLabels(app *app) *promutils.Labels {
 		prefix = "meta_marathon_port_definition_label_"
 	}
 
+	for ln, lv := range app.Labels {
+		m.Add("__meta_marathon_app_label_"+discoveryutils.SanitizeLabelName(ln), lv)
+	}
+
+	labelss := make([]*promutils.Labels, 0, len(app.Tasks))
 	// Gather info about the app's 'tasks'. Each instance (container) is considered a task
 	// and can be reachable at one or more host:port endpoints.
 	for _, t := range app.Tasks {
+		mm := m.Clone()
+
 		// There are no labels to gather if only Ports is defined. (eg. with host networking)
 		// Ports can only be gathered from the Task (not from the app) and are guaranteed
 		// to be the same across all tasks. If we haven't gathered any ports by now,
@@ -120,26 +127,23 @@ func getAppLabels(app *app) *promutils.Labels {
 
 			// Each port represents a possible Prometheus target.
 			targetAddress := targetEndpoint(&t, port, app.isContainerNet())
-			m.Add("__address__", targetAddress)
-			m.Add("__meta_marathon_task", t.ID)
-			m.Add("__meta_marathon_port_index", strconv.Itoa(i))
+			mm.Add("__address__", targetAddress)
+			mm.Add("__meta_marathon_task", t.ID)
+			mm.Add("__meta_marathon_port_index", strconv.Itoa(i))
 
 			// Gather all port labels and set them on the current target, skip if the port has no Marathon labels.
 			// This will happen in the host networking case with only `ports` defined, where
 			// it is inefficient to allocate a list of possibly hundreds of empty label maps per host port.
 			if len(labels) > 0 {
 				for ln, lv := range labels[i] {
-					m.Add(prefix+discoveryutils.SanitizeLabelName(ln), lv)
+					mm.Add(prefix+discoveryutils.SanitizeLabelName(ln), lv)
 				}
 			}
 		}
+		labelss = append(labelss, mm)
 	}
 
-	for ln, lv := range app.Labels {
-		m.Add("__meta_marathon_app_label_"+discoveryutils.SanitizeLabelName(ln), lv)
-	}
-
-	return m
+	return labelss
 }
 
 // targetEndpoint Generate a target endpoint string in host:port format.
