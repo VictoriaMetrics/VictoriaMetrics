@@ -4449,7 +4449,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the approx time needed to reach 100% of disk capacity based on the following params:\n* free disk space;\n* row ingestion rate;\n* compression.\n\nNote: this panel doesn't account for deduplication process.",
+          "description": "Shows the approx time needed to reach 100% of disk capacity based on the following params:\n* free disk space (after -storage.minFreeDiskSpaceBytes);\n* row ingestion rate;\n* compression.\n\nNote: this panel doesn't account for deduplication process.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4559,7 +4559,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows amount of on-disk space occupied by data points and the remaining disk space at `-storageDataPath`",
+          "description": "Shows amount of on-disk space occupied by data points and the remaining disk space at `-storageDataPath`. Calculation accounts for -storage.minFreeDiskSpaceBytes",
           "fieldConfig": {
             "defaults": {
               "color": {
