@@ -107,6 +107,8 @@ type ServesMetrics struct {
 // GetIntMetric retrieves the value of a metric served by an app at /metrics URL.
 // The value is then converted to int.
 func (app *ServesMetrics) GetIntMetric(t *testing.T, metricName string) int {
+	t.Helper()
+
 	return int(app.GetMetric(t, metricName))
 }
 
