@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.30.0](https://img.shields.io/badge/Version-0.30.0-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.30.2](https://img.shields.io/badge/Version-0.30.2-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-k8s-stack)
 
 Kubernetes monitoring on VictoriaMetrics stack. Includes VictoriaMetrics Operator, Grafana dashboards, ServiceScrapes and VMRules
@@ -71,6 +71,10 @@ kind: Application
 ...
 spec:
   ...
+  destination:
+    ...
+    namespace: <k8s-stack-namespace>
+  ...
   syncPolicy:
     syncOptions:
     # https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/#respect-ignore-difference-configs
@@ -81,7 +85,7 @@ spec:
     - group: ""
       kind: Secret
       name: <fullname>-validation
-      namespace: kube-system
+      namespace: <k8s-stack-namespace>
       jsonPointers:
         - /data
     - group: admissionregistration.k8s.io
@@ -302,7 +306,10 @@ Remove application with command.
 helm uninstall vmks -n NAMESPACE
 ```
 
-CRDs created by this chart are not removed by default and should be manually cleaned up:
+By default with a Helm chart uninstallation CRDs will be removed as well by a chart hook.
+If you want to disable CRDs removal please set `victoria-metrics-operator.crds.cleanup.enabled` to `false`
+
+To remove CRDs manually please use:
 
 ```console
 kubectl get crd | grep victoriametrics.com | awk '{print $1 }' | xargs -i kubectl delete crd {}
