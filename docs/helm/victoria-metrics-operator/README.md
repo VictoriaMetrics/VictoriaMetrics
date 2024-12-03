@@ -29,7 +29,7 @@ spec:
     - group: ""
       kind: Secret
       name: <fullname>-validation
-      namespace: kube-system
+      namespace: <operator-chart-namespace>
       jsonPointers:
         - /data
     - group: admissionregistration.k8s.io

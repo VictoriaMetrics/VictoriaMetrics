@@ -1,4 +1,4 @@
- ![Version: 0.8.8](https://img.shields.io/badge/Version-0.8.8-informational?style=flat-square)
+ ![Version: 0.8.9](https://img.shields.io/badge/Version-0.8.9-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-logs-single)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -860,7 +860,7 @@ timeoutSeconds: 5
 </code>
 </pre>
 </td>
-      <td><p>Data retention period in month</p>
+      <td><p>Data retention period. Possible units character: h(ours), d(ays), w(eeks), y(ears), if no unit character specified - month. The minimum retention period is 24h. See these <a href="https://docs.victoriametrics.com/victorialogs/#retention" target="_blank">docs</a></p>
 </td>
     </tr>
     <tr>
