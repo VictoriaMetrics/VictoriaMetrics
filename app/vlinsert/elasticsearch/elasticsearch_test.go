@@ -15,7 +15,7 @@ func TestReadBulkRequest_Failure(t *testing.T) {
 
 		tlp := &insertutils.TestLogMessageProcessor{}
 		r := bytes.NewBufferString(data)
-		rows, err := readBulkRequest(r, false, "_time", []string{"_msg"}, tlp)
+		rows, err := readBulkRequest("test", r, false, "_time", []string{"_msg"}, tlp)
 		if err == nil {
 			t.Fatalf("expecting non-empty error")
 		}
@@ -41,7 +41,7 @@ func TestReadBulkRequest_Success(t *testing.T) {
 
 		// Read the request without compression
 		r := bytes.NewBufferString(data)
-		rows, err := readBulkRequest(r, false, timeField, msgFields, tlp)
+		rows, err := readBulkRequest("test", r, false, timeField, msgFields, tlp)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -56,7 +56,7 @@ func TestReadBulkRequest_Success(t *testing.T) {
 		tlp = &insertutils.TestLogMessageProcessor{}
 		compressedData := compressData(data)
 		r = bytes.NewBufferString(compressedData)
-		rows, err = readBulkRequest(r, true, timeField, msgFields, tlp)
+		rows, err = readBulkRequest("test", r, true, timeField, msgFields, tlp)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
