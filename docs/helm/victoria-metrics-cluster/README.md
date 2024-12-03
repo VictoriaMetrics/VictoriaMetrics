@@ -3513,7 +3513,7 @@ timeoutSeconds: 5
 </code>
 </pre>
 </td>
-      <td><p>Data retention period. Supported values 1w, 1d, number without measurement means month, e.g. 2 = 2month</p>
+      <td><p>Data retention period. Possible units character: h(ours), d(ays), w(eeks), y(ears), if no unit character specified - month. The minimum retention period is 24h. See these <a href="https://docs.victoriametrics.com/single-server-victoriametrics/#retention" target="_blank">docs</a></p>
 </td>
     </tr>
     <tr>
