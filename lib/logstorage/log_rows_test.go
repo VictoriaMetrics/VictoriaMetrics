@@ -6,10 +6,10 @@ import (
 )
 
 func TestLogRows_StreamFieldsOverride(t *testing.T) {
-	f := func(rows []string, streamFields []Field, resultExpected []string) {
+	f := func(rows []string, streamFields []Field, ignoreFields []string, resultExpected []string) {
 		t.Helper()
 
-		lr := GetLogRows(nil, nil, nil, "foobar")
+		lr := GetLogRows(nil, ignoreFields, nil, "foobar")
 		defer PutLogRows(lr)
 
 		tid := TenantID{
@@ -46,10 +46,28 @@ func TestLogRows_StreamFieldsOverride(t *testing.T) {
 			Name:  "xyz",
 			Value: "123",
 		},
-	}, []string{
+	}, nil, []string{
 		`{"_msg":"abc","_stream":"{xyz=\"123\"}","_time":"1970-01-01T00:00:00.000000001Z","foo":"bar"}`,
 		`{"_msg":"abc","_stream":"{xyz=\"123\"}","_time":"1970-01-01T00:00:00.000001001Z","xyz":"bar"}`,
 		`{"_msg":"abc","_stream":"{xyz=\"123\"}","_time":"1970-01-01T00:00:00.000002001Z","xyz":"123"}`,
+	})
+	f([]string{
+		`{"foo":"bar","_msg":"abc"}`,
+		`{"xyz":"bar","_msg":"abc"}`,
+		`{"xyz":"123","_msg":"abc"}`,
+	}, []Field{
+		{
+			Name:  "xyz",
+			Value: "123",
+		},
+		{
+			Name:  "f1",
+			Value: "v1",
+		},
+	}, []string{"xyz", "qwert"}, []string{
+		`{"_msg":"abc","_stream":"{f1=\"v1\"}","_time":"1970-01-01T00:00:00.000000001Z","foo":"bar"}`,
+		`{"_msg":"abc","_stream":"{f1=\"v1\"}","_time":"1970-01-01T00:00:00.000001001Z"}`,
+		`{"_msg":"abc","_stream":"{f1=\"v1\"}","_time":"1970-01-01T00:00:00.000002001Z"}`,
 	})
 }
 
