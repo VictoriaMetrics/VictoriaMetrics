@@ -191,7 +191,7 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 	defer lmp.mu.Unlock()
 
 	lmp.rowsIngestedTotal.Inc()
-	n := getApproxJSONRowLen(fields)
+	n := logstorage.EstimatedJSONRowLen(fields)
 	lmp.bytesIngestedTotal.Add(n)
 
 	if len(fields) > *MaxFieldsPerLine {
@@ -212,16 +212,6 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 	if lmp.lr.NeedFlush() {
 		lmp.flushLocked()
 	}
-}
-
-// getApproxJSONRowLen returns an approximate length of the log entry with the given fields if represented as JSON.
-func getApproxJSONRowLen(fields []logstorage.Field) int {
-	n := len("{}\n")
-	n += len(`"_time":""`) + len(time.RFC3339Nano)
-	for _, f := range fields {
-		n += len(`,"":""`) + len(f.Name) + len(f.Value)
-	}
-	return n
 }
 
 // flushLocked must be called under locked lmp.mu.
