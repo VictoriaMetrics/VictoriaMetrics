@@ -183,6 +183,11 @@ func readBulkLine(lr *insertutils.LineReader, timeField string, msgFields []stri
 		return false, fmt.Errorf(`missing log message after the "create" or "index" command`)
 	}
 	line = lr.Line
+	if len(line) == 0 {
+		// Special case - the line could be too long, so it was skipped.
+		// Continue parsing next lines.
+		return true, nil
+	}
 	p := logstorage.GetJSONParser()
 	if err := p.ParseLogMessage(line); err != nil {
 		return false, fmt.Errorf("cannot parse json-encoded log entry: %w", err)

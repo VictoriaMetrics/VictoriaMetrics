@@ -72,18 +72,18 @@ func TestLineReader_SkipUntilNextLine(t *testing.T) {
 
 		// Multiple long lines
 		data = longLine + "\n" + longLine
-		f(data, nil)
+		f(data, []string{""})
 
 		data = longLine + "\n" + longLine + "\n"
-		f(data, nil)
+		f(data, []string{"", ""})
 
 		// Long line in the middle
 		data = "foo\n" + longLine + "\nbar"
-		f(data, []string{"foo", "bar"})
+		f(data, []string{"foo", "", "bar"})
 
 		// Multiple long lines in the middle
 		data = "foo\n" + longLine + "\n" + longLine + "\nbar"
-		f(data, []string{"foo", "bar"})
+		f(data, []string{"foo", "", "", "bar"})
 
 		// Long line in the end
 		data = "foo\n" + longLine
@@ -91,7 +91,7 @@ func TestLineReader_SkipUntilNextLine(t *testing.T) {
 
 		// Long line in the end
 		data = "foo\n" + longLine + "\n"
-		f(data, []string{"foo"})
+		f(data, []string{"foo", ""})
 	}
 }
 
@@ -141,10 +141,10 @@ func TestLineReader_Failure(t *testing.T) {
 		f(data, []string{"foo"})
 
 		data = longLine + "\nfoo"
-		f(data, nil)
+		f(data, []string{""})
 
 		data = longLine + "\nfoo\n"
-		f(data, []string{"foo"})
+		f(data, []string{"", "foo"})
 	}
 }
 
