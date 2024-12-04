@@ -1,6 +1,15 @@
 ## Next release
 
-- TODO
+- added `server.retentionDiskUsage` to control [retention by disk space](https://docs.victoriametrics.com/victorialogs/#retention-by-disk-space-usage). See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1845)
+
+## 0.8.9
+
+**Release date:** 2024-12-03
+
+![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- do not set clusterIP value, when service type is not ClusterIP. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1838)
 
 ## 0.8.8
 
