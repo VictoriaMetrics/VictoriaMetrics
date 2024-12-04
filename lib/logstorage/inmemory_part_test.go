@@ -59,7 +59,7 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 			}
 		}
 
-		// Read log entries from mp to rrsResult
+		// Read log entries from mp to lrResult
 		sbu := getStringsBlockUnmarshaler()
 		defer putStringsBlockUnmarshaler(sbu)
 		vd := getValuesDecoder()
@@ -89,13 +89,29 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 	f(newTestLogRows(10, 5, 0), 10, 1.5)
 	f(newTestLogRows(10, 1000, 0), 10, 7.2)
 	f(newTestLogRows(100, 100, 0), 100, 5.0)
+}
+
+func TestInmemoryPartMustInitFromRows_Overflow(t *testing.T) {
+	f := func(lr *LogRows, blocksCountExpected int, compressionRateExpected float64) {
+		t.Helper()
+
+		// Create inmemory part from lr
+		mp := getInmemoryPart()
+		mp.mustInitFromRows(lr)
+
+		// Check mp.ph
+		ph := &mp.ph
+		checkCompressionRate(t, ph, compressionRateExpected)
+		if ph.BlocksCount != uint64(blocksCountExpected) {
+			t.Fatalf("unexpected blocksCount in partHeader; got %d; want %d", ph.BlocksCount, blocksCountExpected)
+		}
+	}
 
 	// check block overflow with unique tag rows
-	f(newTestLogRowsUniqTags(5, 21, 100), 10, 0.4)
+	f(newTestLogRowsUniqTags(5, 21, 100), 5, 0.4)
 	f(newTestLogRowsUniqTags(5, 10, 100), 5, 0.5)
-	f(newTestLogRowsUniqTags(1, 2001, 1), 2, 1.4)
-	f(newTestLogRowsUniqTags(15, 20, 250), 45, 0.6)
-
+	f(newTestLogRowsUniqTags(1, 2001, 1), 1, 1.4)
+	f(newTestLogRowsUniqTags(15, 20, 250), 15, 0.6)
 }
 
 func checkCompressionRate(t *testing.T, ph *partHeader, compressionRateExpected float64) {
@@ -180,7 +196,7 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 			}
 		}
 
-		// Read log entries from mpDst to rrsResult
+		// Read log entries from mpDst to lrResult
 		sbu := getStringsBlockUnmarshaler()
 		defer putStringsBlockUnmarshaler(sbu)
 		vd := getValuesDecoder()
@@ -188,7 +204,7 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 		lrResult := mpDst.readLogRows(sbu, vd)
 		putInmemoryPart(mpDst)
 
-		// compare rrsOrig to rrsResult
+		// compare rrsOrig to lrResult
 		if err := checkEqualRows(lrResult, lrOrig); err != nil {
 			t.Fatalf("unequal log entries: %s", err)
 		}

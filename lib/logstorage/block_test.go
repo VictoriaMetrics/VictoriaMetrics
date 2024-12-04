@@ -12,10 +12,7 @@ func TestBlockMustInitFromRows(t *testing.T) {
 		b := getBlock()
 		defer putBlock(b)
 
-		rowsProcessed := b.MustInitFromRows(timestamps, rows)
-		if rowsProcessed != len(rows) {
-			t.Fatalf("unexpected rowsProcessed; got %d; want %d", rowsProcessed, len(rows))
-		}
+		b.MustInitFromRows(timestamps, rows)
 		if b.uncompressedSizeBytes() >= maxUncompressedBlockSize {
 			t.Fatalf("expecting non-full block")
 		}
@@ -171,10 +168,7 @@ func TestBlockMustInitFromRowsFullBlock(t *testing.T) {
 
 	b := getBlock()
 	defer putBlock(b)
-	rowsProcessed := b.MustInitFromRows(timestamps, rows)
-	if rowsProcessed != len(rows) {
-		t.Fatalf("unexpected rowsProcessed; got %d; want %d", rowsProcessed, len(rows))
-	}
+	b.MustInitFromRows(timestamps, rows)
 	b.assertValid()
 	if n := b.Len(); n != len(rows) {
 		t.Fatalf("unexpected total log entries; got %d; want %d", n, len(rows))
@@ -184,7 +178,7 @@ func TestBlockMustInitFromRowsFullBlock(t *testing.T) {
 	}
 }
 
-func TestBlockMustInitWithNonEmptyOffset(t *testing.T) {
+func TestBlockMustInitFromRows_Overflow(t *testing.T) {
 	f := func(rowsCount int, fieldsPerRow int, expectedRowsProcessed int) {
 		t.Helper()
 		timestamps := make([]int64, rowsCount)
@@ -201,13 +195,10 @@ func TestBlockMustInitWithNonEmptyOffset(t *testing.T) {
 		}
 		b := getBlock()
 		defer putBlock(b)
-		rowsProcessed := b.MustInitFromRows(timestamps, rows)
-		if rowsProcessed != expectedRowsProcessed {
-			t.Fatalf("unexpected rowsProcessed; got %d; want %d", rowsProcessed, expectedRowsProcessed)
-		}
+		b.MustInitFromRows(timestamps, rows)
 		b.assertValid()
-		if n := b.Len(); n != rowsProcessed {
-			t.Fatalf("unexpected total log entries; got %d; want %d", n, rowsProcessed)
+		if n := b.Len(); n != expectedRowsProcessed {
+			t.Fatalf("unexpected total log entries; got %d; want %d", n, expectedRowsProcessed)
 		}
 	}
 	f(10, 300, 6)
