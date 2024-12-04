@@ -409,7 +409,7 @@ See also [how to drop request path prefix](#dropping-request-path-prefix).
 
 ### Routing by host
 
-`src_hosts` option can be specified inside `url_map` in order to route requests by host.
+`src_hosts` option can be specified inside `url_map` in order to route requests by host header.
 
 The following [`-auth.config`](#auth-config) routes requests to `app1.my-host.com` host to `http://app1-backend`, while routing requests to `app2.my-host.com` host to `http://app2-backend`,
 and the rest of requests are routed to `http://some-backend/404-page.html`:
