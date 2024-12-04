@@ -136,6 +136,9 @@ func (lr *LogRows) NeedFlush() bool {
 
 // MustAdd adds a log entry with the given args to lr.
 //
+// If streamFields is non-nil, the the given streamFields are used as log stream fields
+// instead of the pre-configured stream fields from GetLogRows().
+//
 // It is OK to modify the args after returning from the function,
 // since lr copies all the args to internal data.
 //
@@ -143,7 +146,7 @@ func (lr *LogRows) NeedFlush() bool {
 //
 // Log entries with too big number of fields are ignored.
 // Loo long log entries are ignored.
-func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields []Field) {
+func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields, streamFields []Field) {
 	if len(fields) > maxColumnsPerBlock {
 		fieldNames := make([]string, len(fields))
 		for i, f := range fields {
@@ -158,11 +161,18 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields []Field) {
 		return
 	}
 
-	// Compose StreamTags from fields according to lr.streamFields and lr.extraStreamFields
+	// Compose StreamTags from fields according to streamFields, lr.streamFields and lr.extraStreamFields
 	st := GetStreamTags()
-	for _, f := range fields {
-		if _, ok := lr.streamFields[f.Name]; ok {
+	if streamFields != nil {
+		// streamFields overrride lr.streamFields
+		for _, f := range streamFields {
 			st.Add(f.Name, f.Value)
+		}
+	} else {
+		for _, f := range fields {
+			if _, ok := lr.streamFields[f.Name]; ok {
+				st.Add(f.Name, f.Value)
+			}
 		}
 	}
 	for _, f := range lr.extraStreamFields {

@@ -54,7 +54,8 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 		return
 	}
 	lmp := cp.NewLogMessageProcessor("loki_json")
-	err = parseJSONRequest(data, lmp)
+	useDefaultStreamFields := len(cp.StreamFields) == 0
+	err = parseJSONRequest(data, lmp, useDefaultStreamFields)
 	lmp.MustClose()
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse Loki json request: %s; data=%s", err, data)
@@ -72,7 +73,7 @@ var (
 	requestJSONDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
-func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) error {
+func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefaultStreamFields bool) error {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
 	v, err := p.ParseBytes(data)
@@ -185,7 +186,11 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor) error {
 					return fmt.Errorf("error when parsing `structuredMetadata` object: %w", err)
 				}
 			}
-			lmp.AddRow(ts, fields)
+			var streamFields []logstorage.Field
+			if useDefaultStreamFields {
+				streamFields = commonFields
+			}
+			lmp.AddRow(ts, fields, streamFields)
 		}
 	}
 

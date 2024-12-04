@@ -201,7 +201,7 @@ func readBulkLine(lr *insertutils.LineReader, timeField string, msgFields []stri
 		ts = time.Now().UnixNano()
 	}
 	logstorage.RenameField(p.Fields, msgFields, "_msg")
-	lmp.AddRow(ts, p.Fields)
+	lmp.AddRow(ts, p.Fields, nil)
 	logstorage.PutJSONParser(p)
 
 	return true, nil

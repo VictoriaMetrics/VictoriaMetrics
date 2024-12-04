@@ -98,7 +98,7 @@ func generateTestLogStreams(s *Storage, tenantID TenantID, getMsgValue func(int)
 			Value: "foobar",
 		})
 		timestamp := int64(i * 100)
-		lr.MustAdd(tenantID, timestamp, fields)
+		lr.MustAdd(tenantID, timestamp, fields, nil)
 	}
 	s.MustAddRows(lr)
 	PutLogRows(lr)

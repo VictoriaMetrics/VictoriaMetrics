@@ -137,10 +137,12 @@ func GetCommonParamsForSyslog(tenantID logstorage.TenantID, streamFields, ignore
 
 // LogMessageProcessor is an interface for log message processors.
 type LogMessageProcessor interface {
-	// AddRow must add row to the LogMessageProcessor with the given timestamp and the given fields.
+	// AddRow must add row to the LogMessageProcessor with the given timestamp and fields.
+	//
+	// If streamFields is non-nil, then the given streamFields must be used as log stream fields instead of pre-configured fields.
 	//
 	// The LogMessageProcessor implementation cannot hold references to fields, since the caller can re-use them.
-	AddRow(timestamp int64, fields []logstorage.Field)
+	AddRow(timestamp int64, fields, streamFields []logstorage.Field)
 
 	// MustClose() must flush all the remaining fields and free up resources occupied by LogMessageProcessor.
 	MustClose()
@@ -186,7 +188,9 @@ func (lmp *logMessageProcessor) initPeriodicFlush() {
 }
 
 // AddRow adds new log message to lmp with the given timestamp and fields.
-func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Field) {
+//
+// If streamFields is non-nil, then it is used as log stream fields instead of the pre-configured stream fields.
+func (lmp *logMessageProcessor) AddRow(timestamp int64, fields, streamFields []logstorage.Field) {
 	lmp.mu.Lock()
 	defer lmp.mu.Unlock()
 
@@ -201,7 +205,7 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 		return
 	}
 
-	lmp.lr.MustAdd(lmp.cp.TenantID, timestamp, fields)
+	lmp.lr.MustAdd(lmp.cp.TenantID, timestamp, fields, streamFields)
 	if lmp.cp.Debug {
 		s := lmp.lr.GetRowString(0)
 		lmp.lr.ResetKeepSettings()

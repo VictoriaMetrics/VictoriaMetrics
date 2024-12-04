@@ -174,7 +174,7 @@ func readLogsRequest(ts int64, data []byte, lmp insertutils.LogMessageProcessor)
 				})
 			}
 		})
-		lmp.AddRow(ts, fields)
+		lmp.AddRow(ts, fields, nil)
 		fields = fields[:0]
 	}
 	return nil

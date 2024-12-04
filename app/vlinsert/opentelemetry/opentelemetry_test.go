@@ -16,7 +16,7 @@ func TestPushProtoOk(t *testing.T) {
 
 		pData := lr.MarshalProtobuf(nil)
 		tlp := &insertutils.TestLogMessageProcessor{}
-		if err := pushProtobufRequest(pData, tlp); err != nil {
+		if err := pushProtobufRequest(pData, tlp, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
