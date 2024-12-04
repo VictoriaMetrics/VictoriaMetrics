@@ -380,8 +380,7 @@ See also [security docs](#security), [routing docs](#routing) and [load balancin
 - [Multiple parts](#routing-by-multiple-parts)
 
 See also [authorization](#authorization) and [load balancing](#load-balancing).
-For debug purposes, extra logging for failed requests can be enabled by setting `dump_request_on_errors: true` {{% available_from "#" %}}
-on user level. Please note, such logging may expose sensitive info and is recommended to use only for debugging.
+For debug purposes, extra logging for failed requests can be enabled by setting `dump_request_on_errors: true` {{% available_from "v1.107.0" %}} on user level. Please note, such logging may expose sensitive info and is recommended to use only for debugging.
 
 ### Routing by path
 
@@ -827,9 +826,9 @@ users:
     allow_list: [127.0.0.1]
 ```
 
-By default, the client's TCP address is utilized for IP filtering. In scenarios where `vmauth` operates behind a reverse proxy, it is advisable to configure `vmauth` to retrieve the client IP address from an [HTTP header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For) (e.g., `X-Forwarded-For`) {{% available_from "#" %}} or via the [Proxy Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) for TCP load balancers. This can be achieved using the global configuration flags:
+By default, the client's TCP address is utilized for IP filtering. In scenarios where `vmauth` operates behind a reverse proxy, it is advisable to configure `vmauth` to retrieve the client IP address from an [HTTP header](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For) (e.g., `X-Forwarded-For`) {{% available_from "v1.107.0" %}} or via the [Proxy Protocol](https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt) for TCP load balancers. This can be achieved using the global configuration flags:
 
-* `-httpRealIPHeader=X-Forwarded-For` {{% available_from "#" %}}
+* `-httpRealIPHeader=X-Forwarded-For` {{% available_from "v1.107.0" %}}
 * `-httpListenAddr.useProxyProtocol=true`
 
 ### Security Considerations
@@ -842,7 +841,7 @@ By default, the client's TCP address is utilized for IP filtering. In scenarios 
 See additional recommendations at [link](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For#security_and_privacy_concerns)
 
 ### Per-User Configuration
-The values of `httpRealIPHeader` {{% available_from "#" %}} can be changed on a per-user basis within the user-specific configuration.
+The values of `httpRealIPHeader` {{% available_from "v1.107.0" %}} can be changed on a per-user basis within the user-specific configuration.
 
 ```yaml
 users:

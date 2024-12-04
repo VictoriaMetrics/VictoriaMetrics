@@ -27,7 +27,7 @@ update the `prometheus.remote_write` endpoint:
 ```Alloy
 prometheus.remote_write "victoriametrics" {
   endpoint {
-    url = "https://<victoriametrics-addr>/prometheus/api/v1/write"
+    url = "https://<victoriametrics_url>/prometheus/api/v1/write"
   }
 }
 ```
@@ -64,7 +64,7 @@ prometheus.scrape "nodeexporter" {
 
 prometheus.remote_write "victoriametrics" {
   endpoint {
-    url = "https://<victoriametrics-addr>/prometheus/api/v1/write"
+    url = "https://<victoriametrics_url>/prometheus/api/v1/write"
   }
 }
 ```
@@ -72,7 +72,6 @@ prometheus.remote_write "victoriametrics" {
 ## remote write with basic authentication
 
 This is the same as the previous configuration but adds the `basic_auth` parameters:
-
 ```Alloy
 prometheus.exporter.unix "nodeexporter" {}
 
@@ -83,7 +82,7 @@ prometheus.scrape "nodeexporter" {
 
 prometheus.remote_write "victoriametrics" {
   endpoint {
-    url = "https://<victoriametrics-addr>/prometheus/api/v1/write"
+    url = "https://<victoriametrics_url>/prometheus/api/v1/write"
     basic_auth {
       username = "<victoriametrics_user>"
       password = "<victoriametrics_password>"
@@ -95,7 +94,6 @@ prometheus.remote_write "victoriametrics" {
 ## remote write with bearer authentication
 
 This is the same as the first config but adds the `bearer_token` parameter:
-
 ```Alloy
 prometheus.exporter.unix "nodeexporter" {}
 
@@ -106,7 +104,7 @@ prometheus.scrape "nodeexporter" {
 
 prometheus.remote_write "victoriametrics" {
   endpoint {
-    url = "https://<victoriametrics-addr>/prometheus/api/v1/write"
+    url = "https://<victoriametrics_url>/prometheus/api/v1/write"
     bearer_token  = "<token>"
   }
 }
@@ -136,7 +134,7 @@ otelcol.processor.batch "batch" {
 
 otelcol.exporter.otlphttp "victoriametrics" {
   client {
-    endpoint = "http://<victoriametrics-addr>:<victoriametrics_port>/opentelemetry"
+    endpoint = "http://<victoriametrics_url>:<victoriametrics_port>/opentelemetry"
   }
 }
 ```
@@ -145,7 +143,6 @@ otelcol.exporter.otlphttp "victoriametrics" {
 
 This is the same configuration without authentication but contains the `otelcol.auth.basic` block 
 and references it in `otelcol.exporter.otlphttp`:
-
 ```Alloy
 prometheus.exporter.unix "nodeexporter" {}
 
@@ -173,7 +170,7 @@ otelcol.processor.batch "batch" {
 
 otelcol.exporter.otlphttp "victoriametrics" {
   client {
-    endpoint = "https://<victoriametrics-addr:<victoriametrics_port>/opentelemetry"
+    endpoint = "https://<victoriametrics_url:<victoriametrics_port>/opentelemetry"
     auth = otelcol.auth.basic.otel_auth.handler
   }
 }
@@ -182,7 +179,6 @@ otelcol.exporter.otlphttp "victoriametrics" {
 ## OpenTelemetry with Bearer Authentication
 
 This is the same as the basic authentication configuration but swaps the `otelcol.auth.basic` for `otelcol.auth.bearer`:
-
 ```Alloy
 prometheus.exporter.unix "nodeexporter" {}
 
@@ -209,7 +205,7 @@ otelcol.processor.batch "batch" {
 
 otelcol.exporter.otlphttp "victoriametrics" {
   client {
-    endpoint = "https://<victoriametrics-addr>:<victoriametrics_port>/opentelemetry"
+    endpoint = "https://<victoriametrics_url>:<victoriametrics_port>/opentelemetry"
     auth = otelcol.auth.bearer.otel_auth.handler
   }
 }

@@ -314,7 +314,7 @@ func serveUDP(ln net.PacketConn, tenantID logstorage.TenantID, compressMethod st
 				}
 				bb.B = bb.B[:n]
 				udpRequestsTotal.Inc()
-				if err := processStream(bb.NewReader(), compressMethod, useLocalTimestamp, cp); err != nil {
+				if err := processStream("udp", bb.NewReader(), compressMethod, useLocalTimestamp, cp); err != nil {
 					logger.Errorf("syslog: cannot process UDP data from %s at %s: %s", remoteAddr, localAddr, err)
 				}
 			}
@@ -354,7 +354,7 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod stri
 		wg.Add(1)
 		go func() {
 			cp := insertutils.GetCommonParamsForSyslog(tenantID, streamFields, ignoreFields, extraFields)
-			if err := processStream(c, compressMethod, useLocalTimestamp, cp); err != nil {
+			if err := processStream("tcp", c, compressMethod, useLocalTimestamp, cp); err != nil {
 				logger.Errorf("syslog: cannot process TCP data at %q: %s", addr, err)
 			}
 
@@ -369,12 +369,12 @@ func serveTCP(ln net.Listener, tenantID logstorage.TenantID, compressMethod stri
 }
 
 // processStream parses a stream of syslog messages from r and ingests them into vlstorage.
-func processStream(r io.Reader, compressMethod string, useLocalTimestamp bool, cp *insertutils.CommonParams) error {
+func processStream(protocol string, r io.Reader, compressMethod string, useLocalTimestamp bool, cp *insertutils.CommonParams) error {
 	if err := vlstorage.CanWriteData(); err != nil {
 		return err
 	}
 
-	lmp := cp.NewLogMessageProcessor()
+	lmp := cp.NewLogMessageProcessor("syslog_" + protocol)
 	err := processStreamInternal(r, compressMethod, useLocalTimestamp, lmp)
 	lmp.MustClose()
 
@@ -436,7 +436,6 @@ func processUncompressedStream(r io.Reader, useLocalTimestamp bool, lmp insertut
 			return fmt.Errorf("cannot read line #%d: %s", n, err)
 		}
 		n++
-		rowsIngestedTotal.Inc()
 	}
 	return slr.Error()
 }
@@ -568,7 +567,7 @@ func processLine(line []byte, currentYear int, timezone *time.Location, useLocal
 		ts = nsecs
 	}
 	logstorage.RenameField(p.Fields, msgFields, "_msg")
-	lmp.AddRow(ts, p.Fields)
+	lmp.AddRow(ts, p.Fields, nil)
 	logstorage.PutSyslogParser(p)
 
 	return nil
@@ -577,8 +576,6 @@ func processLine(line []byte, currentYear int, timezone *time.Location, useLocal
 var msgFields = []string{"message"}
 
 var (
-	rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="syslog"}`)
-
 	errorsTotal = metrics.NewCounter(`vl_errors_total{type="syslog"}`)
 
 	udpRequestsTotal = metrics.NewCounter(`vl_udp_reqests_total{type="syslog"}`)

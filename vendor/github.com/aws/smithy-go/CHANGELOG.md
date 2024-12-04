@@ -1,3 +1,27 @@
+# Release (2024-11-15)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.22.1
+  * **Bug Fix**: Fix failure to replace URI path segments when their names overlap.
+
+# Release (2024-10-03)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/smithy-go`: v1.22.0
+  * **Feature**: Add HTTP client metrics.
+
+# Release (2024-09-25)
+
+## Module Highlights
+* `github.com/aws/smithy-go/aws-http-auth`: [v1.0.0](aws-http-auth/CHANGELOG.md#v100-2024-09-25)
+  * **Release**: Initial release of module aws-http-auth, which implements generically consumable SigV4 and SigV4a request signing.
+
 # Release (2024-09-19)
 
 ## General Highlights

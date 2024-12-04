@@ -10,22 +10,25 @@ aliases:
   - /data-ingestion/telegraf.html
   - /data-ingestion/Telegraf.html
 ---
-You will need to add the following output section to a Telegraf configuration file and reload Telegraf to enable shipping data from Telegraf to VictoriaMetrics.
-All the options examples below can be combined to fit your use case
+This document covers various output configurations for Telegraf for shipping data [via HTTP](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
+to VictoriaMetrics. All the options examples below can be combined to fit your use case.
 
 To avoid storing Passwords in configuration files you can store as a key value pair in `/etc/default/telegraf` on Linux as follows
 ```
-victoriametrics_url="https://metrics.example.com"
+victoriametrics_url="https://victoriametrics_url"
 victoriametrics_user="telegraf"
 victoriametrics_password="password"
 victoriametrics_token="my_token"
 ```
-and they can be referenced in a Telegraf configuration file by prepending the variable name with `$` ex. `$victoriametrics_url` will be translated to `https://metrics.example.com` if it is referenced in a Telegraf configuration using the values from `/etc/default/telegraf` in the values seen above.
+and they can be referenced in a Telegraf configuration file by prepending the variable name with `$`.
+For example, `$victoriametrics_url` will be translated to `https://victoriametrics_url` if it is referenced in a Telegraf configuration using the values from `/etc/default/telegraf` in the values seen above.
 Otherwise, please replace the variables below to fit your setup.
 
 If you want to mimic this behavior on Windows please read [Influx Data's blog on storing variables in the registry](https://www.influxdata.com/blog/using-telegraf-on-windows/)
+For shipping data in InfluxDB v2.x format refer to [Telegraf docs](https://github.com/influxdata/telegraf/blob/master/plugins/outputs/influxdb_v2/README.md).
 
 ## Minimum Configuration with no Authentication
+
 ```toml
 [[outputs.influxdb]]
   urls = ["$victoriametrics_url"]
@@ -35,10 +38,9 @@ If you want to mimic this behavior on Windows please read [Influx Data's blog on
   content_encoding = "gzip"
 ```
 
-
 ## HTTP Basic Authentication (Username and Password)
-This is the same as the minimum configuration, but adds the `username` and `password` options
 
+This is the same as the minimum configuration, but adds the `username` and `password` options:
 ```toml
 [[outputs.influxdb]]
   urls = ["$victoriametrics_url"]
@@ -52,8 +54,7 @@ This is the same as the minimum configuration, but adds the `username` and `pass
 
 ## Bearer Authentication (Token)
 
-This is the same as the minimum configuration but adds the authorization header
-
+This is the same as the minimum configuration but adds the authorization header:
 ```
 [[outputs.influxdb]]
   urls = ["$victoriametrics_url"]
@@ -65,8 +66,8 @@ This is the same as the minimum configuration but adds the authorization header
 ```
 
 ## Route certain metrics
-If you only want to route certain metrics to VictoriaMetrics use the `namepass` option with a comma separated list of the measurements you wish to send to VictoriaMetrics.
 
+If you only want to route certain metrics to VictoriaMetrics use the `namepass` option with a comma separated list of the measurements you wish to send to VictoriaMetrics:
 ```
 [[outputs.influxdb]]
   urls = ["$victoriametrics_url"]
@@ -80,6 +81,7 @@ If you only want to route certain metrics to VictoriaMetrics use the `namepass` 
 ```
 
 ## Ignore TLS/SSL Certificate errors
+
 This is the same as the minimum configuration but adds `insecure_skip_verify = true` to the configuration to ignore TLS certificate errors.
 This is not recommended since it can allow sending metrics to a compromised site.
 
@@ -96,6 +98,7 @@ This is not recommended since it can allow sending metrics to a compromised site
 ```
 
 # References 
+
 - [Install Telegraf](https://docs.influxdata.com/telegraf/v1/install/)
 - [InfluxDBv1 output for Telegraf](https://github.com/influxdata/telegraf/tree/master/plugins/outputs/influxdb)
 - [Storing Telegraf variables in the Windows registry](https://www.influxdata.com/blog/using-telegraf-on-windows/)

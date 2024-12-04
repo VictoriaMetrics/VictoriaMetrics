@@ -33,6 +33,9 @@ import (
 // HTTP Host header syntax  Directory buckets - The HTTP Host header syntax is
 // s3express-control.region.amazonaws.com .
 //
+// The BucketRegion response element is not part of the ListDirectoryBuckets
+// Response Syntax.
+//
 // [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
 // [Directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-buckets-overview.html
 // [Amazon Web Services Identity and Access Management (IAM) for S3 Express One Zone]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam.html

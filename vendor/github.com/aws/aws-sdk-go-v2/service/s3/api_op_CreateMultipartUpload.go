@@ -650,12 +650,16 @@ type CreateMultipartUploadInput struct {
 	// Services managed key ( aws/s3 ) to protect the data.
 	//
 	// Directory buckets - If you specify x-amz-server-side-encryption with aws:kms ,
-	// you must specify the x-amz-server-side-encryption-aws-kms-key-id header with
-	// the ID (Key ID or Key ARN) of the KMS symmetric encryption customer managed key
-	// to use. Otherwise, you get an HTTP 400 Bad Request error. Only use the key ID
-	// or key ARN. The key alias format of the KMS key isn't supported. Your SSE-KMS
+	// the x-amz-server-side-encryption-aws-kms-key-id header is implicitly assigned
+	// the ID of the KMS symmetric encryption customer managed key that's configured
+	// for your directory bucket's default encryption setting. If you want to specify
+	// the x-amz-server-side-encryption-aws-kms-key-id header explicitly, you can only
+	// specify it with the ID (Key ID or Key ARN) of the KMS customer managed key
+	// that's configured for your directory bucket's default encryption setting.
+	// Otherwise, you get an HTTP 400 Bad Request error. Only use the key ID or key
+	// ARN. The key alias format of the KMS key isn't supported. Your SSE-KMS
 	// configuration can only support 1 [customer managed key]per directory bucket for the lifetime of the
-	// bucket. [Amazon Web Services managed key]( aws/s3 ) isn't supported.
+	// bucket. The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
 	//
 	// [customer managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk
 	// [Amazon Web Services managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#aws-managed-cmk

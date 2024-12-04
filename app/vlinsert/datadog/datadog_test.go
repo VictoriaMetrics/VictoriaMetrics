@@ -1,12 +1,10 @@
 package datadog
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 )
 
 func TestReadLogsRequestFailure(t *testing.T) {
@@ -15,16 +13,12 @@ func TestReadLogsRequestFailure(t *testing.T) {
 
 		ts := time.Now().UnixNano()
 
-		processLogMessage := func(timestamp int64, fields []logstorage.Field) {
-			t.Fatalf("unexpected call to processLogMessage with timestamp=%d, fields=%s", timestamp, fields)
-		}
-
-		rows, err := readLogsRequest(ts, []byte(data), processLogMessage)
-		if err == nil {
+		lmp := &insertutils.TestLogMessageProcessor{}
+		if err := readLogsRequest(ts, []byte(data), lmp); err == nil {
 			t.Fatalf("expecting non-empty error")
 		}
-		if rows != 0 {
-			t.Fatalf("unexpected non-zero rows=%d", rows)
+		if err := lmp.Verify(nil, ""); err != nil {
+			t.Fatalf("unexpected error: %s", err)
 		}
 	}
 	f("foobar")
@@ -39,30 +33,16 @@ func TestReadLogsRequestSuccess(t *testing.T) {
 		t.Helper()
 
 		ts := time.Now().UnixNano()
-		var result string
-		processLogMessage := func(_ int64, fields []logstorage.Field) {
-			a := make([]string, len(fields))
-			for i, f := range fields {
-				a[i] = fmt.Sprintf("%q:%q", f.Name, f.Value)
-			}
-			if len(result) > 0 {
-				result = result + "\n"
-			}
-			s := "{" + strings.Join(a, ",") + "}"
-			result += s
+		var timestampsExpected []int64
+		for i := 0; i < rowsExpected; i++ {
+			timestampsExpected = append(timestampsExpected, ts)
 		}
-
-		// Read the request without compression
-		rows, err := readLogsRequest(ts, []byte(data), processLogMessage)
-		if err != nil {
+		lmp := &insertutils.TestLogMessageProcessor{}
+		if err := readLogsRequest(ts, []byte(data), lmp); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if rows != rowsExpected {
-			t.Fatalf("unexpected rows read; got %d; want %d", rows, rowsExpected)
-		}
-
-		if result != resultExpected {
-			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
+		if err := lmp.Verify(timestampsExpected, resultExpected); err != nil {
+			t.Fatalf("unexpected error: %s", err)
 		}
 	}
 

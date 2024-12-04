@@ -15,7 +15,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Set the logging parameters for a bucket and to specify permissions for who can
 // view and modify the logging parameters. All logs are saved to buckets in the

@@ -120,6 +120,11 @@ func (app *app) Stop() {
 	}
 }
 
+// Name returns the application instance name.
+func (app *app) Name() string {
+	return app.instance
+}
+
 // String returns the string representation of the app state.
 func (app *app) String() string {
 	return fmt.Sprintf("{instance: %q binary: %q flags: %q}", app.instance, app.binary, app.flags)
@@ -238,9 +243,15 @@ func newREExtractor(re *regexp.Regexp, timeout <-chan time.Time) *reExtractor {
 // the function will block.
 func (x *reExtractor) extractRE(line string) bool {
 	submatch := x.re.FindSubmatch([]byte(line))
-	if len(submatch) == 2 {
+	if len(submatch) > 0 {
+		// Some regexps are used to just find a match without submatches.
+		result := ""
+		if len(submatch) > 1 {
+			// But if submatches have been found, return the first one.
+			result = string(submatch[1])
+		}
 		select {
-		case x.result <- string(submatch[1]):
+		case x.result <- result:
 		case <-x.timeout:
 		}
 		return true
