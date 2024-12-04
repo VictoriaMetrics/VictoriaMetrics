@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): add service discovery support for [Marathon](https://mesosphere.github.io/marathon/). See [these docs](https://docs.victoriametrics.com/sd_configs/#marathon_sd_configs) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6642).
+
 ## [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
 
 Released at 2024-11-29
