@@ -103,6 +103,7 @@ func getAppLabels(app *app) []*promutils.Labels {
 	}
 
 	labelss := make([]*promutils.Labels, 0, len(app.Tasks))
+
 	// Gather info about the app's 'tasks'. Each instance (container) is considered a task
 	// and can be reachable at one or more host:port endpoints.
 	for _, t := range app.Tasks {
