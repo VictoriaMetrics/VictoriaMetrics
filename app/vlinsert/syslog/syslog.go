@@ -436,7 +436,6 @@ func processUncompressedStream(r io.Reader, useLocalTimestamp bool, lmp insertut
 			return fmt.Errorf("cannot read line #%d: %s", n, err)
 		}
 		n++
-		rowsIngestedTotal.Inc()
 	}
 	return slr.Error()
 }
@@ -577,8 +576,6 @@ func processLine(line []byte, currentYear int, timezone *time.Location, useLocal
 var msgFields = []string{"message"}
 
 var (
-	rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="syslog"}`)
-
 	errorsTotal = metrics.NewCounter(`vl_errors_total{type="syslog"}`)
 
 	udpRequestsTotal = metrics.NewCounter(`vl_udp_reqests_total{type="syslog"}`)

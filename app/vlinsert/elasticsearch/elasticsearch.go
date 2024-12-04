@@ -128,7 +128,6 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 
 var (
 	bulkRequestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/elasticsearch/_bulk"}`)
-	rowsIngestedTotal   = metrics.NewCounter(`vl_rows_ingested_total{type="elasticsearch_bulk"}`)
 	bulkRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
 )
 
@@ -150,19 +149,13 @@ func readBulkRequest(streamName string, r io.Reader, isGzip bool, timeField stri
 	lr := insertutils.NewLineReader(streamName, wcr)
 
 	n := 0
-	nCheckpoint := 0
 	for {
 		ok, err := readBulkLine(lr, timeField, msgFields, lmp)
 		wcr.DecConcurrency()
 		if err != nil || !ok {
-			rowsIngestedTotal.Add(n - nCheckpoint)
 			return n, err
 		}
 		n++
-		if batchSize := n - nCheckpoint; n >= 1000 {
-			rowsIngestedTotal.Add(batchSize)
-			nCheckpoint = n
-		}
 	}
 }
 

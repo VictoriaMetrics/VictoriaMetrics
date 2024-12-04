@@ -155,7 +155,8 @@ type logMessageProcessor struct {
 	cp *CommonParams
 	lr *logstorage.LogRows
 
-	processedBytesTotal *metrics.Counter
+	rowsIngestedTotal  *metrics.Counter
+	bytesIngestedTotal *metrics.Counter
 }
 
 func (lmp *logMessageProcessor) initPeriodicFlush() {
@@ -189,8 +190,9 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 	lmp.mu.Lock()
 	defer lmp.mu.Unlock()
 
+	lmp.rowsIngestedTotal.Inc()
 	n := getApproxJSONRowLen(fields)
-	lmp.processedBytesTotal.Add(n)
+	lmp.bytesIngestedTotal.Add(n)
 
 	if len(fields) > *MaxFieldsPerLine {
 		rf := logstorage.RowFormatter(fields)
@@ -244,12 +246,14 @@ func (lmp *logMessageProcessor) MustClose() {
 // MustClose() must be called on the returned LogMessageProcessor when it is no longer needed.
 func (cp *CommonParams) NewLogMessageProcessor(protocolName string) LogMessageProcessor {
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.ExtraFields, *defaultMsgValue)
-	processedBytesTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vl_bytes_ingested_total{type=%q}", protocolName))
+	rowsIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vl_rows_ingested_total{type=%q}", protocolName))
+	bytesIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vl_bytes_ingested_total{type=%q}", protocolName))
 	lmp := &logMessageProcessor{
 		cp: cp,
 		lr: lr,
 
-		processedBytesTotal: processedBytesTotal,
+		rowsIngestedTotal:  rowsIngestedTotal,
+		bytesIngestedTotal: bytesIngestedTotal,
 
 		stopCh: make(chan struct{}),
 	}

@@ -50,23 +50,21 @@ func TestParseProtobufRequest_Success(t *testing.T) {
 		t.Helper()
 
 		tlp := &testLogMessageProcessor{}
-		n, err := parseJSONRequest([]byte(s), tlp)
-		if err != nil {
+		if err := parseJSONRequest([]byte(s), tlp); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if n != len(tlp.pr.Streams) {
-			t.Fatalf("unexpected number of streams; got %d; want %d", len(tlp.pr.Streams), n)
+		if len(tlp.pr.Streams) != len(timestampsExpected) {
+			t.Fatalf("unexpected number of streams; got %d; want %d", len(tlp.pr.Streams), len(timestampsExpected))
 		}
 
 		data := tlp.pr.MarshalProtobuf(nil)
 		encodedData := snappy.Encode(nil, data)
 
 		tlp2 := &insertutils.TestLogMessageProcessor{}
-		n, err = parseProtobufRequest(encodedData, tlp2)
-		if err != nil {
+		if err := parseProtobufRequest(encodedData, tlp2); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if err := tlp2.Verify(n, timestampsExpected, resultExpected); err != nil {
+		if err := tlp2.Verify(timestampsExpected, resultExpected); err != nil {
 			t.Fatal(err)
 		}
 	}
