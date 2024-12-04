@@ -5,6 +5,54 @@ import (
 	"testing"
 )
 
+func TestLogRows_StreamFieldsOverride(t *testing.T) {
+	f := func(rows []string, streamFields []Field, resultExpected []string) {
+		t.Helper()
+
+		lr := GetLogRows(nil, nil, nil, "foobar")
+		defer PutLogRows(lr)
+
+		tid := TenantID{
+			AccountID: 123,
+			ProjectID: 456,
+		}
+
+		p := GetJSONParser()
+		defer PutJSONParser(p)
+		for i, r := range rows {
+			if err := p.ParseLogMessage([]byte(r)); err != nil {
+				t.Fatalf("unexpected error when parsing %q: %s", r, err)
+			}
+			timestamp := int64(i)*1_000 + 1
+			lr.MustAdd(tid, timestamp, p.Fields, streamFields)
+		}
+
+		var result []string
+		for i := range rows {
+			s := lr.GetRowString(i)
+			result = append(result, s)
+		}
+		if !reflect.DeepEqual(result, resultExpected) {
+			t.Fatalf("unexpected result\ngot\n%v\nwant\n%v", result, resultExpected)
+		}
+	}
+
+	f([]string{
+		`{"foo":"bar","_msg":"abc"}`,
+		`{"xyz":"bar","_msg":"abc"}`,
+		`{"xyz":"123","_msg":"abc"}`,
+	}, []Field{
+		{
+			Name:  "xyz",
+			Value: "123",
+		},
+	}, []string{
+		`{"_msg":"abc","_stream":"{xyz=\"123\"}","_time":"1970-01-01T00:00:00.000000001Z","foo":"bar"}`,
+		`{"_msg":"abc","_stream":"{xyz=\"123\"}","_time":"1970-01-01T00:00:00.000001001Z","xyz":"bar"}`,
+		`{"_msg":"abc","_stream":"{xyz=\"123\"}","_time":"1970-01-01T00:00:00.000002001Z","xyz":"123"}`,
+	})
+}
+
 func TestLogRows_DefaultMsgValue(t *testing.T) {
 	type opts struct {
 		rows []string
@@ -35,7 +83,7 @@ func TestLogRows_DefaultMsgValue(t *testing.T) {
 				t.Fatalf("unexpected error when parsing %q: %s", r, err)
 			}
 			timestamp := int64(i)*1_000 + 1
-			lr.MustAdd(tid, timestamp, p.Fields)
+			lr.MustAdd(tid, timestamp, p.Fields, nil)
 		}
 
 		var result []string

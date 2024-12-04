@@ -13,35 +13,36 @@ VictoriaLogs supports both client open-telemetry [SDK](https://opentelemetry.io/
 
 ## Client SDK
 
- Specify `EndpointURL`  for http-exporter builder.
+Specify `EndpointURL` for http-exporter builder to `/insert/opentelemetry/v1/logs`.
 
-Consider the following example for `golang` `SDK`:
-
-```go
- // Create the OTLP log exporter that sends logs to configured destination
- logExporter, err := otlploghttp.New(ctx,
-  otlploghttp.WithEndpointURL("http://victorialogs:9428/insert/opentelemetry/v1/logs"),
- )
-```
-
- Optionally, [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) could be defined via headers:
+Consider the following example for Go SDK:
 
 ```go
- // Create the OTLP log exporter that sends logs to configured destination
- logExporter, err := otlploghttp.New(ctx,
-  otlploghttp.WithEndpointURL("http://victorialogs:9428/insert/opentelemetry/v1/logs"),
-   otlploghttp.WithHeaders(map[string]string{"VL-Stream-Fields": "telemetry.sdk.language,severity"}),
- )
-
+logExporter, err := otlploghttp.New(ctx,
+	otlploghttp.WithEndpointURL("http://victorialogs:9428/insert/opentelemetry/v1/logs"),
+)
 ```
 
- Given config defines 2 stream fields - `severity` and `telemetry.sdk.language`.
+VictoriaLogs treats all the resource labels as [log stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+The list of log stream fields can be overriden via `VL-Stream-Fields` HTTP header if needed. For example, the following config uses only `host` and `app`
+labels as log stream fields, while the remaining labels are stored as [regular log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
 
-See also [HTTP headers](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-headers)
+```go
+logExporter, err := otlploghttp.New(ctx,
+	otlploghttp.WithEndpointURL("http://victorialogs:9428/insert/opentelemetry/v1/logs"),
+	otlploghttp.WithHeaders(map[string]string{
+		"VL-Stream-Fields": "host,app",
+	}),
+)
+```
+
+VictoriaLogs supports other HTTP headers - see the list [here](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-headers).
+
+The ingested log entries can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
 ## Collector configuration
 
-VictoriaLogs supports given below OpenTelemetry collector exporters:
+VictoriaLogs supports receiving logs from the following OpenTelemetry collectors:
 
 * [Elasticsearch](#elasticsearch)
 * [Loki](#loki)
@@ -54,8 +55,6 @@ exporters:
   elasticsearch:
     endpoints:
       - http://victorialogs:9428/insert/elasticsearch
-    headers:
-      VL-Msg-Field: "Body" # Optional.
 receivers:
   filelog:
     include: [/tmp/logs/*.log]
@@ -68,14 +67,20 @@ service:
       exporters: [elasticsearch]
 ```
 
-Please note that every ingested log entry **must** contain at least a `_msg` field with the actual log message. By default, 
-the Elasticsearch exporter may place the log message in the `Body` field. In this case, you can specify the field mapping via:
+If Elasticsearch stores the log message in the field other than [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
+then it can be moved to `_msg` field by using the `VL-Msg-Field` HTTP header. For example, if the log message is stored in the `Body` field,
+then it can be moved to `_msg` field via the following config:
+
 ```yaml
+exporters:
+  elasticsearch:
+    endpoints:
+      - http://victorialogs:9428/insert/elasticsearch
     headers:
-      VL-Msg-Field: "Body"
+      VL-Msg-Field: Body
 ```
 
-VictoriaLogs also support specify `AccountID`, `ProjectID`, log timestamp and other fields via [HTTP headers](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-headers).
+VictoriaLogs supports other HTTP headers - see the list [here](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-headers).
 
 ### Loki
 
@@ -98,7 +103,7 @@ service:
 ### OpenTelemetry
 
 Specify logs endpoint for [OTLP/HTTP exporter](https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlphttpexporter/README.md) in configuration file
-for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
+for sending the collected logs to VictoriaLogs:
 
 ```yaml
 exporters:
@@ -106,21 +111,16 @@ exporters:
     logs_endpoint: http://localhost:9428/insert/opentelemetry/v1/logs
 ```
 
- Optionally, [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) could be defined via headers:
+VictoriaLogs supports various HTTP headers, which can be used during data ingestion - see the list [here](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-headers).
+These headers can be pssed to OpenTelemetry exporter config via `headers` options. For example, the following config instructs ignoring `foo` and `bar` fields during data ingestion:
 
 ```yaml
 exporters:
   otlphttp:
     logs_endpoint: http://localhost:9428/insert/opentelemetry/v1/logs
     headers:
-      VL-Stream-Fields: telemetry.sdk.language,severity
+      VL-Ignore-Fields: foo,bar
 ```
-
-See also [HTTP headers](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-headers)
-
-Substitute `localhost:9428` address inside `exporters.otlphttp.logs_endpoint` with the real address of VictoriaLogs.
-
-The ingested log entries can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
 See also:
 

@@ -28,7 +28,7 @@ func benchmarkParseJSONRequest(b *testing.B, streams, rows, labels int) {
 	b.RunParallel(func(pb *testing.PB) {
 		data := getJSONBody(streams, rows, labels)
 		for pb.Next() {
-			if err := parseJSONRequest(data, blp); err != nil {
+			if err := parseJSONRequest(data, blp, false); err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
 			}
 		}

@@ -104,7 +104,7 @@ func readLine(lr *insertutils.LineReader, timeField string, msgFields []string, 
 		return false, fmt.Errorf("cannot get timestamp: %w", err)
 	}
 	logstorage.RenameField(p.Fields, msgFields, "_msg")
-	lmp.AddRow(ts, p.Fields)
+	lmp.AddRow(ts, p.Fields, nil)
 	logstorage.PutJSONParser(p)
 
 	return true, nil

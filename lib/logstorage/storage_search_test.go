@@ -75,7 +75,7 @@ func TestStorageRunQuery(t *testing.T) {
 						Name:  "stream-id",
 						Value: streamIDValue,
 					})
-					lr.MustAdd(tenantID, timestamp, fields)
+					lr.MustAdd(tenantID, timestamp, fields, nil)
 				}
 				s.MustAddRows(lr)
 				PutLogRows(lr)
@@ -843,7 +843,7 @@ func TestStorageSearch(t *testing.T) {
 						Name:  "source-file",
 						Value: "/foo/bar/baz",
 					})
-					lr.MustAdd(tenantID, timestamp, fields)
+					lr.MustAdd(tenantID, timestamp, fields, nil)
 				}
 				s.MustAddRows(lr)
 				PutLogRows(lr)
