@@ -44,6 +44,9 @@ func NewLineReader(name string, r io.Reader) *LineReader {
 // NextLine reads the next line from the underlying reader.
 //
 // It returns true if the next line is successfully read into Line.
+// If the line length exceeds MaxLineSizeBytes, then this line is skipped
+// and an empty line is returned instead.
+//
 // If false is returned, then no more lines left to read from r.
 // Check for Err in this case.
 func (lr *LineReader) NextLine() bool {
@@ -122,7 +125,10 @@ func (lr *LineReader) skipUntilNextLine() bool {
 			return false
 		}
 		if n := bytes.IndexByte(lr.buf, '\n'); n >= 0 {
-			lr.buf = append(lr.buf[:0], lr.buf[n+1:]...)
+			// Include \n in the buf, so too long line is replaced with an empty line.
+			// This is needed for maintaining synchorinzation consistency between lines
+			// in protocols such as Elasticsearch bulk import.
+			lr.buf = append(lr.buf[:0], lr.buf[n:]...)
 			return true
 		}
 	}
