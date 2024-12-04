@@ -186,8 +186,14 @@ func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompbmarshal.L
 	h := xxhash.Sum64(buf)
 	ctx.labelsBuf = buf
 
-	// Do not exclude unavailable storage nodes in order to properly account for rerouted rows in storageNode.push().
-	idx := ctx.snb.nodesHash.getNodeIdx(h, nil)
+	// Exclude long-broken storage nodes.
+	var excludeIdxs []int
+	for i := range ctx.snb.sns {
+		if ctx.snb.sns[i].isExcluded() {
+			excludeIdxs = append(excludeIdxs, i)
+		}
+	}
+	idx := ctx.snb.nodesHash.getNodeIdx(h, excludeIdxs)
 	return idx
 }
 

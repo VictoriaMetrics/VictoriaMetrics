@@ -31,7 +31,7 @@ var (
 	replicationFactor     = flag.Int("replicationFactor", 1, "Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. "+
 		"Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. "+
 		"Higher values for -dedup.minScrapeInterval at vmselect is OK")
-	disableRerouting      = flag.Bool("disableRerouting", true, "Whether to disable re-routing when some of vmstorage nodes accept incoming data at slower speed compared to other storage nodes. Disabled re-routing limits the ingestion rate by the slowest vmstorage node. On the other side, disabled re-routing minimizes the number of active time series in the cluster during rolling restarts and during spikes in series churn rate. See also -disableReroutingOnUnavailable and -dropSamplesOnOverload")
+	_                     = flag.Bool("disableRerouting", true, "This option is deprecated and has no effect. See also -disableReroutingOnUnavailable and -dropSamplesOnOverload.")
 	dropSamplesOnOverload = flag.Bool("dropSamplesOnOverload", false, "Whether to drop incoming samples if the destination vmstorage node is overloaded and/or unavailable. This prioritizes cluster availability over consistency, e.g. the cluster continues accepting all the ingested samples, but some of them may be dropped if vmstorage nodes are temporarily unavailable and/or overloaded. The drop of samples happens before the replication, so it's not recommended to use this flag with -replicationFactor enabled.")
 	vmstorageDialTimeout  = flag.Duration("vmstorageDialTimeout", 3*time.Second, "Timeout for establishing RPC connections from vminsert to vmstorage. "+
 		"See also -vmstorageUserTimeout")
@@ -44,12 +44,23 @@ var (
 		"On the other side, disabled re-routing minimizes the number of active time series in the cluster "+
 		"during rolling restarts and during spikes in series churn rate. "+
 		"See also -disableRerouting")
+	rerouteDelay = flag.Duration("rerouteDelay", 15*time.Second, "The maximum time the system waits for vmstorage nodes to become available before re-routing the data to other vmstorage nodes, minimum value is 1s and rounding to seconds")
 )
 
 var errStorageReadOnly = errors.New("storage node is read only")
 
 func (sn *storageNode) isReady() bool {
 	return !sn.isBroken.Load() && !sn.isReadOnly.Load()
+}
+
+func (sn *storageNode) isExcluded() bool {
+	return sn.isBroken.Load() && fasttime.UnixTimestamp()-sn.brokenAt.Load() > uint64(*rerouteDelay/time.Second)
+}
+
+func (sn *storageNode) setBroken(isBroken bool) {
+	if sn.isBroken.Swap(isBroken) {
+		sn.brokenAt.Store(fasttime.UnixTimestamp())
+	}
 }
 
 // push pushes buf to sn internal bufs.
@@ -110,13 +121,32 @@ again:
 		}
 		sn.brLock.Unlock()
 
-		// The vmstorage node isn't ready for data processing. Re-route buf to healthy vmstorage nodes even if disableRerouting is set.
-		rowsProcessed, err := rerouteRowsToReadyStorageNodes(snb, sn, buf)
-		rows -= rowsProcessed
-		if err != nil {
-			return fmt.Errorf("%d rows dropped because the current vsmtorage is unavailable and %w", rows, err)
+		// Reroute buf to healthy vmstorage nodes if the current node is broken for too long.
+		timeout := fasttime.UnixTimestamp() - sn.brokenAt.Load() + uint64(*rerouteDelay/time.Second)
+		if timeout <= 0 || sn.isReadOnly.Load() {
+			rowsProcessed, err := rerouteRowsToReadyStorageNodes(snb, sn, buf)
+			rows -= rowsProcessed
+			if err != nil {
+				return fmt.Errorf("%d rows dropped because the current vsmtorage is unavailable and %w", rows, err)
+			}
+			return nil
 		}
-		return nil
+
+		// Wait for the vmstorage node to change its state, or... timeout.
+		waitCh := make(chan struct{})
+		go func() {
+			sn.brCond.Wait()
+			close(waitCh)
+		}()
+
+		t := timerpool.Get(time.Duration(timeout) * time.Second)
+		select {
+		case <-sn.stopCh:
+			goto again
+		case <-waitCh:
+			goto again
+		case <-t.C:
+		}
 	}
 
 	if len(sn.br.buf)+len(buf) <= maxBufSizePerStorageNode {
@@ -127,7 +157,7 @@ again:
 		return nil
 	}
 	// Slow path: the buf contents doesn't fit sn.buf, so try re-routing it to other vmstorage nodes.
-	if *disableRerouting || len(sns) == 1 {
+	if len(sns) == 1 {
 		sn.brCond.Wait()
 		goto again
 	}
@@ -270,7 +300,7 @@ func (sn *storageNode) checkHealth() {
 	}
 	bc, err := sn.dial()
 	if err != nil {
-		sn.isBroken.Store(true)
+		sn.setBroken(true)
 		sn.brCond.Broadcast()
 		if sn.lastDialErr == nil {
 			// Log the error only once.
@@ -282,7 +312,7 @@ func (sn *storageNode) checkHealth() {
 	logger.Infof("successfully dialed -storageNode=%q", sn.dialer.Addr())
 	sn.lastDialErr = nil
 	sn.bc = bc
-	sn.isBroken.Store(false)
+	sn.setBroken(false)
 	sn.brCond.Broadcast()
 }
 
@@ -324,7 +354,7 @@ func (sn *storageNode) sendBufRowsNonblocking(br *bufRows) bool {
 		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
 	}
 	sn.bc = nil
-	sn.isBroken.Store(true)
+	sn.setBroken(true)
 	sn.brCond.Broadcast()
 	sn.connectionErrors.Inc()
 	return false
@@ -413,6 +443,7 @@ type storageNode struct {
 	// isBroken is set to true if the given vmstorage node is temporarily unhealthy.
 	// In this case the data is re-routed to the remaining healthy vmstorage nodes.
 	isBroken atomic.Bool
+	brokenAt atomic.Uint64
 
 	// isReadOnly is set to true if the given vmstorage node is read only
 	// In this case the data is re-routed to the remaining healthy vmstorage nodes.
@@ -582,6 +613,11 @@ func initStorageNodes(unsortedAddrs []string, hashSeed uint64) *storageNodesBuck
 		maxBufSizePerStorageNode = consts.MaxInsertPacketSizeForVMInsert
 	}
 
+	*rerouteDelay = (*rerouteDelay).Round(time.Second)
+	if *rerouteDelay < time.Second {
+		*rerouteDelay = time.Second
+	}
+
 	metrics.RegisterSet(ms)
 	var wg sync.WaitGroup
 	snb := &storageNodesBucket{
@@ -649,17 +685,6 @@ func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNo
 			// re-generate idxsExclude list, since sn must be put there.
 			idxsExclude = getNotReadyStorageNodeIdxsBlocking(snb, idxsExclude[:0])
 		}
-		if *disableRerouting {
-			if !sn.sendBufMayBlock(rowBuf) {
-				return rowsProcessed, fmt.Errorf("graceful shutdown started")
-			}
-			rowsProcessed++
-			if sn != snSource {
-				snSource.rowsReroutedFromHere.Inc()
-				sn.rowsReroutedToHere.Inc()
-			}
-			continue
-		}
 	again:
 		if sn.trySendBuf(rowBuf, 1) {
 			rowsProcessed++
@@ -694,9 +719,6 @@ func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNo
 // It is expected than *disableRerouting isn't set when calling this function.
 // It is expected that len(snb.sns) >= 2
 func rerouteRowsToFreeStorageNodes(snb *storageNodesBucket, snSource *storageNode, src []byte) (int, error) {
-	if *disableRerouting {
-		logger.Panicf("BUG: disableRerouting must be disabled when calling rerouteRowsToFreeStorageNodes")
-	}
 	sns := snb.sns
 	if len(sns) < 2 {
 		logger.Panicf("BUG: the number of storage nodes is too small for calling rerouteRowsToFreeStorageNodes: %d", len(sns))
@@ -864,7 +886,7 @@ func (sn *storageNode) checkReadOnlyMode() {
 		cannotCloseStorageNodeConnLogger.Warnf("cannot close connection to storageNode %q: %s", sn.dialer.Addr(), err)
 	}
 	sn.bc = nil
-	sn.isBroken.Store(true)
+	sn.setBroken(true)
 	sn.brCond.Broadcast()
 	sn.connectionErrors.Inc()
 }
