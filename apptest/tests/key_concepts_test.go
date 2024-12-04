@@ -206,24 +206,25 @@ func testRangeQueryIsEquivalentToManyInstantQueries(t *testing.T, q at.Prometheu
 	f("2022-05-10T08:17:00.000Z", rangeSamples[16])
 }
 
-func TestSingleInconsistentMillisPrecisionInInstantQueries(t *testing.T) {
+func TestSingleMillisecondPrecisionInInstantQueries(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
+	// vmsingle with default flags
 	sut := tc.MustStartDefaultVmsingle()
-	testInconsistentMillisPrecisionInInstantQueries(t, tc, sut)
+	testMillisecondPrecisionInInstantQueries(t, tc, sut)
 }
 
-func TestClusterInconsistentMillisPrecisionInInstantQueries(t *testing.T) {
+func TestClusterMillisecondPrecisionInInstantQueries(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
 	sut := tc.MustStartDefaultCluster()
-	testInconsistentMillisPrecisionInInstantQueries(t, tc, sut)
+	testMillisecondPrecisionInInstantQueries(t, tc, sut)
 }
 
 // See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5796
-func testInconsistentMillisPrecisionInInstantQueries(t *testing.T, tc *at.TestCase, sut at.PrometheusWriteQuerier) {
+func testMillisecondPrecisionInInstantQueries(t *testing.T, tc *at.TestCase, sut at.PrometheusWriteQuerier) {
 	type opts struct {
 		query       string
 		qtime       string
@@ -344,11 +345,11 @@ func testInconsistentMillisPrecisionInInstantQueries(t *testing.T, tc *at.TestCa
 	}, at.QueryOpts{})
 	sut.ForceFlush(t)
 
-	// The difference in ms between the two timestamps is 4236579304. However,
-	// an instant query with a duration of that difference + 1ms, anchored at
-	// the time of the last point, will only produce the last point.
+	// The difference in ms between the two timestamps is 4236579304.
+	// Both Prometheus and VictoriaMetrics exclude the leftmost millisecond,
+	// thus the following queries must return only one sample.
 	f(&opts{
-		query:      "series2[4236579305ms]",
+		query:      "series2[4236579304ms]",
 		qtime:      "1642801537346",
 		step:       "1ms",
 		wantMetric: map[string]string{"__name__": "series2", "label": "foo"},
@@ -356,20 +357,19 @@ func testInconsistentMillisPrecisionInInstantQueries(t *testing.T, tc *at.TestCa
 			{Timestamp: 1642801537346, Value: 20},
 		},
 	})
-
-	// count_over_time will return 1 instead of 2
 	f(&opts{
-		query:      "count_over_time(series2[4236579305ms])",
+		query:      "count_over_time(series2[4236579304ms])",
 		qtime:      "1642801537346", // 2022-01-21T21:45:37.346Z
 		step:       "1ms",
 		wantMetric: map[string]string{"label": "foo"},
 		wantSample: &at.Sample{Timestamp: 1642801537346, Value: 1},
 	})
 
-	// Adding 1ms to the duration (4236579306ms) does return 2
+	// Adding 1ms to the duration (4236579305ms) causes queries to return 2
+	// samples.
 	f(&opts{
-		query:      "series2[4236579306ms]",
-		qtime:      "1642801537346", // 2022-01-21T21:45:37.346Z
+		query:      "series2[4236579305ms]",
+		qtime:      "1642801537346",
 		step:       "1ms",
 		wantMetric: map[string]string{"__name__": "series2", "label": "foo"},
 		wantSamples: []*at.Sample{
@@ -378,7 +378,7 @@ func testInconsistentMillisPrecisionInInstantQueries(t *testing.T, tc *at.TestCa
 		},
 	})
 	f(&opts{
-		query:      "count_over_time(series2[4236579306ms])",
+		query:      "count_over_time(series2[4236579305ms])",
 		qtime:      "1642801537346", // 2022-01-21T21:45:37.346Z
 		step:       "1ms",
 		wantMetric: map[string]string{"label": "foo"},
