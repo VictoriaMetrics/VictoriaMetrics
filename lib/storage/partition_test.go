@@ -150,3 +150,39 @@ func newTestPartWrappersForSizes(sizes []uint64) []*partWrapper {
 	}
 	return pws
 }
+
+func TestMergeInMemoryPartsEmptyResult(t *testing.T) {
+	pt := &partition{}
+	s := newTestStorage()
+	s.retentionMsecs = 1000
+	defer stopTestStorage(s)
+	pt.s = s
+	var pws []*partWrapper
+
+	const (
+		inMemoryPartsCount = 5
+		rowsCount          = 10
+	)
+
+	for range inMemoryPartsCount {
+		rows := make([]rawRow, rowsCount)
+		for i := range rowsCount {
+			rows[i].TSID = TSID{
+				MetricID: uint64(i),
+			}
+			rows[i].Value = float64(i)
+			rows[i].Timestamp = int64(i)
+			rows[i].PrecisionBits = 64
+		}
+
+		pws = append(pws, &partWrapper{
+			mp: newTestInmemoryPart(rows),
+			p:  &part{},
+		})
+	}
+
+	pwsNew := pt.mustMergeInmemoryParts(pws)
+	if len(pwsNew) != 0 {
+		t.Fatalf("unexpected non-empty pwsNew: %d", len(pwsNew))
+	}
+}

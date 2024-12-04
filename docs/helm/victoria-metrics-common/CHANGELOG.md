@@ -4,6 +4,155 @@
 
 - TODO
 
+## 0.0.33
+
+**Release date:** 2024-11-28
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- use container port instead of service one in `vm.host` template, while appIdx is defined
+- expect tls extraArg parameter as boolean value
+
+## 0.0.32
+
+**Release date:** 2024-11-25
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- removed suffix, that starts with `@sha` from app version label. see [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1801).
+
+## 0.0.31
+
+**Release date:** 2024-11-21
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fixed minor typo in vm.labels
+
+## 0.0.30
+
+**Release date:** 2024-11-21
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- support template rendering in `vm.app.name` template
+
+## 0.0.29
+
+**Release date:** 2024-11-19
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Allow lookup in context root for `vm.url`, `vm.host` templates
+
+## 0.0.28
+
+**Release date:** 2024-11-14
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Allow lookup in context root for `vm.url`, `vm.host` templates
+
+## 0.0.27
+
+**Release date:** 2024-11-14
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fail fullname templates if data for appKey is not found
+- find by appKey in Values and context root
+
+## 0.0.26
+
+**Release date:** 2024-11-14
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- do not append key only if it's passed to a template
+
+## 0.0.25
+
+**Release date:** 2024-11-12
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fixed adding suffix for `vm.plain.fullname`
+
+## 0.0.24
+
+**Release date:** 2024-11-12
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Disabled impact of `<component>.name` on resource name to avoid confusion
+- Fixed `vm.app.name` template for appCtx that contains slice
+
+## 0.0.23
+
+**Release date:** 2024-11-08
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fix: context cleanup
+
+## 0.0.22
+
+**Release date:** 2024-11-08
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Removed unused cases from `vm.fullname`
+
+## 0.0.21
+
+**Release date:** 2024-11-07
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Added ability to disable name truncation
+- Truncate `/` from `vm.url` output
+
+## 0.0.20
+
+**Release date:** 2024-11-06
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Fixed boolean args rendering
+
+## 0.0.19
+
+**Release date:** 2024-11-04
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- TODO
+
+## 0.0.18
+
+**Release date:** 2024-10-29
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- vm.managed.fullname template modify prefixes
+
+## 0.0.17
+
+**Release date:** 2024-10-25
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Added vm.podLabels template
+- Do no append default `<component>` prefix/suffix when `<component>.fullnameOverride` set
+
+## 0.0.16
+
+**Release date:** 2024-10-15
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Allow extract name prefix from app level fullnameOverride property
+
 ## 0.0.15
 
 **Release date:** 2024-10-11

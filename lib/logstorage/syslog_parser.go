@@ -240,6 +240,12 @@ func (p *SyslogParser) parseRFC5424SDLine(s string) (string, bool) {
 	sdID := s[:n]
 	s = s[n:]
 
+	if n := strings.IndexByte(sdID, '='); n >= 0 {
+		// Special case when sdID contains `key=value`
+		p.addField(sdID[:n], sdID[n+1:])
+		sdID = ""
+	}
+
 	// Parse structured data
 	i := 0
 	for i < len(s) && s[i] != ']' {
@@ -257,11 +263,19 @@ func (p *SyslogParser) parseRFC5424SDLine(s string) (string, bool) {
 		i += n + 1
 
 		// Parse value
-		qp, err := strconv.QuotedPrefix(s[i:])
-		if err != nil {
-			return s, false
+		if strings.HasPrefix(s[i:], `"`) {
+			qp, err := strconv.QuotedPrefix(s[i:])
+			if err != nil {
+				return s, false
+			}
+			i += len(qp)
+		} else {
+			n := strings.IndexAny(s[i:], " ]")
+			if n < 0 {
+				return s, false
+			}
+			i += n
 		}
-		i += len(qp)
 	}
 	if i == len(s) {
 		return s, false
@@ -272,9 +286,16 @@ func (p *SyslogParser) parseRFC5424SDLine(s string) (string, bool) {
 	p.sdParser.parse(sdValue)
 	if len(p.sdParser.fields) == 0 {
 		// Special case when structured data doesn't contain any fields
-		p.addField(sdID, "")
+		if sdID != "" {
+			p.addField(sdID, "")
+		}
 	} else {
 		for _, f := range p.sdParser.fields {
+			if sdID == "" {
+				p.addField(f.Name, f.Value)
+				continue
+			}
+
 			bufLen := len(p.buf)
 			p.buf = append(p.buf, sdID...)
 			p.buf = append(p.buf, '.')

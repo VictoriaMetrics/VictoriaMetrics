@@ -73,7 +73,6 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	}
 
 	// Prepare the query for hits count.
-	q.Optimize()
 	q.DropAllPipes()
 	q.AddCountByTimePipe(int64(step), int64(offset), fields)
 
@@ -204,7 +203,6 @@ func ProcessFieldNamesRequest(ctx context.Context, w http.ResponseWriter, r *htt
 	}
 
 	// Obtain field names for the given query
-	q.Optimize()
 	fieldNames, err := vlstorage.GetFieldNames(ctx, tenantIDs, q)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain field names: %s", err)
@@ -244,7 +242,6 @@ func ProcessFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 
 	// Obtain unique values for the given field
-	q.Optimize()
 	values, err := vlstorage.GetFieldValues(ctx, tenantIDs, q, fieldName, uint64(limit))
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain values for field %q: %s", fieldName, err)
@@ -267,7 +264,6 @@ func ProcessStreamFieldNamesRequest(ctx context.Context, w http.ResponseWriter, 
 	}
 
 	// Obtain stream field names for the given query
-	q.Optimize()
 	names, err := vlstorage.GetStreamFieldNames(ctx, tenantIDs, q)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain stream field names: %s", err)
@@ -306,7 +302,6 @@ func ProcessStreamFieldValuesRequest(ctx context.Context, w http.ResponseWriter,
 	}
 
 	// Obtain stream field values for the given query and the given fieldName
-	q.Optimize()
 	values, err := vlstorage.GetStreamFieldValues(ctx, tenantIDs, q, fieldName, uint64(limit))
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain stream field values: %s", err)
@@ -338,7 +333,6 @@ func ProcessStreamIDsRequest(ctx context.Context, w http.ResponseWriter, r *http
 	}
 
 	// Obtain streamIDs for the given query
-	q.Optimize()
 	streamIDs, err := vlstorage.GetStreamIDs(ctx, tenantIDs, q, uint64(limit))
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain stream_ids: %s", err)
@@ -370,7 +364,6 @@ func ProcessStreamsRequest(ctx context.Context, w http.ResponseWriter, r *http.R
 	}
 
 	// Obtain streams for the given query
-	q.Optimize()
 	streams, err := vlstorage.GetStreams(ctx, tenantIDs, q, uint64(limit))
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain streams: %s", err)
@@ -398,7 +391,6 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 			"see https://docs.victoriametrics.com/victorialogs/querying/#live-tailing for details", q)
 		return
 	}
-	q.Optimize()
 
 	refreshIntervalMsecs, err := httputils.GetDuration(r, "refresh_interval", 1000)
 	if err != nil {
@@ -407,13 +399,28 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 	refreshInterval := time.Millisecond * time.Duration(refreshIntervalMsecs)
 
+	startOffsetMsecs, err := httputils.GetDuration(r, "start_offset", 5*1000)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	startOffset := startOffsetMsecs * 1e6
+
+	offsetMsecs, err := httputils.GetDuration(r, "offset", 1000)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	offset := offsetMsecs * 1e6
+
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	tp := newTailProcessor(cancel)
 
 	ticker := time.NewTicker(refreshInterval)
 	defer ticker.Stop()
 
-	end := time.Now().UnixNano()
+	end := time.Now().UnixNano() - offset
+	start := end - startOffset
 	doneCh := ctxWithCancel.Done()
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -421,14 +428,7 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 	}
 	qOrig := q
 	for {
-		start := end - tailOffsetNsecs
-		end = time.Now().UnixNano()
-
-		q = qOrig.Clone(end)
-		q.AddTimeFilter(start, end)
-		// q.Optimize() call is needed for converting '*' into filterNoop.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6785#issuecomment-2358547733
-		q.Optimize()
+		q = qOrig.CloneWithTimeFilter(end, start, end)
 		if err := vlstorage.RunQuery(ctxWithCancel, tenantIDs, q, tp.writeBlock); err != nil {
 			httpserver.Errorf(w, r, "cannot execute tail query [%s]: %s", q, err)
 			return
@@ -447,6 +447,8 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 		case <-doneCh:
 			return
 		case <-ticker.C:
+			start = end - tailOffsetNsecs
+			end = time.Now().UnixNano() - offset
 		}
 	}
 }
@@ -605,8 +607,6 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 		return
 	}
 
-	q.Optimize()
-
 	m := make(map[string]*statsSeries)
 	var mLock sync.Mutex
 
@@ -717,8 +717,6 @@ func ProcessStatsQueryRequest(ctx context.Context, w http.ResponseWriter, r *htt
 		return
 	}
 
-	q.Optimize()
-
 	var rows []statsRow
 	var rowsLock sync.Mutex
 
@@ -818,7 +816,6 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 
 		q.AddPipeLimit(uint64(limit))
 	}
-	q.Optimize()
 
 	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
 		if len(columns) == 0 || len(columns[0].Values) == 0 {
@@ -849,7 +846,6 @@ type row struct {
 func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit int) ([]row, error) {
 	limitUpper := 2 * limit
 	q.AddPipeLimit(uint64(limitUpper))
-	q.Optimize()
 
 	rows, err := getQueryResultsWithLimit(ctx, tenantIDs, q, limitUpper)
 	if err != nil {
@@ -869,11 +865,7 @@ func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, 
 	qOrig := q
 	for {
 		timestamp := qOrig.GetTimestamp()
-		q = qOrig.Clone(timestamp)
-		q.AddTimeFilter(start, end)
-		// q.Optimize() call is needed for converting '*' into filterNoop.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6785#issuecomment-2358547733
-		q.Optimize()
+		q = qOrig.CloneWithTimeFilter(timestamp, start, end)
 		rows, err := getQueryResultsWithLimit(ctx, tenantIDs, q, limitUpper)
 		if err != nil {
 			return nil, err
@@ -977,14 +969,29 @@ func parseCommonArgs(r *http.Request) (*logstorage.Query, []logstorage.TenantID,
 	}
 	tenantIDs := []logstorage.TenantID{tenantID}
 
+	// Parse optional start and end args
+	start, okStart, err := getTimeNsec(r, "start")
+	if err != nil {
+		return nil, nil, err
+	}
+	end, okEnd, err := getTimeNsec(r, "end")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Parse optional time arg
 	timestamp, okTime, err := getTimeNsec(r, "time")
 	if err != nil {
 		return nil, nil, err
 	}
 	if !okTime {
-		// If time arg is missing, then evaluate query at the current timestamp
-		timestamp = time.Now().UnixNano()
+		// If time arg is missing, then evaluate query either at the end timestamp (if it is set)
+		// or at the current timestamp (if end query arg isn't set)
+		if okEnd {
+			timestamp = end
+		} else {
+			timestamp = time.Now().UnixNano()
+		}
 	}
 
 	// decrease timestamp by one nanosecond in order to avoid capturing logs belonging
@@ -998,16 +1005,8 @@ func parseCommonArgs(r *http.Request) (*logstorage.Query, []logstorage.TenantID,
 		return nil, nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
 
-	// Parse optional start and end args
-	start, okStart, err := getTimeNsec(r, "start")
-	if err != nil {
-		return nil, nil, err
-	}
-	end, okEnd, err := getTimeNsec(r, "end")
-	if err != nil {
-		return nil, nil, err
-	}
 	if okStart || okEnd {
+		// Add _time:[start, end] filter if start or end args were set.
 		if !okStart {
 			start = math.MinInt64
 		}
@@ -1016,6 +1015,20 @@ func parseCommonArgs(r *http.Request) (*logstorage.Query, []logstorage.TenantID,
 		}
 		q.AddTimeFilter(start, end)
 	}
+
+	// Parse optional extra_filters
+	extraFilters, err := getExtraFilters(r, "extra_filters")
+	if err != nil {
+		return nil, nil, err
+	}
+	q.AddExtraFilters(extraFilters)
+
+	// Parse optional extra_stream_filters
+	extraStreamFilters, err := getExtraFilters(r, "extra_stream_filters")
+	if err != nil {
+		return nil, nil, err
+	}
+	q.AddExtraStreamFilters(extraStreamFilters)
 
 	return q, tenantIDs, nil
 }
@@ -1031,4 +1044,17 @@ func getTimeNsec(r *http.Request, argName string) (int64, bool, error) {
 		return 0, false, fmt.Errorf("cannot parse %s=%s: %w", argName, s, err)
 	}
 	return nsecs, true, nil
+}
+
+func getExtraFilters(r *http.Request, argName string) ([]logstorage.Field, error) {
+	s := r.FormValue(argName)
+	if s == "" {
+		return nil, nil
+	}
+
+	var p logstorage.JSONParser
+	if err := p.ParseLogMessage([]byte(s)); err != nil {
+		return nil, fmt.Errorf("cannot parse %s: %w", argName, err)
+	}
+	return p.Fields, nil
 }

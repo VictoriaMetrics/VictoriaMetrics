@@ -21,6 +21,18 @@ docs-debug: docs docs-image
 		-p 1313:1313 \
 		-v ./docs:/opt/docs/content vmdocs-docker-package
 
+docs-update-version: docs-image
+	$(if $(filter v%,$(PKG_TAG)), \
+		docker run \
+			--rm \
+			--entrypoint /usr/bin/find \
+			--name vmdocs-docker-container \
+			-v ./docs:/opt/docs/content vmdocs-docker-package \
+				content \
+					-regex ".*\.md" \
+					-exec sed -i 's/{{% available_from "#" %}}/{{% available_from "$(PKG_TAG)" %}}/g' {} \;, \
+		$(info "Skipping docs version update, invalid $$PKG_TAG: $(PKG_TAG)"))
+
 docs-images-to-webp: docs-image
 	docker run \
 		--rm \

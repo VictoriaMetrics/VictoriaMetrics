@@ -18,10 +18,19 @@ const bloomFilterHashesCount = 6
 // bloomFilterBitsPerItem is the number of bits to use per each token.
 const bloomFilterBitsPerItem = 16
 
-// bloomFilterMarshal appends marshaled bloom filter for tokens to dst and returns the result.
-func bloomFilterMarshal(dst []byte, tokens []string) []byte {
+// bloomFilterMarshalTokens appends marshaled bloom filter for tokens to dst and returns the result.
+func bloomFilterMarshalTokens(dst []byte, tokens []string) []byte {
 	bf := getBloomFilter()
-	bf.mustInit(tokens)
+	bf.mustInitTokens(tokens)
+	dst = bf.marshal(dst)
+	putBloomFilter(bf)
+	return dst
+}
+
+// bloomFilterMarshalHashes appends marshaled bloom filter for hashes to dst and returns the result.
+func bloomFilterMarshalHashes(dst []byte, hashes []uint64) []byte {
+	bf := getBloomFilter()
+	bf.mustInitHashes(hashes)
 	dst = bf.marshal(dst)
 	putBloomFilter(bf)
 	return dst
@@ -61,23 +70,45 @@ func (bf *bloomFilter) unmarshal(src []byte) error {
 	return nil
 }
 
-// mustInit initializes bf with the given tokens
-func (bf *bloomFilter) mustInit(tokens []string) {
+// mustInitTokens initializes bf with the given tokens
+func (bf *bloomFilter) mustInitTokens(tokens []string) {
 	bitsCount := len(tokens) * bloomFilterBitsPerItem
 	wordsCount := (bitsCount + 63) / 64
 	bits := slicesutil.SetLength(bf.bits, wordsCount)
-	bloomFilterAdd(bits, tokens)
+	bloomFilterAddTokens(bits, tokens)
 	bf.bits = bits
 }
 
-// bloomFilterAdd adds the given tokens to the bloom filter bits
-func bloomFilterAdd(bits []uint64, tokens []string) {
+// mustInitHashes initializes bf with the given hashes
+func (bf *bloomFilter) mustInitHashes(hashes []uint64) {
+	bitsCount := len(hashes) * bloomFilterBitsPerItem
+	wordsCount := (bitsCount + 63) / 64
+	bits := slicesutil.SetLength(bf.bits, wordsCount)
+	bloomFilterAddHashes(bits, hashes)
+	bf.bits = bits
+}
+
+// bloomFilterAddTokens adds the given tokens to the bloom filter bits
+func bloomFilterAddTokens(bits []uint64, tokens []string) {
 	hashesCount := len(tokens) * bloomFilterHashesCount
 	a := encoding.GetUint64s(hashesCount)
 	a.A = appendTokensHashes(a.A[:0], tokens)
+	initBloomFilter(bits, a.A)
+	encoding.PutUint64s(a)
+}
 
+// bloomFilterAddHashes adds the given haehs to the bloom filter bits
+func bloomFilterAddHashes(bits, hashes []uint64) {
+	hashesCount := len(hashes) * bloomFilterHashesCount
+	a := encoding.GetUint64s(hashesCount)
+	a.A = appendHashesHashes(a.A[:0], hashes)
+	initBloomFilter(bits, a.A)
+	encoding.PutUint64s(a)
+}
+
+func initBloomFilter(bits, hashes []uint64) {
 	maxBits := uint64(len(bits)) * 64
-	for _, h := range a.A {
+	for _, h := range hashes {
 		idx := h % maxBits
 		i := idx / 64
 		j := idx % 64
@@ -87,8 +118,6 @@ func bloomFilterAdd(bits []uint64, tokens []string) {
 			bits[i] = w | mask
 		}
 	}
-
-	encoding.PutUint64s(a)
 }
 
 // appendTokensHashes appends hashes for the given tokens to dst and returns the result.
@@ -105,6 +134,29 @@ func appendTokensHashes(dst []uint64, tokens []string) []uint64 {
 	hp := (*uint64)(unsafe.Pointer(&buf[0]))
 	for _, token := range tokens {
 		*hp = xxhash.Sum64(bytesutil.ToUnsafeBytes(token))
+		for i := 0; i < bloomFilterHashesCount; i++ {
+			h := xxhash.Sum64(buf[:])
+			(*hp)++
+			dst = append(dst, h)
+		}
+	}
+	return dst
+}
+
+// appendHashesHashes appends hashes for the given hashes to dst and returns the result.
+//
+// the appended hashes can be then passed to bloomFilter.containsAll().
+func appendHashesHashes(dst, hashes []uint64) []uint64 {
+	dstLen := len(dst)
+	hashesCount := len(hashes) * bloomFilterHashesCount
+
+	dst = slicesutil.SetLength(dst, dstLen+hashesCount)
+	dst = dst[:dstLen]
+
+	var buf [8]byte
+	hp := (*uint64)(unsafe.Pointer(&buf[0]))
+	for _, h := range hashes {
+		*hp = h
 		for i := 0; i < bloomFilterHashesCount; i++ {
 			h := xxhash.Sum64(buf[:])
 			(*hp)++

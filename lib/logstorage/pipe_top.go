@@ -1,12 +1,17 @@
 package logstorage
 
 import (
+	"container/heap"
 	"fmt"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"unsafe"
+
+	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -30,8 +35,11 @@ type pipeTop struct {
 	// limitStr is string representation of the limit.
 	limitStr string
 
-	// if hitsFieldName isn't empty, then the number of hits per each unique value is returned in this field.
+	// the number of hits per each unique value is returned in this field.
 	hitsFieldName string
+
+	// if rankFieldName isn't empty, then the rank per each unique value is returned in this field.
+	rankFieldName string
 }
 
 func (pt *pipeTop) String() string {
@@ -41,6 +49,9 @@ func (pt *pipeTop) String() string {
 	}
 	if len(pt.byFields) > 0 {
 		s += " by (" + fieldNamesString(pt.byFields) + ")"
+	}
+	if pt.rankFieldName != "" {
+		s += rankFieldNameString(pt.rankFieldName)
 	}
 	return s
 }
@@ -58,10 +69,6 @@ func (pt *pipeTop) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	} else {
 		neededFields.addFields(pt.byFields)
 	}
-}
-
-func (pt *pipeTop) optimize() {
-	// nothing to do
 }
 
 func (pt *pipeTop) hasFilterInWithQuery() bool {
@@ -197,8 +204,8 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 
 func (shard *pipeTopProcessorShard) updateState(v string, hits uint64) {
 	m := shard.getM()
-	pHits, ok := m[v]
-	if !ok {
+	pHits := m[v]
+	if pHits == nil {
 		vCopy := strings.Clone(v)
 		hits := uint64(0)
 		pHits = &hits
@@ -244,42 +251,13 @@ func (ptp *pipeTopProcessor) flush() error {
 		return fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", ptp.pt.String(), ptp.maxStateSize/(1<<20))
 	}
 
-	// merge state across shards
-	shards := ptp.shards
-	m := shards[0].getM()
-	shards = shards[1:]
-	for i := range shards {
-		if needStop(ptp.stopCh) {
-			return nil
-		}
-
-		for k, pHitsSrc := range shards[i].getM() {
-			pHits, ok := m[k]
-			if !ok {
-				m[k] = pHitsSrc
-			} else {
-				*pHits += *pHitsSrc
-			}
-		}
+	// merge state across shards in parallel
+	entries, err := ptp.mergeShardsParallel()
+	if err != nil {
+		return err
 	}
-
-	// select top entries with the biggest number of hits
-	entries := make([]pipeTopEntry, 0, len(m))
-	for k, pHits := range m {
-		entries = append(entries, pipeTopEntry{
-			k:    k,
-			hits: *pHits,
-		})
-	}
-	sort.Slice(entries, func(i, j int) bool {
-		a, b := &entries[i], &entries[j]
-		if a.hits == b.hits {
-			return a.k < b.k
-		}
-		return a.hits > b.hits
-	})
-	if uint64(len(entries)) > ptp.pt.limit {
-		entries = entries[:ptp.pt.limit]
+	if needStop(ptp.stopCh) {
+		return nil
 	}
 
 	// write result
@@ -298,8 +276,20 @@ func (ptp *pipeTopProcessor) flush() error {
 		return dst
 	}
 
+	addRankField := func(dst []Field, rank int) []Field {
+		if ptp.pt.rankFieldName == "" {
+			return dst
+		}
+		rankStr := strconv.Itoa(rank + 1)
+		dst = append(dst, Field{
+			Name:  ptp.pt.rankFieldName,
+			Value: rankStr,
+		})
+		return dst
+	}
+
 	if len(byFields) == 0 {
-		for _, e := range entries {
+		for i, e := range entries {
 			if needStop(ptp.stopCh) {
 				return nil
 			}
@@ -325,11 +315,12 @@ func (ptp *pipeTopProcessor) flush() error {
 				})
 			}
 			rowFields = addHitsField(rowFields, e.hits)
+			rowFields = addRankField(rowFields, i)
 			wctx.writeRow(rowFields)
 		}
 	} else if len(byFields) == 1 {
 		fieldName := byFields[0]
-		for _, e := range entries {
+		for i, e := range entries {
 			if needStop(ptp.stopCh) {
 				return nil
 			}
@@ -339,10 +330,11 @@ func (ptp *pipeTopProcessor) flush() error {
 				Value: e.k,
 			})
 			rowFields = addHitsField(rowFields, e.hits)
+			rowFields = addRankField(rowFields, i)
 			wctx.writeRow(rowFields)
 		}
 	} else {
-		for _, e := range entries {
+		for i, e := range entries {
 			if needStop(ptp.stopCh) {
 				return nil
 			}
@@ -364,6 +356,7 @@ func (ptp *pipeTopProcessor) flush() error {
 				fieldIdx++
 			}
 			rowFields = addHitsField(rowFields, e.hits)
+			rowFields = addRankField(rowFields, i)
 			wctx.writeRow(rowFields)
 		}
 	}
@@ -373,9 +366,206 @@ func (ptp *pipeTopProcessor) flush() error {
 	return nil
 }
 
+func (ptp *pipeTopProcessor) mergeShardsParallel() ([]*pipeTopEntry, error) {
+	limit := ptp.pt.limit
+	if limit == 0 {
+		return nil, nil
+	}
+
+	shards := ptp.shards
+	shardsLen := len(shards)
+	if shardsLen == 1 {
+		entries := getTopEntries(shards[0].getM(), limit, ptp.stopCh)
+		return entries, nil
+	}
+
+	var wg sync.WaitGroup
+	perShardMaps := make([][]map[string]*uint64, shardsLen)
+	for i := range shards {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+
+			shardMaps := make([]map[string]*uint64, shardsLen)
+			for i := range shardMaps {
+				shardMaps[i] = make(map[string]*uint64)
+			}
+
+			n := int64(0)
+			nTotal := int64(0)
+			for k, pHits := range shards[idx].getM() {
+				if needStop(ptp.stopCh) {
+					return
+				}
+				h := xxhash.Sum64(bytesutil.ToUnsafeBytes(k))
+				m := shardMaps[h%uint64(len(shardMaps))]
+				n += updatePipeTopMap(m, k, pHits)
+				if n > stateSizeBudgetChunk {
+					if nRemaining := ptp.stateSizeBudget.Add(-n); nRemaining < 0 {
+						return
+					}
+					nTotal += n
+					n = 0
+				}
+			}
+			nTotal += n
+			ptp.stateSizeBudget.Add(-n)
+
+			perShardMaps[idx] = shardMaps
+
+			// Clean the original map and return its state size budget back.
+			shards[idx].m = nil
+			ptp.stateSizeBudget.Add(nTotal)
+		}(i)
+	}
+	wg.Wait()
+	if needStop(ptp.stopCh) {
+		return nil, nil
+	}
+	if n := ptp.stateSizeBudget.Load(); n < 0 {
+		return nil, fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", ptp.pt.String(), ptp.maxStateSize/(1<<20))
+	}
+
+	// Obtain topN entries per each shard
+	entriess := make([][]*pipeTopEntry, shardsLen)
+	for i := range entriess {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+
+			m := perShardMaps[0][idx]
+			for i := 1; i < len(perShardMaps); i++ {
+				n := int64(0)
+				nTotal := int64(0)
+				for k, pHits := range perShardMaps[i][idx] {
+					if needStop(ptp.stopCh) {
+						return
+					}
+					n += updatePipeTopMap(m, k, pHits)
+					if n > stateSizeBudgetChunk {
+						if nRemaining := ptp.stateSizeBudget.Add(-n); nRemaining < 0 {
+							return
+						}
+						nTotal += n
+						n = 0
+					}
+				}
+				nTotal += n
+				ptp.stateSizeBudget.Add(-n)
+
+				// Clean the original map and return its state size budget back.
+				perShardMaps[i][idx] = nil
+				ptp.stateSizeBudget.Add(nTotal)
+			}
+			perShardMaps[0][idx] = nil
+
+			entriess[idx] = getTopEntries(m, ptp.pt.limit, ptp.stopCh)
+		}(i)
+	}
+	wg.Wait()
+	if needStop(ptp.stopCh) {
+		return nil, nil
+	}
+	if n := ptp.stateSizeBudget.Load(); n < 0 {
+		return nil, fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", ptp.pt.String(), ptp.maxStateSize/(1<<20))
+	}
+
+	// merge entriess
+	entries := entriess[0]
+	for _, es := range entriess[1:] {
+		entries = append(entries, es...)
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[j].less(entries[i])
+	})
+	if uint64(len(entries)) > limit {
+		entries = entries[:limit]
+	}
+	return entries, nil
+}
+
+func getTopEntries(m map[string]*uint64, limit uint64, stopCh <-chan struct{}) []*pipeTopEntry {
+	if limit == 0 {
+		return nil
+	}
+
+	var eh topEntriesHeap
+	for k, pHits := range m {
+		if needStop(stopCh) {
+			return nil
+		}
+
+		e := pipeTopEntry{
+			k:    k,
+			hits: *pHits,
+		}
+		if uint64(len(eh)) < limit {
+			eCopy := e
+			heap.Push(&eh, &eCopy)
+			continue
+		}
+		if eh[0].less(&e) {
+			eCopy := e
+			eh[0] = &eCopy
+			heap.Fix(&eh, 0)
+		}
+	}
+
+	result := ([]*pipeTopEntry)(eh)
+	for len(eh) > 0 {
+		x := heap.Pop(&eh)
+		result[len(eh)] = x.(*pipeTopEntry)
+	}
+
+	return result
+}
+
+func updatePipeTopMap(m map[string]*uint64, k string, pHitsSrc *uint64) int64 {
+	pHitsDst := m[k]
+	if pHitsDst != nil {
+		*pHitsDst += *pHitsSrc
+		return 0
+	}
+
+	m[k] = pHitsSrc
+	return int64(unsafe.Sizeof(k) + unsafe.Sizeof(pHitsSrc))
+}
+
+type topEntriesHeap []*pipeTopEntry
+
+func (h *topEntriesHeap) Less(i, j int) bool {
+	a := *h
+	return a[i].less(a[j])
+}
+func (h *topEntriesHeap) Swap(i, j int) {
+	a := *h
+	a[i], a[j] = a[j], a[i]
+}
+func (h *topEntriesHeap) Len() int {
+	return len(*h)
+}
+func (h *topEntriesHeap) Push(v any) {
+	x := v.(*pipeTopEntry)
+	*h = append(*h, x)
+}
+func (h *topEntriesHeap) Pop() any {
+	a := *h
+	x := a[len(a)-1]
+	a[len(a)-1] = nil
+	*h = a[:len(a)-1]
+	return x
+}
+
 type pipeTopEntry struct {
 	k    string
 	hits uint64
+}
+
+func (e *pipeTopEntry) less(r *pipeTopEntry) bool {
+	if e.hits == r.hits {
+		return e.k > r.k
+	}
+	return e.hits < r.hits
 }
 
 type pipeTopWriteContext struct {
@@ -488,5 +678,43 @@ func parsePipeTop(lex *lexer) (*pipeTop, error) {
 		hitsFieldName: hitsFieldName,
 	}
 
+	if lex.isKeyword("rank") {
+		rankFieldName, err := parseRankFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse rank field name in [%s]: %w", pt, err)
+		}
+		pt.rankFieldName = rankFieldName
+	}
 	return pt, nil
+}
+
+func parseRankFieldName(lex *lexer) (string, error) {
+	if !lex.isKeyword("rank") {
+		return "", fmt.Errorf("unexpected token: %q; want 'rank'", lex.token)
+	}
+	lex.nextToken()
+
+	rankFieldName := "rank"
+	if lex.isKeyword("as") {
+		lex.nextToken()
+		if lex.isKeyword("", "|", ")", "(") {
+			return "", fmt.Errorf("missing rank name")
+		}
+	}
+	if !lex.isKeyword("", "|", ")", "limit") {
+		s, err := getCompoundToken(lex)
+		if err != nil {
+			return "", err
+		}
+		rankFieldName = s
+	}
+	return rankFieldName, nil
+}
+
+func rankFieldNameString(rankFieldName string) string {
+	s := " rank"
+	if rankFieldName != "rank" {
+		s += " as " + rankFieldName
+	}
+	return s
 }

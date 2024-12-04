@@ -12,6 +12,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
+	"github.com/valyala/fastjson/fastfloat"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
@@ -23,11 +27,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/VictoriaMetrics/metricsql"
-	"github.com/valyala/fastjson/fastfloat"
 )
 
 var (
@@ -47,7 +50,8 @@ var (
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
 
-	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage")
+	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage. "+
+		"When set to zero, the limit is automatically calculated based on -search.maxConcurrentRequests (inversely proportional) and memory available to the process (proportional).")
 	maxFederateSeries   = flag.Int("search.maxFederateSeries", 1e6, "The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage")
 	maxExportSeries     = flag.Int("search.maxExportSeries", 10e6, "The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage")
 	maxTSDBStatusSeries = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
@@ -792,7 +796,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		End:                 start,
 		Step:                step,
 		MaxPointsPerSeries:  *maxPointsPerTimeseries,
-		MaxSeries:           *maxUniqueTimeseries,
+		MaxSeries:           GetMaxUniqueTimeSeries(),
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
 		MayCache:            mayCache,
@@ -900,7 +904,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		End:                 end,
 		Step:                step,
 		MaxPointsPerSeries:  *maxPointsPerTimeseries,
-		MaxSeries:           *maxUniqueTimeseries,
+		MaxSeries:           GetMaxUniqueTimeSeries(),
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
 		MayCache:            mayCache,
@@ -1245,4 +1249,41 @@ func (sw *scalableWriter) flush() error {
 		return err == nil
 	})
 	return sw.bw.Flush()
+}
+
+var (
+	maxUniqueTimeseriesValueOnce sync.Once
+	maxUniqueTimeseriesValue     int
+)
+
+// InitMaxUniqueTimeseries init the max metrics limit calculated by available resources.
+// The calculation is split into calculateMaxUniqueTimeSeriesForResource for unit testing.
+func InitMaxUniqueTimeseries(maxConcurrentRequests int) {
+	maxUniqueTimeseriesValueOnce.Do(func() {
+		maxUniqueTimeseriesValue = *maxUniqueTimeseries
+		if maxUniqueTimeseriesValue <= 0 {
+			maxUniqueTimeseriesValue = calculateMaxUniqueTimeSeriesForResource(maxConcurrentRequests, memory.Remaining())
+		}
+	})
+}
+
+// calculateMaxUniqueTimeSeriesForResource calculate the max metrics limit calculated by available resources.
+func calculateMaxUniqueTimeSeriesForResource(maxConcurrentRequests, remainingMemory int) int {
+	if maxConcurrentRequests <= 0 {
+		// This line should NOT be reached unless the user has set an incorrect `search.maxConcurrentRequests`.
+		// In such cases, fallback to unlimited.
+		logger.Warnf("limiting -search.maxUniqueTimeseries to %v because -search.maxConcurrentRequests=%d.", 2e9, maxConcurrentRequests)
+		return 2e9
+	}
+
+	// Calculate the max metrics limit for a single request in the worst-case concurrent scenario.
+	// The approximate size of 1 unique series that could occupy in the vmstorage is 200 bytes.
+	mts := remainingMemory / 200 / maxConcurrentRequests
+	logger.Infof("limiting -search.maxUniqueTimeseries to %d according to -search.maxConcurrentRequests=%d and remaining memory=%d bytes. To increase the limit, reduce -search.maxConcurrentRequests or increase memory available to the process.", mts, maxConcurrentRequests, remainingMemory)
+	return mts
+}
+
+// GetMaxUniqueTimeSeries returns the max metrics limit calculated by available resources.
+func GetMaxUniqueTimeSeries() int {
+	return maxUniqueTimeseriesValue
 }

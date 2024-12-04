@@ -14,9 +14,7 @@ type pipeFieldNames struct {
 	// By default results are written into 'name' column.
 	resultName string
 
-	// isFirstPipe is set to true if '| field_names' pipe is the first in the query.
-	//
-	// This allows skipping loading of _time column.
+	// if isFirstPipe is set, then there is no need in loading columnsHeader in writeBlock().
 	isFirstPipe bool
 }
 
@@ -33,16 +31,12 @@ func (pf *pipeFieldNames) canLiveTail() bool {
 }
 
 func (pf *pipeFieldNames) updateNeededFields(neededFields, unneededFields fieldsSet) {
-	neededFields.add("*")
-	unneededFields.reset()
-
 	if pf.isFirstPipe {
-		unneededFields.add("_time")
+		neededFields.reset()
+	} else {
+		neededFields.add("*")
 	}
-}
-
-func (pf *pipeFieldNames) optimize() {
-	// nothing to do
+	unneededFields.reset()
 }
 
 func (pf *pipeFieldNames) hasFilterInWithQuery() bool {
@@ -98,23 +92,46 @@ func (pfp *pipeFieldNamesProcessor) writeBlock(workerID uint, br *blockResult) {
 		return
 	}
 
+	// Assume that the column is set for all the rows in the block.
+	// This is much faster than reading all the column values and counting non-empty rows.
+	hits := uint64(br.rowsLen)
+
 	shard := &pfp.shards[workerID]
-	m := shard.getM()
-
-	cs := br.getColumns()
-	for _, c := range cs {
-		pHits, ok := m[c.name]
-		if !ok {
-			nameCopy := strings.Clone(c.name)
-			hits := uint64(0)
-			pHits = &hits
-			m[nameCopy] = pHits
+	if !pfp.pf.isFirstPipe || br.bs == nil || br.bs.partFormatVersion() < 1 {
+		cs := br.getColumns()
+		for _, c := range cs {
+			shard.updateColumnHits(c.name, hits)
 		}
-
-		// Assume that the column is set for all the rows in the block.
-		// This is much faster than reading all the column values and counting non-empty rows.
-		*pHits += uint64(br.rowsLen)
+	} else {
+		cshIndex := br.bs.getColumnsHeaderIndex()
+		shard.updateHits(cshIndex.columnHeadersRefs, br, hits)
+		shard.updateHits(cshIndex.constColumnsRefs, br, hits)
+		shard.updateColumnHits("_time", hits)
+		shard.updateColumnHits("_stream", hits)
+		shard.updateColumnHits("_stream_id", hits)
 	}
+}
+
+func (shard *pipeFieldNamesProcessorShard) updateHits(refs []columnHeaderRef, br *blockResult, hits uint64) {
+	for _, cr := range refs {
+		columnName := br.bs.getColumnNameByID(cr.columnNameID)
+		shard.updateColumnHits(columnName, hits)
+	}
+}
+
+func (shard *pipeFieldNamesProcessorShard) updateColumnHits(columnName string, hits uint64) {
+	if columnName == "" {
+		columnName = "_msg"
+	}
+	m := shard.getM()
+	pHits := m[columnName]
+	if pHits == nil {
+		nameCopy := strings.Clone(columnName)
+		hits := uint64(0)
+		pHits = &hits
+		m[nameCopy] = pHits
+	}
+	*pHits += hits
 }
 
 func (pfp *pipeFieldNamesProcessor) flush() error {
@@ -128,21 +145,13 @@ func (pfp *pipeFieldNamesProcessor) flush() error {
 	shards = shards[1:]
 	for i := range shards {
 		for name, pHitsSrc := range shards[i].getM() {
-			pHits, ok := m[name]
-			if !ok {
+			pHits := m[name]
+			if pHits == nil {
 				m[name] = pHitsSrc
 			} else {
 				*pHits += *pHitsSrc
 			}
 		}
-	}
-	if pfp.pf.isFirstPipe {
-		pHits := m["_stream"]
-		if pHits == nil {
-			hits := uint64(0)
-			pHits = &hits
-		}
-		m["_time"] = pHits
 	}
 
 	// write result

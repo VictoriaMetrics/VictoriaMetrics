@@ -1,7 +1,10 @@
 package insertutils
 
 import (
+	"flag"
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,15 +19,21 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
+var (
+	defaultMsgValue = flag.String("defaultMsgValue", "missing _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field",
+		"Default value for _msg field if the ingested log entry doesn't contain it; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field")
+)
+
 // CommonParams contains common HTTP parameters used by log ingestion APIs.
 //
 // See https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters
 type CommonParams struct {
 	TenantID     logstorage.TenantID
 	TimeField    string
-	MsgField     string
+	MsgFields    []string
 	StreamFields []string
 	IgnoreFields []string
+	ExtraFields  []logstorage.Field
 
 	Debug           bool
 	DebugRequestURI string
@@ -39,44 +48,25 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		return nil, err
 	}
 
-	// Extract time field name from _time_field query arg or header
 	timeField := "_time"
-	if tf := r.FormValue("_time_field"); tf != "" {
-		timeField = tf
-	} else if tf = r.Header.Get("VL-Time-Field"); tf != "" {
+	if tf := httputils.GetRequestValue(r, "_time_field", "VL-Time-Field"); tf != "" {
 		timeField = tf
 	}
 
-	// Extract message field name from _msg_field query arg or header
-	msgField := ""
-	if msgf := r.FormValue("_msg_field"); msgf != "" {
-		msgField = msgf
-	} else if msgf = r.Header.Get("VL-Msg-Field"); msgf != "" {
-		msgField = msgf
+	msgFields := httputils.GetArray(r, "_msg_field", "VL-Msg-Field")
+	streamFields := httputils.GetArray(r, "_stream_fields", "VL-Stream-Fields")
+	ignoreFields := httputils.GetArray(r, "ignore_fields", "VL-Ignore-Fields")
+
+	extraFields, err := getExtraFields(r)
+	if err != nil {
+		return nil, err
 	}
 
-	streamFields := httputils.GetArray(r, "_stream_fields")
-	if len(streamFields) == 0 {
-		if sf := r.Header.Get("VL-Stream-Fields"); len(sf) > 0 {
-			streamFields = strings.Split(sf, ",")
-		}
-	}
-	ignoreFields := httputils.GetArray(r, "ignore_fields")
-	if len(ignoreFields) == 0 {
-		if f := r.Header.Get("VL-Ignore-Fields"); len(f) > 0 {
-			ignoreFields = strings.Split(f, ",")
-		}
-	}
-
-	debug := httputils.GetBool(r, "debug")
-	if !debug {
-		if dh := r.Header.Get("VL-Debug"); len(dh) > 0 {
-			hv := strings.ToLower(dh)
-			switch hv {
-			case "", "0", "f", "false", "no":
-			default:
-				debug = true
-			}
+	debug := false
+	if dv := httputils.GetRequestValue(r, "debug", "VL-Debug"); dv != "" {
+		debug, err = strconv.ParseBool(dv)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse debug=%q: %w", dv, err)
 		}
 	}
 	debugRequestURI := ""
@@ -89,9 +79,10 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 	cp := &CommonParams{
 		TenantID:        tenantID,
 		TimeField:       timeField,
-		MsgField:        msgField,
+		MsgFields:       msgFields,
 		StreamFields:    streamFields,
 		IgnoreFields:    ignoreFields,
+		ExtraFields:     extraFields,
 		Debug:           debug,
 		DebugRequestURI: debugRequestURI,
 		DebugRemoteAddr: debugRemoteAddr,
@@ -100,18 +91,45 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 	return cp, nil
 }
 
+func getExtraFields(r *http.Request) ([]logstorage.Field, error) {
+	efs := httputils.GetArray(r, "extra_fields", "VL-Extra-Fields")
+	if len(efs) == 0 {
+		return nil, nil
+	}
+
+	extraFields := make([]logstorage.Field, len(efs))
+	for i, ef := range efs {
+		n := strings.Index(ef, "=")
+		if n <= 0 || n == len(ef)-1 {
+			return nil, fmt.Errorf(`invalid extra_field format: %q; must be in the form "field=value"`, ef)
+		}
+		extraFields[i] = logstorage.Field{
+			Name:  ef[:n],
+			Value: ef[n+1:],
+		}
+	}
+	return extraFields, nil
+}
+
 // GetCommonParamsForSyslog returns common params needed for parsing syslog messages and storing them to the given tenantID.
-func GetCommonParamsForSyslog(tenantID logstorage.TenantID) *CommonParams {
+func GetCommonParamsForSyslog(tenantID logstorage.TenantID, streamFields, ignoreFields []string, extraFields []logstorage.Field) *CommonParams {
 	// See https://docs.victoriametrics.com/victorialogs/logsql/#unpack_syslog-pipe
-	cp := &CommonParams{
-		TenantID:  tenantID,
-		TimeField: "timestamp",
-		MsgField:  "message",
-		StreamFields: []string{
+	if streamFields == nil {
+		streamFields = []string{
 			"hostname",
 			"app_name",
 			"proc_id",
+		}
+	}
+	cp := &CommonParams{
+		TenantID:  tenantID,
+		TimeField: "timestamp",
+		MsgFields: []string{
+			"message",
 		},
+		StreamFields: streamFields,
+		IgnoreFields: ignoreFields,
+		ExtraFields:  extraFields,
 	}
 
 	return cp
@@ -136,6 +154,8 @@ type logMessageProcessor struct {
 
 	cp *CommonParams
 	lr *logstorage.LogRows
+
+	processedBytesTotal *metrics.Counter
 }
 
 func (lmp *logMessageProcessor) initPeriodicFlush() {
@@ -169,26 +189,13 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 	lmp.mu.Lock()
 	defer lmp.mu.Unlock()
 
+	n := getApproxJSONRowLen(fields)
+	lmp.processedBytesTotal.Add(n)
+
 	if len(fields) > *MaxFieldsPerLine {
 		rf := logstorage.RowFormatter(fields)
 		logger.Warnf("dropping log line with %d fields; it exceeds -insert.maxFieldsPerLine=%d; %s", len(fields), *MaxFieldsPerLine, rf)
 		rowsDroppedTotalTooManyFields.Inc()
-		return
-	}
-
-	// _msg field must be non-empty according to VictoriaLogs data model.
-	// See https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field
-	msgExist := false
-	for i := range fields {
-		if fields[i].Name == "_msg" {
-			msgExist = len(fields[i].Value) > 0
-			break
-		}
-	}
-	if !msgExist {
-		rf := logstorage.RowFormatter(fields)
-		logger.Warnf("dropping log line without _msg field; %s", rf)
-		rowsDroppedTotalMsgNotValid.Inc()
 		return
 	}
 
@@ -203,6 +210,16 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 	if lmp.lr.NeedFlush() {
 		lmp.flushLocked()
 	}
+}
+
+// getApproxJSONRowLen returns an approximate length of the log entry with the given fields if represented as JSON.
+func getApproxJSONRowLen(fields []logstorage.Field) int {
+	n := len("{}\n")
+	n += len(`"_time":""`) + len(time.RFC3339Nano)
+	for _, f := range fields {
+		n += len(`,"":""`) + len(f.Name) + len(f.Value)
+	}
+	return n
 }
 
 // flushLocked must be called under locked lmp.mu.
@@ -225,11 +242,14 @@ func (lmp *logMessageProcessor) MustClose() {
 // NewLogMessageProcessor returns new LogMessageProcessor for the given cp.
 //
 // MustClose() must be called on the returned LogMessageProcessor when it is no longer needed.
-func (cp *CommonParams) NewLogMessageProcessor() LogMessageProcessor {
-	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
+func (cp *CommonParams) NewLogMessageProcessor(protocolName string) LogMessageProcessor {
+	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.ExtraFields, *defaultMsgValue)
+	processedBytesTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vl_bytes_ingested_total{type=%q}", protocolName))
 	lmp := &logMessageProcessor{
 		cp: cp,
 		lr: lr,
+
+		processedBytesTotal: processedBytesTotal,
 
 		stopCh: make(chan struct{}),
 	}
@@ -241,5 +261,4 @@ func (cp *CommonParams) NewLogMessageProcessor() LogMessageProcessor {
 var (
 	rowsDroppedTotalDebug         = metrics.NewCounter(`vl_rows_dropped_total{reason="debug"}`)
 	rowsDroppedTotalTooManyFields = metrics.NewCounter(`vl_rows_dropped_total{reason="too_many_fields"}`)
-	rowsDroppedTotalMsgNotValid   = metrics.NewCounter(`vl_rows_dropped_total{reason="msg_not_exist"}`)
 )

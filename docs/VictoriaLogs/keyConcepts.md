@@ -127,10 +127,14 @@ log entry, which can be ingested into VictoriaLogs:
 }
 ```
 
-If the actual log message has other than `_msg` field name, then it is possible to specify the real log message field
-via `_msg_field` query arg during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+If the actual log message has other than `_msg` field name, then it can be specified via `_msg_field` HTTP query arg or via `VL-Msg-Field` HTTP header
+during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
+according to [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
 For example, if log message is located in the `event.original` field, then specify `_msg_field=event.original` query arg
 during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+
+If the `_msg` field remains empty after an attempt to get it from `_msg_field`, then VictoriaLogs automatically sets it to the value specified
+via `-defaultMsgValue` command-line flag.
 
 ### Time field
 
@@ -152,8 +156,6 @@ For example, the following [log entry](#data-model) contains valid timestamp wit
   "_time": "2023-04-12T06:38:11.095Z"
 }
 ```
-
-If timezone information is missing in the `_time` field value, then the local timezone of the host where VictoriaLogs runs is used.
 
 If the actual timestamp has other than `_time` field name, then it is possible to specify the real timestamp
 field via `_time_field` query arg during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).

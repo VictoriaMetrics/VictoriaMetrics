@@ -34,10 +34,6 @@ func (pd *pipeDelete) updateNeededFields(neededFields, unneededFields fieldsSet)
 	}
 }
 
-func (pd *pipeDelete) optimize() {
-	// nothing to do
-}
-
 func (pd *pipeDelete) hasFilterInWithQuery() bool {
 	return false
 }

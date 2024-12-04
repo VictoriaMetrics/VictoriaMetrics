@@ -45,13 +45,19 @@ func TestParseJSONRequest_Failure(t *testing.T) {
 	// Invalid length of `values` individual item
 	f(`{"streams":[{"values":[[]]}]}`)
 	f(`{"streams":[{"values":[["123"]]}]}`)
-	f(`{"streams":[{"values":[["123","456","789"]]}]}`)
+	f(`{"streams":[{"values":[["123","456","789","8123"]]}]}`)
 
 	// Invalid type for timestamp inside `values` individual item
 	f(`{"streams":[{"values":[[123,"456"]}]}`)
 
 	// Invalid type for log message
 	f(`{"streams":[{"values":[["123",1234]]}]}`)
+
+	// invalid structured metadata type
+	f(`{"streams":[{"values":[["1577836800000000001", "foo bar", ["metadata_1", "md_value"]]]}]}`)
+
+	// structured metadata with unexpected value type
+	f(`{"streams":[{"values":[["1577836800000000001", "foo bar", {"metadata_1": 1}]] }]}`)
 }
 
 func TestParseJSONRequest_Success(t *testing.T) {
@@ -116,4 +122,8 @@ func TestParseJSONRequest_Success(t *testing.T) {
 }`, []int64{1577836800000000001, 1577836900005000002, 1877836900005000002}, `{"foo":"bar","a":"b","_msg":"foo bar"}
 {"foo":"bar","a":"b","_msg":"abc"}
 {"x":"y","_msg":"yx"}`)
+
+	// values with metadata
+	f(`{"streams":[{"values":[["1577836800000000001", "foo bar", {"metadata_1": "md_value"}]]}]}`, []int64{1577836800000000001}, `{"_msg":"foo bar","metadata_1":"md_value"}`)
+	f(`{"streams":[{"values":[["1577836800000000001", "foo bar", {}]]}]}`, []int64{1577836800000000001}, `{"_msg":"foo bar"}`)
 }

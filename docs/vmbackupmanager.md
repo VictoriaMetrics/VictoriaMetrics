@@ -8,7 +8,7 @@ title: vmbackupmanager
 aliases:
   - /vmbackupmanager.html
 ---
-# vmbackupmanager
+## vmbackupmanager
 
 ***vmbackupmanager is a part of [enterprise package](https://docs.victoriametrics.com/enterprise/).
 It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
@@ -47,6 +47,10 @@ The backup manager creates the following directory hierarchy at `-dst`:
 * `/weekly/` - contains weekly backups. Each backup is named as `YYYY-WW`
 * `/monthly/` - contains monthly backups. Each backup is named as `YYYY-MM`
 
+The `vmbackupmanager` takes backups every hour if hourly backups are not disabled; otherwise, 
+it defaults to taking backups every 24 hours. You can control the schedule using the `-backupInterval` flag. 
+For example, if you want to take backups three times per day, set `-backupInterval=8h`.
+
 To get the full list of supported flags please run the following command:
 
 ```sh
@@ -67,7 +71,7 @@ There are two flags which could help with performance tuning:
 * `-maxBytesPerSecond` - the maximum upload speed. There is no limit if it is set to 0
 * `-concurrency` - The number of concurrent workers. Higher concurrency may improve upload speed (default 10)
 
-## Example of Usage
+### Example of Usage
 
 GCS and cluster version. You need to have a credentials file in json format with following structure:
 
@@ -131,7 +135,7 @@ which perform full object copy during server-side copying. This may be slow and 
 Please, see [vmbackup docs](https://docs.victoriametrics.com/vmbackup/#advanced-usage) for more examples of authentication with different
 storage types.
 
-## Backup Retention Policy
+### Backup Retention Policy
 
 Backup retention policy is controlled by:
 
@@ -173,7 +177,7 @@ The result on the GCS bucket. We see only 3 daily backups:
 
 [retention policy daily after retention cycle](vmbackupmanager_rp_daily_2.webp "retention policy daily after retention cycle")
 
-### Protection backups against deletion by retention policy
+#### Protection backups against deletion by retention policy
 
 You can protect any backup against deletion by retention policy with the `vmbackupmanager backups lock` command.
 
@@ -245,7 +249,7 @@ For example:
 
 * DELETE `/api/v1/restore` - delete restore mark.
 
-## CLI
+### CLI
 
 `vmbackupmanager` exposes CLI commands to work with [API methods](#api-methods) without external dependencies.
 
@@ -282,7 +286,7 @@ It can be changed by using flag:
       vmbackupmanager address to perform API requests (default "http://127.0.0.1:8300")
 ```
 
-### Backup commands
+#### Backup commands
 
 `vmbackupmanager backup list` lists backups in remote storage:
 ```sh
@@ -290,7 +294,7 @@ $ ./vmbackupmanager backup list
 [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
 ```
 
-### Restore commands
+#### Restore commands
 
 Restore commands are used to create, get and delete restore mark.
 Restore mark is used by `vmbackupmanager` to store backup name to restore when running restore.
@@ -344,7 +348,7 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 1. Start `vmstorage` or `vmsingle` node
 
 
-### How to restore in Kubernetes
+#### How to restore in Kubernetes
 
 1. Ensure there is an init container with `vmbackupmanager restore` in `vmstorage` or `vmsingle` pod.
    For [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/) deployments it is required to add:
@@ -372,7 +376,7 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
   ```
 1. Restart pod
 
-#### Restore cluster into another cluster
+##### Restore cluster into another cluster
 
 These steps are assuming that [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/) is used to manage `VMCluster`.
 Clusters here are referred to as `source` and `destination`.
@@ -401,7 +405,7 @@ Clusters here are referred to as `source` and `destination`.
   ```
 1. Restart `vmstorage` pods of *destination* cluster. On pod start `vmbackupmanager` will restore data from the specified backup.
 
-## Monitoring
+### Monitoring
 
 `vmbackupmanager` exports various metrics in Prometheus exposition format at `http://vmbackupmanager:8300/metrics` page. It is recommended setting up regular scraping of this page
 either via [vmagent](https://docs.victoriametrics.com/vmagent/) or via Prometheus, so the exported metrics could be analyzed later.
@@ -411,9 +415,9 @@ Graphs on this dashboard contain useful hints - hover the `i` icon in the top le
 If you have suggestions for improvements or have found a bug - please open an issue on github or add
 a review to the dashboard.
 
-## Configuration
+### Configuration
 
-### Flags
+#### Flags
 
 Pass `-help` to `vmbackupmanager` in order to see the full list of supported
 command-line flags with their descriptions.

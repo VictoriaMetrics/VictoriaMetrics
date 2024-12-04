@@ -31,10 +31,6 @@ func (pc *pipeBlocksCount) updateNeededFields(neededFields, unneededFields field
 	unneededFields.reset()
 }
 
-func (pc *pipeBlocksCount) optimize() {
-	// nothing to do
-}
-
 func (pc *pipeBlocksCount) hasFilterInWithQuery() bool {
 	return false
 }

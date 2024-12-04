@@ -96,10 +96,10 @@ func TestPipePackJSON(t *testing.T) {
 			{"_msg", `x`},
 			{"foo", `abc`},
 			{"bar", `cde`},
-			{"a", `{"foo":"abc","baz":""}`},
+			{"a", `{"foo":"abc"}`},
 		},
 		{
-			{"a", `{"foo":"","baz":""}`},
+			{"a", `{}`},
 			{"c", "d"},
 		},
 	})

@@ -14,37 +14,59 @@ type inmemoryPart struct {
 	// ph contains partHeader information for the given in-memory part.
 	ph partHeader
 
+	columnNames        bytesutil.ByteBuffer
 	metaindex          bytesutil.ByteBuffer
 	index              bytesutil.ByteBuffer
+	columnsHeaderIndex bytesutil.ByteBuffer
 	columnsHeader      bytesutil.ByteBuffer
 	timestamps         bytesutil.ByteBuffer
-	fieldValues        bytesutil.ByteBuffer
-	fieldBloomFilter   bytesutil.ByteBuffer
-	messageValues      bytesutil.ByteBuffer
-	messageBloomFilter bytesutil.ByteBuffer
+
+	messageBloomValues bloomValuesBuffer
+	fieldBloomValues   bloomValuesBuffer
+}
+
+type bloomValuesBuffer struct {
+	bloom  bytesutil.ByteBuffer
+	values bytesutil.ByteBuffer
+}
+
+func (b *bloomValuesBuffer) reset() {
+	b.bloom.Reset()
+	b.values.Reset()
+}
+
+func (b *bloomValuesBuffer) NewStreamReader() bloomValuesStreamReader {
+	return bloomValuesStreamReader{
+		bloom:  b.bloom.NewReader(),
+		values: b.values.NewReader(),
+	}
+}
+
+func (b *bloomValuesBuffer) NewStreamWriter() bloomValuesStreamWriter {
+	return bloomValuesStreamWriter{
+		bloom:  &b.bloom,
+		values: &b.values,
+	}
 }
 
 // reset resets mp, so it can be re-used
 func (mp *inmemoryPart) reset() {
 	mp.ph.reset()
 
+	mp.columnNames.Reset()
 	mp.metaindex.Reset()
 	mp.index.Reset()
+	mp.columnsHeaderIndex.Reset()
 	mp.columnsHeader.Reset()
 	mp.timestamps.Reset()
-	mp.fieldValues.Reset()
-	mp.fieldBloomFilter.Reset()
-	mp.messageValues.Reset()
-	mp.messageBloomFilter.Reset()
+
+	mp.messageBloomValues.reset()
+	mp.fieldBloomValues.reset()
 }
 
 // mustInitFromRows initializes mp from lr.
 func (mp *inmemoryPart) mustInitFromRows(lr *LogRows) {
 	mp.reset()
-
-	if len(lr.timestamps) == 0 {
-		return
-	}
 
 	sort.Sort(lr)
 
@@ -75,6 +97,7 @@ func (mp *inmemoryPart) mustInitFromRows(lr *LogRows) {
 	}
 	bsw.MustWriteRows(sidPrev, trs.timestamps, trs.rows)
 	putTmpRows(trs)
+
 	bsw.Finalize(&mp.ph)
 	putBlockStreamWriter(bsw)
 }
@@ -83,23 +106,30 @@ func (mp *inmemoryPart) mustInitFromRows(lr *LogRows) {
 func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	fs.MustMkdirFailIfExist(path)
 
+	columnNamesPath := filepath.Join(path, columnNamesFilename)
 	metaindexPath := filepath.Join(path, metaindexFilename)
 	indexPath := filepath.Join(path, indexFilename)
+	columnsHeaderIndexPath := filepath.Join(path, columnsHeaderIndexFilename)
 	columnsHeaderPath := filepath.Join(path, columnsHeaderFilename)
 	timestampsPath := filepath.Join(path, timestampsFilename)
-	fieldValuesPath := filepath.Join(path, fieldValuesFilename)
-	fieldBloomFilterPath := filepath.Join(path, fieldBloomFilename)
 	messageValuesPath := filepath.Join(path, messageValuesFilename)
 	messageBloomFilterPath := filepath.Join(path, messageBloomFilename)
 
+	fs.MustWriteSync(columnNamesPath, mp.columnNames.B)
 	fs.MustWriteSync(metaindexPath, mp.metaindex.B)
 	fs.MustWriteSync(indexPath, mp.index.B)
+	fs.MustWriteSync(columnsHeaderIndexPath, mp.columnsHeaderIndex.B)
 	fs.MustWriteSync(columnsHeaderPath, mp.columnsHeader.B)
 	fs.MustWriteSync(timestampsPath, mp.timestamps.B)
-	fs.MustWriteSync(fieldValuesPath, mp.fieldValues.B)
-	fs.MustWriteSync(fieldBloomFilterPath, mp.fieldBloomFilter.B)
-	fs.MustWriteSync(messageValuesPath, mp.messageValues.B)
-	fs.MustWriteSync(messageBloomFilterPath, mp.messageBloomFilter.B)
+
+	fs.MustWriteSync(messageBloomFilterPath, mp.messageBloomValues.bloom.B)
+	fs.MustWriteSync(messageValuesPath, mp.messageBloomValues.values.B)
+
+	bloomPath := getBloomFilePath(path, 0)
+	fs.MustWriteSync(bloomPath, mp.fieldBloomValues.bloom.B)
+
+	valuesPath := getValuesFilePath(path, 0)
+	fs.MustWriteSync(valuesPath, mp.fieldBloomValues.values.B)
 
 	mp.ph.mustWriteMetadata(path)
 

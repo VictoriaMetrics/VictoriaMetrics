@@ -2,9 +2,8 @@ import { useCallback, useMemo, useRef, useState } from "preact/compat";
 import { getLogHitsUrl } from "../../../api/logs";
 import { ErrorTypes, TimeParams } from "../../../types";
 import { LogHits } from "../../../api/types";
-import dayjs from "dayjs";
-import { LOGS_BARS_VIEW } from "../../../constants/logs";
 import { useSearchParams } from "react-router-dom";
+import { getHitsTimeParams } from "../../../utils/logs";
 
 export const useFetchLogHits = (server: string, query: string) => {
   const [searchParams] = useSearchParams();
@@ -17,10 +16,7 @@ export const useFetchLogHits = (server: string, query: string) => {
   const url = useMemo(() => getLogHitsUrl(server), [server]);
 
   const getOptions = (query: string, period: TimeParams, signal: AbortSignal) => {
-    const start = dayjs(period.start * 1000);
-    const end = dayjs(period.end * 1000);
-    const totalSeconds = end.diff(start, "milliseconds");
-    const step = Math.ceil(totalSeconds / LOGS_BARS_VIEW) || 1;
+    const { start, end, step } = getHitsTimeParams(period);
 
     return {
       signal,
@@ -118,5 +114,6 @@ export const useFetchLogHits = (server: string, query: string) => {
     isLoading: Object.values(isLoading).some(s => s),
     error,
     fetchLogHits,
+    abortController: abortControllerRef.current
   };
 };

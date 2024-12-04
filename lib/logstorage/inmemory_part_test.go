@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -22,7 +23,7 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 
 		// make a copy of lr - it is used for comapring the results later,
 		// since lr may be modified by inmemoryPart.mustInitFromRows()
-		lrOrig := GetLogRows(nil, nil)
+		lrOrig := GetLogRows(nil, nil, nil, "")
 		for i, timestamp := range lr.timestamps {
 			if timestamp < minTimestampExpected {
 				minTimestampExpected = timestamp
@@ -72,10 +73,10 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 		}
 	}
 
-	f(GetLogRows(nil, nil), 0, 0)
+	f(GetLogRows(nil, nil, nil, ""), 0, 0)
 
 	// Check how inmemoryPart works with a single stream
-	f(newTestLogRows(1, 1, 0), 1, 0.8)
+	f(newTestLogRows(1, 1, 0), 1, 0.7)
 	f(newTestLogRows(1, 2, 0), 1, 0.9)
 	f(newTestLogRows(1, 10, 0), 1, 2.0)
 	f(newTestLogRows(1, 1000, 0), 1, 7.1)
@@ -83,11 +84,18 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 
 	// Check how inmemoryPart works with multiple streams
 	f(newTestLogRows(2, 1, 0), 2, 0.8)
-	f(newTestLogRows(10, 1, 0), 10, 0.9)
-	f(newTestLogRows(100, 1, 0), 100, 1.0)
-	f(newTestLogRows(10, 5, 0), 10, 1.4)
+	f(newTestLogRows(10, 1, 0), 10, 1.1)
+	f(newTestLogRows(100, 1, 0), 100, 1.2)
+	f(newTestLogRows(10, 5, 0), 10, 1.5)
 	f(newTestLogRows(10, 1000, 0), 10, 7.2)
 	f(newTestLogRows(100, 100, 0), 100, 5.0)
+
+	// check block overflow with unique tag rows
+	f(newTestLogRowsUniqTags(5, 21, 100), 10, 0.4)
+	f(newTestLogRowsUniqTags(5, 10, 100), 5, 0.5)
+	f(newTestLogRowsUniqTags(1, 2001, 1), 2, 1.4)
+	f(newTestLogRowsUniqTags(15, 20, 250), 45, 0.6)
+
 }
 
 func checkCompressionRate(t *testing.T, ph *partHeader, compressionRateExpected float64) {
@@ -108,7 +116,7 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 		maxTimestampExpected := int64(math.MinInt64)
 
 		// make a copy of rrss in order to compare the results after merge.
-		lrOrig := GetLogRows(nil, nil)
+		lrOrig := GetLogRows(nil, nil, nil, "")
 		for _, lr := range lrs {
 			uncompressedSizeBytesExpected += uncompressedRowsSizeBytes(lr.rows)
 			rowsCountExpected += len(lr.timestamps)
@@ -188,18 +196,18 @@ func TestInmemoryPartInitFromBlockStreamReaders(t *testing.T) {
 
 	// Check empty readers
 	f(nil, 0, 0)
-	f([]*LogRows{GetLogRows(nil, nil)}, 0, 0)
-	f([]*LogRows{GetLogRows(nil, nil), GetLogRows(nil, nil)}, 0, 0)
+	f([]*LogRows{GetLogRows(nil, nil, nil, "")}, 0, 0)
+	f([]*LogRows{GetLogRows(nil, nil, nil, ""), GetLogRows(nil, nil, nil, "")}, 0, 0)
 
 	// Check merge with a single reader
-	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 0.8)
+	f([]*LogRows{newTestLogRows(1, 1, 0)}, 1, 0.7)
 	f([]*LogRows{newTestLogRows(1, 10, 0)}, 1, 2.0)
 	f([]*LogRows{newTestLogRows(1, 100, 0)}, 1, 4.9)
 	f([]*LogRows{newTestLogRows(1, 1000, 0)}, 1, 7.1)
 	f([]*LogRows{newTestLogRows(1, 10000, 0)}, 1, 7.4)
-	f([]*LogRows{newTestLogRows(10, 1, 0)}, 10, 0.9)
-	f([]*LogRows{newTestLogRows(100, 1, 0)}, 100, 1.0)
-	f([]*LogRows{newTestLogRows(1000, 1, 0)}, 1000, 1.0)
+	f([]*LogRows{newTestLogRows(10, 1, 0)}, 10, 1.1)
+	f([]*LogRows{newTestLogRows(100, 1, 0)}, 100, 1.3)
+	f([]*LogRows{newTestLogRows(1000, 1, 0)}, 1000, 1.2)
 	f([]*LogRows{newTestLogRows(10, 10, 0)}, 10, 2.1)
 	f([]*LogRows{newTestLogRows(10, 100, 0)}, 10, 4.9)
 
@@ -235,7 +243,7 @@ func newTestLogRows(streams, rowsPerStream int, seed int64) *LogRows {
 	streamTags := []string{
 		"some-stream-tag",
 	}
-	lr := GetLogRows(streamTags, nil)
+	lr := GetLogRows(streamTags, nil, nil, "")
 	rng := rand.New(rand.NewSource(seed))
 	var fields []Field
 	for i := 0; i < streams; i++ {
@@ -322,7 +330,7 @@ func checkEqualRows(lrResult, lrOrig *LogRows) error {
 //
 // This function is for testing and debugging purposes only.
 func (mp *inmemoryPart) readLogRows(sbu *stringsBlockUnmarshaler, vd *valuesDecoder) *LogRows {
-	lr := GetLogRows(nil, nil)
+	lr := GetLogRows(nil, nil, nil, "")
 	bsr := getBlockStreamReader()
 	defer putBlockStreamReader(bsr)
 	bsr.MustInitFromInmemoryPart(mp)
@@ -338,6 +346,36 @@ func (mp *inmemoryPart) readLogRows(sbu *stringsBlockUnmarshaler, vd *valuesDeco
 			lr.streamIDs[len(lr.streamIDs)-1] = streamID
 		}
 		tmp.reset()
+	}
+	return lr
+}
+
+func newTestLogRowsUniqTags(streams, rowsPerStream, uniqFieldsPerRow int) *LogRows {
+	streamTags := []string{
+		"some-stream-tag",
+	}
+	lr := GetLogRows(streamTags, nil, nil, "")
+	var fields []Field
+	for i := 0; i < streams; i++ {
+		tenantID := TenantID{
+			AccountID: 0,
+			ProjectID: 0,
+		}
+		for j := 0; j < rowsPerStream; j++ {
+			// Add stream tags
+			fields = append(fields[:0], Field{
+				Name:  "some-stream-tag",
+				Value: fmt.Sprintf("some-stream-value-%d", i),
+			})
+			// Add the remaining unique tags
+			for k := 0; k < uniqFieldsPerRow; k++ {
+				fields = append(fields, Field{
+					Name:  fmt.Sprintf("field_%d_%d_%d", i, j, k),
+					Value: fmt.Sprintf("value_%d_%d_%d", i, j, k),
+				})
+			}
+			lr.MustAdd(tenantID, time.Now().UnixMilli(), fields)
+		}
 	}
 	return lr
 }

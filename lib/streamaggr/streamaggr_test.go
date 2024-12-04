@@ -556,6 +556,18 @@ bar{baz="qwe"} 4.34
 foo:1m_total 0
 `, "11")
 
+	// total output for non-repeated series, ignore first sample 0s
+	f(`
+- interval: 1m
+  outputs: [total]
+  ignore_first_sample_interval: 0s
+`, `
+foo 123
+bar{baz="qwe"} 4.34
+`, `bar:1m_total{baz="qwe"} 4.34
+foo:1m_total 123
+`, "11")
+
 	// total_prometheus output for non-repeated series
 	f(`
 - interval: 1m

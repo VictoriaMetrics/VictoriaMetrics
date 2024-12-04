@@ -15,7 +15,7 @@ func TestReadBulkRequest_Failure(t *testing.T) {
 
 		tlp := &insertutils.TestLogMessageProcessor{}
 		r := bytes.NewBufferString(data)
-		rows, err := readBulkRequest(r, false, "_time", "_msg", tlp)
+		rows, err := readBulkRequest(r, false, "_time", []string{"_msg"}, tlp)
 		if err == nil {
 			t.Fatalf("expecting non-empty error")
 		}
@@ -36,11 +36,12 @@ func TestReadBulkRequest_Success(t *testing.T) {
 	f := func(data, timeField, msgField string, rowsExpected int, timestampsExpected []int64, resultExpected string) {
 		t.Helper()
 
+		msgFields := []string{"non_existing_foo", msgField, "non_exiting_bar"}
 		tlp := &insertutils.TestLogMessageProcessor{}
 
 		// Read the request without compression
 		r := bytes.NewBufferString(data)
-		rows, err := readBulkRequest(r, false, timeField, msgField, tlp)
+		rows, err := readBulkRequest(r, false, timeField, msgFields, tlp)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -55,7 +56,7 @@ func TestReadBulkRequest_Success(t *testing.T) {
 		tlp = &insertutils.TestLogMessageProcessor{}
 		compressedData := compressData(data)
 		r = bytes.NewBufferString(compressedData)
-		rows, err = readBulkRequest(r, true, timeField, msgField, tlp)
+		rows, err = readBulkRequest(r, true, timeField, msgFields, tlp)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -86,10 +87,10 @@ func TestReadBulkRequest_Success(t *testing.T) {
 	msgField := "message"
 	rowsExpected := 4
 	timestampsExpected := []int64{1686026891735000000, 1686023292735000000, 1686026893735000000, 1686026893000000000}
-	resultExpected := `{"@timestamp":"","log.offset":"71770","log.file.path":"/var/log/auth.log","_msg":"foobar"}
-{"@timestamp":"","_msg":"baz"}
-{"_msg":"xyz","@timestamp":"","x":"y"}
-{"_msg":"qwe rty","@timestamp":""}`
+	resultExpected := `{"log.offset":"71770","log.file.path":"/var/log/auth.log","_msg":"foobar"}
+{"_msg":"baz"}
+{"_msg":"xyz","x":"y"}
+{"_msg":"qwe rty"}`
 	f(data, timeField, msgField, rowsExpected, timestampsExpected, resultExpected)
 }
 

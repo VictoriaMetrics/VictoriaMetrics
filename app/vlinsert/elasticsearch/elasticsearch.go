@@ -101,9 +101,9 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		lmp := cp.NewLogMessageProcessor()
+		lmp := cp.NewLogMessageProcessor("elasticsearch_bulk")
 		isGzip := r.Header.Get("Content-Encoding") == "gzip"
-		n, err := readBulkRequest(r.Body, isGzip, cp.TimeField, cp.MsgField, lmp)
+		n, err := readBulkRequest(r.Body, isGzip, cp.TimeField, cp.MsgFields, lmp)
 		lmp.MustClose()
 		if err != nil {
 			logger.Warnf("cannot decode log message #%d in /_bulk request: %s, stream fields: %s", n, err, cp.StreamFields)
@@ -133,7 +133,7 @@ var (
 	bulkRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
 )
 
-func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string, lmp insertutils.LogMessageProcessor) (int, error) {
+func readBulkRequest(r io.Reader, isGzip bool, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) (int, error) {
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
 	if isGzip {
@@ -158,7 +158,7 @@ func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string, lmp i
 	n := 0
 	nCheckpoint := 0
 	for {
-		ok, err := readBulkLine(sc, timeField, msgField, lmp)
+		ok, err := readBulkLine(sc, timeField, msgFields, lmp)
 		wcr.DecConcurrency()
 		if err != nil || !ok {
 			rowsIngestedTotal.Add(n - nCheckpoint)
@@ -174,7 +174,7 @@ func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string, lmp i
 
 var lineBufferPool bytesutil.ByteBufferPool
 
-func readBulkLine(sc *bufio.Scanner, timeField, msgField string, lmp insertutils.LogMessageProcessor) (bool, error) {
+func readBulkLine(sc *bufio.Scanner, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) (bool, error) {
 	var line []byte
 
 	// Read the command, must be "create" or "index"
@@ -219,7 +219,7 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string, lmp insertutils
 	if ts == 0 {
 		ts = time.Now().UnixNano()
 	}
-	logstorage.RenameField(p.Fields, msgField, "_msg")
+	logstorage.RenameField(p.Fields, msgFields, "_msg")
 	lmp.AddRow(ts, p.Fields)
 	logstorage.PutJSONParser(p)
 

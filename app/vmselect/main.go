@@ -60,6 +60,7 @@ func Init() {
 	fs.RemoveDirContents(tmpDirPath)
 	netstorage.InitTmpBlocksDir(tmpDirPath)
 	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
+	prometheus.InitMaxUniqueTimeseries(*maxConcurrentRequests)
 
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMAlertProxy()
@@ -81,6 +82,9 @@ var (
 	})
 	_ = metrics.NewGauge(`vm_concurrent_select_current`, func() float64 {
 		return float64(len(concurrencyLimitCh))
+	})
+	_ = metrics.NewGauge(`vm_search_max_unique_timeseries`, func() float64 {
+		return float64(prometheus.GetMaxUniqueTimeSeries())
 	})
 )
 

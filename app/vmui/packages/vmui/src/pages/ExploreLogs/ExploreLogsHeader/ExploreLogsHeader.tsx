@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useState } from "preact/compat";
-import { InfoIcon, PlayIcon, WikiIcon } from "../../../components/Main/Icons";
+import { InfoIcon, PlayIcon, SpinnerIcon, WikiIcon } from "../../../components/Main/Icons";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
@@ -11,6 +11,7 @@ export interface ExploreLogHeaderProps {
   query: string;
   limit: number;
   error?: string;
+  isLoading: boolean;
   onChange: (val: string) => void;
   onChangeLimit: (val: number) => void;
   onRun: () => void;
@@ -20,6 +21,7 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
   query,
   limit,
   error,
+  isLoading,
   onChange,
   onChangeLimit,
   onRun,
@@ -94,13 +96,16 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
             Documentation
           </a>
         </div>
-        <div className="vm-explore-logs-header-bottom__execute">
+        <div className="vm-explore-logs-header-bottom-execute">
           <Button
-            startIcon={<PlayIcon/>}
+            startIcon={isLoading ? <SpinnerIcon/> : <PlayIcon/>}
             onClick={onRun}
             fullWidth
           >
-            Execute Query
+            <span className="vm-explore-logs-header-bottom-execute__text">
+              {isLoading ? "Cancel Query" : "Execute Query"}
+            </span>
+            <span className="vm-explore-logs-header-bottom-execute__text_hidden">Execute Query</span>
           </Button>
         </div>
       </div>

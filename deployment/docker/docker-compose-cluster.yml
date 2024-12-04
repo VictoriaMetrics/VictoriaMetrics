@@ -4,7 +4,7 @@ services:
   #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.104.0
+    image: victoriametrics/vmagent:v1.107.0
     depends_on:
       - "vminsert"
     ports:
@@ -13,8 +13,8 @@ services:
       - vmagentdata:/vmagentdata
       - ./prometheus-cluster.yml:/etc/prometheus/prometheus.yml
     command:
-      - '--promscrape.config=/etc/prometheus/prometheus.yml'
-      - '--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/'
+      - "--promscrape.config=/etc/prometheus/prometheus.yml"
+      - "--remoteWrite.url=http://vminsert:8480/insert/0/prometheus/"
     restart: always
 
   # Grafana instance configured with VictoriaMetrics as datasource
@@ -39,7 +39,7 @@ services:
   # where N is number of vmstorages (2 in this case).
   vmstorage-1:
     container_name: vmstorage-1
-    image: victoriametrics/vmstorage:v1.104.0-cluster
+    image: victoriametrics/vmstorage:v1.107.0-cluster
     ports:
       - 8482
       - 8400
@@ -47,11 +47,11 @@ services:
     volumes:
       - strgdata-1:/storage
     command:
-      - '--storageDataPath=/storage'
+      - "--storageDataPath=/storage"
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
-    image: victoriametrics/vmstorage:v1.104.0-cluster
+    image: victoriametrics/vmstorage:v1.107.0-cluster
     ports:
       - 8482
       - 8400
@@ -59,20 +59,20 @@ services:
     volumes:
       - strgdata-2:/storage
     command:
-      - '--storageDataPath=/storage'
+      - "--storageDataPath=/storage"
     restart: always
 
   # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
   # pre-process them and distributes across configured vmstorage shards.
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert:v1.104.0-cluster
+    image: victoriametrics/vminsert:v1.107.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
     command:
-      - '--storageNode=vmstorage-1:8400'
-      - '--storageNode=vmstorage-2:8400'
+      - "--storageNode=vmstorage-1:8400"
+      - "--storageNode=vmstorage-2:8400"
     ports:
       - 8480:8480
     restart: always
@@ -81,27 +81,27 @@ services:
   # vmselect collects results from configured `--storageNode` shards.
   vmselect-1:
     container_name: vmselect-1
-    image: victoriametrics/vmselect:v1.104.0-cluster
+    image: victoriametrics/vmselect:v1.107.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
     command:
-      - '--storageNode=vmstorage-1:8401'
-      - '--storageNode=vmstorage-2:8401'
-      - '--vmalert.proxyURL=http://vmalert:8880'
+      - "--storageNode=vmstorage-1:8401"
+      - "--storageNode=vmstorage-2:8401"
+      - "--vmalert.proxyURL=http://vmalert:8880"
     ports:
       - 8481
     restart: always
   vmselect-2:
     container_name: vmselect-2
-    image: victoriametrics/vmselect:v1.104.0-cluster
+    image: victoriametrics/vmselect:v1.107.0-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
     command:
-      - '--storageNode=vmstorage-1:8401'
-      - '--storageNode=vmstorage-2:8401'
-      - '--vmalert.proxyURL=http://vmalert:8880'
+      - "--storageNode=vmstorage-1:8401"
+      - "--storageNode=vmstorage-2:8401"
+      - "--vmalert.proxyURL=http://vmalert:8880"
     ports:
       - 8481
     restart: always
@@ -112,14 +112,14 @@ services:
   # It can be used as an authentication proxy.
   vmauth:
     container_name: vmauth
-    image: victoriametrics/vmauth:v1.104.0
+    image: victoriametrics/vmauth:v1.107.0
     depends_on:
       - "vmselect-1"
       - "vmselect-2"
     volumes:
       - ./auth-cluster.yml:/etc/auth.yml
     command:
-      - '--auth.config=/etc/auth.yml'
+      - "--auth.config=/etc/auth.yml"
     ports:
       - 8427:8427
     restart: always
@@ -127,24 +127,24 @@ services:
   # vmalert executes alerting and recording rules
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.104.0
+    image: victoriametrics/vmalert:v1.107.0
     depends_on:
       - "vmauth"
     ports:
       - 8880:8880
     volumes:
-      - ./alerts-cluster.yml:/etc/alerts/alerts.yml
-      - ./alerts-health.yml:/etc/alerts/alerts-health.yml
-      - ./alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
-      - ./alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
+      - ./rules/alerts-cluster.yml:/etc/alerts/alerts.yml
+      - ./rules/alerts-health.yml:/etc/alerts/alerts-health.yml
+      - ./rules/alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
+      - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
     command:
-      - '--datasource.url=http://vmauth:8427/select/0/prometheus'
-      - '--remoteRead.url=http://vmauth:8427/select/0/prometheus'
-      - '--remoteWrite.url=http://vminsert:8480/insert/0/prometheus'
-      - '--notifier.url=http://alertmanager:9093/'
-      - '--rule=/etc/alerts/*.yml'
+      - "--datasource.url=http://vmauth:8427/select/0/prometheus"
+      - "--remoteRead.url=http://vmauth:8427/select/0/prometheus"
+      - "--remoteWrite.url=http://vminsert:8480/insert/0/prometheus"
+      - "--notifier.url=http://alertmanager:9093/"
+      - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana
-      - '-external.url=http://127.0.0.1:3000' #grafana outside container
+      - "-external.url=http://127.0.0.1:3000" #grafana outside container
       - '--external.alert.source=explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
     restart: always
 
@@ -156,7 +156,7 @@ services:
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
     command:
-      - '--config.file=/config/alertmanager.yml'
+      - "--config.file=/config/alertmanager.yml"
     ports:
       - 9093:9093
     restart: always

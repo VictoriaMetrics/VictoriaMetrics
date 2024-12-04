@@ -41,10 +41,10 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
       value: totalSeries.toLocaleString("en-US"),
       dynamic: (!totalSeries || !totalSeriesPrev || isPrometheus) ? "" : `${dynamic.toFixed(2)}%`,
       display: !focusLabel,
-      info: `The total number of active time series. 
+      info: `The total number of unique time series for a selected day.
              A time series is uniquely identified by its name plus a set of its labels. 
              For example, temperature{city="NY",country="US"} and temperature{city="SF",country="US"} 
-             are two distinct series, since they differ by the city label.`
+             are two distinct series, since they differ by the "city" label.`
     },
     {
       title: "Percentage from total",

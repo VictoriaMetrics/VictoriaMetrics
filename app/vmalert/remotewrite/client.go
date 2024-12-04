@@ -15,6 +15,7 @@ import (
 
 	"github.com/golang/snappy"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -22,11 +23,12 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
+var defaultConcurrency = cgroup.AvailableCPUs() * 2
+
 const (
-	defaultConcurrency   = 4
-	defaultMaxBatchSize  = 1e3
+	defaultMaxBatchSize  = 1e4
 	defaultMaxQueueSize  = 1e5
-	defaultFlushInterval = 5 * time.Second
+	defaultFlushInterval = 2 * time.Second
 	defaultWriteTimeout  = 30 * time.Second
 )
 

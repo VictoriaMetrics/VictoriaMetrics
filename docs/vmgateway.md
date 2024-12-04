@@ -31,8 +31,9 @@ See how to request a free trial license [here](https://victoriametrics.com/produ
 
 `vmgateway` supports jwt based authentication. With jwt payload can be configured to give access to specific tenants and labels as well as to read/write.
 
-jwt token must be in following format:
+jwt token must be in one of the following formats:
 
+with `vm_access` claim as JSON object
 ```json
 {
   "exp": 1617304574,
@@ -48,6 +49,15 @@ jwt token must be in following format:
       "extra_filters": ["{env=~\"prod|dev\",team!=\"test\"}"],
       "mode": 1
   }
+}
+```
+
+or with `vm_access` claim as string
+
+```json
+{
+  "exp": 1617304574,
+  "vm_access": "{\"tenant_id\":{\"account_id\":1,\"project_id\":5},\"extra_labels\":{\"team\":\"dev\",\"project\":\"mobile\"},\"extra_filters\": [\"{env=~\\\"prod|dev\\\",team!=\\\"test\\\"}\"],\"mode\":1}"
 }
 ```
 
@@ -270,7 +280,7 @@ Example usage for tokens issued by Google:
 
 Below is the list of configuration flags (it can be viewed by running `./vmgateway -help`):
 
-```sh
+```shellhelp
   -auth.httpHeader string
      HTTP header name to look for JWT authorization token (default "Authorization")
   -auth.jwksEndpoints array
@@ -309,8 +319,6 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
      Whether to disable adding 'step' param to the issued instant queries. This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. It is not recommended to enable this flag if you use vmalert with VictoriaMetrics.
   -datasource.headers string
      Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
-  -datasource.lookback duration
-     Deprecated: please adjust "-search.latencyOffset" at datasource side or specify "latency_offset" in rule group's params. Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
@@ -327,8 +335,6 @@ Below is the list of configuration flags (it can be viewed by running `./vmgatew
      Optional OAuth2 tokenURL to use for -datasource.url
   -datasource.queryStep duration
      How far a value can fallback to when evaluating queries. For example, if -datasource.queryStep=15s then param "step" with value "15s" will be added to every query. If set to 0, rule's evaluation interval will be used instead. (default 5m0s)
-  -datasource.queryTimeAlignment
-     Deprecated: please use "eval_alignment" in rule group instead. Whether to align "time" parameter with evaluation interval. Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. See more details at https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
      Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
   -datasource.showURL

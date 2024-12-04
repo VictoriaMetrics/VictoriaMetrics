@@ -1,7 +1,7 @@
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.104.0
+    image: victoriametrics/vmagent:v1.107.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -18,7 +18,7 @@ services:
 
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.104.0
+    image: victoriametrics/victoria-metrics:v1.107.0
     ports:
       - 8428:8428
     volumes:
@@ -48,10 +48,9 @@ services:
       - vm_net
     restart: always
 
-
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.104.0
+    image: victoriametrics/vmalert:v1.107.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -73,7 +72,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.16.3
+    image: victoriametrics/vmanomaly:v1.18.8
     depends_on:
       - "victoriametrics"
     ports:

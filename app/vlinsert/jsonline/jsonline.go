@@ -52,8 +52,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		reader = zr
 	}
 
-	lmp := cp.NewLogMessageProcessor()
-	err = processStreamInternal(reader, cp.TimeField, cp.MsgField, lmp)
+	lmp := cp.NewLogMessageProcessor("jsonline")
+	err = processStreamInternal(reader, cp.TimeField, cp.MsgFields, lmp)
 	lmp.MustClose()
 
 	if err != nil {
@@ -66,7 +66,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func processStreamInternal(r io.Reader, timeField, msgField string, lmp insertutils.LogMessageProcessor) error {
+func processStreamInternal(r io.Reader, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 
@@ -79,7 +79,7 @@ func processStreamInternal(r io.Reader, timeField, msgField string, lmp insertut
 
 	n := 0
 	for {
-		ok, err := readLine(sc, timeField, msgField, lmp)
+		ok, err := readLine(sc, timeField, msgFields, lmp)
 		wcr.DecConcurrency()
 		if err != nil {
 			errorsTotal.Inc()
@@ -93,7 +93,7 @@ func processStreamInternal(r io.Reader, timeField, msgField string, lmp insertut
 	}
 }
 
-func readLine(sc *bufio.Scanner, timeField, msgField string, lmp insertutils.LogMessageProcessor) (bool, error) {
+func readLine(sc *bufio.Scanner, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) (bool, error) {
 	var line []byte
 	for len(line) == 0 {
 		if !sc.Scan() {
@@ -116,7 +116,7 @@ func readLine(sc *bufio.Scanner, timeField, msgField string, lmp insertutils.Log
 	if err != nil {
 		return false, fmt.Errorf("cannot get timestamp: %w", err)
 	}
-	logstorage.RenameField(p.Fields, msgField, "_msg")
+	logstorage.RenameField(p.Fields, msgFields, "_msg")
 	lmp.AddRow(ts, p.Fields)
 	logstorage.PutJSONParser(p)
 

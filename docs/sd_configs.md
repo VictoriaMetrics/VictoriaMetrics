@@ -32,6 +32,7 @@ supports the following Prometheus-compatible service discovery options for Prome
 * `nomad_sd_configs` is for discovering and scraping targets registered in [HashiCorp Nomad](https://www.nomadproject.io/). See [these docs](#nomad_sd_configs).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
 * `ovhcloud_sd_configs` is for discovering and scraping OVH Cloud VPS and dedicated server targets. See [these docs](#ovhcloud_sd_configs).
+* `puppetdb_sd_configs` is for discovering and scraping PuppetDB targets. See [these docs](#puppetdb_sd_configs).
 * `static_configs` is for scraping statically defined targets. See [these docs](#static_configs).
 * `vultr_sd_configs` is for discovering and scraping [Vultr](https://www.vultr.com/) targets. See [these docs](#vultr_sd_configs).
 * `yandexcloud_sd_configs` is for discovering and scraping [Yandex Cloud](https://cloud.yandex.com/en/) targets. See [these docs](#yandexcloud_sd_configs).
@@ -1500,9 +1501,7 @@ The list of discovered OpenStack targets is refreshed at the interval, which can
 
 ## ovhcloud_sd_configs
 
-_Available from [v1.104](https://docs.victoriametrics.com/changelog/#v11040) version._
-
-OVH Cloud SD configuration allows retrieving scrape targets from [OVH Cloud VPS](https://www.ovhcloud.com/en/vps/) 
+OVH Cloud SD configuration{{% available_from "v1.104.0" %}} allows retrieving scrape targets from [OVH Cloud VPS](https://www.ovhcloud.com/en/vps/) 
 and [OVH Cloud dedicated server](https://ovhcloud.com/en/bare-metal/).
 
 Configuration example:
@@ -1583,6 +1582,59 @@ Dedicated servers:
 * `__meta_ovhcloud_dedicated_server_support_level`: the support level of the server.
 
 The list of discovered OVH Cloud targets is refreshed at the interval, which can be configured via `-promscrape.ovhcloudSDCheckInterval` command-line flag.
+
+## puppetdb_sd_configs
+
+PuppetDB SD configuration{{% available_from "v1.106.0" %}} allows retrieving scrape targets from [PuppetDB](https://www.puppet.com/docs/puppetdb/8/overview.html) resources.
+
+This SD discovers resources and will create a target for each resource returned by the API.
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: puppetdb_job
+  puppetdb_sd_configs:
+    # The URL of the PuppetDB root query endpoint.
+    - url: <string>
+      
+      # Puppet Query Language (PQL) query. Only resources are supported.
+      # https://puppet.com/docs/puppetdb/latest/api/query/v4/pql.html
+      query: <string>
+
+      # Whether to include the parameters as meta labels.
+      # Due to the differences between parameter types and Prometheus labels,
+      # some parameters might not be rendered. The format of the parameters might
+      # also change in future releases.
+      #
+      # Note: Enabling this exposes parameters in the VMUI and API. Make sure
+      # that you don't have secrets exposed as parameters if you enable this.
+      # 
+      # include_parameters: <boolean> | default false
+
+      # The port to scrape metrics from.
+      # 
+      # port: <int> | default = 80
+
+      # Additional HTTP API client options can be specified here.
+      # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
+The resource address is the `certname` of the resource and can be changed during relabeling.
+The following meta labels are available on targets during relabeling:
+
+* `__meta_puppetdb_query`: the Puppet Query Language (PQL) query.
+* `__meta_puppetdb_certname`: the name of the node associated with the resource.
+* `__meta_puppetdb_resource`: a SHA-1 hash of the resource’s type, title, and parameters, for identification.
+* `__meta_puppetdb_type`: the resource type.
+* `__meta_puppetdb_title`: the resource title.
+* `__meta_puppetdb_exported`: whether the resource is exported (`"true"` or `"false"`).
+* `__meta_puppetdb_tags`: comma separated list of resource tags.
+* `__meta_puppetdb_file`: the manifest file in which the resource was declared.
+* `__meta_puppetdb_environment`: the environment of the node associated with the resource.
+* `__meta_puppetdb_parameter_<parametername>`: the parameters of the resource.
+
+The list of discovered PuppetDB targets is refreshed at the interval, which can be configured via `-promscrape.puppetdbSDCheckInterval` command-line flag.
 
 ## static_configs
 

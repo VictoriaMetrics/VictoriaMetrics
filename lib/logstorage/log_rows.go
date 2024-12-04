@@ -3,16 +3,14 @@ package logstorage
 import (
 	"sort"
 	"sync"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // LogRows holds a set of rows needed for Storage.MustAddRows
 //
 // LogRows must be obtained via GetLogRows()
 type LogRows struct {
-	// buf holds all the bytes referred by items in LogRows
-	buf []byte
+	// a holds all the bytes referred by items in LogRows
+	a arena
 
 	// fieldsBuf holds all the fields referred by items in LogRows
 	fieldsBuf []Field
@@ -37,6 +35,15 @@ type LogRows struct {
 
 	// ignoreFields contains names for log fields, which must be skipped during data ingestion
 	ignoreFields map[string]struct{}
+
+	// extraFields contains extra fields to add to all the logs at MustAdd().
+	extraFields []Field
+
+	// extraStreamFields contains extraFields, which must be treated as stream fields.
+	extraStreamFields []Field
+
+	// defaultMsgValue contains default value for missing _msg field
+	defaultMsgValue string
 }
 
 type sortedFields []Field
@@ -79,11 +86,16 @@ func (lr *LogRows) Reset() {
 	for k := range ifs {
 		delete(ifs, k)
 	}
+
+	lr.extraFields = nil
+	lr.extraStreamFields = lr.extraStreamFields[:0]
+
+	lr.defaultMsgValue = ""
 }
 
 // ResetKeepSettings resets rows stored in lr, while keeping its settings passed to GetLogRows().
 func (lr *LogRows) ResetKeepSettings() {
-	lr.buf = lr.buf[:0]
+	lr.a.reset()
 
 	fb := lr.fieldsBuf
 	for i := range fb {
@@ -116,7 +128,7 @@ func (lr *LogRows) ResetKeepSettings() {
 
 // NeedFlush returns true if lr contains too much data, so it must be flushed to the storage.
 func (lr *LogRows) NeedFlush() bool {
-	return len(lr.buf) > (maxUncompressedBlockSize/8)*7
+	return len(lr.a.b) > (maxUncompressedBlockSize/8)*7
 }
 
 // MustAdd adds a log entry with the given args to lr.
@@ -126,14 +138,15 @@ func (lr *LogRows) NeedFlush() bool {
 //
 // field names longer than MaxFieldNameSize are automatically truncated to MaxFieldNameSize length.
 func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields []Field) {
-	// Compose StreamTags from fields according to lr.streamFields
-	sfs := lr.streamFields
+	// Compose StreamTags from fields according to lr.streamFields and lr.extraStreamFields
 	st := GetStreamTags()
-	for i := range fields {
-		f := &fields[i]
-		if _, ok := sfs[f.Name]; ok {
+	for _, f := range fields {
+		if _, ok := lr.streamFields[f.Name]; ok {
 			st.Add(f.Name, f.Value)
 		}
+	}
+	for _, f := range lr.extraStreamFields {
+		st.Add(f.Name, f.Value)
 	}
 
 	// Marshal StreamTags
@@ -152,23 +165,45 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields []Field) {
 }
 
 func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field, streamTagsCanonical []byte) {
-	buf := lr.buf
-	bufLen := len(buf)
-	buf = append(buf, streamTagsCanonical...)
+	streamTagsCanonicalCopy := lr.a.copyBytes(streamTagsCanonical)
+	lr.streamTagsCanonicals = append(lr.streamTagsCanonicals, streamTagsCanonicalCopy)
 
-	lr.streamTagsCanonicals = append(lr.streamTagsCanonicals, buf[bufLen:])
 	lr.streamIDs = append(lr.streamIDs, sid)
 	lr.timestamps = append(lr.timestamps, timestamp)
 
-	// Store all the fields
-	ifs := lr.ignoreFields
+	fieldsLen := len(lr.fieldsBuf)
+	hasMsgField := lr.addFieldsInternal(fields, lr.ignoreFields)
+	if lr.addFieldsInternal(lr.extraFields, nil) {
+		hasMsgField = true
+	}
+
+	// Add optional default _msg field
+	if !hasMsgField && lr.defaultMsgValue != "" {
+		value := lr.a.copyString(lr.defaultMsgValue)
+		lr.fieldsBuf = append(lr.fieldsBuf, Field{
+			Value: value,
+		})
+	}
+
+	// Sort fields by name
+	lr.sf = lr.fieldsBuf[fieldsLen:]
+	sort.Sort(&lr.sf)
+
+	// Add log row with sorted fields to lr.rows
+	lr.rows = append(lr.rows, lr.sf)
+}
+
+func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields map[string]struct{}) bool {
+	if len(fields) == 0 {
+		return false
+	}
+
 	fb := lr.fieldsBuf
-	fieldsLen := len(fb)
+	hasMsgField := false
 	for i := range fields {
 		f := &fields[i]
 
-		if _, ok := ifs[f.Name]; ok {
-			// Skip fields from the ifs map
+		if _, ok := ignoreFields[f.Name]; ok {
 			continue
 		}
 		if f.Value == "" {
@@ -179,26 +214,20 @@ func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field
 		fb = append(fb, Field{})
 		dstField := &fb[len(fb)-1]
 
-		bufLen = len(buf)
 		fieldName := f.Name
 		if len(fieldName) > MaxFieldNameSize {
 			fieldName = fieldName[:MaxFieldNameSize]
 		}
-		if fieldName != "_msg" {
-			buf = append(buf, fieldName...)
+		if fieldName == "_msg" {
+			fieldName = ""
+			hasMsgField = true
 		}
-		dstField.Name = bytesutil.ToUnsafeString(buf[bufLen:])
-
-		bufLen = len(buf)
-		buf = append(buf, f.Value...)
-		dstField.Value = bytesutil.ToUnsafeString(buf[bufLen:])
+		dstField.Name = lr.a.copyString(fieldName)
+		dstField.Value = lr.a.copyString(f.Value)
 	}
-	lr.sf = fb[fieldsLen:]
-	sort.Sort(&lr.sf)
-	lr.rows = append(lr.rows, lr.sf)
-
 	lr.fieldsBuf = fb
-	lr.buf = buf
+
+	return hasMsgField
 }
 
 // GetRowString returns string representation of the row with the given idx.
@@ -225,9 +254,11 @@ func (lr *LogRows) GetRowString(idx int) string {
 //
 // streamFields is a set of field names, which must be associated with the stream.
 // ignoreFields is a set of field names, which must be ignored during data ingestion.
+// extraFields is a set of fields, which must be added to all the logs passed to MustAdd().
+// defaultMsgValue is the default value to store in non-existing or empty _msg.
 //
 // Return back it to the pool with PutLogRows() when it is no longer needed.
-func GetLogRows(streamFields, ignoreFields []string) *LogRows {
+func GetLogRows(streamFields, ignoreFields []string, extraFields []Field, defaultMsgValue string) *LogRows {
 	v := logRowsPool.Get()
 	if v == nil {
 		v = &LogRows{}
@@ -244,6 +275,14 @@ func GetLogRows(streamFields, ignoreFields []string) *LogRows {
 		sfs[f] = struct{}{}
 	}
 
+	// Initialize extraStreamFields
+	for _, f := range extraFields {
+		if _, ok := sfs[f.Name]; ok {
+			lr.extraStreamFields = append(lr.extraStreamFields, f)
+			delete(sfs, f.Name)
+		}
+	}
+
 	// Initialize ignoreFields
 	ifs := lr.ignoreFields
 	if ifs == nil {
@@ -253,8 +292,17 @@ func GetLogRows(streamFields, ignoreFields []string) *LogRows {
 	for _, f := range ignoreFields {
 		if f != "" {
 			ifs[f] = struct{}{}
+			delete(sfs, f)
 		}
 	}
+	for _, f := range extraFields {
+		// Extra fields must orverride the existing fields for the sake of consistency and security,
+		// so the client won't be able to override them.
+		ifs[f.Name] = struct{}{}
+	}
+
+	lr.extraFields = extraFields
+	lr.defaultMsgValue = defaultMsgValue
 
 	return lr
 }

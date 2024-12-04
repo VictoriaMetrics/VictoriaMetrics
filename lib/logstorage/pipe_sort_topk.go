@@ -440,9 +440,9 @@ type pipeTopkWriteContext struct {
 
 func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bool {
 	ps := shard.ps
-	rankName := ps.rankName
+	rankFieldName := ps.rankFieldName
 	rankFields := 0
-	if rankName != "" {
+	if rankFieldName != "" {
 		rankFields = 1
 	}
 
@@ -476,8 +476,8 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
-		if rankName != "" {
-			rcs = appendResultColumnWithName(rcs, rankName)
+		if rankFieldName != "" {
+			rcs = appendResultColumnWithName(rcs, rankFieldName)
 		}
 		for _, bf := range byFields {
 			rcs = appendResultColumnWithName(rcs, bf.name)
@@ -488,7 +488,7 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		wctx.rcs = rcs
 	}
 
-	if rankName != "" {
+	if rankFieldName != "" {
 		bufLen := len(wctx.buf)
 		wctx.buf = marshalUint64String(wctx.buf, wctx.rowsWritten)
 		v := bytesutil.ToUnsafeString(wctx.buf[bufLen:])
