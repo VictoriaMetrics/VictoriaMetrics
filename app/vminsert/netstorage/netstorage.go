@@ -58,7 +58,7 @@ func (sn *storageNode) isExcluded() bool {
 }
 
 func (sn *storageNode) setBroken(isBroken bool) {
-	if sn.isBroken.Swap(isBroken) {
+	if !sn.isBroken.Swap(isBroken) && isBroken {
 		sn.brokenAt.Store(fasttime.UnixTimestamp())
 	}
 }
