@@ -166,7 +166,7 @@ func parseJournaldRequest(data []byte, lmp insertutils.LogMessageProcessor, cp *
 				if ts == 0 {
 					ts = currentTimestamp
 				}
-				lmp.AddRow(ts, fields)
+				lmp.AddRow(ts, fields, nil)
 				fields = fields[:0]
 			}
 			// skip newline separator
@@ -244,7 +244,7 @@ func parseJournaldRequest(data []byte, lmp insertutils.LogMessageProcessor, cp *
 		if ts == 0 {
 			ts = currentTimestamp
 		}
-		lmp.AddRow(ts, fields)
+		lmp.AddRow(ts, fields, nil)
 	}
 	return nil
 }

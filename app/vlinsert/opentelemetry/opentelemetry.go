@@ -67,7 +67,8 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 	}
 
 	lmp := cp.NewLogMessageProcessor("opentelelemtry_protobuf")
-	err = pushProtobufRequest(data, lmp)
+	useDefaultStreamFields := len(cp.StreamFields) == 0
+	err = pushProtobufRequest(data, lmp, useDefaultStreamFields)
 	lmp.MustClose()
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse OpenTelemetry protobuf request: %s", err)
@@ -87,7 +88,7 @@ var (
 	requestProtobufDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
 )
 
-func pushProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) error {
+func pushProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefaultStreamFields bool) error {
 	var req pb.ExportLogsServiceRequest
 	if err := req.UnmarshalProtobuf(data); err != nil {
 		errorsTotal.Inc()
@@ -104,14 +105,14 @@ func pushProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) error
 		}
 		commonFieldsLen := len(commonFields)
 		for _, sc := range rl.ScopeLogs {
-			commonFields = pushFieldsFromScopeLogs(&sc, commonFields[:commonFieldsLen], lmp)
+			commonFields = pushFieldsFromScopeLogs(&sc, commonFields[:commonFieldsLen], lmp, useDefaultStreamFields)
 		}
 	}
 
 	return nil
 }
 
-func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, lmp insertutils.LogMessageProcessor) []logstorage.Field {
+func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, lmp insertutils.LogMessageProcessor, useDefaultStreamFields bool) []logstorage.Field {
 	fields := commonFields
 	for _, lr := range sc.LogRecords {
 		fields = fields[:len(commonFields)]
@@ -130,7 +131,11 @@ func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, 
 			Value: lr.FormatSeverity(),
 		})
 
-		lmp.AddRow(lr.ExtractTimestampNano(), fields)
+		var streamFields []logstorage.Field
+		if useDefaultStreamFields {
+			streamFields = commonFields
+		}
+		lmp.AddRow(lr.ExtractTimestampNano(), fields, streamFields)
 	}
 	return fields
 }

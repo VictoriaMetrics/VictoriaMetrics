@@ -302,7 +302,7 @@ func newTestLogRows(streams, rowsPerStream int, seed int64) *LogRows {
 				fields[i], fields[j] = fields[j], fields[i]
 			})
 			timestamp := rng.Int63()
-			lr.MustAdd(tenantID, timestamp, fields)
+			lr.MustAdd(tenantID, timestamp, fields, nil)
 		}
 	}
 	return lr
@@ -358,7 +358,7 @@ func (mp *inmemoryPart) readLogRows(sbu *stringsBlockUnmarshaler, vd *valuesDeco
 			logger.Panicf("BUG: cannot unmarshal log entries from inmemoryPart: %s", err)
 		}
 		for i, timestamp := range tmp.timestamps {
-			lr.MustAdd(streamID.tenantID, timestamp, tmp.rows[i])
+			lr.MustAdd(streamID.tenantID, timestamp, tmp.rows[i], nil)
 			lr.streamIDs[len(lr.streamIDs)-1] = streamID
 		}
 		tmp.reset()
@@ -390,7 +390,7 @@ func newTestLogRowsUniqTags(streams, rowsPerStream, uniqFieldsPerRow int) *LogRo
 					Value: fmt.Sprintf("value_%d_%d_%d", i, j, k),
 				})
 			}
-			lr.MustAdd(tenantID, time.Now().UnixMilli(), fields)
+			lr.MustAdd(tenantID, time.Now().UnixMilli(), fields, nil)
 		}
 	}
 	return lr

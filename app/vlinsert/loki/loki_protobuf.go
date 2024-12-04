@@ -45,7 +45,8 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 		return
 	}
 	lmp := cp.NewLogMessageProcessor("loki_protobuf")
-	err = parseProtobufRequest(data, lmp)
+	useDefaultStreamFields := len(cp.StreamFields) == 0
+	err = parseProtobufRequest(data, lmp, useDefaultStreamFields)
 	lmp.MustClose()
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse Loki protobuf request: %s", err)
@@ -63,7 +64,7 @@ var (
 	requestProtobufDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="protobuf"}`)
 )
 
-func parseProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) error {
+func parseProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefaultStreamFields bool) error {
 	bb := bytesBufPool.Get()
 	defer bytesBufPool.Put(bb)
 
@@ -118,7 +119,11 @@ func parseProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) erro
 				ts = currentTimestamp
 			}
 
-			lmp.AddRow(ts, fields.fields)
+			var streamFields []logstorage.Field
+			if useDefaultStreamFields {
+				streamFields = fields.fields[:commonFieldsLen]
+			}
+			lmp.AddRow(ts, fields.fields, streamFields)
 		}
 	}
 	return nil
