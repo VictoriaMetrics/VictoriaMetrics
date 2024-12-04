@@ -18,6 +18,9 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* FEATURE:[vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): add `match_first_network` support for docker service discovery. It uses the first network if the container has multiple networks defined. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7398).
+* FEATURE:[vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): docker service discovery now supports discover [linked networks](https://docs.docker.com/reference/cli/docker/network/connect/#link).
+
 ## [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
 
 Released at 2024-11-29
