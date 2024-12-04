@@ -824,23 +824,6 @@ func (sn *storageNode) trySendBuf(buf []byte, rows int) bool {
 	return sent
 }
 
-func (sn *storageNode) sendBufMayBlock(buf []byte) bool {
-	sn.brLock.Lock()
-	for len(sn.br.buf)+len(buf) > maxBufSizePerStorageNode {
-		select {
-		case <-sn.stopCh:
-			sn.brLock.Unlock()
-			return false
-		default:
-		}
-		sn.brCond.Wait()
-	}
-	sn.br.buf = append(sn.br.buf, buf...)
-	sn.br.rows++
-	sn.brLock.Unlock()
-	return true
-}
-
 func (sn *storageNode) readOnlyChecker() {
 	d := timeutil.AddJitterToDuration(time.Second * 30)
 	ticker := time.NewTicker(d)
