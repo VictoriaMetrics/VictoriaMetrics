@@ -1738,6 +1738,13 @@ and stores it into `my_json` output field:
 _time:5m | format '{"_msg":<q:_msg>,"stacktrace":<q:stacktrace>}' as my_json
 ```
 
+If some fields must be transformed to uppercase or to lowercase, then add `uc:` or `lc:` in front of the corresponding field name.
+For example, the following command stores uppercase value of `foo` field and lowercase value of `bar` field in the `result` field:
+
+```logsql
+_time:5m | format 'uppercase foo: <uc:foo>, lowercase bar: <lc:bar>' as result
+```
+
 Numeric fields can be transformed into the following string representation at `format` pipe:
 
 - [RFC3339 time](https://www.rfc-editor.org/rfc/rfc3339) - by adding `time:` in front of the corresponding field name

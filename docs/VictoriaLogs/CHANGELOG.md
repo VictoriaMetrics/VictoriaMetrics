@@ -16,6 +16,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [format pipe](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe): allow formatting log fields in lowercase and uppercase via `<uc:field_name>` and `<lc:field_name>` syntax. This can be useful when some fields must be consistently transformed to the same case during querying. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7620#issuecomment-2502170924).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add frontend-only pagination for table view.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): improve memory consumption during data processing. This enhancement reduces the overall memory footprint, leading to better performance and stability.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): reduce memory usage across all tabs for improved performance and stability. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7185).
