@@ -25,10 +25,10 @@ func (tlp *TestLogMessageProcessor) MustClose() {
 }
 
 // Verify verifies the number of rows, timestamps and results after AddRow calls.
-func (tlp *TestLogMessageProcessor) Verify(rowsExpected int, timestampsExpected []int64, resultExpected string) error {
+func (tlp *TestLogMessageProcessor) Verify(timestampsExpected []int64, resultExpected string) error {
 	result := strings.Join(tlp.rows, "\n")
-	if len(tlp.rows) != rowsExpected {
-		return fmt.Errorf("unexpected rows read; got %d; want %d;\nrows read:\n%s\nrows wanted\n%s", len(tlp.rows), rowsExpected, result, resultExpected)
+	if len(tlp.rows) != len(timestampsExpected) {
+		return fmt.Errorf("unexpected rows read; got %d; want %d;\nrows read:\n%s\nrows wanted\n%s", len(tlp.rows), len(timestampsExpected), result, resultExpected)
 	}
 
 	if !reflect.DeepEqual(tlp.timestamps, timestampsExpected) {

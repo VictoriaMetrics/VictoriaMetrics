@@ -82,7 +82,6 @@ func processStreamInternal(streamName string, r io.Reader, timeField string, msg
 			return nil
 		}
 		n++
-		rowsIngestedTotal.Inc()
 	}
 }
 
@@ -112,8 +111,6 @@ func readLine(lr *insertutils.LineReader, timeField string, msgFields []string, 
 }
 
 var (
-	rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="jsonline"}`)
-
 	requestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/jsonline"}`)
 	errorsTotal   = metrics.NewCounter(`vl_http_errors_total{path="/insert/jsonline"}`)
 
