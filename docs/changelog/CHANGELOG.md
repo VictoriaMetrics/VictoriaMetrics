@@ -21,6 +21,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * SECURITY: upgrade Go builder from Go1.23.3 to Go1.23.4. See the list of issues addressed in [Go1.23.4](https://github.com/golang/go/issues?q=milestone%3AGo1.23.4+label%3ACherryPickApproved).
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly parse the query rolloup window specified in milliseconds. Previous implementation could lead to precision issues resulting in the parsed window being smaller by 1ms. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5796) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fix requests routing by host when using `src_hosts`. Previously, request header could be ignored.
 
 ## [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
 
@@ -45,7 +46,6 @@ Released at 2024-11-29
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly handle [multitenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) query request errors and correctly perform search for available tenants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details. This is follow-up after [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1) release changes.
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly set `multitenant` cache expiration duration with `search.tenantCacheExpireDuration`. Previously flag always used default value.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly init `ip_filters` for `unauthorized_user` config section. Previously it was ignored and `vmauth` didn't apply `ip_filter` for `unauthorized` access.
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fix requests routing by host when using `src_hosts`. Previously, request header could be ignored.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return result for binary operation `^` aka pow at query requests for `NaN` values. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7359) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix rendering of isolated data points on the graph that are not connected to other points.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix for `showLegend` and `alias` flags in predefined panels. [See this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7565)
