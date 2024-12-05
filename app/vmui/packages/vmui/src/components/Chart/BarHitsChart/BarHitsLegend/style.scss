@@ -3,16 +3,16 @@
 .vm-bar-hits-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: $padding-small;
   padding: 0 $padding-small $padding-small;
+  color: $color-text;
 
   &-item {
-    display: grid;
-    grid-template-columns: auto 1fr;
+    max-width: 50%;
+    display: flex;
     align-items: center;
     gap: $padding-small;
-    font-size: 12px;
-    padding: 0 $padding-small;
+    font-size: $font-size-small;
+    padding: $padding-small $padding-global;
     border-radius: $border-radius-small;
     cursor: pointer;
     transition: 0.2s;
@@ -27,34 +27,44 @@
     }
 
     &__marker {
-      width: 14px;
+      min-width: 14px;
+      max-width: 14px;
       height: 14px;
       border: $color-background-block;
     }
 
-    &-pairs {
-      display: flex;
-      gap: $padding-small;
+    &__label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-      &__value {
-        padding: $padding-small 0;
-
-        &:hover {
-          text-decoration: underline;
-        }
-
-        &:after {
-          content: ",";
-        }
-
-        &:last-child:after {
-          content: "";
-        }
-      }
+    &__total {
+      color: $color-text-secondary;
+      font-style: italic;
+      grid-column: 2;
     }
   }
 
   &-info {
-    list-style-position: inside;
+    flex-grow: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: $padding-small;
+    color: $color-text-secondary;
+    font-size: $font-size-small;
+
+    code {
+      display: inline-block;
+      padding: calc($padding-small / 2) $padding-small;
+      font-size: $font-size-small;
+      text-align: center;
+      background-color: $color-background-body;
+      background-repeat: repeat-x;
+      border: $border-divider;
+      border-radius: 4px;
+    }
   }
 }
