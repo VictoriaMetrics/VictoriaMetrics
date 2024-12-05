@@ -60,8 +60,8 @@ func (pl *pipeLast) newPipeProcessor(workersCount int, stopCh <-chan struct{}, c
 	return newPipeTopkProcessor(pl.ps, workersCount, stopCh, cancel, ppNext)
 }
 
-func (pl *pipeLast) addPartitionByTime() {
-	pl.ps.addPartitionByTime()
+func (pl *pipeLast) addPartitionByTime(step int64) {
+	pl.ps.addPartitionByTime(step)
 }
 
 func parsePipeLast(lex *lexer) (*pipeLast, error) {

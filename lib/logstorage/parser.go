@@ -582,13 +582,18 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 	if idx < 0 {
 		return nil, fmt.Errorf("missing `| stats ...` pipe in the query [%s]", q)
 	}
-
 	ps := pipes[idx].(*pipeStats)
 
-	// add _time:step to ps.byFields if it doesn't contain it yet.
-	ps.byFields = addByTimeField(ps.byFields, step)
+	// add _time:step to by (...) list at stats pipes.
+	q.addByTimeFieldToStatsPipes(step)
 
-	// extract by(...) field names from stats pipe
+	// propagate the step into rate* funcs at stats pipes.
+	q.initStatsRateFuncs(step)
+
+	// add 'partition by (_time)' to 'sort', 'first' and 'last' pipes.
+	q.addPartitionByTime(step)
+
+	// extract by(...) field names from ps
 	byFields := make([]string, len(ps.byFields))
 	for i, f := range ps.byFields {
 		byFields[i] = f.name
@@ -610,12 +615,8 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 		switch t := p.(type) {
 		case *pipeFilter:
 			// This pipe doesn't change the set of fields.
-		case *pipeFirst:
-			t.addPartitionByTime()
-		case *pipeLast:
-			t.addPartitionByTime()
-		case *pipeSort:
-			t.addPartitionByTime()
+		case *pipeFirst, *pipeLast, *pipeSort:
+			// These pipes do not change the set of fields.
 		case *pipeMath:
 			// Allow `| math ...` pipe, since it adds additional metrics to the given set of fields.
 			// Verify that the result fields at math pipe do not override byFields.
@@ -718,34 +719,6 @@ func getLastPipeStatsIdx(pipes []pipe) int {
 		}
 	}
 	return -1
-}
-
-func addByTimeField(byFields []*byStatsField, step int64) []*byStatsField {
-	if step <= 0 {
-		return byFields
-	}
-	stepStr := fmt.Sprintf("%d", step)
-	dstFields := make([]*byStatsField, 0, len(byFields)+1)
-	hasByTime := false
-	for _, f := range byFields {
-		if f.name == "_time" {
-			f = &byStatsField{
-				name:          "_time",
-				bucketSizeStr: stepStr,
-				bucketSize:    float64(step),
-			}
-			hasByTime = true
-		}
-		dstFields = append(dstFields, f)
-	}
-	if !hasByTime {
-		dstFields = append(dstFields, &byStatsField{
-			name:          "_time",
-			bucketSizeStr: stepStr,
-			bucketSize:    float64(step),
-		})
-	}
-	return dstFields
 }
 
 func flattenFiltersAnd(f filter) filter {
@@ -1015,17 +988,8 @@ func ParseStatsQuery(s string, timestamp int64) (*Query, error) {
 
 // HasGlobalTimeFilter returns true when query contains a global time filter.
 func (q *Query) HasGlobalTimeFilter() bool {
-	switch t := q.f.(type) {
-	case *filterAnd:
-		for _, subF := range t.filters {
-			if _, ok := subF.(*filterTime); ok {
-				return true
-			}
-		}
-	case *filterTime:
-		return true
-	}
-	return false
+	start, end := q.GetFilterTimeRange()
+	return start != math.MinInt64 && end != math.MaxInt64
 }
 
 // ParseQueryAtTimestamp parses s in the context of the given timestamp.
@@ -1043,7 +1007,43 @@ func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 	}
 	q.timestamp = timestamp
 	q.optimize()
+
+	start, end := q.GetFilterTimeRange()
+	if start != math.MinInt64 && end != math.MaxInt64 {
+		step := end - start + 1 // 1 is needed in order to include [start ... end] in the step.
+		q.initStatsRateFuncs(step)
+	}
+
 	return q, nil
+}
+
+func (q *Query) initStatsRateFuncs(step int64) {
+	for _, p := range q.pipes {
+		if ps, ok := p.(*pipeStats); ok {
+			ps.initRateFuncs(step)
+		}
+	}
+}
+
+func (q *Query) addByTimeFieldToStatsPipes(step int64) {
+	for _, p := range q.pipes {
+		if ps, ok := p.(*pipeStats); ok {
+			ps.addByTimeField(step)
+		}
+	}
+}
+
+func (q *Query) addPartitionByTime(step int64) {
+	for _, p := range q.pipes {
+		switch t := p.(type) {
+		case *pipeFirst:
+			t.addPartitionByTime(step)
+		case *pipeLast:
+			t.addPartitionByTime(step)
+		case *pipeSort:
+			t.addPartitionByTime(step)
+		}
+	}
 }
 
 // GetTimestamp returns timestamp context for the given q, which was passed to ParseQueryAtTimestamp().

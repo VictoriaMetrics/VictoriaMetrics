@@ -2931,6 +2931,8 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`median`](#median-stats) returns the [median](https://en.wikipedia.org/wiki/Median) value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) returns the minimum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`quantile`](#quantile-stats) returns the given quantile for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`rate`](#rate-stats) returns the average per-second rate of matching logs on the selected time range.
+- [`rate_sum`](#rate_sum-stats) returns the average per-second rate of sum for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`row_any`](#row_any-stats) returns a sample [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) per each selected [stats group](#stats-by-fields).
 - [`row_max`](#row_max-stats) returns the [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the minimum value at the given field.
 - [`row_min`](#row_min-stats) returns the [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the maximum value at the given field.
@@ -2988,6 +2990,8 @@ _time:5m | stats count(username, password) logs_with_username_or_password
 
 See also:
 
+- [`rate`](#rate-stats)
+- [`rate_sum`](#rate_sum-stats)
 - [`count_uniq`](#count_uniq-stats)
 - [`count_empty`](#count_empty-stats)
 - [`sum`](#sum-stats)
@@ -3122,6 +3126,38 @@ See also:
 - [`max`](#max-stats)
 - [`median`](#median-stats)
 - [`avg`](#avg-stats)
+
+### rate stats
+
+`rate()` [stats pipe function](#stats-pipe-functions) returns the average per-second rate of matching logs on the selected time range.
+
+For example, the following query returns the average per-second rate of logs with the `error` [word](#word) over the last 5 minutes:
+
+```logsql
+_time:5m error | stats rate()
+```
+
+See also:
+
+- [`rate_sum`](#rate_sum-stats)
+- [`count`](#count-stats)
+
+### rate_sum stats
+
+`rate_sum(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) returns the average per-second rate of the sum over the given
+numeric [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+For example, the following query returns the average per-second rate of the sum of `bytes_sent` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over the last 5 minutes:
+
+```logsql
+_time:5m | stats rate_sum(bytes_sent)
+```
+
+See also:
+
+- [`sum`](#sum-stats)
+- [`rate`](#rate-stats)
 
 ### row_any stats
 

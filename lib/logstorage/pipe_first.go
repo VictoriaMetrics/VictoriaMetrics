@@ -35,8 +35,8 @@ func (pf *pipeFirst) newPipeProcessor(workersCount int, stopCh <-chan struct{}, 
 	return newPipeTopkProcessor(pf.ps, workersCount, stopCh, cancel, ppNext)
 }
 
-func (pf *pipeFirst) addPartitionByTime() {
-	pf.ps.addPartitionByTime()
+func (pf *pipeFirst) addPartitionByTime(step int64) {
+	pf.ps.addPartitionByTime(step)
 }
 
 func parsePipeFirst(lex *lexer) (*pipeFirst, error) {
