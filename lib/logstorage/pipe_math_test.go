@@ -24,6 +24,11 @@ func TestParsePipeMathSuccess(t *testing.T) {
 	f(`math round(foo, 0.1) as y`)
 	f(`math (a / b default 10) as z`)
 	f(`math (ln(a) + exp(b)) as x`)
+	f(`math (x / (24 * 3600)) as x`)
+	f(`math (x / (1d / 1s)) as x`)
+	f(`math (x / 1d * 1s) as x`)
+	f(`math (x - y + z) as x`)
+	f(`math (x - (y + z)) as x`)
 }
 
 func TestParsePipeMathFailure(t *testing.T) {
