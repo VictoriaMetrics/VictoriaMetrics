@@ -710,9 +710,9 @@ selectAllByDefault: true
 <code class="language-yaml">node-exporter-full:
     enabled: true
 victoriametrics-operator:
-    enabled: false
+    enabled: true
 victoriametrics-vmalert:
-    enabled: false
+    enabled: true
 </code>
 </pre>
 </td>
@@ -1328,7 +1328,7 @@ write:
 </code>
 </pre>
 </td>
-      <td><p>Resource full name prefix override</p>
+      <td><p>Resource full name override</p>
 </td>
     </tr>
     <tr>
@@ -2087,7 +2087,7 @@ spec:
 </code>
 </pre>
 </td>
-      <td><p>Resource full name suffix override</p>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>
