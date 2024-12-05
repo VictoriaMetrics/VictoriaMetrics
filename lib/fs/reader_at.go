@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -215,6 +216,7 @@ func (mr *mmapReader) mustClose() {
 			logger.Panicf("FATAL: cannot unmap data for file %q: %s", fname, err)
 		}
 		mr.mmapData = nil
+		mmapedFiles.Dec()
 	}
 	MustClose(mr.f)
 	mr.f = nil
@@ -241,7 +243,13 @@ func mmapFile(f *os.File, size int64) ([]byte, error) {
 	}
 	data, err := mmap(int(f.Fd()), int(size))
 	if err != nil {
-		return nil, fmt.Errorf("cannot mmap file with size %d: %w", size, err)
+		if errStr := err.Error(); strings.Contains(errStr, "cannot allocate memory") {
+			err = fmt.Errorf("%w; try increasing /proc/sys/vm/max_map_count or passing -fs.disableMmap command-line flag to the application", err)
+		}
+		return nil, fmt.Errorf("cannot mmap file with size %d bytes; already mmaped files: %d: %w", size, mmapedFiles.Get(), err)
 	}
+	mmapedFiles.Inc()
 	return data[:sizeOrig], nil
 }
+
+var mmapedFiles = metrics.NewCounter("vm_mmaped_files")
