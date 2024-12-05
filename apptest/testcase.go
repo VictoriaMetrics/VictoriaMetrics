@@ -15,7 +15,7 @@ type TestCase struct {
 	t   *testing.T
 	cli *Client
 
-	startedApps []Stopper
+	startedApps map[string]Stopper
 }
 
 // Stopper is an interface of objects that needs to be stopped via Stop() call
@@ -25,7 +25,12 @@ type Stopper interface {
 
 // NewTestCase creates a new test case.
 func NewTestCase(t *testing.T) *TestCase {
-	return &TestCase{t, NewClient(), nil}
+	return &TestCase{t, NewClient(), make(map[string]Stopper)}
+}
+
+// T returns the test state.
+func (tc *TestCase) T() *testing.T {
+	return tc.t
 }
 
 // Dir returns the directory name that should be used by as the -storageDataDir.
@@ -74,7 +79,7 @@ func (tc *TestCase) MustStartVmsingle(instance string, flags []string) *Vmsingle
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
-	tc.addApp(app)
+	tc.addApp(instance, app)
 	return app
 }
 
@@ -87,7 +92,7 @@ func (tc *TestCase) MustStartVmstorage(instance string, flags []string) *Vmstora
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
-	tc.addApp(app)
+	tc.addApp(instance, app)
 	return app
 }
 
@@ -100,7 +105,7 @@ func (tc *TestCase) MustStartVmselect(instance string, flags []string) *Vmselect
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
-	tc.addApp(app)
+	tc.addApp(instance, app)
 	return app
 }
 
@@ -113,7 +118,7 @@ func (tc *TestCase) MustStartVminsert(instance string, flags []string) *Vminsert
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
-	tc.addApp(app)
+	tc.addApp(instance, app)
 	return app
 }
 
@@ -161,8 +166,29 @@ func (tc *TestCase) MustStartDefaultCluster() PrometheusWriteQuerier {
 	return &vmcluster{vminsert, vmselect, []*Vmstorage{vmstorage1, vmstorage2}}
 }
 
-func (tc *TestCase) addApp(app Stopper) {
-	tc.startedApps = append(tc.startedApps, app)
+func (tc *TestCase) addApp(instance string, app Stopper) {
+	if _, alreadyStarted := tc.startedApps[instance]; alreadyStarted {
+		tc.t.Fatalf("%s has already been started", instance)
+	}
+	tc.startedApps[instance] = app
+}
+
+// StopApp stops the app identified by the `instance` name and removes it from
+// the collection of started apps.
+func (tc *TestCase) StopApp(instance string) {
+	if app, exists := tc.startedApps[instance]; exists {
+		app.Stop()
+		delete(tc.startedApps, instance)
+	}
+}
+
+// ForceFlush flushes zero or more storages.
+func (tc *TestCase) ForceFlush(apps ...*Vmstorage) {
+	tc.t.Helper()
+
+	for _, app := range apps {
+		app.ForceFlush(tc.t)
+	}
 }
 
 // AssertOptions hold the assertion params, such as got and wanted values as

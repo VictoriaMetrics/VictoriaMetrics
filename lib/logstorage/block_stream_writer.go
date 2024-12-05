@@ -335,11 +335,8 @@ func (bsw *blockStreamWriter) MustWriteRows(sid *streamID, timestamps []int64, r
 	}
 
 	b := getBlock()
-	for len(rows) > 0 {
-		rowsProcessed := b.MustInitFromRows(timestamps, rows)
-		bsw.MustWriteBlock(sid, b)
-		timestamps, rows = timestamps[rowsProcessed:], rows[rowsProcessed:]
-	}
+	b.MustInitFromRows(timestamps, rows)
+	bsw.MustWriteBlock(sid, b)
 	putBlock(b)
 }
 

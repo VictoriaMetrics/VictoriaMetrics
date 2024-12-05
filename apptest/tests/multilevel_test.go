@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
+// See: https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup
 func TestClusterMultilevelSelect(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
@@ -54,19 +55,18 @@ func TestClusterMultilevelSelect(t *testing.T) {
 	// Retrieve all time series and verify that both vmselect (L1) and
 	// vmselect (L2) serve the complete set of time series.
 
-	got := func(app *apptest.Vmselect) any {
-		res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, qopts)
-		res.Sort()
-		return res
+	assertSeries := func(app *apptest.Vmselect) {
+		t.Helper()
+		tc.Assert(&apptest.AssertOptions{
+			Msg: "unexpected /api/v1/series response",
+			Got: func() any {
+				res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, qopts)
+				res.Sort()
+				return res
+			},
+			Want: want,
+		})
 	}
-	tc.Assert(&apptest.AssertOptions{
-		Msg:  "unexpected level-1 series count",
-		Got:  func() any { return got(vmselectL1) },
-		Want: want,
-	})
-	tc.Assert(&apptest.AssertOptions{
-		Msg:  "unexpected level-2 series count",
-		Got:  func() any { return got(vmselectL2) },
-		Want: want,
-	})
+	assertSeries(vmselectL1)
+	assertSeries(vmselectL2)
 }
