@@ -15,6 +15,13 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): added context menu for legend items with options to copy and filter streams and fields. See this [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7750).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): improved legend functionality with consistent click behavior across all vmui charts. See this [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7750).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): added sorting for group view by record count in descending order. See this [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7750).
+
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): removed the ability to filter by other in the legend, as other represents an aggregated series of all streams not included in the top results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7552).
+
+
 ## [v1.0.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.0.0-victorialogs)
 
 Released at 2024-11-12

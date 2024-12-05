@@ -1,3 +1,6 @@
+import uPlot from "uplot";
+import { ReactNode } from "react";
+
 export interface MetricBase {
   group: number;
   metric: {
@@ -6,13 +9,13 @@ export interface MetricBase {
 }
 
 export interface MetricResult extends MetricBase {
-  values: [number, string][]
+  values: [number, string][];
 }
 
 
 export interface InstantMetricResult extends MetricBase {
-  value?: [number, string]
-  values?: [number, string][]
+  value?: [number, string];
+  values?: [number, string][];
 }
 
 export interface ExportMetricResult extends MetricBase {
@@ -44,7 +47,22 @@ export interface LogHits {
   timestamps: string[];
   values: number[];
   total?: number;
-  fields: {
-    [key: string]: string;
-  };
+  fields: { [key: string]: string; };
+  _isOther?: boolean;
+}
+
+export interface LegendLogHits {
+  label: string;
+  total: number;
+  totalHits: number;
+  isOther: boolean;
+  fields: { [key: string]: string; };
+  stroke?: uPlot.Series.Stroke;
+  includesHits?: LegendLogHits[];
+}
+
+export interface LegendLogHitsMenu {
+  title: string;
+  icon?: ReactNode;
+  handler?: () => void;
 }

@@ -16,7 +16,8 @@ import TextField from "../../../components/Main/TextField/TextField";
 import useBoolean from "../../../hooks/useBoolean";
 import useStateSearchParams from "../../../hooks/useStateSearchParams";
 import { useSearchParams } from "react-router-dom";
-import { getStreamPairs } from "../../../utils/logs";
+import { convertToFieldFilter, getStreamPairs } from "../../../utils/logs";
+import { HITS_GROUP_FIELD } from "../hooks/useFetchLogHits";
 
 const WITHOUT_GROUPING = "No Grouping";
 
@@ -32,7 +33,7 @@ const GroupLogs: FC<TableLogsProps> = ({ logs, settingsRef }) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [expandGroups, setExpandGroups] = useState<boolean[]>([]);
-  const [groupBy, setGroupBy] = useStateSearchParams("_stream", "groupBy");
+  const [groupBy, setGroupBy] = useStateSearchParams(HITS_GROUP_FIELD, "groupBy");
   const [copied, setCopied] = useState<string | null>(null);
   const [searchKey, setSearchKey] = useState("");
   const optionsButtonRef = useRef<HTMLDivElement>(null);
@@ -72,13 +73,12 @@ const GroupLogs: FC<TableLogsProps> = ({ logs, settingsRef }) => {
         values,
         pairs,
       };
-    }).sort((a, b) => a.keysString.localeCompare(b.keysString)); // groups sorting
+    }).sort((a, b) => b.values.length - a.values.length); // groups sorting
   }, [logs, groupBy]);
 
   const handleClickByPair = (value: string) => async (e: MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    const isKeyValue = /(.+)?=(".+")/.test(value);
-    const copyValue = isKeyValue ? `${value.replace(/=/, ": ")}` : `${groupBy}: "${value}"`;
+    const copyValue = convertToFieldFilter(value, groupBy);
     const isCopied = await copyToClipboard(copyValue);
     if (isCopied) {
       setCopied(value);
