@@ -1204,6 +1204,24 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | sort by (foo desc, bar) desc OFFSET 30 limit 10`, `* | sort by (foo desc, bar) desc offset 30 limit 10`)
 	f(`* | sort by (foo desc, bar) desc limit 10 OFFSET 30`, `* | sort by (foo desc, bar) desc offset 30 limit 10`)
 	f(`* | sort (foo desc, bar) desc limit 10 OFFSET 30`, `* | sort by (foo desc, bar) desc offset 30 limit 10`)
+	f(`* | sort (foo desc, bar) partition by (abc, def) limit 10`, `* | sort by (foo desc, bar) partition by (abc, def) limit 10`)
+	f(`* | SORT BY (foo desc, bar) limit 10 PARTItion (abc, def) oFFset 30 rank abc`, `* | sort by (foo desc, bar) partition by (abc, def) offset 30 limit 10 rank as abc`)
+
+	// first pipe
+	f(`* | first`, `* | first`)
+	f(`* | first rank as x`, `* | first rank as x`)
+	f(`* | first by (x,y)`, `* | first by (x, y)`)
+	f(`* | first 10 by (foo)`, `* | first 10 by (foo)`)
+	f(`* | first 10 by (foo) rank bar`, `* | first 10 by (foo) rank as bar`)
+	f(`* | first 10 by (foo) partition (a,b) rank bar`, `* | first 10 by (foo) partition by (a, b) rank as bar`)
+
+	// last pipe
+	f(`* | last`, `* | last`)
+	f(`* | last rank as x`, `* | last rank as x`)
+	f(`* | last by (x,y)`, `* | last by (x, y)`)
+	f(`* | last 10 by (foo)`, `* | last 10 by (foo)`)
+	f(`* | last 10 by (foo) rank bar`, `* | last 10 by (foo) rank as bar`)
+	f(`* | last 10 by (foo) partition (a,b) rank bar`, `* | last 10 by (foo) partition by (a, b) rank as bar`)
 
 	// uniq pipe
 	f(`* | uniq`, `* | uniq`)
@@ -1939,6 +1957,16 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | fields x,y | blocks_count as bar | fields baz`, ``, ``)
 	f(`* | rm x,y | blocks_count as bar | fields baz`, ``, ``)
 
+	f(`* | first`, `*`, ``)
+	f(`* | first by (x)`, `*`, ``)
+	f(`* | first rank y`, `*`, ``)
+	f(`* | first by (x) rank y`, `*`, `y`)
+
+	f(`* | last`, `*`, ``)
+	f(`* | last by (x)`, `*`, ``)
+	f(`* | last rank y`, `*`, ``)
+	f(`* | last by (x) rank y`, `*`, `y`)
+
 	f(`* | format "foo" as s1`, `*`, `s1`)
 	f(`* | format "foo<f1>" as s1`, `*`, `s1`)
 	f(`* | format "foo<s1>" as s1`, `*`, ``)
@@ -2151,6 +2179,8 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | rm x", true)
 	f("* | stats count() rows", false)
 	f("* | sort by (x)", false)
+	f("* | first 10 by (x)", false)
+	f("* | last 10 by (x)", false)
 	f("* | len(x)", true)
 	f("* | limit 10", false)
 	f("* | offset 10", false)
@@ -2190,7 +2220,9 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | fields a, b", true)
 	f("* | field_values a", false)
 	f("* | filter foo", true)
+	f("* | first", false)
 	f("* | format 'a<b>c'", true)
+	f("* | last", false)
 	f("* | len(x)", true)
 	f("* | limit 10", false)
 	f("* | math a/b as c", true)
@@ -2355,6 +2387,10 @@ func TestQueryGetStatsByFields_Success(t *testing.T) {
 	// format result is treated as by(...) field
 	f(`foo | count() | format "foo<bar>baz" as x`, []string{"x"})
 	f(`foo | by (x) count() | format "foo<bar>baz" as y`, []string{"x", "y"})
+
+	// check first and last pipes
+	f(`foo | stats by (x) count() y | first by (y)`, []string{"x"})
+	f(`foo | stats by (x) count() y | last by (y)`, []string{"x"})
 }
 
 func TestQueryGetStatsByFields_Failure(t *testing.T) {
