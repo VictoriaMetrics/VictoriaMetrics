@@ -2318,6 +2318,10 @@ func TestQueryGetStatsByFieldsAddGroupingByTime_Failure(t *testing.T) {
 	f(`* | stats by (host) count() total | delete host`)
 	f(`* | stats by (host) count() total | copy total as host`)
 	f(`* | stats by (host) count() total | rename host as server | fields host, total`)
+
+	// offset and limit pipes are disallowed, since they cannot be applied individually per each step
+	f(`* | by (x) count() | offset 10`)
+	f(`* | by (x) count() | limit 20`)
 }
 
 func TestQueryGetStatsByFields_Success(t *testing.T) {
