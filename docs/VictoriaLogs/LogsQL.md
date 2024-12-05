@@ -2579,6 +2579,8 @@ _time:5m | top 10 by (ip) rank as position
 
 See also:
 
+- [`first` pipe](#first-pipe)
+- [`last` pipe](#last-pipe)
 - [`uniq` pipe](#uniq-pipe)
 - [`stats` pipe](#stats-pipe)
 - [`sort` pipe](#sort-pipe)
