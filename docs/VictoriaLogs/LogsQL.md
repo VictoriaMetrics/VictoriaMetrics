@@ -1305,8 +1305,10 @@ LogsQL supports the following pipes:
 - [`field_values`](#field_values-pipe) returns all the values for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`fields`](#fields-pipe) selects the given set of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`filter`](#filter-pipe) applies additional [filters](#filters) to results.
+- [`first`](#first-pipe) returns the first N logs after sorting them by the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`format`](#format-pipe) formats output field from input [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`join`](#join-pipe) joins query results by the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`last`](#last-pipe) returns the last N logs after sorting them by the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`len`](#len-pipe) calculates byte length of the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
 - [`limit`](#limit-pipe) limits the number selected logs.
 - [`math`](#math-pipe) performs mathematical calculations over [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -1637,7 +1639,7 @@ See also:
 
 ### field_values pipe
 
-`| field_values field_name` [pipe](#pipe) returns all the values for the given [`field_name` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+`| field_values field_name` [pipe](#pipes) returns all the values for the given [`field_name` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with the number of logs per each value.
 For example, the following query returns all the values with the number of matching logs for the field `level` over logs for the last 5 minutes:
 
@@ -1711,9 +1713,34 @@ See also:
 - [`stats` pipe](#stats-pipe)
 - [`sort` pipe](#sort-pipe)
 
+### first pipe
+
+`| first N by (fields)` [pipe](#pipes) returns the first `N` logs after sorting them by the given [`fields`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+For example, the following query returns the first 10 logs with the smallest value of `request_duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over the last 5 minutes:
+
+```logsql
+_time:5m | first 10 by (request_duration)
+```
+
+It is possible returning up to `N` logs individually per each group of logs with the same set of [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+by enumerating the set of these fields in `partition by (...)`.
+For example, the following query returns up to 3 logs with the smallest `request_duration` per each host over the last hour:
+
+```logsql
+_time:1h | first 3 by (request_duration) partition by (host)
+```
+
+See also:
+
+- [`last` pipe](#last-pipe)
+- [`sort` pipe](#sort-pipe)
+
+
 ### format pipe
 
-`| format "pattern" as result_field` [pipe](#pipe) combines [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+`| format "pattern" as result_field` [pipe](#pipes) combines [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 according to the `pattern` and stores it to the `result_field`.
 
 For example, the following query stores `request from <ip>:<port>` text into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
@@ -1847,6 +1874,29 @@ See also:
 - [conditional `stats`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters)
 - [`filter` pipe](#filter-pipe)
 
+### last pipe
+
+`| last N by (fields)` [pipe](#pipes) returns the last `N` logs after sorting them by the given [`fields`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+For example, the following query returns the last 10 logs with the biggest value of `request_duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over the last 5 minutes:
+
+```logsql
+_time:5m | last 10 by (request_duration)
+```
+
+It is possible returning up to `N` logs individually per each group of logs with the same set of [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+by enumerating the set of these fields in `partition by (...)`.
+For example, the following query returns up to 3 logs with the biggest `request_duration` per each host over the last hour:
+
+```logsql
+_time:1h | last 3 by (request_duration) partition by (host)
+```
+
+See also:
+
+- [`first` pipe](#first-pipe)
+- [`sort` pipe](#sort-pipe)
 
 ### len pipe
 
@@ -1987,7 +2037,7 @@ See also:
 
 ### pack_json pipe
 
-`| pack_json as field_name` [pipe](#pipe) packs all [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into JSON object
+`| pack_json as field_name` [pipe](#pipes) packs all [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into JSON object
 and stores it as a string in the given `field_name`.
 
 For example, the following query packs all the fields into JSON object and stores it into [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
@@ -2026,7 +2076,7 @@ See also:
 
 ### pack_logfmt pipe
 
-`| pack_logfmt as field_name` [pipe](#pipe) packs all [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into [logfmt](https://brandur.org/logfmt) message
+`| pack_logfmt as field_name` [pipe](#pipes) packs all [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into [logfmt](https://brandur.org/logfmt) message
 and stores it as a string in the given `field_name`.
 
 For example, the following query packs all the fields into [logfmt](https://brandur.org/logfmt) message and stores it
@@ -2233,12 +2283,26 @@ for the `request_duration` [field](https://docs.victoriametrics.com/victorialogs
 _time:1h | sort by (request_duration desc) limit 10
 ```
 
+This query is equivalent to the following one, which uses [`last` pipe](#last-pipe):
+
+```logsql
+_time:1h | last 10 by (request_duration)
+```
+
 If the first `N` sorted results must be skipped, then `offset N` can be added to `sort` pipe. For example,
 the following query skips the first 10 logs with the biggest `request_duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 and then returns the next 20 sorted logs for the last 5 minutes:
 
 ```logsql
 _time:1h | sort by (request_duration desc) offset 10 limit 20
+```
+
+It is possible sorting the logs and applying the `limit` individually per each group of logs with the same set of [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+by enumerating the set of these fields in `partition by (...)`.
+For example, the following query returns up to 3 logs with the biggest `request_duration` per each host over the last hour:
+
+```logsql
+_time:1h | sort by (request_duration desc) partition by (host) limit 3
 ```
 
 It is possible returning a rank (sort order number) for every sorted log by adding `rank as <fieldName>` to the end of `| sort ...` pipe.
@@ -2259,6 +2323,8 @@ It is recommended limiting the number of logs before sorting with the following 
 
 See also:
 
+- [`first` pipe](#first-pipe)
+- [`last` pipe](#last-pipe)
 - [`top` pipe](#top-pipe)
 - [`stats` pipe](#stats-pipe)
 - [`limit` pipe](#limit-pipe)
