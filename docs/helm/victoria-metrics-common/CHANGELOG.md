@@ -296,5 +296,5 @@
 
 - Added `vm.enterprise.only` template to fail rendering if required license arguments weren't set.
 - Added `vm.image` template that introduces common chart logic of how to build image name from application variables.
-- Added `vm.ingress.port` template to render properly tngress port configuration depending on args type.
+- Added `vm.ingress.port` template to render properly ingress port configuration depending on args type.
 - Added `vm.probe.*` templates to render probes params consistently across all templates.
