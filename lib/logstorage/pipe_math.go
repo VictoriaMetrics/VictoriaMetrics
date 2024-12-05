@@ -97,7 +97,7 @@ func (me *mathExpr) String() string {
 		if isMathBinaryOp(left.op) && getMathBinaryOpPriority(left.op) > opPriority {
 			leftStr = "(" + leftStr + ")"
 		}
-		if isMathBinaryOp(right.op) && getMathBinaryOpPriority(right.op) > opPriority {
+		if isMathBinaryOp(right.op) && getMathBinaryOpPriority(right.op) >= opPriority {
 			rightStr = "(" + rightStr + ")"
 		}
 		return fmt.Sprintf("%s %s %s", leftStr, me.op, rightStr)

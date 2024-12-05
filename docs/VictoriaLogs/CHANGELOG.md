@@ -19,6 +19,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: add [`rate`](https://docs.victoriametrics.com/victorialogs/logsql/#rate-stats) and [`rate_sum`](https://docs.victoriametrics.com/victorialogs/logsql/#rate_sum-stats) stats functions, which can be used for calculating the average per-second rate of matching logs and the average per-second rate of sum over the given numberic [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7415).
 
 * BUGFIX: [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats): properly apply `limit` at [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe). The bug was introduced in the release [v1.1.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.1.0-victorialogs) when fixing [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7699).
+* BUGFIX: [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe): properly format expressions with multiple binary operations with the same priority. For example, `x / (y * z)` was improperly formatted as `x / y * z`, while `x - (y + z)` was improperly formatted as `x - y + z`. This could lead to incorrect query results in [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/).
 
 ## [v1.1.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.1.0-victorialogs)
 
