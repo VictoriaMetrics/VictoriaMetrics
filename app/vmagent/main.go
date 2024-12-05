@@ -197,16 +197,16 @@ func getOpenTSDBHTTPInsertHandler() func(req *http.Request) error {
 		}
 	}
 	return func(req *http.Request) error {
-		path := strings.Replace(req.URL.Path, "//", "/", -1)
-		at, err := getAuthTokenFromPath(path)
+		at, err := getAuthTokenFromReq(req)
 		if err != nil {
-			return fmt.Errorf("cannot obtain auth token from path %q: %w", path, err)
+			return fmt.Errorf("cannot obtain auth token: %w", err)
 		}
 		return opentsdbhttp.InsertHandler(at, req)
 	}
 }
 
-func getAuthTokenFromPath(path string) (*auth.Token, error) {
+func getAuthTokenFromReq(req *http.Request) (*auth.Token, error) {
+	path := strings.Replace(req.URL.Path, "//", "/", -1)
 	p, err := httpserver.ParsePath(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse multitenant path: %w", err)
@@ -217,7 +217,7 @@ func getAuthTokenFromPath(path string) (*auth.Token, error) {
 	if p.Suffix != "opentsdb/api/put" {
 		return nil, fmt.Errorf("unsupported path requested: %q; expecting 'opentsdb/api/put'", p.Suffix)
 	}
-	return auth.NewTokenPossibleMultitenant(p.AuthToken)
+	return auth.NewTokenPossibleMultitenant(p.AuthToken, req.Header)
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
@@ -498,7 +498,7 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		httpserver.Errorf(w, r, `unsupported multitenant prefix: %q; expected "insert"`, p.Prefix)
 		return true
 	}
-	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
+	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken, r.Header)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain auth token: %s", err)
 		return true
