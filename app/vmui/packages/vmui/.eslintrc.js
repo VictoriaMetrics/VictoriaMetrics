@@ -20,6 +20,7 @@ module.exports = {
     "@typescript-eslint"
   ],
   "rules": {
+    "@typescript-eslint/no-unused-vars": ["warn", { "varsIgnorePattern": "^_" }],
     "react/jsx-closing-bracket-location": [1, "line-aligned"],
     "react/jsx-max-props-per-line":[1, { "maximum": 1 }],
     "react/jsx-first-prop-new-line": [1, "multiline"],

@@ -1,6 +1,74 @@
 ## Next release
 
+- TODO
+
+## 0.8.10
+
+**Release date:** 2024-12-05
+
+![AppVersion: v1.1.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.1.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- added `server.retentionDiskUsage` to control [retention by disk space](https://docs.victoriametrics.com/victorialogs/#retention-by-disk-space-usage). See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1845)
+- victorialogs version: v1.0.0 -> v1.1.0
+
+## 0.8.9
+
+**Release date:** 2024-12-03
+
+![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- do not set clusterIP value, when service type is not ClusterIP. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1838)
+
+## 0.8.8
+
+**Release date:** 2024-12-02
+
+![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- enable watch-config in vector by default
+- exclude default service port, when serviceMonitor.targetPort is defined
+
+## 0.8.7
+
+**Release date:** 2024-11-28
+
+![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.32 -> 0.0.33
+
+## 0.8.6
+
+**Release date:** 2024-11-28
+
+![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Use only pod FQDN for statefulsets in `vm.es.urls` template
+
+## 0.8.5
+
+**Release date:** 2024-11-27
+
+![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Added `vector.customConfigNamespace` to force Vector configmap creation in a given namespace even if vector.enabled: false
+- Added `service.targetPort` and `serviceMonitor.targetPort` to add ability to point service to one of extraContainers port, like oauth2-proxy
+
+## 0.8.4
+
+**Release date:** 2024-11-26
+
+![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
 - updated common dependency 0.0.31 -> 0.0.32
+- synced rules and dashboards
+- added .Values.dashboards.namespace to override default namespace for dashboards
 
 ## 0.8.3
 

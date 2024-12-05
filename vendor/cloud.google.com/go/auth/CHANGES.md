@@ -1,5 +1,64 @@
 # Changelog
 
+## [0.11.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.10.2...auth/v0.11.0) (2024-11-21)
+
+
+### Features
+
+* **auth:** Add universe domain support to mTLS ([#11159](https://github.com/googleapis/google-cloud-go/issues/11159)) ([117748b](https://github.com/googleapis/google-cloud-go/commit/117748ba1cfd4ae62a6a4feb7e30951cb2bc9344))
+
+## [0.10.2](https://github.com/googleapis/google-cloud-go/compare/auth/v0.10.1...auth/v0.10.2) (2024-11-12)
+
+
+### Bug Fixes
+
+* **auth:** Restore use of grpc.Dial ([#11118](https://github.com/googleapis/google-cloud-go/issues/11118)) ([2456b94](https://github.com/googleapis/google-cloud-go/commit/2456b943b7b8aaabd4d8bfb7572c0f477ae0db45)), refs [#7556](https://github.com/googleapis/google-cloud-go/issues/7556)
+
+## [0.10.1](https://github.com/googleapis/google-cloud-go/compare/auth/v0.10.0...auth/v0.10.1) (2024-11-06)
+
+
+### Bug Fixes
+
+* **auth:** Restore Application Default Credentials support to idtoken ([#11083](https://github.com/googleapis/google-cloud-go/issues/11083)) ([8771f2e](https://github.com/googleapis/google-cloud-go/commit/8771f2ea9807ab822083808e0678392edff3b4f2))
+* **auth:** Skip impersonate universe domain check if empty ([#11086](https://github.com/googleapis/google-cloud-go/issues/11086)) ([87159c1](https://github.com/googleapis/google-cloud-go/commit/87159c1059d4a18d1367ce62746a838a94964ab6))
+
+## [0.10.0](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.9...auth/v0.10.0) (2024-10-30)
+
+
+### Features
+
+* **auth:** Add universe domain support to credentials/impersonate ([#10953](https://github.com/googleapis/google-cloud-go/issues/10953)) ([e06cb64](https://github.com/googleapis/google-cloud-go/commit/e06cb6499f7eda3aef08ab18ff197016f667684b))
+
+## [0.9.9](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.8...auth/v0.9.9) (2024-10-22)
+
+
+### Bug Fixes
+
+* **auth:** Fallback cert lookups for missing files ([#11013](https://github.com/googleapis/google-cloud-go/issues/11013)) ([bd76695](https://github.com/googleapis/google-cloud-go/commit/bd766957ec238b7c40ddbabb369e612dc9b07313)), refs [#10844](https://github.com/googleapis/google-cloud-go/issues/10844)
+* **auth:** Replace MDS endpoint universe_domain with universe-domain ([#11000](https://github.com/googleapis/google-cloud-go/issues/11000)) ([6a1586f](https://github.com/googleapis/google-cloud-go/commit/6a1586f2ce9974684affaea84e7b629313b4d114))
+
+## [0.9.8](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.7...auth/v0.9.8) (2024-10-09)
+
+
+### Bug Fixes
+
+* **auth:** Restore OpenTelemetry handling in transports ([#10968](https://github.com/googleapis/google-cloud-go/issues/10968)) ([08c6d04](https://github.com/googleapis/google-cloud-go/commit/08c6d04901c1a20e219b2d86df41dbaa6d7d7b55)), refs [#10962](https://github.com/googleapis/google-cloud-go/issues/10962)
+* **auth:** Try talk to plaintext S2A if credentials can not be found for mTLS-S2A ([#10941](https://github.com/googleapis/google-cloud-go/issues/10941)) ([0f0bf2d](https://github.com/googleapis/google-cloud-go/commit/0f0bf2d18c97dd8b65bcf0099f0802b5631c6287))
+
+## [0.9.7](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.6...auth/v0.9.7) (2024-10-01)
+
+
+### Bug Fixes
+
+* **auth:** Restore support for non-default service accounts for DirectPath ([#10937](https://github.com/googleapis/google-cloud-go/issues/10937)) ([a38650e](https://github.com/googleapis/google-cloud-go/commit/a38650edbf420223077498cafa537aec74b37aad)), refs [#10907](https://github.com/googleapis/google-cloud-go/issues/10907)
+
+## [0.9.6](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.5...auth/v0.9.6) (2024-09-30)
+
+
+### Bug Fixes
+
+* **auth:** Make aws credentials provider retrieve fresh credentials ([#10920](https://github.com/googleapis/google-cloud-go/issues/10920)) ([250fbf8](https://github.com/googleapis/google-cloud-go/commit/250fbf87d858d865e399a241b7e537c4ff0c3dd8))
+
 ## [0.9.5](https://github.com/googleapis/google-cloud-go/compare/auth/v0.9.4...auth/v0.9.5) (2024-09-25)
 
 

@@ -32,8 +32,7 @@ const Table = <T extends object>({ rows, columns, defaultOrderBy, defaultOrderDi
   const sortedList = useMemo(() => {
     const { startIndex, endIndex } = paginationOffset;
     return stableSort(rows as [], getComparator(orderDir, orderBy)).slice(startIndex, endIndex);
-  },
-  [rows, orderBy, orderDir, paginationOffset]);
+  }, [rows, orderBy, orderDir, paginationOffset]);
 
   const createSortHandler = (key: keyof T) => () => {
     setOrderDir((prev) => prev === "asc" && orderBy === key ? "desc" : "asc");

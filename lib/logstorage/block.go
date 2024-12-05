@@ -222,15 +222,18 @@ func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) {
 	b.reset()
 
 	assertTimestampsSorted(timestamps)
-	b.timestamps = append(b.timestamps, timestamps...)
-	b.mustInitFromRows(rows)
+	b.mustInitFromRows(timestamps, rows)
 	b.sortColumnsByName()
 }
 
-// mustInitFromRows initializes b from rows.
+// mustInitFromRows initializes b from the given timestamps and rows.
 //
 // b is valid until rows are changed.
-func (b *block) mustInitFromRows(rows [][]Field) {
+func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) {
+	if len(timestamps) != len(rows) {
+		logger.Panicf("BUG: len of timestamps %d and rows %d must be equal", len(timestamps), len(rows))
+	}
+
 	rowsLen := len(rows)
 	if rowsLen == 0 {
 		// Nothing to do
@@ -239,6 +242,7 @@ func (b *block) mustInitFromRows(rows [][]Field) {
 
 	if areSameFieldsInRows(rows) {
 		// Fast path - all the log entries have the same fields
+		b.timestamps = append(b.timestamps, timestamps...)
 		fields := rows[0]
 		for i := range fields {
 			f := &fields[i]
@@ -261,23 +265,49 @@ func (b *block) mustInitFromRows(rows [][]Field) {
 	// Slow path - log entries contain different set of fields
 
 	// Determine indexes for columns
+
 	columnIdxs := getColumnIdxs()
-	for i := range rows {
+	i := 0
+	for i < len(rows) {
 		fields := rows[i]
+		if len(columnIdxs)+len(fields) > maxColumnsPerBlock {
+			// User tries writing too many unique field names into a single log stream.
+			// It is better ignoring rows with too many field names instead of trying to store them,
+			// since the storage isn't designed to work with too big number of unique field names
+			// per log stream - this leads to excess usage of RAM, CPU, disk IO and disk space.
+			// It is better emitting a warning, so the user is aware of the problem and fixes it ASAP.
+			fieldNames := make([]string, 0, len(columnIdxs))
+			for k := range columnIdxs {
+				fieldNames = append(fieldNames, k)
+			}
+			logger.Warnf("ignoring %d rows in the block, becasue they contain more than %d unique field names: %s", len(rows)-i, maxColumnsPerBlock, fieldNames)
+			break
+		}
 		for j := range fields {
 			name := fields[j].Name
 			if _, ok := columnIdxs[name]; !ok {
 				columnIdxs[name] = len(columnIdxs)
 			}
 		}
+		i++
 	}
+	rowsProcessed := i
+
+	// keep only rows that fit maxColumnsPerBlock limit
+	rows = rows[:rowsProcessed]
+	timestamps = timestamps[:rowsProcessed]
+	if len(rows) == 0 {
+		return
+	}
+
+	b.timestamps = append(b.timestamps, timestamps...)
 
 	// Initialize columns
 	cs := b.resizeColumns(len(columnIdxs))
 	for name, idx := range columnIdxs {
 		c := &cs[idx]
 		c.name = name
-		c.resizeValues(rowsLen)
+		c.resizeValues(len(rows))
 	}
 
 	// Write rows to block
@@ -367,8 +397,9 @@ func (b *block) resizeColumns(columnsLen int) []column {
 
 func (b *block) sortColumnsByName() {
 	if len(b.columns)+len(b.constColumns) > maxColumnsPerBlock {
-		logger.Panicf("BUG: too big number of columns detected in the block: %d; the number of columns mustn't exceed %d",
-			len(b.columns)+len(b.constColumns), maxColumnsPerBlock)
+		columnNames := b.getColumnNames()
+		logger.Panicf("BUG: too big number of columns detected in the block: %d; the number of columns mustn't exceed %d; columns: %s",
+			len(b.columns)+len(b.constColumns), maxColumnsPerBlock, columnNames)
 	}
 
 	cs := getColumnsSorter()
@@ -380,6 +411,17 @@ func (b *block) sortColumnsByName() {
 	ccs.columns = b.constColumns
 	sort.Sort(ccs)
 	putConstColumnsSorter(ccs)
+}
+
+func (b *block) getColumnNames() []string {
+	a := make([]string, 0, len(b.columns)+len(b.constColumns))
+	for _, c := range b.columns {
+		a = append(a, c.name)
+	}
+	for _, c := range b.constColumns {
+		a = append(a, c.Name)
+	}
+	return a
 }
 
 // Len returns the number of log entries in b.

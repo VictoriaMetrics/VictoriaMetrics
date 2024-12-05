@@ -54,7 +54,7 @@ const ExploreLogs: FC = () => {
     fetchLogs(newPeriod).then((isSuccess) => {
       isSuccess && !hideChart && fetchLogHits(newPeriod);
     }).catch(e => e);
-    setSearchParamsFromKeys( {
+    setSearchParamsFromKeys({
       query,
       "g0.range_input": duration,
       "g0.end_input": newPeriod.date,

@@ -116,6 +116,7 @@ Name of the class needed to enable reading from VictoriaMetrics or Prometheus. V
         </tr>
         <tr>
             <td>
+
 `queries`
             </td>
             <td>
@@ -127,6 +128,7 @@ See [per-query config section](#per-query-parameters) above
         </tr>
         <tr>
             <td>
+
 `datasource_url`
             </td>
             <td>
@@ -138,9 +140,11 @@ Datasource URL address
         </tr>
         <tr>
             <td>
+
 `tenant_id`
             </td>
             <td>
+
 `0:0`, `multitenant`
             </td>
             <td>
@@ -149,6 +153,7 @@ For VictoriaMetrics Cluster version only, tenants are identified by `accountID` 
         </tr>
         <tr>
             <td>
+
 `sampling_period`
             </td>
             <td>
@@ -160,6 +165,7 @@ Frequency of the points returned. Will be converted to `/query_range?step=%s` pa
         </tr>
         <tr>
             <td>
+
 `query_range_path`
             </td>
             <td>
@@ -171,9 +177,11 @@ Performs PromQL/MetricsQL range query
         </tr>
         <tr>
             <td>
+
 `health_path`
             </td>
             <td>
+
 `health`
             </td>
             <td>
@@ -182,9 +190,11 @@ Absolute or relative URL address where to check availability of the datasource.
         </tr>
         <tr>
             <td>
+
 `user`
             </td>
             <td>
+
 `USERNAME`
             </td>
             <td>
@@ -193,9 +203,11 @@ BasicAuth username
         </tr>
         <tr>
             <td>
+
 `password`
             </td>
             <td>
+
 `PASSWORD`
             </td>
             <td>
@@ -204,9 +216,11 @@ BasicAuth password
         </tr>
         <tr>
             <td>
+
 `timeout`
             </td>
             <td>
+
 `30s`
             </td>
             <td>
@@ -215,9 +229,11 @@ Timeout for the requests, passed as a string
         </tr>
         <tr>
             <td>
+
 `verify_tls`
             </td>
             <td>
+
 `false`
             </td>
             <td>
@@ -228,9 +244,11 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
         </tr>
         <tr>
             <td>
+
 `tls_cert_file`
             </td>
             <td>
+
 `path/to/cert.crt`
             </td>
             <td>
@@ -239,9 +257,11 @@ Path to a file with the client certificate, i.e. `client.crt`. Available since [
         </tr>
         <tr>
             <td>
+
 `tls_key_file`
             </td>
             <td>
+
 `path/to/key.crt`
             </td>
             <td>
@@ -250,9 +270,11 @@ Path to a file with the client certificate key, i.e. `client.key`. Available sin
         </tr>
         <tr>
             <td>
+
 `bearer_token`
             </td>
             <td>
+
 `token`
             </td>
             <td>
@@ -261,9 +283,11 @@ Token is passed in the standard format with header: `Authorization: bearer {toke
         </tr>
         <tr>
             <td>
+
 `bearer_token_file`
             </td>
             <td>
+
 `path_to_file`
             </td>
             <td>
@@ -272,9 +296,11 @@ Path to a file, which contains token, that is passed in the standard format with
         </tr>
         <tr>
             <td>
+
 `extra_filters`
             </td>
             <td>
+
 `[]`
             </td>
             <td>
@@ -283,9 +309,11 @@ List of strings with series selector. See: [Prometheus querying API enhancements
         </tr>
         <tr>
             <td>
+
 `query_from_last_seen_timestamp`
             </td>
             <td>
+
 `False`
             </td>
             <td>
@@ -294,9 +322,11 @@ If True, then query will be performed from the last seen timestamp for a given s
         </tr>
         <tr>
             <td>
+
 `latency_offset`
             </td>
             <td>
+
 `1ms`
             </td>
             <td>
@@ -305,9 +335,11 @@ Introduced in [v1.15.1](https://docs.victoriametrics.com/anomaly-detection/chang
         </tr>
         <tr>
             <td>
+
 `max_points_per_query`
             </td>
             <td>
+
 `10000`
             </td>
             <td>
@@ -316,9 +348,11 @@ Introduced in [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/chang
         </tr>
         <tr>
             <td>
+
 `tz`
             </td>
             <td>
+
 `UTC`
             </td>
             <td>
@@ -327,9 +361,11 @@ Introduced in [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/chang
         </tr>
         <tr>
             <td>
+
 `data_range`
             </td>
             <td>
+
 `["-inf", "inf"]`
             </td>
             <td>

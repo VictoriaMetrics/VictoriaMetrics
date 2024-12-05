@@ -29,22 +29,27 @@ The following options are available:
 
 The `vmanomaly` service supports several command-line arguments to configure its behavior, including options for licensing, logging levels, and more. These arguments can be passed when starting the service via Docker or any other setup. Below is the list of available options:
 
+> **Note**: Starting from [v1.18.5](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1185) `vmanomaly` support running on config *directories*, see the `config` positional arg description in help message below.
 
 ```shellhelp
+usage: vmanomaly.py [-h] [--license STRING | --licenseFile PATH] [--license.forceOffline] [--loggerLevel {INFO,DEBUG,ERROR,WARNING,FATAL}] [--watch] config [config ...]
+
 VictoriaMetrics Anomaly Detection Service
 
 positional arguments:
-  config                YAML config file. Multiple files will override each other's top level values (aka shallow merge), so multiple configs can be combined.
+  config                YAML config file(s) or directories containing YAML files. Multiple files will recursively merge each other values so multiple configs can be combined. If a directory
+                        is provided, all `.yaml` files inside will be merged, without recursion. Default: vmanomaly.yaml is expected in the current directory.
 
 options:
   -h                    show this help message and exit
   --license STRING      License key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/trial/ to obtain a trial license.
   --licenseFile PATH    Path to file with license key for VictoriaMetrics Enterprise. See https://victoriametrics.com/products/enterprise/trial/ to obtain a trial license.
   --license.forceOffline 
-                        Whether to force offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag.
-                        The issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification.
-  --loggerLevel {FATAL,WARNING,ERROR,DEBUG,INFO}
+                        Whether to force offline verification for VictoriaMetrics Enterprise license key, which has been passed either via -license or via -licenseFile command-line flag. The
+                        issued license key must support offline verification feature. Contact info@victoriametrics.com if you need offline license verification.
+  --loggerLevel {INFO,DEBUG,ERROR,WARNING,FATAL}
                         Minimum level to log. Possible values: DEBUG, INFO, WARNING, ERROR, FATAL.
+  --watch               [DEPRECATED SINCE v1.11.0] Watch config files for changes. This option is no longer supported and will be ignored.
 ```
 
 You can specify these options when running `vmanomaly` to fine-tune logging levels or handle licensing configurations, as per your requirements.
@@ -58,13 +63,13 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.18.4
+docker pull victoriametrics/vmanomaly:v1.18.8
 ```
 
 2. (Optional step) tag the `vmanomaly` Docker image:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:v1.18.4 vmanomaly
+docker image tag victoriametrics/vmanomaly:v1.18.8 vmanomaly
 ```
 
 3. Start the `vmanomaly` Docker container with a *license file*, use the command below.
@@ -98,7 +103,7 @@ docker run -it --user 1000:1000 \
 services:
   # ...
   vmanomaly:
-    image: victoriametrics/vmanomaly:v1.18.4
+    image: victoriametrics/vmanomaly:v1.18.8
     volumes:
         $YOUR_LICENSE_FILE_PATH:/license
         $YOUR_CONFIG_FILE_PATH:/config.yml

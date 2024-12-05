@@ -14,7 +14,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Places an Object Retention configuration on an object. For more information,
 // see [Locking Objects]. Users or accounts require the s3:PutObjectRetention permission in order

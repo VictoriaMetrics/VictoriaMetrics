@@ -1,5 +1,6 @@
 import uPlot from "uplot";
 import { MetricResult } from "../../api/types";
+import { SeriesItem } from "../../types";
 
 export const formatTicks = (u: uPlot, ticks: number[], unit = ""): string[] => {
   const min = ticks[0];
@@ -53,7 +54,11 @@ export const getDashLine = (group: number): number[] => {
   return group <= 1 ? [] : [group*4, group*1.2];
 };
 
-export const getMetricName = (metricItem: MetricResult) => {
+export const getMetricName = (metricItem: MetricResult, seriesItem: SeriesItem) => {
+  if (seriesItem?.hasAlias && seriesItem?.label) {
+    return seriesItem.label;
+  }
+
   const metric = metricItem?.metric || {};
   const labelNames = Object.keys(metric).filter(x => x != "__name__");
   const labels = labelNames.map(key => `${key}=${JSON.stringify(metric[key])}`);

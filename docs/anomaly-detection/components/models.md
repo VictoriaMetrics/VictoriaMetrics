@@ -451,7 +451,7 @@ models:
 
 
 ### [Prophet](https://facebook.github.io/prophet/)
-`vmanomaly` uses the Facebook Prophet implementation for time series forecasting, with detailed usage provided in the [Prophet library documentation](https://facebook.github.io/prophet/docs/quick_start.html#python-api). All Prophet parameters are supported and can be directly passed to the model via `args` argument.
+`vmanomaly` uses the Facebook Prophet implementation for time series forecasting, with detailed usage provided in the [Prophet library documentation](https://facebook.github.io/prophet/docs/quick_start.html#python-api). All original Prophet parameters are supported and can be directly passed to the model via `args` argument.
 
 
 > **Note**: `ProphetModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
@@ -461,8 +461,9 @@ models:
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.prophet.ProphetModel"` (or `prophet` starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#1130) with class alias support)
-* `seasonalities` (list[dict], optional): Additional seasonal components to include in Prophet. See Prophet’s [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors.html#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) documentation for details.
+- `class` (string) - model class name `"model.prophet.ProphetModel"` (or `prophet` starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#1130) with class alias support)
+- `seasonalities` (list[dict], optional): Additional seasonal components to include in Prophet. See Prophet’s [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors.html#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) documentation for details.
+- `scale` (float): (Available since [v1.18.8](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1188)) Is used to adjust the margin between `yhat` and [`yhat_lower`, `yhat_upper`]. New margin = `|yhat_* - yhat_lower| * scale`. Defaults to 1 (no scaling is applied).
 - `tz_aware` (bool): (Available since [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180)) Enables handling of timezone-aware timestamps. Default is `False`. Should be used with `tz_seasonalities` and `tz_use_cyclical_encoding` parameters.
 - `tz_seasonalities` (list[dict]): (Available since [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180)) Specifies timezone-aware seasonal components. Requires `tz_aware=True`. Supported options include `minute`, `hod` (hour of day), `dow` (day of week), and `month` (month of year). Starting with [v1.18.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1182), users can configure additional parameters for each seasonality, such as `fourier_order`, `prior_scale`, and `mode`. For more details, please refer to the **Timezone-unaware** configuration example below.
 - `tz_use_cyclical_encoding` (bool): (Available since [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180)) If set to `True`, applies [cyclical encoding technique](https://www.kaggle.com/code/avanwyk/encoding-cyclical-features-for-deep-learning) to timezone-aware seasonalities. Should be used with `tz_aware=True` and `tz_seasonalities`.
@@ -993,7 +994,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.18.4
+docker pull victoriametrics/vmanomaly:v1.18.8
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1007,7 +1008,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.18.4 /config.yaml \
+victoriametrics/vmanomaly:v1.18.8 /config.yaml \
 --licenseFile=/license
 ```
 
