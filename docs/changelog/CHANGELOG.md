@@ -43,6 +43,7 @@ Released at 2024-11-29
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): return `200 OK` HTTP status code when importing data via [Pushgateway protocol](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format) using [multitenant URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7571).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): properly set `TCP` connection timeout for `Kubernetes API server` connection for metric scrapping with `kubernetes_sd_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7127).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): fix the `resource_group` filter for Azure service discovery on virtual machine scale sets. Previously, this filter did not apply to virtual machine scale sets, causing all virtual machines to be discovered. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7630).
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fix possible runtime `panic` introduced at `v1.104.0` release. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly handle [multitenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) query request errors and correctly perform search for available tenants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details. This is follow-up after [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1) release changes.
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly set `multitenant` cache expiration duration with `search.tenantCacheExpireDuration`. Previously flag always used default value.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly init `ip_filters` for `unauthorized_user` config section. Previously it was ignored and `vmauth` didn't apply `ip_filter` for `unauthorized` access.
@@ -86,6 +87,8 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 ## [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1)
 
 Released at 2024-11-15
+
+ It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/changelog/#v11070) because [v1.106.1](https://docs.victoriametrics.com/changelog/#v11061) contains a bug introduced at [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040), which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
 
 * SECURITY: upgrade Go builder from Go1.23.1 to Go1.23.3. See the list of issues addressed in [Go1.23.2](https://github.com/golang/go/issues?q=milestone%3AGo1.23.2+label%3ACherryPickApproved) and [Go1.23.3](https://github.com/golang/go/issues?q=milestone%3AGo1.23.3+label%3ACherryPickApproved).
 
@@ -139,6 +142,8 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 Released at 2024-11-04
 
+ It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/changelog/#v11070) because [v1.106.0](https://docs.victoriametrics.com/changelog/#v11060) contains a bug introduced at [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040), which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
+
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): support [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) as a datasource. See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): `-rule` cmd-line flag now supports multi-document YAML files. This could be useful when rules are retrieved via HTTP URL where multiple rule files were merged together in one response. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6753). Thanks to @Irene-123 for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6995).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent): add service discovery support for [PuppetDB](https://www.puppet.com/docs/puppetdb/8/overview.html) resources. See [these docs](https://docs.victoriametrics.com/sd_configs/#puppetdb_sd_configs) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5744).
@@ -158,6 +163,8 @@ Released at 2024-11-04
 ## [v1.105.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.105.0)
 
 Released at 2024-10-21
+
+ It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/changelog/#v11070) because [v1.105.0](https://docs.victoriametrics.com/changelog/#v11050) contains a bug introduced at [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040), which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
 
 **Update note 1: `-search.maxUniqueTimeseries` limit on `vmselect` can no longer exceed `-search.maxUniqueTimeseries` limit on `vmstorage`. If you don't set this flag at `vmstorage`, then it will be automatically calculated based on available resources. This can result into rejecting expensive read queries if they exceed auto-calculated limit. The limit can be overridden by manually setting `-search.maxUniqueTimeseries` at vmstorage, but for better reliability we recommend sticking to default values. Refer to the CHANGELOG below and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6930).**
 
@@ -186,6 +193,8 @@ Released at 2024-10-21
 ## [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
 
 Released at 2024-10-02
+
+ It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/changelog/#v11070) because [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040) contains a bug, which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
 
 **Update note 1: `*.passwordFile` and similar flags are trimming trailing whitespaces at the end of content. If authorization check performed with `*.passwordFile` content, make sure to update authorization settings to not include trailing whitespaces before the upgrade. In case of [operator](https://docs.victoriametrics.com/operator/) managed installations, make sure to update operator version to [v0.48.*](https://docs.victoriametrics.com/operator/changelog/#v0480---25-sep-2024). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6986) for the details. This change reverts behavior introduced at [v1.102.0-rc2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc2) release**
 
