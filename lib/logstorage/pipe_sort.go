@@ -121,7 +121,10 @@ func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, c
 	return newPipeSortProcessor(ps, workersCount, stopCh, cancel, ppNext)
 }
 
-func (ps *pipeSort) addPartitionByTime() {
+func (ps *pipeSort) addPartitionByTime(step int64) {
+	if step <= 0 {
+		return
+	}
 	if ps.limit <= 0 {
 		return
 	}
