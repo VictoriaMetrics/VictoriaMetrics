@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"cmp"
+	"math"
 	"time"
 )
 
@@ -48,7 +48,7 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64, dedupInterva
 		vPrev := srcValues[j]
 		for j > 0 && srcTimestamps[j-1] == tsPrev {
 			j--
-			if cmp.Less(vPrev, srcValues[j]) {
+			if math.IsNaN(srcValues[j]) || srcValues[j] > vPrev {
 				vPrev = srcValues[j]
 			}
 		}
@@ -65,7 +65,7 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64, dedupInterva
 	vPrev := srcValues[j]
 	for j > 0 && srcTimestamps[j-1] == tsPrev {
 		j--
-		if cmp.Less(vPrev, srcValues[j]) {
+		if math.IsNaN(srcValues[j]) || srcValues[j] > vPrev {
 			vPrev = srcValues[j]
 		}
 	}
