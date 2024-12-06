@@ -13,11 +13,16 @@ aliases:
 
 ## tip
 
-- [alerts]: added cluster label for multicluster alerts.
+**Update note 1: `labels` and `annotations` inheritance is deprecated and will be remove at upcoming `v0.52.0` release. It's recommend to move all needed labels and annotations to the `spec.managedMetadata` fields.
+Operator will preserve `annotations`, but any changes to it will be ignored. `labels` inherited from `CRD.metata.labels` will be removed after upgrade to `v0.52.0`
+
 - [vmagent](https://docs.victoriametrics.com/operator/resources/vmagent/): change the default ClusterRole and ClusterRoleBinding name to avoid resource collisions when `vmagentSpec.ServiceAccountName` is null. See [this issue](https://github.com/VictoriaMetrics/operator/issues/891).
 - [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0).
 - [vmoperator](https://docs.victoriametrics.com/operator/): fix the behaviors of `vmagentSpec.ScrapeConfigSelector` and `vmagentSpec.scrapeConfigNamespaceSelector` when `vmagentSpec.selectAllByDefault=false`. Previously, the VMScrapeConfig could be ignored.
 - [vmoperator](https://docs.victoriametrics.com/operator/): fix the behaviors of `xxxNamespaceSelector` when `vmagentSpec.selectAllByDefault=true`. See [this doc](https://docs.victoriametrics.com/operator/resources/vmagent/#scraping) for detailed rules.
+.**
+- [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0).
+- [api](https://docs.victoriametrics.com/operator/api): add new field `managedMetadata` to `VMCluster.spec`, `VMAgent.spec`,`VMAlert.spec`, `VMAuth.spec`,`VMAlertmanager.Spec`, `VMSingle.spec` and`VLogs.spec`. It controls `labels` and `annotations` added to the objects created operator (such as `Deployment`). See [this issue](https://github.com/VictoriaMetrics/operator/issues/1171) for details.
 
 ## [v0.50.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.50.0) - 22 Nov 2024
 

@@ -1279,6 +1279,29 @@ _Appears in:_
 | `webhook_url_secret` | URLSecret defines secret name and key at the CRD namespace.<br />It must contain the webhook URL.<br />one of `urlSecret` and `url` must be defined. | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
 
 
+#### ManagedObjectsMetadata
+
+
+
+ManagedObjectsMetadata contains Labels and Annotations
+
+
+
+_Appears in:_
+- [VLogsSpec](#vlogsspec)
+- [VMAgentSpec](#vmagentspec)
+- [VMAlertSpec](#vmalertspec)
+- [VMAlertmanagerSpec](#vmalertmanagerspec)
+- [VMAuthSpec](#vmauthspec)
+- [VMClusterSpec](#vmclusterspec)
+- [VMSingleSpec](#vmsinglespec)
+
+| Field | Description | Scheme | Required |
+| --- | --- | --- | --- |
+| `annotations` | Annotations is an unstructured key value map stored with a resource that may be<br />set by external tools to store and retrieve arbitrary metadata. They are not<br />queryable and should be preserved when modifying objects.<br />More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations | _object (keys:string, values:string)_ | true |
+| `labels` | Labels Map of string keys and values that can be used to organize and categorize<br />(scope and select) objects.<br />More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels | _object (keys:string, values:string)_ | true |
+
+
 #### NamespaceDiscovery
 
 
@@ -2480,6 +2503,7 @@ _Appears in:_
 | `logIngestedRows` | Whether to log all the ingested log entries; this can be useful for debugging of data ingestion; see https://docs.victoriametrics.com/victorialogs/data-ingestion/ | _boolean_ | true |
 | `logLevel` | LogLevel for VictoriaLogs to be configured with. | _string_ | false |
 | `logNewStreams` | LogNewStreams Whether to log creation of new streams; this can be useful for debugging of high cardinality issues with log streams; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields | _boolean_ | true |
+| `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
@@ -2646,6 +2670,7 @@ _Appears in:_
 | `license` | License allows to configure license key to be used for enterprise features.<br />Using license key is supported starting from VictoriaMetrics v1.94.0.<br />See [here](https://docs.victoriametrics.com/enterprise) | _[License](#license)_ | false |
 | `logFormat` | LogFormat for VMAgent to be configured with. | _string_ | false |
 | `logLevel` | LogLevel for VMAgent to be configured with.<br />INFO, WARN, ERROR, FATAL, PANIC | _string_ | false |
+| `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `maxScrapeInterval` | MaxScrapeInterval allows limiting maximum scrape interval for VMServiceScrape, VMPodScrape and other scrapes<br />If interval is higher than defined limit, `maxScrapeInterval` will be used. | _string_ | true |
 | `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `minScrapeInterval` | MinScrapeInterval allows limiting minimal scrape interval for VMServiceScrape, VMPodScrape and other scrapes<br />If interval is lower than defined limit, `minScrapeInterval` will be used. | _string_ | true |
@@ -2853,6 +2878,7 @@ _Appears in:_
 | `license` | License allows to configure license key to be used for enterprise features.<br />Using license key is supported starting from VictoriaMetrics v1.94.0.<br />See [here](https://docs.victoriametrics.com/enterprise) | _[License](#license)_ | false |
 | `logFormat` | LogFormat for VMAlert to be configured with.<br />default or json | _string_ | false |
 | `logLevel` | LogLevel for VMAlert to be configured with. | _string_ | false |
+| `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `notifier` | Notifier prometheus alertmanager endpoint spec. Required at least one of notifier or notifiers when there are alerting rules. e.g. http://127.0.0.1:9093<br />If specified both notifier and notifiers, notifier will be added as last element to notifiers.<br />only one of notifier options could be chosen: notifierConfigRef or notifiers +  notifier | _[VMAlertNotifierSpec](#vmalertnotifierspec)_ | false |
@@ -2999,6 +3025,7 @@ _Appears in:_
 | `listenLocal` | ListenLocal makes the VMAlertmanager server listen on loopback, so that it<br />does not bind against the Pod IP. Note this is only for the VMAlertmanager<br />UI, not the gossip communication. | _boolean_ | false |
 | `logFormat` | LogFormat for VMAlertmanager to be configured with. | _string_ | false |
 | `logLevel` | Log level for VMAlertmanager to be configured with. | _string_ | false |
+| `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
@@ -3173,6 +3200,7 @@ _Appears in:_
 | `load_balancing_policy` | LoadBalancingPolicy defines load balancing policy to use for backend urls.<br />Supported policies: least_loaded, first_available.<br />See [here](https://docs.victoriametrics.com/vmauth#load-balancing) for more details (default "least_loaded") | _string_ | false |
 | `logFormat` | LogFormat for VMAuth to be configured with. | _string_ | false |
 | `logLevel` | LogLevel for victoria metrics single to be configured with. | _string_ | false |
+| `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `max_concurrent_requests` | MaxConcurrentRequests defines max concurrent requests per user<br />300 is default value for vmauth | _integer_ | false |
 | `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
@@ -3284,6 +3312,7 @@ _Appears in:_
 | `clusterVersion` | ClusterVersion defines default images tag for all components.<br />it can be overwritten with component specific image.tag value. | _string_ | false |
 | `imagePullSecrets` | ImagePullSecrets An optional list of references to secrets in the same namespace<br />to use for pulling images from registries<br />see https://kubernetes.io/docs/concepts/containers/images/#referring-to-an-imagepullsecrets-on-a-pod | _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core) array_ | false |
 | `license` | License allows to configure license key to be used for enterprise features.<br />Using license key is supported starting from VictoriaMetrics v1.94.0.<br />See [here](https://docs.victoriametrics.com/enterprise) | _[License](#license)_ | false |
+| `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
 | `replicationFactor` | ReplicationFactor defines how many copies of data make among<br />distinct storage nodes | _integer_ | false |
 | `requestsLoadBalancer` | RequestsLoadBalancer configures load-balancing for vminsert and vmselect requests<br />it helps to evenly spread load across pods<br />usually it's not possible with kubernetes TCP based service | _[VMAuthLoadBalancer](#vmauthloadbalancer)_ | true |
@@ -3905,6 +3934,7 @@ _Appears in:_
 | `license` | License allows to configure license key to be used for enterprise features.<br />Using license key is supported starting from VictoriaMetrics v1.94.0.<br />See [here](https://docs.victoriametrics.com/enterprise) | _[License](#license)_ | false |
 | `logFormat` | LogFormat for VMSingle to be configured with. | _string_ | false |
 | `logLevel` | LogLevel for victoria metrics single to be configured with. | _string_ | false |
+| `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
