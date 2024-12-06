@@ -1,4 +1,4 @@
-package storage
+package timeserieslimits
 
 import (
 	"sync/atomic"
@@ -11,6 +11,7 @@ import (
 )
 
 var (
+	enabled bool
 	// The maximum length of label name.
 	//
 	// Samples with longer names are ignored.
@@ -27,11 +28,12 @@ var (
 	maxLabelsPerTimeseries = 40
 )
 
-// InitLabelsLimits inits labels limits and metrics for them
-func InitLabelsLimits(inputMaxLabelsPerTimeseries, inputMaxLabelNameLen, inputMaxLabelValueLen int) {
+// Init prepares package for usage
+func Init(inputMaxLabelsPerTimeseries, inputMaxLabelNameLen, inputMaxLabelValueLen int) {
 	maxLabelsPerTimeseries = inputMaxLabelsPerTimeseries
 	maxLabelNameLen = inputMaxLabelNameLen
 	maxLabelValueLen = inputMaxLabelValueLen
+	enabled = maxLabelsPerTimeseries > 0 && maxLabelNameLen > 0 && maxLabelValueLen > 0
 
 	_ = metrics.GetOrCreateGauge(`vm_rows_ignored_total{reason="too_many_labels"}`, func() float64 {
 		return float64(ignoredSeriesWithTooManyLabels.Load())
@@ -99,18 +101,18 @@ func trackIgnoredSeriesWithTooLongLabelName(l *prompbmarshal.Label, labels []pro
 	}
 }
 
-// AreLabelsLimited returns true if at least one of labels limit is bigger than zero
-func AreLabelsLimited() bool {
-	return maxLabelsPerTimeseries > 0 && maxLabelNameLen > 0 && maxLabelValueLen > 0
+// Enabled returns true if any of limits is configured
+func Enabled() bool {
+	return enabled
 }
 
-// ExceedingLabelsLimits checks if passed labels exceed one of the limits:
+// IsExceeding checks if passed labels exceed one of the limits:
 // * Maximum allowed labels limit
 // * Maximum allowed label name length limit
 // * Maximum allowed label value length limit
 //
 // increments metrics and shows warning in logs
-func ExceedingLabelsLimits(labels []prompbmarshal.Label) bool {
+func IsExceeding(labels []prompbmarshal.Label) bool {
 	if maxLabelsPerTimeseries > 0 && len(labels) > maxLabelsPerTimeseries {
 		trackIgnoredSeriesWithTooManyLabels(labels)
 		return true

@@ -41,8 +41,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 )
 
 var (
@@ -104,7 +104,7 @@ func Init() {
 	promscrape.Init(func(_ *auth.Token, wr *prompbmarshal.WriteRequest) {
 		prompush.Push(wr)
 	})
-	storage.InitLabelsLimits(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
+	timeserieslimits.Init(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
 }
 
 // Stop stops vminsert.

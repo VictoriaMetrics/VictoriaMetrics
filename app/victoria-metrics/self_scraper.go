@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 )
 
 var (
@@ -68,7 +69,7 @@ func selfScraper(scrapeInterval time.Duration) {
 				t := &r.Tags[j]
 				labels = addLabel(labels, t.Key, t.Value)
 			}
-			if storage.ExceedingLabelsLimits(labels) {
+			if timeserieslimits.IsExceeding(labels) {
 				// Skip metric with exceeding labels.
 				continue
 			}

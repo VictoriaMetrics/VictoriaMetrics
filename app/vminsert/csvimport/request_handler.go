@@ -9,7 +9,6 @@ import (
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport/stream"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -47,15 +46,7 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 			label := &extraLabels[j]
 			ctx.AddLabel(label.Name, label.Value)
 		}
-		if hasRelabeling {
-			ctx.ApplyRelabeling()
-		}
-		if len(ctx.Labels) == 0 || storage.ExceedingLabelsLimits(ctx.Labels) {
-			// Skip metric without labels or with exceeding labels.
-			continue
-		}
-		ctx.SortLabelsIfNeeded()
-		if err := ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, r.Value); err != nil {
+		if err := ctx.WriteDataPoint(nil, hasRelabeling, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}
 	}

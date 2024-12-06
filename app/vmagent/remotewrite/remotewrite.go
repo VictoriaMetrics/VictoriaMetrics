@@ -27,8 +27,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 )
@@ -471,10 +471,10 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 			rowsCountAfterRelabel := getRowsCount(tssBlock)
 			rowsDroppedByGlobalRelabel.Add(rowsCountBeforeRelabel - rowsCountAfterRelabel)
 		}
-		if storage.AreLabelsLimited() {
+		if timeserieslimits.Enabled() {
 			tmpBlock := tssBlock[:0]
 			for _, ts := range tssBlock {
-				if !storage.ExceedingLabelsLimits(ts.Labels) {
+				if !timeserieslimits.IsExceeding(ts.Labels) {
 					tmpBlock = append(tmpBlock, ts)
 				}
 			}

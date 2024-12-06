@@ -10,7 +10,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogsketches"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogsketches/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -61,14 +60,9 @@ func insertRows(sketches []*datadogsketches.Sketch, extraLabels []prompbmarshal.
 				label := &extraLabels[j]
 				ctx.AddLabel(label.Name, label.Value)
 			}
-			if hasRelabeling {
-				ctx.ApplyRelabeling()
-			}
-			if len(ctx.Labels) == 0 || storage.ExceedingLabelsLimits(ctx.Labels) {
-				// Skip metric without labels or with exceeding labels.
+			if !ctx.TryPrepareLabels(hasRelabeling) {
 				continue
 			}
-			ctx.SortLabelsIfNeeded()
 			var metricNameRaw []byte
 			var err error
 			for _, p := range m.Points {
