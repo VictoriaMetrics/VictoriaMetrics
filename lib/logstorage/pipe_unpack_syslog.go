@@ -101,7 +101,7 @@ func init() {
 	}()
 }
 
-func parsePipeUnpackSyslog(lex *lexer) (*pipeUnpackSyslog, error) {
+func parsePipeUnpackSyslog(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("unpack_syslog") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unpack_syslog")
 	}

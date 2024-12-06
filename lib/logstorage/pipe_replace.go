@@ -69,7 +69,7 @@ func (pr *pipeReplace) newPipeProcessor(workersCount int, _ <-chan struct{}, _ f
 	return newPipeUpdateProcessor(workersCount, updateFunc, ppNext, pr.field, pr.iff)
 }
 
-func parsePipeReplace(lex *lexer) (*pipeReplace, error) {
+func parsePipeReplace(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("replace") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "replace")
 	}

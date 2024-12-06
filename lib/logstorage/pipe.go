@@ -138,6 +138,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'extract_regexp' pipe: %w", err)
 		}
 		return pe, nil
+	case lex.isKeyword("facets"):
+		pf, err := parsePipeFacets(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'facets' pipe: %w", err)
+		}
+		return pf, nil
 	case lex.isKeyword("field_names"):
 		pf, err := parsePipeFieldNames(lex)
 		if err != nil {
@@ -211,13 +217,13 @@ func parsePipe(lex *lexer) (pipe, error) {
 		}
 		return ps, nil
 	case lex.isKeyword("pack_json"):
-		pp, err := parsePackJSON(lex)
+		pp, err := parsePipePackJSON(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'pack_json' pipe: %w", err)
 		}
 		return pp, nil
 	case lex.isKeyword("pack_logfmt"):
-		pp, err := parsePackLogfmt(lex)
+		pp, err := parsePipePackLogfmt(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'pack_logfmt' pipe: %w", err)
 		}
@@ -324,6 +330,7 @@ var pipeNames = func() map[string]struct{} {
 		"drop_empty_fields",
 		"extract",
 		"extract_regexp",
+		"facets",
 		"field_names",
 		"field_values",
 		"fields", "keep",
