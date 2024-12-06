@@ -295,6 +295,27 @@ func (q *Query) DropAllPipes() {
 	q.pipes = nil
 }
 
+// AddFacetsPipe adds ' facets <limit> max_values_per_field <maxValuesPerField>` to the end of q.
+func (q *Query) AddFacetsPipe(limit, maxValuesPerField int) {
+	s := "facets"
+	if limit > 0 {
+		s += fmt.Sprintf(" %d", limit)
+	}
+	if maxValuesPerField > 0 {
+		s += fmt.Sprintf(" max_values_per_field %d", maxValuesPerField)
+	}
+	lex := newLexer(s)
+
+	pf, err := parsePipeFacets(lex)
+	if err != nil {
+		logger.Panicf("BUG: unexpected error when parsing [%s]: %w", s, err)
+	}
+	if !lex.isEnd() {
+		logger.Panicf("BUG: unexpected tail left after parsing [%s]: %q", s, lex.s)
+	}
+	q.pipes = append(q.pipes, pf)
+}
+
 // AddCountByTimePipe adds '| stats by (_time:step offset off, field1, ..., fieldN) count() hits' to the end of q.
 func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 	{

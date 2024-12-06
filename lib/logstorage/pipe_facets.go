@@ -149,6 +149,10 @@ func (shard *pipeFacetsProcessorShard) updateState(m map[string]*uint64, v strin
 		// Do not count empty values.
 		return
 	}
+	if len(v) > 128 {
+		// Do not count too long values, since they are hard to use in faceted search.
+		return
+	}
 
 	pHits := m[v]
 	if pHits == nil {
@@ -230,15 +234,23 @@ func (pfp *pipeFacetsProcessor) flush() error {
 		}
 	}
 
+	// sort fieldNames
+	fieldNames := make([]string, 0, len(m))
+	for fieldName := range m {
+		fieldNames = append(fieldNames, fieldName)
+	}
+	sort.Strings(fieldNames)
+
 	// Leave only limit entries with the biggest number of hits per each field name
 	wctx := &pipeFacetsWriteContext{
 		pfp: pfp,
 	}
 	limit := pfp.pf.limit
-	for fieldName, values := range m {
+	for _, fieldName := range fieldNames {
 		if needStop(pfp.stopCh) {
 			return nil
 		}
+		values := m[fieldName]
 		if uint64(len(values)) > pfp.pf.maxValuesPerField {
 			continue
 		}
