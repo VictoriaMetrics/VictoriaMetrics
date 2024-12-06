@@ -39,7 +39,7 @@ func (pf *pipeFirst) addPartitionByTime(step int64) {
 	pf.ps.addPartitionByTime(step)
 }
 
-func parsePipeFirst(lex *lexer) (*pipeFirst, error) {
+func parsePipeFirst(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("first") {
 		return nil, fmt.Errorf("expecting 'first'; got %q", lex.token)
 	}

@@ -64,7 +64,7 @@ func (pl *pipeLast) addPartitionByTime(step int64) {
 	pl.ps.addPartitionByTime(step)
 }
 
-func parsePipeLast(lex *lexer) (*pipeLast, error) {
+func parsePipeLast(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("last") {
 		return nil, fmt.Errorf("expecting 'last'; got %q", lex.token)
 	}

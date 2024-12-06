@@ -358,6 +358,7 @@ func (q *Query) CanReturnLastNResults() bool {
 		switch p.(type) {
 		case *pipeBlockStats,
 			*pipeBlocksCount,
+			*pipeFacets,
 			*pipeFieldNames,
 			*pipeFieldValues,
 			*pipeFirst,
