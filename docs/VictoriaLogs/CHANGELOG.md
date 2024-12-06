@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: improve performance for [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe) over [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with big number of logs (millions and more). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7637).
+
 ## [v1.2.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.2.0-victorialogs)
 
 Released at 2024-12-06

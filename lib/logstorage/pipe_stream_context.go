@@ -112,14 +112,93 @@ func (pcp *pipeStreamContextProcessor) init(s *Storage, neededColumnNames, unnee
 	pcp.unneededColumnNames = unneededColumnNames
 }
 
+type timeRange struct {
+	start int64
+	end   int64
+}
+
 func (pcp *pipeStreamContextProcessor) getStreamRowss(streamID string, neededRows []streamContextRow, stateSizeBudget int) ([][]*streamContextRow, error) {
-	tenantID, ok := getTenantIDFromStreamIDString(streamID)
-	if !ok {
-		logger.Panicf("BUG: cannot obtain tenantID from streamID %q", streamID)
+	neededTimestamps := make([]int64, len(neededRows))
+	stateSizeBudget -= int(unsafe.Sizeof(neededTimestamps[0])) * len(neededTimestamps)
+	for i := range neededRows {
+		neededTimestamps[i] = neededRows[i].timestamp
+	}
+	sort.Slice(neededTimestamps, func(i, j int) bool {
+		return neededTimestamps[i] < neededTimestamps[j]
+	})
+
+	trs, stateSize, err := pcp.getTimeRangesForStreamRowss(streamID, neededTimestamps, stateSizeBudget)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain time ranges for the needed timestamps: %w", err)
+	}
+	stateSizeBudget -= stateSize
+
+	rowss, err := pcp.getStreamRowssByTimeRanges(streamID, neededTimestamps, trs, stateSizeBudget)
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain stream rows for the selected time ranges: %w", err)
+	}
+	for _, rows := range rowss {
+		sort.Slice(rows, func(i, j int) bool {
+			return rows[i].less(rows[j])
+		})
 	}
 
-	// construct the query for selecting all the rows for the given streamID
-	qStr := "_stream_id:" + streamID
+	rowss = deduplicateStreamRowss(rowss)
+
+	return rowss, nil
+}
+
+func (pcp *pipeStreamContextProcessor) getTimeRangesForStreamRowss(streamID string, neededTimestamps []int64, stateSizeBudget int) ([]timeRange, int, error) {
+	// construct the query for selecting only timestamps across all the logs for the given streamID
+	qStr := fmt.Sprintf("_stream_id:%s | keep _time | rm _time", streamID)
+
+	rowss, stateSize, err := pcp.executeQuery(streamID, qStr, neededTimestamps, stateSizeBudget)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	trs := make([]timeRange, len(rowss))
+	newStateSize := int(unsafe.Sizeof(trs[0])) * len(rowss)
+	if stateSize+newStateSize > stateSizeBudget {
+		return nil, 0, fmt.Errorf("more than %dMB of memory is needed for fetching the surrounding logs for %d matching logs", stateSizeBudget/(1<<20), len(neededTimestamps))
+	}
+	for i, rows := range rowss {
+		minTimestamp := rows[0].timestamp
+		maxTimestamp := minTimestamp
+		for _, row := range rows[1:] {
+			if row.timestamp < minTimestamp {
+				minTimestamp = row.timestamp
+			} else if row.timestamp > maxTimestamp {
+				maxTimestamp = row.timestamp
+			}
+		}
+		trs[i] = timeRange{
+			start: minTimestamp,
+			end:   maxTimestamp,
+		}
+	}
+	return trs, newStateSize, nil
+}
+
+func (pcp *pipeStreamContextProcessor) getStreamRowssByTimeRanges(streamID string, neededTimestamps []int64, trs []timeRange, stateSizeBudget int) ([][]*streamContextRow, error) {
+	// construct the query for selecting rows on the given tr for the given streamID
+	minTimestamp := trs[0].start
+	maxTimestamp := trs[0].end
+	timeFilters := make([]string, len(trs))
+	for i, tr := range trs {
+		if tr.start < minTimestamp {
+			minTimestamp = tr.start
+		}
+		if tr.end > maxTimestamp {
+			maxTimestamp = tr.end
+		}
+		timeFilters[i] = getTimeFilter(tr.start, tr.end)
+	}
+	timeFilter := getTimeFilter(minTimestamp, maxTimestamp)
+	qStr := fmt.Sprintf("_stream_id:%s %s", streamID, timeFilter)
+	if len(timeFilters) > 1 {
+		qStr += " (" + strings.Join(timeFilters, " OR ") + ")"
+	}
 	if slices.Contains(pcp.neededColumnNames, "*") {
 		if len(pcp.unneededColumnNames) > 0 {
 			qStr += " | delete " + fieldNamesString(pcp.unneededColumnNames)
@@ -129,6 +208,21 @@ func (pcp *pipeStreamContextProcessor) getStreamRowss(streamID string, neededRow
 			qStr += " | fields " + fieldNamesString(pcp.neededColumnNames)
 		}
 	}
+
+	rowss, _, err := pcp.executeQuery(streamID, qStr, neededTimestamps, stateSizeBudget)
+	if err != nil {
+		return nil, err
+	}
+	return rowss, nil
+}
+
+func getTimeFilter(start, end int64) string {
+	startStr := marshalTimestampRFC3339NanoString(nil, start)
+	endStr := marshalTimestampRFC3339NanoString(nil, end)
+	return fmt.Sprintf("_time:[%s, %s]", startStr, endStr)
+}
+
+func (pcp *pipeStreamContextProcessor) executeQuery(streamID, qStr string, neededTimestamps []int64, stateSizeBudget int) ([][]*streamContextRow, int, error) {
 	q, err := ParseQuery(qStr)
 	if err != nil {
 		logger.Panicf("BUG: cannot parse query [%s]: %s", qStr, err)
@@ -137,17 +231,14 @@ func (pcp *pipeStreamContextProcessor) getStreamRowss(streamID string, neededRow
 	// mu protects contextRows and stateSize inside writeBlock callback.
 	var mu sync.Mutex
 
-	contextRows := make([]streamContextRows, len(neededRows))
-	for i := range neededRows {
+	contextRows := make([]streamContextRows, len(neededTimestamps))
+	for i := range neededTimestamps {
 		contextRows[i] = streamContextRows{
-			neededTimestamp: neededRows[i].timestamp,
+			neededTimestamp: neededTimestamps[i],
 			linesBefore:     pcp.pc.linesBefore,
 			linesAfter:      pcp.pc.linesAfter,
 		}
 	}
-	sort.Slice(contextRows, func(i, j int) bool {
-		return contextRows[i].neededTimestamp < contextRows[j].neededTimestamp
-	})
 
 	stateSize := 0
 
@@ -165,7 +256,7 @@ func (pcp *pipeStreamContextProcessor) getStreamRowss(streamID string, neededRow
 
 		for i := range contextRows {
 			if needStop(pcp.stopCh) {
-				break
+				return
 			}
 
 			if !contextRows[i].canUpdate(br) {
@@ -174,6 +265,7 @@ func (pcp *pipeStreamContextProcessor) getStreamRowss(streamID string, neededRow
 			}
 
 			timestamps := br.getTimestamps()
+
 			for j, timestamp := range timestamps {
 				if i > 0 && timestamp <= contextRows[i-1].neededTimestamp {
 					continue
@@ -186,34 +278,41 @@ func (pcp *pipeStreamContextProcessor) getStreamRowss(streamID string, neededRow
 		}
 	}
 
+	tenantID, ok := getTenantIDFromStreamIDString(streamID)
+	if !ok {
+		logger.Panicf("BUG: cannot obtain tenantID from streamID %q", streamID)
+	}
 	if err := pcp.s.runQuery(ctxWithCancel, []TenantID{tenantID}, q, writeBlock); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if stateSize > stateSizeBudget {
-		return nil, fmt.Errorf("more than %dMB of memory is needed for fetching the surrounding logs for %d matching logs", stateSizeBudget/(1<<20), len(neededRows))
+		return nil, 0, fmt.Errorf("more than %dMB of memory is needed for fetching the surrounding logs for %d matching logs", stateSizeBudget/(1<<20), len(neededTimestamps))
 	}
 
-	// return sorted results from contextRows
 	rowss := make([][]*streamContextRow, len(contextRows))
 	for i, ctx := range contextRows {
-		rowss[i] = ctx.getSortedRows()
+		rows := ctx.rowsBefore
+		rows = append(rows, ctx.rowsMatched...)
+		rows = append(rows, ctx.rowsAfter...)
+		rowss[i] = rows
 	}
-	rowss = deduplicateStreamRowss(rowss)
-	return rowss, nil
+	return rowss, stateSize, nil
 }
 
 func deduplicateStreamRowss(streamRowss [][]*streamContextRow) [][]*streamContextRow {
-	var lastSeenRow *streamContextRow
-	for _, streamRows := range streamRowss {
-		if len(streamRows) > 0 {
-			lastSeenRow = streamRows[len(streamRows)-1]
+	i := 0
+	for i < len(streamRowss) {
+		if len(streamRowss[i]) > 0 {
 			break
 		}
+		i++
 	}
-	if lastSeenRow == nil {
+	streamRowss = streamRowss[i:]
+	if len(streamRowss) == 0 {
 		return nil
 	}
 
+	lastSeenRow := streamRowss[0][len(streamRowss[0])-1]
 	resultRowss := streamRowss[:1]
 	for _, streamRows := range streamRowss[1:] {
 		i := 0
@@ -240,23 +339,12 @@ type streamContextRows struct {
 	rowsMatched []*streamContextRow
 }
 
-func (ctx *streamContextRows) getSortedRows() []*streamContextRow {
-	var rows []*streamContextRow
-	rows = append(rows, ctx.rowsBefore...)
-	rows = append(rows, ctx.rowsMatched...)
-	rows = append(rows, ctx.rowsAfter...)
-	sort.Slice(rows, func(i, j int) bool {
-		return rows[i].less(rows[j])
-	})
-	return rows
-}
-
 func (ctx *streamContextRows) canUpdate(br *blockResult) bool {
 	if ctx.linesBefore > 0 {
 		if len(ctx.rowsBefore) < ctx.linesBefore {
 			return true
 		}
-		minTimestamp := ctx.rowsBefore[0].timestamp - 1
+		minTimestamp := ctx.rowsBefore[0].timestamp
 		maxTimestamp := ctx.neededTimestamp
 		if br.intersectsTimeRange(minTimestamp, maxTimestamp) {
 			return true
@@ -268,7 +356,7 @@ func (ctx *streamContextRows) canUpdate(br *blockResult) bool {
 			return true
 		}
 		minTimestamp := ctx.neededTimestamp
-		maxTimestamp := ctx.rowsAfter[0].timestamp + 1
+		maxTimestamp := ctx.rowsAfter[0].timestamp
 		if br.intersectsTimeRange(minTimestamp, maxTimestamp) {
 			return true
 		}
@@ -279,7 +367,7 @@ func (ctx *streamContextRows) canUpdate(br *blockResult) bool {
 			return true
 		}
 		timestamp := ctx.rowsMatched[0].timestamp
-		if br.intersectsTimeRange(timestamp-1, timestamp+1) {
+		if br.intersectsTimeRange(timestamp, timestamp) {
 			return true
 		}
 	}
@@ -334,6 +422,11 @@ func (ctx *streamContextRows) update(br *blockResult, rowIdx int, rowTimestamp i
 
 func (ctx *streamContextRows) copyRowAtIdx(br *blockResult, rowIdx int, rowTimestamp int64) *streamContextRow {
 	cs := br.getColumns()
+	if len(cs) == 0 {
+		return &streamContextRow{
+			timestamp: rowTimestamp,
+		}
+	}
 
 	fields := make([]Field, len(cs))
 	for i, c := range cs {
@@ -536,7 +629,7 @@ func (pcp *pipeStreamContextProcessor) flush() error {
 			return nil
 		}
 
-		// Write streamRows to the output.
+		// Write streamRowss to the output.
 		for _, streamRows := range streamRowss {
 			for _, streamRow := range streamRows {
 				wctx.writeRow(streamRow.fields)
