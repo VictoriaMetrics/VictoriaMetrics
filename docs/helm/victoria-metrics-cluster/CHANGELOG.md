@@ -543,7 +543,7 @@
 
 - Update VictoriaMetrics components from v1.92.1 to v1.93.0
 - charts/victoria-metrics-cluster: remove incorrect comment (#607)
-- vmstorage, vminsert: Add topoloogySpreadConstraints (#596)
+- vmstorage, vminsert: Add topologySpreadConstraints (#596)
 
 ## 0.10.3
 

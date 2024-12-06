@@ -121,7 +121,10 @@ func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, c
 	return newPipeSortProcessor(ps, workersCount, stopCh, cancel, ppNext)
 }
 
-func (ps *pipeSort) addPartitionByTime() {
+func (ps *pipeSort) addPartitionByTime(step int64) {
+	if step <= 0 {
+		return
+	}
 	if ps.limit <= 0 {
 		return
 	}
@@ -766,7 +769,7 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 	return false
 }
 
-func parsePipeSort(lex *lexer) (*pipeSort, error) {
+func parsePipeSort(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("sort") && !lex.isKeyword("order") {
 		return nil, fmt.Errorf("expecting 'sort' or 'order'; got %q", lex.token)
 	}

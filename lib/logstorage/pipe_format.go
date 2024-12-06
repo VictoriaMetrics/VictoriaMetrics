@@ -227,7 +227,7 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 	return bytesutil.ToUnsafeString(b[bLen:])
 }
 
-func parsePipeFormat(lex *lexer) (*pipeFormat, error) {
+func parsePipeFormat(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("format") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "format")
 	}

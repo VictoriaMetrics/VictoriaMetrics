@@ -509,7 +509,7 @@
 
 - added ability to override alerting rules labels and annotations:
 - globally - `.Values.defaultRules.rule.spec.labels` (before it was `.Values.defaultRules.additionalRuleLabels`) and `.Values.defaultRules.rule.spec.annotations`
-- for all rules in a group  - `.Values.defaultRules.groups.<groupName>.rules.spec.labels` and `.Valeus.defaultRules.groups.<groupName>.rules.spec.annotations`
+- for all rules in a group  - `.Values.defaultRules.groups.<groupName>.rules.spec.labels` and `.Values.defaultRules.groups.<groupName>.rules.spec.annotations`
 - for each rule individually - `.Values.defaultRules.rules.<ruleName>.spec.labels` and `.Values.defaultRules.rules.<ruleName>.spec.annotations`
 - changed `.Values.defaultRules.rules.<groupName>` to `.Values.defaultRules.groups.<groupName>.create`
 - changed `.Values.defaultRules.appNamespacesTarget` to `.Values.defaultRules.groups.<groupName>.targetNamespace`
@@ -524,7 +524,7 @@
 
 - added ability to override alerting rules labels and annotations:
 - globally - `.Values.defaultRules.rule.spec.labels` (before it was `.Values.defaultRules.additionalRuleLabels`) and `.Values.defaultRules.rule.spec.annotations`
-- for all rules in a group  - `.Values.defaultRules.groups.<groupName>.rules.spec.labels` and `.Valeus.defaultRules.groups.<groupName>.rules.spec.annotations`
+- for all rules in a group  - `.Values.defaultRules.groups.<groupName>.rules.spec.labels` and `.Values.defaultRules.groups.<groupName>.rules.spec.annotations`
 - for each rule individually - `.Values.defaultRules.rules.<ruleName>.spec.labels` and `.Values.defaultRules.rules.<ruleName>.spec.annotations`
 - changed `.Values.defaultRules.rules.<groupName>` to `.Values.defaultRules.groups.<groupName>.create`
 - changed `.Values.defaultRules.appNamespacesTarget` to `.Values.defaultRules.groups.<groupName>.targetNamespace`

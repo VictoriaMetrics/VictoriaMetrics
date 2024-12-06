@@ -16,6 +16,20 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: improve performance for [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe) over [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with big number of logs (millions and more). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7637).
+* FEATURE: [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe) allow changing the time window for search for surrounding logs via `time_window` option. For example, the following query searches for surrouning [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) logs on the one week window: `_time:5m error | stream_context before 10 time_window 1w`. Thanks to @worker24h for [the idea](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7637#issuecomment-2523313740).
+
+## [v1.2.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.2.0-victorialogs)
+
+Released at 2024-12-06
+
+* FEATURE: add [`rate`](https://docs.victoriametrics.com/victorialogs/logsql/#rate-stats) and [`rate_sum`](https://docs.victoriametrics.com/victorialogs/logsql/#rate_sum-stats) stats functions, which can be used for calculating the average per-second rate of matching logs and the average per-second rate of sum over the given numberic [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7415).
+* FEATURE: add [`facets` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#facets-pipe), which can be used for returning the most frequent values across all the fields seen in the selected logs. This pipe simplifies logs' exploration.
+* FEATURE: add [`/select/logsql/facets` HTTP endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-facets), which returns the most frequent values across all the fields seen in the selected logs. This endpoint is going to be used for building faceted search over logs in the [VictoriaLogs web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui).
+
+* BUGFIX: [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats): properly apply `limit` at [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe). The bug was introduced in the release [v1.1.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.1.0-victorialogs) when fixing [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7699).
+* BUGFIX: [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe): properly format expressions with multiple binary operations with the same priority. For example, `x / (y * z)` was improperly formatted as `x / y * z`, while `x - (y + z)` was improperly formatted as `x - y + z`. This could lead to incorrect query results in [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/).
+
 ## [v1.1.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.1.0-victorialogs)
 
 Released at 2024-12-05
