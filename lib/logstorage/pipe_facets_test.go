@@ -11,8 +11,8 @@ func TestParsePipeFacetsSuccess(t *testing.T) {
 	}
 
 	f(`facets`)
-	f(`facets 10`)
-	f(`facets 10 max_values_per_field 20`)
+	f(`facets 15`)
+	f(`facets 15 max_values_per_field 20`)
 	f(`facets max_values_per_field 20`)
 }
 
