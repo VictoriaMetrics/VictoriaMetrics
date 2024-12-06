@@ -70,7 +70,7 @@ func (pr *pipeReplaceRegexp) newPipeProcessor(workersCount int, _ <-chan struct{
 
 }
 
-func parsePipeReplaceRegexp(lex *lexer) (*pipeReplaceRegexp, error) {
+func parsePipeReplaceRegexp(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("replace_regexp") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "replace_regexp")
 	}

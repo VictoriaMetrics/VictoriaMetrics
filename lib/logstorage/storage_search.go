@@ -197,10 +197,11 @@ func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Qu
 	pipeStr := "field_names"
 	lex := newLexer(pipeStr)
 
-	pf, err := parsePipeFieldNames(lex)
+	p, err := parsePipeFieldNames(lex)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error when parsing 'field_names' pipe at [%s]: %s", pipeStr, err)
 	}
+	pf := p.(*pipeFieldNames)
 	pf.isFirstPipe = len(pipes) == 0
 
 	if !lex.isEnd() {

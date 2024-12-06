@@ -108,7 +108,7 @@ func (pfp *pipeFilterProcessor) flush() error {
 	return nil
 }
 
-func parsePipeFilter(lex *lexer, needFilterKeyword bool) (*pipeFilter, error) {
+func parsePipeFilter(lex *lexer, needFilterKeyword bool) (pipe, error) {
 	if needFilterKeyword {
 		if !lex.isKeyword("filter", "where") {
 			return nil, fmt.Errorf("expecting 'filter' or 'where'; got %q", lex.token)

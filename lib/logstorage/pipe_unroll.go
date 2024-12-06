@@ -203,7 +203,7 @@ func (pup *pipeUnrollProcessor) flush() error {
 	return nil
 }
 
-func parsePipeUnroll(lex *lexer) (*pipeUnroll, error) {
+func parsePipeUnroll(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("unroll") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unroll")
 	}
