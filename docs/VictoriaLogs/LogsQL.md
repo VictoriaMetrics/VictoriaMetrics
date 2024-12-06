@@ -2572,7 +2572,18 @@ across all the logs for the last 5 minutes:
 _time:5m error | stream_context before 2 after 5
 ```
 
+By default `stream_context` pipe looks for surrounding logs on one hour window. This window can be changed with via `time_window` option at query time.
+For example, the following query searches for surrounding logs on one week window:
+
+```logsql
+_time:5m error | stream_context before 10 time_window 1w
+```
+
 The `| stream_context` [pipe](#pipes) must go first just after the [filters](#filters).
+
+See also:
+
+- [stream filter](#stream-filter)
 
 ### top pipe
 

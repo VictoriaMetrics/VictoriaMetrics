@@ -17,6 +17,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * FEATURE: improve performance for [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe) over [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with big number of logs (millions and more). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7637).
+* FEATURE: [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe) allow changing the time window for search for surrounding logs via `time_window` option. For example, the following query searches for surrouning [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) logs on the one week window: `_time:5m error | stream_context before 10 time_window 1w`. Thanks to @worker24h for [the idea](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7637#issuecomment-2523313740).
 
 ## [v1.2.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.2.0-victorialogs)
 
