@@ -355,7 +355,7 @@ func (pmp *pipeMathProcessor) flush() error {
 	return nil
 }
 
-func parsePipeMath(lex *lexer) (*pipeMath, error) {
+func parsePipeMath(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("math", "eval") {
 		return nil, fmt.Errorf("unexpected token: %q; want 'math' or 'eval'", lex.token)
 	}

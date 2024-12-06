@@ -1301,6 +1301,7 @@ LogsQL supports the following pipes:
 - [`drop_empty_fields`](#drop_empty_fields-pipe) drops [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with empty values.
 - [`extract`](#extract-pipe) extracts the specified text into the given log fields.
 - [`extract_regexp`](#extract_regexp-pipe) extracts the specified text into the given log fields via [RE2 regular expressions](https://github.com/google/re2/wiki/Syntax).
+- [`facets`](#facets-pipe) returns the most frequently seen [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) across the selected logs.
 - [`field_names`](#field_names-pipe) returns all the names of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`field_values`](#field_values-pipe) returns all the values for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`fields`](#fields-pipe) selects the given set of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -1620,10 +1621,43 @@ For example, the following query is equivalent to the previous one:
 _time:5m | extract_regexp "ip=(?P<ip>([0-9]+[.]){3}[0-9]+)" keep_original_fields
 ```
 
+### facets pipe
+
+`| facets` [pipe](#pipes) returns the most frequently seen [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+with the number of hits across the selected logs.
+
+For example, the following query returns the most frequently seen fields across logs with the `error` [word](#word) over the last hour:
+
+```logsql
+_time:1h error | facets
+```
+
+It is possible specifying the number of most frequently seen values to return per each field by using `facets N` syntax. For example,
+the following query returns up to 3 most frequently seen values per each field across logs with the `error` [word](#word) over the last hour:
+
+```logsql
+_time:1h error | facets 3
+```
+
+By default `facets` pipe doesn't return log fields with too many unique values, since this may require a lot of additional memory to track.
+The limit can be changed during the query via `max_values_per_field M` suffix. For example, the following query returns up to 15 most frequently seen
+field values across fields with up to 100000 unique values:
+
+```logsql
+_time:1h error | facets 15 max_values_per_field 100000
+```
+
+See also:
+
+- [`top`](#top-pipe)
+- [`field_names`](#field_names-pipe)
+- [`field_values`](#field_values-pipe)
+
 ### field_names pipe
 
 `| field_names` [pipe](#pipes) returns all the names of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with an estimated number of logs per each field name.
+
 For example, the following query returns all the field names with the number of matching logs over the last 5 minutes:
 
 ```logsql
@@ -1635,6 +1669,7 @@ Field names are returned in arbitrary order. Use [`sort` pipe](#sort-pipe) in or
 See also:
 
 - [`field_values` pipe](#field_values-pipe)
+- [`facets` pipe](#facets-pipe)
 - [`uniq` pipe](#uniq-pipe)
 
 ### field_values pipe
@@ -1659,6 +1694,7 @@ If the limit is reached, then the set of returned values is random. Also the num
 See also:
 
 - [`field_names` pipe](#field_names-pipe)
+- [`facets` pipe](#facets-pipe)
 - [`top` pipe](#top-pipe)
 - [`uniq` pipe](#uniq-pipe)
 
@@ -2581,6 +2617,7 @@ See also:
 
 - [`first` pipe](#first-pipe)
 - [`last` pipe](#last-pipe)
+- [`facets` pipe](#facets-pipe)
 - [`uniq` pipe](#uniq-pipe)
 - [`stats` pipe](#stats-pipe)
 - [`sort` pipe](#sort-pipe)

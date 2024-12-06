@@ -692,7 +692,7 @@ func updatePipeStatsMap(m map[string]*pipeStatsGroup, k string, psgSrc *pipeStat
 	return int64(unsafe.Sizeof(k) + unsafe.Sizeof(psgSrc))
 }
 
-func parsePipeStats(lex *lexer, needStatsKeyword bool) (*pipeStats, error) {
+func parsePipeStats(lex *lexer, needStatsKeyword bool) (pipe, error) {
 	if needStatsKeyword {
 		if !lex.isKeyword("stats") {
 			return nil, fmt.Errorf("expecting 'stats'; got %q", lex.token)

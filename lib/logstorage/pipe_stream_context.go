@@ -666,7 +666,7 @@ func (wctx *pipeStreamContextWriteContext) flush() {
 	}
 }
 
-func parsePipeStreamContext(lex *lexer) (*pipeStreamContext, error) {
+func parsePipeStreamContext(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("stream_context") {
 		return nil, fmt.Errorf("expecting 'stream_context'; got %q", lex.token)
 	}

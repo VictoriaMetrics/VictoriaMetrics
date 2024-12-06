@@ -769,7 +769,7 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 	return false
 }
 
-func parsePipeSort(lex *lexer) (*pipeSort, error) {
+func parsePipeSort(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("sort") && !lex.isKeyword("order") {
 		return nil, fmt.Errorf("expecting 'sort' or 'order'; got %q", lex.token)
 	}
