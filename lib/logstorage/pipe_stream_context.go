@@ -16,6 +16,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 )
 
+// pipeStreamContextDefaultTimeWindow is the default time window to search for surrounding logs in `stream_context` pipe.
+const pipeStreamContextDefaultTimeWindow = int64(nsecsPerHour)
+
 // pipeStreamContext processes '| stream_context ...' queries.
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe
@@ -25,6 +28,9 @@ type pipeStreamContext struct {
 
 	// linesAfter is the number of lines to return after the matching line
 	linesAfter int
+
+	// timeWindow is the time window in nanoseconds for searching for surrounding logs
+	timeWindow int64
 }
 
 func (pc *pipeStreamContext) String() string {
@@ -37,6 +43,9 @@ func (pc *pipeStreamContext) String() string {
 	}
 	if pc.linesBefore <= 0 && pc.linesAfter <= 0 {
 		s += " after 0"
+	}
+	if pc.timeWindow != pipeStreamContextDefaultTimeWindow {
+		s += " time_window " + string(marshalDurationString(nil, pc.timeWindow))
 	}
 	return s
 }
@@ -150,7 +159,9 @@ func (pcp *pipeStreamContextProcessor) getStreamRowss(streamID string, neededRow
 
 func (pcp *pipeStreamContextProcessor) getTimeRangesForStreamRowss(streamID string, neededTimestamps []int64, stateSizeBudget int) ([]timeRange, int, error) {
 	// construct the query for selecting only timestamps across all the logs for the given streamID
-	qStr := fmt.Sprintf("_stream_id:%s | keep _time | rm _time", streamID)
+	tr := pcp.getTimeRangeForNeededTimestamps(neededTimestamps)
+	timeFilter := getTimeFilter(tr.start, tr.end)
+	qStr := fmt.Sprintf("_stream_id:%s %s | keep _time | rm _time", streamID, timeFilter)
 
 	rowss, stateSize, err := pcp.executeQuery(streamID, qStr, neededTimestamps, stateSizeBudget)
 	if err != nil {
@@ -178,6 +189,22 @@ func (pcp *pipeStreamContextProcessor) getTimeRangesForStreamRowss(streamID stri
 		}
 	}
 	return trs, newStateSize, nil
+}
+
+func (pcp *pipeStreamContextProcessor) getTimeRangeForNeededTimestamps(neededTimestamps []int64) timeRange {
+	var tr timeRange
+	tr.start = neededTimestamps[0]
+	tr.end = neededTimestamps[0]
+	for _, ts := range neededTimestamps[1:] {
+		if ts < tr.start {
+			tr.start = ts
+		} else if ts > tr.end {
+			tr.end = ts
+		}
+	}
+	tr.start -= pcp.pc.timeWindow
+	tr.end += pcp.pc.timeWindow
+	return tr
 }
 
 func (pcp *pipeStreamContextProcessor) getStreamRowssByTimeRanges(streamID string, neededTimestamps []int64, trs []timeRange, stateSizeBudget int) ([][]*streamContextRow, error) {
@@ -770,9 +797,24 @@ func parsePipeStreamContext(lex *lexer) (pipe, error) {
 		return nil, err
 	}
 
+	timeWindow := pipeStreamContextDefaultTimeWindow
+	if lex.isKeyword("time_window") {
+		lex.nextToken()
+		d, ok := tryParseDuration(lex.token)
+		if !ok {
+			return nil, fmt.Errorf("cannot parse 'time_window %s'; it must contain valid duration", lex.token)
+		}
+		if timeWindow <= 0 {
+			return nil, fmt.Errorf("'time_window' must be positive; got %s", lex.token)
+		}
+		lex.nextToken()
+		timeWindow = d
+	}
+
 	pc := &pipeStreamContext{
 		linesBefore: linesBefore,
 		linesAfter:  linesAfter,
+		timeWindow:  timeWindow,
 	}
 	return pc, nil
 }
