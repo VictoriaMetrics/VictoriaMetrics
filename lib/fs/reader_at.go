@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -179,7 +178,7 @@ type mmapReader struct {
 func newMmapReaderFromPath(path string) *mmapReader {
 	f, err := os.Open(path)
 	if err != nil {
-		logger.Panicf("FATAL: cannot open file for reading: %s", err)
+		logger.Panicf("FATAL: cannot open file for reading: %s; try increasing the limit on the number of open files via 'ulimit -n'", err)
 	}
 	return newMmapReaderFromFile(f)
 }
@@ -243,10 +242,8 @@ func mmapFile(f *os.File, size int64) ([]byte, error) {
 	}
 	data, err := mmap(int(f.Fd()), int(size))
 	if err != nil {
-		if errStr := err.Error(); strings.Contains(errStr, "cannot allocate memory") {
-			err = fmt.Errorf("%w; try increasing /proc/sys/vm/max_map_count or passing -fs.disableMmap command-line flag to the application", err)
-		}
-		return nil, fmt.Errorf("cannot mmap file with size %d bytes; already mmaped files: %d: %w", size, mmapedFiles.Get(), err)
+		return nil, fmt.Errorf("cannot mmap file with size %d bytes; already mmaped files: %d: %w; "+
+			"try increasing /proc/sys/vm/max_map_count or passing -fs.disableMmap command-line flag to the application", size, mmapedFiles.Get(), err)
 	}
 	mmapedFiles.Inc()
 	return data[:sizeOrig], nil
