@@ -380,8 +380,7 @@ See also [security docs](#security), [routing docs](#routing) and [load balancin
 - [Multiple parts](#routing-by-multiple-parts)
 
 See also [authorization](#authorization) and [load balancing](#load-balancing).
-For debug purposes, extra logging for failed requests can be enabled by setting `dump_request_on_errors: true` {{% available_from "v1.107.0" %}}
-on user level. Please note, such logging may expose sensitive info and is recommended to use only for debugging.
+For debug purposes, extra logging for failed requests can be enabled by setting `dump_request_on_errors: true` {{% available_from "v1.107.0" %}} on user level. Please note, such logging may expose sensitive info and is recommended to use only for debugging.
 
 ### Routing by path
 
@@ -410,7 +409,7 @@ See also [how to drop request path prefix](#dropping-request-path-prefix).
 
 ### Routing by host
 
-`src_hosts` option can be specified inside `url_map` in order to route requests by host.
+`src_hosts` option can be specified inside `url_map` in order to route requests by host header.
 
 The following [`-auth.config`](#auth-config) routes requests to `app1.my-host.com` host to `http://app1-backend`, while routing requests to `app2.my-host.com` host to `http://app2-backend`,
 and the rest of requests are routed to `http://some-backend/404-page.html`:

@@ -18,6 +18,7 @@ func TestParsePipeSortSuccess(t *testing.T) {
 	f(`sort by (x) offset 20 limit 10`)
 	f(`sort by (x) offset 20 limit 10 rank as bar`)
 	f(`sort by (x desc, y) desc`)
+	f(`sort by (a, b) partition by (y, z) limit 10`)
 }
 
 func TestParsePipeSortFailure(t *testing.T) {
@@ -33,6 +34,12 @@ func TestParsePipeSortFailure(t *testing.T) {
 	f(`sort by(x) limit N`)
 	f(`sort by(x) offset`)
 	f(`sort by(x) offset N`)
+	f(`sort by (x) partition by (y)`)
+	f(`sort by (x) limit 2 partition`)
+	f(`sort by (x) limit 3 partition by`)
+	f(`sort by (x) limit 2 partition (`)
+	f(`sort by (x) limit 4 partition (abc`)
+	f(`sort by (x) limit 3 partition (abc,`)
 }
 
 func TestPipeSort(t *testing.T) {
@@ -329,6 +336,31 @@ func TestPipeSort(t *testing.T) {
 			{"b", ""},
 		},
 	})
+
+	// Sort with limit and partition
+	f(`sort by (a) limit 1 partition by (b)`, [][]Field{
+		{
+			{"a", "foo"},
+			{"b", "x"},
+		},
+		{
+			{"a", "bar"},
+			{"b", "x"},
+		},
+		{
+			{"a", "xyz"},
+			{"b", "abc"},
+		},
+	}, [][]Field{
+		{
+			{"a", "xyz"},
+			{"b", "abc"},
+		},
+		{
+			{"a", "bar"},
+			{"b", "x"},
+		},
+	})
 }
 
 func TestPipeSortUpdateNeededFields(t *testing.T) {
@@ -342,23 +374,35 @@ func TestPipeSortUpdateNeededFields(t *testing.T) {
 	f("sort rank x", "*", "", "*", "")
 	f("sort by(s1,s2)", "*", "", "*", "")
 	f("sort by(s1,s2) rank as x", "*", "", "*", "x")
+	f("sort by(s1,s2) limit 1 partition by (x) rank as x", "*", "", "*", "")
 	f("sort by(x,s2) rank as x", "*", "", "*", "")
+	f("sort by(x,s2) limit 1 partition by (y) rank as x", "*", "", "*", "")
 
 	// all the needed fields, unneeded fields do not intersect with src
 	f("sort by(s1,s2)", "*", "f1,f2", "*", "f1,f2")
+	f("sort by(s1,s2) limit 1 partition by (f1,s1)", "*", "f1,f2", "*", "f2")
 	f("sort by(s1,s2) rank as x", "*", "f1,f2", "*", "f1,f2,x")
+	f("sort by(s1,s2) limit 1 partition by (x,y) rank as x", "*", "f1,f2", "*", "f1,f2")
 	f("sort by(x,s2) rank as x", "*", "f1,f2", "*", "f1,f2")
+	f("sort by(x,s2) limit 1 partition by (x,y) rank as x", "*", "f1,f2", "*", "f1,f2")
 
 	// all the needed fields, unneeded fields intersect with src
 	f("sort by(s1,s2)", "*", "s1,f1,f2", "*", "f1,f2")
+	f("sort by(s1,s2) limit 1 partition by (f1,f3)", "*", "s1,f1,f2", "*", "f2")
 	f("sort by(s1,s2) rank as x", "*", "s1,f1,f2", "*", "f1,f2,x")
+	f("sort by(s1,s2) limit 1 partition by (f1) rank as x", "*", "s1,f1,f2", "*", "f2,x")
 	f("sort by(x,s2) rank as x", "*", "s1,f1,f2", "*", "f1,f2,s1")
+	f("sort by(x,s2) limit 1 partition by (f2) rank as x", "*", "s1,f1,f2", "*", "f1,s1")
 
 	// needed fields do not intersect with src
 	f("sort by(s1,s2)", "f1,f2", "", "s1,s2,f1,f2", "")
+	f("sort by(s1,s2) limit 1 partition by (f1,f3)", "f1,f2", "", "s1,s2,f1,f2,f3", "")
 	f("sort by(s1,s2) rank as x", "f1,f2", "", "s1,s2,f1,f2", "")
+	f("sort by(s1,s2) limit 1 partition by (s1,f2,f3,x) rank as x", "f1,f2", "", "s1,s2,f1,f2,f3,x", "")
 
 	// needed fields intersect with src
 	f("sort by(s1,s2)", "s1,f1,f2", "", "s1,s2,f1,f2", "")
+	f("sort by(s1,s2) limit 1 partition by (s1,s3)", "s1,f1,f2", "", "s1,s2,s3,f1,f2", "")
 	f("order by(s1,s2) rank as x", "s1,f1,f2,x", "", "s1,s2,f1,f2", "")
+	f("order by(s1,s2) limit 1 partition by (x,y) rank as x", "s1,f1,f2,x", "", "s1,s2,f1,f2,x,y", "")
 }

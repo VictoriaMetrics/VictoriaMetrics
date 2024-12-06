@@ -21,10 +21,7 @@ func benchmarkBlockMustInitFromRows(b *testing.B, rowsPerBlock int) {
 		block := getBlock()
 		defer putBlock(block)
 		for pb.Next() {
-			rowsProcessed := block.MustInitFromRows(timestamps, rows)
-			if rowsProcessed != len(rows) {
-				b.Fatalf("expected rowsProcessed; got %d; want %d", rowsProcessed, len(rows))
-			}
+			block.MustInitFromRows(timestamps, rows)
 			if n := block.Len(); n != len(timestamps) {
 				panic(fmt.Errorf("unexpected block length; got %d; want %d", n, len(timestamps)))
 			}
