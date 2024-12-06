@@ -150,7 +150,7 @@ for logs received at TCP port 514:
 ## Dropping fields
 
 VictoriaLogs supports `-syslog.ignoreFields.tcp` and `-syslog.ignoreFields.udp` command-line flags for skipping
-the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) during inestion
+the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) during ingestion
 of Syslog logs into `-syslog.listenAddr.tcp` and `-syslog.listenAddr.udp` addresses.
 For example, the following command starts VictoriaLogs, which drops `proc_id` and `msg_id` fields from logs received at TCP port 514:
 

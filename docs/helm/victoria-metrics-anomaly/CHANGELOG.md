@@ -431,5 +431,5 @@
 ![AppVersion: v1.1.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.1.0&color=success&logo=)
 ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
 
-* relase vmanomaly v1.1.0 (#454)
+* release vmanomaly v1.1.0 (#454)
 * vmanomaly: fix config for pull-based monitoring (#446)
