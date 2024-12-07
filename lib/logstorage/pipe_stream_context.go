@@ -202,8 +202,12 @@ func (pcp *pipeStreamContextProcessor) getTimeRangeForNeededTimestamps(neededTim
 			tr.end = ts
 		}
 	}
-	tr.start -= pcp.pc.timeWindow
-	tr.end += pcp.pc.timeWindow
+	if pcp.pc.linesBefore > 0 {
+		tr.start -= pcp.pc.timeWindow
+	}
+	if pcp.pc.linesAfter > 0 {
+		tr.end += pcp.pc.timeWindow
+	}
 	return tr
 }
 
