@@ -1963,6 +1963,30 @@ _Appears in:_
 | `urls` | URLs allows setting multiple urls for load-balancing at vmauth-side. | _string array_ | false |
 
 
+#### StatusMetadata
+
+
+
+StatusMetadata holds metadata of application update status
+
+
+
+_Appears in:_
+- [VLogsStatus](#vlogsstatus)
+- [VMAgentStatus](#vmagentstatus)
+- [VMAlertStatus](#vmalertstatus)
+- [VMAlertmanagerStatus](#vmalertmanagerstatus)
+- [VMAuthStatus](#vmauthstatus)
+- [VMClusterStatus](#vmclusterstatus)
+- [VMSingleStatus](#vmsinglestatus)
+
+| Field | Description | Scheme | Required |
+| --- | --- | --- | --- |
+| `observedGeneration` | ObservedGeneration defines current generation picked by operator for the<br />reconcile | _integer_ | true |
+| `reason` | Reason defines fail reason for reconcile process | _string_ | true |
+| `updateStatus` | UpdateStatus defines a status for update rollout | _[UpdateStatus](#updatestatus)_ | true |
+
+
 #### StorageSpec
 
 
@@ -2368,6 +2392,8 @@ UpdateStatus defines status for application
 
 
 _Appears in:_
+- [StatusMetadata](#statusmetadata)
+- [VLogsStatus](#vlogsstatus)
 - [VMAgentStatus](#vmagentstatus)
 - [VMAlertStatus](#vmalertstatus)
 - [VMAlertmanagerStatus](#vmalertmanagerstatus)
@@ -2407,6 +2433,7 @@ _Appears in:_
 
 
 
+VLogs is fast, cost-effective and scalable logs database.
 VLogs is the Schema for the vlogs API
 
 
@@ -2669,7 +2696,7 @@ _Appears in:_
 | `statefulStorage` | StatefulStorage configures storage for StatefulSet | _[StorageSpec](#storagespec)_ | false |
 | `staticScrapeNamespaceSelector` | StaticScrapeNamespaceSelector defines Namespaces to be selected for VMStaticScrape discovery.<br />Works in combination with NamespaceSelector.<br />NamespaceSelector nil - only objects at VMAgent namespace.<br />Selector nil - only objects at NamespaceSelector namespaces.<br />If both nil - behaviour controlled by selectAllByDefault | _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ | false |
 | `staticScrapeRelabelTemplate` | StaticScrapeRelabelTemplate defines relabel config, that will be added to each VMStaticScrape.<br />it's useful for adding specific labels to all targets | _[RelabelConfig](#relabelconfig) array_ | false |
-| `staticScrapeSelector` | StaticScrapeSelector defines PodScrapes to be selected for target discovery.<br />Works in combination with NamespaceSelector.<br />If both nil - match everything.<br />NamespaceSelector nil - only objects at VMAgent namespace.<br />Selector nil - only objects at NamespaceSelector namespaces. | _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ | false |
+| `staticScrapeSelector` | StaticScrapeSelector defines VMStaticScrape to be selected for target discovery.<br />Works in combination with NamespaceSelector.<br />If both nil - match everything.<br />NamespaceSelector nil - only objects at VMAgent namespace.<br />Selector nil - only objects at NamespaceSelector namespaces. | _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ | false |
 | `streamAggrConfig` | StreamAggrConfig defines global stream aggregation configuration for VMAgent | _[StreamAggrConfig](#streamaggrconfig)_ | false |
 | `terminationGracePeriodSeconds` | TerminationGracePeriodSeconds period for container graceful termination | _integer_ | false |
 | `tolerations` | Tolerations If specified, the pod's tolerations. | _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#toleration-v1-core) array_ | false |
@@ -3897,8 +3924,8 @@ _Appears in:_
 | `serviceAccountName` | ServiceAccountName is the name of the ServiceAccount to use to run the pods | _string_ | false |
 | `serviceScrapeSpec` | ServiceScrapeSpec that will be added to vmsingle VMServiceScrape spec | _[VMServiceScrapeSpec](#vmservicescrapespec)_ | false |
 | `serviceSpec` | ServiceSpec that will be added to vmsingle service spec | _[AdditionalServiceSpec](#additionalservicespec)_ | false |
-| `storage` | Storage is the definition of how storage will be used by the VMSingle<br />by default it`s empty dir | _[PersistentVolumeClaimSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#persistentvolumeclaimspec-v1-core)_ | false |
-| `storageDataPath` | StorageDataPath disables spec.storage option and overrides arg for victoria-metrics binary --storageDataPath,<br />its users responsibility to mount proper device into given path. | _string_ | false |
+| `storage` | Storage is the definition of how storage will be used by the VMSingle<br />by default it`s empty dir<br />this option is ignored if storageDataPath is set | _[PersistentVolumeClaimSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#persistentvolumeclaimspec-v1-core)_ | false |
+| `storageDataPath` | StorageDataPath disables spec.storage option and overrides arg for victoria-metrics binary --storageDataPath,<br />its users responsibility to mount proper device into given path.<br />It requires to provide spec.volumes and spec.volumeMounts with at least 1 value | _string_ | false |
 | `storageMetadata` | StorageMeta defines annotations and labels attached to PVC for given vmsingle CR | _[EmbeddedObjectMetadata](#embeddedobjectmetadata)_ | false |
 | `streamAggrConfig` | StreamAggrConfig defines stream aggregation configuration for VMSingle | _[StreamAggrConfig](#streamaggrconfig)_ | true |
 | `terminationGracePeriodSeconds` | TerminationGracePeriodSeconds period for container graceful termination | _integer_ | false |

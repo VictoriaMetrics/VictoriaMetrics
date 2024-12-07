@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.28.2](https://img.shields.io/badge/Version-0.28.2-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.30.3](https://img.shields.io/badge/Version-0.30.3-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-k8s-stack)
 
 Kubernetes monitoring on VictoriaMetrics stack. Includes VictoriaMetrics Operator, Grafana dashboards, ServiceScrapes and VMRules
@@ -71,6 +71,10 @@ kind: Application
 ...
 spec:
   ...
+  destination:
+    ...
+    namespace: <k8s-stack-namespace>
+  ...
   syncPolicy:
     syncOptions:
     # https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/#respect-ignore-difference-configs
@@ -81,7 +85,7 @@ spec:
     - group: ""
       kind: Secret
       name: <fullname>-validation
-      namespace: kube-system
+      namespace: <k8s-stack-namespace>
       jsonPointers:
         - /data
     - group: admissionregistration.k8s.io
@@ -97,19 +101,22 @@ where `<fullname>` is output of `{{ include "vm-operator.fullname" }}` for your 
 If one of dashboards ConfigMap is failing with error `Too long: must have at most 262144 bytes`, please make sure you've added `argocd.argoproj.io/sync-options: ServerSideApply=true` annotation to your dashboards:
 
 ```yaml
-grafana:
-  sidecar:
-    dashboards:
-      additionalDashboardAnnotations
-        argocd.argoproj.io/sync-options: ServerSideApply=true
+defaultDashboards:
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
 ```
 
 argocd.argoproj.io/sync-options: ServerSideApply=true
 
+#### Resources are not completely removed after chart uninstallation
+
+This chart uses `pre-delete` Helm hook to cleanup resources managed by operator, but it's not supported in ArgoCD and this hook is ignored.
+To have a control over resources removal please consider using either [ArgoCD sync phases and waves](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/) or [installing operator chart separately](#install-operator-separately)
+
 ### Rules and dashboards
 
 This chart by default install multiple dashboards and recording rules from [kube-prometheus](https://github.com/prometheus-operator/kube-prometheus)
-you can disable dashboards with `defaultDashboardsEnabled: false` and `experimentalDashboardsEnabled: false`
+you can disable dashboards with `defaultDashboards.enabled: false` and `experimentalDashboardsEnabled: false`
 and rules can be configured under `defaultRules`
 
 ### Adding external dashboards
@@ -157,12 +164,13 @@ kubelet:
 ### Using externally managed Grafana
 
 If you want to use an externally managed Grafana instance but still want to use the dashboards provided by this chart you can set
- `grafana.enabled` to `false` and set `defaultDashboardsEnabled` to `true`. This will install the dashboards
+ `grafana.enabled` to `false` and set `defaultDashboards.enabled` to `true`. This will install the dashboards
  but will not install Grafana.
 
 For example:
 ```yaml
-defaultDashboardsEnabled: true
+defaultDashboards:
+  enabled: true
 
 grafana:
   enabled: false
@@ -175,16 +183,12 @@ set `.grafana.sidecar.dashboards.additionalDashboardLabels` or `.grafana.sidecar
 
 For example:
 ```yaml
-defaultDashboardsEnabled: true
-
-grafana:
-  enabled: false
-  sidecar:
-    dashboards:
-      additionalDashboardLabels:
-        key: value
-      additionalDashboardAnnotations:
-        key: value
+defaultDashboards:
+  enabled: true
+  labels:
+    key: value
+  annotations:
+    key: value
 ```
 
 ## Prerequisites
@@ -283,6 +287,16 @@ See the history of versions of `vmks` application with command.
 helm history vmks -n NAMESPACE
 ```
 
+### Install operator separately
+
+To have control over an order of managed resources removal or to be able to remove a whole namespace with managed resources it's recommended to disable operator in k8s-stack chart (`victoria-metrics-operator.enabled: false`) and [install it](https://docs.victoriametrics.com/helm/victoriametrics-operator/) separately. To move operator from existing k8s-stack release to a separate one please follow the steps below:
+
+- disable cleanup webhook (`victoria-metrics-operator.crds.cleanup.enabled: false`) and apply changes
+- disable operator (`victoria-metrics-operator.enabled: false`) and apply changes
+- [deploy operator](https://docs.victoriametrics.com/helm/victoriametrics-operator/) separately with `crds.plain: true`
+
+If you're planning to delete k8s-stack by a whole namespace removal please consider deploying operator in a separate namespace as due to uncontrollable removal order process can hang if operator is removed before at least one resource it manages.
+
 ### Install locally (Minikube)
 
 To run VictoriaMetrics stack locally it's possible to use [Minikube](https://github.com/kubernetes/minikube). To avoid dashboards and alert rules issues please follow the steps below:
@@ -347,6 +361,44 @@ $ helm show crds vm/victoria-metrics-k8s-stack --version [YOUR_CHART_VERSION] | 
 ```
 
 All other manual actions upgrades listed below:
+
+### Upgrade to 0.29.0
+
+To provide more flexibility for VMAuth configuration all `<component>.vmauth` params were moved to `vmauth.spec`.
+Also `.vm.write` and `.vm.read` variables are available in `vmauth.spec`, which represent `vmsingle`, `vminsert`, `externalVM.write` and `vmsingle`, `vmselect`, `externalVM.read` parsed URLs respectively.
+
+If your configuration in version < 0.29.0 looked like below:
+
+```
+vmcluster:
+  vmauth:
+    vmselect:
+      - src_paths:
+          - /select/.*
+        url_prefix:
+          - /
+    vminsert:
+      - src_paths:
+          - /insert/.*
+        url_prefix:
+          - /
+```
+
+In 0.29.0 it should look like:
+
+```
+vmauth:
+  spec:
+    unauthorizedAccessConfig:
+      - src_paths:
+          - '{{ .vm.read.path }}/.*'
+        url_prefix:
+          - '{{ urlJoin (omit .vm.read "path") }}/'
+      - src_paths:
+          - '{{ .vm.write.path }}/.*'
+        url_prefix:
+          - '{{ urlJoin (omit .vm.write "path") }}/'
+```
 
 ### Upgrade to 0.13.0
 
@@ -1249,43 +1301,12 @@ vmsingle:
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
 <code class="language-yaml">read:
     url: ""
-vmauth:
-    read:
-        - src_paths:
-            - /select/.*
-          url_prefix:
-            - /
-    write:
-        - src_paths:
-            - /insert/.*
-          url_prefix:
-            - /
 write:
     url: ""
 </code>
 </pre>
 </td>
       <td><p>External VM read and write URLs</p>
-</td>
-    </tr>
-    <tr>
-      <td>externalVM.vmauth</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">read:
-    - src_paths:
-        - /select/.*
-      url_prefix:
-        - /
-write:
-    - src_paths:
-        - /insert/.*
-      url_prefix:
-        - /
-</code>
-</pre>
-</td>
-      <td><p>Custom VMAuth config, url_prefix requires only path, which will be appended to a read and write base URL. To disable auth for read or write empty list for component config <code>externalVM.vmauth.&lt;component&gt;: []</code></p>
 </td>
     </tr>
     <tr>
@@ -2408,10 +2429,15 @@ selectAllByDefault: true
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
 <code class="language-yaml">discover_backend_ips: true
 port: "8427"
+unauthorizedAccessConfig:
+    - src_paths:
+        - '{{ .vm.read.path }}/.*'
+      url_prefix:
+        - '{{ urlJoin (omit .vm.read "path") }}/'
 </code>
 </pre>
 </td>
-      <td><p>Full spec for VMAuth CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmauthspec" target="_blank">here</a></p>
+      <td><p>Full spec for VMAuth CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmauthspec" target="_blank">here</a> It&rsquo;s possible to use given below predefined variables in spec: * <code>{{ .vm.read }}</code> - parsed vmselect, vmsingle or externalVM.read URL * <code>{{ .vm.write }}</code> - parsed vminsert, vmsingle or externalVM.write URL</p>
 </td>
     </tr>
     <tr>
@@ -2781,26 +2807,6 @@ vmstorage:
 </pre>
 </td>
       <td><p>Data retention period. Possible units character: h(ours), d(ays), w(eeks), y(ears), if no unit character specified - month. The minimum retention period is 24h. See these <a href="https://docs.victoriametrics.com/single-server-victoriametrics/#retention" target="_blank">docs</a></p>
-</td>
-    </tr>
-    <tr>
-      <td>vmcluster.vmauth</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">vminsert:
-    - src_paths:
-        - /insert/.*
-      url_prefix:
-        - /
-vmselect:
-    - src_paths:
-        - /select/.*
-      url_prefix:
-        - /
-</code>
-</pre>
-</td>
-      <td><p>Custom VMAuth config, url_prefix requires only path, which will be appended to a select and insert base URL. To disable auth for vmselect or vminsert empty list for component config <code>vmcluster.vmauth.&lt;component&gt;: []</code></p>
 </td>
     </tr>
     <tr>

@@ -1,6 +1,55 @@
 ## Next release
 
-- TODO
+- do not set clusterIP value, when service type is not ClusterIP. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1838)
+
+## 0.15.0
+
+**Release date:** 2024-12-02
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- bump version of VM components to [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
+
+## 0.14.13
+
+**Release date:** 2024-11-28
+
+![AppVersion: v1.106.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- removed unsupported selectNodes SRV discovery
+- updated common dependency 0.0.28 -> 0.0.33
+- fixed app.kubernetes.io/version tag override if custom tag is set. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1766).
+
+## 0.14.12
+
+**Release date:** 2024-11-18
+
+![AppVersion: v1.106.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.25 -> 0.0.28
+- bump version of VM components to [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1)
+
+## 0.14.11
+
+**Release date:** 2024-11-14
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated context for serviceaccount name
+- updated common dependency 0.0.23 -> 0.0.25
+
+## 0.14.10
+
+**Release date:** 2024-11-08
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.20 -> 0.0.23
 
 ## 0.14.9
 

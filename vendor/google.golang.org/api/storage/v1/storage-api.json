@@ -93,7 +93,7 @@
       "location": "us-west4"
     }
   ],
-  "etag": "\"38303531353337323634333935393838333734\"",
+  "etag": "\"3134393437363236373436353839383934323639\"",
   "icons": {
     "x16": "https://www.google.com/images/icons/product/cloud_storage-16.png",
     "x32": "https://www.google.com/images/icons/product/cloud_storage-32.png"
@@ -1079,6 +1079,34 @@
             "https://www.googleapis.com/auth/devstorage.full_control"
           ]
         },
+        "relocate": {
+          "description": "Initiates a long-running Relocate Bucket operation on the specified bucket.",
+          "httpMethod": "POST",
+          "id": "storage.buckets.relocate",
+          "parameterOrder": [
+            "bucket"
+          ],
+          "parameters": {
+            "bucket": {
+              "description": "Name of the bucket to be moved.",
+              "location": "path",
+              "required": true,
+              "type": "string"
+            }
+          },
+          "path": "b/{bucket}/relocate",
+          "request": {
+            "$ref": "RelocateBucketRequest"
+          },
+          "response": {
+            "$ref": "GoogleLongrunningOperation"
+          },
+          "scopes": [
+            "https://www.googleapis.com/auth/cloud-platform",
+            "https://www.googleapis.com/auth/devstorage.full_control",
+            "https://www.googleapis.com/auth/devstorage.read_write"
+          ]
+        },
         "restore": {
           "description": "Restores a soft-deleted bucket.",
           "httpMethod": "POST",
@@ -1101,6 +1129,19 @@
               "required": true,
               "type": "string"
             },
+            "projection": {
+              "description": "Set of properties to return. Defaults to full.",
+              "enum": [
+                "full",
+                "noAcl"
+              ],
+              "enumDescriptions": [
+                "Include all properties.",
+                "Omit owner, acl and defaultObjectAcl properties."
+              ],
+              "location": "query",
+              "type": "string"
+            },
             "userProject": {
               "description": "The project to be billed for this request. Required for Requester Pays buckets.",
               "location": "query",
@@ -1108,6 +1149,9 @@
             }
           },
           "path": "b/{bucket}/restore",
+          "response": {
+            "$ref": "Bucket"
+          },
           "scopes": [
             "https://www.googleapis.com/auth/cloud-platform",
             "https://www.googleapis.com/auth/devstorage.full_control",
@@ -3841,6 +3885,38 @@
     },
     "operations": {
       "methods": {
+        "advanceRelocateBucket": {
+          "description": "Starts asynchronous advancement of the relocate bucket operation in the case of required write downtime, to allow it to lock the bucket at the source location, and proceed with the bucket location swap. The server makes a best effort to advance the relocate bucket operation, but success is not guaranteed.",
+          "httpMethod": "POST",
+          "id": "storage.buckets.operations.advanceRelocateBucket",
+          "parameterOrder": [
+            "bucket",
+            "operationId"
+          ],
+          "parameters": {
+            "bucket": {
+              "description": "Name of the bucket to advance the relocate for.",
+              "location": "path",
+              "required": true,
+              "type": "string"
+            },
+            "operationId": {
+              "description": "ID of the operation resource.",
+              "location": "path",
+              "required": true,
+              "type": "string"
+            }
+          },
+          "path": "b/{bucket}/operations/{operationId}/advanceRelocateBucket",
+          "request": {
+            "$ref": "AdvanceRelocateBucketOperationRequest"
+          },
+          "scopes": [
+            "https://www.googleapis.com/auth/cloud-platform",
+            "https://www.googleapis.com/auth/devstorage.full_control",
+            "https://www.googleapis.com/auth/devstorage.read_write"
+          ]
+        },
         "cancel": {
           "description": "Starts asynchronous cancellation on a long-running operation. The server makes a best effort to cancel the operation, but success is not guaranteed.",
           "httpMethod": "POST",
@@ -4196,9 +4272,26 @@
       }
     }
   },
-  "revision": "20240916",
+  "revision": "20241113",
   "rootUrl": "https://storage.googleapis.com/",
   "schemas": {
+    "AdvanceRelocateBucketOperationRequest": {
+      "description": "An AdvanceRelocateBucketOperation request.",
+      "id": "AdvanceRelocateBucketOperationRequest",
+      "properties": {
+        "expireTime": {
+          "description": "Specifies the time when the relocation will revert to the sync stage if the relocation hasn't succeeded.",
+          "format": "date-time",
+          "type": "string"
+        },
+        "ttl": {
+          "description": "Specifies the duration after which the relocation will revert to the sync stage if the relocation hasn't succeeded. Optional, if not supplied, a default value of 12h will be used.",
+          "format": "google-duration",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "AnywhereCache": {
       "description": "An Anywhere Cache instance.",
       "id": "AnywhereCache",
@@ -5713,6 +5806,11 @@
           "format": "date-time",
           "type": "string"
         },
+        "timeFinalized": {
+          "description": "The time when the object was finalized.",
+          "format": "date-time",
+          "type": "string"
+        },
         "timeStorageClassUpdated": {
           "description": "The time at which the object's storage class was last changed. When the object is initially created, it will be set to timeCreated.",
           "format": "date-time",
@@ -5925,6 +6023,34 @@
           "description": "The IAM policy format version.",
           "format": "int32",
           "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "RelocateBucketRequest": {
+      "description": "A Relocate Bucket request.",
+      "id": "RelocateBucketRequest",
+      "properties": {
+        "destinationCustomPlacementConfig": {
+          "description": "The bucket's new custom placement configuration if relocating to a Custom Dual Region.",
+          "properties": {
+            "dataLocations": {
+              "description": "The list of regional locations in which data is placed.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "destinationLocation": {
+          "description": "The new location the bucket will be relocated to.",
+          "type": "string"
+        },
+        "validateOnly": {
+          "description": "If true, validate the operation, but do not actually relocate the bucket.",
+          "type": "boolean"
         }
       },
       "type": "object"

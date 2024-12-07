@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.4](https://img.shields.io/badge/Version-0.12.4-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.13.0](https://img.shields.io/badge/Version-0.13.0-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-alert)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -276,6 +276,17 @@ route:
 </td>
     </tr>
     <tr>
+      <td>alertmanager.fullnameOverride</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Override Alertmanager resources fullname</p>
+</td>
+    </tr>
+    <tr>
       <td>alertmanager.image</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -336,7 +347,10 @@ tag: v0.25.0
       <td>alertmanager.ingress.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: alertmanager.local
+  path:
+    - /
+  port: web
 </code>
 </pre>
 </td>
@@ -727,7 +741,7 @@ tag: v0.25.0
       <td>alertmanager.service.servicePort</td>
       <td>int</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">8880
+<code class="language-yaml">9093
 </code>
 </pre>
 </td>
@@ -894,6 +908,17 @@ name: ""
 </td>
     </tr>
     <tr>
+      <td>nameOverride</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Override chart name</p>
+</td>
+    </tr>
+    <tr>
       <td>server.affinity</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -1026,9 +1051,12 @@ username: ""
       <td>server.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
+httpListenAddr: :8880
 loggerFormat: json
+rule:
+    - /config/alert-rules.yaml
 </code>
 </pre>
 </td>
@@ -1065,7 +1093,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>Extra Volume Mounts for the container</p>
+      <td><p>Extra Volume Mounts for the container. Expects a lice of <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.26/#volumemount-v1-core" target="_blank">volume mounts</a></p>
 </td>
     </tr>
     <tr>
@@ -1087,7 +1115,7 @@ loggerFormat: json
 </code>
 </pre>
 </td>
-      <td><p>Full name prefix override</p>
+      <td><p>Override vmalert resources fullname</p>
 </td>
     </tr>
     <tr>
@@ -1153,7 +1181,10 @@ variant: ""
       <td>server.ingress.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: vmalert.local
+  path:
+    - /
+  port: http
 </code>
 </pre>
 </td>
@@ -1234,18 +1265,7 @@ variant: ""
 </code>
 </pre>
 </td>
-      <td><p>Override fullname suffix</p>
-</td>
-    </tr>
-    <tr>
-      <td>server.nameOverride</td>
-      <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">""
-</code>
-</pre>
-</td>
-      <td><p>Full name suffix override</p>
+      <td><p>Override default <code>app</code> label name</p>
 </td>
     </tr>
     <tr>

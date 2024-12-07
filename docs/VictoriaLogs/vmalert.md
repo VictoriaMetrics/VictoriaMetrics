@@ -10,9 +10,7 @@ aliases:
 - /VictoriaLogs/vmalert.html
 ---
 
-_Available from [v1.106.0](https://docs.victoriametrics.com/changelog/#v11060) vmalert version and [v0.36.0](https://docs.victoriametrics.com/victorialogs/changelog/#v0360) VictoriaLogs version._
-
-[vmalert](https://docs.victoriametrics.com/vmalert/) integrates with VictoriaLogs via stats APIs [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats)
+[vmalert](https://docs.victoriametrics.com/vmalert/){{% available_from "v1.106.0" %}} integrates with VictoriaLogs {{% available_from "v0.36.0" "logs" %}} via stats APIs [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats)
 and [`/select/logsql/stats_query_range`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats).
 These endpoints return the log stats in a format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries). 
 It allows using VictoriaLogs as the datasource in vmalert, creating alerting and recording rules via [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
@@ -60,7 +58,7 @@ The following are key flags related to integration with VictoriaLogs:
 -remoteWrite.url string
    Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.
 -remoteRead.url string
-   Optional URL to datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect.Remote read is used to restore alerts state.This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.
+   Optional URL to datasource compatible with MetricsQL. It can be single node VictoriaMetrics or vmselect.Remote read is used to restore alerts state.This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. Supports address in the form of IP address with a port (e.g., http://127.0.0.1:8428) or DNS SRV record. See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.
 -rule array
    Path to the files or http url with alerting and/or recording rules in YAML format.
    Supports hierarchical patterns and regexpes.

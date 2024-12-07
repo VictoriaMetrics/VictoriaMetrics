@@ -145,19 +145,16 @@ See also:
 
 ### Loki JSON API
 
-VictoriaLogs accepts logs in [Loki JSON API](https://grafana.com/docs/loki/latest/api/#push-log-entries-to-loki) format at `http://localhost:9428/insert/loki/api/v1/push` endpoint.
+VictoriaLogs accepts logs in [Loki JSON API](https://grafana.com/docs/loki/latest/reference/loki-http-api/#ingest-logs) format at `http://localhost:9428/insert/loki/api/v1/push` endpoint.
 
 The following command pushes a single log line to Loki JSON API at VictoriaLogs:
 
 ```sh
-curl -H "Content-Type: application/json" -XPOST "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job" --data-raw \
+curl -H "Content-Type: application/json" -XPOST "http://localhost:9428/insert/loki/api/v1/push" --data-raw \
   '{"streams": [{ "stream": { "instance": "host123", "job": "app42" }, "values": [ [ "0", "foo fizzbuzz bar" ] ] }]}'
 ```
 
 It is possible to push thousands of log streams and log lines in a single request to this API.
-
-The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
-There is no need in specifying `_msg_field` and `_time_field` query args, since VictoriaLogs automatically extracts log message and timestamp from the ingested Loki data.
 
 The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](https://docs.victoriametrics.com/victorialogs/querying/) it:
 
@@ -173,6 +170,19 @@ The command should return the following response:
 
 The response by default contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 See [how to query specific fields](https://docs.victoriametrics.com/victorialogs/logsql/#querying-specific-fields).
+
+The `/insert/loki/api/v1/push` accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
+There is no need in specifying `_msg_field` and `_time_field` query args, since VictoriaLogs automatically extracts log message and timestamp from the ingested Loki data.
+
+The `_stream_fields` arg is optional. If it isn't set, then all the labels inside the `"stream":{...}` are treated
+as [log stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields). Use `_stream_fields` query arg for overriding the list of stream fields.
+For example, the following query instructs using only the `instance` label from the `"stream":{...}` as a stream field, while `ip` and `trace_id` fields will be stored
+as usual [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
+
+```sh
+curl -H "Content-Type: application/json" -XPOST "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance" --data-raw \
+  '{"streams": [{ "stream": { "instance": "host123", "ip": "foo", "trace_id": "bar" }, "values": [ [ "0", "foo fizzbuzz bar" ] ] }]}'
+```
 
 The duration of requests to `/insert/loki/api/v1/push` can be monitored with `vl_http_request_duration_seconds{path="/insert/loki/api/v1/push"}` metric.
 
@@ -258,7 +268,7 @@ additionally to [HTTP query args](#http-query-string-parameters):
 - `VL-Ignore-Fields` - an optional comma-separated list of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names,
   which must be ignored during data ingestion.
 
-- `VL-Extra-Field` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+- `VL-Extra-Fields` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
   which must be added to all the ingested logs. The format of every `extra_fields` entry is `field_name=field_value`.
   If the log entry contains fields from the `extra_fields`, then they are overwritten by the values specified in `extra_fields`.
 
@@ -317,7 +327,7 @@ Here is the list of log collectors and their ingestion formats supported by Vict
 | [Filebeat](https://docs.victoriametrics.com/victorialogs/data-ingestion/filebeat/) | [Yes](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) | No | No | No | No | No | No |
 | [Fluentbit](https://docs.victoriametrics.com/victorialogs/data-ingestion/fluentbit/) | No | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/http) | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/loki) | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/syslog) | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/opentelemetry) | No | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/datadog) |
 | [Logstash](https://docs.victoriametrics.com/victorialogs/data-ingestion/logstash/)   | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) | No | No | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-syslog.html) | [Yes](https://github.com/paulgrav/logstash-output-opentelemetry) | No | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-datadog.html) |
-| [Vector](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector/) | [Yes](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/) | [Yes](https://vector.dev/docs/reference/configuration/sinks/http/) | [Yes](https://vector.dev/docs/reference/configuration/sinks/loki/) | No | [Yes](https://vector.dev/docs/reference/configuration/sources/opentelemetry/) | No | [Yes](https://vector.dev/docs/reference/configuration/sinks/datadog_logs/) |
+| [Vector](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector/) | [Yes](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/) | [Yes](https://vector.dev/docs/reference/configuration/sinks/http/) | [Yes](https://vector.dev/docs/reference/configuration/sinks/loki/) | No | No | No | [Yes](https://vector.dev/docs/reference/configuration/sinks/datadog_logs/) |
 | [Promtail](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/)   | No | No | [Yes](https://grafana.com/docs/loki/latest/clients/promtail/configuration/#clients) | No | No | No | No |
 | [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) | [Yes](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/elasticsearchexporter) | No | [Yes](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/lokiexporter) | [Yes](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/syslogexporter) | [Yes](https://github.com/open-telemetry/opentelemetry-collector/tree/main/exporter/otlphttpexporter) | No | [Yes](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/datadogexporter) |
 | [Telegraf](https://docs.victoriametrics.com/victorialogs/data-ingestion/telegraf/) | [Yes](https://github.com/influxdata/telegraf/tree/master/plugins/outputs/elasticsearch) | [Yes](https://github.com/influxdata/telegraf/tree/master/plugins/outputs/http) | [Yes](https://github.com/influxdata/telegraf/tree/master/plugins/outputs/loki) | [Yes](https://github.com/influxdata/telegraf/blob/master/plugins/outputs/syslog) | Yes | No | No |

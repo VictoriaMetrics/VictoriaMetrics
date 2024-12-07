@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.37.0](https://img.shields.io/badge/Version-0.37.0-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.39.1](https://img.shields.io/badge/Version-0.39.1-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-operator)
 
 Victoria Metrics Operator
@@ -19,6 +19,10 @@ kind: Application
 ...
 spec:
   ...
+  destination:
+    ...
+    namespace: <operator-namespace>
+  ...
   syncPolicy:
     syncOptions:
     # https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/#respect-ignore-difference-configs
@@ -29,7 +33,7 @@ spec:
     - group: ""
       kind: Secret
       name: <fullname>-validation
-      namespace: kube-system
+      namespace: <operator-namespace>
       jsonPointers:
         - /data
     - group: admissionregistration.k8s.io
@@ -351,6 +355,17 @@ requests:
 </td>
     </tr>
     <tr>
+      <td>crds.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
+</pre>
+</td>
+      <td><p>manages CRD creation. Disables CRD creation only in combination with <code>crds.plain: false</code> due to helm dependency conditions limitation</p>
+</td>
+    </tr>
+    <tr>
       <td>crds.plain</td>
       <td>bool</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -468,7 +483,7 @@ requests:
 </code>
 </pre>
 </td>
-      <td><p>Overrides the full name of server component</p>
+      <td><p>Overrides the full name of server component resources</p>
 </td>
     </tr>
     <tr>
@@ -616,7 +631,7 @@ variant: ""
 </code>
 </pre>
 </td>
-      <td><p>VM operatror deployment name override</p>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>

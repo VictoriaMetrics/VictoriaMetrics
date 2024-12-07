@@ -11,12 +11,11 @@ func TestParseJSONRequest_Failure(t *testing.T) {
 		t.Helper()
 
 		tlp := &insertutils.TestLogMessageProcessor{}
-		n, err := parseJSONRequest([]byte(s), tlp)
-		if err == nil {
+		if err := parseJSONRequest([]byte(s), tlp, false); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
-		if n != 0 {
-			t.Fatalf("unexpected number of parsed lines: %d; want 0", n)
+		if err := tlp.Verify(nil, ""); err != nil {
+			t.Fatalf("unexpected error: %s", err)
 		}
 	}
 	f(``)
@@ -66,11 +65,10 @@ func TestParseJSONRequest_Success(t *testing.T) {
 
 		tlp := &insertutils.TestLogMessageProcessor{}
 
-		n, err := parseJSONRequest([]byte(s), tlp)
-		if err != nil {
+		if err := parseJSONRequest([]byte(s), tlp, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if err := tlp.Verify(n, timestampsExpected, resultExpected); err != nil {
+		if err := tlp.Verify(timestampsExpected, resultExpected); err != nil {
 			t.Fatal(err)
 		}
 	}

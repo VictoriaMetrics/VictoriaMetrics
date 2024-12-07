@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"testing"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
@@ -35,20 +34,27 @@ func TestClusterVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.
 		"-storageNode=" + vmstorage1.VmselectAddr() + "," + vmstorage2.VmselectAddr(),
 	})
 
-	// Insert 1000 unique time series and verify the that inserted data has been
-	// indeed sharded by checking various metrics exposed by vminsert and
-	// vmstorage.
-	// Also wait for 2 seconds to let vminsert and vmstorage servers to update
-	// the values of the metrics they expose and to let vmstorages flush pending
-	// items so they become searchable.
+	// Insert 1000 unique time series.
 
 	const numMetrics = 1000
 	records := make([]string, numMetrics)
-	for i := range numMetrics {
-		records[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
+	want := &apptest.PrometheusAPIV1SeriesResponse{
+		Status:    "success",
+		IsPartial: false,
+		Data:      make([]map[string]string, numMetrics),
 	}
-	vminsert.PrometheusAPIV1ImportPrometheus(t, records, apptest.QueryOpts{Tenant: "0"})
-	time.Sleep(2 * time.Second)
+	for i := range numMetrics {
+		name := fmt.Sprintf("metric_%d", i)
+		records[i] = fmt.Sprintf("%s %d", name, rand.IntN(1000))
+		want.Data[i] = map[string]string{"__name__": name}
+	}
+	want.Sort()
+	vminsert.PrometheusAPIV1ImportPrometheus(t, records, apptest.QueryOpts{})
+	vmstorage1.ForceFlush(t)
+	vmstorage2.ForceFlush(t)
+
+	// Verify that inserted data has been indeed sharded by checking metrics
+	// exposed by vmstorage.
 
 	numMetrics1 := vmstorage1.GetIntMetric(t, "vm_vminsert_metrics_read_total")
 	if numMetrics1 == 0 {
@@ -63,16 +69,15 @@ func TestClusterVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.
 	}
 
 	// Retrieve all time series and verify that vmselect serves the complete set
-	//of time series.
+	// of time series.
 
-	series := vmselect.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{Tenant: "0"})
-	if got, want := series.Status, "success"; got != want {
-		t.Fatalf("unexpected /ap1/v1/series response status: got %s, want %s", got, want)
-	}
-	if got, want := series.IsPartial, false; got != want {
-		t.Fatalf("unexpected /ap1/v1/series response isPartial value: got %t, want %t", got, want)
-	}
-	if got, want := len(series.Data), numMetrics; got != want {
-		t.Fatalf("unexpected /ap1/v1/series response series count: got %d, want %d", got, want)
-	}
+	tc.Assert(&apptest.AssertOptions{
+		Msg: "unexpected /api/v1/series response",
+		Got: func() any {
+			res := vmselect.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{})
+			res.Sort()
+			return res
+		},
+		Want: want,
+	})
 }

@@ -162,6 +162,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'filter' pipe: %w", err)
 		}
 		return pf, nil
+	case lex.isKeyword("first"):
+		pf, err := parsePipeFirst(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'first' pipe: %w", err)
+		}
+		return pf, nil
 	case lex.isKeyword("format"):
 		pf, err := parsePipeFormat(lex)
 		if err != nil {
@@ -174,6 +180,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'join' pipe: %w", err)
 		}
 		return pj, nil
+	case lex.isKeyword("last"):
+		pl, err := parsePipeLast(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'last' pipe: %w", err)
+		}
+		return pl, nil
 	case lex.isKeyword("len"):
 		pl, err := parsePipeLen(lex)
 		if err != nil {
@@ -316,8 +328,10 @@ var pipeNames = func() map[string]struct{} {
 		"field_values",
 		"fields", "keep",
 		"filter", "where",
+		"first",
 		"format",
 		"join",
+		"last",
 		"len",
 		"limit", "head",
 		"math", "eval",

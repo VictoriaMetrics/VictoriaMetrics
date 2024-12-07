@@ -1,8 +1,95 @@
 ## Next release
 
+- TODO
+
+## 0.30.3
+
+**Release date:** 2024-12-05
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Set higher priority for `defaultDashboards.dashboards.<name>.enabled` flag comparing to default dashboard conditions to allow install or ignore dashboards regardless of whether component it's for is installed or monitored. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1851).
+
+## 0.30.2
+
+**Release date:** 2024-12-03
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- synced rules
+
+## 0.30.1
+
+**Release date:** 2024-12-03
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fail template if both vmcluster and vmsingle are enabled
+- synced rules and dashboards
+
+## 0.30.0
+
+**Release date:** 2024-12-02
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- synced rules and dashboards
+- updated common dependency 0.0.32 -> 0.0.33
+- bump version of VM components to [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
+
+## 0.29.1
+
+**Release date:** 2024-11-25
+
+![AppVersion: v1.106.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.31 -> 0.0.32
+- updated operator dependency 0.39.0 -> 0.39.1
+- fixed alertmanager config name. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1805)
+
+## 0.29.0
+
+**Release date:** 2024-11-25
+
+![AppVersion: v1.106.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Update note**: This release contains breaking changes. please follow [upgrade guide](./#upgrade-to-0290)
+
+- fixed ability to override CR names using `<component>.name`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1778)
+- updated common dependency 0.0.28 -> 0.0.29
+- bump operator chart version to 0.38.0
+- replaced all `<component>.vmauth` params to `vmauth.spec` to provide more flexibility in vmauth configuration. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1793)
+- synced dashboards
+- updates operator to [v0.50.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.0) version
+
+## 0.28.4
+
+**Release date:** 2024-11-18
+
+![AppVersion: v1.106.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.21 -> 0.0.28
+- bump version of VM components to [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1)
+
+## 0.28.3
+
+**Release date:** 2024-11-08
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
 - updated dashboards
 - set default DNS domain to `cluster.local.`
-- updated common dependency 0.0.19 -> 0.0.20
+- fixed disabling recording rules in `.Values.defaultRules`
+- updated common dependency 0.0.19 -> 0.0.21
+- fixed cluster variable in etcd dashboard
 
 ## 0.28.2
 

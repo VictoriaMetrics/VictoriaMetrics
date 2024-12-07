@@ -236,9 +236,9 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	// Obtain tss from the cache.
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
-	at := ec.AuthTokens[0]
-	if ec.IsMultiTenant {
-		at = nil
+	var at *auth.Token
+	if !ec.IsMultiTenant {
+		at = ec.AuthTokens[0]
 	}
 
 	bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], at, expr, window, ec.Step, ec.EnforcedTagFilterss)
@@ -263,7 +263,7 @@ func (rrc *rollupResultCache) GetSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	if !ok {
 		mi.RemoveKey(key)
 		metainfoBuf = mi.Marshal(metainfoBuf[:0])
-		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], ec.AuthTokens[0], expr, window, ec.Step, ec.EnforcedTagFilterss)
+		bb.B = marshalRollupResultCacheKeyForSeries(bb.B[:0], at, expr, window, ec.Step, ec.EnforcedTagFilterss)
 		rrc.c.Set(bb.B, metainfoBuf)
 		return nil, ec.Start
 	}
@@ -369,9 +369,9 @@ func (rrc *rollupResultCache) PutSeries(qt *querytracer.Tracer, ec *EvalConfig, 
 	metainfoBuf := bbPool.Get()
 	defer bbPool.Put(metainfoBuf)
 
-	at := ec.AuthTokens[0]
-	if ec.IsMultiTenant {
-		at = nil
+	var at *auth.Token
+	if !ec.IsMultiTenant {
+		at = ec.AuthTokens[0]
 	}
 	metainfoKey.B = marshalRollupResultCacheKeyForSeries(metainfoKey.B[:0], at, expr, window, ec.Step, ec.EnforcedTagFilterss)
 	metainfoBuf.B = rrc.c.Get(metainfoBuf.B[:0], metainfoKey.B)

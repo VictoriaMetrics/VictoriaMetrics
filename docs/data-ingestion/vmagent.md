@@ -42,7 +42,6 @@ across `-remoteWrite.url` destinations.
 ## Remote write with basic authentication
 
 This requires setting the `-remoteWrite.basicAuth.username` and `-remoteWrite.basicAuth.password` command line flags:
-
 ```sh
 /path/to/vmagent -remoteWrite.url=https://<victoriametrics_url>/api/v1/write \
  -remoteWrite.basicAuth.username=<username> \
@@ -58,17 +57,14 @@ This requires setting the `-remoteWrite.basicAuth.username` and `-remoteWrite.ba
 
 The token can be placed in a file and accessed via the `-remoteWrite.bearerTokenFile` command line argument.
 The file needs to be readable by the user vmagent is running as. The token file should only contain the token as seen below:
-
 ```
 <token>
 ```
 
 The command to run vmagent with a token file will be the following:
-
 ```sh
 /path/to/vmagent -remoteWrite.url=https://<victoriametrics_url>/api/v1/write \
  -remoteWrite.bearerTokenFile=/path/to/tokenfile
-
 ```
 
 ## Ignore TLS/SSL errors

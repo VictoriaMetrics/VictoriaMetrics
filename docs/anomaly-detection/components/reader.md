@@ -68,6 +68,8 @@ Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/chang
   - **High anomaly scores** (>1) when the *data falls outside the expected range*, indicating a data constraint violation.
   - **Lowest anomaly scores** (=0) when the *model's predictions (`yhat`) fall outside the expected range*, meaning uncertain predictions.
 
+  > **Note**: if not set explicitly (or if older config style prior to [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)) is used, then it is set to reader-level `data_range` arg (since [v1.18.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1181))
+
 - `max_points_per_query` (int): Introduced in [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170), optional arg overrides how `search.maxPointsPerTimeseries` flag (available since [v1.14.1](#v1141)) impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. If set on a query-level, it overrides the global `max_points_per_query` (reader-level).
 
 - `tz` (string): Introduced in [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180), this optional argument enables timezone specification per query, overriding the reader’s default `tz`. This setting helps to account for local timezone shifts, such as [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models that are sensitive to seasonal variations (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)).
@@ -114,6 +116,7 @@ Name of the class needed to enable reading from VictoriaMetrics or Prometheus. V
         </tr>
         <tr>
             <td>
+
 `queries`
             </td>
             <td>
@@ -125,6 +128,7 @@ See [per-query config section](#per-query-parameters) above
         </tr>
         <tr>
             <td>
+
 `datasource_url`
             </td>
             <td>
@@ -136,9 +140,11 @@ Datasource URL address
         </tr>
         <tr>
             <td>
+
 `tenant_id`
             </td>
             <td>
+
 `0:0`, `multitenant`
             </td>
             <td>
@@ -147,6 +153,7 @@ For VictoriaMetrics Cluster version only, tenants are identified by `accountID` 
         </tr>
         <tr>
             <td>
+
 `sampling_period`
             </td>
             <td>
@@ -158,6 +165,7 @@ Frequency of the points returned. Will be converted to `/query_range?step=%s` pa
         </tr>
         <tr>
             <td>
+
 `query_range_path`
             </td>
             <td>
@@ -169,9 +177,11 @@ Performs PromQL/MetricsQL range query
         </tr>
         <tr>
             <td>
+
 `health_path`
             </td>
             <td>
+
 `health`
             </td>
             <td>
@@ -180,9 +190,11 @@ Absolute or relative URL address where to check availability of the datasource.
         </tr>
         <tr>
             <td>
+
 `user`
             </td>
             <td>
+
 `USERNAME`
             </td>
             <td>
@@ -191,9 +203,11 @@ BasicAuth username
         </tr>
         <tr>
             <td>
+
 `password`
             </td>
             <td>
+
 `PASSWORD`
             </td>
             <td>
@@ -202,9 +216,11 @@ BasicAuth password
         </tr>
         <tr>
             <td>
+
 `timeout`
             </td>
             <td>
+
 `30s`
             </td>
             <td>
@@ -213,9 +229,11 @@ Timeout for the requests, passed as a string
         </tr>
         <tr>
             <td>
+
 `verify_tls`
             </td>
             <td>
+
 `false`
             </td>
             <td>
@@ -226,9 +244,11 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
         </tr>
         <tr>
             <td>
+
 `tls_cert_file`
             </td>
             <td>
+
 `path/to/cert.crt`
             </td>
             <td>
@@ -237,9 +257,11 @@ Path to a file with the client certificate, i.e. `client.crt`. Available since [
         </tr>
         <tr>
             <td>
+
 `tls_key_file`
             </td>
             <td>
+
 `path/to/key.crt`
             </td>
             <td>
@@ -248,9 +270,11 @@ Path to a file with the client certificate key, i.e. `client.key`. Available sin
         </tr>
         <tr>
             <td>
+
 `bearer_token`
             </td>
             <td>
+
 `token`
             </td>
             <td>
@@ -259,9 +283,11 @@ Token is passed in the standard format with header: `Authorization: bearer {toke
         </tr>
         <tr>
             <td>
+
 `bearer_token_file`
             </td>
             <td>
+
 `path_to_file`
             </td>
             <td>
@@ -270,9 +296,11 @@ Path to a file, which contains token, that is passed in the standard format with
         </tr>
         <tr>
             <td>
+
 `extra_filters`
             </td>
             <td>
+
 `[]`
             </td>
             <td>
@@ -281,9 +309,11 @@ List of strings with series selector. See: [Prometheus querying API enhancements
         </tr>
         <tr>
             <td>
+
 `query_from_last_seen_timestamp`
             </td>
             <td>
+
 `False`
             </td>
             <td>
@@ -292,9 +322,11 @@ If True, then query will be performed from the last seen timestamp for a given s
         </tr>
         <tr>
             <td>
+
 `latency_offset`
             </td>
             <td>
+
 `1ms`
             </td>
             <td>
@@ -303,9 +335,11 @@ Introduced in [v1.15.1](https://docs.victoriametrics.com/anomaly-detection/chang
         </tr>
         <tr>
             <td>
+
 `max_points_per_query`
             </td>
             <td>
+
 `10000`
             </td>
             <td>
@@ -314,13 +348,28 @@ Introduced in [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/chang
         </tr>
         <tr>
             <td>
+
 `tz`
             </td>
             <td>
+
 `UTC`
             </td>
             <td>
 Introduced in [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180), this optional argument specifies the [IANA](https://nodatime.org/TimeZones) timezone to account for local shifts, like [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models sensitive to seasonal patterns (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)). Defaults to `UTC` if not set and can be overridden on a [per-query basis](#per-query-parameters).
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`data_range`
+            </td>
+            <td>
+
+`["-inf", "inf"]`
+            </td>
+            <td>
+Added in [v1.18.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180), this optional argument allows defining **valid** data ranges for input of all the queries in `queries`. Defaults to `["-inf", "inf"]` if not set and can be overridden on a [per-query basis](#per-query-parameters).
             </td>
         </tr>
     </tbody>
@@ -334,12 +383,13 @@ reader:
   datasource_url: "https://play.victoriametrics.com/"
   tenant_id: "0:0"
   tz: 'America/New_York'
+  data_range: [1, 'inf']  # reader-level
   queries:
     ingestion_rate:
       expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
-      step: '1m' # can override global `sampling_period` on per-query level
-      data_range: [0, 'inf']
-      tz: 'Australia/Sydney'  # if set, overrides reader-wise tz
+      step: '1m' # can override reader-level `sampling_period` on per-query level
+      data_range: [0, 'inf']  # if set, overrides reader-level data_range
+      tz: 'Australia/Sydney'  # if set, overrides reader-level tz
   sampling_period: '1m'
   query_from_last_seen_timestamp: True  # false by default
   latency_offset: '1ms'

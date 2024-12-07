@@ -360,7 +360,9 @@ func (q *Query) CanReturnLastNResults() bool {
 			*pipeBlocksCount,
 			*pipeFieldNames,
 			*pipeFieldValues,
+			*pipeFirst,
 			*pipeJoin,
+			*pipeLast,
 			*pipeLimit,
 			*pipeOffset,
 			*pipeTop,
@@ -606,8 +608,14 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 	for i := idx + 1; i < len(pipes); i++ {
 		p := pipes[i]
 		switch t := p.(type) {
-		case *pipeSort, *pipeOffset, *pipeLimit, *pipeFilter:
-			// These pipes do not change the set of fields.
+		case *pipeFilter:
+			// This pipe doesn't change the set of fields.
+		case *pipeFirst:
+			t.addPartitionByTime()
+		case *pipeLast:
+			t.addPartitionByTime()
+		case *pipeSort:
+			t.addPartitionByTime()
 		case *pipeMath:
 			// Allow `| math ...` pipe, since it adds additional metrics to the given set of fields.
 			// Verify that the result fields at math pipe do not override byFields.
@@ -1233,6 +1241,10 @@ func getCompoundSuffix(lex *lexer, allowColon bool) string {
 
 func getCompoundToken(lex *lexer) (string, error) {
 	stopTokens := []string{",", "(", ")", "[", "]", "|", ""}
+	return getCompoundTokenExt(lex, stopTokens)
+}
+
+func getCompoundTokenExt(lex *lexer, stopTokens []string) (string, error) {
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
 	}

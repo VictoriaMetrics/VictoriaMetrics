@@ -154,13 +154,19 @@ func compareHeaders(lhs, rhs string, tables [][]int) int {
 			return 0
 		}
 
-		w1 := tables[currLevel][lhs[i]]
-		if i >= lhsLen {
+		var w1, w2 int
+
+		// Check bounds before accessing lhs[i]
+		if i < lhsLen {
+			w1 = tables[currLevel][lhs[i]]
+		} else {
 			w1 = 0x1
 		}
 
-		w2 := tables[currLevel][rhs[j]]
-		if j >= rhsLen {
+		// Check bounds before accessing rhs[j]
+		if j < rhsLen {
+			w2 = tables[currLevel][rhs[j]]
+		} else {
 			w2 = 0x1
 		}
 

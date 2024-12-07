@@ -14,7 +14,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Sets a metrics configuration (specified by the metrics configuration ID) for
 // the bucket. You can have up to 1,000 metrics configurations per bucket. If

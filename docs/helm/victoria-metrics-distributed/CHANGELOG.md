@@ -1,17 +1,30 @@
 ## Next release
 
-- `vmauthIngestGlobal` was changed to `write.global.vmauth`
-- `vmauthQueryGlobal` was changed to `read.global.vmauth`
-- `availabilityZones[*].allowIngest` was changed to `availabilityZones[*].write.allow`
-- `availabilityZones[*].allowRead` was changed to `availabilityZones[*].read.allow`
-- `availabilityZones[*].nodeSelector` was moved to `availabilityZones[*].common.spec.nodeSelector`
-- `availabilityZones[*].extraAffinity` was moved to `availabilityZones[*].common.spec.affinity`
-- `availabilityZones[*].topologySpreadConstraints` was moved to `availabilityZones[*].common.spec.topologySpreadConstraints`
-- `availabilityZones[*].vmauthIngest` was moved to `availabilityZones[*].write.vmauth`
-- `availabilityZones[*].vmauthQueryPerZone` was moved to `availabilityZones[*].read.perZone.vmauth`
-- `availabilityZones[*].vmauthCrossAZQuery` was moved to `availabilityZones[*].read.crossZone.vmauth`
+- TODO
+
+## 0.6.0
+
+**Release date:** 2024-12-02
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.28 -> 0.0.33
+- bump version of VM components to [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
+
+## 0.5.0
+
+**Release date:** 2024-11-18
+
+![AppVersion: v1.106.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Update note**: This release contains breaking changes. please follow [upgrade guide](./#upgrade-to-050)
+
 - set default DNS domain to `cluster.local.`
-- updated common dependency 0.0.19 -> 0.0.20
+- added `.Values.zoneTpl` to define a default configuration for each `.Values.availabilityZones`
+- updated common dependency 0.0.19 -> 0.0.28
+- bump version of VM components to [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1)
 
 ## 0.4.2
 

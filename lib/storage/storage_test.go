@@ -573,6 +573,37 @@ func TestNextRetentionDeadlineSeconds(t *testing.T) {
 	f("2023-07-22T12:44:35Z", 24*time.Hour, 37*time.Hour, "2023-07-22T15:00:00Z")
 	f("2023-07-22T14:44:35Z", 24*time.Hour, 37*time.Hour, "2023-07-22T15:00:00Z")
 	f("2023-07-22T15:44:35Z", 24*time.Hour, 37*time.Hour, "2023-07-23T15:00:00Z")
+
+	// The test cases below confirm that it is possible to pick a retention
+	// period such that the previous IndexDB may be removed earlier than it should be.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7609
+
+	// Cluster is configured with 12 month retentionPeriod on 2023-01-01.
+	f("2023-01-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+
+	// Restarts during that period do not change the retention deadline:
+	f("2023-03-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+	f("2023-06-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+	f("2023-09-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+	f("2023-12-01T00:00:00Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+	f("2023-12-19T03:59:59Z", 365*24*time.Hour, 0, "2023-12-19T04:00:00Z")
+
+	// At 2023-12-19T04:00:00Z the rotation occurs. New deadline is
+	// 2024-12-18T04:00:00Z. Restarts during that period do not change the
+	// new deadline:
+	f("2023-12-19T04:00:01Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
+	f("2024-01-01T00:00:00Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
+	f("2024-03-01T00:00:00Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
+	f("2024-04-29T00:00:00Z", 365*24*time.Hour, 0, "2024-12-18T04:00:00Z")
+
+	// Now restart again but with the new retention period of 451d and the
+	// rotation time becomes 2024-05-01T04:00:00Z.
+	//
+	// At 2024-05-01T04:00:00Z, a new IndexDB is created and the current
+	// IndexDB (currently applicable to only ~4 months of data) becomes the
+	// previous IndexDB.  The preceding IndexDB is deleted despite possibly
+	// being related to ~8 months of data that is still within retention.
+	f("2024-04-29T00:00:00Z", 451*24*time.Hour, 0, "2024-05-01T04:00:00Z")
 }
 
 func TestStorageOpenClose(t *testing.T) {
