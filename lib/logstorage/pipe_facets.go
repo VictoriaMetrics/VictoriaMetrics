@@ -166,6 +166,13 @@ func (shard *pipeFacetsProcessorShard) updateFacetsForColumn(br *blockResult, c 
 }
 
 func (shard *pipeFacetsProcessorShard) updateState(fhs *pipeFacetsFieldHits, v string, hits uint64) {
+	if len(v) == 0 {
+		// It is impossible to calculate properly the number of hits
+		// for all empty per-field values - the final number will be misleading,
+		// since it doesn't include blocks without the given field.
+		// So it is better ignoring empty values.
+		return
+	}
 	if uint64(len(v)) > shard.pf.maxValueLen {
 		// Ignore fields with too long values, since they are hard to use in faceted search.
 		fhs.enableIgnoreField(shard)
