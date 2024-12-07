@@ -1623,16 +1623,16 @@ _time:5m | extract_regexp "ip=(?P<ip>([0-9]+[.]){3}[0-9]+)" keep_original_fields
 
 ### facets pipe
 
-`| facets` [pipe](#pipes) returns the most frequently seen [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+`| facets` [pipe](#pipes) returns the most frequent values per every seen [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 with the number of hits across the selected logs.
 
-For example, the following query returns the most frequently seen fields across logs with the `error` [word](#word) over the last hour:
+For example, the following query returns the most frequent values per every seen log field across logs with the `error` [word](#word) over the last hour:
 
 ```logsql
 _time:1h error | facets
 ```
 
-It is possible specifying the number of most frequently seen values to return per each field by using `facets N` syntax. For example,
+It is possible specifying the number of most frequently seen values to return per each log field by using `facets N` syntax. For example,
 the following query returns up to 3 most frequently seen values per each field across logs with the `error` [word](#word) over the last hour:
 
 ```logsql
@@ -1645,6 +1645,13 @@ field values across fields with up to 100000 unique values:
 
 ```logsql
 _time:1h error | facets 15 max_values_per_field 100000
+```
+
+By default `facets` pipe doesn't return log fields with too long values. The limit can be changed during query via `max_value_len K` suffix.
+For example, the following query returns most frequently values for all the log fields containing values no longer than 100 bytes:
+
+```logsql
+_time:1h error | facets mav_value_len 100
 ```
 
 See also:
