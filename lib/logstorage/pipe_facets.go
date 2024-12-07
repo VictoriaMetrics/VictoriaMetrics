@@ -16,6 +16,9 @@ const pipeFacetsDefaultLimit = 10
 // pipeFacetsDefaulatMaxValuesPerField is the default number of unique values to track per each field.
 const pipeFacetsDefaultMaxValuesPerField = 1000
 
+// pipeFacetsDefaultMaxValueLen is the default length of values in fields, which must be ignored when building facets.
+const pipeFacetsDefaultMaxValueLen = 128
+
 // pipeFacets processes '| facets ...' queries.
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#facets-pipe
@@ -25,6 +28,9 @@ type pipeFacets struct {
 
 	// the maximum unique values to track per each field.
 	maxValuesPerField uint64
+
+	// fields with values longer than maxValueLen are ignored, since it is hard to use them in faceted search.
+	maxValueLen uint64
 }
 
 func (pf *pipeFacets) String() string {
@@ -34,6 +40,9 @@ func (pf *pipeFacets) String() string {
 	}
 	if pf.maxValuesPerField != pipeFacetsDefaultMaxValuesPerField {
 		s += fmt.Sprintf(" max_values_per_field %d", pf.maxValuesPerField)
+	}
+	if pf.maxValueLen != pipeFacetsDefaultMaxValueLen {
+		s += fmt.Sprintf(" max_value_len %d", pf.maxValueLen)
 	}
 	return s
 }
@@ -106,11 +115,23 @@ type pipeFacetsProcessorShardNopad struct {
 	pf *pipeFacets
 
 	// m holds hits per every field=value pair.
-	m map[string]map[string]*uint64
+	m map[string]*pipeFacetsFieldHits
 
 	// stateSizeBudget is the remaining budget for the whole state size for the shard.
 	// The per-shard budget is provided in chunks from the parent pipeTopProcessor.
 	stateSizeBudget int
+}
+
+type pipeFacetsFieldHits struct {
+	m          map[string]*uint64
+	mustIgnore bool
+}
+
+func (fhs *pipeFacetsFieldHits) enableIgnoreField(shard *pipeFacetsProcessorShard) {
+	mLen := len(fhs.m)
+	fhs.m = nil
+	shard.stateSizeBudget += mLen * 8
+	fhs.mustIgnore = true
 }
 
 // writeBlock writes br to shard.
@@ -122,64 +143,65 @@ func (shard *pipeFacetsProcessorShard) writeBlock(br *blockResult) {
 }
 
 func (shard *pipeFacetsProcessorShard) updateFacetsForColumn(br *blockResult, c *blockResultColumn) {
-	m := shard.getM(c.name)
-	if m == nil {
+	fhs := shard.getFieldHits(c.name)
+	if fhs.mustIgnore {
 		return
 	}
 	if c.isConst {
 		v := c.valuesEncoded[0]
-		shard.updateState(m, v, uint64(br.rowsLen))
+		shard.updateState(fhs, v, uint64(br.rowsLen))
 		return
 	}
 	if c.valueType == valueTypeDict {
 		c.forEachDictValueWithHits(br, func(v string, hits uint64) {
-			shard.updateState(m, v, hits)
+			shard.updateState(fhs, v, hits)
 		})
 		return
 	}
 
 	for i := 0; i < br.rowsLen; i++ {
 		v := c.getValueAtRow(br, i)
-		shard.updateState(m, v, 1)
+		shard.updateState(fhs, v, 1)
 	}
 }
 
-func (shard *pipeFacetsProcessorShard) updateState(m map[string]*uint64, v string, hits uint64) {
-	if v == "" {
-		// Do not count empty values.
-		return
-	}
-	if len(v) > 128 {
-		// Do not count too long values, since they are hard to use in faceted search.
+func (shard *pipeFacetsProcessorShard) updateState(fhs *pipeFacetsFieldHits, v string, hits uint64) {
+	if uint64(len(v)) > shard.pf.maxValueLen {
+		// Ignore fields with too long values, since they are hard to use in faceted search.
+		fhs.enableIgnoreField(shard)
 		return
 	}
 
-	pHits := m[v]
+	pHits := fhs.m[v]
 	if pHits == nil {
+		if uint64(len(fhs.m)) >= shard.pf.maxValuesPerField {
+			// Ignore fields with too many unique values
+			fhs.enableIgnoreField(shard)
+			return
+		}
 		vCopy := strings.Clone(v)
 		hits := uint64(0)
 		pHits = &hits
-		m[vCopy] = pHits
+		fhs.m[vCopy] = pHits
 		shard.stateSizeBudget -= len(vCopy) + int(unsafe.Sizeof(vCopy)+unsafe.Sizeof(hits)+unsafe.Sizeof(pHits))
 	}
 	*pHits += hits
 }
 
-func (shard *pipeFacetsProcessorShard) getM(k string) map[string]*uint64 {
+func (shard *pipeFacetsProcessorShard) getFieldHits(fieldName string) *pipeFacetsFieldHits {
 	if shard.m == nil {
-		shard.m = make(map[string]map[string]*uint64)
+		shard.m = make(map[string]*pipeFacetsFieldHits)
 	}
-	m, ok := shard.m[k]
+	fhs, ok := shard.m[fieldName]
 	if !ok {
-		m = make(map[string]*uint64)
-		kCopy := strings.Clone(k)
-		shard.m[kCopy] = m
-		shard.stateSizeBudget -= len(kCopy)
+		fhs = &pipeFacetsFieldHits{
+			m: make(map[string]*uint64),
+		}
+		fieldNameCopy := strings.Clone(fieldName)
+		shard.m[fieldNameCopy] = fhs
+		shard.stateSizeBudget -= len(fieldNameCopy) + int(unsafe.Sizeof(*fhs))
 	}
-	if uint64(len(m)) > shard.pf.maxValuesPerField {
-		return nil
-	}
-	return m
+	return fhs
 }
 
 func (pfp *pipeFacetsProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -217,13 +239,16 @@ func (pfp *pipeFacetsProcessor) flush() error {
 		if needStop(pfp.stopCh) {
 			return nil
 		}
-		for fieldName, values := range shard.m {
-			vs, ok := m[fieldName]
-			if !ok {
-				m[fieldName] = values
+		for fieldName, fhs := range shard.m {
+			if fhs.mustIgnore {
 				continue
 			}
-			for v, pHits := range values {
+			vs, ok := m[fieldName]
+			if !ok {
+				m[fieldName] = fhs.m
+				continue
+			}
+			for v, pHits := range fhs.m {
 				ph, ok := vs[v]
 				if !ok {
 					vs[v] = pHits
@@ -362,9 +387,23 @@ func parsePipeFacets(lex *lexer) (pipe, error) {
 		maxValuesPerField = uint64(n)
 	}
 
+	maxValueLen := uint64(pipeFacetsDefaultMaxValueLen)
+	if lex.isKeyword("max_value_len") {
+		lex.nextToken()
+		n, s, err := parseNumber(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse max_value_len: %w", err)
+		}
+		if n < 1 {
+			return nil, fmt.Errorf("max_value_len must be integer bigger than 0; got %s", s)
+		}
+		maxValueLen = uint64(n)
+	}
+
 	pf := &pipeFacets{
 		limit:             limit,
 		maxValuesPerField: maxValuesPerField,
+		maxValueLen:       maxValueLen,
 	}
 	return pf, nil
 }

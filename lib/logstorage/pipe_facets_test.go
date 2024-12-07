@@ -14,6 +14,8 @@ func TestParsePipeFacetsSuccess(t *testing.T) {
 	f(`facets 15`)
 	f(`facets 15 max_values_per_field 20`)
 	f(`facets max_values_per_field 20`)
+	f(`facets max_value_len 123`)
+	f(`facets 34 max_values_per_field 20 max_value_len 30`)
 }
 
 func TestParsePipeFacetsFailure(t *testing.T) {
@@ -27,6 +29,8 @@ func TestParsePipeFacetsFailure(t *testing.T) {
 	f(`facets max_values_per_field`)
 	f(`facets 123 max_values_per_field`)
 	f(`facets 123 max_values_per_field bar`)
+	f(`facets 123 max_value_len`)
+	f(`facets 123 max_value_len bar`)
 }
 
 func TestPipeFacets(t *testing.T) {
