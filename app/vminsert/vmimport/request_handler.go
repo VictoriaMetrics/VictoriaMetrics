@@ -58,14 +58,9 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 			label := &extraLabels[j]
 			ic.AddLabel(label.Name, label.Value)
 		}
-		if hasRelabeling {
-			ic.ApplyRelabeling()
-		}
-		if len(ic.Labels) == 0 {
-			// Skip metric without labels.
+		if !ic.TryPrepareLabels(hasRelabeling) {
 			continue
 		}
-		ic.SortLabelsIfNeeded()
 		ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
 		values := r.Values
 		timestamps := r.Timestamps
@@ -74,7 +69,7 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 		}
 		for j, value := range values {
 			timestamp := timestamps[j]
-			if err := ic.WriteDataPoint(ctx.metricNameBuf, nil, timestamp, value); err != nil {
+			if err := ic.WriteDataPointUnchecked(ctx.metricNameBuf, nil, timestamp, value); err != nil {
 				return err
 			}
 		}
