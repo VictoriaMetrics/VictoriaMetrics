@@ -166,6 +166,9 @@ func (shard *pipeFacetsProcessorShard) updateFacetsForColumn(br *blockResult, c 
 }
 
 func (shard *pipeFacetsProcessorShard) updateState(fhs *pipeFacetsFieldHits, v string, hits uint64) {
+	if fhs.mustIgnore {
+		return
+	}
 	if len(v) == 0 {
 		// It is impossible to calculate properly the number of hits
 		// for all empty per-field values - the final number will be misleading,
