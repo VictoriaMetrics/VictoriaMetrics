@@ -1296,6 +1296,7 @@ LogsQL supports the following pipes:
 
 - [`block_stats`](#block_stats-pipe) returns various stats for the selected blocks with logs.
 - [`blocks_count`](#blocks_count-pipe) counts the number of blocks with logs processed by the query.
+- [`collapse_nums`](#collapse_nums-pipe) replaces all the decimal and hexadecimal numbers with `<N>` in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`copy`](#copy-pipe) copies [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`delete`](#delete-pipe) deletes [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`drop_empty_fields`](#drop_empty_fields-pipe) drops [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with empty values.
@@ -1357,6 +1358,47 @@ See also:
 
 - [`block_stats` pipe](#block_stats-pipe)
 - [`len` pipe](#len-pipe)
+
+### collapse_nums pipe
+
+`| collapse_nums at <field>` pipe replaces all the decimal and hexadecimal numbers at the given [`<field>`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with `<N>`.
+For example, if the `_msg` field contains `2024-10-20T12:34:56Z request duration 1.34s`, then it is replaced with `<N>-<N>-<N>T<N>:<N>:<N>Z request duration <N>.<N>s` by the following query:
+
+```logsql
+_time:5m | collapse_nums at _msg
+```
+
+The `at ...` suffix can be omitted if `collapse_nums` is applied to [`_msg`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) field.
+The following query is equivalent to the previous one:
+
+```logsql
+_time:5m | collapse_nums
+```
+
+This functionality is useful for locating the most frequently seen log patterns across log messages with various decimal and hexadecimal numbers.
+This includes the following entities: timestamps, ip addresses, request durations, response sizes, [UUIDs](https://en.wikipedia.org/wiki/Universally_unique_identifier), trace IDs, user IDs, etc.
+Log messages with such entities become identical after applying `collapse_nums` pipe to them, so the [`top` pipe](#top-pipe) can be applied to them in order to get the most frequently
+seen patterns across log messages. For example, the following query returns top 5 the most frequently seen log patterns across log messages for the last hour:
+
+```logsql
+_time:1h | collapse_nums | top 5 by (_msg)
+```
+
+See also:
+
+- [conditional `collapse_nums`](#conditional-collapse_nums)
+- [`replace`](#replace-pipe)
+- [`replace_regexp`](#replace_regexp-pipe)
+
+#### Conditional collapse_nums
+
+If the [`collapse_nums` pipe](#collapse_nums-pipe) mustn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+then add `if (<filters>)` after `collapse_nums`.
+The `<filters>` can contain arbitrary [filters](#filters). For example, the following query collapses nums in the `foo` field only if `user_type` field equals to `admin`:
+
+```logsql
+_time:5m | collapse_nums if (user_type:=admin) at foo
+```
 
 ### copy pipe
 
@@ -2213,6 +2255,7 @@ See also:
 
 - [Conditional replace](#conditional-replace)
 - [`replace_regexp` pipe](#replace_regexp-pipe)
+- [`collapse_nums`](#collapse_nums-pipe)
 - [`format` pipe](#format-pipe)
 - [`extract` pipe](#extract-pipe)
 
@@ -2265,12 +2308,13 @@ See also:
 
 - [Conditional replace_regexp](#conditional-replace_regexp)
 - [`replace` pipe](#replace-pipe)
+- [`collapse_nums` pipe](#collapse_nums-pipe)
 - [`format` pipe](#format-pipe)
 - [`extract` pipe](#extract-pipe)
 
 #### Conditional replace_regexp
 
-If the [`replace_regexp` pipe](#replace-pipe) mustn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+If the [`replace_regexp` pipe](#replace_regexp-pipe) mustn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 then add `if (<filters>)` after `replace_regexp`.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query replaces `password: ...` substrings ending with whitespace
 with `***` in the `foo` field only if `user_type` field equals to `admin`:
@@ -2966,7 +3010,7 @@ See also:
 
 #### Conditional unroll
 
-If the [`unroll` pipe](#unpack_logfmt-pipe) mustn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+If the [`unroll` pipe](#unroll-pipe) mustn't be applied to every [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
 then add `if (<filters>)` after `unroll`.
 The `<filters>` can contain arbitrary [filters](#filters). For example, the following query unrolls `value` field only if `value_type` field equals to `json_array`:
 
