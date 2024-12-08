@@ -2,6 +2,8 @@ package common
 
 import (
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
+	"github.com/VictoriaMetrics/metrics"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
@@ -11,6 +13,35 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+)
+
+// StartIngestionRateLimiter starts ingestion rate limiter.
+//
+// Ingestion rate limiter must be started before Init() call.
+//
+// StopIngestionRateLimiter must be called before Stop() call in order to unblock all the callers
+// to ingestion rate limiter. Otherwise deadlock may occur at Stop() call.
+func StartIngestionRateLimiter(maxIngestionRate int) {
+	if maxIngestionRate <= 0 {
+		return
+	}
+	ingestionRateLimitReached := metrics.NewCounter(`vm_max_ingestion_rate_limit_reached_total`)
+	ingestionRateLimiterStopCh = make(chan struct{})
+	ingestionRateLimiter = ratelimiter.New(int64(maxIngestionRate), ingestionRateLimitReached, ingestionRateLimiterStopCh)
+}
+
+// StopIngestionRateLimiter stops ingestion rate limiter.
+func StopIngestionRateLimiter() {
+	if ingestionRateLimiterStopCh == nil {
+		return
+	}
+	close(ingestionRateLimiterStopCh)
+	ingestionRateLimiterStopCh = nil
+}
+
+var (
+	ingestionRateLimiter       *ratelimiter.RateLimiter
+	ingestionRateLimiterStopCh chan struct{}
 )
 
 // InsertCtx contains common bits for data points insertion.
@@ -77,6 +108,7 @@ func (ctx *InsertCtx) WriteDataPointExt(metricNameRaw []byte, labels []prompbmar
 }
 
 func (ctx *InsertCtx) addRow(metricNameRaw []byte, timestamp int64, value float64) error {
+	ingestionRateLimiter.Register(1)
 	mrs := ctx.mrs
 	if cap(mrs) > len(mrs) {
 		mrs = mrs[:len(mrs)+1]
