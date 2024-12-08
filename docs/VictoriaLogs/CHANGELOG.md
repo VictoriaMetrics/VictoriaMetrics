@@ -16,7 +16,9 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
-* FETURE: [`collapse_nums` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#collapse_nums-pipe): add an ability to prettify some patterns across collapsed numbers. For example, `<N>.<N>.<N>.<N>` is replaced with `<IP4>` when executing `collapse_nums prettify` pipe.
+* FEATURE: [`collapse_nums` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#collapse_nums-pipe): add an ability to prettify some patterns across collapsed numbers. For example, `<N>.<N>.<N>.<N>` is replaced with `<IP4>` when executing `collapse_nums prettify` pipe.
+
+* BUGFIX: [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe): fix `index out of range [0] with length 0` panic, which has been introduced in [v1.3.0-victorialogs](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.3.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7762).
 
 ## [v1.3.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.3.1-victorialogs)
 
