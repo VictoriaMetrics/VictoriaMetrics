@@ -1014,6 +1014,12 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo | blocks_count y`, `foo | blocks_count as y`)
 	f(`foo | blocks_count`, `foo | blocks_count`)
 
+	// collapse_nums pipe
+	f(`foo | collapse_nums`, `foo | collapse_nums`)
+	f(`foo | collapse_nums at x`, `foo | collapse_nums at x`)
+	f(`foo | collapse_nums if (x:y)`, `foo | collapse_nums if (x:y)`)
+	f(`foo | collapse_nums if (x:y) at foo`, `foo | collapse_nums if (x:y) at foo`)
+
 	// copy and cp pipe
 	f(`* | copy foo as bar`, `* | copy foo as bar`)
 	f(`* | cp foo bar`, `* | copy foo as bar`)
@@ -1572,6 +1578,9 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | blocks_count x y`)
 	f(`foo | blocks_count x, y`)
 
+	// invalid collapse_nums pipe
+	f(`foo | collapse_nums bar`)
+
 	// invalid copy and cp pipe
 	f(`foo | copy`)
 	f(`foo | cp`)
@@ -2078,6 +2087,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | rm f1, f2 | stats by(f3) count(f4) r1`, `f3,f4`, ``)
 
 	// Verify that fields are correctly tracked before count(*)
+	f(`* | collapse_nums | count() r1`, ``, ``)
 	f(`* | copy a b, c d | count() r1`, ``, ``)
 	f(`* | delete a, b | count() r1`, ``, ``)
 	f(`* | extract "<f1>bar" from x | count() r1`, ``, ``)
@@ -2218,6 +2228,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	}
 
 	f("foo", true)
+	f("* | collapse_nums", true)
 	f("* | copy a b", true)
 	f("* | rm a, b", true)
 	f("* | drop_empty_fields", true)
@@ -2334,6 +2345,7 @@ func TestQueryGetStatsByFieldsAddGroupingByTime_Failure(t *testing.T) {
 	f(`* | stats by (host) count() total | delete host`)
 	f(`* | stats by (host) count() total | copy total as host`)
 	f(`* | stats by (host) count() total | rename host as server | fields host, total`)
+	f(`* | by (x) count() | collapse_nums at x`)
 
 	// offset and limit pipes are disallowed, since they cannot be applied individually per each step
 	f(`* | by (x) count() | offset 10`)
@@ -2439,6 +2451,7 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | extract_regexp "(?P<ip>([0-9]+[.]){3}[0-9]+)"`)
 	f(`foo | count() | block_stats`)
 	f(`foo | count() | blocks_count`)
+	f(`foo | count() | collapse_nums`)
 	f(`foo | count() | facets`)
 	f(`foo | count() | field_names`)
 	f(`foo | count() | field_values abc`)
