@@ -994,6 +994,8 @@ in [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series).
 
 - Unix timestamps in seconds with optional milliseconds after the point. For example, `1562529662.678`.
 - Unix timestamps in milliseconds. For example, `1562529662678`.
+- Unix timestamps in microseconds. For example, `1562529662678901`.
+- Unix timestamps in nanoseconds. For example, `1562529662678901234`.
 - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt). For example, `2022-03-29T01:02:03Z` or `2022-03-29T01:02:03+02:30`.
 - Partial RFC3339. Examples: `2022`, `2022-03`, `2022-03-29`, `2022-03-29T01`, `2022-03-29T01:02`, `2022-03-29T01:02:03`.
   The partial RFC3339 time is in local timezone of the host where VictoriaMetrics runs.
