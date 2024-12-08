@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -234,5 +235,11 @@ func getJSONString(s string) string {
 	if err != nil {
 		panic(fmt.Errorf("unexpected error when marshaling string to JSON: %w", err))
 	}
-	return string(data)
+	return jsonHTMLReplacer.Replace(string(data))
 }
+
+var jsonHTMLReplacer = strings.NewReplacer(
+	`\u003c`, "\u003c",
+	`\u003e`, "\u003e",
+	`\u0026`, "\u0026",
+)
