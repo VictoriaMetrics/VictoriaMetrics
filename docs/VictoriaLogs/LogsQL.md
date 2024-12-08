@@ -1384,6 +1384,22 @@ seen patterns across log messages. For example, the following query returns top 
 _time:1h | collapse_nums | top 5 by (_msg)
 ```
 
+`collapse_nums` can detect certain patterns in the collapsed numbers and replace with with the corresponding placeholders if `prettify` suffix is added to the `collapse_nums` pipe:
+
+- `<N>-<N>-<N>-<N>-<N>` is replaced with `<UUID>`.
+- `<N>.<N>.<N>.<N>` is replaced with `<IP4>`.
+- `<N>:<N>:<N>` is replaced with `<TIME>`. Optional fractional seconds after the time are treated as a part of `<TIME>`.
+- `<N>-<N>-<N>` and `<N>/<N>/<N>` is replaced with `<DATE>`.
+- `<N>-<N>-<N>T<N>:<N>:<N>` and `<N>-<N>-<N> <N>:<N>:<N>` is replaced with `<DATETIME>`. Optional timezone after the datetime is treated as a part of `<DATETIME>`.
+
+For example, the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+`2edfed59-3e98-4073-bbb2-28d321ca71a7 - [2024/12/08 15:21:02] 10.71.20.32 GET /foo 200` is replaced with `<UUID> - [<DATETIME>] <IP4> GET /foo <N>`
+when the following query is executed:
+
+```logsql
+_time:1h | collapse_nums prettify
+```
+
 See also:
 
 - [conditional `collapse_nums`](#conditional-collapse_nums)

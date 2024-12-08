@@ -14,6 +14,10 @@ func TestParsePipeCollapseNumsSuccess(t *testing.T) {
 	f(`collapse_nums at x`)
 	f(`collapse_nums if (x:y)`)
 	f(`collapse_nums if (x:y) at a`)
+	f(`collapse_nums prettify`)
+	f(`collapse_nums at x prettify`)
+	f(`collapse_nums if (error) prettify`)
+	f(`collapse_nums if (error) at x prettify`)
 }
 
 func TestParsePipeCollapseNumsFailure(t *testing.T) {
@@ -25,6 +29,8 @@ func TestParsePipeCollapseNumsFailure(t *testing.T) {
 	f(`collapse_nums foo`)
 	f(`collapse_nums at`)
 	f(`collapse_nums if`)
+	f(`collapse_nums prettify at x`)
+	f(`collapse_nums prettify if (error)`)
 }
 
 func TestPipeCollapseNums(t *testing.T) {
@@ -34,7 +40,7 @@ func TestPipeCollapseNums(t *testing.T) {
 	}
 
 	// collapse_nums without if and at
-	f(`collapse_nums`, [][]Field{
+	f(`collapse_nums prettify`, [][]Field{
 		{
 			{"_msg", `2004-10-12T43:23:12Z abc:345`},
 			{"bar", `cde`},
@@ -47,7 +53,7 @@ func TestPipeCollapseNums(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"_msg", `<N>-<N>-<N>T<N>:<N>:<N>Z abc:<N>`},
+			{"_msg", `<DATETIME> abc:<N>`},
 			{"bar", `cde`},
 		},
 		{
@@ -59,7 +65,7 @@ func TestPipeCollapseNums(t *testing.T) {
 	})
 
 	// collapse_nums with at
-	f(`collapse_nums at bar`, [][]Field{
+	f(`collapse_nums at bar prettify`, [][]Field{
 		{
 			{"_msg", `2004-10-12T43:23:12Z abc:345`},
 			{"bar", `cde`},
@@ -78,7 +84,7 @@ func TestPipeCollapseNums(t *testing.T) {
 		},
 		{
 			{"_msg", `a_bc_def`},
-			{"bar", "ip: <N>.<N>.<N>.<N>"},
+			{"bar", "ip: <IP4>"},
 		},
 		{
 			{"_msg", `1234`},
@@ -148,7 +154,7 @@ func TestAppendCollapseNums(t *testing.T) {
 
 		result := appendCollapseNums(nil, s)
 		if string(result) != resultExpected {
-			t.Fatalf("unexpected result\ngot\n%q\nwant\n%q", result, resultExpected)
+			t.Fatalf("unexpected result for %s\ngot\n%s\nwant\n%s", s, result, resultExpected)
 		}
 	}
 
@@ -174,4 +180,28 @@ func TestAppendCollapseNums(t *testing.T) {
 	f("2004-10-12T43:23:12Z abc:345", "<N>-<N>-<N>T<N>:<N>:<N>Z abc:<N>")
 	f("123.43s", "<N>.<N>s")
 	f("123ms 2us 3h5m6s43ms43μs324ns", "<N>ms <N>us <N>h<N>m<N>s<N>ms<N>μs<N>ns")
+	f("0x1234 0XFEAD12", "0x<N> 0X<N>")
+}
+
+func TestAppendCollapseNums_Prettified(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		data := appendCollapseNums(nil, s)
+		result := appendPrettifyCollapsedNums(data[:0], data)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result for %s\ngot\n%s\nwant\n%s", s, result, resultExpected)
+		}
+	}
+
+	f("", "")
+	f("foo", "foo")
+	f("35.191.193.225:51648 - 2edfed59-3e98-4073-bbb2-28d321ca71a7 - - [2024/12/08 15:21:02] 10.71.20.32 GET /foo 200", "<IP4>:<N> - <UUID> - - [<DATETIME>] <IP4> GET /foo <N>")
+	f("E1208 15:21:02.748877 62 metric_reporter.go:182", "E1208 <TIME> <N> metric_reporter.go:<N>")
+	f("2024-12-08T15:22:32.342Z error exporterhelper/queued_retry.go:101", "<DATETIME> error exporterhelper/queued_retry.go:<N>")
+	f("2024-12-08 15:22:32Z error exporterhelper/queued_retry.go:101", "<DATETIME> error exporterhelper/queued_retry.go:<N>")
+	f("2024-12-08 15:22:32,123 error exporterhelper/queued_retry.go:101", "<DATETIME> error exporterhelper/queued_retry.go:<N>")
+	f("2024-12-08 15:22:32.123+10:30 error exporterhelper/queued_retry.go:101", "<DATETIME> error exporterhelper/queued_retry.go:<N>")
+	f("2024-12-08 15:22:32.123-10:30 error exporterhelper/queued_retry.go:101", "<DATETIME> error exporterhelper/queued_retry.go:<N>")
+	f("2024/12/08T15:22:32-10:30 error exporterhelper/queued_retry.go:101", "<DATETIME> error exporterhelper/queued_retry.go:<N>")
 }
