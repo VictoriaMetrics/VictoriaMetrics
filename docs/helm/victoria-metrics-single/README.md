@@ -907,7 +907,7 @@ enabled: false
 </code>
 </pre>
 </td>
-      <td><p>Data retention period in month</p>
+      <td><p>Data retention period. Possible units character: h(ours), d(ays), w(eeks), y(ears), if no unit character specified - month. The minimum retention period is 24h. See these <a href="https://docs.victoriametrics.com/single-server-victoriametrics/#retention" target="_blank">docs</a></p>
 </td>
     </tr>
     <tr>
@@ -1281,7 +1281,7 @@ scrape_configs:
 </code>
 </pre>
 </td>
-      <td><p>Service load balacner IP</p>
+      <td><p>Service load balancer IP</p>
 </td>
     </tr>
     <tr>

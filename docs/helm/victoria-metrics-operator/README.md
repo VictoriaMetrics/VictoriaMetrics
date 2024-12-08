@@ -19,6 +19,10 @@ kind: Application
 ...
 spec:
   ...
+  destination:
+    ...
+    namespace: <operator-namespace>
+  ...
   syncPolicy:
     syncOptions:
     # https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/#respect-ignore-difference-configs
@@ -29,7 +33,7 @@ spec:
     - group: ""
       kind: Secret
       name: <fullname>-validation
-      namespace: kube-system
+      namespace: <operator-namespace>
       jsonPointers:
         - /data
     - group: admissionregistration.k8s.io
@@ -932,7 +936,7 @@ view:
 </code>
 </pre>
 </td>
-      <td><p>Service load balacner IP</p>
+      <td><p>Service load balancer IP</p>
 </td>
     </tr>
     <tr>

@@ -87,7 +87,7 @@ func (pcp *pipeCopyProcessor) flush() error {
 	return nil
 }
 
-func parsePipeCopy(lex *lexer) (*pipeCopy, error) {
+func parsePipeCopy(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("copy", "cp") {
 		return nil, fmt.Errorf("expecting 'copy' or 'cp'; got %q", lex.token)
 	}

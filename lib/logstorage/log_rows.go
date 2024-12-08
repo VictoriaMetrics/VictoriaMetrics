@@ -166,7 +166,9 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields, streamFie
 	if streamFields != nil {
 		// streamFields overrride lr.streamFields
 		for _, f := range streamFields {
-			st.Add(f.Name, f.Value)
+			if _, ok := lr.ignoreFields[f.Name]; !ok {
+				st.Add(f.Name, f.Value)
+			}
 		}
 	} else {
 		for _, f := range fields {
@@ -174,9 +176,9 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields, streamFie
 				st.Add(f.Name, f.Value)
 			}
 		}
-	}
-	for _, f := range lr.extraStreamFields {
-		st.Add(f.Name, f.Value)
+		for _, f := range lr.extraStreamFields {
+			st.Add(f.Name, f.Value)
+		}
 	}
 
 	// Marshal StreamTags

@@ -992,6 +992,11 @@ func TestParseQuerySuccess(t *testing.T) {
 	// multiple fields pipes
 	f(`foo | fields bar | fields baz, abc`, `foo | fields bar | fields baz, abc`)
 
+	// facets pipe
+	f(`foo | facets`, `foo | facets`)
+	f(`foo | facets 12`, `foo | facets 12`)
+	f(`foo | facets 12 max_values_per_field 20_000`, `foo | facets 12 max_values_per_field 20000`)
+
 	// field_names pipe
 	f(`foo | field_names as x`, `foo | field_names as x`)
 	f(`foo | field_names y`, `foo | field_names as y`)
@@ -1008,6 +1013,12 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`foo | blocks_count as x`, `foo | blocks_count as x`)
 	f(`foo | blocks_count y`, `foo | blocks_count as y`)
 	f(`foo | blocks_count`, `foo | blocks_count`)
+
+	// collapse_nums pipe
+	f(`foo | collapse_nums`, `foo | collapse_nums`)
+	f(`foo | collapse_nums at x`, `foo | collapse_nums at x`)
+	f(`foo | collapse_nums if (x:y)`, `foo | collapse_nums if (x:y)`)
+	f(`foo | collapse_nums if (x:y) at foo`, `foo | collapse_nums if (x:y) at foo`)
 
 	// copy and cp pipe
 	f(`* | copy foo as bar`, `* | copy foo as bar`)
@@ -1204,6 +1215,24 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | sort by (foo desc, bar) desc OFFSET 30 limit 10`, `* | sort by (foo desc, bar) desc offset 30 limit 10`)
 	f(`* | sort by (foo desc, bar) desc limit 10 OFFSET 30`, `* | sort by (foo desc, bar) desc offset 30 limit 10`)
 	f(`* | sort (foo desc, bar) desc limit 10 OFFSET 30`, `* | sort by (foo desc, bar) desc offset 30 limit 10`)
+	f(`* | sort (foo desc, bar) partition by (abc, def) limit 10`, `* | sort by (foo desc, bar) partition by (abc, def) limit 10`)
+	f(`* | SORT BY (foo desc, bar) limit 10 PARTItion (abc, def) oFFset 30 rank abc`, `* | sort by (foo desc, bar) partition by (abc, def) offset 30 limit 10 rank as abc`)
+
+	// first pipe
+	f(`* | first`, `* | first`)
+	f(`* | first rank as x`, `* | first rank as x`)
+	f(`* | first by (x,y)`, `* | first by (x, y)`)
+	f(`* | first 10 by (foo)`, `* | first 10 by (foo)`)
+	f(`* | first 10 by (foo) rank bar`, `* | first 10 by (foo) rank as bar`)
+	f(`* | first 10 by (foo) partition (a,b) rank bar`, `* | first 10 by (foo) partition by (a, b) rank as bar`)
+
+	// last pipe
+	f(`* | last`, `* | last`)
+	f(`* | last rank as x`, `* | last rank as x`)
+	f(`* | last by (x,y)`, `* | last by (x, y)`)
+	f(`* | last 10 by (foo)`, `* | last 10 by (foo)`)
+	f(`* | last 10 by (foo) rank bar`, `* | last 10 by (foo) rank as bar`)
+	f(`* | last 10 by (foo) partition (a,b) rank bar`, `* | last 10 by (foo) partition by (a, b) rank as bar`)
 
 	// uniq pipe
 	f(`* | uniq`, `* | uniq`)
@@ -1548,6 +1577,9 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | blocks_count (x,y)`)
 	f(`foo | blocks_count x y`)
 	f(`foo | blocks_count x, y`)
+
+	// invalid collapse_nums pipe
+	f(`foo | collapse_nums bar`)
 
 	// invalid copy and cp pipe
 	f(`foo | copy`)
@@ -1918,6 +1950,8 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | fields x,f1 | filter foo f1:bar | rm f2`, `f1,x`, ``)
 	f(`* | rm x,f1 | filter foo f1:bar`, `*`, `f1,x`)
 
+	f(`* | facets`, `*`, ``)
+
 	f(`* | field_names as foo`, ``, ``)
 	f(`* | field_names foo | fields bar`, ``, ``)
 	f(`* | field_names foo | fields foo`, ``, ``)
@@ -1938,6 +1972,16 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | blocks_count foo | rm bar`, ``, ``)
 	f(`* | fields x,y | blocks_count as bar | fields baz`, ``, ``)
 	f(`* | rm x,y | blocks_count as bar | fields baz`, ``, ``)
+
+	f(`* | first`, `*`, ``)
+	f(`* | first by (x)`, `*`, ``)
+	f(`* | first rank y`, `*`, ``)
+	f(`* | first by (x) rank y`, `*`, `y`)
+
+	f(`* | last`, `*`, ``)
+	f(`* | last by (x)`, `*`, ``)
+	f(`* | last rank y`, `*`, ``)
+	f(`* | last by (x) rank y`, `*`, `y`)
 
 	f(`* | format "foo" as s1`, `*`, `s1`)
 	f(`* | format "foo<f1>" as s1`, `*`, `s1`)
@@ -2043,12 +2087,14 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | rm f1, f2 | stats by(f3) count(f4) r1`, `f3,f4`, ``)
 
 	// Verify that fields are correctly tracked before count(*)
+	f(`* | collapse_nums | count() r1`, ``, ``)
 	f(`* | copy a b, c d | count() r1`, ``, ``)
 	f(`* | delete a, b | count() r1`, ``, ``)
 	f(`* | extract "<f1>bar" from x | count() r1`, ``, ``)
 	f(`* | extract if (q:w p:a) "<f1>bar" from x | count() r1`, `p,q`, ``)
 	f(`* | extract_regexp "(?P<f1>.*)bar" from x | count() r1`, ``, ``)
 	f(`* | extract_regexp if (q:w p:a) "(?P<f1>.*)bar" from x | count() r1`, `p,q`, ``)
+	f(`* | facets | count() r1`, `*`, ``)
 	f(`* | field_names | count() r1`, ``, ``)
 	f(`* | limit 10 | field_names as abc | count() r1`, `*`, ``)
 	f(`* | block_stats | count() r1`, `*`, ``)
@@ -2151,12 +2197,15 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | rm x", true)
 	f("* | stats count() rows", false)
 	f("* | sort by (x)", false)
+	f("* | first 10 by (x)", false)
+	f("* | last 10 by (x)", false)
 	f("* | len(x)", true)
 	f("* | limit 10", false)
 	f("* | offset 10", false)
 	f("* | uniq (x)", false)
 	f("* | block_stats", false)
 	f("* | blocks_count", false)
+	f("* | facets", false)
 	f("* | field_names", false)
 	f("* | field_values x", false)
 	f("* | top 5 by (x)", false)
@@ -2179,6 +2228,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	}
 
 	f("foo", true)
+	f("* | collapse_nums", true)
 	f("* | copy a b", true)
 	f("* | rm a, b", true)
 	f("* | drop_empty_fields", true)
@@ -2186,11 +2236,14 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | extract_regexp 'foo(?P<bar>baz)'", true)
 	f("* | block_stats", false)
 	f("* | blocks_count a", false)
+	f("* | facets", false)
 	f("* | field_names a", false)
 	f("* | fields a, b", true)
 	f("* | field_values a", false)
 	f("* | filter foo", true)
+	f("* | first", false)
 	f("* | format 'a<b>c'", true)
+	f("* | last", false)
 	f("* | len(x)", true)
 	f("* | limit 10", false)
 	f("* | math a/b as c", true)
@@ -2260,6 +2313,12 @@ func TestQueryGetStatsByFieldsAddGroupingByTime_Success(t *testing.T) {
 	f(`* | by (level) count() x`, nsecsPerDay, []string{"level", "_time"}, `* | stats by (level, _time:86400000000000) count(*) as x`)
 	f(`* | by (_time:1m) count() x`, nsecsPerDay, []string{"_time"}, `* | stats by (_time:86400000000000) count(*) as x`)
 	f(`* | by (_time:1m offset 30s,level) count() x, count_uniq(z) y`, nsecsPerDay, []string{"_time", "level"}, `* | stats by (_time:86400000000000, level) count(*) as x, count_uniq(z) as y`)
+	f(`* | by (path) rate() rps | last 3 by (rps)`, nsecsPerDay, []string{"path", "_time"}, `* | stats by (path, _time:86400000000000) rate() as rps | last 3 by (rps) partition by (_time)`)
+	f(`* | by (path) rate() rps | first 3 by (rps)`, nsecsPerDay, []string{"path", "_time"}, `* | stats by (path, _time:86400000000000) rate() as rps | first 3 by (rps) partition by (_time)`)
+	f(`* | by (path) rate() rps | sort (rps) limit 3`, nsecsPerDay, []string{"path", "_time"}, `* | stats by (path, _time:86400000000000) rate() as rps | sort by (rps) partition by (_time) limit 3`)
+
+	// multiple stats pipes and sort pipes
+	f(`* | by (path) count() requests | by (requests) count() hits | first (hits desc)`, nsecsPerDay, []string{"requests", "_time"}, `* | stats by (path, _time:86400000000000) count(*) as requests | stats by (requests, _time:86400000000000) count(*) as hits | first by (hits desc) partition by (_time)`)
 }
 
 func TestQueryGetStatsByFieldsAddGroupingByTime_Failure(t *testing.T) {
@@ -2286,6 +2345,11 @@ func TestQueryGetStatsByFieldsAddGroupingByTime_Failure(t *testing.T) {
 	f(`* | stats by (host) count() total | delete host`)
 	f(`* | stats by (host) count() total | copy total as host`)
 	f(`* | stats by (host) count() total | rename host as server | fields host, total`)
+	f(`* | by (x) count() | collapse_nums at x`)
+
+	// offset and limit pipes are disallowed, since they cannot be applied individually per each step
+	f(`* | by (x) count() | offset 10`)
+	f(`* | by (x) count() | limit 20`)
 }
 
 func TestQueryGetStatsByFields_Success(t *testing.T) {
@@ -2355,6 +2419,10 @@ func TestQueryGetStatsByFields_Success(t *testing.T) {
 	// format result is treated as by(...) field
 	f(`foo | count() | format "foo<bar>baz" as x`, []string{"x"})
 	f(`foo | by (x) count() | format "foo<bar>baz" as y`, []string{"x", "y"})
+
+	// check first and last pipes
+	f(`foo | stats by (x) count() y | first by (y)`, []string{"x"})
+	f(`foo | stats by (x) count() y | last by (y)`, []string{"x"})
 }
 
 func TestQueryGetStatsByFields_Failure(t *testing.T) {
@@ -2383,6 +2451,8 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | extract_regexp "(?P<ip>([0-9]+[.]){3}[0-9]+)"`)
 	f(`foo | count() | block_stats`)
 	f(`foo | count() | blocks_count`)
+	f(`foo | count() | collapse_nums`)
+	f(`foo | count() | facets`)
 	f(`foo | count() | field_names`)
 	f(`foo | count() | field_values abc`)
 	f(`foo | by (x) count() | fields a, b`)
