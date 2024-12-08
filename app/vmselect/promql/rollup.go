@@ -681,6 +681,8 @@ func (rc *rollupConfig) DoTimeseriesMap(tsm *timeseriesMap, values []float64, ti
 	return samplesScanned
 }
 
+const defaultScrapeInterval = 5 * 60 * 1000
+
 func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, values []float64, timestamps []int64) ([]float64, uint64) {
 	// Sanity checks.
 	if rc.Step <= 0 {
@@ -699,8 +701,11 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	// Extend dstValues in order to remove mallocs below.
 	dstValues = decimal.ExtendFloat64sCapacity(dstValues, len(rc.Timestamps))
 
-	scrapeInterval := getScrapeInterval(timestamps, rc.Step)
-	maxPrevInterval := getMaxPrevInterval(scrapeInterval)
+	scrapeInterval := getScrapeInterval(timestamps, rc.Step+defaultScrapeInterval)
+	maxPrevInterval := scrapeInterval
+	if len(timestamps) >= 2 {
+		maxPrevInterval = getMaxPrevInterval(scrapeInterval)
+	}
 	if rc.LookbackDelta > 0 && maxPrevInterval > rc.LookbackDelta {
 		maxPrevInterval = rc.LookbackDelta
 	}
