@@ -7,6 +7,7 @@
 [![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaMetrics)](https://goreportcard.com/report/github.com/VictoriaMetrics/VictoriaMetrics)
 [![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/workflows/main/badge.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/actions)
 [![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
+[![Gurubase](https://img.shields.io/badge/Gurubase-Ask%20VictoriaMetrics%20Guru-006BFF)](https://gurubase.io/g/victoriametrics)
 
 <picture>
   <source srcset="docs/logo_white.webp" media="(prefers-color-scheme: dark)">
