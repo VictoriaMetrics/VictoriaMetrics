@@ -1384,7 +1384,7 @@ seen patterns across log messages. For example, the following query returns top 
 _time:1h | collapse_nums | top 5 by (_msg)
 ```
 
-`collapse_nums` can detect certain patterns in the collapsed numbers and replace with with the corresponding placeholders if `prettify` suffix is added to the `collapse_nums` pipe:
+`collapse_nums` can detect certain patterns in the collapsed numbers and replace them with the corresponding placeholders if `prettify` suffix is added to the `collapse_nums` pipe:
 
 - `<N>-<N>-<N>-<N>-<N>` is replaced with `<UUID>`.
 - `<N>.<N>.<N>.<N>` is replaced with `<IP4>`.
