@@ -24,15 +24,9 @@ func TestParseAuthConfigFailure(t *testing.T) {
 		}
 	}
 
-	// Empty config
-	f(``)
-
 	// Invalid entry
 	f(`foobar`)
 	f(`foobar: baz`)
-
-	// Empty users
-	f(`users: []`)
 
 	// Missing url_prefix
 	f(`
@@ -301,6 +295,12 @@ func TestParseAuthConfigSuccess(t *testing.T) {
 	}
 
 	insecureSkipVerifyTrue := true
+
+	// Empty config
+	f(``, map[string]*UserInfo{})
+
+	// Empty users
+	f(`users: []`, map[string]*UserInfo{})
 
 	// Single user
 	f(`
