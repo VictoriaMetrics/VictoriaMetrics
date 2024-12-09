@@ -159,6 +159,7 @@ func templateAnnotations(annotations map[string]string, data AlertTplData, tmpl 
 		builder.WriteString(text)
 		// clone a new template for each parse to avoid collision
 		ctmpl, _ := tmpl.Clone()
+		ctmpl = ctmpl.Option("missingkey=zero")
 		if err := templateAnnotation(&buf, builder.String(), tData, ctmpl, execute); err != nil {
 			r[key] = text
 			eg.Add(fmt.Errorf("key %q, template %q: %w", key, text, err))
