@@ -212,6 +212,8 @@ func TestSingleMillisecondPrecisionInInstantQueries(t *testing.T) {
 
 	// vmsingle with default flags
 	defaultSUT := tc.MustStartDefaultVmsingle()
+
+	// vmsingle that sets -search.minStalenessInterval=1ms
 	customSUT := tc.MustStartVmsingle("vmsingle-custom", []string{
 		"-storageDataPath=" + tc.Dir() + "/vmsingle-custom",
 		"-retentionPeriod=100y",
@@ -221,7 +223,25 @@ func TestSingleMillisecondPrecisionInInstantQueries(t *testing.T) {
 }
 
 func TestClusterMillisecondPrecisionInInstantQueries(t *testing.T) {
-	t.Skip("TODO(@rtm0): implement cluster version of the test")
+	t.Skip("The fix is not in cluster branch yet")
+
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	// a VM cluster with vmselect with default flags
+	defaultSUT := tc.MustStartDefaultCluster()
+
+	// a VM cluster with vmselect that sets -search.minStalenessInterval=1ms
+	customSUT := tc.MustStartCluster(&at.ClusterOptions{
+		Vmstorage1Instance: "vmstorage1-custom",
+		Vmstorage2Instance: "vmstorage2-custom",
+		VminsertInstance:   "vminsert-custom",
+		VmselectInstance:   "vmselect-custom",
+		VmselectFlags: []string{
+			"-search.minStalenessInterval=1ms",
+		},
+	})
+	testMillisecondPrecisionInInstantQueries(t, tc, defaultSUT, customSUT)
 }
 
 func testMillisecondPrecisionInInstantQueries(t *testing.T, tc *at.TestCase, defaultSUT, customSUT at.PrometheusWriteQuerier) {
