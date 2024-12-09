@@ -56,7 +56,7 @@ const (
 
 // UnitTest runs unittest for files
 func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL string) bool {
-	if err := templates.Load([]string{}, true); err != nil {
+	if err := templates.Load([]string{}, ""); err != nil {
 		logger.Fatalf("failed to load template: %v", err)
 	}
 	storagePath = filepath.Join(os.TempDir(), testStoragePath)

@@ -313,11 +313,8 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 	}
 	var result []prompbmarshal.TimeSeries
 	holdAlertState := make(map[uint64]*notifier.Alert)
-	qFn := func(_ string) ([]datasource.Metric, error) {
-		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
-	}
 	for _, s := range res.Data {
-		ls, as, err := ar.expandTemplates(s, qFn, time.Time{})
+		ls, as, err := ar.expandTemplates(s, nil, time.Time{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to expand templates: %s", err)
 		}
@@ -339,7 +336,7 @@ func (ar *AlertingRule) execRange(ctx context.Context, start, end time.Time) ([]
 				a.State = notifier.StatePending
 				a.ActiveAt = at
 				// re-template the annotations as active timestamp is changed
-				_, a.Annotations, _ = ar.expandTemplates(s, qFn, at)
+				_, a.Annotations, _ = ar.expandTemplates(s, nil, at)
 				a.Start = time.Time{}
 			} else if at.Sub(a.ActiveAt) >= ar.For && a.State != notifier.StateFiring {
 				a.State = notifier.StateFiring
