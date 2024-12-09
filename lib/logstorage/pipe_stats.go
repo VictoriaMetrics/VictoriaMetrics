@@ -801,6 +801,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'count_uniq' func: %w", err)
 		}
 		return sus, nil
+	case lex.isKeyword("count_uniq_hash"):
+		sus, err := parseStatsCountUniqHash(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'count_uniq_hash' func: %w", err)
+		}
+		return sus, nil
 	case lex.isKeyword("max"):
 		sms, err := parseStatsMax(lex)
 		if err != nil {
@@ -889,6 +895,7 @@ var statsNames = []string{
 	"count",
 	"count_empty",
 	"count_uniq",
+	"count_uniq_hash",
 	"max",
 	"median",
 	"min",
