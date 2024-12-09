@@ -54,10 +54,6 @@ func (pu *pipeUnpackSyslog) updateNeededFields(neededFields, unneededFields fiel
 	updateNeededFieldsForUnpackPipe(pu.fromField, nil, pu.keepOriginalFields, false, pu.iff, neededFields, unneededFields)
 }
 
-func (pu *pipeUnpackSyslog) optimize() {
-	pu.iff.optimizeFilterIn()
-}
-
 func (pu *pipeUnpackSyslog) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
@@ -105,7 +101,7 @@ func init() {
 	}()
 }
 
-func parsePipeUnpackSyslog(lex *lexer) (*pipeUnpackSyslog, error) {
+func parsePipeUnpackSyslog(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("unpack_syslog") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unpack_syslog")
 	}

@@ -305,11 +305,10 @@ func (br *blockResult) initAllColumns() {
 
 	if !slices.Contains(unneededColumnNames, "_msg") {
 		// Add _msg column
-		csh := br.bs.getColumnsHeader()
-		v := csh.getConstColumnValue("_msg")
+		v := br.bs.getConstColumnValue("_msg")
 		if v != "" {
 			br.addConstColumn("_msg", v)
-		} else if ch := csh.getColumnHeader("_msg"); ch != nil {
+		} else if ch := br.bs.getColumnHeader("_msg"); ch != nil {
 			br.addColumn(ch)
 		} else {
 			br.addConstColumn("_msg", "")
@@ -319,7 +318,7 @@ func (br *blockResult) initAllColumns() {
 	// Add other const columns
 	csh := br.bs.getColumnsHeader()
 	for _, cc := range csh.constColumns {
-		if isMsgFieldName(cc.Name) {
+		if cc.Name == "" {
 			continue
 		}
 		if !slices.Contains(unneededColumnNames, cc.Name) {
@@ -331,7 +330,7 @@ func (br *blockResult) initAllColumns() {
 	chs := csh.columnHeaders
 	for i := range chs {
 		ch := &chs[i]
-		if isMsgFieldName(ch.name) {
+		if ch.name == "" {
 			continue
 		}
 		if !slices.Contains(unneededColumnNames, ch.name) {
@@ -357,11 +356,10 @@ func (br *blockResult) initRequestedColumns() {
 		case "_time":
 			br.addTimeColumn()
 		default:
-			csh := br.bs.getColumnsHeader()
-			v := csh.getConstColumnValue(columnName)
+			v := br.bs.getConstColumnValue(columnName)
 			if v != "" {
 				br.addConstColumn(columnName, v)
-			} else if ch := csh.getColumnHeader(columnName); ch != nil {
+			} else if ch := br.bs.getColumnHeader(columnName); ch != nil {
 				br.addColumn(ch)
 			} else {
 				br.addConstColumn(columnName, "")
@@ -387,9 +385,9 @@ func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
 	br.bm = bm
 }
 
-// intersectsTimeRange returns true if br timestamps intersect (minTimestamp .. maxTimestamp) time range.
+// intersectsTimeRange returns true if br timestamps intersect [minTimestamp .. maxTimestamp] time range.
 func (br *blockResult) intersectsTimeRange(minTimestamp, maxTimestamp int64) bool {
-	return minTimestamp < br.getMaxTimestamp(minTimestamp) && maxTimestamp > br.getMinTimestamp(maxTimestamp)
+	return minTimestamp <= br.getMaxTimestamp(minTimestamp) && maxTimestamp >= br.getMinTimestamp(maxTimestamp)
 }
 
 func (br *blockResult) getMinTimestamp(minTimestamp int64) int64 {
@@ -1726,6 +1724,64 @@ func (c *blockResultColumn) getValuesEncoded(br *blockResult) []string {
 		c.valuesEncoded = c.valuesEncodedCreator.newValuesEncoded(br)
 	}
 	return c.valuesEncoded
+}
+
+// forEachDictValue calls f for every matching value in the column dictionary.
+//
+// It properly skips non-matching dict values.
+func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) {
+	if c.valueType != valueTypeDict {
+		logger.Panicf("BUG: unexpected column valueType=%d; want %d", c.valueType, valueTypeDict)
+	}
+	if br.bs != nil && uint64(br.rowsLen) == br.bs.bsw.bh.rowsCount {
+		// Fast path - there is no need in reading encoded values
+		for _, v := range c.dictValues {
+			f(v)
+		}
+		return
+	}
+
+	// Slow path - need to read encoded values in order filter not referenced columns.
+	a := encoding.GetUint64s(len(c.dictValues))
+	hits := a.A
+	clear(hits)
+	valuesEncoded := c.getValuesEncoded(br)
+	for _, v := range valuesEncoded {
+		idx := unmarshalUint8(v)
+		hits[idx]++
+	}
+	for i, v := range c.dictValues {
+		if h := hits[i]; h > 0 {
+			f(v)
+		}
+	}
+	encoding.PutUint64s(a)
+}
+
+// forEachDictValueWithHits calls f for every matching value in the column dictionary.
+//
+// It properly skips non-matching dict values.
+//
+// hits is the number of rows with the given value v in the column.
+func (c *blockResultColumn) forEachDictValueWithHits(br *blockResult, f func(v string, hits uint64)) {
+	if c.valueType != valueTypeDict {
+		logger.Panicf("BUG: unexpected column valueType=%d; want %d", c.valueType, valueTypeDict)
+	}
+
+	a := encoding.GetUint64s(len(c.dictValues))
+	hits := a.A
+	clear(hits)
+	valuesEncoded := c.getValuesEncoded(br)
+	for _, v := range valuesEncoded {
+		idx := unmarshalUint8(v)
+		hits[idx]++
+	}
+	for i, v := range c.dictValues {
+		if h := hits[i]; h > 0 {
+			f(v, h)
+		}
+	}
+	encoding.PutUint64s(a)
 }
 
 func (c *blockResultColumn) getFloatValueAtRow(br *blockResult, rowIdx int) (float64, bool) {

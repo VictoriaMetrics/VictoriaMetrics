@@ -24,10 +24,6 @@ func (pl *pipeLimit) updateNeededFields(_, _ fieldsSet) {
 	// nothing to do
 }
 
-func (pl *pipeLimit) optimize() {
-	// nothing to do
-}
-
 func (pl *pipeLimit) hasFilterInWithQuery() bool {
 	return false
 }
@@ -92,7 +88,7 @@ func (plp *pipeLimitProcessor) flush() error {
 	return nil
 }
 
-func parsePipeLimit(lex *lexer) (*pipeLimit, error) {
+func parsePipeLimit(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("limit", "head") {
 		return nil, fmt.Errorf("expecting 'limit' or 'head'; got %q", lex.token)
 	}

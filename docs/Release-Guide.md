@@ -47,7 +47,7 @@ Bumping the limits may significantly improve build speed.
    Changes in these branches must be synced immediately after they are committed in at least a single branch.
 1. Make sure that the release branches have no security issues.
 1. Update release versions if needed in [SECURITY.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/SECURITY.md).
-1. Add `(available starting from v1.xx.y)` line to feature docs introduced in the upcoming release.
+1. Run `PKG_TAG=v1.xx.y make docs-update-version` command to update version help tooltips.
 1. Cut new version in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md)
    and make it merged. See example in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/b771152039d23b5ccd637a23ea748bc44a9511a7).
 1. Cherry-pick bug fixes relevant for [LTS releases](https://docs.victoriametrics.com/lts-releases/).
@@ -88,18 +88,20 @@ Bumping the limits may significantly improve build speed.
         file created at the step `a`.
       - To run the command `TAG=v1.xx.y make github-create-release github-upload-assets`, so new release is created
         and all the needed assets are re-uploaded to it.
+1. Test new images on [sandbox](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md#testing-releases).
 1. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> and verify that draft release with the name `TAG` has been created
    and this release contains all the needed binaries and checksums.
 1. Update the release description with the content of [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release.
 1. Publish release by pressing "Publish release" green button in GitHub's UI.
-1. Bump version of the VictoriaMetrics cluster in the sandbox environment by opening and merging PR.
+1. Update GitHub tickets related to the new release. Usually, such tickets have label [waiting for release](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3A%22waiting+for+release%22). Close such tickets by mentioning which release they were included into, and remove the label. See example [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6637#issuecomment-2390729511). 
 1. Bump VictoriaMetrics version at `deployment/docker/docker-compose.yml` and at `deployment/docker/docker-compose-cluster.yml`.
+1. Bump VictoriaMetrics version mentioned in [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7388).
 1. Follow the instructions in [release follow-up](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md).
 
 ### Public Announcement
 
 * Publish message in Slack  at <https://victoriametrics.slack.com>
-* Post at Twitter at <https://twitter.com/MetricsVictoria>
+* Post at X (Twitter) at <https://x.com/VictoriaMetrics>
 * Post in Reddit at <https://www.reddit.com/r/VictoriaMetrics/>
 * Post in LinkedIn at <https://www.linkedin.com/company/victoriametrics/>
 * Publish message in Telegram at <https://t.me/VictoriaMetrics_en> and <https://t.me/VictoriaMetrics_ru1>

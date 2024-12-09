@@ -73,30 +73,41 @@ func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []*promutils.Labels 
 		}
 		return false
 	}
+	appendPodMetadata := func(p *Pod, c *Container, seen []int, isInit bool) {
+		for _, cp := range c.Ports {
+			if portSeen(cp.ContainerPort, seen) {
+				continue
+			}
+			addr := discoveryutils.JoinHostPort(p.Status.PodIP, cp.ContainerPort)
+			m := promutils.GetLabels()
+			m.Add("__address__", addr)
+			p.appendCommonLabels(m, gw)
+			p.appendContainerLabels(m, c, &cp, isInit)
+
+			// Prometheus sets endpoints_name and namespace labels for all endpoints
+			// Even if port is not matching service port.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4154
+			p.appendEndpointSliceLabels(m, eps)
+			if svc != nil {
+				svc.appendCommonLabels(m)
+			}
+			// Remove possible duplicate labels, which can appear after appendCommonLabels() call
+			m.RemoveDuplicates()
+			ms = append(ms, m)
+		}
+	}
 	for p, ports := range podPortsSeen {
 		for _, c := range p.Spec.Containers {
-			for _, cp := range c.Ports {
-				if portSeen(cp.ContainerPort, ports) {
-					continue
-				}
-				addr := discoveryutils.JoinHostPort(p.Status.PodIP, cp.ContainerPort)
-				m := promutils.GetLabels()
-				m.Add("__address__", addr)
-				p.appendCommonLabels(m, gw)
-				p.appendContainerLabels(m, &c, &cp)
-
-				// Prometheus sets endpoints_name and namespace labels for all endpoints
-				// Even if port is not matching service port.
-				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4154
-				p.appendEndpointSliceLabels(m, eps)
-				if svc != nil {
-					svc.appendCommonLabels(m)
-				}
-				// Remove possible duplicate labels, which can appear after appendCommonLabels() calls
-				m.RemoveDuplicates()
-				ms = append(ms, m)
-			}
+			appendPodMetadata(p, &c, ports, false)
 		}
+		for _, c := range p.Spec.InitContainers {
+			// Defines native sidecar https://kubernetes.io/blog/2023/08/25/native-sidecar-containers/#what-are-sidecar-containers-in-1-28
+			if c.RestartPolicy != "Always" {
+				continue
+			}
+			appendPodMetadata(p, &c, ports, true)
+		}
+
 	}
 	return ms
 }
@@ -127,7 +138,16 @@ func getEndpointSliceLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[
 		for _, cp := range c.Ports {
 			if cp.ContainerPort == epp.Port {
 				podPortsSeen[p] = append(podPortsSeen[p], cp.ContainerPort)
-				p.appendContainerLabels(m, &c, &cp)
+				p.appendContainerLabels(m, &c, &cp, false)
+				break
+			}
+		}
+	}
+	for _, c := range p.Spec.InitContainers {
+		for _, cp := range c.Ports {
+			if cp.ContainerPort == epp.Port {
+				podPortsSeen[p] = append(podPortsSeen[p], cp.ContainerPort)
+				p.appendContainerLabels(m, &c, &cp, true)
 				break
 			}
 		}
@@ -167,7 +187,7 @@ func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp En
 
 // EndpointSliceList - implements kubernetes endpoint slice list object, that groups service endpoints slices.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#endpointslicelist-v1-discovery-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointslicelist-v1-discovery-k8s-io
 type EndpointSliceList struct {
 	Metadata ListMeta
 	Items    []*EndpointSlice
@@ -175,7 +195,7 @@ type EndpointSliceList struct {
 
 // EndpointSlice - implements kubernetes endpoint slice.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#endpointslice-v1-discovery-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointslice-v1-discovery-k8s-io
 type EndpointSlice struct {
 	Metadata    ObjectMeta
 	Endpoints   []Endpoint
@@ -185,7 +205,7 @@ type EndpointSlice struct {
 
 // Endpoint implements kubernetes object endpoint for endpoint slice.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#endpoint-v1-discovery-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpoint-v1-discovery-k8s-io
 type Endpoint struct {
 	Addresses  []string
 	Conditions EndpointConditions
@@ -196,7 +216,7 @@ type Endpoint struct {
 
 // EndpointConditions implements kubernetes endpoint condition.
 //
-// See https://v1-21.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.21/#endpointconditions-v1-discovery-k8s-io
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.31/#endpointconditions-v1-discovery-k8s-io
 type EndpointConditions struct {
 	Ready bool
 }

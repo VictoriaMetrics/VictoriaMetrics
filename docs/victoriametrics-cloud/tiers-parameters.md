@@ -5,6 +5,7 @@ menu:
   docs:
     parent: "cloud"
     weight: 8
+    name: "Tier Parameters and Flag Parameters Configuration"
 ---
 
 The tier parameters are derived from testing in typical monitoring environments, ensuring they are optimized for common use cases.

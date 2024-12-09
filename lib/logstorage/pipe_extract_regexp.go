@@ -47,10 +47,6 @@ func (pe *pipeExtractRegexp) canLiveTail() bool {
 	return true
 }
 
-func (pe *pipeExtractRegexp) optimize() {
-	pe.iff.optimizeFilterIn()
-}
-
 func (pe *pipeExtractRegexp) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }
@@ -215,13 +211,13 @@ func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult
 	shard.resultValues = slicesutil.SetLength(shard.resultValues, len(rcs))
 	resultValues := shard.resultValues
 
-	hadUpdates := false
+	needUpdates := true
 	vPrev := ""
 	for rowIdx, v := range values {
 		if bm.isSetBit(rowIdx) {
-			if !hadUpdates || vPrev != v {
+			if needUpdates || vPrev != v {
 				vPrev = v
-				hadUpdates = true
+				needUpdates = false
 
 				shard.apply(pe.re, v)
 
@@ -246,6 +242,7 @@ func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult
 					resultValues[i] = c.getValueAtRow(br, rowIdx)
 				}
 			}
+			needUpdates = true
 		}
 
 		for i, v := range resultValues {
@@ -272,7 +269,7 @@ func (pep *pipeExtractRegexpProcessor) flush() error {
 	return nil
 }
 
-func parsePipeExtractRegexp(lex *lexer) (*pipeExtractRegexp, error) {
+func parsePipeExtractRegexp(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("extract_regexp") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "extract_regexp")
 	}

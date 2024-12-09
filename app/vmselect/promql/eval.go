@@ -44,7 +44,7 @@ var (
 		"See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery")
 	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, "+
 		"so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
-	minWindowForInstantRollupOptimization = flagutil.NewDuration("search.minWindowForInstantRollupOptimization", "3h", "Enable cache-based optimization for repeated queries "+
+	minWindowForInstantRollupOptimization = flag.Duration("search.minWindowForInstantRollupOptimization", time.Hour*3, "Enable cache-based optimization for repeated queries "+
 		"to /api/v1/query (aka instant queries), which contain rollup functions with lookbehind window exceeding the given value")
 )
 
@@ -1092,7 +1092,6 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 	again:
 		offset := int64(0)
 		tssCached := rollupResultCacheV.GetInstantValues(qt, expr, window, ec.Step, ec.EnforcedTagFilterss)
-		ec.QueryStats.addSeriesFetched(len(tssCached))
 		if len(tssCached) == 0 {
 			// Cache miss. Re-populate the missing data.
 			start := int64(fasttime.UnixTimestamp()*1000) - cacheTimestampOffset.Milliseconds()
@@ -1136,6 +1135,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 			deleteCachedSeries(qt)
 			goto again
 		}
+		ec.QueryStats.addSeriesFetched(len(tssCached))
 		return tssCached, offset, nil
 	}
 
@@ -1647,6 +1647,10 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 		ecNew = copyEvalConfig(ec)
 		ecNew.Start = start
 	}
+	// call to evalWithConfig also updates QueryStats.addSeriesFetched
+	// without checking whether tss has intersection with tssCached.
+	// So final number could be bigger than actual number of unique series.
+	// This discrepancy is acceptable, since seriesFetched stat is used as info only.
 	tss, err := evalWithConfig(ecNew)
 	if err != nil {
 		return nil, err

@@ -99,7 +99,7 @@ Pass `-help` to `vmagent` in order to see [the full list of supported command-li
 ## How to push data to vmagent
 
 `vmagent` supports [the same set of push-based data ingestion protocols as VictoriaMetrics does](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-additionally to pull-based Prometheus-compatible targets' scraping:
+in addition to the pull-based Prometheus-compatible targets' scraping:
 
 * DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-datadog-agent).
 * InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
@@ -502,15 +502,15 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   scrape_response_size_bytes > 10MiB
   ```
 
-* `scrape_samples_scraped` - the number of samples (aka metrics) parsed per each scrape. This allows detecting targets,
-  which expose too many metrics. For example, the following [MetricsQL query](https://docs.victoriametrics.com/metricsql/)
+* `scrape_samples_scraped` - the number of [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) parsed per each scrape. This allows detecting targets,
+  which expose too many [series](https://docs.victoriametrics.com/keyconcepts/#time-series). For example, the following [MetricsQL query](https://docs.victoriametrics.com/metricsql/)
   returns targets, which expose more than 10000 metrics:
 
   ```metricsql
   scrape_samples_scraped > 10000
   ```
 
-* `scrape_samples_limit` - the configured limit on the number of metrics the given target can expose.
+* `scrape_samples_limit` - the configured limit on the number of [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) the given target can expose.
   The limit can be set via `sample_limit` option at [scrape_configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs).
   This metric is exposed only if the `sample_limit` is set. This allows detecting targets,
   which expose too many metrics compared to the configured `sample_limit`. For example, the following query
@@ -520,9 +520,9 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   scrape_samples_scraped / scrape_samples_limit > 0.8
   ```
 
-* `scrape_samples_post_metric_relabeling` - the number of samples (aka metrics) left after applying metric-level relabeling
+* `scrape_samples_post_metric_relabeling` - the number of [samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) left after applying metric-level relabeling
   from `metric_relabel_configs` section (see [relabeling docs](#relabeling) for more details).
-  This allows detecting targets with too many metrics after the relabeling.
+  This allows detecting targets with too many [series](https://docs.victoriametrics.com/keyconcepts/#time-series) after the relabeling.
   For example, the following [MetricsQL query](https://docs.victoriametrics.com/metricsql/) returns targets
   with more than 10000 metrics after the relabeling:
 
@@ -530,7 +530,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   scrape_samples_post_metric_relabeling > 10000
   ```
 
-* `scrape_series_added` - **an approximate** number of new series the given target generates during the current scrape.
+* `scrape_series_added` - **an approximate** number of new [series](https://docs.victoriametrics.com/keyconcepts/#time-series) the given target generates during the current scrape.
   This metric allows detecting targets (identified by `instance` label),
   which lead to [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
   For example, the following [MetricsQL query](https://docs.victoriametrics.com/metricsql/) returns targets,
@@ -543,10 +543,10 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   `vmagent` sets `scrape_series_added` to zero when it runs with `-promscrape.noStaleMarkers` command-line flag
   or when it scrapes target with `no_stale_markers: true` option, e.g. when [staleness markers](#prometheus-staleness-markers) are disabled.
 
-* `scrape_series_limit` - the limit on the number of unique time series the given target can expose according to [these docs](#cardinality-limiter).
+* `scrape_series_limit` - the limit on the number of unique [series](https://docs.victoriametrics.com/keyconcepts/#time-series) the given target can expose according to [these docs](#cardinality-limiter).
   This metric is exposed only if the series limit is set.
 
-* `scrape_series_current` - the number of unique series the given target exposed so far.
+* `scrape_series_current` - the number of unique [series](https://docs.victoriametrics.com/keyconcepts/#time-series) the given target exposed so far.
   This metric is exposed only if the series limit is set according to [these docs](#cardinality-limiter).
   This metric allows alerting when the number of exposed series by the given target reaches the limit.
   For example, the following query would alert when the target exposes more than 90% of unique series compared to the configured limit.
@@ -556,7 +556,7 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
   ```
 
 * `scrape_series_limit_samples_dropped` - exposes the number of dropped samples during the scrape because of the exceeded limit
-  on the number of unique series. This metric is exposed only if the series limit is set according to [these docs](#cardinality-limiter).
+  on the number of unique [series](https://docs.victoriametrics.com/keyconcepts/#time-series). This metric is exposed only if the series limit is set according to [these docs](#cardinality-limiter).
   This metric allows alerting when scraped samples are dropped because of the exceeded limit.
   For example, the following query alerts when at least a single sample is dropped because of the exceeded limit during the last hour:
 
@@ -567,11 +567,23 @@ and attaches `instance`, `job` and other target-specific labels to these metrics
 If the target exports metrics with names clashing with the automatically generated metric names, then `vmagent` automatically
 adds `exported_` prefix to these metric names, so they don't clash with automatically generated metric names.
 
+Relabeling defined in `relabel_configs` or `metric_relabel_configs` of scrape config isn't applied to automatically
+generated metrics. But they still can be relabeled via `-remoteWrite.relabelConfig` before sending metrics to remote address.
 
 ## Relabeling
 
 VictoriaMetrics components support [Prometheus-compatible relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config)
 with [additional enhancements](#relabeling-enhancements). The relabeling can be defined in the following places processed by `vmagent`:
+
+* At the `global -> relabel_configs` section in `-promscrape.config` file{{% available_from "v1.106.0" %}}.
+  This relabeling is used for modifying labels in discovered targets and for dropping unneeded targets.
+  Configuration from global section will be prepended to the `relabel_config` of targets from `scrape_config` section.
+  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling/) for details.
+
+* At the `global -> metric_relabel_configs` section in `-promscrape.config` file{{% available_from "v1.106.0" %}}.
+  This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics.
+  Configuration from global section will be prepended to the `metric_relabel_config` of targets from `scrape_config` section.
+  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling/) for details.
 
 * At the `scrape_config -> relabel_configs` section in `-promscrape.config` file.
   This relabeling is used for modifying labels in discovered targets and for dropping unneeded targets.
@@ -1029,7 +1041,7 @@ When this limit is reached, `vmagent` drops the oldest data from disk in order t
 There are cases when it is better disabling on-disk persistence for pending data at `vmagent` side:
 
 - When the persistent disk performance isn't enough for the given data processing rate.
-- When it is better to buffer pending data at the client side instead of bufferring it at `vmagent` side in the `-remoteWrite.tmpDataPath` folder.
+- When it is better to buffer pending data at the client side instead of buffering it at `vmagent` side in the `-remoteWrite.tmpDataPath` folder.
 - When the data is already buffered at [Kafka side](#reading-metrics-from-kafka) or at [Google PubSub side](#reading-metrics-from-pubsub).
 - When it is better to drop pending data instead of buffering it.
 
@@ -1179,7 +1191,7 @@ If you have suggestions for improvements or have found a bug - please open an is
   Note that tracking each dropped target requires up to 10Kb of RAM. Therefore, big values for `-promscrape.maxDroppedTargets`
   may result in increased memory usage if a big number of scrape targets are dropped during relabeling.
 
-* It is recommended increaseing `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` [metric](#monitoring)
+* It is recommended increasing `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` [metric](#monitoring)
   grows constantly. It is also recommended increasing `-remoteWrite.maxBlockSize` and `-remoteWrite.maxRowsPerBlock` command-line flags in this case.
   This can improve data ingestion performance to the configured remote storage systems at the cost of higher memory usage.
 
@@ -1401,14 +1413,14 @@ which can be downloaded for evaluation from [releases](https://github.com/Victor
         Path to file with GCP credentials to use for PubSub client. If not set, default credentials will be used (see Workload Identity for K8S or https://cloud.google.com/docs/authentication/application-default-credentials). See https://docs.victoriametrics.com/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -gcp.pubsub.publish.delayThreshold value
         Publish a non-empty batch after this delay has passed. See https://docs.victoriametrics.com/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
-        The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 10ms)
+        The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 10ms)
   -gcp.pubsub.publish.maxOutstandingBytes int
         The maximum size of buffered messages to be published. If less than or equal to zero, this is disabled. See https://docs.victoriametrics.com/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/ (default -1)
   -gcp.pubsub.publish.maxOutstandingMessages int
         The maximum number of buffered messages to be published. If less than or equal to zero, this is disabled. See https://docs.victoriametrics.com/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/ (default 100)
   -gcp.pubsub.publish.timeout value
         The maximum time that the client will attempt to publish a bundle of messages. See https://docs.victoriametrics.com/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
-        The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 60s)
+        The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 60s)
 ```
 
 ## Kafka integration
@@ -1662,7 +1674,7 @@ It is safe sharing the collected profiles from security point of view, since the
 
 `vmagent` can be fine-tuned with various command-line flags. Run `./vmagent -help` in order to see the full list of these flags with their descriptions and default values:
 
-```sh
+```shellhelp
 ./vmagent -help
 
 vmagent collects metrics data via popular data ingestion protocols and routes them to VictoriaMetrics.
@@ -1712,14 +1724,14 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Path to file with GCP credentials to use for PubSub client. If not set, default credentials will be used (see Workload Identity for K8S or https://cloud.google.com/docs/authentication/application-default-credentials). See https://docs.victoriametrics.com/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -gcp.pubsub.publish.delayThreshold value
      Publish a non-empty batch after this delay has passed. See https://docs.victoriametrics.com/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
-     The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 10ms)
+     The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 10ms)
   -gcp.pubsub.publish.maxOutstandingBytes int
      The maximum size of buffered messages to be published. If less than or equal to zero, this is disabled. See https://docs.victoriametrics.com/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/ (default -1)
   -gcp.pubsub.publish.maxOutstandingMessages int
      The maximum number of buffered messages to be published. If less than or equal to zero, this is disabled. See https://docs.victoriametrics.com/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/ (default 100)
   -gcp.pubsub.publish.timeout value
      The maximum time that the client will attempt to publish a bundle of messages. See https://docs.victoriametrics.com/vmagent/#writing-metrics-to-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
-     The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 60s)
+     The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 60s)
   -gcp.pubsub.subscribe.credentialsFile string
      Path to file with GCP credentials to use for PubSub client. If not set, default credentials are used (see Workload Identity for K8S or https://cloud.google.com/docs/authentication/application-default-credentials ). See https://docs.victoriametrics.com/vmagent/#reading-metrics-from-pubsub . This flag is available only in Enterprise binaries. See https://docs.victoriametrics.com/enterprise/
   -gcp.pubsub.subscribe.defaultMessageFormat string
@@ -1785,8 +1797,11 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -influx.maxLineSize size
-     The maximum size in bytes for a single InfluxDB line during parsing
+     The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
+  -influx.maxRequestSize size
+     The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -influxDBLabel string
      Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
   -influxListenAddr string
@@ -1983,6 +1998,8 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      How frequently to reload the full state from Kubernetes API server (default 30m0s)
   -promscrape.kubernetes.attachNodeMetadataAll
      Whether to set attach_metadata.node=true for all the kubernetes_sd_configs at -promscrape.config . It is possible to set attach_metadata.node=false individually per each kubernetes_sd_configs . See https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs
+  -promscrape.kubernetes.useHTTP2Client
+     Whether to use HTTP/2 client for connection to Kubernetes API server. This may reduce amount of concurrent connections to API server when watching for a big number of Kubernetes objects.
   -promscrape.kubernetesSDCheckInterval duration
      Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs for details (default 30s)
   -promscrape.kumaSDCheckInterval duration
@@ -2006,8 +2023,10 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Interval for checking for changes in Nomad. This works only if nomad_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#nomad_sd_configs for details (default 30s)
   -promscrape.openstackSDCheckInterval duration
      Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#openstack_sd_configs for details (default 30s)
-  -promscrape.scrapeExemplars
-     Whether to enable scraping of exemplars from scrape targets.
+  -promscrape.ovhcloudSDCheckInterval duration
+     Interval for checking for changes in OVH Cloud VPS and dedicated server. This works only if ovhcloud_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#ovhcloud_sd_configs for details (default 30s)
+  -promscrape.puppetdbSDCheckInterval duration
+     Interval for checking for changes in PuppetDB API. This works only if puppetdb_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs/#puppetdb_sd_configs for details (default 30s)
   -promscrape.seriesLimitPerTarget int
      Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent/#cardinality-limiter for more info
   -promscrape.streamParse
@@ -2174,7 +2193,7 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -remoteWrite.retryMinInterval array
-     The minimum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval (default 1s)
+     The minimum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxTime (default 1s)
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to default value.
   -remoteWrite.roundDigits array
@@ -2220,7 +2239,7 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.streamAggr.ignoreFirstIntervals array
-     Number of aggregation intervals to skip after the start for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. Increase this value if you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving bufferred delayed data from clients pushing data into the vmagent. See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start
+     Number of aggregation intervals to skip after the start for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. Increase this value if you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving buffered delayed data from clients pushing data into the vmagent. See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start
   -remoteWrite.streamAggr.ignoreOldSamples array
      Whether to ignore input samples with old timestamps outside the current aggregation interval for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples
      Supports array of values separated by comma or specified via multiple flags.
@@ -2271,7 +2290,7 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
     Optional path to file with stream aggregation config. See https://docs.victoriametrics.com/stream-aggregation/ . See also -streamAggr.keepInput, -streamAggr.dropInput and -streamAggr.dedupInterval
   -streamAggr.dedupInterval value
     Input samples are de-duplicated with this interval on aggregator before optional aggregation with -streamAggr.config . See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation/#deduplication
-    The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0s)
+    The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0s)
   -streamAggr.dropInput
     Whether to drop all the input samples after the aggregation with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples are written to remote storages write. See also -streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation/
   -streamAggr.dropInputLabels array

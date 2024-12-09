@@ -4125,6 +4125,111 @@
           ],
           "title": "Rows ignored for last 1h ($instance)",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows the number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. Normally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. ",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "stepAfter",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 70
+          },
+          "id": 214,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.1.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) by(job)",
+              "format": "time_series",
+              "instant": false,
+              "legendFormat": "{{job}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Restarts ($job)",
+          "type": "timeseries"
         }
       ],
       "title": "Troubleshooting",
@@ -4942,7 +5047,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the approx time needed to reach 100% of disk capacity for at least one vmstorage node based on the following params:\n* free disk space;\n* row ingestion rate;\n* compression.\n\nNote: this panel doesn't account for deduplication process.",
+          "description": "Shows the approx time needed to reach 100% of disk capacity for at least one vmstorage node based on the following params:\n* free disk space (after -storage.minFreeDiskSpaceBytes);\n* row ingestion rate;\n* compression.\n\nNote: this panel doesn't account for deduplication process.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5038,7 +5143,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "min(vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"} \n/ \nignoring(path) (\n    rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n    * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n))",
+              "expr": "min((vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"} - vm_free_disk_space_limit_bytes{job=~\"$job_storage\", instance=~\"$instance\"}) \n/ \nignoring(path) (\n    rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n    * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -5928,7 +6033,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
+              "expr": "max(\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}-vm_free_disk_space_limit_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "max",
@@ -5941,7 +6046,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "min(\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
+              "expr": "min(\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}-vm_free_disk_space_limit_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -5955,7 +6060,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "quantile(0.5,\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
+              "expr": "quantile(0.5,\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}-vm_free_disk_space_limit_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -6201,7 +6306,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `2*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every second. The index datapoints value in general is much lower.",
+          "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `3*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every two seconds. The index datapoints value in general is much lower.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -9285,7 +9390,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the approx time needed to reach 100% of disk capacity based on the following params:\n* free disk space;\n* row ingestion rate;\n* compression.\n\nNote: this panel doesn't account for deduplication process.",
+          "description": "Shows the approx time needed to reach 100% of disk capacity based on the following params:\n* free disk space (after -storage.minFreeDiskSpaceBytes);\n* row ingestion rate;\n* compression.\n\nNote: this panel doesn't account for deduplication process.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -9374,7 +9479,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"} \n/ \nignoring(path) (\n    rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n    * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n)",
+              "expr": "(vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"}-vm_free_disk_space_limit_bytes{job=~\"$job_storage\", instance=~\"$instance\"}) \n/ \nignoring(path) (\n    rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n    * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,

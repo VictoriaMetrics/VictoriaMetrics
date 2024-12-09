@@ -31,14 +31,14 @@ import (
 )
 
 var (
-	rulePath = flagutil.NewArrayString("rule", `Path to the files or http url with alerting and/or recording rules.
+	rulePath = flagutil.NewArrayString("rule", `Path to the files or http url with alerting and/or recording rules in YAML format.
 Supports hierarchical patterns and regexpes.
 Examples:
  -rule="/path/to/file". Path to a single file with alerting rules.
  -rule="http://<some-server-addr>/path/to/rules". HTTP URL to a page with alerting rules.
  -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
  -rule="dir/**/*.yaml". Includes all the .yaml files in "dir" subfolders recursively.
-Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
+Rule files support YAML multi-document. Files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
 
 Enterprise version of vmalert supports S3 and GCS paths to rules.
 For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
@@ -66,7 +66,7 @@ absolute path to all .tpl files in root.
 	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
 
 	validateTemplates   = flag.Bool("rule.validateTemplates", true, "Whether to validate annotation and label templates")
-	validateExpressions = flag.Bool("rule.validateExpressions", true, "Whether to validate rules expressions via MetricsQL engine")
+	validateExpressions = flag.Bool("rule.validateExpressions", true, "Whether to validate rules expressions for different types.")
 
 	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier. By default, hostname is used as address.")
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager `+
@@ -77,8 +77,6 @@ absolute path to all .tpl files in root.
 		`If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.`)
 	externalLabels = flagutil.NewArrayString("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
 		"In case of conflicts, original labels are kept with prefix `exported_`.")
-
-	remoteReadIgnoreRestoreErrors = flag.Bool("remoteRead.ignoreRestoreErrors", true, "Whether to ignore errors from remote storage when restoring alerts state on startup. DEPRECATED - this flag has no effect and will be removed in the next releases.")
 
 	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
 )
@@ -96,10 +94,6 @@ func main() {
 	notifier.InitSecretFlags()
 	buildinfo.Init()
 	logger.Init()
-
-	if !*remoteReadIgnoreRestoreErrors {
-		logger.Warnf("flag `remoteRead.ignoreRestoreErrors` is deprecated and will be removed in next releases.")
-	}
 
 	err := templates.Load(*ruleTemplatesPath, true)
 	if err != nil {

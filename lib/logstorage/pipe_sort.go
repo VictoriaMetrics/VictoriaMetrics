@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // pipeSort processes '| sort ...' queries.
@@ -36,7 +36,10 @@ type pipeSort struct {
 	limit uint64
 
 	// The name of the field to store the row rank.
-	rankName string
+	rankFieldName string
+
+	// partitionByFields contains fields for partitioning the sorted rows.
+	partitionByFields []string
 }
 
 func (ps *pipeSort) String() string {
@@ -51,15 +54,22 @@ func (ps *pipeSort) String() string {
 	if ps.isDesc {
 		s += " desc"
 	}
+
+	if len(ps.partitionByFields) > 0 {
+		s += " partition by (" + fieldsToString(ps.partitionByFields) + ")"
+	}
+
 	if ps.offset > 0 {
 		s += fmt.Sprintf(" offset %d", ps.offset)
 	}
 	if ps.limit > 0 {
 		s += fmt.Sprintf(" limit %d", ps.limit)
 	}
-	if ps.rankName != "" {
-		s += " rank as " + quoteTokenIfNeeded(ps.rankName)
+
+	if ps.rankFieldName != "" {
+		s += rankFieldNameString(ps.rankFieldName)
 	}
+
 	return s
 }
 
@@ -72,10 +82,10 @@ func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
 		return
 	}
 
-	if ps.rankName != "" {
-		neededFields.remove(ps.rankName)
+	if ps.rankFieldName != "" {
+		neededFields.remove(ps.rankFieldName)
 		if neededFields.contains("*") {
-			unneededFields.add(ps.rankName)
+			unneededFields.add(ps.rankFieldName)
 		}
 	}
 
@@ -88,10 +98,12 @@ func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
 			unneededFields.remove(bf.name)
 		}
 	}
-}
 
-func (ps *pipeSort) optimize() {
-	// nothing to do
+	if neededFields.contains("*") {
+		unneededFields.removeFields(ps.partitionByFields)
+	} else {
+		neededFields.addFields(ps.partitionByFields)
+	}
 }
 
 func (ps *pipeSort) hasFilterInWithQuery() bool {
@@ -107,6 +119,18 @@ func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, c
 		return newPipeTopkProcessor(ps, workersCount, stopCh, cancel, ppNext)
 	}
 	return newPipeSortProcessor(ps, workersCount, stopCh, cancel, ppNext)
+}
+
+func (ps *pipeSort) addPartitionByTime(step int64) {
+	if step <= 0 {
+		return
+	}
+	if ps.limit <= 0 {
+		return
+	}
+	if !slices.Contains(ps.partitionByFields, "_time") {
+		ps.partitionByFields = append(ps.partitionByFields, "_time")
+	}
 }
 
 func newPipeSortProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
@@ -533,9 +557,9 @@ type pipeSortWriteContext struct {
 
 func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
 	ps := shard.ps
-	rankName := ps.rankName
+	rankFieldName := ps.rankFieldName
 	rankFields := 0
-	if rankName != "" {
+	if rankFieldName != "" {
 		rankFields = 1
 	}
 
@@ -567,8 +591,8 @@ func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
 		wctx.flush()
 
 		rcs = wctx.rcs[:0]
-		if rankName != "" {
-			rcs = appendResultColumnWithName(rcs, rankName)
+		if rankFieldName != "" {
+			rcs = appendResultColumnWithName(rcs, rankFieldName)
 		}
 		for _, bf := range byFields {
 			rcs = appendResultColumnWithName(rcs, bf.name)
@@ -579,7 +603,7 @@ func (wctx *pipeSortWriteContext) writeNextRow(shard *pipeSortProcessorShard) {
 		wctx.rcs = rcs
 	}
 
-	if rankName != "" {
+	if rankFieldName != "" {
 		bufLen := len(wctx.buf)
 		wctx.buf = marshalUint64String(wctx.buf, wctx.rowsWritten)
 		v := bytesutil.ToUnsafeString(wctx.buf[bufLen:])
@@ -738,14 +762,14 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 			continue
 		}
 		if isDesc {
-			return stringsutil.LessNatural(sB, sA)
+			return lessString(sB, sA)
 		}
-		return stringsutil.LessNatural(sA, sB)
+		return lessString(sA, sB)
 	}
 	return false
 }
 
-func parsePipeSort(lex *lexer) (*pipeSort, error) {
+func parsePipeSort(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("sort") && !lex.isKeyword("order") {
 		return nil, fmt.Errorf("expecting 'sort' or 'order'; got %q", lex.token)
 	}
@@ -798,16 +822,28 @@ func parsePipeSort(lex *lexer) (*pipeSort, error) {
 			}
 			ps.limit = n
 		case lex.isKeyword("rank"):
-			lex.nextToken()
-			if lex.isKeyword("as") {
-				lex.nextToken()
-			}
-			rankName, err := getCompoundToken(lex)
+			rankFieldName, err := parseRankFieldName(lex)
 			if err != nil {
 				return nil, fmt.Errorf("cannot read rank field name: %s", err)
 			}
-			ps.rankName = rankName
+			ps.rankFieldName = rankFieldName
+		case lex.isKeyword("partition"):
+			if len(ps.partitionByFields) > 0 {
+				return nil, fmt.Errorf("duplicate 'partition by'")
+			}
+			lex.nextToken()
+			if lex.isKeyword("by") {
+				lex.nextToken()
+			}
+			fields, err := parseFieldNamesInParens(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'partition by' args: %w", err)
+			}
+			ps.partitionByFields = fields
 		default:
+			if len(ps.partitionByFields) > 0 && ps.limit <= 0 {
+				return nil, fmt.Errorf("missing 'limit' for 'partition by'")
+			}
 			return &ps, nil
 		}
 	}

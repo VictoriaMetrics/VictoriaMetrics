@@ -14,7 +14,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // This implementation of the PUT action adds an inventory configuration
 // (identified by the inventory ID) to the bucket. You can have up to 1,000

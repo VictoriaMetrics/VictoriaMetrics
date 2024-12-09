@@ -78,8 +78,7 @@ func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	re := fr.re
 
 	// Verify whether filter matches const column
-	csh := bs.getColumnsHeader()
-	v := csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if !re.MatchString(v) {
 			bm.resetBits()
@@ -88,7 +87,7 @@ func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		if !re.MatchString("") {

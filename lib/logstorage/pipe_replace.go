@@ -45,10 +45,6 @@ func (pr *pipeReplace) updateNeededFields(neededFields, unneededFields fieldsSet
 	updateNeededFieldsForUpdatePipe(neededFields, unneededFields, pr.field, pr.iff)
 }
 
-func (pr *pipeReplace) optimize() {
-	pr.iff.optimizeFilterIn()
-}
-
 func (pr *pipeReplace) hasFilterInWithQuery() bool {
 	return pr.iff.hasFilterInWithQuery()
 }
@@ -73,7 +69,7 @@ func (pr *pipeReplace) newPipeProcessor(workersCount int, _ <-chan struct{}, _ f
 	return newPipeUpdateProcessor(workersCount, updateFunc, ppNext, pr.field, pr.iff)
 }
 
-func parsePipeReplace(lex *lexer) (*pipeReplace, error) {
+func parsePipeReplace(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("replace") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "replace")
 	}

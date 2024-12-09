@@ -1,4 +1,4 @@
-![Version: 1.4.6](https://img.shields.io/badge/Version-1.4.6-informational?style=flat-square)
+![Version: 1.6.11](https://img.shields.io/badge/Version-1.6.11-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-anomaly)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 [![GitHub license](https://img.shields.io/github/license/VictoriaMetrics/VictoriaMetrics.svg)](https://github.com/VictoriaMetrics/helm-charts/blob/master/LICENSE)
@@ -9,7 +9,7 @@ Victoria Metrics Anomaly Detection - a service that continuously scans Victoria 
 
 ## Prerequisites
 
-* Install the follow packages: ``git``, ``kubectl``, ``helm``, ``helm-docs``. See this [tutorial](../../REQUIREMENTS.md).
+* Install the follow packages: ``git``, ``kubectl``, ``helm``, ``helm-docs``. See this [tutorial](https://docs.victoriametrics.com/helm/requirements/).
 
 * PV support on underlying infrastructure
 
@@ -111,7 +111,7 @@ helm uninstall vma -n NAMESPACE
 
 ## Documentation of Helm Chart
 
-Install ``helm-docs`` following the instructions on this [tutorial](../../REQUIREMENTS.md).
+Install ``helm-docs`` following the instructions on this [tutorial](https://docs.victoriametrics.com/helm/requirements/).
 
 Generate docs with ``helm-docs`` command.
 
@@ -451,7 +451,18 @@ tenant_id: ""
 </code>
 </pre>
 </td>
-      <td><p>Full name prefix override</p>
+      <td><p>Override resources fullname</p>
+</td>
+    </tr>
+    <tr>
+      <td>global.cluster.dnsDomain</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">cluster.local.
+</code>
+</pre>
+</td>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
@@ -525,7 +536,7 @@ tenant_id: ""
       <td>image.tag</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">v1.15.9
+<code class="language-yaml">""
 </code>
 </pre>
 </td>
@@ -610,7 +621,7 @@ name: ""
 </code>
 </pre>
 </td>
-      <td><p>Full name suffix override</p>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>
@@ -631,6 +642,8 @@ name: ""
 <code class="language-yaml">accessModes:
     - ReadWriteOnce
 annotations: {}
+dumpData: true
+dumpModels: true
 enabled: false
 existingClaim: ""
 matchLabels: {}
@@ -662,6 +675,28 @@ storageClassName: ""
 </pre>
 </td>
       <td><p>Persistant volume annotations</p>
+</td>
+    </tr>
+    <tr>
+      <td>persistentVolume.dumpData</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
+</pre>
+</td>
+      <td><p>Enables dumpling data which is fetched from VictoriaMetrics to persistence disk. This is helpful to reduce memory usage.</p>
+</td>
+    </tr>
+    <tr>
+      <td>persistentVolume.dumpModels</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
+</pre>
+</td>
+      <td><p>Enables dumping models to persistence disk. This is helpful to reduce memory usage.</p>
 </td>
     </tr>
     <tr>
@@ -744,6 +779,17 @@ minAvailable: 1
 </td>
     </tr>
     <tr>
+      <td>podLabels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Labels to be added to pod</p>
+</td>
+    </tr>
+    <tr>
       <td>podMonitor.annotations</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -781,6 +827,7 @@ minAvailable: 1
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
+fsGroup: 1000
 </code>
 </pre>
 </td>

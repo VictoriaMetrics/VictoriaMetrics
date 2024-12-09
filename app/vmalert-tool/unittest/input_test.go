@@ -2,8 +2,10 @@ package unittest
 
 import (
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func TestParseInputValue_Failure(t *testing.T) {
@@ -43,7 +45,7 @@ func TestParseInputValue_Success(t *testing.T) {
 				if decimal.IsStaleNaN(outputExpected[i].Value) && decimal.IsStaleNaN(output[i].Value) {
 					continue
 				}
-				t.Fatalf("unexpeccted Value field in the output\ngot\n%v\nwant\n%v", output, outputExpected)
+				t.Fatalf("unexpected Value field in the output\ngot\n%v\nwant\n%v", output, outputExpected)
 			}
 		}
 	}
@@ -63,4 +65,35 @@ func TestParseInputValue_Success(t *testing.T) {
 	f("2-1x4", []sequenceValue{{Value: 2}, {Value: 1}, {Value: 0}, {Value: -1}, {Value: -2}})
 
 	f("1+1x1 _ -4 stale 3+20x1", []sequenceValue{{Value: 1}, {Value: 2}, {Omitted: true}, {Value: -4}, {Value: decimal.StaleNaN}, {Value: 3}, {Value: 23}})
+}
+
+func TestParseInputSeries_Success(t *testing.T) {
+	f := func(input []series) {
+		t.Helper()
+		var interval promutils.Duration
+		_, err := parseInputSeries(input, &interval, time.Now())
+		if err != nil {
+			t.Fatalf("expect to see no error: %v", err)
+		}
+	}
+
+	f([]series{{Series: "test", Values: "1"}})
+	f([]series{{Series: "test{}", Values: "1"}})
+	f([]series{{Series: "test{env=\"prod\",job=\"a\" }", Values: "1"}})
+	f([]series{{Series: "{__name__=\"test\",env=\"prod\",job=\"a\" }", Values: "1"}})
+}
+
+func TestParseInputSeries_Fail(t *testing.T) {
+	f := func(input []series) {
+		t.Helper()
+		var interval promutils.Duration
+		_, err := parseInputSeries(input, &interval, time.Now())
+		if err == nil {
+			t.Fatalf("expect to see error: %v", err)
+		}
+	}
+
+	f([]series{{Series: "", Values: "1"}})
+	f([]series{{Series: "{}", Values: "1"}})
+	f([]series{{Series: "{env=\"prod\",job=\"a\" or env=\"dev\",job=\"b\"}", Values: "1"}})
 }

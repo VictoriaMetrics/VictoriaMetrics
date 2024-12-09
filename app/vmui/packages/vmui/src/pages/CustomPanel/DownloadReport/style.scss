@@ -4,14 +4,15 @@
   display: grid;
   gap: $padding-large;
   padding-top: calc($padding-large - $padding-global);
-  min-width: 400px;
+  width: 700px;
+  max-width: 100%;
 
   &-settings {
     display: grid;
     gap: $padding-global;
 
     textarea {
-      min-height: 100px;
+      min-height: 200px;
     }
   }
 

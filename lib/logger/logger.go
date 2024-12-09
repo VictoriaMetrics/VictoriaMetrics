@@ -37,13 +37,27 @@ var (
 //
 // There is no need in calling Init from tests.
 func Init() {
+	initInternal(true)
+}
+
+// InitNoLogFlags initializes the logger without writing flags to stdout
+//
+// InitNoLogFlags must be called after flag.Parse()
+func InitNoLogFlags() {
+	initInternal(false)
+}
+
+func initInternal(logFlags bool) {
 	setLoggerJSONFields()
 	setLoggerOutput()
 	validateLoggerLevel()
 	validateLoggerFormat()
 	initTimezone()
 	go logLimiterCleaner()
-	logAllFlags()
+
+	if logFlags {
+		logAllFlags()
+	}
 }
 
 func initTimezone() {

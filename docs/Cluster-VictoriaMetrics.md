@@ -58,10 +58,16 @@ It increases cluster availability, and simplifies cluster maintenance as well as
 
 > Note that `vmselect` despite being stateless still requires some disk space (a few GBs) for temporary caches. Refer to the `-cacheDataPath` command-line flag for more details.
 
+## vmui
+
+VictoriaMetrics cluster version provides UI for query troubleshooting and exploration. The UI is available at 
+`http://<vmselect>:8481/select/<accountID>/vmui/` in each `vmeselect` service.
+The UI allows exploring query results via graphs and tables. See more details about [vmui](https://docs.victoriametrics.com/#vmui).
+
 ## Multitenancy
 
 VictoriaMetrics cluster supports multiple isolated tenants (aka namespaces).
-Tenants are identified by `accountID` or `accountID:projectID`, which are put inside request urls.
+Tenants are identified by `accountID` or `accountID:projectID`, which are put inside request URLs for writes and reads.
 See [these docs](#url-format) for details.
 
 Some facts about tenants in VictoriaMetrics:
@@ -77,9 +83,7 @@ or [vmgateway](https://docs.victoriametrics.com/vmgateway/). [Contact us](mailto
 - Data for all the tenants is evenly spread among available `vmstorage` nodes. This guarantees even load among `vmstorage` nodes
 when different tenants have different amounts of data and different query load.
 
-- The database performance and resource usage doesn't depend on the number of tenants. It depends mostly on the total number of active time series in all the tenants. A time series is considered active if it received at least a single sample during the last hour or it has been touched by queries during the last hour.
-
-- VictoriaMetrics doesn't support querying multiple tenants in a single request.
+- The database performance and resource usage doesn't depend on the number of tenants. It depends mostly on the total number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) in all the tenants. A time series is considered active if it received at least a single sample during the last hour or it has been touched by queries during the last hour.
 
 - The list of registered tenants can be obtained via `http://<vmselect>:8481/admin/tenants` url. See [these docs](#url-format).
 
@@ -88,15 +92,16 @@ when different tenants have different amounts of data and different query load.
 See also [multitenancy via labels](#multitenancy-via-labels).
 
 
-## Multitenancy via labels
+### Multitenancy via labels
+
+**Writes**
 
 `vminsert` can accept data from multiple [tenants](#multitenancy) via a special `multitenant` endpoints `http://vminsert:8480/insert/multitenant/<suffix>`,
 where `<suffix>` can be replaced with any supported suffix for data ingestion from [this list](#url-format).
-In this case the account id and project id are obtained from optional `vm_account_id` and `vm_project_id` labels of the incoming samples.
-If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding `accountID` or `projectID` is set to 0.
+In this case the account ID and project ID are obtained from optional `vm_account_id` and `vm_project_id` labels of the incoming samples.
+If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding account ID and project ID are set to 0.
 These labels are automatically removed from samples before forwarding them to `vmstorage`.
 For example, if the following samples are written into `http://vminsert:8480/insert/multitenant/prometheus/api/v1/write`:
-
 ```
 http_requests_total{path="/foo",vm_account_id="42"} 12
 http_requests_total{path="/bar",vm_account_id="7",vm_project_id="9"} 34
@@ -113,8 +118,53 @@ such as [Graphite](https://docs.victoriametrics.com/#how-to-send-data-from-graph
 [InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) and
 [OpenTSDB telnet put protocol](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol).
 
-**Security considerations:** it is recommended restricting access to `multitenant` endpoints only to trusted sources,
-since untrusted source may break per-tenant data by writing unwanted samples to arbitrary tenants.
+**Reads**
+
+_For better performance prefer specifying [tenants in read URL](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)._
+
+`vmselect` can execute {{% available_from "v1.104.0" %}} queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints `http://vmselect:8481/select/multitenant/<suffix>`.
+Currently supported endpoints for `<suffix>` are:
+- `/prometheus/api/v1/query`
+- `/prometheus/api/v1/query_range`
+- `/prometheus/api/v1/series`
+- `/prometheus/api/v1/labels`
+- `/prometheus/api/v1/label/<label_name>/values`
+- `/prometheus/api/v1/status/active_queries`
+- `/prometheus/api/v1/status/top_queries`
+- `/prometheus/api/v1/status/tsdb`
+- `/prometheus/api/v1/export`
+- `/prometheus/api/v1/export/csv`
+- `/vmui`
+
+It is allowed to explicitly specify tenant IDs via `vm_account_id` and `vm_project_id` labels in the query.
+For example, the following query fetches metric `up` for the tenants `accountID=42` and `accountID=7, projectID=9`:
+```
+up{vm_account_id="7", vm_project_id="9" or vm_account_id="42"}
+```
+
+`vm_account_id` and `vm_project_id` labels support all operators for label matching. For example:
+```
+up{vm_account_id!="42"} # selects all the time series except those belonging to accountID=42
+up{vm_account_id=~"4.*"} # selects all the time series belonging to accountIDs starting with 4
+```
+
+Alternatively, it is possible to use [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements)
+query args to apply additional filters for the query:
+```
+curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
+  -d 'query=up' \
+  -d 'extra_filters[]={vm_account_id="7",vm_project_id="9"}' \
+  -d 'extra_filters[]={vm_account_id="42"}'
+```
+
+The precedence for applying filters for tenants follows this order:
+1. Filter tenants by `extra_label` and `extra_filters` filters.
+ These filters have the highest priority and are applied first when provided through the query arguments.
+2. Filter tenants from labels selectors defined at metricsQL query expression.
+
+**Security considerations**
+It is recommended restricting access to `multitenant` endpoints only to trusted sources,
+since untrusted source may break per-tenant data by writing unwanted samples or get access to data of arbitrary tenants.
 
 
 ## Binaries
@@ -666,13 +716,15 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   Queries, which need more memory, are rejected. Heavy queries, which select big number of time series,
   may exceed the per-query memory limit by a small percent. The total memory limit for concurrently executed queries can be estimated
   as `-search.maxMemoryPerQuery` multiplied by `-search.maxConcurrentRequests`.
-- `-search.maxUniqueTimeseries` at `vmselect` component limits the number of unique time series a single query can find and process.
-  `vmselect` passes the limit to `vmstorage` component, which keeps in memory some metainformation about the time series located
-  by each query and spends some CPU time for processing the found time series. This means that the maximum memory usage and CPU usage
-  a single query can use at `vmstorage` is proportional to `-search.maxUniqueTimeseries`.
+- `-search.maxUniqueTimeseries` at `vmstorage` component limits the number of unique time series a single query can find and process.
+  This means that the maximum memory usage and CPU usage a single query can use at `vmstorage` is proportional to `-search.maxUniqueTimeseries`.
+  By default, `vmstorage` calculates this limit automatically based on the available memory and the maximum number of concurrent read requests (see `-search.maxConcurrentRequests`).
+  The calculated limit will be printed during process start-up logs and exposed as `vm_search_max_unique_timeseries` metric.
+- `-search.maxUniqueTimeseries` at `vmselect` adjusts the limit with the same name at `vmstorage`. The vmstorage limit can be adjusted
+  only to **lower value** and can't exceed it. By default, vmselect doesn't apply limit adjustments.
 - `-search.maxQueryDuration` at `vmselect` limits the duration of a single query. If the query takes longer than the given duration, then it is canceled.
   This allows saving CPU and RAM at `vmselect` and `vmstorage` when executing unexpectedly heavy queries.
-  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via `-search.maxQueryDuration` command-line flag.
+  The limit can be overridden to a smaller value by passing `timeout` GET parameter.
 - `-search.maxConcurrentRequests` at `vmselect` and `vmstorage` limits the number of concurrent requests a single `vmselect` / `vmstorage` node can process.
   Bigger number of concurrent requests usually require bigger amounts of memory at both `vmselect` and `vmstorage`.
   For example, if a single query needs 100 MiB of additional memory during its execution, then 100 concurrent queries
@@ -706,6 +758,13 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains
   big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxSeries` to quite low value in order limit CPU and memory usage.
+- `-search.maxDeleteSeries` at `vmselect` limits the number of unique time
+  series that can be deleted by a single
+  [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series)
+  call. Deleting too many time series may require big amount of CPU and memory
+  at `vmstorage` and this limit guards against unplanned resource usage spikes.
+  Also see [How to delete time series](#how-to-delete-time-series) section to
+  learn about different ways of deleting series.
 - `-search.maxTagKeys` at `vmstorage` limits the number of items, which may be returned from
   [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels). This endpoint is used mostly by Grafana
   for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect`
@@ -729,7 +788,7 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
 - `-search.maxLabelsAPIDuration` at `vmselect` limits the duration for requests to [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels),
   [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
   or [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series).
-  The limit can be altered for each query by passing `timeout` GET parameter, but can't exceed the limit specified via cmd-line flag.
+  The limit can be overridden to a smaller value by passing `timeout` GET parameter.
   These endpoints are used mostly by Grafana for auto-completion of label names and label values. Queries to these endpoints may take big amounts of CPU time and memory
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPIDuration` to quite low value in order to limit CPU and memory usage.
@@ -1014,7 +1073,7 @@ For accessing vmalerts UI through vmselect configure `-vmalert.proxyURL` flag an
 Feel free asking any questions regarding VictoriaMetrics:
 
 * [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
-* [Twitter](https://twitter.com/VictoriaMetrics/)
+* [X (Twitter)](https://x.com/VictoriaMetrics/)
 * [Linkedin](https://www.linkedin.com/company/victoriametrics/)
 * [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
 * [Telegram-en](https://t.me/VictoriaMetrics_en)
@@ -1037,7 +1096,7 @@ Report bugs and propose new features [here](https://github.com/VictoriaMetrics/V
 
 Below is the output for `/path/to/vminsert -help`:
 
-```
+```shellhelp
   -blockcache.missesBeforeCaching int
      The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -cacheExpireDuration duration
@@ -1133,8 +1192,11 @@ Below is the output for `/path/to/vminsert -help`:
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -influx.maxLineSize size
-     The maximum size in bytes for a single InfluxDB line during parsing
+     The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
+  -influx.maxRequestSize size
+     The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -influxDBLabel string
      Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
   -influxListenAddr string
@@ -1510,6 +1572,8 @@ Below is the output for `/path/to/vmselect -help`:
      Log queries with execution time exceeding this value. Zero disables slow query logging. See also -search.logQueryMemoryUsage (default 5s)
   -search.maxConcurrentRequests int
      The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration and -search.maxMemoryPerQuery (default 16)
+  -search.maxDeleteSeries int
+     The maximum number of time series, which can be deleted using /api/v1/admin/tsdb/delete_series. This option allows limiting memory usage (default 1000000)
   -search.maxExportDuration duration
      The maximum duration for /api/v1/export call (default 720h0m0s)
   -search.maxExportSeries int
@@ -1536,7 +1600,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxPointsSubqueryPerTimeseries int
      The maximum number of points per series, which can be generated by subquery. See https://valyala.medium.com/prometheus-subqueries-in-victoriametrics-9b1492b720b3 (default 100000)
   -search.maxQueryDuration duration
-     The maximum duration for query execution. It can be overridden on a per-query basis via 'timeout' query arg (default 30s)
+     The maximum duration for query execution. It can be overridden to a smaller value on a per-query basis via 'timeout' query arg (default 30s)
   -search.maxQueryLen size
      The maximum search query length in bytes
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16384)
@@ -1563,14 +1627,14 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxTagValueSuffixesPerSearch int
      The maximum number of tag value suffixes returned from /metrics/find (default 100000)
   -search.maxUniqueTimeseries int
-     The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage (default 300000)
+     The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage. The limit can't exceed the corresponding -search.maxUniqueTimeseries limit on vmstorage, it can be only set to lower values. (default 0)
   -search.maxWorkersPerQuery int
      The maximum number of CPU cores a single query can use. The default value should work good for most cases. The flag can be set to lower values for improving performance of big number of concurrently executed queries. The flag can be set to bigger values for improving performance of heavy queries, which scan big number of time series (>10K) and/or big number of samples (>100M). There is no sense in setting this flag to values bigger than the number of CPU cores available on the system (default 16)
   -search.minStalenessInterval duration
      The minimum interval for staleness calculations. This flag could be useful for removing gaps on graphs generated from time series with irregular intervals between samples. See also '-search.maxStalenessInterval'
   -search.minWindowForInstantRollupOptimization value
      Enable cache-based optimization for repeated queries to /api/v1/query (aka instant queries), which contain rollup functions with lookbehind window exceeding the given value
-     The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 3h)
+     The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 3h)
   -search.noStaleMarkers
      Set this flag to true if the database doesn't contain Prometheus stale markers, so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets
   -search.queryStats.lastQueriesCount int
@@ -1589,6 +1653,8 @@ Below is the output for `/path/to/vmselect -help`:
   -search.inmemoryBufSizeBytes size
      Size for in-memory data blocks used during processing search requests. By default, the size is automatically calculated based on available memory. Adjust this flag value if you observe that vm_tmp_blocks_max_inmemory_file_size_bytes metric constantly shows much higher values than vm_tmp_blocks_inmemory_file_size_bytes. See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6851
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
+  -search.tenantCacheExpireDuration duration
+     The expiry duration for list of tenants for multi-tenant queries. (default 5m0s)
   -search.treatDotsAsIsInRegexps
      Whether to treat dots as is in regexp label filters used in queries. For example, foo{bar=~"a.b.c"} will be automatically converted to foo{bar=~"a\\.b\\.c"}, i.e. all the dots in regexp filters will be automatically escaped in order to match only dot char instead of matching any char. Dots in ".+", ".*" and ".{n}" regexps aren't escaped. This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter
   -selectNode array
@@ -1819,7 +1885,7 @@ Below is the output for `/path/to/vmstorage -help`:
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -retentionPeriod value
      Data with timestamps outside the retentionPeriod is automatically deleted. The minimum retentionPeriod is 24h or 1d. See also -retentionFilter
-     The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
+     The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
   -retentionTimezoneOffset duration
      The offset for performing indexdb rotation. If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)
   -rpc.disableCompression
@@ -1835,7 +1901,7 @@ Below is the output for `/path/to/vmstorage -help`:
   -search.maxTagValues int
      The maximum number of tag values returned per search. See also -search.maxLabelsAPISeries and -search.maxLabelsAPIDuration (default 100000)
   -search.maxUniqueTimeseries int
-     The maximum number of unique time series, which can be scanned during every query. This allows protecting against heavy queries, which select unexpectedly high number of series. Zero means 'no limit'. See also -search.max* command-line flags at vmselect
+     The maximum number of unique time series, which can be scanned during every query. This allows protecting against heavy queries, which select unexpectedly high number of series. When set to zero, the limit is automatically calculated based on -search.maxConcurrentRequests (inversely proportional) and memory available to the process (proportional). See also -search.max* command-line flags at vmselect.
   -smallMergeConcurrency int
      Deprecated: this flag does nothing
   -snapshotAuthKey value
@@ -1845,7 +1911,7 @@ Below is the output for `/path/to/vmstorage -help`:
      Deprecated: this flag does nothing
   -snapshotsMaxAge value
      Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted
-     The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
+     The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
   -storage.cacheSizeIndexDBDataBlocks size
      Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)

@@ -14,7 +14,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Puts a S3 Intelligent-Tiering configuration to the specified bucket. You can
 // have up to 1,000 S3 Intelligent-Tiering configurations per bucket.

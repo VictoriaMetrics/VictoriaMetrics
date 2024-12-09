@@ -17,7 +17,7 @@ This section covers the `Models` component of VictoriaMetrics Anomaly Detection 
 - You can also integrate a **custom model**—see the [custom model guide](#custom-model-guide) for more details.
 - Models have **different types and properties**—refer to the [model types section](#model-types) for more information.
 
-> **Note:** Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), models can be dumped to disk instead of being stored in RAM. This option **slightly reduces inference speed but significantly decreases RAM usage**, particularly useful for larger setups. For more details, see the [relevant FAQ section](https://docs.victoriametrics.com/anomaly-detection/faq/#resource-consumption-of-vmanomaly).
+> **Note:** Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), models can be dumped to disk instead of being stored in RAM. This option **slightly reduces inference speed but significantly decreases RAM usage**, particularly useful for larger setups. For more details, see the [relevant FAQ section](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode).
 
 > **Note:** Starting from [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100) model section in config supports multiple models via aliasing. <br>Also, `vmanomaly` expects model section to be named `models`. Using old (flat) format with `model` key is deprecated and will be removed in future versions. Having `model` and `models` sections simultaneously in a config will result in only `models` being used:
 
@@ -126,7 +126,7 @@ models:
     provide_series: ['anomaly_score']  # only `anomaly_score` metric will be available for writing back to the database
 ```
 
-**Note** If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']`. Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
+> **Note**: If `provide_series` is not specified in model config, the model will produce its default [model-dependent output](#vmanomaly-output). The output can't be less than `['anomaly_score']`. Even if `timestamp` column is omitted, it will be implicitly added to `provide_series` list, as it's required for metrics to be properly written.
 
 ### Detection direction
 Introduced in [1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#1130), `detection_direction` arg can help in reducing the number of [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive) and increasing the accuracy, when domain knowledge suggest to identify anomalies occurring when actual values (`y`) are *above, below, or in both directions* relative to the expected values (`yhat`). Available choices are: `both`, `above_expected`, `below_expected`.
@@ -224,7 +224,46 @@ models:
     z_threshold: 3
     # if not set, equals to setting min_dev_from_expected == 0
     queries: ['normal_behavior']  # use the default where it's not needed
-```  
+```
+
+### Group By
+
+> **Note**: The `groupby` argument works only in combination with [multivariate models](#multivariate-models).
+
+Introduced in [v1.16.0](https://docs.victoriametrics.com/anomaly-detection/changelog#v1160), the `groupby` argument (`list[string]`) enables logical grouping within [multivariate models](#multivariate-models). When specified, **a separate multivariate model is trained for each unique combination of label values present in the `groupby` columns**.
+
+For example, to perform multivariate anomaly detection at the machine level while avoiding interference between different entities, you can set `groupby: [host]` or `groupby: [instance]`. This ensures that a **separate multivariate** model is trained for each individual entity (e.g., per host). Below is a simplified example illustrating how to track multivariate anomalies using CPU, RAM, and network data for each host.
+
+```yaml
+# other config sections ...
+reader:
+  # other reader params ...
+  # assume there are M unique hosts identified by the `host` label
+  queries:
+    # return one timeseries for each CPU mode per host, total = N*M timeseries
+    cpu: sum(rate(node_cpu_seconds_total[5m])) by (host, mode)
+    # return one timeseries per host, total = 1*M timeseries
+    ram: | 
+      (
+       (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) 
+       / node_memory_MemTotal_bytes
+      ) * 100 by (host)
+    # return one timeseries per host for both network receive and transmit data, total = 1*M timeseries
+    network: |
+      sum(rate(node_network_receive_bytes_total[5m])) by (host) 
+      + sum(rate(node_network_transmit_bytes_total[5m])) by (host)
+
+models:
+  iforest: # alias for the model
+    class: isolation_forest_multivariate
+    contamination: 0.01
+    # the multivariate model can be trained on 2+ timeseries returned by 1+ queries
+    queries: [cpu, ram, network]
+    # train a distinct multivariate model for each unique value found in the `host` label
+    # a single multivariate model will be trained on (N + 1 + 1) timeseries, total = M models
+    groupby: [host]
+```
+
 
 ## Model types
 
@@ -259,6 +298,8 @@ If during an inference, you got a series having **new labelset** (not present in
 For a multivariate type, **one shared model** is fit/used for inference on **all time series** simultaneously, defined in its [queries](#queries) arg. 
 
 For example, if you have some **multivariate** model to use 3 [MetricQL queries](https://docs.victoriametrics.com/metricsql/), each returning 5 time series, there will be one shared model created in total. Once fit, this model will expect **exactly 15 time series with exact same labelsets as an input**. This model will produce **one shared [output](#vmanomaly-output)**.
+
+> **Note:** Starting from [v1.16.0](https://docs.victoriametrics.com/anomaly-detection/changelog#v1160), N models — one for each unique combination of label values specified in the `groupby` [common argument](#group-by) — can be trained. This allows for context separation (e.g., one model per host, region, or other relevant grouping label), leading to improved accuracy and faster training. See an example [here](#group-by).
 
 If during an inference, you got a **different amount of series** or some series having a **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step. 
 
@@ -325,6 +366,7 @@ Infer stage
 - The ability to distribute the data load evenly between the initial `fit` and subsequent `infer` calls. For example, an online model can be fit on 10 `1m` datapoints during the initial `fit` stage once per month and then be gradually updated on the same 10 `1m` datapoints during each `infer` call each 10 minutes.
 - The model can adapt to new data patterns (gradually updating itself during each `infer` call) without needing to wait for the next `fit` call and one big re-training.
 - Slightly faster training/updating times compared to similar offline models.
+- Please refer to additional benefits for data-intensive setups in correspondent [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq#online-models) section.
 
 **Limitations**:
 
@@ -405,20 +447,28 @@ models:
 > **Note**: There are some expected limitations of Autotune mode:
 > - It can't be made on your [custom model](#custom-model-guide).
 > - It can't be applied to itself (like `tuned_class_name: 'model.auto.AutoTunedModel'`)
-> - `AutoTunedModel` can't be used on [rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-models) like [`RollingQuantile`](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-quantile) in combination with [on-disk model storage mode](https://docs.victoriametrics.com/anomaly-detection/faq/#resource-consumption-of-vmanomaly), as the rolling models exists only during `infer` calls and aren't persisted neither in RAM, nor on disk.
+> - `AutoTunedModel` can't be used on [rolling models](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-models) like [`RollingQuantile`](https://docs.victoriametrics.com/anomaly-detection/components/models/#rolling-quantile) in combination with [on-disk model storage mode](https://docs.victoriametrics.com/anomaly-detection/faq/#on-disk-mode), as the rolling models exists only during `infer` calls and aren't persisted neither in RAM, nor on disk.
 
 
 ### [Prophet](https://facebook.github.io/prophet/)
-Here we utilize the Facebook Prophet implementation, as detailed in their [library documentation](https://facebook.github.io/prophet/docs/quick_start.html#python-api). All parameters from this library are compatible and can be passed to the model.
+`vmanomaly` uses the Facebook Prophet implementation for time series forecasting, with detailed usage provided in the [Prophet library documentation](https://facebook.github.io/prophet/docs/quick_start.html#python-api). All original Prophet parameters are supported and can be directly passed to the model via `args` argument.
 
-> **Note**: `ProphetModel` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+
+> **Note**: `ProphetModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+
+
+> **Note**: Starting with [v1.18.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1182), the format for `tz_seasonalities` has been updated to enhance flexibility. Previously, it accepted a list of strings (e.g., `['hod', 'minute']`). Now, it follows the same structure as custom seasonalities defined in the `seasonalities` argument (e.g., `{"name": "hod", "fourier_order": 5, "mode": "additive"}`). This change is backward-compatible, so older configurations will be automatically converted to the new format using default values.
 
 *Parameters specific for vmanomaly*:
 
-* `class` (string) - model class name `"model.prophet.ProphetModel"` (or `prophet` starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#1130) with class alias support)
-* `seasonalities` (list[dict], optional) - Extra seasonalities to pass to Prophet. See [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors.html#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) Prophet param.
+- `class` (string) - model class name `"model.prophet.ProphetModel"` (or `prophet` starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#1130) with class alias support)
+- `seasonalities` (list[dict], optional): Additional seasonal components to include in Prophet. See Prophet’s [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors.html#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) documentation for details.
+- `scale` (float): (Available since [v1.18.8](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1188)) Is used to adjust the margin between `yhat` and [`yhat_lower`, `yhat_upper`]. New margin = `|yhat_* - yhat_lower| * scale`. Defaults to 1 (no scaling is applied).
+- `tz_aware` (bool): (Available since [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180)) Enables handling of timezone-aware timestamps. Default is `False`. Should be used with `tz_seasonalities` and `tz_use_cyclical_encoding` parameters.
+- `tz_seasonalities` (list[dict]): (Available since [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180)) Specifies timezone-aware seasonal components. Requires `tz_aware=True`. Supported options include `minute`, `hod` (hour of day), `dow` (day of week), and `month` (month of year). Starting with [v1.18.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1182), users can configure additional parameters for each seasonality, such as `fourier_order`, `prior_scale`, and `mode`. For more details, please refer to the **Timezone-unaware** configuration example below.
+- `tz_use_cyclical_encoding` (bool): (Available since [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180)) If set to `True`, applies [cyclical encoding technique](https://www.kaggle.com/code/avanwyk/encoding-cyclical-features-for-deep-learning) to timezone-aware seasonalities. Should be used with `tz_aware=True` and `tz_seasonalities`.
 
-**Note**: Apart from standard `vmanomaly` output, Prophet model can provide [additional metrics](#additional-output-metrics-produced-by-fb-prophet).
+> **Note**: Apart from standard [`vmanomaly` output](#vmanomaly-output), Prophet model can provide additional metrics.
 
 **Additional output metrics produced by FB Prophet**
 Depending on chosen `seasonality` parameter FB Prophet can return additional metrics such as:
@@ -432,6 +482,8 @@ Depending on chosen `seasonality` parameter FB Prophet can return additional met
 
 *Config Example*
 
+Timezone-unaware example:
+
 ```yaml
 models:
   your_desired_alias_for_a_model:
@@ -441,11 +493,33 @@ models:
       - name: 'hourly'
         period: 0.04166666666
         fourier_order: 30
-    # Inner model args (key-value pairs) accepted by
+        prior_scale: 20
+    # inner model args (key-value pairs) accepted by
     # https://facebook.github.io/prophet/docs/quick_start.html#python-api
     args:
-      # See https://facebook.github.io/prophet/docs/uncertainty_intervals.html
-      interval_width: 0.98
+      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals.html
+      country_holidays: 'US'
+```
+
+Timezone-aware example:
+
+```yaml
+models:
+  your_desired_alias_for_a_model:
+    class: 'prophet'  # or 'model.prophet.ProphetModel' until v1.13.0
+    provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
+    tz_aware: True
+    tz_use_cyclical_encoding: True
+    tz_seasonalities: # intra-day + intra-week seasonality, no intra-year / sub-hour seasonality
+      - name: 'hod'  # intra-day seasonality, hour of the day
+        fourier_order: 5  # keep it 3-8 based on intraday pattern complexity
+        prior_scale: 10
+      - name: 'dow'  # intra-week seasonality, time of the week
+        fourier_order: 2  # keep it 2-4, as dependencies are learned separately for each weekday
+    # inner model args (key-value pairs) accepted by
+    # https://facebook.github.io/prophet/docs/quick_start.html#python-api
+    args:
+      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals.html
       country_holidays: 'US'
 ```
 
@@ -454,7 +528,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output)
 
 ### [Z-score](https://en.wikipedia.org/wiki/Standard_score)
 
-> **Note**: `ZScoreModel` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+> **Note**: `ZScoreModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
 
 Model is useful for initial testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data).
 
@@ -476,7 +550,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### Online Z-score
 
-> **Note**: `OnlineZScoreModel` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
+> **Note**: `OnlineZScoreModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
 
 Online version of existing [Z-score](#z-score) implementation with the same exact behavior and implications. Introduced in [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1150)
 
@@ -502,7 +576,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [Holt-Winters](https://en.wikipedia.org/wiki/Exponential_smoothing)
 
-> **Note**: `HoltWinters` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+> **Note**: `HoltWinters` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
 
 Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html). All parameters from this library can be passed to the model.
 
@@ -548,7 +622,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [MAD (Median Absolute Deviation)](https://en.wikipedia.org/wiki/Median_absolute_deviation)
 
-> **Note**: `MADModel` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+> **Note**: `MADModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
 
 The MAD model is a robust method for anomaly detection that is *less sensitive* to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large.
 
@@ -572,7 +646,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### Online MAD
 
-> **Note**: `OnlineMADModel` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
+> **Note**: `OnlineMADModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
 
 The MAD model is a robust method for anomaly detection that is *less sensitive* to outliers in data compared to standard deviation-based models. It considers a point as an anomaly if the absolute deviation from the median is significantly large. This is the online approximate version, based on [t-digests](https://www.sciencedirect.com/science/article/pii/S2665963820300403) for online quantile estimation. introduced in [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1150)
 
@@ -601,7 +675,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [Rolling Quantile](https://en.wikipedia.org/wiki/Quantile)
 
-> **Note**: `RollingQuantileModel` is [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
+> **Note**: `RollingQuantileModel` is a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
 
 This model is best used on **data with short evolving patterns** (i.e. 10-100 datapoints of particular frequency), as it adapts to changes over a rolling window.
 
@@ -626,7 +700,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### Online Seasonal Quantile
 
-> **Note**: `OnlineQuantileModel` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
+> **Note**: `OnlineQuantileModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [online](#online-models) model.
 
 Online (seasonal) quantile utilizes a set of approximate distributions, based on [t-digests](https://www.sciencedirect.com/science/article/pii/S2665963820300403) for online quantile estimation. Introduced in [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1150).
 
@@ -670,7 +744,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [Seasonal Trend Decomposition](https://en.wikipedia.org/wiki/Seasonal_adjustment)
 
-> **Note**: `StdModel` is [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
+> **Note**: `StdModel` is a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
 
 Here we use Seasonal Decompose implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose.html). Parameters from this library can be passed to the model. Some parameters are specifically predefined in `vmanomaly` and can't be changed by user(`model`='additive', `two_sided`=False).
 
@@ -702,9 +776,9 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 ### [Isolation forest](https://en.wikipedia.org/wiki/Isolation_forest) (Multivariate)
 
-> **Note**: `IsolationForestModel` is [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+> **Note**: `IsolationForestModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
 
-> **Note**: `IsolationForestMultivariateModel` is [multivariate](#multivariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
+> **Note**: `IsolationForestMultivariateModel` is a [multivariate](#multivariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
 
 Detects anomalies using binary trees. The algorithm has a linear time complexity and a low memory requirement, which works well with high-volume data. It can be used on both univariate and multivariate data, but it is more effective in multivariate case.
 
@@ -919,8 +993,8 @@ monitoring:
 ### 3. Running custom model
 Let's pull the docker image for `vmanomaly`:
 
-```sh 
-docker pull victoriametrics/vmanomaly:latest
+```sh
+docker pull victoriametrics/vmanomaly:v1.18.8
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -934,8 +1008,8 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:latest /config.yaml \
---license-file=/license
+victoriametrics/vmanomaly:v1.18.8 /config.yaml \
+--licenseFile=/license
 ```
 
 Please find more detailed instructions (license, etc.) [here](https://docs.victoriametrics.com/anomaly-detection/overview/#run-vmanomaly-docker-container)

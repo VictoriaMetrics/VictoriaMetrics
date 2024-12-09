@@ -14,6 +14,9 @@ import (
 
 // partHeader contains the information about a single part
 type partHeader struct {
+	// FormatVersion is the version of the part format
+	FormatVersion uint
+
 	// CompressedSizeBytes is physical size of the part
 	CompressedSizeBytes uint64
 
@@ -31,22 +34,33 @@ type partHeader struct {
 
 	// MaxTimestamp is the maximum timestamp seen in the part
 	MaxTimestamp int64
+
+	// BloomValuesShardsCount is the number of (bloom, values) shards in the part.
+	BloomValuesShardsCount uint64
+
+	// BloomValuesFieldsCount is the number of fields with (bloom, values) pairs in the given part.
+	BloomValuesFieldsCount uint64
 }
 
 // reset resets ph for subsequent re-use
 func (ph *partHeader) reset() {
+	ph.FormatVersion = 0
 	ph.CompressedSizeBytes = 0
 	ph.UncompressedSizeBytes = 0
 	ph.RowsCount = 0
 	ph.BlocksCount = 0
 	ph.MinTimestamp = 0
 	ph.MaxTimestamp = 0
+	ph.BloomValuesShardsCount = 0
+	ph.BloomValuesFieldsCount = 0
 }
 
 // String returns string represenation for ph.
 func (ph *partHeader) String() string {
-	return fmt.Sprintf("{CompressedSizeBytes=%d, UncompressedSizeBytes=%d, RowsCount=%d, BlocksCount=%d, MinTimestamp=%s, MaxTimestamp=%s}",
-		ph.CompressedSizeBytes, ph.UncompressedSizeBytes, ph.RowsCount, ph.BlocksCount, timestampToString(ph.MinTimestamp), timestampToString(ph.MaxTimestamp))
+	return fmt.Sprintf("{FormatVersion=%d, CompressedSizeBytes=%d, UncompressedSizeBytes=%d, RowsCount=%d, BlocksCount=%d, "+
+		"MinTimestamp=%s, MaxTimestamp=%s, BloomValuesShardsCount=%d, BloomValuesFieldsCount=%d}",
+		ph.FormatVersion, ph.CompressedSizeBytes, ph.UncompressedSizeBytes, ph.RowsCount, ph.BlocksCount,
+		timestampToString(ph.MinTimestamp), timestampToString(ph.MaxTimestamp), ph.BloomValuesShardsCount, ph.BloomValuesFieldsCount)
 }
 
 func (ph *partHeader) mustReadMetadata(partPath string) {
@@ -61,9 +75,28 @@ func (ph *partHeader) mustReadMetadata(partPath string) {
 		logger.Panicf("FATAL: cannot parse %q: %s", metadataPath, err)
 	}
 
+	if ph.FormatVersion <= 1 {
+		if ph.BloomValuesShardsCount != 0 {
+			logger.Panicf("FATAL: unexpected BloomValuesShardsCount for FormatVersion<=1; got %d; want 0", ph.BloomValuesShardsCount)
+		}
+		if ph.BloomValuesFieldsCount != 0 {
+			logger.Panicf("FATAL: unexpected BloomValuesFieldsCount for FormatVersion<=1; got %d; want 0", ph.BloomValuesFieldsCount)
+		}
+		if ph.FormatVersion == 1 {
+			ph.BloomValuesShardsCount = 8
+			ph.BloomValuesFieldsCount = bloomValuesMaxShardsCount
+		}
+	}
+
 	// Perform various checks
+	if ph.FormatVersion > partFormatLatestVersion {
+		logger.Panicf("FATAL: unsupported part format version; got %d; mustn't exceed %d", partFormatLatestVersion)
+	}
 	if ph.MinTimestamp > ph.MaxTimestamp {
 		logger.Panicf("FATAL: MinTimestamp cannot exceed MaxTimestamp; got %d vs %d", ph.MinTimestamp, ph.MaxTimestamp)
+	}
+	if ph.BlocksCount > ph.RowsCount {
+		logger.Panicf("FATAL: BlocksCount=%d cannot exceed RowsCount=%d", ph.BlocksCount, ph.RowsCount)
 	}
 }
 

@@ -150,17 +150,12 @@ func (c *column) resizeValues(valuesLen int) []string {
 // mustWriteTo writes c to sw and updates ch accordingly.
 //
 // ch is valid until c is changed.
-func (c *column) mustWriteToNoArena(ch *columnHeader, sw *streamWriters) {
+func (c *column) mustWriteTo(ch *columnHeader, sw *streamWriters) {
 	ch.reset()
 
-	valuesWriter := &sw.fieldValuesWriter
-	bloomFilterWriter := &sw.fieldBloomFilterWriter
-	if c.name == "" {
-		valuesWriter = &sw.messageValuesWriter
-		bloomFilterWriter = &sw.messageBloomFilterWriter
-	}
-
 	ch.name = c.name
+
+	bloomValuesWriter := sw.getBloomValuesWriterForColumnName(ch.name)
 
 	// encode values
 	ve := getValuesEncoder()
@@ -176,15 +171,15 @@ func (c *column) mustWriteToNoArena(ch *columnHeader, sw *streamWriters) {
 	if ch.valuesSize > maxValuesBlockSize {
 		logger.Panicf("BUG: too valuesSize: %d bytes; mustn't exceed %d bytes", ch.valuesSize, maxValuesBlockSize)
 	}
-	ch.valuesOffset = valuesWriter.bytesWritten
-	valuesWriter.MustWrite(bb.B)
+	ch.valuesOffset = bloomValuesWriter.values.bytesWritten
+	bloomValuesWriter.values.MustWrite(bb.B)
 
 	// create and marshal bloom filter for c.values
 	if ch.valueType != valueTypeDict {
-		tokensBuf := getTokensBuf()
-		tokensBuf.A = tokenizeStrings(tokensBuf.A[:0], c.values)
-		bb.B = bloomFilterMarshal(bb.B[:0], tokensBuf.A)
-		putTokensBuf(tokensBuf)
+		hashesBuf := encoding.GetUint64s(0)
+		hashesBuf.A = tokenizeHashes(hashesBuf.A[:0], c.values)
+		bb.B = bloomFilterMarshalHashes(bb.B[:0], hashesBuf.A)
+		encoding.PutUint64s(hashesBuf)
 	} else {
 		// there is no need in ecoding bloom filter for dictionary type,
 		// since it isn't used during querying - all the dictionary values are available in ch.valuesDict
@@ -194,8 +189,8 @@ func (c *column) mustWriteToNoArena(ch *columnHeader, sw *streamWriters) {
 	if ch.bloomFilterSize > maxBloomFilterBlockSize {
 		logger.Panicf("BUG: too big bloomFilterSize: %d bytes; mustn't exceed %d bytes", ch.bloomFilterSize, maxBloomFilterBlockSize)
 	}
-	ch.bloomFilterOffset = bloomFilterWriter.bytesWritten
-	bloomFilterWriter.MustWrite(bb.B)
+	ch.bloomFilterOffset = bloomValuesWriter.bloom.bytesWritten
+	bloomValuesWriter.bloom.MustWrite(bb.B)
 }
 
 func (b *block) assertValid() {
@@ -227,15 +222,18 @@ func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) {
 	b.reset()
 
 	assertTimestampsSorted(timestamps)
-	b.timestamps = append(b.timestamps, timestamps...)
-	b.mustInitFromRows(rows)
+	b.mustInitFromRows(timestamps, rows)
 	b.sortColumnsByName()
 }
 
-// mustInitiFromRows initializes b from rows.
+// mustInitFromRows initializes b from the given timestamps and rows.
 //
 // b is valid until rows are changed.
-func (b *block) mustInitFromRows(rows [][]Field) {
+func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) {
+	if len(timestamps) != len(rows) {
+		logger.Panicf("BUG: len of timestamps %d and rows %d must be equal", len(timestamps), len(rows))
+	}
+
 	rowsLen := len(rows)
 	if rowsLen == 0 {
 		// Nothing to do
@@ -244,6 +242,7 @@ func (b *block) mustInitFromRows(rows [][]Field) {
 
 	if areSameFieldsInRows(rows) {
 		// Fast path - all the log entries have the same fields
+		b.timestamps = append(b.timestamps, timestamps...)
 		fields := rows[0]
 		for i := range fields {
 			f := &fields[i]
@@ -266,23 +265,49 @@ func (b *block) mustInitFromRows(rows [][]Field) {
 	// Slow path - log entries contain different set of fields
 
 	// Determine indexes for columns
+
 	columnIdxs := getColumnIdxs()
-	for i := range rows {
+	i := 0
+	for i < len(rows) {
 		fields := rows[i]
+		if len(columnIdxs)+len(fields) > maxColumnsPerBlock {
+			// User tries writing too many unique field names into a single log stream.
+			// It is better ignoring rows with too many field names instead of trying to store them,
+			// since the storage isn't designed to work with too big number of unique field names
+			// per log stream - this leads to excess usage of RAM, CPU, disk IO and disk space.
+			// It is better emitting a warning, so the user is aware of the problem and fixes it ASAP.
+			fieldNames := make([]string, 0, len(columnIdxs))
+			for k := range columnIdxs {
+				fieldNames = append(fieldNames, k)
+			}
+			logger.Warnf("ignoring %d rows in the block, becasue they contain more than %d unique field names: %s", len(rows)-i, maxColumnsPerBlock, fieldNames)
+			break
+		}
 		for j := range fields {
 			name := fields[j].Name
 			if _, ok := columnIdxs[name]; !ok {
 				columnIdxs[name] = len(columnIdxs)
 			}
 		}
+		i++
 	}
+	rowsProcessed := i
+
+	// keep only rows that fit maxColumnsPerBlock limit
+	rows = rows[:rowsProcessed]
+	timestamps = timestamps[:rowsProcessed]
+	if len(rows) == 0 {
+		return
+	}
+
+	b.timestamps = append(b.timestamps, timestamps...)
 
 	// Initialize columns
 	cs := b.resizeColumns(len(columnIdxs))
 	for name, idx := range columnIdxs {
 		c := &cs[idx]
 		c.name = name
-		c.resizeValues(rowsLen)
+		c.resizeValues(len(rows))
 	}
 
 	// Write rows to block
@@ -372,8 +397,9 @@ func (b *block) resizeColumns(columnsLen int) []column {
 
 func (b *block) sortColumnsByName() {
 	if len(b.columns)+len(b.constColumns) > maxColumnsPerBlock {
-		logger.Panicf("BUG: too big number of columns detected in the block: %d; the number of columns mustn't exceed %d",
-			len(b.columns)+len(b.constColumns), maxColumnsPerBlock)
+		columnNames := b.getColumnNames()
+		logger.Panicf("BUG: too big number of columns detected in the block: %d; the number of columns mustn't exceed %d; columns: %s",
+			len(b.columns)+len(b.constColumns), maxColumnsPerBlock, columnNames)
 	}
 
 	cs := getColumnsSorter()
@@ -385,6 +411,17 @@ func (b *block) sortColumnsByName() {
 	ccs.columns = b.constColumns
 	sort.Sort(ccs)
 	putConstColumnsSorter(ccs)
+}
+
+func (b *block) getColumnNames() []string {
+	a := make([]string, 0, len(b.columns)+len(b.constColumns))
+	for _, c := range b.columns {
+		a = append(a, c.name)
+	}
+	for _, c := range b.constColumns {
+		a = append(a, c.Name)
+	}
+	return a
 }
 
 // Len returns the number of log entries in b.
@@ -436,11 +473,7 @@ func (b *block) InitFromBlockData(bd *blockData, sbu *stringsBlockUnmarshaler, v
 }
 
 // mustWriteTo writes b with the given sid to sw and updates bh accordingly.
-func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters) {
-	// Do not store the version used for encoding directly in the block data, since:
-	// - all the blocks in the same part use the same encoding
-	// - the block encoding version can be put in metadata file for the part (aka metadataFilename)
-
+func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters, g *columnNameIDGenerator) {
 	b.assertValid()
 	bh.reset()
 
@@ -458,22 +491,13 @@ func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters) {
 
 	chs := csh.resizeColumnHeaders(len(cs))
 	for i := range cs {
-		cs[i].mustWriteToNoArena(&chs[i], sw)
+		cs[i].mustWriteTo(&chs[i], sw)
 	}
 	csh.constColumns = append(csh.constColumns[:0], b.constColumns...)
 
-	bb := longTermBufPool.Get()
-	bb.B = csh.marshal(bb.B)
+	csh.mustWriteTo(bh, sw, g)
 
 	putColumnsHeader(csh)
-
-	bh.columnsHeaderOffset = sw.columnsHeaderWriter.bytesWritten
-	bh.columnsHeaderSize = uint64(len(bb.B))
-	if bh.columnsHeaderSize > maxColumnsHeaderSize {
-		logger.Panicf("BUG: too big columnsHeaderSize: %d bytes; mustn't exceed %d bytes", bh.columnsHeaderSize, maxColumnsHeaderSize)
-	}
-	sw.columnsHeaderWriter.MustWrite(bb.B)
-	longTermBufPool.Put(bb)
 }
 
 // appendRowsTo appends log entries from b to dst.

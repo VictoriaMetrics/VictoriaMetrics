@@ -13,7 +13,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Returns the access control list (ACL) of an object. To use this operation, you
 // must have s3:GetObjectAcl permissions or READ_ACP access to the object. For

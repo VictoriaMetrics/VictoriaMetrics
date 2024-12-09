@@ -48,6 +48,7 @@ reader:
       expr: 'avg(vm_blocks)'  # initial MetricsQL expression
       step: '10s'  # individual step for this query, will be filled with `sampling_period` from the root level
       data_range: ['-inf', 'inf']  # by default, no constraints applied on data range
+      tz: 'UTC'  # by default, tz-free data is used throughout the model lifecycle
       # new query-level arguments will be added in backward-compatible way in future releases
 ```
 
@@ -67,18 +68,27 @@ Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/chang
   - **High anomaly scores** (>1) when the *data falls outside the expected range*, indicating a data constraint violation.
   - **Lowest anomaly scores** (=0) when the *model's predictions (`yhat`) fall outside the expected range*, meaning uncertain predictions.
 
+  > **Note**: if not set explicitly (or if older config style prior to [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)) is used, then it is set to reader-level `data_range` arg (since [v1.18.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1181))
+
+- `max_points_per_query` (int): Introduced in [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170), optional arg overrides how `search.maxPointsPerTimeseries` flag (available since [v1.14.1](#v1141)) impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. If set on a query-level, it overrides the global `max_points_per_query` (reader-level).
+
+- `tz` (string): Introduced in [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180), this optional argument enables timezone specification per query, overriding the reader’s default `tz`. This setting helps to account for local timezone shifts, such as [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models that are sensitive to seasonal variations (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)).
+
 
 ### Per-query config example
 ```yaml
 reader:
   class: 'vm'
   sampling_period: '1m'
+  max_points_per_query: 10000
   # other reader params ...
   queries:
     ingestion_rate:
       expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
       step: '2m'  # overrides global `sampling_period` of 1m
       data_range: [10, 'inf']  # meaning only positive values > 10 are expected, i.e. a value `y` < 10 will trigger anomaly score > 1
+      max_points_per_query: 5000 # overrides reader-level value of 10000 for `ingestion_rate` query
+      tz: 'America/New_York'  # to override reader-wise `tz`
 ```
 
 ### Config parameters
@@ -106,6 +116,7 @@ Name of the class needed to enable reading from VictoriaMetrics or Prometheus. V
         </tr>
         <tr>
             <td>
+
 `queries`
             </td>
             <td>
@@ -117,6 +128,7 @@ See [per-query config section](#per-query-parameters) above
         </tr>
         <tr>
             <td>
+
 `datasource_url`
             </td>
             <td>
@@ -128,17 +140,20 @@ Datasource URL address
         </tr>
         <tr>
             <td>
+
 `tenant_id`
             </td>
             <td>
-`0:0`
+
+`0:0`, `multitenant`
             </td>
             <td>
-For VictoriaMetrics Cluster version only, tenants are identified by accountID or accountID:projectID. See VictoriaMetrics Cluster [multitenancy docs](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
+For VictoriaMetrics Cluster version only, tenants are identified by `accountID` or `accountID:projectID`. Starting from [v1.16.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1162), `multitenant` [endpoint](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=reads#multitenancy-via-labels) is supported, to execute queries over multiple [tenants](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy). See VictoriaMetrics Cluster [multitenancy docs](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
             </td>
         </tr>
         <tr>
             <td>
+
 `sampling_period`
             </td>
             <td>
@@ -150,6 +165,7 @@ Frequency of the points returned. Will be converted to `/query_range?step=%s` pa
         </tr>
         <tr>
             <td>
+
 `query_range_path`
             </td>
             <td>
@@ -161,9 +177,11 @@ Performs PromQL/MetricsQL range query
         </tr>
         <tr>
             <td>
+
 `health_path`
             </td>
             <td>
+
 `health`
             </td>
             <td>
@@ -172,9 +190,11 @@ Absolute or relative URL address where to check availability of the datasource.
         </tr>
         <tr>
             <td>
+
 `user`
             </td>
             <td>
+
 `USERNAME`
             </td>
             <td>
@@ -183,9 +203,11 @@ BasicAuth username
         </tr>
         <tr>
             <td>
+
 `password`
             </td>
             <td>
+
 `PASSWORD`
             </td>
             <td>
@@ -194,9 +216,11 @@ BasicAuth password
         </tr>
         <tr>
             <td>
+
 `timeout`
             </td>
             <td>
+
 `30s`
             </td>
             <td>
@@ -205,20 +229,52 @@ Timeout for the requests, passed as a string
         </tr>
         <tr>
             <td>
+
 `verify_tls`
             </td>
             <td>
+
 `false`
             </td>
             <td>
-Allows disabling TLS verification of the remote certificate.
+Verify TLS certificate. If `False`, it will not verify the TLS certificate. 
+If `True`, it will verify the certificate using the system's CA store. 
+If a path to a CA bundle file (like `ca.crt`), it will verify the certificate using the provided CA bundle.
             </td>
         </tr>
         <tr>
             <td>
+
+`tls_cert_file`
+            </td>
+            <td>
+
+`path/to/cert.crt`
+            </td>
+            <td>
+Path to a file with the client certificate, i.e. `client.crt`. Available since [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163).
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`tls_key_file`
+            </td>
+            <td>
+
+`path/to/key.crt`
+            </td>
+            <td>
+Path to a file with the client certificate key, i.e. `client.key`. Available since [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163).
+            </td>
+        </tr>
+        <tr>
+            <td>
+
 `bearer_token`
             </td>
             <td>
+
 `token`
             </td>
             <td>
@@ -227,9 +283,11 @@ Token is passed in the standard format with header: `Authorization: bearer {toke
         </tr>
         <tr>
             <td>
+
 `bearer_token_file`
             </td>
             <td>
+
 `path_to_file`
             </td>
             <td>
@@ -238,9 +296,11 @@ Path to a file, which contains token, that is passed in the standard format with
         </tr>
         <tr>
             <td>
+
 `extra_filters`
             </td>
             <td>
+
 `[]`
             </td>
             <td>
@@ -249,9 +309,11 @@ List of strings with series selector. See: [Prometheus querying API enhancements
         </tr>
         <tr>
             <td>
+
 `query_from_last_seen_timestamp`
             </td>
             <td>
+
 `False`
             </td>
             <td>
@@ -260,13 +322,54 @@ If True, then query will be performed from the last seen timestamp for a given s
         </tr>
         <tr>
             <td>
+
 `latency_offset`
             </td>
             <td>
+
 `1ms`
             </td>
             <td>
 Introduced in [v1.15.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1151), it allows overriding the default `-search.latencyOffset` [flag of VictoriaMetrics](https://docs.victoriametrics.com/?highlight=search.latencyOffset#list-of-command-line-flags) (30s). The default value is set to 1ms, which should help in cases where `sampling_frequency` is low (10-60s) and `sampling_frequency` equals `infer_every` in the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/?highlight=infer_every#periodic-scheduler). This prevents users from receiving `service - WARNING - [Scheduler [scheduler_alias]] No data available for inference.` warnings in logs and allows for consecutive `infer` calls without gaps. To restore the old behavior, set it equal to your `-search.latencyOffset` [flag value]((https://docs.victoriametrics.com/?highlight=search.latencyOffset#list-of-command-line-flags)).
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`max_points_per_query`
+            </td>
+            <td>
+
+`10000`
+            </td>
+            <td>
+Introduced in [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170), optional arg overrides how `search.maxPointsPerTimeseries` flag (available since [v1.14.1](#v1141)) impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. You can also set it on [per-query](#per-query-parameters) basis to override this global one.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`tz`
+            </td>
+            <td>
+
+`UTC`
+            </td>
+            <td>
+Introduced in [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180), this optional argument specifies the [IANA](https://nodatime.org/TimeZones) timezone to account for local shifts, like [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models sensitive to seasonal patterns (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)). Defaults to `UTC` if not set and can be overridden on a [per-query basis](#per-query-parameters).
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`data_range`
+            </td>
+            <td>
+
+`["-inf", "inf"]`
+            </td>
+            <td>
+Added in [v1.18.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180), this optional argument allows defining **valid** data ranges for input of all the queries in `queries`. Defaults to `["-inf", "inf"]` if not set and can be overridden on a [per-query basis](#per-query-parameters).
             </td>
         </tr>
     </tbody>
@@ -279,15 +382,52 @@ reader:
   class: "vm"  # or "reader.vm.VmReader" until v1.13.0
   datasource_url: "https://play.victoriametrics.com/"
   tenant_id: "0:0"
+  tz: 'America/New_York'
+  data_range: [1, 'inf']  # reader-level
   queries:
     ingestion_rate:
       expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
-      step: '1m' # can override global `sampling_period` on per-query level
-      data_range: [0, 'inf']
+      step: '1m' # can override reader-level `sampling_period` on per-query level
+      data_range: [0, 'inf']  # if set, overrides reader-level data_range
+      tz: 'Australia/Sydney'  # if set, overrides reader-level tz
   sampling_period: '1m'
   query_from_last_seen_timestamp: True  # false by default
   latency_offset: '1ms'
 ```
+
+### mTLS protection
+
+As of [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163), `vmanomaly` supports [mutual TLS (mTLS)](https://en.wikipedia.org/wiki/Mutual_authentication) for secure communication across its components, including [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer), and [Monitoring/Push](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters). This allows for mutual authentication between the client and server when querying or writing data to [VictoriaMetrics Enterprise, configured for mTLS](https://docs.victoriametrics.com/#mtls-protection).
+
+mTLS ensures that both the client and server verify each other's identity using certificates, which enhances security by preventing unauthorized access. 
+
+To configure mTLS, the following parameters can be set in the [config](#config-parameters):
+- `verify_tls`: If set to a string, it functions like the `-mtlsCAFile` command-line argument of VictoriaMetrics, specifying the CA bundle to use. Set to `True` to use the system's default certificate store.
+- `tls_cert_file`: Specifies the path to the client certificate, analogous to the `-tlsCertFile` argument of VictoriaMetrics.
+- `tls_key_file`: Specifies the path to the client certificate key, similar to the `-tlsKeyFile` argument of VictoriaMetrics.
+
+These options allow you to securely interact with mTLS-enabled VictoriaMetrics endpoints.
+
+Example configuration to enable mTLS with custom certificates:
+
+```yaml
+reader:
+  class: "vm"
+  datasource_url: "https://your-victoriametrics-instance-with-mtls"
+  # tenant_id: "0:0" uncomment and set for cluster version
+  queries:
+    vm_blocks_example:
+      expr: 'avg(rate(vm_blocks[5m]))'
+      step: 30s
+  sampling_period: 30s
+  verify_tls: "path/to/ca.crt"  # path to CA bundle for TLS verification
+  tls_cert_file: "path/to/client.crt"  # path to the client certificate
+  tls_key_file:  "path/to/client.key"  # path to the client certificate key
+  # additional reader parameters ...
+
+# other config sections, like models, schedulers, writer, ...
+```
+
 
 ### Healthcheck metrics
 

@@ -55,6 +55,33 @@ const (
 	valueTypeTimestampISO8601 = valueType(9)
 )
 
+func (t valueType) String() string {
+	switch t {
+	case valueTypeUnknown:
+		return "unknown"
+	case valueTypeString:
+		return "string"
+	case valueTypeDict:
+		return "dict"
+	case valueTypeUint8:
+		return "uint8"
+	case valueTypeUint16:
+		return "uint16"
+	case valueTypeUint32:
+		return "uint32"
+	case valueTypeUint64:
+		return "uint64"
+	case valueTypeFloat64:
+		return "float64"
+	case valueTypeIPv4:
+		return "ipv4"
+	case valueTypeTimestampISO8601:
+		return "iso8601"
+	default:
+		return fmt.Sprintf("unknown valueType=%d", t)
+	}
+}
+
 type valuesEncoder struct {
 	// buf contains data for values.
 	buf []byte
@@ -1110,16 +1137,14 @@ func (vd *valuesDict) marshal(dst []byte) []byte {
 		logger.Panicf("BUG: valuesDict may contain max %d items; got %d items", maxDictLen, len(values))
 	}
 	dst = append(dst, byte(len(values)))
-	for _, v := range values {
-		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(v))
-	}
+	dst = marshalStrings(dst, values)
 	return dst
 }
 
-// unmarshal unmarshals vd from src.
+// unmarshalNoArena unmarshals vd from src.
 //
-// vd is valid until a.reset() is called.
-func (vd *valuesDict) unmarshal(a *arena, src []byte) ([]byte, error) {
+// vd is valid until src is changed.
+func (vd *valuesDict) unmarshalNoArena(src []byte) ([]byte, error) {
 	vd.reset()
 
 	srcOrig := src
@@ -1135,7 +1160,7 @@ func (vd *valuesDict) unmarshal(a *arena, src []byte) ([]byte, error) {
 		}
 		src = src[nSize:]
 
-		v := a.copyBytesToString(data)
+		v := bytesutil.ToUnsafeString(data)
 		vd.values = append(vd.values, v)
 	}
 	return src, nil

@@ -167,14 +167,8 @@ type tplData struct {
 	ExternalURL    string
 }
 
-func templateAnnotation(dst io.Writer, text string, data tplData, tmpl *textTpl.Template, execute bool) error {
-	tpl, err := tmpl.Clone()
-	if err != nil {
-		return fmt.Errorf("error cloning template before parse annotation: %w", err)
-	}
-	// Clone() doesn't copy tpl Options, so we set them manually
-	tpl = tpl.Option("missingkey=zero")
-	tpl, err = tpl.Parse(text)
+func templateAnnotation(dst io.Writer, text string, data tplData, tpl *textTpl.Template, execute bool) error {
+	tpl, err := tpl.Parse(text)
 	if err != nil {
 		return fmt.Errorf("error parsing annotation template: %w", err)
 	}

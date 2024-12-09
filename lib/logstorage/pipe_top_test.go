@@ -11,11 +11,15 @@ func TestParsePipeTopSuccess(t *testing.T) {
 	}
 
 	f(`top`)
+	f(`top rank`)
 	f(`top 5`)
+	f(`top 5 rank as foo`)
 	f(`top by (x)`)
 	f(`top 5 by (x)`)
 	f(`top by (x, y)`)
 	f(`top 5 by (x, y)`)
+	f(`top by (x) rank`)
+	f(`top by (x) rank as foo`)
 }
 
 func TestParsePipeTopFailure(t *testing.T) {
@@ -30,6 +34,7 @@ func TestParsePipeTopFailure(t *testing.T) {
 	f(`top 5foo`)
 	f(`top foo`)
 	f(`top by`)
+	f(`top (x) rank a b`)
 }
 
 func TestPipeTop(t *testing.T) {
@@ -63,6 +68,36 @@ func TestPipeTop(t *testing.T) {
 			{"b", `54`},
 			{"c", "d"},
 			{"hits", "1"},
+		},
+	})
+
+	f("top rank", [][]Field{
+		{
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"a", "2"},
+			{"b", "3"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"c", "d"},
+		},
+	}, [][]Field{
+		{
+			{"a", "2"},
+			{"b", "3"},
+			{"hits", "2"},
+			{"rank", "1"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"c", "d"},
+			{"hits", "1"},
+			{"rank", "2"},
 		},
 	})
 
@@ -131,6 +166,33 @@ func TestPipeTop(t *testing.T) {
 		{
 			{"b", "54"},
 			{"hits", "1"},
+		},
+	})
+
+	f("top by (b) rank as x", [][]Field{
+		{
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"a", "2"},
+			{"b", "3"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"c", "d"},
+		},
+	}, [][]Field{
+		{
+			{"b", "3"},
+			{"hits", "2"},
+			{"x", "1"},
+		},
+		{
+			{"b", "54"},
+			{"hits", "1"},
+			{"x", "2"},
 		},
 	})
 

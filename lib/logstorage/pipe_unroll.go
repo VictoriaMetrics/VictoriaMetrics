@@ -36,10 +36,6 @@ func (pu *pipeUnroll) canLiveTail() bool {
 	return true
 }
 
-func (pu *pipeUnroll) optimize() {
-	pu.iff.optimizeFilterIn()
-}
-
 func (pu *pipeUnroll) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
@@ -134,10 +130,10 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	fields := shard.fields
 	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+		if needStop(pup.stopCh) {
+			return
+		}
 		if bm.isSetBit(rowIdx) {
-			if needStop(pup.stopCh) {
-				return
-			}
 			shard.writeUnrolledFields(pu.fields, columnValues, rowIdx)
 		} else {
 			fields = fields[:0]
@@ -207,7 +203,7 @@ func (pup *pipeUnrollProcessor) flush() error {
 	return nil
 }
 
-func parsePipeUnroll(lex *lexer) (*pipeUnroll, error) {
+func parsePipeUnroll(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("unroll") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unroll")
 	}

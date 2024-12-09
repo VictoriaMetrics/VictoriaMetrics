@@ -45,7 +45,7 @@ func TestPipePackLogfmt(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"_msg", `_msg=x foo=abc bar="cde=ab"`},
+			{"_msg", `_msg=x foo=abc bar=cde=ab`},
 			{"foo", `abc`},
 			{"bar", `cde=ab`},
 		},

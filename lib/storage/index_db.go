@@ -91,13 +91,17 @@ type indexDB struct {
 	// The db must be automatically recovered after that.
 	missingMetricNamesForMetricID atomic.Uint64
 
-	// minMissingTimestamp is the minimum timestamp, which is missing in the given indexDB.
+	// minMissingTimestampByKey holds the minimum timestamps by index search key,
+	// which is missing in the given indexDB.
+	// Key must be formed with marshalCommonPrefix function.
 	//
 	// This field is used at containsTimeRange() function only for the previous indexDB,
 	// since this indexDB is readonly.
 	// This field cannot be used for the current indexDB, since it may receive data
 	// with bigger timestamps at any time.
-	minMissingTimestamp atomic.Int64
+	minMissingTimestampByKey map[string]int64
+	// protects minMissingTimestampByKey
+	minMissingTimestampByKeyLock sync.RWMutex
 
 	// generation identifies the index generation ID
 	// and is used for syncing items from different indexDBs
@@ -162,6 +166,7 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) *indexDB 
 		tb:         tb,
 		name:       name,
 
+		minMissingTimestampByKey:   make(map[string]int64),
 		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize),
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
@@ -1945,25 +1950,36 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) bool {
 		// This means that it may contain data for the given tr with probability close to 100%.
 		return true
 	}
-
 	// The db corresponds to the previous indexDB, which is readonly.
 	// So it is safe caching the minimum timestamp, which isn't covered by the db.
-	minMissingTimestamp := db.minMissingTimestamp.Load()
-	if minMissingTimestamp != 0 && tr.MinTimestamp >= minMissingTimestamp {
+
+	// use common prefix as a key for minMissingTimestamp
+	// it's needed to properly track timestamps for cluster version
+	// which uses tenant labels for the index search
+	kb := &is.kb
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
+	key := kb.B
+
+	db.minMissingTimestampByKeyLock.RLock()
+	minMissingTimestamp, ok := db.minMissingTimestampByKey[string(key)]
+	db.minMissingTimestampByKeyLock.RUnlock()
+
+	if ok && tr.MinTimestamp >= minMissingTimestamp {
 		return false
 	}
-
-	if is.containsTimeRangeSlow(tr) {
+	if is.containsTimeRangeSlowForPrefixBuf(kb, tr) {
 		return true
 	}
 
-	db.minMissingTimestamp.CompareAndSwap(minMissingTimestamp, tr.MinTimestamp)
+	db.minMissingTimestampByKeyLock.Lock()
+	db.minMissingTimestampByKey[string(key)] = tr.MinTimestamp
+	db.minMissingTimestampByKeyLock.Unlock()
+
 	return false
 }
 
-func (is *indexSearch) containsTimeRangeSlow(tr TimeRange) bool {
+func (is *indexSearch) containsTimeRangeSlowForPrefixBuf(prefixBuf *bytesutil.ByteBuffer, tr TimeRange) bool {
 	ts := &is.ts
-	kb := &is.kb
 
 	// Verify whether the tr.MinTimestamp is included into `ts` or is smaller than the minimum date stored in `ts`.
 	// Do not check whether tr.MaxTimestamp is included into `ts` or is bigger than the max date stored in `ts` for performance reasons.
@@ -1972,13 +1988,12 @@ func (is *indexSearch) containsTimeRangeSlow(tr TimeRange) bool {
 	// The main practical case allows skipping searching in prev indexdb (`ts`) when `tr`
 	// is located above the max date stored there.
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
-	prefix := kb.B
-	kb.B = encoding.MarshalUint64(kb.B, minDate)
-	ts.Seek(kb.B)
+	prefix := prefixBuf.B
+	prefixBuf.B = encoding.MarshalUint64(prefixBuf.B, minDate)
+	ts.Seek(prefixBuf.B)
 	if !ts.NextItem() {
 		if err := ts.Error(); err != nil {
-			logger.Panicf("FATAL: error when searching for minDate=%d, prefix %q: %w", minDate, kb.B, err)
+			logger.Panicf("FATAL: error when searching for minDate=%d, prefix %q: %w", minDate, prefixBuf.B, err)
 		}
 		return false
 	}
@@ -2271,7 +2286,7 @@ func (is *indexSearch) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilter
 
 func errTooManyTimeseries(maxMetrics int) error {
 	return fmt.Errorf("the number of matching timeseries exceeds %d; "+
-		"either narrow down the search or increase -search.max* command-line flag values at vmselect "+
+		"either narrow down the search or increase -search.max* command-line flag values "+
 		"(the most likely limit is -search.maxUniqueTimeseries); "+
 		"see https://docs.victoriametrics.com/#resource-usage-limits", maxMetrics)
 }

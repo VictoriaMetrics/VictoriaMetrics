@@ -1,11 +1,14 @@
 services:
   # meta service will be ignored by compose
   .victorialogs:
-    image: docker.io/victoriametrics/victoria-logs:v0.32.0-victorialogs
+    image: docker.io/victoriametrics/victoria-logs:v1.3.2-victorialogs
     command:
       - -storageDataPath=/vlogs
       - -loggerFormat=json
       - -syslog.listenAddr.tcp=0.0.0.0:8094
+      - -journald.streamFields=_HOSTNAME,_SYSTEMD_UNIT,_PID
+      - -journald.ignoreFields=MESSAGE_ID,INVOCATION_ID,USER_INVOCATION_ID,
+      - -journald.ignoreFields=_BOOT_ID,_MACHINE_ID,_SYSTEMD_INVOCATION_ID,_STREAM_ID,_UID
     deploy:
       replicas: 0
     healthcheck:
@@ -13,6 +16,13 @@ services:
       interval: 1s
       timeout: 1s
       retries: 10
+
+  dd-logs:
+    image: docker.io/victoriametrics/vmauth:v1.107.0
+    restart: on-failure
+    volumes:
+      - ./:/etc/vmauth
+    command: -auth.config=/etc/vmauth/vmauth.yaml
 
   victorialogs:
     extends: .victorialogs

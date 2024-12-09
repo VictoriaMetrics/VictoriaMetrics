@@ -124,7 +124,7 @@ Please find the example of provisioning Grafana instance with VictoriaMetrics da
        grafana:
          image: grafana/grafana:11.0.0
          environment:
-         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.8.2/victoriametrics-datasource-v0.8.2.zip;victoriametrics-datasource
+         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.10.3/victoriametrics-datasource-v0.10.3.zip;victoriametrics-datasource
          - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource
          ports:
          - 3000:3000/tcp
@@ -140,7 +140,7 @@ docker-compose -f docker-compose.yaml up
 
 When Grafana starts successfully datasources should be present on the datasources tab
 
-<img src="provision_datasources.webp" width="800" alt="Configuration">
+![Configuration](provision_datasources.webp)
 
 ### Install in Kubernetes
 
@@ -152,14 +152,14 @@ Option 1. Using Grafana provisioning:
 
 ``` yaml
 env:
-  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.8.2/victoriametrics-datasource-v0.8.2.zip;victoriametrics-datasource"
+  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.10.3/victoriametrics-datasource-v0.10.3.zip;victoriametrics-datasource"
 ```
 
 Option 2. Using Grafana plugins section in `values.yaml`:
 
 ``` yaml
 plugins:
-  - https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.8.2/victoriametrics-datasource-v0.8.2.zip;victoriametrics-datasource
+  - https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.10.3/victoriametrics-datasource-v0.10.3.zip;victoriametrics-datasource
 ```
 
 Option 3. Using init container:

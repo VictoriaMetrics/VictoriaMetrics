@@ -9,11 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"gopkg.in/yaml.v2"
 )
 
 func TestMain(m *testing.M) {
@@ -44,17 +43,55 @@ groups:
       - record: conns
         expr: max(vm_tcplistener_conns)`))
 	})
+	mux.HandleFunc("/good-multi-doc", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(`
+groups:
+  - name: foo
+    rules:
+      - record: conns
+        expr: max(vm_tcplistener_conns)
+---
+groups:
+  - name: bar
+    rules:
+      - record: conns
+        expr: max(vm_tcplistener_conns)`))
+	})
+	mux.HandleFunc("/bad-multi-doc", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(`
+bad_field:
+  - name: foo
+    rules:
+      - record: conns
+        expr: max(vm_tcplistener_conns)
+---
+groups:
+  - name: bar
+    rules:
+      - record: conns
+        expr: max(vm_tcplistener_conns)`))
+	})
 
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	if _, err := Parse([]string{srv.URL + "/good-alert", srv.URL + "/good-rr"}, notifier.ValidateTemplates, true); err != nil {
-		t.Fatalf("error parsing URLs %s", err)
+	f := func(urls []string, expErr bool) {
+		for i, u := range urls {
+			urls[i] = srv.URL + u
+		}
+		_, err := Parse(urls, notifier.ValidateTemplates, true)
+		if err != nil && !expErr {
+			t.Fatalf("error parsing URLs %s", err)
+		}
+		if err == nil && expErr {
+			t.Fatalf("expecting error parsing URLs but got none")
+		}
 	}
 
-	if _, err := Parse([]string{srv.URL + "/bad"}, notifier.ValidateTemplates, true); err == nil {
-		t.Fatalf("expected parsing error: %s", err)
-	}
+	f([]string{"/good-alert", "/good-rr", "/good-multi-doc"}, false)
+	f([]string{"/bad"}, true)
+	f([]string{"/bad-multi-doc"}, true)
+	f([]string{"/good-alert", "/bad"}, true)
 }
 
 func TestParse_Success(t *testing.T) {
@@ -85,7 +122,10 @@ func TestParse_Failure(t *testing.T) {
 	f([]string{"testdata/dir/rules3-bad.rules"}, "either `record` or `alert` must be set")
 	f([]string{"testdata/dir/rules4-bad.rules"}, "either `record` or `alert` must be set")
 	f([]string{"testdata/rules/rules1-bad.rules"}, "bad graphite expr")
+	f([]string{"testdata/rules/vlog-rules0-bad.rules"}, "bad LogsQL expr")
 	f([]string{"testdata/dir/rules6-bad.rules"}, "missing ':' in header")
+	f([]string{"testdata/rules/rules-multi-doc-bad.rules"}, "unknown fields")
+	f([]string{"testdata/rules/rules-multi-doc-duplicates-bad.rules"}, "duplicate")
 	f([]string{"http://unreachable-url"}, "failed to")
 }
 
@@ -201,7 +241,7 @@ func TestGroupValidate_Failure(t *testing.T) {
 	}, false, "duplicate")
 
 	f(&Group{
-		Name: "test graphite prometheus bad expr",
+		Name: "test graphite with prometheus expr",
 		Type: NewGraphiteType(),
 		Rules: []Rule{
 			{
@@ -227,6 +267,20 @@ func TestGroupValidate_Failure(t *testing.T) {
 			},
 		},
 	}, false, "either `record` or `alert` must be set")
+
+	f(&Group{
+		Name: "test vlogs with prometheus expr",
+		Type: NewVLogsType(),
+		Rules: []Rule{
+			{
+				Expr: "sum(up == 0 ) by (host)",
+				For:  promutils.NewDuration(10 * time.Millisecond),
+			},
+			{
+				Expr: "sumSeries(time('foo.bar',10))",
+			},
+		},
+	}, false, "invalid rule")
 
 	// validate expressions
 	f(&Group{
@@ -258,6 +312,16 @@ func TestGroupValidate_Failure(t *testing.T) {
 			}},
 		},
 	}, true, "bad graphite expr")
+
+	f(&Group{
+		Name: "test vlogs",
+		Type: NewVLogsType(),
+		Rules: []Rule{
+			{Alert: "alert", Expr: "stats count(*) as requests", Labels: map[string]string{
+				"description": "some-description",
+			}},
+		},
+	}, true, "bad LogsQL expr")
 }
 
 func TestGroupValidate_Success(t *testing.T) {
@@ -297,7 +361,7 @@ func TestGroupValidate_Success(t *testing.T) {
 		},
 	}, false, false)
 
-	// validate annotiations
+	// validate annotations
 	f(&Group{
 		Name: "test",
 		Rules: []Rule{
@@ -320,6 +384,15 @@ func TestGroupValidate_Success(t *testing.T) {
 		Type: NewPrometheusType(),
 		Rules: []Rule{
 			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
+				"description": "{{ value|query }}",
+			}},
+		},
+	}, false, true)
+	f(&Group{
+		Name: "test victorialogs",
+		Type: NewVLogsType(),
+		Rules: []Rule{
+			{Alert: "alert", Expr: " _time: 1m | stats count(*) as requests", Labels: map[string]string{
 				"description": "{{ value|query }}",
 			}},
 		},

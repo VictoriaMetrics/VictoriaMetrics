@@ -9,7 +9,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -80,11 +82,6 @@ type WriteBlockFunc func(workerID uint, timestamps []int64, columns []BlockColum
 
 // RunQuery runs the given q and calls writeBlock for results.
 func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock WriteBlockFunc) error {
-	qNew, err := s.initFilterInValues(ctx, tenantIDs, q)
-	if err != nil {
-		return err
-	}
-
 	writeBlockResult := func(workerID uint, br *blockResult) {
 		if br.rowsLen == 0 {
 			return
@@ -109,10 +106,20 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 		putBlockRows(brs)
 	}
 
-	return s.runQuery(ctx, tenantIDs, qNew, writeBlockResult)
+	return s.runQuery(ctx, tenantIDs, q, writeBlockResult)
 }
 
 func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlockResultFunc func(workerID uint, br *blockResult)) error {
+	qNew, err := s.initFilterInValues(ctx, tenantIDs, q)
+	if err != nil {
+		return err
+	}
+	qNew, err = s.initJoinMaps(ctx, tenantIDs, qNew)
+	if err != nil {
+		return err
+	}
+	q = qNew
+
 	streamIDs := q.getStreamIDs()
 	sort.Slice(streamIDs, func(i, j int) bool {
 		return streamIDs[i].less(&streamIDs[j])
@@ -190,10 +197,11 @@ func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Qu
 	pipeStr := "field_names"
 	lex := newLexer(pipeStr)
 
-	pf, err := parsePipeFieldNames(lex)
+	p, err := parsePipeFieldNames(lex)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error when parsing 'field_names' pipe at [%s]: %s", pipeStr, err)
 	}
+	pf := p.(*pipeFieldNames)
 	pf.isFirstPipe = len(pipes) == 0
 
 	if !lex.isEnd() {
@@ -210,7 +218,78 @@ func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Qu
 	return s.runValuesWithHitsQuery(ctx, tenantIDs, q)
 }
 
+func (s *Storage) getJoinMap(ctx context.Context, tenantIDs []TenantID, q *Query, byFields []string, prefix string) (map[string][][]Field, error) {
+	// TODO: track memory usage
+
+	m := make(map[string][][]Field)
+	var mLock sync.Mutex
+	writeBlockResult := func(_ uint, br *blockResult) {
+		if br.rowsLen == 0 {
+			return
+		}
+
+		cs := br.getColumns()
+		columnNames := make([]string, len(cs))
+		byValuesIdxs := make([]int, len(cs))
+		for i := range cs {
+			name := strings.Clone(cs[i].name)
+			idx := slices.Index(byFields, name)
+			if prefix != "" && idx < 0 {
+				name = prefix + name
+			}
+			columnNames[i] = name
+			byValuesIdxs[i] = idx
+		}
+
+		byValues := make([]string, len(byFields))
+		var tmpBuf []byte
+
+		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+			fields := make([]Field, 0, len(cs))
+			clear(byValues)
+			for j := range cs {
+				name := columnNames[j]
+				v := cs[j].getValueAtRow(br, rowIdx)
+				if cIdx := byValuesIdxs[j]; cIdx >= 0 {
+					byValues[cIdx] = v
+					continue
+				}
+				if v == "" {
+					continue
+				}
+				value := strings.Clone(v)
+				fields = append(fields, Field{
+					Name:  name,
+					Value: value,
+				})
+			}
+
+			tmpBuf = marshalStrings(tmpBuf[:0], byValues)
+			k := string(tmpBuf)
+
+			mLock.Lock()
+			m[k] = append(m[k], fields)
+			mLock.Unlock()
+		}
+	}
+
+	if err := s.runQuery(ctx, tenantIDs, q, writeBlockResult); err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
+func marshalStrings(dst []byte, a []string) []byte {
+	for _, v := range a {
+		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(v))
+	}
+	return dst
+}
+
 func (s *Storage) getFieldValuesNoHits(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string) ([]string, error) {
+	// TODO: track memory usage
+
 	pipes := append([]pipe{}, q.pipes...)
 	quotedFieldName := quoteTokenIfNeeded(fieldName)
 	pipeStr := fmt.Sprintf("uniq by (%s)", quotedFieldName)
@@ -337,8 +416,8 @@ func (s *Storage) GetStreamFieldNames(ctx context.Context, tenantIDs []TenantID,
 
 	m := make(map[string]*uint64)
 	forEachStreamField(streams, func(f Field, hits uint64) {
-		pHits, ok := m[f.Name]
-		if !ok {
+		pHits := m[f.Name]
+		if pHits == nil {
 			nameCopy := strings.Clone(f.Name)
 			hitsLocal := uint64(0)
 			pHits = &hitsLocal
@@ -364,8 +443,8 @@ func (s *Storage) GetStreamFieldValues(ctx context.Context, tenantIDs []TenantID
 		if f.Name != fieldName {
 			return
 		}
-		pHits, ok := m[f.Value]
-		if !ok {
+		pHits := m[f.Value]
+		if pHits == nil {
 			valueCopy := strings.Clone(f.Value)
 			hitsLocal := uint64(0)
 			pHits = &hitsLocal
@@ -454,6 +533,45 @@ func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, 
 		pipes: pipesNew,
 	}
 	return qNew, nil
+}
+
+type getJoinMapFunc func(q *Query, byFields []string, prefix string) (map[string][][]Field, error)
+
+func (s *Storage) initJoinMaps(ctx context.Context, tenantIDs []TenantID, q *Query) (*Query, error) {
+	if !hasJoinPipes(q.pipes) {
+		return q, nil
+	}
+
+	getJoinMap := func(q *Query, byFields []string, prefix string) (map[string][][]Field, error) {
+		return s.getJoinMap(ctx, tenantIDs, q, byFields, prefix)
+	}
+
+	pipesNew := make([]pipe, len(q.pipes))
+	for i := range q.pipes {
+		p := q.pipes[i]
+		if pj, ok := p.(*pipeJoin); ok {
+			pNew, err := pj.initJoinMap(getJoinMap)
+			if err != nil {
+				return nil, err
+			}
+			p = pNew
+		}
+		pipesNew[i] = p
+	}
+	qNew := &Query{
+		f:     q.f,
+		pipes: pipesNew,
+	}
+	return qNew, nil
+}
+
+func hasJoinPipes(pipes []pipe) bool {
+	for _, p := range pipes {
+		if _, ok := p.(*pipeJoin); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (iff *ifFilter) hasFilterInWithQuery() bool {
@@ -685,6 +803,10 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 		return ptws[i].day > maxDay
 	})
 	ptws = ptws[:n]
+
+	// Copy the selected partitions, so they don't interfere with s.partitions.
+	ptws = append([]*partitionWrapper{}, ptws...)
+
 	for _, ptw := range ptws {
 		ptw.incRef()
 	}

@@ -10,6 +10,7 @@ import {
   PlayIcon,
   PlusIcon,
   Prettify,
+  SpinnerIcon,
   VisibilityIcon,
   VisibilityOffIcon
 } from "../../../components/Main/Icons";
@@ -31,14 +32,20 @@ export interface QueryConfiguratorProps {
   setQueryErrors: Dispatch<SetStateAction<string[]>>;
   setHideError: Dispatch<SetStateAction<boolean>>;
   stats: QueryStats[];
+  label?: string;
+  isLoading?: boolean;
+  includeFunctions?: boolean;
   onHideQuery?: (queries: number[]) => void
   onRunQuery: () => void;
+  abortFetch?: () => void;
   hideButtons?: {
     addQuery?: boolean;
     prettify?: boolean;
     autocomplete?: boolean;
     traceQuery?: boolean;
     anomalyConfig?: boolean;
+    disableCache?: boolean;
+    reduceMemUsage?: boolean;
   }
 }
 
@@ -47,8 +54,12 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   setQueryErrors,
   setHideError,
   stats,
+  label,
+  isLoading,
+  includeFunctions = true,
   onHideQuery,
   onRunQuery,
+  abortFetch,
   hideButtons
 }) => {
 
@@ -85,6 +96,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   };
 
   const handleRunQuery = () => {
+    if (isLoading) {
+      abortFetch && abortFetch();
+      return;
+    }
     updateHistory();
     queryDispatch({ type: "SET_QUERY", payload: stateQuery });
     timeDispatch({ type: "RUN_QUERY" });
@@ -209,8 +224,9 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
             onArrowDown={createHandlerArrow(1, i)}
             onEnter={handleRunQuery}
             onChange={createHandlerChangeQuery(i)}
-            label={`Query ${stateQuery.length > 1 ? i + 1 : ""}`}
+            label={`${label || "Query"} ${stateQuery.length > 1 ? i + 1 : ""}`}
             disabled={hideQuery.includes(i)}
+            includeFunctions={includeFunctions}
           />
           {onHideQuery && (
             <Tooltip title={hideQuery.includes(i) ? "Enable query" : "Disable query"}>
@@ -273,9 +289,9 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
         <Button
           variant="contained"
           onClick={handleRunQuery}
-          startIcon={<PlayIcon/>}
+          startIcon={isLoading ? <SpinnerIcon/> : <PlayIcon/>}
         >
-          {isMobile ? "Execute" : "Execute Query"}
+          {`${isLoading ? "Cancel" : "Execute"} ${isMobile ? "" : "Query"}`}
         </Button>
       </div>
     </div>

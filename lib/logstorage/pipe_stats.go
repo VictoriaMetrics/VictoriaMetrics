@@ -3,8 +3,11 @@ package logstorage
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"unsafe"
+
+	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -120,12 +123,6 @@ func (ps *pipeStats) updateNeededFields(neededFields, unneededFields fieldsSet) 
 	unneededFields.reset()
 }
 
-func (ps *pipeStats) optimize() {
-	for _, f := range ps.funcs {
-		f.iff.optimizeFilterIn()
-	}
-}
-
 func (ps *pipeStats) hasFilterInWithQuery() bool {
 	for _, f := range ps.funcs {
 		if f.iff.hasFilterInWithQuery() {
@@ -150,6 +147,52 @@ func (ps *pipeStats) initFilterInValues(cache map[string][]string, getFieldValue
 	psNew := *ps
 	psNew.funcs = funcsNew
 	return &psNew, nil
+}
+
+func (ps *pipeStats) addByTimeField(step int64) {
+	if step <= 0 {
+		return
+	}
+
+	// add step to byFields
+	stepStr := fmt.Sprintf("%d", step)
+	dstFields := make([]*byStatsField, 0, len(ps.byFields)+1)
+	hasByTime := false
+	for _, f := range ps.byFields {
+		if f.name == "_time" {
+			f = &byStatsField{
+				name:          "_time",
+				bucketSizeStr: stepStr,
+				bucketSize:    float64(step),
+			}
+			hasByTime = true
+		}
+		dstFields = append(dstFields, f)
+	}
+	if !hasByTime {
+		dstFields = append(dstFields, &byStatsField{
+			name:          "_time",
+			bucketSizeStr: stepStr,
+			bucketSize:    float64(step),
+		})
+	}
+	ps.byFields = dstFields
+}
+
+func (ps *pipeStats) initRateFuncs(step int64) {
+	if step <= 0 {
+		return
+	}
+
+	stepSeconds := float64(step) / 1e9
+	for _, f := range ps.funcs {
+		switch t := f.f.(type) {
+		case *statsRate:
+			t.stepSeconds = stepSeconds
+		case *statsRateSum:
+			t.stepSeconds = stepSeconds
+		}
+	}
 }
 
 const stateSizeBudgetChunk = 1 << 20
@@ -425,40 +468,38 @@ func (psp *pipeStatsProcessor) flush() error {
 		return fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", psp.ps.String(), psp.maxStateSize/(1<<20))
 	}
 
-	// Merge states across shards
-	shards := psp.shards
-	shardMain := &shards[0]
-	shardMain.init()
-	m := shardMain.m
-	shards = shards[1:]
-	for i := range shards {
-		shard := &shards[i]
-		for key, psg := range shard.m {
-			// shard.m may be quite big, so this loop can take a lot of time and CPU.
-			// Stop processing data as soon as stopCh is closed without wasting additional CPU time.
-			if needStop(psp.stopCh) {
-				return nil
-			}
-
-			spgBase := m[key]
-			if spgBase == nil {
-				m[key] = psg
-			} else {
-				for i, sfp := range spgBase.sfps {
-					sfp.mergeState(psg.sfps[i])
-				}
-			}
-		}
+	// Merge states across shards in parallel
+	ms, err := psp.mergeShardsParallel()
+	if err != nil {
+		return err
+	}
+	if needStop(psp.stopCh) {
+		return nil
 	}
 
-	// Write per-group states to ppNext
-	byFields := psp.ps.byFields
-	if len(byFields) == 0 && len(m) == 0 {
+	if len(psp.ps.byFields) == 0 && len(ms) == 0 {
 		// Special case - zero matching rows.
-		_ = shardMain.getPipeStatsGroup(nil)
-		m = shardMain.m
+		psp.shards[0].init()
+		_ = psp.shards[0].getPipeStatsGroup(nil)
+		ms = append(ms, psp.shards[0].m)
 	}
 
+	// Write the calculated stats in parallel to the next pipe.
+	var wg sync.WaitGroup
+	for i, m := range ms {
+		wg.Add(1)
+		go func(workerID uint) {
+			defer wg.Done()
+			psp.writeShardData(workerID, m)
+		}(uint(i))
+	}
+	wg.Wait()
+
+	return nil
+}
+
+func (psp *pipeStatsProcessor) writeShardData(workerID uint, m map[string]*pipeStatsGroup) {
+	byFields := psp.ps.byFields
 	rcs := make([]resultColumn, 0, len(byFields)+len(psp.ps.funcs))
 	for _, bf := range byFields {
 		rcs = appendResultColumnWithName(rcs, bf.name)
@@ -475,7 +516,7 @@ func (psp *pipeStatsProcessor) flush() error {
 		// m may be quite big, so this loop can take a lot of time and CPU.
 		// Stop processing data as soon as stopCh is closed without wasting additional CPU time.
 		if needStop(psp.stopCh) {
-			return nil
+			return
 		}
 
 		// Unmarshal values for byFields from key.
@@ -511,7 +552,7 @@ func (psp *pipeStatsProcessor) flush() error {
 		if valuesLen >= 1_000_000 {
 			br.setResultColumns(rcs, rowsCount)
 			rowsCount = 0
-			psp.ppNext.writeBlock(0, &br)
+			psp.ppNext.writeBlock(workerID, &br)
 			br.reset()
 			for i := range rcs {
 				rcs[i].resetValues()
@@ -521,12 +562,137 @@ func (psp *pipeStatsProcessor) flush() error {
 	}
 
 	br.setResultColumns(rcs, rowsCount)
-	psp.ppNext.writeBlock(0, &br)
-
-	return nil
+	psp.ppNext.writeBlock(workerID, &br)
 }
 
-func parsePipeStats(lex *lexer, needStatsKeyword bool) (*pipeStats, error) {
+func (psp *pipeStatsProcessor) mergeShardsParallel() ([]map[string]*pipeStatsGroup, error) {
+	shards := psp.shards
+	shardsLen := len(shards)
+
+	if shardsLen == 1 {
+		var ms []map[string]*pipeStatsGroup
+		shards[0].init()
+		if len(shards[0].m) > 0 {
+			ms = append(ms, shards[0].m)
+		}
+		return ms, nil
+	}
+
+	var wg sync.WaitGroup
+	perShardMaps := make([][]map[string]*pipeStatsGroup, shardsLen)
+	for i := range shards {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+
+			shardMaps := make([]map[string]*pipeStatsGroup, shardsLen)
+			for i := range shardMaps {
+				shardMaps[i] = make(map[string]*pipeStatsGroup)
+			}
+
+			shards[idx].init()
+
+			n := int64(0)
+			nTotal := int64(0)
+			for k, psg := range shards[idx].m {
+				if needStop(psp.stopCh) {
+					return
+				}
+				h := xxhash.Sum64(bytesutil.ToUnsafeBytes(k))
+				m := shardMaps[h%uint64(len(shardMaps))]
+				n += updatePipeStatsMap(m, k, psg)
+				if n > stateSizeBudgetChunk {
+					if nRemaining := psp.stateSizeBudget.Add(-n); nRemaining < 0 {
+						return
+					}
+					nTotal += n
+					n = 0
+				}
+			}
+			nTotal += n
+			psp.stateSizeBudget.Add(-n)
+
+			perShardMaps[idx] = shardMaps
+
+			// Clean the original map and return its state size budget back.
+			shards[idx].m = nil
+			psp.stateSizeBudget.Add(nTotal)
+		}(i)
+	}
+	wg.Wait()
+	if needStop(psp.stopCh) {
+		return nil, nil
+	}
+	if n := psp.stateSizeBudget.Load(); n < 0 {
+		return nil, fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", psp.ps.String(), psp.maxStateSize/(1<<20))
+	}
+
+	// Merge per-shard entries into perShardMaps[0]
+	for i := range perShardMaps {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+
+			m := perShardMaps[0][idx]
+			for i := 1; i < len(perShardMaps); i++ {
+				n := int64(0)
+				nTotal := int64(0)
+				for k, psg := range perShardMaps[i][idx] {
+					if needStop(psp.stopCh) {
+						return
+					}
+					n += updatePipeStatsMap(m, k, psg)
+					if n > stateSizeBudgetChunk {
+						if nRemaining := psp.stateSizeBudget.Add(-n); nRemaining < 0 {
+							return
+						}
+						nTotal += n
+						n = 0
+					}
+				}
+				nTotal += n
+				psp.stateSizeBudget.Add(-n)
+
+				// Clean the original map and return its state size budget back.
+				perShardMaps[i][idx] = nil
+				psp.stateSizeBudget.Add(nTotal)
+			}
+		}(i)
+	}
+	wg.Wait()
+	if needStop(psp.stopCh) {
+		return nil, nil
+	}
+	if n := psp.stateSizeBudget.Load(); n < 0 {
+		return nil, fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", psp.ps.String(), psp.maxStateSize/(1<<20))
+	}
+
+	// Filter out maps without entries
+	ms := perShardMaps[0]
+	result := ms[:0]
+	for _, m := range ms {
+		if len(m) > 0 {
+			result = append(result, m)
+		}
+	}
+
+	return result, nil
+}
+
+func updatePipeStatsMap(m map[string]*pipeStatsGroup, k string, psgSrc *pipeStatsGroup) int64 {
+	psgDst := m[k]
+	if psgDst != nil {
+		for i, sfp := range psgDst.sfps {
+			sfp.mergeState(psgSrc.sfps[i])
+		}
+		return 0
+	}
+
+	m[k] = psgSrc
+	return int64(unsafe.Sizeof(k) + unsafe.Sizeof(psgSrc))
+}
+
+func parsePipeStats(lex *lexer, needStatsKeyword bool) (pipe, error) {
 	if needStatsKeyword {
 		if !lex.isKeyword("stats") {
 			return nil, fmt.Errorf("expecting 'stats'; got %q", lex.token)
@@ -635,6 +801,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'count_uniq' func: %w", err)
 		}
 		return sus, nil
+	case lex.isKeyword("count_uniq_hash"):
+		sus, err := parseStatsCountUniqHash(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'count_uniq_hash' func: %w", err)
+		}
+		return sus, nil
 	case lex.isKeyword("max"):
 		sms, err := parseStatsMax(lex)
 		if err != nil {
@@ -659,6 +831,18 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'quantile' func: %w", err)
 		}
 		return sqs, nil
+	case lex.isKeyword("rate"):
+		srs, err := parseStatsRate(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'rate' func: %w", err)
+		}
+		return srs, nil
+	case lex.isKeyword("rate_sum"):
+		srs, err := parseStatsRateSum(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'rate_sum' func: %w", err)
+		}
+		return srs, nil
 	case lex.isKeyword("row_any"):
 		sas, err := parseStatsRowAny(lex)
 		if err != nil {
@@ -711,10 +895,13 @@ var statsNames = []string{
 	"count",
 	"count_empty",
 	"count_uniq",
+	"count_uniq_hash",
 	"max",
 	"median",
 	"min",
 	"quantile",
+	"rate",
+	"rate_sum",
 	"row_any",
 	"row_max",
 	"row_min",

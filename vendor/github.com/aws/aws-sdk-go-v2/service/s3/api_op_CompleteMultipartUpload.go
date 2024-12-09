@@ -209,7 +209,7 @@ type CompleteMultipartUploadInput struct {
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
-	// base64-encoded, 32-bit CRC32 checksum of the object. For more information, see [Checking object integrity]
+	// base64-encoded, 32-bit CRC-32 checksum of the object. For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
@@ -217,8 +217,8 @@ type CompleteMultipartUploadInput struct {
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
-	// base64-encoded, 32-bit CRC32C checksum of the object. For more information, see [Checking object integrity]
-	// in the Amazon S3 User Guide.
+	// base64-encoded, 32-bit CRC-32C checksum of the object. For more information, see
+	// [Checking object integrity]in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumCRC32C *string
@@ -243,6 +243,24 @@ type CompleteMultipartUploadInput struct {
 	// does not match the actual owner of the bucket, the request fails with the HTTP
 	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
+
+	// Uploads the object only if the ETag (entity tag) value provided during the
+	// WRITE operation matches the ETag of the object in S3. If the ETag values do not
+	// match, the operation returns a 412 Precondition Failed error.
+	//
+	// If a conflicting operation occurs during the upload S3 returns a 409
+	// ConditionalRequestConflict response. On a 409 failure you should fetch the
+	// object's ETag, re-initiate the multipart upload with CreateMultipartUpload , and
+	// re-upload each part.
+	//
+	// Expects the ETag value as a string.
+	//
+	// For more information about conditional requests, see [RFC 7232], or [Conditional requests] in the Amazon S3
+	// User Guide.
+	//
+	// [Conditional requests]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-requests.html
+	// [RFC 7232]: https://tools.ietf.org/html/rfc7232
+	IfMatch *string
 
 	// Uploads the object only if the object key name does not already exist in the
 	// bucket specified. Otherwise, Amazon S3 returns a 412 Precondition Failed error.
@@ -325,7 +343,7 @@ type CompleteMultipartUploadOutput struct {
 	// encryption with Key Management Service (KMS) keys (SSE-KMS).
 	BucketKeyEnabled *bool
 
-	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
+	// The base64-encoded, 32-bit CRC-32 checksum of the object. This will only be
 	// present if it was uploaded with the object. When you use an API operation on an
 	// object that was uploaded using multipart uploads, this value may not be a direct
 	// checksum value of the full object. Instead, it's a calculation based on the
@@ -336,7 +354,7 @@ type CompleteMultipartUploadOutput struct {
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums
 	ChecksumCRC32 *string
 
-	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
+	// The base64-encoded, 32-bit CRC-32C checksum of the object. This will only be
 	// present if it was uploaded with the object. When you use an API operation on an
 	// object that was uploaded using multipart uploads, this value may not be a direct
 	// checksum value of the full object. Instead, it's a calculation based on the

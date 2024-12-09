@@ -295,6 +295,30 @@ func (q *Query) DropAllPipes() {
 	q.pipes = nil
 }
 
+// AddFacetsPipe adds ' facets <limit> max_values_per_field <maxValuesPerField> max_value_len <maxValueLen>` to the end of q.
+func (q *Query) AddFacetsPipe(limit, maxValuesPerField, maxValueLen int) {
+	s := "facets"
+	if limit > 0 {
+		s += fmt.Sprintf(" %d", limit)
+	}
+	if maxValuesPerField > 0 {
+		s += fmt.Sprintf(" max_values_per_field %d", maxValuesPerField)
+	}
+	if maxValueLen > 0 {
+		s += fmt.Sprintf(" max_value_len %d", maxValueLen)
+	}
+	lex := newLexer(s)
+
+	pf, err := parsePipeFacets(lex)
+	if err != nil {
+		logger.Panicf("BUG: unexpected error when parsing [%s]: %w", s, err)
+	}
+	if !lex.isEnd() {
+		logger.Panicf("BUG: unexpected tail left after parsing [%s]: %q", s, lex.s)
+	}
+	q.pipes = append(q.pipes, pf)
+}
+
 // AddCountByTimePipe adds '| stats by (_time:step offset off, field1, ..., fieldN) count() hits' to the end of q.
 func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 	{
@@ -335,7 +359,7 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 	}
 }
 
-// Clone returns a copy of q.
+// Clone returns a copy of q at the given timestamp.
 func (q *Query) Clone(timestamp int64) *Query {
 	qStr := q.String()
 	qCopy, err := ParseQueryAtTimestamp(qStr, timestamp)
@@ -345,13 +369,25 @@ func (q *Query) Clone(timestamp int64) *Query {
 	return qCopy
 }
 
+// CloneWithTimeFilter clones q at the given timestamp and adds _time:[start, end] filter to the cloned q.
+func (q *Query) CloneWithTimeFilter(timestamp, start, end int64) *Query {
+	q = q.Clone(timestamp)
+	q.AddTimeFilter(start, end)
+	return q
+}
+
 // CanReturnLastNResults returns true if time range filter at q can be adjusted for returning the last N results.
 func (q *Query) CanReturnLastNResults() bool {
 	for _, p := range q.pipes {
 		switch p.(type) {
-		case *pipeBlocksCount,
+		case *pipeBlockStats,
+			*pipeBlocksCount,
+			*pipeFacets,
 			*pipeFieldNames,
 			*pipeFieldValues,
+			*pipeFirst,
+			*pipeJoin,
+			*pipeLast,
 			*pipeLimit,
 			*pipeOffset,
 			*pipeTop,
@@ -411,6 +447,108 @@ func (q *Query) AddTimeFilter(start, end int64) {
 	}
 }
 
+// AddExtraStreamFilters adds stream filters to q in the form `{f1.Name=f1.Value, ..., fN.Name=fN.Value}`
+func (q *Query) AddExtraStreamFilters(filters []Field) {
+	if len(filters) == 0 {
+		return
+	}
+
+	fa, ok := q.f.(*filterAnd)
+	if !ok {
+		if fs, ok := q.f.(*filterStream); ok {
+			addExtraStreamFilters(fs, filters)
+			return
+		}
+
+		fa = &filterAnd{
+			filters: []filter{
+				newEmptyFilterStream(),
+				q.f,
+			},
+		}
+		q.f = fa
+	}
+
+	hasStreamFilters := false
+	for _, f := range fa.filters {
+		if _, ok := f.(*filterStream); ok {
+			hasStreamFilters = true
+			break
+		}
+	}
+	if !hasStreamFilters {
+		var dst []filter
+		dst = append(dst, newEmptyFilterStream())
+		fa.filters = append(dst, fa.filters...)
+	}
+
+	for _, f := range fa.filters {
+		if fs, ok := f.(*filterStream); ok {
+			addExtraStreamFilters(fs, filters)
+		}
+	}
+}
+
+func newEmptyFilterStream() *filterStream {
+	return &filterStream{
+		f: &StreamFilter{},
+	}
+}
+
+func addExtraStreamFilters(fs *filterStream, filters []Field) {
+	f := fs.f
+	if len(f.orFilters) == 0 {
+		f.orFilters = []*andStreamFilter{
+			{
+				tagFilters: appendExtraStreamFilters(nil, filters),
+			},
+		}
+		return
+	}
+	for _, af := range f.orFilters {
+		af.tagFilters = appendExtraStreamFilters(af.tagFilters, filters)
+	}
+}
+
+func appendExtraStreamFilters(orig []*streamTagFilter, filters []Field) []*streamTagFilter {
+	var dst []*streamTagFilter
+	for _, f := range filters {
+		dst = append(dst, &streamTagFilter{
+			tagName: f.Name,
+			op:      "=",
+			value:   f.Value,
+		})
+	}
+	return append(dst, orig...)
+}
+
+// AddExtraFilters adds filters to q in the form of `f1.Name:=f1.Value AND ... fN.Name:=fN.Value`
+func (q *Query) AddExtraFilters(filters []Field) {
+	if len(filters) == 0 {
+		return
+	}
+
+	fa, ok := q.f.(*filterAnd)
+	if !ok {
+		fa = &filterAnd{
+			filters: []filter{q.f},
+		}
+		q.f = fa
+	}
+	fa.filters = addExtraFilters(fa.filters, filters)
+}
+
+func addExtraFilters(orig []filter, filters []Field) []filter {
+	var dst []filter
+	for _, f := range filters {
+		dst = append(dst, &filterExact{
+			fieldName: f.Name,
+			value:     f.Value,
+		})
+	}
+	return append(dst, orig...)
+}
+
 // AddPipeLimit adds `| limit n` pipe to q.
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe
@@ -420,8 +558,8 @@ func (q *Query) AddPipeLimit(n uint64) {
 	})
 }
 
-// Optimize tries optimizing the query.
-func (q *Query) Optimize() {
+// optimize applies various optimations to q.
+func (q *Query) optimize() {
 	q.pipes = optimizeSortOffsetPipes(q.pipes)
 	q.pipes = optimizeSortLimitPipes(q.pipes)
 	q.pipes = optimizeUniqLimitPipes(q.pipes)
@@ -444,16 +582,14 @@ func (q *Query) Optimize() {
 		}
 	}
 
+	// flatten nested AND filters
+	q.f = flattenFiltersAnd(q.f)
+
+	// flatten nested OR filters
+	q.f = flattenFiltersOr(q.f)
+
 	// Substitute '*' prefixFilter with filterNoop in order to avoid reading _msg data.
 	q.f = removeStarFilters(q.f)
-
-	// Call Optimize for queries from 'in(query)' filters.
-	optimizeFilterIn(q.f)
-
-	// Optimize individual pipes.
-	for _, p := range q.pipes {
-		p.optimize()
-	}
 }
 
 // GetStatsByFields returns `by (...)` fields from the last `stats` pipe at q.
@@ -471,61 +607,134 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 	if idx < 0 {
 		return nil, fmt.Errorf("missing `| stats ...` pipe in the query [%s]", q)
 	}
-
 	ps := pipes[idx].(*pipeStats)
 
-	// add _time:step to ps.byFields if it doesn't contain it yet.
-	ps.byFields = addByTimeField(ps.byFields, step)
+	// add _time:step to by (...) list at stats pipes.
+	q.addByTimeFieldToStatsPipes(step)
 
-	// extract by(...) field names from stats pipe
-	byFields := ps.byFields
-	fields := make([]string, len(byFields))
-	for i, f := range byFields {
-		fields[i] = f.name
+	// propagate the step into rate* funcs at stats pipes.
+	q.initStatsRateFuncs(step)
+
+	// add 'partition by (_time)' to 'sort', 'first' and 'last' pipes.
+	q.addPartitionByTime(step)
+
+	// extract by(...) field names from ps
+	byFields := make([]string, len(ps.byFields))
+	for i, f := range ps.byFields {
+		byFields[i] = f.name
+	}
+
+	// extract metric fields from stats pipe
+	metricFields := make(map[string]struct{}, len(ps.funcs))
+	for i := range ps.funcs {
+		f := &ps.funcs[i]
+		if slices.Contains(byFields, f.resultName) {
+			return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", f.resultName, ps, q)
+		}
+		metricFields[f.resultName] = struct{}{}
 	}
 
 	// verify that all the pipes after the idx do not add new fields
 	for i := idx + 1; i < len(pipes); i++ {
 		p := pipes[i]
 		switch t := p.(type) {
-		case *pipeSort, *pipeOffset, *pipeLimit, *pipeFilter:
+		case *pipeFilter:
+			// This pipe doesn't change the set of fields.
+		case *pipeFirst, *pipeLast, *pipeSort:
 			// These pipes do not change the set of fields.
 		case *pipeMath:
-			// Allow pipeMath, since it adds additional metrics to the given set of fields.
+			// Allow `| math ...` pipe, since it adds additional metrics to the given set of fields.
+			// Verify that the result fields at math pipe do not override byFields.
+			for _, me := range t.entries {
+				if slices.Contains(byFields, me.resultField) {
+					return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", me.resultField, t, q)
+				}
+				metricFields[me.resultField] = struct{}{}
+			}
 		case *pipeFields:
 			// `| fields ...` pipe must contain all the by(...) fields, otherwise it breaks output.
-			for _, f := range fields {
+			for _, f := range byFields {
 				if !slices.Contains(t.fields, f) {
 					return nil, fmt.Errorf("missing %q field at %q pipe in the query [%s]", f, p, q)
 				}
 			}
+
+			remainingMetricFields := make(map[string]struct{})
+			for _, f := range t.fields {
+				if _, ok := metricFields[f]; ok {
+					remainingMetricFields[f] = struct{}{}
+				}
+			}
+			metricFields = remainingMetricFields
 		case *pipeDelete:
 			// Disallow deleting by(...) fields, since this breaks output.
 			for _, f := range t.fields {
-				if slices.Contains(fields, f) {
+				if slices.Contains(byFields, f) {
 					return nil, fmt.Errorf("the %q field cannot be deleted via %q in the query [%s]", f, p, q)
 				}
+				delete(metricFields, f)
 			}
 		case *pipeCopy:
-			// Disallow copying by(...) fields, since this breaks output.
-			for _, f := range t.srcFields {
-				if slices.Contains(fields, f) {
-					return nil, fmt.Errorf("the %q field cannot be copied via %q in the query [%s]", f, p, q)
+			// Add copied fields to by(...) fields list.
+			for i := range t.srcFields {
+				fSrc := t.srcFields[i]
+				fDst := t.dstFields[i]
+
+				if slices.Contains(byFields, fDst) {
+					return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", fDst, t, q)
+				}
+				if _, ok := metricFields[fDst]; ok {
+					if _, ok := metricFields[fSrc]; !ok {
+						delete(metricFields, fDst)
+					}
+				}
+
+				if slices.Contains(byFields, fSrc) {
+					if !slices.Contains(byFields, fDst) {
+						byFields = append(byFields, fDst)
+					}
+				}
+				if _, ok := metricFields[fSrc]; ok {
+					metricFields[fDst] = struct{}{}
 				}
 			}
 		case *pipeRename:
 			// Update by(...) fields with dst fields
-			for i, f := range t.srcFields {
-				if n := slices.Index(fields, f); n >= 0 {
-					fields[n] = t.dstFields[i]
+			for i := range t.srcFields {
+				fSrc := t.srcFields[i]
+				fDst := t.dstFields[i]
+
+				if slices.Contains(byFields, fDst) {
+					return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", fDst, t, q)
+				}
+				delete(metricFields, fDst)
+
+				if n := slices.Index(byFields, fSrc); n >= 0 {
+					byFields[n] = fDst
+				}
+				if _, ok := metricFields[fSrc]; ok {
+					delete(metricFields, fSrc)
+					metricFields[fDst] = struct{}{}
 				}
 			}
+		case *pipeFormat:
+			// Assume that `| format ...` pipe generates an additional by(...) label
+			if slices.Contains(byFields, t.resultField) {
+				return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", t.resultField, t, q)
+			} else {
+				byFields = append(byFields, t.resultField)
+			}
+			delete(metricFields, t.resultField)
 		default:
 			return nil, fmt.Errorf("the %q pipe cannot be put after %q pipe in the query [%s]", p, ps, q)
 		}
 	}
 
-	return fields, nil
+	if len(metricFields) == 0 {
+		return nil, fmt.Errorf("missing metric fields in the results of query [%s]", q)
+	}
+
+	return byFields, nil
 }
 
 func getLastPipeStatsIdx(pipes []pipe) int {
@@ -537,35 +746,80 @@ func getLastPipeStatsIdx(pipes []pipe) int {
 	return -1
 }
 
-func addByTimeField(byFields []*byStatsField, step int64) []*byStatsField {
-	if step <= 0 {
-		return byFields
-	}
-	stepStr := fmt.Sprintf("%d", step)
-	dstFields := make([]*byStatsField, 0, len(byFields)+1)
-	hasByTime := false
-	for _, f := range byFields {
-		if f.name == "_time" {
-			f = &byStatsField{
-				name:          "_time",
-				bucketSizeStr: stepStr,
-				bucketSize:    float64(step),
-			}
-			hasByTime = true
+func flattenFiltersAnd(f filter) filter {
+	visitFunc := func(f filter) bool {
+		fa, ok := f.(*filterAnd)
+		if !ok {
+			return false
 		}
-		dstFields = append(dstFields, f)
+		for _, f := range fa.filters {
+			if _, ok := f.(*filterAnd); ok {
+				return true
+			}
+		}
+		return false
 	}
-	if !hasByTime {
-		dstFields = append(dstFields, &byStatsField{
-			name:          "_time",
-			bucketSizeStr: stepStr,
-			bucketSize:    float64(step),
-		})
+	copyFunc := func(f filter) (filter, error) {
+		fa := f.(*filterAnd)
+
+		var resultFilters []filter
+		for _, f := range fa.filters {
+			child, ok := f.(*filterAnd)
+			if !ok {
+				resultFilters = append(resultFilters, f)
+				continue
+			}
+			resultFilters = append(resultFilters, child.filters...)
+		}
+		return &filterAnd{
+			filters: resultFilters,
+		}, nil
 	}
-	return dstFields
+	f, err := copyFilter(f, visitFunc, copyFunc)
+	if err != nil {
+		logger.Fatalf("BUG: unexpected error: %s", err)
+	}
+	return f
+}
+
+func flattenFiltersOr(f filter) filter {
+	visitFunc := func(f filter) bool {
+		fo, ok := f.(*filterOr)
+		if !ok {
+			return false
+		}
+		for _, f := range fo.filters {
+			if _, ok := f.(*filterOr); ok {
+				return true
+			}
+		}
+		return false
+	}
+	copyFunc := func(f filter) (filter, error) {
+		fo := f.(*filterOr)
+
+		var resultFilters []filter
+		for _, f := range fo.filters {
+			child, ok := f.(*filterOr)
+			if !ok {
+				resultFilters = append(resultFilters, f)
+				continue
+			}
+			resultFilters = append(resultFilters, child.filters...)
+		}
+		return &filterOr{
+			filters: resultFilters,
+		}, nil
+	}
+	f, err := copyFilter(f, visitFunc, copyFunc)
+	if err != nil {
+		logger.Fatalf("BUG: unexpected error: %s", err)
+	}
+	return f
 }
 
 func removeStarFilters(f filter) filter {
+	// Substitute `*` filterPrefix with filterNoop
 	visitFunc := func(f filter) bool {
 		fp, ok := f.(*filterPrefix)
 		return ok && isMsgFieldName(fp.fieldName) && fp.prefix == ""
@@ -578,6 +832,43 @@ func removeStarFilters(f filter) filter {
 	if err != nil {
 		logger.Fatalf("BUG: unexpected error: %s", err)
 	}
+
+	// Drop filterNoop inside filterAnd
+	visitFunc = func(f filter) bool {
+		fa, ok := f.(*filterAnd)
+		if !ok {
+			return false
+		}
+		for _, f := range fa.filters {
+			if _, ok := f.(*filterNoop); ok {
+				return true
+			}
+		}
+		return false
+	}
+	copyFunc = func(f filter) (filter, error) {
+		fa := f.(*filterAnd)
+		var resultFilters []filter
+		for _, f := range fa.filters {
+			if _, ok := f.(*filterNoop); !ok {
+				resultFilters = append(resultFilters, f)
+			}
+		}
+		if len(resultFilters) == 0 {
+			return &filterNoop{}, nil
+		}
+		if len(resultFilters) == 1 {
+			return resultFilters[0], nil
+		}
+		return &filterAnd{
+			filters: resultFilters,
+		}, nil
+	}
+	f, err = copyFilter(f, visitFunc, copyFunc)
+	if err != nil {
+		logger.Fatalf("BUG: unexpected error: %s", err)
+	}
+
 	return f
 }
 
@@ -708,18 +999,29 @@ func ParseQuery(s string) (*Query, error) {
 	return ParseQueryAtTimestamp(s, timestamp)
 }
 
+// ParseStatsQuery parses LogsQL query s at the given timestamp with the needed stats query checks.
+func ParseStatsQuery(s string, timestamp int64) (*Query, error) {
+	q, err := ParseQueryAtTimestamp(s, timestamp)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := q.GetStatsByFields(); err != nil {
+		return nil, err
+	}
+	return q, nil
+}
+
+// HasGlobalTimeFilter returns true when query contains a global time filter.
+func (q *Query) HasGlobalTimeFilter() bool {
+	start, end := q.GetFilterTimeRange()
+	return start != math.MinInt64 && end != math.MaxInt64
+}
+
 // ParseQueryAtTimestamp parses s in the context of the given timestamp.
 //
-// E.g. _time:duration filters are ajusted according to the provided timestamp as _time:[timestamp-duration, duration].
+// E.g. _time:duration filters are adjusted according to the provided timestamp as _time:[timestamp-duration, duration].
 func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 	lex := newLexerAtTimestamp(s, timestamp)
-
-	// Verify the first token doesn't match pipe names.
-	firstToken := strings.ToLower(lex.rawToken)
-	if _, ok := pipeNames[firstToken]; ok {
-		return nil, fmt.Errorf("the query [%s] cannot start with pipe - it must start with madatory filter; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
-			"if the filter isn't missing, then please put the first word of the filter into quotes: %q", s, firstToken)
-	}
 
 	q, err := parseQuery(lex)
 	if err != nil {
@@ -729,7 +1031,44 @@ func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 		return nil, fmt.Errorf("unexpected unparsed tail after [%s]; context: [%s]; tail: [%s]", q, lex.context(), lex.s)
 	}
 	q.timestamp = timestamp
+	q.optimize()
+
+	start, end := q.GetFilterTimeRange()
+	if start != math.MinInt64 && end != math.MaxInt64 {
+		step := end - start + 1 // 1 is needed in order to include [start ... end] in the step.
+		q.initStatsRateFuncs(step)
+	}
+
 	return q, nil
+}
+
+func (q *Query) initStatsRateFuncs(step int64) {
+	for _, p := range q.pipes {
+		if ps, ok := p.(*pipeStats); ok {
+			ps.initRateFuncs(step)
+		}
+	}
+}
+
+func (q *Query) addByTimeFieldToStatsPipes(step int64) {
+	for _, p := range q.pipes {
+		if ps, ok := p.(*pipeStats); ok {
+			ps.addByTimeField(step)
+		}
+	}
+}
+
+func (q *Query) addPartitionByTime(step int64) {
+	for _, p := range q.pipes {
+		switch t := p.(type) {
+		case *pipeFirst:
+			t.addPartitionByTime(step)
+		case *pipeLast:
+			t.addPartitionByTime(step)
+		case *pipeSort:
+			t.addPartitionByTime(step)
+		}
+	}
 }
 
 // GetTimestamp returns timestamp context for the given q, which was passed to ParseQueryAtTimestamp().
@@ -759,9 +1098,17 @@ func parseQuery(lex *lexer) (*Query, error) {
 }
 
 func parseFilter(lex *lexer) (filter, error) {
-	if lex.isKeyword("|", "") {
+	if lex.isKeyword("|", ")", "") {
 		return nil, fmt.Errorf("missing query")
 	}
+
+	// Verify the first token in the filter doesn't match pipe names.
+	firstToken := strings.ToLower(lex.rawToken)
+	if _, ok := pipeNames[firstToken]; ok {
+		return nil, fmt.Errorf("query filter cannot start with pipe keyword %q; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
+			"please put the first word of the filter into quotes", firstToken)
+	}
+
 	fo, err := parseFilterOr(lex, "")
 	if err != nil {
 		return nil, err
@@ -841,7 +1188,7 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return f, nil
 	case lex.isKeyword("("):
 		if !lex.isSkippedSpace && !lex.isPrevToken("", ":", "(", "!", "-", "not") {
-			return nil, fmt.Errorf("missing whitespace before the search word %q", lex.prevToken)
+			return nil, fmt.Errorf("missing whitespace after the search word %q", lex.prevToken)
 		}
 		return parseParensFilter(lex, fieldName)
 	case lex.isKeyword(">"):
@@ -919,6 +1266,10 @@ func getCompoundSuffix(lex *lexer, allowColon bool) string {
 
 func getCompoundToken(lex *lexer) (string, error) {
 	stopTokens := []string{",", "(", ")", "[", "]", "|", ""}
+	return getCompoundTokenExt(lex, stopTokens)
+}
+
+func getCompoundTokenExt(lex *lexer, stopTokens []string) (string, error) {
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
 	}
@@ -1817,6 +2168,20 @@ func getWeekRangeArg(lex *lexer) (time.Weekday, string, error) {
 }
 
 func parseFilterTimeRange(lex *lexer) (*filterTime, error) {
+	if lex.isKeyword("offset") {
+		ft := &filterTime{
+			minTimestamp: math.MinInt64,
+			maxTimestamp: lex.currentTimestamp,
+		}
+		offset, offsetStr, err := parseTimeOffset(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse offset for _time filter []: %w", err)
+		}
+		ft.maxTimestamp -= offset
+		ft.stringRepr = offsetStr
+		return ft, nil
+	}
+
 	ft, err := parseFilterTime(lex)
 	if err != nil {
 		return nil, err
@@ -1824,20 +2189,33 @@ func parseFilterTimeRange(lex *lexer) (*filterTime, error) {
 	if !lex.isKeyword("offset") {
 		return ft, nil
 	}
+
+	offset, offsetStr, err := parseTimeOffset(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse offset for _time filter [%s]: %w", ft, err)
+	}
+	ft.minTimestamp -= offset
+	ft.maxTimestamp -= offset
+	ft.stringRepr += " " + offsetStr
+	return ft, nil
+}
+
+func parseTimeOffset(lex *lexer) (int64, string, error) {
+	if !lex.isKeyword("offset") {
+		return 0, "", fmt.Errorf("unexpected token %q; want 'offset'", lex.token)
+	}
 	lex.nextToken()
+
 	s, err := getCompoundToken(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse offset in _time filter: %w", err)
+		return 0, "", err
 	}
 	d, ok := tryParseDuration(s)
 	if !ok {
-		return nil, fmt.Errorf("cannot parse offset %q for _time filter %s", s, ft)
+		return 0, "", fmt.Errorf("cannot parse duration [%s]", s)
 	}
 	offset := int64(d)
-	ft.minTimestamp -= offset
-	ft.maxTimestamp -= offset
-	ft.stringRepr += " offset " + s
-	return ft, nil
+	return offset, "offset " + s, nil
 }
 
 func parseFilterTime(lex *lexer) (*filterTime, error) {

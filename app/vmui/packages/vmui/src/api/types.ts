@@ -15,6 +15,11 @@ export interface InstantMetricResult extends MetricBase {
   values?: [number, string][]
 }
 
+export interface ExportMetricResult extends MetricBase {
+  values: number[];
+  timestamps: number[];
+}
+
 export interface TracingData {
   message: string;
   duration_msec: number;

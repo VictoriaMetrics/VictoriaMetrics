@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.26.0](https://img.shields.io/badge/Version-0.26.0-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.30.3](https://img.shields.io/badge/Version-0.30.3-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-k8s-stack)
 
 Kubernetes monitoring on VictoriaMetrics stack. Includes VictoriaMetrics Operator, Grafana dashboards, ServiceScrapes and VMRules
@@ -20,7 +20,7 @@ Also it installs Custom Resources like [VMSingle](https://docs.victoriametrics.c
 
 By default, the operator [converts all existing prometheus-operator API objects](https://docs.victoriametrics.com/operator/quick-start#migration-from-prometheus-operator-objects) into corresponding VictoriaMetrics Operator objects.
 
-To enable metrics collection for kubernetes this chart installs multiple scrape configurations for kuberenetes components like kubelet and kube-proxy, etc. Metrics collection is done by [VMAgent](https://docs.victoriametrics.com/operator/quick-start#vmagent). So if want to ship metrics to external VictoriaMetrics database you can disable VMSingle installation by setting `vmsingle.enabled` to `false` and setting `vmagent.vmagentSpec.remoteWrite.url` to your external VictoriaMetrics database.
+To enable metrics collection for kubernetes this chart installs multiple scrape configurations for kubernetes components like kubelet and kube-proxy, etc. Metrics collection is done by [VMAgent](https://docs.victoriametrics.com/operator/quick-start#vmagent). So if want to ship metrics to external VictoriaMetrics database you can disable VMSingle installation by setting `vmsingle.enabled` to `false` and setting `vmagent.vmagentSpec.remoteWrite.url` to your external VictoriaMetrics database.
 
 This chart also installs bunch of dashboards and recording rules from [kube-prometheus](https://github.com/prometheus-operator/kube-prometheus) project.
 
@@ -71,6 +71,10 @@ kind: Application
 ...
 spec:
   ...
+  destination:
+    ...
+    namespace: <k8s-stack-namespace>
+  ...
   syncPolicy:
     syncOptions:
     # https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/#respect-ignore-difference-configs
@@ -81,7 +85,7 @@ spec:
     - group: ""
       kind: Secret
       name: <fullname>-validation
-      namespace: kube-system
+      namespace: <k8s-stack-namespace>
       jsonPointers:
         - /data
     - group: admissionregistration.k8s.io
@@ -97,20 +101,54 @@ where `<fullname>` is output of `{{ include "vm-operator.fullname" }}` for your 
 If one of dashboards ConfigMap is failing with error `Too long: must have at most 262144 bytes`, please make sure you've added `argocd.argoproj.io/sync-options: ServerSideApply=true` annotation to your dashboards:
 
 ```yaml
-grafana:
-  sidecar:
-    dashboards:
-      additionalDashboardAnnotations
-        argocd.argoproj.io/sync-options: ServerSideApply=true
+defaultDashboards:
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=true
 ```
 
 argocd.argoproj.io/sync-options: ServerSideApply=true
 
+#### Resources are not completely removed after chart uninstallation
+
+This chart uses `pre-delete` Helm hook to cleanup resources managed by operator, but it's not supported in ArgoCD and this hook is ignored.
+To have a control over resources removal please consider using either [ArgoCD sync phases and waves](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/) or [installing operator chart separately](#install-operator-separately)
+
 ### Rules and dashboards
 
 This chart by default install multiple dashboards and recording rules from [kube-prometheus](https://github.com/prometheus-operator/kube-prometheus)
-you can disable dashboards with `defaultDashboardsEnabled: false` and `experimentalDashboardsEnabled: false`
+you can disable dashboards with `defaultDashboards.enabled: false` and `experimentalDashboardsEnabled: false`
 and rules can be configured under `defaultRules`
+
+### Adding external dashboards
+
+By default, this chart uses sidecar in order to provision default dashboards. If you want to add you own dashboards there are two ways to do it:
+
+- Add dashboards by creating a ConfigMap. An example ConfigMap:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    grafana_dashboard: "1"
+  name: grafana-dashboard
+data:
+  dashboard.json: |-
+      {...}
+```
+
+- Use init container provisioning. Note that this option requires disabling sidecar and will remove all default dashboards provided with this chart. An example configuration:
+```yaml
+grafana:
+  sidecar:
+    dashboards:
+      enabled: false
+  dashboards:
+    vmcluster:
+      gnetId: 11176
+      revision: 38
+      datasource: VictoriaMetrics
+```
+When using this approach, you can find dashboards for VictoriaMetrics components published [here](https://grafana.com/orgs/victoriametrics).
 
 ### Prometheus scrape configs
 This chart installs multiple scrape configurations for kubernetes monitoring. They are configured under `#ServiceMonitors` section in `values.yaml` file. For example if you want to configure scrape config for `kubelet` you should set it in values.yaml like this:
@@ -126,12 +164,13 @@ kubelet:
 ### Using externally managed Grafana
 
 If you want to use an externally managed Grafana instance but still want to use the dashboards provided by this chart you can set
- `grafana.enabled` to `false` and set `defaultDashboardsEnabled` to `true`. This will install the dashboards
+ `grafana.enabled` to `false` and set `defaultDashboards.enabled` to `true`. This will install the dashboards
  but will not install Grafana.
 
 For example:
 ```yaml
-defaultDashboardsEnabled: true
+defaultDashboards:
+  enabled: true
 
 grafana:
   enabled: false
@@ -144,21 +183,17 @@ set `.grafana.sidecar.dashboards.additionalDashboardLabels` or `.grafana.sidecar
 
 For example:
 ```yaml
-defaultDashboardsEnabled: true
-
-grafana:
-  enabled: false
-  sidecar:
-    dashboards:
-      additionalDashboardLabels:
-        key: value
-      additionalDashboardAnnotations:
-        key: value
+defaultDashboards:
+  enabled: true
+  labels:
+    key: value
+  annotations:
+    key: value
 ```
 
 ## Prerequisites
 
-* Install the follow packages: ``git``, ``kubectl``, ``helm``, ``helm-docs``. See this [tutorial](../../REQUIREMENTS.md).
+* Install the follow packages: ``git``, ``kubectl``, ``helm``, ``helm-docs``. See this [tutorial](https://docs.victoriametrics.com/helm/requirements/).
 
 * Add dependency chart repositories
 
@@ -252,6 +287,16 @@ See the history of versions of `vmks` application with command.
 helm history vmks -n NAMESPACE
 ```
 
+### Install operator separately
+
+To have control over an order of managed resources removal or to be able to remove a whole namespace with managed resources it's recommended to disable operator in k8s-stack chart (`victoria-metrics-operator.enabled: false`) and [install it](https://docs.victoriametrics.com/helm/victoriametrics-operator/) separately. To move operator from existing k8s-stack release to a separate one please follow the steps below:
+
+- disable cleanup webhook (`victoria-metrics-operator.crds.cleanup.enabled: false`) and apply changes
+- disable operator (`victoria-metrics-operator.enabled: false`) and apply changes
+- [deploy operator](https://docs.victoriametrics.com/helm/victoriametrics-operator/) separately with `crds.plain: true`
+
+If you're planning to delete k8s-stack by a whole namespace removal please consider deploying operator in a separate namespace as due to uncontrollable removal order process can hang if operator is removed before at least one resource it manages.
+
 ### Install locally (Minikube)
 
 To run VictoriaMetrics stack locally it's possible to use [Minikube](https://github.com/kubernetes/minikube). To avoid dashboards and alert rules issues please follow the steps below:
@@ -259,7 +304,7 @@ To run VictoriaMetrics stack locally it's possible to use [Minikube](https://git
 Run Minikube cluster
 
 ```
-minikube start --container-runtime=containerd --extra-config=scheduler.bind-address=0.0.0.0 --extra-config=controller-manager.bind-address=0.0.0.0
+minikube start --container-runtime=containerd --extra-config=scheduler.bind-address=0.0.0.0 --extra-config=controller-manager.bind-address=0.0.0.0 --extra-config=etcd.listen-metrics-urls=http://0.0.0.0:2381
 ```
 
 Install helm chart
@@ -317,6 +362,44 @@ $ helm show crds vm/victoria-metrics-k8s-stack --version [YOUR_CHART_VERSION] | 
 
 All other manual actions upgrades listed below:
 
+### Upgrade to 0.29.0
+
+To provide more flexibility for VMAuth configuration all `<component>.vmauth` params were moved to `vmauth.spec`.
+Also `.vm.write` and `.vm.read` variables are available in `vmauth.spec`, which represent `vmsingle`, `vminsert`, `externalVM.write` and `vmsingle`, `vmselect`, `externalVM.read` parsed URLs respectively.
+
+If your configuration in version < 0.29.0 looked like below:
+
+```
+vmcluster:
+  vmauth:
+    vmselect:
+      - src_paths:
+          - /select/.*
+        url_prefix:
+          - /
+    vminsert:
+      - src_paths:
+          - /insert/.*
+        url_prefix:
+          - /
+```
+
+In 0.29.0 it should look like:
+
+```
+vmauth:
+  spec:
+    unauthorizedAccessConfig:
+      - src_paths:
+          - '{{ .vm.read.path }}/.*'
+        url_prefix:
+          - '{{ urlJoin (omit .vm.read "path") }}/'
+      - src_paths:
+          - '{{ .vm.write.path }}/.*'
+        url_prefix:
+          - '{{ urlJoin (omit .vm.write "path") }}/'
+```
+
 ### Upgrade to 0.13.0
 
 - node-exporter starting from version 4.0.0 is using the Kubernetes recommended labels. Therefore you have to delete the daemonset before you upgrade.
@@ -370,7 +453,7 @@ kubectl apply -f https://raw.githubusercontent.com/VictoriaMetrics/operator/v0.1
 
 ## Documentation of Helm Chart
 
-Install ``helm-docs`` following the instructions on this [tutorial](../../REQUIREMENTS.md).
+Install ``helm-docs`` following the instructions on this [tutorial](https://docs.victoriametrics.com/helm/requirements/).
 
 Generate docs with ``helm-docs`` command.
 
@@ -493,8 +576,9 @@ tls: []
 <code class="language-yaml">configSecret: ""
 externalURL: ""
 image:
-    tag: v0.25.0
+    tag: v0.27.0
 port: "9093"
+replicaCount: 1
 routePrefix: /
 selectAllByDefault: true
 </code>
@@ -610,34 +694,36 @@ selectAllByDefault: true
 </td>
     </tr>
     <tr>
-      <td>crds</td>
+      <td>defaultDashboards.annotations</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>defaultDashboards.dashboards</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">node-exporter-full:
+    enabled: true
+victoriametrics-operator:
+    enabled: true
+victoriametrics-vmalert:
+    enabled: true
+</code>
+</pre>
+</td>
+      <td><p>Create dashboards as ConfigMap despite dependency it requires is not installed</p>
+</td>
+    </tr>
+    <tr>
+      <td>defaultDashboards.dashboards.node-exporter-full</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
-</code>
-</pre>
-</td>
-      <td><p>Install VM operator CRDs</p>
-</td>
-    </tr>
-    <tr>
-      <td>dashboards</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">node-exporter-full: true
-operator: false
-vmalert: false
-</code>
-</pre>
-</td>
-      <td><p>Enable dashboards despite it&rsquo;s dependency is not installed</p>
-</td>
-    </tr>
-    <tr>
-      <td>dashboards.node-exporter-full</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
 </code>
 </pre>
 </td>
@@ -645,14 +731,130 @@ vmalert: false
 </td>
     </tr>
     <tr>
-      <td>defaultDashboardsEnabled</td>
+      <td>defaultDashboards.defaultTimezone</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">utc
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>defaultDashboards.enabled</td>
       <td>bool</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
 </td>
-      <td><p>Create default dashboards</p>
+      <td><p>Enable custom dashboards installation</p>
+</td>
+    </tr>
+    <tr>
+      <td>defaultDashboards.grafanaOperator.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Create dashboards as CRDs (requires grafana-operator to be installed)</p>
+</td>
+    </tr>
+    <tr>
+      <td>defaultDashboards.grafanaOperator.spec.allowCrossNamespaceImport</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>defaultDashboards.grafanaOperator.spec.instanceSelector.matchLabels.dashboards</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">grafana
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>defaultDashboards.labels</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>defaultDatasources.alertmanager</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">datasources:
+    - access: proxy
+      jsonData:
+        implementation: prometheus
+      name: Alertmanager
+perReplica: false
+</code>
+</pre>
+</td>
+      <td><p>List of alertmanager datasources. Alertmanager generated <code>url</code> will be added to each datasource in template if alertmanager is enabled</p>
+</td>
+    </tr>
+    <tr>
+      <td>defaultDatasources.alertmanager.perReplica</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Create per replica alertmanager compatible datasource</p>
+</td>
+    </tr>
+    <tr>
+      <td>defaultDatasources.extra</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Configure additional grafana datasources (passed through tpl). Check <a href="http://docs.grafana.org/administration/provisioning/#datasources" target="_blank">here</a> for details</p>
+</td>
+    </tr>
+    <tr>
+      <td>defaultDatasources.victoriametrics.datasources</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">- isDefault: true
+  name: VictoriaMetrics
+  type: prometheus
+- isDefault: false
+  name: VictoriaMetrics (DS)
+  type: victoriametrics-datasource
+</code>
+</pre>
+</td>
+      <td><p>List of prometheus compatible datasource configurations. VM <code>url</code> will be added to each of them in templates.</p>
+</td>
+    </tr>
+    <tr>
+      <td>defaultDatasources.victoriametrics.perReplica</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Create per replica prometheus compatible datasource</p>
 </td>
     </tr>
     <tr>
@@ -1094,17 +1296,6 @@ vmsingle:
 </td>
     </tr>
     <tr>
-      <td>experimentalDashboardsEnabled</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
-</code>
-</pre>
-</td>
-      <td><p>Create experimental dashboards</p>
-</td>
-    </tr>
-    <tr>
       <td>externalVM</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
@@ -1137,7 +1328,18 @@ write:
 </code>
 </pre>
 </td>
-      <td><p>Resource full name prefix override</p>
+      <td><p>Resource full name override</p>
+</td>
+    </tr>
+    <tr>
+      <td>global.cluster.dnsDomain</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">cluster.local.
+</code>
+</pre>
+</td>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
@@ -1167,10 +1369,7 @@ keyRef: {}
       <td>grafana</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">additionalDataSources: []
-defaultDashboardsTimezone: utc
-defaultDatasourceType: prometheus
-enabled: true
+<code class="language-yaml">enabled: true
 forceDeployDatasource: false
 ingress:
     annotations: {}
@@ -1184,8 +1383,6 @@ ingress:
     tls: []
 sidecar:
     dashboards:
-        additionalDashboardAnnotations: {}
-        additionalDashboardLabels: {}
         defaultFolderName: default
         enabled: true
         folder: /var/lib/grafana/dashboards
@@ -1194,13 +1391,6 @@ sidecar:
             name: default
             orgid: 1
     datasources:
-        createVMReplicasDatasources: false
-        default:
-            - isDefault: true
-              name: VictoriaMetrics
-            - isDefault: false
-              name: VictoriaMetrics (DS)
-              type: victoriametrics-datasource
         enabled: true
         initDatasources: true
 vmScrape:
@@ -1215,17 +1405,6 @@ vmScrape:
 </pre>
 </td>
       <td><p>Grafana dependency chart configuration. For possible values refer <a href="https://github.com/grafana/helm-charts/tree/main/charts/grafana#configuration" target="_blank">here</a></p>
-</td>
-    </tr>
-    <tr>
-      <td>grafana.additionalDataSources</td>
-      <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
-</code>
-</pre>
-</td>
-      <td><p>Configure additional grafana datasources (passed through tpl). Check <a href="http://docs.grafana.org/administration/provisioning/#datasources" target="_blank">here</a> for details</p>
 </td>
     </tr>
     <tr>
@@ -1248,21 +1427,6 @@ vmScrape:
 </pre>
 </td>
       <td><p>Extra paths to prepend to every host configuration. This is useful when working with annotation based services.</p>
-</td>
-    </tr>
-    <tr>
-      <td>grafana.sidecar.datasources.default</td>
-      <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">- isDefault: true
-  name: VictoriaMetrics
-- isDefault: false
-  name: VictoriaMetrics (DS)
-  type: victoriametrics-datasource
-</code>
-</pre>
-</td>
-      <td><p>List of default prometheus compatible datasource configurations. VM <code>url</code> will be added to each of them in templates and <code>type</code> will be set to defaultDatasourceType if not defined</p>
 </td>
     </tr>
     <tr>
@@ -1295,21 +1459,6 @@ selector:
 </pre>
 </td>
       <td><p><a href="https://docs.victoriametrics.com/operator/api#vmservicescrapespec" target="_blank">Scrape configuration</a> for Grafana</p>
-</td>
-    </tr>
-    <tr>
-      <td>grafanaOperatorDashboardsFormat</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">allowCrossNamespaceImport: false
-enabled: false
-instanceSelector:
-    matchLabels:
-        dashboards: grafana
-</code>
-</pre>
-</td>
-      <td><p>Create dashboards as CRDs (reuqires grafana-operator to be installed)</p>
 </td>
     </tr>
     <tr>
@@ -1938,7 +2087,7 @@ spec:
 </code>
 </pre>
 </td>
-      <td><p>Resource full name suffix override</p>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>
@@ -2028,39 +2177,6 @@ selector:
 </td>
     </tr>
     <tr>
-      <td>serviceAccount.annotations</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">{}
-</code>
-</pre>
-</td>
-      <td><p>Annotations to add to the service account</p>
-</td>
-    </tr>
-    <tr>
-      <td>serviceAccount.create</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
-</code>
-</pre>
-</td>
-      <td><p>Specifies whether a service account should be created</p>
-</td>
-    </tr>
-    <tr>
-      <td>serviceAccount.name</td>
-      <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">""
-</code>
-</pre>
-</td>
-      <td><p>The name of the service account to use. If not set and create is true, a name is generated using the fullname template</p>
-</td>
-    </tr>
-    <tr>
       <td>tenant</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -2075,13 +2191,13 @@ selector:
       <td>victoria-metrics-operator</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">crd:
+<code class="language-yaml">crds:
     cleanup:
         enabled: true
         image:
             pullPolicy: IfNotPresent
             repository: bitnami/kubectl
-    create: false
+    plain: true
 enabled: true
 operator:
     disable_prometheus_converter: false
@@ -2091,6 +2207,17 @@ serviceMonitor:
 </pre>
 </td>
       <td><p>VictoriaMetrics Operator dependency chart configuration. More values can be found <a href="https://docs.victoriametrics.com/helm/victoriametrics-operator#parameters" target="_blank">here</a>. Also checkout <a href="https://docs.victoriametrics.com/operator/vars" target="_blank">here</a> possible ENV variables to configure operator behaviour</p>
+</td>
+    </tr>
+    <tr>
+      <td>victoria-metrics-operator.crds.plain</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
+</pre>
+</td>
+      <td><p>added temporary, till new operator version released</p>
 </td>
     </tr>
     <tr>
@@ -2164,8 +2291,6 @@ tls: []
 extraArgs:
     promscrape.dropOriginalLabels: "true"
     promscrape.streamParse: "true"
-image:
-    tag: v1.103.0
 port: "8429"
 scrapeInterval: 20s
 selectAllByDefault: true
@@ -2257,8 +2382,6 @@ tls: []
 externalLabels: {}
 extraArgs:
     http.pathPrefix: /
-image:
-    tag: v1.103.0
 port: "8080"
 selectAllByDefault: true
 </code>
@@ -2306,10 +2429,15 @@ selectAllByDefault: true
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
 <code class="language-yaml">discover_backend_ips: true
 port: "8427"
+unauthorizedAccessConfig:
+    - src_paths:
+        - '{{ .vm.read.path }}/.*'
+      url_prefix:
+        - '{{ urlJoin (omit .vm.read "path") }}/'
 </code>
 </pre>
 </td>
-      <td><p>Full spec for VMAuth CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmauthspec" target="_blank">here</a></p>
+      <td><p>Full spec for VMAuth CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmauthspec" target="_blank">here</a> It&rsquo;s possible to use given below predefined variables in spec: * <code>{{ .vm.read }}</code> - parsed vmselect, vmsingle or externalVM.read URL * <code>{{ .vm.write }}</code> - parsed vminsert, vmsingle or externalVM.write URL</p>
 </td>
     </tr>
     <tr>
@@ -2639,16 +2767,12 @@ port: "8427"
 retentionPeriod: "1"
 vminsert:
     extraArgs: {}
-    image:
-        tag: v1.103.0-cluster
     port: "8480"
     replicaCount: 2
     resources: {}
 vmselect:
     cacheMountPath: /select-cache
     extraArgs: {}
-    image:
-        tag: v1.103.0-cluster
     port: "8481"
     replicaCount: 2
     resources: {}
@@ -2659,8 +2783,6 @@ vmselect:
                     requests:
                         storage: 2Gi
 vmstorage:
-    image:
-        tag: v1.103.0-cluster
     replicaCount: 2
     resources: {}
     storage:
@@ -2813,8 +2935,6 @@ vmstorage:
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
 <code class="language-yaml">extraArgs: {}
-image:
-    tag: v1.103.0
 port: "8429"
 replicaCount: 1
 retentionPeriod: "1"

@@ -1,11 +1,11 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.11.2](https://img.shields.io/badge/Version-0.11.2-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.13.0](https://img.shields.io/badge/Version-0.13.0-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-single)
 
 Victoria Metrics Single version - high-performance, cost-effective and scalable TSDB, long-term remote storage for Prometheus
 
 ## Prerequisites
 
-* Install the follow packages: ``git``, ``kubectl``, ``helm``, ``helm-docs``. See this [tutorial](../../REQUIREMENTS.md).
+* Install the follow packages: ``git``, ``kubectl``, ``helm``, ``helm-docs``. See this [tutorial](https://docs.victoriametrics.com/helm/requirements/).
 * PV support on underlying infrastructure.
 
 ## Chart Details
@@ -106,7 +106,7 @@ helm uninstall vms -n NAMESPACE
 
 ## Documentation of Helm Chart
 
-Install ``helm-docs`` following the instructions on this [tutorial](../../REQUIREMENTS.md).
+Install ``helm-docs`` following the instructions on this [tutorial](https://docs.victoriametrics.com/helm/requirements/).
 
 Generate docs with ``helm-docs`` command.
 
@@ -141,6 +141,17 @@ Change the values according to the need of the environment in ``victoria-metrics
 </pre>
 </td>
       <td><p>Add extra specs dynamically to this chart</p>
+</td>
+    </tr>
+    <tr>
+      <td>global.cluster.dnsDomain</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">cluster.local.
+</code>
+</pre>
+</td>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
 </td>
     </tr>
     <tr>
@@ -373,8 +384,9 @@ extraLabels: {}
       <td>server.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
+httpListenAddr: :8428
 loggerFormat: json
 </code>
 </pre>
@@ -548,7 +560,10 @@ loggerFormat: json
       <td>server.ingress.hosts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">[]
+<code class="language-yaml">- name: vmsingle.local
+  path:
+    - /
+  port: http
 </code>
 </pre>
 </td>
@@ -591,11 +606,11 @@ loggerFormat: json
       <td>server.name</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">server
+<code class="language-yaml">null
 </code>
 </pre>
 </td>
-      <td><p>Server container name</p>
+      <td><p>Override default <code>app</code> label name</p>
 </td>
     </tr>
     <tr>
@@ -673,6 +688,17 @@ loggerFormat: json
 </pre>
 </td>
       <td><p>Mount path. Server data Persistent Volume mount root path.</p>
+</td>
+    </tr>
+    <tr>
+      <td>server.persistentVolume.name</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Override Persistent Volume Claim name</p>
 </td>
     </tr>
     <tr>
@@ -881,7 +907,7 @@ enabled: false
 </code>
 </pre>
 </td>
-      <td><p>Data retention period in month</p>
+      <td><p>Data retention period. Possible units character: h(ours), d(ays), w(eeks), y(ears), if no unit character specified - month. The minimum retention period is 24h. See these <a href="https://docs.victoriametrics.com/single-server-victoriametrics/#retention" target="_blank">docs</a></p>
 </td>
     </tr>
     <tr>
@@ -1255,7 +1281,7 @@ scrape_configs:
 </code>
 </pre>
 </td>
-      <td><p>Service load balacner IP</p>
+      <td><p>Service load balancer IP</p>
 </td>
     </tr>
     <tr>
@@ -1278,6 +1304,17 @@ scrape_configs:
 </pre>
 </td>
       <td><p>Service port</p>
+</td>
+    </tr>
+    <tr>
+      <td>server.service.targetPort</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">http
+</code>
+</pre>
+</td>
+      <td><p>Target port</p>
 </td>
     </tr>
     <tr>
@@ -1355,6 +1392,17 @@ scrape_configs:
 </pre>
 </td>
       <td><p>Service Monitor relabelings</p>
+</td>
+    </tr>
+    <tr>
+      <td>server.serviceMonitor.targetPort</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">http
+</code>
+</pre>
+</td>
+      <td><p>Service Monitor target port</p>
 </td>
     </tr>
     <tr>
@@ -1482,7 +1530,7 @@ scrape_configs:
       <td>server.vmbackupmanager.extraArgs</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">envflag.enable: "true"
+<code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
 loggerFormat: json
 </code>

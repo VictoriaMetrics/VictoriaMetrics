@@ -165,7 +165,7 @@ You can use the following API endpoints for the automation with rules:
 * POST: `/api/v1/deployments/{deploymentId}/rule-sets/files/{fileName}` - create/update rules file
 * DELETE `/api/v1/deployments/{deploymentId}/rule-sets/files/{fileName}` - delete rules file
 
-For more details, please check [OpenAPI Reference](https://cloud.victoriametrics.com/api-docs).
+For more details, please check [OpenAPI Reference](https://console.victoriametrics.cloud/api-docs).
 
 ### Example of alerting rules
 

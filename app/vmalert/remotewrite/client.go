@@ -15,6 +15,7 @@ import (
 
 	"github.com/golang/snappy"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -22,18 +23,19 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
+var defaultConcurrency = cgroup.AvailableCPUs() * 2
+
 const (
-	defaultConcurrency   = 4
-	defaultMaxBatchSize  = 1e3
+	defaultMaxBatchSize  = 1e4
 	defaultMaxQueueSize  = 1e5
-	defaultFlushInterval = 5 * time.Second
+	defaultFlushInterval = 2 * time.Second
 	defaultWriteTimeout  = 30 * time.Second
 )
 
 var (
 	disablePathAppend = flag.Bool("remoteWrite.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.")
 	sendTimeout       = flag.Duration("remoteWrite.sendTimeout", 30*time.Second, "Timeout for sending data to the configured -remoteWrite.url.")
-	retryMinInterval  = flag.Duration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval")
+	retryMinInterval  = flag.Duration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxTime")
 	retryMaxTime      = flag.Duration("remoteWrite.retryMaxTime", time.Second*30, "The max time spent on retry attempts for the failed remote-write request. Change this value if it is expected for remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
 )
 

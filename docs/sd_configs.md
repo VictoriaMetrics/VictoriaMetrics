@@ -30,6 +30,8 @@ supports the following Prometheus-compatible service discovery options for Prome
 * `kuma_sd_configs` is for discovering and scraping [Kuma](https://kuma.io) targets. See [these docs](#kuma_sd_configs).
 * `nomad_sd_configs` is for discovering and scraping targets registered in [HashiCorp Nomad](https://www.nomadproject.io/). See [these docs](#nomad_sd_configs).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
+* `ovhcloud_sd_configs` is for discovering and scraping OVH Cloud VPS and dedicated server targets. See [these docs](#ovhcloud_sd_configs).
+* `puppetdb_sd_configs` is for discovering and scraping PuppetDB targets. See [these docs](#puppetdb_sd_configs).
 * `static_configs` is for scraping statically defined targets. See [these docs](#static_configs).
 * `vultr_sd_configs` is for discovering and scraping [Vultr](https://www.vultr.com/) targets. See [these docs](#vultr_sd_configs).
 * `yandexcloud_sd_configs` is for discovering and scraping [Yandex Cloud](https://cloud.yandex.com/en/) targets. See [these docs](#yandexcloud_sd_configs).
@@ -1458,6 +1460,143 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_openstack_user_id`: the user account owning the tenant.
 
 The list of discovered OpenStack targets is refreshed at the interval, which can be configured via `-promscrape.openstackSDCheckInterval` command-line flag.
+
+## ovhcloud_sd_configs
+
+OVH Cloud SD configuration{{% available_from "v1.104.0" %}} allows retrieving scrape targets from [OVH Cloud VPS](https://www.ovhcloud.com/en/vps/) 
+and [OVH Cloud dedicated server](https://ovhcloud.com/en/bare-metal/).
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: ovh_job
+  ovhcloud_sd_configs:
+
+  # (optional) depending on the API you want to use, you may set the endpoint to:
+  # `ovh-eu` for OVH Europe API (default).
+  # `ovh-us` for OVH US API.
+  # `ovh-ca` for OVH North-America API.
+  # `soyoustart-eu` for "So you Start Europe API".
+  # `soyoustart-ca` for "So you Start North America API".
+  # `kimsufi-eu` for Kimsufi Europe API.
+  # `kimsufi-ca` for Kimsufi North America API.
+  # See: https://github.com/ovh/go-ovh?tab=readme-ov-file#supported-apis
+  - endpoint: "..."
+
+    # (mandatory) application_key is a self generated tokens. 
+    # create one by visiting: https://eu.api.ovh.com/createApp/
+    application_key: "..."
+
+    # (mandatory) application_secret holds the application secret key.
+    application_secret: "..."
+    
+    # (mandatory) consumer_key holds the user/app specific token. It must have been validated before use.
+    consumer_key: "..."
+
+    # (mandatory) service could be either `vps` or `dedicated_server`.
+    service: "..."
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling/#how-to-modify-scrape-urls-in-targets) label set to either `<ipv4>` address or `<ipv6>` address.
+
+In addition, the `instance` label for the VPS/dedicated server will be set to the VPS/dedicated server name as retrieved from OVH Cloud API.
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling).
+
+VPS:
+* `__meta_ovhcloud_vps_cluster`: the cluster of the server.
+* `__meta_ovhcloud_vps_datacenter`: the datacenter of the server.
+* `__meta_ovhcloud_vps_disk`: the disk of the server.
+* `__meta_ovhcloud_vps_display_name`: the display name of the server.
+* `__meta_ovhcloud_vps_ipv4`: the IPv4 of the server.
+* `__meta_ovhcloud_vps_ipv6`: the IPv6 of the server.
+* `__meta_ovhcloud_vps_keymap`: the KVM keyboard layout of the server.
+* `__meta_ovhcloud_vps_maximum_additional_ip`: the maximum additional IPs of the server.
+* `__meta_ovhcloud_vps_memory_limit`: the memory limit of the server.
+* `__meta_ovhcloud_vps_memory`: the memory of the server.
+* `__meta_ovhcloud_vps_monitoring_ip_blocks`: the monitoring IP blocks of the server.
+* `__meta_ovhcloud_vps_name`: the name of the server.
+* `__meta_ovhcloud_vps_netboot_mode`: the netboot mode of the server.
+* `__meta_ovhcloud_vps_offer_type`: the offer type of the server.
+* `__meta_ovhcloud_vps_offer`: the offer of the server.
+* `__meta_ovhcloud_vps_state`: the state of the server.
+* `__meta_ovhcloud_vps_vcore`: the number of virtual cores of the server.
+* `__meta_ovhcloud_vps_version`: the version of the server.
+* `__meta_ovhcloud_vps_zone`: the zone of the server.
+
+Dedicated servers:
+* `__meta_ovhcloud_dedicated_server_commercial_range`: the commercial range of the server.    
+* `__meta_ovhcloud_dedicated_server_datacenter`: the datacenter of the server.                
+* `__meta_ovhcloud_dedicated_server_ipv4`: the IPv4 of the server.                            
+* `__meta_ovhcloud_dedicated_server_ipv6`: the IPv6 of the server.                            
+* `__meta_ovhcloud_dedicated_server_link_speed`: the link speed of the server.                
+* `__meta_ovhcloud_dedicated_server_name`: the name of the server.                            
+* `__meta_ovhcloud_dedicated_server_no_intervention`: the [intervention](https://support.us.ovhcloud.com/hc/en-us/articles/27991435200147-FAQ-Interventions-and-Hardware-Replacement) of the server.
+* `__meta_ovhcloud_dedicated_server_os`: the operating system of the server.
+* `__meta_ovhcloud_dedicated_server_rack`: the rack of the server.
+* `__meta_ovhcloud_dedicated_server_reverse`: the reverse DNS name of the server.
+* `__meta_ovhcloud_dedicated_server_server_id`: the ID of the server.
+* `__meta_ovhcloud_dedicated_server_state`: the state of the server.
+* `__meta_ovhcloud_dedicated_server_support_level`: the support level of the server.
+
+The list of discovered OVH Cloud targets is refreshed at the interval, which can be configured via `-promscrape.ovhcloudSDCheckInterval` command-line flag.
+
+## puppetdb_sd_configs
+
+PuppetDB SD configuration{{% available_from "v1.106.0" %}} allows retrieving scrape targets from [PuppetDB](https://www.puppet.com/docs/puppetdb/8/overview.html) resources.
+
+This SD discovers resources and will create a target for each resource returned by the API.
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: puppetdb_job
+  puppetdb_sd_configs:
+    # The URL of the PuppetDB root query endpoint.
+    - url: <string>
+      
+      # Puppet Query Language (PQL) query. Only resources are supported.
+      # https://puppet.com/docs/puppetdb/latest/api/query/v4/pql.html
+      query: <string>
+
+      # Whether to include the parameters as meta labels.
+      # Due to the differences between parameter types and Prometheus labels,
+      # some parameters might not be rendered. The format of the parameters might
+      # also change in future releases.
+      #
+      # Note: Enabling this exposes parameters in the VMUI and API. Make sure
+      # that you don't have secrets exposed as parameters if you enable this.
+      # 
+      # include_parameters: <boolean> | default false
+
+      # The port to scrape metrics from.
+      # 
+      # port: <int> | default = 80
+
+      # Additional HTTP API client options can be specified here.
+      # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
+The resource address is the `certname` of the resource and can be changed during relabeling.
+The following meta labels are available on targets during relabeling:
+
+* `__meta_puppetdb_query`: the Puppet Query Language (PQL) query.
+* `__meta_puppetdb_certname`: the name of the node associated with the resource.
+* `__meta_puppetdb_resource`: a SHA-1 hash of the resource’s type, title, and parameters, for identification.
+* `__meta_puppetdb_type`: the resource type.
+* `__meta_puppetdb_title`: the resource title.
+* `__meta_puppetdb_exported`: whether the resource is exported (`"true"` or `"false"`).
+* `__meta_puppetdb_tags`: comma separated list of resource tags.
+* `__meta_puppetdb_file`: the manifest file in which the resource was declared.
+* `__meta_puppetdb_environment`: the environment of the node associated with the resource.
+* `__meta_puppetdb_parameter_<parametername>`: the parameters of the resource.
+
+The list of discovered PuppetDB targets is refreshed at the interval, which can be configured via `-promscrape.puppetdbSDCheckInterval` command-line flag.
 
 ## static_configs
 

@@ -1,3 +1,66 @@
+# v1.69.0 (2024-11-25)
+
+* **Feature**: Amazon Simple Storage Service / Features: Add support for ETag based conditional writes in PutObject and CompleteMultiPartUpload APIs to prevent unintended object modifications.
+
+# v1.68.0 (2024-11-21)
+
+* **Feature**: Add support for conditional deletes for the S3 DeleteObject and DeleteObjects APIs. Add support for write offset bytes option used to append to objects with the S3 PutObject API.
+
+# v1.67.1 (2024-11-18)
+
+* **Dependency Update**: Update to smithy-go v1.22.1.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.67.0 (2024-11-14)
+
+* **Feature**: This release updates the ListBuckets API Reference documentation in support of the new 10,000 general purpose bucket default quota on all AWS accounts. To increase your bucket quota from 10,000 to up to 1 million buckets, simply request a quota increase via Service Quotas.
+
+# v1.66.3 (2024-11-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.66.2 (2024-10-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.66.1 (2024-10-25)
+
+* **Bug Fix**: Update presign post URL resolution to use the exact result from EndpointResolverV2
+
+# v1.66.0 (2024-10-16)
+
+* **Feature**: Add support for the new optional bucket-region and prefix query parameters in the ListBuckets API. For ListBuckets requests that express pagination, Amazon S3 will now return both the bucket names and associated AWS regions in the response.
+
+# v1.65.3 (2024-10-11)
+
+* **Bug Fix**: **BREAKING CHANGE**: S3 ReplicationRuleFilter and LifecycleRuleFilter shapes are being changed from union to structure types
+
+# v1.65.2 (2024-10-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.65.1 (2024-10-07)
+
+* **Bug Fix**: **CHANGE IN BEHAVIOR**: Allow serialization of headers with empty string for prefix headers. We are deploying this fix because the behavior is actively preventing users from transmitting keys with empty values to the service. If you were setting metadata keys with empty values before this change, they will now actually be sent to the service.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.65.0 (2024-10-04)
+
+* **Feature**: Add support for HTTP client metrics.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.64.1 (2024-10-03)
+
+* No change notes available for this release.
+
+# v1.64.0 (2024-10-02)
+
+* **Feature**: This release introduces a header representing the minimum object size limit for Lifecycle transitions.
+
+# v1.63.3 (2024-09-27)
+
+* No change notes available for this release.
+
 # v1.63.2 (2024-09-25)
 
 * No change notes available for this release.

@@ -1,6 +1,96 @@
 ## Next release
 
-- TODO
+- do not set clusterIP value, when service type is not ClusterIP. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1838)
+
+## 0.13.0
+
+**Release date:** 2024-12-02
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.28 -> 0.0.33
+- fixed app.kubernetes.io/version tag override if custom tag is set. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1766).
+- Added service.targetPort and serviceMonitor.targetPort to add ability to point service to one of extraContainers port, like oauth2-proxy
+- bump version of VM components to [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
+
+## 0.12.7
+
+**Release date:** 2024-11-18
+
+![AppVersion: v1.106.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.20 -> 0.0.28
+- bump version of VM components to [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1)
+
+## 0.12.6
+
+**Release date:** 2024-11-07
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- set default DNS domain to `cluster.local.`
+- updated common dependency 0.0.19 -> 0.0.20
+- fixed ability to pass a custom scrape and relabel configs. see [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1700).
+
+## 0.12.5
+
+**Release date:** 2024-11-06
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Fix Deployment/StatefulSets when `serviceAccount.name` is empty and `serviceAccount.create: false`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1683).
+
+## 0.12.4
+
+**Release date:** 2024-11-05
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- replaced chart templates with common ones
+- multiple paths for a host in ingress
+- Added ability to override PVC name for Deployment
+- bump version of VM components to [v1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0)
+
+## 0.12.3
+
+**Release date:** 2024-10-21
+
+![AppVersion: v1.105.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.105.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- bump version of VM components to [v1.105.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.105.0)
+
+## 0.12.2
+
+**Release date:** 2024-10-11
+
+![AppVersion: v1.104.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.104.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Human-readable error about Helm version requirement
+
+## 0.12.1
+
+**Release date:** 2024-10-04
+
+![AppVersion: v1.104.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.104.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- upgraded common chart dependency
+
+## 0.12.0
+
+**Release date:** 2024-10-02
+
+![AppVersion: v1.104.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.104.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- bump version of VM components to [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
 
 ## 0.11.2
 

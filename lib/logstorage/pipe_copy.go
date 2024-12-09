@@ -54,10 +54,6 @@ func (pc *pipeCopy) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (pc *pipeCopy) optimize() {
-	// Nothing to do
-}
-
 func (pc *pipeCopy) hasFilterInWithQuery() bool {
 	return false
 }
@@ -91,7 +87,7 @@ func (pcp *pipeCopyProcessor) flush() error {
 	return nil
 }
 
-func parsePipeCopy(lex *lexer) (*pipeCopy, error) {
+func parsePipeCopy(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("copy", "cp") {
 		return nil, fmt.Errorf("expecting 'copy' or 'cp'; got %q", lex.token)
 	}

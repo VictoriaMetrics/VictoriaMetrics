@@ -120,6 +120,13 @@ func (bm *bitmap) or(x *bitmap) {
 	}
 }
 
+func (bm *bitmap) setBit(i int) {
+	wordIdx := uint(i) / 64
+	wordOffset := uint(i) % 64
+	wordPtr := &bm.a[wordIdx]
+	*wordPtr |= (1 << wordOffset)
+}
+
 func (bm *bitmap) isSetBit(i int) bool {
 	wordIdx := uint(i) / 64
 	wordOffset := uint(i) % 64

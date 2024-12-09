@@ -23,7 +23,7 @@ var (
 		"See also -search.maxQueueDuration")
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the search request waits for execution when -search.maxConcurrentRequests "+
 		"limit is reached; see also -search.maxQueryDuration")
-	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution. It can be overridden on a per-query basis via 'timeout' query arg")
+	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution. It can be overridden to a smaller value on a per-query basis via 'timeout' query arg")
 )
 
 func getDefaultMaxConcurrentRequests() int {
@@ -177,6 +177,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Request, path string) bool {
 	httpserver.EnableCORS(w, r)
 	switch path {
+	case "/select/logsql/facets":
+		logsqlFacetsRequests.Inc()
+		logsql.ProcessFacetsRequest(ctx, w, r)
+		return true
 	case "/select/logsql/field_names":
 		logsqlFieldNamesRequests.Inc()
 		logsql.ProcessFieldNamesRequest(ctx, w, r)
@@ -236,6 +240,7 @@ func getMaxQueryDuration(r *http.Request) time.Duration {
 }
 
 var (
+	logsqlFacetsRequests            = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/facets"}`)
 	logsqlFieldNamesRequests        = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_names"}`)
 	logsqlFieldValuesRequests       = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_values"}`)
 	logsqlHitsRequests              = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/hits"}`)

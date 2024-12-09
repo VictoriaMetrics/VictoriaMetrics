@@ -53,6 +53,17 @@ func Match(pattern, name string) (bool, error) {
 	return matchWithSeparator(pattern, name, '/', true)
 }
 
+// MatchUnvalidated can provide a small performance improvement if you don't
+// care about whether or not the pattern is valid (perhaps because you already
+// ran `ValidatePattern`). Note that there's really only one case where this
+// performance improvement is realized: when pattern matching reaches the end
+// of `name` before reaching the end of `pattern`, such as `Match("a/b/c",
+// "a")`.
+func MatchUnvalidated(pattern, name string) bool {
+	matched, _ := matchWithSeparator(pattern, name, '/', false)
+	return matched
+}
+
 // PathMatch returns true if `name` matches the file name `pattern`. The
 // difference between Match and PathMatch is that PathMatch will automatically
 // use your system's path separator to split `name` and `pattern`. On systems
@@ -65,6 +76,17 @@ func Match(pattern, name string) (bool, error) {
 //
 func PathMatch(pattern, name string) (bool, error) {
 	return matchWithSeparator(pattern, name, filepath.Separator, true)
+}
+
+// PathMatchUnvalidated can provide a small performance improvement if you
+// don't care about whether or not the pattern is valid (perhaps because you
+// already ran `ValidatePattern`). Note that there's really only one case where
+// this performance improvement is realized: when pattern matching reaches the
+// end of `name` before reaching the end of `pattern`, such as `Match("a/b/c",
+// "a")`.
+func PathMatchUnvalidated(pattern, name string) bool {
+	matched, _ := matchWithSeparator(pattern, name, filepath.Separator, false)
+	return matched
 }
 
 func matchWithSeparator(pattern, name string, separator rune, validate bool) (matched bool, err error) {

@@ -4,6 +4,7 @@ The folder contains examples of [Fluentd](https://www.fluentd.org/) integration 
 
 * [loki](./loki)
 * [jsonline](./jsonline)
+* [datadog](./datadog)
 * [elasticsearch](./elasticsearch)
 
 All required plugins, that should be installed in order to support protocols listed above can be found in a [Dockerfile](./Dockerfile)
