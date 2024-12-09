@@ -5,10 +5,11 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestDedupAggrSerial(t *testing.T) {
-	da := newDedupAggr()
+	da := newDedupAggr(2)
 
 	const seriesCount = 100_000
 	expectedSamplesMap := make(map[string]pushSample)
@@ -20,7 +21,10 @@ func TestDedupAggrSerial(t *testing.T) {
 			sample.value = float64(i + j)
 			expectedSamplesMap[sample.key] = *sample
 		}
-		da.pushSamples(samples)
+		data := &pushCtxData{
+			samples: samples,
+		}
+		da.pushSamples(data)
 	}
 
 	if n := da.sizeBytes(); n > 5_000_000 {
@@ -32,14 +36,16 @@ func TestDedupAggrSerial(t *testing.T) {
 
 	flushedSamplesMap := make(map[string]pushSample)
 	var mu sync.Mutex
-	flushSamples := func(samples []pushSample) {
+	flushSamples := func(ctx *pushCtxData) {
 		mu.Lock()
-		for _, sample := range samples {
+		for _, sample := range ctx.samples {
 			flushedSamplesMap[sample.key] = sample
 		}
 		mu.Unlock()
 	}
-	da.flush(flushSamples)
+
+	flushTimestamp := time.Now().UnixMilli()
+	da.flush(flushSamples, flushTimestamp, 0, 0)
 
 	if !reflect.DeepEqual(expectedSamplesMap, flushedSamplesMap) {
 		t.Fatalf("unexpected samples;\ngot\n%v\nwant\n%v", flushedSamplesMap, expectedSamplesMap)
@@ -56,7 +62,7 @@ func TestDedupAggrSerial(t *testing.T) {
 func TestDedupAggrConcurrent(_ *testing.T) {
 	const concurrency = 5
 	const seriesCount = 10_000
-	da := newDedupAggr()
+	da := newDedupAggr(2)
 
 	var wg sync.WaitGroup
 	for i := 0; i < concurrency; i++ {
@@ -64,13 +70,15 @@ func TestDedupAggrConcurrent(_ *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < 10; i++ {
-				samples := make([]pushSample, seriesCount)
-				for j := range samples {
-					sample := &samples[j]
+				data := &pushCtxData{
+					samples: make([]pushSample, seriesCount),
+				}
+				for j := range data.samples {
+					sample := &data.samples[j]
 					sample.key = fmt.Sprintf("key_%d", j)
 					sample.value = float64(i + j)
 				}
-				da.pushSamples(samples)
+				da.pushSamples(data)
 			}
 		}()
 	}
