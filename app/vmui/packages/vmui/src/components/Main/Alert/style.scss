@@ -46,6 +46,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    align-self: flex-start;
+    min-height: 24px;
   }
 
   &__content {
