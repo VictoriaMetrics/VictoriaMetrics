@@ -15,6 +15,7 @@ export interface QueryEditorAutocompleteProps {
   anchorEl: React.RefObject<HTMLInputElement>;
   caretPosition: [number, number]; // [start, end]
   hasHelperText: boolean;
+  includeFunctions: boolean;
   onSelect: (val: string, caretPosition: number) => void;
   onFoundOptions: (val: AutocompleteOptions[]) => void;
 }
