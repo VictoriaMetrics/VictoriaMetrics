@@ -1,0 +1,3 @@
+name: datadog-serverless-aws
+include:
+ - ../compose-base.yml
