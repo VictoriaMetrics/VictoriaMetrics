@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.30.0](https://img.shields.io/badge/Version-0.30.0-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.30.3](https://img.shields.io/badge/Version-0.30.3-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-k8s-stack)
 
 Kubernetes monitoring on VictoriaMetrics stack. Includes VictoriaMetrics Operator, Grafana dashboards, ServiceScrapes and VMRules
@@ -71,6 +71,10 @@ kind: Application
 ...
 spec:
   ...
+  destination:
+    ...
+    namespace: <k8s-stack-namespace>
+  ...
   syncPolicy:
     syncOptions:
     # https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/#respect-ignore-difference-configs
@@ -81,7 +85,7 @@ spec:
     - group: ""
       kind: Secret
       name: <fullname>-validation
-      namespace: kube-system
+      namespace: <k8s-stack-namespace>
       jsonPointers:
         - /data
     - group: admissionregistration.k8s.io
@@ -103,6 +107,11 @@ defaultDashboards:
 ```
 
 argocd.argoproj.io/sync-options: ServerSideApply=true
+
+#### Resources are not completely removed after chart uninstallation
+
+This chart uses `pre-delete` Helm hook to cleanup resources managed by operator, but it's not supported in ArgoCD and this hook is ignored.
+To have a control over resources removal please consider using either [ArgoCD sync phases and waves](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-waves/) or [installing operator chart separately](#install-operator-separately)
 
 ### Rules and dashboards
 
@@ -277,6 +286,16 @@ See the history of versions of `vmks` application with command.
 ```console
 helm history vmks -n NAMESPACE
 ```
+
+### Install operator separately
+
+To have control over an order of managed resources removal or to be able to remove a whole namespace with managed resources it's recommended to disable operator in k8s-stack chart (`victoria-metrics-operator.enabled: false`) and [install it](https://docs.victoriametrics.com/helm/victoriametrics-operator/) separately. To move operator from existing k8s-stack release to a separate one please follow the steps below:
+
+- disable cleanup webhook (`victoria-metrics-operator.crds.cleanup.enabled: false`) and apply changes
+- disable operator (`victoria-metrics-operator.enabled: false`) and apply changes
+- [deploy operator](https://docs.victoriametrics.com/helm/victoriametrics-operator/) separately with `crds.plain: true`
+
+If you're planning to delete k8s-stack by a whole namespace removal please consider deploying operator in a separate namespace as due to uncontrollable removal order process can hang if operator is removed before at least one resource it manages.
 
 ### Install locally (Minikube)
 
@@ -691,9 +710,9 @@ selectAllByDefault: true
 <code class="language-yaml">node-exporter-full:
     enabled: true
 victoriametrics-operator:
-    enabled: false
+    enabled: true
 victoriametrics-vmalert:
-    enabled: false
+    enabled: true
 </code>
 </pre>
 </td>
@@ -740,7 +759,7 @@ victoriametrics-vmalert:
 </code>
 </pre>
 </td>
-      <td><p>Create dashboards as CRDs (reuqires grafana-operator to be installed)</p>
+      <td><p>Create dashboards as CRDs (requires grafana-operator to be installed)</p>
 </td>
     </tr>
     <tr>
@@ -1309,7 +1328,7 @@ write:
 </code>
 </pre>
 </td>
-      <td><p>Resource full name prefix override</p>
+      <td><p>Resource full name override</p>
 </td>
     </tr>
     <tr>
@@ -2068,7 +2087,7 @@ spec:
 </code>
 </pre>
 </td>
-      <td><p>Resource full name suffix override</p>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>

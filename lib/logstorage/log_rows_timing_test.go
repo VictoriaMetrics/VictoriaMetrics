@@ -58,7 +58,7 @@ func benchmarkLogRowsMustAdd(rows [][]Field, streamFields []string) {
 		tid.AccountID = uint32(i)
 		tid.ProjectID = uint32(2 * i)
 		timestamp := int64(i) * 1000
-		lr.MustAdd(tid, timestamp, fields)
+		lr.MustAdd(tid, timestamp, fields, nil)
 	}
 	PutLogRows(lr)
 }

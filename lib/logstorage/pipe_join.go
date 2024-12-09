@@ -148,7 +148,7 @@ func (pjp *pipeJoinProcessor) flush() error {
 	return nil
 }
 
-func parsePipeJoin(lex *lexer) (*pipeJoin, error) {
+func parsePipeJoin(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("join") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "join")
 	}

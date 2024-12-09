@@ -97,7 +97,7 @@ func (me *mathExpr) String() string {
 		if isMathBinaryOp(left.op) && getMathBinaryOpPriority(left.op) > opPriority {
 			leftStr = "(" + leftStr + ")"
 		}
-		if isMathBinaryOp(right.op) && getMathBinaryOpPriority(right.op) > opPriority {
+		if isMathBinaryOp(right.op) && getMathBinaryOpPriority(right.op) >= opPriority {
 			rightStr = "(" + rightStr + ")"
 		}
 		return fmt.Sprintf("%s %s %s", leftStr, me.op, rightStr)
@@ -355,7 +355,7 @@ func (pmp *pipeMathProcessor) flush() error {
 	return nil
 }
 
-func parsePipeMath(lex *lexer) (*pipeMath, error) {
+func parsePipeMath(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("math", "eval") {
 		return nil, fmt.Errorf("unexpected token: %q; want 'math' or 'eval'", lex.token)
 	}
