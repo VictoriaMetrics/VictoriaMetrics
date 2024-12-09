@@ -301,7 +301,7 @@ users:
       - "/api/v1/series"
       - "/api/v1/labels"
       - "/api/v1/label/.+/values"
-      url_prefix: "http://127.0.0.1:8481/select/multitenant/prometheus/"
+      url_prefix: "http://vmselect:8481/select/multitenant/prometheus/"
     - src_paths:
       - "/select/logsql/.*"
       - "/select/logsql"
