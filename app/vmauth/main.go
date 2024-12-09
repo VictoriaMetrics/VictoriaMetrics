@@ -193,7 +193,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, hc := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
+	up, hc := ui.getURLPrefixAndHeaders(u, r.Host,r.Header, getQueryRangeTime(r))
 	isDefault := false
 	if up == nil {
 		if ui.DefaultURL == nil {

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"net/http"
 	"net/url"
 	"path"
@@ -51,7 +53,7 @@ func dropPrefixParts(path string, parts int) string {
 	return path
 }
 
-func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, host string, h http.Header) (*URLPrefix, HeadersConf) {
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, host string, h http.Header, queryTimeParams map[string]int64) (*URLPrefix, HeadersConf) {
 	for _, e := range ui.URLMaps {
 		if !matchAnyRegex(e.SrcHosts, host) {
 			continue
@@ -65,13 +67,57 @@ func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, host string, h http.Heade
 		if !matchAnyHeader(e.SrcHeaders, h) {
 			continue
 		}
-
+		if !matchRelativeTimeRange(e.RelativeTimeRangeConfig, queryTimeParams) {
+			continue
+		}
 		return e.URLPrefix, e.HeadersConf
 	}
 	if ui.URLPrefix != nil {
 		return ui.URLPrefix, ui.HeadersConf
 	}
 	return nil, HeadersConf{}
+}
+
+func matchRelativeTimeRange(tr *RelativeTimeRangeConfig, queryTimeParams map[string]int64) bool {
+	if tr == nil {
+		return true
+	}
+	trStart, trEnd := tr.TimeWindow()
+	if trStart.IsZero() || trEnd.IsZero() {
+		return false
+	}
+	var start, end, time int64
+	if queryTimeParams != nil {
+		for paramName, value := range queryTimeParams {
+			switch paramName {
+			case "start":
+				start = value
+			case "end":
+				end = value
+			case "time":
+				time = value
+			}
+		}
+	}
+	// support instant query and query range
+	return (time >= 0 && time >= trStart.UnixMilli() && time <= trEnd.UnixMilli()) ||
+		(start >= 0 && end >= 0 && start >= trStart.UnixMilli() && end <= trEnd.UnixMilli())
+}
+
+func getQueryRangeTime(r *http.Request) map[string]int64 {
+	paramMap := make(map[string]int64)
+	req, err := httputils.DumpRequest(r)
+	if err != nil {
+		logger.Errorf("cannot dump request: %s", err)
+		return paramMap
+	}
+	for _, param := range queryTimeParams {
+		time, err := httputils.GetTime(req, param, 0)
+		if err == nil {
+			paramMap[param] = time
+		}
+	}
+	return paramMap
 }
 
 func matchAnyRegex(rs []*Regex, s string) bool {
@@ -135,3 +181,5 @@ func normalizeURL(uOrig *url.URL) *url.URL {
 	}
 	return &u
 }
+
+var queryTimeParams = []string{"start", "end", "time"}
