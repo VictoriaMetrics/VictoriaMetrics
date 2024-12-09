@@ -8,7 +8,7 @@
     "@types/lodash.get": "^4.4.9",
     "@types/lodash.throttle": "^4.1.9",
     "@types/node": "^22.5.4",
-    "@types/qs": "^6.9.15",
+    "@types/qs": "^6.9.17",
     "@types/react-input-mask": "^3.0.5",
     "@types/react-router-dom": "^5.3.3",
     "@types/webpack-env": "^1.18.5",
