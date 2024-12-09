@@ -16,6 +16,27 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): add [`count_uniq_hash`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq_hash-stats) function, which counts the number of unique value hashes. This number is usually a good approximation to the number of unique values, so the `count_uniq_hash` can be used as a faster alternative to [`count_uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-stats).
+
+## [v1.3.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.3.2-victorialogs)
+
+Released at 2024-12-09
+
+* FEATURE: [`collapse_nums` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#collapse_nums-pipe): add an ability to prettify some patterns across collapsed numbers. For example, `<N>.<N>.<N>.<N>` is replaced with `<IP4>` when executing `collapse_nums prettify` pipe.
+
+* BUGFIX: [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe): fix `index out of range [0] with length 0` panic, which has been introduced in [v1.3.0-victorialogs](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.3.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7762).
+
+## [v1.3.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.3.1-victorialogs)
+
+Released at 2024-12-08
+
+* BUGFIX: [`facets` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#facets-pipe): fix `assignment to entry in nil map` panic, which has been introduced in [v1.3.0-victorialogs](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.3.0-victorialogs).
+
+## [v1.3.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.3.0-victorialogs)
+
+Released at 2024-12-08
+
+* FEATURE: add [`collapse_nums` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#collapse_nums-pipe), which replaces all the decimal and hexadecimal numbers with `<N>` in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). This can be useful for locating the most frequently seen log message patterns if log messages differ only by decimal and hexadecimal numbers (this is very frequent case). For example, the following query returns top 5 log message patterns seen over the last hour: `_time:1h | collapse_nums | top 5 by (_msg)`.
 * FEATURE: improve performance for [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe) over [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with big number of logs (millions and more). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7637).
 * FEATURE: [`stream_context` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe) allow changing the time window for search for surrounding logs via `time_window` option. For example, the following query searches for surrouning [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) logs on the one week window: `_time:5m error | stream_context before 10 time_window 1w`. Thanks to @worker24h for [the idea](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7637#issuecomment-2523313740).
 

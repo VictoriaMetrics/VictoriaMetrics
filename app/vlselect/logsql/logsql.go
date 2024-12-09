@@ -43,9 +43,14 @@ func ProcessFacetsRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
+	maxValueLen, err := httputils.GetInt(r, "max_value_len")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
 
 	q.DropAllPipes()
-	q.AddFacetsPipe(limit, maxValuesPerField)
+	q.AddFacetsPipe(limit, maxValuesPerField, maxValueLen)
 
 	var mLock sync.Mutex
 	m := make(map[string][]facetEntry)

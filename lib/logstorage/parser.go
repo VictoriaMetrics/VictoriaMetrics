@@ -295,14 +295,17 @@ func (q *Query) DropAllPipes() {
 	q.pipes = nil
 }
 
-// AddFacetsPipe adds ' facets <limit> max_values_per_field <maxValuesPerField>` to the end of q.
-func (q *Query) AddFacetsPipe(limit, maxValuesPerField int) {
+// AddFacetsPipe adds ' facets <limit> max_values_per_field <maxValuesPerField> max_value_len <maxValueLen>` to the end of q.
+func (q *Query) AddFacetsPipe(limit, maxValuesPerField, maxValueLen int) {
 	s := "facets"
 	if limit > 0 {
 		s += fmt.Sprintf(" %d", limit)
 	}
 	if maxValuesPerField > 0 {
 		s += fmt.Sprintf(" max_values_per_field %d", maxValuesPerField)
+	}
+	if maxValueLen > 0 {
+		s += fmt.Sprintf(" max_value_len %d", maxValueLen)
 	}
 	lex := newLexer(s)
 

@@ -174,6 +174,14 @@ func (pcp *pipeStreamContextProcessor) getTimeRangesForStreamRowss(streamID stri
 		return nil, 0, fmt.Errorf("more than %dMB of memory is needed for fetching the surrounding logs for %d matching logs", stateSizeBudget/(1<<20), len(neededTimestamps))
 	}
 	for i, rows := range rowss {
+		if len(rows) == 0 {
+			// surrounding rows for the given row were included into the previous row.
+			trs[i] = timeRange{
+				start: math.MinInt64,
+				end:   math.MaxInt64,
+			}
+			continue
+		}
 		minTimestamp := rows[0].timestamp
 		maxTimestamp := minTimestamp
 		for _, row := range rows[1:] {
@@ -202,27 +210,36 @@ func (pcp *pipeStreamContextProcessor) getTimeRangeForNeededTimestamps(neededTim
 			tr.end = ts
 		}
 	}
-	tr.start -= pcp.pc.timeWindow
-	tr.end += pcp.pc.timeWindow
+	if pcp.pc.linesBefore > 0 {
+		tr.start -= pcp.pc.timeWindow
+	}
+	if pcp.pc.linesAfter > 0 {
+		tr.end += pcp.pc.timeWindow
+	}
 	return tr
 }
 
 func (pcp *pipeStreamContextProcessor) getStreamRowssByTimeRanges(streamID string, neededTimestamps []int64, trs []timeRange, stateSizeBudget int) ([][]*streamContextRow, error) {
 	// construct the query for selecting rows on the given tr for the given streamID
-	minTimestamp := trs[0].start
-	maxTimestamp := trs[0].end
-	timeFilters := make([]string, len(trs))
-	for i, tr := range trs {
+	qStr := "_stream_id:" + streamID
+	minTimestamp := int64(math.MaxInt64)
+	maxTimestamp := int64(math.MinInt64)
+	timeFilters := make([]string, 0, len(trs))
+	for _, tr := range trs {
+		if tr.start == math.MinInt64 && tr.end == math.MaxInt64 {
+			continue
+		}
 		if tr.start < minTimestamp {
 			minTimestamp = tr.start
 		}
 		if tr.end > maxTimestamp {
 			maxTimestamp = tr.end
 		}
-		timeFilters[i] = getTimeFilter(tr.start, tr.end)
+		timeFilters = append(timeFilters, getTimeFilter(tr.start, tr.end))
 	}
-	timeFilter := getTimeFilter(minTimestamp, maxTimestamp)
-	qStr := fmt.Sprintf("_stream_id:%s %s", streamID, timeFilter)
+	if minTimestamp <= maxTimestamp {
+		qStr += " " + getTimeFilter(minTimestamp, maxTimestamp)
+	}
 	if len(timeFilters) > 1 {
 		qStr += " (" + strings.Join(timeFilters, " OR ") + ")"
 	}

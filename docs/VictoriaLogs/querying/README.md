@@ -385,6 +385,14 @@ returns the most frequent values across log fields containing up to 100000 uniqu
 curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h' -d 'max_values_per_field=100000'
 ```
 
+The `/select/logsql/facets` endpoint ignores log fields, which contain too long values.
+The limit on the per-field value length can be controlled via `max_value_len` query arg. For example, the following command
+returns the most frequent values across log fields containing values no longer than 100 bytes over the last hour:
+
+```sh
+curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h' -d 'max_value_len=100'
+```
+
 See also:
 
 - [Extra filters](#extra-filters)
