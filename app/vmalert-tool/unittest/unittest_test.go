@@ -8,7 +8,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	if err := templates.Load([]string{}, true); err != nil {
+	if err := templates.Load([]string{}, ""); err != nil {
 		os.Exit(1)
 	}
 	os.Exit(m.Run())

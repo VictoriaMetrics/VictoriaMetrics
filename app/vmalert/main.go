@@ -95,7 +95,7 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
-	err := templates.Load(*ruleTemplatesPath, true)
+	err := templates.Load(*ruleTemplatesPath, *externalURL)
 	if err != nil {
 		logger.Fatalf("failed to parse %q: %s", *ruleTemplatesPath, err)
 	}
@@ -299,12 +299,9 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 		"tpl": externalAlertSource,
 	}
 	return func(alert notifier.Alert) string {
-		qFn := func(_ string) ([]datasource.Metric, error) {
-			return nil, fmt.Errorf("`query` template isn't supported for alert source template")
-		}
-		templated, err := alert.ExecTemplate(qFn, alert.Labels, m)
+		templated, err := alert.ExecTemplate(nil, alert.Labels, m)
 		if err != nil {
-			logger.Errorf("can not exec source template %s", err)
+			logger.Errorf("cannot template alert source: %s", err)
 		}
 		return fmt.Sprintf("%s/%s", externalURL, templated["tpl"])
 	}, nil
@@ -359,7 +356,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			logger.Errorf("failed to reload notifier config: %s", err)
 			continue
 		}
-		err := templates.Load(*ruleTemplatesPath, false)
+		err := templates.Load(*ruleTemplatesPath, *externalURL)
 		if err != nil {
 			setConfigError(err)
 			logger.Errorf("failed to load new templates: %s", err)
