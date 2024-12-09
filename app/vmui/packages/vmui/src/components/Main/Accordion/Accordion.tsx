@@ -19,6 +19,10 @@ const Accordion: FC<AccordionProps> = ({
   const [isOpen, setIsOpen] = useState(defaultExpanded);
 
   const toggleOpen = () => {
+    const selection = window.getSelection();
+    if (selection && selection.toString()) {
+      return; // Если текст выделен, отменяем выполнение toggle
+    }
     setIsOpen(prev => !prev);
   };
 
