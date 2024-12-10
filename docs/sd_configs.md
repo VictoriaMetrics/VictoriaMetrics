@@ -1278,7 +1278,7 @@ Configuration example:
 
 ```yaml
 scrape_configs:
-- job_name: nomad
+- job_name: marathon
   marathon_sd_configs:
     # List of URLs to be used to contact Marathon servers.
     # You need to provide at least one server URL, but should provide URLs for

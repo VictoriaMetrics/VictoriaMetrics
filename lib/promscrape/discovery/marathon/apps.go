@@ -15,7 +15,7 @@ type AppList struct {
 type app struct {
 	ID              string            `json:"id"`
 	Tasks           []task            `json:"tasks"`
-	RunningTasks    int               `json:"tasksRunning"`
+	TasksRunning    int               `json:"tasksRunning"`
 	Labels          map[string]string `json:"labels"`
 	Container       container         `json:"container"`
 	PortDefinitions []portDefinition  `json:"portDefinitions"`
@@ -25,16 +25,16 @@ type app struct {
 
 // task describes one instance of a service running on Marathon.
 type task struct {
-	ID          string      `json:"id"`
-	Host        string      `json:"host"`
-	Ports       []uint32    `json:"ports"`
-	IPAddresses []ipAddress `json:"ipAddresses"`
+	ID          string   `json:"id"`
+	Host        string   `json:"host"`
+	Ports       []uint32 `json:"ports"`
+	IPAddresses []ipAddr `json:"ipAddresses"`
 }
 
 // ipAddress describes the address and protocol the container's network interface is bound to.
-type ipAddress struct {
-	Address string `json:"ipAddress"`
-	Proto   string `json:"protocol"`
+type ipAddr struct {
+	IPAddress string `json:"ipAddress"`
+	Protocol  string `json:"protocol"`
 }
 
 // Container describes the runtime an app in running in.

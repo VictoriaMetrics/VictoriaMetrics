@@ -153,7 +153,7 @@ func targetEndpoint(task *task, port uint32, containerNet bool) string {
 
 	// Use the task's ipAddress field when it's in a container network
 	if containerNet && len(task.IPAddresses) > 0 {
-		host = task.IPAddresses[0].Address
+		host = task.IPAddresses[0].IPAddress
 	} else {
 		host = task.Host
 	}
