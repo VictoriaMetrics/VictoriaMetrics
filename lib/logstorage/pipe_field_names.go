@@ -206,7 +206,7 @@ func (wctx *pipeFieldNamesWriteContext) flush() {
 	wctx.rcs[1].resetValues()
 }
 
-func parsePipeFieldNames(lex *lexer) (*pipeFieldNames, error) {
+func parsePipeFieldNames(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("field_names") {
 		return nil, fmt.Errorf("expecting 'field_names'; got %q", lex.token)
 	}

@@ -14,6 +14,7 @@ VictoriaLogs provides the following HTTP endpoints:
 - [`/select/logsql/query`](#querying-logs) for querying logs.
 - [`/select/logsql/tail`](#live-tailing) for live tailing of query results.
 - [`/select/logsql/hits`](#querying-hits-stats) for querying log hits stats over the given time range.
+- [`/select/logsql/facets`](#querying-facets) for querying the most frequent values per each field seen in the selected logs.
 - [`/select/logsql/stats_query`](#querying-log-stats) for querying log stats at the given time.
 - [`/select/logsql/stats_query_range`](#querying-log-range-stats) for querying log stats over the given time range.
 - [`/select/logsql/stream_ids`](#querying-stream_ids) for querying `_stream_id` values of [log streams](#https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
@@ -308,10 +309,94 @@ curl http://localhost:9428/select/logsql/hits -H 'AccountID: 12' -H 'ProjectID: 
 See also:
 
 - [Extra filters](#extra-filters)
+- [Querying facets](#querying-facets)
 - [Querying logs](#querying-logs)
 - [Querying log stats](#querying-log-stats)
 - [Querying log range stats](#querying-log-range-stats)
 - [Querying streams](#querying-streams)
+- [HTTP API](#http-api)
+
+### Querying facets
+
+VictoriaLogs provides `/select/logsql/facets?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns the most fequent values
+per each [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) seen in the logs returned
+by the given [`<query>`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+
+The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
+If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
+If `<end>` is missing, then it equals to the maximum timestamp across logs stored in VictoriaLogs.
+
+For example, the following command returns the most frequent values per each field seen in the logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+over the last hour:
+
+```sh
+curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h error'
+```
+
+Below is an example response:
+
+```json
+{
+  "facets": [
+    {
+      "field_name": "kubernetes_container_name",
+      "values": [
+        {
+          "field_value": "victoria-logs",
+          "hits": 442378
+        },
+        {
+          "field_value": "victoria-metrics",
+          "hits": 34783
+        }
+      ]
+    },
+    {
+      "field_name": "kubernetes_pod_name",
+      "values": [
+        {
+          "field_value": "victoria-logs-0",
+          "hits": 232385
+        }
+        {
+          "field_value": "victoria-logs-1",
+          "hits": 123898
+        }
+      ]
+    }
+  ]
+}
+```
+
+The `hits` value shows the number of logs with the given `field_name=field_value` pair.
+
+The number of values per each log field can be controlled via `limit` query arg. For example, the following command returns up to 3 most frequent values
+per each log field seen in the logs over the last hour:
+
+```sh
+curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h' -d 'limit=3'
+```
+
+The `/select/logsql/facets` endpoint ignores log fields, which contain too big number of unique values, since they can consume a lot of RAM to track.
+The limit on the number of unique values per each log field can be controlled via `max_values_per_field` query arg. For example, the following command
+returns the most frequent values across log fields containing up to 100000 unique values over the last hour:
+
+```sh
+curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h' -d 'max_values_per_field=100000'
+```
+
+The `/select/logsql/facets` endpoint ignores log fields, which contain too long values.
+The limit on the per-field value length can be controlled via `max_value_len` query arg. For example, the following command
+returns the most frequent values across log fields containing values no longer than 100 bytes over the last hour:
+
+```sh
+curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h' -d 'max_value_len=100'
+```
+
+See also:
+
+- [Extra filters](#extra-filters)
+- [Querying hits stats](#querying-hits-stats)
 - [HTTP API](#http-api)
 
 ### Querying log stats

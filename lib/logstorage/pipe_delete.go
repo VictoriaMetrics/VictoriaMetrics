@@ -67,7 +67,7 @@ func (pdp *pipeDeleteProcessor) flush() error {
 	return nil
 }
 
-func parsePipeDelete(lex *lexer) (*pipeDelete, error) {
+func parsePipeDelete(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("delete", "del", "rm", "drop") {
 		return nil, fmt.Errorf("expecting 'delete', 'del', 'rm' or 'drop'; got %q", lex.token)
 	}

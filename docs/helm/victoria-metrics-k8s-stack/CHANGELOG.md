@@ -2,6 +2,34 @@
 
 - TODO
 
+## 0.30.3
+
+**Release date:** 2024-12-05
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Set higher priority for `defaultDashboards.dashboards.<name>.enabled` flag comparing to default dashboard conditions to allow install or ignore dashboards regardless of whether component it's for is installed or monitored. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1851).
+
+## 0.30.2
+
+**Release date:** 2024-12-03
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- synced rules
+
+## 0.30.1
+
+**Release date:** 2024-12-03
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fail template if both vmcluster and vmsingle are enabled
+- synced rules and dashboards
+
 ## 0.30.0
 
 **Release date:** 2024-12-02
@@ -481,7 +509,7 @@
 
 - added ability to override alerting rules labels and annotations:
 - globally - `.Values.defaultRules.rule.spec.labels` (before it was `.Values.defaultRules.additionalRuleLabels`) and `.Values.defaultRules.rule.spec.annotations`
-- for all rules in a group  - `.Values.defaultRules.groups.<groupName>.rules.spec.labels` and `.Valeus.defaultRules.groups.<groupName>.rules.spec.annotations`
+- for all rules in a group  - `.Values.defaultRules.groups.<groupName>.rules.spec.labels` and `.Values.defaultRules.groups.<groupName>.rules.spec.annotations`
 - for each rule individually - `.Values.defaultRules.rules.<ruleName>.spec.labels` and `.Values.defaultRules.rules.<ruleName>.spec.annotations`
 - changed `.Values.defaultRules.rules.<groupName>` to `.Values.defaultRules.groups.<groupName>.create`
 - changed `.Values.defaultRules.appNamespacesTarget` to `.Values.defaultRules.groups.<groupName>.targetNamespace`
@@ -496,7 +524,7 @@
 
 - added ability to override alerting rules labels and annotations:
 - globally - `.Values.defaultRules.rule.spec.labels` (before it was `.Values.defaultRules.additionalRuleLabels`) and `.Values.defaultRules.rule.spec.annotations`
-- for all rules in a group  - `.Values.defaultRules.groups.<groupName>.rules.spec.labels` and `.Valeus.defaultRules.groups.<groupName>.rules.spec.annotations`
+- for all rules in a group  - `.Values.defaultRules.groups.<groupName>.rules.spec.labels` and `.Values.defaultRules.groups.<groupName>.rules.spec.annotations`
 - for each rule individually - `.Values.defaultRules.rules.<ruleName>.spec.labels` and `.Values.defaultRules.rules.<ruleName>.spec.annotations`
 - changed `.Values.defaultRules.rules.<groupName>` to `.Values.defaultRules.groups.<groupName>.create`
 - changed `.Values.defaultRules.appNamespacesTarget` to `.Values.defaultRules.groups.<groupName>.targetNamespace`

@@ -67,7 +67,7 @@ func (pf *pipeFieldValues) newPipeProcessor(workersCount int, stopCh <-chan stru
 	return pu.newPipeProcessor(workersCount, stopCh, cancel, ppNext)
 }
 
-func parsePipeFieldValues(lex *lexer) (*pipeFieldValues, error) {
+func parsePipeFieldValues(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("field_values") {
 		return nil, fmt.Errorf("expecting 'field_values'; got %q", lex.token)
 	}

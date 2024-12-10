@@ -218,25 +218,18 @@ func (b *block) assertValid() {
 // It is expected that timestamps are sorted.
 //
 // b is valid until rows are changed.
-//
-// Returns the number of the processed timestamps and rows.
-// If the returned number is smaller than len(rows), then the rest of rows aren't processed.
-func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) int {
+func (b *block) MustInitFromRows(timestamps []int64, rows [][]Field) {
 	b.reset()
 
 	assertTimestampsSorted(timestamps)
-	rowsProcessed := b.mustInitFromRows(timestamps, rows)
+	b.mustInitFromRows(timestamps, rows)
 	b.sortColumnsByName()
-	return rowsProcessed
 }
 
 // mustInitFromRows initializes b from the given timestamps and rows.
 //
 // b is valid until rows are changed.
-//
-// Returns the number of the processed timestamps and rows.
-// If the returned number is smaller than len(rows), then the rest of rows aren't processed.
-func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) int {
+func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) {
 	if len(timestamps) != len(rows) {
 		logger.Panicf("BUG: len of timestamps %d and rows %d must be equal", len(timestamps), len(rows))
 	}
@@ -244,7 +237,7 @@ func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) int {
 	rowsLen := len(rows)
 	if rowsLen == 0 {
 		// Nothing to do
-		return 0
+		return
 	}
 
 	if areSameFieldsInRows(rows) {
@@ -266,7 +259,7 @@ func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) int {
 				}
 			}
 		}
-		return rowsLen
+		return
 	}
 
 	// Slow path - log entries contain different set of fields
@@ -278,6 +271,16 @@ func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) int {
 	for i < len(rows) {
 		fields := rows[i]
 		if len(columnIdxs)+len(fields) > maxColumnsPerBlock {
+			// User tries writing too many unique field names into a single log stream.
+			// It is better ignoring rows with too many field names instead of trying to store them,
+			// since the storage isn't designed to work with too big number of unique field names
+			// per log stream - this leads to excess usage of RAM, CPU, disk IO and disk space.
+			// It is better emitting a warning, so the user is aware of the problem and fixes it ASAP.
+			fieldNames := make([]string, 0, len(columnIdxs))
+			for k := range columnIdxs {
+				fieldNames = append(fieldNames, k)
+			}
+			logger.Warnf("ignoring %d rows in the block, becasue they contain more than %d unique field names: %s", len(rows)-i, maxColumnsPerBlock, fieldNames)
 			break
 		}
 		for j := range fields {
@@ -293,6 +296,9 @@ func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) int {
 	// keep only rows that fit maxColumnsPerBlock limit
 	rows = rows[:rowsProcessed]
 	timestamps = timestamps[:rowsProcessed]
+	if len(rows) == 0 {
+		return
+	}
 
 	b.timestamps = append(b.timestamps, timestamps...)
 
@@ -330,7 +336,6 @@ func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) int {
 		cs = cs[:len(cs)-1]
 	}
 	b.columns = cs
-	return rowsProcessed
 }
 
 func swapColumns(a, b *column) {

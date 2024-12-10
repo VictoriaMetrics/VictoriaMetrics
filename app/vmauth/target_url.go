@@ -51,9 +51,9 @@ func dropPrefixParts(path string, parts int) string {
 	return path
 }
 
-func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, h http.Header) (*URLPrefix, HeadersConf) {
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL, host string, h http.Header) (*URLPrefix, HeadersConf) {
 	for _, e := range ui.URLMaps {
-		if !matchAnyRegex(e.SrcHosts, u.Host) {
+		if !matchAnyRegex(e.SrcHosts, host) {
 			continue
 		}
 		if !matchAnyRegex(e.SrcPaths, u.Path) {

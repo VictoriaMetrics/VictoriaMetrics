@@ -149,6 +149,52 @@ func (ps *pipeStats) initFilterInValues(cache map[string][]string, getFieldValue
 	return &psNew, nil
 }
 
+func (ps *pipeStats) addByTimeField(step int64) {
+	if step <= 0 {
+		return
+	}
+
+	// add step to byFields
+	stepStr := fmt.Sprintf("%d", step)
+	dstFields := make([]*byStatsField, 0, len(ps.byFields)+1)
+	hasByTime := false
+	for _, f := range ps.byFields {
+		if f.name == "_time" {
+			f = &byStatsField{
+				name:          "_time",
+				bucketSizeStr: stepStr,
+				bucketSize:    float64(step),
+			}
+			hasByTime = true
+		}
+		dstFields = append(dstFields, f)
+	}
+	if !hasByTime {
+		dstFields = append(dstFields, &byStatsField{
+			name:          "_time",
+			bucketSizeStr: stepStr,
+			bucketSize:    float64(step),
+		})
+	}
+	ps.byFields = dstFields
+}
+
+func (ps *pipeStats) initRateFuncs(step int64) {
+	if step <= 0 {
+		return
+	}
+
+	stepSeconds := float64(step) / 1e9
+	for _, f := range ps.funcs {
+		switch t := f.f.(type) {
+		case *statsRate:
+			t.stepSeconds = stepSeconds
+		case *statsRateSum:
+			t.stepSeconds = stepSeconds
+		}
+	}
+}
+
 const stateSizeBudgetChunk = 1 << 20
 
 func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
@@ -646,7 +692,7 @@ func updatePipeStatsMap(m map[string]*pipeStatsGroup, k string, psgSrc *pipeStat
 	return int64(unsafe.Sizeof(k) + unsafe.Sizeof(psgSrc))
 }
 
-func parsePipeStats(lex *lexer, needStatsKeyword bool) (*pipeStats, error) {
+func parsePipeStats(lex *lexer, needStatsKeyword bool) (pipe, error) {
 	if needStatsKeyword {
 		if !lex.isKeyword("stats") {
 			return nil, fmt.Errorf("expecting 'stats'; got %q", lex.token)
@@ -755,6 +801,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'count_uniq' func: %w", err)
 		}
 		return sus, nil
+	case lex.isKeyword("count_uniq_hash"):
+		sus, err := parseStatsCountUniqHash(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'count_uniq_hash' func: %w", err)
+		}
+		return sus, nil
 	case lex.isKeyword("max"):
 		sms, err := parseStatsMax(lex)
 		if err != nil {
@@ -779,6 +831,18 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'quantile' func: %w", err)
 		}
 		return sqs, nil
+	case lex.isKeyword("rate"):
+		srs, err := parseStatsRate(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'rate' func: %w", err)
+		}
+		return srs, nil
+	case lex.isKeyword("rate_sum"):
+		srs, err := parseStatsRateSum(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'rate_sum' func: %w", err)
+		}
+		return srs, nil
 	case lex.isKeyword("row_any"):
 		sas, err := parseStatsRowAny(lex)
 		if err != nil {
@@ -831,10 +895,13 @@ var statsNames = []string{
 	"count",
 	"count_empty",
 	"count_uniq",
+	"count_uniq_hash",
 	"max",
 	"median",
 	"min",
 	"quantile",
+	"rate",
+	"rate_sum",
 	"row_any",
 	"row_max",
 	"row_min",
