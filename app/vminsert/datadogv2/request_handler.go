@@ -66,14 +66,9 @@ func insertRows(series []datadogv2.Series, extraLabels []prompbmarshal.Label) er
 			label := &extraLabels[j]
 			ctx.AddLabel(label.Name, label.Value)
 		}
-		if hasRelabeling {
-			ctx.ApplyRelabeling()
-		}
-		if len(ctx.Labels) == 0 {
-			// Skip metric without labels.
+		if !ctx.TryPrepareLabels(hasRelabeling) {
 			continue
 		}
-		ctx.SortLabelsIfNeeded()
 		var metricNameRaw []byte
 		var err error
 		for _, pt := range ss.Points {

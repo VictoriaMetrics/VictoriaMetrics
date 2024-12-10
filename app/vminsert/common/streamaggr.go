@@ -267,7 +267,7 @@ func pushAggregateSeries(tss []prompbmarshal.TimeSeries) {
 			ctx.AddLabel(name, label.Value)
 		}
 		value := ts.Samples[0].Value
-		if err := ctx.WriteDataPoint(nil, ctx.Labels, currentTimestamp, value); err != nil {
+		if err := ctx.WriteDataPointUnchecked(nil, ctx.Labels, currentTimestamp, value); err != nil {
 			logger.Errorf("cannot store aggregate series: %s", err)
 			// Do not continue pushing the remaining samples, since it is likely they will return the same error.
 			return
