@@ -21,7 +21,7 @@ const Accordion: FC<AccordionProps> = ({
   const toggleOpen = () => {
     const selection = window.getSelection();
     if (selection && selection.toString()) {
-      return; // Если текст выделен, отменяем выполнение toggle
+      return; // If the text is selected, cancel the execution of toggle.
     }
     setIsOpen(prev => !prev);
   };
