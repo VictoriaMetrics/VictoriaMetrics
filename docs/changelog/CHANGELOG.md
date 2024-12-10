@@ -18,10 +18,14 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+**Update note 1: `docker_sd_configs` may require configuration update due to changes at container networks discovery mechanism. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7398) for details and recommended solutions.**
+
 * SECURITY: upgrade Go builder from Go1.23.3 to Go1.23.4. See the list of issues addressed in [Go1.23.4](https://github.com/golang/go/issues?q=milestone%3AGo1.23.4+label%3ACherryPickApproved).
 
 * FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards): add `NodeBecomesReadonlyIn3Days` alert for detecting storages that will switch to read-only mode soon.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): allow to start `vmauth` with empty configuration file. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6467) for details.
+* FEATURE:[vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): add `match_first_network` support for docker service discovery. It uses the first network if the container has multiple networks defined. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7398).
+* FEATURE:[vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): docker service discovery now supports discover [linked networks](https://docs.docker.com/reference/cli/docker/network/connect/#link).
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly parse the query rollup window specified in milliseconds. Previous implementation could lead to precision issues resulting in the parsed window being smaller by 1ms. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5796) for details.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly schedule historical data de-duplication at enterprise version with `-dedup.minScrapeInterval` configured. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7764) for details. Issue was introduced at [v1.106.1](https://docs.victoriametrics.com/changelog/#v11061) release.
