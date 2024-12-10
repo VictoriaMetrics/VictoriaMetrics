@@ -1709,7 +1709,7 @@ By default `facets` pipe doesn't return log fields with too long values. The lim
 For example, the following query returns most frequently values for all the log fields containing values no longer than 100 bytes:
 
 ```logsql
-_time:1h error | facets mav_value_len 100
+_time:1h error | facets max_value_len 100
 ```
 
 See also:
