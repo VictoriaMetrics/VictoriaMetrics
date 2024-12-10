@@ -6,6 +6,8 @@ package prompbmarshal
 import (
 	"encoding/binary"
 	"math"
+	"sort"
+	"strconv"
 )
 
 type Sample struct {
@@ -123,4 +125,28 @@ func (m *Label) Size() (n int) {
 		n += 1 + l + sov(uint64(l))
 	}
 	return n
+}
+
+// LabelsToString converts labels to Prometheus-compatible string
+func LabelsToString(labels []Label) string {
+	labelsCopy := append([]Label{}, labels...)
+	sort.Slice(labelsCopy, func(i, j int) bool {
+		return string(labelsCopy[i].Name) < string(labelsCopy[j].Name)
+	})
+	var b []byte
+	b = append(b, '{')
+	for i, label := range labelsCopy {
+		if len(label.Name) == 0 {
+			b = append(b, "__name__"...)
+		} else {
+			b = append(b, label.Name...)
+		}
+		b = append(b, '=')
+		b = strconv.AppendQuote(b, label.Value)
+		if i < len(labels)-1 {
+			b = append(b, ',')
+		}
+	}
+	b = append(b, '}')
+	return string(b)
 }

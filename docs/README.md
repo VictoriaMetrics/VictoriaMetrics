@@ -2458,9 +2458,10 @@ and [cardinality explorer docs](#cardinality-explorer).
 * New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics.
 
 * VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag
-  and drops superfluous labels. This prevents from ingesting metrics with too many labels.
-  It is recommended [monitoring](#monitoring) `vm_metrics_with_dropped_labels_total`
+  and ignores series with superfluous labels. This prevents from ingesting metrics with too many labels.
+  It is recommended [monitoring](#monitoring) `vm_rows_ingored_total{reason="too_many_labels"}`
   metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
+  Alternatively you can use [relabeling](https://docs.victoriametrics.com/single-server-victoriametrics/#relabeling) to change metric target labels.
 
 * If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `{__graphite__="foo.*.baz"}` filter can be used for selecting such metrics.
   See [these docs](#selecting-graphite-metrics) for details. You can also query Graphite metrics with [Graphite querying API](#graphite-render-api-usage).
@@ -2955,10 +2956,12 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
-  -maxLabelValueLen int
-     The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented (default 4096)
   -maxLabelsPerTimeseries int
-     The maximum number of labels accepted per time series. Superfluous labels are dropped. In this case the vm_metrics_with_dropped_labels_total metric at /metrics page is incremented (default 30)
+     The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason="too_many_labels"} metric at /metrics page is incremented (default 40)
+  -maxLabelNameLen int
+     The maximum length of label names in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason="too_long_label_name"} metric at /metrics page is incremented (default 256)
+  -maxLabelValueLen int
+     The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason="too_long_label_value"} metric at /metrics page is incremented (default 4096)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)

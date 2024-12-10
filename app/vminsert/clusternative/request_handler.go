@@ -62,14 +62,9 @@ func insertRows(rows []storage.MetricRow) error {
 			tag := &mn.Tags[j]
 			ctx.AddLabelBytes(tag.Key, tag.Value)
 		}
-		if hasRelabeling {
-			ctx.ApplyRelabeling()
-		}
-		if len(ctx.Labels) == 0 {
-			// Skip metric without labels.
+		if !ctx.TryPrepareLabels(hasRelabeling) {
 			continue
 		}
-		ctx.SortLabelsIfNeeded()
 		if err := ctx.WriteDataPoint(&at, ctx.Labels, mr.Timestamp, mr.Value); err != nil {
 			return err
 		}

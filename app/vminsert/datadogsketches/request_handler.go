@@ -61,14 +61,9 @@ func insertRows(at *auth.Token, sketches []*datadogsketches.Sketch, extraLabels 
 				label := &extraLabels[j]
 				ctx.AddLabel(label.Name, label.Value)
 			}
-			if hasRelabeling {
-				ctx.ApplyRelabeling()
-			}
-			if len(ctx.Labels) == 0 {
-				// Skip metric without labels.
+			if !ctx.TryPrepareLabels(hasRelabeling) {
 				continue
 			}
-			ctx.SortLabelsIfNeeded()
 			atLocal := ctx.GetLocalAuthToken(at)
 			ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
 			storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
