@@ -44,7 +44,7 @@ type SDConfig struct {
 
 var configMap = discoveryutils.NewConfigMap()
 
-// GetLabels returns gce labels according to sdc.
+// GetLabels returns Vultr instances' labels according to sdc.
 func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	ac, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
@@ -62,7 +62,7 @@ func (sdc *SDConfig) MustStop() {
 	_ = configMap.Delete(sdc)
 }
 
-// getInstanceLabels returns labels for vultr instances obtained from the given cfg
+// getInstanceLabels returns labels for Vultr instances obtained from the given cfg
 func getInstanceLabels(instances []Instance, port int) []*promutils.Labels {
 	ms := make([]*promutils.Labels, 0, len(instances))
 
