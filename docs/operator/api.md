@@ -1234,8 +1234,10 @@ _Appears in:_
 
 | Field | Description | Scheme | Required |
 | --- | --- | --- | --- |
+| `forceOffline` | Enforce offline verification of the license key. | _boolean_ | true |
 | `key` | Enterprise license key. This flag is available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise).<br />To request a trial license, [go to](https://victoriametrics.com/products/enterprise/trial) | _string_ | true |
 | `keyRef` | KeyRef is reference to secret with license key for enterprise features. | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | true |
+| `reloadInterval` | Interval to be used for checking for license key changes. Note that this is only applicable when using KeyRef. | _string_ | true |
 
 
 #### LinkConfig
