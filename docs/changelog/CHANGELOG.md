@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly schedule historical data de-duplication at enterprise version with `-dedup.minScrapeInterval` configured. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7764) for details. Issue was introduced at [v1.106.1](https://docs.victoriametrics.com/changelog/#v11061) release.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fix requests routing by host when using `src_hosts`. Previously, request header could be ignored.
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): prevent backup scheduler from scheduling two backups immediately one after another.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): fix possible template collision between rule annotations.
 
 ## [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
 
