@@ -470,3 +470,186 @@ func TestClusterReplication_SkipSlowReplicas(t *testing.T) {
 	assertSeries(c.vmselectRF, 0)
 	assertSeries(c.vmselectRFSkip, replicationFactor-1)
 }
+
+type storageGroup struct {
+	vmstorages []*at.Vmstorage
+	vminsert   *at.Vminsert
+}
+
+type clusterWithGroupReplication struct {
+	storageGroups             []*storageGroup
+	vminsert                  *at.Vminsert
+	vmselect                  *at.Vmselect
+	vmselectDedup             *at.Vmselect
+	vmselectGroupRF           *at.Vmselect
+	vmselectGlobalRF          *at.Vmselect
+	vmselectGroupGlobalRF     *at.Vmselect
+	vmselectGroupRFSkip       *at.Vmselect
+	vmselectGlobalRFSkip      *at.Vmselect
+	vmselectGroupGlobalRFSkip *at.Vmselect
+}
+
+func newClusterWithGroupReplication(tc *at.TestCase, groupRFs []int, globalRF int) *clusterWithGroupReplication {
+	tc.T().Helper()
+
+	if len(groupRFs) < 1 {
+		tc.T().Fatalf("group count must be > 0")
+	}
+	for _, rf := range groupRFs {
+		if rf < 0 {
+			tc.T().Fatalf("group replication factors must be > 0: %v", groupRFs)
+		}
+	}
+
+	c := &clusterWithGroupReplication{
+		storageGroups: make([]*storageGroup, len(groupRFs)),
+	}
+	vminsertAddrs := make([]string, len(groupRFs))
+	vmselectAddrs := make([]string, len(groupRFs))
+	rfs := make([]string, len(groupRFs))
+
+	for g, rf := range groupRFs {
+		groupName := fmt.Sprintf("group%d", g)
+		vmstorageCount := 2*rf + 1
+		c.storageGroups[g] = &storageGroup{
+			vmstorages: make([]*at.Vmstorage, vmstorageCount),
+		}
+		groupVminsertAddrs := make([]string, vmstorageCount)
+		groupVmselectAddrs := make([]string, vmstorageCount)
+
+		for s := range vmstorageCount {
+			vmstorageInstance := fmt.Sprintf("vmstorage-%s-%d", groupName, s)
+			c.storageGroups[g].vmstorages[s] = tc.MustStartVmstorage(vmstorageInstance, []string{
+				"-storageDataPath=" + tc.Dir() + "/" + vmstorageInstance,
+				"-retentionPeriod=100y",
+			})
+			groupVminsertAddrs[s] = c.storageGroups[g].vmstorages[s].VminsertAddr()
+			groupVmselectAddrs[s] = groupName + "/" + c.storageGroups[g].vmstorages[s].VmselectAddr()
+		}
+
+		vminsertInstance := fmt.Sprintf("vminsert-%s", groupName)
+		c.storageGroups[g].vminsert = tc.MustStartVminsert(vminsertInstance, []string{
+			"-storageNode=" + strings.Join(groupVminsertAddrs, ","),
+			fmt.Sprintf("-replicationFactor=%d", rf),
+		})
+		vminsertAddrs[g] = c.storageGroups[g].vminsert.ClusternativeListenAddr()
+		vmselectAddrs[g] = strings.Join(groupVmselectAddrs, ",")
+		rfs[g] = fmt.Sprintf("%s:%d", groupName, rf)
+	}
+	c.vminsert = tc.MustStartVminsert("vminsert", []string{
+		"-storageNode=" + strings.Join(vminsertAddrs, ","),
+		fmt.Sprintf("-replicationFactor=%d", globalRF),
+	})
+
+	// An instace of vmselect that knows nothing about data replication.
+	c.vmselect = tc.MustStartVmselect("vmselect", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+	})
+
+	// An instance of vmselect that deduplicates data retrieved from the
+	// storage.
+	c.vmselectDedup = tc.MustStartVmselect("vmselect-dedup", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+		"-dedup.minScrapeInterval=1ms",
+	})
+
+	// An instance of vmselect that knows about group replication factor.
+	c.vmselectGroupRF = tc.MustStartVmselect("vmselect-group-rf", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+		"-replicationFactor=" + strings.Join(rfs, ","),
+	})
+
+	// An instance of vmselect that knows about global replication factor.
+	c.vmselectGlobalRF = tc.MustStartVmselect("vmselect-global-rf", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+		fmt.Sprintf("-globalReplicationFactor=%d", globalRF),
+	})
+
+	// An instance of vmselect that knows about global and group replication
+	// factor.
+	c.vmselectGroupGlobalRF = tc.MustStartVmselect("vmselect-group-global-rf", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+		"-replicationFactor=" + strings.Join(rfs, ","),
+		fmt.Sprintf("-globalReplicationFactor=%d", globalRF),
+	})
+
+	// An instance of vmselect that knows about group replication factor and
+	// skips slow replicas within the group.
+	c.vmselectGroupRFSkip = tc.MustStartVmselect("vmselect-group-rf-skip", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+		"-replicationFactor=" + strings.Join(rfs, ","),
+		"-search.skipSlowReplicas",
+	})
+
+	// An instance of vmselect that knows about global replication factor and
+	// skips slow groups.
+	c.vmselectGlobalRFSkip = tc.MustStartVmselect("vmselect-global-rf-skip", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+		fmt.Sprintf("-globalReplicationFactor=%d", globalRF),
+		"-search.skipSlowReplicas",
+	})
+
+	// An instance of vmselect that knows about group and global replication
+	// factor and skips slow groups and slow replicas within a group.
+	c.vmselectGroupGlobalRFSkip = tc.MustStartVmselect("vmselect-group-global-rf-skip", []string{
+		"-storageNode=" + strings.Join(vmselectAddrs, ","),
+		fmt.Sprintf("-globalReplicationFactor=%d", globalRF),
+		"-replicationFactor=" + strings.Join(rfs, ","),
+		"-search.skipSlowReplicas",
+	})
+
+	return c
+}
+
+// See: https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect
+// and https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
+func TestClusterGroupReplication_DataIsWrittenSeveralTimes(t *testing.T) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	const globalRF = 2
+	groupRFs := []int{1, 2, 3}
+	c := newClusterWithGroupReplication(tc, groupRFs, globalRF)
+
+	// Insert data.
+
+	const numRecs = 1000
+	recs := make([]string, numRecs)
+	for i := range numRecs {
+		recs[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
+	}
+	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
+	for _, g := range c.storageGroups {
+		tc.ForceFlush(g.vmstorages...)
+	}
+
+	// Verify that each strorage node has metrics and that total metric count across
+	// all vmstorages is at least globalRF*numRecs. It is impossible to estimate the
+	// exact number in general due to uneven distribution of metrics across replicas
+	// and different RF within storage groups.
+
+	getMetricsReadTotal := func(app *at.Vmstorage) int {
+		t.Helper()
+		got := app.GetIntMetric(t, "vm_vminsert_metrics_read_total")
+		if got <= 0 {
+			t.Fatalf("%s unexpected metric count: got %d, want > 0", app.Name(), got)
+		}
+		return got
+	}
+
+	cnts := make([][]int, len(c.storageGroups))
+	total := 0
+	for i, g := range c.storageGroups {
+		cnts[i] = make([]int, len(g.vmstorages))
+		groupCnt := 0
+		for j, s := range g.vmstorages {
+			cnt := getMetricsReadTotal(s)
+			cnts[i][j] = cnt
+			groupCnt += cnt
+		}
+		total += groupCnt / groupRFs[i]
+	}
+	if got, want := total, globalRF*numRecs; got != want {
+		t.Fatalf("unxepected metric count: got %d, want %d (counts per group per replica: %v)", got, want, cnts)
+	}
+}
