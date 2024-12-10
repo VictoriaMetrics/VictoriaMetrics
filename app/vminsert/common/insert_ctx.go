@@ -2,15 +2,16 @@ package common
 
 import (
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
-	"github.com/VictoriaMetrics/metrics"
 	"net/http"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
@@ -108,7 +109,6 @@ func (ctx *InsertCtx) WriteDataPointExt(metricNameRaw []byte, labels []prompbmar
 }
 
 func (ctx *InsertCtx) addRow(metricNameRaw []byte, timestamp int64, value float64) error {
-	ingestionRateLimiter.Register(1)
 	mrs := ctx.mrs
 	if cap(mrs) > len(mrs) {
 		mrs = mrs[:len(mrs)+1]
@@ -181,9 +181,12 @@ func (ctx *InsertCtx) FlushBufs() error {
 		}
 		matchIdxsPool.Put(matchIdxs)
 	}
+	ingestionRateLimiter.Register(len(ctx.mrs))
+
 	// There is no need in limiting the number of concurrent calls to vmstorage.AddRows() here,
 	// since the number of concurrent FlushBufs() calls should be already limited via writeconcurrencylimiter
 	// used at every stream.Parse() call under lib/protoparser/*
+
 	err := vmstorage.AddRows(ctx.mrs)
 	ctx.Reset(0)
 	if err == nil {
