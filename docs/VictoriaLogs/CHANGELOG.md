@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [vlinsert](https://docs.victoriametrics.com/victorialogs/): order of VL-Msg-Field values now defines a priority of these fields and it's now obvious for a user which field will be picked if multiple msg_field values exist in a row.
+
 ## [v1.4.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.4.0-victorialogs)
 
 Released at 2024-12-22
