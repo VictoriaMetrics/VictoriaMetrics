@@ -70,9 +70,9 @@ func parseContainers(data []byte) ([]container, error) {
 }
 
 func addContainersLabels(containers []container, networkLabels map[string]*promutils.Labels, defaultPort int, hostNetworkingHost string, matchFirstNetwork bool) []*promutils.Labels {
-	allContainers := make(map[string]container)
-	for _, c := range containers {
-		allContainers[c.ID] = c
+	containersIdxByID := make(map[string]int)
+	for idx, c := range containers {
+		containersIdxByID[c.ID] = idx
 	}
 
 	var ms []*promutils.Labels
@@ -86,14 +86,18 @@ func addContainersLabels(containers []container, networkLabels map[string]*promu
 		networkMode := c.HostConfig.NetworkMode
 		if len(networks) == 0 {
 			// Try to lookup shared networks
+			// https://docs.docker.com/engine/network/#container-networks
+			// linked network follows 'container:container_id' format
 			for {
-				if !isContainer(networkMode) {
+				cID, ok := tryGetLinkedContainerID(networkMode)
+				if !ok {
 					break
 				}
-				tmpContainer, exists := allContainers[connectedContainer(networkMode)]
-				if !exists {
+				idx, ok := containersIdxByID[cID]
+				if !ok {
 					break
 				}
+				tmpContainer := &containers[idx]
 				networks = tmpContainer.NetworkSettings.Networks
 				networkMode = tmpContainer.HostConfig.NetworkMode
 				if len(networks) > 0 {
@@ -162,21 +166,10 @@ func addCommonLabels(m *promutils.Labels, c *container, networkLabels *promutils
 	m.AddFrom(networkLabels)
 }
 
-func isContainer(val string) bool {
-	_, ok := containerID(val)
-	return ok
-}
-
-func containerID(val string) (idOrName string, ok bool) {
-	k, v, hasSep := strings.Cut(val, ":")
+func tryGetLinkedContainerID(networkMode string) (string, bool) {
+	k, v, hasSep := strings.Cut(networkMode, ":")
 	if !hasSep || k != "container" {
 		return "", false
 	}
 	return v, true
-}
-
-func connectedContainer(val string) (idOrName string) {
-	idOrName, _ = containerID(val)
-	return idOrName
-
 }

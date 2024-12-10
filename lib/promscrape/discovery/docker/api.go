@@ -38,8 +38,11 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	cfg := &apiConfig{
 		port:               sdc.Port,
 		hostNetworkingHost: hostNetworkingHost,
-		matchFirstNetwork:  sdc.MatchFirstNetwork,
+		matchFirstNetwork:  true,
 		filtersQueryArg:    getFiltersQueryArg(sdc.Filters),
+	}
+	if sdc.MatchFirstNetwork != nil {
+		cfg.matchFirstNetwork = *sdc.MatchFirstNetwork
 	}
 	if cfg.port == 0 {
 		cfg.port = 80

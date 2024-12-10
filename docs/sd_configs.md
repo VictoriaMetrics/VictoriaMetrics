@@ -432,7 +432,7 @@ scrape_configs:
     # get the first network if the container has multiple networks defined, 
     # thus avoiding collecting duplicate targets.
     #
-    # match_first_network: "<boolean>" | default false
+    # match_first_network: "<boolean>" | default true
 
     # filters is an optional filters to limit the discovery process to a subset of available resources.
     # See https://docs.docker.com/engine/api/v1.40/#operation/ContainerList
