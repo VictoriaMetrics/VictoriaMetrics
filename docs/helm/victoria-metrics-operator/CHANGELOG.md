@@ -1,6 +1,7 @@
 ## Next release
 
 - updated common dependency 0.0.32 -> 0.0.33
+- add an option to mount `ServiceAccount` token manually for security hardening reasons.
 
 ## 0.39.1
 
