@@ -29,7 +29,7 @@ type SDConfig struct {
 
 var configMap = discoveryutils.NewConfigMap()
 
-// GetLabels returns gce labels according to sdc.
+// GetLabels returns Marathon labels according to sdc.
 func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	ac, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
