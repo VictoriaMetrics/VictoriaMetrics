@@ -18,7 +18,7 @@ var SDCheckInterval = flag.Duration("promscrape.marathonSDCheckInterval", 30*tim
 	"This works only if marathon_sd_configs is configured in '-promscrape.config' file. "+
 	"See https://docs.victoriametrics.com/sd_configs/#marathon_sd_configs for details")
 
-// SDConfig is the configuration for OVH Cloud service discovery.
+// SDConfig is the configuration for Marathon service discovery.
 type SDConfig struct {
 	Servers []string `yaml:"servers"`
 
