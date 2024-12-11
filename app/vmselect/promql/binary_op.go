@@ -493,7 +493,7 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 
 	for k, tssRight := range mRight {
 		tssLeft := mLeft[k]
-		if tssLeft == nil {
+		if len(removeEmptySeries(tssLeft)) == 0 { // special case where left is empty
 			rvs = append(rvs, tssRight...)
 			continue
 		}
