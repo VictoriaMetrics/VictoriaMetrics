@@ -1400,6 +1400,9 @@ when the following query is executed:
 _time:1h | collapse_nums prettify
 ```
 
+`collapse_nums` can miss some numbers or can collapse unexpected numbers. In this case [conditional `collapse_nums`](#conditional-collapse_nums) can be used
+for skipping such values and pre-processing them separately with [`replace_regexp`](#replace_regexp-pipe).
+
 See also:
 
 - [conditional `collapse_nums`](#conditional-collapse_nums)
