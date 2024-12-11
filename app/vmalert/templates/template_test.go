@@ -2,6 +2,7 @@ package templates
 
 import (
 	"math"
+	"net/url"
 	"strings"
 	"testing"
 	textTpl "text/template"
@@ -149,10 +150,10 @@ func equalTemplates(tmpls ...*textTpl.Template) bool {
 }
 
 func TestTemplatesLoad_Failure(t *testing.T) {
-	f := func(pathPatterns []string, externalURL, expectedErrStr string) {
+	f := func(pathPatterns []string, expectedErrStr string) {
 		t.Helper()
 
-		err := Load(pathPatterns, externalURL)
+		err := Load(pathPatterns, url.URL{})
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -167,11 +168,7 @@ func TestTemplatesLoad_Failure(t *testing.T) {
 	f([]string{
 		"templates/other/nested/bad0-*.tpl",
 		"templates/test/good0-*.tpl",
-	}, "", "failed to parse template glob")
-
-	f([]string{
-		"templates/test/good0-*.tpl",
-	}, "%wrong-url", "failed to init external.url")
+	}, "failed to parse template glob")
 }
 
 func TestTemplatesLoad_Success(t *testing.T) {
@@ -183,7 +180,7 @@ func TestTemplatesLoad_Success(t *testing.T) {
 			masterTmpl = masterTmplOrig
 		}()
 
-		if err := Load(pathPatterns, ""); err != nil {
+		if err := Load(pathPatterns, url.URL{}); err != nil {
 			t.Fatalf("cannot load templates: %s", err)
 		}
 		Reload()

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -59,7 +60,11 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	if logLevel != "" {
 		testLogLevel = logLevel
 	}
-	if err := templates.Load([]string{}, ""); err != nil {
+	eu, err := url.Parse(externalURL)
+	if err != nil {
+		logger.Fatalf("failed to parse external URL: %w", err)
+	}
+	if err := templates.Load([]string{}, *eu); err != nil {
 		logger.Fatalf("failed to load template: %v", err)
 	}
 	storagePath = filepath.Join(os.TempDir(), testStoragePath)

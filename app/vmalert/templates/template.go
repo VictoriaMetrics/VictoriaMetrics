@@ -56,11 +56,7 @@ func newTemplate() *textTpl.Template {
 // Load func loads templates from multiple globs specified in pathPatterns and either
 // sets them directly to current template if it's the first init;
 // or sets replacement templates and wait for Reload() to replace current template with replacement.
-func Load(pathPatterns []string, externalURL string) error {
-	u, err := url.Parse(externalURL)
-	if err != nil {
-		return fmt.Errorf("failed to init external.url %q: %s", externalURL, err)
-	}
+func Load(pathPatterns []string, externalURL url.URL) error {
 	tmpl := newTemplate()
 	for _, tp := range pathPatterns {
 		p, err := doublestar.FilepathGlob(tp)
@@ -82,7 +78,7 @@ func Load(pathPatterns []string, externalURL string) error {
 	}
 	tplMu.Lock()
 	defer tplMu.Unlock()
-	tmpl = tmpl.Funcs(funcsWithExternalURL(*u))
+	tmpl = tmpl.Funcs(funcsWithExternalURL(externalURL))
 
 	if masterTmpl.current == nil {
 		masterTmpl.current = tmpl
