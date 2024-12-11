@@ -57,6 +57,10 @@ func newTemplate() *textTpl.Template {
 // sets them directly to current template if it's the first init;
 // or sets replacement templates and wait for Reload() to replace current template with replacement.
 func Load(pathPatterns []string, externalURL string) error {
+	u, err := url.Parse(externalURL)
+	if err != nil {
+		return fmt.Errorf("failed to init external.url %q: %s", externalURL, err)
+	}
 	tmpl := newTemplate()
 	for _, tp := range pathPatterns {
 		p, err := doublestar.FilepathGlob(tp)
@@ -78,7 +82,7 @@ func Load(pathPatterns []string, externalURL string) error {
 	}
 	tplMu.Lock()
 	defer tplMu.Unlock()
-	tmpl = tmpl.Funcs(funcsWithExternalURL(externalURL))
+	tmpl = tmpl.Funcs(funcsWithExternalURL(*u))
 
 	if masterTmpl.current == nil {
 		masterTmpl.current = tmpl
@@ -160,15 +164,14 @@ func FuncsWithQuery(query QueryFn) textTpl.FuncMap {
 }
 
 // funcsWithExternalURL returns a function map that depends on externalURL value
-func funcsWithExternalURL(externalURL string) textTpl.FuncMap {
-	eu, _ := url.Parse(externalURL)
+func funcsWithExternalURL(externalURL url.URL) textTpl.FuncMap {
 	return textTpl.FuncMap{
 		"externalURL": func() string {
-			return eu.String()
+			return externalURL.String()
 		},
 
 		"pathPrefix": func() string {
-			return eu.Path
+			return externalURL.Path
 		},
 	}
 }

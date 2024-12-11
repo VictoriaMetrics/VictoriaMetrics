@@ -149,10 +149,10 @@ func equalTemplates(tmpls ...*textTpl.Template) bool {
 }
 
 func TestTemplatesLoad_Failure(t *testing.T) {
-	f := func(pathPatterns []string, expectedErrStr string) {
+	f := func(pathPatterns []string, externalURL, expectedErrStr string) {
 		t.Helper()
 
-		err := Load(pathPatterns, "")
+		err := Load(pathPatterns, externalURL)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -167,7 +167,11 @@ func TestTemplatesLoad_Failure(t *testing.T) {
 	f([]string{
 		"templates/other/nested/bad0-*.tpl",
 		"templates/test/good0-*.tpl",
-	}, "failed to parse template glob")
+	}, "", "failed to parse template glob")
+
+	f([]string{
+		"templates/test/good0-*.tpl",
+	}, "%wrong-url", "failed to init external.url")
 }
 
 func TestTemplatesLoad_Success(t *testing.T) {

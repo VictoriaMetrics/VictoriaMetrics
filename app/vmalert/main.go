@@ -95,9 +95,14 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
-	err := templates.Load(*ruleTemplatesPath, *externalURL)
+	eu, err := getExternalURL(*externalURL)
 	if err != nil {
-		logger.Fatalf("failed to parse %q: %s", *ruleTemplatesPath, err)
+		logger.Fatalf("failed to init external.url %q: %s", *externalURL, err)
+	}
+
+	err = templates.Load(*ruleTemplatesPath, *externalURL)
+	if err != nil {
+		logger.Fatalf("failed to load template %q: %s", *ruleTemplatesPath, err)
 	}
 
 	if *dryRun {
@@ -109,11 +114,6 @@ func main() {
 			logger.Fatalf("No rules for validation. Please specify path to file(s) with alerting and/or recording rules using `-rule` flag")
 		}
 		return
-	}
-
-	eu, err := getExternalURL(*externalURL)
-	if err != nil {
-		logger.Fatalf("failed to init `-external.url`: %s", err)
 	}
 
 	alertURLGeneratorFn, err = getAlertURLGenerator(eu, *externalAlertSource, *validateTemplates)
