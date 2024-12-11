@@ -1,6 +1,7 @@
 package streamaggr
 
 import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -179,13 +180,29 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample) {
 			das.sizeBytes.Add(uint64(len(key)) + uint64(unsafe.Sizeof(key)+unsafe.Sizeof(s)+unsafe.Sizeof(*s)))
 			continue
 		}
-		// Update the existing value according to logic described at https://docs.victoriametrics.com/#deduplication
-		if sample.timestamp > s.timestamp || (sample.timestamp == s.timestamp && sample.value > s.value) {
+		if !isDuplicate(s, sample) {
 			s.value = sample.value
 			s.timestamp = sample.timestamp
 		}
 	}
 	das.samplesBuf = samplesBuf
+}
+
+// isDuplicate returns true if b is duplicate of a
+// See https://docs.victoriametrics.com/#deduplication
+func isDuplicate(a *dedupAggrSample, b pushSample) bool {
+	if b.timestamp > a.timestamp {
+		return false
+	}
+	if b.timestamp == a.timestamp {
+		if decimal.IsStaleNaN(b.value) {
+			return false
+		}
+		if b.value > a.value {
+			return false
+		}
+	}
+	return true
 }
 
 func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f func(samples []pushSample)) {

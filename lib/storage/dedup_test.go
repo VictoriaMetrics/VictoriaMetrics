@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 )
 
 func TestNeedsDedup(t *testing.T) {
@@ -41,7 +43,7 @@ func equalWithNans(a, b []float64) bool {
 		return false
 	}
 	for i, v := range a {
-		if math.IsNaN(v) && math.IsNaN(b[i]) {
+		if decimal.IsStaleNaN(v) && decimal.IsStaleNaN(b[i]) {
 			continue
 		}
 		if v != b[i] {
@@ -78,10 +80,19 @@ func TestDeduplicateSamplesWithIdenticalTimestamps(t *testing.T) {
 	f(time.Second, []int64{1000, 1000}, []float64{2, 1}, []int64{1000}, []float64{2})
 	f(time.Second, []int64{1001, 1001}, []float64{2, 1}, []int64{1001}, []float64{2})
 	f(time.Second, []int64{1000, 1001, 1001, 1001, 2001}, []float64{1, 2, 5, 3, 0}, []int64{1000, 1001, 2001}, []float64{1, 5, 0})
-	f(time.Second, []int64{1000, 1000, 2000}, []float64{1, math.NaN(), 2}, []int64{1000, 2000}, []float64{math.NaN(), 2})
-	f(time.Second, []int64{1000, 1000, 2000}, []float64{math.NaN(), 1, 2}, []int64{1000, 2000}, []float64{math.NaN(), 2})
-	f(time.Second, []int64{1000, 2000, 2000}, []float64{1, 2, math.NaN()}, []int64{1000, 2000}, []float64{1, math.NaN()})
-	f(time.Second, []int64{1000, 2000, 2000}, []float64{1, math.NaN(), 2}, []int64{1000, 2000}, []float64{1, math.NaN()})
+
+	// position of decimal.StaleNaN in the interval shouldn't matter during deduplication
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7674
+	f(time.Second, []int64{1000, 1000}, []float64{2, decimal.StaleNaN}, []int64{1000}, []float64{decimal.StaleNaN})
+	f(time.Second, []int64{1000, 1000}, []float64{decimal.StaleNaN, 2}, []int64{1000}, []float64{decimal.StaleNaN})
+	f(time.Second, []int64{1000, 1000, 1000}, []float64{1, decimal.StaleNaN, 2}, []int64{1000}, []float64{decimal.StaleNaN})
+	// compare with Inf values
+	f(time.Second, []int64{1000, 1000}, []float64{math.Inf(1), decimal.StaleNaN}, []int64{1000}, []float64{decimal.StaleNaN})
+	f(time.Second, []int64{1000, 1000}, []float64{decimal.StaleNaN, math.Inf(1)}, []int64{1000}, []float64{decimal.StaleNaN})
+	f(time.Second, []int64{1000, 1000, 1000}, []float64{math.Inf(1), decimal.StaleNaN, math.Inf(-1)}, []int64{1000}, []float64{decimal.StaleNaN})
+	// verify decimal.StaleNaN is preferred only within deduplicationInterval
+	f(time.Second, []int64{1000, 1000, 2000}, []float64{1, decimal.StaleNaN, 2}, []int64{1000, 2000}, []float64{decimal.StaleNaN, 2})
+	f(time.Second, []int64{1000, 1000, 2000, 2000}, []float64{1, decimal.StaleNaN, 2, 3}, []int64{1000, 2000}, []float64{decimal.StaleNaN, 3})
 }
 
 func TestDeduplicateSamplesDuringMergeWithIdenticalTimestamps(t *testing.T) {
@@ -111,6 +122,20 @@ func TestDeduplicateSamplesDuringMergeWithIdenticalTimestamps(t *testing.T) {
 	f(time.Second, []int64{1000, 1000}, []int64{2, 1}, []int64{1000}, []int64{2})
 	f(time.Second, []int64{1001, 1001}, []int64{2, 1}, []int64{1001}, []int64{2})
 	f(time.Second, []int64{1000, 1001, 1001, 1001, 2001}, []int64{1, 2, 5, 3, 0}, []int64{1000, 1001, 2001}, []int64{1, 5, 0})
+
+	staleNaN, _ := decimal.FromFloat(decimal.StaleNaN)
+	// position of decimal.StaleNaN in the interval shouldn't matter during deduplication
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7674
+	f(time.Second, []int64{1000, 1000}, []int64{2, staleNaN}, []int64{1000}, []int64{staleNaN})
+	f(time.Second, []int64{1000, 1000}, []int64{staleNaN, 2}, []int64{1000}, []int64{staleNaN})
+	f(time.Second, []int64{1000, 1000, 1000}, []int64{1, staleNaN, 2}, []int64{1000}, []int64{staleNaN})
+	// compare with max values
+	f(time.Second, []int64{1000, 1000}, []int64{math.MaxInt64, staleNaN}, []int64{1000}, []int64{staleNaN})
+	f(time.Second, []int64{1000, 1000}, []int64{staleNaN, math.MaxInt64}, []int64{1000}, []int64{staleNaN})
+	f(time.Second, []int64{1000, 1000, 1000}, []int64{math.MaxInt64, staleNaN, math.MaxInt64}, []int64{1000}, []int64{staleNaN})
+	// verify decimal.StaleNaN is preferred only within deduplicationInterval
+	f(time.Second, []int64{1000, 1000, 2000}, []int64{1, staleNaN, 2}, []int64{1000, 2000}, []int64{staleNaN, 2})
+	f(time.Second, []int64{1000, 1000, 2000, 2000}, []int64{1, staleNaN, 2, 3}, []int64{1000, 2000}, []int64{staleNaN, 3})
 }
 
 func TestDeduplicateSamples(t *testing.T) {
