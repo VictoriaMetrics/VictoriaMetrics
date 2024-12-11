@@ -1,7 +1,6 @@
 package streamaggr
 
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -9,6 +8,7 @@ import (
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
