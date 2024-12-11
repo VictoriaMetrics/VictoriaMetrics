@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- Added ability to override namespace for scrape config endpoints. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1859).
 
 ## 0.30.3
 
