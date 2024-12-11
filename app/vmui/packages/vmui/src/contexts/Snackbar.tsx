@@ -3,17 +3,17 @@ import Alert from "../components/Main/Alert/Alert";
 import useDeviceDetect from "../hooks/useDeviceDetect";
 import classNames from "classnames";
 import { CloseIcon } from "../components/Main/Icons";
+import { ReactNode } from "react";
 
-export interface SnackModel {
-  message?: string;
-  open?: boolean;
-  key?: number;
-  variant?: "success" | "error" | "info" | "warning";
+interface SnackbarItem {
+  text: string | ReactNode,
+  type: "success" | "error" | "info" | "warning"
+  timeout?: number
 }
 
-type SnackbarItem = undefined | {
-  text: string,
-  type: "success" | "error" | "info" | "warning"
+export interface SnackModel extends SnackbarItem {
+  open?: boolean;
+  key?: number;
 }
 
 type SnackbarContextType = {
@@ -31,26 +31,25 @@ export const useSnack = (): SnackbarContextType => useContext(SnackbarContext);
 export const SnackbarProvider: FC = ({ children }) => {
   const { isMobile } = useDeviceDetect();
 
-  const [snack, setSnack] = useState<SnackModel>({});
+  const [snack, setSnack] = useState<SnackModel>({ text: "", type: "info" });
   const [open, setOpen] = useState(false);
 
-  const [infoMessage, setInfoMessage] = useState<SnackbarItem>(undefined);
+  const [infoMessage, setInfoMessage] = useState<SnackbarItem | null>(null);
 
   useEffect(() => {
     if (!infoMessage) return;
     setSnack({
-      message: infoMessage.text,
-      variant: infoMessage.type,
+      ...infoMessage,
       key: Date.now()
     });
     setOpen(true);
-    const timeout = setTimeout(handleClose, 4000);
+    const timeout = setTimeout(handleClose, infoMessage.timeout || 4000);
 
     return () => clearTimeout(timeout);
   }, [infoMessage]);
 
   const handleClose = () => {
-    setInfoMessage(undefined);
+    setInfoMessage(null);
     setOpen(false);
   };
 
@@ -61,9 +60,9 @@ export const SnackbarProvider: FC = ({ children }) => {
         "vm-snackbar_mobile": isMobile,
       })}
     >
-      <Alert variant={snack.variant}>
+      <Alert variant={snack.type}>
         <div className="vm-snackbar-content">
-          <span>{snack.message}</span>
+          <span>{snack.text}</span>
           <div
             className="vm-snackbar-content__close"
             onClick={handleClose}
