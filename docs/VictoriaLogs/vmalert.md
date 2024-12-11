@@ -228,6 +228,65 @@ For example, the following config will execute all the rules within the group ag
       - "ProjectID: 2"
       rules: ...
 ```
+By default, vmalert persists all results to the specific tenant in VictoriaMetrics that specified by `-remotewrite.url`. For example, if the `-remotewrite.url=http://vminsert:8480/insert/0/prometheus/`, all data goes to tenant `0`.
+To persist different rule results to different tenants in VictoriaMetrics, there are following approaches:
+1. To use the [multitenant endpoint of vminsert](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) as the `-remoteWrite.url`, and add tenant labels under the group configuration. 
+
+    For example, run vmalert with:
+    ```
+    ./bin/vmalert -datasource.url=http://localhost:9428 -remoteWrite.url=http://vminsert:8480/insert/multitenant/prometheus ...
+    ```
+    With the rules below, `recordingTenant123` will be queried from VictoriaLogs tenant `123` and persisted to tenant `123` in VictoriaMetrics, while `recordingTenant123-456:789` will be queried from VictoriaLogs tenant `124` and persisted to tenant `456:789` in VictoriaMetrics.
+    ```
+    groups:
+      - name: recordingTenant123
+        type: vlogs
+        headers:
+          - "AccountID: 123"
+        labels:
+          vm_account_id: 123
+        rules:
+          - record: recordingTenant123
+            expr: 'tags.path:/var/log/httpd OR tags.path:/var/log/nginx | stats by (tags.host) count() requests'
+      - name: recordingTenant124-456:789
+        type: vlogs
+        headers:
+          - "AccountID: 124"
+        labels:
+          vm_account_id: 456
+          vm_project_id: 789
+        rules:
+        - record: recordingTenant124-456:789
+            expr: 'tags.path:/var/log/httpd OR tags.path:/var/log/nginx | stats by (tags.host) count() requests'
+    ```
+
+2. To run [enterprise version of vmalert](https://docs.victoriametrics.com/enterprise/) with `-clusterMode` enabled, and specify tenant parameter per each group.
+
+    For example, run vmalert with:
+    ```
+    ./bin/vmalert -datasource.url=http://localhost:9428 -clusterMode=true -remoteWrite.url=http://vminsert:8480/ ...
+    ```
+    With the rules below, `recordingTenant123` will be queried from VictoriaLogs tenant `123` and persisted to tenant `123` in VictoriaMetrics, while `recordingTenant123-456:789` will be queried from VictoriaLogs tenant `124` and persisted to tenant `456:789` in VictoriaMetrics.
+    ```
+    groups:
+      - name: recordingTenant123
+        type: vlogs
+        headers:
+          - "AccountID: 123"
+        tenant: "123"
+        rules:
+          - record: recordingTenant123
+            expr: 'tags.path:/var/log/httpd OR tags.path:/var/log/nginx | stats by (tags.host) count() requests'
+      - name: recordingTenant124-456:789
+        type: vlogs
+        headers:
+          - "AccountID: 124"
+        tenant: "456:789"
+        rules:
+        - record: recordingTenant124-456:789
+            expr: 'tags.path:/var/log/httpd OR tags.path:/var/log/nginx | stats by (tags.host) count() requests'
+    ```
+
 ### How to use one vmalert for VictoriaLogs and VictoriaMetrics rules in the same time?
 We recommend running separate instances of vmalert for VictoriaMetrics and VictoriaLogs.
 However, vmalert allows having many groups with different rule types (`vlogs`, `prometheus`, `graphite`).
@@ -245,65 +304,3 @@ See example of vmauth config for such routing below:
           url_prefix: "http://victorialogs:9428"
 ```
   Now, vmalert needs to be configured with `--datasource.url=http://vmauth:8427/` to send queries to vmauth, and vmauth will route them to the specified destinations as in configuration example above.
-
-### How do I route Victorialogs recording rules to a specific Tenant in Victoriametrics?
-vmalert can route the results of vlogs recording rules to specific tenant by doing the following
-* configure vmauth
-  * to route victorialogs queries to victorialogs
-  * to forward queries to the multitenant endpoint of vmselect
-  * forward remotewrite to the multitenant remotewrite endpoint of vminsert
-* set the `-datasource.url`, `-remoteRead.url`, and `remoteWrite.url` to point to vmauth
-* set the `-remotewriteURL` in alert to point to the multitenant write endpoint in vminsert
-* add the correct vm_account_id and vm_project_id lables to the group
-
-vmalert command line arguments
-```bash
-./bin/vmalert-prod -datasource.url=http://vmauth:8427 \
-    -remoteWrite.url=http://vmauth:8427 \
-    -remoteRead.url=http://vmauth:8427 \
-    -httpListenAddr=0.0.0.0:9093 \
-    -rule=alert.rules \
-    -configCheckInterval=1m \
-    -datasource.bearerToken=vmalert \
-    -remoteWrite.bearerToken=vmalert
-```
-
-vmalert rule config
-```yaml
-groups:
-  - name: VictorialogsRecording
-    interval: 1m
-    type: vlogs
-# uncomment these lines to select from a specific tenant in Victorialogs
-#    headers:
-#    - "AccountID: 1"
-#    - "ProjectID: 2"
-    labels:
-      vm_account_id: 1
-      vm_project_id: 1 
-    rules:
-      - record: httpRequestCount
-        expr: 'tags.path:/var/log/httpd OR tags.path:/var/log/nginx | stats by (tags.host) count() requests'
-```
-
-vmauth config
-```yaml
-users:
-  - bearer_token: 'vmalert'
-    url_map:
-    - src_paths:
-      - "/api/v1/write"
-      - "/api/v1/import/prometheus"
-      url_prefix: "http://vminsert:8480/insert/multitenant/prometheus/"
-    - src_paths:
-      - "/api/v1/query"
-      - "/api/v1/query_range"
-      - "/api/v1/series"
-      - "/api/v1/labels"
-      - "/api/v1/label/.+/values"
-      url_prefix: "http://vmselect:8481/select/multitenant/prometheus/"
-    - src_paths:
-      - "/select/logsql/.*"
-      - "/select/logsql"
-      url_prefix: "https://victorialogs:9428"
-```
