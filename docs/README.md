@@ -2467,11 +2467,12 @@ and [cardinality explorer docs](#cardinality-explorer).
 
 * New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics.
 
-* VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag
-  and ignores series with superfluous labels. This prevents from ingesting metrics with too many labels.
-  It is recommended [monitoring](#monitoring) `vm_rows_ingored_total{reason="too_many_labels"}`
-  metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
-  Alternatively you can use [relabeling](https://docs.victoriametrics.com/single-server-victoriametrics/#relabeling) to change metric target labels.
+* VictoriaMetrics limits the number of labels per each series, label name length and label value length
+  via `-maxLabelsPerTimeseries`, `-maxLabelNameLen` and `-maxLabelValueLen` command-line flags respectively.
+  Series that exceed the limits are ignored on ingestion. This prevents from ingesting malformed series.
+  It is recommended [monitoring](#monitoring) `vm_rows_ingored_total` metric and VictoriaMetrics logs in order 
+  to determine whether limits must be adjusted for your workload.
+  Alternatively, you can use [relabeling](https://docs.victoriametrics.com/single-server-victoriametrics/#relabeling) to change metric target labels.
 
 * If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `{__graphite__="foo.*.baz"}` filter can be used for selecting such metrics.
   See [these docs](#selecting-graphite-metrics) for details. You can also query Graphite metrics with [Graphite querying API](#graphite-render-api-usage).
