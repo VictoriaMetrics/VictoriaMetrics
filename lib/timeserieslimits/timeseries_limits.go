@@ -33,7 +33,7 @@ func Init(inputMaxLabelsPerTimeseries, inputMaxLabelNameLen, inputMaxLabelValueL
 	maxLabelsPerTimeseries = inputMaxLabelsPerTimeseries
 	maxLabelNameLen = inputMaxLabelNameLen
 	maxLabelValueLen = inputMaxLabelValueLen
-	enabled = maxLabelsPerTimeseries > 0 && maxLabelNameLen > 0 && maxLabelValueLen > 0
+	enabled = maxLabelsPerTimeseries > 0 || maxLabelNameLen > 0 || maxLabelValueLen > 0
 
 	_ = metrics.GetOrCreateGauge(`vm_rows_ignored_total{reason="too_many_labels"}`, func() float64 {
 		return float64(ignoredSeriesWithTooManyLabels.Load())
