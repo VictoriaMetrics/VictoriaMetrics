@@ -1,4 +1,4 @@
-VictoriaMetrics supports metrics ingestion with [OpenTelemetry metrics format](https://opentelemetry.io/docs/specs/otel/metrics/).
+VictoriaMetrics supports metrics ingestion with [OpenTelemetry metrics format](https://docs.victoriametrics.com/single-server-victoriametrics/#sending-data-via-opentelemetry).
 This guide covers data ingestion via [opentelemetry-collector](https://opentelemetry.io/docs/collector/) and direct metrics push from application.
 
 ## Pre-Requirements  
@@ -64,6 +64,8 @@ config:
    otlphttp/victoriametrics:
      compression: gzip
      encoding: proto
+     # Setting below will work for sending data to VictoriaMetrics single-node version.
+     # Cluster version of VictoriaMetrics will require a different URL - https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
      endpoint: http://victoria-metrics-victoria-metrics-single-server.default.svc.cluster.local:8428/opentelemetry
      tls:
         insecure: true
@@ -90,7 +92,6 @@ kubectl port-forward service/victoria-metrics-victoria-metrics-single-server 842
 
 # forward port to local machine to setup opentelemetry-collector locally
 kubectl port-forward otl-collector-opentelemetry-collector 4318
-
 ```
 
 The full version of possible configuration options could be found in [OpenTelemetry docs](https://opentelemetry.io/docs/collector/configuration/).

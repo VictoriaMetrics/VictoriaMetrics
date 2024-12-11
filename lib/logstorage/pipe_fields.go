@@ -54,10 +54,6 @@ func (pf *pipeFields) updateNeededFields(neededFields, unneededFields fieldsSet)
 	unneededFields.reset()
 }
 
-func (pf *pipeFields) optimize() {
-	// nothing to do
-}
-
 func (pf *pipeFields) hasFilterInWithQuery() bool {
 	return false
 }
@@ -93,7 +89,7 @@ func (pfp *pipeFieldsProcessor) flush() error {
 	return nil
 }
 
-func parsePipeFields(lex *lexer) (*pipeFields, error) {
+func parsePipeFields(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("fields", "keep") {
 		return nil, fmt.Errorf("expecting 'fields'; got %q", lex.token)
 	}

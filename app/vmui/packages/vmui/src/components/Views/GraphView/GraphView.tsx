@@ -180,7 +180,7 @@ const GraphView: FC<GraphViewProps> = ({
     if (isAnomalyView) {
       setHideSeries(legend.map(s => s.label || "").slice(1));
     }
-  }, [data, timezone, isHistogram]);
+  }, [data, timezone, isHistogram, currentStep]);
 
   useEffect(() => {
     const tempLegend: LegendItemType[] = [];

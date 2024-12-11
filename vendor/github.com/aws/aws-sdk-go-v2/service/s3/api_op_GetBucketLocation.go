@@ -20,7 +20,7 @@ import (
 	"io"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Returns the Region the bucket resides in. You set the bucket's Region using the
 // LocationConstraint request parameter in a CreateBucket request. For more

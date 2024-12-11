@@ -4,31 +4,39 @@ api:
 sources:
   docker:
     type: docker_logs
-  demo:
-    type: demo_logs
-    format: json
   metrics:
     type: internal_metrics
 transforms:
-  msg_parser:
+  parser:
     type: remap
     inputs:
       - docker
     source: |
-      .log = parse_json!(.message)
-      del(.message)
+      message, err = parse_json(.message) 
+      if (err == null) {
+        if exists(message.msg) {
+          message = message.msg
+        } else if exists(message.message) {
+          message = message.message
+        } else {
+          message = message
+        }
+      } else {
+        message = .message
+      }
+      .message = message
 sinks:
   loki:
     type: loki
     inputs:
-      - demo
+      - parser
     endpoint: http://victorialogs:9428/insert/loki/
     compression: gzip
-    path: /api/v1/push?_msg_field=message.message&_time_field=timestamp&_stream_fields=source
-    encoding:
-      codec: json
+    path: /api/v1/push?_msg_field=message.msg&_time_field=timestamp&_stream_fields=com_docker_compose_service
     labels:
-      source: vector
+      "*": "{{ label }}"
+    encoding:
+      codec: raw_message
   victoriametrics:
     type: prometheus_remote_write
     endpoint: http://victoriametrics:8428/api/v1/write

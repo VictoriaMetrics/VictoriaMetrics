@@ -26,7 +26,7 @@ queries to them:
 -   `client.go` - provides helper functions for sending HTTP requests to
     applications.
 
-The integration tests themselves reside in `*_test.go` files. Apart from having
+The integration tests themselves reside in `tests/*_test.go` files. Apart from having
 the `_test` suffix, there are no strict rules of how to name a file, but the
 name should reflect the prevailing purpose of the tests located in that file.
 For example, `sharding_test.go` aims at testing data sharding.
@@ -38,3 +38,10 @@ accounts for that, it builds all application binaries before running the tests.
 But if you want to run the tests without `make`, i.e. by executing
 `go test ./app/apptest`, you will need to build the binaries first (for example,
 by executing `make all`).
+
+Not all binaries can be built from `master` branch, cluster binaries can be built
+only from `cluster` branch. Hence, not all test cases suitable to run in both branches:
+- If test is using binaries from `cluster` branch, then test name should be prefixed 
+  with `TestCluster` word
+- If test is using binaries from `master` branch, then test name should be prefixed
+  with `TestVmsingle` word.

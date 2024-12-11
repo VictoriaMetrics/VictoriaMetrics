@@ -26,6 +26,12 @@ func TestParseTimeAtSuccess(t *testing.T) {
 	// unix timestamp in milliseconds
 	f("1562529662678", now, 1562529662678*1e6)
 
+	// unix timestamp in microseconds
+	f("1562529662678901", now, 1562529662678901*1e3)
+
+	// unix timestamp in nanoseconds
+	f("1562529662678901234", now, 1562529662678901234)
+
 	// duration relative to the current time
 	f("now", now, now)
 	f("1h5s", now, now-3605*1e9)

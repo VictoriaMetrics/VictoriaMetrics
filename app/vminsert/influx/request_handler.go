@@ -9,7 +9,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
@@ -109,13 +108,7 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 				metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
 				ic.Labels = append(ic.Labels[:0], ctx.originLabels...)
 				ic.AddLabel("", metricGroup)
-				ic.ApplyRelabeling()
-				if len(ic.Labels) == 0 {
-					// Skip metric without labels.
-					continue
-				}
-				ic.SortLabelsIfNeeded()
-				if err := ic.WriteDataPoint(nil, ic.Labels, r.Timestamp, f.Value); err != nil {
+				if err := ic.WriteDataPoint(nil, true, ic.Labels, r.Timestamp, f.Value); err != nil {
 					return err
 				}
 			}
@@ -131,11 +124,7 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 				metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
 				ic.Labels = ic.Labels[:labelsLen]
 				ic.AddLabel("", metricGroup)
-				if len(ic.Labels) == 0 {
-					// Skip metric without labels.
-					continue
-				}
-				if err := ic.WriteDataPoint(ctx.metricNameBuf, ic.Labels[len(ic.Labels)-1:], r.Timestamp, f.Value); err != nil {
+				if err := ic.WriteDataPoint(ctx.metricNameBuf, false, ic.Labels[len(ic.Labels)-1:], r.Timestamp, f.Value); err != nil {
 					return err
 				}
 			}
@@ -150,7 +139,7 @@ type pushCtx struct {
 	Common         common.InsertCtx
 	metricNameBuf  []byte
 	metricGroupBuf []byte
-	originLabels   []prompb.Label
+	originLabels   []prompbmarshal.Label
 }
 
 func (ctx *pushCtx) reset() {
@@ -160,7 +149,7 @@ func (ctx *pushCtx) reset() {
 
 	originLabels := ctx.originLabels
 	for i := range originLabels {
-		originLabels[i] = prompb.Label{}
+		originLabels[i] = prompbmarshal.Label{}
 	}
 	ctx.originLabels = originLabels[:0]
 }

@@ -13,7 +13,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Lists the metrics configurations for the bucket. The metrics configurations are
 // only for the request metrics of the bucket and do not provide information on

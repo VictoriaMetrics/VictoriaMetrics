@@ -1,5 +1,6 @@
 import React, { FC } from "preact/compat";
 import Hyperlink from "../../../components/Main/Hyperlink/Hyperlink";
+import { useGraphState } from "../../../state/graph/GraphStateContext";
 
 const last_over_time = <Hyperlink
   text="last_over_time"
@@ -13,15 +14,19 @@ const instant_query = <Hyperlink
   underlined
 />;
 
-const InstantQueryTip: FC = () => (
-  <div>
-    <p>
-      This tab shows {instant_query} results for the last 5 minutes ending at the selected time range.
-    </p>
-    <p>
-      Please wrap the query into {last_over_time} if you need results over arbitrary lookbehind interval.
-    </p>
-  </div>
-);
+const InstantQueryTip: FC = () => {
+  const { customStep } = useGraphState();
+
+  return (
+    <div>
+      <p>
+        This tab shows {instant_query} results for the last {customStep || "5m"} (defined by the <code>step</code>) ending at the selected time range.
+      </p>
+      <p>
+        Please wrap the query into {last_over_time} if you need results over arbitrary lookbehind interval.
+      </p>
+    </div>
+  );
+};
 
 export default InstantQueryTip;

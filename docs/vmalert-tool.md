@@ -197,9 +197,9 @@ value: <number>
 ### Example
 
 This is an example input file for unit testing which will pass.
-`test.yaml` is the test file which follows the syntax above and `alerts.yaml` contains the alerting rules.
+`test.yaml` is the test file which follows the syntax above and `rules.yaml` contains the alerting rules.
 
-With `rules.yaml` in the same directory, run `./vmalert-tool unittest --files=./unittest/testdata/test.yaml -external.label=cluster=prod`.
+With `rules.yaml` in the same directory with `test.yaml`, run `./vmalert-tool unittest --files=./unittest/testdata/test.yaml -external.label=cluster=prod`.
 
 #### `test.yaml`
 
@@ -249,7 +249,7 @@ tests:
         exp_alerts: []
 ```
 
-#### `alerts.yaml`
+#### `rules.yaml`
 
 ```yaml
 # This is the rules file.

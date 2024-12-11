@@ -94,7 +94,7 @@ import (
 // endpoint API operations, new objects are automatically encrypted and decrypted
 // with SSE-KMS and S3 Bucket Keys during the session.
 //
-// Only 1 [customer managed key] is supported per directory bucket for the lifetime of the bucket. [Amazon Web Services managed key] (
+// Only 1 [customer managed key] is supported per directory bucket for the lifetime of the bucket. The [Amazon Web Services managed key] (
 // aws/s3 ) isn't supported. After you specify SSE-KMS as your bucket's default
 // encryption configuration with a customer managed key, you can't change the
 // customer managed key for the bucket's SSE-KMS configuration.
@@ -201,7 +201,7 @@ type CreateSessionInput struct {
 	// not the Key ID.
 	//
 	// Your SSE-KMS configuration can only support 1 [customer managed key] per directory bucket for the
-	// lifetime of the bucket. [Amazon Web Services managed key]( aws/s3 ) isn't supported.
+	// lifetime of the bucket. The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
 	//
 	// [customer managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk
 	// [Amazon Web Services managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#aws-managed-cmk

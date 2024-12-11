@@ -17,10 +17,8 @@ import (
 // You can use the request parameters as selection criteria to return a subset of
 // the objects in a bucket. A 200 OK response can contain valid or invalid XML.
 // Make sure to design your application to parse the contents of the response and
-// handle it appropriately.
-//
-// For more information about listing objects, see [Listing object keys programmatically] in the Amazon S3 User Guide.
-// To get a list of your buckets, see [ListBuckets].
+// handle it appropriately. For more information about listing objects, see [Listing object keys programmatically]in the
+// Amazon S3 User Guide. To get a list of your buckets, see [ListBuckets].
 //
 //   - General purpose bucket - For general purpose buckets, ListObjectsV2 doesn't
 //     return prefixes that are related only to in-progress multipart uploads.

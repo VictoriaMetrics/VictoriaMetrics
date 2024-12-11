@@ -60,10 +60,6 @@ func (pu *pipeUnpackJSON) updateNeededFields(neededFields, unneededFields fields
 	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, neededFields, unneededFields)
 }
 
-func (pu *pipeUnpackJSON) optimize() {
-	pu.iff.optimizeFilterIn()
-}
-
 func (pu *pipeUnpackJSON) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
@@ -116,7 +112,7 @@ func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, 
 	return newPipeUnpackProcessor(workersCount, unpackJSON, ppNext, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff)
 }
 
-func parsePipeUnpackJSON(lex *lexer) (*pipeUnpackJSON, error) {
+func parsePipeUnpackJSON(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("unpack_json") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unpack_json")
 	}

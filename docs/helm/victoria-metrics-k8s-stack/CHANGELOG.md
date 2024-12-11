@@ -1,5 +1,131 @@
 ## Next release
 
+- TODO
+
+## 0.30.3
+
+**Release date:** 2024-12-05
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Set higher priority for `defaultDashboards.dashboards.<name>.enabled` flag comparing to default dashboard conditions to allow install or ignore dashboards regardless of whether component it's for is installed or monitored. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1851).
+
+## 0.30.2
+
+**Release date:** 2024-12-03
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- synced rules
+
+## 0.30.1
+
+**Release date:** 2024-12-03
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fail template if both vmcluster and vmsingle are enabled
+- synced rules and dashboards
+
+## 0.30.0
+
+**Release date:** 2024-12-02
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- synced rules and dashboards
+- updated common dependency 0.0.32 -> 0.0.33
+- bump version of VM components to [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
+
+## 0.29.1
+
+**Release date:** 2024-11-25
+
+![AppVersion: v1.106.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.31 -> 0.0.32
+- updated operator dependency 0.39.0 -> 0.39.1
+- fixed alertmanager config name. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1805)
+
+## 0.29.0
+
+**Release date:** 2024-11-25
+
+![AppVersion: v1.106.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+**Update note**: This release contains breaking changes. please follow [upgrade guide](./#upgrade-to-0290)
+
+- fixed ability to override CR names using `<component>.name`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1778)
+- updated common dependency 0.0.28 -> 0.0.29
+- bump operator chart version to 0.38.0
+- replaced all `<component>.vmauth` params to `vmauth.spec` to provide more flexibility in vmauth configuration. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1793)
+- synced dashboards
+- updates operator to [v0.50.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.0) version
+
+## 0.28.4
+
+**Release date:** 2024-11-18
+
+![AppVersion: v1.106.1](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.1&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated common dependency 0.0.21 -> 0.0.28
+- bump version of VM components to [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1)
+
+## 0.28.3
+
+**Release date:** 2024-11-08
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- updated dashboards
+- set default DNS domain to `cluster.local.`
+- fixed disabling recording rules in `.Values.defaultRules`
+- updated common dependency 0.0.19 -> 0.0.21
+- fixed cluster variable in etcd dashboard
+
+## 0.28.2
+
+**Release date:** 2024-11-06
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Updated dashboards
+- Fixed vmauth spec context
+
+## 0.28.1
+
+**Release date:** 2024-11-05
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Fix templating of labels for `VMAlertmanager` CRD.
+
+## 0.28.0
+
+**Release date:** 2024-11-05
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Update vm-operator to v0.49.0 release
+
+## 0.27.7
+
+**Release date:** 2024-11-05
+
+![AppVersion: v1.106.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.106.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
 - Added alertmanager datasource. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1592)
 - Renamed `grafana.sidecar.dashboards.additionalDashboardLabels` to `defaultDashboards.labels`
 - Renamed `grafana.sidecar.dashboards.additionalDashboardAnnotations` to `defaultDashboards.annotations`
@@ -10,6 +136,8 @@
 - Removed crds subchart as it's now included in operator
 - Fixed additionalNotifiersConfig
 - Added `vmcluster.vmauth.<vminsert/vmselect>` and `externalVM.vmauth.<read/write>` to provide ability to override vmauth configs
+- Removed unused serviceaccount
+- bump version of VM components to [v1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0)
 
 ## 0.27.6
 
@@ -381,7 +509,7 @@
 
 - added ability to override alerting rules labels and annotations:
 - globally - `.Values.defaultRules.rule.spec.labels` (before it was `.Values.defaultRules.additionalRuleLabels`) and `.Values.defaultRules.rule.spec.annotations`
-- for all rules in a group  - `.Values.defaultRules.groups.<groupName>.rules.spec.labels` and `.Valeus.defaultRules.groups.<groupName>.rules.spec.annotations`
+- for all rules in a group  - `.Values.defaultRules.groups.<groupName>.rules.spec.labels` and `.Values.defaultRules.groups.<groupName>.rules.spec.annotations`
 - for each rule individually - `.Values.defaultRules.rules.<ruleName>.spec.labels` and `.Values.defaultRules.rules.<ruleName>.spec.annotations`
 - changed `.Values.defaultRules.rules.<groupName>` to `.Values.defaultRules.groups.<groupName>.create`
 - changed `.Values.defaultRules.appNamespacesTarget` to `.Values.defaultRules.groups.<groupName>.targetNamespace`
@@ -396,7 +524,7 @@
 
 - added ability to override alerting rules labels and annotations:
 - globally - `.Values.defaultRules.rule.spec.labels` (before it was `.Values.defaultRules.additionalRuleLabels`) and `.Values.defaultRules.rule.spec.annotations`
-- for all rules in a group  - `.Values.defaultRules.groups.<groupName>.rules.spec.labels` and `.Valeus.defaultRules.groups.<groupName>.rules.spec.annotations`
+- for all rules in a group  - `.Values.defaultRules.groups.<groupName>.rules.spec.labels` and `.Values.defaultRules.groups.<groupName>.rules.spec.annotations`
 - for each rule individually - `.Values.defaultRules.rules.<ruleName>.spec.labels` and `.Values.defaultRules.rules.<ruleName>.spec.annotations`
 - changed `.Values.defaultRules.rules.<groupName>` to `.Values.defaultRules.groups.<groupName>.create`
 - changed `.Values.defaultRules.appNamespacesTarget` to `.Values.defaultRules.groups.<groupName>.targetNamespace`

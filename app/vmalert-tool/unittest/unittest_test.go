@@ -24,7 +24,8 @@ func TestUnitTest_Failure(t *testing.T) {
 		}
 	}
 
-	// failing test
+	f([]string{"./testdata/failed-test-with-missing-rulefile.yaml"})
+
 	f([]string{"./testdata/failed-test.yaml"})
 }
 

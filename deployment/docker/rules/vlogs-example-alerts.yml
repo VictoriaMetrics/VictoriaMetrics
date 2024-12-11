@@ -1,5 +1,5 @@
 groups:
-  - name: TestGroup
+  - name: log-rules
     type: vlogs
     interval: 1m
     rules:

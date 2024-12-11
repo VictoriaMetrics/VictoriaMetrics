@@ -16,6 +16,7 @@ type apiConfig struct {
 	client             *discoveryutils.Client
 	port               int
 	hostNetworkingHost string
+	matchFirstNetwork  bool
 
 	// filtersQueryArg contains escaped `filters` query arg to add to each request to Docker Swarm API.
 	filtersQueryArg string
@@ -37,7 +38,11 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	cfg := &apiConfig{
 		port:               sdc.Port,
 		hostNetworkingHost: hostNetworkingHost,
+		matchFirstNetwork:  true,
 		filtersQueryArg:    getFiltersQueryArg(sdc.Filters),
+	}
+	if sdc.MatchFirstNetwork != nil {
+		cfg.matchFirstNetwork = *sdc.MatchFirstNetwork
 	}
 	if cfg.port == 0 {
 		cfg.port = 80

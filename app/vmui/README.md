@@ -127,15 +127,27 @@ DashboardRow:
 <br/>
 PanelSettings:
 
-| Name        |    Type    |                                                                           Description |
-|:------------|:----------:|--------------------------------------------------------------------------------------:|
-| expr*       | `string[]` |                                                                   Data source queries |
-| alias       | `string[]` |                                           Expression alias. Matched by index in array |
-| title       |  `string`  |                                                                           Panel title |
-| description |  `string`  |                                                Additional information about the panel |
-| unit        |  `string`  |                                                                           Y-axis unit |
-| showLegend  | `boolean`  |                                   If `false`, the legend hide. Default value - `true` |
-| width       |  `number`  | The number of columns the panel uses.<br/> From 1 (minimum width) to 12 (full width). |
+| Name        |    Type    |                                                                                                    Description |
+|:------------|:----------:|---------------------------------------------------------------------------------------------------------------:|
+| expr*       | `string[]` |                                                                                            Data source queries |
+| alias       | `string[]` | An array of aliases for each expression in `expr`. See [Template Support in alias](#template-support-in-alias) |
+| title       |  `string`  |                                                                                                    Panel title |
+| description |  `string`  |                                                                         Additional information about the panel |
+| unit        |  `string`  |                                                                                                    Y-axis unit |
+| showLegend  | `boolean`  |                                                            If `false`, the legend hide. Default value - `true` |
+| width       |  `number`  |                          The number of columns the panel uses.<br/> From 1 (minimum width) to 12 (full width). |
+
+### Template Support in `alias`
+
+To create more readable metric names in the legend, you can use constructions like `{{label_name}}`, where `label_name`
+is the label's name.
+If the label exists in the metric, its value will be substituted in the template.
+If the label is missing, the legend will use the default name.
+
+**Example:**  
+Metric: `metric{foo="bar",baz="qux"}`  
+Alias: `{{foo}} - {{baz}}`  
+Legend: `bar - qux`
 
 ### Example json
 

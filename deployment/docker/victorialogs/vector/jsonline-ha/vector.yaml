@@ -4,25 +4,21 @@ api:
 sources:
   docker:
     type: docker_logs
-  demo:
-    type: demo_logs
-    format: json
   metrics:
     type: internal_metrics
 transforms:
-  msg_parser:
+  parser:
     type: remap
     inputs:
       - docker
     source: |
-      .log = parse_json!(.message)
-      del(.message)
+      .message = parse_json(.message) ?? .message
 sinks:
   vlogs-1:
     type: http
     inputs:
-      - msg_parser
-    uri: http://victorialogs:9428/insert/jsonline?_stream_fields=source_type,host,container_name&_msg_field=log.msg&_time_field=timestamp
+      - parser
+    uri: http://victorialogs:9428/insert/jsonline
     encoding:
       codec: json
     framing:
@@ -34,11 +30,14 @@ sinks:
       headers:
         AccountID: '0'
         ProjectID: '0'
+        VL-Stream-Fields: source_type,host,container_name,label.com.docker.compose.service
+        VL-Msg-Field: message.msg
+        VL-Time-Field: timestamp
   vlogs-2:
     type: http
     inputs:
-      - msg_parser
-    uri: http://victorialogs-2:9428/insert/jsonline?_stream_fields=source_type,host,container_name&_msg_field=log.msg&_time_field=timestamp
+      - parser
+    uri: http://victorialogs-2:9428/insert/jsonline
     encoding:
       codec: json
     framing:
@@ -50,6 +49,9 @@ sinks:
       headers:
         AccountID: '0'
         ProjectID: '0'
+        VL-Stream-Fields: source_type,host,container_name,label.com.docker.compose.service
+        VL-Msg-Field: message.msg
+        VL-Time-Field: timestamp
   victoriametrics:
     type: prometheus_remote_write
     endpoint: http://victoriametrics:8428/api/v1/write

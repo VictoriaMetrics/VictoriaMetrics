@@ -6,6 +6,7 @@ The folder contains examples of [Vector](https://vector.dev/docs/) integration w
 * [loki](./loki)
 * [jsonline single node](./jsonline)
 * [jsonline HA setup](./jsonline-ha)
+* [datadog](./datadog)
 
 To spin-up environment `cd` to any of listed above directories run the following command:
 ```
@@ -34,5 +35,6 @@ Vector configuration example can be found below:
 * [loki](./loki/vector.yaml)
 * [jsonline single node](./jsonline/vector.yaml)
 * [jsonline HA setup](./jsonline-ha/vector.yaml)
+* [datadog](./datadog/vector.yaml)
 
 Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to achieve better performance.

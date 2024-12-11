@@ -14,6 +14,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 var (
@@ -144,12 +145,12 @@ func TestVMInstantQuery(t *testing.T) {
 	}
 	expected := []Metric{
 		{
-			Labels:     []Label{{Value: "vm_rows", Name: "__name__"}, {Value: "bar", Name: "foo"}},
+			Labels:     []prompbmarshal.Label{{Value: "vm_rows", Name: "__name__"}, {Value: "bar", Name: "foo"}},
 			Timestamps: []int64{1583786142},
 			Values:     []float64{13763},
 		},
 		{
-			Labels:     []Label{{Value: "vm_requests", Name: "__name__"}, {Value: "baz", Name: "foo"}},
+			Labels:     []prompbmarshal.Label{{Value: "vm_requests", Name: "__name__"}, {Value: "baz", Name: "foo"}},
 			Timestamps: []int64{1583786140},
 			Values:     []float64{2000},
 		},
@@ -214,7 +215,7 @@ func TestVMInstantQuery(t *testing.T) {
 	}
 	exp := []Metric{
 		{
-			Labels:     []Label{{Value: "constantLine(10)", Name: "name"}},
+			Labels:     []prompbmarshal.Label{{Value: "constantLine(10)", Name: "name"}},
 			Timestamps: []int64{1611758403},
 			Values:     []float64{10},
 		},
@@ -236,12 +237,12 @@ func TestVMInstantQuery(t *testing.T) {
 	}
 	expected = []Metric{
 		{
-			Labels:     []Label{{Value: "total", Name: "stats_result"}, {Value: "bar", Name: "foo"}},
+			Labels:     []prompbmarshal.Label{{Value: "total", Name: "stats_result"}, {Value: "bar", Name: "foo"}},
 			Timestamps: []int64{1583786142},
 			Values:     []float64{13763},
 		},
 		{
-			Labels:     []Label{{Value: "total", Name: "stats_result"}, {Value: "baz", Name: "foo"}},
+			Labels:     []prompbmarshal.Label{{Value: "total", Name: "stats_result"}, {Value: "baz", Name: "foo"}},
 			Timestamps: []int64{1583786140},
 			Values:     []float64{2000},
 		},
@@ -444,7 +445,7 @@ func TestVMRangeQuery(t *testing.T) {
 		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
 	}
 	expected := Metric{
-		Labels:     []Label{{Value: "vm_rows", Name: "__name__"}},
+		Labels:     []prompbmarshal.Label{{Value: "vm_rows", Name: "__name__"}},
 		Timestamps: []int64{1583786142},
 		Values:     []float64{13763},
 	}
@@ -475,7 +476,7 @@ func TestVMRangeQuery(t *testing.T) {
 		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
 	}
 	expected = Metric{
-		Labels:     []Label{{Value: "total", Name: "stats_result"}},
+		Labels:     []prompbmarshal.Label{{Value: "total", Name: "stats_result"}},
 		Timestamps: []int64{1583786142},
 		Values:     []float64{10},
 	}

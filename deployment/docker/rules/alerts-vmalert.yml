@@ -18,25 +18,25 @@ groups:
             Check vmalert's logs for detailed error message."
 
       - alert: AlertingRulesError
-        expr: sum(increase(vmalert_alerting_rules_errors_total[5m])) without(alertname, id) > 0
+        expr: sum(increase(vmalert_alerting_rules_errors_total[5m])) without(id) > 0
         for: 5m
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=13&var-instance={{ $labels.instance }}&var-group={{ $labels.group }}"
+          dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=13&var-instance={{ $labels.instance }}&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
           summary: "Alerting rules are failing for vmalert instance {{ $labels.instance }}"
-          description: "Alerting rules execution is failing for group \"{{ $labels.group }}\".
+          description: "Alerting rules execution is failing for \"{{ $labels.alertname }}\" from group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\".
             Check vmalert's logs for detailed error message."
 
       - alert: RecordingRulesError
-        expr: sum(increase(vmalert_recording_rules_errors_total[5m])) without(recording, id) > 0
+        expr: sum(increase(vmalert_recording_rules_errors_total[5m])) without(id) > 0
         for: 5m
         labels:
           severity: warning
         annotations:
-          dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=30&var-instance={{ $labels.instance }}&var-group={{ $labels.group }}"
+          dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=30&var-instance={{ $labels.instance }}&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
           summary: "Recording rules are failing for vmalert instance {{ $labels.instance }}"
-          description: "Recording rules execution is failing for group \"{{ $labels.group }}\".
+          description: "Recording rules execution is failing for \"{{ $labels.recording }}\" from group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\".
             Check vmalert's logs for detailed error message."
 
       - alert: RecordingRulesNoData
@@ -45,9 +45,9 @@ groups:
         labels:
           severity: info
         annotations:
-          dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=33&var-group={{ $labels.group }}"
+          dashboard: "http://localhost:3000/d/LzldHAVnz?viewPanel=33&var-file={{ $labels.file }}&var-group={{ $labels.group }}"
           summary: "Recording rule {{ $labels.recording }} ({{ $labels.group }}) produces no data"
-          description: "Recording rule \"{{ $labels.recording }}\" from group \"{{ $labels.group }}\" 
+          description: "Recording rule \"{{ $labels.recording }}\" from group \"{{ $labels.group }}\ in file \"{{ $labels.file }}\" 
             produces 0 samples over the last 30min. It might be caused by a misconfiguration 
             or incorrect query expression."
 
@@ -58,7 +58,7 @@ groups:
           severity: warning
         annotations:
           summary: "vmalert instance {{ $labels.instance }} is missing rules evaluations"
-          description: "vmalert instance {{ $labels.instance }} is missing rules evaluations for group \"{{ $labels.group }}\".
+          description: "vmalert instance {{ $labels.instance }} is missing rules evaluations for group \"{{ $labels.group }}\" in file \"{{ $labels.file }}\".
             The group evaluation time takes longer than the configured evaluation interval. This may result in missed 
             alerting notifications or recording rules samples. Try increasing evaluation interval or concurrency of
             group \"{{ $labels.group }}\". See https://docs.victoriametrics.com/vmalert/#groups. 

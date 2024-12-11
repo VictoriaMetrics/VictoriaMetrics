@@ -1370,6 +1370,26 @@ func (Tier) Values() []Tier {
 	}
 }
 
+type TransitionDefaultMinimumObjectSize string
+
+// Enum values for TransitionDefaultMinimumObjectSize
+const (
+	TransitionDefaultMinimumObjectSizeVariesByStorageClass  TransitionDefaultMinimumObjectSize = "varies_by_storage_class"
+	TransitionDefaultMinimumObjectSizeAllStorageClasses128k TransitionDefaultMinimumObjectSize = "all_storage_classes_128K"
+)
+
+// Values returns all known values for TransitionDefaultMinimumObjectSize. Note
+// that this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (TransitionDefaultMinimumObjectSize) Values() []TransitionDefaultMinimumObjectSize {
+	return []TransitionDefaultMinimumObjectSize{
+		"varies_by_storage_class",
+		"all_storage_classes_128K",
+	}
+}
+
 type TransitionStorageClass string
 
 // Enum values for TransitionStorageClass

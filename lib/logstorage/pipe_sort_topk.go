@@ -3,6 +3,7 @@ package logstorage
 import (
 	"container/heap"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -63,11 +64,14 @@ type pipeTopkProcessorShardNopad struct {
 	// ps points to the parent pipeSort.
 	ps *pipeSort
 
-	// rows contains rows tracked by the given shard.
-	rows []*pipeTopkRow
+	// partitionColumns contains 'partition by' columns
+	partitionColumns []*blockResultColumn
 
-	// rowNext points to the next index at rows during merge shards phase
-	rowNext int
+	// rowsByPartition contains per-partition rows
+	rowsByPartition map[string]*pipeTopkRows
+
+	// partitionKey is a temporary buffer for constructing partition key
+	partitionKey []byte
 
 	// tmpRow is used as a temporary row when determining whether the next ingested row must be stored in the shard.
 	tmpRow pipeTopkRow
@@ -82,6 +86,46 @@ type pipeTopkProcessorShardNopad struct {
 	// stateSizeBudget is the remaining budget for the whole state size for the shard.
 	// The per-shard budget is provided in chunks from the parent pipeTopkProcessor.
 	stateSizeBudget int
+}
+
+type pipeTopkRows struct {
+	// ps points to the parent pipeSort.
+	ps *pipeSort
+
+	// rows contains rows tracked by the given shard.
+	rows []*pipeTopkRow
+
+	// rowNext points to the next index at rows during merge shards phase
+	rowNext int
+}
+
+func (rs *pipeTopkRows) Len() int {
+	return len(rs.rows)
+}
+
+func (rs *pipeTopkRows) Swap(i, j int) {
+	rows := rs.rows
+	rows[i], rows[j] = rows[j], rows[i]
+}
+
+func (rs *pipeTopkRows) Less(i, j int) bool {
+	rows := rs.rows
+
+	// This is max heap
+	return topkLess(rs.ps, rows[j], rows[i])
+}
+
+func (rs *pipeTopkRows) Push(x any) {
+	r := x.(*pipeTopkRow)
+	rs.rows = append(rs.rows, r)
+}
+
+func (rs *pipeTopkRows) Pop() any {
+	rows := rs.rows
+	x := rows[len(rows)-1]
+	rows[len(rows)-1] = nil
+	rs.rows = rows[:len(rows)-1]
+	return x
 }
 
 type pipeTopkRow struct {
@@ -133,40 +177,19 @@ func (r *pipeTopkRow) sizeBytes() int {
 	return n
 }
 
-func (shard *pipeTopkProcessorShard) Len() int {
-	return len(shard.rows)
-}
-
-func (shard *pipeTopkProcessorShard) Swap(i, j int) {
-	rows := shard.rows
-	rows[i], rows[j] = rows[j], rows[i]
-}
-
-func (shard *pipeTopkProcessorShard) Less(i, j int) bool {
-	rows := shard.rows
-
-	// This is max heap
-	return topkLess(shard.ps, rows[j], rows[i])
-}
-
-func (shard *pipeTopkProcessorShard) Push(x any) {
-	r := x.(*pipeTopkRow)
-	shard.rows = append(shard.rows, r)
-}
-
-func (shard *pipeTopkProcessorShard) Pop() any {
-	rows := shard.rows
-	x := rows[len(rows)-1]
-	rows[len(rows)-1] = nil
-	shard.rows = rows[:len(rows)-1]
-	return x
-}
-
 // writeBlock writes br to shard.
 func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 	cs := br.getColumns()
 
 	byFields := shard.ps.byFields
+
+	partitionColumns := shard.partitionColumns[:0]
+	for _, f := range shard.ps.partitionByFields {
+		c := br.getColumnByName(f)
+		partitionColumns = append(partitionColumns, c)
+	}
+	shard.partitionColumns = partitionColumns
+
 	if len(byFields) == 0 {
 		// Sort by all the fields
 
@@ -252,19 +275,28 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 }
 
 func (shard *pipeTopkProcessorShard) addRow(br *blockResult, byColumns []string, byColumnsIsTime []bool, csOther []*blockResultColumn, rowIdx int, timestamp int64) {
+	// Construct partition key
+	b := shard.partitionKey[:0]
+	for _, c := range shard.partitionColumns {
+		v := c.getValueAtRow(br, rowIdx)
+		b = marshalJSONKeyValue(b, c.name, v)
+	}
+	shard.partitionKey = b
+
+	// Construct a temporary row
 	r := &shard.tmpRow
 	r.byColumns = byColumns
 	r.byColumnsIsTime = byColumnsIsTime
 	r.timestamp = timestamp
 
-	rows := shard.rows
+	rs := shard.getRowsByPartition(bytesutil.ToUnsafeString(shard.partitionKey))
 	maxRows := shard.ps.offset + shard.ps.limit
-	if uint64(len(rows)) >= maxRows && !topkLess(shard.ps, r, rows[0]) {
+	if uint64(len(rs.rows)) >= maxRows && !topkLess(shard.ps, r, rs.rows[0]) {
 		// Fast path - nothing to add.
 		return
 	}
 
-	// Slow path - add r to shard.rows.
+	// Slow path - add r to rs.
 
 	// Populate r.otherColumns
 	otherColumns := shard.otherColumns[:0]
@@ -282,28 +314,46 @@ func (shard *pipeTopkProcessorShard) addRow(br *blockResult, byColumns []string,
 	r = r.clone()
 	shard.stateSizeBudget -= r.sizeBytes()
 
-	// Push r to shard.rows.
-	if uint64(len(rows)) < maxRows {
-		heap.Push(shard, r)
+	// Push r to rs.
+	if uint64(len(rs.rows)) < maxRows {
+		heap.Push(rs, r)
 		shard.stateSizeBudget -= int(unsafe.Sizeof(r))
 	} else {
-		shard.stateSizeBudget += rows[0].sizeBytes()
-		rows[0] = r
-		heap.Fix(shard, 0)
+		shard.stateSizeBudget += rs.rows[0].sizeBytes()
+		rs.rows[0] = r
+		heap.Fix(rs, 0)
 	}
 }
 
-func (shard *pipeTopkProcessorShard) sortRows(stopCh <-chan struct{}) {
-	rows := shard.rows
-	for i := len(rows) - 1; i > 0; i-- {
-		x := heap.Pop(shard)
-		rows[i] = x.(*pipeTopkRow)
-
-		if needStop(stopCh) {
-			return
-		}
+func (shard *pipeTopkProcessorShard) getRowsByPartition(partition string) *pipeTopkRows {
+	if shard.rowsByPartition == nil {
+		shard.rowsByPartition = make(map[string]*pipeTopkRows)
 	}
-	shard.rows = rows
+	rs, ok := shard.rowsByPartition[partition]
+	if !ok {
+		rs = &pipeTopkRows{
+			ps: shard.ps,
+		}
+		partition = strings.Clone(partition)
+		shard.rowsByPartition[partition] = rs
+		shard.stateSizeBudget += int(unsafe.Sizeof(*rs)+unsafe.Sizeof(rs)) + len(partition)
+	}
+	return rs
+}
+
+func (shard *pipeTopkProcessorShard) sortRows(stopCh <-chan struct{}) {
+	for _, rs := range shard.rowsByPartition {
+		rows := rs.rows
+		for i := len(rows) - 1; i > 0; i-- {
+			x := heap.Pop(rs)
+			rows[i] = x.(*pipeTopkRow)
+
+			if needStop(stopCh) {
+				return
+			}
+		}
+		rs.rows = rows
+	}
 }
 
 func (ptp *pipeTopkProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -355,37 +405,62 @@ func (ptp *pipeTopkProcessor) flush() error {
 		return nil
 	}
 
-	// Merge sorted results across shards
-	sh := pipeTopkProcessorShardsHeap(make([]*pipeTopkProcessorShard, 0, len(shards)))
-	for i := range shards {
-		shard := &shards[i]
-		if len(shard.rows) > 0 {
-			sh = append(sh, shard)
+	// Obtain all the partition keys
+	partitionKeysMap := make(map[string]struct{})
+	var partitionKeys []string
+	for _, shard := range shards {
+		for k := range shard.rowsByPartition {
+			if _, ok := partitionKeysMap[k]; !ok {
+				partitionKeysMap[k] = struct{}{}
+				partitionKeys = append(partitionKeys, k)
+			}
 		}
 	}
-	if len(sh) == 0 {
-		return nil
+	sort.Strings(partitionKeys)
+
+	// Merge sorted results across shards per each partitionKey
+	for _, k := range partitionKeys {
+		var rss []*pipeTopkRows
+		for _, shard := range shards {
+			rs, ok := shard.rowsByPartition[k]
+			if ok && len(rs.rows) > 0 {
+				rss = append(rss, rs)
+			}
+		}
+		ptp.mergeAndFlushRows(rss)
+		if needStop(ptp.stopCh) {
+			return nil
+		}
 	}
 
-	heap.Init(&sh)
+	return nil
+}
+
+func (ptp *pipeTopkProcessor) mergeAndFlushRows(rss []*pipeTopkRows) {
+	if len(rss) == 0 {
+		return
+	}
+	rsh := pipeTopkRowsHeap(rss)
+
+	heap.Init(&rsh)
 
 	wctx := &pipeTopkWriteContext{
 		ptp: ptp,
 	}
 	shardNextIdx := 0
 
-	for len(sh) > 1 {
-		shard := sh[0]
-		if !wctx.writeNextRow(shard) {
+	for len(rsh) > 1 {
+		rs := rsh[0]
+		if !wctx.writeNextRow(rs) {
 			break
 		}
 
-		if shard.rowNext >= len(shard.rows) {
-			_ = heap.Pop(&sh)
+		if rs.rowNext >= len(rs.rows) {
+			_ = heap.Pop(&rsh)
 			shardNextIdx = 0
 
 			if needStop(ptp.stopCh) {
-				return nil
+				return
 			}
 
 			continue
@@ -393,31 +468,29 @@ func (ptp *pipeTopkProcessor) flush() error {
 
 		if shardNextIdx == 0 {
 			shardNextIdx = 1
-			if len(sh) > 2 && sh.Less(2, 1) {
+			if len(rsh) > 2 && rsh.Less(2, 1) {
 				shardNextIdx = 2
 			}
 		}
 
-		if sh.Less(shardNextIdx, 0) {
-			heap.Fix(&sh, 0)
+		if rsh.Less(shardNextIdx, 0) {
+			heap.Fix(&rsh, 0)
 			shardNextIdx = 0
 
 			if needStop(ptp.stopCh) {
-				return nil
+				return
 			}
 		}
 	}
-	if len(sh) == 1 {
-		shard := sh[0]
-		for shard.rowNext < len(shard.rows) {
-			if !wctx.writeNextRow(shard) {
+	if len(rsh) == 1 {
+		rs := rsh[0]
+		for rs.rowNext < len(rs.rows) {
+			if !wctx.writeNextRow(rs) {
 				break
 			}
 		}
 	}
 	wctx.flush()
-
-	return nil
 }
 
 type pipeTopkWriteContext struct {
@@ -438,16 +511,16 @@ type pipeTopkWriteContext struct {
 	valuesLen int
 }
 
-func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bool {
-	ps := shard.ps
+func (wctx *pipeTopkWriteContext) writeNextRow(rs *pipeTopkRows) bool {
+	ps := rs.ps
 	rankFieldName := ps.rankFieldName
 	rankFields := 0
 	if rankFieldName != "" {
 		rankFields = 1
 	}
 
-	rowIdx := shard.rowNext
-	shard.rowNext++
+	rowIdx := rs.rowNext
+	rs.rowNext++
 
 	wctx.rowsWritten++
 	if wctx.rowsWritten <= ps.offset {
@@ -457,7 +530,7 @@ func (wctx *pipeTopkWriteContext) writeNextRow(shard *pipeTopkProcessorShard) bo
 		return false
 	}
 
-	r := shard.rows[rowIdx]
+	r := rs.rows[rowIdx]
 
 	byFields := ps.byFields
 	rcs := wctx.rcs
@@ -537,34 +610,34 @@ func (wctx *pipeTopkWriteContext) flush() {
 	wctx.buf = wctx.buf[:0]
 }
 
-type pipeTopkProcessorShardsHeap []*pipeTopkProcessorShard
+type pipeTopkRowsHeap []*pipeTopkRows
 
-func (sh *pipeTopkProcessorShardsHeap) Len() int {
-	return len(*sh)
+func (rsh *pipeTopkRowsHeap) Len() int {
+	return len(*rsh)
 }
 
-func (sh *pipeTopkProcessorShardsHeap) Swap(i, j int) {
-	a := *sh
+func (rsh *pipeTopkRowsHeap) Swap(i, j int) {
+	a := *rsh
 	a[i], a[j] = a[j], a[i]
 }
 
-func (sh *pipeTopkProcessorShardsHeap) Less(i, j int) bool {
-	a := *sh
-	shardA := a[i]
-	shardB := a[j]
-	return topkLess(shardA.ps, shardA.rows[shardA.rowNext], shardB.rows[shardB.rowNext])
+func (rsh *pipeTopkRowsHeap) Less(i, j int) bool {
+	a := *rsh
+	rsA := a[i]
+	rsB := a[j]
+	return topkLess(rsA.ps, rsA.rows[rsA.rowNext], rsB.rows[rsB.rowNext])
 }
 
-func (sh *pipeTopkProcessorShardsHeap) Push(x any) {
-	shard := x.(*pipeTopkProcessorShard)
-	*sh = append(*sh, shard)
+func (rsh *pipeTopkRowsHeap) Push(x any) {
+	rs := x.(*pipeTopkRows)
+	*rsh = append(*rsh, rs)
 }
 
-func (sh *pipeTopkProcessorShardsHeap) Pop() any {
-	a := *sh
+func (rsh *pipeTopkRowsHeap) Pop() any {
+	a := *rsh
 	x := a[len(a)-1]
 	a[len(a)-1] = nil
-	*sh = a[:len(a)-1]
+	*rsh = a[:len(a)-1]
 	return x
 }
 

@@ -26,9 +26,8 @@ const maxRowsPerBlock = 8 * 1024 * 1024
 // maxColumnsPerBlock is the maximum number of columns per block.
 //
 // It isn't recommended setting this value to too big value, because this may result
-// in excess memory usage during data ingestion and significant slowdown during query execution,
-// since every column header is unpacked in every matching block during query execution.
-const maxColumnsPerBlock = 1_000
+// in excess memory usage during data ingestion and significant slowdown during query execution.
+const maxColumnsPerBlock = 2_000
 
 // MaxFieldNameSize is the maximum size in bytes for field name.
 //

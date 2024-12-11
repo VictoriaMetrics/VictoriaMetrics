@@ -68,6 +68,7 @@ export const getDefaultNavigation = ({
   showAlertLink,
 }: NavigationConfig): NavigationItem[] => [
   { value: router.home },
+  { value: router.rawQuery },
   { label: "Explore", submenu: getExploreNav() },
   { label: "Tools", submenu: getToolsNav(isEnterpriseLicense) },
   { value: router.dashboards, hide: !showPredefinedDashboards },

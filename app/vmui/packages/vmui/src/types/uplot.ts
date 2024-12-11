@@ -23,6 +23,7 @@ export interface SeriesItem extends Series {
     median: number;
     forecast?: ForecastType | null;
     forecastGroup?: string;
+    hasAlias?: boolean;
 }
 
 export interface HideSeriesArgs {
@@ -45,6 +46,7 @@ export interface LegendItemType {
     freeFormFields: {[key: string]: string};
     statsFormatted: SeriesItemStatsFormatted;
     median: number
+    hasAlias: boolean;
 }
 
 export interface BarSeriesItem {

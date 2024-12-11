@@ -52,7 +52,7 @@ import (
 //     .
 //
 //   - Your SSE-KMS configuration can only support 1 [customer managed key]per directory bucket for the
-//     lifetime of the bucket. [Amazon Web Services managed key]( aws/s3 ) isn't supported.
+//     lifetime of the bucket. The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
 //
 //   - S3 Bucket Keys are always enabled for GET and PUT operations in a directory
 //     bucket and can’t be disabled. S3 Bucket Keys aren't supported, when you copy

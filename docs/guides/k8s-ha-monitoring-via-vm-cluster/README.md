@@ -144,8 +144,8 @@ helm install vmagent vm/victoria-metrics-agent -f https://docs.victoriametrics.c
 Here is full file content `guide-vmcluster-vmagent-values.yaml`
 
 ```yaml
-remoteWriteUrls:
-   - http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local:8480/insert/0/prometheus/
+remoteWrite:
+   - url: http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local:8480/insert/0/prometheus/
    
 scrape_configs:
     - job_name: vmagent
@@ -222,8 +222,7 @@ scrape_configs:
           target_label: systemd_service_name
           replacement: '${1}'
 ```
-
-* `remoteWriteUrls: - http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local:8480/insert/0/prometheus/` configures `vmagent` to write scraped metrics to the `vmselect service`.
+* By updating `remoteWrite` we configuring [vmagent](https://docs.victoriametrics.com/vmagent/) to write scraped metrics into the `vminsert` service.
 * The `metric_relabel_configs` section allows you to process Kubernetes metrics for the Grafana dashboard.
 
 

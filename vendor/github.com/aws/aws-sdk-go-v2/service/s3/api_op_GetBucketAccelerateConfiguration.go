@@ -14,7 +14,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // This implementation of the GET action uses the accelerate subresource to return
 // the Transfer Acceleration state of a bucket, which is either Enabled or

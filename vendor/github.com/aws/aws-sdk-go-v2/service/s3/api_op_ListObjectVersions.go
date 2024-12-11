@@ -13,7 +13,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Returns metadata about all versions of the objects in a bucket. You can also
 // use request parameters as selection criteria to return metadata about a subset

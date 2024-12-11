@@ -47,10 +47,6 @@ func (pe *pipeExtractRegexp) canLiveTail() bool {
 	return true
 }
 
-func (pe *pipeExtractRegexp) optimize() {
-	pe.iff.optimizeFilterIn()
-}
-
 func (pe *pipeExtractRegexp) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }
@@ -273,7 +269,7 @@ func (pep *pipeExtractRegexpProcessor) flush() error {
 	return nil
 }
 
-func parsePipeExtractRegexp(lex *lexer) (*pipeExtractRegexp, error) {
+func parsePipeExtractRegexp(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("extract_regexp") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "extract_regexp")
 	}

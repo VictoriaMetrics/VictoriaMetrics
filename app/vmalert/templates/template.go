@@ -169,6 +169,8 @@ func GetWithFuncs(funcs textTpl.FuncMap) (*textTpl.Template, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Clone() doesn't copy tpl Options, so we set them manually
+	tmpl = tmpl.Option("missingkey=zero")
 	return tmpl.Funcs(funcs), nil
 }
 

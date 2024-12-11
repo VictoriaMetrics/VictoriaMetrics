@@ -114,9 +114,9 @@ func (smp *statsMaxProcessor) updateStateForColumn(br *blockResult, c *blockResu
 			smp.updateStateString(v)
 		}
 	case valueTypeDict:
-		for _, v := range c.dictValues {
+		c.forEachDictValue(br, func(v string) {
 			smp.updateStateString(v)
-		}
+		})
 	case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64:
 		bb := bbPool.Get()
 		bb.B = marshalUint64String(bb.B[:0], c.maxValue)

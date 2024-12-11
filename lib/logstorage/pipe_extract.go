@@ -45,10 +45,6 @@ func (pe *pipeExtract) canLiveTail() bool {
 	return true
 }
 
-func (pe *pipeExtract) optimize() {
-	pe.iff.optimizeFilterIn()
-}
-
 func (pe *pipeExtract) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }
@@ -242,7 +238,7 @@ func (pep *pipeExtractProcessor) flush() error {
 	return nil
 }
 
-func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
+func parsePipeExtract(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("extract") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "extract")
 	}

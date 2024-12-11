@@ -114,7 +114,7 @@ func (client *PageBlobClient) clearPagesCreateRequest(ctx context.Context, conte
 	if options != nil && options.Range != nil {
 		req.Raw().Header["x-ms-range"] = []string{*options.Range}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2024-08-04"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	return req, nil
 }
 
@@ -235,7 +235,7 @@ func (client *PageBlobClient) copyIncrementalCreateRequest(ctx context.Context, 
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfTags != nil {
 		req.Raw().Header["x-ms-if-tags"] = []string{*modifiedAccessConditions.IfTags}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2024-08-04"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	return req, nil
 }
 
@@ -399,7 +399,7 @@ func (client *PageBlobClient) createCreateRequest(ctx context.Context, contentLe
 	if options != nil && options.BlobTagsString != nil {
 		req.Raw().Header["x-ms-tags"] = []string{*options.BlobTagsString}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2024-08-04"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	return req, nil
 }
 
@@ -533,7 +533,7 @@ func (client *PageBlobClient) GetPageRangesCreateRequest(ctx context.Context, op
 	if options != nil && options.Range != nil {
 		req.Raw().Header["x-ms-range"] = []string{*options.Range}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2024-08-04"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	return req, nil
 }
 
@@ -660,7 +660,7 @@ func (client *PageBlobClient) GetPageRangesDiffCreateRequest(ctx context.Context
 	if options != nil && options.Range != nil {
 		req.Raw().Header["x-ms-range"] = []string{*options.Range}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2024-08-04"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	return req, nil
 }
 
@@ -782,7 +782,7 @@ func (client *PageBlobClient) resizeCreateRequest(ctx context.Context, blobConte
 	if leaseAccessConditions != nil && leaseAccessConditions.LeaseID != nil {
 		req.Raw().Header["x-ms-lease-id"] = []string{*leaseAccessConditions.LeaseID}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2024-08-04"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	return req, nil
 }
 
@@ -891,7 +891,7 @@ func (client *PageBlobClient) updateSequenceNumberCreateRequest(ctx context.Cont
 		req.Raw().Header["x-ms-lease-id"] = []string{*leaseAccessConditions.LeaseID}
 	}
 	req.Raw().Header["x-ms-sequence-number-action"] = []string{string(sequenceNumberAction)}
-	req.Raw().Header["x-ms-version"] = []string{"2024-08-04"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	return req, nil
 }
 
@@ -1031,7 +1031,7 @@ func (client *PageBlobClient) uploadPagesCreateRequest(ctx context.Context, cont
 	if options != nil && options.Range != nil {
 		req.Raw().Header["x-ms-range"] = []string{*options.Range}
 	}
-	req.Raw().Header["x-ms-version"] = []string{"2024-08-04"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	if err := req.SetBody(body, "application/octet-stream"); err != nil {
 		return nil, err
 	}
@@ -1224,7 +1224,7 @@ func (client *PageBlobClient) uploadPagesFromURLCreateRequest(ctx context.Contex
 		req.Raw().Header["x-ms-source-if-unmodified-since"] = []string{(*sourceModifiedAccessConditions.SourceIfUnmodifiedSince).In(gmt).Format(time.RFC1123)}
 	}
 	req.Raw().Header["x-ms-source-range"] = []string{sourceRange}
-	req.Raw().Header["x-ms-version"] = []string{"2024-08-04"}
+	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
 	return req, nil
 }
 

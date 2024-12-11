@@ -73,6 +73,12 @@ func TestFetchQuery(t *testing.T) {
 		Measurement: "cpu",
 		Field:       "value",
 	}, "", `select "value" from "cpu"`)
+
+	f(&Series{
+		Measurement: "cpu",
+		Field:       "value1",
+		EmptyTags:   []string{"e1", "e2", "e3"},
+	}, "", `select "value1" from "cpu" where "e1"::tag='' and "e2"::tag='' and "e3"::tag=''`)
 }
 
 func TestTimeFilter(t *testing.T) {

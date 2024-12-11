@@ -85,6 +85,13 @@ func TestGetCommonTokensForAndFilters(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error in ParseQuery: %s", err)
 		}
+		if _, ok := q.f.(*filterNoop); ok {
+			if len(tokensExpected) != 0 {
+				t.Fatalf("expecting non-empty tokens %q", tokensExpected)
+			}
+			return
+		}
+
 		fa, ok := q.f.(*filterAnd)
 		if !ok {
 			t.Fatalf("unexpected filter type: %T; want *filterAnd", q.f)
@@ -134,6 +141,7 @@ func TestGetCommonTokensForAndFilters(t *testing.T) {
 			tokens: []string{"foo", "bar"},
 		},
 	})
+	f(`*`, nil)
 	f(`* *`, nil)
 
 	// empty filter must be skipped

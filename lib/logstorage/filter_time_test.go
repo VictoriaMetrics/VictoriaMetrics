@@ -123,14 +123,14 @@ func testFilterMatchForTimestamps(t *testing.T, timestamps []int64, f filter, ex
 }
 
 func generateRowsFromTimestamps(s *Storage, tenantID TenantID, timestamps []int64, getValue func(rowIdx int) string) {
-	lr := GetLogRows(nil, nil)
+	lr := GetLogRows(nil, nil, nil, "")
 	var fields []Field
 	for i, timestamp := range timestamps {
 		fields = append(fields[:0], Field{
 			Name:  "_msg",
 			Value: getValue(i),
 		})
-		lr.MustAdd(tenantID, timestamp, fields)
+		lr.MustAdd(tenantID, timestamp, fields, nil)
 	}
 	s.MustAddRows(lr)
 	PutLogRows(lr)

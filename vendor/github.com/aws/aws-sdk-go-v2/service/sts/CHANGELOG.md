@@ -1,3 +1,41 @@
+# v1.33.1 (2024-11-18)
+
+* **Dependency Update**: Update to smithy-go v1.22.1.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.33.0 (2024-11-14)
+
+* **Feature**: This release introduces the new API 'AssumeRoot', which returns short-term credentials that you can use to perform privileged tasks.
+
+# v1.32.4 (2024-11-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.3 (2024-10-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.2 (2024-10-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.1 (2024-10-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.0 (2024-10-04)
+
+* **Feature**: Add support for HTTP client metrics.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.4 (2024-10-03)
+
+* No change notes available for this release.
+
+# v1.31.3 (2024-09-27)
+
+* No change notes available for this release.
+
 # v1.31.2 (2024-09-25)
 
 * No change notes available for this release.

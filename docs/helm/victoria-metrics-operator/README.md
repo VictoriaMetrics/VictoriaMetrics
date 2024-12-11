@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.36.0](https://img.shields.io/badge/Version-0.36.0-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.39.1](https://img.shields.io/badge/Version-0.39.1-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-operator)
 
 Victoria Metrics Operator
@@ -19,6 +19,10 @@ kind: Application
 ...
 spec:
   ...
+  destination:
+    ...
+    namespace: <operator-namespace>
+  ...
   syncPolicy:
     syncOptions:
     # https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/#respect-ignore-difference-configs
@@ -29,7 +33,7 @@ spec:
     - group: ""
       kind: Secret
       name: <fullname>-validation
-      namespace: kube-system
+      namespace: <operator-namespace>
       jsonPointers:
         - /data
     - group: admissionregistration.k8s.io
@@ -186,6 +190,36 @@ helm-docs
 ```
 
 The markdown generation is entirely go template driven. The tool parses metadata from charts and generates a number of sub-templates that can be referenced in a template file (by default ``README.md.gotmpl``). If no template file is provided, the tool has a default internal template that will generate a reasonably formatted README.
+
+## Disabling automatic ServiceAccount token mount
+
+There are cases when it is required to disable automatic ServiceAccount token mount due to hardening reasons. To disable it, set the following values:
+```
+serviceAccount:
+  automountServiceAccountToken: false
+
+extraVolumes:
+  - name: operator
+    projected:
+      sources:
+        - downwardAPI:
+            items:
+              - fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+                path: namespace
+        - configMap:
+            name: kube-root-ca.crt
+        - serviceAccountToken:
+            expirationSeconds: 7200
+            path: token
+
+extraVolumeMounts:
+  - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+    name: operator
+```
+
+This configuration disables the automatic ServiceAccount token mount and mounts the token explicitly.
 
 ## Parameters
 
@@ -351,6 +385,17 @@ requests:
 </td>
     </tr>
     <tr>
+      <td>crds.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
+</pre>
+</td>
+      <td><p>manages CRD creation. Disables CRD creation only in combination with <code>crds.plain: false</code> due to helm dependency conditions limitation</p>
+</td>
+    </tr>
+    <tr>
       <td>crds.plain</td>
       <td>bool</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -468,18 +513,19 @@ requests:
 </code>
 </pre>
 </td>
-      <td><p>Overrides the full name of server component</p>
+      <td><p>Overrides the full name of server component resources</p>
 </td>
     </tr>
     <tr>
       <td>global.cluster.dnsDomain</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">cluster.local
+<code class="language-yaml">cluster.local.
 </code>
 </pre>
 </td>
-      <td></td>
+      <td><p>K8s cluster domain suffix, uses for building storage pods&rsquo; FQDN. Details are <a href="https://kubernetes.io/docs/tasks/administer-cluster/dns-custom-nameservers/" target="_blank">here</a></p>
+</td>
     </tr>
     <tr>
       <td>global.compatibility</td>
@@ -615,7 +661,7 @@ variant: ""
 </code>
 </pre>
 </td>
-      <td><p>VM operatror deployment name override</p>
+      <td><p>Override chart name</p>
 </td>
     </tr>
     <tr>
@@ -920,7 +966,7 @@ view:
 </code>
 </pre>
 </td>
-      <td><p>Service load balacner IP</p>
+      <td><p>Service load balancer IP</p>
 </td>
     </tr>
     <tr>
@@ -965,6 +1011,17 @@ view:
 </pre>
 </td>
       <td><p>Service webhook port</p>
+</td>
+    </tr>
+    <tr>
+      <td>serviceAccount.automountServiceAccountToken</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">true
+</code>
+</pre>
+</td>
+      <td><p>Whether to automount the service account token. Note that token needs to be mounted manually if this is disabled.</p>
 </td>
     </tr>
     <tr>

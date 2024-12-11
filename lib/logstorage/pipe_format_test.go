@@ -186,6 +186,20 @@ func TestPipeFormat(t *testing.T) {
 		},
 	})
 
+	// plain strin
+	f(`format '<uc:foo><lc:bar>' as x`, [][]Field{
+		{
+			{"foo", `aцC`},
+			{"bar", `aBП`},
+		},
+	}, [][]Field{
+		{
+			{"foo", `aцC`},
+			{"bar", `aBП`},
+			{"x", `AЦCabп`},
+		},
+	})
+
 	// plain string into a single field
 	f(`format foo as x`, [][]Field{
 		{
@@ -369,4 +383,34 @@ func TestPipeFormatUpdateNeededFields(t *testing.T) {
 	f(`format if (x:z or y:w) "<f1>foo" as f2`, "f1,f2,y", "", "f1,x,y", "")
 	f(`format if (x:z or y:w) "<f1>foo" as f2 skip_empty_results`, "f1,f2,y", "", "f1,f2,x,y", "")
 	f(`format if (x:z or y:w) "<f1>foo" as f2 keep_original_fields`, "f1,f2,y", "", "f1,f2,x,y", "")
+}
+
+func TestAppendUppercase(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		result := appendUppercase(nil, s)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+
+	f("", "")
+	f("foo", "FOO")
+	f("лДЫ", "ЛДЫ")
+}
+
+func TestAppendLowercase(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+
+		result := appendLowercase(nil, s)
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
+		}
+	}
+
+	f("", "")
+	f("FoO", "foo")
+	f("ЛДЫ", "лды")
 }

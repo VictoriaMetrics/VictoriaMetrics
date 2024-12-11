@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -211,10 +210,6 @@ func (s *presignPostRequestMiddleware) HandleFinalize(
 ) (
 	out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
 ) {
-	req, ok := in.Request.(*smithyhttp.Request)
-	if !ok {
-		return out, metadata, fmt.Errorf("unexpected request middleware type %T", in.Request)
-	}
 
 	input := getOperationInput(ctx)
 	asS3Put, ok := input.(*PutObjectInput)
@@ -230,8 +225,7 @@ func (s *presignPostRequestMiddleware) HandleFinalize(
 		return out, metadata, fmt.Errorf("PutObject input does not have a key input")
 	}
 
-	httpReq := req.Build(ctx)
-	u := httpReq.URL.String()
+	uri := getS3ResolvedURI(ctx)
 
 	signingName := awsmiddleware.GetSigningName(ctx)
 	signingRegion := awsmiddleware.GetSigningRegion(ctx)
@@ -265,20 +259,12 @@ func (s *presignPostRequestMiddleware) HandleFinalize(
 		}
 	}
 
-	// Other middlewares may set default values on the URL on the path or as query params. Remove them
-	baseURL := toBaseURL(u)
-
 	out.Result = &PresignedPostRequest{
-		URL:    baseURL,
+		URL:    uri,
 		Values: fields,
 	}
 
 	return out, metadata, nil
-}
-
-func toBaseURL(fullURL string) string {
-	a, _ := url.Parse(fullURL)
-	return a.Scheme + "://" + a.Host
 }
 
 // Adapted from existing PresignConverter middleware

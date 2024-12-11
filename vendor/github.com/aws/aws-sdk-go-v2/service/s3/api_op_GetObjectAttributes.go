@@ -303,7 +303,7 @@ type GetObjectAttributesOutput struct {
 	// of a resource found at a URL.
 	ETag *string
 
-	// The creation date of the object.
+	// Date and time when the object was last modified.
 	LastModified *time.Time
 
 	// A collection of parts associated with a multipart upload.

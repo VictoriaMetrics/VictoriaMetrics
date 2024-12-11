@@ -256,15 +256,20 @@ type PutObjectInput struct {
 	// parameter and uses the checksum algorithm that matches the provided value in
 	// x-amz-checksum-algorithm .
 	//
+	// The Content-MD5 or x-amz-sdk-checksum-algorithm header is required for any
+	// request to upload an object with a retention period configured using Amazon S3
+	// Object Lock. For more information, see [Uploading objects to an Object Lock enabled bucket]in the Amazon S3 User Guide.
+	//
 	// For directory buckets, when you use Amazon Web Services SDKs, CRC32 is the
 	// default checksum algorithm that's used for performance.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
+	// [Uploading objects to an Object Lock enabled bucket]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html#object-lock-put-object
 	ChecksumAlgorithm types.ChecksumAlgorithm
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
-	// base64-encoded, 32-bit CRC32 checksum of the object. For more information, see [Checking object integrity]
+	// base64-encoded, 32-bit CRC-32 checksum of the object. For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
@@ -272,8 +277,8 @@ type PutObjectInput struct {
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
-	// base64-encoded, 32-bit CRC32C checksum of the object. For more information, see [Checking object integrity]
-	// in the Amazon S3 User Guide.
+	// base64-encoded, 32-bit CRC-32C checksum of the object. For more information, see
+	// [Checking object integrity]in the Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumCRC32C *string
@@ -321,14 +326,14 @@ type PutObjectInput struct {
 	// optional, we recommend using the Content-MD5 mechanism as an end-to-end
 	// integrity check. For more information about REST request authentication, see [REST Authentication].
 	//
-	// The Content-MD5 header is required for any request to upload an object with a
-	// retention period configured using Amazon S3 Object Lock. For more information
-	// about Amazon S3 Object Lock, see [Amazon S3 Object Lock Overview]in the Amazon S3 User Guide.
+	// The Content-MD5 or x-amz-sdk-checksum-algorithm header is required for any
+	// request to upload an object with a retention period configured using Amazon S3
+	// Object Lock. For more information, see [Uploading objects to an Object Lock enabled bucket]in the Amazon S3 User Guide.
 	//
 	// This functionality is not supported for directory buckets.
 	//
 	// [REST Authentication]: https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html
-	// [Amazon S3 Object Lock Overview]: https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock-overview.html
+	// [Uploading objects to an Object Lock enabled bucket]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock-managing.html#object-lock-put-object
 	ContentMD5 *string
 
 	// A standard MIME type describing the format of the contents. For more
@@ -375,6 +380,23 @@ type PutObjectInput struct {
 	//
 	//   - This functionality is not supported for Amazon S3 on Outposts.
 	GrantWriteACP *string
+
+	// Uploads the object only if the ETag (entity tag) value provided during the
+	// WRITE operation matches the ETag of the object in S3. If the ETag values do not
+	// match, the operation returns a 412 Precondition Failed error.
+	//
+	// If a conflicting operation occurs during the upload S3 returns a 409
+	// ConditionalRequestConflict response. On a 409 failure you should fetch the
+	// object's ETag and retry the upload.
+	//
+	// Expects the ETag value as a string.
+	//
+	// For more information about conditional requests, see [RFC 7232], or [Conditional requests] in the Amazon S3
+	// User Guide.
+	//
+	// [Conditional requests]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-requests.html
+	// [RFC 7232]: https://tools.ietf.org/html/rfc7232
+	IfMatch *string
 
 	// Uploads the object only if the object key name does not already exist in the
 	// bucket specified. Otherwise, Amazon S3 returns a 412 Precondition Failed error.
@@ -478,12 +500,16 @@ type PutObjectInput struct {
 	// Services managed key ( aws/s3 ) to protect the data.
 	//
 	// Directory buckets - If you specify x-amz-server-side-encryption with aws:kms ,
-	// you must specify the x-amz-server-side-encryption-aws-kms-key-id header with
-	// the ID (Key ID or Key ARN) of the KMS symmetric encryption customer managed key
-	// to use. Otherwise, you get an HTTP 400 Bad Request error. Only use the key ID
-	// or key ARN. The key alias format of the KMS key isn't supported. Your SSE-KMS
+	// the x-amz-server-side-encryption-aws-kms-key-id header is implicitly assigned
+	// the ID of the KMS symmetric encryption customer managed key that's configured
+	// for your directory bucket's default encryption setting. If you want to specify
+	// the x-amz-server-side-encryption-aws-kms-key-id header explicitly, you can only
+	// specify it with the ID (Key ID or Key ARN) of the KMS customer managed key
+	// that's configured for your directory bucket's default encryption setting.
+	// Otherwise, you get an HTTP 400 Bad Request error. Only use the key ID or key
+	// ARN. The key alias format of the KMS key isn't supported. Your SSE-KMS
 	// configuration can only support 1 [customer managed key]per directory bucket for the lifetime of the
-	// bucket. [Amazon Web Services managed key]( aws/s3 ) isn't supported.
+	// bucket. The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
 	//
 	// [customer managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk
 	// [Amazon Web Services managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#aws-managed-cmk
@@ -584,6 +610,14 @@ type PutObjectInput struct {
 	// [Object Key and Metadata]: https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html
 	WebsiteRedirectLocation *string
 
+	//  Specifies the offset for appending data to existing objects in bytes. The
+	// offset must be equal to the size of the existing object being appended to. If no
+	// object exists, setting this header to 0 will create a new object.
+	//
+	// This functionality is only supported for objects in the Amazon S3 Express One
+	// Zone storage class in directory buckets.
+	WriteOffsetBytes *int64
+
 	noSmithyDocumentSerde
 }
 
@@ -600,7 +634,7 @@ type PutObjectOutput struct {
 	// encryption with Key Management Service (KMS) keys (SSE-KMS).
 	BucketKeyEnabled *bool
 
-	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
+	// The base64-encoded, 32-bit CRC-32 checksum of the object. This will only be
 	// present if it was uploaded with the object. When you use an API operation on an
 	// object that was uploaded using multipart uploads, this value may not be a direct
 	// checksum value of the full object. Instead, it's a calculation based on the
@@ -611,7 +645,7 @@ type PutObjectOutput struct {
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums
 	ChecksumCRC32 *string
 
-	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
+	// The base64-encoded, 32-bit CRC-32C checksum of the object. This will only be
 	// present if it was uploaded with the object. When you use an API operation on an
 	// object that was uploaded using multipart uploads, this value may not be a direct
 	// checksum value of the full object. Instead, it's a calculation based on the
@@ -698,6 +732,13 @@ type PutObjectOutput struct {
 	// The server-side encryption algorithm used when you store this object in Amazon
 	// S3.
 	ServerSideEncryption types.ServerSideEncryption
+
+	//  The size of the object in bytes. This will only be present if you append to an
+	// object.
+	//
+	// This functionality is only supported for objects in the Amazon S3 Express One
+	// Zone storage class in directory buckets.
+	Size *int64
 
 	// Version ID of the object.
 	//

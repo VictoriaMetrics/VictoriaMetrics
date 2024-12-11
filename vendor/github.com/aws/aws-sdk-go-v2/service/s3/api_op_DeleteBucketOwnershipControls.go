@@ -13,7 +13,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Removes OwnershipControls for an Amazon S3 bucket. To use this operation, you
 // must have the s3:PutBucketOwnershipControls permission. For more information

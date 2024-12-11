@@ -24,15 +24,9 @@ func TestParseAuthConfigFailure(t *testing.T) {
 		}
 	}
 
-	// Empty config
-	f(``)
-
 	// Invalid entry
 	f(`foobar`)
 	f(`foobar: baz`)
-
-	// Empty users
-	f(`users: []`)
 
 	// Missing url_prefix
 	f(`
@@ -301,6 +295,12 @@ func TestParseAuthConfigSuccess(t *testing.T) {
 	}
 
 	insecureSkipVerifyTrue := true
+
+	// Empty config
+	f(``, map[string]*UserInfo{})
+
+	// Empty users
+	f(`users: []`, map[string]*UserInfo{})
 
 	// Single user
 	f(`
@@ -775,6 +775,28 @@ func TestGetLeastLoadedBackendURL(t *testing.T) {
 	up.getBackendURL()
 	up.getBackendURL()
 	fn(7, 7, 7)
+}
+
+func TestBrokenBackend(t *testing.T) {
+	up := mustParseURLs([]string{
+		"http://node1:343",
+		"http://node2:343",
+		"http://node3:343",
+	})
+	up.loadBalancingPolicy = "least_loaded"
+	pbus := up.bus.Load()
+	bus := *pbus
+
+	// explicitly mark one of the backends as broken
+	bus[1].setBroken()
+
+	// broken backend should never return while there are healthy backends
+	for i := 0; i < 1e3; i++ {
+		b := up.getBackendURL()
+		if b.isBroken() {
+			t.Fatalf("unexpected broken backend %q", b.url)
+		}
+	}
 }
 
 func getRegexs(paths []string) []*Regex {

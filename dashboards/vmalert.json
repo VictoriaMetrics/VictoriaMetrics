@@ -231,6 +231,7 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -275,7 +276,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "count(vmalert_alerting_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"})",
+          "expr": "count(vmalert_alerting_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -293,6 +294,7 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -337,7 +339,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"})",
+          "expr": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -355,6 +357,7 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -403,7 +406,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "(sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) or vector(0)) + \n(sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) or vector(0))",
+          "expr": "(sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])) or vector(0)) + \n(sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])) or vector(0))",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -421,6 +424,7 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -909,9 +913,9 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk_max($topk, max(sum(\n    rate(vmalert_iteration_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])\n/\n    rate(vmalert_iteration_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])\n) by(job, instance, group)) \nby(job, group))",
+          "expr": "topk_max($topk, max(sum(\n    rate(vmalert_iteration_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])\n/\n    rate(vmalert_iteration_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])\n) by(job, instance, group, file)) \nby(job, group, file))",
           "interval": "",
-          "legendFormat": "{{group}} ({{job}})",
+          "legendFormat": "({{job}}) {{group}}({{file}})",
           "range": true,
           "refId": "A"
         }
@@ -967,8 +971,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1070,8 +1073,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -2089,8 +2091,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2246,8 +2247,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2291,9 +2291,9 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(increase(vmalert_iteration_missed_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, group) > 0",
+              "expr": "sum(increase(vmalert_iteration_missed_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, group, file) > 0",
               "interval": "1m",
-              "legendFormat": "__auto",
+              "legendFormat": "({{job}}) {{group}}({{file}})",
               "range": true,
               "refId": "A"
             }
@@ -2352,8 +2352,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2516,9 +2515,9 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, sum(vmalert_alerts_firing{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(job, group, alertname) > 0)",
+              "expr": "topk_max($topk, sum(vmalert_alerts_firing{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, group, file, alertname) > 0)",
               "interval": "",
-              "legendFormat": "{{group}}.{{alertname}} ({{job}})",
+              "legendFormat": "({{job}}) {{group}}.{{alertname}}({{file}})",
               "range": true,
               "refId": "A"
             }
@@ -2618,9 +2617,9 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(job, group, alertname) > 0",
+              "expr": "sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])) by(job, group, file, alertname) > 0",
               "interval": "",
-              "legendFormat": "{{group}}.{{alertname}} ({{job}})",
+              "legendFormat": "({{job}}) {{group}}.{{alertname}}({{file}})",
               "range": true,
               "refId": "A"
             }
@@ -2720,9 +2719,9 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(vmalert_alerts_pending{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(job, group, alertname) > 0",
+              "expr": "sum(vmalert_alerts_pending{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, group, file, alertname) > 0",
               "interval": "",
-              "legendFormat": "{{group}}.{{alertname}} ({{job}})",
+              "legendFormat": "({{job}}) {{group}}.{{alertname}}({{file}})",
               "range": true,
               "refId": "A"
             }
@@ -3049,9 +3048,9 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, \n  max(\n    sum(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(job, instance, group, recording) > 0\n  ) by(job, group, recording)\n)",
+              "expr": "topk_max($topk, \n  max(\n    sum(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, instance, group, file, recording) > 0\n  ) by(job, group, file, recording)\n)",
               "interval": "",
-              "legendFormat": "{{group}}.{{recording}} ({{job}})",
+              "legendFormat": "({{job}}) {{group}}.{{recording}}({{file}})",
               "range": true,
               "refId": "A"
             }
@@ -3151,9 +3150,9 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"} < 1) by(job, group, recording)",
+              "expr": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"} < 1) by(job, group, file, recording)",
               "interval": "",
-              "legendFormat": "{{group}}.{{recording}} ({{job}})",
+              "legendFormat": "({{job}}) {{group}}.{{recording}}({{file}})",
               "range": true,
               "refId": "A"
             }
@@ -3250,9 +3249,9 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(job, group, recording) > 0",
+              "expr": "sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])) by(job, group, file, recording) > 0",
               "interval": "",
-              "legendFormat": "{{group}}.{{recording}} ({{job}})",
+              "legendFormat": "({{job}}) {{group}}.{{recording}}({{file}})",
               "range": true,
               "refId": "A"
             }
@@ -3741,6 +3740,29 @@
         "query": {
           "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
           "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
+        "definition": "label_values(vmalert_iteration_total{job=~\"$job\", instance=~\"$instance\"},file)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "file",
+        "options": [],
+        "query": {
+          "query": "label_values(vmalert_iteration_total{job=~\"$job\", instance=~\"$instance\"},file)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
         "regex": "",

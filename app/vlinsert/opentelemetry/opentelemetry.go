@@ -66,15 +66,14 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 		return
 	}
 
-	lmp := cp.NewLogMessageProcessor()
-	n, err := pushProtobufRequest(data, lmp)
+	lmp := cp.NewLogMessageProcessor("opentelelemtry_protobuf")
+	useDefaultStreamFields := len(cp.StreamFields) == 0
+	err = pushProtobufRequest(data, lmp, useDefaultStreamFields)
 	lmp.MustClose()
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse OpenTelemetry protobuf request: %s", err)
 		return
 	}
-
-	rowsIngestedProtobufTotal.Add(n)
 
 	// update requestProtobufDuration only for successfully parsed requests
 	// There is no need in updating requestProtobufDuration for request errors,
@@ -83,22 +82,19 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 }
 
 var (
-	rowsIngestedProtobufTotal = metrics.NewCounter(`vl_rows_ingested_total{type="opentelemetry",format="protobuf"}`)
-
 	requestsProtobufTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
 	errorsTotal           = metrics.NewCounter(`vl_http_errors_total{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
 
 	requestProtobufDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/opentelemetry/v1/logs",format="protobuf"}`)
 )
 
-func pushProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) (int, error) {
+func pushProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefaultStreamFields bool) error {
 	var req pb.ExportLogsServiceRequest
 	if err := req.UnmarshalProtobuf(data); err != nil {
 		errorsTotal.Inc()
-		return 0, fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(data), err)
+		return fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(data), err)
 	}
 
-	var rowsIngested int
 	var commonFields []logstorage.Field
 	for _, rl := range req.ResourceLogs {
 		attributes := rl.Resource.Attributes
@@ -109,16 +105,14 @@ func pushProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor) (int,
 		}
 		commonFieldsLen := len(commonFields)
 		for _, sc := range rl.ScopeLogs {
-			var scopeIngested int
-			commonFields, scopeIngested = pushFieldsFromScopeLogs(&sc, commonFields[:commonFieldsLen], lmp)
-			rowsIngested += scopeIngested
+			commonFields = pushFieldsFromScopeLogs(&sc, commonFields[:commonFieldsLen], lmp, useDefaultStreamFields)
 		}
 	}
 
-	return rowsIngested, nil
+	return nil
 }
 
-func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, lmp insertutils.LogMessageProcessor) ([]logstorage.Field, int) {
+func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, lmp insertutils.LogMessageProcessor, useDefaultStreamFields bool) []logstorage.Field {
 	fields := commonFields
 	for _, lr := range sc.LogRecords {
 		fields = fields[:len(commonFields)]
@@ -137,7 +131,11 @@ func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, 
 			Value: lr.FormatSeverity(),
 		})
 
-		lmp.AddRow(lr.ExtractTimestampNano(), fields)
+		var streamFields []logstorage.Field
+		if useDefaultStreamFields {
+			streamFields = commonFields
+		}
+		lmp.AddRow(lr.ExtractTimestampNano(), fields, streamFields)
 	}
-	return fields, len(sc.LogRecords)
+	return fields
 }

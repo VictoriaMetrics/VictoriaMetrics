@@ -58,6 +58,12 @@ It increases cluster availability, and simplifies cluster maintenance as well as
 
 > Note that `vmselect` despite being stateless still requires some disk space (a few GBs) for temporary caches. Refer to the `-cacheDataPath` command-line flag for more details.
 
+## vmui
+
+VictoriaMetrics cluster version provides UI for query troubleshooting and exploration. The UI is available at 
+`http://<vmselect>:8481/select/<accountID>/vmui/` in each `vmeselect` service.
+The UI allows exploring query results via graphs and tables. See more details about [vmui](https://docs.victoriametrics.com/#vmui).
+
 ## Multitenancy
 
 VictoriaMetrics cluster supports multiple isolated tenants (aka namespaces).
@@ -86,7 +92,7 @@ when different tenants have different amounts of data and different query load.
 See also [multitenancy via labels](#multitenancy-via-labels).
 
 
-## Multitenancy via labels
+### Multitenancy via labels
 
 **Writes**
 
@@ -114,10 +120,9 @@ such as [Graphite](https://docs.victoriametrics.com/#how-to-send-data-from-graph
 
 **Reads**
 
-_Available from [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040)._
 _For better performance prefer specifying [tenants in read URL](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)._
 
-`vmselect` can execute queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints `http://vmselect:8481/select/multitenant/<suffix>`.
+`vmselect` can execute {{% available_from "v1.104.0" %}} queries over multiple [tenants](#multitenancy) via special `multitenant` endpoints `http://vmselect:8481/select/multitenant/<suffix>`.
 Currently supported endpoints for `<suffix>` are:
 - `/prometheus/api/v1/query`
 - `/prometheus/api/v1/query_range`
@@ -1244,9 +1249,9 @@ Below is the output for `/path/to/vminsert -help`:
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -maxLabelValueLen int
-     The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented (default 4096)
+     The maximum length of label values in the accepted time series. Series, with longer label values are ignored. In this case the vm_rows_ignored_total{reason="too_long_label_value"} metric at /metrics page is incremented (default 4096)
   -maxLabelsPerTimeseries int
-     The maximum number of labels accepted per time series. Superfluous labels are dropped. In this case the vm_metrics_with_dropped_labels_total metric at /metrics page is incremented (default 30)
+     The maximum number of labels accepted per time series. Superfluous labels are ignored. In this case the vm_rows_ignored_total{reason="too_many_labels"} metric at /metrics page is incremented (default 30)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -1909,9 +1914,6 @@ Below is the output for `/path/to/vmstorage -help`:
      The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
   -storage.cacheSizeIndexDBDataBlocks size
      Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
-  -storage.cacheSizeIndexDBDataBlocksSparse size
-     Overrides max size for indexdb/dataBlocksSparse cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.cacheSizeIndexDBIndexBlocks size
      Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning

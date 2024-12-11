@@ -11,58 +11,33 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
+	"time"
 )
 
 // Removes an object from a bucket. The behavior depends on the bucket's
-// versioning state:
-//
-//   - If bucket versioning is not enabled, the operation permanently deletes the
-//     object.
-//
-//   - If bucket versioning is enabled, the operation inserts a delete marker,
-//     which becomes the current version of the object. To permanently delete an object
-//     in a versioned bucket, you must include the object’s versionId in the request.
-//     For more information about versioning-enabled buckets, see [Deleting object versions from a versioning-enabled bucket].
-//
-//   - If bucket versioning is suspended, the operation removes the object that
-//     has a null versionId , if there is one, and inserts a delete marker that
-//     becomes the current version of the object. If there isn't an object with a null
-//     versionId , and all versions of the object have a versionId , Amazon S3 does
-//     not remove the object and only inserts a delete marker. To permanently delete an
-//     object that has a versionId , you must include the object’s versionId in the
-//     request. For more information about versioning-suspended buckets, see [Deleting objects from versioning-suspended buckets].
-//
-//   - Directory buckets - S3 Versioning isn't enabled and supported for directory
-//     buckets. For this API operation, only the null value of the version ID is
-//     supported by directory buckets. You can only specify null to the versionId
-//     query parameter in the request.
-//
-//   - Directory buckets - For directory buckets, you must make requests for this
-//     API operation to the Zonal endpoint. These endpoints support
-//     virtual-hosted-style requests in the format
-//     https://bucket_name.s3express-az_id.region.amazonaws.com/key-name .
-//     Path-style requests are not supported. For more information, see [Regional and Zonal endpoints]in the
-//     Amazon S3 User Guide.
+// versioning state. For more information, see [Best practices to consider before deleting an object].
 //
 // To remove a specific version, you must use the versionId query parameter. Using
 // this query parameter permanently deletes the version. If the object deleted is a
 // delete marker, Amazon S3 sets the response header x-amz-delete-marker to true.
-//
 // If the object you want to delete is in a bucket where the bucket versioning
-// configuration is MFA Delete enabled, you must include the x-amz-mfa request
+// configuration is MFA delete enabled, you must include the x-amz-mfa request
 // header in the DELETE versionId request. Requests that include x-amz-mfa must
-// use HTTPS. For more information about MFA Delete, see [Using MFA Delete]in the Amazon S3 User
-// Guide. To see sample requests that use versioning, see [Sample Request].
+// use HTTPS. For more information about MFA delete and to see example requests,
+// see [Using MFA delete]and [Sample request] in the Amazon S3 User Guide.
 //
-// Directory buckets - MFA delete is not supported by directory buckets.
+//   - S3 Versioning isn't enabled and supported for directory buckets. For this
+//     API operation, only the null value of the version ID is supported by directory
+//     buckets. You can only specify null to the versionId query parameter in the
+//     request.
 //
-// You can delete objects by explicitly calling DELETE Object or calling ([PutBucketLifecycle] ) to
-// enable Amazon S3 to remove them for you. If you want to block users or accounts
-// from removing or deleting objects from your bucket, you must deny them the
-// s3:DeleteObject , s3:DeleteObjectVersion , and s3:PutLifeCycleConfiguration
-// actions.
+//   - For directory buckets, you must make requests for this API operation to the
+//     Zonal endpoint. These endpoints support virtual-hosted-style requests in the
+//     format https://bucket_name.s3express-az_id.region.amazonaws.com/key-name .
+//     Path-style requests are not supported. For more information, see [Regional and Zonal endpoints]in the
+//     Amazon S3 User Guide.
 //
-// Directory buckets - S3 Lifecycle is not supported by directory buckets.
+//   - MFA delete is not supported by directory buckets.
 //
 // Permissions
 //
@@ -72,20 +47,18 @@ import (
 //   - s3:DeleteObject - To delete an object from a bucket, you must always have
 //     the s3:DeleteObject permission.
 //
+// You can also use PutBucketLifecycleto delete objects in Amazon S3.
+//
 //   - s3:DeleteObjectVersion - To delete a specific version of an object from a
 //     versioning-enabled bucket, you must have the s3:DeleteObjectVersion permission.
 //
-//   - Directory bucket permissions - To grant access to this API operation on a
-//     directory bucket, we recommend that you use the [CreateSession]CreateSession API operation
-//     for session-based authorization. Specifically, you grant the
-//     s3express:CreateSession permission to the directory bucket in a bucket policy
-//     or an IAM identity-based policy. Then, you make the CreateSession API call on
-//     the bucket to obtain a session token. With the session token in your request
-//     header, you can make API requests to this operation. After the session token
-//     expires, you make another CreateSession API call to generate a new session
-//     token for use. Amazon Web Services CLI or SDKs create session and refresh the
-//     session token automatically to avoid service interruptions when a session
-//     expires. For more information about authorization, see [CreateSession]CreateSession .
+//   - If you want to block users or accounts from removing or deleting objects
+//     from your bucket, you must deny them the s3:DeleteObject ,
+//     s3:DeleteObjectVersion , and s3:PutLifeCycleConfiguration permissions.
+//
+//   - Directory buckets permissions - To grant access to this API operation on a
+//     directory bucket, we recommend that you use the CreateSessionAPI operation for
+//     session-based authorization.
 //
 // HTTP Host header syntax  Directory buckets - The HTTP Host header syntax is
 // Bucket_name.s3express-az_id.region.amazonaws.com .
@@ -94,14 +67,11 @@ import (
 //
 // [PutObject]
 //
-// [Sample Request]: https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html#ExampleVersionObjectDelete
+// [Best practices to consider before deleting an object]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/DeletingObjects.html#DeletingObjects-best-practices
+// [Using MFA delete]: https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMFADelete.html
+// [Sample request]: https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectDELETE.html#ExampleVersionObjectDelete
 // [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
-// [Deleting objects from versioning-suspended buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/DeletingObjectsfromVersioningSuspendedBuckets.html
 // [PutObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
-// [PutBucketLifecycle]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycle.html
-// [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
-// [Deleting object versions from a versioning-enabled bucket]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/DeletingObjectVersions.html
-// [Using MFA Delete]: https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMFADelete.html
 func (c *Client) DeleteObject(ctx context.Context, params *DeleteObjectInput, optFns ...func(*Options)) (*DeleteObjectOutput, error) {
 	if params == nil {
 		params = &DeleteObjectInput{}
@@ -172,6 +142,38 @@ type DeleteObjectInput struct {
 	// does not match the actual owner of the bucket, the request fails with the HTTP
 	// status code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
+
+	// The If-Match header field makes the request method conditional on ETags. If the
+	// ETag value does not match, the operation returns a 412 Precondition Failed
+	// error. If the ETag matches or if the object doesn't exist, the operation will
+	// return a 204 Success (No Content) response .
+	//
+	// For more information about conditional requests, see [RFC 7232].
+	//
+	// This functionality is only supported for directory buckets.
+	//
+	// [RFC 7232]: https://docs.aws.amazon.com/https:/tools.ietf.org/html/rfc7232
+	IfMatch *string
+
+	// If present, the object is deleted only if its modification times matches the
+	// provided Timestamp . If the Timestamp values do not match, the operation
+	// returns a 412 Precondition Failed error. If the Timestamp matches or if the
+	// object doesn’t exist, the operation returns a 204 Success (No Content) response.
+	//
+	// This functionality is only supported for directory buckets.
+	IfMatchLastModifiedTime *time.Time
+
+	// If present, the object is deleted only if its size matches the provided size in
+	// bytes. If the Size value does not match, the operation returns a 412
+	// Precondition Failed error. If the Size matches or if the object doesn’t exist,
+	// the operation returns a 204 Success (No Content) response.
+	//
+	// This functionality is only supported for directory buckets.
+	//
+	// You can use the If-Match , x-amz-if-match-last-modified-time and
+	// x-amz-if-match-size conditional headers in conjunction with each-other or
+	// individually.
+	IfMatchSize *int64
 
 	// The concatenation of the authentication device's serial number, a space, and
 	// the value that is displayed on your authentication device. Required to

@@ -446,14 +446,14 @@ type GetObjectOutput struct {
 	// Specifies caching behavior along the request/reply chain.
 	CacheControl *string
 
-	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
+	// The base64-encoded, 32-bit CRC-32 checksum of the object. This will only be
 	// present if it was uploaded with the object. For more information, see [Checking object integrity]in the
 	// Amazon S3 User Guide.
 	//
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumCRC32 *string
 
-	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
+	// The base64-encoded, 32-bit CRC-32C checksum of the object. This will only be
 	// present if it was uploaded with the object. For more information, see [Checking object integrity]in the
 	// Amazon S3 User Guide.
 	//

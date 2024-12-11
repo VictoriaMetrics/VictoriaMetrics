@@ -8,7 +8,7 @@ menu:
     name: Support
 ---
 ## Basic Support
-All offerings include basic support, where we maintain the health of your deployments, perform system upgrades, and proactively contact customers if issues arise.
+All offerings include [Silver level](https://victoriametrics.com/plans-features/) of support, where we maintain the health of your deployments, perform system upgrades, and proactively contact customers if issues arise.
 
 All changes are logged and visible in the [Audit log](https://console.victoriametrics.cloud/audit ). For more details, check the [documentation](https://docs.victoriametrics.com/victoriametrics-cloud/audit-logs/) 
 

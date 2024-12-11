@@ -107,7 +107,7 @@ func testTableSearchConcurrent(tb *Table, items []string) error {
 
 func testTableSearchSerial(tb *Table, items []string) error {
 	var ts TableSearch
-	ts.Init(tb, false)
+	ts.Init(tb)
 	for _, key := range []string{
 		"",
 		"123",

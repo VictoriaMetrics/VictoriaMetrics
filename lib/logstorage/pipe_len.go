@@ -41,10 +41,6 @@ func (pl *pipeLen) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (pl *pipeLen) optimize() {
-	// Nothing to do
-}
-
 func (pl *pipeLen) hasFilterInWithQuery() bool {
 	return false
 }
@@ -122,7 +118,7 @@ func (plp *pipeLenProcessor) flush() error {
 	return nil
 }
 
-func parsePipeLen(lex *lexer) (*pipeLen, error) {
+func parsePipeLen(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("len") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "len")
 	}

@@ -15,7 +15,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Sets the accelerate configuration of an existing bucket. Amazon S3 Transfer
 // Acceleration is a bucket-level feature that enables you to perform faster data

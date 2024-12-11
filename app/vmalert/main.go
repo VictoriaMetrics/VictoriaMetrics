@@ -78,8 +78,6 @@ absolute path to all .tpl files in root.
 	externalLabels = flagutil.NewArrayString("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
 		"In case of conflicts, original labels are kept with prefix `exported_`.")
 
-	remoteReadIgnoreRestoreErrors = flag.Bool("remoteRead.ignoreRestoreErrors", true, "Whether to ignore errors from remote storage when restoring alerts state on startup. DEPRECATED - this flag has no effect and will be removed in the next releases.")
-
 	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
 )
 
@@ -96,10 +94,6 @@ func main() {
 	notifier.InitSecretFlags()
 	buildinfo.Init()
 	logger.Init()
-
-	if !*remoteReadIgnoreRestoreErrors {
-		logger.Warnf("flag `remoteRead.ignoreRestoreErrors` is deprecated and will be removed in next releases.")
-	}
 
 	err := templates.Load(*ruleTemplatesPath, true)
 	if err != nil {

@@ -2912,22 +2912,20 @@ func validateLifecycleRuleAndOperator(v *types.LifecycleRuleAndOperator) error {
 	}
 }
 
-func validateLifecycleRuleFilter(v types.LifecycleRuleFilter) error {
+func validateLifecycleRuleFilter(v *types.LifecycleRuleFilter) error {
 	if v == nil {
 		return nil
 	}
 	invalidParams := smithy.InvalidParamsError{Context: "LifecycleRuleFilter"}
-	switch uv := v.(type) {
-	case *types.LifecycleRuleFilterMemberAnd:
-		if err := validateLifecycleRuleAndOperator(&uv.Value); err != nil {
-			invalidParams.AddNested("[And]", err.(smithy.InvalidParamsError))
+	if v.Tag != nil {
+		if err := validateTag(v.Tag); err != nil {
+			invalidParams.AddNested("Tag", err.(smithy.InvalidParamsError))
 		}
-
-	case *types.LifecycleRuleFilterMemberTag:
-		if err := validateTag(&uv.Value); err != nil {
-			invalidParams.AddNested("[Tag]", err.(smithy.InvalidParamsError))
+	}
+	if v.And != nil {
+		if err := validateLifecycleRuleAndOperator(v.And); err != nil {
+			invalidParams.AddNested("And", err.(smithy.InvalidParamsError))
 		}
-
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams
@@ -3320,22 +3318,20 @@ func validateReplicationRuleAndOperator(v *types.ReplicationRuleAndOperator) err
 	}
 }
 
-func validateReplicationRuleFilter(v types.ReplicationRuleFilter) error {
+func validateReplicationRuleFilter(v *types.ReplicationRuleFilter) error {
 	if v == nil {
 		return nil
 	}
 	invalidParams := smithy.InvalidParamsError{Context: "ReplicationRuleFilter"}
-	switch uv := v.(type) {
-	case *types.ReplicationRuleFilterMemberAnd:
-		if err := validateReplicationRuleAndOperator(&uv.Value); err != nil {
-			invalidParams.AddNested("[And]", err.(smithy.InvalidParamsError))
+	if v.Tag != nil {
+		if err := validateTag(v.Tag); err != nil {
+			invalidParams.AddNested("Tag", err.(smithy.InvalidParamsError))
 		}
-
-	case *types.ReplicationRuleFilterMemberTag:
-		if err := validateTag(&uv.Value); err != nil {
-			invalidParams.AddNested("[Tag]", err.(smithy.InvalidParamsError))
+	}
+	if v.And != nil {
+		if err := validateReplicationRuleAndOperator(v.And); err != nil {
+			invalidParams.AddNested("And", err.(smithy.InvalidParamsError))
 		}
-
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams

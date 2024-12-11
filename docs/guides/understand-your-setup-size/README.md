@@ -76,7 +76,7 @@ The typical distribution between light vs heavy queries is 80%:20%. So when you 
 
 ### Retention Period/Disk Space
 
-The Retention Period is the number of days or months you store the metrics. It affects the disk space. The formula for calculating required disk space is **Replication Factor * Datapoint Size * Ingestion rate * Retention Period in Seconds + Free Space for Merges (20%) + 1 Retention Cycle**.
+The Retention Period is the number of days or months you store the metrics. It affects the disk space. The formula for calculating required disk space is **Replication Factor * Datapoint Size * Ingestion rate * (Retention Period in Seconds +1 Retention Cycle(day or month)) * Free Space for Merges (20%) **.
 
 The Retention Cycle is one day or one month. If the retention period is higher than 30 days cycle is a month; otherwise day.
 

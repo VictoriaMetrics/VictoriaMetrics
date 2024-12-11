@@ -84,6 +84,16 @@ func SplitPattern(p string) (base, pattern string) {
 // filepath.ErrBadPattern.
 //
 func FilepathGlob(pattern string, opts ...GlobOption) (matches []string, err error) {
+	if pattern == "" {
+		// special case to match filepath.Glob behavior
+		g := newGlob(opts...)
+		if g.failOnIOErrors {
+			// match doublestar.Glob behavior here
+			return nil, os.ErrInvalid
+		}
+		return nil, nil
+	}
+
 	pattern = filepath.Clean(pattern)
 	pattern = filepath.ToSlash(pattern)
 	base, f := SplitPattern(pattern)

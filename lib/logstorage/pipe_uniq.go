@@ -58,10 +58,6 @@ func (pu *pipeUniq) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (pu *pipeUniq) optimize() {
-	// nothing to do
-}
-
 func (pu *pipeUniq) hasFilterInWithQuery() bool {
 	return false
 }
@@ -602,7 +598,7 @@ func (wctx *pipeUniqWriteContext) flush() {
 	}
 }
 
-func parsePipeUniq(lex *lexer) (*pipeUniq, error) {
+func parsePipeUniq(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("uniq") {
 		return nil, fmt.Errorf("expecting 'uniq'; got %q", lex.token)
 	}

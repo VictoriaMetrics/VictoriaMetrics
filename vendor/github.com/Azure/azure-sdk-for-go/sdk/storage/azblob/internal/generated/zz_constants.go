@@ -343,6 +343,7 @@ const (
 	ListBlobsIncludeItemImmutabilitypolicy  ListBlobsIncludeItem = "immutabilitypolicy"
 	ListBlobsIncludeItemLegalhold           ListBlobsIncludeItem = "legalhold"
 	ListBlobsIncludeItemMetadata            ListBlobsIncludeItem = "metadata"
+	ListBlobsIncludeItemPermissions         ListBlobsIncludeItem = "permissions"
 	ListBlobsIncludeItemSnapshots           ListBlobsIncludeItem = "snapshots"
 	ListBlobsIncludeItemTags                ListBlobsIncludeItem = "tags"
 	ListBlobsIncludeItemUncommittedblobs    ListBlobsIncludeItem = "uncommittedblobs"
@@ -358,6 +359,7 @@ func PossibleListBlobsIncludeItemValues() []ListBlobsIncludeItem {
 		ListBlobsIncludeItemImmutabilitypolicy,
 		ListBlobsIncludeItemLegalhold,
 		ListBlobsIncludeItemMetadata,
+		ListBlobsIncludeItemPermissions,
 		ListBlobsIncludeItemSnapshots,
 		ListBlobsIncludeItemTags,
 		ListBlobsIncludeItemUncommittedblobs,

@@ -84,7 +84,7 @@ func IsLikelyInvalid(e Expr) bool {
 			return
 		}
 		idx := GetRollupArgIdx(fe)
-		if idx < 0 {
+		if idx < 0 || idx >= len(fe.Args) {
 			return
 		}
 		arg := fe.Args[idx]

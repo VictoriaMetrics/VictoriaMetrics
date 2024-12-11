@@ -1,0 +1,49 @@
+{% import (
+	"slices"
+) %}
+
+{% stripspace %}
+
+{% func FacetsResponse(m map[string][]facetEntry) %}
+{
+	{% code
+		sortedKeys := make([]string, 0, len(m))
+		for k := range m {
+			sortedKeys = append(sortedKeys, k)
+		}
+		slices.Sort(sortedKeys)
+	%}
+	"facets":[
+		{% if len(sortedKeys) > 0 %}
+			{%= facetsLine(m, sortedKeys[0]) %}
+			{% for _, k := range sortedKeys[1:] %}
+				,{%= facetsLine(m, k) %}
+			{% endfor %}
+		{% endif %}
+	]
+}
+{% endfunc %}
+
+{% func facetsLine(m map[string][]facetEntry, k string) %}
+{
+	"field_name":{%q= k %},
+	"values":[
+		{% code	fes := m[k] %}
+		{% if len(fes) > 0 %}
+			{%= facetLine(fes[0]) %}
+			{% for _, fe := range fes[1:] %}
+				,{%= facetLine(fe) %}
+			{% endfor %}
+		{% endif %}
+	]
+}
+{% endfunc %}
+
+{% func facetLine(fe facetEntry) %}
+{
+	"field_value":{%q= fe.value %},
+	"hits":{%s= fe.hits %}
+}
+{% endfunc %}
+
+{% endstripspace %}

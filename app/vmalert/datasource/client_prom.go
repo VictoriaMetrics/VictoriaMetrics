@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 
 	"github.com/valyala/fastjson"
 )
@@ -16,7 +17,8 @@ import (
 var (
 	disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/query' or '/select/logsql/stats_query' path "+
 		"to the configured -datasource.url and -remoteRead.url")
-	disableStepParam = flag.Bool("datasource.disableStepParam", false, "Whether to disable adding 'step' param to the issued instant queries. "+
+	disableStepParam = flag.Bool("datasource.disableStepParam", false, "Whether to disable adding 'step' param in instant queries to the configured -datasource.url and -remoteRead.url. "+
+		"Only valid for prometheus datasource. "+
 		"This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. "+
 		"It is not recommended to enable this flag if you use vmalert with VictoriaMetrics.")
 )
@@ -81,14 +83,14 @@ func (pi *promInstant) Unmarshal(b []byte) error {
 		labels := metric.GetObject()
 
 		r := &pi.ms[i]
-		r.Labels = make([]Label, 0, labels.Len())
+		r.Labels = make([]prompbmarshal.Label, 0, labels.Len())
 		labels.Visit(func(key []byte, v *fastjson.Value) {
 			lv, errLocal := v.StringBytes()
 			if errLocal != nil {
 				err = fmt.Errorf("error when parsing label value %q: %s", v, errLocal)
 				return
 			}
-			r.Labels = append(r.Labels, Label{
+			r.Labels = append(r.Labels, prompbmarshal.Label{
 				Name:  string(key),
 				Value: string(lv),
 			})
@@ -218,8 +220,8 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result
 	return res, nil
 }
 
-func (s *Client) setPrometheusInstantReqParams(r *http.Request, query string, timestamp time.Time) {
-	if s.appendTypePrefix {
+func (c *Client) setPrometheusInstantReqParams(r *http.Request, query string, timestamp time.Time) {
+	if c.appendTypePrefix {
 		r.URL.Path += "/prometheus"
 	}
 	if !*disablePathAppend {
@@ -227,22 +229,22 @@ func (s *Client) setPrometheusInstantReqParams(r *http.Request, query string, ti
 	}
 	q := r.URL.Query()
 	q.Set("time", timestamp.Format(time.RFC3339))
-	if !*disableStepParam && s.evaluationInterval > 0 { // set step as evaluationInterval by default
+	if !*disableStepParam && c.evaluationInterval > 0 { // set step as evaluationInterval by default
 		// always convert to seconds to keep compatibility with older
 		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
-		q.Set("step", fmt.Sprintf("%ds", int(s.evaluationInterval.Seconds())))
+		q.Set("step", fmt.Sprintf("%ds", int(c.evaluationInterval.Seconds())))
 	}
-	if !*disableStepParam && s.queryStep > 0 { // override step with user-specified value
+	if !*disableStepParam && c.queryStep > 0 { // override step with user-specified value
 		// always convert to seconds to keep compatibility with older
 		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
-		q.Set("step", fmt.Sprintf("%ds", int(s.queryStep.Seconds())))
+		q.Set("step", fmt.Sprintf("%ds", int(c.queryStep.Seconds())))
 	}
 	r.URL.RawQuery = q.Encode()
-	s.setReqParams(r, query)
+	c.setReqParams(r, query)
 }
 
-func (s *Client) setPrometheusRangeReqParams(r *http.Request, query string, start, end time.Time) {
-	if s.appendTypePrefix {
+func (c *Client) setPrometheusRangeReqParams(r *http.Request, query string, start, end time.Time) {
+	if c.appendTypePrefix {
 		r.URL.Path += "/prometheus"
 	}
 	if !*disablePathAppend {
@@ -251,11 +253,11 @@ func (s *Client) setPrometheusRangeReqParams(r *http.Request, query string, star
 	q := r.URL.Query()
 	q.Add("start", start.Format(time.RFC3339))
 	q.Add("end", end.Format(time.RFC3339))
-	if s.evaluationInterval > 0 { // set step as evaluationInterval by default
+	if c.evaluationInterval > 0 { // set step as evaluationInterval by default
 		// always convert to seconds to keep compatibility with older
 		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
-		q.Set("step", fmt.Sprintf("%ds", int(s.evaluationInterval.Seconds())))
+		q.Set("step", fmt.Sprintf("%ds", int(c.evaluationInterval.Seconds())))
 	}
 	r.URL.RawQuery = q.Encode()
-	s.setReqParams(r, query)
+	c.setReqParams(r, query)
 }

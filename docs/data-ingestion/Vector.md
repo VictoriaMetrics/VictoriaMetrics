@@ -14,6 +14,7 @@ To Send data to Vector you need to configure with a Prometheus remote write sink
 You will need to replace the values in `<>` to match your setup.
 
 ## Minimum Config
+
 ```yaml
 sources:
   host_metrics_source:
@@ -31,8 +32,6 @@ sinks:
 ## Basic Authentication
 
 This adds support for basic authentication by defining the auth strategy, user, and password fields:
-
-
 ```yaml
 sources:
   host_metrics_source:
@@ -55,8 +54,6 @@ sinks:
 ## Bearer / Token Authentication
 
 This adds support for bearer/token authentication by defining the auth strategy and token fields:
-
-
 ```yaml
 sources:
   host_metrics_source:
@@ -78,8 +75,6 @@ sinks:
 
 This combines the Bearer Authentication section with the [VictoriaLogs docs for Vector](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector/),
 so you can send metrics and logs with 1 agent to multiple sources:
-
-
 ```yaml
 sources:
   host_metrics_source:
@@ -114,5 +109,6 @@ sinks:
 ```
 
 # References
+
 - [Vector documentation](https://vector.dev/docs/)
 - [VictoriaLogs documentation for using vector](https://docs.victoriametrics.com/victorialogs/data-ingestion/vector)

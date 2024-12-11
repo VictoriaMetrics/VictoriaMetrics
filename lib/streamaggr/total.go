@@ -45,9 +45,9 @@ type totalLastValueState struct {
 	deleteDeadline uint64
 }
 
-func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
+func newTotalAggrState(stalenessInterval, ignoreFirstSampleInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) *totalAggrState {
 	stalenessSecs := roundDurationToSecs(stalenessInterval)
-	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + stalenessSecs
+	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + roundDurationToSecs(ignoreFirstSampleInterval)
 
 	return &totalAggrState{
 		resetTotalOnFlush:         resetTotalOnFlush,
@@ -60,7 +60,7 @@ func newTotalAggrState(stalenessInterval time.Duration, resetTotalOnFlush, keepF
 func (as *totalAggrState) pushSamples(samples []pushSample) {
 	currentTime := fasttime.UnixTimestamp()
 	deleteDeadline := currentTime + as.stalenessSecs
-	keepFirstSample := as.keepFirstSample && currentTime > as.ignoreFirstSampleDeadline
+	keepFirstSample := as.keepFirstSample && currentTime >= as.ignoreFirstSampleDeadline
 	for i := range samples {
 		s := &samples[i]
 		inputKey, outputKey := getInputOutputKey(s.key)

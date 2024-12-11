@@ -15,6 +15,8 @@ import Alert from "../../../components/Main/Alert/Alert";
 import qs from "qs";
 import Popper from "../../../components/Main/Popper/Popper";
 import helperText from "./helperText";
+import { Link } from "react-router-dom";
+import router from "../../../router";
 
 type Props = {
   fetchUrl?: string[];
@@ -125,6 +127,15 @@ const DownloadReport: FC<Props> = ({ fetchUrl }) => {
     setStepHelper(0);
   }, [openHelper]);
 
+  const RawQueryLink = () => (
+    <Link
+      className="vm-link vm-link_underlined vm-link_colored"
+      to={router.rawQuery}
+    >
+      Raw Query
+    </Link>
+  );
+
   return (
     <>
       <Tooltip title={"Export query"}>
@@ -165,6 +176,10 @@ const DownloadReport: FC<Props> = ({ fetchUrl }) => {
                   label={"Include query trace"}
                 />
               </div>
+              <Alert variant="info">
+                If confused with the query results,
+                try viewing the raw samples for selected series in <RawQueryLink/> tab.
+              </Alert>
             </div>
             {error && <Alert variant="error">{error}</Alert>}
             <div className="vm-download-report__buttons">

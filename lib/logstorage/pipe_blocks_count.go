@@ -31,10 +31,6 @@ func (pc *pipeBlocksCount) updateNeededFields(neededFields, unneededFields field
 	unneededFields.reset()
 }
 
-func (pc *pipeBlocksCount) optimize() {
-	// nothing to do
-}
-
 func (pc *pipeBlocksCount) hasFilterInWithQuery() bool {
 	return false
 }
@@ -107,7 +103,7 @@ func (pcp *pipeBlocksCountProcessor) flush() error {
 	return nil
 }
 
-func parsePipeBlocksCount(lex *lexer) (*pipeBlocksCount, error) {
+func parsePipeBlocksCount(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("blocks_count") {
 		return nil, fmt.Errorf("expecting 'blocks_count'; got %q", lex.token)
 	}

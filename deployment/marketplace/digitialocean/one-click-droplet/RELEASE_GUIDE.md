@@ -4,7 +4,7 @@
 
 1. To build the snapshot in DigitalOcean account you will need API Token and [packer](https://learn.hashicorp.com/tutorials/packer/get-started-install-cli).
 2. API Token can be generated on [https://cloud.digitalocean.com/account/api/tokens](https://cloud.digitalocean.com/account/api/tokens) or use already generated from OnePassword.
-3. Choose prefered version of VictoriaMetrics on [Github releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page.
+3. Choose preferred version of VictoriaMetrics on [Github releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page.
 4. Set variables `DIGITALOCEAN_API_TOKEN` with `VM_VERSION` for `packer` environment and run make from example below:
 
 ```console
@@ -21,7 +21,7 @@ make release-victoria-metrics-digitalocean-oneclick-droplet DIGITALOCEAN_API_TOK
 3. Send a PR to https://github.com/digitalocean/marketplace-kubernetes.
 4. Add changes to product page at [https://cloud.digitalocean.com/vendorportal/61de9e7fbbd94c7e4b9b80be/15/edit](https://cloud.digitalocean.com/vendorportal/61de9e7fbbd94c7e4b9b80be/15/edit):
  * update App Version;
- * (onfly if PR was submittedm apprived and merged) add select a checkbox "I made a change, submitted a pull request, and the pull request was approved and merged."
+ * (only if PR was submitted, approved and merged) add select a checkbox "I made a change, submitted a pull request, and the pull request was approved and merged."
  * updated Version of packages and links to changelogs in `Software Included` section;
  * describe your updates in `Reason for update` section.
  * submit your changes.

@@ -8,16 +8,14 @@
 **Precondition**
 
 We will use:
-* [Kubernetes cluster 1.19.9-gke.1900](https://cloud.google.com/kubernetes-engine)
-> We use GKE cluster from [GCP](https://cloud.google.com/) but this guide also applies on any Kubernetes cluster. For example [Amazon EKS](https://aws.amazon.com/ru/eks/).
-* [Helm 3 ](https://helm.sh/docs/intro/install)
-* [kubectl 1.21](https://kubernetes.io/docs/tasks/tools/install-kubectl)
+* [Kubernetes cluster 1.31.1-gke.1678000](https://cloud.google.com/kubernetes-engine)
+> We use GKE cluster from [GCP](https://cloud.google.com/) but this guide is also applied on any Kubernetes cluster. For example [Amazon EKS](https://aws.amazon.com/ru/eks/).
+* [Helm 3.14+](https://helm.sh/docs/intro/install)
+* [kubectl 1.31](https://kubernetes.io/docs/tasks/tools/install-kubectl)
 
 ![VMCluster on K8s](scheme.webp)
 
 ## 1. VictoriaMetrics Helm repository
-
-> For this guide we will use Helm 3 but if you already use Helm 2 please see this [https://github.com/VictoriaMetrics/helm-charts#for-helm-v2](https://github.com/VictoriaMetrics/helm-charts#for-helm-v2)
 
 You need to add the VictoriaMetrics Helm repository to install VictoriaMetrics components. We’re going to use [VictoriaMetrics Cluster](https://docs.victoriametrics.com/cluster-victoriametrics/). You can do this by running the following command:
 
@@ -166,8 +164,8 @@ helm install vmagent vm/victoria-metrics-agent -f https://docs.victoriametrics.c
 Here is full file content `guide-vmcluster-vmagent-values.yaml`
 
 ```yaml
-remoteWriteUrls:
-   - http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local:8480/insert/0/prometheus/
+remoteWrite:
+   - url: http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local:8480/insert/0/prometheus/
 
 config:
   global:
@@ -390,7 +388,7 @@ config:
           target_label: kubernetes_pod_name
 ```
 
-* By adding `remoteWriteUrls: - http://vmcluster-victoria-metrics-cluster-vminsert.default.svc.cluster.local:8480/insert/0/prometheus/` we configuring [vmagent](https://docs.victoriametrics.com/vmagent/) to write scraped metrics into the `vmselect service`.
+* By updating `remoteWrite` we configuring [vmagent](https://docs.victoriametrics.com/vmagent/) to write scraped metrics into the `vminsert` service.
 * The second part of this yaml file is needed to add the `metric_relabel_configs` section that helps us to show Kubernetes metrics on the Grafana dashboard.
 
 

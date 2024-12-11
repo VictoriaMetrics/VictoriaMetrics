@@ -35,7 +35,8 @@ import (
 //   - General purpose bucket permissions - To use HEAD , you must have the
 //     s3:GetObject permission. You need the relevant read object (or version)
 //     permission for this operation. For more information, see [Actions, resources, and condition keys for Amazon S3]in the Amazon S3
-//     User Guide.
+//     User Guide. For more information about the permissions to S3 API operations by
+//     S3 resource types, see Required permissions for Amazon S3 API operationsin the Amazon S3 User Guide.
 //
 // If the object you request doesn't exist, the error that Amazon S3 returns
 //
@@ -104,7 +105,7 @@ import (
 //   - If the specified version is a delete marker, the response returns a 405
 //     Method Not Allowed error and the Last-Modified: timestamp response header.
 //
-//   - Directory buckets - Delete marker is not supported by directory buckets.
+//   - Directory buckets - Delete marker is not supported for directory buckets.
 //
 //   - Directory buckets - S3 Versioning isn't enabled and supported for directory
 //     buckets. For this API operation, only the null value of the version ID is
@@ -377,7 +378,7 @@ type HeadObjectOutput struct {
 	// Specifies caching behavior along the request/reply chain.
 	CacheControl *string
 
-	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
+	// The base64-encoded, 32-bit CRC-32 checksum of the object. This will only be
 	// present if it was uploaded with the object. When you use an API operation on an
 	// object that was uploaded using multipart uploads, this value may not be a direct
 	// checksum value of the full object. Instead, it's a calculation based on the
@@ -388,7 +389,7 @@ type HeadObjectOutput struct {
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums
 	ChecksumCRC32 *string
 
-	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
+	// The base64-encoded, 32-bit CRC-32C checksum of the object. This will only be
 	// present if it was uploaded with the object. When you use an API operation on an
 	// object that was uploaded using multipart uploads, this value may not be a direct
 	// checksum value of the full object. Instead, it's a calculation based on the
