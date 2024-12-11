@@ -1021,7 +1021,7 @@ func TestClusterGroupReplication_PartialResponse(t *testing.T) {
 	assertSeries(c.vmselectGroupGlobalRF, mustReturnPartialResponse)
 }
 
-// TestClusterReplication_SkipSlowReplicas checks that vmselect skips the
+// TestClusterGroupReplication_SkipSlowReplicas checks that vmselect skips the
 // results from slower replicas within and across storage groups if the results
 // that have been received from other replicas/group are enough to construct
 // full response.
@@ -1031,25 +1031,16 @@ func TestClusterGroupReplication_PartialResponse(t *testing.T) {
 // results from all the vmstorage nodes. A vmselect can be configured to skip
 // slow replicas using -search.skipSlowReplicas flag.
 //
-// Say a vmselect points to M groups with N vmstorage nodes each, its
-// -globalReplicationFactor is Rm and the -replicationFactor of each group is Rn.
-// Then only Rm out of M groups will contain the searched data while M-Rm groups
-// will not contain it. Therefore the vmselect must receive responses from at
-// least M-Rm+1 nodes to construct the full response. The responses from the rest
-// of the group (Rm-1) can be skipped. The same with the nodes within each of Rm
-// groups: Rn-1 nodes can be skipped. The total number of nodes to skip is:
-// (Rm-1)*N + (M-Rm+1)*(Rn-1)
-//
-// See: https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
+// See: https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect
 // and https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
 func TestClusterGroupReplication_SkipSlowReplicas(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
 	const (
-		globalRF  = 2
+		globalRF  = 3
 		numGroups = 2*globalRF + 1
-		groupRF   = 3
+		groupRF   = 4
 		numNodes  = 2*groupRF + 1
 	)
 
@@ -1079,8 +1070,10 @@ func TestClusterGroupReplication_SkipSlowReplicas(t *testing.T) {
 	// Verify skipping slow replicas by counting the number of skipSlowReplicas
 	// messages in request trace.
 
-	assertSeries := func(app *at.Vmselect, want int) {
+	assertSeries := func(app *at.Vmselect, wantMin, wantMax int) {
 		t.Helper()
+
+		// Ensure that the response contains full dataset.
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
@@ -1091,15 +1084,58 @@ func TestClusterGroupReplication_SkipSlowReplicas(t *testing.T) {
 
 		res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{Trace: "1"})
 		got := res.Trace.Contains("cancel request because -search.skipSlowReplicas is set and every group returned the needed number of responses according to replicationFactor")
-		if got != want {
-			t.Errorf("unexpected number of skipSlowReplicas messages in request trace: got %d, want %d (full trace:\n%v)", got, want, res.Trace)
+		if got < wantMin || got > wantMax {
+			t.Errorf("unexpected number of skipSlowReplicas messages in request trace: got %d, %d <= want <= %d (full trace:\n%v)", got, wantMin, wantMax, res.Trace)
 		}
 
 	}
-	assertSeries(c.vmselectGroupRF, 0)
-	assertSeries(c.vmselectGlobalRF, 0)
-	assertSeries(c.vmselectGroupGlobalRF, 0)
-	// assertSeries(c.vmselectGroupRFSkip, numGroups*(groupRF-1))
-	// assertSeries(c.vmselectGlobalRFSkip, numNodes*(globalRF-1))
-	// assertSeries(c.vmselectGroupGlobalRFSkip, numNodes*(globalRF-1))
+
+	// For all possible replication configurations, no nodes are skipped if
+	// vmselect hasn't been explicitly told to do that.
+	assertSeries(c.vmselectGroupRF, 0, 0)
+	assertSeries(c.vmselectGlobalRF, 0, 0)
+	assertSeries(c.vmselectGroupGlobalRF, 0, 0)
+
+	// Each of N groups replicates data across M of its nodes. Replication
+	// factor is the same for all groups (groupRF). There is no replication
+	// across groups or it is unknown whether there is one.
+	//
+	// Max number of nodes to skip is N*(groupRF-1). This corresponds to the
+	// case when each group receives the response from at least M-groupRF+1
+	// nodes.
+	//
+	// Min number of nodes to skip is groupRF-1. This correponds to the case
+	// when one group is slower than other groups and it receives responses from
+	// M-groupRF+1 nodes only when the rest of the groups have received
+	// responses from all of their nodes.
+	assertSeries(c.vmselectGroupRFSkip, groupRF-1, numGroups*(groupRF-1))
+
+	// The data is replicated across N groups of M nodes. Replication factor is
+	// globalRF. There is no replication across the nodes within each group or
+	//it is unknown it there is one.
+	//
+	// Max number of nodes to skip is M*(globalRF-1). This corresponds to the
+	// case when N-globalRF+1 groups have received the response from all of
+	// their nodes, while the rest of the groups have received the response from
+	// none of their nodes. A rather unlikely case when globalRF-1 groups are
+	// significantly slower than the rest of the groups.
+	//
+	// Min number of nodes to skip is globalRF-1. This corresponds to the case
+	// when N-globalRF+1 groups receive all responses only by the time when the
+	// rest of the groups receive the response from all but one nodes. This is a
+	// more likely case because the nodes in any group will have more or less the
+	// same response time.
+	assertSeries(c.vmselectGlobalRFSkip, globalRF-1, numNodes*(globalRF-1))
+
+	// The data is replicated across N groups of M nodes. Replication factor is
+	// globalRF. Within each group the data is also replicated across N nodes.
+	// Replication factor is groupRF.
+	//
+	// Max number of nodes to skip is M*(globalRF-1) + (N-globalRF+1)(groupRF-1).
+	// This correponds to the case when N-globalRF+1 groups receive the response
+	// from at least M-groupRF+1 nodes.
+	//
+	// Min number of nodes to skip is (globalRF-1)*(groupRF-1). This corresponds
+	// to the case when all groups will need to receive M-groupRF+1 responses.
+	assertSeries(c.vmselectGroupGlobalRFSkip, (globalRF-1)*(groupRF-1), numNodes*(globalRF-1)+(numGroups-globalRF+1)*(groupRF-1))
 }

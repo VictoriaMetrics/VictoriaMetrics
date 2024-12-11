@@ -2074,15 +2074,14 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 		}
 		snr.finishQueryTracer(result.qt, "")
 		resultsCollectedPerGroup[group]++
-		if *skipSlowReplicas && len(resultsCollectedPerGroup) == groupsCount {
-			canSkipSlowReplicas := true
+		if *skipSlowReplicas && len(resultsCollectedPerGroup) > groupsCount-*globalReplicationFactor {
+			groupsWithFullResult := 0
 			for g, n := range resultsCollectedPerGroup {
-				if n <= g.nodesCount-g.replicationFactor {
-					canSkipSlowReplicas = false
-					break
+				if n > g.nodesCount-g.replicationFactor {
+					groupsWithFullResult++
 				}
 			}
-			if canSkipSlowReplicas {
+			if groupsWithFullResult > groupsCount-*globalReplicationFactor {
 				// There is no need in waiting for the remaining results,
 				// because the collected results contain all the data according to the given per-group replicationFactor.
 				// This should speed up responses when a part of vmstorage nodes are slow and/or temporarily unavailable.
