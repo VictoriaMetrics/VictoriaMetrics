@@ -2210,17 +2210,6 @@ serviceMonitor:
 </td>
     </tr>
     <tr>
-      <td>victoria-metrics-operator.crds.plain</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
-</code>
-</pre>
-</td>
-      <td><p>added temporary, till new operator version released</p>
-</td>
-    </tr>
-    <tr>
       <td>victoria-metrics-operator.operator.disable_prometheus_converter</td>
       <td>bool</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">

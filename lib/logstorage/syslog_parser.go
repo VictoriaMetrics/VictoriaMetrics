@@ -250,10 +250,10 @@ func (p *SyslogParser) parseRFC5424SDLine(s string) (string, bool) {
 	i := 0
 	for i < len(s) && s[i] != ']' {
 		// skip whitespace
-		if s[i] != ' ' {
-			return s, false
+		if s[i] == ' ' {
+			i++
+			continue
 		}
-		i++
 
 		// Parse name
 		n := strings.IndexByte(s[i:], '=')

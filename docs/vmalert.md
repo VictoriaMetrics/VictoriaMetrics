@@ -261,8 +261,8 @@ expr: <string>
 # Information includes alerts state changes and requests sent to the datasource.
 # Please note, that if rule's query params contain sensitive
 # information - it will be printed to logs.
-# Is applicable to alerting rules only.
-# Available starting from https://docs.victoriametrics.com/changelog/#v1820
+# Is applicable to alerting rules only. 
+# Logs are printed with INFO level, so make sure that -loggerLevel=INFO to see the output.
 [ debug: <bool> | default = false ]
 
 # Defines the number of rule's updates entries stored in memory

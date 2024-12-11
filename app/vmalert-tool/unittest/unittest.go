@@ -46,16 +46,19 @@ var (
 	testRemoteWritePath   = "http://127.0.0.1" + httpListenAddr
 	testHealthHTTPPath    = "http://127.0.0.1" + httpListenAddr + "/health"
 
+	testLogLevel           = "ERROR"
 	disableAlertgroupLabel bool
 )
 
 const (
 	testStoragePath = "vmalert-unittest"
-	testLogLevel    = "ERROR"
 )
 
 // UnitTest runs unittest for files
-func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL string) bool {
+func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, externalURL, logLevel string) bool {
+	if logLevel != "" {
+		testLogLevel = logLevel
+	}
 	if err := templates.Load([]string{}, true); err != nil {
 		logger.Fatalf("failed to load template: %v", err)
 	}

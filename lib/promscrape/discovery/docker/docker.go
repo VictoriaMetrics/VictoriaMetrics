@@ -23,6 +23,12 @@ type SDConfig struct {
 	Port               int      `yaml:"port,omitempty"`
 	Filters            []Filter `yaml:"filters,omitempty"`
 	HostNetworkingHost string   `yaml:"host_networking_host,omitempty"`
+	// MatchFirstNetwork sorts container networks in ascending order by name
+	// and uses first value
+	//
+	// Has default value of true
+	// to align with prometheus service discovery behaviour
+	MatchFirstNetwork *bool `yaml:"match_first_network"`
 
 	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
 	ProxyURL          *proxy.URL                 `yaml:"proxy_url,omitempty"`

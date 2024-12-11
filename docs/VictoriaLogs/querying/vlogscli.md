@@ -159,3 +159,12 @@ Fields in every JSON object are sorted in alphabetical order. This simplifies lo
   (for example if [`fields _msg` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) is used)
   plus optional [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
 * [Logfmt output](https://brandur.org/logfmt). Type `\logfmt` and press `enter` for this mode.
+
+
+## Wrapping long lines
+
+`vlogscli` doesn't wrap long lines which do not fit screen width when it displays a response, which doesn't fit screen height.
+This helps inspecting responses with many lines. If you need investigating the contents of long lines,
+then press buttons with '->' and '<-' arrows on the keyboard.
+
+Type `\wrap_long_lines` in the prompt and press enter in order to toggle automatic wrapping of long lines.
