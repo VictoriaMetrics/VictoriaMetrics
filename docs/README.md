@@ -1293,13 +1293,13 @@ of time series data. This enables gzip compression for the exported data. Exampl
 curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]={__name__!=""}' > data.jsonl.gz
 ```
 
-
 The maximum duration for each request to `/api/v1/export` is limited by `-search.maxExportDuration` command-line flag.
 
 Exported data can be imported via POST'ing it to [/api/v1/import](#how-to-import-data-in-json-line-format).
 
-The [deduplication](#deduplication) is applied to the data exported via `/api/v1/export` by default. The deduplication
-isn't applied if `reduce_mem_usage=1` query arg is passed to the request.
+By default, data exported via `/api/v1/export` is deduplicated according to [-dedup.minScrapeInterval](#deduplication) setting. 
+Pass GET param `reduce_mem_usage=1` in export request to disable deduplication for recently written data. 
+After [background merges](#storage) deduplication becomes permanent.
 
 ### How to export CSV data
 
