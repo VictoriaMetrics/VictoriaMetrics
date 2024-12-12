@@ -119,3 +119,13 @@ groups:
           description: >
             Writing errors may indicate issues with the destination source, server-side constraint violations, security, or network issues. 
             Investigate the logs for more details.
+      - alert: NoSelfMonitoringMetrics
+        expr: >
+          lag(vmanomaly_start_time_seconds{job="vmanomaly"}[24h]) > 30
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Metrics have not been seen from \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") for {{ $value }} seconds"
+          description: >
+           The missing metric may incidate that vmanomaly is not running or is inaccessable from vmagent or the remotewrite endpoint.
