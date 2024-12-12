@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
+	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -30,7 +30,7 @@ var docData = []string{
 // TestSingleKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
 // for vm-single.
 func TestSingleKeyConceptsQuery(t *testing.T) {
-	tc := apptest.NewTestCase(t)
+	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
 	sut := tc.MustStartDefaultVmsingle()
@@ -41,7 +41,7 @@ func TestSingleKeyConceptsQuery(t *testing.T) {
 // TestClusterKeyConceptsQueryData verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
 // for vm-cluster.
 func TestClusterKeyConceptsQueryData(t *testing.T) {
-	tc := apptest.NewTestCase(t)
+	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
 	sut := tc.MustStartDefaultCluster()
@@ -50,10 +50,10 @@ func TestClusterKeyConceptsQueryData(t *testing.T) {
 }
 
 // testClusterKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
-func testKeyConceptsQueryData(t *testing.T, sut apptest.PrometheusWriteQuerier) {
+func testKeyConceptsQueryData(t *testing.T, sut at.PrometheusWriteQuerier) {
 
 	// Insert example data from documentation.
-	sut.PrometheusAPIV1ImportPrometheus(t, docData, apptest.QueryOpts{})
+	sut.PrometheusAPIV1ImportPrometheus(t, docData, at.QueryOpts{})
 	sut.ForceFlush(t)
 
 	testInstantQuery(t, sut)
@@ -64,14 +64,14 @@ func testKeyConceptsQueryData(t *testing.T, sut apptest.PrometheusWriteQuerier) 
 // testInstantQuery verifies the statements made in the `Instant query` section
 // of the VictoriaMetrics documentation. See:
 // https://docs.victoriametrics.com/keyconcepts/#instant-query
-func testInstantQuery(t *testing.T, q apptest.PrometheusQuerier) {
+func testInstantQuery(t *testing.T, q at.PrometheusQuerier) {
 	// Get the value of the foo_bar time series at 2022-05-10T08:03:00Z with the
 	// step of 5m and timeout 5s. There is no sample at exactly this timestamp.
 	// Therefore, VictoriaMetrics will search for the nearest sample within the
 	// [time-5m..time] interval.
-	got := q.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{Time: "2022-05-10T08:03:00.000Z", Step: "5m"})
-	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[{"metric":{"__name__":"foo_bar"},"value":[1652169780,"3"]}]}}`)
-	opt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
+	got := q.PrometheusAPIV1Query(t, "foo_bar", at.QueryOpts{Time: "2022-05-10T08:03:00.000Z", Step: "5m"})
+	want := at.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[{"metric":{"__name__":"foo_bar"},"value":[1652169780,"3"]}]}}`)
+	opt := cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
 	if diff := cmp.Diff(want, got, opt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -81,7 +81,7 @@ func testInstantQuery(t *testing.T, q apptest.PrometheusQuerier) {
 	// Therefore, VictoriaMetrics will search for the nearest sample within the
 	// [time-1m..time] interval. Since the nearest sample is 2m away and the
 	// step is 1m, then the VictoriaMetrics must return empty response.
-	got = q.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{Time: "2022-05-10T08:18:00.000Z", Step: "1m"})
+	got = q.PrometheusAPIV1Query(t, "foo_bar", at.QueryOpts{Time: "2022-05-10T08:18:00.000Z", Step: "1m"})
 	if len(got.Data.Result) > 0 {
 		t.Errorf("unexpected response: got non-empty result, want empty result:\n%v", got)
 	}
@@ -90,14 +90,14 @@ func testInstantQuery(t *testing.T, q apptest.PrometheusQuerier) {
 // testRangeQuery verifies the statements made in the `Range query` section of
 // the VictoriaMetrics documentation. See:
 // https://docs.victoriametrics.com/keyconcepts/#range-query
-func testRangeQuery(t *testing.T, q apptest.PrometheusQuerier) {
-	f := func(start, end, step string, wantSamples []*apptest.Sample) {
+func testRangeQuery(t *testing.T, q at.PrometheusQuerier) {
+	f := func(start, end, step string, wantSamples []*at.Sample) {
 		t.Helper()
 
-		got := q.PrometheusAPIV1QueryRange(t, "foo_bar", apptest.QueryOpts{Start: start, End: end, Step: step})
-		want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "foo_bar"}, "values": []}]}}`)
+		got := q.PrometheusAPIV1QueryRange(t, "foo_bar", at.QueryOpts{Start: start, End: end, Step: step})
+		want := at.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "foo_bar"}, "values": []}]}}`)
 		want.Data.Result[0].Samples = wantSamples
-		opt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
+		opt := cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
 		if diff := cmp.Diff(want, got, opt); diff != "" {
 			t.Errorf("unexpected response (-want, +got):\n%s", diff)
 		}
@@ -106,53 +106,53 @@ func testRangeQuery(t *testing.T, q apptest.PrometheusQuerier) {
 	// Verify the statement that the query result for
 	// [2022-05-10T07:59:00Z..2022-05-10T08:17:00Z] time range and 1m step will
 	// contain 17 points.
-	f("2022-05-10T07:59:00.000Z", "2022-05-10T08:17:00.000Z", "1m", []*apptest.Sample{
+	f("2022-05-10T07:59:00.000Z", "2022-05-10T08:17:00.000Z", "1m", []*at.Sample{
 		// Sample for 2022-05-10T07:59:00Z is missing because the time series has
 		// samples only starting from 8:00.
-		apptest.NewSample(t, "2022-05-10T08:00:00Z", 1),
-		apptest.NewSample(t, "2022-05-10T08:01:00Z", 2),
-		apptest.NewSample(t, "2022-05-10T08:02:00Z", 3),
-		apptest.NewSample(t, "2022-05-10T08:03:00Z", 3),
-		apptest.NewSample(t, "2022-05-10T08:04:00Z", 5),
-		apptest.NewSample(t, "2022-05-10T08:05:00Z", 5),
-		apptest.NewSample(t, "2022-05-10T08:06:00Z", 5.5),
-		apptest.NewSample(t, "2022-05-10T08:07:00Z", 5.5),
-		apptest.NewSample(t, "2022-05-10T08:08:00Z", 4),
-		apptest.NewSample(t, "2022-05-10T08:09:00Z", 4),
+		at.NewSample(t, "2022-05-10T08:00:00Z", 1),
+		at.NewSample(t, "2022-05-10T08:01:00Z", 2),
+		at.NewSample(t, "2022-05-10T08:02:00Z", 3),
+		at.NewSample(t, "2022-05-10T08:03:00Z", 3),
+		at.NewSample(t, "2022-05-10T08:04:00Z", 5),
+		at.NewSample(t, "2022-05-10T08:05:00Z", 5),
+		at.NewSample(t, "2022-05-10T08:06:00Z", 5.5),
+		at.NewSample(t, "2022-05-10T08:07:00Z", 5.5),
+		at.NewSample(t, "2022-05-10T08:08:00Z", 4),
+		at.NewSample(t, "2022-05-10T08:09:00Z", 4),
 		// Sample for 2022-05-10T08:10:00Z is missing because there is no sample
 		// within the [8:10 - 1m .. 8:10] interval.
-		apptest.NewSample(t, "2022-05-10T08:11:00Z", 3.5),
-		apptest.NewSample(t, "2022-05-10T08:12:00Z", 3.25),
-		apptest.NewSample(t, "2022-05-10T08:13:00Z", 3),
-		apptest.NewSample(t, "2022-05-10T08:14:00Z", 2),
-		apptest.NewSample(t, "2022-05-10T08:15:00Z", 1),
-		apptest.NewSample(t, "2022-05-10T08:16:00Z", 4),
-		apptest.NewSample(t, "2022-05-10T08:17:00Z", 4),
+		at.NewSample(t, "2022-05-10T08:11:00Z", 3.5),
+		at.NewSample(t, "2022-05-10T08:12:00Z", 3.25),
+		at.NewSample(t, "2022-05-10T08:13:00Z", 3),
+		at.NewSample(t, "2022-05-10T08:14:00Z", 2),
+		at.NewSample(t, "2022-05-10T08:15:00Z", 1),
+		at.NewSample(t, "2022-05-10T08:16:00Z", 4),
+		at.NewSample(t, "2022-05-10T08:17:00Z", 4),
 	})
 
 	// Verify the statement that a query is executed at start, start+step,
 	// start+2*step, …, step+N*step timestamps, where N is the whole number
 	// of steps that fit between start and end.
-	f("2022-05-10T08:00:01.000Z", "2022-05-10T08:02:00.000Z", "1m", []*apptest.Sample{
-		apptest.NewSample(t, "2022-05-10T08:00:01Z", 1),
-		apptest.NewSample(t, "2022-05-10T08:01:01Z", 2),
+	f("2022-05-10T08:00:01.000Z", "2022-05-10T08:02:00.000Z", "1m", []*at.Sample{
+		at.NewSample(t, "2022-05-10T08:00:01Z", 1),
+		at.NewSample(t, "2022-05-10T08:01:01Z", 2),
 	})
 
 	// Verify the statement that a query is executed at start, start+step,
 	// start+2*step, …, end timestamps, when end = start + N*step.
-	f("2022-05-10T08:00:00.000Z", "2022-05-10T08:02:00.000Z", "1m", []*apptest.Sample{
-		apptest.NewSample(t, "2022-05-10T08:00:00Z", 1),
-		apptest.NewSample(t, "2022-05-10T08:01:00Z", 2),
-		apptest.NewSample(t, "2022-05-10T08:02:00Z", 3),
+	f("2022-05-10T08:00:00.000Z", "2022-05-10T08:02:00.000Z", "1m", []*at.Sample{
+		at.NewSample(t, "2022-05-10T08:00:00Z", 1),
+		at.NewSample(t, "2022-05-10T08:01:00Z", 2),
+		at.NewSample(t, "2022-05-10T08:02:00Z", 3),
 	})
 
 	// If the step isn’t set, then it defaults to 5m (5 minutes).
-	f("2022-05-10T07:59:00.000Z", "2022-05-10T08:17:00.000Z", "", []*apptest.Sample{
+	f("2022-05-10T07:59:00.000Z", "2022-05-10T08:17:00.000Z", "", []*at.Sample{
 		// Sample for 2022-05-10T07:59:00Z is missing because the time series has
 		// samples only starting from 8:00.
-		apptest.NewSample(t, "2022-05-10T08:04:00Z", 5),
-		apptest.NewSample(t, "2022-05-10T08:09:00Z", 4),
-		apptest.NewSample(t, "2022-05-10T08:14:00Z", 2),
+		at.NewSample(t, "2022-05-10T08:04:00Z", 5),
+		at.NewSample(t, "2022-05-10T08:09:00Z", 4),
+		at.NewSample(t, "2022-05-10T08:14:00Z", 2),
 	})
 }
 
@@ -161,11 +161,11 @@ func testRangeQuery(t *testing.T, q apptest.PrometheusQuerier) {
 // query is actually an instant query executed 1 + (start-end)/step times on the
 // time range from start to end. See:
 // https://docs.victoriametrics.com/keyconcepts/#range-query
-func testRangeQueryIsEquivalentToManyInstantQueries(t *testing.T, q apptest.PrometheusQuerier) {
-	f := func(timestamp string, want *apptest.Sample) {
+func testRangeQueryIsEquivalentToManyInstantQueries(t *testing.T, q at.PrometheusQuerier) {
+	f := func(timestamp string, want *at.Sample) {
 		t.Helper()
 
-		gotInstant := q.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{Time: timestamp, Step: "1m"})
+		gotInstant := q.PrometheusAPIV1Query(t, "foo_bar", at.QueryOpts{Time: timestamp, Step: "1m"})
 		if want == nil {
 			if got, want := len(gotInstant.Data.Result), 0; got != want {
 				t.Errorf("unexpected instant result size: got %d, want %d", got, want)
@@ -178,7 +178,7 @@ func testRangeQueryIsEquivalentToManyInstantQueries(t *testing.T, q apptest.Prom
 		}
 	}
 
-	rangeRes := q.PrometheusAPIV1QueryRange(t, "foo_bar", apptest.QueryOpts{
+	rangeRes := q.PrometheusAPIV1QueryRange(t, "foo_bar", at.QueryOpts{
 		Start: "2022-05-10T07:59:00.000Z",
 		End:   "2022-05-10T08:17:00.000Z",
 		Step:  "1m",
@@ -204,4 +204,317 @@ func testRangeQueryIsEquivalentToManyInstantQueries(t *testing.T, q apptest.Prom
 	f("2022-05-10T08:15:00.000Z", rangeSamples[14])
 	f("2022-05-10T08:16:00.000Z", rangeSamples[15])
 	f("2022-05-10T08:17:00.000Z", rangeSamples[16])
+}
+
+func TestSingleMillisecondPrecisionInInstantQueries(t *testing.T) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	// vmsingle with default flags
+	defaultSUT := tc.MustStartDefaultVmsingle()
+
+	// vmsingle that sets -search.minStalenessInterval=1ms
+	customSUT := tc.MustStartVmsingle("vmsingle-custom", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmsingle-custom",
+		"-retentionPeriod=100y",
+		"-search.minStalenessInterval=1ms",
+	})
+	testMillisecondPrecisionInInstantQueries(t, tc, defaultSUT, customSUT)
+}
+
+func TestClusterMillisecondPrecisionInInstantQueries(t *testing.T) {
+	t.Skip("The fix is not in cluster branch yet")
+
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	// a VM cluster with vmselect with default flags
+	defaultSUT := tc.MustStartDefaultCluster()
+
+	// a VM cluster with vmselect that sets -search.minStalenessInterval=1ms
+	customSUT := tc.MustStartCluster(&at.ClusterOptions{
+		Vmstorage1Instance: "vmstorage1-custom",
+		Vmstorage2Instance: "vmstorage2-custom",
+		VminsertInstance:   "vminsert-custom",
+		VmselectInstance:   "vmselect-custom",
+		VmselectFlags: []string{
+			"-search.minStalenessInterval=1ms",
+		},
+	})
+	testMillisecondPrecisionInInstantQueries(t, tc, defaultSUT, customSUT)
+}
+
+func testMillisecondPrecisionInInstantQueries(t *testing.T, tc *at.TestCase, defaultSUT, customSUT at.PrometheusWriteQuerier) {
+	type opts struct {
+		query       string
+		qtime       string
+		step        string
+		wantMetric  map[string]string
+		wantSample  *at.Sample
+		wantSamples []*at.Sample
+	}
+	f := func(sut at.PrometheusQuerier, opts *opts) {
+		t.Helper()
+		wantResult := []*at.QueryResult{}
+		if opts.wantMetric != nil && (opts.wantSample != nil || len(opts.wantSamples) > 0) {
+			wantResult = append(wantResult, &at.QueryResult{
+				Metric:  opts.wantMetric,
+				Sample:  opts.wantSample,
+				Samples: opts.wantSamples,
+			})
+		}
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /api/v1/query response",
+			Got: func() any {
+				return sut.PrometheusAPIV1Query(t, opts.query, at.QueryOpts{
+					Time: opts.qtime,
+					Step: opts.step,
+				})
+			},
+			Want: &at.PrometheusAPIV1QueryResponse{Data: &at.QueryData{Result: wantResult}},
+			CmpOpts: []cmp.Option{
+				cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+			},
+		})
+	}
+
+	var (
+		insertInto func(sut at.PrometheusWriteQuerier)
+		selectFrom func(sut at.PrometheusQuerier)
+	)
+
+	// Create a series with two points 100ms apart.
+	insertInto = func(sut at.PrometheusWriteQuerier) {
+		t.Helper()
+		sut.PrometheusAPIV1ImportPrometheus(t, []string{
+			`series1{label="foo"} 10 1707123456700`, // 2024-02-05T08:57:36.700Z
+			`series1{label="foo"} 20 1707123456800`, // 2024-02-05T08:57:36.800Z
+		}, at.QueryOpts{})
+		sut.ForceFlush(t)
+	}
+	insertInto(defaultSUT)
+	insertInto(customSUT)
+
+	// Verify that both points were created correctly.
+	selectFrom = func(sut at.PrometheusQuerier) {
+		t.Helper()
+		f(sut, &opts{
+			query:      "series1[101ms]",
+			qtime:      "1707123456800", // 2024-02-05T08:57:36.800Z
+			wantMetric: map[string]string{"__name__": "series1", "label": "foo"},
+			wantSamples: []*at.Sample{
+				{Timestamp: 1707123456700, Value: 10},
+				{Timestamp: 1707123456800, Value: 20},
+			},
+		})
+	}
+	selectFrom(defaultSUT)
+	selectFrom(customSUT)
+
+	// Fetch the last point at its timestamp with step 1ms.
+	selectFrom = func(sut at.PrometheusQuerier) {
+		t.Helper()
+		f(sut, &opts{
+			query:      "series1",
+			qtime:      "1707123456800", // 2024-02-05T08:57:36.800Z
+			step:       "1ms",
+			wantMetric: map[string]string{"__name__": "series1", "label": "foo"},
+			wantSample: &at.Sample{Timestamp: 1707123456800, Value: 20},
+		})
+	}
+	selectFrom(defaultSUT)
+	selectFrom(customSUT)
+
+	// Set the time to 199ms past the last point (located at 800ms) and keep
+	// step 1ms. The point is still found, because VictoriaMetrics by default
+	// extends the start of the search interval by 5m for selected rollup
+	// functions (including default rolloup).
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/blob/30029f1e3995c795a603be253fa647924538f89b/app/vmselect/promql/eval.go#L1697
+	f(defaultSUT, &opts{
+		query:      "series1",
+		qtime:      "1707123456999", // 2024-02-05T08:57:36.999Z
+		step:       "1ms",
+		wantMetric: map[string]string{"__name__": "series1", "label": "foo"},
+		wantSample: &at.Sample{Timestamp: 1707123456999, Value: 20},
+	})
+	// The 5m default could be overriden with -search.minStalenessInterval flag.
+	// And that's what customSUT does by setting it to 1ms. With such
+	// configuration, the query will return an empty result.
+	f(customSUT, &opts{
+		query:      "series1",
+		qtime:      "1707123456999", // 2024-02-05T08:57:36.999Z
+		step:       "1ms",
+		wantMetric: map[string]string{"__name__": "series1", "label": "foo"},
+	})
+
+	// Set the time to 5m past the last point and keep step 1ms. The resulting
+	// lookbehind window will be 5m1ms The last point must still be found with
+	// the default configuration.
+	f(defaultSUT, &opts{
+		query:      "series1",
+		qtime:      "1707123756800", // 2024-02-05T09:02:36.800Z
+		step:       "1ms",
+		wantMetric: map[string]string{"__name__": "series1", "label": "foo"},
+		wantSample: &at.Sample{Timestamp: 1707123756800, Value: 20},
+	})
+
+	// Set the time to 5m+2ms past the last point and keep step 1ms to confirm
+	// that the last point is not returned.
+	f(defaultSUT, &opts{
+		query:      "series1",
+		qtime:      "1707123756802", // 2024-02-05T09:02:36.802Z
+		step:       "1ms",
+		wantMetric: map[string]string{"__name__": "series1", "label": "foo"},
+	})
+	// Use custom vmselect that changes 5m to 1ms by setting
+	// -search.minStalenessInterval=1ms. Set the time to 199ms past the last
+	// point (located at 800ms) and keep step 1ms. The point must not be found,
+	// since the start time will be extended only by 1ms this time.
+	f(customSUT, &opts{
+		query:      "series1",
+		qtime:      "1707123456999", // 2024-02-05T08:57:36.999Z
+		step:       "1ms",
+		wantMetric: map[string]string{"__name__": "series1", "label": "foo"},
+	})
+	// Continue using custom vmselect. Set the time to 2ms past the past point.
+	// The last point must be found because the search interval is extended by
+	// 1ms, i.e. start = time - step(1ms) - 1ms.
+	f(customSUT, &opts{
+		query:      "series1",
+		qtime:      "1707123456802", // 2024-02-05T08:57:36.802Z
+		step:       "1ms",
+		wantMetric: map[string]string{"__name__": "series1", "label": "foo"},
+		wantSample: &at.Sample{Timestamp: 1707123456802, Value: 20},
+	})
+	// Continue using custom vmselect. Set the time to 3ms past the past point.
+	// The last point must not be found.
+	f(customSUT, &opts{
+		query:      "series1",
+		qtime:      "1707123456803", // 2024-02-05T08:57:36.803Z
+		step:       "1ms",
+		wantMetric: map[string]string{"__name__": "series1", "label": "foo"},
+	})
+
+	// Search the first point at its own timestamp.
+	selectFrom = func(sut at.PrometheusQuerier) {
+		t.Helper()
+		f(sut, &opts{
+			query:      "series1",
+			qtime:      "1707123456700", // 2024-02-05T08:57:36.700Z
+			step:       "1ms",
+			wantMetric: map[string]string{"__name__": "series1", "label": "foo"},
+			wantSample: &at.Sample{Timestamp: 1707123456700, Value: 10},
+		})
+	}
+	selectFrom(defaultSUT)
+	selectFrom(customSUT)
+
+	// Now let's set time to 4ms and 5ms past the timestamp of the first point.
+	// The default vmselect will return the first sample, while custom select will
+	// not.
+	f(defaultSUT, &opts{
+		query:      "series1",
+		qtime:      "1707123456704", // 2024-02-05T08:57:36.704Z
+		step:       "1ms",
+		wantMetric: map[string]string{"__name__": "series1", "label": "foo"},
+		wantSample: &at.Sample{Timestamp: 1707123456704, Value: 10},
+	})
+	f(defaultSUT, &opts{
+		query:      "series1",
+		qtime:      "1707123456705", // 2024-02-05T08:57:36.705Z
+		step:       "1ms",
+		wantMetric: map[string]string{"__name__": "series1", "label": "foo"},
+		wantSample: &at.Sample{Timestamp: 1707123456705, Value: 10},
+	})
+	f(customSUT, &opts{
+		query: "series1",
+		qtime: "1707123456704", // 2024-02-05T08:57:36.704Z
+		step:  "1ms",
+	})
+	f(customSUT, &opts{
+		query: "series1",
+		qtime: "1707123456705", // 2024-02-05T08:57:36.705Z
+		step:  "1ms",
+	})
+
+	// Fetch both points by passing a duration into the instant query:
+	// the difference between the two timestamps, plus 1ms (to include both
+	// points), so 101ms:
+	selectFrom = func(sut at.PrometheusQuerier) {
+		t.Helper()
+		f(sut, &opts{
+			query:      "series1[101ms]",
+			qtime:      "1707123456800", // 2024-02-05T08:57:36.800Z
+			step:       "1ms",
+			wantMetric: map[string]string{"__name__": "series1", "label": "foo"},
+			wantSamples: []*at.Sample{
+				{Timestamp: 1707123456700, Value: 10},
+				{Timestamp: 1707123456800, Value: 20},
+			},
+		})
+	}
+	selectFrom(defaultSUT)
+	selectFrom(customSUT)
+
+	// Insert samples with different dates. The difference in ms between the two
+	// timestamps is 4236579304.
+	insertInto = func(sut at.PrometheusWriteQuerier) {
+		t.Helper()
+		sut.PrometheusAPIV1ImportPrometheus(t, []string{
+			`series2{label="foo"} 10 1638564958042`, // 2021-12-03T20:55:58.042Z
+			`series2{label="foo"} 20 1642801537346`, // 2022-01-21T21:45:37.346Z
+		}, at.QueryOpts{})
+		sut.ForceFlush(t)
+	}
+	insertInto(defaultSUT)
+	insertInto(customSUT)
+
+	// Both Prometheus and VictoriaMetrics exclude the leftmost millisecond,
+	// thus the following queries must return only one sample.
+	selectFrom = func(sut at.PrometheusQuerier) {
+		t.Helper()
+		f(sut, &opts{
+			query:      "series2[4236579304ms]",
+			qtime:      "1642801537346",
+			step:       "1ms",
+			wantMetric: map[string]string{"__name__": "series2", "label": "foo"},
+			wantSamples: []*at.Sample{
+				{Timestamp: 1642801537346, Value: 20},
+			},
+		})
+		f(sut, &opts{
+			query:      "count_over_time(series2[4236579304ms])",
+			qtime:      "1642801537346", // 2022-01-21T21:45:37.346Z
+			step:       "1ms",
+			wantMetric: map[string]string{"label": "foo"},
+			wantSample: &at.Sample{Timestamp: 1642801537346, Value: 1},
+		})
+	}
+	selectFrom(defaultSUT)
+	selectFrom(customSUT)
+
+	// Adding 1ms to the duration (4236579305ms) causes queries to return 2
+	// samples.
+	selectFrom = func(sut at.PrometheusQuerier) {
+		t.Helper()
+		f(sut, &opts{
+			query:      "series2[4236579305ms]",
+			qtime:      "1642801537346",
+			step:       "1ms",
+			wantMetric: map[string]string{"__name__": "series2", "label": "foo"},
+			wantSamples: []*at.Sample{
+				{Timestamp: 1638564958042, Value: 10}, // 2021-12-03T20:55:58.042Z
+				{Timestamp: 1642801537346, Value: 20},
+			},
+		})
+		f(sut, &opts{
+			query:      "count_over_time(series2[4236579305ms])",
+			qtime:      "1642801537346", // 2022-01-21T21:45:37.346Z
+			step:       "1ms",
+			wantMetric: map[string]string{"label": "foo"},
+			wantSample: &at.Sample{Timestamp: 1642801537346, Value: 2},
+		})
+	}
+	selectFrom(defaultSUT)
+	selectFrom(customSUT)
 }
