@@ -129,19 +129,43 @@ func readLogsRequest(ts int64, data []byte, lmp insertutils.LogMessageProcessor)
 			if err != nil {
 				return
 			}
-			val, e := v.StringBytes()
-			if e != nil {
-				err = fmt.Errorf("unexpected label value type for %q:%q; want string", k, v)
-				return
-			}
-			switch string(k) {
+			switch bytesutil.ToUnsafeString(k) {
 			case "message":
-				fields = append(fields, logstorage.Field{
-					Name:  "_msg",
-					Value: bytesutil.ToUnsafeString(val),
-				})
+				switch v.Type() {
+				case fastjson.TypeString:
+					val := v.GetStringBytes()
+					fields = append(fields, logstorage.Field{
+						Name:  "_msg",
+						Value: bytesutil.ToUnsafeString(val),
+					})
+				case fastjson.TypeObject:
+					p := logstorage.GetJSONParser()
+					if e := p.ParseLogMessage(v.MarshalTo(nil)); e != nil {
+						err = fmt.Errorf("cannot parse json-encoded log entry: %w", e)
+						return
+					}
+					logstorage.RenameField(p.Fields, []string{"message"}, "_msg")
+					fields = append(fields, p.Fields...)
+					logstorage.PutJSONParser(p)
+				default:
+					err = fmt.Errorf("unsupported message type %q", v.Type().String())
+					return
+				}
+			case "timestamp":
+				val, e := v.Int64()
+				if e != nil {
+					err = fmt.Errorf("failed to parse timestamp for %q:%q", k, v)
+				}
+				if val > 0 {
+					ts = val * 1e6
+				}
 			case "ddtags":
 				// https://docs.datadoghq.com/getting_started/tagging/
+				val, e := v.StringBytes()
+				if e != nil {
+					err = fmt.Errorf("unexpected label value type for %q:%q; want string", k, v)
+					return
+				}
 				var pair []byte
 				idx := 0
 				for idx >= 0 {
@@ -168,12 +192,20 @@ func readLogsRequest(ts int64, data []byte, lmp insertutils.LogMessageProcessor)
 					}
 				}
 			default:
+				val, e := v.StringBytes()
+				if e != nil {
+					err = fmt.Errorf("unexpected label value type for %q:%q; want string", k, v)
+					return
+				}
 				fields = append(fields, logstorage.Field{
 					Name:  bytesutil.ToUnsafeString(k),
 					Value: bytesutil.ToUnsafeString(val),
 				})
 			}
 		})
+		if err != nil {
+			return err
+		}
 		lmp.AddRow(ts, fields, nil)
 		fields = fields[:0]
 	}

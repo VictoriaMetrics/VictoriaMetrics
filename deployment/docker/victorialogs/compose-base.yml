@@ -17,7 +17,7 @@ services:
       timeout: 1s
       retries: 10
 
-  dd-logs:
+  dd-proxy:
     image: docker.io/victoriametrics/vmauth:v1.107.0
     restart: on-failure
     volumes:
