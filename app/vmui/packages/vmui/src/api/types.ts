@@ -48,3 +48,8 @@ export interface LogHits {
     [key: string]: string;
   };
 }
+
+export interface LogsFiledValues {
+  value: string;
+  hits: number;
+}

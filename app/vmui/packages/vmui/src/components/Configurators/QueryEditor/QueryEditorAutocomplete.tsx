@@ -1,20 +1,11 @@
 import React, { FC, useState, useEffect, useMemo, useCallback } from "preact/compat";
-import Autocomplete, { AutocompleteOptions } from "../../Main/Autocomplete/Autocomplete";
+import Autocomplete from "../../Main/Autocomplete/Autocomplete";
 import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
 import { escapeRegexp, hasUnclosedQuotes } from "../../../utils/regexp";
 import useGetMetricsQL from "../../../hooks/useGetMetricsQL";
 import { QueryContextType } from "../../../types";
 import { AUTOCOMPLETE_LIMITS } from "../../../constants/queryAutocomplete";
-
-interface QueryEditorAutocompleteProps {
-  value: string;
-  anchorEl: React.RefObject<HTMLElement>;
-  caretPosition: [number, number]; // [start, end]
-  hasHelperText: boolean;
-  includeFunctions: boolean;
-  onSelect: (val: string, caretPosition: number) => void;
-  onFoundOptions: (val: AutocompleteOptions[]) => void;
-}
+import { QueryEditorAutocompleteProps } from "./QueryEditor";
 
 const QueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
   value,
