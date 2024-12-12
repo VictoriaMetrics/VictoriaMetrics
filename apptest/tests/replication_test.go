@@ -629,6 +629,9 @@ func TestClusterGroupReplication(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
+	// Feel free to change globalRF and groupRF,
+	// but they must not be less than 2 since the test checks expect some
+	// replication.
 	const (
 		globalRF  = 3
 		numGroups = 2*globalRF + 1
