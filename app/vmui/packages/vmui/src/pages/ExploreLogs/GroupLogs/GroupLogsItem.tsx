@@ -6,28 +6,34 @@ import { ArrowDownIcon } from "../../../components/Main/Icons";
 import classNames from "classnames";
 import { useLogsState } from "../../../state/logsPanel/LogsStateContext";
 import dayjs from "dayjs";
-import { DATE_TIME_FORMAT } from "../../../constants/date";
 import { useTimeState } from "../../../state/time/TimeStateContext";
 import GroupLogsFieldRow from "./GroupLogsFieldRow";
 import { marked } from "marked";
+import { useSearchParams } from "react-router-dom";
+import { LOGS_DATE_FORMAT, LOGS_URL_PARAMS } from "../../../constants/logs";
 
 interface Props {
   log: Logs;
+  displayFields?: string[];
 }
 
-const GroupLogsItem: FC<Props> = ({ log }) => {
+const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"] }) => {
   const {
     value: isOpenFields,
     toggle: toggleOpenFields,
   } = useBoolean(false);
 
+  const [searchParams] = useSearchParams();
   const { markdownParsing } = useLogsState();
   const { timezone } = useTimeState();
 
+  const noWrapLines = searchParams.get(LOGS_URL_PARAMS.NO_WRAP_LINES) === "true";
+  const dateFormat = searchParams.get(LOGS_URL_PARAMS.DATE_FORMAT) || LOGS_DATE_FORMAT;
+
   const formattedTime = useMemo(() => {
     if (!log._time) return "";
-    return dayjs(log._time).tz().format(`${DATE_TIME_FORMAT}.SSS`);
-  }, [log._time, timezone]);
+    return dayjs(log._time).tz().format(dateFormat);
+  }, [log._time, timezone, dateFormat]);
 
   const formattedMarkdown = useMemo(() => {
     if (!markdownParsing || !log._msg) return "";
@@ -38,6 +44,14 @@ const GroupLogsItem: FC<Props> = ({ log }) => {
   const hasFields = fields.length > 0;
 
   const displayMessage = useMemo(() => {
+    if (displayFields.length) {
+      return displayFields.filter(field => log[field]).map((field, i) => (
+        <span
+          className="vm-group-logs-row-content__sub-msg"
+          key={field + i}
+        >{log[field]}</span>
+      ));
+    }
     if (log._msg) return log._msg;
     if (!hasFields) return;
     const dataObject = fields.reduce<{ [key: string]: string }>((obj, [key, value]) => {
@@ -45,7 +59,7 @@ const GroupLogsItem: FC<Props> = ({ log }) => {
       return obj;
     }, {});
     return JSON.stringify(dataObject);
-  }, [log, fields, hasFields]);
+  }, [log, fields, hasFields, displayFields]);
 
   return (
     <div className="vm-group-logs-row">
@@ -76,7 +90,8 @@ const GroupLogsItem: FC<Props> = ({ log }) => {
           className={classNames({
             "vm-group-logs-row-content__msg": true,
             "vm-group-logs-row-content__msg_empty-msg": !log._msg,
-            "vm-group-logs-row-content__msg_missing": !displayMessage
+            "vm-group-logs-row-content__msg_missing": !displayMessage,
+            "vm-group-logs-row-content__msg_single-line": noWrapLines,
           })}
           dangerouslySetInnerHTML={(markdownParsing && formattedMarkdown) ? { __html: formattedMarkdown } : undefined}
         >
