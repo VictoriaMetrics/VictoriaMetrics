@@ -1837,7 +1837,8 @@ For example, `-dedup.minScrapeInterval=60s` would leave a single raw sample with
 This aligns with the [staleness rules in Prometheus](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness).
 
 If multiple raw samples have **the same timestamp** on the given `-dedup.minScrapeInterval` discrete interval, 
-then the sample with **the biggest value** is kept.
+then the sample with **the biggest value** is kept. 
+[Stale markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) are preferred over any other value.
 
 [Prometheus staleness markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) are processed as any other value during de-duplication.
 If raw sample with the biggest timestamp on `-dedup.minScrapeInterval` contains a stale marker, then it is kept after the deduplication.
