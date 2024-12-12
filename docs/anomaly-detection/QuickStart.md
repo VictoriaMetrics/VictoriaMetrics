@@ -57,7 +57,7 @@ You can specify these options when running `vmanomaly` to fine-tune logging leve
 The license key can be passed via the following command-line flags: `--license`, `--licenseFile`, `--license.forceOffline`
 
 In order to make it easier to monitor the license expiration date, the following metrics are exposed(see
-[Monitoring](#monitoring) section for details on how to scrape them):
+[Monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) section for details on how to scrape them):
 
 ```promtextmetric
 # HELP vm_license_expires_at When the license expires as a Unix timestamp in seconds
