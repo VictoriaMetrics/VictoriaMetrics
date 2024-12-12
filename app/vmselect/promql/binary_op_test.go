@@ -58,99 +58,61 @@ func Test_binaryOpOr(t *testing.T) {
 		}
 	}
 
+	// test case: no grouping
 	e := getBinaryOpExpr(`ts1{lb1="lb1",lb2="lb2"} or ts1{lb1="lb1",lb2="lb3"}`)
 	leftTss := []*timeseries{
-		{
-			MetricName: metricsName1,
-			Values:     []float64{1, 1, 1},
-			Timestamps: timestamps,
-		},
+		generateTimeseries(metricsName1, []float64{1, 1, 1}, timestamps),
 	}
 	rightTss := []*timeseries{
-		{
-			MetricName: metricsName2,
-			Values:     []float64{2, 2, 2},
-			Timestamps: timestamps,
-		},
+		generateTimeseries(metricsName2, []float64{2, 2, 2}, timestamps),
 	}
-	expect := append(leftTss, rightTss...)
-	f(&binaryOpFuncArg{e, leftTss, rightTss}, expect)
+	f(&binaryOpFuncArg{e, leftTss, rightTss}, append(leftTss, rightTss...))
 
+	// test case: on (lb1)
 	leftTss = []*timeseries{
-		{
-			MetricName: metricsName1,
-			Values:     []float64{1, 1, 1},
-			Timestamps: timestamps,
-		},
+		generateTimeseries(metricsName1, []float64{1, 1, 1}, timestamps),
 	}
 	rightTss = []*timeseries{
-		{
-			MetricName: metricsName2,
-			Values:     []float64{2, 2, 2},
-			Timestamps: timestamps,
-		},
+		generateTimeseries(metricsName2, []float64{2, 2, 2}, timestamps),
 	}
 	e = getBinaryOpExpr(`ts1{lb1="lb1", lb2="lb2"} or on (lb1) ts1{lb1="lb1", lb2="lb3"}`)
 	f(&binaryOpFuncArg{e, leftTss, rightTss}, leftTss)
 
+	// test case: on (lb2)
 	leftTss = []*timeseries{
-		{
-			MetricName: metricsName1,
-			Values:     []float64{1, 1, 1},
-			Timestamps: timestamps,
-		},
+		generateTimeseries(metricsName1, []float64{1, 1, 1}, timestamps),
 	}
 	rightTss = []*timeseries{
-		{
-			MetricName: metricsName2,
-			Values:     []float64{2, 2, 2},
-			Timestamps: timestamps,
-		},
+		generateTimeseries(metricsName2, []float64{2, 2, 2}, timestamps),
 	}
 	e = getBinaryOpExpr(`ts1{lb1="lb1", lb2="lb2"} or on (lb2) ts1{lb1="lb1", lb2="lb3"}`)
-	expect = append(leftTss, rightTss...)
-	f(&binaryOpFuncArg{e, leftTss, rightTss}, expect)
+	f(&binaryOpFuncArg{e, leftTss, rightTss}, append(leftTss, rightTss...))
 
+	// test case: on (lb1) with overlap
 	leftTss = []*timeseries{
-		{
-			MetricName: metricsName1,
-			Values:     []float64{1, 1, 1},
-			Timestamps: timestamps,
-		},
+		generateTimeseries(metricsName1, []float64{1, nan, 1}, timestamps),
 	}
 	rightTss = []*timeseries{
-		{
-			MetricName: metricsName2,
-			Values:     []float64{2, 2, 2},
-			Timestamps: timestamps,
-		},
+		generateTimeseries(metricsName2, []float64{2, 2, nan}, timestamps),
 	}
 	e = getBinaryOpExpr(`ts1{lb1="lb1", lb2="lb2"} or on (lb1) ts1{lb1="lb1", lb2="lb3"}`)
+	expect := []*timeseries{
+		generateTimeseries(metricsName1, []float64{1, nan, 1}, timestamps),
+		generateTimeseries(metricsName2, []float64{nan, 2, nan}, timestamps),
+	}
+	f(&binaryOpFuncArg{e, leftTss, rightTss}, expect)
+
+	// test case: ignoring (lb2), equals to on (lb1)
 	leftTss = []*timeseries{
-		{
-			MetricName: metricsName1,
-			Values:     []float64{1, nan, 1},
-			Timestamps: timestamps,
-		},
+		generateTimeseries(metricsName1, []float64{1, nan, 1}, timestamps),
 	}
 	rightTss = []*timeseries{
-		{
-			MetricName: metricsName2,
-			Values:     []float64{2, 2, nan},
-			Timestamps: timestamps,
-		},
+		generateTimeseries(metricsName2, []float64{2, 2, nan}, timestamps),
 	}
+	e = getBinaryOpExpr(`ts1{lb1="lb1", lb2="lb2"} or ignoring (lb2) ts1{lb1="lb1", lb2="lb3"}`)
 	expect = []*timeseries{
-		{
-			MetricName: metricsName1,
-			Values:     []float64{1, nan, 1},
-			Timestamps: timestamps,
-		},
-		{
-			MetricName: metricsName2,
-			Values:     []float64{nan, 2, nan},
-			Timestamps: timestamps,
-		},
+		generateTimeseries(metricsName1, []float64{1, nan, 1}, timestamps),
+		generateTimeseries(metricsName2, []float64{nan, 2, nan}, timestamps),
 	}
 	f(&binaryOpFuncArg{e, leftTss, rightTss}, expect)
 }
@@ -158,4 +120,12 @@ func Test_binaryOpOr(t *testing.T) {
 func getBinaryOpExpr(metricsQL string) *metricsql.BinaryOpExpr {
 	e, _ := metricsql.Parse(metricsQL)
 	return e.(*metricsql.BinaryOpExpr)
+}
+
+func generateTimeseries(metricsName storage.MetricName, values []float64, t []int64) *timeseries {
+	return &timeseries{
+		MetricName: metricsName,
+		Values:     values,
+		Timestamps: t,
+	}
 }
