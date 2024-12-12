@@ -53,7 +53,7 @@ func TestGetLabelsHash_Distribution(t *testing.T) {
 }
 
 func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
-	f := func(streamAggrConfig, relabelConfig string, dedupInterval time.Duration, keepInput, dropInput bool, input string) {
+	f := func(streamAggrConfig, relabelConfig string, stateSize int, dedupInterval time.Duration, keepInput, dropInput bool, input string) {
 		t.Helper()
 		perURLRelabel, err := promrelabel.ParseRelabelConfigsData([]byte(relabelConfig))
 		if err != nil {
@@ -77,12 +77,15 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 			rowsDroppedByRelabel:   metrics.GetOrCreateCounter(`bar`),
 		}
 		if dedupInterval > 0 {
-			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, dedupInterval, nil, "dedup-global")
+			rwctx.deduplicator = streamaggr.NewDeduplicator(nil, stateSize, dedupInterval, nil, "dedup-global")
 		}
 
 		if streamAggrConfig != "" {
 			pushNoop := func(_ []prompbmarshal.TimeSeries) {}
-			sas, err := streamaggr.LoadFromData([]byte(streamAggrConfig), pushNoop, nil, "global")
+			opts := streamaggr.Options{
+				StateSize: stateSize,
+			}
+			sas, err := streamaggr.LoadFromData([]byte(streamAggrConfig), pushNoop, &opts, "global")
 			if err != nil {
 				t.Fatalf("cannot load streamaggr configs: %s", err)
 			}
@@ -114,13 +117,13 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, 0, false, false, `
+`, 1, 0, false, false, `
 metric{env="dev"} 10
 metric{env="bar"} 20
 metric{env="dev"} 15
 metric{env="bar"} 25
 `)
-	f(``, ``, time.Hour, false, false, `
+	f(``, ``, 2, time.Hour, false, false, `
 metric{env="dev"} 10
 metric{env="foo"} 20
 metric{env="dev"} 15
@@ -130,7 +133,7 @@ metric{env="foo"} 25
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, time.Hour, false, false, `
+`, 3, time.Hour, false, false, `
 metric{env="dev"} 10
 metric{env="bar"} 20
 metric{env="dev"} 15
@@ -140,7 +143,7 @@ metric{env="bar"} 25
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, time.Hour, true, false, `
+`, 6, time.Hour, true, false, `
 metric{env="test"} 10
 metric{env="dev"} 20
 metric{env="foo"} 15
@@ -150,7 +153,7 @@ metric{env="dev"} 25
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, time.Hour, false, true, `
+`, 10, time.Hour, false, true, `
 metric{env="foo"} 10
 metric{env="dev"} 20
 metric{env="foo"} 15
@@ -160,7 +163,7 @@ metric{env="dev"} 25
 - action: keep
   source_labels: [env]
   regex: "dev"
-`, time.Hour, true, true, `
+`, 11, time.Hour, true, true, `
 metric{env="dev"} 10
 metric{env="test"} 20
 metric{env="dev"} 15

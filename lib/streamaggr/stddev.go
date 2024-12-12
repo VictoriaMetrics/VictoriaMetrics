@@ -2,79 +2,27 @@ package streamaggr
 
 import (
 	"math"
-	"sync"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
-// stddevAggrState calculates output=stddev, e.g. the average value over input samples.
-type stddevAggrState struct {
-	m sync.Map
+// stddevAggrValue calculates output=stddev, e.g. the average value over input samples.
+type stddevAggrValue struct {
+	count float64
+	avg   float64
+	q     float64
 }
 
-type stddevStateValue struct {
-	mu      sync.Mutex
-	count   float64
-	avg     float64
-	q       float64
-	deleted bool
+func (av *stddevAggrValue) pushSample(ctx *pushSampleCtx) {
+	av.count++
+	avg := av.avg + (ctx.sample.value-av.avg)/av.count
+	av.q += (ctx.sample.value - av.avg) * (ctx.sample.value - avg)
+	av.avg = avg
 }
 
-func newStddevAggrState() *stddevAggrState {
-	return &stddevAggrState{}
-}
-
-func (as *stddevAggrState) pushSamples(samples []pushSample) {
-	for i := range samples {
-		s := &samples[i]
-		outputKey := getOutputKey(s.key)
-
-	again:
-		v, ok := as.m.Load(outputKey)
-		if !ok {
-			// The entry is missing in the map. Try creating it.
-			v = &stddevStateValue{}
-			outputKey = bytesutil.InternString(outputKey)
-			vNew, loaded := as.m.LoadOrStore(outputKey, v)
-			if loaded {
-				// Use the entry created by a concurrent goroutine.
-				v = vNew
-			}
-		}
-		sv := v.(*stddevStateValue)
-		sv.mu.Lock()
-		deleted := sv.deleted
-		if !deleted {
-			// See `Rapid calculation methods` at https://en.wikipedia.org/wiki/Standard_deviation
-			sv.count++
-			avg := sv.avg + (s.value-sv.avg)/sv.count
-			sv.q += (s.value - sv.avg) * (s.value - avg)
-			sv.avg = avg
-		}
-		sv.mu.Unlock()
-		if deleted {
-			// The entry has been deleted by the concurrent call to flushState
-			// Try obtaining and updating the entry again.
-			goto again
-		}
+func (av *stddevAggrValue) flush(ctx *flushCtx, key string) {
+	if av.count > 0 {
+		ctx.appendSeries(key, "stddev", math.Sqrt(av.q/av.count))
+		av.count = 0
+		av.avg = 0
+		av.q = 0
 	}
-}
-
-func (as *stddevAggrState) flushState(ctx *flushCtx) {
-	m := &as.m
-	m.Range(func(k, v any) bool {
-		// Atomically delete the entry from the map, so new entry is created for the next flush.
-		m.Delete(k)
-
-		sv := v.(*stddevStateValue)
-		sv.mu.Lock()
-		stddev := math.Sqrt(sv.q / sv.count)
-		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
-		sv.deleted = true
-		sv.mu.Unlock()
-
-		key := k.(string)
-		ctx.appendSeries(key, "stddev", stddev)
-		return true
-	})
 }
