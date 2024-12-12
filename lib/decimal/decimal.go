@@ -420,6 +420,11 @@ func IsStaleNaN(f float64) bool {
 	return math.Float64bits(f) == staleNaNBits
 }
 
+// IsStaleNaNInt64 returns true if i represents Prometheus staleness mark.
+func IsStaleNaNInt64(i int64) bool {
+	return i == vStaleNaN
+}
+
 // FromFloat converts f to v*10^e.
 //
 // It tries minimizing v.
