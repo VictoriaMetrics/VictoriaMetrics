@@ -55,14 +55,9 @@ func insertRows(at *auth.Token, rows []newrelic.Row, extraLabels []prompbmarshal
 				label := &extraLabels[k]
 				ctx.AddLabel(label.Name, label.Value)
 			}
-			if hasRelabeling {
-				ctx.ApplyRelabeling()
-			}
-			if len(ctx.Labels) == 0 {
-				// Skip metric without labels.
+			if !ctx.TryPrepareLabels(hasRelabeling) {
 				continue
 			}
-			ctx.SortLabelsIfNeeded()
 			atLocal := ctx.GetLocalAuthToken(at)
 			if err := ctx.WriteDataPoint(atLocal, ctx.Labels, r.Timestamp, s.Value); err != nil {
 				return err

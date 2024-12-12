@@ -75,7 +75,13 @@ func TestAlertExecTemplate(t *testing.T) {
 		Labels: map[string]string{
 			"instance": "localhost",
 		},
-	}, map[string]string{}, map[string]string{})
+	}, map[string]string{
+		"summary":     "it's a test summary",
+		"description": "it's a test description",
+	}, map[string]string{
+		"summary":     "it's a test summary",
+		"description": "it's a test description",
+	})
 
 	// label-template
 	f(&Alert{
@@ -91,6 +97,19 @@ func TestAlertExecTemplate(t *testing.T) {
 	}, map[string]string{
 		"summary":     "Too high connection number for localhost for job staging",
 		"description": "It is 10000 connections for localhost for more than 5m0s",
+	})
+
+	// label template override
+	f(&Alert{
+		Value: 1e4,
+	}, map[string]string{
+		"summary":     `{{- define "default.template" -}} {{ printf "summary" }} {{- end -}} {{ template "default.template" . }}`,
+		"description": `{{ template "default.template" . }}`,
+		"value":       `{{$value }}`,
+	}, map[string]string{
+		"summary":     "summary",
+		"description": "",
+		"value":       "10000",
 	})
 
 	// expression-template

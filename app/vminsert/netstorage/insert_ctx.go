@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/cespare/xxhash/v2"
 )
 
@@ -113,12 +114,14 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 	})
 }
 
-// ApplyRelabeling applies relabeling to ctx.Labels.
-func (ctx *InsertCtx) ApplyRelabeling() {
+// applyRelabeling applies relabeling to ctx.Labels.
+func (ctx *InsertCtx) applyRelabeling() {
 	ctx.Labels = ctx.relabelCtx.ApplyRelabeling(ctx.Labels)
 }
 
 // WriteDataPoint writes (timestamp, value) data point with the given at and labels to ctx buffer.
+//
+// caller must invoke TryPrepareLabels before using this function
 func (ctx *InsertCtx) WriteDataPoint(at *auth.Token, labels []prompbmarshal.Label, timestamp int64, value float64) error {
 	ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, labels)
 	storageNodeIdx := ctx.GetStorageNodeIdx(at, labels)
@@ -126,6 +129,8 @@ func (ctx *InsertCtx) WriteDataPoint(at *auth.Token, labels []prompbmarshal.Labe
 }
 
 // WriteDataPointExt writes the given metricNameRaw with (timestmap, value) to ctx buffer with the given storageNodeIdx.
+//
+// caller must invoke TryPrepareLabels before using this function
 func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
 	br := &ctx.bufRowss[storageNodeIdx]
 	snb := ctx.snb
@@ -236,4 +241,21 @@ func parseUint32(s string) uint32 {
 		return 0
 	}
 	return uint32(n)
+}
+
+// TryPrepareLabels prepares context labels to the ingestion
+//
+// It returns false if timeseries should be skipped
+func (ctx *InsertCtx) TryPrepareLabels(hasRelabeling bool) bool {
+	if hasRelabeling {
+		ctx.applyRelabeling()
+	}
+	if len(ctx.Labels) == 0 {
+		return false
+	}
+	if timeserieslimits.Enabled() && timeserieslimits.IsExceeding(ctx.Labels) {
+		return false
+	}
+	ctx.sortLabelsIfNeeded()
+	return true
 }
