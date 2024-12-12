@@ -474,7 +474,7 @@ There are the following approaches exist for alerting and recording rules across
   For example, `-remoteWrite.url=http://vminsert:8480/insert/123/prometheus` would write recording
   rules to `AccountID=123`.
 
-* To use the [multitenant endpoint](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) of vminsert as
+* To use the [multitenant endpoint](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) {{% available_from "v1.104.0" %}} of vminsert as
   the `-remoteWrite.url` and vmselect as the `-datasource.url`, add `extra_label` with tenant ID as an HTTP URL parameter for each group.
   For example, run vmalert using `-datasource.url=http://vmselect:8481/select/multitenant/prometheus -remoteWrite.url=http://vminsert:8480/insert/multitenant/prometheus`,
   along with the rule group:
