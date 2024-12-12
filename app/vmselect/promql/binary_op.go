@@ -483,12 +483,7 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	// group time series by condition.
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
 
-	// todo @jiekun for test only. fix before review & merge
-	emptyKey := string([]byte{0, 0})
 	for k, tssLeft := range mLeft {
-		if k == emptyKey {
-			continue
-		}
 		// for tss in the left group, find tss in the right group
 		tssRight := mRight[k]
 
