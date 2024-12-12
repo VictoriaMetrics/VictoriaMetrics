@@ -491,14 +491,28 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	sortSeriesByMetricName(rvs)
 	rvsLen := len(rvs)
 
-	for k, tssRight := range mRight {
-		tssLeft := mLeft[k]
-		if len(removeEmptySeries(tssLeft)) == 0 { // special case where left is empty
-			rvs = append(rvs, tssRight...)
-			continue
+	existTssSet := make(map[string]bool)
+	for k, tssLeft := range mLeft {
+		tssRight := mRight[k]
+		// tssLeft could be intersected with tssRight.
+		// fill tsLeft's NaNs with tsRight only if they are the same metrics.
+		for _, tsLeft := range tssLeft {
+			existTssSet[tsLeft.String()] = true
+			for _, tsRight := range tssRight {
+				if tsLeft.MetricName.String() == tsRight.MetricName.String() {
+					fillLeftNaNsWithRightValuesForTimeseries(tsLeft, tsRight)
+				}
+			}
 		}
-		fillLeftNaNsWithRightValues(tssLeft, tssRight)
 	}
+
+	// append other time series on the right to rvs
+	for i := range bfa.right {
+		if !existTssSet[bfa.right[i].MetricName.String()] {
+			rvs = append(rvs, bfa.right[i])
+		}
+	}
+
 	// Sort the added right-hand-side series by metric name as Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
 	sortSeriesByMetricName(rvs[rvsLen:])
@@ -506,7 +520,7 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	return rvs, nil
 }
 
-func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) {
+func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) []*timeseries {
 	// Fill gaps in tssLeft with values from tssRight as Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/552
 	for _, tsLeft := range tssLeft {
@@ -522,6 +536,24 @@ func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) {
 					break
 				}
 			}
+		}
+	}
+	return tssLeft
+}
+
+// fillLeftNaNsWithRightValuesForTimeseries Fill gaps in tsLeft with values from tsRight.
+func fillLeftNaNsWithRightValuesForTimeseries(tsLeft, tsRight *timeseries) {
+	if len(tsLeft.Values) != len(tsRight.Values) {
+		return
+	}
+	valuesLeft := tsLeft.Values
+	for i, v := range valuesLeft {
+		if !math.IsNaN(v) {
+			continue
+		}
+		vRight := tsRight.Values[i]
+		if !math.IsNaN(vRight) {
+			valuesLeft[i] = vRight
 		}
 	}
 }
