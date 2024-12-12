@@ -960,7 +960,7 @@ name: ""
 </code>
 </pre>
 </td>
-      <td><p>VMAlert alert rules configuration configuration. Use existing configmap if specified</p>
+      <td><p>VMAlert alert rules configuration. Use existing configmap if specified</p>
 </td>
     </tr>
     <tr>
@@ -1012,17 +1012,6 @@ username: ""
 </pre>
 </td>
       <td><p>Token Auth file with Bearer token. You can use one of token or tokenFile</p>
-</td>
-    </tr>
-    <tr>
-      <td>server.enabled</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
-</code>
-</pre>
-</td>
-      <td><p>Create vmalert component</p>
 </td>
     </tr>
     <tr>
