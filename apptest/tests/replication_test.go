@@ -620,34 +620,84 @@ func newClusterWithGroupReplication(tc *at.TestCase, groupRFs []int, globalRF in
 	return c
 }
 
-// TestClusterGroupReplication_DataIsWrittenSeveralTimes verifies that with
-// global and group replication enabled, several copies of data are stored in
-// the database.
+// TestClusterGroupReplication checks the behavior of the cluster when the data
+// is replicated both across and within the storage groups.
 //
 // See: https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect
 // and https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
-func TestClusterGroupReplication_DataIsWrittenSeveralTimes(t *testing.T) {
+func TestClusterGroupReplication(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	const globalRF = 2
-	groupRFs := []int{1, 2, 3}
+	const (
+		globalRF  = 3
+		numGroups = 2*globalRF + 1
+		groupRF   = 2
+		numNodes  = 2*groupRF + 1
+	)
+
+	// For simplicity, use the same replication factor for all groups.
+	groupRFs := make([]int, numGroups)
+	for i := range numGroups {
+		groupRFs[i] = groupRF
+	}
 	c := newClusterWithGroupReplication(tc, groupRFs, globalRF)
 
-	// Insert data.
+	// Insert data
 
-	const numRecs = 1000
-	recs := make([]string, numRecs)
-	for i := range numRecs {
-		recs[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
+	const (
+		numMetrics = 100
+		numSamples = 1000
+		numRecs    = numMetrics * numSamples
+	)
+	var recs []string
+	wantSeries := &at.PrometheusAPIV1SeriesResponse{
+		Status: "success",
+		Data:   make([]map[string]string, numMetrics),
 	}
+	for m := range numMetrics {
+		name := fmt.Sprintf("metric_%d", m)
+		wantSeries.Data[m] = map[string]string{"__name__": name}
+		ts := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+		for s := range numSamples {
+			recs = append(recs, fmt.Sprintf("%s %d %d", name, s, ts.Unix()))
+			ts = ts.Add(1 * time.Minute)
+		}
+	}
+	wantSeries.Sort()
 	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
 	c.forceFlush(tc)
 
-	// Verify that each strorage node has metrics and that total metric count across
-	// all vmstorages is at least globalRF*numRecs. It is impossible to estimate the
-	// exact number in general due to uneven distribution of metrics across replicas
-	// and different RF within storage groups.
+	opts := &testGroupReplicationOpts{
+		c:          c,
+		globalRF:   globalRF,
+		groupRF:    groupRF,
+		numGroups:  numGroups,
+		numNodes:   numNodes,
+		numRecs:    numRecs,
+		wantSeries: wantSeries,
+	}
+	testGroupDataIsWrittenSeveralTimes(tc, opts)
+	testGroupDeduplication(tc, opts)
+	testGroupSkipSlowReplicas(tc, opts)
+	// This test must be the last because it stops some of the vmstorage nodes.
+	testGroupPartialResponse(tc, opts)
+}
+
+type testGroupReplicationOpts struct {
+	c          *clusterWithGroupReplication
+	globalRF   int
+	groupRF    int
+	numGroups  int
+	numNodes   int
+	numRecs    int
+	wantSeries *at.PrometheusAPIV1SeriesResponse
+}
+
+// testGroupDataIsWrittenSeveralTimes checks that multiple
+// copies of data is stored within the custer when the replication is enabled.
+func testGroupDataIsWrittenSeveralTimes(tc *at.TestCase, opts *testGroupReplicationOpts) {
+	t := tc.T()
 
 	getMetricsReadTotal := func(app *at.Vmstorage) int {
 		t.Helper()
@@ -658,61 +708,31 @@ func TestClusterGroupReplication_DataIsWrittenSeveralTimes(t *testing.T) {
 		return got
 	}
 
-	cnts := make([][]int, len(c.storageGroups))
+	cnts := make([][]int, len(opts.c.storageGroups))
 	total := 0
-	for i, g := range c.storageGroups {
+	for i, g := range opts.c.storageGroups {
 		cnts[i] = make([]int, len(g.vmstorages))
-		groupCnt := 0
 		for j, s := range g.vmstorages {
 			cnt := getMetricsReadTotal(s)
 			cnts[i][j] = cnt
-			groupCnt += cnt
+			total += cnt
 		}
-		total += groupCnt / groupRFs[i]
 	}
-	if got, want := total, globalRF*numRecs; got != want {
-		t.Fatalf("unxepected metric count: got %d, want %d (counts per group per replica: %v)", got, want, cnts)
+
+	if got, want := total, opts.globalRF*opts.groupRF*opts.numRecs; got != want {
+		t.Fatalf("unxepected metric count: got sum(%v)=%d, want %d*%d*%d=%d", []any{
+			cnts, got, opts.globalRF, opts.groupRF, opts.numRecs, want}...)
 	}
 }
 
-// TestClusterGroupReplication_VmselectDeduplication checks now vmselect behaves
-// when the data is replicated across storage groups and within each group.
+// testGroupDeduplication checks now vmselect handles duplicates when the data
+// is replicated across storage groups and within each group.
 //
-// When the data is replicated, vmselect's netstorage will receive duplicates.
-// It can be instructed to remove duplicates by setting -dedup.minScrapeInterval
-// flag. See mergeSortBlocks() in app/vmselect/netstorage/netstorage.go.
-//
-// See: https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect
-// and https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
-func TestClusterGroupReplication_Deduplication(t *testing.T) {
-	tc := at.NewTestCase(t)
-	defer tc.Stop()
-
-	const (
-		globalRF = 2
-		groupRF  = 2
-	)
-
-	groupRFs := []int{groupRF, groupRF, groupRF}
-	c := newClusterWithGroupReplication(tc, groupRFs, globalRF)
-
-	// Insert data.
-
-	const (
-		numMetrics = 4
-		numSamples = 1000
-		numRecs    = numMetrics * numSamples
-	)
-	var recs []string
-	for m := range numMetrics {
-		ts := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-		for s := range numSamples {
-			recs = append(recs, fmt.Sprintf("metric_%d %d %d", m, s, ts.Unix()))
-			ts = ts.Add(1 * time.Minute)
-		}
-	}
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
-	c.forceFlush(tc)
+// Most of the API endpoints remove duplicates by default. However, some API
+// endpoints will return duplicates unless -dedup.minScrapeInterval flag is set.
+// See mergeSortBlocks() in app/vmselect/netstorage/netstorage.go.
+func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
+	t := tc.T()
 
 	// Check /api/v1/series response.
 	//
@@ -729,20 +749,11 @@ func TestClusterGroupReplication_Deduplication(t *testing.T) {
 					End:   "2024-01-31T00:00:00Z",
 				}).Sort()
 			},
-			Want: &at.PrometheusAPIV1SeriesResponse{
-				Status:    "success",
-				IsPartial: false,
-				Data: []map[string]string{
-					{"__name__": "metric_0"},
-					{"__name__": "metric_1"},
-					{"__name__": "metric_2"},
-					{"__name__": "metric_3"},
-				},
-			},
+			Want: opts.wantSeries,
 		})
 	}
-	assertSeries(c.vmselect)
-	assertSeries(c.vmselectDedup)
+	assertSeries(opts.c.vmselect)
+	assertSeries(opts.c.vmselectDedup)
 
 	// Check /api/v1/query response.
 	//
@@ -773,8 +784,8 @@ func TestClusterGroupReplication_Deduplication(t *testing.T) {
 			},
 		})
 	}
-	assertQuery(c.vmselect)
-	assertQuery(c.vmselectDedup)
+	assertQuery(opts.c.vmselect)
+	assertQuery(opts.c.vmselectDedup)
 
 	// Check /api/v1/query response (range vector queries)
 	//
@@ -821,8 +832,8 @@ func TestClusterGroupReplication_Deduplication(t *testing.T) {
 			},
 		})
 	}
-	assertQueryRangeVector(c.vmselect, groupRF*globalRF)
-	assertQueryRangeVector(c.vmselectDedup, 1)
+	assertQueryRangeVector(opts.c.vmselect, opts.groupRF*opts.globalRF)
+	assertQueryRangeVector(opts.c.vmselectDedup, 1)
 
 	// Check /api/v1/query_range response.
 	//
@@ -857,8 +868,8 @@ func TestClusterGroupReplication_Deduplication(t *testing.T) {
 			},
 		})
 	}
-	assertQueryRange(c.vmselect)
-	assertQueryRange(c.vmselectDedup)
+	assertQueryRange(opts.c.vmselect)
+	assertQueryRange(opts.c.vmselectDedup)
 
 	// Check /api/v1/export response.
 	//
@@ -893,182 +904,20 @@ func TestClusterGroupReplication_Deduplication(t *testing.T) {
 			},
 		})
 	}
-	assertExport(c.vmselect, groupRF*globalRF)
-	assertExport(c.vmselectDedup, 1)
+	assertExport(opts.c.vmselect, opts.groupRF*opts.globalRF)
+	assertExport(opts.c.vmselectDedup, 1)
 }
 
-// TestClusterGroupReplication_NoPartialResponse checks how vmselect handles
-// some vmstorage nodes being unavailable.
-//
-// By default in such cases, vmselect must mark responses as partial. However,
-// passing -replicationFactor=N and -globalReplicationFactor command-line flag
-// to vmselect instructs it to not mark responses as partial even if less
-// vmstorage nodes are unavailable during the query.
-//
-// See: https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect
-// and https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
-func TestClusterGroupReplication_PartialResponse(t *testing.T) {
-	tc := at.NewTestCase(t)
-	defer tc.Stop()
-
-	const (
-		globalRF  = 2
-		numGroups = 2*globalRF + 1
-		groupRF   = 2
-	)
-
-	groupRFs := make([]int, numGroups)
-	for i := range numGroups {
-		groupRFs[i] = groupRF
-	}
-	c := newClusterWithGroupReplication(tc, groupRFs, globalRF)
-
-	// Insert data.
-
-	const numRecs = 1000
-	recs := make([]string, numRecs)
-	for i := range numRecs {
-		recs[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
-	}
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
-	c.forceFlush(tc)
-
-	// Verify partial vs full response.
-
-	assertSeries := func(app *at.Vmselect, wantPartial bool) {
-		t.Helper()
-		tc.Assert(&at.AssertOptions{
-			Msg: "unexpected /api/v1/series response",
-			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{}).Sort()
-			},
-			Want: &at.PrometheusAPIV1SeriesResponse{
-				Status:    "success",
-				IsPartial: wantPartial,
-			},
-			CmpOpts: []cmp.Option{
-				cmpopts.IgnoreFields(apptest.PrometheusAPIV1SeriesResponse{}, "Data"),
-			},
-		})
-	}
-
-	mustReturnPartialResponse := true
-	mustReturnFullResponse := false
-
-	// All vmstorage replicas are available so both vmselects must return full
-	// response.
-	assertSeries(c.vmselect, mustReturnFullResponse)
-	assertSeries(c.vmselectGroupRF, mustReturnFullResponse)
-	assertSeries(c.vmselectGlobalRF, mustReturnFullResponse)
-	assertSeries(c.vmselectGroupGlobalRF, mustReturnFullResponse)
-
-	// Stop groupRF-1 vmstorage nodes in first group.
-	//
-	// vmselect is not aware about the replication factor and therefore must
-	// return partial response.
-	// vmselectGroupRF, vmselectGlobalRF, and vmselectGroupGlobalRF are aware
-	// about the replication factor and therefore they must still be able to
-	// return full dataset.
-	c.storageGroups[0].stopNodes(tc, groupRF-1)
-	assertSeries(c.vmselect, mustReturnPartialResponse)
-	assertSeries(c.vmselectGroupRF, mustReturnFullResponse)
-	assertSeries(c.vmselectGlobalRF, mustReturnFullResponse)
-	assertSeries(c.vmselectGroupGlobalRF, mustReturnFullResponse)
-
-	// Stop groupRF-1 vmstorages in the remaining groups.
-	//
-	// vmselectGroupRF and vmselectGroupGlobalRF are still capable of returning
-	// full dataset, while vmselectGlobalRF will start returning partial dataset
-	// because it is unaware of replication within groups.
-	for g := 1; g < len(c.storageGroups); g++ {
-		c.storageGroups[g].stopNodes(tc, groupRF-1)
-	}
-	assertSeries(c.vmselect, mustReturnPartialResponse)
-	assertSeries(c.vmselectGroupRF, mustReturnFullResponse)
-	assertSeries(c.vmselectGlobalRF, mustReturnPartialResponse)
-	assertSeries(c.vmselectGroupGlobalRF, mustReturnFullResponse)
-
-	// Stop one more vmstorage in the first group.
-	//
-	// At this point vmselectGroupRF will start returning partial dataset
-	// because it is unaware of replication across groups. vmselectGroupGlobalRF
-	// will continue retuning full dataset.
-	c.storageGroups[0].stopNodes(tc, 1)
-	assertSeries(c.vmselect, mustReturnPartialResponse)
-	assertSeries(c.vmselectGroupRF, mustReturnPartialResponse)
-	assertSeries(c.vmselectGlobalRF, mustReturnPartialResponse)
-	assertSeries(c.vmselectGroupGlobalRF, mustReturnFullResponse)
-
-	// Stop one more vmstoarge in remaining globarRF-1 groups.
-	//
-	// This is the extreme case when vmselectGroupGlobalRF is still able to
-	// return full dataset.
-	for g := 1; g < globalRF-1; g++ {
-		c.storageGroups[g].stopNodes(tc, 1)
-	}
-	assertSeries(c.vmselect, mustReturnPartialResponse)
-	assertSeries(c.vmselectGroupRF, mustReturnPartialResponse)
-	assertSeries(c.vmselectGlobalRF, mustReturnPartialResponse)
-	assertSeries(c.vmselectGroupGlobalRF, mustReturnFullResponse)
-
-	// Stop one more vmstoarge in one more group.
-	//
-	// vmselectGroupGlobalRF must now return partial dataset.
-	c.storageGroups[globalRF].stopNodes(tc, 1)
-	assertSeries(c.vmselect, mustReturnPartialResponse)
-	assertSeries(c.vmselectGroupRF, mustReturnPartialResponse)
-	assertSeries(c.vmselectGlobalRF, mustReturnPartialResponse)
-	assertSeries(c.vmselectGroupGlobalRF, mustReturnPartialResponse)
-}
-
-// TestClusterGroupReplication_SkipSlowReplicas checks that vmselect skips the
-// results from slower replicas within and across storage groups if the results
-// that have been received from other replicas/group are enough to construct
-// full response.
+// testGroupSkipSlowReplicas checks that vmselect skips the results from slower
+// replicas within and across storage groups if the results that have been
+// received from other replicas/group are enough to construct full response.
 //
 // By default, even if a vmselect knows about the vmstorage replication (via
 // -replicationFactor and -globalReplicationFactor flags) it will still wait for
 // results from all the vmstorage nodes. A vmselect can be configured to skip
 // slow replicas using -search.skipSlowReplicas flag.
-//
-// See: https://docs.victoriametrics.com/cluster-victoriametrics/#vmstorage-groups-at-vmselect
-// and https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
-func TestClusterGroupReplication_SkipSlowReplicas(t *testing.T) {
-	tc := at.NewTestCase(t)
-	defer tc.Stop()
-
-	const (
-		globalRF  = 3
-		numGroups = 2*globalRF + 1
-		groupRF   = 4
-		numNodes  = 2*groupRF + 1
-	)
-
-	groupRFs := make([]int, numGroups)
-	for i := range numGroups {
-		groupRFs[i] = groupRF
-	}
-	c := newClusterWithGroupReplication(tc, groupRFs, globalRF)
-
-	// Insert data.
-
-	const numRecs = 1000
-	recs := make([]string, numRecs)
-	wantSeries := &at.PrometheusAPIV1SeriesResponse{
-		Status: "success",
-		Data:   make([]map[string]string, numRecs),
-	}
-	for i := range numRecs {
-		name := fmt.Sprintf("metric_%d", i)
-		recs[i] = fmt.Sprintf("%s %d", name, rand.IntN(1000))
-		wantSeries.Data[i] = map[string]string{"__name__": name}
-	}
-	wantSeries.Sort()
-	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
-	c.forceFlush(tc)
-
-	// Verify skipping slow replicas by counting the number of skipSlowReplicas
-	// messages in request trace.
+func testGroupSkipSlowReplicas(tc *at.TestCase, opts *testGroupReplicationOpts) {
+	t := tc.T()
 
 	assertSeries := func(app *at.Vmselect, wantMin, wantMax int) {
 		t.Helper()
@@ -1077,9 +926,12 @@ func TestClusterGroupReplication_SkipSlowReplicas(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{}).Sort()
+				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+					Start: "2024-01-01T00:00:00Z",
+					End:   "2024-01-31T00:00:00Z",
+				}).Sort()
 			},
-			Want: wantSeries,
+			Want: opts.wantSeries,
 		})
 
 		res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{Trace: "1"})
@@ -1090,11 +942,15 @@ func TestClusterGroupReplication_SkipSlowReplicas(t *testing.T) {
 
 	}
 
+	var wantMin, wantMax int
+
 	// For all possible replication configurations, no nodes are skipped if
 	// vmselect hasn't been explicitly told to do that.
-	assertSeries(c.vmselectGroupRF, 0, 0)
-	assertSeries(c.vmselectGlobalRF, 0, 0)
-	assertSeries(c.vmselectGroupGlobalRF, 0, 0)
+	wantMin = 0
+	wantMax = 0
+	assertSeries(opts.c.vmselectGroupRF, wantMin, wantMax)
+	assertSeries(opts.c.vmselectGlobalRF, wantMin, wantMax)
+	assertSeries(opts.c.vmselectGroupGlobalRF, wantMin, wantMax)
 
 	// Each of N groups replicates data across M of its nodes. Replication
 	// factor is the same for all groups (groupRF). There is no replication
@@ -1108,7 +964,9 @@ func TestClusterGroupReplication_SkipSlowReplicas(t *testing.T) {
 	// when one group is slower than other groups and it receives responses from
 	// M-groupRF+1 nodes only when the rest of the groups have received
 	// responses from all of their nodes.
-	assertSeries(c.vmselectGroupRFSkip, groupRF-1, numGroups*(groupRF-1))
+	wantMin = opts.groupRF - 1
+	wantMax = opts.numGroups * (opts.groupRF - 1)
+	assertSeries(opts.c.vmselectGroupRFSkip, wantMin, wantMax)
 
 	// The data is replicated across N groups of M nodes. Replication factor is
 	// globalRF. There is no replication across the nodes within each group or
@@ -1125,7 +983,9 @@ func TestClusterGroupReplication_SkipSlowReplicas(t *testing.T) {
 	// rest of the groups receive the response from all but one nodes. This is a
 	// more likely case because the nodes in any group will have more or less the
 	// same response time.
-	assertSeries(c.vmselectGlobalRFSkip, globalRF-1, numNodes*(globalRF-1))
+	wantMin = opts.globalRF - 1
+	wantMax = opts.numNodes * (opts.globalRF - 1)
+	assertSeries(opts.c.vmselectGlobalRFSkip, wantMin, wantMax)
 
 	// The data is replicated across N groups of M nodes. Replication factor is
 	// globalRF. Within each group the data is also replicated across N nodes.
@@ -1137,5 +997,106 @@ func TestClusterGroupReplication_SkipSlowReplicas(t *testing.T) {
 	//
 	// Min number of nodes to skip is (globalRF-1)*(groupRF-1). This corresponds
 	// to the case when all groups will need to receive M-groupRF+1 responses.
-	assertSeries(c.vmselectGroupGlobalRFSkip, (globalRF-1)*(groupRF-1), numNodes*(globalRF-1)+(numGroups-globalRF+1)*(groupRF-1))
+	wantMin = (opts.globalRF - 1) * (opts.groupRF - 1)
+	wantMax = opts.numNodes*(opts.globalRF-1) + (opts.numGroups-opts.globalRF+1)*(opts.groupRF-1)
+	assertSeries(opts.c.vmselectGroupGlobalRFSkip, wantMin, wantMax)
+}
+
+// testGroupNoPartialResponse checks how vmselect handles some vmstorage nodes
+// being unavailable.
+//
+// By default in such cases, vmselect must mark responses as partial. However,
+// passing -replicationFactor=N and -globalReplicationFactor command-line flag
+// to vmselect instructs it to not mark responses as partial even if less
+// vmstorage nodes are unavailable during the query.
+func testGroupPartialResponse(tc *at.TestCase, opts *testGroupReplicationOpts) {
+	t := tc.T()
+
+	assertSeries := func(app *at.Vmselect, wantPartial bool) {
+		t.Helper()
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /api/v1/series response",
+			Got: func() any {
+				return app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+					Start: "2024-01-01T00:00:00Z",
+					End:   "2024-01-31T00:00:00Z",
+				}).Sort()
+			},
+			Want: &at.PrometheusAPIV1SeriesResponse{
+				Status:    "success",
+				IsPartial: wantPartial,
+			},
+			CmpOpts: []cmp.Option{
+				cmpopts.IgnoreFields(apptest.PrometheusAPIV1SeriesResponse{}, "Data"),
+			},
+		})
+	}
+
+	mustReturnPartialResponse := true
+	mustReturnFullResponse := false
+
+	// All vmstorage replicas are available so both vmselects must return full
+	// response.
+	assertSeries(opts.c.vmselect, mustReturnFullResponse)
+	assertSeries(opts.c.vmselectGroupRF, mustReturnFullResponse)
+	assertSeries(opts.c.vmselectGlobalRF, mustReturnFullResponse)
+	assertSeries(opts.c.vmselectGroupGlobalRF, mustReturnFullResponse)
+
+	// Stop groupRF-1 vmstorage nodes in first group.
+	//
+	// vmselect is not aware about the replication factor and therefore must
+	// return partial response.
+	// vmselectGroupRF, vmselectGlobalRF, and vmselectGroupGlobalRF are aware
+	// about the replication factor and therefore they must still be able to
+	// return full dataset.
+	opts.c.storageGroups[0].stopNodes(tc, opts.groupRF-1)
+	assertSeries(opts.c.vmselect, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupRF, mustReturnFullResponse)
+	assertSeries(opts.c.vmselectGlobalRF, mustReturnFullResponse)
+	assertSeries(opts.c.vmselectGroupGlobalRF, mustReturnFullResponse)
+
+	// Stop groupRF-1 vmstorages in the remaining groups.
+	//
+	// vmselectGroupRF and vmselectGroupGlobalRF are still capable of returning
+	// full dataset, while vmselectGlobalRF will start returning partial dataset
+	// because it is unaware of replication within groups.
+	for g := 1; g < len(opts.c.storageGroups); g++ {
+		opts.c.storageGroups[g].stopNodes(tc, opts.groupRF-1)
+	}
+	assertSeries(opts.c.vmselect, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupRF, mustReturnFullResponse)
+	assertSeries(opts.c.vmselectGlobalRF, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupGlobalRF, mustReturnFullResponse)
+
+	// Stop one more vmstorage in the first group.
+	//
+	// At this point vmselectGroupRF will start returning partial dataset
+	// because it is unaware of replication across groups. vmselectGroupGlobalRF
+	// will continue retuning full dataset.
+	opts.c.storageGroups[0].stopNodes(tc, 1)
+	assertSeries(opts.c.vmselect, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupRF, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGlobalRF, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupGlobalRF, mustReturnFullResponse)
+
+	// Stop one more vmstoarge in remaining globarRF-1 groups.
+	//
+	// This is the extreme case when vmselectGroupGlobalRF is still able to
+	// return full dataset.
+	for g := 1; g < opts.globalRF-1; g++ {
+		opts.c.storageGroups[g].stopNodes(tc, 1)
+	}
+	assertSeries(opts.c.vmselect, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupRF, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGlobalRF, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupGlobalRF, mustReturnFullResponse)
+
+	// Stop one more vmstoarge in one more group.
+	//
+	// vmselectGroupGlobalRF must now return partial dataset.
+	opts.c.storageGroups[opts.globalRF].stopNodes(tc, 1)
+	assertSeries(opts.c.vmselect, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupRF, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGlobalRF, mustReturnPartialResponse)
+	assertSeries(opts.c.vmselectGroupGlobalRF, mustReturnPartialResponse)
 }
