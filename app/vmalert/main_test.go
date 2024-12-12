@@ -74,7 +74,10 @@ func TestGetAlertURLGenerator(t *testing.T) {
 
 func TestConfigReload(t *testing.T) {
 	originalRulePath := *rulePath
+	originalExternalURL := extURL
+	extURL = &url.URL{}
 	defer func() {
+		extURL = originalExternalURL
 		*rulePath = originalRulePath
 	}()
 

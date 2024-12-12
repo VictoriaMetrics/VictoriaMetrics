@@ -1,18 +1,8 @@
 package unittest
 
 import (
-	"os"
 	"testing"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 )
-
-func TestMain(m *testing.M) {
-	if err := templates.Load([]string{}, true); err != nil {
-		os.Exit(1)
-	}
-	os.Exit(m.Run())
-}
 
 func TestUnitTest_Failure(t *testing.T) {
 	f := func(files []string) {

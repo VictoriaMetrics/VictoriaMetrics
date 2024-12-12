@@ -127,7 +127,7 @@ func ExecTemplate(q templates.QueryFn, annotations map[string]string, tplData Al
 
 // ValidateTemplates validate annotations for possible template error, uses empty data for template population
 func ValidateTemplates(annotations map[string]string) error {
-	tmpl, err := templates.Get()
+	tmpl, err := templates.GetWithFuncs(nil)
 	if err != nil {
 		return err
 	}

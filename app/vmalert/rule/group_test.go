@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net/url"
 	"os"
 	"sort"
 	"testing"
@@ -26,7 +27,7 @@ func init() {
 }
 
 func TestMain(m *testing.M) {
-	if err := templates.Load([]string{}, true); err != nil {
+	if err := templates.Load([]string{}, url.URL{}); err != nil {
 		fmt.Println("failed to load template for test")
 		os.Exit(1)
 	}
