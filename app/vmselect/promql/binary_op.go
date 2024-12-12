@@ -480,42 +480,49 @@ func binaryOpDefault(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 }
 
 func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
+	// group time series by condition.
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
-	var rvs []*timeseries
 
-	for _, tss := range mLeft {
-		rvs = append(rvs, tss...)
-	}
-	// Sort left-hand-side series by metric name as Prometheus does.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
-	sortSeriesByMetricName(rvs)
-	rvsLen := len(rvs)
-
-	existTssSet := make(map[string]bool)
+	// todo @jiekun for test only. fix before review & merge
+	emptyKey := string([]byte{0, 0})
 	for k, tssLeft := range mLeft {
+		if k == emptyKey {
+			continue
+		}
+		// for tss in the left group, find tss in the right group
 		tssRight := mRight[k]
-		// tssLeft could be intersected with tssRight.
-		// fill tsLeft's NaNs with tsRight only if they are the same metrics.
-		for _, tsLeft := range tssLeft {
-			existTssSet[tsLeft.String()] = true
+
+		// set value to NaN if a non-NaN value has been found.
+		tsLen := len(tssLeft[0].Timestamps)
+		for i := 0; i < tsLen; i++ {
+			found := false
+			for _, tsLeft := range tssLeft {
+				if found {
+					tsLeft.Values[i] = nan
+					continue
+				}
+				if !math.IsNaN(tsLeft.Values[i]) {
+					found = true
+				}
+			}
+
 			for _, tsRight := range tssRight {
-				if tsLeft.MetricName.String() == tsRight.MetricName.String() {
-					fillLeftNaNsWithRightValuesForTimeseries(tsLeft, tsRight)
+				if found {
+					tsRight.Values[i] = nan
+					continue
+				}
+				if !math.IsNaN(tsRight.Values[i]) {
+					found = true
 				}
 			}
 		}
 	}
 
-	// append other time series on the right to rvs
-	for i := range bfa.right {
-		if !existTssSet[bfa.right[i].MetricName.String()] {
-			rvs = append(rvs, bfa.right[i])
-		}
-	}
+	rvs := append(bfa.left, bfa.right...)
 
-	// Sort the added right-hand-side series by metric name as Prometheus does.
+	// Sort series by metric name.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
-	sortSeriesByMetricName(rvs[rvsLen:])
+	sortSeriesByMetricName(rvs)
 
 	return rvs, nil
 }
