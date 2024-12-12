@@ -94,13 +94,14 @@ func parseTasks(data []byte) ([]task, error) {
 func addServicesLabelsForTask(services []service) []*promutils.Labels {
 	var ms []*promutils.Labels
 	for _, svc := range services {
-		commonLabels := promutils.NewLabels(10)
+		commonLabels := promutils.NewLabels(3)
 		commonLabels.Add("__meta_dockerswarm_service_id", svc.ID)
 		commonLabels.Add("__meta_dockerswarm_service_name", svc.Spec.Name)
 		commonLabels.Add("__meta_dockerswarm_service_mode", getServiceMode(svc))
 		for k, v := range svc.Spec.Labels {
 			commonLabels.Add(discoveryutils.SanitizeLabelName("__meta_dockerswarm_service_label_"+k), v)
 		}
+		ms = append(ms, commonLabels)
 	}
 	return ms
 }
