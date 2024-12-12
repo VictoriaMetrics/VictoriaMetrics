@@ -93,6 +93,7 @@ func TestDeduplicateSamplesWithIdenticalTimestamps(t *testing.T) {
 	// verify decimal.StaleNaN is preferred only within deduplicationInterval
 	f(time.Second, []int64{1000, 1000, 2000}, []float64{1, decimal.StaleNaN, 2}, []int64{1000, 2000}, []float64{decimal.StaleNaN, 2})
 	f(time.Second, []int64{1000, 1000, 2000, 2000}, []float64{1, decimal.StaleNaN, 2, 3}, []int64{1000, 2000}, []float64{decimal.StaleNaN, 3})
+	f(time.Second, []int64{1000, 1000, 1000, 2000, 2000}, []float64{1, decimal.StaleNaN, 6, 2, 3}, []int64{1000, 2000}, []float64{decimal.StaleNaN, 3})
 }
 
 func TestDeduplicateSamplesDuringMergeWithIdenticalTimestamps(t *testing.T) {
@@ -136,6 +137,7 @@ func TestDeduplicateSamplesDuringMergeWithIdenticalTimestamps(t *testing.T) {
 	// verify decimal.StaleNaN is preferred only within deduplicationInterval
 	f(time.Second, []int64{1000, 1000, 2000}, []int64{1, staleNaN, 2}, []int64{1000, 2000}, []int64{staleNaN, 2})
 	f(time.Second, []int64{1000, 1000, 2000, 2000}, []int64{1, staleNaN, 2, 3}, []int64{1000, 2000}, []int64{staleNaN, 3})
+	f(time.Second, []int64{1000, 1000, 1000, 2000, 2000}, []int64{1, staleNaN, math.MaxInt64, 2, 3}, []int64{1000, 2000}, []int64{staleNaN, 3})
 }
 
 func TestDeduplicateSamples(t *testing.T) {
