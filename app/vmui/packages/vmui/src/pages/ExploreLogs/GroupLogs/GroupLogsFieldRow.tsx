@@ -68,7 +68,7 @@ const GroupLogsFieldRow: FC<Props> = ({ field, value }) => {
             />
           </Tooltip>
           <Tooltip
-            key={`${field}_${isSelectedField}`}
+            key={`${field}_${isSelectedField}_${isGroupByField}`}
             title={isSelectedField ? "Hide this field" : "Show this field instead of the message"}
           >
             <Button
@@ -82,7 +82,7 @@ const GroupLogsFieldRow: FC<Props> = ({ field, value }) => {
             />
           </Tooltip>
           <Tooltip
-            key={`${field}_${isGroupByField}`}
+            key={`${field}_${isSelectedField}_${isGroupByField}`}
             title={isGroupByField ? "Ungroup this field" : "Group by this field"}
           >
             <Button
