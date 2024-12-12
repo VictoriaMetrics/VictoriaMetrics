@@ -7,7 +7,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.16.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.0
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.5.0
-	github.com/VictoriaMetrics/easyproto v0.1.4
+	github.com/VictoriaMetrics/easyproto v0.1.5-0.20240531181342-fcd7f46605e3
 	github.com/VictoriaMetrics/fastcache v1.12.2
 	github.com/VictoriaMetrics/metrics v1.35.1
 	github.com/VictoriaMetrics/metricsql v0.81.1

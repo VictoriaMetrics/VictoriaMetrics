@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -157,7 +158,8 @@ func TestClientProxyReadOk(t *testing.T) {
 		}
 
 		var bb bytesutil.ByteBuffer
-		if err = c.ReadData(&bb); err != nil {
+		var contentType prometheus.ContentType
+		if err = c.ReadData(&bb, &contentType); err != nil {
 			t.Fatalf("unexpected error at ReadData: %s", err)
 		}
 		got, err := io.ReadAll(bb.NewReader())
