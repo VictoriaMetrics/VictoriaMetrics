@@ -261,8 +261,8 @@ expr: <string>
 # Information includes alerts state changes and requests sent to the datasource.
 # Please note, that if rule's query params contain sensitive
 # information - it will be printed to logs.
-# Is applicable to alerting rules only.
-# Available starting from https://docs.victoriametrics.com/changelog/#v1820
+# Is applicable to alerting rules only. 
+# Logs are printed with INFO level, so make sure that -loggerLevel=INFO to see the output.
 [ debug: <bool> | default = false ]
 
 # Defines the number of rule's updates entries stored in memory
@@ -474,7 +474,7 @@ There are the following approaches exist for alerting and recording rules across
   For example, `-remoteWrite.url=http://vminsert:8480/insert/123/prometheus` would write recording
   rules to `AccountID=123`.
 
-* To use the [multitenant endpoint](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) of vminsert as
+* To use the [multitenant endpoint](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) {{% available_from "v1.104.0" %}} of vminsert as
   the `-remoteWrite.url` and vmselect as the `-datasource.url`, add `extra_label` with tenant ID as an HTTP URL parameter for each group.
   For example, run vmalert using `-datasource.url=http://vmselect:8481/select/multitenant/prometheus -remoteWrite.url=http://vminsert:8480/insert/multitenant/prometheus`,
   along with the rule group:

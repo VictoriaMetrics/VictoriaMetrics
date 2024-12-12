@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"unsafe"
 
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
@@ -38,7 +40,11 @@ func (su *statsCountUniq) newStatsProcessor() (statsProcessor, int) {
 type statsCountUniqProcessor struct {
 	su *statsCountUniq
 
+	// m holds unique values if it is non-nil
 	m map[string]struct{}
+
+	// mHash holds unique value hashes if it is non-nil
+	mHash map[uint64]struct{}
 
 	columnValues [][]string
 	keyBuf       []byte
@@ -330,16 +336,31 @@ func (sup *statsCountUniqProcessor) mergeState(sfp statsProcessor) {
 	}
 
 	src := sfp.(*statsCountUniqProcessor)
-	m := sup.m
-	for k := range src.m {
-		if _, ok := m[k]; !ok {
-			m[k] = struct{}{}
+
+	if sup.mHash != nil {
+		m := sup.mHash
+		for h := range src.mHash {
+			if _, ok := m[h]; !ok {
+				m[h] = struct{}{}
+			}
+		}
+	} else {
+		m := sup.m
+		for k := range src.m {
+			if _, ok := m[k]; !ok {
+				m[k] = struct{}{}
+			}
 		}
 	}
 }
 
 func (sup *statsCountUniqProcessor) finalizeStats() string {
-	n := uint64(len(sup.m))
+	var n uint64
+	if sup.mHash != nil {
+		n = uint64(len(sup.mHash))
+	} else {
+		n = uint64(len(sup.m))
+	}
 	if limit := sup.su.limit; limit > 0 && n > limit {
 		n = limit
 	}
@@ -348,16 +369,32 @@ func (sup *statsCountUniqProcessor) finalizeStats() string {
 
 func (sup *statsCountUniqProcessor) updateState(v []byte) int {
 	stateSizeIncrease := 0
-	if _, ok := sup.m[string(v)]; !ok {
-		sup.m[string(v)] = struct{}{}
-		stateSizeIncrease += len(v) + int(unsafe.Sizeof(""))
+
+	if sup.mHash != nil {
+		h := xxhash.Sum64(v)
+		if _, ok := sup.mHash[h]; !ok {
+			sup.mHash[h] = struct{}{}
+			stateSizeIncrease += int(unsafe.Sizeof(h))
+		}
+	} else {
+		if _, ok := sup.m[string(v)]; !ok {
+			sup.m[string(v)] = struct{}{}
+			stateSizeIncrease += len(v) + int(unsafe.Sizeof(""))
+		}
 	}
+
 	return stateSizeIncrease
 }
 
 func (sup *statsCountUniqProcessor) limitReached() bool {
 	limit := sup.su.limit
-	return limit > 0 && uint64(len(sup.m)) > limit
+	if limit <= 0 {
+		return false
+	}
+	if sup.mHash != nil {
+		return uint64(len(sup.mHash)) > limit
+	}
+	return uint64(len(sup.m)) > limit
 }
 
 func parseStatsCountUniq(lex *lexer) (*statsCountUniq, error) {

@@ -1361,7 +1361,7 @@ See also:
 
 ### collapse_nums pipe
 
-`| collapse_nums at <field>` pipe replaces all the decimal and hexadecimal numbers at the given [`<field>`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with `<N>`.
+`| collapse_nums at <field>` pipe replaces all the decimal and hexadecimal numbers at the given [`<field>`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with `<N>` placeholder.
 For example, if the `_msg` field contains `2024-10-20T12:34:56Z request duration 1.34s`, then it is replaced with `<N>-<N>-<N>T<N>:<N>:<N>Z request duration <N>.<N>s` by the following query:
 
 ```logsql
@@ -1383,6 +1383,25 @@ seen patterns across log messages. For example, the following query returns top 
 ```logsql
 _time:1h | collapse_nums | top 5 by (_msg)
 ```
+
+`collapse_nums` can detect certain patterns in the collapsed numbers and replace them with the corresponding placeholders if `prettify` suffix is added to the `collapse_nums` pipe:
+
+- `<N>-<N>-<N>-<N>-<N>` is replaced with `<UUID>` placeholder.
+- `<N>.<N>.<N>.<N>` is replaced with `<IP4>` placeholder.
+- `<N>:<N>:<N>` is replaced with `<TIME>` placeholder. Optional fractional seconds after the time are treated as a part of `<TIME>`.
+- `<N>-<N>-<N>` and `<N>/<N>/<N>` is replaced with `<DATE>` placeholder.
+- `<N>-<N>-<N>T<N>:<N>:<N>` and `<N>-<N>-<N> <N>:<N>:<N>` is replaced with `<DATETIME>` placeholder. Optional timezone after the datetime is treated as a part of `<DATETIME>`.
+
+For example, the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+`2edfed59-3e98-4073-bbb2-28d321ca71a7 - [2024/12/08 15:21:02] 10.71.20.32 GET /foo 200` is replaced with `<UUID> - [<DATETIME>] <IP4> GET /foo <N>`
+when the following query is executed:
+
+```logsql
+_time:1h | collapse_nums prettify
+```
+
+`collapse_nums` can miss some numbers or can collapse unexpected numbers. In this case [conditional `collapse_nums`](#conditional-collapse_nums) can be used
+for skipping such values and pre-processing them separately with [`replace_regexp`](#replace_regexp-pipe).
 
 See also:
 
@@ -1693,7 +1712,7 @@ By default `facets` pipe doesn't return log fields with too long values. The lim
 For example, the following query returns most frequently values for all the log fields containing values no longer than 100 bytes:
 
 ```logsql
-_time:1h error | facets mav_value_len 100
+_time:1h error | facets max_value_len 100
 ```
 
 See also:
@@ -3026,6 +3045,7 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`count`](#count-stats) returns the number of log entries.
 - [`count_empty`](#count_empty-stats) returns the number logs with empty [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`count_uniq`](#count_uniq-stats) returns the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`count_uniq_hash`](#count_uniq_hash-stats) returns the number of unique hashes for non-empty values at the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`max`](#max-stats) returns the maximum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`median`](#median-stats) returns the [median](https://en.wikipedia.org/wiki/Median) value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) returns the minimum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -3139,8 +3159,37 @@ up to `1_000_000` unique values for the `ip` field:
 _time:5m | stats count_uniq(ip) limit 1_000_000 as ips_1_000_000
 ```
 
+If it is OK to count an estimated number of unique values, then [`count_uniq_hash`](#count_uniq_hash-stats) can be used as faster alternative to `count_uniq`.
+
 See also:
 
+- [`count_uniq_hash`](#count_uniq_hash-stats)
+- [`uniq_values`](#uniq_values-stats)
+- [`count`](#count-stats)
+
+### count_uniq_hash
+
+`count_uniq_hash(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the number of unique hashes for non-empty `(field1, ..., fieldN)` tuples.
+This is a good estimation for the number of unique values in general case, while it works faster and uses less memory than [`count_uniq`](#count_uniq-stats)
+when counting big number of unique values.
+
+For example, the following query returns an estimated number of unique non-empty values for `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over the last 5 minutes:
+
+```logsql
+_time:5m | stats count_uniq_hash(ip) unique_ips_count
+```
+
+The following query returns an estimated number of unique `(host, path)` pairs for the corresponding [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+over the last 5 minutes:
+
+```logsql
+_time:5m | stats count_uniq_hash(host, path) unique_host_path_pairs
+```
+
+See also:
+
+- [`count_uniq`](#count_uniq-stats)
 - [`uniq_values`](#uniq_values-stats)
 - [`count`](#count-stats)
 
@@ -3406,6 +3455,7 @@ See also:
 - [`uniq` pipe](#uniq-pipe)
 - [`values`](#values-stats)
 - [`count_uniq`](#count_uniq-stats)
+- [`count_uniq_hash`](#count_uniq_hash-stats)
 - [`count`](#count-stats)
 
 ### values stats

@@ -308,6 +308,31 @@ func TestParseTimeRange(t *testing.T) {
 	minTimestamp = time.Date(2023, time.February, 28, 21, 40, 0, 0, time.UTC).UnixNano() - offset
 	maxTimestamp = time.Date(2023, time.April, 7, 0, 0, 0, 0, time.UTC).UnixNano() - 1 - offset
 	f(`[2023-03-01+02:20,2023-04-06T23Z] offset 30m5s`, minTimestamp, maxTimestamp)
+
+	// time range in seconds
+	minTimestamp = 1562529662 * 1e9
+	maxTimestamp = 1562529663 * 1e9
+	f(`[1562529662,1562529663]`, minTimestamp, maxTimestamp)
+
+	// time range in fractional seconds
+	minTimestamp = 1562529662678 * 1e6
+	maxTimestamp = 1562529663679 * 1e6
+	f(`[1562529662.678,1562529663.679]`, minTimestamp, maxTimestamp)
+
+	// time range in milliseconds
+	minTimestamp = 1562529662678 * 1e6
+	maxTimestamp = 1562529662679 * 1e6
+	f(`[1562529662678,1562529662679]`, minTimestamp, maxTimestamp)
+
+	// time range in microseconds
+	minTimestamp = 1562529662678901 * 1e3
+	maxTimestamp = 1562529662678902 * 1e3
+	f(`[1562529662678901,1562529662678902]`, minTimestamp, maxTimestamp)
+
+	// time range in nanoseconds
+	minTimestamp = 1562529662678901234
+	maxTimestamp = 1562529662678901235
+	f(`[1562529662678901234,1562529662678901235]`, minTimestamp, maxTimestamp)
 }
 
 func TestParseFilterSequence(t *testing.T) {

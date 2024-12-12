@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
@@ -10,7 +11,11 @@ import (
 //
 // See https://docs.victoriametrics.com/victorialogs/logsql/#collapse_nums-pipe
 type pipeCollapseNums struct {
+	// the field to collapse nums at
 	field string
+
+	// if isPrettify is set, then collapsed nums are prettified with common placeholders
+	isPrettify bool
 
 	// iff is an optional filter for skipping the collapse_nums operation
 	iff *ifFilter
@@ -23,6 +28,9 @@ func (pc *pipeCollapseNums) String() string {
 	}
 	if pc.field != "_msg" {
 		s += " at " + quoteTokenIfNeeded(pc.field)
+	}
+	if pc.isPrettify {
+		s += " prettify"
 	}
 	return s
 }
@@ -53,6 +61,9 @@ func (pc *pipeCollapseNums) newPipeProcessor(workersCount int, _ <-chan struct{}
 	updateFunc := func(a *arena, v string) string {
 		bLen := len(a.b)
 		a.b = appendCollapseNums(a.b, v)
+		if pc.isPrettify {
+			a.b = appendPrettifyCollapsedNums(a.b[:bLen], a.b[bLen:])
+		}
 		return bytesutil.ToUnsafeString(a.b[bLen:])
 	}
 
@@ -85,9 +96,16 @@ func parsePipeCollapseNums(lex *lexer) (pipe, error) {
 		field = f
 	}
 
+	isPrettify := false
+	if lex.isKeyword("prettify") {
+		lex.nextToken()
+		isPrettify = true
+	}
+
 	pc := &pipeCollapseNums{
-		field: field,
-		iff:   iff,
+		field:      field,
+		isPrettify: isPrettify,
+		iff:        iff,
 	}
 
 	return pc, nil
@@ -166,6 +184,56 @@ func appendCollapseNumsUnicode(dst []byte, s string) []byte {
 	return dst
 }
 
+func appendPrettifyCollapsedNums(dst, src []byte) []byte {
+	dstLen := len(dst)
+	dst = appendReplaceWithSkipTail(dst, src, "<N>-<N>-<N>-<N>-<N>", "<UUID>", nil)
+
+	dst = appendReplaceWithSkipTail(dst[:dstLen], dst[dstLen:], "<N>.<N>.<N>.<N>", "<IP4>", nil)
+	dst = appendReplaceWithSkipTail(dst[:dstLen], dst[dstLen:], "<N>:<N>:<N>", "<TIME>", skipTrailingSubsecs)
+	dst = appendReplaceWithSkipTail(dst[:dstLen], dst[dstLen:], "<N>-<N>-<N>", "<DATE>", nil)
+	dst = appendReplaceWithSkipTail(dst[:dstLen], dst[dstLen:], "<N>/<N>/<N>", "<DATE>", nil)
+	dst = appendReplaceWithSkipTail(dst[:dstLen], dst[dstLen:], "<DATE>T<TIME>", "<DATETIME>", skipTrailingTimezone)
+	dst = appendReplaceWithSkipTail(dst[:dstLen], dst[dstLen:], "<DATE> <TIME>", "<DATETIME>", skipTrailingTimezone)
+
+	return dst
+}
+
+func appendReplaceWithSkipTail(dst, src []byte, old, replacement string, skipTail func(s string) string) []byte {
+	if len(replacement) > len(old) {
+		panic(fmt.Errorf("BUG: len(replacement)=%d cannot exceed len(old)=%d", len(replacement), len(old)))
+	}
+	s := bytesutil.ToUnsafeString(src)
+	for {
+		n := strings.Index(s, old)
+		if n < 0 {
+			return append(dst, s...)
+		}
+		dst = append(dst, s[:n]...)
+		dst = append(dst, replacement...)
+		s = s[n+len(old):]
+		if skipTail != nil {
+			s = skipTail(s)
+		}
+	}
+}
+
+func skipTrailingSubsecs(s string) string {
+	if strings.HasPrefix(s, ".<N>") || strings.HasPrefix(s, ",<N>") {
+		return s[len(".<N>"):]
+	}
+	return s
+}
+
+func skipTrailingTimezone(s string) string {
+	if strings.HasPrefix(s, "Z") {
+		return s[1:]
+	}
+	if strings.HasPrefix(s, "-<N>:<N>") || strings.HasPrefix(s, "+<N>:<N>") {
+		return s[len("-<N>:<N>"):]
+	}
+	return s
+}
+
 func isDecimalOrHexRune(r rune) bool {
 	if r <= '9' && r >= '0' {
 		return true
@@ -201,7 +269,7 @@ func hasHexChars(s string) bool {
 }
 
 func isSpecialStartNumRune(r rune) bool {
-	return r == 'T' || r == 'v' || r == 's' || r == 'h' || r == 'm'
+	return r == 'T' || r == 'X' || r == 'x' || r == 'v' || r == 's' || r == 'h' || r == 'm'
 }
 
 func isSpecialEndNumRune(r rune) bool {
