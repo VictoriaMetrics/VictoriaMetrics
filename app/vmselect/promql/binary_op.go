@@ -522,8 +522,8 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 
 	// Sort series by metric name.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
+	rvs = removeEmptySeries(rvs)
 	sortSeriesByMetricName(rvs)
-
 	return rvs, nil
 }
 
