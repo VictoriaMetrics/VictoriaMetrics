@@ -2,6 +2,15 @@
 
 - TODO
 
+## 0.13.1
+
+**Release date:** 2024-12-13
+
+![AppVersion: v1.107.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.107.0&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- removed .Values.server.enabled, vmalert is now always enabled
+
 ## 0.13.0
 
 **Release date:** 2024-12-02
