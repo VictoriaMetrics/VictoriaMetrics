@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+## [v1.108.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.0)
+
+Released at 2024-12-13
+
 **Update note 1: meaning of `-maxLabelsPerTimeseries` and `-maxLabelValueLen` has been changed. Previously, excessive labels, label names and values were truncated and could result in silent data collision. With the new change time series that are hitting the limits will be dropped instead.**
 
 **Update note 2: `docker_sd_configs` now by default matches only first network if the container has multiple networks defined. This change aligns with Prometheus SD behavior. Please see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7398#issuecomment-2532668582) if you need to match multiple networks.**
