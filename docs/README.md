@@ -1293,13 +1293,13 @@ of time series data. This enables gzip compression for the exported data. Exampl
 curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]={__name__!=""}' > data.jsonl.gz
 ```
 
-
 The maximum duration for each request to `/api/v1/export` is limited by `-search.maxExportDuration` command-line flag.
 
 Exported data can be imported via POST'ing it to [/api/v1/import](#how-to-import-data-in-json-line-format).
 
-The [deduplication](#deduplication) is applied to the data exported via `/api/v1/export` by default. The deduplication
-isn't applied if `reduce_mem_usage=1` query arg is passed to the request.
+By default, data exported via `/api/v1/export` is deduplicated according to [-dedup.minScrapeInterval](#deduplication) setting. 
+Pass GET param `reduce_mem_usage=1` in export request to disable deduplication for recently written data. 
+After [background merges](#storage) deduplication becomes permanent.
 
 ### How to export CSV data
 
@@ -1847,7 +1847,8 @@ For example, `-dedup.minScrapeInterval=60s` would leave a single raw sample with
 This aligns with the [staleness rules in Prometheus](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness).
 
 If multiple raw samples have **the same timestamp** on the given `-dedup.minScrapeInterval` discrete interval, 
-then the sample with **the biggest value** is kept.
+then the sample with **the biggest value** is kept. 
+[Stale markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) are preferred over any other value.
 
 [Prometheus staleness markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) are processed as any other value during de-duplication.
 If raw sample with the biggest timestamp on `-dedup.minScrapeInterval` contains a stale marker, then it is kept after the deduplication.
@@ -2467,11 +2468,12 @@ and [cardinality explorer docs](#cardinality-explorer).
 
 * New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics.
 
-* VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag
-  and ignores series with superfluous labels. This prevents from ingesting metrics with too many labels.
-  It is recommended [monitoring](#monitoring) `vm_rows_ingored_total{reason="too_many_labels"}`
-  metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
-  Alternatively you can use [relabeling](https://docs.victoriametrics.com/single-server-victoriametrics/#relabeling) to change metric target labels.
+* VictoriaMetrics limits the number of labels per each series, label name length and label value length
+  via `-maxLabelsPerTimeseries`, `-maxLabelNameLen` and `-maxLabelValueLen` command-line flags respectively.
+  Series that exceed the limits are ignored on ingestion. This prevents from ingesting malformed series.
+  It is recommended [monitoring](#monitoring) `vm_rows_ingored_total` metric and VictoriaMetrics logs in order 
+  to determine whether limits must be adjusted for your workload.
+  Alternatively, you can use [relabeling](https://docs.victoriametrics.com/single-server-victoriametrics/#relabeling) to change metric target labels.
 
 * If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `{__graphite__="foo.*.baz"}` filter can be used for selecting such metrics.
   See [these docs](#selecting-graphite-metrics) for details. You can also query Graphite metrics with [Graphite querying API](#graphite-render-api-usage).
