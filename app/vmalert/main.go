@@ -303,7 +303,10 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 		"tpl": externalAlertSource,
 	}
 	return func(alert notifier.Alert) string {
-		templated, err := alert.ExecTemplate(nil, alert.Labels, m)
+		qFn := func(_ string) ([]datasource.Metric, error) {
+			return nil, fmt.Errorf("`query` template isn't supported for alert source template")
+		}
+		templated, err := alert.ExecTemplate(qFn, alert.Labels, m)
 		if err != nil {
 			logger.Errorf("cannot template alert source: %s", err)
 		}
