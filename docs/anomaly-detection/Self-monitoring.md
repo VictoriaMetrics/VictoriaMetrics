@@ -135,6 +135,7 @@ These alerting rules complements the [dashboard](#grafana-dashboard) to monitor 
 - **`ProcessNearFDLimits`**: Alerts when the number of available file descriptors falls below 100, which could lead to severe degradation if the limit is exhausted.
 - **`TooHighCPUUsage`**: Alerts when CPU usage exceeds 90% for a continuous 5-minute period, indicating possible resource exhaustion and the need to adjust resource allocation or load.
 - **`TooHighMemoryUsage`**: Alerts when RAM usage exceeds 85% for a continuous 5-minute period and the need to adjust resource allocation or load.
+- **`NoSelfMonitoringMetrics`**: Alerts when vmanomaly up time metric has not been seen in Victoriametrics for 15 minutes, indicating the service is down or unable to push metrics to Victoriametrics.
 
 <img src="firing-alerts-example-too-many-restarts.webp" alt="firing-alerts-example-too-many-restarts" width="800px"/>
 
