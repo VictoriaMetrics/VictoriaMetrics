@@ -1,6 +1,6 @@
  ![Version: 0.8.11](https://img.shields.io/badge/Version-0.8.11-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-logs-single)
-[![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
+[![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://inviter.co/victoriametrics)
 
 Victoria Logs Single version - high-performance, cost-effective and scalable logs storage
 
