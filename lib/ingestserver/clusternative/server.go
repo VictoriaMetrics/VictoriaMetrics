@@ -40,11 +40,11 @@ type Server struct {
 //
 // MustStop must be called on the returned server when it is no longer needed.
 func MustStart(addr string, insertHandler func(c net.Conn) error) *Server {
-	logger.Infof("starting TCP clusternative server at %q", addr)
 	lnTCP, err := netutil.NewTCPListener("clusternative", addr, false, nil)
 	if err != nil {
 		logger.Fatalf("cannot start TCP clusternative server at %q: %s", addr, err)
 	}
+	logger.Infof("started TCP clusternative server at %q", lnTCP.Addr())
 	s := &Server{
 		addr:  addr,
 		lnTCP: lnTCP,
