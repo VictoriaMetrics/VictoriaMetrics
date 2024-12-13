@@ -71,7 +71,7 @@ VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com
 There are the following channels for providing technical support for VictoriaMetrics:
 
 * [GitHub issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
-* [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
+* [Slack Inviter](https://inviter.co/victoriametrics) and [Slack channel](https://victoriametrics.slack.com/)
 * [Telegram channel](https://t.me/VictoriaMetrics_en)
 
 We also provide [Enterprise support](https://docs.victoriametrics.com/enterprise/).

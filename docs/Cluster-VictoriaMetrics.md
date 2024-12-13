@@ -22,7 +22,7 @@ See [this question](https://docs.victoriametrics.com/faq/#which-victoriametrics-
 There is also user-friendly database for logs - [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
 
 If you have questions about VictoriaMetrics, then feel free asking them at [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/),
-you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
+you can join it via [Slack Inviter](https://inviter.co/victoriametrics).
 
 [Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
 See [features available in enterprise package](https://docs.victoriametrics.com/enterprise/).
@@ -1072,7 +1072,7 @@ For accessing vmalerts UI through vmselect configure `-vmalert.proxyURL` flag an
 
 Feel free asking any questions regarding VictoriaMetrics:
 
-* [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
+* [Slack Inviter](https://inviter.co/victoriametrics) and [Slack channel](https://victoriametrics.slack.com/)
 * [X (Twitter)](https://x.com/VictoriaMetrics/)
 * [Linkedin](https://www.linkedin.com/company/victoriametrics/)
 * [Reddit](https://www.reddit.com/r/VictoriaMetrics/)

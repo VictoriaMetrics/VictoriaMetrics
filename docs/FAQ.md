@@ -280,7 +280,7 @@ See also [which type of VictoriaMetrics is recommended to use](#which-victoriame
 
 Questions about VictoriaMetrics can be asked via the following channels:
 
-* [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
+* [Slack Inviter](https://inviter.co/victoriametrics) and [Slack channel](https://victoriametrics.slack.com/)
 * [Telegram channel](https://t.me/VictoriaMetrics_en)
 
 See the full list of [community channels](https://docs.victoriametrics.com/#community-and-contributions).

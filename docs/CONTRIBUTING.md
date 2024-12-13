@@ -11,7 +11,7 @@ aliases:
 ---
 If you like VictoriaMetrics and want to contribute, then it would be great:
 
-- Joining VictoriaMetrics community Slack ([Slack inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/))
+- Joining VictoriaMetrics community Slack ([Slack inviter](https://inviter.co/victoriametrics) and [Slack channel](https://victoriametrics.slack.com/))
   and helping other community members there.
 - Filing issues, feature requests and questions [at VictoriaMetrics GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
 - Improving [VictoriaMetrics docs](https://docs.victoriametrics.com/). See how to update docs [here](https://docs.victoriametrics.com/#documentation).
