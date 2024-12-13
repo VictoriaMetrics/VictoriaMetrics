@@ -2,6 +2,7 @@ package templates
 
 import (
 	"math"
+	"net/url"
 	"strings"
 	"testing"
 	textTpl "text/template"
@@ -152,7 +153,7 @@ func TestTemplatesLoad_Failure(t *testing.T) {
 	f := func(pathPatterns []string, expectedErrStr string) {
 		t.Helper()
 
-		err := Load(pathPatterns, false)
+		err := Load(pathPatterns, url.URL{})
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -171,128 +172,17 @@ func TestTemplatesLoad_Failure(t *testing.T) {
 }
 
 func TestTemplatesLoad_Success(t *testing.T) {
-	f := func(initialTmpl textTemplate, pathPatterns []string, overwrite bool, expectedTmpl textTemplate) {
+	f := func(pathPatterns []string, expectedTmpl textTemplate) {
 		t.Helper()
 
 		masterTmplOrig := masterTmpl
-		masterTmpl = initialTmpl
 		defer func() {
 			masterTmpl = masterTmplOrig
 		}()
 
-		if err := Load(pathPatterns, overwrite); err != nil {
+		if err := Load(pathPatterns, url.URL{}); err != nil {
 			t.Fatalf("cannot load templates: %s", err)
 		}
-
-		if !equalTemplates(masterTmpl.replacement, expectedTmpl.replacement) {
-			t.Fatalf("unexpected replacement template\ngot\n%+v\nwant\n%+v", masterTmpl.replacement, expectedTmpl.replacement)
-		}
-		if !equalTemplates(masterTmpl.current, expectedTmpl.current) {
-			t.Fatalf("unexpected current template\ngot\n%+v\nwant\n%+v", masterTmpl.current, expectedTmpl.current)
-		}
-	}
-
-	// non existing path undefined template override
-	initialTmpl := mkTemplate(nil, nil)
-	pathPatterns := []string{
-		"templates/non-existing/good-*.tpl",
-		"templates/absent/good-*.tpl",
-	}
-	overwrite := true
-	expectedTmpl := mkTemplate(``, nil)
-	f(initialTmpl, pathPatterns, overwrite, expectedTmpl)
-
-	// non existing path defined template override
-	initialTmpl = mkTemplate(`
-		{{- define "test.1" -}}
-			{{- printf "value" -}}
-		{{- end -}}
-	`, nil)
-	pathPatterns = []string{
-		"templates/non-existing/good-*.tpl",
-		"templates/absent/good-*.tpl",
-	}
-	overwrite = true
-	expectedTmpl = mkTemplate(``, nil)
-	f(initialTmpl, pathPatterns, overwrite, expectedTmpl)
-
-	// existing path undefined template override
-	initialTmpl = mkTemplate(nil, nil)
-	pathPatterns = []string{
-		"templates/other/nested/good0-*.tpl",
-		"templates/test/good0-*.tpl",
-	}
-	overwrite = false
-	expectedTmpl = mkTemplate(`
-		{{- define "good0-test.tpl" -}}{{- end -}}
-		{{- define "test.0" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-		{{- define "test.1" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-		{{- define "test.2" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-		{{- define "test.3" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-	`, nil)
-	f(initialTmpl, pathPatterns, overwrite, expectedTmpl)
-
-	// existing path defined template override
-	initialTmpl = mkTemplate(`
-		{{- define "test.1" -}}
-			{{ printf "Hello %s!" "world" }}
-		{{- end -}}
-	`, nil)
-	pathPatterns = []string{
-		"templates/other/nested/good0-*.tpl",
-		"templates/test/good0-*.tpl",
-	}
-	overwrite = false
-	expectedTmpl = mkTemplate(`
-		{{- define "good0-test.tpl" -}}{{- end -}}
-		{{- define "test.0" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-		{{- define "test.1" -}}
-			{{ printf "Hello %s!" "world" }}
-		{{- end -}}
-		{{- define "test.2" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-		{{- define "test.3" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-	`, `
-		{{- define "good0-test.tpl" -}}{{- end -}}
-		{{- define "test.0" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-		{{- define "test.1" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-		{{- define "test.2" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-		{{- define "test.3" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-	`)
-	f(initialTmpl, pathPatterns, overwrite, expectedTmpl)
-}
-
-func TestTemplatesReload(t *testing.T) {
-	f := func(initialTmpl, expectedTmpl textTemplate) {
-		t.Helper()
-
-		masterTmplOrig := masterTmpl
-		masterTmpl = initialTmpl
-		defer func() {
-			masterTmpl = masterTmplOrig
-		}()
-
 		Reload()
 
 		if !equalTemplates(masterTmpl.replacement, expectedTmpl.replacement) {
@@ -303,46 +193,47 @@ func TestTemplatesReload(t *testing.T) {
 		}
 	}
 
-	// empty current and replacement templates
-	f(mkTemplate(nil, nil), mkTemplate(nil, nil))
+	// non existing path
+	pathPatterns := []string{
+		"templates/non-existing/good-*.tpl",
+		"templates/absent/good-*.tpl",
+	}
+	expectedTmpl := mkTemplate(``, nil)
+	f(pathPatterns, expectedTmpl)
 
-	// empty current template only
-	f(mkTemplate(`
-		{{- define "test.1" -}}
-			{{- printf "value" -}}
-		{{- end -}}
-	`, nil), mkTemplate(`
-		{{- define "test.1" -}}
-			{{- printf "value" -}}
-		{{- end -}}
-	`, nil))
-
-	// empty replacement template only
-	f(mkTemplate(nil, `
-		{{- define "test.1" -}}
-			{{- printf "value" -}}
-		{{- end -}}
-	`), mkTemplate(`
-		{{- define "test.1" -}}
-			{{- printf "value" -}}
-		{{- end -}}
-	`, nil))
-
-	// defined both templates
-	f(mkTemplate(`
+	// existing path
+	pathPatterns = []string{
+		"templates/test/good0-*.tpl",
+	}
+	expectedTmpl = mkTemplate(`
+		{{- define "good0-test.tpl" -}}{{- end -}}
 		{{- define "test.0" -}}
-			{{- printf "value" -}}
+			{{ printf "Hello %s!" externalURL }}
+		{{- end -}}
+		{{- define "test.2" -}}
+			{{ printf "Hello %s!" externalURL }}
+		{{- end -}}
+		{{- define "test.3" -}}
+			{{ printf "Hello %s!" externalURL }}
+		{{- end -}}
+	`, nil)
+	f(pathPatterns, expectedTmpl)
+
+	// existing path defined template override
+	pathPatterns = []string{
+		"templates/other/nested/good0-*.tpl",
+	}
+	expectedTmpl = mkTemplate(`
+		{{- define "good0-test.tpl" -}}{{- end -}}
+		{{- define "test.0" -}}
+			{{ printf "Hello %s!" externalURL }}
 		{{- end -}}
 		{{- define "test.1" -}}
-			{{- printf "before" -}}
+			{{ printf "Hello %s!" externalURL }}
 		{{- end -}}
-	`, `
-		{{- define "test.1" -}}
-			{{- printf "after" -}}
+		{{- define "test.3" -}}
+			{{ printf "Hello %s!" externalURL }}
 		{{- end -}}
-	`), mkTemplate(`
-		{{- define "test.1" -}}
-			{{- printf "after" -}}
-		{{- end -}}
-	`, nil))
+	`, nil)
+	f(pathPatterns, expectedTmpl)
 }
