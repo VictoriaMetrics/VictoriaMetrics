@@ -17,6 +17,7 @@ import { DisplayType } from "../../types";
 import Hyperlink from "../../components/Main/Hyperlink/Hyperlink";
 import { CloseIcon } from "../../components/Main/Icons";
 import Button from "../../components/Main/Button/Button";
+import DownloadReport, { ReportType } from "../CustomPanel/DownloadReport/DownloadReport";
 
 const RawSamplesLink = () => (
   <Hyperlink
@@ -65,6 +66,7 @@ const RawQueryPage: FC = () => {
     queryErrors,
     setQueryErrors,
     abortFetch,
+    fetchUrl,
   } = useFetchExport({ hideQuery, showAllSeries });
 
   const controlsRef = useRef<HTMLDivElement>(null);
@@ -106,12 +108,22 @@ const RawQueryPage: FC = () => {
       {showPageDescription && (
         <Alert variant="info">
           <div className="vm-explore-metrics-header-description">
-            <p>
-              This page provides a dedicated view for querying and displaying <RawSamplesLink/> from VictoriaMetrics.
-              It expects only <TimeSeriesSelectorLink/> as a query argument.
-              Users often assume that the <QueryDataLink/> returns data exactly as stored,
-              but data samples and timestamps may be modified by the API.
-            </p>
+            <ul>
+              <li>
+                This page provides a dedicated view for querying and displaying <RawSamplesLink/> from VictoriaMetrics.
+              </li>
+              <li>
+                It expects only <TimeSeriesSelectorLink/> as a query argument.
+              </li>
+              <li>
+                Deduplication can only be disabled if it was previously enabled on the server
+                (<code>-dedup.minScrapeInterval</code>).
+              </li>
+              <li>
+                Users often assume that the <QueryDataLink/> returns data exactly as stored,
+                but data samples and timestamps may be modified by the API.
+              </li>
+            </ul>
             <Button
               variant="text"
               size="small"
@@ -146,6 +158,12 @@ const RawQueryPage: FC = () => {
           <div className="vm-custom-panel-body-header__tabs">
             <DisplayTypeSwitch tabFilter={(tab) => (tab.value !== DisplayType.table)}/>
           </div>
+          {data && (
+            <DownloadReport
+              fetchUrl={fetchUrl}
+              reportType={ReportType.RAW_DATA}
+            />
+          )}
         </div>
         <CustomPanelTabs
           graphData={data}
