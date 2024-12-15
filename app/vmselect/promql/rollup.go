@@ -681,8 +681,6 @@ func (rc *rollupConfig) DoTimeseriesMap(tsm *timeseriesMap, values []float64, ti
 	return samplesScanned
 }
 
-const defaultScrapeInterval = 5 * 60 * 1000
-
 func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, values []float64, timestamps []int64) ([]float64, uint64) {
 	// Sanity checks.
 	if rc.Step <= 0 {
@@ -701,20 +699,25 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	// Extend dstValues in order to remove mallocs below.
 	dstValues = decimal.ExtendFloat64sCapacity(dstValues, len(rc.Timestamps))
 
-	scrapeInterval := getScrapeInterval(timestamps, rc.Step+defaultScrapeInterval)
+	// Use step as the scrape interval for instant queries (when start == end).
+	maxPrevInterval := rc.Step
+	if rc.Start < rc.End {
+		scrapeInterval := getScrapeInterval(timestamps, rc.Step)
+		maxPrevInterval = getMaxPrevInterval(scrapeInterval)
+	}
 
-	if rc.LookbackDelta > 0 && scrapeInterval > rc.LookbackDelta {
-		scrapeInterval = rc.LookbackDelta
+	if rc.LookbackDelta > 0 && maxPrevInterval > rc.LookbackDelta {
+		maxPrevInterval = rc.LookbackDelta
 	}
 	if *minStalenessInterval > 0 {
-		if msi := minStalenessInterval.Milliseconds(); msi > 0 && scrapeInterval < msi {
-			scrapeInterval = msi
+		if msi := minStalenessInterval.Milliseconds(); msi > 0 && maxPrevInterval < msi {
+			maxPrevInterval = msi
 		}
 	}
 	window := rc.Window
 	if window <= 0 {
 		window = rc.Step
-		if rc.MayAdjustWindow && window < scrapeInterval {
+		if rc.MayAdjustWindow && window < maxPrevInterval {
 			// Adjust lookbehind window only if it isn't set explicitly, e.g. rate(foo).
 			// In the case of missing lookbehind window it should be adjusted in order to return non-empty graph
 			// when the window doesn't cover at least two raw samples (this is what most users expect).
@@ -723,7 +726,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 			// then it is expected he knows what he is doing. Do not adjust the lookbehind window then.
 			//
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3483
-			window = scrapeInterval
+			window = maxPrevInterval
 		}
 		if rc.isDefaultRollup && rc.LookbackDelta > 0 && window > rc.LookbackDelta {
 			// Implicit window exceeds -search.maxStalenessInterval, so limit it to -search.maxStalenessInterval
@@ -754,7 +757,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		j += nj
 
 		rfa.prevValue = nan
-		rfa.prevTimestamp = tStart - scrapeInterval
+		rfa.prevTimestamp = tStart - maxPrevInterval
 		if i < len(timestamps) && i > 0 && timestamps[i-1] > rfa.prevTimestamp {
 			rfa.prevValue = values[i-1]
 			rfa.prevTimestamp = timestamps[i-1]
@@ -863,13 +866,13 @@ func getScrapeInterval(timestamps []int64, defaultInterval int64) int64 {
 	if scrapeInterval <= 0 {
 		return defaultInterval
 	}
-	return applyJitter(scrapeInterval)
+	return scrapeInterval
 }
 
-// applyJitter increases scrapeInterval for smaller scrape intervals in order to
-// hide possible gaps when high jitter is present.
-// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/139
-func applyJitter(scrapeInterval int64) int64 {
+func getMaxPrevInterval(scrapeInterval int64) int64 {
+	// Increase scrapeInterval more for smaller scrape intervals in order to hide possible gaps
+	// when high jitter is present.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/139 .
 	if scrapeInterval <= 2*1000 {
 		return scrapeInterval + 4*scrapeInterval
 	}
