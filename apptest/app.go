@@ -15,10 +15,11 @@ import (
 
 // Regular expressions for runtime information to extract from the app logs.
 var (
-	storageDataPathRE = regexp.MustCompile(`successfully opened storage "(.*)"`)
-	httpListenAddrRE  = regexp.MustCompile(`started server at http://(.*:\d{1,5})/`)
-	vminsertAddrRE    = regexp.MustCompile(`accepting vminsert conns at (.*:\d{1,5})$`)
-	vmselectAddrRE    = regexp.MustCompile(`accepting vmselect conns at (.*:\d{1,5})$`)
+	storageDataPathRE           = regexp.MustCompile(`successfully opened storage "(.*)"`)
+	httpListenAddrRE            = regexp.MustCompile(`started server at http://(.*:\d{1,5})/`)
+	vminsertAddrRE              = regexp.MustCompile(`accepting vminsert conns at (.*:\d{1,5})$`)
+	vminsertClusterNativeAddrRE = regexp.MustCompile(`started TCP clusternative server at "(.*:\d{1,5})"`)
+	vmselectAddrRE              = regexp.MustCompile(`accepting vmselect conns at (.*:\d{1,5})$`)
 )
 
 // app represents an instance of some VictoriaMetrics server (such as vmstorage,
@@ -118,6 +119,11 @@ func (app *app) Stop() {
 	if _, err := app.process.Wait(); err != nil {
 		log.Fatalf("Could not wait for %s process completion: %v", app.instance, err)
 	}
+}
+
+// Name returns the application instance name.
+func (app *app) Name() string {
+	return app.instance
 }
 
 // String returns the string representation of the app state.
@@ -238,9 +244,15 @@ func newREExtractor(re *regexp.Regexp, timeout <-chan time.Time) *reExtractor {
 // the function will block.
 func (x *reExtractor) extractRE(line string) bool {
 	submatch := x.re.FindSubmatch([]byte(line))
-	if len(submatch) == 2 {
+	if len(submatch) > 0 {
+		// Some regexps are used to just find a match without submatches.
+		result := ""
+		if len(submatch) > 1 {
+			// But if submatches have been found, return the first one.
+			result = string(submatch[1])
+		}
 		select {
-		case x.result <- string(submatch[1]):
+		case x.result <- result:
 		case <-x.timeout:
 		}
 		return true

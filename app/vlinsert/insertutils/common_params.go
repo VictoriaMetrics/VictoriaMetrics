@@ -137,10 +137,12 @@ func GetCommonParamsForSyslog(tenantID logstorage.TenantID, streamFields, ignore
 
 // LogMessageProcessor is an interface for log message processors.
 type LogMessageProcessor interface {
-	// AddRow must add row to the LogMessageProcessor with the given timestamp and the given fields.
+	// AddRow must add row to the LogMessageProcessor with the given timestamp and fields.
+	//
+	// If streamFields is non-nil, then the given streamFields must be used as log stream fields instead of pre-configured fields.
 	//
 	// The LogMessageProcessor implementation cannot hold references to fields, since the caller can re-use them.
-	AddRow(timestamp int64, fields []logstorage.Field)
+	AddRow(timestamp int64, fields, streamFields []logstorage.Field)
 
 	// MustClose() must flush all the remaining fields and free up resources occupied by LogMessageProcessor.
 	MustClose()
@@ -154,6 +156,9 @@ type logMessageProcessor struct {
 
 	cp *CommonParams
 	lr *logstorage.LogRows
+
+	rowsIngestedTotal  *metrics.Counter
+	bytesIngestedTotal *metrics.Counter
 }
 
 func (lmp *logMessageProcessor) initPeriodicFlush() {
@@ -183,9 +188,15 @@ func (lmp *logMessageProcessor) initPeriodicFlush() {
 }
 
 // AddRow adds new log message to lmp with the given timestamp and fields.
-func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Field) {
+//
+// If streamFields is non-nil, then it is used as log stream fields instead of the pre-configured stream fields.
+func (lmp *logMessageProcessor) AddRow(timestamp int64, fields, streamFields []logstorage.Field) {
 	lmp.mu.Lock()
 	defer lmp.mu.Unlock()
+
+	lmp.rowsIngestedTotal.Inc()
+	n := logstorage.EstimatedJSONRowLen(fields)
+	lmp.bytesIngestedTotal.Add(n)
 
 	if len(fields) > *MaxFieldsPerLine {
 		rf := logstorage.RowFormatter(fields)
@@ -194,7 +205,7 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Fiel
 		return
 	}
 
-	lmp.lr.MustAdd(lmp.cp.TenantID, timestamp, fields)
+	lmp.lr.MustAdd(lmp.cp.TenantID, timestamp, fields, streamFields)
 	if lmp.cp.Debug {
 		s := lmp.lr.GetRowString(0)
 		lmp.lr.ResetKeepSettings()
@@ -227,11 +238,16 @@ func (lmp *logMessageProcessor) MustClose() {
 // NewLogMessageProcessor returns new LogMessageProcessor for the given cp.
 //
 // MustClose() must be called on the returned LogMessageProcessor when it is no longer needed.
-func (cp *CommonParams) NewLogMessageProcessor() LogMessageProcessor {
+func (cp *CommonParams) NewLogMessageProcessor(protocolName string) LogMessageProcessor {
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.ExtraFields, *defaultMsgValue)
+	rowsIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vl_rows_ingested_total{type=%q}", protocolName))
+	bytesIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vl_bytes_ingested_total{type=%q}", protocolName))
 	lmp := &logMessageProcessor{
 		cp: cp,
 		lr: lr,
+
+		rowsIngestedTotal:  rowsIngestedTotal,
+		bytesIngestedTotal: bytesIngestedTotal,
 
 		stopCh: make(chan struct{}),
 	}

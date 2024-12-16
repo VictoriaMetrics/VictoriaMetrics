@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.6](https://img.shields.io/badge/Version-0.12.6-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.13.1](https://img.shields.io/badge/Version-0.13.1-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-alert)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -723,7 +723,7 @@ tag: v0.25.0
 </code>
 </pre>
 </td>
-      <td><p>Service load balacner IP</p>
+      <td><p>Service load balancer IP</p>
 </td>
     </tr>
     <tr>
@@ -960,7 +960,7 @@ name: ""
 </code>
 </pre>
 </td>
-      <td><p>VMAlert alert rules configuration configuration. Use existing configmap if specified</p>
+      <td><p>VMAlert alert rules configuration. Use existing configmap if specified</p>
 </td>
     </tr>
     <tr>
@@ -1012,17 +1012,6 @@ username: ""
 </pre>
 </td>
       <td><p>Token Auth file with Bearer token. You can use one of token or tokenFile</p>
-</td>
-    </tr>
-    <tr>
-      <td>server.enabled</td>
-      <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
-<code class="language-yaml">true
-</code>
-</pre>
-</td>
-      <td><p>Create vmalert component</p>
 </td>
     </tr>
     <tr>
@@ -1682,7 +1671,7 @@ tokenFile: ""
 </code>
 </pre>
 </td>
-      <td><p>Service load balacner IP</p>
+      <td><p>Service load balancer IP</p>
 </td>
     </tr>
     <tr>

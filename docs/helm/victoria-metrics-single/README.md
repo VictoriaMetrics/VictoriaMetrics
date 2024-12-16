@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.12.7](https://img.shields.io/badge/Version-0.12.7-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.13.1](https://img.shields.io/badge/Version-0.13.1-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-single)
 
 Victoria Metrics Single version - high-performance, cost-effective and scalable TSDB, long-term remote storage for Prometheus
@@ -907,7 +907,7 @@ enabled: false
 </code>
 </pre>
 </td>
-      <td><p>Data retention period in month</p>
+      <td><p>Data retention period. Possible units character: h(ours), d(ays), w(eeks), y(ears), if no unit character specified - month. The minimum retention period is 24h. See these <a href="https://docs.victoriametrics.com/single-server-victoriametrics/#retention" target="_blank">docs</a></p>
 </td>
     </tr>
     <tr>
@@ -1281,7 +1281,7 @@ scrape_configs:
 </code>
 </pre>
 </td>
-      <td><p>Service load balacner IP</p>
+      <td><p>Service load balancer IP</p>
 </td>
     </tr>
     <tr>

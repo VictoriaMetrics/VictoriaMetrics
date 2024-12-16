@@ -1,5 +1,33 @@
 ## Next release
 
+- TODO
+
+## 1.6.11
+
+**Release date:** 2024-12-03
+
+![AppVersion: v1.18.8](https://img.shields.io/static/v1?label=AppVersion&message=v1.18.8&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Upgraded ['vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) to [1.18.8](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1188).
+
+## 1.6.10
+
+**Release date:** 2024-12-02
+
+![AppVersion: v1.18.7](https://img.shields.io/static/v1?label=AppVersion&message=v1.18.7&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Upgraded ['vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) to [1.18.7](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1187).
+
+## 1.6.9
+
+**Release date:** 2024-12-01
+
+![AppVersion: v1.18.6](https://img.shields.io/static/v1?label=AppVersion&message=v1.18.6&color=success&logo=)
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Upgraded ['vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) to [1.18.6](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1186).
 - updated common dependency 0.0.32 -> 0.0.33
 
 ## 1.6.8
@@ -403,5 +431,5 @@
 ![AppVersion: v1.1.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.1.0&color=success&logo=)
 ![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
 
-* relase vmanomaly v1.1.0 (#454)
+* release vmanomaly v1.1.0 (#454)
 * vmanomaly: fix config for pull-based monitoring (#446)

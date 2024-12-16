@@ -598,7 +598,7 @@ func (wctx *pipeUniqWriteContext) flush() {
 	}
 }
 
-func parsePipeUniq(lex *lexer) (*pipeUniq, error) {
+func parsePipeUniq(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("uniq") {
 		return nil, fmt.Errorf("expecting 'uniq'; got %q", lex.token)
 	}

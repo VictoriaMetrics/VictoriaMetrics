@@ -783,10 +783,11 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 
 func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	uis := ac.Users
-	if len(uis) == 0 && ac.UnauthorizedUser == nil {
-		return nil, fmt.Errorf("Missing `users` or `unauthorized_user` sections")
-	}
 	byAuthToken := make(map[string]*UserInfo, len(uis))
+	if len(uis) == 0 && ac.UnauthorizedUser == nil {
+		// fast path for empty configuration
+		return byAuthToken, nil
+	}
 	for i := range uis {
 		ui := &uis[i]
 		ats, err := getAuthTokens(ui.AuthToken, ui.BearerToken, ui.Username, ui.Password)

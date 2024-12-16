@@ -385,9 +385,9 @@ func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
 	br.bm = bm
 }
 
-// intersectsTimeRange returns true if br timestamps intersect (minTimestamp .. maxTimestamp) time range.
+// intersectsTimeRange returns true if br timestamps intersect [minTimestamp .. maxTimestamp] time range.
 func (br *blockResult) intersectsTimeRange(minTimestamp, maxTimestamp int64) bool {
-	return minTimestamp < br.getMaxTimestamp(minTimestamp) && maxTimestamp > br.getMinTimestamp(maxTimestamp)
+	return minTimestamp <= br.getMaxTimestamp(minTimestamp) && maxTimestamp >= br.getMinTimestamp(maxTimestamp)
 }
 
 func (br *blockResult) getMinTimestamp(minTimestamp int64) int64 {

@@ -1,5 +1,22 @@
 package storage
 
+import (
+	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+)
+
+// SetDedupInterval sets the deduplication interval, which is applied to raw samples during data ingestion and querying.
+//
+// De-duplication is disabled if dedupInterval is 0.
+//
+// This function must be called before initializing the storage.
+func SetDedupInterval(dedupInterval time.Duration) {
+	globalDedupInterval = dedupInterval.Milliseconds()
+}
+
+var globalDedupInterval int64
+
 func isDedupEnabled() bool {
 	return len(downsamplingPeriods) > 0
 }
@@ -27,6 +44,12 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64, dedupInterva
 		vPrev := srcValues[j]
 		for j > 0 && srcTimestamps[j-1] == tsPrev {
 			j--
+			if decimal.IsStaleNaN(srcValues[j]) {
+				// always prefer decimal.IsStaleNaN to avoid inconsistency when comparing values
+				// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7674
+				vPrev = srcValues[j]
+				break
+			}
 			if srcValues[j] > vPrev {
 				vPrev = srcValues[j]
 			}
@@ -42,8 +65,15 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64, dedupInterva
 	j := len(srcTimestamps) - 1
 	tsPrev := srcTimestamps[j]
 	vPrev := srcValues[j]
+	// Invariant: vPrev > srcValues[j]
 	for j > 0 && srcTimestamps[j-1] == tsPrev {
 		j--
+		if decimal.IsStaleNaN(srcValues[j]) {
+			// always prefer decimal.IsStaleNaN to avoid inconsistency when comparing values
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7674
+			vPrev = srcValues[j]
+			break
+		}
 		if srcValues[j] > vPrev {
 			vPrev = srcValues[j]
 		}
@@ -73,6 +103,12 @@ func deduplicateSamplesDuringMerge(srcTimestamps, srcValues []int64, dedupInterv
 		vPrev := srcValues[j]
 		for j > 0 && srcTimestamps[j-1] == tsPrev {
 			j--
+			if decimal.IsStaleNaNInt64(srcValues[j]) {
+				// always prefer decimal.IsStaleNaN to avoid inconsistency when comparing values
+				// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7674
+				vPrev = srcValues[j]
+				break
+			}
 			if srcValues[j] > vPrev {
 				vPrev = srcValues[j]
 			}
@@ -88,8 +124,20 @@ func deduplicateSamplesDuringMerge(srcTimestamps, srcValues []int64, dedupInterv
 	j := len(srcTimestamps) - 1
 	tsPrev := srcTimestamps[j]
 	vPrev := srcValues[j]
+	if decimal.IsStaleNaNInt64(vPrev) {
+		// fast path - decimal.StaleNaN is always preferred to other values on interval
+		dstTimestamps = append(dstTimestamps, tsPrev)
+		dstValues = append(dstValues, vPrev)
+		return dstTimestamps, dstValues
+	}
 	for j > 0 && srcTimestamps[j-1] == tsPrev {
 		j--
+		if decimal.IsStaleNaNInt64(srcValues[j]) {
+			// always prefer decimal.IsStaleNaN to avoid inconsistency when comparing values
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7674
+			vPrev = srcValues[j]
+			break
+		}
 		if srcValues[j] > vPrev {
 			vPrev = srcValues[j]
 		}

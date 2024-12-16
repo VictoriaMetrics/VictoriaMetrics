@@ -15,7 +15,10 @@ type testLogMessageProcessor struct {
 	pr PushRequest
 }
 
-func (tlp *testLogMessageProcessor) AddRow(timestamp int64, fields []logstorage.Field) {
+func (tlp *testLogMessageProcessor) AddRow(timestamp int64, fields, streamFields []logstorage.Field) {
+	if streamFields != nil {
+		panic(fmt.Errorf("unexpected non-nil streamFields: %v", streamFields))
+	}
 	msg := ""
 	for _, f := range fields {
 		if f.Name == "_msg" {
@@ -50,23 +53,21 @@ func TestParseProtobufRequest_Success(t *testing.T) {
 		t.Helper()
 
 		tlp := &testLogMessageProcessor{}
-		n, err := parseJSONRequest([]byte(s), tlp)
-		if err != nil {
+		if err := parseJSONRequest([]byte(s), tlp, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if n != len(tlp.pr.Streams) {
-			t.Fatalf("unexpected number of streams; got %d; want %d", len(tlp.pr.Streams), n)
+		if len(tlp.pr.Streams) != len(timestampsExpected) {
+			t.Fatalf("unexpected number of streams; got %d; want %d", len(tlp.pr.Streams), len(timestampsExpected))
 		}
 
 		data := tlp.pr.MarshalProtobuf(nil)
 		encodedData := snappy.Encode(nil, data)
 
 		tlp2 := &insertutils.TestLogMessageProcessor{}
-		n, err = parseProtobufRequest(encodedData, tlp2)
-		if err != nil {
+		if err := parseProtobufRequest(encodedData, tlp2, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if err := tlp2.Verify(n, timestampsExpected, resultExpected); err != nil {
+		if err := tlp2.Verify(timestampsExpected, resultExpected); err != nil {
 			t.Fatal(err)
 		}
 	}

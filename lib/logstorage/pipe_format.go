@@ -3,6 +3,8 @@ package logstorage
 import (
 	"fmt"
 	"math"
+	"unicode"
+	"unicode/utf8"
 	"unsafe"
 
 	"github.com/valyala/quicktemplate"
@@ -188,15 +190,6 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 			c := br.getColumnByName(step.field)
 			v := c.getValueAtRow(br, rowIdx)
 			switch step.fieldOpt {
-			case "q":
-				b = quicktemplate.AppendJSONString(b, v, true)
-			case "time":
-				nsecs, ok := tryParseInt64(v)
-				if !ok {
-					b = append(b, v...)
-					continue
-				}
-				b = marshalTimestampRFC3339NanoString(b, nsecs)
 			case "duration":
 				nsecs, ok := tryParseInt64(v)
 				if !ok {
@@ -211,6 +204,19 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 					continue
 				}
 				b = marshalIPv4String(b, uint32(ipNum))
+			case "lc":
+				b = appendLowercase(b, v)
+			case "time":
+				nsecs, ok := tryParseInt64(v)
+				if !ok {
+					b = append(b, v...)
+					continue
+				}
+				b = marshalTimestampRFC3339NanoString(b, nsecs)
+			case "q":
+				b = quicktemplate.AppendJSONString(b, v, true)
+			case "uc":
+				b = appendUppercase(b, v)
 			default:
 				b = append(b, v...)
 			}
@@ -221,7 +227,7 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 	return bytesutil.ToUnsafeString(b[bLen:])
 }
 
-func parsePipeFormat(lex *lexer) (*pipeFormat, error) {
+func parsePipeFormat(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("format") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "format")
 	}
@@ -279,4 +285,20 @@ func parsePipeFormat(lex *lexer) (*pipeFormat, error) {
 	}
 
 	return pf, nil
+}
+
+func appendUppercase(dst []byte, s string) []byte {
+	for _, r := range s {
+		r = unicode.ToUpper(r)
+		dst = utf8.AppendRune(dst, r)
+	}
+	return dst
+}
+
+func appendLowercase(dst []byte, s string) []byte {
+	for _, r := range s {
+		r = unicode.ToLower(r)
+		dst = utf8.AppendRune(dst, r)
+	}
+	return dst
 }

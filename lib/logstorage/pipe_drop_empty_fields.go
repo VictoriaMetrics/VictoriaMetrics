@@ -200,7 +200,7 @@ func (wctx *pipeDropEmptyFieldsWriteContext) flush() {
 	}
 }
 
-func parsePipeDropEmptyFields(lex *lexer) (*pipeDropEmptyFields, error) {
+func parsePipeDropEmptyFields(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("drop_empty_fields") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "drop_empty_fields")
 	}

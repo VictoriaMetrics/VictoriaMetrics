@@ -13,12 +13,26 @@ aliases:
 
 ## tip
 
+**Update note 1: `labels` and `annotations` inheritance is deprecated and will be remove at upcoming `v0.52.0` release. It's recommend to move all needed labels and annotations to the `spec.managedMetadata` fields.
+Operator will preserve `annotations`, but any changes to it will be ignored. `labels` inherited from `CRD.metata.labels` will be removed after upgrade to `v0.52.0`
+
+- [vmagent](https://docs.victoriametrics.com/operator/resources/vmagent/): change the default ClusterRole and ClusterRoleBinding name to avoid resource collisions when `vmagentSpec.ServiceAccountName` is null. See [this issue](https://github.com/VictoriaMetrics/operator/issues/891).
+- [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0).
+- [vmoperator](https://docs.victoriametrics.com/operator/): fix the behaviors of `vmagentSpec.ScrapeConfigSelector` and `vmagentSpec.scrapeConfigNamespaceSelector` when `vmagentSpec.selectAllByDefault=false`. Previously, the VMScrapeConfig could be ignored.
+- [vmoperator](https://docs.victoriametrics.com/operator/): fix the behaviors of `xxxNamespaceSelector` when `vmagentSpec.selectAllByDefault=true`. See [this doc](https://docs.victoriametrics.com/operator/resources/vmagent/#scraping) for detailed rules.
+.**
+- [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0).
+- [api](https://docs.victoriametrics.com/operator/api): add new field `managedMetadata` to `VMCluster.spec`, `VMAgent.spec`,`VMAlert.spec`, `VMAuth.spec`,`VMAlertmanager.Spec`, `VMSingle.spec` and`VLogs.spec`. It controls `labels` and `annotations` added to the objects created operator (such as `Deployment`). See [this issue](https://github.com/VictoriaMetrics/operator/issues/1171) for details.
+- [api](https://docs.victoriametrics.com/operator/api): upgrade Kubernetes(v0.31.3) and controller-runtime(v1.19.3) dependencies. Remove versions pin with `replace` directive from `go.mod`.
+
+## [v0.50.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.50.0) - 22 Nov 2024
+
 - [vmoperator](https://docs.victoriametrics.com/operator/): add missing `container` labels to the metrics discovered with `VMServiceScrape` for `endpointslices` discovery role.
 - [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1).
 - [vmoperator](https://docs.victoriametrics.com/operator/): add new variable `VM_VMSERVICESCRAPEDEFAULT_ENFORCEENDPOINTSLICES` to use `endpointslices` instead of `endpoints` as discovery role for VMServiceScrape when generate scrape config for VMAgent.
 - [vmoperator](https://docs.victoriametrics.com/operator/): adds new flag `loggerJSONFields` to the operator logger configuration. It allows to change json encoder fields. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1157) for details.
 - [api](https://docs.victoriametrics.com/operator/api): adds new status field `observedGeneration`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1155) for details.
-- [api](https://docs.victoriametrics.com/operator/api): unify `updateStatus` field for CRD objects. It replaces `status`, `clusterStatus` and `singleStatus` for `VLogs`, `VMCluster` and `VMSingle` with generic `updateStatus`. 
+- [api](https://docs.victoriametrics.com/operator/api): unify `updateStatus` field for CRD objects. It replaces `status`, `clusterStatus` and `singleStatus` for `VLogs`, `VMCluster` and `VMSingle` with generic `updateStatus`.
 
 ## [v0.49.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.1) - 11 Nov 2024
 
@@ -78,7 +92,7 @@ aliases:
 - [vmsingle/vlogs](https://docs.victoriametrics.com/operator/resources): makes better compatible with argo-cd by adding ownerReference to PersistentVolumeClaim. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1091) for details.
 - [operator](https://docs.victoriametrics.com/operator/): reduces reconcile latency. See this [commit](2a9d09d0131cc10a0f9e32f0e2e054687ada78f7) for details.
 - [operator](https://docs.victoriametrics.com/operator/): reduces load on kubernetes api-server. See this commits: [commit-0](a0145b8a89dd5bb9051f8d4359b6a70c1d1a95ce), [commit-1](e2fbbd3e37146670f656d700ad0f64b2c299b0a0), [commit-2](184ba19a5f1d10dc2ac1bf018b2729f64e2a8c25).
-- [operator](https://docs.victoriametrics.com/operator/): enables client cache back for `secrets` and `configmaps`. Adds new flag `-controller.disableCacheFor=seccret,configmap` to disable it if needed.
+- [operator](https://docs.victoriametrics.com/operator/): enables client cache back for `secrets` and `configmaps`. Adds new flag `-controller.disableCacheFor=secret,configmap` to disable it if needed.
 - [operator](https://docs.victoriametrics.com/operator/): made webhook port configurable. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1106) for details.
 - [operator](https://docs.victoriametrics.com/operator/): operator trims spaces from `Secret` and `Configmap` values by default. This behaviour could be changed with flag `disableSecretKeySpaceTrim`. Related [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6986).
 - [operator](#https://docs.victoriametrics.com/operator/): expose again only command-line flags related to the operator. Release [v0.45.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.45.0) added regression with incorrectly exposed flags.

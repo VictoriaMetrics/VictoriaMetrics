@@ -18,26 +18,62 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+## [v1.108.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.0)
+
+Released at 2024-12-13
+
+**Update note 1: meaning of `-maxLabelsPerTimeseries` and `-maxLabelValueLen` has been changed. Previously, excessive labels, label names and values were truncated and could result in silent data collision. With the new change time series that are hitting the limits will be dropped instead.**
+
+**Update note 2: `docker_sd_configs` now by default matches only first network if the container has multiple networks defined. This change aligns with Prometheus SD behavior. Please see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7398#issuecomment-2532668582) if you need to match multiple networks.**
+
+* SECURITY: upgrade Go builder from Go1.23.3 to Go1.23.4. See the list of issues addressed in [Go1.23.4](https://github.com/golang/go/issues?q=milestone%3AGo1.23.4+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.20.3 to 3.21.0. See [alpine 3.21.0 release notes](https://alpinelinux.org/posts/Alpine-3.21.0-released.html).
+
+* FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): changes behaviour of meaning of `-maxLabelsPerTimeseries` and `-maxLabelValueLen` flag limits, time series that are hitting the limits will be dropped. And removes corresponding metrics `vm_too_long_label_values_total`, `vm_too_long_label_names_total`, `vm_metrics_with_dropped_labels_total`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6928).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent): support `-maxLabelsPerTimeseries`, `-maxLabelNameLen` and `-maxLabelValueLen` flags to limit amount of labels, label name and value length for pushed or scraped series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6928).
+* FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): adds new values `[too_many_labels,too_long_label_name,too_long_label_value]` to `reason` label of the `vm_rows_ignored_total` exposed metric name. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6928).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): add `match_first_network` support for docker service discovery. It uses the first network if the container has multiple networks defined. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7398).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): [Docker service discovery](https://docs.victoriametrics.com/sd_configs/#docker_sd_configs) now supports containers discovery via [linked networks](https://docs.docker.com/reference/cli/docker/network/connect/#link). See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7626) for details.
+* FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards): add `NodeBecomesReadonlyIn3Days` alert for detecting storages that will switch to read-only mode soon.
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): allow to start `vmauth` with empty configuration file. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6467) for details.
+* FEATURE: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): support debug mode for alerting rule. See [this doc](https://docs.victoriametrics.com/vmalert-tool/#debug-mode).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): update error messages for Clipboard API issues with docs links. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7677).
+
+* BUGFIX: all VictoriaMetrics components: consistently deduplicate values with stale markers within deduplication interval. Previously, deduplication could randomly prefer stale marker or value on the deduplication interval. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7674) for details. Thanks to @tIGO for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7675).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): add missing common service labels for docker swarm service discovery when `role` is set to `tasks`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7800).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): properly template rule annotations and labels with `define` and `block` template functions. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7771) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): properly reload external templates defined with `-rule.templates`. Previously `externalURL` function worked incorrectly. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7773) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fix requests routing by host when using `src_hosts`. Previously, request header could be ignored.See [this PR]() for details.
+* BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): prevent backup scheduler from scheduling two backups immediately one after another.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly parse the query rollup window specified in milliseconds. Previous implementation could lead to precision issues resulting in the parsed window being smaller by 1ms. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5796) for details.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly schedule historical data de-duplication at enterprise version with `-dedup.minScrapeInterval` configured. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7764) for details. Issue was introduced at [v1.106.1](https://docs.victoriametrics.com/changelog/#v11061) release.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): prevent accordion from collapsing when selecting text in headers. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7742).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix query interval display in the instant query info. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7401).
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): respect `-search.skipSlowReplicas` when `-globalReplicationFactor` > 1. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6924).
+
 ## [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
 
-Released at 2023-11-29
+Released at 2024-11-29
 
-**Update note 1: cmd-line flags `-datasource.lookback`, `datasource.queryTimeAlignment` and `remoteRead.ignoreRestoreErrors` on [vmalert](https://docs.victoriametrics.com/vmalert/) have been removed. Those flags were all deprecated before [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).**
+**Update note 1: cmd-line flags `-datasource.lookback`, `datasource.queryTimeAlignment` and `remoteRead.ignoreRestoreErrors` on [vmalert](https://docs.victoriametrics.com/vmalert/) have been removed. Those flags were deprecated before [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).**
 
-* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert): revert the default value of `-remoteWrite.maxQueueSize` from `1_000_000` to `100_000`. It was bumped in [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0), which increases memory usage and is not needed for most setups. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7471).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add `Raw Query` tab for displaying raw data. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7024).
-* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add support for template alias in predefined panels. This allows creating more readable metric names in the legend using constructions like `{{label_name}}`, where `label_name` is the name of the label. [See this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/116101da78a4dee8bd7c4ba0e66458fd05a10469#diff-95141489b32468cf852d2705d96eaa48c50a8b1cdd0424a29e7ca289912a6dcbR140-R151)
-* FEATURE: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): add `ignore_first_sample_interval` param to [aggregation config](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config). It allows users to control the time interval when aggregation skips sending aggregated samples to avoid unexpected spikes in values. By default, this interval is set to x2 of `staleness_interval`. The new setting is applicable only to `total`, `total_prometheus`, `increase`, `increase_prometheus` and `histogram_bucket` outputs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7116) for details. Thanks to @iyuroch for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7313).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): add `dump_request_on_errors` bool setting to [auth config](https://docs.victoriametrics.com/vmauth/#auth-config) for debugging HTTP requests that missed routing rules. This should improve debugability of vmauth settings.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): add `real_ip_header` setting to [ip_filters](https://docs.victoriametrics.com/vmauth/#ip-filters) and corresponding global flag `httpRealIPHeader`. It allows `vmauth` obtain client IP from HTTP headers for filtering. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6883) for details.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): expose new metrics `vmauth_user_ip_denies_total`, `vmauth_global_ip_denies_total` and `vmauth_unauthorized_user_ip_denies_total` for `ip_filters`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6883) for details.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): add `dryRun` flag to validate configuration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7505) for details.
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): add `removeXFFHTTPHeaderValue` flag to remove content of `X-Forwarded-For` HTTP Header before proxy it to the backend. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6883) for details.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert): revert the default value of `-remoteWrite.maxQueueSize` from `1_000_000` to `100_000`. It was bumped in [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0), which increases memory usage and is not needed for most setups. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7471).
+* FEATURE: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/): add `ignore_first_sample_interval` param to [aggregation config](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config). It allows users to control the time interval when aggregation skips sending aggregated samples to avoid unexpected spikes in values. By default, this interval is set to x2 of `staleness_interval`. The new setting is applicable only to `total`, `total_prometheus`, `increase`, `increase_prometheus` and `histogram_bucket` outputs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7116) for details. Thanks to @iyuroch for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7313).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add support for template alias in predefined panels. This allows creating more readable metric names in the legend using constructions like `{{label_name}}`, where `label_name` is the name of the label. [See this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/116101da78a4dee8bd7c4ba0e66458fd05a10469#diff-95141489b32468cf852d2705d96eaa48c50a8b1cdd0424a29e7ca289912a6dcbR140-R151)
 
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): properly parse `multitenant` token value for multitenant endpoints. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7694).
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): Properly return `200 OK` HTTP status code when importing data via [Pushgateway protocol](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format) using [multitenant URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7571).
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): Properly set `TCP` connection timeout for `Kubernetes API server` connection for metric scrapping with `kubernetes_sd_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7127).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): properly parse `multitenant` token value for multitenant endpoints. Before, pushing data into vmagent using [multitenant URL](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format) resulted in unsupported path. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7694).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): return `200 OK` HTTP status code when importing data via [Pushgateway protocol](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format) using [multitenant URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7571).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): properly set `TCP` connection timeout for `Kubernetes API server` connection for metric scrapping with `kubernetes_sd_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7127).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): fix the `resource_group` filter for Azure service discovery on virtual machine scale sets. Previously, this filter did not apply to virtual machine scale sets, causing all virtual machines to be discovered. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7630).
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fix possible runtime `panic` introduced at `v1.104.0` release. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly handle [multitenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) query request errors and correctly perform search for available tenants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details. This is follow-up after [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1) release changes.
+* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly set `multitenant` cache expiration duration with `search.tenantCacheExpireDuration`. Previously flag always used default value.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly init `ip_filters` for `unauthorized_user` config section. Previously it was ignored and `vmauth` didn't apply `ip_filter` for `unauthorized` access.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return result for binary operation `^` aka pow at query requests for `NaN` values. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7359) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix rendering of isolated data points on the graph that are not connected to other points.
@@ -45,12 +81,12 @@ Released at 2023-11-29
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): improve the correctness of alert [state restoration](https://docs.victoriametrics.com/vmalert/#alerts-state-on-restarts). Previously, it could result in false-positive alerts if alert was resolved shortly before vmalert restart.
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): exit immediately with error message if no test file is found under specified `-files`.
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): print an error message if no rule group is found in `rule_files`.
-* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Properly handle [multitenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) query request errors and correctly perform search for available tenants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details. This is follow-up after [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1) release changes.
-* BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly set `multitenant` cache expiration duration with `search.tenantCacheExpireDuration`. Previously flag always used default value.
 
 ## [v1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1)
 
 Released at 2024-11-15
+
+ It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/changelog/#v11070) because [v1.106.1](https://docs.victoriametrics.com/changelog/#v11061) contains a bug introduced at [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040), which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
 
 * SECURITY: upgrade Go builder from Go1.23.1 to Go1.23.3. See the list of issues addressed in [Go1.23.2](https://github.com/golang/go/issues?q=milestone%3AGo1.23.2+label%3ACherryPickApproved) and [Go1.23.3](https://github.com/golang/go/issues?q=milestone%3AGo1.23.3+label%3ACherryPickApproved).
 
@@ -68,41 +104,11 @@ Released at 2024-11-15
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): Properly handle [multitenant](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) query request errors and correctly perform search for available tenants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
 * BUGFIX: `vmagent`, `vminsert` and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fix a performance issue with tenant metrics counters across large numbers of tenants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7482) for details.
 
-## [v1.102.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.7)
-
-Released at 2024-11-15
-
-**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
-All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
-
-* SECURITY: upgrade Go builder from Go1.23.1 to Go1.23.3. See the list of issues addressed in [Go1.23.2](https://github.com/golang/go/issues?q=milestone%3AGo1.23.2+label%3ACherryPickApproved) and [Go1.23.3](https://github.com/golang/go/issues?q=milestone%3AGo1.23.3+label%3ACherryPickApproved).
-
-* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): drop rows that do not belong to the current series during import. The dropped rows should belong to another series whose tags are a superset of the current series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7301) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7330). Thanks to @dpedu for reporting and cooperating with the test.
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): keep the order of resulting time series when `limit_offset` is applied. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7068).
-* BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): properly handle xFilesFactor=0 for `transformRemoveEmptySeries` function. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7337) for details.
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth): properly check availability of all the backends before giving up when proxying requests. Previously, vmauth could return an error even if there were healthy backends available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3061) for details.
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fixed unauthorized routing behavior inconsistency. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7543) for details.
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly inherit [`drop_src_path_prefix_parts`](https://docs.victoriametrics.com/vmauth/#dropping-request-path-prefix), [`load_balancing_policy`](https://docs.victoriametrics.com/vmauth/#high-availability), [`retry_status_codes`](https://docs.victoriametrics.com/vmauth/#load-balancing) and [`discover_backend_ips`](https://docs.victoriametrics.com/vmauth/#discovering-backend-ips) options by `url_map` entries if `url_prefix` option isn't set at the [user config level](https://docs.victoriametrics.com/vmauth/#auth-config). These options were inherited only when the `url_prefix` option was set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7519).
-* BUGFIX: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards): add `file` label filter to vmalert dashboard panels. Previously, metrics from groups with the same name but different rule files could be mixed in the results.
-
-## [v1.97.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.12)
-
-Released at 2024-11-15
-
-**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
-All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
-The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
-
-* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): drop rows that do not belong to the current series during import. The dropped rows should belong to another series whose tags are a superset of the current series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7301) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7330). Thanks to @dpedu for reporting and cooperating with the test.
-* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): keep the order of resulting time series when `limit_offset` is applied. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7068).
-* BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): properly handle xFilesFactor=0 for `transformRemoveEmptySeries` function. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7337) for details.
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth): properly check availability of all the backends before giving up when proxying requests. Previously, vmauth could return an error even if there were healthy backends available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3061) for details.
-* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fixed unauthorized routing behavior inconsistency. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7543) for details.
-
 ## [v1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0)
 
 Released at 2024-11-04
+
+ It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/changelog/#v11070) because [v1.106.0](https://docs.victoriametrics.com/changelog/#v11060) contains a bug introduced at [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040), which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
 
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): support [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) as a datasource. See [this doc](https://docs.victoriametrics.com/victorialogs/vmalert/) for details.
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): `-rule` cmd-line flag now supports multi-document YAML files. This could be useful when rules are retrieved via HTTP URL where multiple rule files were merged together in one response. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6753). Thanks to @Irene-123 for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6995).
@@ -123,6 +129,8 @@ Released at 2024-11-04
 ## [v1.105.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.105.0)
 
 Released at 2024-10-21
+
+ It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/changelog/#v11070) because [v1.105.0](https://docs.victoriametrics.com/changelog/#v11050) contains a bug introduced at [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040), which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
 
 **Update note 1: `-search.maxUniqueTimeseries` limit on `vmselect` can no longer exceed `-search.maxUniqueTimeseries` limit on `vmstorage`. If you don't set this flag at `vmstorage`, then it will be automatically calculated based on available resources. This can result into rejecting expensive read queries if they exceed auto-calculated limit. The limit can be overridden by manually setting `-search.maxUniqueTimeseries` at vmstorage, but for better reliability we recommend sticking to default values. Refer to the CHANGELOG below and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6930).**
 
@@ -151,6 +159,8 @@ Released at 2024-10-21
 ## [v1.104.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.104.0)
 
 Released at 2024-10-02
+
+ It is recommended upgrading to [v1.107.0](https://docs.victoriametrics.com/changelog/#v11070) because [v1.104.0](https://docs.victoriametrics.com/changelog/#v11040) contains a bug, which can lead to runtime panic at `vmselect` component. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7549) for details.
 
 **Update note 1: `*.passwordFile` and similar flags are trimming trailing whitespaces at the end of content. If authorization check performed with `*.passwordFile` content, make sure to update authorization settings to not include trailing whitespaces before the upgrade. In case of [operator](https://docs.victoriametrics.com/operator/) managed installations, make sure to update operator version to [v0.48.*](https://docs.victoriametrics.com/operator/changelog/#v0480---25-sep-2024). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6986) for the details. This change reverts behavior introduced at [v1.102.0-rc2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.0-rc2) release**
 
@@ -231,6 +241,40 @@ Released at 2024-08-28
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): fix metric names registering in the per-day index for new dates for existing time series when making calls to `/tags/tagSeries` and `/tags/tagMultiSeries` handlers of [Graphite API](https://docs.victoriametrics.com/#graphite-api-usage). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6872/) for details.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly ignore deleted metrics when applying [retention filters](https://docs.victoriametrics.com/#retention-filters) and [downsampling](https://docs.victoriametrics.com/#downsampling). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6891) issue for the details.
 
+## [v1.102.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.8)
+
+Released at 2024-11-29
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): properly parse `multitenant` token value for multitenant endpoints. Before, pushing data into vmagent using [multitenant URL](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format) resulted in unsupported path. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7694).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): return `200 OK` HTTP status code when importing data via [Pushgateway protocol](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format) using [multitenant URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7571).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): properly set `TCP` connection timeout for `Kubernetes API server` connection for metric scrapping with `kubernetes_sd_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7127).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): fix the `resource_group` filter for Azure service discovery on virtual machine scale sets. Previously, this filter did not apply to virtual machine scale sets, causing all virtual machines to be discovered. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7630).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly init `ip_filters` for `unauthorized_user` config section. Previously it was ignored and `vmauth` didn't apply `ip_filter` for `unauthorized` access.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return result for binary operation `^` aka pow at query requests for `NaN` values. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7359) for details.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix for `showLegend` and `alias` flags in predefined panels. [See this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7565)
+
+## [v1.102.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.7)
+
+Released at 2024-11-15
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* SECURITY: upgrade Go builder from Go1.23.1 to Go1.23.3. See the list of issues addressed in [Go1.23.2](https://github.com/golang/go/issues?q=milestone%3AGo1.23.2+label%3ACherryPickApproved) and [Go1.23.3](https://github.com/golang/go/issues?q=milestone%3AGo1.23.3+label%3ACherryPickApproved).
+
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): drop rows that do not belong to the current series during import. The dropped rows should belong to another series whose tags are a superset of the current series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7301) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7330). Thanks to @dpedu for reporting and cooperating with the test.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): keep the order of resulting time series when `limit_offset` is applied. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7068).
+* BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): properly handle xFilesFactor=0 for `transformRemoveEmptySeries` function. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7337) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth): properly check availability of all the backends before giving up when proxying requests. Previously, vmauth could return an error even if there were healthy backends available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3061) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fixed unauthorized routing behavior inconsistency. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7543) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly inherit [`drop_src_path_prefix_parts`](https://docs.victoriametrics.com/vmauth/#dropping-request-path-prefix), [`load_balancing_policy`](https://docs.victoriametrics.com/vmauth/#high-availability), [`retry_status_codes`](https://docs.victoriametrics.com/vmauth/#load-balancing) and [`discover_backend_ips`](https://docs.victoriametrics.com/vmauth/#discovering-backend-ips) options by `url_map` entries if `url_prefix` option isn't set at the [user config level](https://docs.victoriametrics.com/vmauth/#auth-config). These options were inherited only when the `url_prefix` option was set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7519).
+* BUGFIX: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards): add `file` label filter to vmalert dashboard panels. Previously, metrics from groups with the same name but different rule files could be mixed in the results.
+
 ## [v1.102.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.6)
 
 Released at 2024-11-04
@@ -240,7 +284,7 @@ All these fixes are also included in [the latest community release](https://gith
 The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): properly set `group_name` and `file` fields for recording rules in `/api/v1/rules`.
-* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic when ingesting samples which are outisde of configured [retention filters](https://docs.victoriametrics.com/#retention-filters). This could happen when backfilling data with retention filters which exclude samples from the backfill range.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic when ingesting samples which are outside of configured [retention filters](https://docs.victoriametrics.com/#retention-filters). This could happen when backfilling data with retention filters which exclude samples from the backfill range.
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): fix issue with series matching for `vmctl vm-native` with `--vm-native-disable-per-metric-migration` flag enabled. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7309).
 
 ## [v1.102.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.5)
@@ -651,6 +695,34 @@ Released at 2024-02-14
 * BUGFIX: [dashboards](https://grafana.com/orgs/victoriametrics): update `Storage full ETA` panels for Single-node and Cluster dashboards to prevent them from showing negative or blank results caused by increase of deduplicated samples. Deduplicated samples were part of the expression to provide a better estimate for disk usage, but due to sporadic nature of [deduplication](https://docs.victoriametrics.com/#deduplication) in VictoriaMetrics it rather produced skewed results. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/5747).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/#vmalert): reduce memory usage for ENT version of vmalert for configurations with high number of groups with enabled multitenancy.
 
+## [v1.97.13](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.13)
+
+Released at 2024-11-29
+
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): return `200 OK` HTTP status code when importing data via [Pushgateway protocol](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format) using [multitenant URL format](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7571).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): properly set `TCP` connection timeout for `Kubernetes API server` connection for metric scrapping with `kubernetes_sd_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7127).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent): fix the `resource_group` filter for Azure service discovery on virtual machine scale sets. Previously, this filter did not apply to virtual machine scale sets, causing all virtual machines to be discovered. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7630).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly init `ip_filters` for `unauthorized_user` config section. Previously it was ignored and `vmauth` didn't apply `ip_filter` for `unauthorized` access.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return result for binary operation `^` aka pow at query requests for `NaN` values. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7359) for details.
+
+## [v1.97.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.12)
+
+Released at 2024-11-15
+
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): drop rows that do not belong to the current series during import. The dropped rows should belong to another series whose tags are a superset of the current series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7301) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7330). Thanks to @dpedu for reporting and cooperating with the test.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): keep the order of resulting time series when `limit_offset` is applied. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7068).
+* BUGFIX: [graphite](https://docs.victoriametrics.com/#graphite-render-api-usage): properly handle xFilesFactor=0 for `transformRemoveEmptySeries` function. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7337) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth): properly check availability of all the backends before giving up when proxying requests. Previously, vmauth could return an error even if there were healthy backends available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3061) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fixed unauthorized routing behavior inconsistency. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7543) for details.
+
 ## [v1.97.11](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.11)
 
 Released at 2024-11-04
@@ -660,7 +732,7 @@ All these fixes are also included in [the latest community release](https://gith
 The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert): properly set `group_name` and `file` fields for recording rules in `/api/v1/rules`.
-* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic when ingesting samples which are outisde of configured [retention filters](https://docs.victoriametrics.com/#retention-filters). This could happen when backfilling data with retention filters which exclude samples from the backfill range.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic when ingesting samples which are outside of configured [retention filters](https://docs.victoriametrics.com/#retention-filters). This could happen when backfilling data with retention filters which exclude samples from the backfill range.
 
 ## [v1.97.10](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.10)
 

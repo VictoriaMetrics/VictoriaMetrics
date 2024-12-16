@@ -459,7 +459,7 @@ func (ptp *pipeTopProcessor) mergeShardsParallel() ([]*pipeTopEntry, error) {
 			}
 			perShardMaps[0][idx] = nil
 
-			entriess[idx] = getTopEntries(m, ptp.pt.limit, ptp.stopCh)
+			entriess[idx] = getTopEntries(m, limit, ptp.stopCh)
 		}(i)
 	}
 	wg.Wait()
@@ -631,7 +631,7 @@ func (wctx *pipeTopWriteContext) flush() {
 	}
 }
 
-func parsePipeTop(lex *lexer) (*pipeTop, error) {
+func parsePipeTop(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("top") {
 		return nil, fmt.Errorf("expecting 'top'; got %q", lex.token)
 	}

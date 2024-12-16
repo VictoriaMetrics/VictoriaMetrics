@@ -59,14 +59,9 @@ func insertRows(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Labe
 		for _, label := range extraLabels {
 			ctx.AddLabel(label.Name, label.Value)
 		}
-		if hasRelabeling {
-			ctx.ApplyRelabeling()
-		}
-		if len(ctx.Labels) == 0 {
-			// Skip metric without labels.
+		if !ctx.TryPrepareLabels(hasRelabeling) {
 			continue
 		}
-		ctx.SortLabelsIfNeeded()
 		var metricNameRaw []byte
 		var err error
 		samples := ts.Samples

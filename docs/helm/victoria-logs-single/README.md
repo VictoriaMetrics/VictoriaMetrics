@@ -1,4 +1,4 @@
- ![Version: 0.8.7](https://img.shields.io/badge/Version-0.8.7-informational?style=flat-square)
+ ![Version: 0.8.11](https://img.shields.io/badge/Version-0.8.11-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-logs-single)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -853,6 +853,17 @@ timeoutSeconds: 5
 </td>
     </tr>
     <tr>
+      <td>server.retentionDiskSpaceUsage</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Data retention max capacity. Default unit is GiB. See these <a href="https://docs.victoriametrics.com/victorialogs/#retention-by-disk-space-usage" target="_blank">docs</a></p>
+</td>
+    </tr>
+    <tr>
       <td>server.retentionPeriod</td>
       <td>int</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="">
@@ -860,7 +871,7 @@ timeoutSeconds: 5
 </code>
 </pre>
 </td>
-      <td><p>Data retention period in month</p>
+      <td><p>Data retention period. Possible units character: h(ours), d(ays), w(eeks), y(ears), if no unit character specified - month. The minimum retention period is 24h. See these <a href="https://docs.victoriametrics.com/victorialogs/#retention" target="_blank">docs</a></p>
 </td>
     </tr>
     <tr>
@@ -975,7 +986,7 @@ readOnlyRootFilesystem: true
 </code>
 </pre>
 </td>
-      <td><p>Service load balacner IP</p>
+      <td><p>Service load balancer IP</p>
 </td>
     </tr>
     <tr>
@@ -1158,7 +1169,11 @@ readOnlyRootFilesystem: true
       <td>vector</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">containerPorts:
+<code class="language-yaml">args:
+    - -w
+    - --config-dir
+    - /etc/vector/
+containerPorts:
     - containerPort: 9090
       name: prom-exporter
       protocol: TCP
@@ -1209,8 +1224,6 @@ dataDir: /vector-data-dir
 enabled: false
 existingConfigMaps:
     - vl-config
-podMonitor:
-    enabled: false
 resources: {}
 role: Agent
 service:

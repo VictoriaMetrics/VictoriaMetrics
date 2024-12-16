@@ -23,6 +23,81 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
+// ProcessFacetsRequest handles /select/logsql/facets request.
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-facets
+func ProcessFacetsRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	q, tenantIDs, err := parseCommonArgs(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+
+	limit, err := httputils.GetInt(r, "limit")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	maxValuesPerField, err := httputils.GetInt(r, "max_values_per_field")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	maxValueLen, err := httputils.GetInt(r, "max_value_len")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+
+	q.DropAllPipes()
+	q.AddFacetsPipe(limit, maxValuesPerField, maxValueLen)
+
+	var mLock sync.Mutex
+	m := make(map[string][]facetEntry)
+	writeBlock := func(_ uint, _ []int64, columns []logstorage.BlockColumn) {
+		if len(columns) == 0 || len(columns[0].Values) == 0 {
+			return
+		}
+		if len(columns) != 3 {
+			logger.Panicf("BUG: expecting 3 columns; got %d columns", len(columns))
+		}
+
+		fieldNames := columns[0].Values
+		fieldValues := columns[1].Values
+		hits := columns[2].Values
+
+		bb := blockResultPool.Get()
+		for i := range fieldNames {
+			fieldName := strings.Clone(fieldNames[i])
+			fieldValue := strings.Clone(fieldValues[i])
+			hitsStr := strings.Clone(hits[i])
+
+			mLock.Lock()
+			m[fieldName] = append(m[fieldName], facetEntry{
+				value: fieldValue,
+				hits:  hitsStr,
+			})
+			mLock.Unlock()
+		}
+		blockResultPool.Put(bb)
+	}
+
+	// Execute the query
+	if err := vlstorage.RunQuery(ctx, tenantIDs, q, writeBlock); err != nil {
+		httpserver.Errorf(w, r, "cannot execute query [%s]: %s", q, err)
+		return
+	}
+
+	// Write response
+	w.Header().Set("Content-Type", "application/json")
+	WriteFacetsResponse(w, m)
+}
+
+type facetEntry struct {
+	value string
+	hits  string
+}
+
 // ProcessHitsRequest handles /select/logsql/hits request.
 //
 // See https://docs.victoriametrics.com/victorialogs/querying/#querying-hits-stats
