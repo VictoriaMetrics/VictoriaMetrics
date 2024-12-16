@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.30.3](https://img.shields.io/badge/Version-0.30.3-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.31.0](https://img.shields.io/badge/Version-0.31.0-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-k8s-stack)
 
 Kubernetes monitoring on VictoriaMetrics stack. Includes VictoriaMetrics Operator, Grafana dashboards, ServiceScrapes and VMRules
@@ -2009,6 +2009,10 @@ vmScrapes:
         enabled: true
         spec:
             path: /metrics/probes
+    resources:
+        enabled: true
+        spec:
+            path: /metrics/resource
 </code>
 </pre>
 </td>
@@ -2077,6 +2081,19 @@ spec:
 </pre>
 </td>
       <td><p>Enable scraping /metrics/probes from kubelet&rsquo;s service</p>
+</td>
+    </tr>
+    <tr>
+      <td>kubelet.vmScrapes.resources</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
+spec:
+    path: /metrics/resource
+</code>
+</pre>
+</td>
+      <td><p>Enabled scraping /metrics/resource from kubelet&rsquo;s service</p>
 </td>
     </tr>
     <tr>
