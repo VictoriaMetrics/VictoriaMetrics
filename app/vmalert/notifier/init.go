@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -93,12 +92,10 @@ var (
 func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (func() []Notifier, error) {
 	externalURL = extURL
 	externalLabels = extLabels
-	eu, err := url.Parse(externalURL)
+	_, err := url.Parse(externalURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse external URL: %w", err)
 	}
-
-	templates.UpdateWithFuncs(templates.FuncsWithExternalURL(eu))
 
 	if *blackHole {
 		if len(*addrs) > 0 || *configPath != "" {

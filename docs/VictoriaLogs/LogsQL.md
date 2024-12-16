@@ -1361,7 +1361,7 @@ See also:
 
 ### collapse_nums pipe
 
-`| collapse_nums at <field>` pipe replaces all the decimal and hexadecimal numbers at the given [`<field>`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with `<N>`.
+`| collapse_nums at <field>` pipe replaces all the decimal and hexadecimal numbers at the given [`<field>`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with `<N>` placeholder.
 For example, if the `_msg` field contains `2024-10-20T12:34:56Z request duration 1.34s`, then it is replaced with `<N>-<N>-<N>T<N>:<N>:<N>Z request duration <N>.<N>s` by the following query:
 
 ```logsql
@@ -1386,11 +1386,11 @@ _time:1h | collapse_nums | top 5 by (_msg)
 
 `collapse_nums` can detect certain patterns in the collapsed numbers and replace them with the corresponding placeholders if `prettify` suffix is added to the `collapse_nums` pipe:
 
-- `<N>-<N>-<N>-<N>-<N>` is replaced with `<UUID>`.
-- `<N>.<N>.<N>.<N>` is replaced with `<IP4>`.
-- `<N>:<N>:<N>` is replaced with `<TIME>`. Optional fractional seconds after the time are treated as a part of `<TIME>`.
-- `<N>-<N>-<N>` and `<N>/<N>/<N>` is replaced with `<DATE>`.
-- `<N>-<N>-<N>T<N>:<N>:<N>` and `<N>-<N>-<N> <N>:<N>:<N>` is replaced with `<DATETIME>`. Optional timezone after the datetime is treated as a part of `<DATETIME>`.
+- `<N>-<N>-<N>-<N>-<N>` is replaced with `<UUID>` placeholder.
+- `<N>.<N>.<N>.<N>` is replaced with `<IP4>` placeholder.
+- `<N>:<N>:<N>` is replaced with `<TIME>` placeholder. Optional fractional seconds after the time are treated as a part of `<TIME>`.
+- `<N>-<N>-<N>` and `<N>/<N>/<N>` is replaced with `<DATE>` placeholder.
+- `<N>-<N>-<N>T<N>:<N>:<N>` and `<N>-<N>-<N> <N>:<N>:<N>` is replaced with `<DATETIME>` placeholder. Optional timezone after the datetime is treated as a part of `<DATETIME>`.
 
 For example, the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 `2edfed59-3e98-4073-bbb2-28d321ca71a7 - [2024/12/08 15:21:02] 10.71.20.32 GET /foo 200` is replaced with `<UUID> - [<DATETIME>] <IP4> GET /foo <N>`
@@ -1399,6 +1399,9 @@ when the following query is executed:
 ```logsql
 _time:1h | collapse_nums prettify
 ```
+
+`collapse_nums` can miss some numbers or can collapse unexpected numbers. In this case [conditional `collapse_nums`](#conditional-collapse_nums) can be used
+for skipping such values and pre-processing them separately with [`replace_regexp`](#replace_regexp-pipe).
 
 See also:
 
