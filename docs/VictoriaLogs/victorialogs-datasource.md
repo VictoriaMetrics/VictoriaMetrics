@@ -260,7 +260,7 @@ yarn build:zip
 From the root folder of the project run the following command:
 
 ```
-make victorialogs-backend-plugin-build
+make vl-backend-plugin-build
 ```
 
 This command will build executable multi-platform files to the `victorialogs-datasource` folder for the following platforms:
@@ -278,7 +278,7 @@ This command will build executable multi-platform files to the `victorialogs-dat
 From the root folder of the project run the following command:
 
 ```
-make victorialogs-frontend-plugin-build
+make vl-frontend-plugin-build
 ```
 
 This command will build all frontend app into `victorialogs-datasource` folder.
@@ -288,7 +288,7 @@ This command will build all frontend app into `victorialogs-datasource` folder.
 When frontend and backend parts of the plugin is required, run the following command from the root folder of the project:
 
 ```
-make victorialogs-datasource-plugin-build
+make vl-plugin-build
 ```
 
 This command will build frontend part and backend part or the plugin and locate both parts into `victorialogs-datasource` folder.
