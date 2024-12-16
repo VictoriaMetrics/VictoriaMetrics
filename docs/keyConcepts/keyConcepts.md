@@ -594,8 +594,8 @@ The result of Range query is a list of [time series](https://docs.victoriametric
 matching the filter in `query` expression. Each returned series contains `(timestamp, value)` results for the `query` executed
 at `start`, `start+step`, `start+2*step`, ..., `start+N*step` timestamps. In other words, Range query is an [Instant query](#instant-query)
 executed independently at `start`, `start+step`, ..., `start+N*step` timestamps with the only difference that an instant query
-does not return `ephemeral` samples (see below). Instead, if the database does not contain any samples for the requested
-point and time and step, it simply returns an empty result.
+does not return `ephemeral` samples (see below). Instead, if the database does not contain any samples for the requested time and step,
+it simply returns an empty result.
 
 
 For example, to get the values of `foo_bar` during the time range from `2022-05-10T07:59:00Z` to `2022-05-10T08:17:00Z`,
