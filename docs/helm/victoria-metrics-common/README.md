@@ -32,7 +32,7 @@ The following table lists the template functions of the chart and description.
     <tr>
       <td>unitTest</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
