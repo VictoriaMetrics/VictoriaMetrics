@@ -2009,6 +2009,10 @@ vmScrapes:
         enabled: true
         spec:
             path: /metrics/probes
+    resources:
+        enabled: true
+        spec:
+            path: /metrics/resource
 </code>
 </pre>
 </td>
@@ -2077,6 +2081,19 @@ spec:
 </pre>
 </td>
       <td><p>Enable scraping /metrics/probes from kubelet&rsquo;s service</p>
+</td>
+    </tr>
+    <tr>
+      <td>kubelet.vmScrapes.resources</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
+spec:
+    path: /metrics/resource
+</code>
+</pre>
+</td>
+      <td><p>Enabled scraping /metrics/resource from kubelet&rsquo;s service</p>
 </td>
     </tr>
     <tr>
