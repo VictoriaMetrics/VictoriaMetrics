@@ -1,0 +1,48 @@
+@use "src/styles/variables" as *;
+
+.vm-group-logs-configurator {
+  display: grid;
+  gap: calc($padding-large * 2);
+  padding: $padding-global 0;
+  width: 600px;
+
+  &-item {
+    display: grid;
+    grid-template-columns: 1fr 31px;
+    align-items: center;
+    justify-content: stretch;
+    gap: 0 $padding-small;
+
+    &__info {
+      margin-top: $padding-small;
+      grid-column: 1/span 2;
+      font-size: $font-size-small;
+      color: $color-text-secondary;
+      line-height: 130%;
+
+      &_input {
+        margin-top: 0;
+      }
+    }
+  }
+
+  &-button {
+    position: relative;
+
+    &__marker {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background-color: $color-secondary;
+    }
+  }
+
+  &__tooltip {
+    ul {
+      list-style-position: inside;
+    }
+  }
+}

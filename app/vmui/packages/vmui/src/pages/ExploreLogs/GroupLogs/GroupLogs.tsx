@@ -1,24 +1,19 @@
-import React, { FC, useCallback, useEffect, useMemo, useRef } from "preact/compat";
-import { MouseEvent, useState } from "react";
+import React, { FC, useCallback, useEffect, useMemo } from "preact/compat";
+import { useState } from "react";
 import "./style.scss";
 import { Logs } from "../../../api/types";
 import Accordion from "../../../components/Main/Accordion/Accordion";
 import { groupByMultipleKeys } from "../../../utils/array";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
-import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import GroupLogsItem from "./GroupLogsItem";
-import { useAppState } from "../../../state/common/StateContext";
-import classNames from "classnames";
 import Button from "../../../components/Main/Button/Button";
-import { CollapseIcon, ExpandIcon, StorageIcon } from "../../../components/Main/Icons";
-import Popper from "../../../components/Main/Popper/Popper";
-import TextField from "../../../components/Main/TextField/TextField";
-import useBoolean from "../../../hooks/useBoolean";
-import useStateSearchParams from "../../../hooks/useStateSearchParams";
+import { CollapseIcon, ExpandIcon } from "../../../components/Main/Icons";
 import { useSearchParams } from "react-router-dom";
 import { getStreamPairs } from "../../../utils/logs";
-
-const WITHOUT_GROUPING = "No Grouping";
+import GroupLogsConfigurators
+  from "../../../components/LogsConfigurators/GroupLogsConfigurators/GroupLogsConfigurators";
+import GroupLogsHeader from "./GroupLogsHeader";
+import { LOGS_DISPLAY_FIELDS, LOGS_GROUP_BY, LOGS_URL_PARAMS, WITHOUT_GROUPING } from "../../../constants/logs";
 
 interface Props {
   logs: Logs[];
@@ -26,47 +21,22 @@ interface Props {
 }
 
 const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
-  const { isDarkTheme } = useAppState();
-  const copyToClipboard = useCopyToClipboard();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   const [expandGroups, setExpandGroups] = useState<boolean[]>([]);
-  const [groupBy, setGroupBy] = useStateSearchParams("_stream", "groupBy");
-  const [copied, setCopied] = useState<string | null>(null);
-  const [searchKey, setSearchKey] = useState("");
-  const optionsButtonRef = useRef<HTMLDivElement>(null);
 
-  const {
-    value: openOptions,
-    toggle: toggleOpenOptions,
-    setFalse: handleCloseOptions,
-  } = useBoolean(false);
+  const groupBy = searchParams.get(LOGS_URL_PARAMS.GROUP_BY) || LOGS_GROUP_BY;
+  const displayFieldsString = searchParams.get(LOGS_URL_PARAMS.DISPLAY_FIELDS) || LOGS_DISPLAY_FIELDS;
+  const displayFields = displayFieldsString.split(",");
 
   const expandAll = useMemo(() => expandGroups.every(Boolean), [expandGroups]);
-
-  const logsKeys = useMemo(() => {
-    const excludeKeys = ["_msg", "_time"];
-    const uniqKeys = Array.from(new Set(logs.map(l => Object.keys(l)).flat()));
-    return [WITHOUT_GROUPING, ...uniqKeys.filter(k => !excludeKeys.includes(k))];
-  }, [logs]);
-
-  const filteredLogsKeys = useMemo(() => {
-    if (!searchKey) return logsKeys;
-    try {
-      const regexp = new RegExp(searchKey, "i");
-      return logsKeys.filter(item => regexp.test(item))
-        .sort((a, b) => (a.match(regexp)?.index || 0) - (b.match(regexp)?.index || 0));
-    } catch (e) {
-      return [];
-    }
-  }, [logsKeys, searchKey]);
 
   const groupData = useMemo(() => {
     return groupByMultipleKeys(logs, [groupBy]).map((item) => {
       const streamValue = item.values[0]?.[groupBy] || "";
       const pairs = getStreamPairs(streamValue);
       // values sorting by time
-      const values = item.values.sort((a,b) => new Date(b._time).getTime() - new Date(a._time).getTime());
+      const values = item.values.sort((a, b) => new Date(b._time).getTime() - new Date(a._time).getTime());
       return {
         keys: item.keys,
         keysString: item.keys.join(""),
@@ -75,23 +45,6 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
       };
     }).sort((a, b) => a.keysString.localeCompare(b.keysString)); // groups sorting
   }, [logs, groupBy]);
-
-  const handleClickByPair = (value: string) => async (e: MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-    const isKeyValue = /(.+)?=(".+")/.test(value);
-    const copyValue = isKeyValue ? `${value.replace(/=/, ": ")}` : `${groupBy}: "${value}"`;
-    const isCopied = await copyToClipboard(copyValue);
-    if (isCopied) {
-      setCopied(value);
-    }
-  };
-
-  const handleSelectGroupBy = (key: string) => () => {
-    setGroupBy(key);
-    searchParams.set("groupBy", key);
-    setSearchParams(searchParams);
-    handleCloseOptions();
-  };
 
   const handleToggleExpandAll = useCallback(() => {
     setExpandGroups(new Array(groupData.length).fill(!expandAll));
@@ -105,11 +58,6 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
     });
   }, []);
 
-  useEffect(() => {
-    if (copied === null) return;
-    const timeout = setTimeout(() => setCopied(null), 2000);
-    return () => clearTimeout(timeout);
-  }, [copied]);
 
   useEffect(() => {
     setExpandGroups(new Array(groupData.length).fill(true));
@@ -124,38 +72,16 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
             key={item.keysString}
           >
             <Accordion
-              key={String(expandGroups[i])}
               defaultExpanded={expandGroups[i]}
               onChange={handleChangeExpand(i)}
-              title={groupBy !== WITHOUT_GROUPING && (
-                <div className="vm-group-logs-section-keys">
-                  <span className="vm-group-logs-section-keys__title">Group by <code>{groupBy}</code>:</span>
-                  {item.pairs.map((pair) => (
-                    <Tooltip
-                      title={copied === pair ? "Copied" : "Copy to clipboard"}
-                      key={`${item.keysString}_${pair}`}
-                      placement={"top-center"}
-                    >
-                      <div
-                        className={classNames({
-                          "vm-group-logs-section-keys__pair": true,
-                          "vm-group-logs-section-keys__pair_dark": isDarkTheme
-                        })}
-                        onClick={handleClickByPair(pair)}
-                      >
-                        {pair}
-                      </div>
-                    </Tooltip>
-                  ))}
-                  <span className="vm-group-logs-section-keys__count">{item.values.length} entries</span>
-                </div>
-              )}
+              title={groupBy !== WITHOUT_GROUPING && <GroupLogsHeader group={item}/>}
             >
               <div className="vm-group-logs-section-rows">
                 {item.values.map((value) => (
                   <GroupLogsItem
                     key={`${value._msg}${value._time}`}
                     log={value}
+                    displayFields={displayFields}
                   />
                 ))}
               </div>
@@ -175,47 +101,7 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
               ariaLabel={expandAll ? "Collapse All" : "Expand All"}
             />
           </Tooltip>
-          <Tooltip title={"Group by"}>
-            <div ref={optionsButtonRef}>
-              <Button
-                variant="text"
-                startIcon={<StorageIcon/>}
-                onClick={toggleOpenOptions}
-                ariaLabel={"Group by"}
-              />
-            </div>
-          </Tooltip>
-          {
-            <Popper
-              open={openOptions}
-              placement="bottom-right"
-              onClose={handleCloseOptions}
-              buttonRef={optionsButtonRef}
-            >
-              <div className="vm-list vm-group-logs-header-keys">
-                <div className="vm-group-logs-header-keys__search">
-                  <TextField
-                    label="Search key"
-                    value={searchKey}
-                    onChange={setSearchKey}
-                    type="search"
-                  />
-                </div>
-                {filteredLogsKeys.map(id => (
-                  <div
-                    className={classNames({
-                      "vm-list-item": true,
-                      "vm-list-item_active": id === groupBy
-                    })}
-                    key={id}
-                    onClick={handleSelectGroupBy(id)}
-                  >
-                    {id}
-                  </div>
-                ))}
-              </div>
-            </Popper>
-          }
+          <GroupLogsConfigurators logs={logs}/>
         </div>
       ), settingsRef.current)}
     </>
