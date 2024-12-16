@@ -18,7 +18,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
-**Update note 1: meaning of `-maxLabelsPerTimeseries` and `-maxLabelValueLen` has been changed. Previously, excessive labels, label names and values were truncated and could result in silent data collision. With the new change time series that are hitting the limits will be dropped instead.**
+**Update note 1: meaning of `-maxLabelsPerTimeseries` and `-maxLabelValueLen` has been changed. Previously, excessive labels, label names and values were truncated and could result in silent data collision. With the new change time series that are hitting the limits will be dropped instead. These events are reflected in logs and in `vm_rows_ignored_total` metric. The previous metrics `vm_too_long_label_values_total`, `vm_too_long_label_names_total`, `vm_metrics_with_dropped_labels_total` are deprecated.**
 
 **Update note 2: `docker_sd_configs` now by default matches only first network if the container has multiple networks defined. This change aligns with Prometheus SD behavior. Please see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7398#issuecomment-2532668582) if you need to match multiple networks.**
 
