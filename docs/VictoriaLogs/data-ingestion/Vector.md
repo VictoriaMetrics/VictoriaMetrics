@@ -122,8 +122,8 @@ sinks:
 
 ## HTTP
 
-Vector can be configured with [HTTP](https://vector.dev/docs/reference/configuration/sinks/http/) sink type 
-for sending data to [JSON stream API](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api) format:
+Vector can be configured with [HTTP sink type](https://vector.dev/docs/reference/configuration/sinks/http/)
+for sending data to VictoriaLogs via [JSON stream API](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api) format:
 
 ```yaml
 sinks:
