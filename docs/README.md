@@ -1794,8 +1794,6 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   The duration of the export queries is limited via `-search.maxExportDuration` flag. This option allows limiting memory usage.
 - `-search.maxTSDBStatusSeries` limits maximum number of time series, which can be processed during the call to [/api/v1/status/tsdb](#tsdb-stats).
   The duration of the status queries is limited via `-search.maxStatusRequestDuration` flag. This option allows limiting memory usage.
-- `-search.maxDeleteSeries` limits maximum number of time series, which can be deleted using [/api/v1/admin/tsdb/delete_series](#how-to-delete-time-series).
-  The duration of the delete queries is limited via `-search.maxQueryDuration` flag. This option allows limiting memory usage.
 
 See also [resource usage limits at VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#resource-usage-limits),
 [cardinality limiter](#cardinality-limiter) and [capacity planning docs](#capacity-planning).
