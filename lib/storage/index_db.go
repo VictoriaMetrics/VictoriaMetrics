@@ -140,19 +140,66 @@ func getTagFiltersCacheSize() int {
 	return maxTagFiltersCacheSize
 }
 
-// mustOpenIndexDB opens index db from the given path.
+// mustOpenLegacyIndexDB opens legacy index db from the given path.
+// Legacy IndexDB is previous implementation of inverted index, it is monolith,
+// (not broken down into partitions) and contains records for the entire
+// retention period.
+//
+// Legacy IndexDB operates in read-only mode to enable retrieval of index
+// records that have been written before the Partition IndexDB was implemented.
+// And once the retention period is over, the Legacy IndexDB will be discarded.
+// As retention periods can last for years, Legacy IndexDB code will remain here
+// for very long time.
 //
 // The last segment of the path should contain unique hex value which
 // will be then used as indexDB.generation
-func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) *indexDB {
-	if s == nil {
-		logger.Panicf("BUG: Storage must be nin-nil")
-	}
-
+func mustOpenLegacyIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) *indexDB {
 	name := filepath.Base(path)
 	gen, err := strconv.ParseUint(name, 16, 64)
 	if err != nil {
 		logger.Panicf("FATAL: cannot parse indexdb path %q: %s", path, err)
+	}
+
+	return mustOpenIndexDB(gen, name, path, s, isReadOnly)
+}
+
+// partitionNameToGeneration converts the partition name to the IndexDB generation.
+//
+// IndexDB generation is Unix nanos since 1970-01-01. Earlier dates (negative
+// Unix nanos) are currenly not supported.
+//
+// For example 2024_01 will be converted to 1704067200000000000.
+func partitionNameToGeneration(partitionName string) (uint64, error) {
+	t, err := partitionNameToTime(partitionName)
+	if err != nil {
+		return 0, nil
+	}
+	nanos := t.UnixNano()
+	if nanos < 0 {
+		return 0, fmt.Errorf("unsupporte partition: got %q, want > 1970_01", partitionName)
+	}
+	return uint64(nanos), nil
+}
+
+// mustOpenLegacyIndexDB opens a partition IndexDB from the given path.
+// Partition IndexDB is one that is a part of a data partition. This is the
+// current implementation of IndexDB.
+//
+// The last segment of the path should contain the name of the partition which
+// will be then used as indexDB.generation
+func mustOpenPartitionIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) *indexDB {
+	name := filepath.Base(path)
+	gen, err := partitionNameToGeneration(name)
+	if err != nil {
+		logger.Panicf("FATAL: cannot parse indexdb path %q: %s", path, err)
+	}
+
+	return mustOpenIndexDB(gen, name, path, s, isReadOnly)
+}
+
+func mustOpenIndexDB(gen uint64, name, path string, s *Storage, isReadOnly *atomic.Bool) *indexDB {
+	if s == nil {
+		logger.Panicf("BUG: Storage must be nin-nil")
 	}
 
 	tb := mergeset.MustOpenTable(path, invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
@@ -563,6 +610,7 @@ func generateTSID(dst *TSID, mn *MetricName) {
 	dst.MetricID = generateUniqueMetricID()
 }
 
+// TODO(@rtm0): Why creation of the index is a part of index search?
 func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	ii := getIndexItems()
 	defer putIndexItems(ii)

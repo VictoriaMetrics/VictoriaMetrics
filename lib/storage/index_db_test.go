@@ -568,7 +568,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 	tableName := nextIndexDBTableName()
 	for i := 0; i < 5; i++ {
 		var isReadOnly atomic.Bool
-		db := mustOpenIndexDB(tableName, &s, &isReadOnly)
+		db := mustOpenLegacyIndexDB(tableName, &s, &isReadOnly)
 		db.MustClose()
 	}
 	if err := os.RemoveAll(tableName); err != nil {

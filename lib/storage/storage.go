@@ -240,12 +240,15 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	fs.MustMkdirIfNotExist(metadataDir)
 	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
 
+	// TODO(@rtm0): Do not create snapshots if idb does not exist.
 	// Load indexdb
 	idbPath := filepath.Join(path, indexdbDirname)
 	idbSnapshotsPath := filepath.Join(idbPath, snapshotsDirname)
 	fs.MustMkdirIfNotExist(idbSnapshotsPath)
 	fs.MustRemoveTemporaryDirs(idbSnapshotsPath)
-	idbNext, idbCurr, idbPrev := s.mustOpenIndexDBTables(idbPath)
+
+	// TODO(@rtm0): Do not open if does not exist or else open in read-only mode.
+	idbNext, idbCurr, idbPrev := s.mustOpenLegacyIndexDBTables(idbPath)
 
 	idbCurr.SetExtDB(idbPrev)
 	idbNext.SetExtDB(idbCurr)
@@ -253,6 +256,7 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	s.idbCurr.Store(idbCurr)
 	s.idbNext.Store(idbNext)
 
+	// TODO(@rtm0): Remove idb rotation
 	// Initialize nextRotationTimestamp
 	nowSecs := int64(fasttime.UnixTimestamp())
 	retentionSecs := retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
@@ -264,6 +268,8 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	nextDayMetricIDs := s.mustLoadNextDayMetricIDs(idbCurr.generation, date)
 	s.nextDayMetricIDs.Store(nextDayMetricIDs)
 
+	// TODO(@rtm0): Only load if legacy idb exists.
+	// TODO(@rtm0): How to handle this with partition idb?
 	// Load deleted metricIDs from idbCurr and idbPrev
 	dmisCurr, err := idbCurr.loadDeletedMetricIDs()
 	if err != nil {
@@ -795,7 +801,7 @@ func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 	// Create new indexdb table, which will be used as idbNext
 	newTableName := nextIndexDBTableName()
 	idbNewPath := filepath.Join(s.path, indexdbDirname, newTableName)
-	idbNew := mustOpenIndexDB(idbNewPath, s, &s.isReadOnly)
+	idbNew := mustOpenLegacyIndexDB(idbNewPath, s, &s.isReadOnly)
 
 	// Update nextRotationTimestamp
 	nextRotationTimestamp := currentTime.Unix() + s.retentionMsecs/1000
@@ -2636,7 +2642,7 @@ func (s *Storage) putTSIDToCache(tsid *generationTSID, metricName []byte) {
 	s.tsidCache.Set(metricName, buf)
 }
 
-func (s *Storage) mustOpenIndexDBTables(path string) (next, curr, prev *indexDB) {
+func (s *Storage) mustOpenLegacyIndexDBTables(path string) (next, curr, prev *indexDB) {
 	fs.MustMkdirIfNotExist(path)
 	fs.MustRemoveTemporaryDirs(path)
 
@@ -2689,9 +2695,9 @@ func (s *Storage) mustOpenIndexDBTables(path string) (next, curr, prev *indexDB)
 	currPath := filepath.Join(path, tableNames[1])
 	prevPath := filepath.Join(path, tableNames[0])
 
-	next = mustOpenIndexDB(nextPath, s, &s.isReadOnly)
-	curr = mustOpenIndexDB(currPath, s, &s.isReadOnly)
-	prev = mustOpenIndexDB(prevPath, s, &s.isReadOnly)
+	next = mustOpenLegacyIndexDB(nextPath, s, &s.isReadOnly)
+	curr = mustOpenLegacyIndexDB(currPath, s, &s.isReadOnly)
+	prev = mustOpenLegacyIndexDB(prevPath, s, &s.isReadOnly)
 
 	return next, curr, prev
 }

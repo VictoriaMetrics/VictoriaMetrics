@@ -169,9 +169,10 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	// Create partition from rowss and test search on it.
 	strg := newTestStorage()
 	strg.retentionMsecs = timestampFromTime(time.Now()) - ptr.MinTimestamp + 3600*1000
-	pt := mustCreatePartition(ptt, "small-table", "big-table", strg)
+	pt := mustCreatePartition(ptt, "small-table", "big-table", "indexdb", strg)
 	smallPartsPath := pt.smallPartsPath
 	bigPartsPath := pt.bigPartsPath
+	indexDBPartsPath := pt.indexDBPartsPath
 	for _, rows := range rowss {
 		pt.AddRows(rows)
 
@@ -182,7 +183,7 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	pt.MustClose()
 
 	// Open the created partition and test search on it.
-	pt = mustOpenPartition(smallPartsPath, bigPartsPath, strg)
+	pt = mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath, strg)
 	testPartitionSearch(t, pt, tsids, tr, rbsExpected, rowsCountExpected)
 	pt.MustClose()
 	stopTestStorage(strg)
@@ -192,6 +193,9 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	}
 	if err := os.RemoveAll("big-table"); err != nil {
 		t.Fatalf("cannot remove big parts directory: %s", err)
+	}
+	if err := os.RemoveAll("indexdb"); err != nil {
+		t.Fatalf("cannot remove indexdb directory: %s", err)
 	}
 }
 

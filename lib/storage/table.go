@@ -19,6 +19,7 @@ type table struct {
 	path                string
 	smallPartitionsPath string
 	bigPartitionsPath   string
+	indexDBPath         string
 
 	s *Storage
 
@@ -99,13 +100,18 @@ func mustOpenTable(path string, s *Storage) *table {
 	fs.MustMkdirIfNotExist(bigSnapshotsPath)
 	fs.MustRemoveTemporaryDirs(bigSnapshotsPath)
 
+	indexDBPath := filepath.Join(path, indexdbDirname)
+	fs.MustMkdirIfNotExist(indexDBPath)
+	fs.MustRemoveTemporaryDirs(indexDBPath)
+
 	// Open partitions.
-	pts := mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, s)
+	pts := mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, indexDBPath, s)
 
 	tb := &table{
 		path:                path,
 		smallPartitionsPath: smallPartitionsPath,
 		bigPartitionsPath:   bigPartitionsPath,
+		indexDBPath:         indexDBPath,
 		s:                   s,
 
 		stopCh: make(chan struct{}),
@@ -357,7 +363,7 @@ func (tb *table) MustAddRows(rows []rawRow) {
 			continue
 		}
 
-		pt := mustCreatePartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.s)
+		pt := mustCreatePartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.indexDBPath, tb.s)
 		pt.AddRows(missingRows[i : i+1])
 		tb.addPartitionNolock(pt)
 	}
@@ -500,17 +506,19 @@ func (tb *table) PutPartitions(ptws []*partitionWrapper) {
 	}
 }
 
-func mustOpenPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storage) []*partition {
+func mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, indexDBPath string, s *Storage) []*partition {
 	// Certain partition directories in either `big` or `small` dir may be missing
 	// after restoring from backup. So populate partition names from both dirs.
 	ptNames := make(map[string]bool)
 	mustPopulatePartitionNames(smallPartitionsPath, ptNames)
 	mustPopulatePartitionNames(bigPartitionsPath, ptNames)
+	mustPopulatePartitionNames(indexDBPath, ptNames)
 	var pts []*partition
 	for ptName := range ptNames {
 		smallPartsPath := filepath.Join(smallPartitionsPath, ptName)
 		bigPartsPath := filepath.Join(bigPartitionsPath, ptName)
-		pt := mustOpenPartition(smallPartsPath, bigPartsPath, s)
+		indexDBPartsPath := filepath.Join(indexDBPath, ptName)
+		pt := mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath, s)
 		pts = append(pts, pt)
 	}
 	return pts

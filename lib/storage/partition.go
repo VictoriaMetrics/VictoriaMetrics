@@ -100,6 +100,9 @@ type partition struct {
 	// the path to directory with bigParts.
 	bigPartsPath string
 
+	// the path to directory with IndexDB parts.
+	indexDBPartsPath string
+
 	// The parent storage.
 	s *Storage
 
@@ -127,6 +130,9 @@ type partition struct {
 
 	// Contains file-based parts with big number of items, which are visible for search.
 	bigParts []*partWrapper
+
+	// Contains the inverted index for the data stored in this partition.
+	idb *indexDB
 
 	// stopCh is used for notifying all the background workers to stop.
 	//
@@ -195,16 +201,18 @@ func (pw *partWrapper) decRef() {
 
 // mustCreatePartition creates new partition for the given timestamp and the given paths
 // to small and big partitions.
-func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string, s *Storage) *partition {
+func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath, indexDBPath string, s *Storage) *partition {
 	name := timestampToPartitionName(timestamp)
 	smallPartsPath := filepath.Join(filepath.Clean(smallPartitionsPath), name)
 	bigPartsPath := filepath.Join(filepath.Clean(bigPartitionsPath), name)
-	logger.Infof("creating a partition %q with smallPartsPath=%q, bigPartsPath=%q", name, smallPartsPath, bigPartsPath)
+	indexDBPartsPath := filepath.Join(filepath.Clean(indexDBPath), name)
+	logger.Infof("creating a partition %q with smallPartsPath=%q, bigPartsPath=%q, indexDBPartsPath=%q", name, smallPartsPath, bigPartsPath, indexDBPartsPath)
 
 	fs.MustMkdirFailIfExist(smallPartsPath)
 	fs.MustMkdirFailIfExist(bigPartsPath)
+	fs.MustMkdirFailIfExist(indexDBPartsPath)
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
+	pt := newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath, s)
 	pt.tr.fromPartitionTimestamp(timestamp)
 	pt.startBackgroundWorkers()
 
@@ -228,21 +236,27 @@ func (pt *partition) startBackgroundWorkers() {
 //
 // The pt must be detached from table before calling pt.Drop.
 func (pt *partition) Drop() {
-	logger.Infof("dropping partition %q at smallPartsPath=%q, bigPartsPath=%q", pt.name, pt.smallPartsPath, pt.bigPartsPath)
+	logger.Infof("dropping partition %q at smallPartsPath=%q, bigPartsPath=%q, indexDBPartsPath=%q", pt.name, pt.smallPartsPath, pt.bigPartsPath, pt.indexDBPartsPath)
 
 	fs.MustRemoveDirAtomic(pt.smallPartsPath)
 	fs.MustRemoveDirAtomic(pt.bigPartsPath)
+	fs.MustRemoveDirAtomic(pt.indexDBPartsPath)
 	logger.Infof("partition %q has been dropped", pt.name)
 }
 
 // mustOpenPartition opens the existing partition from the given paths.
-func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partition {
+func mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath string, s *Storage) *partition {
 	smallPartsPath = filepath.Clean(smallPartsPath)
 	bigPartsPath = filepath.Clean(bigPartsPath)
+	indexDBPartsPath = filepath.Clean(indexDBPartsPath)
 
 	name := filepath.Base(smallPartsPath)
 	if !strings.HasSuffix(bigPartsPath, name) {
 		logger.Panicf("FATAL: partition name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
+	}
+	name = filepath.Base(indexDBPartsPath)
+	if !strings.HasSuffix(bigPartsPath, name) {
+		logger.Panicf("FATAL: partition name in bigPartsPath %q doesn't match indexDBPartsPath %q; want %q", bigPartsPath, indexDBPartsPath, name)
 	}
 
 	partsFile := filepath.Join(smallPartsPath, partsFilename)
@@ -258,9 +272,13 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 		mustWritePartNames(smallParts, bigParts, smallPartsPath)
 	}
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
+	// TODO(@rtm0): Do something with readonly.
+	idb := mustOpenPartitionIndexDB(indexDBPartsPath, s, &s.isReadOnly)
+
+	pt := newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath, s)
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
+	pt.idb = idb
 	if err := pt.tr.fromPartitionName(name); err != nil {
 		logger.Panicf("FATAL: cannot obtain partition time range from smallPartsPath %q: %s", smallPartsPath, err)
 	}
@@ -269,13 +287,14 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 	return pt
 }
 
-func newPartition(name, smallPartsPath, bigPartsPath string, s *Storage) *partition {
+func newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath string, s *Storage) *partition {
 	p := &partition{
-		name:           name,
-		smallPartsPath: smallPartsPath,
-		bigPartsPath:   bigPartsPath,
-		s:              s,
-		stopCh:         make(chan struct{}),
+		name:             name,
+		smallPartsPath:   smallPartsPath,
+		bigPartsPath:     bigPartsPath,
+		indexDBPartsPath: indexDBPartsPath,
+		s:                s,
+		stopCh:           make(chan struct{}),
 	}
 	p.mergeIdx.Store(uint64(time.Now().UnixNano()))
 	p.rawRows.init()
