@@ -42,7 +42,7 @@ More details about migration from prometheus-operator you can read in [this doc]
 
 ### Static targets
 
-It will probe `VMAgent` with url - `vmagent-example-vmagent.default.svc:9115/heath` with blackbox url:
+It will probe `VMAgent` with url - `vmagent-example-vmagent.default.svc:9115/health` with blackbox url:
 `prometheus-blackbox-exporter.default.svc:9115` and module `http_2xx` 
 (it was specified at [blackbox configmap](#blackbox-exporter)).
 
