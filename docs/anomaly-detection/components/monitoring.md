@@ -61,7 +61,7 @@ There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push
 
 By default, metrics are pushed only after the completion of specific stages, e.g., `fit`, `infer`, or `fit_infer` (for each [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) if using a multi-scheduler configuration).
 
-Starting with [v1.18.7](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1187), the `push_frequency` parameter (default value: `15m`) can be configured to initiate *additional* periodic metric pushes at consistent intervals. This enhances the self-monitoring capabilities of `vmanomaly` by aligning more closely with pull-based monitoring behavior, especially in setups with infrequent schedules (e.g., long `fit_every` or `infer_every` intervals in [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler)), mitigating data staleness. To disable scheduled metric pushes, set the `push_frequency` parameter to an empty string in the configuration file, as demonstrated in the examples below.
+The `push_frequency` parameter{{% available_from "v1.18.7" anomaly %}} (default value: `15m`) can be configured to initiate *additional* periodic metric pushes at consistent intervals. This enhances the self-monitoring capabilities of `vmanomaly` by aligning more closely with pull-based monitoring behavior, especially in setups with infrequent schedules (e.g., long `fit_every` or `infer_every` intervals in [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler)), mitigating data staleness. To disable scheduled metric pushes, set the `push_frequency` parameter to an empty string in the configuration file, as demonstrated in the examples below.
 
 <table class="params">
     <thead>
@@ -134,7 +134,7 @@ Deprecated since [v1.8.0](https://docs.victoriametrics.com/anomaly-detection/cha
 `token`
             </td>
             <td>
-Token is passed in the standard format with header: `Authorization: bearer {token}`. Available since [v1.15.9](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1159)
+Token is passed in the standard format with header: `Authorization: bearer {token}`{{% available_from "v1.15.9" anomaly %}}. 
             </td>
         </tr>
         <tr>
@@ -147,7 +147,7 @@ Token is passed in the standard format with header: `Authorization: bearer {toke
 `path_to_file`
             </td>
             <td>
-Path to a file, which contains token, that is passed in the standard format with header: `Authorization: bearer {token}`. Available since [v1.15.9](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1159)
+Path to a file, which contains token, that is passed in the standard format with header: `Authorization: bearer {token}`{{% available_from "v1.15.9" anomaly %}}.
             </td>
         </tr>
         <tr>
@@ -175,7 +175,7 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
 `path/to/cert.crt`
             </td>
             <td>
-Path to a file with the client certificate, i.e. `client.crt`. Available since [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163).
+Path to a file with the client certificate, i.e. `client.crt`{{% available_from "v1.16.3" anomaly %}}. 
             </td>
         </tr>
         <tr>
@@ -188,7 +188,7 @@ Path to a file with the client certificate, i.e. `client.crt`. Available since [
 `path/to/key.crt`
             </td>
             <td>
-Path to a file with the client certificate key, i.e. `client.key`. Available since [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163).
+Path to a file with the client certificate key, i.e. `client.key`{{% available_from "v1.16.3" anomaly %}}.
             </td>
         </tr>
         <tr>
@@ -211,7 +211,7 @@ Path to a file with the client certificate key, i.e. `client.key`. Available sin
 
 `"15m"`
             </td>
-            <td>Frequency for scheduled pushing of metrics, e.g., '30m'. Suggested to be less than the staleness interval `-search.maxStalenessInterval` Set to empty string to disable *scheduled* pushing. Available since [v1.18.7](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1187)</td>
+            <td>Frequency for scheduled pushing of metrics, e.g., '30m'. Suggested to be less than the staleness interval `-search.maxStalenessInterval` Set to empty string to disable *scheduled* pushing{{% available_from "v1.18.7" anomaly %}}.</td>
         </tr>
         <tr>
             <td>
@@ -246,7 +246,7 @@ monitoring:
 
 ## mTLS protection
 
-Starting from [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163), `vmanomaly` components such as [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) support [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) to ensure secure communication with [VictoriaMetrics Enterprise, configured with mTLS](https://docs.victoriametrics.com/#mtls-protection).
+`vmanomaly` components such as [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) support [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication){{% available_from "v1.16.3" anomaly %}} to ensure secure communication with [VictoriaMetrics Enterprise, configured with mTLS](https://docs.victoriametrics.com/#mtls-protection).
 
 For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_cert_file`, and `tls_key_file`, please refer to the [mTLS protection section](https://docs.victoriametrics.com/anomaly-detection/components/reader/#mtls-protection) in the [Reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) documentation. The configuration principles apply consistently across all these `vmanomaly` components.
 
@@ -282,7 +282,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 `vmanomaly_version_info`
             </td>
             <td>Gauge</td>
-            <td>vmanomaly version information, contained in `version` label. Added in [v1.17.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1172)</td>
+            <td>vmanomaly version information, contained in `version` label{{% available_from "v1.17.2" anomaly %}}.</td>
         </tr>
         <tr>
             <td>
@@ -290,7 +290,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 `vmanomaly_ui_version_info`
             </td>
             <td>Gauge</td>
-            <td>vmanomaly UI version information, contained in `version` label. Added in [v1.17.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1172)</td>
+            <td>vmanomaly UI version information, contained in `version` label{{% available_from "v1.17.2" anomaly %}}.</td>
         </tr>
         <tr>
             <td>
@@ -298,7 +298,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 `vmanomaly_available_memory_bytes`
             </td>
             <td>Gauge</td>
-            <td>Virtual memory size in bytes, available to the process. Added in [v1.18.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1184)</td>
+            <td>Virtual memory size in bytes, available to the process{{% available_from "v1.18.4" anomaly %}}.</td>
         </tr>
         <tr>
             <td>
@@ -306,7 +306,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 `vmanomaly_cpu_cores_available`
             </td>
             <td>Gauge</td>
-            <td>Number of (logical) CPU cores available to the process. Added in [v1.18.4](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1184)</td>
+            <td>Number of (logical) CPU cores available to the process{{% available_from "v1.18.4" anomaly %}}.</td>
         </tr>
     </tbody>
 </table>
@@ -316,7 +316,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 ### Reader behaviour metrics
 Label names [description](#labelnames)
 
-> **Note**: additional labels (`scheduler_alias`, `preset`) were added to writer and reader metrics in [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170) to improve consistency across the components. Also, metrics `vmanomaly_reader_request_duration_seconds` and `vmanomaly_reader_response_parsing_seconds` changed their type to `Histogram` (was `Summary` prior to [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)).
+> **Note**: To improve consistency across the components additional labels (`scheduler_alias`, `preset`) were added to writer and reader metrics{{% available_from "v1.17.0" anomaly %}}. Also, metrics `vmanomaly_reader_request_duration_seconds` and `vmanomaly_reader_response_parsing_seconds` changed their type to `Histogram` (was `Summary` prior to [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)).
 
 <table class="params">
     <thead>
@@ -408,9 +408,9 @@ Label names [description](#labelnames)
 ### Models behaviour metrics
 Label names [description](#labelnames)
 
-> **Note**: There is a new label key `model_alias` introduced in multi-model support [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100). This label key adjustment was made to preserve unique label set production during writing produced metrics back to VictoriaMetrics.
+> **Note**: There is a new label key `model_alias` introduced in multi-model support{{% available_from "v1.10.0" anomaly %}}. This label key adjustment was made to preserve unique label set production during writing produced metrics back to VictoriaMetrics.
 
-> **Note**: as a part of [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics enhancement ([v.1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)), new metrics, like `vmanomaly_model_run_errors`, was added. Some of them changed the type (`Summary` -> `Histogram`), like `vmanomaly_model_run_duration_seconds`.
+> **Note**: as a part of [self-monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#metrics-generated-by-vmanomaly) metrics enhancement{{% available_from "v1.17.0" anomaly %}}, new metrics, like `vmanomaly_model_run_errors`, was added. Some of them changed the type (`Summary` -> `Histogram`), like `vmanomaly_model_run_duration_seconds`.
 
 <table class="params">
     <thead>
@@ -513,7 +513,7 @@ Label names [description](#labelnames)
 ### Writer behaviour metrics
 Label names [description](#labelnames)
 
-> **Note**: additional labels (`scheduler_alias`, `preset`) were added to writer and reader metrics in [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170) to improve consistency across the components. Also, metrics `vmanomaly_writer_request_duration_seconds` and `vmanomaly_writer_request_serialize_seconds` changed their type to `Histogram` (was `Summary` prior to [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)).
+> **Note**: additional labels (`scheduler_alias`, `preset`){{% available_from "v1.17.0" anomaly %}} were added to writer and reader metrics to improve consistency across the components. Also, metrics `vmanomaly_writer_request_duration_seconds` and `vmanomaly_writer_request_serialize_seconds` changed their type to `Histogram` (was `Summary` prior to [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)).
 
 <table class="params">
     <thead>
@@ -607,9 +607,9 @@ Label names [description](#labelnames)
 
 * `stage` - stage of model - 'fit', 'infer' or 'fit_infer' for models that do it simultaneously, see [model types](https://docs.victoriametrics.com/anomaly-detection/components/models/#model-types).
 * `query_key` - query alias from [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/) config section.
-* `model_alias` - model alias from [`models`](https://docs.victoriametrics.com/anomaly-detection/components/models/) config section. **Introduced in [v1.10.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1100).**
-* `scheduler_alias` - scheduler alias from [`schedulers`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler) config section. **Introduced in [v1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110).**
-* `preset` - preset alias for [`preset`](https://docs.victoriametrics.com/anomaly-detection/presets/) mode of `vmanomaly`. **Introduced in [v1.12.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1120).**
+* `model_alias` - model alias from [`models`](https://docs.victoriametrics.com/anomaly-detection/components/models/) config section{{% available_from "v1.10.0" anomaly %}}.
+* `scheduler_alias` - scheduler alias from [`schedulers`](https://docs.victoriametrics.com/anomaly-detection/components/scheduler) config section{{% available_from "v1.11.0" anomaly %}}.
+* `preset` - preset alias for [`preset`](https://docs.victoriametrics.com/anomaly-detection/presets/) mode of `vmanomaly`{{% available_from "v1.12.0" anomaly %}}.
 * `url` - writer or reader url endpoint.
 * `code` - response status code or `connection_error`, `timeout`.
 * `step` - json or dataframe reading step.
@@ -617,14 +617,12 @@ Label names [description](#labelnames)
 [Back to metric sections](#metrics-generated-by-vmanomaly)
 
 
-## Logs generated by vmanomaly
+## Logs generated by vmanomaly{{% available_from "v1.17.1" anomaly %}}
 
 The `vmanomaly` service logs operations, errors, and performance for its components (service, reader, writer), alongside [self-monitoring metrics](#metrics-generated-by-vmanomaly) updates. Below is a description of key logs for each component and the related metrics affected.
 
 `{{X}}` indicates a placeholder in the log message templates described below, which will be replaced with the appropriate entity during logging.
 
-
-> **Note**: Applicable to version [v1.17.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1171) or newer.
 
 > **Note**: By default, `vmanomaly` uses the `INFO` logging level. You can change this by specifying the `--loggerLevel` argument. See command-line arguments [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#command-line-arguments).
 
@@ -745,7 +743,7 @@ The `reader` component logs events during the process of querying VictoriaMetric
 
 ---
 
-**Max datapoints warning**. If the requested query range (defined by `fit_every` or `infer_every` [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#parameters-1) args) exceeds the maximum number of datapoints allowed by VictoriaMetrics, a `warning` log is generated, and the request is split into multiple intervals (option available since [v1.14.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1141)). This ensures that the request does not violate VictoriaMetrics’ constraints. Log messages:
+**Max datapoints warning**. If the requested query range (defined by `fit_every` or `infer_every` [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#parameters-1) args) exceeds the maximum number of datapoints allowed by VictoriaMetrics, a `warning` log is generated, and the request is split into multiple intervals{{% available_from "v1.14.1" anomaly %}}. This ensures that the request does not violate VictoriaMetrics’ constraints. Log messages:
 
 ```text
 [Scheduler {{scheduler_alias}}] Query "{{query_key}}" from {{start_s}} to {{end_s}} with step {{step}} may exceed max datapoints per timeseries and will be split...
@@ -753,7 +751,7 @@ The `reader` component logs events during the process of querying VictoriaMetric
 
 ---
 
-**Multi-tenancy warnings**. If the reader detects any issues related to missing or misconfigured multi-tenancy labels (supported since [v1.16.2](https://docs.victoriametrics.com/anomaly-detection/changelog/index.html#v1162)), a `warning` log is generated to indicate the issue. See additional details [here](https://docs.victoriametrics.com/anomaly-detection/components/writer/#multitenancy-support). Log message format:
+**Multi-tenancy warnings**. If the reader detects any issues related to missing or misconfigured multi-tenancy labels (a `warning` log{{% available_from "v1.16.2" anomaly %}} is generated to indicate the issue. See additional details [here](https://docs.victoriametrics.com/anomaly-detection/components/writer/#multitenancy-support). Log message format:
 
 ```text
 The label vm_account_id was not found in the label set of {{query_key}}, but tenant_id='multitenant' is set in reader configuration...
@@ -815,7 +813,7 @@ When the model fails to produce any valid or finite outputs (such as [`anomaly_s
 
 ---
 
-**Model instance created during inference**. In cases where an [online model](https://docs.victoriametrics.com/anomaly-detection/components/models#online-models) instance is created during the inference stage (without a prior fit, a feature introduced in [v1.15.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1152)), a `debug` log is produced. This helps track models that are created dynamically based on incoming data. Log messages:
+**Model instance created during inference**. In cases where an [online model](https://docs.victoriametrics.com/anomaly-detection/components/models#online-models) instance is created during the inference stage (without a prior fit{{% available_from "v1.15.2" anomaly %}}), a `debug` log is produced. This helps track models that are created dynamically based on incoming data. Log messages:
 
 ```text
 [Scheduler {{scheduler_alias}}] Model instance '{{model_alias}}' created for '{{query_key}}' during inference.
@@ -894,7 +892,7 @@ The `writer` component logs events during the process of sending produced data (
 
 ---
 
-**Multi-tenancy warnings**. If the `tenant_id` is set to `multitenant` but the `vm_account_id` label is missing from the query result, or vice versa, a `warning` log is produced (supported since [v1.16.2](https://docs.victoriametrics.com/anomaly-detection/changelog/index.html#v1162)). This helps in debugging label set issues that may occur due to the multi-tenant configuration - see [this section for details](https://docs.victoriametrics.com/anomaly-detection/components/writer/#multitenancy-support). Log messages:
+**Multi-tenancy warnings**. If the `tenant_id` is set to `multitenant` but the `vm_account_id` label is missing from the query result, or vice versa, a `warning` log is produced{{% available_from "v1.16.2" anomaly %}}. This helps in debugging label set issues that may occur due to the multi-tenant configuration - see [this section for details](https://docs.victoriametrics.com/anomaly-detection/components/writer/#multitenancy-support). Log messages:
 
 ```text
 The label vm_account_id was not found in the label set of {{query_key}}, but tenant_id='multitenant' is set in writer...
