@@ -9,8 +9,7 @@ menu:
 aliases:
 - /anomaly-detection/QuickStart.html
 ---
-For service introduction visit [README](https://docs.victoriametrics.com/anomaly-detection/) page.
-
+For a broader overview please visit the [navigation page](https://docs.victoriametrics.com/anomaly-detection/).
 ## How to install and run vmanomaly
 
 > To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
