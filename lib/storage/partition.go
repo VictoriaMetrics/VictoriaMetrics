@@ -119,7 +119,8 @@ type partition struct {
 	// rawRows aren't visible for search due to performance reasons.
 	rawRows rawRowsShards
 
-	// partsLock protects inmemoryParts, smallParts and bigParts.
+	// partsLock protects inmemoryParts, smallParts, bigParts, and idb.
+	// TODO(@rtm0): Use separate lock for IndexDB?
 	partsLock sync.Mutex
 
 	// Contains inmemory parts with recently ingested data, which are visible for search.
@@ -272,13 +273,9 @@ func mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath string, s 
 		mustWritePartNames(smallParts, bigParts, smallPartsPath)
 	}
 
-	// TODO(@rtm0): Do something with readonly.
-	idb := mustOpenPartitionIndexDB(indexDBPartsPath, s, &s.isReadOnly)
-
 	pt := newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath, s)
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
-	pt.idb = idb
 	if err := pt.tr.fromPartitionName(name); err != nil {
 		logger.Panicf("FATAL: cannot obtain partition time range from smallPartsPath %q: %s", smallPartsPath, err)
 	}
@@ -288,6 +285,9 @@ func mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath string, s 
 }
 
 func newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath string, s *Storage) *partition {
+	// TODO(@rtm0): Do something with readonly.
+	idb := mustOpenPartitionIndexDB(indexDBPartsPath, s, &s.isReadOnly)
+
 	p := &partition{
 		name:             name,
 		smallPartsPath:   smallPartsPath,
@@ -296,8 +296,10 @@ func newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath string, s
 		s:                s,
 		stopCh:           make(chan struct{}),
 	}
+	p.idb = idb
 	p.mergeIdx.Store(uint64(time.Now().UnixNano()))
 	p.rawRows.init()
+
 	return p
 }
 
@@ -943,6 +945,9 @@ func (pt *partition) MustClose() {
 	bigParts := pt.bigParts
 	pt.bigParts = nil
 
+	idb := pt.idb
+	pt.idb = nil
+
 	pt.partsLock.Unlock()
 
 	for _, pw := range smallParts {
@@ -951,6 +956,7 @@ func (pt *partition) MustClose() {
 	for _, pw := range bigParts {
 		pw.decRef()
 	}
+	idb.MustClose()
 }
 
 func (pt *partition) startInmemoryPartsMergers() {
