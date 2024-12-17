@@ -1,5 +1,14 @@
 ## Next release
 
+- TODO
+
+## 0.40.0-rc.1
+
+**Release date:** 2024-12-17
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.51.0-rc1](https://img.shields.io/static/v1?label=AppVersion&message=v0.51.0-rc1&color=success&logo=)
+
 - updated common dependency 0.0.32 -> 0.0.33
 - add an option to mount `ServiceAccount` token manually for security hardening reasons.
 
