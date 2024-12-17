@@ -173,9 +173,9 @@ func (sqp *statsQuantileProcessor) mergeState(sfp statsProcessor) {
 	sqp.h.mergeState(&src.h)
 }
 
-func (sqp *statsQuantileProcessor) finalizeStats() string {
+func (sqp *statsQuantileProcessor) finalizeStats(dst []byte) []byte {
 	q := sqp.h.quantile(sqp.sq.phi)
-	return strconv.FormatFloat(q, 'f', -1, 64)
+	return strconv.AppendFloat(dst, q, 'f', -1, 64)
 }
 
 func parseStatsQuantile(lex *lexer) (*statsQuantile, error) {

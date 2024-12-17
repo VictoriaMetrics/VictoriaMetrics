@@ -45,8 +45,8 @@ func (smp *statsMedianProcessor) mergeState(sfp statsProcessor) {
 	smp.sqp.mergeState(src.sqp)
 }
 
-func (smp *statsMedianProcessor) finalizeStats() string {
-	return smp.sqp.finalizeStats()
+func (smp *statsMedianProcessor) finalizeStats(dst []byte) []byte {
+	return smp.sqp.finalizeStats(dst)
 }
 
 func parseStatsMedian(lex *lexer) (*statsMedian, error) {
