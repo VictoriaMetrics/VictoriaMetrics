@@ -79,18 +79,9 @@ func (ctx *InsertCtx) TryPrepareLabels(hasRelabeling bool) bool {
 }
 
 // WriteDataPoint writes (timestamp, value) with the given prefix and labels into ctx buffer.
-func (ctx *InsertCtx) WriteDataPoint(prefix []byte, hasRelabeling bool, labels []prompbmarshal.Label, timestamp int64, value float64) error {
-	if !ctx.TryPrepareLabels(hasRelabeling) {
-		return nil
-	}
-	metricNameRaw := ctx.marshalMetricNameRaw(prefix, labels)
-	return ctx.addRow(metricNameRaw, timestamp, value)
-}
-
-// WriteDataPointUnchecked writes (timestamp, value) with the given prefix and labels into ctx buffer.
 //
 // caller should invoke TryPrepareLabels before using this function if needed
-func (ctx *InsertCtx) WriteDataPointUnchecked(prefix []byte, labels []prompbmarshal.Label, timestamp int64, value float64) error {
+func (ctx *InsertCtx) WriteDataPoint(prefix []byte, labels []prompbmarshal.Label, timestamp int64, value float64) error {
 	metricNameRaw := ctx.marshalMetricNameRaw(prefix, labels)
 	return ctx.addRow(metricNameRaw, timestamp, value)
 }
