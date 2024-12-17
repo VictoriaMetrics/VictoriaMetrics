@@ -2,6 +2,14 @@
 
 - TODO
 
+## 0.31.1
+
+**Release date:** 2024-12-17
+
+\![AppVersion: v1.108.0](https://img.shields.io/static/v1?label=AppVersion## Next releasemessage=v1.108.0## Next releasecolor=success## Next releaselogo=) \![Helm: v3](https://img.shields.io/static/v1?label=Helm## Next releasemessage=v3## Next releasecolor=informational## Next releaselogo=helm)
+
+- Added explicit defaultRules toggles
+
 ## 0.31.0
 
 **Release date:** 2024-12-16
