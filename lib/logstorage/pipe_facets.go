@@ -31,6 +31,11 @@ type pipeFacets struct {
 
 	// fields with values longer than maxValueLen are ignored, since it is hard to use them in faceted search.
 	maxValueLen uint64
+
+	// keep facets for fields with const values over all the selected logs.
+	//
+	// by default such fields are skipped, since they do not help investigating the selected logs.
+	keepConstFields bool
 }
 
 func (pf *pipeFacets) String() string {
@@ -43,6 +48,9 @@ func (pf *pipeFacets) String() string {
 	}
 	if pf.maxValueLen != pipeFacetsDefaultMaxValueLen {
 		s += fmt.Sprintf(" max_value_len %d", pf.maxValueLen)
+	}
+	if pf.keepConstFields {
+		s += " keep_const_fields"
 	}
 	return s
 }
@@ -117,6 +125,9 @@ type pipeFacetsProcessorShardNopad struct {
 	// m holds hits per every field=value pair.
 	m map[string]*pipeFacetsFieldHits
 
+	// rowsTotal contains the total number of selected logs.
+	rowsTotal uint64
+
 	// stateSizeBudget is the remaining budget for the whole state size for the shard.
 	// The per-shard budget is provided in chunks from the parent pipeTopProcessor.
 	stateSizeBudget int
@@ -140,6 +151,8 @@ func (shard *pipeFacetsProcessorShard) writeBlock(br *blockResult) {
 	for _, c := range cs {
 		shard.updateFacetsForColumn(br, c)
 	}
+
+	shard.rowsTotal += uint64(br.rowsLen)
 }
 
 func (shard *pipeFacetsProcessorShard) updateFacetsForColumn(br *blockResult, c *blockResultColumn) {
@@ -245,6 +258,7 @@ func (pfp *pipeFacetsProcessor) flush() error {
 
 	// merge state across shards
 	m := make(map[string]map[string]*uint64)
+	rowsTotal := uint64(0)
 	for _, shard := range pfp.shards {
 		if needStop(pfp.stopCh) {
 			return nil
@@ -267,6 +281,7 @@ func (pfp *pipeFacetsProcessor) flush() error {
 				}
 			}
 		}
+		rowsTotal += shard.rowsTotal
 	}
 
 	// sort fieldNames
@@ -296,6 +311,10 @@ func (pfp *pipeFacetsProcessor) flush() error {
 				k:    k,
 				hits: *pHits,
 			})
+		}
+		if len(vs) == 1 && vs[0].hits == rowsTotal && !pfp.pf.keepConstFields {
+			// Skip field with constant value.
+			continue
 		}
 		sort.Slice(vs, func(i, j int) bool {
 			return vs[i].hits > vs[j].hits
@@ -384,36 +403,38 @@ func parsePipeFacets(lex *lexer) (pipe, error) {
 		limit = uint64(limitF)
 	}
 
-	maxValuesPerField := uint64(pipeFacetsDefaultMaxValuesPerField)
-	if lex.isKeyword("max_values_per_field") {
-		lex.nextToken()
-		n, s, err := parseNumber(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse max_values_per_field: %w", err)
-		}
-		if n < 1 {
-			return nil, fmt.Errorf("max_value_per_field must be integer bigger than 0; got %s", s)
-		}
-		maxValuesPerField = uint64(n)
-	}
-
-	maxValueLen := uint64(pipeFacetsDefaultMaxValueLen)
-	if lex.isKeyword("max_value_len") {
-		lex.nextToken()
-		n, s, err := parseNumber(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse max_value_len: %w", err)
-		}
-		if n < 1 {
-			return nil, fmt.Errorf("max_value_len must be integer bigger than 0; got %s", s)
-		}
-		maxValueLen = uint64(n)
-	}
-
 	pf := &pipeFacets{
 		limit:             limit,
-		maxValuesPerField: maxValuesPerField,
-		maxValueLen:       maxValueLen,
+		maxValuesPerField: pipeFacetsDefaultMaxValuesPerField,
+		maxValueLen:       pipeFacetsDefaultMaxValueLen,
 	}
-	return pf, nil
+	for {
+		switch {
+		case lex.isKeyword("max_values_per_field"):
+			lex.nextToken()
+			n, s, err := parseNumber(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse max_values_per_field: %w", err)
+			}
+			if n < 1 {
+				return nil, fmt.Errorf("max_value_per_field must be integer bigger than 0; got %s", s)
+			}
+			pf.maxValuesPerField = uint64(n)
+		case lex.isKeyword("max_value_len"):
+			lex.nextToken()
+			n, s, err := parseNumber(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse max_value_len: %w", err)
+			}
+			if n < 1 {
+				return nil, fmt.Errorf("max_value_len must be integer bigger than 0; got %s", s)
+			}
+			pf.maxValueLen = uint64(n)
+		case lex.isKeyword("keep_const_fields"):
+			lex.nextToken()
+			pf.keepConstFields = true
+		default:
+			return pf, nil
+		}
+	}
 }

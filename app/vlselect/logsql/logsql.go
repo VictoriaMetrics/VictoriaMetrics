@@ -48,9 +48,10 @@ func ProcessFacetsRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
+	keepConstFields := httputils.GetBool(r, "keep_const_fields")
 
 	q.DropAllPipes()
-	q.AddFacetsPipe(limit, maxValuesPerField, maxValueLen)
+	q.AddFacetsPipe(limit, maxValuesPerField, maxValueLen, keepConstFields)
 
 	var mLock sync.Mutex
 	m := make(map[string][]facetEntry)
