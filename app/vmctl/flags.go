@@ -418,6 +418,89 @@ var (
 )
 
 const (
+	mimirPath             = "mimir-path"
+	mimirTenantID         = "mimir-tenant-id"
+	mimirConcurrency      = "mimir-concurrency"
+	mimirFilterTimeStart  = "mimir-filter-time-start"
+	mimirFilterTimeEnd    = "mimir-filter-time-end"
+	mimirFilterLabel      = "mimir-filter-label"
+	mimirFilterLabelValue = "mimir-filter-label-value"
+
+	mimirCreadsFilePath          = "mimir-creds-file-path"
+	mimirConfigFilePath          = "mimir-config-file-path"
+	mimirConfigProfile           = "mimir-config-profile"
+	mimirCustomS3Endpoint        = "mimir-custom-s3-endpoint"
+	mimirS3ForcePathStyle        = "mimir-s3-force-path-style"
+	mimirS3StorageClass          = "mimir-s3-storage-class"
+	mimirS3TLSInsecureSkipVerify = "mimir-s3-tls-insecure-skip-verify"
+)
+
+var (
+	mimirFlags = []cli.Flag{
+		&cli.StringFlag{
+			Name:     mimirPath,
+			Usage:    "Path to Mimir storage bucket or local folder.",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:  mimirTenantID,
+			Usage: "Tenant ID for Mimir storage",
+		},
+		&cli.IntFlag{
+			Name:  mimirConcurrency,
+			Usage: "Number of concurrently running block readers",
+		},
+		&cli.StringFlag{
+			Name:     mimirFilterTimeStart,
+			Usage:    "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:     mimirFilterTimeEnd,
+			Usage:    "The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:  mimirFilterLabel,
+			Usage: "Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.",
+		},
+		&cli.StringFlag{
+			Name:  mimirFilterLabelValue,
+			Usage: fmt.Sprintf("Prometheus regular expression to filter label from %q flag.", promFilterLabel),
+			Value: ".*",
+		},
+		&cli.StringFlag{
+			Name:  mimirCreadsFilePath,
+			Usage: "Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set. See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html",
+		},
+		&cli.StringFlag{
+			Name:  mimirConfigFilePath,
+			Usage: "Path to file with S3 configs. Configs are loaded from default location if not set. See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html",
+		},
+		&cli.StringFlag{
+			Name:  mimirConfigProfile,
+			Usage: "Profile name for S3 configs. If no set, the value of the environment variable will be loaded (AWS_PROFILE or AWS_DEFAULT_PROFILE), or if both not set, DefaultSharedConfigProfile is used",
+		},
+		&cli.StringFlag{
+			Name:  mimirCustomS3Endpoint,
+			Usage: "Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set",
+		},
+		&cli.BoolFlag{
+			Name:  mimirS3ForcePathStyle,
+			Usage: "Prefixing endpoint with bucket name when set false, true by default.",
+		},
+		&cli.StringFlag{
+			Name:  mimirS3StorageClass,
+			Usage: "The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA. See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html",
+		},
+		&cli.BoolFlag{
+			Name:  mimirS3TLSInsecureSkipVerify,
+			Usage: "Whether to skip TLS verification when connecting to the S3 endpoint.",
+		},
+	}
+)
+
+const (
 	vmNativeFilterMatch       = "vm-native-filter-match"
 	vmNativeFilterTimeStart   = "vm-native-filter-time-start"
 	vmNativeFilterTimeEnd     = "vm-native-filter-time-end"
