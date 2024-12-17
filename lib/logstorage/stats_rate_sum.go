@@ -51,12 +51,12 @@ func (srp *statsRateSumProcessor) mergeState(sfp statsProcessor) {
 	srp.ssp.mergeState(src.ssp)
 }
 
-func (srp *statsRateSumProcessor) finalizeStats() string {
+func (srp *statsRateSumProcessor) finalizeStats(dst []byte) []byte {
 	rate := srp.ssp.sum
 	if srp.sr.stepSeconds > 0 {
 		rate /= srp.sr.stepSeconds
 	}
-	return strconv.FormatFloat(rate, 'f', -1, 64)
+	return strconv.AppendFloat(dst, rate, 'f', -1, 64)
 }
 
 func parseStatsRateSum(lex *lexer) (*statsRateSum, error) {

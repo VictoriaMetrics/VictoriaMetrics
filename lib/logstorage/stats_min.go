@@ -161,8 +161,8 @@ func (smp *statsMinProcessor) updateStateString(v string) {
 	smp.min = strings.Clone(v)
 }
 
-func (smp *statsMinProcessor) finalizeStats() string {
-	return smp.min
+func (smp *statsMinProcessor) finalizeStats(dst []byte) []byte {
+	return append(dst, smp.min...)
 }
 
 func parseStatsMin(lex *lexer) (*statsMin, error) {

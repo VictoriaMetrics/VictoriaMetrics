@@ -213,13 +213,8 @@ func (smp *statsRowMaxProcessor) updateState(v string, br *blockResult, rowIdx i
 	return stateSizeIncrease
 }
 
-func (smp *statsRowMaxProcessor) finalizeStats() string {
-	bb := bbPool.Get()
-	bb.B = MarshalFieldsToJSON(bb.B, smp.fields)
-	result := string(bb.B)
-	bbPool.Put(bb)
-
-	return result
+func (smp *statsRowMaxProcessor) finalizeStats(dst []byte) []byte {
+	return MarshalFieldsToJSON(dst, smp.fields)
 }
 
 func parseStatsRowMax(lex *lexer) (*statsRowMax, error) {

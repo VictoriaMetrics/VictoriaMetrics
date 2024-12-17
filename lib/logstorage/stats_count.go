@@ -194,8 +194,8 @@ func (scp *statsCountProcessor) mergeState(sfp statsProcessor) {
 	scp.rowsCount += src.rowsCount
 }
 
-func (scp *statsCountProcessor) finalizeStats() string {
-	return strconv.FormatUint(scp.rowsCount, 10)
+func (scp *statsCountProcessor) finalizeStats(dst []byte) []byte {
+	return strconv.AppendUint(dst, scp.rowsCount, 10)
 }
 
 func parseStatsCount(lex *lexer) (*statsCount, error) {

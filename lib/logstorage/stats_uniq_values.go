@@ -7,8 +7,6 @@ import (
 	"unsafe"
 
 	"github.com/valyala/quicktemplate"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 type statsUniqValues struct {
@@ -146,9 +144,9 @@ func (sup *statsUniqValuesProcessor) mergeState(sfp statsProcessor) {
 	}
 }
 
-func (sup *statsUniqValuesProcessor) finalizeStats() string {
+func (sup *statsUniqValuesProcessor) finalizeStats(dst []byte) []byte {
 	if len(sup.m) == 0 {
-		return "[]"
+		return append(dst, "[]"...)
 	}
 
 	items := make([]string, 0, len(sup.m))
@@ -161,7 +159,7 @@ func (sup *statsUniqValuesProcessor) finalizeStats() string {
 		items = items[:limit]
 	}
 
-	return marshalJSONArray(items)
+	return marshalJSONArray(dst, items)
 }
 
 func sortStrings(a []string) {
@@ -194,25 +192,15 @@ func (sup *statsUniqValuesProcessor) limitReached() bool {
 	return limit > 0 && uint64(len(sup.m)) > limit
 }
 
-func marshalJSONArray(items []string) string {
-	// Pre-allocate buffer for serialized items.
-	// Assume that there is no need in quoting items. Otherwise additional reallocations
-	// for the allocated buffer are possible.
-	bufSize := len(items) + 1
-	for _, item := range items {
-		bufSize += len(item)
-	}
-	b := make([]byte, 0, bufSize)
-
-	b = append(b, '[')
-	b = quicktemplate.AppendJSONString(b, items[0], true)
+func marshalJSONArray(dst []byte, items []string) []byte {
+	dst = append(dst, '[')
+	dst = quicktemplate.AppendJSONString(dst, items[0], true)
 	for _, item := range items[1:] {
-		b = append(b, ',')
-		b = quicktemplate.AppendJSONString(b, item, true)
+		dst = append(dst, ',')
+		dst = quicktemplate.AppendJSONString(dst, item, true)
 	}
-	b = append(b, ']')
-
-	return bytesutil.ToUnsafeString(b)
+	dst = append(dst, ']')
+	return dst
 }
 
 func parseStatsUniqValues(lex *lexer) (*statsUniqValues, error) {
