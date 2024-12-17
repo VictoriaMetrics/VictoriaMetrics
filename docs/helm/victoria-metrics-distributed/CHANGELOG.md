@@ -2,6 +2,16 @@
 
 - TODO
 
+## 0.6.2
+
+**Release date:** 2024-12-17
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v1.108.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.108.0&color=success&logo=)
+
+- updated common dependency 0.0.34 -> 0.0.35
+- updated k8s-stack chart 0.28.4 -> 0.31.2
+
 ## 0.6.1
 
 **Release date:** 2024-12-16
