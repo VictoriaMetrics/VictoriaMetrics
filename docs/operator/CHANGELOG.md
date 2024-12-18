@@ -13,6 +13,9 @@ aliases:
 
 ## tip
 
+![AppVersion: v1.107.0](https://img.shields.io/badge/v1.107.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11070)
+![AppVersion: v1.3.2](https://img.shields.io/badge/v1.3.2-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v132)
+
 ## [v0.51.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.51.0)
 
 **Release date:** 17 Dec 2024
