@@ -1,15 +1,13 @@
 ## Next release
 
-- TODO
+- updated common dependency 0.0.34 -> 0.0.35
 
 ## 0.8.11
 
 **Release date:** 2024-12-09
 
-![AppVersion: v1.3.2](https://img.shields.io/static/v1?label=AppVersion&message=v1.3.2&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
-
-- TODO
+![AppVersion: v1.3.2](https://img.shields.io/badge/v1.3.2-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v132)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - victorialogs version: v1.1.0 -> v1.3.2
 
@@ -17,8 +15,8 @@
 
 **Release date:** 2024-12-05
 
-![AppVersion: v1.1.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.1.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v1.1.0](https://img.shields.io/badge/v1.1.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v110)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - added `server.retentionDiskUsage` to control [retention by disk space](https://docs.victoriametrics.com/victorialogs/#retention-by-disk-space-usage). See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1845)
 - victorialogs version: v1.0.0 -> v1.1.0
@@ -27,8 +25,8 @@
 
 **Release date:** 2024-12-03
 
-![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v1.0.0](https://img.shields.io/badge/v1.0.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v100)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - do not set clusterIP value, when service type is not ClusterIP. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1838)
 
@@ -36,8 +34,8 @@
 
 **Release date:** 2024-12-02
 
-![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v1.0.0](https://img.shields.io/badge/v1.0.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v100)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - enable watch-config in vector by default
 - exclude default service port, when serviceMonitor.targetPort is defined
@@ -46,8 +44,8 @@
 
 **Release date:** 2024-11-28
 
-![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v1.0.0](https://img.shields.io/badge/v1.0.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v100)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - updated common dependency 0.0.32 -> 0.0.33
 
@@ -55,8 +53,8 @@
 
 **Release date:** 2024-11-28
 
-![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v1.0.0](https://img.shields.io/badge/v1.0.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v100)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - Use only pod FQDN for statefulsets in `vm.es.urls` template
 
@@ -64,8 +62,8 @@
 
 **Release date:** 2024-11-27
 
-![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v1.0.0](https://img.shields.io/badge/v1.0.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v100)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - Added `vector.customConfigNamespace` to force Vector configmap creation in a given namespace even if vector.enabled: false
 - Added `service.targetPort` and `serviceMonitor.targetPort` to add ability to point service to one of extraContainers port, like oauth2-proxy
@@ -74,8 +72,8 @@
 
 **Release date:** 2024-11-26
 
-![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v1.0.0](https://img.shields.io/badge/v1.0.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v100)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - updated common dependency 0.0.31 -> 0.0.32
 - synced rules and dashboards
@@ -85,8 +83,8 @@
 
 **Release date:** 2024-11-25
 
-![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v1.0.0](https://img.shields.io/badge/v1.0.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v100)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - removed duplicated app label from dashboards. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1795).
 - synced dashboards
@@ -95,8 +93,8 @@
 
 **Release date:** 2024-11-22
 
-![AppVersion: v1.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v1.0.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v1.0.0](https://img.shields.io/badge/v1.0.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v100)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - Removed redundant `VECTOR_SELF_NODE_NAME` env variable from vector values. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1727).
 - Added Vector dashboard. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1721).
@@ -108,8 +106,8 @@
 
 **Release date:** 2024-11-08
 
-![AppVersion: v0.41.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.41.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.41.0](https://img.shields.io/badge/v0.41.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0410)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - updated common dependency 0.0.21 -> 0.0.23
 - added `log.message` to a list of default vector message fields
@@ -118,8 +116,8 @@
 
 **Release date:** 2024-11-08
 
-![AppVersion: v0.41.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.41.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.41.0](https://img.shields.io/badge/v0.41.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0410)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 **Update note 1**: In a response to multiple collector related configuration feature requests and inability to use fluent-bit YAML configuration parser to provide
 ability easily override parts of default configuration we've considered using Vector as a default logs collector instead of fluent-bit.
@@ -136,8 +134,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-11-06
 
-![AppVersion: v0.40.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.40.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.40.0](https://img.shields.io/badge/v0.40.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0400)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - set default DNS domain to `cluster.local.`
 - made message, time, stream fields configurable. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1695)
@@ -146,8 +144,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-11-06
 
-![AppVersion: v0.40.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.40.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.40.0](https://img.shields.io/badge/v0.40.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0400)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - added ability to override PVC name for Deployment
 - updated dashboards
@@ -159,8 +157,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-10-25
 
-![AppVersion: v0.37.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.37.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.37.0](https://img.shields.io/badge/v0.37.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0370)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - Support multiple paths for a single ingress domain
 
@@ -168,8 +166,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-10-25
 
-![AppVersion: v0.37.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.37.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.37.0](https://img.shields.io/badge/v0.37.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0370)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - Added grafana dashboard. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1590)
 - Custom fluent-bit template to push data to multiple VLogs instances when replica count is greater than 1
@@ -178,8 +176,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-10-11
 
-![AppVersion: v0.29.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.29.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.29.0](https://img.shields.io/badge/v0.29.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0290)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - Human-readable error about Helm version requirement
 
@@ -187,8 +185,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-10-04
 
-![AppVersion: v0.29.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.29.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.29.0](https://img.shields.io/badge/v0.29.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0290)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - upgraded common chart dependency
 
@@ -196,8 +194,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-09-23
 
-![AppVersion: v0.29.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.29.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.29.0](https://img.shields.io/badge/v0.29.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0290)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - VictoriaLogs 0.29.0
 - Fixed host template in default fluent-bit output configuration
@@ -206,8 +204,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-09-16
 
-![AppVersion: v0.28.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.28.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.28.0](https://img.shields.io/badge/v0.28.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0280)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - Avoid variant if tag is set explicitly
 
@@ -215,8 +213,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-09-12
 
-![AppVersion: v0.28.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.28.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.28.0](https://img.shields.io/badge/v0.28.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0280)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - Added ability to override deployment namespace using `namespaceOverride` and `global.namespaceOverride` variables
 - Made replicas configurable
@@ -226,8 +224,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-09-03
 
-![AppVersion: v0.28.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.28.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.28.0](https://img.shields.io/badge/v0.28.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0280)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 - Added ability to configure container port
 - Fixed image pull secrets. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1285)
@@ -239,8 +237,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-08-21
 
-![AppVersion: v0.28.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.28.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.28.0](https://img.shields.io/badge/v0.28.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0280)
+![Helm: v3.14](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
 
 **Update note**: The VictoriaMetrics components image tag template has been updated. This change introduces `.Values.<component>.image.variant` to specify tag suffixes like `-scratch`, `-cluster`, `-enterprise`. Additionally, you can now omit `.Values.<component>.image.tag` to automatically use the version specified in `.Chart.AppVersion`.
 
@@ -265,8 +263,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-07-25
 
-![AppVersion: v0.28.0-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.28.0-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.28.0](https://img.shields.io/badge/v0.28.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0280)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 - update VictoriaLogs to [v0.28.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.28.0-victorialogs).
 
@@ -274,8 +272,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-07-08
 
-![AppVersion: v0.15.0-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.15.0-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.15.0](https://img.shields.io/badge/v0.15.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0150)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 - add missing API version and kind for volumeClaimTemplates, see [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1092).
 
@@ -283,8 +281,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-06-17
 
-![AppVersion: v0.15.0-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.15.0-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.15.0](https://img.shields.io/badge/v0.15.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0150)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 - fix invalid label selector usage in notes printed after chart installation
 
@@ -292,8 +290,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-05-30
 
-![AppVersion: v0.15.0-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.15.0-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.15.0](https://img.shields.io/badge/v0.15.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v0150)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 - Update VictoriaLogs to [v0.15.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.15.0-victorialogs).
 
@@ -301,8 +299,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-05-23
 
-![AppVersion: v0.8.0-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.8.0-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.8.0](https://img.shields.io/badge/v0.8.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v080)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 - Update fluent-bit chart to 0.46.7 and fluentbit to 3.0.4
 - Update VictoriaLogs version to 0.9.1
@@ -311,8 +309,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-05-20
 
-![AppVersion: v0.8.0-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.8.0-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.8.0](https://img.shields.io/badge/v0.8.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v080)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 - Upgrade VictoriaLogs to [v0.8.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.8.0-victorialogs)
 - Move `.Values.server.name`, `.Values.server.fullnameOverride` to `.Values.global.victoriaLogs.server`. This allows to avoid issues with Fluent Bit output definition. See the [pull request]() for the details.
@@ -322,8 +320,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-05-10
 
-![AppVersion: v0.5.2-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.5.2-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.5.2](https://img.shields.io/badge/v0.5.2-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v052)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 - properly truncate value of `app.kubernetes.io/managed-by` and `app.kubernetes.io/instance` labels in case release name exceeds 63 characters.
 - support disabling default securityContext to keep compatible with platform like openshift, see this [pull request](https://github.com/VictoriaMetrics/helm-charts/pull/995) by @Baboulinet-33 for details.
@@ -332,8 +330,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-04-16
 
-![AppVersion: v0.5.2-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.5.2-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.5.2](https://img.shields.io/badge/v0.5.2-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v052)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 - bump version of victorialogs to [0.5.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.5.2-victorialogs)
 
@@ -341,8 +339,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-03-28
 
-![AppVersion: v0.5.0-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.5.0-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.5.0](https://img.shields.io/badge/v0.5.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v050)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 - support adding `metricRelabelings` for server serviceMonitor (#946)
 
@@ -350,8 +348,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2024-03-05
 
-![AppVersion: v0.5.0-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.5.0-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.5.0](https://img.shields.io/badge/v0.5.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v050)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 - bump version of vlogs single to [0.5.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.5.0-victorialogs)
 
@@ -359,8 +357,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2023-11-15
 
-![AppVersion: v0.4.2-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.4.2-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.4.2](https://img.shields.io/badge/v0.4.2-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v042)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 - bump version of vlogs single to [0.4.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.4.2-victorialogs)
 
@@ -368,8 +366,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2023-10-10
 
-![AppVersion: v0.4.1-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.4.1-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.4.1](https://img.shields.io/badge/v0.4.1-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v041)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 - Add `kubernetes_container_name` into default [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts#stream-fields) configuration `fluent-bit`.
 
@@ -377,8 +375,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2023-10-04
 
-![AppVersion: v0.4.1-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.4.1-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.4.1](https://img.shields.io/badge/v0.4.1-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v041)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 - bump version of vlogs single to [0.4.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v0.4.1-victorialogs)
 
@@ -386,8 +384,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2023-09-13
 
-![AppVersion: v0.3.0-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.3.0-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.3.0](https://img.shields.io/badge/v0.3.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v030)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 * added: extraObjects: [] for dynamic supportive objects configuration
 
@@ -395,8 +393,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2023-08-15
 
-![AppVersion: v0.3.0-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.3.0-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.3.0](https://img.shields.io/badge/v0.3.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v030)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 * vlogs-single: update to 0.3.0 (#598)
 * Remove repeated volumeMounts section (#610)
@@ -405,8 +403,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2023-07-27
 
-![AppVersion: v0.3.0-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.3.0-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.3.0](https://img.shields.io/badge/v0.3.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v030)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 * vlogs-single: fix podSecurityContext and securityContext usage (#597)
 * charts/victoria-logs-single: fix STS render when using statefulset is disabled (#585)
@@ -416,8 +414,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2023-06-23
 
-![AppVersion: v0.1.0-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.1.0-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.1.0](https://img.shields.io/badge/v0.1.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v010)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 * bump version of logs single
 * Fix wrong condition on fluent-bit dependency (#568)
@@ -432,8 +430,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2023-06-22
 
-![AppVersion: v0.1.0-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.1.0-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.1.0](https://img.shields.io/badge/v0.1.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v010)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 * charts/victoria-logs-single: template Host field (#566)
 
@@ -441,8 +439,8 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2023-06-22
 
-![AppVersion: v0.1.0-victorialogs](https://img.shields.io/static/v1?label=AppVersion&message=v0.1.0-victorialogs&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.1.0](https://img.shields.io/badge/v0.1.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v010)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 * fix the chart image and jsonline endpoint
 * add victoria-logs to build process, make package
@@ -452,7 +450,7 @@ to update your agent configuration if you are using it.
 
 **Release date:** 2023-06-12
 
-![AppVersion: v0.0.0](https://img.shields.io/static/v1?label=AppVersion&message=v0.0.0&color=success&logo=)
-![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+![AppVersion: v0.0.0](https://img.shields.io/badge/v0.0.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%2F%23v000)
+![Helm: v3](https://img.shields.io/badge/Helm-v3-informational?color=informational&logo=helm)
 
 * charts/victoria-logs-single: add new chart (#560)

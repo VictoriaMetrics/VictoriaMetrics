@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.31.0](https://img.shields.io/badge/Version-0.31.0-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.31.3](https://img.shields.io/badge/Version-0.31.3-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-k8s-stack)
 
 Kubernetes monitoring on VictoriaMetrics stack. Includes VictoriaMetrics Operator, Grafana dashboards, ServiceScrapes and VMRules
@@ -880,10 +880,22 @@ groups:
     general:
         create: true
         rules: {}
+    k8sContainerCpuLimits:
+        create: true
+        rules: {}
+    k8sContainerCpuRequests:
+        create: true
+        rules: {}
     k8sContainerCpuUsageSecondsTotal:
         create: true
         rules: {}
     k8sContainerMemoryCache:
+        create: true
+        rules: {}
+    k8sContainerMemoryLimits:
+        create: true
+        rules: {}
+    k8sContainerMemoryRequests:
         create: true
         rules: {}
     k8sContainerMemoryRss:
@@ -1077,10 +1089,22 @@ etcd:
 general:
     create: true
     rules: {}
+k8sContainerCpuLimits:
+    create: true
+    rules: {}
+k8sContainerCpuRequests:
+    create: true
+    rules: {}
 k8sContainerCpuUsageSecondsTotal:
     create: true
     rules: {}
 k8sContainerMemoryCache:
+    create: true
+    rules: {}
+k8sContainerMemoryLimits:
+    create: true
+    rules: {}
+k8sContainerMemoryRequests:
     create: true
     rules: {}
 k8sContainerMemoryRss:
@@ -1393,6 +1417,7 @@ sidecar:
     datasources:
         enabled: true
         initDatasources: true
+        label: grafana_datasource
 vmScrape:
     enabled: true
     spec:
