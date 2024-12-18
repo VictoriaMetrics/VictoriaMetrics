@@ -13,7 +13,9 @@ aliases:
 
 ## tip
 
-## [v0.51.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.51.0) - 17 Dec 2024
+## [v0.51.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.51.0)
+
+**Release date:** 17 Dec 2024
 
 **Update note 1: `labels` and `annotations` inheritance is deprecated and will be remove at upcoming `v0.52.0` release. It's recommend to move all needed labels and annotations to the `spec.managedMetadata` fields.
 Operator will preserve `annotations`, but any changes to it will be ignored. `labels` inherited from `CRD.metata.labels` will be removed after upgrade to `v0.52.0`.**
@@ -38,7 +40,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [api](https://docs.victoriametrics.com/operator/api): upgrade Kubernetes(v0.31.3) and controller-runtime(v1.19.3) dependencies. Remove versions pin with `replace` directive from `go.mod`.
 - [api](https://docs.victoriametrics.com/operator/api): rework `status` sub-resource for `VMUser`, `VMAlertmanager`, `VMRule` and `VMScrape.*` objects. Add new `conditions` field, that represents resources conditions. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1155) for details.
 
-## [v0.50.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.50.0) - 22 Nov 2024
+## [v0.50.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.50.0)
+
+**Release date:** 22 Nov 2024
 
 - [vmoperator](https://docs.victoriametrics.com/operator/): add missing `container` labels to the metrics discovered with `VMServiceScrape` for `endpointslices` discovery role.
 - [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1).
@@ -47,14 +51,18 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [api](https://docs.victoriametrics.com/operator/api): adds new status field `observedGeneration`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1155) for details.
 - [api](https://docs.victoriametrics.com/operator/api): unify `updateStatus` field for CRD objects. It replaces `status`, `clusterStatus` and `singleStatus` for `VLogs`, `VMCluster` and `VMSingle` with generic `updateStatus`.
 
-## [v0.49.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.1) - 11 Nov 2024
+## [v0.49.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.1)
+
+**Release date:** 11 Nov 2024
 
 - [vmrule](https://docs.victoriametrics.com/operator/resources/vmrule/): properly validate rules for [vlogs](https://docs.victoriametrics.com/victorialogs/vmalert/) group `type`.
 - [operator](https://docs.victoriametrics.com/operator/): properly apply changes to the [converted](https://docs.victoriametrics.com/operator/migration/#objects-conversion) `VMScrapeConfig` during operator start-up.
 - [operator](https://docs.victoriametrics.com/operator/): properly set  `operational` update status for CRDs. Previously, `operational` status could be set before rollout finishes at Kubernetes due to bug at Kubernetes `controller-manager`.
 
 
-## [v0.49.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.0) - 15 Oct 2024
+## [v0.49.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.0)
+
+**Release date:** 15 Oct 2024
 
 - [operator](https://docs.victoriametrics.com/operator/): properly apply `useStrictSecurity: true` to the `initContainers` for `VMAuth`, `VMAgent` and `VMAlertmanager`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1134) for details.
 - [vmauth](https://docs.victoriametrics.com/operator/resources/vmauth): Moved `spec.configSecret` to `spec.externalConfig.secretRef.name` and added `spec.externalConfig.localPath` to be able to provide custom configs via sidecar.
@@ -65,7 +73,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [operator](https://docs.victoriametrics.com/operator/): fixed converting AlertmanagerConfig to VMAlertmanagerConfig
 - [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0).
 
-## [v0.48.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.4) - 15 Oct 2024
+## [v0.48.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.4)
+
+**Release date:** 15 Oct 2024
 
 - [api](https://docs.victoriametrics.com/operator/api): adds new fields `maxDiskUsagePerUrl` and`forceVMProto` to the `VMagent` `remoteWriteSpec`
 - [vmuser](https://docs.victoriametrics.com/operator/resources/vmuser/): fixes the protocol of generated CRD target access url for vminsert and vmstorage when TLS is enabled.
@@ -73,24 +83,32 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [vmagent](https://docs.victoriametrics.com/operator/resources/vmagent/): properly assign `OwnerRefrence` for `Role` and `RoleBinding` at `single-namespace` operator mode.
 - [operator](https://docs.victoriametrics.com/operator/): fixes pod scheduling with `useStrictSecurity` enabled by removing default values for `AppArmorProfile` and `SeccompProfile`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1120) for details.
 
-## [v0.48.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.3) - 29 Sep 2024
+## [v0.48.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.3)
+
+**Release date:** 29 Sep 2024
 
 - [vmcluster](https://docs.victoriametrics.com/operator/resources/vmcluster): properly apply global container registry from configuration. It was ignored for `VMCluster` since `v0.48.0` release. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1118) for details.
 - [operator](https://docs.victoriametrics.com/operator/): updates default vlogs app version to v0.32.0
 - [operator](https://docs.victoriametrics.com/operator/): adds new flag `--disableControllerForCRD`. It allows to disable reconcile controller for the given comma-separated list of CRD names. See [this issue](https://github.com/VictoriaMetrics/operator/issues/528) for details.
 
-## [v0.48.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.2) - 27 Sep 2024
+## [v0.48.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.2)
+
+**Release date:** 27 Sep 2024
 
 - [operator](https://docs.victoriametrics.com/operator/): properly expose `vm_app_version` metric tag with `version` and `short_version` build info. It was broken since v0.46.0 release.
 - [operator](https://docs.victoriametrics.com/operator/): changes default value for `controller.maxConcurrentReconciles` from `1` to `5`. It should improve reconcile performance for the most installations.
 - [operator](https://docs.victoriametrics.com/operator/): expose new runtime metrics `rest_client_request_duration_seconds`, `sched_latencies_seconds`. It allows to better debug operator reconcile latencies.
 
-## [v0.48.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.1) - 26 Sep 2024
+## [v0.48.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.1)
+
+**Release date:** 26 Sep 2024
 
 - [vmalertmanager](https://docs.victoriametrics.com/operator/resources/vmalertmanager): properly build service, previously port by number instead of name was used. It produced `updating service` log messages.
 - [vmcluster](https://docs.victoriametrics.com/operator/resources/vmcluster): properly add `imagePullSecrets` to the components. Due to bug at `0.48.0` operator ignored `vmcluster.spec.imagePullSecrets` See [this issue](https://github.com/VictoriaMetrics/operator/issues/1116) for details.
 
-## [v0.48.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.0) - 25 Sep 2024
+## [v0.48.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.0)
+
+**Release date:** 25 Sep 2024
 
 - [api](https://docs.victoriametrics.com/operator/api): adds new fields `useVMConfigReloader`, `configReloaderImageTag`, `configReloaderResources` to to the `VMagent`, `VMAlert`, `VMAuth`, and `VMAlertmanager`.
 - [api/vmalertmanager](https://docs.victoriametrics.com/operator/api/index.html#vmalertmanagerspec): adds new field `enforcedTopRouteMatchers`. It adds given alert label matchers to the top route of any `VMAlertmanagerConfig`.  See this [issue](https://github.com/VictoriaMetrics/operator/issues/1096) for details.
@@ -110,11 +128,15 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [operator](https://docs.victoriametrics.com/operator/): operator trims spaces from `Secret` and `Configmap` values by default. This behaviour could be changed with flag `disableSecretKeySpaceTrim`. Related [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6986).
 - [operator](#https://docs.victoriametrics.com/operator/): expose again only command-line flags related to the operator. Release [v0.45.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.45.0) added regression with incorrectly exposed flags.
 
-## [v0.47.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.3) - 28 Aug 2024
+## [v0.47.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.3)
+
+**Release date:** 28 Aug 2024
 
 - [operator](https://docs.victoriametrics.com/operator/): fixes statefulset reconcile endless loop bug introduced at v0.47.0 version with [commit](https://github.com/VictoriaMetrics/operator/commit/57b65771b29ffd8b5d577e160aacddf0481295ee).
 
-## [v0.47.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.2) - 26 Aug 2024
+## [v0.47.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.2)
+
+**Release date:** 26 Aug 2024
 
 - [vmalertmanager](https://docs.victoriametrics.com/operator/resources/vmalertmanager): allow to change webserver listen port with `spec.Port`. See this [PR](https://github.com/VictoriaMetrics/operator/pull/1082) for details.
 - [operator](https://docs.victoriametrics.com/operator/): updates default vm apps version to v1.102.1
@@ -123,7 +145,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [vmuser](https://docs.victoriametrics.com/operator/resources/vmuser/): fixes `crd.kind` enum param for `VMAlertmanager`, it now supports both `VMAlertmanager` and `VMAlertManager`. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1083) for details.
 - [operator](https://docs.victoriametrics.com/operator/): adds sorting for `configReloaderExtraArgs`.
 
-## [v0.47.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.1) - 23 Aug 2024
+## [v0.47.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.1)
+
+**Release date:** 23 Aug 2024
 
 **It is recommended upgrading to [operator v0.47.2](https://docs.victoriametrics.com/operator/changelog/#v0471---23-aug-2024) because v0.47.1 contains a bug, which can lead to endless statefulset reconcile loop.**
 
@@ -132,7 +156,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [operator](https://docs.victoriametrics.com/operator/): fixed Prometheus scrape config metricsPath conversion. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1073)
 - [config-reloader](https://docs.victoriametrics.com/operator/): Added `reload` prefix to all config-reloader `tls*` flags to avoid collision with flags from external package. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1072)
 
-## [v0.47.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.0) - 15 Aug 2024
+## [v0.47.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.0)
+
+**Release date:** 15 Aug 2024
 
 ### Breaking changes
 
@@ -156,7 +182,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [vmagent/vmsingle](https://docs.victoriametrics.com/operator/resources): sync stream aggregation options `dropInputLabels`, `ignoreFirstIntervals`, `ignoreOldSamples` from [upstream](https://docs.victoriametrics.com/stream-aggregation/), and support using configMap as the source of aggregation rules.
 - [operator](https://docs.victoriametrics.com/operator/): added `-client.qps` and `-client.burst` flags to override default QPS and burst K8S params. Related [issue](https://github.com/VictoriaMetrics/operator/issues/1059).
 
-## [v0.46.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.46.4) - 9 Jul 2024
+## [v0.46.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.46.4)
+
+**Release date:** 9 Jul 2024
 
 ### Breaking changes
 
@@ -167,13 +195,17 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [operator](https://docs.victoriametrics.com/operator/): switches from distroless to scratch base image. See this commit 768bf76bdd1ce2080c214cf164f95711d836b960 for details.
 - [config-reloader](https://docs.victoriametrics.com/operator/): do not specify `command` for container. `command` configured at `docker image` level. See this commit 2192115488e6f2be16bde7ddd71426e305a16144 for details.
 
-## [v0.46.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.46.3) - 5 Jul 2024
+## [v0.46.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.46.3)
+
+**Release date:** 5 Jul 2024
 
 - [operator](https://docs.victoriametrics.com/operator/): fixes `config-reloader` image tag name after 0.46.0 release. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1017) for details.
 - [prometheus-converter](https://docs.victoriametrics.com/operator/): fixes panic at `PodMonitor` convertion with configured `tlsConfig`. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1025) for details.
 - [api](https://docs.victoriametrics.com/operator/api): return back `targetPort` for `VMPodScrape` definition. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1015) for details.
 
-## [v0.46.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.46.0) - 3 Jul 2024
+## [v0.46.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.46.0)
+
+**Release date:** 3 Jul 2024
 
 ### Breaking changes
 
@@ -196,9 +228,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 - [vmscrapeconfig](https://docs.victoriametrics.com/operator/api#vmscrapeconfig) - added `max_scrape_size` parameter for scrape protocols configuration
 
-<a name="v0.45.0"></a>
+## [v0.45.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.45.0)
 
-## [v0.45.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.45.0) - 10 Jun 2024
+**Release date:** 10 Jun 2024
 
 - [operator](#https://docs.victoriametrics.com/operator/): expose only command-line flags related to the operator. Remove all transitive dependency flags. See this [issue](https://github.com/VictoriaMetrics/operator/issues/963) for details.
 - [vmalertmanager](https://docs.victoriametrics.com/operator/api#vmalertmanager): ignores content of `cr.spec.configSecret` if it's name clashes with secret used by operator for storing alertmanager config. See this [issue](https://github.com/VictoriaMetrics/operator/issues/954) for details.
@@ -209,7 +241,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [prometheus-converter](https://docs.victoriametrics.com/operator/): removed dependence on getting the list of API resources for all API groups in the cluster (including those that are not used by the operator). Now API resources are requested only for the required groups (monitoring.coreos.com/*).
 - [alertmanagerconfig-converter](https://docs.victoriametrics.com/operator/): fix alertmanagerconfig converting with receiver `opsgenie_configs`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/968).
 
-## [v0.44.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.44.0) - 9 May 2024
+## [v0.44.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.44.0)
+
+**Release date:** 9 May 2024
 
 - [vmagent](https://docs.victoriametrics.com/operator/api#vmagent): adds new fields into `streamAggrConfig`: `dedup_interval`, `ignore_old_samples`, `keep_metric_names`, `no_align_flush_to_interval`. It's only possible to use it with v1.100+ version of `vmagent`. See this [issue](https://github.com/VictoriaMetrics/operator/issues/936) for details.
 - [operator](https://docs.victoriametrics.com/operator/): use `Patch` for `finalizers` set/unset operations. It must fix possible issues with `CRD` objects mutations. See this [issue](https://github.com/VictoriaMetrics/operator/issues/946) for details.
@@ -220,42 +254,42 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [prometheus-converter](https://docs.victoriametrics.com/operator/): fixes owner reference type on VMScrapeConfig objects
 - [vmauth&vmuser](https://docs.victoriametrics.com/operator/api#vmauth): sync config fields from [upstream](https://docs.victoriametrics.com/vmauth), e.g., src_query_args, discover_backend_ips.
 
-<a name="v0.43.5"></a>
+## [v0.43.5](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.5)
 
-## [v0.43.5](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.5) - 26 Apr 2024
+**Release date:** 26 Apr 2024
 
 - Update VictoriaMetrics image tags to [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).
 
-<a name="v0.43.4"></a>
+## [v0.43.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.4)
 
-## [v0.43.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.4) - 25 Apr 2024
+**Release date:** 25 Apr 2024
 
 - [operator](https://docs.victoriametrics.com/operator/): properly set status to `expanding` for `VMCluster` during initial creation. Previously, it was always `operational`.
 - [operator](https://docs.victoriametrics.com/operator/): adds more context to `Deployment` and `Statefulset` watch ready functions. Now, it reports state of unhealthy pod. It allows to find issue with it faster.
 
-<a name="v0.43.3"></a>
+## [v0.43.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.3)
 
-## [v0.43.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.3) - 23 Apr 2024
+**Release date:** 23 Apr 2024
 
 - [operator](https://docs.victoriametrics.com/operator/): fix conversion from `ServiceMonitor` to `VMServiceScrape`, `bearerTokenSecret` is dropped mistakenly since [v0.43.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.0). See [this issue](https://github.com/VictoriaMetrics/operator/issues/932).
 - [operator](https://docs.victoriametrics.com/operator/): fix selector match for config resources like VMUser, VMRule... , before it could be ignored when update resource labels.
 
-<a name="v0.43.2"></a>
+## [v0.43.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.2)
 
-## [v0.43.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.2) - 22 Apr 2024
+**Release date:** 22 Apr 2024
 
 - [vmagent](https://docs.victoriametrics.com/operator/api#vmagent): fixes bug with `ServiceAccount` not found with `ingestOnlyMode`.
 - [vmagent](https://docs.victoriametrics.com/operator/api#vmagent): fixes `unknown long flag '--rules-dir'` for prometheus-config-reloader.
 
-<a name="v0.43.1"></a>
+## [v0.43.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.1)
 
-## [v0.43.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.1) - 18 Apr 2024
+**Release date:** 18 Apr 2024
 
 - [operator](https://docs.victoriametrics.com/operator/): properly add `liveness` and `readiness` probes to `config-reloader`, if `VM_USECUSTOMCONFIGRELOADER=false`.
 
-<a name="v0.43.0"></a>
+## [v0.43.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.0)
 
-## [v0.43.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.0) - 18 Apr 2024
+**Release date:** 18 Apr 2024
 
 **Update note: [vmcluster](https://docs.victoriametrics.com/operator/api#vmcluster): remove fields `VMClusterSpec.VMInsert.Name`, `VMClusterSpec.VMStorage.Name`, `VMClusterSpec.VMSelect.Name`, they're marked as deprecated since v0.21.0. See [this pull request](https://github.com/VictoriaMetrics/operator/pull/907).**
 **Update note: PodSecurityPolicy supports was deleted. Operator no long creates PSP related objects since it's no longer supported by Kubernetes actual versions. See this [doc](https://kubernetes.io/blog/2021/04/08/kubernetes-1-21-release-announcement/#podsecuritypolicy-deprecation) for details.**
@@ -287,31 +321,31 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - scrape CRDs: fix scrape_config filed `disable_keep_alive`, before it's misconfigured as `disable_keepalive` and won't work.
 - scrape CRDs: deprecated option `relabel_debug` and  `metric_relabel_debug`, they were deprecated since [v1.85.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.0).
 
-<a name="v0.42.3"></a>
+## [v0.43.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.3)
 
-## [v0.43.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.3) - 12 Mar 2024
+**Release date:** 12 Mar 2024
 
 - [vmalert](https://docs.victoriametrics.com/operator/api#vmalert): do not add `notifiers.*` flags in case `notifier.blackhole` is provided via `spec.extraArgs`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/894) for details.
 - [operator](https://docs.victoriametrics.com/operator/): properly build liveness probe scheme with enabled `tls`. Previously it has hard-coded `HTTP` scheme. See this [issue](https://github.com/VictoriaMetrics/operator/issues/896) for details.
 - [operator](https://docs.victoriametrics.com/operator/): do not perform a PVC size check on `StatefulSet` with `0` replicas. It allows to creates CRDs with `0` replicas for later conditional resizing.
 - [vmalertmanager](https://docs.victoriametrics.com/operator/api#vmalertmanager): properly print columns at CRD `replicaCount` and `version` status fields.
 
-<a name="v0.42.2"></a>
+## [v0.42.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.2)
 
-## [v0.42.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.2) - 6 Mar 2024
+**Release date:** 6 Mar 2024
 
 - [operator](https://docs.victoriametrics.com/operator/): fixes alertmanager args typo.
 - [prometheus-converter](https://docs.victoriametrics.com/operator/): adds new flag `controller.prometheusCRD.resyncPeriod` which allows to configure resync period of prometheus CRD objects. See this [issue](https://github.com/VictoriaMetrics/operator/issues/869) for details.
 
-<a name="v0.42.1"></a>
+## [v0.42.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.1)
 
-## [v0.42.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.1) - 5 Mar 2024
+**Release date:** 5 Mar 2024
 
 - [operator](https://docs.victoriametrics.com/operator/): properly watch for prometheus CRD objects. See this [issue](https://github.com/VictoriaMetrics/operator/issues/892) for details.
 
-<a name="v0.42.0"></a>
+## [v0.42.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.0)
 
-## [v0.42.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.0) - 4 Mar 2024
+**Release date:** 4 Mar 2024
 
 - [operator](https://docs.victoriametrics.com/operator/): adds more context to the log messages. It must greatly improve debugging process and log quality.
 - Update VictoriaMetrics image tags to [v1.99.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.99.0).
@@ -326,29 +360,30 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [vmalertmanager](https://docs.victoriametrics.com/operator/api#vmalertmanager): properly assign path for templates, if it's configured at config file and defined via `spec.templates`. 1128fa9e152a52c7a566fe7ac1375fefbfc6b276
 - [vmauth](https://docs.victoriametrics.com/operator/api#vmauth): adds new field `spec.configSecret`, which allows to use vmauth with external configuration stored at secret under `config.yaml` key. Configuration changes can be tracked with extraArgs: `configCheckInterval: 10s` or manually defined config-reloader container.
 - [vmstorage](https://docs.victoriametrics.com/operator/api#vmcluster): properly disable `pvc` resizing with annotation `operator.victoriametrics.com/pvc-allow-volume-expansion`. Previously it was checked per pvc, now it's checked at statefulset storage spec. It also, allows to add pvc autoscaler. Related issues <https://github.com/VictoriaMetrics/operator/issues/821>, <https://github.com/VictoriaMetrics/operator/issues/867>.
-<a name="v0.41.2"></a>
 
-## [v0.41.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.2) - 21 Feb 2024
+## [v0.41.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.2)
+
+**Release date:** 21 Feb 2024
 
 - Remove deprecated autoscaling/v2beta1 HPA objects, previously operator still use it for k8s 1.25. See [this issue](https://github.com/VictoriaMetrics/operator/issues/864) for details.
 - Update VictoriaMetrics image tags to [v1.98.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.98.0).
 
-<a name="v0.41.1"></a>
+## [v0.41.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.1)
 
-## [v0.41.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.1) - 1 Feb 2024
+**Release date:** 1 Feb 2024
 
 - update VictoriaMetrics image tags to [v1.97.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.1).
 
-<a name="v0.41.0"></a>
+## [v0.41.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.0)
 
-## [v0.41.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.0) - 31 Jan 2024
+**Release date:** 31 Jan 2024
 
 - update VictoriaMetrics image tags to [v1.97.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.0).
 - [vmauth](https://docs.victoriametrics.com/operator/api#vmauth): add new fields for `unauthorized_user` like `src_hosts`, `headers`, `retry_status_codes` and `load_balancing_policy`. See [vmauth docs](https://docs.victoriametrics.com/vmauth) for more details.
 
-<a name="v0.40.0"></a>
+## [v0.40.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.40.0)
 
-## [v0.40.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.40.0) - 23 Jan 2024
+**Release date:** 23 Jan 2024
 
 - [vmalertmanager](https://docs.victoriametrics.com/operator/api#vmalertmanagerconfig): fix `VMAlertmanagerConfig` discovery according to [the docs](https://docs.victoriametrics.com/operator/resources/vmalertmanager#using-vmalertmanagerconfig).
 - [vmoperator](https://docs.victoriametrics.com/operator/): add alerting rules for operator itself. See [this issue](https://github.com/VictoriaMetrics/operator/issues/526) for details.
@@ -357,23 +392,23 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [vmoperator](https://docs.victoriametrics.com/operator/): add CRD support for `discord_configs`, `msteams_configs`, `sns_configs` and `webex_configs` receiver types in [VMAlertmanagerConfig](https://docs.victoriametrics.com/operator/resources/vmalertmanagerconfig). See [this issue](https://github.com/VictoriaMetrics/operator/issues/808)
 - [vmoperator](https://docs.victoriametrics.com/operator/): add MinReadySeconds param for all CRDs. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/608) and [this PR](https://github.com/VictoriaMetrics/operator/pull/846).
 
-<a name="v0.39.4"></a>
+## [v0.39.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.4)
 
-## [v0.39.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.4) - 13 Dec 2023
+**Release date:** 13 Dec 2023
 
 - update VictoriaMetrics image tags to [v1.96.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.96.0).
 - [vmalertmanagerconfig](https://docs.victoriametrics.com/operator/api#vmalertmanagerconfig): add fields `entity`, `actions` and `update_alerts` for opsgenie_configs according to <https://prometheus.io/docs/alerting/latest/configuration/#opsgenie_config>.
 - [vmoperator](https://docs.victoriametrics.com/operator/): remove vmalert notifier null check, since `-notifier.url` is optional and is needed only if there are alerting rules.
 
-<a name="v0.39.3"></a>
+## [v0.39.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.3)
 
-## [v0.39.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.3) - 16 Nov 2023
+**Release date:** 16 Nov 2023
 
 - update VictoriaMetrics image tags to [v1.95.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.95.1).
 
-<a name="v0.39.2"></a>
+## [v0.39.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.2)
 
-## [v0.39.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.2) - 15 Nov 2023
+**Release date:** 15 Nov 2023
 
 ### Features
 
@@ -381,17 +416,17 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [vmoperator](https://docs.victoriametrics.com/operator/): sort `statefulSet` pods by id for rolling update order. See [this commit](https://github.com/VictoriaMetrics/operator/commit/e73b03acd073ec3eda34231083a48c6f79a6757b) for details.
 - [vmoperator](https://docs.victoriametrics.com/operator/): optimize statefulset update logic, that should reduce some unneeded operations. See [this PR](https://github.com/VictoriaMetrics/operator/pull/801) for details.
 
-<a name="v0.39.1"></a>
+## [v0.39.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.1)
 
-## [v0.39.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.1) - 1 Nov 2023
+**Release date:** 1 Nov 2023
 
 - [vmuser](https://docs.victoriametrics.com/operator/api#vmuser):  adds new paths for vminsert/vmselect routing with enabled dynamic discovery feature for `VMUser`. See [this PR](https://github.com/VictoriaMetrics/operator/pull/791) for details.
 - [vmcluster](https://docs.victoriametrics.com/operator/api#vmcluster): from now on operator passes `-replicationFactor` (if it set in `vmcluster`) for `vmselect`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/778).
 - [vmagent](https://docs.victoriametrics.com/operator/api#vmagent): updated dependency for properly parsing chained `if` expressions in validation webhook.
 
-<a name="v0.38.0"></a>
+## [v0.39.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.0)
 
-## [v0.39.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.0) - 4 Oct 2023
+**Release date:** 4 Oct 2023
 
 ### Features
 
@@ -409,9 +444,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [vmauth/vmagent](https://docs.victoriametrics.com/operator/): correctly set flag for custom config reloader image during config initialisation. See [this issue](https://github.com/VictoriaMetrics/operator/issues/770) for details.
 - [vmauth](https://docs.victoriametrics.com/operator/api#vmauth): correctly set config reloader image for init container.
 
-<a name="v0.38.0"></a>
+## [v0.38.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.38.0)
 
-## [v0.38.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.38.0) - 11 Sep 2023
+**Release date:** 11 Sep 2023
 
 **Default version of VictoriaMetrics components**: `v1.93.4`
 
@@ -425,9 +460,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 - [vmoperator](https://docs.victoriametrics.com/operator/) add ability to print default values for all [operator variables](https://docs.victoriametrics.com/operator/vars). See [this issue](https://github.com/VictoriaMetrics/operator/issues/675) for details.
 
-<a name="v0.37.1"></a>
+## [v0.37.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.37.1)
 
-## [v0.37.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.37.1) - 02 Sep 2023
+**Release date:** 02 Sep 2023
 
 **Default version of VictoriaMetrics components**: `v1.93.3`
 
@@ -435,9 +470,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 - bump default version of Victoria Metrics components to [v1.93.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.3)
 
-<a name="v0.37.0"></a>
+## [v0.37.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.37.0)
 
-## [v0.37.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.37.0) - 30 Aug 2023
+**Release date:** 30 Aug 2023
 
 ### Fixes
 
@@ -447,9 +482,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 - [vmagent](https://docs.victoriametrics.com/operator/api#vmagent): support [multiple if conditions](https://docs.victoriametrics.com/vmagent#relabeling:~:text=the%20if%20option%20may%20contain%20more%20than%20one%20filter) for relabeling. See [this issue](https://github.com/VictoriaMetrics/operator/issues/730) for details.
 
-<a name="v0.36.1"></a>
+## [v0.36.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.36.0)
 
-## [v0.36.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.36.0) - 25 Aug 2023
+**Release date:** 25 Aug 2023
 
 ### Fixes
 
@@ -457,9 +492,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 ### Features
 
-<a name="v0.36.0"></a>
+## [v0.36.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.36.0)
 
-## [v0.36.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.36.0) - 23 Aug 2023
+**Release date:** 23 Aug 2023
 
 ### Breaking changes
 
@@ -503,9 +538,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.36.0]
 
-<a name="v0.35.1"></a>
+## [v0.35.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.35.1)
 
-## [v0.35.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.35.1) - 12 Jul 2023
+**Release date:** 12 Jul 2023
 
 ### Fixes
 
@@ -513,9 +548,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.35.1]
 
-<a name="v0.35.0"></a>
+## [v0.35.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.35.0)
 
-## [v0.35.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.35.0) - 03 Jul 2023
+**Release date:** 03 Jul 2023
 
 ### Fixes
 
@@ -535,9 +570,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.35.0]
 
-<a name="v0.34.1"></a>
+## [v0.34.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.34.1)
 
-## [v0.34.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.34.1) - 29 May 2023
+**Release date:** 29 May 2023
 
 ### Fixes
 
@@ -547,9 +582,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.34.1]
 
-<a name="v0.34.0"></a>
+## [v0.34.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.34.0)
 
-## [v0.34.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.34.0) - 24 May 2023
+**Release date:** 24 May 2023
 
 ### Breaking changes
 
@@ -572,9 +607,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.34.0]
 
-<a name="v0.33.0"></a>
+## [v0.33.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.33.0)
 
-## [v0.33.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.33.0) - 19 Apr 2023
+**Release date:** 19 Apr 2023
 
 ### Fixes
 
@@ -597,9 +632,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.33.0]
 
-<a name="v0.32.1"></a>
+## [v0.32.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.32.1)
 
-## [v0.32.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.32.1) - 16 Mar 2023
+**Release date:** 16 Mar 2023
 
 ### Fixes
 
@@ -608,9 +643,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.32.1]
 
-<a name="v0.32.0"></a>
+## [v0.32.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.32.0)
 
-## [v0.32.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.32.0) - 15 Mar 2023
+**Release date:** 15 Mar 2023
 
 ### Fixes
 
@@ -625,9 +660,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.32.0]
 
-<a name="v0.31.0"></a>
+## [v0.31.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.31.0)
 
-## [v0.31.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.31.0) - 02 Mar 2023
+**Release date:** 02 Mar 2023
 
 ### Fixes
 
@@ -641,9 +676,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.31.0]
 
-<a name="v0.30.4"></a>
+## [v0.30.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.4)
 
-## [v0.30.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.4) - 27 Jan 2023
+**Release date:** 27 Jan 2023
 
 ### Fixes
 
@@ -657,9 +692,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.30.4]
 
-<a name="v0.30.3"></a>
+## [v0.30.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.3)
 
-## [v0.30.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.3) - 16 Jan 2023
+**Release date:** 16 Jan 2023
 
 ### Fixes
 
@@ -668,9 +703,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.30.3]
 
-<a name="v0.30.2"></a>
+## [v0.30.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.2)
 
-## [v0.30.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.2) - 12 Jan 2023
+**Release date:** 12 Jan 2023
 
 ### Upgrade notes
 
@@ -682,9 +717,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.30.2]
 
-<a name="v0.30.1"></a>
+## [v0.30.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.1)
 
-## [v0.30.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.1) - 09 Jan 2023
+**Release date:** 09 Jan 2023
 
 ### Fixes
 
@@ -702,9 +737,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.30.1]
 
-<a name="v0.30.0"></a>
+## [v0.30.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.0)
 
-## [v0.30.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.0) - 29 Dec 2022
+**Release date:** 29 Dec 2022
 
 ### Fixes
 
@@ -724,9 +759,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.30.0]
 
-<a name="v0.29.2"></a>
+## [v0.29.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.29.2)
 
-## [v0.29.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.29.2) - 17 Nov 2022
+**Release date:** 17 Nov 2022
 
 ### Fixes
 
@@ -735,9 +770,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.29.2]
 
-<a name="v0.29.1"></a>
+## [v0.29.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.29.1)
 
-## [v0.29.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.29.1) - 14 Nov 2022
+**Release date:** 14 Nov 2022
 
 ### Fixes
 
@@ -753,9 +788,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.29.1]
 
-<a name="v0.29.0"></a>
+## [v0.29.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.29.0)
 
-## [v0.29.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.29.0) - 24 Oct 2022
+**Release date:** 24 Oct 2022
 
 ### Fixes
 
@@ -778,9 +813,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.29.0]
 
-<a name="v0.28.5"></a>
+## [v0.28.5](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.5)
 
-## [v0.28.5](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.5) - 13 Sep 2022
+**Release date:** 13 Sep 2022
 
 ### Fixes
 
@@ -796,9 +831,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.28.5]
 
-<a name="v0.28.4"></a>
+## [v0.28.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.4)
 
-## [v0.28.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.4) - 12 Sep 2022
+**Release date:** 12 Sep 2022
 
 ### Fixes
 
@@ -814,9 +849,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.28.4]
 
-<a name="v0.28.3"></a>
+## [v0.28.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.3)
 
-## [v0.28.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.3) - 02 Sep 2022
+**Release date:** 02 Sep 2022
 
 ### Fixes
 
@@ -825,9 +860,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.28.3]
 
-<a name="v0.28.2"></a>
+## [v0.28.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.2)
 
-## [v0.28.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.2) - 01 Sep 2022
+**Release date:** 01 Sep 2022
 
 ### Fixes
 
@@ -836,9 +871,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.28.2]
 
-<a name="v0.28.1"></a>
+## [v0.28.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.1)
 
-## [v0.28.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.1) - 31 Aug 2022
+**Release date:** 31 Aug 2022
 
 ### Fixes
 
@@ -846,9 +881,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.28.1]
 
-<a name="v0.28.0"></a>
+## [v0.28.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.0)
 
-## [v0.28.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.0) - 30 Aug 2022
+**Release date:** 30 Aug 2022
 
 ### Fixes
 
@@ -863,9 +898,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.28.0]
 
-<a name="v0.27.2"></a>
+## [v0.27.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.27.2)
 
-## [v0.27.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.27.2) - 22 Aug 2022
+**Release date:** 22 Aug 2022
 
 ### Fixes
 
@@ -874,9 +909,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.27.2]
 
-<a name="v0.27.1"></a>
+## [v0.27.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.27.1)
 
-## [v0.27.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.27.1) - 17 Aug 2022
+**Release date:** 17 Aug 2022
 
 ### Fixes
 
@@ -888,9 +923,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.27.1]
 
-<a name="v0.27.0"></a>
+## [v0.27.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.27.0)
 
-## [v0.27.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.27.0) - 16 Aug 2022
+**Release date:** 16 Aug 2022
 
 ### Fixes
 
@@ -912,9 +947,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.27.0]
 
-<a name="v0.26.3"></a>
+## [v0.26.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.26.3)
 
-## [v0.26.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.26.3) - 26 Jul 2022
+**Release date:** 26 Jul 2022
 
 ### Fixes
 
@@ -923,9 +958,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.26.3]
 
-<a name="v0.26.0"></a>
+## [v0.26.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.26.0)
 
-## [v0.26.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.26.0) - 25 Jul 2022
+**Release date:** 25 Jul 2022
 
 ### Breaking changes
 
@@ -962,9 +997,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.26.0]
 
-<a name="v0.25.1"></a>
+## [v0.25.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.25.1)
 
-## [v0.25.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.25.1) - 20 May 2022
+**Release date:** 20 May 2022
 
 ### Fixes
 
@@ -972,9 +1007,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.25.1]
 
-<a name="v0.25.0"></a>
+## [v0.25.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.25.0)
 
-## [v0.25.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.25.0) - 19 May 2022
+**Release date:** 19 May 2022
 
 ### Breaking changes
 
@@ -1001,9 +1036,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.25.0]
 
-<a name="v0.24.0"></a>
+## [v0.24.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.24.0)
 
-## [v0.24.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.24.0) - 11 Apr 2022
+**Release date:** 11 Apr 2022
 
 ### Fixes
 
@@ -1033,9 +1068,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.24.0]
 
-<a name="v0.23.3"></a>
+## [v0.23.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.3)
 
-## [v0.23.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.3) - 21 Feb 2022
+**Release date:** 21 Feb 2022
 
 ### Fixes
 
@@ -1047,9 +1082,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.23.3]
 
-<a name="v0.23.2"></a>
+## [v0.23.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.2)
 
-## [v0.23.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.2) - 14 Feb 2022
+**Release date:** 14 Feb 2022
 
 ### Fixes
 
@@ -1057,9 +1092,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.23.2]
 
-<a name="v0.23.1"></a>
+## [v0.23.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.1)
 
-## [v0.23.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.1) - 10 Feb 2022
+**Release date:** 10 Feb 2022
 
 ### Fixes
 
@@ -1067,9 +1102,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.23.1]
 
-<a name="v0.23.0"></a>
+## [v0.23.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.0)
 
-## [v0.23.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.0) - 09 Feb 2022
+**Release date:** 09 Feb 2022
 
 ### Breaking changes
 
@@ -1086,9 +1121,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.23.0]
 
-<a name="v0.22.1"></a>
+## [v0.22.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.22.1)
 
-## [v0.22.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.22.1) - 21 Jan 2022
+**Release date:** 21 Jan 2022
 
 ### Fixes
 
@@ -1101,9 +1136,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.22.1]
 
-<a name="v0.22.0"></a>
+## [v0.22.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.22.0)
 
-## [v0.22.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.22.0) - 26 Dec 2021
+**Release date:** 26 Dec 2021
 
 ### Fixes
 
@@ -1119,9 +1154,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.22.0]
 
-<a name="v0.21.0"></a>
+## [v0.21.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.21.0)
 
-## [v0.21.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.21.0) - 30 Nov 2021
+**Release date:** 30 Nov 2021
 
 ### Breaking changes
 
@@ -1145,9 +1180,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.21.0]
 
-<a name="v0.20.3"></a>
+## [v0.20.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.3)
 
-## [v0.20.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.3) - 10 Nov 2021
+**Release date:** 10 Nov 2021
 
 #### Fixes
 
@@ -1156,9 +1191,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.20.3]
 
-<a name="v0.20.2"></a>
+## [v0.20.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.2)
 
-## [v0.20.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.2) - 07 Nov 2021
+**Release date:** 07 Nov 2021
 
 #### Fixes
 
@@ -1167,9 +1202,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.20.2]
 
-<a name="v0.20.1"></a>
+## [v0.20.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.1)
 
-## [v0.20.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.1) - 28 Oct 2021
+**Release date:** 28 Oct 2021
 
 #### Fixes
 
@@ -1177,9 +1212,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.20.1]
 
-<a name="v0.20.0"></a>
+## [v0.20.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.0)
 
-## [v0.20.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.0) - 28 Oct 2021
+**Release date:** 28 Oct 2021
 
 ### Breaking changes
 
@@ -1201,9 +1236,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.20.0]
 
-<a name="v0.19.1"></a>
+## [v0.19.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.19.1)
 
-## [v0.19.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.19.1) - 28 Sep 2021
+**Release date:** 28 Sep 2021
 
 ### Fixes
 
@@ -1212,9 +1247,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.19.1]
 
-<a name="v0.19.0"></a>
+## [v0.19.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.19.0)
 
-## [v0.19.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.19.0) - 24 Sep 2021
+**Release date:** 24 Sep 2021
 
 ### Features
 
@@ -1231,9 +1266,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.19.0]
 
-<a name="v0.18.2"></a>
+## [v0.18.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.18.2)
 
-## [v0.18.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.18.2) - 03 Sep 2021
+**Release date:** 03 Sep 2021
 
 ### Fixes
 
@@ -1241,9 +1276,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.18.2]
 
-<a name="v0.18.1"></a>
+## [v0.18.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.18.1)
 
-## [v0.18.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.18.1) - 30 Aug 2021
+**Release date:** 30 Aug 2021
 
 ### Fixes
 
@@ -1251,9 +1286,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.18.1]
 
-<a name="v0.18.0"></a>
+## [v0.18.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.18.0)
 
-## [v0.18.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.18.0) - 24 Aug 2021
+**Release date:** 24 Aug 2021
 
 ### Deprecations
 
@@ -1280,9 +1315,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.18.0]
 
-<a name="v0.17.2"></a>
+## [v0.17.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.17.2)
 
-## [v0.17.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.17.2) - 31 Jul 2021
+**Release date:** 31 Jul 2021
 
 ### Features
 
@@ -1297,9 +1332,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.17.2]
 
-<a name="v0.17.1"></a>
+## [v0.17.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.17.1)
 
-## [v0.17.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.17.1) - 28 Jul 2021
+**Release date:** 28 Jul 2021
 
 ### Features
 
@@ -1308,9 +1343,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.17.1]
 
-<a name="v0.17.0"></a>
+## [v0.17.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.17.0)
 
-## [v0.17.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.17.0) - 27 Jul 2021
+**Release date:** 27 Jul 2021
 
 ### Features
 
@@ -1328,9 +1363,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.17.0]
 
-<a name="v0.16.0"></a>
+## [v0.16.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.16.0)
 
-## [v0.16.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.16.0) - 11 Jul 2021
+**Release date:** 11 Jul 2021
 
 ### Breaking Changes
 
@@ -1352,9 +1387,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.16.0]
 
-<a name="v0.15.2"></a>
+## [v0.15.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.15.2)
 
-## [v0.15.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.15.2) - 17 Jun 2021
+**Release date:** 17 Jun 2021
 
 ### Features
 
@@ -1364,9 +1399,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.15.2]
 
-<a name="v0.15.1"></a>
+## [v0.15.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.15.1)
 
-## [v0.15.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.15.1) - 16 Jun 2021
+**Release date:** 16 Jun 2021
 
 ### Fixes
 
@@ -1374,9 +1409,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.15.1]
 
-<a name="v0.15.0"></a>
+## [v0.15.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.15.0)
 
-## [v0.15.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.15.0) - 14 Jun 2021
+**Release date:** 14 Jun 2021
 
 ### Features
 
@@ -1394,9 +1429,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.15.0]
 
-<a name="v0.14.2"></a>
+## [v0.14.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.14.2)
 
-## [v0.14.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.14.2) - 26 Apr 2021
+**Release date:** 26 Apr 2021
 
 ### Fixes
 
@@ -1404,9 +1439,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.14.2]
 
-<a name="v0.14.1"></a>
+## [v0.14.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.14.1)
 
-## [v0.14.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.14.1) - 22 Apr 2021
+**Release date:** 22 Apr 2021
 
 ### Fixes
 
@@ -1414,9 +1449,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.14.1]
 
-<a name="v0.14.0"></a>
+## [v0.14.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.14.0)
 
-## [v0.14.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.14.0) - 22 Apr 2021
+**Release date:** 22 Apr 2021
 
 ### Fixes
 
@@ -1433,9 +1468,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.14.0]
 
-<a name="v0.13.1"></a>
+## [v0.13.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.13.1)
 
-## [v0.13.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.13.1) - 13 Apr 2021
+**Release date:** 13 Apr 2021
 
 ### Fixes
 
@@ -1444,9 +1479,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.13.1]
 
-<a name="v0.13.0"></a>
+## [v0.13.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.13.0)
 
-## [v0.13.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.13.0) - 09 Apr 2021
+**Release date:** 09 Apr 2021
 
 ### Fixes
 
@@ -1460,9 +1495,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.13.0]
 
-<a name="v0.12.2"></a>
+## [v0.12.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.12.2)
 
-## [v0.12.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.12.2) - 31 Mar 2021
+**Release date:** 31 Mar 2021
 
 ### Fixes
 
@@ -1470,9 +1505,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.12.2]
 
-<a name="v0.12.1"></a>
+## [v0.12.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.12.1)
 
-## [v0.12.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.12.1) - 30 Mar 2021
+**Release date:** 30 Mar 2021
 
 ### Fixes
 
@@ -1481,9 +1516,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.12.1]
 
-<a name="v0.12.0"></a>
+## [v0.12.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.12.0)
 
-## [v0.12.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.12.0) - 29 Mar 2021
+**Release date:** 29 Mar 2021
 
 ### Breaking changes
 
@@ -1504,9 +1539,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.12.0]
 
-<a name="v0.11.0"></a>
+## [v0.11.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.11.0)
 
-## [v0.11.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.11.0) - 22 Mar 2021
+**Release date:** 22 Mar 2021
 
 ### Breaking changes
 
@@ -1523,9 +1558,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.11.0]
 
-<a name="v0.10.0"></a>
+## [v0.10.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.10.0)
 
-## [v0.10.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.10.0) - 14 Mar 2021
+**Release date:** 14 Mar 2021
 
 ### Features
 
@@ -1543,9 +1578,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.10.0]
 
-<a name="v0.9.1"></a>
+## [v0.9.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.9.1)
 
-## [v0.9.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.9.1) - 22 Feb 2021
+**Release date:** 22 Feb 2021
 
 ### Features
 
@@ -1557,9 +1592,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.9.1]
 
-<a name="v0.9.0"></a>
+## [v0.9.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.9.0)
 
-## [v0.9.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.9.0) - 21 Feb 2021
+**Release date:** 21 Feb 2021
 
 ### Features
 
@@ -1572,9 +1607,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.9.0]
 
-<a name="v0.8.0"></a>
+## [v0.8.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.8.0)
 
-## [v0.8.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.8.0) - 09 Feb 2021
+**Release date:** 09 Feb 2021
 
 ### Features
 
@@ -1588,9 +1623,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.8.0]
 
-<a name="v0.7.4"></a>
+## [v0.7.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.4)
 
-## [v0.7.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.4) - 25 Jan 2021
+**Release date:** 25 Jan 2021
 
 ### Fixes
 
@@ -1598,9 +1633,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.7.4]
 
-<a name="v0.7.3"></a>
+## [v0.7.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.3)
 
-## [v0.7.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.3) - 20 Jan 2021
+**Release date:** 20 Jan 2021
 
 ### Fixes
 
@@ -1608,9 +1643,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.7.3]
 
-<a name="v0.7.2"></a>
+## [v0.7.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.2)
 
-## [v0.7.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.2) - 17 Jan 2021
+**Release date:** 17 Jan 2021
 
 ### Fixes
 
@@ -1619,9 +1654,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.7.2]
 
-<a name="v0.7.1"></a>
+## [v0.7.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.1)
 
-## [v0.7.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.1) - 01 Jan 2021
+**Release date:** 01 Jan 2021
 
 ### Fixes
 
@@ -1633,9 +1668,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.7.1]
 
-<a name="v0.7.0"></a>
+## [v0.7.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.0)
 
-## [v0.7.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.0) - 30 Dec 2020
+**Release date:** 30 Dec 2020
 
 ### Fixes
 
@@ -1652,9 +1687,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.7.0]
 
-<a name="v0.6.1"></a>
+## [v0.6.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.6.1)
 
-## [v0.6.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.6.1) - 16 Dec 2020
+**Release date:** 16 Dec 2020
 
 ### Fixes
 
@@ -1663,9 +1698,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.6.1]
 
-<a name="v0.6.0"></a>
+## [v0.6.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.6.0)
 
-## [v0.6.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.6.0) - 15 Dec 2020
+**Release date:** 15 Dec 2020
 
 ### Breaking changes
 
@@ -1685,9 +1720,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.6.0]
 
-<a name="v0.5.0"></a>
+## [v0.5.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.5.0)
 
-## [v0.5.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.5.0) - 04 Dec 2020
+**Release date:** 04 Dec 2020
 
 ### Breaking changes
 
@@ -1714,9 +1749,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.5.0]
 
-<a name="v0.4.0"></a>
+## [v0.4.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.4.0)
 
-## [v0.4.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.4.0) - 15 Nov 2020
+**Release date:** 15 Nov 2020
 
 - Adds `VMRules` de-duplication with annotation <https://github.com/VictoriaMetrics/operator/issues/99>
 - Adds Operator-Hub integration <https://github.com/VictoriaMetrics/operator/issues/33>
@@ -1728,9 +1763,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.4.0]
 
-<a name="v0.3.0"></a>
+## [v0.3.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.3.0)
 
-## [v0.3.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.3.0) - 29 Oct 2020
+**Release date:** 29 Oct 2020
 
 - adds fast config update for `VMAlert` <https://github.com/VictoriaMetrics/operator/issues/86>
 - adds docker multiarch support
@@ -1741,9 +1776,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.3.0]
 
-<a name="v0.2.1"></a>
+## [v0.2.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.2.1)
 
-## [v0.2.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.2.1) - 28 Aug 2020
+**Release date:** 28 Aug 2020
 
 - [#78](https://github.com/VictoriaMetrics/operator/issues/78) fixed bug with rbac - without access to vmsingles api resource, operator wasn't able to start reconciliation loop.
 - [#76](https://github.com/VictoriaMetrics/operator/issues/76) added path prefix support if extraArgs was specified.
@@ -1751,9 +1786,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.2.1]
 
-<a name="v0.2.0"></a>
+## [v0.2.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.2.0)
 
-## [v0.2.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.2.0) - 23 Aug 2020
+**Release date:** 23 Aug 2020
 
 - Added VMProbe [#59](https://github.com/VictoriaMetrics/operator/issues/59)
 - Fixed various bug with prometheus api objects conversion.
@@ -1761,9 +1796,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.2.0]
 
-<a name="v0.1.2"></a>
+## [v0.1.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.1.2)
 
-## [v0.1.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.1.2) - 21 Aug 2020
+**Release date:** 21 Aug 2020
 
 - [#66](https://github.com/VictoriaMetrics/operator/issues/66) added path replacement for `CAfile`, `Certfile`, `KeyFile`, `BearerTokenFile` at prometheus api converter.
 - [#65](https://github.com/VictoriaMetrics/operator/issues/65) fixed tlsConfig logic, now configuration file renders correctly, if empty value for Cert, Ca or KeySecret defined at tlsConf
@@ -1771,9 +1806,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.1.2]
 
-<a name="v0.1.1"></a>
+## [v0.1.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.1.1)
 
-## [v0.1.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.1.1) - 18 Aug 2020
+**Release date:** 18 Aug 2020
 
 - fixed issues with crd patching for 1.18 kubernetes version
 - fixed issue with rbac roles
@@ -1782,9 +1817,9 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 
 [Changes][v0.1.1]
 
-<a name="v0.1.0"></a>
+## [v0.1.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.1.0)
 
-## [v0.1.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.1.0) - 12 Aug 2020
+**Release date:** 12 Aug 2020
 
 Starting point of operator releases
 
@@ -1792,9 +1827,9 @@ Starting point of operator releases
 
 [Changes][v0.1.0]
 
-<a name="v0.0.6"></a>
+## [v0.0.6](https://github.com/VictoriaMetrics/operator/releases/tag/v0.0.6)
 
-## [v0.0.6](https://github.com/VictoriaMetrics/operator/releases/tag/v0.0.6) - 26 Jul 2020
+**Release date:** 26 Jul 2020
 
 - breaking changes to api (changed group name to operator.victoriametrics.com)
 - changed build and release process
@@ -1802,18 +1837,18 @@ Starting point of operator releases
 
 [Changes][v0.0.6]
 
-<a name="v0.0.2"></a>
+## [v0.0.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.0.2)
 
-## [v0.0.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.0.2) - 12 Jun 2020
+**Release date:** 12 Jun 2020
 
 - fixed panic at vmSingle update
 - added support for scraping tls targets with ServiceMonitor TLSConfig
 
 [Changes][v0.0.2]
 
-<a name="v0.0.1"></a>
+## [v0.0.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.0.1)
 
-## [v0.0.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.0.1) - 06 Jun 2020
+**Release date:** 06 Jun 2020
 
 it contains basic api objects support:
 
