@@ -21,7 +21,6 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: [HTTP querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api): allow passing arbitrary [LogsQL filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters) to `extra_filters` and `extra_stream_filters` query args. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#extra-filters) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5542) for details.
 * FEATURE: [Grafana Loki data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/): add support of Loki healthcheck `/insert/ready` endpoint. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7824).
 
-
 * BUGFIX: [syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): correctly parse rows with multiple consecutive spaces between fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7776).
 
 ## [v1.3.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.3.2-victorialogs)
