@@ -73,7 +73,7 @@ func (ctx *InsertCtx) TryPrepareLabels(hasRelabeling bool) bool {
 	if timeserieslimits.Enabled() && timeserieslimits.IsExceeding(ctx.Labels) {
 		return false
 	}
-	ctx.SortLabelsIfNeeded()
+	ctx.sortLabelsIfNeeded()
 
 	return true
 }
