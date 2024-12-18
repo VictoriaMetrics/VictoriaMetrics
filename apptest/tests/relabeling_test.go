@@ -91,7 +91,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 		query: `{label="foo"}[120ms]`,
 		qtime: "1707123456800", // 2024-02-05T08:57:36.800Z
 		wantMetrics: []map[string]string{
-			map[string]string{
+			{
 				"__name__":           "series",
 				"label":              "foo",
 				"label1":             "value1",
