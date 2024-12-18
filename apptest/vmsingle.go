@@ -26,6 +26,7 @@ type Vmsingle struct {
 	forceFlushURL string
 
 	// vminsert URLs.
+	influxLineWriteURL                 string
 	prometheusAPIV1ImportPrometheusURL string
 	prometheusAPIV1WriteURL            string
 
@@ -64,6 +65,7 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 		httpListenAddr:  stderrExtracts[1],
 
 		forceFlushURL:                      fmt.Sprintf("http://%s/internal/force_flush", stderrExtracts[1]),
+		influxLineWriteURL:                 fmt.Sprintf("http://%s/influx/write", stderrExtracts[1]),
 		prometheusAPIV1ImportPrometheusURL: fmt.Sprintf("http://%s/prometheus/api/v1/import/prometheus", stderrExtracts[1]),
 		prometheusAPIV1WriteURL:            fmt.Sprintf("http://%s/prometheus/api/v1/write", stderrExtracts[1]),
 		prometheusAPIV1ExportURL:           fmt.Sprintf("http://%s/prometheus/api/v1/export", stderrExtracts[1]),
@@ -79,6 +81,18 @@ func (app *Vmsingle) ForceFlush(t *testing.T) {
 	t.Helper()
 
 	app.cli.Get(t, app.forceFlushURL, http.StatusOK)
+}
+
+// InfluxWrite is a test helper function that inserts a
+// collection of records in Influx line format by sending a HTTP
+// POST request to /influx/write vmsingle endpoint.
+//
+// See https://docs.victoriametrics.com/url-examples/#influxwrite
+func (app *Vmsingle) InfluxWrite(t *testing.T, records []string, _ QueryOpts) {
+	t.Helper()
+
+	data := []byte(strings.Join(records, "\n"))
+	app.cli.Post(t, app.influxLineWriteURL, "text/plain", data, http.StatusNoContent)
 }
 
 // PrometheusAPIV1Write is a test helper function that inserts a

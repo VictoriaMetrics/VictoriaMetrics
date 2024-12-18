@@ -124,7 +124,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	// test multitenant ingest path, tenants must be populated from labels
 	//
 	var tenantLabelsSamples = []string{
-		`foo_bar{vm_account_id="5"} 1.00 1652169600000`,                    // 2022-05-10T08:00:00Z'
+		`foo_bar{vm_account_id="5"} 1.00 1652169720000`,                    // 2022-05-10T08:00:00Z'
 		`foo_bar{vm_project_id="10"} 2.00 1652169660000`,                   // 2022-05-10T08:01:00Z
 		`foo_bar{vm_account_id="5",vm_project_id="15"} 3.00 1652169720000`, // 2022-05-10T08:02:00Z
 	}

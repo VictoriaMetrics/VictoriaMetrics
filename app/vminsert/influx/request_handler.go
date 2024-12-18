@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -69,6 +70,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 	rowsTotal := 0
 	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
+	hasLimitsEnabled := timeserieslimits.Enabled()
 	for i := range rows {
 		r := &rows[i]
 		rowsTotal += len(r.Fields)
@@ -123,6 +125,9 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 				perTenantRows[*atLocal]++
 			}
 		} else {
+			if !ic.TryPrepareLabels(false) {
+				continue
+			}
 			atLocal := ic.GetLocalAuthToken(at)
 			ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ic.Labels)
 			metricNameBufLen := len(ic.MetricNameBuf)
@@ -135,8 +140,12 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 				metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
 				ic.Labels = ic.Labels[:labelsLen]
 				ic.AddLabel("", metricGroup)
-				if !ic.TryPrepareLabels(hasRelabeling) {
-					continue
+				if hasLimitsEnabled {
+					// special case for optimisation above
+					// check only __name__ label value limits
+					if timeserieslimits.IsExceeding(ic.Labels[len(ic.Labels)-1:]) {
+						continue
+					}
 				}
 				ic.MetricNameBuf = ic.MetricNameBuf[:metricNameBufLen]
 				ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[len(ic.Labels)-1])
