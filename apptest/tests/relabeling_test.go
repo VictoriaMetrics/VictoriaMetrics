@@ -106,7 +106,7 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 		},
 	})
 
-	// write influx with multie field set series1 and series2 in order to test
+	// write influx with multi field set series1 and series2 in order to test
 	// memory optimisation at vminsert side
 	sut.InfluxWrite(t, []string{
 		`influxline,label=foo1 series1=10,series2=30 1707123456700`, // 2024-02-05T08:57:36.700Z
