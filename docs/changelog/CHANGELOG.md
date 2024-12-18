@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+## [v1.108.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.1)
+
+Released at 2024-12-18
+
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) properly apply `-relabelConfig` rules for data ingestion protocols. Issue was introduced at [v1.108.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.0) and only affects vmsingle.
  release. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7865) for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): make instant query results consistent. VictoriaMetrics detects and adjusts scrape interval and while this is very useful for range queries (i.e. this eliminates gaps on the graph), it may cause instant queries to return a non-empty result when no result is expected. The fix is to disable scrape interval detection and always use the step as the scrape interval in instant queries. This will guarantee that the samples are searched within the (time-step, time] interval. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5796) for details.
@@ -26,6 +30,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 ## [v1.108.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.0)
 
 Released at 2024-12-13
+
+ It is recommended upgrading to [v1.108.1](https://docs.victoriametrics.com/changelog/#v11081) because [v1.108.0](https://docs.victoriametrics.com/changelog/#v11080) contains a bug introduced at [v1.108.0](https://docs.victoriametrics.com/changelog/#v11080), which incorrectly applies `-relabelConfig` rules at `vmsingle` components. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7865) for details.
 
 **Update note 1: meaning of `-maxLabelsPerTimeseries` and `-maxLabelValueLen` has been changed. Previously, excessive labels, label names and values were truncated and could result in silent data collision. With the new change time series that are hitting the limits will be dropped instead. These events are reflected in logs and in `vm_rows_ignored_total` metric. The previous metrics `vm_too_long_label_values_total`, `vm_too_long_label_names_total`, `vm_metrics_with_dropped_labels_total` are deprecated.**
 
