@@ -20,6 +20,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## [v1.108.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.1)
 
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly set `host` field at debug information formatted with `dump_request_on_errors: true` setting. 
+
 Released at 2024-12-18
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) properly apply `-relabelConfig` rules for data ingestion protocols. Issue was introduced at [v1.108.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.0) and only affects vmsingle.
