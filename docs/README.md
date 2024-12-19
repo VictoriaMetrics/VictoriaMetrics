@@ -1715,6 +1715,7 @@ See also [resource usage limits docs](#resource-usage-limits).
 
 By default, VictoriaMetrics is tuned for an optimal resource usage under typical workloads. Some workloads may need fine-grained resource usage limits. In these cases the following command-line flags may be useful:
 
+- `-maxIngestionRate` limits samples/second ingested.
 - `-memory.allowedPercent` and `-memory.allowedBytes` limit the amounts of memory, which may be used for various internal caches at VictoriaMetrics.
   Note that VictoriaMetrics may use more memory, since these flags don't limit additional memory, which may be needed on a per-query basis.
 - `-search.maxMemoryPerQuery` limits the amounts of memory, which can be used for processing a single query. Queries, which need more memory, are rejected.
@@ -1793,7 +1794,7 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
 - `-search.maxExportSeries` limits maximum number of time series, which can be returned from [/api/v1/export* APIs](#how-to-export-data-in-json-line-format).
   The duration of the export queries is limited via `-search.maxExportDuration` flag. This option allows limiting memory usage.
 - `-search.maxTSDBStatusSeries` limits maximum number of time series, which can be processed during the call to [/api/v1/status/tsdb](#tsdb-stats).
-  The duration of the status queries is limited via `-search.maxStatusRequestDuration` flag. This option allows limiting memory usage.
+  The duration of the status queries is limited via `-search.maxStatusRequestDuration` flag. This option allows limiting memory usage. This may be useful when resources are limited.
 
 See also [resource usage limits at VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#resource-usage-limits),
 [cardinality limiter](#cardinality-limiter) and [capacity planning docs](#capacity-planning).
