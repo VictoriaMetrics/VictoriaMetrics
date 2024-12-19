@@ -1,14 +1,15 @@
 package tests
 
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
 func TestSingleMaxIngestionRateIncrementsMetric(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
-	sut := tc.MustStartVmsingle("vmsingle", []string{"-maxIngestionRate=5"})
+	sut := tc.MustStartVmsingle("vmsingle", []string{"-maxIngestionRate=1"})
 	sut.PrometheusAPIV1ImportPrometheus(t, docData, apptest.QueryOpts{})
 	maxIngestionRateMetric := sut.GetMetric(t, "vm_max_ingestion_rate_limit_reached_total")
 	if maxIngestionRateMetric <= 0 {
@@ -18,6 +19,7 @@ func TestSingleMaxIngestionRateIncrementsMetric(t *testing.T) {
 	}
 	sut.ForceFlush(t)
 }
+
 func TestSingleMaxIngestionRateDoesNotIncrementsMetric(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
