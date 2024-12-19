@@ -1,0 +1,24 @@
+name: datadog-serverless-gcp
+include:
+ - ../../compose-base.yml
+services:
+  cloud-run:
+    build: .
+    restart: on-failure
+    ports:
+      - 8080:8080
+    environment:
+      PORT: 8080
+      DD_LOG_LEVEL: trace
+      DD_LOGS_ENABLED: true
+      DD_SOURCE: test
+      DD_API_KEY: test
+      DD_DD_URL: http://dd-proxy:8427
+      DD_PROFILING_ENABLED: false
+      DD_ENHANCED_METRICS: false
+      DD_LOGS_CONFIG_LOGS_DD_URL: http://dd-proxy:8427
+    depends_on:
+      victorialogs:
+        condition: service_healthy
+      victoriametrics:
+        condition: service_healthy
