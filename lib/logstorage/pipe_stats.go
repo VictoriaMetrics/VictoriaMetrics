@@ -68,8 +68,8 @@ type statsProcessor interface {
 	// mergeState must merge sfp state into statsProcessor state.
 	mergeState(sfp statsProcessor)
 
-	// finalizeStats must return the collected stats result from statsProcessor.
-	finalizeStats() string
+	// finalizeStats must append string represetnation of the collected stats result to dst and return it.
+	finalizeStats(dst []byte) []byte
 }
 
 func (ps *pipeStats) String() string {
@@ -510,8 +510,8 @@ func (psp *pipeStatsProcessor) writeShardData(workerID uint, m map[string]*pipeS
 	var br blockResult
 
 	var values []string
+	var valuesBuf []byte
 	rowsCount := 0
-	valuesLen := 0
 	for key, psg := range m {
 		// m may be quite big, so this loop can take a lot of time and CPU.
 		// Stop processing data as soon as stopCh is closed without wasting additional CPU time.
@@ -536,7 +536,9 @@ func (psp *pipeStatsProcessor) writeShardData(workerID uint, m map[string]*pipeS
 
 		// calculate values for stats functions
 		for _, sfp := range psg.sfps {
-			value := sfp.finalizeStats()
+			valuesBufLen := len(valuesBuf)
+			valuesBuf = sfp.finalizeStats(valuesBuf)
+			value := bytesutil.ToUnsafeString(valuesBuf[valuesBufLen:])
 			values = append(values, value)
 		}
 
@@ -545,11 +547,10 @@ func (psp *pipeStatsProcessor) writeShardData(workerID uint, m map[string]*pipeS
 		}
 		for i, v := range values {
 			rcs[i].addValue(v)
-			valuesLen += len(v)
 		}
 
 		rowsCount++
-		if valuesLen >= 1_000_000 {
+		if len(valuesBuf) >= 1_000_000 {
 			br.setResultColumns(rcs, rowsCount)
 			rowsCount = 0
 			psp.ppNext.writeBlock(workerID, &br)
@@ -557,7 +558,7 @@ func (psp *pipeStatsProcessor) writeShardData(workerID uint, m map[string]*pipeS
 			for i := range rcs {
 				rcs[i].resetValues()
 			}
-			valuesLen = 0
+			valuesBuf = valuesBuf[:0]
 		}
 	}
 

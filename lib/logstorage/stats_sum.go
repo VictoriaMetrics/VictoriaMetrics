@@ -94,8 +94,8 @@ func (ssp *statsSumProcessor) mergeState(sfp statsProcessor) {
 	}
 }
 
-func (ssp *statsSumProcessor) finalizeStats() string {
-	return strconv.FormatFloat(ssp.sum, 'f', -1, 64)
+func (ssp *statsSumProcessor) finalizeStats(dst []byte) []byte {
+	return strconv.AppendFloat(dst, ssp.sum, 'f', -1, 64)
 }
 
 func parseStatsSum(lex *lexer) (*statsSum, error) {

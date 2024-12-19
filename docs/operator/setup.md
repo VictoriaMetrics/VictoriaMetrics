@@ -34,7 +34,12 @@ We suggest use the latest release.
 ```sh
 # Get latest release version from https://github.com/VictoriaMetrics/operator/releases/latest
 export VM_VERSION=`basename $(curl -fs -o/dev/null -w %{redirect_url} https://github.com/VictoriaMetrics/operator/releases/latest)`
-wget https://github.com/VictoriaMetrics/operator/releases/download/$VM_VERSION/install.yaml
+
+# Download manifest with webhook (requires CertManager to be preinstalled)
+wget -O install.yaml https://github.com/VictoriaMetrics/operator/releases/download/$VM_VERSION/install-with-webhook.yaml
+
+# Or download manifest without webhook
+wget -O install.yaml https://github.com/VictoriaMetrics/operator/releases/download/$VM_VERSION/install-without-webhook.yaml
 ```
 
 Operator use `vm` namespace, but you can install it to specific namespace with command:
@@ -67,11 +72,14 @@ You can install operator using [Kustomize](https://kustomize.io/) by pointing to
 export VM_VERSION=`basename $(curl -fs -o/dev/null -w %{redirect_url} https://github.com/VictoriaMetrics/operator/releases/latest)`
 export NAMESPACE="whatever-namespace"
 
+# Overlay "base-with-webhook" installs operator with webhook (requires CertManager to be preinstalled). Replace "base-with-webhook" with "default"
+export OVERLAY="base-with-webhook"
+
 cat << EOF > kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- github.com/VictoriaMetrics/operator/config/base?ref=${VM_VERSION}
+- github.com/VictoriaMetrics/operator/config/${OVERLAY}?ref=${VM_VERSION}
 
 namespace: ${NAMESPACE}
 

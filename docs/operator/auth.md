@@ -29,7 +29,6 @@ spec:
   userNamespaceSelector: {}
   userSelector: {}
   ingress: {}
-  unauthorizedAccessConfig: []
 ```
 
 Advanced configuration with cert-manager annotations:
@@ -179,7 +178,7 @@ type: Opaque
 
 ## Unauthorized access
 
-You can expose some routes without authorization with `unauthorizedAccessConfig`.
+You can expose some routes without authorization with `unauthorizedUserAccessSpec`.
 
 Check more details in [VMAuth docs -> Unauthorized access](https://docs.victoriametrics.com/operator/resources/vmauth/#unauthorized-access).
 

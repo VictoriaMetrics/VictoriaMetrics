@@ -354,7 +354,7 @@ func (sup *statsCountUniqProcessor) mergeState(sfp statsProcessor) {
 	}
 }
 
-func (sup *statsCountUniqProcessor) finalizeStats() string {
+func (sup *statsCountUniqProcessor) finalizeStats(dst []byte) []byte {
 	var n uint64
 	if sup.mHash != nil {
 		n = uint64(len(sup.mHash))
@@ -364,7 +364,7 @@ func (sup *statsCountUniqProcessor) finalizeStats() string {
 	if limit := sup.su.limit; limit > 0 && n > limit {
 		n = limit
 	}
-	return strconv.FormatUint(n, 10)
+	return strconv.AppendUint(dst, n, 10)
 }
 
 func (sup *statsCountUniqProcessor) updateState(v []byte) int {

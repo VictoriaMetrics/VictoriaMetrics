@@ -86,9 +86,9 @@ func (sap *statsAvgProcessor) mergeState(sfp statsProcessor) {
 	sap.count += src.count
 }
 
-func (sap *statsAvgProcessor) finalizeStats() string {
+func (sap *statsAvgProcessor) finalizeStats(dst []byte) []byte {
 	avg := sap.sum / float64(sap.count)
-	return strconv.FormatFloat(avg, 'f', -1, 64)
+	return strconv.AppendFloat(dst, avg, 'f', -1, 64)
 }
 
 func parseStatsAvg(lex *lexer) (*statsAvg, error) {

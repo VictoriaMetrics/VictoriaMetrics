@@ -68,7 +68,7 @@ func insertRows(block *stream.Block, extraLabels []prompbmarshal.Label) error {
 		timestamp := timestamps[j]
 		// TODO: @f41gh7 looks like it's better to use WriteDataPointExt
 		// since metricName never changes inside insertRows call
-		if err := ic.WriteDataPointUnchecked(ctx.metricNameBuf, ic.Labels, timestamp, value); err != nil {
+		if err := ic.WriteDataPoint(ctx.metricNameBuf, ic.Labels, timestamp, value); err != nil {
 			return err
 		}
 	}
