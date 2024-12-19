@@ -2,7 +2,7 @@
 
 ## Next release
 
-- TODO
+- Exclude markdown files from package
 
 ## 0.0.35
 

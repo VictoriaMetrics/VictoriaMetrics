@@ -1,6 +1,8 @@
 ## Next release
 
-- TODO
+- upgraded operator, it's required to [update CRDs manually](../victoriametrics-k8s-stack/#upgrade-guide)
+- bump version of VM components to [v1.108.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.1)
+- Exclude markdown files from package
 
 ## 0.6.2
 
