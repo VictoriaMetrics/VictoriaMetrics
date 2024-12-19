@@ -97,13 +97,8 @@ func (sap *statsRowAnyProcessor) updateState(br *blockResult, rowIdx int) int {
 	return stateSizeIncrease
 }
 
-func (sap *statsRowAnyProcessor) finalizeStats() string {
-	bb := bbPool.Get()
-	bb.B = MarshalFieldsToJSON(bb.B, sap.fields)
-	result := string(bb.B)
-	bbPool.Put(bb)
-
-	return result
+func (sap *statsRowAnyProcessor) finalizeStats(dst []byte) []byte {
+	return MarshalFieldsToJSON(dst, sap.fields)
 }
 
 func parseStatsRowAny(lex *lexer) (*statsRowAny, error) {

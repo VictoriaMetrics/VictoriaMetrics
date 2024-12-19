@@ -57,7 +57,8 @@ Implementing a bugfix or enhancement requires sending a pull request to the [cor
 A pull request should contain the following attributes:
 1. Don't use `master` branch for making PRs, as it makes it impossible for reviewers to modify the change.
 1. All commits need to be [signed](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
-1. A clear and concise description of what was done and for what purpose.
+1. A clear and concise description of what was done and for what purpose. Use the imperative, present tense: "change" not "changed" nor "changes". 
+   Read your commit message as "This commit will ..", don't capitalize the first letter
 1. A link to the issue related to this change, if any.
 1. Tests proving that the change is effective. See [this style guide](https://itnext.io/f-tests-as-a-replacement-for-table-driven-tests-in-go-8814a8b19e9e) for tests.
    To run tests and code checks locally execute commands `make tests-full` and `make check-all`.
@@ -66,7 +67,7 @@ A pull request should contain the following attributes:
    requires reflecting these changes in the documentation. For new features add `{{%/* available_from "#" */%}}` shortcode
    to the documentation. It will be later automatically replaced with an actual release version.
 1. A line in the [changelog](https://docs.victoriametrics.com/changelog/#tip) mentioning the change and related issue in a way
-  that would be clear to other readers even if they don't have the full context.
+  that would be clear to other readers even if they don't have the full context. Use the same guidelines as for commit message.
 1. Reviewers who you think have the best expertise on the matter.
 
 See good example of pull request [here](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6487).

@@ -54,7 +54,10 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 			label := &extraLabels[j]
 			ctx.AddLabel(label.Name, label.Value)
 		}
-		if err := ctx.WriteDataPoint(nil, hasRelabeling, ctx.Labels, r.Timestamp, r.Value); err != nil {
+		if !ctx.TryPrepareLabels(hasRelabeling) {
+			continue
+		}
+		if err := ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}
 	}

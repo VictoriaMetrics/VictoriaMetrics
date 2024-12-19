@@ -4,6 +4,14 @@
 
 - TODO
 
+## 0.0.35
+
+**Release date:** 2024-12-17
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fixed tls in common templates. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1874)
+
 ## 0.0.34
 
 **Release date:** 2024-12-11
