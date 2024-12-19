@@ -5,18 +5,25 @@ import (
 	"log"
 	"sync"
 
+	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
+// Runner is an interface for fetching and reading
+// snapshot blocks
+type Runner interface {
+	Explore() ([]tsdb.BlockReader, error)
+	Read(tsdb.BlockReader) (storage.SeriesSet, error)
+}
+
 type prometheusProcessor struct {
-	// prometheus client fetches and reads
+	// runner client fetches and reads
 	// snapshot blocks
-	cl *prometheus.Client
+	cl Runner
 	// importer performs import requests
 	// for timeseries data returned from
 	// snapshot blocks
@@ -47,7 +54,6 @@ func (pp *prometheusProcessor) run() error {
 	if err := barpool.Start(); err != nil {
 		return err
 	}
-	defer barpool.Stop()
 
 	blockReadersCh := make(chan tsdb.BlockReader)
 	errCh := make(chan error, pp.cc)
@@ -96,6 +102,7 @@ func (pp *prometheusProcessor) run() error {
 	}
 
 	log.Println("Import finished!")
+	barpool.Stop()
 	log.Print(pp.im.Stats())
 	return nil
 }
