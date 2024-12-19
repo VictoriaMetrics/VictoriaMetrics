@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -8,7 +9,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -19,6 +22,8 @@ var (
 	tlsKeyFile            = flag.String("snapshot.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -snapshotCreateURL")
 	tlsCAFile             = flag.String("snapshot.tlsCAFile", "", `Optional path to TLS CA file to use for verifying connections to -snapshotCreateURL. By default, system CA is used`)
 	tlsServerName         = flag.String("snapshot.tlsServerName", "", `Optional TLS server name to use for connections to -snapshotCreateURL. By default, the server name from -snapshotCreateURL is used`)
+	basicAuthUser         = flagutil.NewPassword("snapshot.basicAuthUsername", `Optional basic auth username to use for connections to -snapshotCreateURL`)
+	basicAuthPassword     = flagutil.NewPassword("snapshot.basicAuthPassword", `Optional basic auth password to use for connections to -snapshotCreateURL`)
 )
 
 type snapshot struct {
@@ -42,7 +47,12 @@ func Create(createSnapshotURL string) (string, error) {
 	}
 	hc := &http.Client{Transport: tr}
 
-	resp, err := hc.Get(u.String())
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return "", err
+	}
+	addAuthHeaders(req)
+	resp, err := hc.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -67,7 +77,7 @@ func Create(createSnapshotURL string) (string, error) {
 	if snap.Status == "error" {
 		return "", errors.New(snap.Msg)
 	}
-	return "", fmt.Errorf("Unkown status: %v", snap.Status)
+	return "", fmt.Errorf("Unknown status: %v", snap.Status)
 }
 
 // Delete deletes a snapshot via the provided api endpoint
@@ -87,7 +97,13 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 
 	}
 	hc := &http.Client{Transport: tr}
-	resp, err := hc.PostForm(u.String(), formData)
+	req, err := http.NewRequest("POST", u.String(), strings.NewReader(formData.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	addAuthHeaders(req)
+	resp, err := hc.Do(req)
 	if err != nil {
 		return err
 	}
@@ -112,5 +128,15 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 	if snap.Status == "error" {
 		return errors.New(snap.Msg)
 	}
-	return fmt.Errorf("Unkown status: %v", snap.Status)
+	return fmt.Errorf("Unknown status: %v", snap.Status)
+}
+
+// addBasicAuthHeader adds basic auth header to request
+// if their corresponding flags snapshot.basicAuthUsername and snapshot.basicAuthPassword flags are set.
+func addAuthHeaders(req *http.Request) {
+	if basicAuthUser.Get() != "" {
+		auth := basicAuthUser.Get() + ":" + basicAuthPassword.Get()
+		authHeader := base64.StdEncoding.EncodeToString([]byte(auth))
+		req.Header.Set("Authorization", "Basic "+authHeader)
+	}
 }
