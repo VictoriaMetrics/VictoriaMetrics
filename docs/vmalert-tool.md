@@ -197,9 +197,9 @@ value: <number>
 ### Example
 
 This is an example input file for unit testing which will pass.
-`test.yaml` is the test file which follows the syntax above and `alerts.yaml` contains the alerting rules.
+`test.yaml` is the test file which follows the syntax above and `rules.yaml` contains the alerting rules.
 
-With `rules.yaml` in the same directory, run `./vmalert-tool unittest --files=./unittest/testdata/test.yaml -external.label=cluster=prod`.
+With `rules.yaml` in the same directory with `test.yaml`, run `./vmalert-tool unittest --files=./unittest/testdata/test.yaml -external.label=cluster=prod`.
 
 #### `test.yaml`
 
@@ -249,7 +249,7 @@ tests:
         exp_alerts: []
 ```
 
-#### `alerts.yaml`
+#### `rules.yaml`
 
 ```yaml
 # This is the rules file.
@@ -274,4 +274,44 @@ groups:
         expr: sum without(instance) (count_over_time(test[1m]))
       - record: subquery_interval_test
         expr: count_over_time(up[5m:])
+```
+
+### Debug mode
+
+vmalert-tool can print additional log messages for specific alerting rules, similar to [vmalert](https://docs.victoriametrics.com/vmalert/#debug-mode), by following these steps:
+1. Set `debug: true` in rule’s configuration;
+2. Run vmalert-tool with the flag `-loggerLevel=INFO`.
+
+The additional log messages include tips for alert state transformations, timestamp and result of each evaluation:
+```shell-session
+2024-12-10T12:10:26.339Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:212	DEBUG rule "TestGroup":"TestRule" (14686524233356632740) at 1970-01-01T00:00:00Z: query returned 0 samples (elapsed: 2.148792ms)
+2024-12-10T12:10:26.339Z	info	VictoriaMetrics/app/vmalert/datasource/client.go:254	DEBUG datasource request: executing POST request with params "http://127.0.0.1:8880/prometheus/api/v1/query?query=test_metric+%3E+0&step=300s&time=1970-01-01T00%3A01%3A00Z"
+2024-12-10T12:10:26.339Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:212	DEBUG rule "TestGroup":"TestRule" (14686524233356632740) at 1970-01-01T00:01:00Z: query returned 0 samples (elapsed: 277µs)
+2024-12-10T12:10:26.339Z	info	VictoriaMetrics/app/vmalert/datasource/client.go:254	DEBUG datasource request: executing POST request with params "http://127.0.0.1:8880/prometheus/api/v1/query?query=test_metric+%3E+0&step=300s&time=1970-01-01T00%3A02%3A00Z"
+2024-12-10T12:10:26.340Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:212	DEBUG rule "TestGroup":"TestRule" (14686524233356632740) at 1970-01-01T00:02:00Z: query returned 1 samples (elapsed: 566.083µs)
+2024-12-10T12:10:26.340Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:212	DEBUG rule "TestGroup":"TestRule" (14686524233356632740) at 1970-01-01T00:02:00Z: alert 11669695145351808068 {alertgroup="TestGroup",alertname="TestRule"} created in state PENDING
+2024-12-10T12:10:26.343Z	info	VictoriaMetrics/app/vmalert/datasource/client.go:254	DEBUG datasource request: executing POST request with params "http://127.0.0.1:8880/prometheus/api/v1/query?query=test_metric+%3E+0&step=300s&time=1970-01-01T00%3A03%3A00Z"
+2024-12-10T12:10:26.344Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:212	DEBUG rule "TestGroup":"TestRule" (14686524233356632740) at 1970-01-01T00:03:00Z: query returned 1 samples (elapsed: 822.958µs)
+2024-12-10T12:10:26.344Z	info	VictoriaMetrics/app/vmalert/rule/alerting.go:212	DEBUG rule "TestGroup":"TestRule" (14686524233356632740) at 1970-01-01T00:03:00Z: alert 11669695145351808068 {alertgroup="TestGroup",alertname="TestRule"} PENDING => FIRING: 1m0s since becoming active at 1970-01-01 00:02:00 +0000 UTC
+```
+
+### Configuration
+
+Run `vmalert-tool unittest --help` to get all configuration options:
+
+```sh
+  -files
+    File path or http url with test files. Supports an array of values separated by comma or specified via multiple flags. Supports hierarchical patterns and regexpes.
+      Examples:
+       -files="/path/to/file". Path to a single test file.
+       -files="http://<some-server-addr>/path/to/test.yaml". HTTP URL to a test file.
+       -files="dir/**/*.yaml". Includes all the .yaml files in "dir" subfolders recursively.
+  -disableAlertgroupLabel
+    disable adding group's Name as label to generated alerts and time series. (default: false)
+  -external.label
+    Optional label in the form 'name=value' to add to all generated recording rules and alerts. Supports an array of values separated by comma or specified via multiple flags.
+  -external.url
+    Optional external URL to template in rule's labels or annotations.
+  -loggerLevel
+    Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "ERROR").
 ```

@@ -170,17 +170,17 @@ func (svp *statsValuesProcessor) mergeState(sfp statsProcessor) {
 	svp.values = append(svp.values, src.values...)
 }
 
-func (svp *statsValuesProcessor) finalizeStats() string {
+func (svp *statsValuesProcessor) finalizeStats(dst []byte) []byte {
 	items := svp.values
 	if len(items) == 0 {
-		return "[]"
+		return append(dst, "[]"...)
 	}
 
 	if limit := svp.sv.limit; limit > 0 && uint64(len(items)) > limit {
 		items = items[:limit]
 	}
 
-	return marshalJSONArray(items)
+	return marshalJSONArray(dst, items)
 }
 
 func (svp *statsValuesProcessor) limitReached() bool {

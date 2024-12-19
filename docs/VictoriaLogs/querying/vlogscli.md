@@ -23,15 +23,15 @@ or from [docker images](https://hub.docker.com/r/victoriametrics/vlogscli/tags):
 ### Running `vlogscli` from release binary
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.0.0-victorialogs/vlogscli-linux-amd64-v1.0.0-victorialogs.tar.gz
-tar xzf vlogscli-linux-amd64-v1.0.0-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.3.2-victorialogs/vlogscli-linux-amd64-v1.3.2-victorialogs.tar.gz
+tar xzf vlogscli-linux-amd64-v1.3.2-victorialogs.tar.gz
 ./vlogscli-prod
 ```
 
 ### Running `vlogscli` from Docker image
 
 ```sh
-docker run --rm -it docker.io/victoriametrics/vlogscli:v1.0.0-victorialogs
+docker run --rm -it docker.io/victoriametrics/vlogscli:v1.3.2-victorialogs
 ```
 
 ## Configuration
@@ -159,3 +159,12 @@ Fields in every JSON object are sorted in alphabetical order. This simplifies lo
   (for example if [`fields _msg` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) is used)
   plus optional [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
 * [Logfmt output](https://brandur.org/logfmt). Type `\logfmt` and press `enter` for this mode.
+
+
+## Wrapping long lines
+
+`vlogscli` doesn't wrap long lines which do not fit screen width when it displays a response, which doesn't fit screen height.
+This helps inspecting responses with many lines. If you need investigating the contents of long lines,
+then press buttons with '->' and '<-' arrows on the keyboard.
+
+Type `\wrap_long_lines` in the prompt and press enter in order to toggle automatic wrapping of long lines.

@@ -15,7 +15,7 @@ type TestCase struct {
 	t   *testing.T
 	cli *Client
 
-	startedApps []Stopper
+	startedApps map[string]Stopper
 }
 
 // Stopper is an interface of objects that needs to be stopped via Stop() call
@@ -25,7 +25,12 @@ type Stopper interface {
 
 // NewTestCase creates a new test case.
 func NewTestCase(t *testing.T) *TestCase {
-	return &TestCase{t, NewClient(), nil}
+	return &TestCase{t, NewClient(), make(map[string]Stopper)}
+}
+
+// T returns the test state.
+func (tc *TestCase) T() *testing.T {
+	return tc.t
 }
 
 // Dir returns the directory name that should be used by as the -storageDataDir.
@@ -74,7 +79,7 @@ func (tc *TestCase) MustStartVmsingle(instance string, flags []string) *Vmsingle
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
-	tc.addApp(app)
+	tc.addApp(instance, app)
 	return app
 }
 
@@ -87,7 +92,7 @@ func (tc *TestCase) MustStartVmstorage(instance string, flags []string) *Vmstora
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
-	tc.addApp(app)
+	tc.addApp(instance, app)
 	return app
 }
 
@@ -100,7 +105,7 @@ func (tc *TestCase) MustStartVmselect(instance string, flags []string) *Vmselect
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
-	tc.addApp(app)
+	tc.addApp(instance, app)
 	return app
 }
 
@@ -113,7 +118,7 @@ func (tc *TestCase) MustStartVminsert(instance string, flags []string) *Vminsert
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
-	tc.addApp(app)
+	tc.addApp(instance, app)
 	return app
 }
 
@@ -129,8 +134,21 @@ func (c *vmcluster) ForceFlush(t *testing.T) {
 	}
 }
 
-// MustStartDefaultCluster is a typical cluster configuration suitable for most
-// tests.
+// MustStartDefaultCluster starts a typical cluster configuration with default
+// flags.
+func (tc *TestCase) MustStartDefaultCluster() PrometheusWriteQuerier {
+	tc.t.Helper()
+
+	return tc.MustStartCluster(&ClusterOptions{
+		Vmstorage1Instance: "vmstorage1",
+		Vmstorage2Instance: "vmstorage2",
+		VminsertInstance:   "vminsert",
+		VmselectInstance:   "vmselect",
+	})
+}
+
+// ClusterOptions holds the params for simple cluster configuration suitable for
+// most tests.
 //
 // The cluster consists of two vmstorages, one vminsert and one vmselect, no
 // data replication.
@@ -140,29 +158,69 @@ func (c *vmcluster) ForceFlush(t *testing.T) {
 // vmselect) but instead just need a typical cluster configuration to verify
 // some business logic (such as API surface, or MetricsQL). Such cluster
 // tests usually come paired with corresponding vmsingle tests.
-func (tc *TestCase) MustStartDefaultCluster() PrometheusWriteQuerier {
+type ClusterOptions struct {
+	Vmstorage1Instance string
+	Vmstorage1Flags    []string
+	Vmstorage2Instance string
+	Vmstorage2Flags    []string
+	VminsertInstance   string
+	VminsertFlags      []string
+	VmselectInstance   string
+	VmselectFlags      []string
+}
+
+// MustStartCluster starts a typical cluster configuration with custom flags.
+func (tc *TestCase) MustStartCluster(opts *ClusterOptions) PrometheusWriteQuerier {
 	tc.t.Helper()
 
-	vmstorage1 := tc.MustStartVmstorage("vmstorage-1", []string{
-		"-storageDataPath=" + tc.Dir() + "/vmstorage-1",
+	opts.Vmstorage1Flags = append(opts.Vmstorage1Flags, []string{
+		"-storageDataPath=" + tc.Dir() + "/" + opts.Vmstorage1Instance,
 		"-retentionPeriod=100y",
-	})
-	vmstorage2 := tc.MustStartVmstorage("vmstorage-2", []string{
-		"-storageDataPath=" + tc.Dir() + "/vmstorage-2",
+	}...)
+	vmstorage1 := tc.MustStartVmstorage(opts.Vmstorage1Instance, opts.Vmstorage1Flags)
+
+	opts.Vmstorage2Flags = append(opts.Vmstorage2Flags, []string{
+		"-storageDataPath=" + tc.Dir() + "/" + opts.Vmstorage2Instance,
 		"-retentionPeriod=100y",
-	})
-	vminsert := tc.MustStartVminsert("vminsert", []string{
+	}...)
+	vmstorage2 := tc.MustStartVmstorage(opts.Vmstorage2Instance, opts.Vmstorage2Flags)
+
+	opts.VminsertFlags = append(opts.VminsertFlags, []string{
 		"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
-	})
-	vmselect := tc.MustStartVmselect("vmselect", []string{
+	}...)
+	vminsert := tc.MustStartVminsert(opts.VminsertInstance, opts.VminsertFlags)
+
+	opts.VmselectFlags = append(opts.VmselectFlags, []string{
 		"-storageNode=" + vmstorage1.VmselectAddr() + "," + vmstorage2.VmselectAddr(),
-	})
+	}...)
+	vmselect := tc.MustStartVmselect(opts.VmselectInstance, opts.VmselectFlags)
 
 	return &vmcluster{vminsert, vmselect, []*Vmstorage{vmstorage1, vmstorage2}}
 }
 
-func (tc *TestCase) addApp(app Stopper) {
-	tc.startedApps = append(tc.startedApps, app)
+func (tc *TestCase) addApp(instance string, app Stopper) {
+	if _, alreadyStarted := tc.startedApps[instance]; alreadyStarted {
+		tc.t.Fatalf("%s has already been started", instance)
+	}
+	tc.startedApps[instance] = app
+}
+
+// StopApp stops the app identified by the `instance` name and removes it from
+// the collection of started apps.
+func (tc *TestCase) StopApp(instance string) {
+	if app, exists := tc.startedApps[instance]; exists {
+		app.Stop()
+		delete(tc.startedApps, instance)
+	}
+}
+
+// ForceFlush flushes zero or more storages.
+func (tc *TestCase) ForceFlush(apps ...*Vmstorage) {
+	tc.t.Helper()
+
+	for _, app := range apps {
+		app.ForceFlush(tc.t)
+	}
 }
 
 // AssertOptions hold the assertion params, such as got and wanted values as

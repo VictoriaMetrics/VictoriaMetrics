@@ -1,4 +1,4 @@
-![Type: library](https://img.shields.io/badge/Type-library-informational?style=flat-square) ![Version: 0.0.32](https://img.shields.io/badge/Version-0.0.32-informational?style=flat-square)
+![Type: library](https://img.shields.io/badge/Type-library-informational?style=flat-square) ![Version: 0.0.35](https://img.shields.io/badge/Version-0.0.35-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-common)
 
 Victoria Metrics Common - contains shared templates for all Victoria Metrics helm charts
@@ -32,7 +32,7 @@ The following table lists the template functions of the chart and description.
     <tr>
       <td>unitTest</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>

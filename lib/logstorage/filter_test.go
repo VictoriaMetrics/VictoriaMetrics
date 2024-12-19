@@ -268,7 +268,7 @@ func generateRowsFromColumns(s *Storage, tenantID TenantID, columns []column) {
 			})
 		}
 		timestamp := int64(i) * 1e9
-		lr.MustAdd(tenantID, timestamp, fields)
+		lr.MustAdd(tenantID, timestamp, fields, nil)
 	}
 	s.MustAddRows(lr)
 	PutLogRows(lr)

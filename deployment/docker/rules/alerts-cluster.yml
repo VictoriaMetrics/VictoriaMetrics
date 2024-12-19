@@ -11,13 +11,12 @@ groups:
     rules:
       - alert: DiskRunsOutOfSpaceIn3Days
         expr: |
-          vm_free_disk_space_bytes / ignoring(path)
+          sum(vm_free_disk_space_bytes) without(path) /
           (
-            rate(vm_rows_added_to_storage_total[1d])
-            * scalar(
-              sum(vm_data_size_bytes{type!~"indexdb.*"}) /
-              sum(vm_rows{type!~"indexdb.*"})
-             )
+            rate(vm_rows_added_to_storage_total[1d]) * (
+              sum(vm_data_size_bytes{type!~"indexdb.*"}) without(type) /
+              sum(vm_rows{type!~"indexdb.*"}) without(type)
+            )
           ) < 3 * 24 * 3600 > 0
         for: 30m
         labels:
@@ -27,6 +26,25 @@ groups:
           summary: "Instance {{ $labels.instance }} will run out of disk space in 3 days"
           description: "Taking into account current ingestion rate, free disk space will be enough only
               for {{ $value | humanizeDuration }} on instance {{ $labels.instance }}.\n
+              Consider to limit the ingestion rate, decrease retention or scale the disk space up if possible."
+
+      - alert: NodeBecomesReadonlyIn3Days
+        expr: |
+          sum(vm_free_disk_space_bytes - vm_free_disk_space_limit_bytes) without(path) /
+          (
+            rate(vm_rows_added_to_storage_total[1d]) * (
+              sum(vm_data_size_bytes{type!~"indexdb.*"}) without(type) /
+              sum(vm_rows{type!~"indexdb.*"}) without(type)
+            )
+          ) < 3 * 24 * 3600 > 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=113&var-instance={{ $labels.instance }}"
+          summary: "Instance {{ $labels.instance }} will become read-only in 3 days"
+          description: "Taking into account current ingestion rate, free disk space and -storage.minFreeDiskSpaceBytes
+              instance {{ $labels.instance }} will remain writable for {{ $value | humanizeDuration }}.\n
               Consider to limit the ingestion rate, decrease retention or scale the disk space up if possible."
 
       - alert: DiskRunsOutOfSpace
@@ -77,23 +95,12 @@ groups:
           description: "RPC errors are interconnection errors between cluster components.\n
             Possible reasons for errors are misconfiguration, overload, network blips or unreachable components."
 
-      - alert: RowsRejectedOnIngestion
-        expr: rate(vm_rows_ignored_total[5m]) > 0
-        for: 15m
-        labels:
-          severity: warning
-        annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=135&var-instance={{ $labels.instance }}"
-          summary: "Some rows are rejected on \"{{ $labels.instance }}\" on ingestion attempt"
-          description: "VM is rejecting to ingest rows on \"{{ $labels.instance }}\" due to the
-            following reason: \"{{ $labels.reason }}\""
-
       - alert: TooHighChurnRate
         expr: |
           (
-             sum(rate(vm_new_timeseries_created_total[5m]))
+             sum(rate(vm_new_timeseries_created_total[5m])) by(job)
              /
-             sum(rate(vm_rows_inserted_total[5m]))
+             sum(rate(vm_rows_inserted_total[5m])) by(job)
            ) > 0.1
         for: 15m
         labels:
@@ -108,9 +115,9 @@ groups:
 
       - alert: TooHighChurnRate24h
         expr: |
-          sum(increase(vm_new_timeseries_created_total[24h]))
+          sum(increase(vm_new_timeseries_created_total[24h])) by(job)
           >
-          (sum(vm_cache_entries{type="storage/hour_metric_ids"}) * 3)
+          (sum(vm_cache_entries{type="storage/hour_metric_ids"}) by(job) * 3)
         for: 15m
         labels:
           severity: warning
@@ -126,9 +133,9 @@ groups:
       - alert: TooHighSlowInsertsRate
         expr: |
           (
-             sum(rate(vm_slow_row_inserts_total[5m]))
+             sum(rate(vm_slow_row_inserts_total[5m])) by(job)
              /
-             sum(rate(vm_rows_inserted_total[5m]))
+             sum(rate(vm_rows_inserted_total[5m])) by(job)
            ) > 0.05
         for: 15m
         labels:
@@ -139,18 +146,6 @@ groups:
           description: "High rate of slow inserts may be a sign of resource exhaustion
             for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series.
             See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183"
-
-      - alert: LabelsLimitExceededOnIngestion
-        expr: increase(vm_metrics_with_dropped_labels_total[5m]) > 0
-        for: 15m
-        labels:
-          severity: warning
-        annotations:
-          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=116&var-instance={{ $labels.instance }}"
-          summary: "Metrics ingested to vminsert on {{ $labels.instance }} are exceeding labels limit"
-          description: "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n
-           This prevents from ingesting metrics with too many labels. Please verify that `-maxLabelsPerTimeseries` is configured
-           correctly or that clients which send these metrics aren't misbehaving."
 
       - alert: VminsertVmstorageConnectionIsSaturated
         expr: rate(vm_rpc_send_duration_seconds_total[5m]) > 0.9

@@ -261,8 +261,8 @@ expr: <string>
 # Information includes alerts state changes and requests sent to the datasource.
 # Please note, that if rule's query params contain sensitive
 # information - it will be printed to logs.
-# Is applicable to alerting rules only.
-# Available starting from https://docs.victoriametrics.com/changelog/#v1820
+# Is applicable to alerting rules only. 
+# Logs are printed with INFO level, so make sure that -loggerLevel=INFO to see the output.
 [ debug: <bool> | default = false ]
 
 # Defines the number of rule's updates entries stored in memory
@@ -473,6 +473,23 @@ There are the following approaches exist for alerting and recording rules across
   flag must contain the url for the specific tenant as well.
   For example, `-remoteWrite.url=http://vminsert:8480/insert/123/prometheus` would write recording
   rules to `AccountID=123`.
+
+* To use the [multitenant endpoint](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) {{% available_from "v1.104.0" %}} of vminsert as
+  the `-remoteWrite.url` and vmselect as the `-datasource.url`, add `extra_label` with tenant ID as an HTTP URL parameter for each group.
+  For example, run vmalert using `-datasource.url=http://vmselect:8481/select/multitenant/prometheus -remoteWrite.url=http://vminsert:8480/insert/multitenant/prometheus`,
+  along with the rule group:
+```yaml
+groups:
+- name: rules_for_tenant_456:789
+  params:
+     extra_label: [vm_account_id=456,vm_project_id=789]
+  rules:
+    # Rules for accountID=456, projectID=789
+```
+
+The multitenant endpoint in vmselect is less efficient than [specifying tenants in URL](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format).
+
+For security considerations, it is recommended restricting access to multitenant endpoints only to trusted sources, since untrusted source may break per-tenant data by writing unwanted samples or get access to data of arbitrary tenants.
 
 * To specify `tenant` parameter per each alerting and recording group if
   [enterprise version of vmalert](https://docs.victoriametrics.com/enterprise/) is used

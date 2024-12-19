@@ -103,7 +103,7 @@ func (pu *pipeUnpackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}
 	return newPipeUnpackProcessor(workersCount, unpackLogfmt, ppNext, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff)
 }
 
-func parsePipeUnpackLogfmt(lex *lexer) (*pipeUnpackLogfmt, error) {
+func parsePipeUnpackLogfmt(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("unpack_logfmt") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unpack_logfmt")
 	}

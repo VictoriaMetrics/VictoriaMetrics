@@ -445,6 +445,38 @@ _Appears in:_
 | `useStrictSecurity` | UseStrictSecurity enables strict security mode for component<br />it restricts disk writes access<br />uses non-root user out of the box<br />drops not needed security permissions | _boolean_ | false |
 
 
+#### Condition
+
+
+
+Condition defines status condition of the resource
+
+
+
+_Appears in:_
+- [ScrapeObjectStatus](#scrapeobjectstatus)
+- [StatusMetadata](#statusmetadata)
+- [VLogsStatus](#vlogsstatus)
+- [VMAgentStatus](#vmagentstatus)
+- [VMAlertStatus](#vmalertstatus)
+- [VMAlertmanagerConfigStatus](#vmalertmanagerconfigstatus)
+- [VMAlertmanagerStatus](#vmalertmanagerstatus)
+- [VMAuthStatus](#vmauthstatus)
+- [VMClusterStatus](#vmclusterstatus)
+- [VMRuleStatus](#vmrulestatus)
+- [VMSingleStatus](#vmsinglestatus)
+- [VMUserStatus](#vmuserstatus)
+
+| Field | Description | Scheme | Required |
+| --- | --- | --- | --- |
+| `lastTransitionTime` | lastTransitionTime is the last time the condition transitioned from one status to another. | _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#time-v1-meta)_ | true |
+| `lastUpdateTime` | LastUpdateTime is the last time of given type update.<br />This value is used for status TTL update and removal | _[Time](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#time-v1-meta)_ | true |
+| `message` | message is a human readable message indicating details about the transition.<br />This may be an empty string. | _string_ | false |
+| `observedGeneration` | observedGeneration represents the .metadata.generation that the condition was set based upon.<br />For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date<br />with respect to the current state of the instance. | _integer_ | false |
+| `reason` | reason contains a programmatic identifier indicating the reason for the condition's last transition.<br />Producers of specific condition types may define expected values and meanings for this field,<br />and whether the values are considered a guaranteed API.<br />The value should be a CamelCase string.<br />This field may not be empty. | _string_ | true |
+| `type` | Type of condition in CamelCase or in name.namespace.resource.victoriametrics.com/CamelCase. | _string_ | true |
+
+
 #### ConfigMapKeyReference
 
 
@@ -459,7 +491,6 @@ _Appears in:_
 | Field | Description | Scheme | Required |
 | --- | --- | --- | --- |
 | `key` | The ConfigMap key to refer to. | _string_ | true |
-| `name` | Name of the referent.<br />This field is effectively required, but due to backwards compatibility is<br />allowed to be empty. Instances of this type with an empty value here are<br />almost certainly wrong.<br />TODO: Add other useful fields. apiVersion, kind, uid?<br />More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names<br />TODO: Drop `kubebuilder:default` when controller-gen doesn't need it https://github.com/kubernetes-sigs/kubebuilder/issues/3896. | _string_ | false |
 
 
 #### ConsulSDConfig
@@ -683,9 +714,9 @@ _Appears in:_
 
 | Field | Description | Scheme | Required |
 | --- | --- | --- | --- |
-| `behaviour` |  | _[HorizontalPodAutoscalerBehavior](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerbehavior-v2beta2-autoscaling)_ | true |
+| `behaviour` |  | _[HorizontalPodAutoscalerBehavior](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#horizontalpodautoscalerbehavior-v2-autoscaling)_ | true |
 | `maxReplicas` |  | _integer_ | true |
-| `metrics` |  | _[MetricSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#metricspec-v2beta2-autoscaling) array_ | true |
+| `metrics` |  | _[MetricSpec](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#metricspec-v2-autoscaling) array_ | true |
 | `minReplicas` |  | _integer_ | true |
 
 
@@ -1235,8 +1266,10 @@ _Appears in:_
 
 | Field | Description | Scheme | Required |
 | --- | --- | --- | --- |
+| `forceOffline` | Enforce offline verification of the license key. | _boolean_ | true |
 | `key` | Enterprise license key. This flag is available only in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise).<br />To request a trial license, [go to](https://victoriametrics.com/products/enterprise/trial) | _string_ | true |
 | `keyRef` | KeyRef is reference to secret with license key for enterprise features. | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | true |
+| `reloadInterval` | Interval to be used for checking for license key changes. Note that this is only applicable when using KeyRef. | _string_ | true |
 
 
 #### LinkConfig
@@ -1277,6 +1310,29 @@ _Appears in:_
 | `title` | The title of the teams notification. | _string_ | false |
 | `webhook_url` | The incoming webhook URL<br />one of `urlSecret` and `url` must be defined. | _string_ | false |
 | `webhook_url_secret` | URLSecret defines secret name and key at the CRD namespace.<br />It must contain the webhook URL.<br />one of `urlSecret` and `url` must be defined. | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
+
+
+#### ManagedObjectsMetadata
+
+
+
+ManagedObjectsMetadata contains Labels and Annotations
+
+
+
+_Appears in:_
+- [VLogsSpec](#vlogsspec)
+- [VMAgentSpec](#vmagentspec)
+- [VMAlertSpec](#vmalertspec)
+- [VMAlertmanagerSpec](#vmalertmanagerspec)
+- [VMAuthSpec](#vmauthspec)
+- [VMClusterSpec](#vmclusterspec)
+- [VMSingleSpec](#vmsinglespec)
+
+| Field | Description | Scheme | Required |
+| --- | --- | --- | --- |
+| `annotations` | Annotations is an unstructured key value map stored with a resource that may be<br />set by external tools to store and retrieve arbitrary metadata. They are not<br />queryable and should be preserved when modifying objects.<br />More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations | _object (keys:string, values:string)_ | true |
+| `labels` | Labels Map of string keys and values that can be used to organize and categorize<br />(scope and select) objects.<br />More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels | _object (keys:string, values:string)_ | true |
 
 
 #### NamespaceDiscovery
@@ -1972,18 +2028,23 @@ StatusMetadata holds metadata of application update status
 
 
 _Appears in:_
+- [ScrapeObjectStatus](#scrapeobjectstatus)
 - [VLogsStatus](#vlogsstatus)
 - [VMAgentStatus](#vmagentstatus)
 - [VMAlertStatus](#vmalertstatus)
+- [VMAlertmanagerConfigStatus](#vmalertmanagerconfigstatus)
 - [VMAlertmanagerStatus](#vmalertmanagerstatus)
 - [VMAuthStatus](#vmauthstatus)
 - [VMClusterStatus](#vmclusterstatus)
+- [VMRuleStatus](#vmrulestatus)
 - [VMSingleStatus](#vmsinglestatus)
+- [VMUserStatus](#vmuserstatus)
 
 | Field | Description | Scheme | Required |
 | --- | --- | --- | --- |
+| `conditions` | Known .status.conditions.type are: "Available", "Progressing", and "Degraded" | _[Condition](#condition) array_ | true |
 | `observedGeneration` | ObservedGeneration defines current generation picked by operator for the<br />reconcile | _integer_ | true |
-| `reason` | Reason defines fail reason for reconcile process | _string_ | true |
+| `reason` | Reason defines human readadble error reason | _string_ | true |
 | `updateStatus` | UpdateStatus defines a status for update rollout | _[UpdateStatus](#updatestatus)_ | true |
 
 
@@ -2061,7 +2122,6 @@ _Appears in:_
 | `output_relabel_configs` | OutputRelabelConfigs is an optional relabeling rules, which are applied<br />on the aggregated output before being sent to remote storage. | _[RelabelConfig](#relabelconfig) array_ | false |
 | `outputs` | Outputs is a list of output aggregate functions to produce.<br /><br />The following names are allowed:<br /><br />- total - aggregates input counters<br />- increase - counts the increase over input counters<br />- count_series - counts the input series<br />- count_samples - counts the input samples<br />- sum_samples - sums the input samples<br />- last - the last biggest sample value<br />- min - the minimum sample value<br />- max - the maximum sample value<br />- avg - the average value across all the samples<br />- stddev - standard deviation across all the samples<br />- stdvar - standard variance across all the samples<br />- histogram_bucket - creates VictoriaMetrics histogram for input samples<br />- quantiles(phi1, ..., phiN) - quantiles' estimation for phi in the range [0..1]<br /><br />The output time series will have the following names:<br /><br />  input_name:aggr_<interval>_<output> | _string array_ | true |
 | `staleness_interval` | Staleness interval is interval after which the series state will be reset if no samples have been sent during it.<br />The parameter is only relevant for outputs: total, total_prometheus, increase, increase_prometheus and histogram_bucket. | _string_ | false |
-| `ignore_first_sample_interval` | IgnoreFirstSampleInterval specifies the interval after which the agent begins sending samples.<br />By default, it is set to the `staleness_interval`. It helps reducing the initial sample load after the agent restart.<br />This parameter is relevant only for the following outputs: total, total_prometheus, increase, increase_prometheus, and histogram_bucket. We recommend setting it to 0s unless you observe unexpected spikes in produced values. | _string_ | false |
 | `without` | Without is an optional list of labels, which must be excluded when grouping input series.<br /><br />See also By.<br /><br />If neither By nor Without are set, then the Outputs are calculated<br />individually per each input time series. | _string array_ | false |
 
 
@@ -2076,6 +2136,8 @@ StringOrArray is a helper type for storing string or array of string.
 _Appears in:_
 - [RelabelConfig](#relabelconfig)
 - [StreamAggrRule](#streamaggrrule)
+- [UnauthorizedAccessConfigURLMap](#unauthorizedaccessconfigurlmap)
+- [VMAuthUnauthorizedUserAccessSpec](#vmauthunauthorizeduseraccessspec)
 
 
 
@@ -2127,16 +2189,17 @@ _Appears in:_
 - [PodMetricsEndpoint](#podmetricsendpoint)
 - [ProxyAuth](#proxyauth)
 - [TargetEndpoint](#targetendpoint)
-- [UserConfigOption](#userconfigoption)
 - [VMAgentRemoteWriteSpec](#vmagentremotewritespec)
 - [VMAlertDatasourceSpec](#vmalertdatasourcespec)
 - [VMAlertNotifierSpec](#vmalertnotifierspec)
 - [VMAlertRemoteReadSpec](#vmalertremotereadspec)
 - [VMAlertRemoteWriteSpec](#vmalertremotewritespec)
 - [VMAuthSpec](#vmauthspec)
+- [VMAuthUnauthorizedUserAccessSpec](#vmauthunauthorizeduseraccessspec)
 - [VMNodeScrapeSpec](#vmnodescrapespec)
 - [VMProbeSpec](#vmprobespec)
 - [VMScrapeConfigSpec](#vmscrapeconfigspec)
+- [VMUserConfigOptions](#vmuserconfigoptions)
 - [VMUserSpec](#vmuserspec)
 
 | Field | Description | Scheme | Required |
@@ -2369,19 +2432,21 @@ _Appears in:_
 
 
 
-
+UnauthorizedAccessConfigURLMap defines element of url_map routing configuration
+For UnauthorizedAccessConfig and VMAuthUnauthorizedUserAccessSpec.URLMap
 
 
 
 _Appears in:_
 - [VMAuthSpec](#vmauthspec)
+- [VMAuthUnauthorizedUserAccessSpec](#vmauthunauthorizeduseraccessspec)
 
 | Field | Description | Scheme | Required |
 | --- | --- | --- | --- |
 | `URLMapCommon` |  | _[URLMapCommon](#urlmapcommon)_ | true |
 | `src_hosts` | SrcHosts is an optional list of regular expressions, which must match the request hostname. | _string array_ | true |
 | `src_paths` | SrcPaths is an optional list of regular expressions, which must match the request path. | _string array_ | true |
-| `url_prefix` | UrlPrefix contains backend url prefixes for the proxied request url. | _string array_ | true |
+| `url_prefix` | UrlPrefix contains backend url prefixes for the proxied request url.<br />URLPrefix defines prefix prefix for destination | _[StringOrArray](#stringorarray)_ | true |
 
 
 #### UpdateStatus
@@ -2393,41 +2458,19 @@ UpdateStatus defines status for application
 
 
 _Appears in:_
+- [ScrapeObjectStatus](#scrapeobjectstatus)
 - [StatusMetadata](#statusmetadata)
 - [VLogsStatus](#vlogsstatus)
 - [VMAgentStatus](#vmagentstatus)
 - [VMAlertStatus](#vmalertstatus)
+- [VMAlertmanagerConfigStatus](#vmalertmanagerconfigstatus)
 - [VMAlertmanagerStatus](#vmalertmanagerstatus)
 - [VMAuthStatus](#vmauthstatus)
 - [VMClusterStatus](#vmclusterstatus)
+- [VMRuleStatus](#vmrulestatus)
 - [VMSingleStatus](#vmsinglestatus)
+- [VMUserStatus](#vmuserstatus)
 
-
-
-#### UserConfigOption
-
-
-
-
-
-
-
-_Appears in:_
-- [VMAuthSpec](#vmauthspec)
-- [VMUserSpec](#vmuserspec)
-
-| Field | Description | Scheme | Required |
-| --- | --- | --- | --- |
-| `default_url` | DefaultURLs backend url for non-matching paths filter<br />usually used for default backend with error message | _string array_ | true |
-| `discover_backend_ips` | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | _boolean_ | true |
-| `drop_src_path_prefix_parts` | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.<br />See [here](https://docs.victoriametrics.com/vmauth#dropping-request-path-prefix) for more details. | _integer_ | false |
-| `headers` | Headers represent additional http headers, that vmauth uses<br />in form of ["header_key: header_value"]<br />multiple values for header key:<br />["header_key: value1,value2"]<br />it's available since 1.68.0 version of vmauth | _string array_ | false |
-| `ip_filters` | IPFilters defines per target src ip filters<br />supported only with enterprise version of [vmauth](https://docs.victoriametrics.com/vmauth/#ip-filters) | _[VMUserIPFilters](#vmuseripfilters)_ | false |
-| `load_balancing_policy` | LoadBalancingPolicy defines load balancing policy to use for backend urls.<br />Supported policies: least_loaded, first_available.<br />See [here](https://docs.victoriametrics.com/vmauth#load-balancing) for more details (default "least_loaded") | _string_ | false |
-| `max_concurrent_requests` | MaxConcurrentRequests defines max concurrent requests per user<br />300 is default value for vmauth | _integer_ | false |
-| `response_headers` | ResponseHeaders represent additional http headers, that vmauth adds for request response<br />in form of ["header_key: header_value"]<br />multiple values for header key:<br />["header_key: value1,value2"]<br />it's available since 1.93.0 version of vmauth | _string array_ | false |
-| `retry_status_codes` | RetryStatusCodes defines http status codes in numeric format for request retries<br />e.g. [429,503] | _integer array_ | false |
-| `tlsConfig` |  | _[TLSConfig](#tlsconfig)_ | false |
 
 
 #### VLogs
@@ -2481,6 +2524,7 @@ _Appears in:_
 | `logIngestedRows` | Whether to log all the ingested log entries; this can be useful for debugging of data ingestion; see https://docs.victoriametrics.com/victorialogs/data-ingestion/ | _boolean_ | true |
 | `logLevel` | LogLevel for VictoriaLogs to be configured with. | _string_ | false |
 | `logNewStreams` | LogNewStreams Whether to log creation of new streams; this can be useful for debugging of high cardinality issues with log streams; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields | _boolean_ | true |
+| `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
@@ -2647,6 +2691,7 @@ _Appears in:_
 | `license` | License allows to configure license key to be used for enterprise features.<br />Using license key is supported starting from VictoriaMetrics v1.94.0.<br />See [here](https://docs.victoriametrics.com/enterprise) | _[License](#license)_ | false |
 | `logFormat` | LogFormat for VMAgent to be configured with. | _string_ | false |
 | `logLevel` | LogLevel for VMAgent to be configured with.<br />INFO, WARN, ERROR, FATAL, PANIC | _string_ | false |
+| `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `maxScrapeInterval` | MaxScrapeInterval allows limiting maximum scrape interval for VMServiceScrape, VMPodScrape and other scrapes<br />If interval is higher than defined limit, `maxScrapeInterval` will be used. | _string_ | true |
 | `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `minScrapeInterval` | MinScrapeInterval allows limiting minimal scrape interval for VMServiceScrape, VMPodScrape and other scrapes<br />If interval is lower than defined limit, `minScrapeInterval` will be used. | _string_ | true |
@@ -2697,7 +2742,7 @@ _Appears in:_
 | `statefulStorage` | StatefulStorage configures storage for StatefulSet | _[StorageSpec](#storagespec)_ | false |
 | `staticScrapeNamespaceSelector` | StaticScrapeNamespaceSelector defines Namespaces to be selected for VMStaticScrape discovery.<br />Works in combination with NamespaceSelector.<br />NamespaceSelector nil - only objects at VMAgent namespace.<br />Selector nil - only objects at NamespaceSelector namespaces.<br />If both nil - behaviour controlled by selectAllByDefault | _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ | false |
 | `staticScrapeRelabelTemplate` | StaticScrapeRelabelTemplate defines relabel config, that will be added to each VMStaticScrape.<br />it's useful for adding specific labels to all targets | _[RelabelConfig](#relabelconfig) array_ | false |
-| `staticScrapeSelector` | StaticScrapeSelector defines PodScrapes to be selected for target discovery.<br />Works in combination with NamespaceSelector.<br />If both nil - match everything.<br />NamespaceSelector nil - only objects at VMAgent namespace.<br />Selector nil - only objects at NamespaceSelector namespaces. | _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ | false |
+| `staticScrapeSelector` | StaticScrapeSelector defines VMStaticScrape to be selected for target discovery.<br />Works in combination with NamespaceSelector.<br />If both nil - match everything.<br />NamespaceSelector nil - only objects at VMAgent namespace.<br />Selector nil - only objects at NamespaceSelector namespaces. | _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ | false |
 | `streamAggrConfig` | StreamAggrConfig defines global stream aggregation configuration for VMAgent | _[StreamAggrConfig](#streamaggrconfig)_ | false |
 | `terminationGracePeriodSeconds` | TerminationGracePeriodSeconds period for container graceful termination | _integer_ | false |
 | `tolerations` | Tolerations If specified, the pod's tolerations. | _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#toleration-v1-core) array_ | false |
@@ -2854,6 +2899,7 @@ _Appears in:_
 | `license` | License allows to configure license key to be used for enterprise features.<br />Using license key is supported starting from VictoriaMetrics v1.94.0.<br />See [here](https://docs.victoriametrics.com/enterprise) | _[License](#license)_ | false |
 | `logFormat` | LogFormat for VMAlert to be configured with.<br />default or json | _string_ | false |
 | `logLevel` | LogLevel for VMAlert to be configured with. | _string_ | false |
+| `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `notifier` | Notifier prometheus alertmanager endpoint spec. Required at least one of notifier or notifiers when there are alerting rules. e.g. http://127.0.0.1:9093<br />If specified both notifier and notifiers, notifier will be added as last element to notifiers.<br />only one of notifier options could be chosen: notifierConfigRef or notifiers +  notifier | _[VMAlertNotifierSpec](#vmalertnotifierspec)_ | false |
@@ -3000,6 +3046,7 @@ _Appears in:_
 | `listenLocal` | ListenLocal makes the VMAlertmanager server listen on loopback, so that it<br />does not bind against the Pod IP. Note this is only for the VMAlertmanager<br />UI, not the gossip communication. | _boolean_ | false |
 | `logFormat` | LogFormat for VMAlertmanager to be configured with. | _string_ | false |
 | `logLevel` | Log level for VMAlertmanager to be configured with. | _string_ | false |
+| `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
@@ -3174,6 +3221,7 @@ _Appears in:_
 | `load_balancing_policy` | LoadBalancingPolicy defines load balancing policy to use for backend urls.<br />Supported policies: least_loaded, first_available.<br />See [here](https://docs.victoriametrics.com/vmauth#load-balancing) for more details (default "least_loaded") | _string_ | false |
 | `logFormat` | LogFormat for VMAuth to be configured with. | _string_ | false |
 | `logLevel` | LogLevel for victoria metrics single to be configured with. | _string_ | false |
+| `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `max_concurrent_requests` | MaxConcurrentRequests defines max concurrent requests per user<br />300 is default value for vmauth | _integer_ | false |
 | `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
@@ -3197,10 +3245,11 @@ _Appears in:_
 | `serviceScrapeSpec` | ServiceScrapeSpec that will be added to vmauth VMServiceScrape spec | _[VMServiceScrapeSpec](#vmservicescrapespec)_ | false |
 | `serviceSpec` | ServiceSpec that will be added to vmsingle service spec | _[AdditionalServiceSpec](#additionalservicespec)_ | false |
 | `terminationGracePeriodSeconds` | TerminationGracePeriodSeconds period for container graceful termination | _integer_ | false |
-| `tlsConfig` |  | _[TLSConfig](#tlsconfig)_ | false |
+| `tlsConfig` | TLSConfig defines tls configuration for the backend connection | _[TLSConfig](#tlsconfig)_ | false |
 | `tolerations` | Tolerations If specified, the pod's tolerations. | _[Toleration](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#toleration-v1-core) array_ | false |
 | `topologySpreadConstraints` | TopologySpreadConstraints embedded kubernetes pod configuration option,<br />controls how pods are spread across your cluster among failure-domains<br />such as regions, zones, nodes, and other user-defined topology domains<br />https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/ | _[TopologySpreadConstraint](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#topologyspreadconstraint-v1-core) array_ | false |
-| `unauthorizedAccessConfig` | UnauthorizedAccessConfig configures access for un authorized users | _[UnauthorizedAccessConfigURLMap](#unauthorizedaccessconfigurlmap) array_ | false |
+| `unauthorizedAccessConfig` | UnauthorizedAccessConfig configures access for un authorized users<br /><br />Deprecated, use unauthorizedUserAccessSpec instead<br />will be removed at v1.0 release | _[UnauthorizedAccessConfigURLMap](#unauthorizedaccessconfigurlmap) array_ | true |
+| `unauthorizedUserAccessSpec` | UnauthorizedUserAccessSpec defines unauthorized_user config section of vmauth config | _[VMAuthUnauthorizedUserAccessSpec](#vmauthunauthorizeduseraccessspec)_ | false |
 | `useDefaultResources` | UseDefaultResources controls resource settings<br />By default, operator sets built-in resource requirements | _boolean_ | false |
 | `useStrictSecurity` | UseStrictSecurity enables strict security mode for component<br />it restricts disk writes access<br />uses non-root user out of the box<br />drops not needed security permissions | _boolean_ | false |
 | `useVMConfigReloader` | UseVMConfigReloader replaces prometheus-like config-reloader<br />with vm one. It uses secrets watch instead of file watch<br />which greatly increases speed of config updates | _boolean_ | false |
@@ -3210,6 +3259,34 @@ _Appears in:_
 | `volumes` | Volumes allows configuration of additional volumes on the output Deployment/StatefulSet definition.<br />Volumes specified will be appended to other volumes that are generated.<br />/ +optional | _[Volume](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#volume-v1-core) array_ | true |
 
 
+
+
+#### VMAuthUnauthorizedUserAccessSpec
+
+
+
+VMAuthUnauthorizedUserAccessSpec defines unauthorized_user section configuration for vmauth
+
+
+
+_Appears in:_
+- [VMAuthSpec](#vmauthspec)
+
+| Field | Description | Scheme | Required |
+| --- | --- | --- | --- |
+| `default_url` | DefaultURLs backend url for non-matching paths filter<br />usually used for default backend with error message | _string array_ | true |
+| `discover_backend_ips` | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | _boolean_ | true |
+| `drop_src_path_prefix_parts` | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.<br />See [here](https://docs.victoriametrics.com/vmauth#dropping-request-path-prefix) for more details. | _integer_ | false |
+| `headers` | Headers represent additional http headers, that vmauth uses<br />in form of ["header_key: header_value"]<br />multiple values for header key:<br />["header_key: value1,value2"]<br />it's available since 1.68.0 version of vmauth | _string array_ | false |
+| `ip_filters` | IPFilters defines per target src ip filters<br />supported only with enterprise version of [vmauth](https://docs.victoriametrics.com/vmauth/#ip-filters) | _[VMUserIPFilters](#vmuseripfilters)_ | false |
+| `load_balancing_policy` | LoadBalancingPolicy defines load balancing policy to use for backend urls.<br />Supported policies: least_loaded, first_available.<br />See [here](https://docs.victoriametrics.com/vmauth#load-balancing) for more details (default "least_loaded") | _string_ | false |
+| `max_concurrent_requests` | MaxConcurrentRequests defines max concurrent requests per user<br />300 is default value for vmauth | _integer_ | false |
+| `metric_labels` | MetricLabels - additional labels for metrics exported by vmauth for given user. | _object (keys:string, values:string)_ | false |
+| `response_headers` | ResponseHeaders represent additional http headers, that vmauth adds for request response<br />in form of ["header_key: header_value"]<br />multiple values for header key:<br />["header_key: value1,value2"]<br />it's available since 1.93.0 version of vmauth | _string array_ | false |
+| `retry_status_codes` | RetryStatusCodes defines http status codes in numeric format for request retries<br />e.g. [429,503] | _integer array_ | false |
+| `tlsConfig` | TLSConfig defines tls configuration for the backend connection | _[TLSConfig](#tlsconfig)_ | false |
+| `url_map` |  | _[UnauthorizedAccessConfigURLMap](#unauthorizedaccessconfigurlmap) array_ | true |
+| `url_prefix` | URLPrefix defines prefix prefix for destination | _[StringOrArray](#stringorarray)_ | true |
 
 
 #### VMBackup
@@ -3285,6 +3362,7 @@ _Appears in:_
 | `clusterVersion` | ClusterVersion defines default images tag for all components.<br />it can be overwritten with component specific image.tag value. | _string_ | false |
 | `imagePullSecrets` | ImagePullSecrets An optional list of references to secrets in the same namespace<br />to use for pulling images from registries<br />see https://kubernetes.io/docs/concepts/containers/images/#referring-to-an-imagepullsecrets-on-a-pod | _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core) array_ | false |
 | `license` | License allows to configure license key to be used for enterprise features.<br />Using license key is supported starting from VictoriaMetrics v1.94.0.<br />See [here](https://docs.victoriametrics.com/enterprise) | _[License](#license)_ | false |
+| `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
 | `replicationFactor` | ReplicationFactor defines how many copies of data make among<br />distinct storage nodes | _integer_ | false |
 | `requestsLoadBalancer` | RequestsLoadBalancer configures load-balancing for vminsert and vmselect requests<br />it helps to evenly spread load across pods<br />usually it's not possible with kubernetes TCP based service | _[VMAuthLoadBalancer](#vmauthloadbalancer)_ | true |
@@ -3579,7 +3657,7 @@ _Appears in:_
 
 
 
-
+VMRestore defines config options for vmrestore start-up
 
 
 
@@ -3595,7 +3673,7 @@ _Appears in:_
 
 
 
-
+VMRestoreOnStartConfig controls vmrestore setting
 
 
 
@@ -3743,7 +3821,7 @@ _Appears in:_
 
 
 
-
+VMSelect defines configuration section for vmselect components of the victoria-metrics cluster
 
 
 
@@ -3906,6 +3984,7 @@ _Appears in:_
 | `license` | License allows to configure license key to be used for enterprise features.<br />Using license key is supported starting from VictoriaMetrics v1.94.0.<br />See [here](https://docs.victoriametrics.com/enterprise) | _[License](#license)_ | false |
 | `logFormat` | LogFormat for VMSingle to be configured with. | _string_ | false |
 | `logLevel` | LogLevel for victoria metrics single to be configured with. | _string_ | false |
+| `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
@@ -4060,6 +4139,33 @@ VMUser is the Schema for the vmusers API
 | `spec` |  | _[VMUserSpec](#vmuserspec)_ | true |
 
 
+#### VMUserConfigOptions
+
+
+
+VMUserConfigOptions defines configuration options for VMUser object
+
+
+
+_Appears in:_
+- [VMAuthSpec](#vmauthspec)
+- [VMAuthUnauthorizedUserAccessSpec](#vmauthunauthorizeduseraccessspec)
+- [VMUserSpec](#vmuserspec)
+
+| Field | Description | Scheme | Required |
+| --- | --- | --- | --- |
+| `default_url` | DefaultURLs backend url for non-matching paths filter<br />usually used for default backend with error message | _string array_ | true |
+| `discover_backend_ips` | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | _boolean_ | true |
+| `drop_src_path_prefix_parts` | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.<br />See [here](https://docs.victoriametrics.com/vmauth#dropping-request-path-prefix) for more details. | _integer_ | false |
+| `headers` | Headers represent additional http headers, that vmauth uses<br />in form of ["header_key: header_value"]<br />multiple values for header key:<br />["header_key: value1,value2"]<br />it's available since 1.68.0 version of vmauth | _string array_ | false |
+| `ip_filters` | IPFilters defines per target src ip filters<br />supported only with enterprise version of [vmauth](https://docs.victoriametrics.com/vmauth/#ip-filters) | _[VMUserIPFilters](#vmuseripfilters)_ | false |
+| `load_balancing_policy` | LoadBalancingPolicy defines load balancing policy to use for backend urls.<br />Supported policies: least_loaded, first_available.<br />See [here](https://docs.victoriametrics.com/vmauth#load-balancing) for more details (default "least_loaded") | _string_ | false |
+| `max_concurrent_requests` | MaxConcurrentRequests defines max concurrent requests per user<br />300 is default value for vmauth | _integer_ | false |
+| `response_headers` | ResponseHeaders represent additional http headers, that vmauth adds for request response<br />in form of ["header_key: header_value"]<br />multiple values for header key:<br />["header_key: value1,value2"]<br />it's available since 1.93.0 version of vmauth | _string array_ | false |
+| `retry_status_codes` | RetryStatusCodes defines http status codes in numeric format for request retries<br />e.g. [429,503] | _integer array_ | false |
+| `tlsConfig` | TLSConfig defines tls configuration for the backend connection | _[TLSConfig](#tlsconfig)_ | false |
+
+
 #### VMUserIPFilters
 
 
@@ -4070,8 +4176,9 @@ supported only with enterprise version of [vmauth](https://docs.victoriametrics.
 
 
 _Appears in:_
-- [UserConfigOption](#userconfigoption)
 - [VMAuthSpec](#vmauthspec)
+- [VMAuthUnauthorizedUserAccessSpec](#vmauthunauthorizeduseraccessspec)
+- [VMUserConfigOptions](#vmuserconfigoptions)
 - [VMUserSpec](#vmuserspec)
 
 | Field | Description | Scheme | Required |
@@ -4110,7 +4217,7 @@ _Appears in:_
 | `response_headers` | ResponseHeaders represent additional http headers, that vmauth adds for request response<br />in form of ["header_key: header_value"]<br />multiple values for header key:<br />["header_key: value1,value2"]<br />it's available since 1.93.0 version of vmauth | _string array_ | false |
 | `retry_status_codes` | RetryStatusCodes defines http status codes in numeric format for request retries<br />e.g. [429,503] | _integer array_ | false |
 | `targetRefs` | TargetRefs - reference to endpoints, which user may access. | _[TargetRef](#targetref) array_ | true |
-| `tlsConfig` |  | _[TLSConfig](#tlsconfig)_ | false |
+| `tlsConfig` | TLSConfig defines tls configuration for the backend connection | _[TLSConfig](#tlsconfig)_ | false |
 | `tokenRef` | TokenRef allows fetching token from user-created secrets by its name and key. | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
 | `username` | UserName basic auth user name for accessing protected endpoint,<br />will be replaced with metadata.name of VMUser if omitted. | _string_ | false |
 

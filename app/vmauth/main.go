@@ -61,6 +61,9 @@ var (
 		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
 	backendTLSServerName = flag.String("backend.TLSServerName", "", "Optional TLS ServerName, which must be sent to HTTPS backend. "+
 		"See https://docs.victoriametrics.com/vmauth/#backend-tls-setup")
+	dryRun                   = flag.Bool("dryRun", false, "Whether to check only config files without running vmauth. The auth configuration file is validated. The -auth.config flag must be specified.")
+	removeXFFHTTPHeaderValue = flag.Bool(`removeXFFHTTPHeaderValue`, false, "Whether to remove the X-Forwarded-For HTTP header value from client requests before forwarding them to the backend. "+
+		"Recommended when vmauth is exposed to the internet.")
 )
 
 func main() {
@@ -70,6 +73,16 @@ func main() {
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
+
+	if *dryRun {
+		if len(*authConfigPath) == 0 {
+			logger.Fatalf("missing required `-auth.config` command-line flag")
+		}
+		if _, err := reloadAuthConfig(); err != nil {
+			logger.Fatalf("failed to parse %q: %s", *authConfigPath, err)
+		}
+		return
+	}
 
 	listenAddrs := *httpListenAddrs
 	if len(listenAddrs) == 0 {
@@ -186,7 +199,7 @@ func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, hc := ui.getURLPrefixAndHeaders(u, r.Header)
+	up, hc := ui.getURLPrefixAndHeaders(u, r.Host, r.Header)
 	isDefault := false
 	if up == nil {
 		if ui.DefaultURL == nil {
@@ -200,7 +213,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 			missingRouteRequests.Inc()
 			var di string
 			if ui.DumpRequestOnErrors {
-				di = debugInfo(u, r.Header)
+				di = debugInfo(u, r)
 			}
 			httpserver.Errorf(w, r, "missing route for %q%s", u.String(), di)
 			return
@@ -381,7 +394,7 @@ func sanitizeRequestHeaders(r *http.Request) *http.Request {
 		// X-Forwarded-For information as a comma+space
 		// separated list and fold multiple headers into one.
 		prior := req.Header["X-Forwarded-For"]
-		if len(prior) > 0 {
+		if len(prior) > 0 && !*removeXFFHTTPHeaderValue {
 			clientIP = strings.Join(prior, ", ") + ", " + clientIP
 		}
 		req.Header.Set("X-Forwarded-For", clientIP)
@@ -655,13 +668,13 @@ func (rtb *readTrackingBody) Close() error {
 	return nil
 }
 
-func debugInfo(u *url.URL, h http.Header) string {
+func debugInfo(u *url.URL, r *http.Request) string {
 	s := &strings.Builder{}
-	fmt.Fprintf(s, " (host: %q; ", u.Host)
+	fmt.Fprintf(s, " (host: %q; ", r.Host)
 	fmt.Fprintf(s, "path: %q; ", u.Path)
 	fmt.Fprintf(s, "args: %q; ", u.Query().Encode())
 	fmt.Fprint(s, "headers:")
-	_ = h.WriteSubset(s, nil)
+	_ = r.Header.WriteSubset(s, nil)
 	fmt.Fprint(s, ")")
 	return s.String()
 }

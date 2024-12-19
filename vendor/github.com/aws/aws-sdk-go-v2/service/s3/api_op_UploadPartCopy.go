@@ -100,33 +100,28 @@ import (
 // For example policies, see [Example bucket policies for S3 Express One Zone]and [Amazon Web Services Identity and Access Management (IAM) identity-based policies for S3 Express One Zone]in the Amazon S3 User Guide.
 //
 // Encryption
-//   - General purpose buckets -
 //
-// For information about using server-side encryption with customer-provided
+//   - General purpose buckets - For information about using server-side
+//     encryption with customer-provided encryption keys with the UploadPartCopy
+//     operation, see [CopyObject]and [UploadPart].
 //
-//	encryption keys with the UploadPartCopy operation, see [CopyObject]and [UploadPart].
-//
-//	- Directory buckets - For directory buckets, there are only two supported
-//	options for server-side encryption: server-side encryption with Amazon S3
-//	managed keys (SSE-S3) ( AES256 ) and server-side encryption with KMS keys
-//	(SSE-KMS) ( aws:kms ). For more information, see [Protecting data with server-side encryption]in the Amazon S3 User Guide.
+//   - Directory buckets - For directory buckets, there are only two supported
+//     options for server-side encryption: server-side encryption with Amazon S3
+//     managed keys (SSE-S3) ( AES256 ) and server-side encryption with KMS keys
+//     (SSE-KMS) ( aws:kms ). For more information, see [Protecting data with server-side encryption]in the Amazon S3 User Guide.
 //
 // For directory buckets, when you perform a CreateMultipartUpload operation and an
 //
-//	UploadPartCopy operation,
-//
-// the request headers you provide in the CreateMultipartUpload request must match
-//
-//	the default encryption configuration of the destination bucket.
+//	UploadPartCopy operation, the request headers you provide in the
+//	CreateMultipartUpload request must match the default encryption configuration
+//	of the destination bucket.
 //
 // S3 Bucket Keys aren't supported, when you copy SSE-KMS encrypted objects from
 //
-//	general purpose buckets
-//
-// to directory buckets, from directory buckets to general purpose buckets, or
-//
-//	between directory buckets, through [UploadPartCopy]. In this case, Amazon S3 makes a call to
-//	KMS every time a copy request is made for a KMS-encrypted object.
+//	general purpose buckets to directory buckets, from directory buckets to general
+//	purpose buckets, or between directory buckets, through [UploadPartCopy]. In this case, Amazon
+//	S3 makes a call to KMS every time a copy request is made for a KMS-encrypted
+//	object.
 //
 // Special errors
 //
@@ -166,6 +161,7 @@ import (
 // [UploadPart]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html
 // [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
 // [Protecting data using server-side encryption with KMS]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingKMSEncryption.html
+// [CopyObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html
 // [Multipart upload and permissions]: https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html
 // [Multipart upload API and permissions]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/mpuoverview.html#mpuAndPermissions
 // [CompleteMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html
@@ -176,11 +172,10 @@ import (
 // [REST Authentication]: https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html
 // [Example bucket policies for S3 Express One Zone]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam-example-bucket-policies.html
 // [Operations on Objects]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectOperations.html
+// [Protecting data with server-side encryption]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-serv-side-encryption.html
 // [ListMultipartUploads]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListMultipartUploads.html
 //
-// [CopyObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html
 // [UploadPartCopy]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html
-// [Protecting data with server-side encryption]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-serv-side-encryption.html
 func (c *Client) UploadPartCopy(ctx context.Context, params *UploadPartCopyInput, optFns ...func(*Options)) (*UploadPartCopyOutput, error) {
 	if params == nil {
 		params = &UploadPartCopyInput{}

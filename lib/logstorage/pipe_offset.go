@@ -71,7 +71,7 @@ func (pop *pipeOffsetProcessor) flush() error {
 	return nil
 }
 
-func parsePipeOffset(lex *lexer) (*pipeOffset, error) {
+func parsePipeOffset(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("offset", "skip") {
 		return nil, fmt.Errorf("expecting 'offset' or 'skip'; got %q", lex.token)
 	}

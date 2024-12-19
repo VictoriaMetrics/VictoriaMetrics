@@ -72,8 +72,8 @@ func (ssp *statsSumLenProcessor) mergeState(sfp statsProcessor) {
 	ssp.sumLen += src.sumLen
 }
 
-func (ssp *statsSumLenProcessor) finalizeStats() string {
-	return strconv.FormatUint(ssp.sumLen, 10)
+func (ssp *statsSumLenProcessor) finalizeStats(dst []byte) []byte {
+	return strconv.AppendUint(dst, ssp.sumLen, 10)
 }
 
 func parseStatsSumLen(lex *lexer) (*statsSumLen, error) {

@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -36,6 +37,9 @@ type pipeSort struct {
 
 	// The name of the field to store the row rank.
 	rankFieldName string
+
+	// partitionByFields contains fields for partitioning the sorted rows.
+	partitionByFields []string
 }
 
 func (ps *pipeSort) String() string {
@@ -50,15 +54,22 @@ func (ps *pipeSort) String() string {
 	if ps.isDesc {
 		s += " desc"
 	}
+
+	if len(ps.partitionByFields) > 0 {
+		s += " partition by (" + fieldsToString(ps.partitionByFields) + ")"
+	}
+
 	if ps.offset > 0 {
 		s += fmt.Sprintf(" offset %d", ps.offset)
 	}
 	if ps.limit > 0 {
 		s += fmt.Sprintf(" limit %d", ps.limit)
 	}
+
 	if ps.rankFieldName != "" {
 		s += rankFieldNameString(ps.rankFieldName)
 	}
+
 	return s
 }
 
@@ -87,6 +98,12 @@ func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
 			unneededFields.remove(bf.name)
 		}
 	}
+
+	if neededFields.contains("*") {
+		unneededFields.removeFields(ps.partitionByFields)
+	} else {
+		neededFields.addFields(ps.partitionByFields)
+	}
 }
 
 func (ps *pipeSort) hasFilterInWithQuery() bool {
@@ -102,6 +119,18 @@ func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, c
 		return newPipeTopkProcessor(ps, workersCount, stopCh, cancel, ppNext)
 	}
 	return newPipeSortProcessor(ps, workersCount, stopCh, cancel, ppNext)
+}
+
+func (ps *pipeSort) addPartitionByTime(step int64) {
+	if step <= 0 {
+		return
+	}
+	if ps.limit <= 0 {
+		return
+	}
+	if !slices.Contains(ps.partitionByFields, "_time") {
+		ps.partitionByFields = append(ps.partitionByFields, "_time")
+	}
 }
 
 func newPipeSortProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
@@ -740,7 +769,7 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 	return false
 }
 
-func parsePipeSort(lex *lexer) (*pipeSort, error) {
+func parsePipeSort(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("sort") && !lex.isKeyword("order") {
 		return nil, fmt.Errorf("expecting 'sort' or 'order'; got %q", lex.token)
 	}
@@ -798,7 +827,23 @@ func parsePipeSort(lex *lexer) (*pipeSort, error) {
 				return nil, fmt.Errorf("cannot read rank field name: %s", err)
 			}
 			ps.rankFieldName = rankFieldName
+		case lex.isKeyword("partition"):
+			if len(ps.partitionByFields) > 0 {
+				return nil, fmt.Errorf("duplicate 'partition by'")
+			}
+			lex.nextToken()
+			if lex.isKeyword("by") {
+				lex.nextToken()
+			}
+			fields, err := parseFieldNamesInParens(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'partition by' args: %w", err)
+			}
+			ps.partitionByFields = fields
 		default:
+			if len(ps.partitionByFields) > 0 && ps.limit <= 0 {
+				return nil, fmt.Errorf("missing 'limit' for 'partition by'")
+			}
 			return &ps, nil
 		}
 	}

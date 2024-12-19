@@ -118,7 +118,7 @@ func (plp *pipeLenProcessor) flush() error {
 	return nil
 }
 
-func parsePipeLen(lex *lexer) (*pipeLen, error) {
+func parsePipeLen(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("len") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "len")
 	}

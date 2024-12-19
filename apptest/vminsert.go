@@ -18,21 +18,43 @@ type Vminsert struct {
 	*app
 	*ServesMetrics
 
-	httpListenAddr string
-	cli            *Client
+	httpListenAddr          string
+	clusternativeListenAddr string
+	cli                     *Client
+}
+
+// storageNodes returns the storage node addresses passed to vminsert via
+// -storageNode command line flag.
+func storageNodes(flags []string) []string {
+	for _, flag := range flags {
+		if storageNodes, found := strings.CutPrefix(flag, "-storageNode="); found {
+			return strings.Split(storageNodes, ",")
+		}
+	}
+	return nil
 }
 
 // StartVminsert starts an instance of vminsert with the given flags. It also
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr)
 func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, error) {
+	extractREs := []*regexp.Regexp{
+		httpListenAddrRE,
+		vminsertClusterNativeAddrRE,
+	}
+	// Add storateNode REs to block until vminsert establishes connections with
+	// all storage nodes. The extracted values are unused.
+	for _, sn := range storageNodes(flags) {
+		logRecord := fmt.Sprintf("successfully dialed -storageNode=\"%s\"", sn)
+		extractREs = append(extractREs, regexp.MustCompile(logRecord))
+	}
+
 	app, stderrExtracts, err := startApp(instance, "../../bin/vminsert", flags, &appOptions{
 		defaultFlags: map[string]string{
-			"-httpListenAddr": "127.0.0.1:0",
+			"-httpListenAddr":          "127.0.0.1:0",
+			"-clusternativeListenAddr": "127.0.0.1:0",
 		},
-		extractREs: []*regexp.Regexp{
-			httpListenAddrRE,
-		},
+		extractREs: extractREs,
 	})
 	if err != nil {
 		return nil, err
@@ -44,9 +66,16 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[0]),
 			cli:        cli,
 		},
-		httpListenAddr: stderrExtracts[0],
-		cli:            cli,
+		httpListenAddr:          stderrExtracts[0],
+		clusternativeListenAddr: stderrExtracts[1],
+		cli:                     cli,
 	}, nil
+}
+
+// ClusternativeListenAddr returns the address at which the vminsert process is
+// listening for connections from other vminsert apps.
+func (app *Vminsert) ClusternativeListenAddr() string {
+	return app.clusternativeListenAddr
 }
 
 // PrometheusAPIV1Write is a test helper function that inserts a

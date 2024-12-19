@@ -145,19 +145,16 @@ See also:
 
 ### Loki JSON API
 
-VictoriaLogs accepts logs in [Loki JSON API](https://grafana.com/docs/loki/latest/api/#push-log-entries-to-loki) format at `http://localhost:9428/insert/loki/api/v1/push` endpoint.
+VictoriaLogs accepts logs in [Loki JSON API](https://grafana.com/docs/loki/latest/reference/loki-http-api/#ingest-logs) format at `http://localhost:9428/insert/loki/api/v1/push` endpoint.
 
 The following command pushes a single log line to Loki JSON API at VictoriaLogs:
 
 ```sh
-curl -H "Content-Type: application/json" -XPOST "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job" --data-raw \
+curl -H "Content-Type: application/json" -XPOST "http://localhost:9428/insert/loki/api/v1/push" --data-raw \
   '{"streams": [{ "stream": { "instance": "host123", "job": "app42" }, "values": [ [ "0", "foo fizzbuzz bar" ] ] }]}'
 ```
 
 It is possible to push thousands of log streams and log lines in a single request to this API.
-
-The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
-There is no need in specifying `_msg_field` and `_time_field` query args, since VictoriaLogs automatically extracts log message and timestamp from the ingested Loki data.
 
 The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](https://docs.victoriametrics.com/victorialogs/querying/) it:
 
@@ -173,6 +170,19 @@ The command should return the following response:
 
 The response by default contains all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 See [how to query specific fields](https://docs.victoriametrics.com/victorialogs/logsql/#querying-specific-fields).
+
+The `/insert/loki/api/v1/push` accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
+There is no need in specifying `_msg_field` and `_time_field` query args, since VictoriaLogs automatically extracts log message and timestamp from the ingested Loki data.
+
+The `_stream_fields` arg is optional. If it isn't set, then all the labels inside the `"stream":{...}` are treated
+as [log stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields). Use `_stream_fields` query arg for overriding the list of stream fields.
+For example, the following query instructs using only the `instance` label from the `"stream":{...}` as a stream field, while `ip` and `trace_id` fields will be stored
+as usual [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
+
+```sh
+curl -H "Content-Type: application/json" -XPOST "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance" --data-raw \
+  '{"streams": [{ "stream": { "instance": "host123", "ip": "foo", "trace_id": "bar" }, "values": [ [ "0", "foo fizzbuzz bar" ] ] }]}'
+```
 
 The duration of requests to `/insert/loki/api/v1/push` can be monitored with `vl_http_request_duration_seconds{path="/insert/loki/api/v1/push"}` metric.
 
@@ -216,7 +226,7 @@ All the [HTTP-based data ingestion protocols](#http-apis) support the following 
 - `ignore_fields` - an optional comma-separated list of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names,
   which must be ignored during data ingestion.
 
-- `extra_fields` - an optional comma-separated list [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+- `extra_fields` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
   which must be added to all the ingested logs. The format of every `extra_fields` entry is `field_name=field_value`.
   If the log entry contains fields from the `extra_fields`, then they are overwritten by the values specified in `extra_fields`.
 

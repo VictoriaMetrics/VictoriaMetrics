@@ -84,12 +84,9 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	lmp := cp.NewLogMessageProcessor()
-	n, err := readLogsRequest(ts, data, lmp.AddRow)
+	lmp := cp.NewLogMessageProcessor("datadog")
+	err = readLogsRequest(ts, data, lmp)
 	lmp.MustClose()
-	if n > 0 {
-		rowsIngestedTotal.Add(n)
-	}
 	if err != nil {
 		logger.Warnf("cannot decode log message in /api/v2/logs request: %s, stream fields: %s", err, cp.StreamFields)
 		return true
@@ -105,29 +102,28 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 
 var (
 	v2LogsRequestsTotal   = metrics.NewCounter(`vl_http_requests_total{path="/insert/datadog/api/v2/logs"}`)
-	rowsIngestedTotal     = metrics.NewCounter(`vl_rows_ingested_total{type="datadog"}`)
 	v2LogsRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/datadog/api/v2/logs"}`)
 )
 
 // readLogsRequest parses data according to DataDog logs format
 // https://docs.datadoghq.com/api/latest/logs/#send-logs
-func readLogsRequest(ts int64, data []byte, processLogMessage func(int64, []logstorage.Field)) (int, error) {
+func readLogsRequest(ts int64, data []byte, lmp insertutils.LogMessageProcessor) error {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
 	v, err := p.ParseBytes(data)
 	if err != nil {
-		return 0, fmt.Errorf("cannot parse JSON request body: %w", err)
+		return fmt.Errorf("cannot parse JSON request body: %w", err)
 	}
 	records, err := v.Array()
 	if err != nil {
-		return 0, fmt.Errorf("cannot extract array from parsed JSON: %w", err)
+		return fmt.Errorf("cannot extract array from parsed JSON: %w", err)
 	}
 
 	var fields []logstorage.Field
-	for m, r := range records {
+	for _, r := range records {
 		o, err := r.Object()
 		if err != nil {
-			return m + 1, fmt.Errorf("could not extract log record: %w", err)
+			return fmt.Errorf("could not extract log record: %w", err)
 		}
 		o.Visit(func(k []byte, v *fastjson.Value) {
 			if err != nil {
@@ -178,8 +174,8 @@ func readLogsRequest(ts int64, data []byte, processLogMessage func(int64, []logs
 				})
 			}
 		})
-		processLogMessage(ts, fields)
+		lmp.AddRow(ts, fields, nil)
 		fields = fields[:0]
 	}
-	return len(records), nil
+	return nil
 }

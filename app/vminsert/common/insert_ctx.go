@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 )
 
 // StartIngestionRateLimiter starts ingestion rate limiter.
@@ -91,13 +92,35 @@ func (ctx *InsertCtx) marshalMetricNameRaw(prefix []byte, labels []prompbmarshal
 	return metricNameRaw[:len(metricNameRaw):len(metricNameRaw)]
 }
 
+// TryPrepareLabels prepares context labels to the ingestion
+//
+// It returns false if timeseries should be skipped
+func (ctx *InsertCtx) TryPrepareLabels(hasRelabeling bool) bool {
+	if hasRelabeling {
+		ctx.ApplyRelabeling()
+	}
+	if len(ctx.Labels) == 0 {
+		return false
+	}
+	if timeserieslimits.Enabled() && timeserieslimits.IsExceeding(ctx.Labels) {
+		return false
+	}
+	ctx.sortLabelsIfNeeded()
+
+	return true
+}
+
 // WriteDataPoint writes (timestamp, value) with the given prefix and labels into ctx buffer.
+//
+// caller should invoke TryPrepareLabels before using this function if needed
 func (ctx *InsertCtx) WriteDataPoint(prefix []byte, labels []prompbmarshal.Label, timestamp int64, value float64) error {
 	metricNameRaw := ctx.marshalMetricNameRaw(prefix, labels)
 	return ctx.addRow(metricNameRaw, timestamp, value)
 }
 
 // WriteDataPointExt writes (timestamp, value) with the given metricNameRaw and labels into ctx buffer.
+//
+// caller must invoke TryPrepareLabels before using this function
 //
 // It returns metricNameRaw for the given labels if len(metricNameRaw) == 0.
 func (ctx *InsertCtx) WriteDataPointExt(metricNameRaw []byte, labels []prompbmarshal.Label, timestamp int64, value float64) ([]byte, error) {

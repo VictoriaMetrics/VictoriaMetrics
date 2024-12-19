@@ -159,8 +159,8 @@ func (smp *statsMaxProcessor) updateStateString(v string) {
 	smp.max = strings.Clone(v)
 }
 
-func (smp *statsMaxProcessor) finalizeStats() string {
-	return smp.max
+func (smp *statsMaxProcessor) finalizeStats(dst []byte) []byte {
+	return append(dst, smp.max...)
 }
 
 func parseStatsMax(lex *lexer) (*statsMax, error) {

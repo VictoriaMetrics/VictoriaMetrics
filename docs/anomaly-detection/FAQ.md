@@ -159,7 +159,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.18.4
+    image: victoriametrics/vmanomaly:v1.18.8
     # ...
     ports:
       - "8490:8490"
@@ -323,18 +323,67 @@ Please note that this approach may not fully resolve the issue if subqueries are
 
 
 ## Scaling vmanomaly
+
 > **Note:** As of latest release we do not support cluster or auto-scaled version yet (though, it's in our roadmap for - better backends, more parallelization, etc.), so proposed workarounds should be addressed *manually*.
 
-`vmanomaly` can be scaled horizontally by launching multiple independent instances, each with its own [MetricsQL](https://docs.victoriametrics.com/metricsql/) queries and [configurations](https://docs.victoriametrics.com/anomaly-detection/components/):
+`vmanomaly` supports **vertical** scalability, benefiting from additional CPU cores (resulting in faster processing times) and increased RAM (allowing more models to be trained and larger volumes of timeseries data to be processed efficiently).
 
-- By splitting **queries**, [defined in reader section](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader) and spawn separate service around it. Also in case you have *only 1 query returning huge amount of timeseries*, you can further split it by applying MetricsQL filters, i.e. using "extra_filters" [param in reader](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=extra_filters#vm-reader). See the example below.
+For **horizontal** scalability, `vmanomaly` can be deployed as multiple independent instances, each configured with its own [MetricsQL](https://docs.victoriametrics.com/metricsql/) queries and [configurations](https://docs.victoriametrics.com/anomaly-detection/components/):
 
-- or **models** (in case you decide to run several models for each timeseries received i.e. for averaging anomaly scores in your alerting rules of `vmalert` or using a vote approach to reduce false positives) - see `queries` arg in [model config](https://docs.victoriametrics.com/anomaly-detection/components/models#queries)
+- Splitting by **queries** [defined in the reader section](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader) and assigning each subset to a separate service instance should be used when having *a single query returning a large number of timeseries*. This can be further split by applying global MetricsQL filters using the `extra_filters` [parameter in the reader](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=extra_filters#vm-reader). See example below.
 
-- or **schedulers** (in case you want the same models to be trained under several schedules) - see `schedulers` arg [model section](https://docs.victoriametrics.com/anomaly-detection/components/models#schedulers) and `scheduler` [component itself](https://docs.victoriametrics.com/anomaly-detection/components/scheduler)
+- Spliting by **models** should be used when running multiple models on the same query. This is commonly done to reduce false positives by alerting only if multiple models detect an anomaly. See the `queries` argument in the [model configuration](https://docs.victoriametrics.com/anomaly-detection/components/models#queries). Additionally, this approach is useful when you just have a large set of resource-intensive independent models.
 
+- Splitting by **schedulers** should be used when the same models needs to be trained or inferred under different schedules. Refer to the `schedulers` argument in the [model section](https://docs.victoriametrics.com/anomaly-detection/components/models#schedulers) and the `scheduler` [component documentation](https://docs.victoriametrics.com/anomaly-detection/components/scheduler).
 
-Here's an example of how to split on `extra_filters`, based on `extra_filters` reader's arg:
+### Splitting the config
+
+Starting from [v1.18.5](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1185), a CLI utility named `config_splitter.py` is available in vmanoamly. The config splitter tool enables splitting a parent vmanomaly YAML configuration file into multiple sub-configurations based on logical entities  such as `schedulers`, `queries`, `models`, `extra_filters`. The resulting sub-configurations are fully validated, functional, account for many-to-many relationships between models and their associated queries, and the schedulers they are linked to. These sub-configurations can then be saved to a specified directory for further use:
+
+```shellhelp
+usage: config_splitter.py [-h] --splitBy {schedulers,models,queries,extra_filters} --outputDir OUTPUT_DIR [--fileNameFormat {raw,hash,int}] [--loggerLevel {WARNING,INFO,ERROR,FATAL,DEBUG}]
+                          config [config ...]
+
+Splits the configuration of VictoriaMetrics Anomaly Detection service by a logical entity.
+
+positional arguments:
+  config                YAML config files to be combined into a single configuration.
+
+options:
+  -h                    show this help message and exit
+  --splitBy {schedulers,models,queries,extra_filters}
+                        The logical entity to split by. Choices: ['schedulers', 'models', 'queries', 'extra_filters'].
+  --outputDir output_dir
+                        Directory where the split configuration files will be saved.
+  --fileNameFormat {raw,hash,int}
+                        The naming format for the output configuration files. Choices: raw (use the entity alias), hash (use hashed alias), int (use a sequential integer from 0 to N for N
+                        produced sub-configs). Default: raw.
+  --loggerLevel {WARNING,INFO,ERROR,FATAL,DEBUG}
+                        Minimum level to log. Default: INFO
+```
+
+Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
+
+```sh
+docker pull victoriametrics/vmanomaly:v1.18.8 && docker image tag victoriametrics/vmanomaly:v1.18.8 vmanomaly
+```
+
+```sh
+export YOUR_INPUT_CONFIG_PATH=path/to/input/config.yml
+export YOUR_OUTPUT_DIR_PATH=path/to/output/directory
+
+docker run -it --rm \
+    -v $YOUR_INPUT_CONFIG_PATH:/input_config.yml \
+    -v $YOUR_OUTPUT_DIR_PATH:/output_dir \
+    vmanomaly python3 /vmanomaly/config_splitter.py \
+    /input_config.yml \
+    --splitBy=extra_filters \
+    --outputDir=/output_dir \
+    --fileNameFormat=raw \
+    --loggerLevel=INFO
+```
+
+After running the command, the output directory (specified by `YOUR_OUTPUT_DIR_PATH`) will contain 1+ split configuration files like the examples below. Each file can be used to launch a separate vmanomaly instance. Use similar approach to split on other entities, like `models` or `schedulers`.
 
 ```yaml
 # config file #1, for 1st vmanomaly instance
@@ -345,7 +394,7 @@ reader:
     extra_big_query: metricsql_expression_returning_too_many_timeseries
     extra_filters:
       # suppose you have a label `region` with values to deterministically define such subsets
-      - '{region="region_name_1"}'
+      - '{env="region_name_1"}'
       # ...
 ```
 

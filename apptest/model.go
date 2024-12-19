@@ -51,6 +51,7 @@ type QueryOpts struct {
 	Step         string
 	ExtraFilters []string
 	ExtraLabels  []string
+	Trace        string
 }
 
 func (qos *QueryOpts) asURLValues() url.Values {
@@ -70,6 +71,7 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("timeout", qos.Timeout)
 	addNonEmpty("extra_label", qos.ExtraLabels...)
 	addNonEmpty("extra_filters", qos.ExtraFilters...)
+	addNonEmpty("trace", qos.Trace)
 
 	return uv
 }
@@ -131,7 +133,7 @@ func NewSample(t *testing.T, timeStr string, value float64) *Sample {
 	if err != nil {
 		t.Fatalf("could not parse RFC3339 time %q: %v", timeStr, err)
 	}
-	return &Sample{parsedTime.Unix(), value}
+	return &Sample{parsedTime.UnixMilli(), value}
 }
 
 // UnmarshalJSON populates the sample fields from a JSON string.
@@ -147,7 +149,7 @@ func (s *Sample) UnmarshalJSON(b []byte) error {
 	if got, want := len(raw), 2; got != want {
 		return fmt.Errorf("unexpected number of fields: got %d, want %d (raw sample: %s)", got, want, string(b))
 	}
-	s.Timestamp = int64(ts)
+	s.Timestamp = int64(ts * 1000)
 	var err error
 	s.Value, err = strconv.ParseFloat(v, 64)
 	if err != nil {
@@ -162,6 +164,7 @@ type PrometheusAPIV1SeriesResponse struct {
 	Status    string
 	IsPartial bool
 	Data      []map[string]string
+	Trace     *Trace
 }
 
 // NewPrometheusAPIV1SeriesResponse is a test helper function that creates a new
@@ -177,7 +180,7 @@ func NewPrometheusAPIV1SeriesResponse(t *testing.T, s string) *PrometheusAPIV1Se
 }
 
 // Sort sorts the response data.
-func (r *PrometheusAPIV1SeriesResponse) Sort() {
+func (r *PrometheusAPIV1SeriesResponse) Sort() *PrometheusAPIV1SeriesResponse {
 	str := func(m map[string]string) string {
 		s := []string{}
 		for k, v := range m {
@@ -190,4 +193,44 @@ func (r *PrometheusAPIV1SeriesResponse) Sort() {
 	slices.SortFunc(r.Data, func(a, b map[string]string) int {
 		return strings.Compare(str(a), str(b))
 	})
+
+	return r
+}
+
+// Trace provides the description and the duration of some unit of work that has
+// been performed during the request processing.
+type Trace struct {
+	DurationMsec float64 `json:"duration_msec"`
+	Message      string
+	Children     []*Trace
+}
+
+// String returns string representation of the trace.
+func (t *Trace) String() string {
+	return t.stringWithIndent("")
+}
+
+func (t *Trace) stringWithIndent(indent string) string {
+	s := indent + fmt.Sprintf("{duration_msec: %.3f msg: %q", t.DurationMsec, t.Message)
+	if len(t.Children) > 0 {
+		s += " children: ["
+		for _, c := range t.Children {
+			s += "\n" + c.stringWithIndent(indent+" ")
+		}
+		s += "]"
+	}
+	return s + "}"
+}
+
+// Contains counts how many trace messages contain substring s.
+func (t *Trace) Contains(s string) int {
+	var times int
+	if strings.Contains(t.Message, s) {
+		times++
+	}
+
+	for _, c := range t.Children {
+		times += c.Contains(s)
+	}
+	return times
 }
