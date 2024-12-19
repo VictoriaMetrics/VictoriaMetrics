@@ -1,47 +1,115 @@
 @use "src/styles/variables" as *;
 
-.vm-query-analyzer-info-header {
-  display: flex;
-  gap: $padding-global;
+.vm-query-analyzer-info {
 
-  &__period {
+  &-header {
     display: flex;
     align-items: center;
+    width: 100%;
+    height: 100%;
     gap: $padding-small;
-    border: $border-divider;
-    border-radius: $border-radius-small;
-    padding: 6px $padding-global;
-
-    svg {
-      width: calc($font-size-small + 1px);
-      color: $color-primary;
-    }
-  }
-}
-
-.vm-query-analyzer-info {
-  display: grid;
-  gap: $padding-large;
-  min-width: 300px;
-
-  &-type {
-    text-align: center;
-    font-style: italic;
-    color: $color-text-secondary;
-  }
-
-  &-item {
-    display: grid;
-    padding-bottom: $padding-large;
-    border-bottom: $border-divider;
-    line-height: 130%;
+    font-size: $font-size-small;
+    background-color: $color-background-body;
+    z-index: 1;
 
     &__title {
-      font-weight: bold;
+      font-size: $font-size-large;
+      font-weight: 500;
     }
 
-    &__text {
-      white-space: pre-wrap;
+    &__timerange {
+      display: flex;
+      align-items: center;
+      gap: calc($padding-small / 2);
+      border: $border-divider;
+      border-radius: $border-radius-small;
+      padding: calc($padding-small / 2) $padding-small;
+      font-size: $font-size-small;
+
+      svg {
+        width: calc($font-size-small + 1px);
+        color: $color-primary;
+      }
+    }
+
+    &__info {
+      margin-left: auto;
+      margin-right: 0;
+    }
+  }
+
+  &__modal {
+    width: min(800px, 90vw);
+  }
+
+  &-comment {
+    position: relative;
+    max-width: 800px;
+    border-radius: $border-radius-medium;
+    border: $border-divider;
+    font-size: $font-size-small;
+
+    &-header {
+      display: grid;
+      grid-template-columns: 16px 1fr;
+      align-items: center;
+      gap: $padding-small;
+      padding: $padding-small;
+      border-bottom: $border-divider;
+      background-color: $color-hover-black;
+      font-weight: 500;
+      z-index: 1;
+
+      svg {
+        color: $color-primary;
+      }
+    }
+
+    &-body {
+      padding: $padding-small;
+      max-height: 60vh;
+      overflow: auto;
+    }
+  }
+
+  &-stats {
+    border-radius: $border-radius-medium;
+    border: $border-divider;
+    font-size: $font-size-small;
+    margin-bottom: $padding-global;
+    overflow: hidden;
+
+    table {
+      width: 100%;
+    }
+
+    td, th {
+      padding: $padding-small;
+      text-align: left;
+    }
+
+    tr {
+      border-bottom: $border-divider;
+    }
+
+    thead {
+      th {
+        font-weight: 500;
+      }
+    }
+
+    tbody {
+      tr {
+        transition: background-color 0.3s;
+
+        &:hover {
+          background-color: $color-hover-black;
+        }
+
+        &:last-child {
+          border-bottom: none;
+        }
+      }
     }
   }
 }

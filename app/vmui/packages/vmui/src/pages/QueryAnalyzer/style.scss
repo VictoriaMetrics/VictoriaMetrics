@@ -1,0 +1,29 @@
+@use "src/styles/variables" as *;
+
+.vm-query-analyzer {
+  display: flex;
+  flex-direction: column;
+
+  @media (max-width: 768px) {
+    padding: $padding-medium 0;
+  }
+
+  &-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: $padding-global;
+    margin-bottom: $padding-global;
+  }
+
+  &-error {
+    position: relative;
+    margin: $padding-global 0;
+
+    &__close {
+      position: absolute;
+      top: $padding-small;
+      right: $padding-small;
+      z-index: 2;
+    }
+  }
+}

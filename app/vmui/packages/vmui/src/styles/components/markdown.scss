@@ -1,0 +1,139 @@
+@use "src/styles/variables" as *;
+
+.vm-markdown {
+  display: block;
+  line-height: 1.5;
+
+  pre,
+  code {
+    font-size: 1em;
+    font-family: $font-family-monospace
+  }
+
+  pre {
+    padding: .5em;
+    line-height: 1.25;
+    overflow-x: scroll;
+  }
+
+  a,
+  a:visited {
+    color: $color-primary;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  body {
+    line-height: 1.85;
+  }
+
+  p {
+    font-size: 1em;
+    margin-bottom: 1.3em;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    margin: .5em 0 0.25em;
+    font-weight: inherit;
+    line-height: 1.42;
+  }
+
+  h1 {
+    font-size: 1.8em;
+  }
+
+  h2 {
+    font-size: 1.6em;
+  }
+
+  h3 {
+    font-size: 1.4em;
+  }
+
+  h4 {
+    font-size: 1.2em;
+  }
+
+  h5 {
+    font-size: 1em;
+  }
+
+  h6 {
+    font-size: 0.8em;
+  }
+
+  small {
+    font-size: 0.8em;
+  }
+
+  img,
+  canvas,
+  iframe,
+  video,
+  svg,
+  select,
+  textarea {
+    max-width: 100%;
+  }
+
+  pre {
+    background-color: $color-hover-black;
+  }
+
+  blockquote {
+    border-left: 3px solid rgba($color-black, 0.2);
+    padding-left: 1em;
+    opacity: 0.7;
+  }
+
+  ul, ol {
+    margin: 0.3em 0;
+    list-style-position: inside;
+
+    li {
+      margin-bottom: 0.3em;
+
+      ul, ol {
+        margin-left: 1em;
+      }
+    }
+  }
+
+  input[type="checkbox"] {
+    display: none;
+  }
+
+  th,
+  td {
+    padding: 0.2em 0.4em;
+  }
+
+  hr {
+    border-top: $border-divider;
+  }
+
+  strong {
+    font-weight: bold;
+  }
+
+  em {
+    font-style: italic;
+  }
+
+  del {
+    text-decoration: line-through;
+  }
+
+  code:not(pre code) {
+    display: inline;
+    vertical-align: middle;
+    background: $color-hover-black;
+    border-radius: $border-radius-small;
+    border: $border-divider;
+    tab-size: 4;
+    font-variant-ligatures: none;
+    padding: 0.12em 0.4em;
+    font-size: 0.9em;
+    white-space: nowrap;
+  }
+}

@@ -1,0 +1,75 @@
+@use "src/styles/variables" as *;
+
+.vm-markdown-editor {
+  margin-top: 6px;
+  padding: 0 6px;
+  border-radius: $border-radius-small;
+  border: $border-divider;
+  overflow: hidden;
+
+  &-header {
+    display: flex;
+    align-items: center;
+    background-color: $color-hover-black;
+    padding-right: $padding-global;
+    border-bottom: $border-divider;
+    margin: -1px -7px 6px;
+
+    &-tabs {
+      display: flex;
+
+      &__tab {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: -1px;
+        padding: $padding-small $padding-large;
+        min-height: 40px;
+        color: $color-text-secondary;
+        transition: color 0.3s;
+        cursor: pointer;
+
+        &:hover {
+          color: $color-text;
+        }
+
+        &_active {
+          position: relative;
+          color: $color-text;
+          background-color: $color-background-body;
+          border-top-right-radius: $border-radius-small;
+          border-top-left-radius: $border-radius-small;
+          z-index: 1;
+
+          &:first-child {
+            border-right: $border-divider;
+          }
+
+          &:last-child {
+            border-right: $border-divider;
+            border-left: $border-divider;
+          }
+        }
+      }
+    }
+
+    &__info {
+      margin-left: auto;
+      margin-right: 0;
+      color: $color-text-secondary;
+      font-size: $font-size-small;
+      font-weight: 500;
+    }
+  }
+
+  &-preview {
+    padding: $padding-small;
+    margin-bottom: 6px;
+  }
+
+  &-preview,
+  textarea {
+    min-height: 200px;
+    resize: vertical;
+  }
+}

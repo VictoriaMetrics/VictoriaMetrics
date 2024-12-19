@@ -16,17 +16,20 @@ const UploadJsonButtons: FC<Props> = ({ onOpenModal, onChange }) => (
     >
       Paste JSON
     </Button>
-    <Button>
-      Upload Files
+    <div className="vm-upload-json-buttons__upload">
+      <Button>
+        Upload Files
+      </Button>
       <input
         id="json"
+        name="json"
         type="file"
         accept="application/json"
         multiple
         title=" "
         onChange={onChange}
       />
-    </Button>
+    </div>
   </div>
 );
 

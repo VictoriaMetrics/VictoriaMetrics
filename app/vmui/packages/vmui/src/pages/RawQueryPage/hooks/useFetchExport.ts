@@ -7,6 +7,7 @@ import { useAppState } from "../../../state/common/StateContext";
 import { useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import { isValidHttpUrl } from "../../../utils/url";
 import { getExportDataUrl } from "../../../api/query-range";
+import { parseLineToJSON } from "../../../utils/json";
 
 interface FetchQueryParams {
   hideQuery?: number[];
@@ -23,14 +24,6 @@ interface FetchQueryReturn {
   warning?: string,
   abortFetch: () => void
 }
-
-const parseLineToJSON = (line: string): ExportMetricResult | null => {
-  try {
-    return JSON.parse(line);
-  } catch (e) {
-    return null;
-  }
-};
 
 export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): FetchQueryReturn => {
   const { query } = useQueryState();
@@ -62,7 +55,7 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
     }
   }, [serverUrl, period, hideQuery, reduceMemUsage]);
 
-  const fetchData = useCallback(async ( { fetchUrl, stateSeriesLimits, showAllSeries }: {
+  const fetchData = useCallback(async ({ fetchUrl, stateSeriesLimits, showAllSeries }: {
     fetchUrl: string[];
     stateSeriesLimits: SeriesLimits;
     showAllSeries?: boolean;
@@ -99,12 +92,12 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
           const lines = text.split("\n").filter(line => line);
           const lineLimited = lines.slice(0, freeTempSize).sort();
           lineLimited.forEach((line: string) => {
-            const jsonLine = parseLineToJSON(line);
+            const jsonLine = parseLineToJSON(line) as (ExportMetricResult | null);
             if (!jsonLine) return;
             tempData.push({
               group: counter,
               metric: jsonLine.metric,
-              values: jsonLine.values.map((value, index) => [(jsonLine.timestamps[index]/1000), value]),
+              values: jsonLine.values.map((value, index) => [(jsonLine.timestamps[index] / 1000), value]),
             } as MetricBase);
           });
           totalLength += lines.length;
@@ -119,7 +112,7 @@ export const useFetchExport = ({ hideQuery, showAllSeries }: FetchQueryParams): 
     } catch (e) {
       setIsLoading(false);
       if (e instanceof Error && e.name !== "AbortError") {
-        setError(error);
+        setError(String(e));
         console.error(e);
       }
     }
