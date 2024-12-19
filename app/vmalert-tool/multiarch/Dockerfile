@@ -6,6 +6,7 @@ RUN apk update && apk upgrade && apk --update --no-cache add ca-certificates
 
 FROM $root_image
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+LABEL "org.opencontainers.image.source"="https://github.com/VictoriaMetrics/VictoriaMetrics"
 EXPOSE 8429
 ENTRYPOINT ["/vmalert-tool-prod"]
 ARG TARGETARCH

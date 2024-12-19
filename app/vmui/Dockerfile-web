@@ -9,6 +9,8 @@ RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o web-amd64 github.com/Victo
 FROM alpine:3.21.0
 USER root
 
+LABEL "org.opencontainers.image.source"="https://github.com/VictoriaMetrics/VictoriaMetrics"
+
 COPY --from=build-web-stage /build/web-amd64 /app/web
 COPY --from=build-web-stage /build/web-windows /app/web-windows
 RUN adduser -S -D -u 1000 web && chown -R web /app
