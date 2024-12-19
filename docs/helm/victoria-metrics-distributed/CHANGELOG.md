@@ -1,6 +1,7 @@
 ## Next release
 
-- TODO
+- bump version of VM components to [v1.108.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.1)
+- Exclude markdown files from package
 
 ## 0.6.2
 
