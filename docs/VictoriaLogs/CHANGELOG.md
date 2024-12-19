@@ -24,6 +24,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * BUGFIX: [syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): correctly parse rows with multiple consecutive spaces between fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7776).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix cursor reset in query input field. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7288).
 
+* BUGFIX: [vlinsert](https://docs.victoriametrics.com/victorialogs/): order of VL-Msg-Field values now defines a priority of these fields and it's now obvious for a user which field will be picked if multiple msg_field values exist in a row.
+
 ## [v1.3.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.3.2-victorialogs)
 
 Released at 2024-12-09
