@@ -133,6 +133,8 @@ The helm chart repository [https://github.com/VictoriaMetrics/helm-charts/](http
 
 ### Bump the version of images
 
+> Note that helm charts versioning uses its own versioning scheme. The version of the charts not tied to the version of VictoriaMetrics components.
+
 Bump `tag` field in `values.yaml` with new release version.
 Bump `appVersion` field in `Chart.yaml` with new release version.
 Add new line to "Next release" section in `CHANGELOG.md` about version update (the line must always start with "`-`"). Do **NOT** change headers in `CHANGELOG.md`.
@@ -156,6 +158,8 @@ Once updated, run the following commands:
 1. Merge new PRs *"Automatic update CHANGELOGs and READMEs"* and *"Synchronize docs"* after pipelines are complete.
 
 ## Ansible Roles 
+
+> Note that ansible playbooks versioning uses its own versioning scheme. The version of the playbooks is not tied to the version of VictoriaMetrics components.
 
 1. Update the version of VictoriaMetrics components at [https://github.com/VictoriaMetrics/ansible-playbooks](https://github.com/VictoriaMetrics/ansible-playbooks).
 1. Commit changes.
