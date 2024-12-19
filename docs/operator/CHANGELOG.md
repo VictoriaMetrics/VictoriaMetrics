@@ -13,12 +13,13 @@ aliases:
 
 ## tip
 
+
 ## [v0.51.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.51.0)
 
-**Release date:** 17 Dec 2024
+**Release date:** 19 Dec 2024
 
-![AppVersion: v1.107.0](https://img.shields.io/badge/v1.107.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11070)
-![AppVersion: v0.32.0](https://img.shields.io/badge/v0.32.0-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v0320)
+![AppVersion: v1.108.1](https://img.shields.io/badge/v1.108.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11070)
+![AppVersion: v1.3.2](https://img.shields.io/badge/v1.3.2-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v132)
 
 **Update note 1: `labels` and `annotations` inheritance is deprecated and will be remove at upcoming `v0.52.0` release. It's recommend to move all needed labels and annotations to the `spec.managedMetadata` fields.
 Operator will preserve `annotations`, but any changes to it will be ignored. `labels` inherited from `CRD.metata.labels` will be removed after upgrade to `v0.52.0`.**
@@ -30,6 +31,7 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [vmcluster](https://docs.victoriametrics.com/operator/resources/vmcluster): add `"app.kubernetes.io/part-of": "vmcluster"` label to the objects generated for `VMCluster` components. It helps to use labels selectors to identify objects belong to the cluster.
 - [vmauth](https://docs.victoriametrics.com/operator/resources/vmauth/): adds new `spec` setting `unauthorizedUserAccessSpec` that replaces `unauthorizedAccessConfig` and inlined fields from `VMUserConfigOptions`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1168) for details.
 - [vmuser](https://docs.victoriametrics.com/operator/resources/vmuser/): fix missing options `src_headers`, `src_query_args` and `discover_backend_ips` in the generate vmauth config when specified under `vmuserSpec.targetRefs`.
+- [vmuser](https://docs.victoriametrics.com/operator/resources/vmuser/): adds `dump_request_on_errors` to `vmuser.spec`. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7649) for details.
 - [vmoperator](https://docs.victoriametrics.com/operator/): add `annotations` to the `PodDisruptionBudget` and `HorizontalPodAutoscaler` objects generated.
 - [vmoperator](https://docs.victoriametrics.com/operator/): fix the behaviors of `vmagentSpec.ScrapeConfigSelector` and `vmagentSpec.scrapeConfigNamespaceSelector` when `vmagentSpec.selectAllByDefault=false`. Previously, the VMScrapeConfig could be ignored.
 - [vmoperator](https://docs.victoriametrics.com/operator/): fix the behaviors of `xxxNamespaceSelector` when `vmagentSpec.selectAllByDefault=true`. See [this doc](https://docs.victoriametrics.com/operator/resources/vmagent/#scraping) for detailed rules.
@@ -38,9 +40,11 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [vmoperator](https://docs.victoriametrics.com/operator/): Add new default security option to `containers` with enabled `useStrictSecurity: true`. It sets `privileged: false`.
 - [vmoperator](https://docs.victoriametrics.com/operator/): Provided manifest without webhook
 - [vmoperator](https://docs.victoriametrics.com/operator/): change structured logging. Move irrelevant fields into the `msg` body, change `logger` field to properly display `controller.CRD` name. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1191) for details.
+- [vmoperator](https://docs.victoriametrics.com/operator/): Updated default versions for VM apps to v1.108.1 version
 - [api](https://docs.victoriametrics.com/operator/api): add new field `managedMetadata` to `VMCluster.spec`, `VMAgent.spec`,`VMAlert.spec`, `VMAuth.spec`,`VMAlertmanager.Spec`, `VMSingle.spec` and`VLogs.spec`. It controls `labels` and `annotations` added to the objects created operator (such as `Deployment`). See [this issue](https://github.com/VictoriaMetrics/operator/issues/1171) for details.
 - [api](https://docs.victoriametrics.com/operator/api): upgrade Kubernetes(v0.31.3) and controller-runtime(v1.19.3) dependencies. Remove versions pin with `replace` directive from `go.mod`.
 - [api](https://docs.victoriametrics.com/operator/api): rework `status` sub-resource for `VMUser`, `VMAlertmanager`, `VMRule` and `VMScrape.*` objects. Add new `conditions` field, that represents resources conditions. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1155) for details.
+
 
 ## [v0.50.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.50.0)
 
