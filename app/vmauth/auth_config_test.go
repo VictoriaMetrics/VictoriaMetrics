@@ -3,10 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"net/url"
 	"testing"
-
-	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
