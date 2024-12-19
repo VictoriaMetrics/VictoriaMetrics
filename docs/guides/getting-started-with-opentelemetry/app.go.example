@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -27,20 +26,20 @@ import (
 var (
 	metricsEndpoint = flag.String("vm.endpoint", "http://localhost:8428/opentelemetry/v1/metrics", "VictoriaMetrics endpoint")
 	logsEndpoint    = flag.String("vl.endpoint", "http://localhost:9428/insert/opentelemetry/v1/logs", "VictoriaLogs endpoint")
-	pushInterval    = flag.Duration("vm.pushInterval", 10*time.Second, "how often push samples, aka scrapeInterval at pull model")
-	jobName         = flag.String("metrics.jobName", "otlp", "job name for web-application")
-	instanceName    = flag.String("metrics.instance", "localhost", "hostname of web-application instance")
+	pushInterval    = flag.Duration("vm.pushInterval", 10*time.Second, "How often to push collected metrics samples to vm.endpoint")
 )
 
 var (
-	logger = otelslog.NewLogger("rolldice")
+	logger = otelslog.NewLogger("demo-app")
 )
 
 func main() {
 	flag.Parse()
-	log.Printf("Starting web server...")
+	fmt.Println("Starting web server...")
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/fast", func(writer http.ResponseWriter, request *http.Request) {
 		logger.InfoContext(ctx, "Anonymous access to fast endpoint")
@@ -57,21 +56,25 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("cannot build middleware: %q", err))
 	}
+
 	mustStop := make(chan os.Signal, 1)
 	signal.Notify(mustStop, os.Interrupt, syscall.SIGTERM)
 	go func() {
-		http.ListenAndServe("localhost:8081", mw)
+		err := http.ListenAndServe("localhost:8081", mw)
+		if err != nil {
+			panic(err)
+		}
 	}()
-	log.Printf("web server started at localhost:8081.")
-	<-mustStop
-	log.Println("receive shutdown signal, stopping webserver")
 
+	fmt.Println("web server started at http://localhost:8081")
+	<-mustStop
+	fmt.Println("receive shutdown signal, stopping webserver")
 	for _, shutdown := range mw.onShutdown {
 		if err := shutdown(ctx); err != nil {
-			log.Println("cannot shutdown metric provider ", err)
+			fmt.Printf("cannot shutdown metric provider: %s", err)
 		}
 	}
-	log.Printf("Done!")
+	fmt.Println("Done!")
 }
 
 func newMeterProvider(ctx context.Context) (*sdkmetric.MeterProvider, error) {
@@ -82,18 +85,22 @@ func newMeterProvider(ctx context.Context) (*sdkmetric.MeterProvider, error) {
 
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
-			attribute.String("job", *jobName),
-			attribute.String("instance", *instanceName),
+			attribute.String("job", "otlp"),
+			attribute.String("instance", "localhost"),
 		),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create meter resource: %w", err)
 	}
+
+	// define histograms for measuring requests latency
 	expView := sdkmetric.NewView(
+		// classic histogram
 		sdkmetric.Instrument{
 			Name: "http.requests.latency",
 			Kind: sdkmetric.InstrumentKindHistogram,
 		},
+		// exponential histogram
 		sdkmetric.Stream{
 			Name: "http.requests.latency.exp",
 			Aggregation: sdkmetric.AggregationBase2ExponentialHistogram{
@@ -128,24 +135,24 @@ func newMiddleware(ctx context.Context, h http.Handler) (*middleware, error) {
 
 	lp, err := newLoggerProvider(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot build logs provider: %w", err)
+		return nil, fmt.Errorf("cannot create logs provider: %w", err)
 	}
 	global.SetLoggerProvider(lp)
 
 	mp, err := newMeterProvider(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot build metrics provider: %w", err)
+		return nil, fmt.Errorf("cannot create metrics provider: %w", err)
 	}
 	otel.SetMeterProvider(mp)
 	meter := mp.Meter("")
 
 	mw.requestsLatency, err = meter.Float64Histogram("http.requests.latency")
 	if err != nil {
-		return nil, fmt.Errorf("cannot create histogram: %w", err)
+		return nil, fmt.Errorf("cannot create Float64Histogram: %w", err)
 	}
 	mw.requestsCount, err = meter.Int64Counter("http.requests")
 	if err != nil {
-		return nil, fmt.Errorf("cannot create int64 counter: %w", err)
+		return nil, fmt.Errorf("cannot create Int64Counter: %w", err)
 	}
 	cb := func(c context.Context, o metric.Int64Observer) error {
 		o.Observe(atomic.LoadInt64(&mw.activeRequests))
