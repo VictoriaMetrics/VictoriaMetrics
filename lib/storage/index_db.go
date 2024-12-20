@@ -30,18 +30,8 @@ import (
 )
 
 const (
-	// Prefix for MetricName->TSID entries.
-	//
-	// This index was substituted with nsPrefixDateMetricNameToTSID,
-	// since the MetricName->TSID index may require big amounts of memory for indexdb/dataBlocks cache
-	// when it grows big on the configured retention under high churn rate
-	// (e.g. when new time series are constantly registered).
-	//
-	// It is much more efficient from memory usage PoV to query per-day MetricName->TSID index
-	// (aka nsPrefixDateMetricNameToTSID) when the TSID must be obtained for the given MetricName
-	// during data ingestion under high churn rate and big retention.
-	//
-	// nsPrefixMetricNameToTSID = 0
+	// Prefix for MetricName->TSID
+	nsPrefixMetricNameToTSID = 0
 
 	// Prefix for Tag->MetricID entries.
 	nsPrefixTagToMetricIDs = 1
@@ -542,7 +532,7 @@ func mustUnmarshalMetricIDs(dst []uint64, src []byte) []uint64 {
 //
 // It returns false if the given metricName isn't found in the indexdb.
 func (is *indexSearch) getTSIDByMetricName(dst *generationTSID, metricName []byte, date uint64) bool {
-	if is.getTSIDByMetricNameNoExtDB(&dst.TSID, metricName, date) {
+	if is.getTSIDByMetricNameByDateNoExtDB(&dst.TSID, metricName, date) {
 		// Fast path - the TSID is found in the current indexdb.
 		dst.generation = is.db.generation
 		return true
@@ -553,7 +543,7 @@ func (is *indexSearch) getTSIDByMetricName(dst *generationTSID, metricName []byt
 	deadline := is.deadline
 	is.db.doExtDB(func(extDB *indexDB) {
 		is := extDB.getIndexSearch(deadline)
-		ok = is.getTSIDByMetricNameNoExtDB(&dst.TSID, metricName, date)
+		ok = is.getTSIDByMetricNameByDateNoExtDB(&dst.TSID, metricName, date)
 		extDB.putIndexSearch(is)
 		if ok {
 			dst.generation = extDB.generation
@@ -614,6 +604,13 @@ func generateTSID(dst *TSID, mn *MetricName) {
 func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	ii := getIndexItems()
 	defer putIndexItems(ii)
+
+	// Create metricName -> TSID entry.
+	ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricNameToTSID)
+	ii.B = mn.Marshal(ii.B)
+	ii.B = append(ii.B, kvSeparatorChar)
+	ii.B = tsid.Marshal(ii.B)
+	ii.Next()
 
 	// Create metricID -> metricName entry.
 	ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricIDToMetricName)
@@ -1922,21 +1919,33 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 
 var tagFiltersKeyBufPool bytesutil.ByteBufferPool
 
-func (is *indexSearch) getTSIDByMetricNameNoExtDB(dst *TSID, metricName []byte, date uint64) bool {
-	dmis := is.db.s.getDeletedMetricIDs()
-	ts := &is.ts
+func (is *indexSearch) getTSIDByMetricNameNoExtDB(dst *TSID, metricName []byte) bool {
+	kb := &is.kb
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricNameToTSID)
+	kb.B = append(kb.B, metricName...)
+	kb.B = append(kb.B, kvSeparatorChar)
+	return is.getTSIDByPrefix(dst, kb.B)
+}
+
+func (is *indexSearch) getTSIDByMetricNameByDateNoExtDB(dst *TSID, metricName []byte, date uint64) bool {
 	kb := &is.kb
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateMetricNameToTSID)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	kb.B = append(kb.B, metricName...)
 	kb.B = append(kb.B, kvSeparatorChar)
-	ts.Seek(kb.B)
+	return is.getTSIDByPrefix(dst, kb.B)
+}
+
+func (is *indexSearch) getTSIDByPrefix(dst *TSID, prefix []byte) bool {
+	dmis := is.db.s.getDeletedMetricIDs()
+	ts := &is.ts
+	ts.Seek(prefix)
 	for ts.NextItem() {
-		if !bytes.HasPrefix(ts.Item, kb.B) {
+		if !bytes.HasPrefix(ts.Item, prefix) {
 			// Nothing found.
 			return false
 		}
-		v := ts.Item[len(kb.B):]
+		v := ts.Item[len(prefix):]
 		tail, err := dst.Unmarshal(v)
 		if err != nil {
 			logger.Panicf("FATAL: cannot unmarshal TSID: %s", err)
@@ -1952,7 +1961,7 @@ func (is *indexSearch) getTSIDByMetricNameNoExtDB(dst *TSID, metricName []byte, 
 		return true
 	}
 	if err := ts.Error(); err != nil {
-		logger.Panicf("FATAL: error when searching TSID by metricName; searchPrefix %q: %s", kb.B, err)
+		logger.Panicf("FATAL: error when searching TSID by metricName; searchPrefix %q: %s", prefix, err)
 	}
 	// Nothing found
 	return false
