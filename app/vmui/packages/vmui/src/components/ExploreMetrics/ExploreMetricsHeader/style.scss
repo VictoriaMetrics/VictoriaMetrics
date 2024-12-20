@@ -38,6 +38,10 @@
     align-items: flex-start;
     gap: $padding-small;
 
+    ul {
+      list-style-position: inside;
+    }
+
     button {
       color: inherit;
       min-height: 29px;
