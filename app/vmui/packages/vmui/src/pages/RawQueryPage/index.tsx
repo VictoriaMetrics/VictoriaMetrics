@@ -28,15 +28,6 @@ const RawSamplesLink = () => (
   </Hyperlink>
 );
 
-const QueryDataLink = () => (
-  <Hyperlink
-    underlined
-    href="https://docs.victoriametrics.com/keyconcepts/#query-data"
-  >
-    Query API
-  </Hyperlink>
-);
-
 const TimeSeriesSelectorLink = () => (
   <Hyperlink
     underlined
@@ -118,10 +109,6 @@ const RawQueryPage: FC = () => {
               <li>
                 Deduplication can only be disabled if it was previously enabled on the server
                 (<code>-dedup.minScrapeInterval</code>).
-              </li>
-              <li>
-                Users often assume that the <QueryDataLink/> returns data exactly as stored,
-                but data samples and timestamps may be modified by the API.
               </li>
             </ul>
             <Button
