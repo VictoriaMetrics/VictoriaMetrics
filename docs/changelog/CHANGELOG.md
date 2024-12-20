@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* FEATURE: all the VictoriaMetrics components: increase the default value for [`GOGC`](https://tip.golang.org/doc/gc-guide#GOGC) from `30` to `100`. This should reduce CPU usage at the cost of slightly higher memory usage. [Single-node VictoriaMetrics](https://docs.victoriametrics.com/), [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview) components continue using `GOGC=30`, since they are optimized for low memory allocations and low memory usage, so they do not benefit from the increased GOGC value too much. It is possible to override the default `GOGC` value in any VictoriaMetrics component by setting `GOGC` environment variable to the desired value. For example, `GOGC=200 ./path/to/vmagent` starts `vmagent` with `GOGC=200`. See [these docs](https://tip.golang.org/doc/gc-guide#GOGC) about `GOGC` tuning. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7902).
+
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly set `host` field at debug information formatted with `dump_request_on_errors: true` setting. 
 
 ## [v1.108.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.1)
