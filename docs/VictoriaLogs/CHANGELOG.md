@@ -23,6 +23,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 * BUGFIX: [syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): correctly parse rows with multiple consecutive spaces between fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7776).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix cursor reset in query input field. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7288).
+* BUGFIX: [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe): fix improper sorting of numeric fields in some cases.
 
 ## [v1.3.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.3.2-victorialogs)
 
