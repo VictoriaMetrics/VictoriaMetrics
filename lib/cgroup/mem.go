@@ -22,6 +22,7 @@ func SetGOGC(gogcNew int) {
 		}
 		gogc = int(n)
 	} else {
+		gogc = gogcNew
 		debug.SetGCPercent(gogcNew)
 	}
 }
