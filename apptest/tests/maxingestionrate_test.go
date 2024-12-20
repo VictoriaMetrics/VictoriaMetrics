@@ -22,7 +22,7 @@ func TestSingleMaxIngestionRateIncrementsMetric(t *testing.T) {
 	}
 }
 
-func TestSingleMaxIngestionRateDoesNotIncrementsMetric(t *testing.T) {
+func TestSingleMaxIngestionRateDoesNotIncrementMetric(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 	sut := tc.MustStartVmsingle("vmsingle", []string{"-maxIngestionRate=15"})
