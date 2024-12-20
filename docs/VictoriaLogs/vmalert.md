@@ -98,9 +98,9 @@ groups:
     interval: 5m
     rules:
       - alert: HasErrorLog
-        expr: 'env: "prod" AND status:~"error|warn" | stats by (service) count() as errorLog | filter errorLog:>0'
+        expr: 'env: "prod" AND status:~"error|warn" | stats by (service, kubernetes.pod) count() as errorLog | filter errorLog:>0'
         annotations:
-          description: "Service {{$labels.service}} generated {{$labels.errorLog}} error logs in the last 5 minutes"
+          description: 'Service {{$labels.service}} (pod {{ index $labels "kubernetes.pod" }}) generated {{$labels.errorLog}} error logs in the last 5 minutes'
 
   - name: ServiceRequest
     type: vlogs
