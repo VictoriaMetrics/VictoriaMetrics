@@ -36,7 +36,10 @@ func insertRows(rows []parser.Row) error {
 			tag := &r.Tags[j]
 			ctx.AddLabel(tag.Key, tag.Value)
 		}
-		if err := ctx.WriteDataPoint(nil, hasRelabeling, ctx.Labels, r.Timestamp, r.Value); err != nil {
+		if !ctx.TryPrepareLabels(hasRelabeling) {
+			continue
+		}
+		if err := ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}
 	}

@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.30.3](https://img.shields.io/badge/Version-0.30.3-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.33.0](https://img.shields.io/badge/Version-0.33.0-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-k8s-stack)
 
 Kubernetes monitoring on VictoriaMetrics stack. Includes VictoriaMetrics Operator, Grafana dashboards, ServiceScrapes and VMRules
@@ -482,7 +482,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>additionalVictoriaMetricsMap</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">null
 </code>
 </pre>
@@ -493,7 +493,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>alertmanager.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -504,7 +504,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>alertmanager.config</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">receivers:
     - name: blackhole
 route:
@@ -520,7 +520,7 @@ templates:
     <tr>
       <td>alertmanager.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -531,7 +531,7 @@ templates:
     <tr>
       <td>alertmanager.ingress</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">annotations: {}
 enabled: false
 extraPaths: []
@@ -550,7 +550,7 @@ tls: []
     <tr>
       <td>alertmanager.ingress.extraPaths</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -561,7 +561,7 @@ tls: []
     <tr>
       <td>alertmanager.monzoTemplate</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
 </code>
 </pre>
@@ -572,7 +572,7 @@ tls: []
     <tr>
       <td>alertmanager.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">configSecret: ""
 externalURL: ""
 image:
@@ -590,7 +590,7 @@ selectAllByDefault: true
     <tr>
       <td>alertmanager.spec.configSecret</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -601,7 +601,7 @@ selectAllByDefault: true
     <tr>
       <td>alertmanager.templateFiles</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -612,7 +612,7 @@ selectAllByDefault: true
     <tr>
       <td>argocdReleaseOverride</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -623,7 +623,7 @@ selectAllByDefault: true
     <tr>
       <td>coreDns.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -634,7 +634,7 @@ selectAllByDefault: true
     <tr>
       <td>coreDns.service.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -645,7 +645,7 @@ selectAllByDefault: true
     <tr>
       <td>coreDns.service.port</td>
       <td>int</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">9153
 </code>
 </pre>
@@ -656,7 +656,7 @@ selectAllByDefault: true
     <tr>
       <td>coreDns.service.selector</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">k8s-app: kube-dns
 </code>
 </pre>
@@ -667,7 +667,7 @@ selectAllByDefault: true
     <tr>
       <td>coreDns.service.targetPort</td>
       <td>int</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">9153
 </code>
 </pre>
@@ -678,7 +678,7 @@ selectAllByDefault: true
     <tr>
       <td>coreDns.vmScrape</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">spec:
     endpoints:
         - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -696,7 +696,7 @@ selectAllByDefault: true
     <tr>
       <td>defaultDashboards.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -706,7 +706,7 @@ selectAllByDefault: true
     <tr>
       <td>defaultDashboards.dashboards</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">node-exporter-full:
     enabled: true
 victoriametrics-operator:
@@ -722,7 +722,7 @@ victoriametrics-vmalert:
     <tr>
       <td>defaultDashboards.dashboards.node-exporter-full</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
 </code>
 </pre>
@@ -733,7 +733,7 @@ victoriametrics-vmalert:
     <tr>
       <td>defaultDashboards.defaultTimezone</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">utc
 </code>
 </pre>
@@ -743,7 +743,7 @@ victoriametrics-vmalert:
     <tr>
       <td>defaultDashboards.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -754,7 +754,7 @@ victoriametrics-vmalert:
     <tr>
       <td>defaultDashboards.grafanaOperator.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -765,7 +765,7 @@ victoriametrics-vmalert:
     <tr>
       <td>defaultDashboards.grafanaOperator.spec.allowCrossNamespaceImport</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -775,7 +775,7 @@ victoriametrics-vmalert:
     <tr>
       <td>defaultDashboards.grafanaOperator.spec.instanceSelector.matchLabels.dashboards</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">grafana
 </code>
 </pre>
@@ -785,7 +785,7 @@ victoriametrics-vmalert:
     <tr>
       <td>defaultDashboards.labels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -795,7 +795,7 @@ victoriametrics-vmalert:
     <tr>
       <td>defaultDatasources.alertmanager</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">datasources:
     - access: proxy
       jsonData:
@@ -811,7 +811,7 @@ perReplica: false
     <tr>
       <td>defaultDatasources.alertmanager.perReplica</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -822,7 +822,7 @@ perReplica: false
     <tr>
       <td>defaultDatasources.extra</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -833,7 +833,7 @@ perReplica: false
     <tr>
       <td>defaultDatasources.victoriametrics.datasources</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">- isDefault: true
   name: VictoriaMetrics
   type: prometheus
@@ -849,7 +849,7 @@ perReplica: false
     <tr>
       <td>defaultDatasources.victoriametrics.perReplica</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -860,7 +860,7 @@ perReplica: false
     <tr>
       <td>defaultRules</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">alerting:
     spec:
         annotations: {}
@@ -880,10 +880,22 @@ groups:
     general:
         create: true
         rules: {}
+    k8sContainerCpuLimits:
+        create: true
+        rules: {}
+    k8sContainerCpuRequests:
+        create: true
+        rules: {}
     k8sContainerCpuUsageSecondsTotal:
         create: true
         rules: {}
     k8sContainerMemoryCache:
+        create: true
+        rules: {}
+    k8sContainerMemoryLimits:
+        create: true
+        rules: {}
+    k8sContainerMemoryRequests:
         create: true
         rules: {}
     k8sContainerMemoryRss:
@@ -998,7 +1010,7 @@ runbookUrl: https://runbooks.prometheus-operator.dev/runbooks
     <tr>
       <td>defaultRules.alerting</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">spec:
     annotations: {}
     labels: {}
@@ -1011,7 +1023,7 @@ runbookUrl: https://runbooks.prometheus-operator.dev/runbooks
     <tr>
       <td>defaultRules.alerting.spec.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -1022,7 +1034,7 @@ runbookUrl: https://runbooks.prometheus-operator.dev/runbooks
     <tr>
       <td>defaultRules.alerting.spec.labels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -1033,7 +1045,7 @@ runbookUrl: https://runbooks.prometheus-operator.dev/runbooks
     <tr>
       <td>defaultRules.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -1044,7 +1056,7 @@ runbookUrl: https://runbooks.prometheus-operator.dev/runbooks
     <tr>
       <td>defaultRules.group</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">spec:
     params: {}
 </code>
@@ -1056,7 +1068,7 @@ runbookUrl: https://runbooks.prometheus-operator.dev/runbooks
     <tr>
       <td>defaultRules.group.spec.params</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -1067,7 +1079,7 @@ runbookUrl: https://runbooks.prometheus-operator.dev/runbooks
     <tr>
       <td>defaultRules.groups</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">alertmanager:
     create: true
     rules: {}
@@ -1077,10 +1089,22 @@ etcd:
 general:
     create: true
     rules: {}
+k8sContainerCpuLimits:
+    create: true
+    rules: {}
+k8sContainerCpuRequests:
+    create: true
+    rules: {}
 k8sContainerCpuUsageSecondsTotal:
     create: true
     rules: {}
 k8sContainerMemoryCache:
+    create: true
+    rules: {}
+k8sContainerMemoryLimits:
+    create: true
+    rules: {}
+k8sContainerMemoryRequests:
     create: true
     rules: {}
 k8sContainerMemoryRss:
@@ -1184,7 +1208,7 @@ vmsingle:
     <tr>
       <td>defaultRules.groups.etcd.rules</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -1195,7 +1219,7 @@ vmsingle:
     <tr>
       <td>defaultRules.labels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -1206,7 +1230,7 @@ vmsingle:
     <tr>
       <td>defaultRules.recording</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">spec:
     annotations: {}
     labels: {}
@@ -1219,7 +1243,7 @@ vmsingle:
     <tr>
       <td>defaultRules.recording.spec.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -1230,7 +1254,7 @@ vmsingle:
     <tr>
       <td>defaultRules.recording.spec.labels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -1241,7 +1265,7 @@ vmsingle:
     <tr>
       <td>defaultRules.rule</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">spec:
     annotations: {}
     labels: {}
@@ -1254,7 +1278,7 @@ vmsingle:
     <tr>
       <td>defaultRules.rule.spec.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -1265,7 +1289,7 @@ vmsingle:
     <tr>
       <td>defaultRules.rule.spec.labels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -1276,7 +1300,7 @@ vmsingle:
     <tr>
       <td>defaultRules.rules</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -1287,7 +1311,7 @@ vmsingle:
     <tr>
       <td>defaultRules.runbookUrl</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">https://runbooks.prometheus-operator.dev/runbooks
 </code>
 </pre>
@@ -1298,7 +1322,7 @@ vmsingle:
     <tr>
       <td>externalVM</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">read:
     url: ""
 write:
@@ -1312,7 +1336,7 @@ write:
     <tr>
       <td>extraObjects</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -1323,7 +1347,7 @@ write:
     <tr>
       <td>fullnameOverride</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -1334,7 +1358,7 @@ write:
     <tr>
       <td>global.cluster.dnsDomain</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">cluster.local.
 </code>
 </pre>
@@ -1345,7 +1369,7 @@ write:
     <tr>
       <td>global.clusterLabel</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">cluster
 </code>
 </pre>
@@ -1356,7 +1380,7 @@ write:
     <tr>
       <td>global.license</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">key: ""
 keyRef: {}
 </code>
@@ -1368,7 +1392,7 @@ keyRef: {}
     <tr>
       <td>grafana</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
 forceDeployDatasource: false
 ingress:
@@ -1393,6 +1417,7 @@ sidecar:
     datasources:
         enabled: true
         initDatasources: true
+        label: grafana_datasource
 vmScrape:
     enabled: true
     spec:
@@ -1410,7 +1435,7 @@ vmScrape:
     <tr>
       <td>grafana.forceDeployDatasource</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -1421,7 +1446,7 @@ vmScrape:
     <tr>
       <td>grafana.ingress.extraPaths</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -1432,7 +1457,7 @@ vmScrape:
     <tr>
       <td>grafana.vmScrape</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
 spec:
     endpoints:
@@ -1449,7 +1474,7 @@ spec:
     <tr>
       <td>grafana.vmScrape.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">endpoints:
     - port: '{{ .Values.grafana.service.portName }}'
 selector:
@@ -1464,7 +1489,7 @@ selector:
     <tr>
       <td>kube-state-metrics</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
 vmScrape:
     enabled: true
@@ -1489,7 +1514,7 @@ vmScrape:
     <tr>
       <td>kube-state-metrics.vmScrape</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
 spec:
     endpoints:
@@ -1512,7 +1537,7 @@ spec:
     <tr>
       <td>kubeApiServer.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -1523,7 +1548,7 @@ spec:
     <tr>
       <td>kubeApiServer.vmScrape</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">spec:
     endpoints:
         - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -1549,7 +1574,7 @@ spec:
     <tr>
       <td>kubeControllerManager.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -1560,7 +1585,7 @@ spec:
     <tr>
       <td>kubeControllerManager.endpoints</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -1571,7 +1596,7 @@ spec:
     <tr>
       <td>kubeControllerManager.service.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -1582,7 +1607,7 @@ spec:
     <tr>
       <td>kubeControllerManager.service.port</td>
       <td>int</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">10257
 </code>
 </pre>
@@ -1593,7 +1618,7 @@ spec:
     <tr>
       <td>kubeControllerManager.service.selector</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">component: kube-controller-manager
 </code>
 </pre>
@@ -1604,7 +1629,7 @@ spec:
     <tr>
       <td>kubeControllerManager.service.targetPort</td>
       <td>int</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">10257
 </code>
 </pre>
@@ -1615,7 +1640,7 @@ spec:
     <tr>
       <td>kubeControllerManager.vmScrape</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">spec:
     endpoints:
         - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -1637,7 +1662,7 @@ spec:
     <tr>
       <td>kubeDns.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -1648,7 +1673,7 @@ spec:
     <tr>
       <td>kubeDns.service.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -1659,7 +1684,7 @@ spec:
     <tr>
       <td>kubeDns.service.ports</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">dnsmasq:
     port: 10054
     targetPort: 10054
@@ -1675,7 +1700,7 @@ skydns:
     <tr>
       <td>kubeDns.service.selector</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">k8s-app: kube-dns
 </code>
 </pre>
@@ -1686,7 +1711,7 @@ skydns:
     <tr>
       <td>kubeDns.vmScrape</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">spec:
     endpoints:
         - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -1706,7 +1731,7 @@ skydns:
     <tr>
       <td>kubeEtcd.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -1717,7 +1742,7 @@ skydns:
     <tr>
       <td>kubeEtcd.endpoints</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -1728,7 +1753,7 @@ skydns:
     <tr>
       <td>kubeEtcd.service.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -1739,7 +1764,7 @@ skydns:
     <tr>
       <td>kubeEtcd.service.port</td>
       <td>int</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">2379
 </code>
 </pre>
@@ -1750,7 +1775,7 @@ skydns:
     <tr>
       <td>kubeEtcd.service.selector</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">component: etcd
 </code>
 </pre>
@@ -1761,7 +1786,7 @@ skydns:
     <tr>
       <td>kubeEtcd.service.targetPort</td>
       <td>int</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">2379
 </code>
 </pre>
@@ -1772,7 +1797,7 @@ skydns:
     <tr>
       <td>kubeEtcd.vmScrape</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">spec:
     endpoints:
         - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -1793,7 +1818,7 @@ skydns:
     <tr>
       <td>kubeProxy.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -1804,7 +1829,7 @@ skydns:
     <tr>
       <td>kubeProxy.endpoints</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -1815,7 +1840,7 @@ skydns:
     <tr>
       <td>kubeProxy.service.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -1826,7 +1851,7 @@ skydns:
     <tr>
       <td>kubeProxy.service.port</td>
       <td>int</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">10249
 </code>
 </pre>
@@ -1837,7 +1862,7 @@ skydns:
     <tr>
       <td>kubeProxy.service.selector</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">k8s-app: kube-proxy
 </code>
 </pre>
@@ -1848,7 +1873,7 @@ skydns:
     <tr>
       <td>kubeProxy.service.targetPort</td>
       <td>int</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">10249
 </code>
 </pre>
@@ -1859,7 +1884,7 @@ skydns:
     <tr>
       <td>kubeProxy.vmScrape</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">spec:
     endpoints:
         - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -1880,7 +1905,7 @@ skydns:
     <tr>
       <td>kubeScheduler.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -1891,7 +1916,7 @@ skydns:
     <tr>
       <td>kubeScheduler.endpoints</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -1902,7 +1927,7 @@ skydns:
     <tr>
       <td>kubeScheduler.service.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -1913,7 +1938,7 @@ skydns:
     <tr>
       <td>kubeScheduler.service.port</td>
       <td>int</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">10259
 </code>
 </pre>
@@ -1924,7 +1949,7 @@ skydns:
     <tr>
       <td>kubeScheduler.service.selector</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">component: kube-scheduler
 </code>
 </pre>
@@ -1935,7 +1960,7 @@ skydns:
     <tr>
       <td>kubeScheduler.service.targetPort</td>
       <td>int</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">10259
 </code>
 </pre>
@@ -1946,7 +1971,7 @@ skydns:
     <tr>
       <td>kubeScheduler.vmScrape</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">spec:
     endpoints:
         - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -1967,7 +1992,7 @@ skydns:
     <tr>
       <td>kubelet</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
 vmScrape:
     kind: VMNodeScrape
@@ -2009,6 +2034,10 @@ vmScrapes:
         enabled: true
         spec:
             path: /metrics/probes
+    resources:
+        enabled: true
+        spec:
+            path: /metrics/resource
 </code>
 </pre>
 </td>
@@ -2018,7 +2047,7 @@ vmScrapes:
     <tr>
       <td>kubelet.vmScrape</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">kind: VMNodeScrape
 spec:
     bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -2056,7 +2085,7 @@ spec:
     <tr>
       <td>kubelet.vmScrapes.cadvisor</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
 spec:
     path: /metrics/cadvisor
@@ -2069,7 +2098,7 @@ spec:
     <tr>
       <td>kubelet.vmScrapes.probes</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
 spec:
     path: /metrics/probes
@@ -2080,9 +2109,22 @@ spec:
 </td>
     </tr>
     <tr>
+      <td>kubelet.vmScrapes.resources</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">enabled: true
+spec:
+    path: /metrics/resource
+</code>
+</pre>
+</td>
+      <td><p>Enabled scraping /metrics/resource from kubelet&rsquo;s service</p>
+</td>
+    </tr>
+    <tr>
       <td>nameOverride</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -2093,7 +2135,7 @@ spec:
     <tr>
       <td>prometheus-node-exporter</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
 extraArgs:
     - --collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/.+)($|/)
@@ -2124,7 +2166,7 @@ vmScrape:
     <tr>
       <td>prometheus-node-exporter.vmScrape</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
 spec:
     endpoints:
@@ -2147,7 +2189,7 @@ spec:
     <tr>
       <td>prometheus-node-exporter.vmScrape.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">endpoints:
     - metricRelabelConfigs:
         - action: drop
@@ -2168,7 +2210,7 @@ selector:
     <tr>
       <td>prometheus-operator-crds</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: false
 </code>
 </pre>
@@ -2179,7 +2221,7 @@ selector:
     <tr>
       <td>tenant</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">"0"
 </code>
 </pre>
@@ -2190,7 +2232,7 @@ selector:
     <tr>
       <td>victoria-metrics-operator</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">crds:
     cleanup:
         enabled: true
@@ -2212,7 +2254,7 @@ serviceMonitor:
     <tr>
       <td>victoria-metrics-operator.operator.disable_prometheus_converter</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -2223,7 +2265,7 @@ serviceMonitor:
     <tr>
       <td>vmagent.additionalRemoteWrites</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -2234,7 +2276,7 @@ serviceMonitor:
     <tr>
       <td>vmagent.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2245,7 +2287,7 @@ serviceMonitor:
     <tr>
       <td>vmagent.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -2256,7 +2298,7 @@ serviceMonitor:
     <tr>
       <td>vmagent.ingress</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">annotations: {}
 enabled: false
 extraPaths: []
@@ -2275,7 +2317,7 @@ tls: []
     <tr>
       <td>vmagent.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">externalLabels: {}
 extraArgs:
     promscrape.dropOriginalLabels: "true"
@@ -2292,7 +2334,7 @@ selectAllByDefault: true
     <tr>
       <td>vmalert.additionalNotifierConfigs</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2303,7 +2345,7 @@ selectAllByDefault: true
     <tr>
       <td>vmalert.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2314,7 +2356,7 @@ selectAllByDefault: true
     <tr>
       <td>vmalert.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -2325,7 +2367,7 @@ selectAllByDefault: true
     <tr>
       <td>vmalert.ingress</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">annotations: {}
 enabled: false
 extraPaths: []
@@ -2344,7 +2386,7 @@ tls: []
     <tr>
       <td>vmalert.ingress.extraPaths</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -2355,7 +2397,7 @@ tls: []
     <tr>
       <td>vmalert.remoteWriteVMAgent</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -2366,7 +2408,7 @@ tls: []
     <tr>
       <td>vmalert.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">evaluationInterval: 15s
 externalLabels: {}
 extraArgs:
@@ -2382,7 +2424,7 @@ selectAllByDefault: true
     <tr>
       <td>vmalert.templateFiles</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2393,7 +2435,7 @@ selectAllByDefault: true
     <tr>
       <td>vmauth.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2404,7 +2446,7 @@ selectAllByDefault: true
     <tr>
       <td>vmauth.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -2415,14 +2457,15 @@ selectAllByDefault: true
     <tr>
       <td>vmauth.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
-<code class="language-yaml">discover_backend_ips: true
-port: "8427"
-unauthorizedAccessConfig:
-    - src_paths:
-        - '{{ .vm.read.path }}/.*'
-      url_prefix:
-        - '{{ urlJoin (omit .vm.read "path") }}/'
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">port: "8427"
+unauthorizedUserAccessSpec:
+    discover_backend_ips: true
+    url_map:
+        - src_paths:
+            - '{{ .vm.read.path }}/.*'
+          url_prefix:
+            - '{{ urlJoin (omit .vm.read "path") }}/'
 </code>
 </pre>
 </td>
@@ -2432,7 +2475,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2443,7 +2486,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -2454,7 +2497,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.insert.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2465,7 +2508,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.insert.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -2476,7 +2519,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.insert.extraPaths</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -2487,7 +2530,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.insert.hosts</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -2498,7 +2541,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.insert.ingressClassName</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -2509,7 +2552,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.insert.labels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2520,7 +2563,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.insert.path</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">'{{ dig "extraArgs" "http.pathPrefix" "/" .Values.vmcluster.spec.vminsert }}'
 </code>
 </pre>
@@ -2531,7 +2574,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.insert.pathType</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">Prefix
 </code>
 </pre>
@@ -2542,7 +2585,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.insert.tls</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -2553,7 +2596,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.select.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2564,7 +2607,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.select.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -2575,7 +2618,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.select.extraPaths</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -2586,7 +2629,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.select.hosts</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -2597,7 +2640,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.select.ingressClassName</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -2608,7 +2651,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.select.labels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2619,7 +2662,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.select.path</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">'{{ dig "extraArgs" "http.pathPrefix" "/" .Values.vmcluster.spec.vmselect }}'
 </code>
 </pre>
@@ -2630,7 +2673,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.select.pathType</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">Prefix
 </code>
 </pre>
@@ -2641,7 +2684,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.select.tls</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -2652,7 +2695,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.storage.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2663,7 +2706,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.storage.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -2674,7 +2717,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.storage.extraPaths</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -2685,7 +2728,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.storage.hosts</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -2696,7 +2739,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.storage.ingressClassName</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -2707,7 +2750,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.storage.labels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2718,7 +2761,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.storage.path</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -2729,7 +2772,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.storage.pathType</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">Prefix
 </code>
 </pre>
@@ -2740,7 +2783,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.ingress.storage.tls</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -2751,7 +2794,7 @@ unauthorizedAccessConfig:
     <tr>
       <td>vmcluster.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">replicationFactor: 2
 retentionPeriod: "1"
 vminsert:
@@ -2790,7 +2833,7 @@ vmstorage:
     <tr>
       <td>vmcluster.spec.retentionPeriod</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">"1"
 </code>
 </pre>
@@ -2801,7 +2844,7 @@ vmstorage:
     <tr>
       <td>vmsingle.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2812,7 +2855,7 @@ vmstorage:
     <tr>
       <td>vmsingle.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -2823,7 +2866,7 @@ vmstorage:
     <tr>
       <td>vmsingle.ingress.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2834,7 +2877,7 @@ vmstorage:
     <tr>
       <td>vmsingle.ingress.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -2845,7 +2888,7 @@ vmstorage:
     <tr>
       <td>vmsingle.ingress.extraPaths</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -2856,7 +2899,7 @@ vmstorage:
     <tr>
       <td>vmsingle.ingress.hosts</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -2867,7 +2910,7 @@ vmstorage:
     <tr>
       <td>vmsingle.ingress.ingressClassName</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -2878,7 +2921,7 @@ vmstorage:
     <tr>
       <td>vmsingle.ingress.labels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -2889,7 +2932,7 @@ vmstorage:
     <tr>
       <td>vmsingle.ingress.path</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -2900,7 +2943,7 @@ vmstorage:
     <tr>
       <td>vmsingle.ingress.pathType</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">Prefix
 </code>
 </pre>
@@ -2911,7 +2954,7 @@ vmstorage:
     <tr>
       <td>vmsingle.ingress.tls</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -2922,7 +2965,7 @@ vmstorage:
     <tr>
       <td>vmsingle.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">extraArgs: {}
 port: "8429"
 replicaCount: 1
@@ -2942,7 +2985,7 @@ storage:
     <tr>
       <td>vmsingle.spec.retentionPeriod</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">"1"
 </code>
 </pre>

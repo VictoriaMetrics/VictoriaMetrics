@@ -1715,6 +1715,13 @@ For example, the following query returns most frequently values for all the log 
 _time:1h error | facets max_value_len 100
 ```
 
+Be default `facets` pipe doesn't return log fields, which contain a single constant value across all the selected logs, since such facets aren't interesting in most cases.
+Add `keep_const_fields` suffix to the `facets` pipe in order to get such fields:
+
+```logsql
+_time:1h error | facets keep_const_fields
+```
+
 See also:
 
 - [`top`](#top-pipe)

@@ -15,6 +15,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // pipeSort processes '| sort ...' queries.
@@ -693,19 +694,6 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 			isDesc = !isDesc
 		}
 
-		if cA.c.isConst && cB.c.isConst {
-			// Fast path - compare const values
-			ccA := cA.c.valuesEncoded[0]
-			ccB := cB.c.valuesEncoded[0]
-			if ccA == ccB {
-				continue
-			}
-			if isDesc {
-				return ccB < ccA
-			}
-			return ccA < ccB
-		}
-
 		if cA.c.isTime && cB.c.isTime {
 			// Fast path - sort by _time
 			timestampsA := bA.br.getTimestamps()
@@ -762,9 +750,10 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 			continue
 		}
 		if isDesc {
-			return lessString(sB, sA)
+			sA, sB = sB, sA
 		}
-		return lessString(sA, sB)
+		// Do not use lessString() here, since we already tried comparing by int64 and float64 values
+		return stringsutil.LessNatural(sA, sB)
 	}
 	return false
 }
