@@ -216,32 +216,91 @@ For additional tips on writing LogsQL, refer to this [doc](https://docs.victoria
 
 ## Frequently Asked Questions
 
-* How to use [multitenancy](https://docs.victoriametrics.com/victorialogs/#multitenancy) in rules?
-  * vmalert doesn't support multi-tenancy for VictoriaLogs in the same way as it [supports it for VictoriaMetrics in ENT version](https://docs.victoriametrics.com/vmalert/#multitenancy).
-    However, it is possible to specify the queried tenant from VictoriaLogs datasource via `headers` param in [Group config](https://docs.victoriametrics.com/vmalert/#groups).
-    For example, the following config will execute all the rules within the group against tenant with `AccountID=1` and `ProjectID=2`:
-    ```yaml
-        groups:
-        - name: MyGroup
-          headers:
-          - "AccountID: 1"
-          - "ProjectID: 2"
-          rules: ...
+### How to use [multitenancy](https://docs.victoriametrics.com/victorialogs/#multitenancy) in rules?
+vmalert doesn't support multi-tenancy for VictoriaLogs in the same way as it [supports it for VictoriaMetrics in ENT version](https://docs.victoriametrics.com/vmalert/#multitenancy).
+However, it is possible to specify the queried tenant from VictoriaLogs datasource via `headers` param in [Group config](https://docs.victoriametrics.com/vmalert/#groups).
+For example, the following config will execute all the rules within the group against tenant with `AccountID=1` and `ProjectID=2`:
+```yaml
+    groups:
+    - name: MyGroup
+      headers:
+      - "AccountID: 1"
+      - "ProjectID: 2"
+      rules: ...
+```
+By default, vmalert persists all results to the specific tenant in VictoriaMetrics that specified by `-remotewrite.url`. For example, if the `-remotewrite.url=http://vminsert:8480/insert/0/prometheus/`, all data goes to tenant `0`.
+To persist different rule results to different tenants in VictoriaMetrics, there are following approaches:
+1. To use the [multitenant endpoint of vminsert](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) as the `-remoteWrite.url`, and add tenant labels under the group configuration. 
+
+    For example, run vmalert with:
     ```
-* How to use one vmalert for VictoriaLogs and VictoriaMetrics rules in the same time?
-  * We recommend running separate instances of vmalert for VictoriaMetrics and VictoriaLogs.
-    However, vmalert allows having many groups with different rule types (`vlogs`, `prometheus`, `graphite`).
-    But only one `-datasource.url` cmd-line flag can be specified, so it can't be configured with more than 1 datasource.
-    However, VictoriaMetrics and VictoriaLogs datasources have different query path prefixes, and it is possible to use [vmauth](https://docs.victoriametrics.com/vmauth/) to route requests of different types between datasources.
-    See example of vmauth config for such routing below:
-    ```yaml
-        unauthorized_user:
-          url_map:
-            - src_paths:
-              - "/api/v1/query.*"
-              url_prefix: "http://victoriametrics:8428"
-            - src_paths:
-              - "/select/logsql/.*"
-              url_prefix: "http://victorialogs:9428"
+    ./bin/vmalert -datasource.url=http://localhost:9428 -remoteWrite.url=http://vminsert:8480/insert/multitenant/prometheus ...
     ```
-    Now, vmalert needs to be configured with `--datasource.url=http://vmauth:8427/` to send queries to vmauth, and vmauth will route them to the specified destinations as in configuration example above.
+    With the rules below, `recordingTenant123` will be queried from VictoriaLogs tenant `123` and persisted to tenant `123` in VictoriaMetrics, while `recordingTenant123-456:789` will be queried from VictoriaLogs tenant `124` and persisted to tenant `456:789` in VictoriaMetrics.
+    ```
+    groups:
+      - name: recordingTenant123
+        type: vlogs
+        headers:
+          - "AccountID: 123"
+        labels:
+          vm_account_id: 123
+        rules:
+          - record: recordingTenant123
+            expr: 'tags.path:/var/log/httpd OR tags.path:/var/log/nginx | stats by (tags.host) count() requests'
+      - name: recordingTenant124-456:789
+        type: vlogs
+        headers:
+          - "AccountID: 124"
+        labels:
+          vm_account_id: 456
+          vm_project_id: 789
+        rules:
+        - record: recordingTenant124-456:789
+            expr: 'tags.path:/var/log/httpd OR tags.path:/var/log/nginx | stats by (tags.host) count() requests'
+    ```
+
+2. To run [enterprise version of vmalert](https://docs.victoriametrics.com/enterprise/) with `-clusterMode` enabled, and specify tenant parameter per each group.
+
+    For example, run vmalert with:
+    ```
+    ./bin/vmalert -datasource.url=http://localhost:9428 -clusterMode=true -remoteWrite.url=http://vminsert:8480/ ...
+    ```
+    With the rules below, `recordingTenant123` will be queried from VictoriaLogs tenant `123` and persisted to tenant `123` in VictoriaMetrics, while `recordingTenant123-456:789` will be queried from VictoriaLogs tenant `124` and persisted to tenant `456:789` in VictoriaMetrics.
+    ```
+    groups:
+      - name: recordingTenant123
+        type: vlogs
+        headers:
+          - "AccountID: 123"
+        tenant: "123"
+        rules:
+          - record: recordingTenant123
+            expr: 'tags.path:/var/log/httpd OR tags.path:/var/log/nginx | stats by (tags.host) count() requests'
+      - name: recordingTenant124-456:789
+        type: vlogs
+        headers:
+          - "AccountID: 124"
+        tenant: "456:789"
+        rules:
+        - record: recordingTenant124-456:789
+            expr: 'tags.path:/var/log/httpd OR tags.path:/var/log/nginx | stats by (tags.host) count() requests'
+    ```
+
+### How to use one vmalert for VictoriaLogs and VictoriaMetrics rules in the same time?
+We recommend running separate instances of vmalert for VictoriaMetrics and VictoriaLogs.
+However, vmalert allows having many groups with different rule types (`vlogs`, `prometheus`, `graphite`).
+But only one `-datasource.url` cmd-line flag can be specified, so it can't be configured with more than 1 datasource.
+However, VictoriaMetrics and VictoriaLogs datasources have different query path prefixes, and it is possible to use [vmauth](https://docs.victoriametrics.com/vmauth/) to route requests of different types between datasources.
+See example of vmauth config for such routing below:
+```yaml
+    unauthorized_user:
+      url_map:
+        - src_paths:
+          - "/api/v1/query.*"
+          url_prefix: "http://victoriametrics:8428"
+        - src_paths:
+          - "/select/logsql/.*"
+          url_prefix: "http://victorialogs:9428"
+```
+  Now, vmalert needs to be configured with `--datasource.url=http://vmauth:8427/` to send queries to vmauth, and vmauth will route them to the specified destinations as in configuration example above.
