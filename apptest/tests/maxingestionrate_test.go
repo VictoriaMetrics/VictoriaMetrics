@@ -6,9 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
-// Data used in examples in
-// https://docs.victoriametrics.com/keyconcepts/#instant-query and
-// https://docs.victoriametrics.com/keyconcepts/#range-query
+// Data used in tests
 var testData = []string{
 	"foo_bar 1.00 1652169600000", // 2022-05-10T08:00:00Z
 	"foo_bar 2.00 1652169660000", // 2022-05-10T08:01:00Z
