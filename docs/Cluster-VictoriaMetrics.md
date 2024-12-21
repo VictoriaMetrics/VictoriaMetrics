@@ -89,18 +89,19 @@ when different tenants have different amounts of data and different query load.
 
 - VictoriaMetrics exposes various per-tenant statistics via metrics - see [these docs](https://docs.victoriametrics.com/pertenantstatistic/).
 
-See also [multitenancy via labels](#multitenancy-via-labels).
+See also
+- [`multitent writes`](#multitent-writes)
+- [`multitent reads`](#multitent-reads)
 
 
-### Multitenancy via labels
-
-**Writes**
+### Multitenant writes
 
 `vminsert` can accept data from multiple [tenants](#multitenancy) via a special `multitenant` endpoints `http://vminsert:8480/insert/multitenant/<suffix>`,
 where `<suffix>` can be replaced with any supported suffix for data ingestion from [this list](#url-format).
-In this case the account ID and project ID are obtained from optional `vm_account_id` and `vm_project_id` labels of the incoming samples.
-If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding account ID and project ID are set to 0.
-These labels are automatically removed from samples before forwarding them to `vmstorage`.
+In this case the account ID and project ID can be obtained from:
+- `vm_account_id` and `vm_project_id` labels of the incoming samples, removed from samples before forwarding them to `vmstorage`
+- `TenantID=accountID:projectID` HTTP header
+If tenant data is missing or invalid, then the corresponding account ID and project ID are set to 0.
 For example, if the following samples are written into `http://vminsert:8480/insert/multitenant/prometheus/api/v1/write`:
 ```
 http_requests_total{path="/foo",vm_account_id="42"} 12
@@ -118,7 +119,7 @@ such as [Graphite](https://docs.victoriametrics.com/#how-to-send-data-from-graph
 [InfluxDB line protocol via TCP and UDP](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) and
 [OpenTSDB telnet put protocol](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol).
 
-**Reads**
+### Multitenant reads
 
 _For better performance prefer specifying [tenants in read URL](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format)._
 
@@ -136,7 +137,7 @@ Currently supported endpoints for `<suffix>` are:
 - `/prometheus/api/v1/export/csv`
 - `/vmui`
 
-It is allowed to explicitly specify tenant IDs via `vm_account_id` and `vm_project_id` labels in the query.
+It is allowed to explicitly specify tenant IDs via `vm_account_id` and `vm_project_id` labels in the query
 For example, the following query fetches metric `up` for the tenants `accountID=42` and `accountID=7, projectID=9`:
 ```
 up{vm_account_id="7", vm_project_id="9" or vm_account_id="42"}
@@ -422,7 +423,7 @@ Check practical examples of VictoriaMetrics API [here](https://docs.victoriametr
   - `<accountID>` is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). It is possible to set it as `accountID:projectID`,
     where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details.
     The `<accountID>` can be set to `multitenant` string, e.g. `http://<vminsert>:8480/insert/multitenant/<suffix>`. Such urls accept data from multiple tenants
-    specified via `vm_account_id` and `vm_project_id` labels. See [multitenancy via labels](#multitenancy-via-labels) for more details.
+    specified via `vm_account_id` and `vm_project_id` labels. See [multitenant reads](#multitenant-reads) and [multitenant writes](#multitenant-writes) for more details.
   - `<suffix>` may have the following values:
     - `prometheus` and `prometheus/api/v1/write` - for ingesting data with [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
     - `prometheus/api/v1/import` - for importing data obtained via `api/v1/export` at `vmselect` (see below), JSON line format.
