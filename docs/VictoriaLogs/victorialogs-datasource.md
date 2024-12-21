@@ -80,7 +80,7 @@ Please find the example of provisioning Grafana instance with VictoriaLogs datas
        grafana:
          image: grafana/grafana:11.0.0
          environment:
-         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.12.0/victoriametrics-logs-datasource-v0.12.0.zip;victoriametrics-logs-datasource
+         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.13.1/victoriametrics-logs-datasource-v0.13.1.zip;victoriametrics-logs-datasource
          - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-logs-datasource
          ports:
          - 3000:3000/tcp
@@ -108,7 +108,7 @@ Option 1. Using Grafana provisioning:
 
 ``` yaml
 env:
-  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.12.0/victoriametrics-logs-datasource-v0.12.0.zip;victoriametrics-logs-datasource"
+  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.13.1/victoriametrics-logs-datasource-v0.13.1.zip;victoriametrics-logs-datasource"
   GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: "victoriametrics-logs-datasource"
 ```
 
@@ -116,7 +116,7 @@ Option 2. Using Grafana plugins section in `values.yaml`:
 
 ``` yaml
 plugins:
-  - https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.12.0/victoriametrics-logs-datasource-v0.12.0.zip;victoriametrics-logs-datasource
+  - https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.13.1/victoriametrics-logs-datasource-v0.13.1.zip;victoriametrics-logs-datasource
 ```
 
 Option 3. Using init container:
@@ -215,7 +215,7 @@ This example uses init container to download and install plugin.
 
 1. To download plugin build and move contents into Grafana plugins directory:
 
-   ``` bash
+   ``` sh
    ver=$(curl -s https://api.github.com/repos/VictoriaMetrics/victorialogs-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
    curl -L https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/$ver/victoriametrics-logs-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/vl-plugin.tar.gz
    tar -xf /var/lib/grafana/plugins/vl-plugin.tar.gz -C /var/lib/grafana/plugins/
@@ -296,12 +296,9 @@ This command will build frontend part and backend part or the plugin and locate 
 ## How to make new release
 
 1. Make sure there are no open security issues.
-1. Create a release tag:
-   * `git tag -s v1.xx.y` in `master` branch
-1. Run `TAG=v1.xx.y make build-release` to build and package binaries in `*.tar.gz` release archives.
-1. Run `git push origin v1.xx.y` to push the tag created `v1.xx.y` at step 2 to public GitHub repository
-1. Go to <https://github.com/VictoriaMetrics/victorialogs-datasource/releases> and verify that draft release with the name `TAG` has been created and this release contains all the needed binaries and checksums.
-1. Remove the `draft` checkbox for the `TAG` release and manually publish it.
+1. Change version in package.json in a `main` branch
+1. Trigger [release pipeline](https://github.com/VictoriaMetrics/victorialogs-datasource/actions/workflows/release.yaml).
+1. Go to [releases page](https://github.com/VictoriaMetrics/victorialogs-datasource/releases) once pipeline is finished and verify release with the name `TAG` has been created and has all the needed binaries and checksums attached.
 
 ## Notes
 
