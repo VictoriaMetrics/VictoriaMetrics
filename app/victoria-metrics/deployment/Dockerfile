@@ -1,6 +1,8 @@
 ARG base_image=non-existing
 FROM $base_image
 
+LABEL "org.opencontainers.image.source"="https://github.com/VictoriaMetrics/VictoriaMetrics"
+
 EXPOSE 8428
 
 ENTRYPOINT ["/victoria-metrics-prod"]

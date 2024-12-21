@@ -1,6 +1,8 @@
 ARG base_image=non-existing
 FROM $base_image
 
+LABEL "org.opencontainers.image.source"="https://github.com/VictoriaMetrics/VictoriaMetrics"
+
 ENTRYPOINT ["/vmrestore-prod"]
 ARG src_binary=non-existing
 COPY $src_binary ./vmrestore-prod
