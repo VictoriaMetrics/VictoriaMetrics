@@ -64,7 +64,7 @@ type blockResult struct {
 func (br *blockResult) reset() {
 	br.rowsLen = 0
 
-	br.cs = nil
+	br.bs = nil
 	br.bm = nil
 
 	br.a.reset()
