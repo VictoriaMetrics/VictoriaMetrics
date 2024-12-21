@@ -326,7 +326,7 @@ func NewLabelsFromString(metricWithLabels string) (*Labels, error) {
 	s := metricWithLabels + " 123"
 	var rows prometheus.Rows
 	var err error
-	rows.UnmarshalWithErrLogger(s, func(s string) {
+	rows.UnmarshalWithErrLogger(s, prometheus.TextHeader, func(s string) {
 		err = fmt.Errorf("error during metric parse: %s", s)
 	})
 	if err != nil {
