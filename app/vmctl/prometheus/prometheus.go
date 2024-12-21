@@ -8,6 +8,8 @@ import (
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 )
 
 // Config contains a list of params needed
@@ -59,13 +61,13 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to open snapshot %q: %s", cfg.Snapshot, err)
 	}
 	c := &Client{DBReadOnly: db}
-	min, max, err := parseTime(cfg.Filter.TimeMin, cfg.Filter.TimeMax)
+	timeMin, timeMax, err := parseTime(cfg.Filter.TimeMin, cfg.Filter.TimeMax)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse time in filter: %s", err)
 	}
 	c.filter = filter{
-		min:        min,
-		max:        max,
+		min:        timeMin,
+		max:        timeMax,
 		label:      cfg.Filter.Label,
 		labelValue: cfg.Filter.LabelValue,
 	}
@@ -82,7 +84,7 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch blocks: %s", err)
 	}
-	s := &Stats{
+	s := &utils.Stats{
 		Filtered: c.filter.min != 0 || c.filter.max != 0 || c.filter.label != "",
 		Blocks:   len(blocks),
 	}
