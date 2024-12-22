@@ -557,8 +557,13 @@ type pipeStreamContextProcessorShardNopad struct {
 }
 
 // writeBlock writes br to shard.
-func (shard *pipeStreamContextProcessorShard) writeBlock(br *blockResult) {
+func (shard *pipeStreamContextProcessorShard) writeBlock(pcp *pipeStreamContextProcessor, br *blockResult) {
 	m := shard.getM()
+	if len(m) > pipeStreamContextMaxStreams {
+		// Ignore the rest of blocks because the number of streams is too big for showing stream context
+		pcp.cancel()
+		return
+	}
 
 	cs := br.getColumns()
 	cStreamID := br.getColumnByName("_stream_id")
@@ -591,6 +596,11 @@ func (shard *pipeStreamContextProcessorShard) writeBlock(br *blockResult) {
 		rows = append(rows, row)
 		streamID = strings.Clone(streamID)
 		m[streamID] = rows
+		if len(rows) > pipeStreamContextMaxRowsPerStream {
+			// Ignore the rest of blocks because the number of rows is too big for showing stream context
+			pcp.cancel()
+			return
+		}
 	}
 
 	shard.stateSizeBudget -= stateSize
@@ -624,7 +634,7 @@ func (pcp *pipeStreamContextProcessor) writeBlock(workerID uint, br *blockResult
 		shard.stateSizeBudget += stateSizeBudgetChunk
 	}
 
-	shard.writeBlock(br)
+	shard.writeBlock(pcp, br)
 }
 
 func (pcp *pipeStreamContextProcessor) flush() error {
@@ -656,6 +666,11 @@ func (pcp *pipeStreamContextProcessor) flush() error {
 		}
 	}
 
+	if len(m) > pipeStreamContextMaxStreams {
+		return fmt.Errorf("logs from too many streams passed to 'stream_context': %d; the maximum supported number of streams, which can be passed to 'stream_context' is %d; "+
+			"narrow down the matching log streams with additional filters according to https://docs.victoriametrics.com/victorialogs/logsql/#filters", len(m), pipeStreamContextMaxStreams)
+	}
+
 	// write result
 	wctx := &pipeStreamContextWriteContext{
 		pcp: pcp,
@@ -665,6 +680,11 @@ func (pcp *pipeStreamContextProcessor) flush() error {
 	streamIDs := getStreamIDsSortedByMinRowTimestamp(m)
 	for _, streamID := range streamIDs {
 		rows := m[streamID]
+		if len(rows) > pipeStreamContextMaxRowsPerStream {
+			return fmt.Errorf("too many logs from a single stream passed to 'stream_context': %d; the maximum supported number of logs, which can be passed to 'stream_context' is %d; "+
+				"narrow down the matching logs with additional filters according to https://docs.victoriametrics.com/victorialogs/logsql/#filters",
+				len(rows), pipeStreamContextMaxRowsPerStream)
+		}
 		streamRowss, err := pcp.getStreamRowss(streamID, rows, stateSizeBudget)
 		if err != nil {
 			return err
@@ -690,6 +710,14 @@ func (pcp *pipeStreamContextProcessor) flush() error {
 
 	return nil
 }
+
+// `stream_context` pipe results are expected to be investigated by humans.
+// There is no sense in spending CPU time and other resources for fetching surrounding logs
+// for big number of log streams.
+// There is no sense in spending CPU time and other resources for fetching surrounding logs
+// for big number of log entries per each found log stream.
+const pipeStreamContextMaxStreams = 100
+const pipeStreamContextMaxRowsPerStream = 1000
 
 func getStreamIDsSortedByMinRowTimestamp(m map[string][]streamContextRow) []string {
 	type streamTimestamp struct {
