@@ -16,7 +16,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): allow non-numeric field values at [`median`](https://docs.victoriametrics.com/victorialogs/logsql/#median-stats) and [`quantile`](https://docs.victoriametrics.com/victorialogs/logsql/#quantile-stats) stats functions.
+* FEATURE: improve performance of [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) and [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe) by up to 2x when these pipes are applied to logs with millions of unique `by (...)` groups.
 * FEATURE: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): add [`count_uniq_hash`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq_hash-stats) function, which counts the number of unique value hashes. This number is usually a good approximation to the number of unique values, so the `count_uniq_hash` can be used as a faster alternative to [`count_uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-stats).
+* FEATURE: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): improve performance of [`count_uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-stats) and [`uniq_values`](https://docs.victoriametrics.com/victorialogs/logsql/#uniq_values-stats) functions when they are applied to fields with big number of unique values.
 * FEATURE: [`facets` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#facets-pipe): add an ability to return log fields with the same values across all the selected logs by adding `keep_const_fields` option. Such log fields aren't interesting in most cases, so they aren't returned by default.
 * FEATURE: [HTTP querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api): allow passing arbitrary [LogsQL filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters) to `extra_filters` and `extra_stream_filters` query args. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#extra-filters) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5542) for details.
 * FEATURE: [Grafana Loki data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/): add support of Loki healthcheck `/insert/ready` endpoint. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7824).
@@ -24,6 +27,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * BUGFIX: [syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): correctly parse rows with multiple consecutive spaces between fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7776).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix cursor reset in query input field. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7288).
 * BUGFIX: [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe): fix improper sorting of numeric fields in some cases.
+* BUGFIX: properly return an empty minimum value from [`min` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#min-stats).
 
 ## [v1.3.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.3.2-victorialogs)
 

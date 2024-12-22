@@ -179,9 +179,9 @@ func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult
 	shard := &pep.shards[workerID]
 
 	bm := &shard.bm
-	bm.init(br.rowsLen)
-	bm.setBits()
 	if iff := pe.iff; iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pep.ppNext.writeBlock(workerID, br)
@@ -214,7 +214,7 @@ func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult
 	needUpdates := true
 	vPrev := ""
 	for rowIdx, v := range values {
-		if bm.isSetBit(rowIdx) {
+		if pe.iff == nil || bm.isSetBit(rowIdx) {
 			if needUpdates || vPrev != v {
 				vPrev = v
 				needUpdates = false

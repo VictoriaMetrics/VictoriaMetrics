@@ -1,52 +1,21 @@
 package logstorage
 
-import (
-	"unsafe"
-)
-
 type statsMedian struct {
-	fields []string
+	sq *statsQuantile
 }
 
 func (sm *statsMedian) String() string {
-	return "median(" + statsFuncFieldsToString(sm.fields) + ")"
+	return "median(" + statsFuncFieldsToString(sm.sq.fields) + ")"
 }
 
 func (sm *statsMedian) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, sm.fields)
+	updateNeededFieldsForStatsFunc(neededFields, sm.sq.fields)
 }
 
-func (sm *statsMedian) newStatsProcessor() (statsProcessor, int) {
-	smp := &statsMedianProcessor{
-		sqp: &statsQuantileProcessor{
-			sq: &statsQuantile{
-				fields: sm.fields,
-				phi:    0.5,
-			},
-		},
-	}
-	return smp, int(unsafe.Sizeof(*smp)) + int(unsafe.Sizeof(*smp.sqp)) + int(unsafe.Sizeof(*smp.sqp.sq))
-}
-
-type statsMedianProcessor struct {
-	sqp *statsQuantileProcessor
-}
-
-func (smp *statsMedianProcessor) updateStatsForAllRows(br *blockResult) int {
-	return smp.sqp.updateStatsForAllRows(br)
-}
-
-func (smp *statsMedianProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	return smp.sqp.updateStatsForRow(br, rowIdx)
-}
-
-func (smp *statsMedianProcessor) mergeState(sfp statsProcessor) {
-	src := sfp.(*statsMedianProcessor)
-	smp.sqp.mergeState(src.sqp)
-}
-
-func (smp *statsMedianProcessor) finalizeStats(dst []byte) []byte {
-	return smp.sqp.finalizeStats(dst)
+func (sm *statsMedian) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	sqp := a.newStatsQuantileProcessor()
+	sqp.sq = sm.sq
+	return sqp
 }
 
 func parseStatsMedian(lex *lexer) (*statsMedian, error) {
@@ -55,7 +24,11 @@ func parseStatsMedian(lex *lexer) (*statsMedian, error) {
 		return nil, err
 	}
 	sm := &statsMedian{
-		fields: fields,
+		sq: &statsQuantile{
+			fields: fields,
+			phi:    0.5,
+			phiStr: "0.5",
+		},
 	}
 	return sm, nil
 }

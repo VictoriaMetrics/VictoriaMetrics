@@ -6,7 +6,6 @@ import (
 	"slices"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -129,6 +128,9 @@ type pipeTopProcessorShardNopad struct {
 	// pt points to the parent pipeTop.
 	pt *pipeTop
 
+	// a reduces memory allocations when counting the number of hits over big number of unique values.
+	a chunkedAllocator
+
 	// m holds per-row hits.
 	m map[string]*uint64
 
@@ -206,9 +208,8 @@ func (shard *pipeTopProcessorShard) updateState(v string, hits uint64) {
 	m := shard.getM()
 	pHits := m[v]
 	if pHits == nil {
-		vCopy := strings.Clone(v)
-		hits := uint64(0)
-		pHits = &hits
+		vCopy := shard.a.cloneString(v)
+		pHits = shard.a.newUint64()
 		m[vCopy] = pHits
 		shard.stateSizeBudget -= len(vCopy) + int(unsafe.Sizeof(vCopy)+unsafe.Sizeof(hits)+unsafe.Sizeof(pHits))
 	}

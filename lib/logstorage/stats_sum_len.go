@@ -2,7 +2,6 @@ package logstorage
 
 import (
 	"strconv"
-	"unsafe"
 )
 
 type statsSumLen struct {
@@ -17,12 +16,11 @@ func (ss *statsSumLen) updateNeededFields(neededFields fieldsSet) {
 	updateNeededFieldsForStatsFunc(neededFields, ss.fields)
 }
 
-func (ss *statsSumLen) newStatsProcessor() (statsProcessor, int) {
-	ssp := &statsSumLenProcessor{
-		ss:     ss,
-		sumLen: 0,
-	}
-	return ssp, int(unsafe.Sizeof(*ssp))
+func (ss *statsSumLen) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	ssp := a.newStatsSumLenProcessor()
+	ssp.ss = ss
+	ssp.sumLen = 0
+	return ssp
 }
 
 type statsSumLenProcessor struct {

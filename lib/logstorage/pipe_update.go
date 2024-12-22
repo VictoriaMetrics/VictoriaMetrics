@@ -69,9 +69,9 @@ func (pup *pipeUpdateProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard := &pup.shards[workerID]
 
 	bm := &shard.bm
-	bm.init(br.rowsLen)
-	bm.setBits()
 	if iff := pup.iff; iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pup.ppNext.writeBlock(workerID, br)
@@ -88,7 +88,7 @@ func (pup *pipeUpdateProcessor) writeBlock(workerID uint, br *blockResult) {
 	vPrev := ""
 	vNew := ""
 	for rowIdx, v := range values {
-		if bm.isSetBit(rowIdx) {
+		if pup.iff == nil || bm.isSetBit(rowIdx) {
 			if needUpdates || vPrev != v {
 				vPrev = v
 				needUpdates = false
