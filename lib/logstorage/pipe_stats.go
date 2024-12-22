@@ -131,7 +131,7 @@ func (ps *pipeStats) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeStats) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (ps *pipeStats) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	funcsNew := make([]pipeStatsFunc, len(ps.funcs))
 	for i := range ps.funcs {
 		f := &ps.funcs[i]

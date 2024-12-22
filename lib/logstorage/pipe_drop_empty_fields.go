@@ -25,7 +25,7 @@ func (pd *pipeDropEmptyFields) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pd *pipeDropEmptyFields) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pd *pipeDropEmptyFields) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pd, nil
 }
 

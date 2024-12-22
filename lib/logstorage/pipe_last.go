@@ -52,7 +52,7 @@ func (pl *pipeLast) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pl *pipeLast) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pl *pipeLast) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pl, nil
 }
 
