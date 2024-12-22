@@ -49,7 +49,7 @@ func (pe *pipeExtract) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }
 
-func (pe *pipeExtract) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pe *pipeExtract) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err

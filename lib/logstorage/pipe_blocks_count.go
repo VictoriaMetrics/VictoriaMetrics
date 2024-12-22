@@ -35,7 +35,7 @@ func (pc *pipeBlocksCount) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pc *pipeBlocksCount) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pc *pipeBlocksCount) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pc, nil
 }
 

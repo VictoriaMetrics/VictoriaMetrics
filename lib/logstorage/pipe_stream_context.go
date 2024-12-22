@@ -68,7 +68,7 @@ func (pc *pipeStreamContext) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pc *pipeStreamContext) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pc *pipeStreamContext) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pc, nil
 }
 
