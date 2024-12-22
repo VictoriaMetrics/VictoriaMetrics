@@ -2,7 +2,6 @@ package logstorage
 
 import (
 	"fmt"
-	"strings"
 	"unsafe"
 )
 
@@ -78,6 +77,9 @@ type pipeFieldNamesProcessorShard struct {
 type pipeFieldNamesProcessorShardNopad struct {
 	// m holds hits per each field name
 	m map[string]*uint64
+
+	// a is used for reducing memory allocations when collecting the stats over big number of log fields
+	a chunkedAllocator
 }
 
 func (shard *pipeFieldNamesProcessorShard) getM() map[string]*uint64 {
@@ -126,9 +128,8 @@ func (shard *pipeFieldNamesProcessorShard) updateColumnHits(columnName string, h
 	m := shard.getM()
 	pHits := m[columnName]
 	if pHits == nil {
-		nameCopy := strings.Clone(columnName)
-		hits := uint64(0)
-		pHits = &hits
+		nameCopy := shard.a.cloneString(columnName)
+		pHits = shard.a.newUint64()
 		m[nameCopy] = pHits
 	}
 	*pHits += hits

@@ -3054,9 +3054,9 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`count_uniq`](#count_uniq-stats) returns the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`count_uniq_hash`](#count_uniq_hash-stats) returns the number of unique hashes for non-empty values at the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`max`](#max-stats) returns the maximum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`median`](#median-stats) returns the [median](https://en.wikipedia.org/wiki/Median) value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`median`](#median-stats) returns the [median](https://en.wikipedia.org/wiki/Median) value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) returns the minimum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`quantile`](#quantile-stats) returns the given quantile for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`quantile`](#quantile-stats) returns the given quantile for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`rate`](#rate-stats) returns the average per-second rate of matching logs on the selected time range.
 - [`rate_sum`](#rate_sum-stats) returns the average per-second rate of sum for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`row_any`](#row_any-stats) returns a sample [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) per each selected [stats group](#stats-by-fields).
@@ -3223,8 +3223,8 @@ See also:
 
 ### median stats
 
-`median(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the [median](https://en.wikipedia.org/wiki/Median) value across
-the give numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+`median(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the estimated [median](https://en.wikipedia.org/wiki/Median) value across
+the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 For example, the following query return median for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
@@ -3261,7 +3261,7 @@ See also:
 
 ### quantile stats
 
-`quantile(phi, field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates `phi` [percentile](https://en.wikipedia.org/wiki/Percentile) over numeric values
+`quantile(phi, field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates an estimated `phi` [percentile](https://en.wikipedia.org/wiki/Percentile) over values
 for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). The `phi` must be in the range `0 ... 1`, where `0` means `0th` percentile,
 while `1` means `100th` percentile.
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"unsafe"
 )
 
 type statsRowAny struct {
@@ -23,11 +22,10 @@ func (sa *statsRowAny) updateNeededFields(neededFields fieldsSet) {
 	}
 }
 
-func (sa *statsRowAny) newStatsProcessor() (statsProcessor, int) {
-	sap := &statsRowAnyProcessor{
-		sa: sa,
-	}
-	return sap, int(unsafe.Sizeof(*sap))
+func (sa *statsRowAny) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	sap := a.newStatsRowAnyProcessor()
+	sap.sa = sa
+	return sap
 }
 
 type statsRowAnyProcessor struct {
