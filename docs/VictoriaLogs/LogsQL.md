@@ -2668,7 +2668,7 @@ See also:
 with the maximum number of matching log entries.
 
 For example, the following query returns top 7 [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
-with the maximum number of log entries over the last 5 minutes:
+with the maximum number of log entries over the last 5 minutes. The number of entries are returned in the `hits` field:
 
 ```logsql
 _time:5m | top 7 by (_stream)
@@ -2687,6 +2687,12 @@ For example, the following query is equivalent to the previous one:
 
 ```logsql
 _time:5m | fields ip | top
+```
+
+It is possible to give another name for the `hits` field via `hits as <new_name>` syntax. For example, the following query returns top per-`path` hits in the `visits` field:
+
+```logsql
+_time:5m | top by (path) hits as visits
 ```
 
 It is possible to set `rank` field per each returned entry for `top` pipe by adding `with rank`. For example, the following query sets the `rank` field per each returned `ip`:

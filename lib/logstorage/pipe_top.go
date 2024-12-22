@@ -49,6 +49,9 @@ func (pt *pipeTop) String() string {
 	if len(pt.byFields) > 0 {
 		s += " by (" + fieldNamesString(pt.byFields) + ")"
 	}
+	if pt.hitsFieldName != "hits" {
+		s += " hits as " + quoteTokenIfNeeded(pt.hitsFieldName)
+	}
 	if pt.rankFieldName != "" {
 		s += rankFieldNameString(pt.rankFieldName)
 	}
@@ -668,6 +671,17 @@ func parsePipeTop(lex *lexer) (pipe, error) {
 	}
 
 	hitsFieldName := "hits"
+	if lex.isKeyword("hits") {
+		lex.nextToken()
+		if lex.isKeyword("as") {
+			lex.nextToken()
+		}
+		s, err := getCompoundToken(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'hits' name: %w", err)
+		}
+		hitsFieldName = s
+	}
 	for slices.Contains(byFields, hitsFieldName) {
 		hitsFieldName += "s"
 	}
@@ -715,7 +729,7 @@ func parseRankFieldName(lex *lexer) (string, error) {
 func rankFieldNameString(rankFieldName string) string {
 	s := " rank"
 	if rankFieldName != "rank" {
-		s += " as " + rankFieldName
+		s += " as " + quoteTokenIfNeeded(rankFieldName)
 	}
 	return s
 }
