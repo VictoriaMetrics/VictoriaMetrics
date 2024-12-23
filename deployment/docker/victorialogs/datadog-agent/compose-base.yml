@@ -11,8 +11,8 @@ services:
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
     environment:
       DD_API_KEY: test
-      DD_URL: http://victoriametrics:8428/datadog
-      DD_LOGS_CONFIG_LOGS_DD_URL: http://dd-logs:8427
+      DD_URL: http://dd-proxy:8427
+      DD_LOGS_CONFIG_LOGS_DD_URL: http://dd-proxy:8427
       DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL: true
       DD_LOGS_ENABLED: true
       DD_LOGS_CONFIG_USE_HTTP: true

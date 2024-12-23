@@ -4,3 +4,12 @@ unauthorized_user:
         - "/api/v2/logs"
         - "/api/v1/validate"
       url_prefix: "http://victorialogs:9428/insert/datadog/"
+    - src_paths:
+        - "/api/v1/series"
+        - "/api/v2/series"
+        - "/api/beta/sketches"
+        - "/api/v1/validate"
+        - "/api/v1/check_run"
+        - "/intake"
+        - "/api/v1/metadata"
+      url_prefix: "http://victoriametrics:8428/datadog/"
