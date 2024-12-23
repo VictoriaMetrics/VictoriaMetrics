@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* FEATURE: [vminsert](https://docs.victoriametrics.com/vminsert/): Storage nodes defined in `-storageNode` are now sorted, ensuring that varying node orders across different vminsert instances do not result in inconsistent replication.
+
 ## [v1.108.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.1)
 
 Released at 2024-12-18
