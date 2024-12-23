@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- add option to enable hostNetwork for custom CNI based deployments
 
 ## 0.40.1
 
