@@ -64,7 +64,7 @@ type blockResult struct {
 func (br *blockResult) reset() {
 	br.rowsLen = 0
 
-	br.cs = nil
+	br.bs = nil
 	br.bm = nil
 
 	br.a.reset()
@@ -153,6 +153,10 @@ func (br *blockResult) initFromFilterAllColumns(brSrc *blockResult, bm *bitmap) 
 	br.timestampsBuf = dstTimestamps
 	br.rowsLen = len(br.timestampsBuf)
 
+	if br.rowsLen == 0 || bm.isZero() {
+		return
+	}
+
 	for _, cSrc := range brSrc.getColumns() {
 		br.appendFilteredColumn(brSrc, cSrc, bm)
 	}
@@ -163,8 +167,9 @@ func (br *blockResult) initFromFilterAllColumns(brSrc *blockResult, bm *bitmap) 
 // the br is valid until brSrc, cSrc or bm is updated.
 func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResultColumn, bm *bitmap) {
 	if br.rowsLen == 0 {
-		return
+		logger.Panicf("BUG: br.rowsLen must be greater than 0")
 	}
+
 	cDst := blockResultColumn{
 		name: cSrc.name,
 	}
@@ -1553,7 +1558,7 @@ type blockResultColumn struct {
 
 	// isTime is set to true if the column contains _time values.
 	//
-	// The column values are stored in blockResult.timestamps, while valuesEncoded is nil.
+	// The column values are stored in blockResult.getTimestamps, while valuesEncoded is nil.
 	isTime bool
 
 	// valueType is the type of non-cost value

@@ -5,7 +5,6 @@ import (
 	"math"
 	"slices"
 	"strings"
-	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -35,11 +34,10 @@ func (sm *statsRowMin) updateNeededFields(neededFields fieldsSet) {
 	neededFields.add(sm.srcField)
 }
 
-func (sm *statsRowMin) newStatsProcessor() (statsProcessor, int) {
-	smp := &statsRowMinProcessor{
-		sm: sm,
-	}
-	return smp, int(unsafe.Sizeof(*smp))
+func (sm *statsRowMin) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	smp := a.newStatsRowMinProcessor()
+	smp.sm = sm
+	return smp
 }
 
 type statsRowMinProcessor struct {

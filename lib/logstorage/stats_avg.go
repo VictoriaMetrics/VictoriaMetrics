@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"unsafe"
 )
 
 type statsAvg struct {
@@ -20,11 +19,10 @@ func (sa *statsAvg) updateNeededFields(neededFields fieldsSet) {
 	updateNeededFieldsForStatsFunc(neededFields, sa.fields)
 }
 
-func (sa *statsAvg) newStatsProcessor() (statsProcessor, int) {
-	sap := &statsAvgProcessor{
-		sa: sa,
-	}
-	return sap, int(unsafe.Sizeof(*sap))
+func (sa *statsAvg) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	sap := a.newStatsAvgProcessor()
+	sap.sa = sa
+	return sap
 }
 
 type statsAvgProcessor struct {

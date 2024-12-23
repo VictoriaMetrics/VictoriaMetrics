@@ -511,6 +511,7 @@ _Appears in:_
 | `authorization` | Authorization header to use on every scrape request. | _[Authorization](#authorization)_ | false |
 | `basicAuth` | BasicAuth information to use on every scrape request. | _[BasicAuth](#basicauth)_ | false |
 | `datacenter` | Consul Datacenter name, if not provided it will use the local Consul Agent Datacenter. | _string_ | false |
+| `filter` | Filter defines filter for /v1/catalog/services requests<br />See https://developer.hashicorp.com/consul/api-docs/features/filtering | _string_ | false |
 | `followRedirects` | Configure whether HTTP requests follow HTTP 3xx redirects.<br />If unset, use its default value. | _boolean_ | false |
 | `namespace` | Namespaces are only supported in Consul Enterprise. | _string_ | false |
 | `nodeMeta` | Node metadata key/value pairs to filter nodes for a given service. | _object (keys:string, values:string)_ | false |
@@ -3205,6 +3206,7 @@ _Appears in:_
 | `dnsConfig` | Specifies the DNS parameters of a pod.<br />Parameters specified here will be merged to the generated DNS<br />configuration based on DNSPolicy. | _[PodDNSConfig](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#poddnsconfig-v1-core)_ | false |
 | `dnsPolicy` | DNSPolicy sets DNS policy for the pod | _[DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#dnspolicy-v1-core)_ | false |
 | `drop_src_path_prefix_parts` | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.<br />See [here](https://docs.victoriametrics.com/vmauth#dropping-request-path-prefix) for more details. | _integer_ | false |
+| `dump_request_on_errors` | DumpRequestOnErrors instructs vmauth to return detailed request params to the client<br />if routing rules don't allow to forward request to the backends.<br />Useful for debugging `src_hosts` and `src_headers` based routing rules<br /><br />available since v1.107.0 vmauth version | _boolean_ | false |
 | `externalConfig` | ExternalConfig defines a source of external VMAuth configuration.<br />If it's defined, configuration for vmauth becomes unmanaged and operator'll not create any related secrets/config-reloaders | _[ExternalConfig](#externalconfig)_ | false |
 | `extraArgs` | ExtraArgs that will be passed to the application container<br />for example remoteWrite.tmpDataPath: /tmp | _object (keys:string, values:string)_ | false |
 | `extraEnvs` | ExtraEnvs that will be passed to the application container | _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core) array_ | false |
@@ -3277,6 +3279,7 @@ _Appears in:_
 | `default_url` | DefaultURLs backend url for non-matching paths filter<br />usually used for default backend with error message | _string array_ | true |
 | `discover_backend_ips` | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | _boolean_ | true |
 | `drop_src_path_prefix_parts` | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.<br />See [here](https://docs.victoriametrics.com/vmauth#dropping-request-path-prefix) for more details. | _integer_ | false |
+| `dump_request_on_errors` | DumpRequestOnErrors instructs vmauth to return detailed request params to the client<br />if routing rules don't allow to forward request to the backends.<br />Useful for debugging `src_hosts` and `src_headers` based routing rules<br /><br />available since v1.107.0 vmauth version | _boolean_ | false |
 | `headers` | Headers represent additional http headers, that vmauth uses<br />in form of ["header_key: header_value"]<br />multiple values for header key:<br />["header_key: value1,value2"]<br />it's available since 1.68.0 version of vmauth | _string array_ | false |
 | `ip_filters` | IPFilters defines per target src ip filters<br />supported only with enterprise version of [vmauth](https://docs.victoriametrics.com/vmauth/#ip-filters) | _[VMUserIPFilters](#vmuseripfilters)_ | false |
 | `load_balancing_policy` | LoadBalancingPolicy defines load balancing policy to use for backend urls.<br />Supported policies: least_loaded, first_available.<br />See [here](https://docs.victoriametrics.com/vmauth#load-balancing) for more details (default "least_loaded") | _string_ | false |
@@ -4157,6 +4160,7 @@ _Appears in:_
 | `default_url` | DefaultURLs backend url for non-matching paths filter<br />usually used for default backend with error message | _string array_ | true |
 | `discover_backend_ips` | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | _boolean_ | true |
 | `drop_src_path_prefix_parts` | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.<br />See [here](https://docs.victoriametrics.com/vmauth#dropping-request-path-prefix) for more details. | _integer_ | false |
+| `dump_request_on_errors` | DumpRequestOnErrors instructs vmauth to return detailed request params to the client<br />if routing rules don't allow to forward request to the backends.<br />Useful for debugging `src_hosts` and `src_headers` based routing rules<br /><br />available since v1.107.0 vmauth version | _boolean_ | false |
 | `headers` | Headers represent additional http headers, that vmauth uses<br />in form of ["header_key: header_value"]<br />multiple values for header key:<br />["header_key: value1,value2"]<br />it's available since 1.68.0 version of vmauth | _string array_ | false |
 | `ip_filters` | IPFilters defines per target src ip filters<br />supported only with enterprise version of [vmauth](https://docs.victoriametrics.com/vmauth/#ip-filters) | _[VMUserIPFilters](#vmuseripfilters)_ | false |
 | `load_balancing_policy` | LoadBalancingPolicy defines load balancing policy to use for backend urls.<br />Supported policies: least_loaded, first_available.<br />See [here](https://docs.victoriametrics.com/vmauth#load-balancing) for more details (default "least_loaded") | _string_ | false |
@@ -4205,6 +4209,7 @@ _Appears in:_
 | `disable_secret_creation` | DisableSecretCreation skips related secret creation for vmuser | _boolean_ | true |
 | `discover_backend_ips` | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | _boolean_ | true |
 | `drop_src_path_prefix_parts` | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.<br />See [here](https://docs.victoriametrics.com/vmauth#dropping-request-path-prefix) for more details. | _integer_ | false |
+| `dump_request_on_errors` | DumpRequestOnErrors instructs vmauth to return detailed request params to the client<br />if routing rules don't allow to forward request to the backends.<br />Useful for debugging `src_hosts` and `src_headers` based routing rules<br /><br />available since v1.107.0 vmauth version | _boolean_ | false |
 | `generatePassword` | GeneratePassword instructs operator to generate password for user<br />if spec.password if empty. | _boolean_ | false |
 | `headers` | Headers represent additional http headers, that vmauth uses<br />in form of ["header_key: header_value"]<br />multiple values for header key:<br />["header_key: value1,value2"]<br />it's available since 1.68.0 version of vmauth | _string array_ | false |
 | `ip_filters` | IPFilters defines per target src ip filters<br />supported only with enterprise version of [vmauth](https://docs.victoriametrics.com/vmauth/#ip-filters) | _[VMUserIPFilters](#vmuseripfilters)_ | false |

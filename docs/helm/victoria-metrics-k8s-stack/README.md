@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.31.3](https://img.shields.io/badge/Version-0.31.3-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.33.0](https://img.shields.io/badge/Version-0.33.0-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-k8s-stack)
 
 Kubernetes monitoring on VictoriaMetrics stack. Includes VictoriaMetrics Operator, Grafana dashboards, ServiceScrapes and VMRules
@@ -2458,13 +2458,14 @@ selectAllByDefault: true
       <td>vmauth.spec</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
-<code class="language-yaml">discover_backend_ips: true
-port: "8427"
-unauthorizedAccessConfig:
-    - src_paths:
-        - '{{ .vm.read.path }}/.*'
-      url_prefix:
-        - '{{ urlJoin (omit .vm.read "path") }}/'
+<code class="language-yaml">port: "8427"
+unauthorizedUserAccessSpec:
+    discover_backend_ips: true
+    url_map:
+        - src_paths:
+            - '{{ .vm.read.path }}/.*'
+          url_prefix:
+            - '{{ urlJoin (omit .vm.read "path") }}/'
 </code>
 </pre>
 </td>
