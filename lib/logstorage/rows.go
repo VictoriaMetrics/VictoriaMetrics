@@ -2,7 +2,6 @@ package logstorage
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/valyala/quicktemplate"
 
@@ -125,11 +124,13 @@ func RenameField(fields []Field, oldNames []string, newName string) {
 		// Nothing to rename
 		return
 	}
-	for i := range fields {
-		f := &fields[i]
-		if f.Value != "" && slices.Contains(oldNames, f.Name) {
-			f.Name = newName
-			return
+	for _, n := range oldNames {
+		for j := range fields {
+			f := &fields[j]
+			if f.Name == n && f.Value != "" {
+				f.Name = newName
+				return
+			}
 		}
 	}
 }
