@@ -41,7 +41,7 @@ func (pj *pipeJoin) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pj *pipeJoin) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pj *pipeJoin) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pj, nil
 }
 

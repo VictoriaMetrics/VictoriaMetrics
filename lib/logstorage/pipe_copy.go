@@ -58,7 +58,7 @@ func (pc *pipeCopy) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pc *pipeCopy) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pc *pipeCopy) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pc, nil
 }
 
