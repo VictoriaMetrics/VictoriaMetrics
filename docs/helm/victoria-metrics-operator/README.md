@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.40.1](https://img.shields.io/badge/Version-0.40.1-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.40.2](https://img.shields.io/badge/Version-0.40.2-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-operator)
 
 Victoria Metrics Operator
@@ -220,6 +220,15 @@ extraVolumeMounts:
 ```
 
 This configuration disables the automatic ServiceAccount token mount and mounts the token explicitly.
+
+## Enable hostNetwork on operator
+
+When running managed Kubernetes such as EKS with custom CNI solution like Cilium or Calico, EKS control plane cannot communicate with CNI's pod CIDR.
+In that scenario, we need to run webhook service i.e operator with hostNetwork so that it can share node's network namespace.
+
+```yaml
+hostNetwork: true
+```
 
 ## Parameters
 
@@ -559,6 +568,17 @@ requests:
 </pre>
 </td>
       <td><p>Image pull secrets, that can be shared across multiple helm charts</p>
+</td>
+    </tr>
+    <tr>
+      <td>hostNetwork</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Enable hostNetwork on operator deployment</p>
 </td>
     </tr>
     <tr>

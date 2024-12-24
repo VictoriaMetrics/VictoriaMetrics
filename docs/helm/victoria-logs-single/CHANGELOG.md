@@ -1,6 +1,6 @@
 ## Next release
 
-- updated common dependency 0.0.34 -> 0.0.35
+- updated common dependency 0.0.34 -> 0.0.36
 - Exclude markdown files from package
 
 ## 0.8.11
