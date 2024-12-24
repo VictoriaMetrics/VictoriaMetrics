@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"io"
 	"net/http"
 	"net/url"
@@ -148,6 +149,7 @@ func (c *client) ReadData(dst *bytesutil.ByteBuffer) error {
 		respBody, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		cancel()
+		logger.Errorf("debug log: unexpected status code returned when scraping %q: %d; req header: %v, resp header: %v", c.scrapeURL, resp.StatusCode, req.Header, resp.Header)
 		return fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",
 			c.scrapeURL, resp.StatusCode, http.StatusOK, respBody)
 	}
