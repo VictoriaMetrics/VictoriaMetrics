@@ -1,6 +1,7 @@
 ## Next release
 
 - Exclude markdown files from package
+- updated common dependency 0.0.35 -> 0.0.36
 
 ## 0.15.2
 
