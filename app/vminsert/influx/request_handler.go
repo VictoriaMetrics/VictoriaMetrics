@@ -125,8 +125,14 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 				perTenantRows[*atLocal]++
 			}
 		} else {
-			if !ic.TryPrepareLabels(false) {
-				continue
+			// special case for optimisations below
+			// do not call TryPrepareLabels
+			// manually apply sort and limits on demand
+			ic.SortLabelsIfNeeded()
+			if hasLimitsEnabled {
+				if timeserieslimits.IsExceeding(ic.Labels) {
+					continue
+				}
 			}
 			atLocal := ic.GetLocalAuthToken(at)
 			ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ic.Labels)
@@ -141,8 +147,6 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 				ic.Labels = ic.Labels[:labelsLen]
 				ic.AddLabel("", metricGroup)
 				if hasLimitsEnabled {
-					// special case for optimisation above
-					// check only __name__ label value limits
 					if timeserieslimits.IsExceeding(ic.Labels[len(ic.Labels)-1:]) {
 						continue
 					}
