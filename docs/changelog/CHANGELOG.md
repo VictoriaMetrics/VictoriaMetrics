@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly set `host` field at debug information formatted with `dump_request_on_errors: true` setting.
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): fix support for migrating influx series without any tag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7921). Thanks to @bitbidu for reporting.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly ingest `influx` line protocol metrics with empty tags. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7933) for details.
 
 ## [v1.108.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.1)
 

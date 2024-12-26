@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -101,6 +102,25 @@ func NewPrometheusAPIV1QueryResponse(t *testing.T, s string) *PrometheusAPIV1Que
 		t.Fatalf("could not unmarshal query response data=\n%s\n: %v", string(s), err)
 	}
 	return res
+}
+
+// Sort performs data.Result sort by metric labels
+func (pqr *PrometheusAPIV1QueryResponse) Sort() {
+	sort.Slice(pqr.Data.Result, func(i, j int) bool {
+		leftS := make([]string, 0, len(pqr.Data.Result[i].Metric))
+		rightS := make([]string, 0, len(pqr.Data.Result[j].Metric))
+		for k, v := range pqr.Data.Result[i].Metric {
+			leftS = append(leftS, fmt.Sprintf("%s=%s", k, v))
+		}
+		for k, v := range pqr.Data.Result[j].Metric {
+			rightS = append(rightS, fmt.Sprintf("%s=%s", k, v))
+
+		}
+		sort.Strings(leftS)
+		sort.Strings(rightS)
+		return strings.Join(leftS, ",") < strings.Join(rightS, ",")
+	})
+
 }
 
 // QueryData holds the query result along with its type.
