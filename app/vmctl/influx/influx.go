@@ -206,7 +206,7 @@ func getEmptyTags(tags map[string]struct{}, LabelPairs []LabelPair) []string {
 	for _, pair := range LabelPairs {
 		labelMap[pair.Name] = struct{}{}
 	}
-	result := make([]string, 0, len(labelMap))
+	result := make([]string, 0)
 	for tag := range tags {
 		if _, ok := labelMap[tag]; !ok {
 			result = append(result, tag)
