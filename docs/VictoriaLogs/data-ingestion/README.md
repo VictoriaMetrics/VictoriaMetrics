@@ -172,7 +172,7 @@ The response by default contains all the [log fields](https://docs.victoriametri
 See [how to query specific fields](https://docs.victoriametrics.com/victorialogs/logsql/#querying-specific-fields).
 
 The `/insert/loki/api/v1/push` accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
-There is no need in specifying `_msg_field` and `_time_field` query args, since VictoriaLogs automatically extracts log message and timestamp from the ingested Loki data.
+If `_msg_field` is defined message body will be parsed if it contains JSON, otherwise whole message body will be stored in `_msg` field. There's no need to define `_time_field` query arg, since VictoriaLogs automatically extracts timestamp from the ingested Loki data.
 
 The `_stream_fields` arg is optional. If it isn't set, then all the labels inside the `"stream":{...}` are treated
 as [log stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields). Use `_stream_fields` query arg for overriding the list of stream fields.

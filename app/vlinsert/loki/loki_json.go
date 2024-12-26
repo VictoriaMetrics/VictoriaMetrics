@@ -55,7 +55,7 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 	}
 	lmp := cp.NewLogMessageProcessor("loki_json")
 	useDefaultStreamFields := len(cp.StreamFields) == 0
-	err = parseJSONRequest(data, lmp, useDefaultStreamFields)
+	err = parseJSONRequest(data, cp.MsgFields, lmp, useDefaultStreamFields)
 	lmp.MustClose()
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse Loki json request: %s; data=%s", err, data)
@@ -73,7 +73,7 @@ var (
 	requestJSONDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
-func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefaultStreamFields bool) error {
+func parseJSONRequest(data []byte, msgFields []string, lmp insertutils.LogMessageProcessor, useDefaultStreamFields bool) error {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
 	v, err := p.ParseBytes(data)
@@ -153,15 +153,29 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 			}
 
 			// parse log message
-			msg, err := lineA[1].StringBytes()
-			if err != nil {
-				return fmt.Errorf("unexpected log message type for %q; want string", lineA[1])
+			msgV := lineA[1]
+			msgT := msgV.Type()
+			switch {
+			case msgT == fastjson.TypeString || len(msgFields) == 0:
+				msg, err := msgV.StringBytes()
+				if err != nil {
+					return fmt.Errorf("unexpected log message type for %q; want string", msgV)
+				}
+				fields = append(fields[:len(commonFields)], logstorage.Field{
+					Name:  "_msg",
+					Value: bytesutil.ToUnsafeString(msg),
+				})
+			case msgT == fastjson.TypeObject:
+				p := logstorage.GetJSONParser()
+				if err := p.ParseLogMessageValue(msgV); err != nil {
+					return fmt.Errorf("cannot parse json-encoded log entry: %w", err)
+				}
+				logstorage.RenameField(p.Fields, msgFields, "_msg")
+				fields = append(fields[:len(commonFields)], p.Fields...)
+				logstorage.PutJSONParser(p)
+			default:
+				return fmt.Errorf("message field is of not supported type %q, expecting object or string", msgV.Type())
 			}
-
-			fields = append(fields[:len(commonFields)], logstorage.Field{
-				Name:  "_msg",
-				Value: bytesutil.ToUnsafeString(msg),
-			})
 
 			// parse structured metadata - see https://grafana.com/docs/loki/latest/reference/loki-http-api/#ingest-logs
 			if len(lineA) > 2 {

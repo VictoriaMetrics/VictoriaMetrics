@@ -53,7 +53,7 @@ func TestParseProtobufRequest_Success(t *testing.T) {
 		t.Helper()
 
 		tlp := &testLogMessageProcessor{}
-		if err := parseJSONRequest([]byte(s), tlp, false); err != nil {
+		if err := parseJSONRequest([]byte(s), nil, tlp, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		if len(tlp.pr.Streams) != len(timestampsExpected) {

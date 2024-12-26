@@ -17,6 +17,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * FEATURE: [Datadog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/): added `-datadog.streamFields` and `-datadog.ignoreFields` flags to configured default stream and ignore fields. Useful for Datadog serverless plugin, which doesn't allow to provide extra headers of query args.
+* FEATURE: [Loki data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/): parse JSON in message field if at least one `VL-Msg-Field` value is set.
 
 * BUGFIX: [Datadog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/): accepts `message` field as both string and object type to fix compatibility with Datadog serverless extension, which sends logs data in format, which is not documented. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7761).
 * BUGFIX: [vlinsert](https://docs.victoriametrics.com/victorialogs/): order of VL-Msg-Field values now defines a priority of these fields and it's now obvious for a user which field will be picked if multiple msg_field values exist in a row.

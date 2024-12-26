@@ -78,6 +78,19 @@ func (p *JSONParser) ParseLogMessage(msg []byte) error {
 	return nil
 }
 
+// ParseLogMessageValue parses the given JSON log message msg from fastjson.Value into p.Fields.
+//
+// The p.Fields remains valid until the next call to ParseLogMessage() or PutJSONParser().
+func (p *JSONParser) ParseLogMessageValue(msgV *fastjson.Value) error {
+	p.reset()
+
+	if t := msgV.Type(); t != fastjson.TypeObject {
+		return fmt.Errorf("expecting json dictionary; got %s", t)
+	}
+	p.Fields, p.buf, p.prefixBuf = appendLogFields(p.Fields, p.buf, p.prefixBuf, msgV)
+	return nil
+}
+
 func appendLogFields(dst []Field, dstBuf, prefixBuf []byte, v *fastjson.Value) ([]Field, []byte, []byte) {
 	o := v.GetObject()
 	o.Visit(func(k []byte, v *fastjson.Value) {
