@@ -99,9 +99,6 @@ func (ctx *InsertCtx) TryPrepareLabels(hasRelabeling bool) bool {
 	if hasRelabeling {
 		ctx.ApplyRelabeling()
 	}
-	if len(ctx.Labels) == 0 {
-		return false
-	}
 	if timeserieslimits.Enabled() && timeserieslimits.IsExceeding(ctx.Labels) {
 		return false
 	}
