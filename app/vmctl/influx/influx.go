@@ -180,11 +180,7 @@ func (c *Client) Explore() ([]*Series, error) {
 			log.Printf("skip measurement %q since it has no fields", s.Measurement)
 			continue
 		}
-		tags, ok := measurementTags[s.Measurement]
-		if !ok {
-			return nil, fmt.Errorf("failed to find tags of measurement %s", s.Measurement)
-		}
-		emptyTags := getEmptyTags(tags, s.LabelPairs)
+		emptyTags := getEmptyTags(measurementTags[s.Measurement], s.LabelPairs)
 		for _, field := range fields {
 			is := &Series{
 				Measurement: s.Measurement,
