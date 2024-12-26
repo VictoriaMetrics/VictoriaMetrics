@@ -118,8 +118,14 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 				}
 			}
 		} else {
-			if !ic.TryPrepareLabels(false) {
-				continue
+			// special case for optimisations below
+			// do not call TryPrepareLabels
+			// manually apply sort and limits on demand
+			ic.SortLabelsIfNeeded()
+			if hasLimitsEnabled {
+				if timeserieslimits.IsExceeding(ic.Labels) {
+					continue
+				}
 			}
 			ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
 			labelsLen := len(ic.Labels)
@@ -132,8 +138,6 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 				ic.Labels = ic.Labels[:labelsLen]
 				ic.AddLabel("", metricGroup)
 				if hasLimitsEnabled {
-					// special case for optimisation above
-					// check only __name__ label value limits
 					if timeserieslimits.IsExceeding(ic.Labels[len(ic.Labels)-1:]) {
 						continue
 					}
