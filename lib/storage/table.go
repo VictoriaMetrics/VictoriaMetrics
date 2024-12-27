@@ -370,6 +370,34 @@ func (tb *table) MustAddRows(rows []rawRow) {
 	tb.ptwsLock.Unlock()
 }
 
+// MustGetIndexDB returns an IndexDB that belongs to the partition that
+// corresponds to the given date.
+//
+// If the partition does not exist yet, it will be created.
+// func (tb *table) MustGetIndexDB(timestamp int64) *indexDB {
+func (tb *table) MustGetIndexDB(timestamp int64) *indexDB {
+	tb.ptwsLock.Lock()
+	defer tb.ptwsLock.Unlock()
+
+	minTimestamp, maxTimestamp := tb.getMinMaxTimestamps()
+	if timestamp < minTimestamp || timestamp > maxTimestamp {
+		logger.Panicf("BUG: timestamp out of range: got %d, want %d <= timestamp <= %d", timestamp, minTimestamp, maxTimestamp)
+	}
+
+	for _, ptw := range tb.ptws {
+		if ptw.pt.HasTimestamp(timestamp) {
+			// TODO(@rtm0): Icrement partition and idb refs?
+			return ptw.pt.idb
+		}
+	}
+
+	pt := mustCreatePartition(timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.indexDBPath, tb.s)
+	tb.addPartitionNolock(pt)
+
+	// TODO(@rtm0): Icrement partition and idb refs?
+	return pt.idb
+}
+
 func (tb *table) getMinMaxTimestamps() (int64, int64) {
 	now := int64(fasttime.UnixTimestamp() * 1000)
 	minTimestamp := now - tb.s.retentionMsecs
