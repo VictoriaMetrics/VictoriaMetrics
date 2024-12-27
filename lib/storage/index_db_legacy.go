@@ -35,7 +35,7 @@ func mustOpenLegacyIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) *in
 //
 // It returns false if the given metricName isn't found in the indexdb.
 func (is *indexSearch) getTSIDByMetricNameLegacy(dst *generationTSID, metricName []byte, date uint64) bool {
-	if is.getTSIDByMetricNameByDateNoExtDB(&dst.TSID, metricName, date) {
+	if is.getTSIDByMetricNameNoExtDB(&dst.TSID, metricName, date) {
 		// Fast path - the TSID is found in the current indexdb.
 		dst.generation = is.db.generation
 		return true
@@ -46,7 +46,7 @@ func (is *indexSearch) getTSIDByMetricNameLegacy(dst *generationTSID, metricName
 	deadline := is.deadline
 	is.db.doExtDB(func(extDB *indexDB) {
 		is := extDB.getIndexSearch(deadline)
-		ok = is.getTSIDByMetricNameByDateNoExtDB(&dst.TSID, metricName, date)
+		ok = is.getTSIDByMetricNameNoExtDB(&dst.TSID, metricName, date)
 		extDB.putIndexSearch(is)
 		if ok {
 			dst.generation = extDB.generation

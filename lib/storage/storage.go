@@ -1758,7 +1758,7 @@ func (s *Storage) registerMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 		mn.sortTags()
 		metricNameBuf = mn.Marshal(metricNameBuf[:0])
 
-		if is.getTSIDByMetricNameByDateNoExtDB(&genTSID.TSID, metricNameBuf, date) {
+		if is.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricNameBuf, date) {
 			// Slower path - the TSID has been found in indexdb.
 
 			if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
@@ -1916,7 +1916,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		metricNameBuf = mn.Marshal(metricNameBuf[:0])
 
 		// Search for TSID for the given mr.MetricNameRaw in the indexdb.
-		if is.getTSIDByMetricNameByDateNoExtDB(&genTSID.TSID, metricNameBuf, date) {
+		if is.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricNameBuf, date) {
 			// Slower path - the TSID has been found in indexdb.
 
 			if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
