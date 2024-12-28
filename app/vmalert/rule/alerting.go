@@ -658,12 +658,14 @@ func pendingAlertStaleTimeSeries(ls map[string]string, timestamp int64, includeA
 		})
 	}
 	// __name__ already been dropped, no need to check duplication
-	alertsLabels := append(baseLabels, prompbmarshal.Label{Name: "__name__", Value: alertMetricName})
+	alertsLabels := append([]prompbmarshal.Label{}, baseLabels...)
+	alertsLabels = append(alertsLabels, prompbmarshal.Label{Name: "__name__", Value: alertMetricName})
 	alertsLabels = append(alertsLabels, prompbmarshal.Label{Name: alertStateLabel, Value: notifier.StatePending.String()})
 	result = append(result, newTimeSeries([]float64{decimal.StaleNaN}, []int64{timestamp}, alertsLabels))
 
 	if includeAlertForState {
-		alertsForStateLabels := append(baseLabels, prompbmarshal.Label{Name: "__name__", Value: alertForStateMetricName})
+		alertsForStateLabels := append([]prompbmarshal.Label{}, baseLabels...)
+		alertsForStateLabels = append(alertsForStateLabels, prompbmarshal.Label{Name: "__name__", Value: alertForStateMetricName})
 		result = append(result, newTimeSeries([]float64{decimal.StaleNaN}, []int64{timestamp}, alertsForStateLabels))
 	}
 	return result
@@ -680,10 +682,12 @@ func firingAlertStaleTimeSeries(ls map[string]string, timestamp int64) []prompbm
 		})
 	}
 	// __name__ already been dropped, no need to check duplication
-	alertsLabels := append(baseLabels, prompbmarshal.Label{Name: "__name__", Value: alertMetricName})
+	alertsLabels := append([]prompbmarshal.Label{}, baseLabels...)
+	alertsLabels = append(alertsLabels, prompbmarshal.Label{Name: "__name__", Value: alertMetricName})
 	alertsLabels = append(alertsLabels, prompbmarshal.Label{Name: alertStateLabel, Value: notifier.StateFiring.String()})
 
-	alertsForStateLabels := append(baseLabels, prompbmarshal.Label{Name: "__name__", Value: alertForStateMetricName})
+	alertsForStateLabels := append([]prompbmarshal.Label{}, baseLabels...)
+	alertsForStateLabels = append(alertsForStateLabels, prompbmarshal.Label{Name: "__name__", Value: alertForStateMetricName})
 
 	return []prompbmarshal.TimeSeries{
 		newTimeSeries([]float64{decimal.StaleNaN}, []int64{timestamp}, alertsLabels),
