@@ -105,7 +105,7 @@ Tenant ID for cluster version. Example: `"0:0"`
             </td>
             <td>
 
-Deprecated since [v1.8.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v180). Absolute, to override `/health` path
+{{% deprecated_from "v1.8.0" anomaly %}}. Absolute, to override `/health` path
             </td>
         </tr>
         <tr>
@@ -316,7 +316,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 ### Reader behaviour metrics
 Label names [description](#labelnames)
 
-> **Note**: To improve consistency across the components additional labels (`scheduler_alias`, `preset`) were added to writer and reader metrics{{% available_from "v1.17.0" anomaly %}}. Also, metrics `vmanomaly_reader_request_duration_seconds` and `vmanomaly_reader_response_parsing_seconds` changed their type to `Histogram` (was `Summary` prior to [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)).
+> **Note**: To improve consistency across the components additional labels (`scheduler_alias`, `preset`) were added to writer and reader metrics{{% available_from "v1.17.0" anomaly %}}. Also, metrics `vmanomaly_reader_request_duration_seconds` and `vmanomaly_reader_response_parsing_seconds` changed their type to `Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}).
 
 <table class="params">
     <thead>
@@ -333,7 +333,7 @@ Label names [description](#labelnames)
 
 `vmanomaly_reader_request_duration_seconds`
             </td>
-            <td>`Histogram` (was `Summary` prior to [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170))</td>
+            <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}})</td>
             <td>The total time (in seconds) taken by queries to VictoriaMetrics `url` for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -343,7 +343,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_reader_responses` (named `vmanomaly_reader_response_count` prior to [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170))
+`vmanomaly_reader_responses` (named `vmanomaly_reader_response_count`{{% deprecated_from "v1.17.0" anomaly %}})
             </td>
             <td>`Counter`</td>
             <td>The count of responses received from VictoriaMetrics `url` for the `query_key` query, categorized by `code`, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -369,7 +369,7 @@ Label names [description](#labelnames)
 
 `vmanomaly_reader_response_parsing_seconds`
             </td>
-            <td>`Histogram` (was `Summary` prior to [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170))</td>
+            <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}</td>
             <td>The total time (in seconds) taken for data parsing at each `step` (json, dataframe) for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -439,7 +439,7 @@ Label names [description](#labelnames)
 
 `vmanomaly_model_run_duration_seconds`
             </td>
-            <td>`Histogram` (was `Summary` prior to [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)) </td>
+            <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}) </td>
             <td>The total time (in seconds) taken by model invocations during the `stage` (`fit`, `infer`, `fit_infer`), based on the results of the `query_key` query, for models of class `model_alias`, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -513,7 +513,7 @@ Label names [description](#labelnames)
 ### Writer behaviour metrics
 Label names [description](#labelnames)
 
-> **Note**: additional labels (`scheduler_alias`, `preset`){{% available_from "v1.17.0" anomaly %}} were added to writer and reader metrics to improve consistency across the components. Also, metrics `vmanomaly_writer_request_duration_seconds` and `vmanomaly_writer_request_serialize_seconds` changed their type to `Histogram` (was `Summary` prior to [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170)).
+> **Note**: additional labels (`scheduler_alias`, `preset`){{% available_from "v1.17.0" anomaly %}} were added to writer and reader metrics to improve consistency across the components. Also, metrics `vmanomaly_writer_request_duration_seconds` and `vmanomaly_writer_request_serialize_seconds` changed their type to `Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}).
 
 <table class="params">
     <thead>
@@ -530,7 +530,7 @@ Label names [description](#labelnames)
 
 `vmanomaly_writer_request_duration_seconds`
             </td>
-            <td>`Histogram` (was `Summary` prior to [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170))</td>
+            <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}})</td>
             <td>The total time (in seconds) taken by write requests to VictoriaMetrics `url` for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.
 </td>
             <td>
@@ -541,7 +541,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_writer_responses` (named `vmanomaly_reader_response_count` prior to [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170))
+`vmanomaly_writer_responses` (named `vmanomaly_reader_response_count`{{% deprecated_from "v1.17.0" anomaly %}})
             </td>
             <td>`Counter`</td>
             <td>The count of response codes received from VictoriaMetrics `url` for the `query_key` query, categorized by `code`, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.
@@ -568,7 +568,7 @@ Label names [description](#labelnames)
 
 `vmanomaly_writer_request_serialize_seconds`
             </td>
-            <td>`Histogram` (was `Summary` prior to [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170))</td>
+            <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}</td>
             <td>The total time (in seconds) taken for serializing data for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 

@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -86,9 +87,15 @@ func (fi *filterIn) initTokens() {
 
 	fi.commonTokensHashes = appendTokensHashes(nil, commonTokens)
 
+	var hashesBuf []uint64
 	tokenSetsHashes := make([][]uint64, len(tokenSets))
 	for i, tokens := range tokenSets {
-		tokenSetsHashes[i] = appendTokensHashes(nil, tokens)
+		if hashesBuf == nil || len(hashesBuf) > 60_000/int(unsafe.Sizeof(hashesBuf[0])) {
+			hashesBuf = make([]uint64, 0, 64*1024/int(unsafe.Sizeof(hashesBuf[0])))
+		}
+		hashesBufLen := len(hashesBuf)
+		hashesBuf = appendTokensHashes(hashesBuf, tokens)
+		tokenSetsHashes[i] = hashesBuf[hashesBufLen:]
 	}
 	fi.tokenSetsHashes = tokenSetsHashes
 }
@@ -469,9 +476,15 @@ func matchValuesDictByAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, va
 }
 
 func getCommonTokensAndTokenSets(values []string) ([]string, [][]string) {
+	var tokensBuf []string
 	tokenSets := make([][]string, len(values))
 	for i, v := range values {
-		tokenSets[i] = tokenizeStrings(nil, []string{v})
+		if tokensBuf == nil || len(tokensBuf) > 60_000/int(unsafe.Sizeof(tokensBuf[0])) {
+			tokensBuf = make([]string, 0, 64*1024/int(unsafe.Sizeof(tokensBuf[0])))
+		}
+		tokensBufLen := len(tokensBuf)
+		tokensBuf = tokenizeStrings(tokensBuf, []string{v})
+		tokenSets[i] = tokensBuf[tokensBufLen:]
 	}
 
 	commonTokens := getCommonTokens(tokenSets)

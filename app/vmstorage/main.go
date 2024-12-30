@@ -14,6 +14,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage/servers"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -79,6 +80,15 @@ var (
 )
 
 func main() {
+	// vmstoage is optimized for reduced memory allocations,
+	// so it can run with the reduced GOGC in order to reduce the used memory,
+	// while keeping CPU usage spent in GC at low levels.
+	//
+	// Some workloads may need increased GOGC values. Then such values can be set via GOGC environment variable.
+	// It is recommended increasing GOGC if go_memstats_gc_cpu_fraction metric exposed at /metrics page
+	// exceeds 0.05 for extended periods of time.
+	cgroup.SetGOGC(30)
+
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage

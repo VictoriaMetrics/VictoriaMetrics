@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -515,10 +516,15 @@ func MustStop() {
 	mustStopStorageNodes(snb)
 }
 
-func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
-	if len(addrs) == 0 {
+func initStorageNodes(unsortedAddrs []string, hashSeed uint64) *storageNodesBucket {
+	if len(unsortedAddrs) == 0 {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
+
+	addrs := make([]string, len(unsortedAddrs))
+	copy(addrs, unsortedAddrs)
+	sort.Strings(addrs)
+
 	ms := metrics.NewSet()
 	nodesHash := newConsistentHash(addrs, hashSeed)
 	sns := make([]*storageNode, 0, len(addrs))
@@ -685,7 +691,7 @@ func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNo
 // reouteRowsToFreeStorageNodes re-routes src from snSource to other storage nodes.
 //
 // It is expected that snSource has no enough buffer for sending src.
-// It is expected than *dsableRerouting isn't set when calling this function.
+// It is expected than *disableRerouting isn't set when calling this function.
 // It is expected that len(snb.sns) >= 2
 func rerouteRowsToFreeStorageNodes(snb *storageNodesBucket, snSource *storageNode, src []byte) (int, error) {
 	if *disableRerouting {

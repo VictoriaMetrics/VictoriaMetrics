@@ -2,35 +2,30 @@ package logstorage
 
 import (
 	"strconv"
-	"unsafe"
 )
 
 type statsRateSum struct {
-	fields []string
+	ss *statsSum
 
 	// stepSeconds must be updated by the caller before calling newStatsProcessor().
 	stepSeconds float64
 }
 
 func (sr *statsRateSum) String() string {
-	return "rate_sum(" + statsFuncFieldsToString(sr.fields) + ")"
+	return "rate_sum(" + statsFuncFieldsToString(sr.ss.fields) + ")"
 }
 
 func (sr *statsRateSum) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, sr.fields)
+	updateNeededFieldsForStatsFunc(neededFields, sr.ss.fields)
 }
 
-func (sr *statsRateSum) newStatsProcessor() (statsProcessor, int) {
-	srp := &statsRateSumProcessor{
-		sr: sr,
-		ssp: &statsSumProcessor{
-			ss: &statsSum{
-				fields: sr.fields,
-			},
-			sum: nan,
-		},
-	}
-	return srp, int(unsafe.Sizeof(*srp))
+func (sr *statsRateSum) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	srp := a.newStatsRateSumProcessor()
+	srp.sr = sr
+	srp.ssp = a.newStatsSumProcessor()
+	srp.ssp.ss = sr.ss
+	srp.ssp.sum = nan
+	return srp
 }
 
 type statsRateSumProcessor struct {
@@ -65,7 +60,9 @@ func parseStatsRateSum(lex *lexer) (*statsRateSum, error) {
 		return nil, err
 	}
 	sr := &statsRateSum{
-		fields: fields,
+		ss: &statsSum{
+			fields: fields,
+		},
 	}
 	return sr, nil
 }

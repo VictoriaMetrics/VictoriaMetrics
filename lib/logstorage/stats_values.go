@@ -23,11 +23,10 @@ func (sv *statsValues) updateNeededFields(neededFields fieldsSet) {
 	updateNeededFieldsForStatsFunc(neededFields, sv.fields)
 }
 
-func (sv *statsValues) newStatsProcessor() (statsProcessor, int) {
-	svp := &statsValuesProcessor{
-		sv: sv,
-	}
-	return svp, int(unsafe.Sizeof(*svp))
+func (sv *statsValues) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	svp := a.newStatsValuesProcessor()
+	svp.sv = sv
+	return svp
 }
 
 type statsValuesProcessor struct {

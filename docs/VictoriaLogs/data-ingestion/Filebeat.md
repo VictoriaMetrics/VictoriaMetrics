@@ -11,6 +11,9 @@ aliases:
   - /victorialogs/data-ingestion/Filebeat.html
   - /victorialogs/data-ingestion/filebeat.html
 ---
+
+_Tested with filebeat [8.15.1+](https://www.elastic.co/guide/en/beats/libbeat/8.17/release-notes-8.15.1.html.)._
+
 Specify [`output.elasticsearch`](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) section in the `filebeat.yml`
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
