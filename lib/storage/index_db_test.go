@@ -671,7 +671,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 
 		// Create tsid for the metricName.
 		var genTSID generationTSID
-		if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
+		if !is.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricNameBuf, date) {
 			generateTSID(&genTSID.TSID, &mn)
 			createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
 		}
@@ -713,7 +713,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		metricName := mn.Marshal(nil)
 
 		is := db.getIndexSearch(noDeadline)
-		if !is.getTSIDByMetricName(&genTSID, metricName, uint64(currentTime)/msecPerDay) {
+		if !is.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricName, uint64(currentTime)/msecPerDay) {
 			return fmt.Errorf("cannot obtain tsid #%d for mn %s", i, mn)
 		}
 		db.putIndexSearch(is)
@@ -1636,7 +1636,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 			mn := newMN("testMetric", day, metric)
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
 			var genTSID generationTSID
-			if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
+			if !is.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricNameBuf, date) {
 				generateTSID(&genTSID.TSID, &mn)
 				createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
 			}
@@ -1686,7 +1686,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	mn.sortTags()
 	metricNameBuf = mn.Marshal(metricNameBuf[:0])
 	var genTSID generationTSID
-	if !is3.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
+	if !is3.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricNameBuf, date) {
 		generateTSID(&genTSID.TSID, &mn)
 		createAllIndexesForMetricName(is3, &mn, &genTSID.TSID, date)
 	}
@@ -2159,7 +2159,7 @@ func TestSearchContainsTimeRange(t *testing.T) {
 			mn := newMN("testMetric", day, metric)
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
 			var genTSID generationTSID
-			if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
+			if !is.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricNameBuf, date) {
 				generateTSID(&genTSID.TSID, &mn)
 				createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
 			}

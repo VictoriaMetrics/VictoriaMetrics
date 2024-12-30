@@ -374,15 +374,9 @@ func (tb *table) MustAddRows(rows []rawRow) {
 // corresponds to the given date.
 //
 // If the partition does not exist yet, it will be created.
-// func (tb *table) MustGetIndexDB(timestamp int64) *indexDB {
 func (tb *table) MustGetIndexDB(timestamp int64) *indexDB {
 	tb.ptwsLock.Lock()
 	defer tb.ptwsLock.Unlock()
-
-	minTimestamp, maxTimestamp := tb.getMinMaxTimestamps()
-	if timestamp < minTimestamp || timestamp > maxTimestamp {
-		logger.Panicf("BUG: timestamp out of range: got %d, want %d <= timestamp <= %d", timestamp, minTimestamp, maxTimestamp)
-	}
 
 	for _, ptw := range tb.ptws {
 		if ptw.pt.HasTimestamp(timestamp) {
