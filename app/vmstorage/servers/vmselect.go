@@ -255,10 +255,10 @@ func checkTimeRange(s *storage.Storage, tr storage.TimeRange) error {
 
 func getMaxMetrics(searchQueryLimit int) int {
 	if searchQueryLimit <= 0 {
-		// use vmstorage maxUniqueTimeseries if no limit is passed by the client.
+		// use auto calculated maxUniqueTimeseries limit
 		return GetMaxUniqueTimeSeries()
 	}
-	// if `-search.maxUniqueTimeseries` is explicitly set in vmstorage, client cannot exceed the limit.
+	// searchQueryLimit  can exceed value explicitly set to `-search.maxUniqueTimeseries`
 	if *maxUniqueTimeseries != 0 && searchQueryLimit > *maxUniqueTimeseries {
 		searchQueryLimit = *maxUniqueTimeseries
 	}
