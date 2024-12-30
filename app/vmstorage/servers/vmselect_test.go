@@ -31,3 +31,22 @@ func TestCalculateMaxMetricsLimitByResource(t *testing.T) {
 	f(4, 0, 0)
 
 }
+
+func TestGetMaxMetrics(t *testing.T) {
+	originalMaxUniqueTimeSeries := *maxUniqueTimeseries
+	defer func() {
+		*maxUniqueTimeseries = originalMaxUniqueTimeSeries
+	}()
+	f := func(searchQueryLimit, storageMaxUniqueTimeseries, expect int) {
+		t.Helper()
+		*maxUniqueTimeseries = storageMaxUniqueTimeseries
+		maxMetrics := getMaxMetrics(searchQueryLimit)
+		if maxMetrics != expect {
+			t.Fatalf("unexpected max metrics: got %d, want %d", maxMetrics, expect)
+		}
+	}
+
+	f(0, 1e6, 1e6)
+	f(2e6, 0, 2e6)
+	f(2e6, 1e6, 1e6)
+}
