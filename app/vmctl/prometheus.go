@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -17,7 +18,7 @@ import (
 // snapshot blocks
 type Runner interface {
 	Explore() ([]tsdb.BlockReader, error)
-	Read(tsdb.BlockReader) (storage.SeriesSet, error)
+	Read(context.Context, tsdb.BlockReader) (storage.SeriesSet, error)
 }
 
 type prometheusProcessor struct {
@@ -37,7 +38,7 @@ type prometheusProcessor struct {
 	isVerbose bool
 }
 
-func (pp *prometheusProcessor) run() error {
+func (pp *prometheusProcessor) run(ctx context.Context) error {
 	blocks, err := pp.cl.Explore()
 	if err != nil {
 		return fmt.Errorf("explore failed: %s", err)
@@ -65,7 +66,7 @@ func (pp *prometheusProcessor) run() error {
 		go func() {
 			defer wg.Done()
 			for br := range blockReadersCh {
-				if err := pp.do(br); err != nil {
+				if err := pp.do(ctx, br); err != nil {
 					errCh <- fmt.Errorf("read failed for block %q: %s", br.Meta().ULID, err)
 					return
 				}
@@ -107,8 +108,8 @@ func (pp *prometheusProcessor) run() error {
 	return nil
 }
 
-func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
-	ss, err := pp.cl.Read(b)
+func (pp *prometheusProcessor) do(ctx context.Context, b tsdb.BlockReader) error {
+	ss, err := pp.cl.Read(ctx, b)
 	if err != nil {
 		return fmt.Errorf("failed to read block: %s", err)
 	}

@@ -43,9 +43,7 @@ type Block struct {
 	MaxTime int64 `json:"max_time"`
 
 	// SegmentsFormat and SegmentsNum stores the format and number of chunks segments
-	// in the block, if they match a known pattern. We don't store the full segments
-	// files list in order to keep the index small. SegmentsFormat is empty if segments
-	// are unknown or don't match a known format.
+	// in the block.
 	SegmentsFormat string `json:"segments_format,omitempty"`
 	SegmentsNum    int    `json:"segments_num,omitempty"`
 }
@@ -74,7 +72,6 @@ type Config struct {
 	ConfigProfile           string
 	CustomS3Endpoint        string
 	S3ForcePathStyle        bool
-	S3StorageClass          string
 	S3TLSInsecureSkipVerify bool
 }
 
@@ -145,11 +142,8 @@ func NewClient(cfg Config) (*Client, error) {
 	return &c, nil
 }
 
-// Explore fetches all available blocks from a remote storage or local filesystem
-// and collects the Meta() data from each block.
-// Explore does initial filtering by time-range
-// for snapshot blocks but does not take into account
-// label filters.
+// Explore a fetches bucket-index.json file from a remote storage or local filesystem
+// and filter blocks via the defined time range, but does not take into account label filters.
 func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 
 	s := &utils.Stats{
@@ -188,7 +182,7 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 
 // Read reads the given BlockReader according to configured
 // time and label filters.
-func (c *Client) Read(block tsdb.BlockReader) (storage.SeriesSet, error) {
+func (c *Client) Read(ctx context.Context, block tsdb.BlockReader) (storage.SeriesSet, error) {
 	meta := block.Meta()
 	if meta.ULID.String() == "" {
 		return nil, fmt.Errorf("block without id")
@@ -205,7 +199,7 @@ func (c *Client) Read(block tsdb.BlockReader) (storage.SeriesSet, error) {
 	if err != nil {
 		return nil, err
 	}
-	ss := q.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchRegexp, c.filter.label, c.filter.labelValue))
+	ss := q.Select(ctx, false, nil, labels.MustNewMatcher(labels.MatchRegexp, c.filter.label, c.filter.labelValue))
 	return ss, nil
 }
 

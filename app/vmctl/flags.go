@@ -426,12 +426,11 @@ const (
 	mimirFilterLabel      = "mimir-filter-label"
 	mimirFilterLabelValue = "mimir-filter-label-value"
 
-	mimirCreadsFilePath          = "mimir-creds-file-path"
+	mimirCredsFilePath           = "mimir-creds-file-path"
 	mimirConfigFilePath          = "mimir-config-file-path"
 	mimirConfigProfile           = "mimir-config-profile"
 	mimirCustomS3Endpoint        = "mimir-custom-s3-endpoint"
 	mimirS3ForcePathStyle        = "mimir-s3-force-path-style"
-	mimirS3StorageClass          = "mimir-s3-storage-class"
 	mimirS3TLSInsecureSkipVerify = "mimir-s3-tls-insecure-skip-verify"
 )
 
@@ -470,7 +469,7 @@ var (
 			Value: ".*",
 		},
 		&cli.StringFlag{
-			Name:  mimirCreadsFilePath,
+			Name:  mimirCredsFilePath,
 			Usage: "Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set. See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html",
 		},
 		&cli.StringFlag{
@@ -488,10 +487,6 @@ var (
 		&cli.BoolFlag{
 			Name:  mimirS3ForcePathStyle,
 			Usage: "Prefixing endpoint with bucket name when set false, true by default.",
-		},
-		&cli.StringFlag{
-			Name:  mimirS3StorageClass,
-			Usage: "The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA. See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html",
 		},
 		&cli.BoolFlag{
 			Name:  mimirS3TLSInsecureSkipVerify,

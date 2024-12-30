@@ -75,7 +75,6 @@ func NewRemoteFS(cfg Config) (common.RemoteFS, error) {
 			ConfigFilePath:        cfg.ConfigFilePath,
 			CustomEndpoint:        cfg.CustomS3Endpoint,
 			TLSInsecureSkipVerify: cfg.S3TLSInsecureSkipVerify,
-			StorageClass:          s3remote.StringToS3StorageClass(cfg.S3StorageClass),
 			S3ForcePathStyle:      cfg.S3ForcePathStyle,
 			ProfileName:           cfg.ConfigProfile,
 			Bucket:                bucket,

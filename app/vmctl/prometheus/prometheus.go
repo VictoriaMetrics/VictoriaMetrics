@@ -111,7 +111,7 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 
 // Read reads the given BlockReader according to configured
 // time and label filters.
-func (c *Client) Read(block tsdb.BlockReader) (storage.SeriesSet, error) {
+func (c *Client) Read(ctx context.Context, block tsdb.BlockReader) (storage.SeriesSet, error) {
 	minTime, maxTime := block.Meta().MinTime, block.Meta().MaxTime
 	if c.filter.min != 0 {
 		minTime = c.filter.min
@@ -123,7 +123,7 @@ func (c *Client) Read(block tsdb.BlockReader) (storage.SeriesSet, error) {
 	if err != nil {
 		return nil, err
 	}
-	ss := q.Select(context.Background(), false, nil, labels.MustNewMatcher(labels.MatchRegexp, c.filter.label, c.filter.labelValue))
+	ss := q.Select(ctx, false, nil, labels.MustNewMatcher(labels.MatchRegexp, c.filter.label, c.filter.labelValue))
 	return ss, nil
 }
 

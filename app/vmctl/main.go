@@ -262,7 +262,7 @@ func main() {
 						cc:        c.Int(promConcurrency),
 						isVerbose: c.Bool(globalVerbose),
 					}
-					return pp.run()
+					return pp.run(ctx)
 				},
 			},
 			{
@@ -292,12 +292,11 @@ func main() {
 						},
 						Path:                    c.String(mimirPath),
 						TenantID:                c.String(mimirTenantID),
-						CredsFilePath:           c.String(mimirCreadsFilePath),
+						CredsFilePath:           c.String(mimirCredsFilePath),
 						ConfigFilePath:          c.String(mimirConfigFilePath),
 						ConfigProfile:           c.String(mimirConfigProfile),
 						CustomS3Endpoint:        c.String(mimirCustomS3Endpoint),
 						S3ForcePathStyle:        c.Bool(mimirS3ForcePathStyle),
-						S3StorageClass:          c.String(mimirS3StorageClass),
 						S3TLSInsecureSkipVerify: c.Bool(mimirS3TLSInsecureSkipVerify),
 					}
 					cl, err := mimir.NewClient(mCfg)
@@ -310,7 +309,7 @@ func main() {
 						cc:        c.Int(mimirConcurrency),
 						isVerbose: c.Bool(globalVerbose),
 					}
-					return pp.run()
+					return pp.run(ctx)
 				},
 			},
 			{

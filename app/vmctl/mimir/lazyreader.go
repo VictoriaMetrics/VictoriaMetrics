@@ -72,6 +72,7 @@ func (lbr *LazyBlockReader) initialize() error {
 
 	for i := 1; i <= lbr.SegmentsNum; i++ {
 		// segments formats has format 1b06d
+		// https://github.com/grafana/mimir/blob/main/pkg/storage/tsdb/bucketindex/index.go#L32
 		chunkName := fmt.Sprintf("%06d", i)
 		blockChunkPath := filepath.Join("chunks", chunkName)
 		chunk, err := lbr.fetchFile(blockChunkPath)
