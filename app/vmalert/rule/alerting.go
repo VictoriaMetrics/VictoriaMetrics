@@ -657,11 +657,12 @@ func pendingAlertStaleTimeSeries(ls map[string]string, timestamp int64, includeA
 			Value: v,
 		})
 	}
+
+	alertsLabels := make([]prompbmarshal.Label, 0, len(ls)+2)
+	alertsLabels = append(alertsLabels, baseLabels...)
 	// __name__ already been dropped, no need to check duplication
-	alertsLabels := make([]prompbmarshal.Label, len(ls)+2)
-	copy(alertsLabels, baseLabels)
-	alertsLabels[len(ls)] = prompbmarshal.Label{Name: "__name__", Value: alertMetricName}
-	alertsLabels[len(ls)+1] = prompbmarshal.Label{Name: alertStateLabel, Value: notifier.StatePending.String()}
+	alertsLabels = append(alertsLabels, prompbmarshal.Label{Name: "__name__", Value: alertMetricName})
+	alertsLabels = append(alertsLabels, prompbmarshal.Label{Name: alertStateLabel, Value: notifier.StatePending.String()})
 	result = append(result, newTimeSeries([]float64{decimal.StaleNaN}, []int64{timestamp}, alertsLabels))
 
 	if includeAlertForState {
@@ -681,11 +682,12 @@ func firingAlertStaleTimeSeries(ls map[string]string, timestamp int64) []prompbm
 			Value: v,
 		})
 	}
+
+	alertsLabels := make([]prompbmarshal.Label, 0, len(ls)+2)
+	alertsLabels = append(alertsLabels, baseLabels...)
 	// __name__ already been dropped, no need to check duplication
-	alertsLabels := make([]prompbmarshal.Label, len(ls)+2)
-	copy(alertsLabels, baseLabels)
-	alertsLabels[len(ls)] = prompbmarshal.Label{Name: "__name__", Value: alertMetricName}
-	alertsLabels[len(ls)+1] = prompbmarshal.Label{Name: alertStateLabel, Value: notifier.StateFiring.String()}
+	alertsLabels = append(alertsLabels, prompbmarshal.Label{Name: "__name__", Value: alertMetricName})
+	alertsLabels = append(alertsLabels, prompbmarshal.Label{Name: alertStateLabel, Value: notifier.StateFiring.String()})
 
 	baseLabels = append(baseLabels, prompbmarshal.Label{Name: "__name__", Value: alertForStateMetricName})
 
