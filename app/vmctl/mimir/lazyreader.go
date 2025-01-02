@@ -29,8 +29,8 @@ type LazyBlockReader struct {
 	fs     common.RemoteFS
 }
 
-// New returns a new LazyBlockReader for the given block.
-func New(block *Block, fs common.RemoteFS) (*LazyBlockReader, error) {
+// NewLazyBlockReader returns a new LazyBlockReader for the given block.
+func NewLazyBlockReader(block *Block, fs common.RemoteFS) (*LazyBlockReader, error) {
 	if block.SegmentsFormat != "1b6d" {
 		return nil, fmt.Errorf("unsupported segments format: %s", block.SegmentsFormat)
 	}

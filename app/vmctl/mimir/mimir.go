@@ -168,7 +168,7 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 			continue
 		}
 
-		lazyBlockReader, err := New(block, c.RemoteFS)
+		lazyBlockReader, err := NewLazyBlockReader(block, c.RemoteFS)
 		if err != nil {
 			log.Printf("failed to create lazy block reader: %s", err)
 			continue
