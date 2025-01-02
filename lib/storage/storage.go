@@ -338,8 +338,12 @@ func (s *Storage) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 // This function is for debugging and testing purposes only,
 // since it may slow down data ingestion when used frequently.
 func (s *Storage) DebugFlush() {
-	s.tb.flushPendingRows()
+	s.tb.DebugFlush()
+
 	idb := s.idb()
+	if idb == nil {
+		return
+	}
 	idb.tb.DebugFlush()
 	idb.doExtDB(func(extDB *indexDB) {
 		extDB.tb.DebugFlush()
@@ -1137,6 +1141,54 @@ func nextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64) int64
 	return deadline
 }
 
+// searchAndMerge concurrently performs a search operation on all partition
+// IndexDBs that overlap with the given time range and optionally legacy current
+// and previous IndexDBs. The individual search results are then merged. If
+// stopOnError is true, the function returns the error of the first failed
+// individual result and merge op is skipped.
+func (s *Storage) searchAndMerge(tr TimeRange, search func(idb *indexDB) (any, error), merge func([]any) any, stopOnError bool) (any, error) {
+	type result struct {
+		data any
+		err  error
+	}
+
+	idbs := s.tb.GetIndexDBs(tr)
+	idbCurr := s.idb()
+	if idbCurr != nil {
+		idbs = append(idbs, idbCurr)
+	}
+	var wg sync.WaitGroup
+	results := make(chan *result, len(idbs))
+	defer close(results)
+	for _, idb := range idbs {
+		wg.Add(1)
+		func() {
+			data, err := search(idb)
+			results <- &result{data, err}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+
+	var data []any
+	var firstErr error
+	for range len(idbs) {
+		result := <-results
+		if result.err != nil {
+			if stopOnError {
+				return nil, result.err
+			}
+			if firstErr != nil {
+				firstErr = result.err
+			}
+			continue
+		}
+		data = append(data, result.data)
+	}
+
+	return merge(data), firstErr
+}
+
 // SearchMetricNames returns marshaled metric names matching the given tfss on the given tr.
 //
 // The marshaled metric names must be unmarshaled via MetricName.UnmarshalString().
@@ -1144,17 +1196,46 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
-	metricIDs, err := s.idb().searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+	search := func(idb *indexDB) (any, error) {
+		return s.searchMetricNames(qt, idb, tfss, tr, maxMetrics, deadline)
+	}
+	merge := func(data []any) any {
+		var all []string
+		seen := make(map[string]bool)
+		for _, names := range data {
+			for _, name := range names.([]string) {
+				if seen[name] {
+					continue
+				}
+				all = append(all, name)
+				seen[name] = true
+			}
+		}
+		return all
+	}
+	stopOnError := true
+	result, err := s.searchAndMerge(tr, search, merge, stopOnError)
+	metricNames := result.([]string)
+	qt.Printf("loaded %d metric names", len(metricNames))
+
+	return metricNames, err
+}
+
+func (s *Storage) searchMetricNames(qt *querytracer.Tracer, idb *indexDB, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
+	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
+	defer qt.Done()
+
+	metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
 	}
 	if len(metricIDs) == 0 {
 		return nil, nil
 	}
-	if err = s.prefetchMetricNames(qt, metricIDs, deadline); err != nil {
+	if err = s.prefetchMetricNames(qt, idb, metricIDs, deadline); err != nil {
 		return nil, err
 	}
-	idb := s.idb()
+
 	metricNames := make([]string, 0, len(metricIDs))
 	metricNamesSeen := make(map[string]struct{}, len(metricIDs))
 	var metricName []byte
@@ -1187,7 +1268,7 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 // This should speed-up further searchMetricNameWithCache calls for srcMetricIDs from tsids.
 //
 // It is expected that srcMetricIDs are already sorted by the caller. Otherwise the pre-fetching may be slow.
-func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uint64, deadline uint64) error {
+func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, idb *indexDB, srcMetricIDs []uint64, deadline uint64) error {
 	qt = qt.NewChild("prefetch metric names for %d metricIDs", len(srcMetricIDs))
 	defer qt.Done()
 
@@ -1219,7 +1300,6 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uin
 	var missingMetricIDs []uint64
 	var metricName []byte
 	var err error
-	idb := s.idb()
 	is := idb.getIndexSearch(deadline)
 	defer idb.putIndexSearch(is)
 	for loops, metricID := range metricIDs {

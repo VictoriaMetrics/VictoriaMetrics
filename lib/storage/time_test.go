@@ -52,3 +52,22 @@ func testTimeRangeFromPartition(t *testing.T, initialTime time.Time) {
 		t.Fatalf("unexpected nextY, nextM; got %d, %d; want %d, %d+1;\nnextTime=%s\nmaxTime=%s", nextY, nextM, maxY, maxM, nextTime, maxTime)
 	}
 }
+
+func TestOverlapsWith(t *testing.T) {
+	f := func(min1, max1, min2, max2 int64, want bool) {
+		tr1 := TimeRange{min1, max1}
+		tr2 := TimeRange{min2, max2}
+		if got := tr1.overlapsWith(tr2); got != want {
+			t.Errorf("unmet time range overlapping expectation: got %t, want %t", got, want)
+		}
+	}
+
+	f(0, 0, 0, 0, true)
+	f(0, 0, 0, 1, true)
+	f(0, 1, 0, 0, true)
+	f(1, 2, 0, 0, false)
+	f(0, 0, 1, 2, false)
+	f(1, 2, 0, 3, true)
+	f(1, 10, 5, 15, true)
+	f(5, 15, 1, 10, true)
+}

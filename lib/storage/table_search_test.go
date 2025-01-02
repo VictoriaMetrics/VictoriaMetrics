@@ -194,7 +194,7 @@ func testTableSearchEx(t *testing.T, rng *rand.Rand, trData, trSearch TimeRange,
 		tb.MustAddRows(rows)
 
 		// Flush rows to parts.
-		tb.flushPendingRows()
+		tb.DebugFlush()
 	}
 	testTableSearch(t, tb, tsids, trSearch, rbsExpected, -1)
 	tb.MustClose()

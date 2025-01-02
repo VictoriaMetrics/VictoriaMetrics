@@ -190,14 +190,16 @@ func (tb *table) MustClose() {
 	}
 }
 
-// flushPendingRows flushes all the pending raw rows, so they become visible to search.
+// debugFlush flushes all pending raw index and data rows, so they become
+// visible to search.
 //
 // This function is for debug purposes only.
-func (tb *table) flushPendingRows() {
+func (tb *table) DebugFlush() {
 	ptws := tb.GetPartitions(nil)
 	defer tb.PutPartitions(ptws)
 
 	for _, ptw := range ptws {
+		ptw.pt.idb.tb.DebugFlush()
 		ptw.pt.flushPendingRows(true)
 	}
 }
@@ -390,6 +392,24 @@ func (tb *table) MustGetIndexDB(timestamp int64) *indexDB {
 
 	// TODO(@rtm0): Icrement partition and idb refs?
 	return pt.idb
+}
+
+// GetIndexDBs returns the list of IndexDBs whose time ranges overlap with the
+// given time range.
+func (tb *table) GetIndexDBs(tr TimeRange) []*indexDB {
+	tb.ptwsLock.Lock()
+	defer tb.ptwsLock.Unlock()
+
+	var idbs []*indexDB
+
+	for _, ptw := range tb.ptws {
+		if ptw.pt.tr.overlapsWith(tr) {
+			// TODO(@rtm0): Icrement partition and idb refs?
+			idbs = append(idbs, ptw.pt.idb)
+		}
+	}
+
+	return idbs
 }
 
 func (tb *table) getMinMaxTimestamps() (int64, int64) {
