@@ -14,7 +14,7 @@ import (
 )
 
 var parseCacheV = func() *parseCache {
-	pc := NewParseCache()
+	pc := newParseCache()
 	metrics.NewGauge(`vm_cache_requests_total{type="promql/parse"}`, func() float64 {
 		return float64(pc.requests())
 	})
@@ -53,7 +53,7 @@ type parseCache struct {
 	buckets [parseBucketCount]parseBucket
 }
 
-func NewParseCache() *parseCache {
+func newParseCache() *parseCache {
 	pc := new(parseCache)
 	for i := 0; i < parseBucketCount; i++ {
 		pc.buckets[i] = newParseBucket()

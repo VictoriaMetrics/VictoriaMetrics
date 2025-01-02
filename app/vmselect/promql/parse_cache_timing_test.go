@@ -6,7 +6,7 @@ import (
 
 func BenchmarkCachePutNoOverFlow(b *testing.B) {
 	const items int = (parseCacheMaxLen / 2)
-	pc := NewParseCache()
+	pc := newParseCache()
 
 	queries := testGenerateQueries(items)
 	v := testGetParseCacheValue(queries[0])
@@ -20,14 +20,14 @@ func BenchmarkCachePutNoOverFlow(b *testing.B) {
 			}
 		}
 	})
-	if len := pc.len(); len != uint64(items) {
-		b.Errorf("unexpected value obtained; got %d; want %d", len, items)
+	if pc.len() != uint64(items) {
+		b.Errorf("unexpected value obtained; got %d; want %d", pc.len(), items)
 	}
 }
 
 func BenchmarkCacheGetNoOverflow(b *testing.B) {
 	const items int = parseCacheMaxLen / 2
-	pc := NewParseCache()
+	pc := newParseCache()
 
 	queries := testGenerateQueries(items)
 	v := testGetParseCacheValue(queries[0])
@@ -50,7 +50,7 @@ func BenchmarkCacheGetNoOverflow(b *testing.B) {
 
 func BenchmarkCachePutGetNoOverflow(b *testing.B) {
 	const items int = parseCacheMaxLen / 2
-	pc := NewParseCache()
+	pc := newParseCache()
 
 	queries := testGenerateQueries(items)
 	v := testGetParseCacheValue(queries[0])
@@ -67,14 +67,14 @@ func BenchmarkCachePutGetNoOverflow(b *testing.B) {
 			}
 		}
 	})
-	if len := pc.len(); len != uint64(items) {
-		b.Errorf("unexpected value obtained; got %d; want %d", len, items)
+	if pc.len() != uint64(items) {
+		b.Errorf("unexpected value obtained; got %d; want %d", pc.len(), items)
 	}
 }
 
 func BenchmarkCachePutOverflow(b *testing.B) {
 	const items int = parseCacheMaxLen + (parseCacheMaxLen / 2)
-	c := NewParseCache()
+	c := newParseCache()
 
 	queries := testGenerateQueries(items)
 	v := testGetParseCacheValue(queries[0])
@@ -93,14 +93,14 @@ func BenchmarkCachePutOverflow(b *testing.B) {
 		}
 	})
 	maxElemnts := uint64(parseCacheMaxLen + parseBucketCount)
-	if len := c.len(); len > maxElemnts {
-		b.Errorf("cache length is more than expected; got %d, expected %d", len, maxElemnts)
+	if c.len() > maxElemnts {
+		b.Errorf("cache length is more than expected; got %d, expected %d", c.len(), maxElemnts)
 	}
 }
 
 func BenchmarkCachePutGetOverflow(b *testing.B) {
 	const items int = parseCacheMaxLen + (parseCacheMaxLen / 2)
-	c := NewParseCache()
+	c := newParseCache()
 
 	queries := testGenerateQueries(items)
 	v := testGetParseCacheValue(queries[0])
@@ -120,8 +120,8 @@ func BenchmarkCachePutGetOverflow(b *testing.B) {
 		}
 	})
 	maxElemnts := uint64(parseCacheMaxLen + parseBucketCount)
-	if len := c.len(); len > maxElemnts {
-		b.Errorf("cache length is more than expected; got %d, expected %d", len, maxElemnts)
+	if c.len() > maxElemnts {
+		b.Errorf("cache length is more than expected; got %d, expected %d", c.len(), maxElemnts)
 	}
 }
 
