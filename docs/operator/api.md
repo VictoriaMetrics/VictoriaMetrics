@@ -2045,7 +2045,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `conditions` | Known .status.conditions.type are: "Available", "Progressing", and "Degraded" | _[Condition](#condition) array_ | true |
 | `observedGeneration` | ObservedGeneration defines current generation picked by operator for the<br />reconcile | _integer_ | true |
-| `reason` | Reason defines human readadble error reason | _string_ | true |
+| `reason` | Reason defines human readable error reason | _string_ | true |
 | `updateStatus` | UpdateStatus defines a status for update rollout | _[UpdateStatus](#updatestatus)_ | true |
 
 
