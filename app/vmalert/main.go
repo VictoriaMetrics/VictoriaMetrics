@@ -83,7 +83,6 @@ absolute path to all .tpl files in root.
 
 var (
 	alertURLGeneratorFn notifier.AlertURLGenerator
-	extURL              *url.URL
 )
 
 func main() {
@@ -99,18 +98,29 @@ func main() {
 	logger.Init()
 
 	var err error
-	extURL, err = getExternalURL(*externalURL)
+	extURL, err := getExternalURL(*externalURL)
 	if err != nil {
 		logger.Fatalf("failed to init external.url %q: %s", *externalURL, err)
 	}
+	externalls := make(map[string]string)
+	for _, s := range *externalLabels {
+		if len(s) == 0 {
+			continue
+		}
+		n := strings.IndexByte(s, '=')
+		if n < 0 {
+			logger.Fatalf("wrong format in `-external.label`, it must contain label as `Name=value`; got %q", s)
+		}
+		externalls[s[:n]] = s[n+1:]
+	}
 
-	err = templates.Load(*ruleTemplatesPath, *extURL)
+	err = templates.Init(*ruleTemplatesPath, externalls, *extURL)
 	if err != nil {
 		logger.Fatalf("failed to load template %q: %s", *ruleTemplatesPath, err)
 	}
 
 	if *dryRun {
-		groups, err := config.Parse(*rulePath, notifier.ValidateTemplates, true)
+		groups, err := config.Parse(*rulePath, templates.ValidateTemplates, true)
 		if err != nil {
 			logger.Fatalf("failed to parse %q: %s", *rulePath, err)
 		}
@@ -127,7 +137,7 @@ func main() {
 
 	var validateTplFn config.ValidateTplFn
 	if *validateTemplates {
-		validateTplFn = notifier.ValidateTemplates
+		validateTplFn = templates.ValidateTemplates
 	}
 
 	if *replayFrom != "" {
@@ -156,7 +166,7 @@ func main() {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	manager, err := newManager(ctx)
+	manager, err := newManager(ctx, externalls)
 	if err != nil {
 		logger.Fatalf("failed to init: %s", err)
 	}
@@ -203,25 +213,13 @@ var (
 	configTimestamp    = metrics.NewCounter(`vmalert_config_last_reload_success_timestamp_seconds`)
 )
 
-func newManager(ctx context.Context) (*manager, error) {
+func newManager(ctx context.Context, externalls map[string]string) (*manager, error) {
 	q, err := datasource.Init(nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init datasource: %w", err)
 	}
 
-	labels := make(map[string]string)
-	for _, s := range *externalLabels {
-		if len(s) == 0 {
-			continue
-		}
-		n := strings.IndexByte(s, '=')
-		if n < 0 {
-			return nil, fmt.Errorf("missing '=' in `-label`. It must contain label in the form `Name=value`; got %q", s)
-		}
-		labels[s[:n]] = s[n+1:]
-	}
-
-	nts, err := notifier.Init(alertURLGeneratorFn, labels, *externalURL)
+	nts, err := notifier.Init(alertURLGeneratorFn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init notifier: %w", err)
 	}
@@ -229,7 +227,7 @@ func newManager(ctx context.Context) (*manager, error) {
 		groups:         make(map[uint64]*rule.Group),
 		querierBuilder: q,
 		notifiers:      nts,
-		labels:         labels,
+		labels:         externalls,
 	}
 	rw, err := remotewrite.Init(ctx)
 	if err != nil {
@@ -293,24 +291,36 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 		}, nil
 	}
 	if validateTemplate {
-		if err := notifier.ValidateTemplates(map[string]string{
+		if err := templates.ValidateTemplates(map[string]string{
 			"tpl": externalAlertSource,
 		}); err != nil {
-			return nil, fmt.Errorf("error validating source template %s: %w", externalAlertSource, err)
+			return nil, fmt.Errorf("cannot parse `external.alert.source` %q: %w", externalAlertSource, err)
 		}
 	}
-	m := map[string]string{
-		"tpl": externalAlertSource,
+	var err error
+	tmpl := templates.GetCurrentTmpl()
+	tmpl, err = templates.ParseWithFixedHeader(externalAlertSource, tmpl)
+	if err != nil {
+		return nil, err
 	}
 	return func(alert notifier.Alert) string {
-		qFn := func(_ string) ([]datasource.Metric, error) {
-			return nil, fmt.Errorf("`query` template isn't supported for alert source template")
+		// recreate template if it was changed during config reload
+		cm := templates.GetCurrentTmpl()
+		if tmpl.Name() != cm.Name() {
+			tmpl = cm
+			tmpl, err = templates.ParseWithFixedHeader(externalAlertSource, tmpl)
+			if err != nil {
+				logger.Errorf("cannot parse `external.alert.source` %q: %w", externalAlertSource, err)
+				return fmt.Sprintf("%s/%s", externalURL, externalAlertSource)
+			}
 		}
-		templated, err := alert.ExecTemplate(qFn, alert.Labels, m)
+		tplData := alert.ToTplData()
+		rr, err := templates.ExecuteWithTemplate(tplData, tmpl)
 		if err != nil {
-			logger.Errorf("cannot template alert source: %s", err)
+			logger.Errorf("can not template alert source: %v", err)
+			return fmt.Sprintf("%s/%s", externalURL, externalAlertSource)
 		}
-		return fmt.Sprintf("%s/%s", externalURL, templated["tpl"])
+		return fmt.Sprintf("%s/%s", externalURL, rr)
 	}, nil
 }
 
@@ -334,7 +344,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 
 	var validateTplFn config.ValidateTplFn
 	if *validateTemplates {
-		validateTplFn = notifier.ValidateTemplates
+		validateTplFn = templates.ValidateTemplates
 	}
 
 	// init metrics for config state with positive values to improve alerting conditions
@@ -363,7 +373,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			logger.Errorf("failed to reload notifier config: %s", err)
 			continue
 		}
-		err := templates.Load(*ruleTemplatesPath, *extURL)
+		err := templates.LoadTemplateFile(*ruleTemplatesPath)
 		if err != nil {
 			setConfigError(err)
 			logger.Errorf("failed to load new templates: %s", err)
@@ -376,7 +386,6 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			continue
 		}
 		if configsEqual(newGroupsCfg, groupsCfg) {
-			templates.Reload()
 			// set success to 1 since previous reload could have been unsuccessful
 			// do not update configTimestamp as config version remains old.
 			configSuccess.Set(1)
@@ -390,7 +399,6 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			logger.Errorf("error while reloading rules: %s", err)
 			continue
 		}
-		templates.Reload()
 		groupsCfg = newGroupsCfg
 		setConfigSuccessAt(fasttime.UnixTimestamp())
 		logger.Infof("Rules reloaded successfully from %q", *rulePath)

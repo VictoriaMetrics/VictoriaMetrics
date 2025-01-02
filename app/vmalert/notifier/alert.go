@@ -1,15 +1,9 @@
 package notifier
 
 import (
-	"bytes"
-	"fmt"
-	"io"
-	"strings"
-	textTpl "text/template"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
@@ -76,118 +70,18 @@ func (as AlertState) String() string {
 	return "inactive"
 }
 
-// AlertTplData is used to execute templating
-type AlertTplData struct {
-	Labels   map[string]string
-	Value    float64
-	Expr     string
-	AlertID  uint64
-	GroupID  uint64
-	ActiveAt time.Time
-	For      time.Duration
-}
-
-var tplHeaders = []string{
-	"{{ $value := .Value }}",
-	"{{ $labels := .Labels }}",
-	"{{ $expr := .Expr }}",
-	"{{ $externalLabels := .ExternalLabels }}",
-	"{{ $externalURL := .ExternalURL }}",
-	"{{ $alertID := .AlertID }}",
-	"{{ $groupID := .GroupID }}",
-	"{{ $activeAt := .ActiveAt }}",
-	"{{ $for := .For }}",
-}
-
-// ExecTemplate executes the Alert template for given
-// map of annotations.
-// Every alert could have a different datasource, so function
-// requires a queryFunction as an argument.
-func (a *Alert) ExecTemplate(q templates.QueryFn, labels, annotations map[string]string) (map[string]string, error) {
-	tplData := AlertTplData{
+// ToTplData converts Alert to AlertTplData,
+// which only exposes necessary fields for template.
+func (a Alert) ToTplData() templates.AlertTplData {
+	return templates.AlertTplData{
 		Value:    a.Value,
-		Labels:   labels,
+		Labels:   a.Labels,
 		Expr:     a.Expr,
 		AlertID:  a.ID,
 		GroupID:  a.GroupID,
 		ActiveAt: a.ActiveAt,
 		For:      a.For,
 	}
-	return ExecTemplate(q, annotations, tplData)
-}
-
-// ExecTemplate executes the given template for given annotations map.
-func ExecTemplate(q templates.QueryFn, annotations map[string]string, tplData AlertTplData) (map[string]string, error) {
-	tmpl, err := templates.GetWithFuncs(templates.FuncsWithQuery(q))
-	if err != nil {
-		return nil, fmt.Errorf("error cloning template: %w", err)
-	}
-	return templateAnnotations(annotations, tplData, tmpl, true)
-}
-
-// ValidateTemplates validate annotations for possible template error, uses empty data for template population
-func ValidateTemplates(annotations map[string]string) error {
-	tmpl, err := templates.GetWithFuncs(nil)
-	if err != nil {
-		return err
-	}
-	_, err = templateAnnotations(annotations, AlertTplData{
-		Labels: map[string]string{},
-		Value:  0,
-	}, tmpl, false)
-	return err
-}
-
-func templateAnnotations(annotations map[string]string, data AlertTplData, tmpl *textTpl.Template, execute bool) (map[string]string, error) {
-	var builder strings.Builder
-	var buf bytes.Buffer
-	eg := new(utils.ErrGroup)
-	r := make(map[string]string, len(annotations))
-	tData := tplData{data, externalLabels, externalURL}
-	header := strings.Join(tplHeaders, "")
-	for key, text := range annotations {
-		// simple check to skip text without template
-		if !strings.Contains(text, "{{") || !strings.Contains(text, "}}") {
-			r[key] = text
-			continue
-		}
-
-		buf.Reset()
-		builder.Reset()
-		builder.Grow(len(header) + len(text))
-		builder.WriteString(header)
-		builder.WriteString(text)
-		// clone a new template for each parse to avoid collision
-		ctmpl, _ := tmpl.Clone()
-		ctmpl = ctmpl.Option("missingkey=zero")
-		if err := templateAnnotation(&buf, builder.String(), tData, ctmpl, execute); err != nil {
-			r[key] = text
-			eg.Add(fmt.Errorf("key %q, template %q: %w", key, text, err))
-			continue
-		}
-		r[key] = buf.String()
-	}
-	return r, eg.Err()
-}
-
-type tplData struct {
-	AlertTplData
-	ExternalLabels map[string]string
-	ExternalURL    string
-}
-
-func templateAnnotation(dst io.Writer, text string, data tplData, tpl *textTpl.Template, execute bool) error {
-	tpl, err := tpl.Parse(text)
-	if err != nil {
-		return fmt.Errorf("error parsing annotation template: %w", err)
-	}
-	if !execute {
-		return nil
-	}
-	if err = tpl.Execute(dst, data); err != nil {
-		return fmt.Errorf("error evaluating annotation template: %w", err)
-	}
-	return nil
 }
 
 func (a Alert) applyRelabelingIfNeeded(relabelCfg *promrelabel.ParsedConfigs) []prompbmarshal.Label {

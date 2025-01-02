@@ -12,6 +12,8 @@ groups:
           dashboard: '{{ $externalURL }}/d/dashboard?orgId=1'
       - alert: AlwaysFiring
         expr: 1
+        annotations:
+          queryValue: "{{ query \"test_query\" | first | value }}"
       - alert: SameAlertNameWithDifferentGroup
         expr: absent(test)
         for: 1m

@@ -8,6 +8,8 @@ tests:
     input_series:
       - series: 'up{job="vmagent2", instance="localhost:9090"}'
         values: "0+0x1440"
+      - series: "test_query"
+        values: "0+1x200"
 
     metricsql_expr_test:
       - expr: suquery_interval_test
@@ -37,6 +39,8 @@ tests:
         exp_alerts:
           - exp_labels:
               cluster: prod
+            exp_annotations:
+              queryValue: "0"
 
       - eval_time: 0
         groupname: group1

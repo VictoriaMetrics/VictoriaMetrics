@@ -64,7 +64,18 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	if err != nil {
 		logger.Fatalf("failed to parse external URL: %w", err)
 	}
-	if err := templates.Load([]string{}, *eu); err != nil {
+	labels := make(map[string]string)
+	for _, s := range externalLabels {
+		if len(s) == 0 {
+			continue
+		}
+		n := strings.IndexByte(s, '=')
+		if n < 0 {
+			logger.Fatalf("missing '=' in `-label`. It must contain label in the form `name=value`; got %q", s)
+		}
+		labels[s[:n]] = s[n+1:]
+	}
+	if err := templates.Init([]string{}, labels, *eu); err != nil {
 		logger.Fatalf("failed to load template: %v", err)
 	}
 	storagePath = filepath.Join(os.TempDir(), testStoragePath)
@@ -84,19 +95,7 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	if len(testfiles) == 0 {
 		logger.Fatalf("no test file found")
 	}
-
-	labels := make(map[string]string)
-	for _, s := range externalLabels {
-		if len(s) == 0 {
-			continue
-		}
-		n := strings.IndexByte(s, '=')
-		if n < 0 {
-			logger.Fatalf("missing '=' in `-label`. It must contain label in the form `name=value`; got %q", s)
-		}
-		labels[s[:n]] = s[n+1:]
-	}
-	_, err = notifier.Init(nil, labels, externalURL)
+	_, err = notifier.Init(nil)
 	if err != nil {
 		logger.Fatalf("failed to init notifier: %v", err)
 	}

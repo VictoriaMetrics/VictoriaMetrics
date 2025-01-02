@@ -1,239 +1,226 @@
 package templates
 
 import (
-	"math"
+	"fmt"
 	"net/url"
-	"strings"
 	"testing"
-	textTpl "text/template"
+	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
-func TestTemplateFuncs_StringConversion(t *testing.T) {
-	f := func(funcName, s, resultExpected string) {
+func TestValidateTemplates(t *testing.T) {
+	f := func(annotations map[string]string, isValid bool) {
 		t.Helper()
 
-		funcs := templateFuncs()
-		v := funcs[funcName]
-		fLocal := v.(func(s string) string)
-		result := fLocal(s)
-		if result != resultExpected {
-			t.Fatalf("unexpected result for %s(%q); got\n%s\nwant\n%s", funcName, s, result, resultExpected)
+		err := ValidateTemplates(annotations)
+		if (err == nil) != isValid {
+			t.Fatalf("failed to validate template, got %t; want %t", (err == nil), isValid)
 		}
 	}
 
-	f("title", "foo bar", "Foo Bar")
-	f("toUpper", "foo", "FOO")
-	f("toLower", "FOO", "foo")
-	f("pathEscape", "foo/bar\n+baz", "foo%2Fbar%0A+baz")
-	f("queryEscape", "foo+bar\n+baz", "foo%2Bbar%0A%2Bbaz")
-	f("jsonEscape", `foo{bar="baz"}`+"\n + 1", `"foo{bar=\"baz\"}\n + 1"`)
-	f("quotesEscape", `foo{bar="baz"}`+"\n + 1", `foo{bar=\"baz\"}\n + 1`)
-	f("htmlEscape", "foo < 10\nabc", "foo &lt; 10\nabc")
-	f("crlfEscape", "foo\nbar\rx", `foo\nbar\rx`)
-	f("stripPort", "foo", "foo")
-	f("stripPort", "foo:1234", "foo")
-	f("stripDomain", "foo.bar.baz", "foo")
-	f("stripDomain", "foo.bar:123", "foo:123")
+	// empty
+	f(map[string]string{}, true)
+
+	// wrong text
+	f(map[string]string{
+		"summary": "{{",
+	}, false)
+
+	// valid
+	f(map[string]string{
+		"value":   "{{$value}}",
+		"summary": "it's a test summary",
+	}, true)
+
+	// invalid variable
+	f(map[string]string{
+		"value":   "{{$invalidValue}}",
+		"summary": "it's a test summary",
+	}, false)
 }
 
-func TestTemplateFuncs_Match(t *testing.T) {
-	funcs := templateFuncs()
-	// check "match" func
-	matchFunc := funcs["match"].(func(pattern, s string) (bool, error))
-	if _, err := matchFunc("invalid[regexp", "abc"); err == nil {
-		t.Fatalf("expecting non-nil error on invalid regexp")
-	}
-	ok, err := matchFunc("abc", "def")
+func TestExecuteWithoutTemplate(t *testing.T) {
+	extLabels := make(map[string]string)
+	const (
+		extCluster = "prod"
+		extDC      = "east"
+		extURL     = "https://foo.bar"
+	)
+	url, _ := url.Parse(extURL)
+	extLabels["cluster"] = extCluster
+	extLabels["dc"] = extDC
+
+	err := Init(nil, extLabels, *url)
 	if err != nil {
-		t.Fatalf("unexpected error")
+		t.Fatalf("cannot init templates: %s", err)
 	}
-	if ok {
-		t.Fatalf("unexpected match")
-	}
-	ok, err = matchFunc("a.+b", "acsdb")
-	if err != nil {
-		t.Fatalf("unexpected error")
-	}
-	if !ok {
-		t.Fatalf("unexpected mismatch")
-	}
-}
 
-func TestTemplateFuncs_Formatting(t *testing.T) {
-	f := func(funcName string, p any, resultExpected string) {
+	f := func(data AlertTplData, annotations, expResults map[string]string) {
 		t.Helper()
 
-		funcs := templateFuncs()
-		v := funcs[funcName]
-		fLocal := v.(func(s any) (string, error))
-		result, err := fLocal(p)
-		if err != nil {
-			t.Fatalf("unexpected error for %s(%f): %s", funcName, p, err)
+		qFn := func(_ string) ([]datasource.Metric, error) {
+			return []datasource.Metric{
+				{
+					Labels: []prompbmarshal.Label{
+						{Name: "foo", Value: "bar"},
+						{Name: "baz", Value: "qux"},
+					},
+					Values:     []float64{1},
+					Timestamps: []int64{1},
+				},
+				{
+					Labels: []prompbmarshal.Label{
+						{Name: "foo", Value: "garply"},
+						{Name: "baz", Value: "fred"},
+					},
+					Values:     []float64{2},
+					Timestamps: []int64{1},
+				},
+			}, nil
 		}
-		if result != resultExpected {
-			t.Fatalf("unexpected result for %s(%f); got\n%s\nwant\n%s", funcName, p, result, resultExpected)
-		}
-	}
 
-	f("humanize1024", float64(0), "0")
-	f("humanize1024", math.Inf(0), "+Inf")
-	f("humanize1024", math.NaN(), "NaN")
-	f("humanize1024", float64(127087), "124.1ki")
-	f("humanize1024", float64(130137088), "124.1Mi")
-	f("humanize1024", float64(133260378112), "124.1Gi")
-	f("humanize1024", float64(136458627186688), "124.1Ti")
-	f("humanize1024", float64(139733634239168512), "124.1Pi")
-	f("humanize1024", float64(143087241460908556288), "124.1Ei")
-	f("humanize1024", float64(146521335255970361638912), "124.1Zi")
-	f("humanize1024", float64(150037847302113650318245888), "124.1Yi")
-	f("humanize1024", float64(153638755637364377925883789312), "1.271e+05Yi")
-
-	f("humanize", float64(127087), "127.1k")
-	f("humanize", float64(136458627186688), "136.5T")
-
-	f("humanizeDuration", 1, "1s")
-	f("humanizeDuration", 0.2, "200ms")
-	f("humanizeDuration", 42000, "11h 40m 0s")
-	f("humanizeDuration", 16790555, "194d 8h 2m 35s")
-
-	f("humanizePercentage", 1, "100%")
-	f("humanizePercentage", 0.8, "80%")
-	f("humanizePercentage", 0.015, "1.5%")
-
-	f("humanizeTimestamp", 1679055557, "2023-03-17 12:19:17 +0000 UTC")
-}
-
-func mkTemplate(current, replacement any) textTemplate {
-	tmpl := textTemplate{}
-	if current != nil {
-		switch val := current.(type) {
-		case string:
-			tmpl.current = textTpl.Must(newTemplate().Parse(val))
-		}
-	}
-	if replacement != nil {
-		switch val := replacement.(type) {
-		case string:
-			tmpl.replacement = textTpl.Must(newTemplate().Parse(val))
-		}
-	}
-	return tmpl
-}
-
-func equalTemplates(tmpls ...*textTpl.Template) bool {
-	var cmp *textTpl.Template
-	for i, tmpl := range tmpls {
-		if i == 0 {
-			cmp = tmpl
-		} else {
-			if cmp == nil || tmpl == nil {
-				if cmp != tmpl {
-					return false
-				}
-				continue
+		for k := range annotations {
+			v, err := ExecuteWithoutTemplate(qFn, annotations[k], data)
+			if err != nil {
+				t.Fatalf("cannot execute template: %s", err)
 			}
-			if len(tmpl.Templates()) != len(cmp.Templates()) {
-				return false
-			}
-			for _, t := range tmpl.Templates() {
-				tp := cmp.Lookup(t.Name())
-				if tp == nil {
-					return false
-				}
-				if tp.Root.String() != t.Root.String() {
-					return false
-				}
+			if v != expResults[k] {
+				t.Fatalf("unexpected result; got %s; want %s", v, expResults[k])
 			}
 		}
-	}
-	return true
-}
 
-func TestTemplatesLoad_Failure(t *testing.T) {
-	f := func(pathPatterns []string, expectedErrStr string) {
-		t.Helper()
-
-		err := Load(pathPatterns, url.URL{})
-		if err == nil {
-			t.Fatalf("expecting non-nil error")
-		}
-
-		errStr := err.Error()
-		if !strings.Contains(errStr, expectedErrStr) {
-			t.Fatalf("the returned error %q doesn't contain %q", errStr, expectedErrStr)
-		}
 	}
 
-	// load template with syntax error
-	f([]string{
-		"templates/other/nested/bad0-*.tpl",
-		"templates/test/good0-*.tpl",
-	}, "failed to parse template glob")
-}
+	// empty-alert
+	f(AlertTplData{}, map[string]string{}, map[string]string{})
 
-func TestTemplatesLoad_Success(t *testing.T) {
-	f := func(pathPatterns []string, expectedTmpl textTemplate) {
-		t.Helper()
+	// no-template
+	f(AlertTplData{
+		Value: 1e4,
+		Labels: map[string]string{
+			"instance": "localhost",
+		},
+	}, map[string]string{
+		"summary":     "it's a test summary",
+		"description": "it's a test description",
+	}, map[string]string{
+		"summary":     "it's a test summary",
+		"description": "it's a test description",
+	})
 
-		masterTmplOrig := masterTmpl
-		defer func() {
-			masterTmpl = masterTmplOrig
-		}()
+	// label-template
+	f(AlertTplData{
+		Value: 1e4,
+		Labels: map[string]string{
+			"job":      "staging",
+			"instance": "localhost",
+		},
+		For: 5 * time.Minute,
+	}, map[string]string{
+		"summary":            "Too high connection number for {{$labels.instance}} for job {{$labels.job}}",
+		"description":        "It is {{ $value }} connections for {{$labels.instance}} for more than {{ .For }}",
+		"non-existing-label": "{{$labels.nonexisting}}",
+	}, map[string]string{
+		"summary":            "Too high connection number for localhost for job staging",
+		"description":        "It is 10000 connections for localhost for more than 5m0s",
+		"non-existing-label": "",
+	})
 
-		if err := Load(pathPatterns, url.URL{}); err != nil {
-			t.Fatalf("cannot load templates: %s", err)
-		}
-		Reload()
+	// label template override
+	f(AlertTplData{
+		Value: 1e4,
+	}, map[string]string{
+		"summary":     `{{- define "default.template" -}} {{ printf "summary" }} {{- end -}} {{ template "default.template" . }}`,
+		"description": `{{- define "default.template" -}} {{ printf "description" }} {{- end -}} {{ template "default.template" . }}`,
+		"value":       `{{$value }}`,
+	}, map[string]string{
+		"summary":     "summary",
+		"description": "description",
+		"value":       "10000",
+	})
 
-		if !equalTemplates(masterTmpl.replacement, expectedTmpl.replacement) {
-			t.Fatalf("unexpected replacement template\ngot\n%+v\nwant\n%+v", masterTmpl.replacement, expectedTmpl.replacement)
-		}
-		if !equalTemplates(masterTmpl.current, expectedTmpl.current) {
-			t.Fatalf("unexpected current template\ngot\n%+v\nwant\n%+v", masterTmpl.current, expectedTmpl.current)
-		}
-	}
+	// expression-template
+	f(AlertTplData{
+		Expr: `vm_rows{"label"="bar"}<0`,
+	}, map[string]string{
+		"exprEscapedQuery":  "{{ $expr|queryEscape }}",
+		"exprEscapedPath":   "{{ $expr|pathEscape }}",
+		"exprEscapedJSON":   "{{ $expr|jsonEscape }}",
+		"exprEscapedQuotes": "{{ $expr|quotesEscape }}",
+		"exprEscapedHTML":   "{{ $expr|htmlEscape }}",
+	}, map[string]string{
+		"exprEscapedQuery":  "vm_rows%7B%22label%22%3D%22bar%22%7D%3C0",
+		"exprEscapedPath":   "vm_rows%7B%22label%22=%22bar%22%7D%3C0",
+		"exprEscapedJSON":   `"vm_rows{\"label\"=\"bar\"}\u003c0"`,
+		"exprEscapedQuotes": `vm_rows{\"label\"=\"bar\"}\u003c0`,
+		"exprEscapedHTML":   "vm_rows{&quot;label&quot;=&quot;bar&quot;}&lt;0",
+	})
 
-	// non existing path
-	pathPatterns := []string{
-		"templates/non-existing/good-*.tpl",
-		"templates/absent/good-*.tpl",
-	}
-	expectedTmpl := mkTemplate(``, nil)
-	f(pathPatterns, expectedTmpl)
+	// query function
+	f(AlertTplData{
+		Expr: `vm_rows{"label"="bar"}>0`,
+	}, map[string]string{
+		"summary": `{{ query "foo" | first | value }}`,
+		"desc":    `{{ range query "bar" }}{{ . | label "foo" }} {{ . | value }};{{ end }}`,
+	}, map[string]string{
+		"summary": "1",
+		"desc":    "bar 1;garply 2;",
+	})
 
-	// existing path
-	pathPatterns = []string{
-		"templates/test/good0-*.tpl",
-	}
-	expectedTmpl = mkTemplate(`
-		{{- define "good0-test.tpl" -}}{{- end -}}
-		{{- define "test.0" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-		{{- define "test.2" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-		{{- define "test.3" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-	`, nil)
-	f(pathPatterns, expectedTmpl)
+	// external
+	f(AlertTplData{
+		Value: 1e4,
+		Labels: map[string]string{
+			"job":      "staging",
+			"instance": "localhost",
+		},
+	}, map[string]string{
+		"url":         "{{ $externalURL }}",
+		"summary":     "Issues with {{$labels.instance}} (dc-{{$externalLabels.dc}}) for job {{$labels.job}}",
+		"description": "It is {{ $value }} connections for {{$labels.instance}} (cluster-{{$externalLabels.cluster}})",
+	}, map[string]string{
+		"url":         extURL,
+		"summary":     fmt.Sprintf("Issues with localhost (dc-%s) for job staging", extDC),
+		"description": fmt.Sprintf("It is 10000 connections for localhost (cluster-%s)", extCluster),
+	})
 
-	// existing path defined template override
-	pathPatterns = []string{
-		"templates/other/nested/good0-*.tpl",
-	}
-	expectedTmpl = mkTemplate(`
-		{{- define "good0-test.tpl" -}}{{- end -}}
-		{{- define "test.0" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-		{{- define "test.1" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-		{{- define "test.3" -}}
-			{{ printf "Hello %s!" externalURL }}
-		{{- end -}}
-	`, nil)
-	f(pathPatterns, expectedTmpl)
+	// alert, group IDs & ActiveAt time
+	f(AlertTplData{
+		AlertID:  42,
+		GroupID:  24,
+		ActiveAt: time.Date(2022, 8, 19, 20, 34, 58, 651387237, time.UTC),
+	}, map[string]string{
+		"url":     "/api/v1/alert?alertID={{$alertID}}&groupID={{$groupID}}",
+		"diagram": "![](http://example.com?render={{$activeAt.Unix}}",
+	}, map[string]string{
+		"url":     "/api/v1/alert?alertID=42&groupID=24",
+		"diagram": "![](http://example.com?render=1660941298",
+	})
+
+	// ActiveAt time is nil
+	f(AlertTplData{}, map[string]string{
+		"default_time": "{{$activeAt}}",
+	}, map[string]string{
+		"default_time": "0001-01-01 00:00:00 +0000 UTC",
+	})
+
+	// ActiveAt custom format
+	f(AlertTplData{
+		ActiveAt: time.Date(2022, 8, 19, 20, 34, 58, 651387237, time.UTC),
+	}, map[string]string{
+		"fire_time": `{{$activeAt.Format "2006/01/02 15:04:05"}}`,
+	}, map[string]string{
+		"fire_time": "2022/08/19 20:34:58",
+	})
+
+	// ActiveAt query range
+	f(AlertTplData{
+		ActiveAt: time.Date(2022, 8, 19, 20, 34, 58, 651387237, time.UTC),
+	}, map[string]string{
+		"grafana_url": `vm-grafana.com?from={{($activeAt.Add (parseDurationTime "1h")).Unix}}&to={{($activeAt.Add (parseDurationTime "-1h")).Unix}}`,
+	}, map[string]string{
+		"grafana_url": "vm-grafana.com?from=1660944898&to=1660937698",
+	})
 }

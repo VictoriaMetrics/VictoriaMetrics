@@ -8,6 +8,8 @@ tests:
     input_series:
       - series: 'up{job="vmagent2", instance="localhost:9090"}'
         values: "0+0x1440"
+      - series: "test_query"
+        values: "1x200"
 
     metricsql_expr_test:
       - expr: suquery_interval_test
@@ -32,7 +34,8 @@ tests:
       - eval_time: 0
         alertname: AlwaysFiring
         exp_alerts:
-          - {}
+          - exp_annotations:
+              queryValue: "1"
 
       - eval_time: 0
         alertname: InstanceDown

@@ -273,6 +273,7 @@ expr: <string>
 
 # Labels to add or overwrite for each alert.
 # In case of conflicts, original labels are kept with prefix `exported_`.
+# label value supports [templating functions](#template-functions), [reusable templates](#reusable-templates) and limited variables, such as {{$value}}, {{$expr}}.
 labels:
   [ <labelname>: <tmpl_string> ]
 

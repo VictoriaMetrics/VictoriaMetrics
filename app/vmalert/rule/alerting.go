@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	textTpl "text/template"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
@@ -47,6 +48,12 @@ type AlertingRule struct {
 	state *ruleState
 
 	metrics *alertingRuleMetrics
+
+	// set rootTemplateName with loaded global template name,
+	// so we can check if the template has changed when evaluating.
+	rootTemplateName     string
+	LabelTemplates       map[string]*textTpl.Template
+	AnnotationsTemplates map[string]*textTpl.Template
 }
 
 type alertingRuleMetrics struct {
@@ -142,7 +149,45 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			}
 			return seriesFetched
 		})
+
+	ar.initTemplate()
+
 	return ar
+}
+
+// initTemplate pre-creates templates that can be reused in execution.
+func (ar *AlertingRule) initTemplate() {
+	currentTmpl := templates.GetCurrentTmpl()
+	ar.rootTemplateName = currentTmpl.Name()
+	ar.LabelTemplates = make(map[string]*textTpl.Template, len(ar.Labels))
+	ar.AnnotationsTemplates = make(map[string]*textTpl.Template, len(ar.Annotations))
+	for k, v := range ar.Labels {
+		var err error
+		tmpl, _ := currentTmpl.Clone()
+		tmpl, err = templates.ParseWithFixedHeader(v, tmpl)
+		if err != nil {
+			// parse can fail in two cases:
+			// 1. the text contains `query` function, which is not supported during rule initialization.
+			// 2. the text itself is invalid.
+			// In both case, we skip the error here, and try it again during rule execution.
+			continue
+		}
+		ar.LabelTemplates[k] = tmpl
+
+	}
+	for k, v := range ar.Annotations {
+		var err error
+		tmpl, _ := currentTmpl.Clone()
+		tmpl, err = templates.ParseWithFixedHeader(v, tmpl)
+		if err != nil {
+			// parse can fail in two cases:
+			// 1. the text contains `query` function, which is not supported during rule initialization.
+			// 2. the text itself is invalid.
+			// In both case, we skip the error here, and try it again during rule execution.
+			continue
+		}
+		ar.AnnotationsTemplates[k] = tmpl
+	}
 }
 
 // close unregisters rule metrics
@@ -225,6 +270,8 @@ func (ar *AlertingRule) updateWith(r Rule) error {
 	ar.KeepFiringFor = nr.KeepFiringFor
 	ar.Labels = nr.Labels
 	ar.Annotations = nr.Annotations
+	ar.initTemplate()
+
 	ar.EvalInterval = nr.EvalInterval
 	ar.Debug = nr.Debug
 	ar.q = nr.q
@@ -279,15 +326,32 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 		}
 		ls.processed[l.Name] = l.Value
 	}
-
-	extraLabels, err := notifier.ExecTemplate(qFn, ar.Labels, notifier.AlertTplData{
+	extraLabels := make(map[string]string, len(ar.Labels))
+	// compare to annotation, label value can only use limited variables for now
+	labelTplData := templates.AlertTplData{
 		Labels: ls.origin,
 		Value:  m.Values[0],
 		Expr:   ar.Expr,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to expand labels: %w", err)
 	}
+	for k := range ar.Labels {
+		if ar.LabelTemplates[k] == nil {
+			// this label may contain `query` function, which requires creating new template with query function in each evaluation.
+			v, err := templates.ExecuteWithoutTemplate(qFn, ar.Labels[k], labelTplData)
+			if err != nil {
+				logger.Errorf("error templating label %q for rule %q: %w", ar.Labels[k], ar.Name, err)
+				v = ar.Labels[k]
+			}
+			extraLabels[k] = v
+			continue
+		}
+		v, err := templates.ExecuteWithTemplate(labelTplData, ar.LabelTemplates[k])
+		if err != nil {
+			logger.Errorf("error templating label %q for rule %q: %w", ar.Labels[k], ar.Name, err)
+			v = ar.Labels[k]
+		}
+		extraLabels[k] = v
+	}
+
 	for k, v := range extraLabels {
 		ls.add(k, v)
 	}
@@ -513,12 +577,18 @@ func (ar *AlertingRule) exec(ctx context.Context, ts time.Time, limit int) ([]pr
 }
 
 func (ar *AlertingRule) expandTemplates(m datasource.Metric, qFn templates.QueryFn, ts time.Time) (*labelSet, map[string]string, error) {
+	// check if the rule template has changed during reload,
+	// if so, label&annotation templates must be re-created.
+	if ar.rootTemplateName != templates.GetCurrentTmpl().Name() {
+		ar.initTemplate()
+	}
+
 	ls, err := ar.toLabels(m, qFn)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to expand labels: %w", err)
 	}
-
-	tplData := notifier.AlertTplData{
+	extraAnnotation := make(map[string]string, len(ar.Annotations))
+	annotationTplData := templates.AlertTplData{
 		Value:    m.Values[0],
 		Labels:   ls.origin,
 		Expr:     ar.Expr,
@@ -527,11 +597,26 @@ func (ar *AlertingRule) expandTemplates(m datasource.Metric, qFn templates.Query
 		ActiveAt: ts,
 		For:      ar.For,
 	}
-	as, err := notifier.ExecTemplate(qFn, ar.Annotations, tplData)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to template annotations: %w", err)
+	for k := range ar.Annotations {
+		if ar.AnnotationsTemplates[k] == nil {
+			// this label may contain `query` function, which requires creating new template with query function in each evaluation.
+			v, err := templates.ExecuteWithoutTemplate(qFn, ar.Annotations[k], annotationTplData)
+			if err != nil {
+				logger.Errorf("error templating annotation %q for rule %q: %w", ar.Annotations[k], ar.Name, err)
+				v = ar.Annotations[k]
+			}
+			extraAnnotation[k] = v
+			continue
+		}
+		v, err := templates.ExecuteWithTemplate(annotationTplData, ar.AnnotationsTemplates[k])
+		if err != nil {
+			logger.Errorf("error templating annotation %q for rule %q: %w", ar.Annotations[k], ar.Name, err)
+			v = ar.Annotations[k]
+		}
+		extraAnnotation[k] = v
 	}
-	return ls, as, nil
+
+	return ls, extraAnnotation, nil
 }
 
 // toTimeSeries creates `ALERTS` and `ALERTS_FOR_STATE` for active alerts
