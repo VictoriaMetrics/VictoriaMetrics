@@ -32,7 +32,7 @@ Also, you can check out the [examples](#examples) section.
 
 ## High availability
 
-`VLogs` doesn't support high availability. Consider using [`victorialogs-single chart`](https://docs.victoriametrics.com/helm/victorialogs-single/), where it's possible to configure relica count in statefulset mode for such purpose.
+`VLogs` doesn't support high availability. Consider using [`victorialogs-single chart`](https://docs.victoriametrics.com/helm/victorialogs-single/), where it's possible to configure replica count in statefulset mode for such purpose.
 
 ## Version management
 
