@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -393,13 +394,26 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 		for _, addr := range hostToAddrs[host] {
 			buCopy := *bu
 			buCopy.Host = addr
-			if port != "" {
-				if n := strings.IndexByte(buCopy.Host, ':'); n >= 0 {
-					// Drop the discovered port and substitute it the port specified in bu.
-					buCopy.Host = buCopy.Host[:n]
-				}
-				buCopy.Host += ":" + port
+
+			hostIP, hostPort, err := net.SplitHostPort(buCopy.Host)
+			if err != nil {
+				// addr does not contain port
+				hostIP = buCopy.Host
 			}
+
+			parsedIP := net.ParseIP(hostIP)
+			// check if is ipv6
+			if parsedIP != nil && parsedIP.To4() == nil {
+				hostIP = fmt.Sprintf("[%s]", parsedIP)
+			}
+
+			buCopy.Host = hostIP
+			if port != "" {
+				buCopy.Host += ":" + port
+			} else if hostPort != "" {
+				buCopy.Host += ":" + hostPort
+			}
+
 			busNew = append(busNew, &backendURL{
 				url: &buCopy,
 			})
