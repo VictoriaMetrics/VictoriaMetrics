@@ -25,8 +25,8 @@ func testGenerateQueries(items int) []string {
 
 func TestParseCache(t *testing.T) {
 	pc := NewParseCache()
-	if pc.Len() != 0 || pc.Misses() != 0 || pc.Requests() != 0 {
-		t.Errorf("unexpected pc.Len()=%d, pc.Misses()=%d, pc.Requests()=%d; expected all to be zero.", pc.Len(), pc.Misses(), pc.Requests())
+	if pc.len() != 0 || pc.misses() != 0 || pc.requests() != 0 {
+		t.Errorf("unexpected pc.Len()=%d, pc.Misses()=%d, pc.Requests()=%d; expected all to be zero.", pc.len(), pc.misses(), pc.requests())
 	}
 
 	q1 := `foo{bar="baz"}`
@@ -35,58 +35,58 @@ func TestParseCache(t *testing.T) {
 	q2 := `foo1{bar1="baz1"}`
 	v2 := testGetParseCacheValue(q2)
 
-	pc.Put(q1, v1)
-	if len := pc.Len(); len != 1 {
+	pc.put(q1, v1)
+	if len := pc.len(); len != 1 {
 		t.Errorf("unexpected value obtained; got %d; want %d", len, 1)
 	}
 
-	if res := pc.Get(q2); res != nil {
+	if res := pc.get(q2); res != nil {
 		t.Errorf("unexpected non-empty value obtained from cache: %d ", res)
 	}
-	if len := pc.Len(); len != 1 {
+	if len := pc.len(); len != 1 {
 		t.Errorf("unexpected value obtained; got %d; want %d", len, 1)
 	}
-	if miss := pc.Misses(); miss != 1 {
+	if miss := pc.misses(); miss != 1 {
 		t.Errorf("unexpected value obtained; got %d; want %d", miss, 1)
 	}
-	if req := pc.Requests(); req != 1 {
+	if req := pc.requests(); req != 1 {
 		t.Errorf("unexpected value obtained; got %d; want %d", req, 1)
 	}
 
-	pc.Put(q2, v2)
-	if len := pc.Len(); len != 2 {
+	pc.put(q2, v2)
+	if len := pc.len(); len != 2 {
 		t.Errorf("unexpected value obtained; got %d; want %d", len, 2)
 	}
 
-	if res := pc.Get(q1); res != v1 {
+	if res := pc.get(q1); res != v1 {
 		t.Errorf("unexpected value obtained; got %v; want %v", res, v1)
 	}
 
-	if res := pc.Get(q2); res != v2 {
+	if res := pc.get(q2); res != v2 {
 		t.Errorf("unexpected value obtained; got %v; want %v", res, v2)
 	}
 
-	pc.Put(q2, v2)
-	if len := pc.Len(); len != 2 {
+	pc.put(q2, v2)
+	if len := pc.len(); len != 2 {
 		t.Errorf("unexpected value obtained; got %d; want %d", len, 2)
 	}
-	if miss := pc.Misses(); miss != 1 {
+	if miss := pc.misses(); miss != 1 {
 		t.Errorf("unexpected value obtained; got %d; want %d", miss, 1)
 	}
-	if req := pc.Requests(); req != 3 {
+	if req := pc.requests(); req != 3 {
 		t.Errorf("unexpected value obtained; got %d; want %d", req, 3)
 	}
 
-	if res := pc.Get(q2); res != v2 {
+	if res := pc.get(q2); res != v2 {
 		t.Errorf("unexpected value obtained; got %v; want %v", res, v2)
 	}
-	if len := pc.Len(); len != 2 {
+	if len := pc.len(); len != 2 {
 		t.Errorf("unexpected value obtained; got %d; want %d", len, 2)
 	}
-	if miss := pc.Misses(); miss != 1 {
+	if miss := pc.misses(); miss != 1 {
 		t.Errorf("unexpected value obtained; got %d; want %d", miss, 1)
 	}
-	if req := pc.Requests(); req != 4 {
+	if req := pc.requests(); req != 4 {
 		t.Errorf("unexpected value obtained; got %d; want %d", req, 4)
 	}
 }
@@ -103,27 +103,27 @@ func TestParseCacheBucketOverflow(t *testing.T) {
 
 	// Fill bucket
 	for i := 0; i < parseBucketMaxLen; i++ {
-		b.Put(queries[i], v)
+		b.put(queries[i], v)
 	}
 	expectedLen = uint64(parseBucketMaxLen)
-	if len := b.Len(); len != expectedLen {
+	if len := b.len(); len != expectedLen {
 		t.Errorf("unexpected value obtained; got %v; want %v", len, expectedLen)
 	}
 
 	// Overflow bucket
 	expectedLen = uint64(parseBucketMaxLen + 1)
-	b.Put(queries[parseBucketMaxLen], v)
-	if len := b.Len(); len != uint64(expectedLen) {
+	b.put(queries[parseBucketMaxLen], v)
+	if len := b.len(); len != uint64(expectedLen) {
 		t.Errorf("unexpected value obtained; got %v; want %v", len, expectedLen)
 	}
 
 	// Clean up;
-	oldLen := b.Len()
+	oldLen := b.len()
 	overflow := int(float64(oldLen) * parseBucketFreePercent)
 	expectedLen = oldLen - uint64(overflow) + 1 // +1 for new entry
 
-	b.Put(queries[parseBucketMaxLen+1], v)
-	if len := b.Len(); len != expectedLen {
+	b.put(queries[parseBucketMaxLen+1], v)
+	if len := b.len(); len != expectedLen {
 		t.Errorf("unexpected value obtained; got %v; want %v", len, expectedLen)
 	}
 }

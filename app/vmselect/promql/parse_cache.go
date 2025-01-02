@@ -16,13 +16,13 @@ import (
 var parseCacheV = func() *parseCache {
 	pc := NewParseCache()
 	metrics.NewGauge(`vm_cache_requests_total{type="promql/parse"}`, func() float64 {
-		return float64(pc.Requests())
+		return float64(pc.requests())
 	})
 	metrics.NewGauge(`vm_cache_misses_total{type="promql/parse"}`, func() float64 {
-		return float64(pc.Misses())
+		return float64(pc.misses())
 	})
 	metrics.NewGauge(`vm_cache_entries{type="promql/parse"}`, func() float64 {
-		return float64(pc.Len())
+		return float64(pc.len())
 	})
 	return pc
 }()
@@ -61,38 +61,38 @@ func NewParseCache() *parseCache {
 	return pc
 }
 
-func (pc *parseCache) Put(q string, pcv *parseCacheValue) {
+func (pc *parseCache) put(q string, pcv *parseCacheValue) {
 	h := xxhash.Sum64String(q)
 	idx := h % parseBucketCount
-	pc.buckets[idx].Put(q, pcv)
+	pc.buckets[idx].put(q, pcv)
 }
 
-func (pc *parseCache) Get(q string) *parseCacheValue {
+func (pc *parseCache) get(q string) *parseCacheValue {
 	h := xxhash.Sum64String(q)
 	idx := h % parseBucketCount
-	return pc.buckets[idx].Get(q)
+	return pc.buckets[idx].get(q)
 }
 
-func (pc *parseCache) Requests() uint64 {
+func (pc *parseCache) requests() uint64 {
 	var n uint64
 	for i := 0; i < parseBucketCount; i++ {
-		n += pc.buckets[i].Requests()
+		n += pc.buckets[i].requests.Load()
 	}
 	return n
 }
 
-func (pc *parseCache) Misses() uint64 {
+func (pc *parseCache) misses() uint64 {
 	var n uint64
 	for i := 0; i < parseBucketCount; i++ {
-		n += pc.buckets[i].Misses()
+		n += pc.buckets[i].misses.Load()
 	}
 	return n
 }
 
-func (pc *parseCache) Len() uint64 {
+func (pc *parseCache) len() uint64 {
 	var n uint64
 	for i := 0; i < parseBucketCount; i++ {
-		n += pc.buckets[i].Len()
+		n += pc.buckets[i].len()
 	}
 	return n
 }
@@ -103,22 +103,14 @@ func newParseBucket() parseBucket {
 	}
 }
 
-func (pb *parseBucket) Requests() uint64 {
-	return pb.requests.Load()
-}
-
-func (pb *parseBucket) Misses() uint64 {
-	return pb.misses.Load()
-}
-
-func (pb *parseBucket) Len() uint64 {
+func (pb *parseBucket) len() uint64 {
 	pb.mu.RLock()
 	n := len(pb.m)
 	pb.mu.RUnlock()
 	return uint64(n)
 }
 
-func (pb *parseBucket) Get(q string) *parseCacheValue {
+func (pb *parseBucket) get(q string) *parseCacheValue {
 	pb.requests.Add(1)
 
 	pb.mu.RLock()
@@ -131,7 +123,7 @@ func (pb *parseBucket) Get(q string) *parseCacheValue {
 	return pcv
 }
 
-func (pb *parseBucket) Put(q string, pcv *parseCacheValue) {
+func (pb *parseBucket) put(q string, pcv *parseCacheValue) {
 	pb.mu.Lock()
 	overflow := len(pb.m) - parseBucketMaxLen
 	if overflow > 0 {

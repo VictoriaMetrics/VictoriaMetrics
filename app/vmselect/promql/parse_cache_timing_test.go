@@ -16,11 +16,11 @@ func BenchmarkCachePutNoOverFlow(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			for i := 0; i < items; i++ {
-				pc.Put(queries[i], v)
+				pc.put(queries[i], v)
 			}
 		}
 	})
-	if len := pc.Len(); len != uint64(items) {
+	if len := pc.len(); len != uint64(items) {
 		b.Errorf("unexpected value obtained; got %d; want %d", len, items)
 	}
 }
@@ -33,14 +33,14 @@ func BenchmarkCacheGetNoOverflow(b *testing.B) {
 	v := testGetParseCacheValue(queries[0])
 
 	for i := 0; i < len(queries); i++ {
-		pc.Put(queries[i], v)
+		pc.put(queries[i], v)
 	}
 	b.ResetTimer()
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			for i := 0; i < items; i++ {
-				if v := pc.Get(queries[i]); v == nil {
+				if v := pc.get(queries[i]); v == nil {
 					b.Errorf("unexpected nil value obtained from cache for query: %s ", queries[i])
 				}
 			}
@@ -60,14 +60,14 @@ func BenchmarkCachePutGetNoOverflow(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			for i := 0; i < items; i++ {
-				pc.Put(queries[i], v)
-				if res := pc.Get(queries[i]); res == nil {
+				pc.put(queries[i], v)
+				if res := pc.get(queries[i]); res == nil {
 					b.Errorf("unexpected nil value obtained from cache for query: %s ", queries[i])
 				}
 			}
 		}
 	})
-	if len := pc.Len(); len != uint64(items) {
+	if len := pc.len(); len != uint64(items) {
 		b.Errorf("unexpected value obtained; got %d; want %d", len, items)
 	}
 }
@@ -80,7 +80,7 @@ func BenchmarkCachePutOverflow(b *testing.B) {
 	v := testGetParseCacheValue(queries[0])
 
 	for i := 0; i < parseCacheMaxLen; i++ {
-		c.Put(queries[i], v)
+		c.put(queries[i], v)
 	}
 
 	b.ReportAllocs()
@@ -88,12 +88,12 @@ func BenchmarkCachePutOverflow(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			for i := parseCacheMaxLen; i < items; i++ {
-				c.Put(queries[i], v)
+				c.put(queries[i], v)
 			}
 		}
 	})
 	maxElemnts := uint64(parseCacheMaxLen + parseBucketCount)
-	if len := c.Len(); len > maxElemnts {
+	if len := c.len(); len > maxElemnts {
 		b.Errorf("cache length is more than expected; got %d, expected %d", len, maxElemnts)
 	}
 }
@@ -106,7 +106,7 @@ func BenchmarkCachePutGetOverflow(b *testing.B) {
 	v := testGetParseCacheValue(queries[0])
 
 	for i := 0; i < parseCacheMaxLen; i++ {
-		c.Put(queries[i], v)
+		c.put(queries[i], v)
 	}
 
 	b.ReportAllocs()
@@ -114,13 +114,13 @@ func BenchmarkCachePutGetOverflow(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			for i := parseCacheMaxLen; i < items; i++ {
-				c.Put(queries[i], v)
-				c.Get(queries[i])
+				c.put(queries[i], v)
+				c.get(queries[i])
 			}
 		}
 	})
 	maxElemnts := uint64(parseCacheMaxLen + parseBucketCount)
-	if len := c.Len(); len > maxElemnts {
+	if len := c.len(); len > maxElemnts {
 		b.Errorf("cache length is more than expected; got %d, expected %d", len, maxElemnts)
 	}
 }
@@ -151,38 +151,12 @@ func BenchmarkParsePromQLWithCacheSimple(b *testing.B) {
 	}
 }
 
-func BenchmarkParsePromQLWithoutCacheSimple(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(testSimpleQueries); j++ {
-			_, err := parsePromQLWithoutCache(testSimpleQueries[j])
-			if err != nil {
-				b.Errorf("unexpected error: %s", err)
-			}
-		}
-	}
-}
-
 func BenchmarkParsePromQLWithCacheSimpleParallel(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			for i := 0; i < len(testSimpleQueries); i++ {
 				_, err := parsePromQLWithCache(testSimpleQueries[i])
-				if err != nil {
-					b.Errorf("unexpected error: %s", err)
-				}
-			}
-		}
-	})
-}
-
-func BenchmarkParsePromQLWithoutCacheSimpleParallel(b *testing.B) {
-	b.ReportAllocs()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			for i := 0; i < len(testSimpleQueries); i++ {
-				_, err := parsePromQLWithoutCache(testSimpleQueries[i])
 				if err != nil {
 					b.Errorf("unexpected error: %s", err)
 				}
@@ -246,39 +220,12 @@ func BenchmarkParsePromQLWithCacheComplex(b *testing.B) {
 	}
 }
 
-func BenchmarkParsePromQLWithoutCacheComplex(b *testing.B) {
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < len(testComplexQueries); j++ {
-			_, err := parsePromQLWithoutCache(testComplexQueries[j])
-			if err != nil {
-				b.Errorf("unexpected error: %s", err)
-			}
-		}
-	}
-}
-
 func BenchmarkParsePromQLWithCacheComplexParallel(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			for i := 0; i < len(testComplexQueries); i++ {
 				_, err := parsePromQLWithCache(testComplexQueries[i])
-				if err != nil {
-					b.Errorf("unexpected error: %s", err)
-				}
-			}
-		}
-	})
-}
-
-func BenchmarkParsePromQLWithoutCacheComplexParallel(b *testing.B) {
-	b.ReportAllocs()
-	b.ResetTimer()
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			for i := 0; i < len(testComplexQueries); i++ {
-				_, err := parsePromQLWithoutCache(testComplexQueries[i])
 				if err != nil {
 					b.Errorf("unexpected error: %s", err)
 				}

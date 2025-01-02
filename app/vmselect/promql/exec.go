@@ -267,7 +267,7 @@ func getReverseCmpOp(op string) string {
 }
 
 func parsePromQLWithCache(q string) (metricsql.Expr, error) {
-	pcv := parseCacheV.Get(q)
+	pcv := parseCacheV.get(q)
 	if pcv == nil {
 		e, err := metricsql.Parse(q)
 		if err == nil {
@@ -281,25 +281,12 @@ func parsePromQLWithCache(q string) (metricsql.Expr, error) {
 			e:   e,
 			err: err,
 		}
-		parseCacheV.Put(q, pcv)
+		parseCacheV.put(q, pcv)
 	}
 	if pcv.err != nil {
 		return nil, pcv.err
 	}
 	return pcv.e, nil
-}
-
-func parsePromQLWithoutCache(q string) (metricsql.Expr, error) {
-	e, err := metricsql.Parse(q)
-	if err != nil {
-		return nil, err
-	}
-	e = metricsql.Optimize(e)
-	e = adjustCmpOps(e)
-	if *treatDotsAsIsInRegexps {
-		e = escapeDotsInRegexpLabelFilters(e)
-	}
-	return e, nil
 }
 
 func escapeDotsInRegexpLabelFilters(e metricsql.Expr) metricsql.Expr {
