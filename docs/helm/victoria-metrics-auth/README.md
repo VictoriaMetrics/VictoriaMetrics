@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.8.0](https://img.shields.io/badge/Version-0.8.0-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.8.2](https://img.shields.io/badge/Version-0.8.2-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-auth)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -129,7 +129,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>affinity</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -140,7 +140,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -151,7 +151,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>config</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">null
 </code>
 </pre>
@@ -162,7 +162,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>containerWorkingDir</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">/
 </code>
 </pre>
@@ -172,7 +172,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>env</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -183,7 +183,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>envFrom</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -194,7 +194,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>extraArgs</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">envflag.enable: true
 envflag.prefix: VM_
 httpListenAddr: :8427
@@ -208,7 +208,7 @@ loggerFormat: json
     <tr>
       <td>extraContainers</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -219,7 +219,7 @@ loggerFormat: json
     <tr>
       <td>extraHostPathMounts</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -230,7 +230,7 @@ loggerFormat: json
     <tr>
       <td>extraLabels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -241,7 +241,7 @@ loggerFormat: json
     <tr>
       <td>extraObjects</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -252,7 +252,7 @@ loggerFormat: json
     <tr>
       <td>extraVolumeMounts</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -263,7 +263,7 @@ loggerFormat: json
     <tr>
       <td>extraVolumes</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -274,7 +274,7 @@ loggerFormat: json
     <tr>
       <td>fullnameOverride</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -285,7 +285,7 @@ loggerFormat: json
     <tr>
       <td>global.cluster.dnsDomain</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">cluster.local.
 </code>
 </pre>
@@ -296,7 +296,7 @@ loggerFormat: json
     <tr>
       <td>global.compatibility</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">openshift:
     adaptSecurityContext: auto
 </code>
@@ -308,7 +308,7 @@ loggerFormat: json
     <tr>
       <td>global.image.registry</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -319,7 +319,7 @@ loggerFormat: json
     <tr>
       <td>global.imagePullSecrets</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -330,7 +330,7 @@ loggerFormat: json
     <tr>
       <td>image.pullPolicy</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">IfNotPresent
 </code>
 </pre>
@@ -341,7 +341,7 @@ loggerFormat: json
     <tr>
       <td>image.registry</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -352,7 +352,7 @@ loggerFormat: json
     <tr>
       <td>image.repository</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">victoriametrics/vmauth
 </code>
 </pre>
@@ -363,7 +363,7 @@ loggerFormat: json
     <tr>
       <td>image.tag</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -374,7 +374,7 @@ loggerFormat: json
     <tr>
       <td>image.variant</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -385,7 +385,7 @@ loggerFormat: json
     <tr>
       <td>imagePullSecrets</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -396,7 +396,7 @@ loggerFormat: json
     <tr>
       <td>ingress.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -407,7 +407,7 @@ loggerFormat: json
     <tr>
       <td>ingress.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -418,7 +418,7 @@ loggerFormat: json
     <tr>
       <td>ingress.extraLabels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -429,7 +429,7 @@ loggerFormat: json
     <tr>
       <td>ingress.hosts</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">- name: vmauth.local
   path:
     - /
@@ -443,7 +443,7 @@ loggerFormat: json
     <tr>
       <td>ingress.ingressClassName</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -454,7 +454,7 @@ loggerFormat: json
     <tr>
       <td>ingress.pathType</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">Prefix
 </code>
 </pre>
@@ -465,7 +465,7 @@ loggerFormat: json
     <tr>
       <td>ingress.tls</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -476,7 +476,7 @@ loggerFormat: json
     <tr>
       <td>ingressInternal.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -487,7 +487,7 @@ loggerFormat: json
     <tr>
       <td>ingressInternal.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -498,7 +498,7 @@ loggerFormat: json
     <tr>
       <td>ingressInternal.extraLabels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -509,7 +509,7 @@ loggerFormat: json
     <tr>
       <td>ingressInternal.hosts</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">- name: vmauth.local
   path:
     - /
@@ -523,7 +523,7 @@ loggerFormat: json
     <tr>
       <td>ingressInternal.ingressClassName</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -534,7 +534,7 @@ loggerFormat: json
     <tr>
       <td>ingressInternal.pathType</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">Prefix
 </code>
 </pre>
@@ -545,7 +545,7 @@ loggerFormat: json
     <tr>
       <td>ingressInternal.tls</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -556,7 +556,7 @@ loggerFormat: json
     <tr>
       <td>initContainers</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -567,7 +567,7 @@ loggerFormat: json
     <tr>
       <td>license</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">key: ""
 secret:
     key: ""
@@ -581,7 +581,7 @@ secret:
     <tr>
       <td>license.key</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -592,7 +592,7 @@ secret:
     <tr>
       <td>license.secret</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">key: ""
 name: ""
 </code>
@@ -604,7 +604,7 @@ name: ""
     <tr>
       <td>license.secret.key</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -615,7 +615,7 @@ name: ""
     <tr>
       <td>license.secret.name</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -626,7 +626,7 @@ name: ""
     <tr>
       <td>nameOverride</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -637,7 +637,7 @@ name: ""
     <tr>
       <td>nodeSelector</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -648,7 +648,7 @@ name: ""
     <tr>
       <td>podAnnotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -659,7 +659,7 @@ name: ""
     <tr>
       <td>podDisruptionBudget</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: false
 labels: {}
 </code>
@@ -671,7 +671,7 @@ labels: {}
     <tr>
       <td>podLabels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -682,7 +682,7 @@ labels: {}
     <tr>
       <td>podSecurityContext</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
 </code>
 </pre>
@@ -693,7 +693,7 @@ labels: {}
     <tr>
       <td>probe.liveness</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">initialDelaySeconds: 5
 periodSeconds: 15
 tcpSocket: {}
@@ -707,7 +707,7 @@ timeoutSeconds: 5
     <tr>
       <td>probe.readiness</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">initialDelaySeconds: 5
 periodSeconds: 15
 tcpSocket: {}
@@ -720,7 +720,7 @@ tcpSocket: {}
     <tr>
       <td>probe.startup</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -731,7 +731,7 @@ tcpSocket: {}
     <tr>
       <td>replicaCount</td>
       <td>int</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">1
 </code>
 </pre>
@@ -742,7 +742,7 @@ tcpSocket: {}
     <tr>
       <td>resources</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -753,7 +753,7 @@ tcpSocket: {}
     <tr>
       <td>secretName</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -764,7 +764,7 @@ tcpSocket: {}
     <tr>
       <td>securityContext</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
 </code>
 </pre>
@@ -775,7 +775,7 @@ tcpSocket: {}
     <tr>
       <td>service.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -786,7 +786,7 @@ tcpSocket: {}
     <tr>
       <td>service.clusterIP</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -797,7 +797,7 @@ tcpSocket: {}
     <tr>
       <td>service.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -808,7 +808,7 @@ tcpSocket: {}
     <tr>
       <td>service.externalIPs</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -819,7 +819,7 @@ tcpSocket: {}
     <tr>
       <td>service.externalTrafficPolicy</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -830,7 +830,7 @@ tcpSocket: {}
     <tr>
       <td>service.extraLabels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -841,7 +841,7 @@ tcpSocket: {}
     <tr>
       <td>service.healthCheckNodePort</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -852,7 +852,7 @@ tcpSocket: {}
     <tr>
       <td>service.ipFamilies</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -863,7 +863,7 @@ tcpSocket: {}
     <tr>
       <td>service.ipFamilyPolicy</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -874,18 +874,18 @@ tcpSocket: {}
     <tr>
       <td>service.loadBalancerIP</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
 </td>
-      <td><p>Service load balacner IP</p>
+      <td><p>Service load balancer IP</p>
 </td>
     </tr>
     <tr>
       <td>service.loadBalancerSourceRanges</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -896,7 +896,7 @@ tcpSocket: {}
     <tr>
       <td>service.servicePort</td>
       <td>int</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">8427
 </code>
 </pre>
@@ -907,7 +907,7 @@ tcpSocket: {}
     <tr>
       <td>service.type</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">ClusterIP
 </code>
 </pre>
@@ -918,7 +918,7 @@ tcpSocket: {}
     <tr>
       <td>serviceAccount.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -929,7 +929,7 @@ tcpSocket: {}
     <tr>
       <td>serviceAccount.create</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -940,7 +940,7 @@ tcpSocket: {}
     <tr>
       <td>serviceAccount.name</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">null
 </code>
 </pre>
@@ -951,7 +951,7 @@ tcpSocket: {}
     <tr>
       <td>serviceMonitor.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -962,7 +962,7 @@ tcpSocket: {}
     <tr>
       <td>serviceMonitor.basicAuth</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -973,7 +973,7 @@ tcpSocket: {}
     <tr>
       <td>serviceMonitor.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -984,7 +984,7 @@ tcpSocket: {}
     <tr>
       <td>serviceMonitor.extraLabels</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -995,7 +995,7 @@ tcpSocket: {}
     <tr>
       <td>serviceMonitor.metricRelabelings</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -1006,7 +1006,7 @@ tcpSocket: {}
     <tr>
       <td>serviceMonitor.relabelings</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>
@@ -1017,7 +1017,7 @@ tcpSocket: {}
     <tr>
       <td>tolerations</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">[]
 </code>
 </pre>

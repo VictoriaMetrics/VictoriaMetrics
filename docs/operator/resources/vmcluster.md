@@ -45,7 +45,7 @@ Also, you can check out the [examples](#examples) section.
 
 ## Requests Load-Balancing
 
- Operator provides enhanced load-balancing mechanism for `vminsert` and `vmselect` clients. By default, operator uses built-in Kubernetes [service]() with `clusterIP` type for clients connection. It's good solution for short lived connections. But it acts poorly with long-lived TCP sessions and leads to the uneven resources utilisation for `vmselect` and `vminsert` components.
+ Operator provides enhanced load-balancing mechanism for `vminsert` and `vmselect` clients. By default, operator uses built-in Kubernetes [service]() with `clusterIP` type for clients connection. It's good solution for short lived connections. But it acts poorly with long-lived TCP sessions and leads to the uneven resources utilization for `vmselect` and `vminsert` components.
 
  Consider the following example:
 
@@ -59,7 +59,7 @@ Also, you can check out the [examples](#examples) section.
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMCluster
 metadata:
-  name: with-balanacer
+  name: with-balancer
 spec:
   retentionPeriod: "4"
   replicationFactor: 1
@@ -624,21 +624,21 @@ kind: VMCluster
 metadata:
   name: vmcluster-ent-example
 spec:
-
   vmstorage:
     vmBackup:
-      # should be true and means that you have the legal right to run a vmstorage enterprise
-      # that can either be a signed contract or an email with confirmation to run the service in a trial period
-      # https://victoriametrics.com/legal/esa/
-      acceptEULA: true
-
-      # using enterprise features: Backup automation
+      # this feature is only available in Victoriametrics Enterprise
       # more details about backup automation you can read on https://docs.victoriametrics.com/vmbackupmanager
       destination: "s3://your_bucket/folder"
+      # Read the object storage credentials from a secret
       credentialsSecret:
         name: remote-storage-keys
         key: credentials
-
+      # customS3Endpoint: 'https://s3.example.com' # uncomment and adjust if you using s3 compatible storage instead of AWS s3
+      # uncomment and adjust to fit your backup schedule
+      # disableHourly: false
+      # disableDaily: false
+      # disableWeekly: false
+      # disableMonthly: false
   # ...other fields...
 
 ---

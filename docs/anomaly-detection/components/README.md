@@ -1,4 +1,4 @@
-This chapter describes different components, that correspond to respective sections of a config to launch VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/overview/)) service:
+This chapter describes different components, that correspond to respective sections of a config to launch VictoriaMetrics Anomaly Detection (or simply [`vmanomaly`](https://docs.victoriametrics.com/anomaly-detection/) service:
 
 - [Model(s) section](https://docs.victoriametrics.com/anomaly-detection/components/models/) - Required
 - [Reader section](https://docs.victoriametrics.com/anomaly-detection/components/reader/) - Required
@@ -6,11 +6,11 @@ This chapter describes different components, that correspond to respective secti
 - [Writer section](https://docs.victoriametrics.com/anomaly-detection/components/writer/) - Required
 - [Monitoring section](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) -  Optional
 
-> **Note**: starting from [v1.7.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v172), once the service starts, automated config validation is performed. Please see container logs for errors that need to be fixed to create fully valid config, visiting sections above for examples and documentation.
+> **Note**: Once the service starts, automated config validation is performed{{% available_from "v1.7.2" anomaly %}}. Please see container logs for errors that need to be fixed to create fully valid config, visiting sections above for examples and documentation.
 
-> **Note**: starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), components' class can be referenced by a short alias instead of a full class path - i.e. `model.zscore.ZscoreModel` becomes `zscore`, `reader.vm.VmReader` becomes `vm`, `scheduler.periodic.PeriodicScheduler` becomes `periodic`, etc. Please see according sections for the details.
+> **Note**: Components' class{{% available_from "v1.13.0" anomaly %}} can be referenced by a short alias instead of a full class path - i.e. `model.zscore.ZscoreModel` becomes `zscore`, `reader.vm.VmReader` becomes `vm`, `scheduler.periodic.PeriodicScheduler` becomes `periodic`, etc. Please see according sections for the details.
 
-> **Note:** Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130) `preset` modes are available for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/).
+> **Note:** `preset` modes are available{{% available_from "v1.13.0" anomaly %}} for `vmanomaly`. Please find the guide [here](https://docs.victoriametrics.com/anomaly-detection/presets/).
 
 Below, you will find an example illustrating how the components of `vmanomaly` interact with each other and with a single-node VictoriaMetrics setup.
 

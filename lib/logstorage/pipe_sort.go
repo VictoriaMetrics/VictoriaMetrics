@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // pipeSort processes '| sort ...' queries.
@@ -36,6 +38,9 @@ type pipeSort struct {
 
 	// The name of the field to store the row rank.
 	rankFieldName string
+
+	// partitionByFields contains fields for partitioning the sorted rows.
+	partitionByFields []string
 }
 
 func (ps *pipeSort) String() string {
@@ -50,15 +55,22 @@ func (ps *pipeSort) String() string {
 	if ps.isDesc {
 		s += " desc"
 	}
+
+	if len(ps.partitionByFields) > 0 {
+		s += " partition by (" + fieldsToString(ps.partitionByFields) + ")"
+	}
+
 	if ps.offset > 0 {
 		s += fmt.Sprintf(" offset %d", ps.offset)
 	}
 	if ps.limit > 0 {
 		s += fmt.Sprintf(" limit %d", ps.limit)
 	}
+
 	if ps.rankFieldName != "" {
 		s += rankFieldNameString(ps.rankFieldName)
 	}
+
 	return s
 }
 
@@ -87,13 +99,19 @@ func (ps *pipeSort) updateNeededFields(neededFields, unneededFields fieldsSet) {
 			unneededFields.remove(bf.name)
 		}
 	}
+
+	if neededFields.contains("*") {
+		unneededFields.removeFields(ps.partitionByFields)
+	} else {
+		neededFields.addFields(ps.partitionByFields)
+	}
 }
 
 func (ps *pipeSort) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeSort) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (ps *pipeSort) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return ps, nil
 }
 
@@ -102,6 +120,18 @@ func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, c
 		return newPipeTopkProcessor(ps, workersCount, stopCh, cancel, ppNext)
 	}
 	return newPipeSortProcessor(ps, workersCount, stopCh, cancel, ppNext)
+}
+
+func (ps *pipeSort) addPartitionByTime(step int64) {
+	if step <= 0 {
+		return
+	}
+	if ps.limit <= 0 {
+		return
+	}
+	if !slices.Contains(ps.partitionByFields, "_time") {
+		ps.partitionByFields = append(ps.partitionByFields, "_time")
+	}
 }
 
 func newPipeSortProcessor(ps *pipeSort, workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
@@ -664,19 +694,6 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 			isDesc = !isDesc
 		}
 
-		if cA.c.isConst && cB.c.isConst {
-			// Fast path - compare const values
-			ccA := cA.c.valuesEncoded[0]
-			ccB := cB.c.valuesEncoded[0]
-			if ccA == ccB {
-				continue
-			}
-			if isDesc {
-				return ccB < ccA
-			}
-			return ccA < ccB
-		}
-
 		if cA.c.isTime && cB.c.isTime {
 			// Fast path - sort by _time
 			timestampsA := bA.br.getTimestamps()
@@ -733,14 +750,15 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 			continue
 		}
 		if isDesc {
-			return lessString(sB, sA)
+			sA, sB = sB, sA
 		}
-		return lessString(sA, sB)
+		// Do not use lessString() here, since we already tried comparing by int64 and float64 values
+		return stringsutil.LessNatural(sA, sB)
 	}
 	return false
 }
 
-func parsePipeSort(lex *lexer) (*pipeSort, error) {
+func parsePipeSort(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("sort") && !lex.isKeyword("order") {
 		return nil, fmt.Errorf("expecting 'sort' or 'order'; got %q", lex.token)
 	}
@@ -798,7 +816,23 @@ func parsePipeSort(lex *lexer) (*pipeSort, error) {
 				return nil, fmt.Errorf("cannot read rank field name: %s", err)
 			}
 			ps.rankFieldName = rankFieldName
+		case lex.isKeyword("partition"):
+			if len(ps.partitionByFields) > 0 {
+				return nil, fmt.Errorf("duplicate 'partition by'")
+			}
+			lex.nextToken()
+			if lex.isKeyword("by") {
+				lex.nextToken()
+			}
+			fields, err := parseFieldNamesInParens(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'partition by' args: %w", err)
+			}
+			ps.partitionByFields = fields
 		default:
+			if len(ps.partitionByFields) > 0 && ps.limit <= 0 {
+				return nil, fmt.Errorf("missing 'limit' for 'partition by'")
+			}
 			return &ps, nil
 		}
 	}

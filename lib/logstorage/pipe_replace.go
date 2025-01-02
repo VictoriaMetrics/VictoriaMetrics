@@ -49,7 +49,7 @@ func (pr *pipeReplace) hasFilterInWithQuery() bool {
 	return pr.iff.hasFilterInWithQuery()
 }
 
-func (pr *pipeReplace) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pr *pipeReplace) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pr.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (pr *pipeReplace) newPipeProcessor(workersCount int, _ <-chan struct{}, _ f
 	return newPipeUpdateProcessor(workersCount, updateFunc, ppNext, pr.field, pr.iff)
 }
 
-func parsePipeReplace(lex *lexer) (*pipeReplace, error) {
+func parsePipeReplace(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("replace") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "replace")
 	}

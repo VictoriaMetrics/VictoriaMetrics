@@ -49,7 +49,7 @@ func (pe *pipeExtract) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }
 
-func (pe *pipeExtract) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pe *pipeExtract) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
@@ -155,9 +155,9 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard := &pep.shards[workerID]
 
 	bm := &shard.bm
-	bm.init(br.rowsLen)
-	bm.setBits()
 	if iff := pe.iff; iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pep.ppNext.writeBlock(workerID, br)
@@ -191,7 +191,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	needUpdates := true
 	vPrev := ""
 	for rowIdx, v := range values {
-		if bm.isSetBit(rowIdx) {
+		if pe.iff == nil || bm.isSetBit(rowIdx) {
 			if needUpdates || vPrev != v {
 				vPrev = v
 				needUpdates = false
@@ -238,7 +238,7 @@ func (pep *pipeExtractProcessor) flush() error {
 	return nil
 }
 
-func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
+func parsePipeExtract(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("extract") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "extract")
 	}

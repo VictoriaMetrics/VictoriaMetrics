@@ -14,6 +14,9 @@ func TestParsePipeStreamContextSuccess(t *testing.T) {
 	f(`stream_context after 10`)
 	f(`stream_context after 0`)
 	f(`stream_context before 10 after 20`)
+	f(`stream_context after 1 time_window 2h30m`)
+	f(`stream_context before 1 time_window 2h30m`)
+	f(`stream_context before 1 after 3 time_window 2h30m`)
 }
 
 func TestParsePipeStreamContextFailure(t *testing.T) {
@@ -29,6 +32,9 @@ func TestParsePipeStreamContextFailure(t *testing.T) {
 	f(`stream_context after before`)
 	f(`stream_context before -4`)
 	f(`stream_context after -4`)
+	f(`stream_context time_window`)
+	f(`stream_context before 3 time_window`)
+	f(`stream_context before 3 time_window foobar`)
 }
 
 func TestPipeStreamContextUpdateNeededFields(t *testing.T) {

@@ -26,7 +26,7 @@ func (ps *pipeBlockStats) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeBlockStats) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (ps *pipeBlockStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return ps, nil
 }
 
@@ -107,7 +107,7 @@ func (psp *pipeBlockStatsProcessor) flush() error {
 	return nil
 }
 
-func parsePipeBlockStats(lex *lexer) (*pipeBlockStats, error) {
+func parsePipeBlockStats(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("block_stats") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "block_stats")
 	}

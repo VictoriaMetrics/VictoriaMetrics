@@ -62,7 +62,7 @@ func (pr *pipeRename) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pr *pipeRename) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pr *pipeRename) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pr, nil
 }
 
@@ -91,7 +91,7 @@ func (prp *pipeRenameProcessor) flush() error {
 	return nil
 }
 
-func parsePipeRename(lex *lexer) (*pipeRename, error) {
+func parsePipeRename(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("rename", "mv") {
 		return nil, fmt.Errorf("expecting 'rename' or 'mv'; got %q", lex.token)
 	}

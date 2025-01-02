@@ -6,7 +6,6 @@ import (
 	"slices"
 	"sort"
 	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -50,6 +49,9 @@ func (pt *pipeTop) String() string {
 	if len(pt.byFields) > 0 {
 		s += " by (" + fieldNamesString(pt.byFields) + ")"
 	}
+	if pt.hitsFieldName != "hits" {
+		s += " hits as " + quoteTokenIfNeeded(pt.hitsFieldName)
+	}
 	if pt.rankFieldName != "" {
 		s += rankFieldNameString(pt.rankFieldName)
 	}
@@ -75,7 +77,7 @@ func (pt *pipeTop) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pt *pipeTop) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pt *pipeTop) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pt, nil
 }
 
@@ -128,6 +130,9 @@ type pipeTopProcessorShard struct {
 type pipeTopProcessorShardNopad struct {
 	// pt points to the parent pipeTop.
 	pt *pipeTop
+
+	// a reduces memory allocations when counting the number of hits over big number of unique values.
+	a chunkedAllocator
 
 	// m holds per-row hits.
 	m map[string]*uint64
@@ -206,9 +211,8 @@ func (shard *pipeTopProcessorShard) updateState(v string, hits uint64) {
 	m := shard.getM()
 	pHits := m[v]
 	if pHits == nil {
-		vCopy := strings.Clone(v)
-		hits := uint64(0)
-		pHits = &hits
+		vCopy := shard.a.cloneString(v)
+		pHits = shard.a.newUint64()
 		m[vCopy] = pHits
 		shard.stateSizeBudget -= len(vCopy) + int(unsafe.Sizeof(vCopy)+unsafe.Sizeof(hits)+unsafe.Sizeof(pHits))
 	}
@@ -459,7 +463,7 @@ func (ptp *pipeTopProcessor) mergeShardsParallel() ([]*pipeTopEntry, error) {
 			}
 			perShardMaps[0][idx] = nil
 
-			entriess[idx] = getTopEntries(m, ptp.pt.limit, ptp.stopCh)
+			entriess[idx] = getTopEntries(m, limit, ptp.stopCh)
 		}(i)
 	}
 	wg.Wait()
@@ -631,7 +635,7 @@ func (wctx *pipeTopWriteContext) flush() {
 	}
 }
 
-func parsePipeTop(lex *lexer) (*pipeTop, error) {
+func parsePipeTop(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("top") {
 		return nil, fmt.Errorf("expecting 'top'; got %q", lex.token)
 	}
@@ -667,6 +671,17 @@ func parsePipeTop(lex *lexer) (*pipeTop, error) {
 	}
 
 	hitsFieldName := "hits"
+	if lex.isKeyword("hits") {
+		lex.nextToken()
+		if lex.isKeyword("as") {
+			lex.nextToken()
+		}
+		s, err := getCompoundToken(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'hits' name: %w", err)
+		}
+		hitsFieldName = s
+	}
 	for slices.Contains(byFields, hitsFieldName) {
 		hitsFieldName += "s"
 	}
@@ -714,7 +729,7 @@ func parseRankFieldName(lex *lexer) (string, error) {
 func rankFieldNameString(rankFieldName string) string {
 	s := " rank"
 	if rankFieldName != "rank" {
-		s += " as " + rankFieldName
+		s += " as " + quoteTokenIfNeeded(rankFieldName)
 	}
 	return s
 }

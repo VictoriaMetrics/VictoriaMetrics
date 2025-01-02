@@ -13,26 +13,84 @@ aliases:
 
 ## tip
 
-- [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0).
+## [v0.51.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.51.2)
 
-## [v0.50.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.50.0) - 22 Nov 2024
+**Release date:** 23 Dec 2024
+
+![AppVersion: v1.108.1](https://img.shields.io/badge/v1.108.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11070)
+![AppVersion: v1.3.2](https://img.shields.io/badge/v1.3.2-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v132)
+
+* SECURITY: upgrade Go builder from Go1.23 to Go1.23.4. See the list of issues addressed in [Go1.23.2](https://github.com/golang/go/issues?q=milestone%3AGo1.23.2+label%3ACherryPickApproved) and [Go1.23.3](https://github.com/golang/go/issues?q=milestone%3AGo1.23.3+label%3ACherryPickApproved).
+
+* BUGFIX: [vmoperator](https://docs.victoriametrics.com/operator/): keep `resourceVersion` and other significant `metadata` fields during `update` objects requests. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1200) for details.
+* BUGFIX: [vmoperator](https://docs.victoriametrics.com/operator/): properly update `updateStatus: failed` field. It fixes excessive errors logging and amount of created Kubernetes `Events`.
+* BUGFIX: [vmoperator](https://docs.victoriametrics.com/operator/): Properly rollback incorrect object configuration. Previously diff for objects could be calculate incorrectly and update request could be skipped.
+* BUGFIX: [vmcluster](https://docs.victoriametrics.com/operator/resources/vmcluster/) and [vmsingle](https://docs.victoriametrics.com/operator/resources/vmsingle/): restore deprecated fields `status.clusterStatus` and `status.singleStatus` removed at `v0.51.0`. Those deprecated fields will be removed at upcoming `v0.52.0` version.
+
+
+## [v0.51.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.51.0)
+
+**Release date:** 19 Dec 2024
+
+![AppVersion: v1.108.1](https://img.shields.io/badge/v1.108.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11070)
+![AppVersion: v1.3.2](https://img.shields.io/badge/v1.3.2-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v132)
+
+**Update note 1: `labels` and `annotations` inheritance is deprecated and will be remove at upcoming `v0.52.0` release. It's recommend to move all needed labels and annotations to the `spec.managedMetadata` fields.
+Operator will preserve `annotations`, but any changes to it will be ignored. `labels` inherited from `CRD.metata.labels` will be removed after upgrade to `v0.52.0`.**
+
+**Update note 2: `VMAuth.spec.unauthorizedAccessConfig` is deprecated in favour of `VMAuth.spec.unauthorizedUserAccessSpec`. Operator still serves deprecated fields until `v1.0` release.**
+
+**Update note 3: The following fields: `[default_url,tlsConfig,discover_backend_ips,headers,response_headers,retry_status_codes,max_concurrent_requests,load_balancing_policy,drop_src_path_prefix_parts]` are deprecated at `VMAuth.spec.` in favour of `VMAuth.spec.unauthorizedUserAccessSpec`. Operator still serves deprecated fields until `v1.0` release.**
+
+- [vmcluster](https://docs.victoriametrics.com/operator/resources/vmcluster): add `"app.kubernetes.io/part-of": "vmcluster"` label to the objects generated for `VMCluster` components. It helps to use labels selectors to identify objects belong to the cluster.
+- [vmauth](https://docs.victoriametrics.com/operator/resources/vmauth/): adds new `spec` setting `unauthorizedUserAccessSpec` that replaces `unauthorizedAccessConfig` and inlined fields from `VMUserConfigOptions`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1168) for details.
+- [vmuser](https://docs.victoriametrics.com/operator/resources/vmuser/): fix missing options `src_headers`, `src_query_args` and `discover_backend_ips` in the generate vmauth config when specified under `vmuserSpec.targetRefs`.
+- [vmuser](https://docs.victoriametrics.com/operator/resources/vmuser/): adds `dump_request_on_errors` to `vmuser.spec`. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7649) for details.
+- [vmoperator](https://docs.victoriametrics.com/operator/): add `annotations` to the `PodDisruptionBudget` and `HorizontalPodAutoscaler` objects generated.
+- [vmoperator](https://docs.victoriametrics.com/operator/): fix the behaviors of `vmagentSpec.ScrapeConfigSelector` and `vmagentSpec.scrapeConfigNamespaceSelector` when `vmagentSpec.selectAllByDefault=false`. Previously, the VMScrapeConfig could be ignored.
+- [vmoperator](https://docs.victoriametrics.com/operator/): fix the behaviors of `xxxNamespaceSelector` when `vmagentSpec.selectAllByDefault=true`. See [this doc](https://docs.victoriametrics.com/operator/resources/vmagent/#scraping) for detailed rules.
+- [vmoperator](https://docs.victoriametrics.com/operator/): add support of `license.forceOffile` and `license.reloadInterval` options. See [this doc](https://docs.victoriametrics.com/enterprise/) for the details.
+- [vmoperator](https://docs.victoriametrics.com/operator/): properly add `securityContext` to the `containers` with `useStrictSecurity: false`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1184) for details.
+- [vmoperator](https://docs.victoriametrics.com/operator/): Add new default security option to `containers` with enabled `useStrictSecurity: true`. It sets `privileged: false`.
+- [vmoperator](https://docs.victoriametrics.com/operator/): Provided manifest without webhook
+- [vmoperator](https://docs.victoriametrics.com/operator/): change structured logging. Move irrelevant fields into the `msg` body, change `logger` field to properly display `controller.CRD` name. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1191) for details.
+- [vmoperator](https://docs.victoriametrics.com/operator/): Updated default versions for VM apps to v1.108.1 version
+- [api](https://docs.victoriametrics.com/operator/api): add new field `managedMetadata` to `VMCluster.spec`, `VMAgent.spec`,`VMAlert.spec`, `VMAuth.spec`,`VMAlertmanager.Spec`, `VMSingle.spec` and`VLogs.spec`. It controls `labels` and `annotations` added to the objects created operator (such as `Deployment`). See [this issue](https://github.com/VictoriaMetrics/operator/issues/1171) for details.
+- [api](https://docs.victoriametrics.com/operator/api): upgrade Kubernetes(v0.31.3) and controller-runtime(v1.19.3) dependencies. Remove versions pin with `replace` directive from `go.mod`.
+- [api](https://docs.victoriametrics.com/operator/api): rework `status` sub-resource for `VMUser`, `VMAlertmanager`, `VMRule` and `VMScrape.*` objects. Add new `conditions` field, that represents resources conditions. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1155) for details.
+
+
+## [v0.50.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.50.0)
+
+**Release date:** 22 Nov 2024
+
+![AppVersion: v1.106.1](https://img.shields.io/badge/v1.106.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11061)
+![AppVersion: v0.32.0](https://img.shields.io/badge/v0.32.0-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v0320)
 
 - [vmoperator](https://docs.victoriametrics.com/operator/): add missing `container` labels to the metrics discovered with `VMServiceScrape` for `endpointslices` discovery role.
-- [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.106.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.1).
 - [vmoperator](https://docs.victoriametrics.com/operator/): add new variable `VM_VMSERVICESCRAPEDEFAULT_ENFORCEENDPOINTSLICES` to use `endpointslices` instead of `endpoints` as discovery role for VMServiceScrape when generate scrape config for VMAgent.
 - [vmoperator](https://docs.victoriametrics.com/operator/): adds new flag `loggerJSONFields` to the operator logger configuration. It allows to change json encoder fields. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1157) for details.
 - [api](https://docs.victoriametrics.com/operator/api): adds new status field `observedGeneration`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1155) for details.
 - [api](https://docs.victoriametrics.com/operator/api): unify `updateStatus` field for CRD objects. It replaces `status`, `clusterStatus` and `singleStatus` for `VLogs`, `VMCluster` and `VMSingle` with generic `updateStatus`.
-- [alerts]: added cluster label for multicluster alerts.
 
-## [v0.49.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.1) - 11 Nov 2024
+## [v0.49.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.1)
+
+**Release date:** 11 Nov 2024
+
+![AppVersion: v1.106.1](https://img.shields.io/badge/v1.106.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11061)
+![AppVersion: v0.32.0](https://img.shields.io/badge/v0.32.0-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v0320)
 
 - [vmrule](https://docs.victoriametrics.com/operator/resources/vmrule/): properly validate rules for [vlogs](https://docs.victoriametrics.com/victorialogs/vmalert/) group `type`.
 - [operator](https://docs.victoriametrics.com/operator/): properly apply changes to the [converted](https://docs.victoriametrics.com/operator/migration/#objects-conversion) `VMScrapeConfig` during operator start-up.
 - [operator](https://docs.victoriametrics.com/operator/): properly set  `operational` update status for CRDs. Previously, `operational` status could be set before rollout finishes at Kubernetes due to bug at Kubernetes `controller-manager`.
 
 
-## [v0.49.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.0) - 15 Oct 2024
+## [v0.49.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.49.0)
+
+**Release date:** 15 Oct 2024
+
+![AppVersion: v1.106.0](https://img.shields.io/badge/v1.106.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11060)
+![AppVersion: v0.32.0](https://img.shields.io/badge/v0.32.0-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v0320)
 
 - [operator](https://docs.victoriametrics.com/operator/): properly apply `useStrictSecurity: true` to the `initContainers` for `VMAuth`, `VMAgent` and `VMAlertmanager`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1134) for details.
 - [vmauth](https://docs.victoriametrics.com/operator/resources/vmauth): Moved `spec.configSecret` to `spec.externalConfig.secretRef.name` and added `spec.externalConfig.localPath` to be able to provide custom configs via sidecar.
@@ -41,9 +99,13 @@ aliases:
 - [vmalertmanager](https://docs.victoriametrics.com/operator/resources/vmalertmanager): properly trigger reload when `ConfigMap` provided via `.spec.configMap` are changed.
 - [operator](https://docs.victoriametrics.com/operator/): fixed operator reconcile on storage size change
 - [operator](https://docs.victoriametrics.com/operator/): fixed converting AlertmanagerConfig to VMAlertmanagerConfig
-- [vmoperator](https://docs.victoriametrics.com/operator/): bump default version of VictoriaMetrics components to [1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0).
 
-## [v0.48.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.4) - 15 Oct 2024
+## [v0.48.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.4)
+
+**Release date:** 15 Oct 2024
+
+![AppVersion: v1.103.0](https://img.shields.io/badge/v1.103.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11030)
+![AppVersion: v0.32.0](https://img.shields.io/badge/v0.32.0-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v0320)
 
 - [api](https://docs.victoriametrics.com/operator/api): adds new fields `maxDiskUsagePerUrl` and`forceVMProto` to the `VMagent` `remoteWriteSpec`
 - [vmuser](https://docs.victoriametrics.com/operator/resources/vmuser/): fixes the protocol of generated CRD target access url for vminsert and vmstorage when TLS is enabled.
@@ -51,24 +113,43 @@ aliases:
 - [vmagent](https://docs.victoriametrics.com/operator/resources/vmagent/): properly assign `OwnerRefrence` for `Role` and `RoleBinding` at `single-namespace` operator mode.
 - [operator](https://docs.victoriametrics.com/operator/): fixes pod scheduling with `useStrictSecurity` enabled by removing default values for `AppArmorProfile` and `SeccompProfile`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1120) for details.
 
-## [v0.48.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.3) - 29 Sep 2024
+## [v0.48.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.3)
+
+**Release date:** 29 Sep 2024
+
+![AppVersion: v1.103.0](https://img.shields.io/badge/v1.103.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11030)
+![AppVersion: v0.32.0](https://img.shields.io/badge/v0.32.0-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v0320)
 
 - [vmcluster](https://docs.victoriametrics.com/operator/resources/vmcluster): properly apply global container registry from configuration. It was ignored for `VMCluster` since `v0.48.0` release. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1118) for details.
-- [operator](https://docs.victoriametrics.com/operator/): updates default vlogs app version to v0.32.0
 - [operator](https://docs.victoriametrics.com/operator/): adds new flag `--disableControllerForCRD`. It allows to disable reconcile controller for the given comma-separated list of CRD names. See [this issue](https://github.com/VictoriaMetrics/operator/issues/528) for details.
 
-## [v0.48.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.2) - 27 Sep 2024
+## [v0.48.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.2)
+
+**Release date:** 27 Sep 2024
+
+![AppVersion: v1.103.0](https://img.shields.io/badge/v1.103.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11030)
+![AppVersion: v0.31.0](https://img.shields.io/badge/v0.31.0-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v0310)
 
 - [operator](https://docs.victoriametrics.com/operator/): properly expose `vm_app_version` metric tag with `version` and `short_version` build info. It was broken since v0.46.0 release.
 - [operator](https://docs.victoriametrics.com/operator/): changes default value for `controller.maxConcurrentReconciles` from `1` to `5`. It should improve reconcile performance for the most installations.
 - [operator](https://docs.victoriametrics.com/operator/): expose new runtime metrics `rest_client_request_duration_seconds`, `sched_latencies_seconds`. It allows to better debug operator reconcile latencies.
 
-## [v0.48.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.1) - 26 Sep 2024
+## [v0.48.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.1)
+
+**Release date:** 26 Sep 2024
+
+![AppVersion: v1.103.0](https://img.shields.io/badge/v1.103.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11030)
+![AppVersion: v0.28.0](https://img.shields.io/badge/v0.28.0-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v0280)
 
 - [vmalertmanager](https://docs.victoriametrics.com/operator/resources/vmalertmanager): properly build service, previously port by number instead of name was used. It produced `updating service` log messages.
 - [vmcluster](https://docs.victoriametrics.com/operator/resources/vmcluster): properly add `imagePullSecrets` to the components. Due to bug at `0.48.0` operator ignored `vmcluster.spec.imagePullSecrets` See [this issue](https://github.com/VictoriaMetrics/operator/issues/1116) for details.
 
-## [v0.48.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.0) - 25 Sep 2024
+## [v0.48.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.48.0)
+
+**Release date:** 25 Sep 2024
+
+![AppVersion: v1.103.0](https://img.shields.io/badge/v1.103.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11030)
+![AppVersion: v0.32.0](https://img.shields.io/badge/v0.32.0-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v0320)
 
 - [api](https://docs.victoriametrics.com/operator/api): adds new fields `useVMConfigReloader`, `configReloaderImageTag`, `configReloaderResources` to to the `VMagent`, `VMAlert`, `VMAuth`, and `VMAlertmanager`.
 - [api/vmalertmanager](https://docs.victoriametrics.com/operator/api/index.html#vmalertmanagerspec): adds new field `enforcedTopRouteMatchers`. It adds given alert label matchers to the top route of any `VMAlertmanagerConfig`.  See this [issue](https://github.com/VictoriaMetrics/operator/issues/1096) for details.
@@ -79,29 +160,42 @@ aliases:
 - [api](https://docs.victoriametrics.com/operator/api): Extends applications `securityContext` and apply security configuration parameters to the containers.
 - [api](https://docs.victoriametrics.com/operator): deletes unused env variables: `VM_DEFAULTLABELS`, `VM_PODWAITREADYINITDELAY`. Adds new variable `VM_APPREADYTIMEOUT`.
 - [vmalert](https://docs.victoriametrics.com/operator/resources/vmalert/): adds missing `hostAliases` fields to spec. See [this](https://github.com/VictoriaMetrics/operator/issues/1099) issue for details.
-- [operator](https://docs.victoriametrics.com/operator/): updates default vm apps version to v1.103.0
 - [vmsingle/vlogs](https://docs.victoriametrics.com/operator/resources): makes better compatible with argo-cd by adding ownerReference to PersistentVolumeClaim. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1091) for details.
 - [operator](https://docs.victoriametrics.com/operator/): reduces reconcile latency. See this [commit](2a9d09d0131cc10a0f9e32f0e2e054687ada78f7) for details.
 - [operator](https://docs.victoriametrics.com/operator/): reduces load on kubernetes api-server. See this commits: [commit-0](a0145b8a89dd5bb9051f8d4359b6a70c1d1a95ce), [commit-1](e2fbbd3e37146670f656d700ad0f64b2c299b0a0), [commit-2](184ba19a5f1d10dc2ac1bf018b2729f64e2a8c25).
-- [operator](https://docs.victoriametrics.com/operator/): enables client cache back for `secrets` and `configmaps`. Adds new flag `-controller.disableCacheFor=seccret,configmap` to disable it if needed.
+- [operator](https://docs.victoriametrics.com/operator/): enables client cache back for `secrets` and `configmaps`. Adds new flag `-controller.disableCacheFor=secret,configmap` to disable it if needed.
 - [operator](https://docs.victoriametrics.com/operator/): made webhook port configurable. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1106) for details.
 - [operator](https://docs.victoriametrics.com/operator/): operator trims spaces from `Secret` and `Configmap` values by default. This behaviour could be changed with flag `disableSecretKeySpaceTrim`. Related [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6986).
 - [operator](#https://docs.victoriametrics.com/operator/): expose again only command-line flags related to the operator. Release [v0.45.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.45.0) added regression with incorrectly exposed flags.
 
-## [v0.47.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.3) - 28 Aug 2024
+## [v0.47.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.3)
+
+**Release date:** 28 Aug 2024
+
+![AppVersion: v1.102.1](https://img.shields.io/badge/v1.102.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11021)
+![AppVersion: v0.28.0](https://img.shields.io/badge/v0.28.0-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v0280)
 
 - [operator](https://docs.victoriametrics.com/operator/): fixes statefulset reconcile endless loop bug introduced at v0.47.0 version with [commit](https://github.com/VictoriaMetrics/operator/commit/57b65771b29ffd8b5d577e160aacddf0481295ee).
 
-## [v0.47.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.2) - 26 Aug 2024
+## [v0.47.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.2)
+
+**Release date:** 26 Aug 2024
+
+![AppVersion: v1.102.1](https://img.shields.io/badge/v1.102.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11021)
+![AppVersion: v0.28.0](https://img.shields.io/badge/v0.28.0-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v0280)
 
 - [vmalertmanager](https://docs.victoriametrics.com/operator/resources/vmalertmanager): allow to change webserver listen port with `spec.Port`. See this [PR](https://github.com/VictoriaMetrics/operator/pull/1082) for details.
-- [operator](https://docs.victoriametrics.com/operator/): updates default vm apps version to v1.102.1
 - [operator](https://docs.victoriametrics.com/operator/): fixes statefulset `rollingUpdate` strategyType readiness check.
 - [operator](https://docs.victoriametrics.com/operator/): fixes statefulset reconcile endless loop bug introduced at v0.47.1 version with [commit](https://github.com/VictoriaMetrics/operator/commit/57b65771b29ffd8b5d577e160aacddf0481295ee).
 - [vmuser](https://docs.victoriametrics.com/operator/resources/vmuser/): fixes `crd.kind` enum param for `VMAlertmanager`, it now supports both `VMAlertmanager` and `VMAlertManager`. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1083) for details.
 - [operator](https://docs.victoriametrics.com/operator/): adds sorting for `configReloaderExtraArgs`.
 
-## [v0.47.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.1) - 23 Aug 2024
+## [v0.47.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.1)
+
+**Release date:** 23 Aug 2024
+
+![AppVersion: v1.102.0](https://img.shields.io/badge/v1.102.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11020)
+![AppVersion: v0.28.0](https://img.shields.io/badge/v0.28.0-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v0280)
 
 **It is recommended upgrading to [operator v0.47.2](https://docs.victoriametrics.com/operator/changelog/#v0471---23-aug-2024) because v0.47.1 contains a bug, which can lead to endless statefulset reconcile loop.**
 
@@ -110,7 +204,12 @@ aliases:
 - [operator](https://docs.victoriametrics.com/operator/): fixed Prometheus scrape config metricsPath conversion. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1073)
 - [config-reloader](https://docs.victoriametrics.com/operator/): Added `reload` prefix to all config-reloader `tls*` flags to avoid collision with flags from external package. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1072)
 
-## [v0.47.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.0) - 15 Aug 2024
+## [v0.47.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.47.0)
+
+**Release date:** 15 Aug 2024
+
+![AppVersion: v1.102.0](https://img.shields.io/badge/v1.102.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11020)
+![AppVersion: v0.28.0](https://img.shields.io/badge/v0.28.0-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v0280)
 
 ### Breaking changes
 
@@ -134,7 +233,11 @@ aliases:
 - [vmagent/vmsingle](https://docs.victoriametrics.com/operator/resources): sync stream aggregation options `dropInputLabels`, `ignoreFirstIntervals`, `ignoreOldSamples` from [upstream](https://docs.victoriametrics.com/stream-aggregation/), and support using configMap as the source of aggregation rules.
 - [operator](https://docs.victoriametrics.com/operator/): added `-client.qps` and `-client.burst` flags to override default QPS and burst K8S params. Related [issue](https://github.com/VictoriaMetrics/operator/issues/1059).
 
-## [v0.46.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.46.4) - 9 Jul 2024
+## [v0.46.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.46.4)
+
+**Release date:** 9 Jul 2024
+
+![AppVersion: v1.101.0](https://img.shields.io/badge/v1.101.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11010)
 
 ### Breaking changes
 
@@ -145,13 +248,21 @@ aliases:
 - [operator](https://docs.victoriametrics.com/operator/): switches from distroless to scratch base image. See this commit 768bf76bdd1ce2080c214cf164f95711d836b960 for details.
 - [config-reloader](https://docs.victoriametrics.com/operator/): do not specify `command` for container. `command` configured at `docker image` level. See this commit 2192115488e6f2be16bde7ddd71426e305a16144 for details.
 
-## [v0.46.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.46.3) - 5 Jul 2024
+## [v0.46.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.46.3)
+
+**Release date:** 5 Jul 2024
+
+![AppVersion: v1.101.0](https://img.shields.io/badge/v1.101.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11010)
 
 - [operator](https://docs.victoriametrics.com/operator/): fixes `config-reloader` image tag name after 0.46.0 release. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1017) for details.
 - [prometheus-converter](https://docs.victoriametrics.com/operator/): fixes panic at `PodMonitor` convertion with configured `tlsConfig`. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1025) for details.
 - [api](https://docs.victoriametrics.com/operator/api): return back `targetPort` for `VMPodScrape` definition. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1015) for details.
 
-## [v0.46.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.46.0) - 3 Jul 2024
+## [v0.46.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.46.0)
+
+**Release date:** 3 Jul 2024
+
+![AppVersion: v1.101.0](https://img.shields.io/badge/v1.101.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11010)
 
 ### Breaking changes
 
@@ -174,9 +285,11 @@ aliases:
 
 - [vmscrapeconfig](https://docs.victoriametrics.com/operator/api#vmscrapeconfig) - added `max_scrape_size` parameter for scrape protocols configuration
 
-<a name="v0.45.0"></a>
+## [v0.45.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.45.0)
 
-## [v0.45.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.45.0) - 10 Jun 2024
+**Release date:** 10 Jun 2024
+
+![AppVersion: v1.101.0](https://img.shields.io/badge/v1.101.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11010)
 
 - [operator](#https://docs.victoriametrics.com/operator/): expose only command-line flags related to the operator. Remove all transitive dependency flags. See this [issue](https://github.com/VictoriaMetrics/operator/issues/963) for details.
 - [vmalertmanager](https://docs.victoriametrics.com/operator/api#vmalertmanager): ignores content of `cr.spec.configSecret` if it's name clashes with secret used by operator for storing alertmanager config. See this [issue](https://github.com/VictoriaMetrics/operator/issues/954) for details.
@@ -187,7 +300,11 @@ aliases:
 - [prometheus-converter](https://docs.victoriametrics.com/operator/): removed dependence on getting the list of API resources for all API groups in the cluster (including those that are not used by the operator). Now API resources are requested only for the required groups (monitoring.coreos.com/*).
 - [alertmanagerconfig-converter](https://docs.victoriametrics.com/operator/): fix alertmanagerconfig converting with receiver `opsgenie_configs`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/968).
 
-## [v0.44.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.44.0) - 9 May 2024
+## [v0.44.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.44.0)
+
+**Release date:** 9 May 2024
+
+![AppVersion: v1.101.0](https://img.shields.io/badge/v1.101.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11010)
 
 - [vmagent](https://docs.victoriametrics.com/operator/api#vmagent): adds new fields into `streamAggrConfig`: `dedup_interval`, `ignore_old_samples`, `keep_metric_names`, `no_align_flush_to_interval`. It's only possible to use it with v1.100+ version of `vmagent`. See this [issue](https://github.com/VictoriaMetrics/operator/issues/936) for details.
 - [operator](https://docs.victoriametrics.com/operator/): use `Patch` for `finalizers` set/unset operations. It must fix possible issues with `CRD` objects mutations. See this [issue](https://github.com/VictoriaMetrics/operator/issues/946) for details.
@@ -198,42 +315,54 @@ aliases:
 - [prometheus-converter](https://docs.victoriametrics.com/operator/): fixes owner reference type on VMScrapeConfig objects
 - [vmauth&vmuser](https://docs.victoriametrics.com/operator/api#vmauth): sync config fields from [upstream](https://docs.victoriametrics.com/vmauth), e.g., src_query_args, discover_backend_ips.
 
-<a name="v0.43.5"></a>
+## [v0.43.5](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.5)
 
-## [v0.43.5](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.5) - 26 Apr 2024
+**Release date:** 26 Apr 2024
+
+![AppVersion: v1.100.1](https://img.shields.io/badge/v1.100.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11001)
 
 - Update VictoriaMetrics image tags to [v1.101.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.101.0).
 
-<a name="v0.43.4"></a>
+## [v0.43.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.4)
 
-## [v0.43.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.4) - 25 Apr 2024
+**Release date:** 25 Apr 2024
+
+![AppVersion: v1.100.1](https://img.shields.io/badge/v1.100.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11001)
 
 - [operator](https://docs.victoriametrics.com/operator/): properly set status to `expanding` for `VMCluster` during initial creation. Previously, it was always `operational`.
 - [operator](https://docs.victoriametrics.com/operator/): adds more context to `Deployment` and `Statefulset` watch ready functions. Now, it reports state of unhealthy pod. It allows to find issue with it faster.
 
-<a name="v0.43.3"></a>
+## [v0.43.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.3)
 
-## [v0.43.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.3) - 23 Apr 2024
+**Release date:** 23 Apr 2024
+
+![AppVersion: v1.100.1](https://img.shields.io/badge/v1.100.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11001)
 
 - [operator](https://docs.victoriametrics.com/operator/): fix conversion from `ServiceMonitor` to `VMServiceScrape`, `bearerTokenSecret` is dropped mistakenly since [v0.43.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.0). See [this issue](https://github.com/VictoriaMetrics/operator/issues/932).
 - [operator](https://docs.victoriametrics.com/operator/): fix selector match for config resources like VMUser, VMRule... , before it could be ignored when update resource labels.
 
-<a name="v0.43.2"></a>
+## [v0.43.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.2)
 
-## [v0.43.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.2) - 22 Apr 2024
+**Release date:** 22 Apr 2024
+
+![AppVersion: v1.100.1](https://img.shields.io/badge/v1.100.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11001)
 
 - [vmagent](https://docs.victoriametrics.com/operator/api#vmagent): fixes bug with `ServiceAccount` not found with `ingestOnlyMode`.
 - [vmagent](https://docs.victoriametrics.com/operator/api#vmagent): fixes `unknown long flag '--rules-dir'` for prometheus-config-reloader.
 
-<a name="v0.43.1"></a>
+## [v0.43.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.1)
 
-## [v0.43.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.1) - 18 Apr 2024
+**Release date:** 18 Apr 2024
+
+![AppVersion: v1.100.1](https://img.shields.io/badge/v1.100.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11001)
 
 - [operator](https://docs.victoriametrics.com/operator/): properly add `liveness` and `readiness` probes to `config-reloader`, if `VM_USECUSTOMCONFIGRELOADER=false`.
 
-<a name="v0.43.0"></a>
+## [v0.43.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.0)
 
-## [v0.43.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.43.0) - 18 Apr 2024
+**Release date:** 18 Apr 2024
+
+![AppVersion: v1.100.1](https://img.shields.io/badge/v1.100.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11001)
 
 **Update note: [vmcluster](https://docs.victoriametrics.com/operator/api#vmcluster): remove fields `VMClusterSpec.VMInsert.Name`, `VMClusterSpec.VMStorage.Name`, `VMClusterSpec.VMSelect.Name`, they're marked as deprecated since v0.21.0. See [this pull request](https://github.com/VictoriaMetrics/operator/pull/907).**
 **Update note: PodSecurityPolicy supports was deleted. Operator no long creates PSP related objects since it's no longer supported by Kubernetes actual versions. See this [doc](https://kubernetes.io/blog/2021/04/08/kubernetes-1-21-release-announcement/#podsecuritypolicy-deprecation) for details.**
@@ -265,31 +394,39 @@ aliases:
 - scrape CRDs: fix scrape_config filed `disable_keep_alive`, before it's misconfigured as `disable_keepalive` and won't work.
 - scrape CRDs: deprecated option `relabel_debug` and  `metric_relabel_debug`, they were deprecated since [v1.85.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.0).
 
-<a name="v0.42.3"></a>
+## [v0.43.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.3)
 
-## [v0.43.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.3) - 12 Mar 2024
+**Release date:** 12 Mar 2024
+
+![AppVersion: v1.100.1](https://img.shields.io/badge/v1.100.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11001)
 
 - [vmalert](https://docs.victoriametrics.com/operator/api#vmalert): do not add `notifiers.*` flags in case `notifier.blackhole` is provided via `spec.extraArgs`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/894) for details.
 - [operator](https://docs.victoriametrics.com/operator/): properly build liveness probe scheme with enabled `tls`. Previously it has hard-coded `HTTP` scheme. See this [issue](https://github.com/VictoriaMetrics/operator/issues/896) for details.
 - [operator](https://docs.victoriametrics.com/operator/): do not perform a PVC size check on `StatefulSet` with `0` replicas. It allows to creates CRDs with `0` replicas for later conditional resizing.
 - [vmalertmanager](https://docs.victoriametrics.com/operator/api#vmalertmanager): properly print columns at CRD `replicaCount` and `version` status fields.
 
-<a name="v0.42.2"></a>
+## [v0.42.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.2)
 
-## [v0.42.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.2) - 6 Mar 2024
+**Release date:** 6 Mar 2024
+
+![AppVersion: v1.99.0](https://img.shields.io/badge/v1.99.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1990)
 
 - [operator](https://docs.victoriametrics.com/operator/): fixes alertmanager args typo.
 - [prometheus-converter](https://docs.victoriametrics.com/operator/): adds new flag `controller.prometheusCRD.resyncPeriod` which allows to configure resync period of prometheus CRD objects. See this [issue](https://github.com/VictoriaMetrics/operator/issues/869) for details.
 
-<a name="v0.42.1"></a>
+## [v0.42.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.1)
 
-## [v0.42.](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.1) - 5 Mar 2024
+**Release date:** 5 Mar 2024
+
+![AppVersion: v1.99.0](https://img.shields.io/badge/v1.99.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1990)
 
 - [operator](https://docs.victoriametrics.com/operator/): properly watch for prometheus CRD objects. See this [issue](https://github.com/VictoriaMetrics/operator/issues/892) for details.
 
-<a name="v0.42.0"></a>
+## [v0.42.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.0)
 
-## [v0.42.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.42.0) - 4 Mar 2024
+**Release date:** 4 Mar 2024
+
+![AppVersion: v1.99.0](https://img.shields.io/badge/v1.99.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1990)
 
 - [operator](https://docs.victoriametrics.com/operator/): adds more context to the log messages. It must greatly improve debugging process and log quality.
 - Update VictoriaMetrics image tags to [v1.99.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.99.0).
@@ -304,29 +441,37 @@ aliases:
 - [vmalertmanager](https://docs.victoriametrics.com/operator/api#vmalertmanager): properly assign path for templates, if it's configured at config file and defined via `spec.templates`. 1128fa9e152a52c7a566fe7ac1375fefbfc6b276
 - [vmauth](https://docs.victoriametrics.com/operator/api#vmauth): adds new field `spec.configSecret`, which allows to use vmauth with external configuration stored at secret under `config.yaml` key. Configuration changes can be tracked with extraArgs: `configCheckInterval: 10s` or manually defined config-reloader container.
 - [vmstorage](https://docs.victoriametrics.com/operator/api#vmcluster): properly disable `pvc` resizing with annotation `operator.victoriametrics.com/pvc-allow-volume-expansion`. Previously it was checked per pvc, now it's checked at statefulset storage spec. It also, allows to add pvc autoscaler. Related issues <https://github.com/VictoriaMetrics/operator/issues/821>, <https://github.com/VictoriaMetrics/operator/issues/867>.
-<a name="v0.41.2"></a>
 
-## [v0.41.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.2) - 21 Feb 2024
+## [v0.41.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.2)
+
+**Release date:** 21 Feb 2024
+
+![AppVersion: v1.98.0](https://img.shields.io/badge/v1.98.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1980)
 
 - Remove deprecated autoscaling/v2beta1 HPA objects, previously operator still use it for k8s 1.25. See [this issue](https://github.com/VictoriaMetrics/operator/issues/864) for details.
 - Update VictoriaMetrics image tags to [v1.98.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.98.0).
 
-<a name="v0.41.1"></a>
+## [v0.41.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.1)
 
-## [v0.41.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.1) - 1 Feb 2024
+**Release date:** 1 Feb 2024
+
+![AppVersion: v1.97.1](https://img.shields.io/badge/v1.97.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1971)
 
 - update VictoriaMetrics image tags to [v1.97.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.1).
 
-<a name="v0.41.0"></a>
+## [v0.41.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.0)
 
-## [v0.41.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.41.0) - 31 Jan 2024
+**Release date:** 31 Jan 2024
 
-- update VictoriaMetrics image tags to [v1.97.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.0).
+![AppVersion: v1.97.0](https://img.shields.io/badge/v1.97.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1970)
+
 - [vmauth](https://docs.victoriametrics.com/operator/api#vmauth): add new fields for `unauthorized_user` like `src_hosts`, `headers`, `retry_status_codes` and `load_balancing_policy`. See [vmauth docs](https://docs.victoriametrics.com/vmauth) for more details.
 
-<a name="v0.40.0"></a>
+## [v0.40.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.40.0)
 
-## [v0.40.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.40.0) - 23 Jan 2024
+**Release date:** 23 Jan 2024
+
+![AppVersion: v1.96.0](https://img.shields.io/badge/v1.96.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1960)
 
 - [vmalertmanager](https://docs.victoriametrics.com/operator/api#vmalertmanagerconfig): fix `VMAlertmanagerConfig` discovery according to [the docs](https://docs.victoriametrics.com/operator/resources/vmalertmanager#using-vmalertmanagerconfig).
 - [vmoperator](https://docs.victoriametrics.com/operator/): add alerting rules for operator itself. See [this issue](https://github.com/VictoriaMetrics/operator/issues/526) for details.
@@ -335,23 +480,28 @@ aliases:
 - [vmoperator](https://docs.victoriametrics.com/operator/): add CRD support for `discord_configs`, `msteams_configs`, `sns_configs` and `webex_configs` receiver types in [VMAlertmanagerConfig](https://docs.victoriametrics.com/operator/resources/vmalertmanagerconfig). See [this issue](https://github.com/VictoriaMetrics/operator/issues/808)
 - [vmoperator](https://docs.victoriametrics.com/operator/): add MinReadySeconds param for all CRDs. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/608) and [this PR](https://github.com/VictoriaMetrics/operator/pull/846).
 
-<a name="v0.39.4"></a>
+## [v0.39.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.4)
 
-## [v0.39.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.4) - 13 Dec 2023
+**Release date:** 13 Dec 2023
 
-- update VictoriaMetrics image tags to [v1.96.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.96.0).
+![AppVersion: v1.96.0](https://img.shields.io/badge/v1.96.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1960)
+
 - [vmalertmanagerconfig](https://docs.victoriametrics.com/operator/api#vmalertmanagerconfig): add fields `entity`, `actions` and `update_alerts` for opsgenie_configs according to <https://prometheus.io/docs/alerting/latest/configuration/#opsgenie_config>.
 - [vmoperator](https://docs.victoriametrics.com/operator/): remove vmalert notifier null check, since `-notifier.url` is optional and is needed only if there are alerting rules.
 
-<a name="v0.39.3"></a>
+## [v0.39.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.3)
 
-## [v0.39.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.3) - 16 Nov 2023
+**Release date:** 16 Nov 2023
+
+![AppVersion: v1.95.1](https://img.shields.io/badge/v1.95.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1951)
 
 - update VictoriaMetrics image tags to [v1.95.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.95.1).
 
-<a name="v0.39.2"></a>
+## [v0.39.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.2)
 
-## [v0.39.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.2) - 15 Nov 2023
+**Release date:** 15 Nov 2023
+
+![AppVersion: v1.95.0](https://img.shields.io/badge/v1.95.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1950)
 
 ### Features
 
@@ -359,17 +509,21 @@ aliases:
 - [vmoperator](https://docs.victoriametrics.com/operator/): sort `statefulSet` pods by id for rolling update order. See [this commit](https://github.com/VictoriaMetrics/operator/commit/e73b03acd073ec3eda34231083a48c6f79a6757b) for details.
 - [vmoperator](https://docs.victoriametrics.com/operator/): optimize statefulset update logic, that should reduce some unneeded operations. See [this PR](https://github.com/VictoriaMetrics/operator/pull/801) for details.
 
-<a name="v0.39.1"></a>
+## [v0.39.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.1)
 
-## [v0.39.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.1) - 1 Nov 2023
+**Release date:** 1 Nov 2023
+
+![AppVersion: v1.94.0](https://img.shields.io/badge/v1.94.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1940)
 
 - [vmuser](https://docs.victoriametrics.com/operator/api#vmuser):  adds new paths for vminsert/vmselect routing with enabled dynamic discovery feature for `VMUser`. See [this PR](https://github.com/VictoriaMetrics/operator/pull/791) for details.
 - [vmcluster](https://docs.victoriametrics.com/operator/api#vmcluster): from now on operator passes `-replicationFactor` (if it set in `vmcluster`) for `vmselect`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/778).
 - [vmagent](https://docs.victoriametrics.com/operator/api#vmagent): updated dependency for properly parsing chained `if` expressions in validation webhook.
 
-<a name="v0.38.0"></a>
+## [v0.39.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.0)
 
-## [v0.39.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.39.0) - 4 Oct 2023
+**Release date:** 4 Oct 2023
+
+![AppVersion: v1.94.0](https://img.shields.io/badge/v1.94.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1940)
 
 ### Features
 
@@ -387,11 +541,11 @@ aliases:
 - [vmauth/vmagent](https://docs.victoriametrics.com/operator/): correctly set flag for custom config reloader image during config initialisation. See [this issue](https://github.com/VictoriaMetrics/operator/issues/770) for details.
 - [vmauth](https://docs.victoriametrics.com/operator/api#vmauth): correctly set config reloader image for init container.
 
-<a name="v0.38.0"></a>
+## [v0.38.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.38.0)
 
-## [v0.38.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.38.0) - 11 Sep 2023
+**Release date:** 11 Sep 2023
 
-**Default version of VictoriaMetrics components**: `v1.93.4`
+![AppVersion: v1.93.4](https://img.shields.io/badge/v1.93.4-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1934)
 
 ### Fixes
 
@@ -403,19 +557,21 @@ aliases:
 
 - [vmoperator](https://docs.victoriametrics.com/operator/) add ability to print default values for all [operator variables](https://docs.victoriametrics.com/operator/vars). See [this issue](https://github.com/VictoriaMetrics/operator/issues/675) for details.
 
-<a name="v0.37.1"></a>
+## [v0.37.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.37.1)
 
-## [v0.37.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.37.1) - 02 Sep 2023
+**Release date:** 02 Sep 2023
 
-**Default version of VictoriaMetrics components**: `v1.93.3`
+![AppVersion: v1.93.3](https://img.shields.io/badge/v1.93.3-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1933)
 
 ### Updates
 
 - bump default version of Victoria Metrics components to [v1.93.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.93.3)
 
-<a name="v0.37.0"></a>
+## [v0.37.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.37.0)
 
-## [v0.37.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.37.0) - 30 Aug 2023
+**Release date:** 30 Aug 2023
+
+![AppVersion: v1.93.1](https://img.shields.io/badge/v1.93.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1931)
 
 ### Fixes
 
@@ -425,9 +581,11 @@ aliases:
 
 - [vmagent](https://docs.victoriametrics.com/operator/api#vmagent): support [multiple if conditions](https://docs.victoriametrics.com/vmagent#relabeling:~:text=the%20if%20option%20may%20contain%20more%20than%20one%20filter) for relabeling. See [this issue](https://github.com/VictoriaMetrics/operator/issues/730) for details.
 
-<a name="v0.36.1"></a>
+## [v0.36.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.36.0)
 
-## [v0.36.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.36.0) - 25 Aug 2023
+**Release date:** 25 Aug 2023
+
+![AppVersion: v1.93.1](https://img.shields.io/badge/v1.93.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1931)
 
 ### Fixes
 
@@ -435,9 +593,11 @@ aliases:
 
 ### Features
 
-<a name="v0.36.0"></a>
+## [v0.36.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.36.0)
 
-## [v0.36.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.36.0) - 23 Aug 2023
+**Release date:** 23 Aug 2023
+
+![AppVersion: v1.93.1](https://img.shields.io/badge/v1.93.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1931)
 
 ### Breaking changes
 
@@ -479,21 +639,21 @@ aliases:
 - [vmoperator parameters](https://docs.victoriametrics.com/operator/vars): Add option `VM_ENABLESTRICTSECURITY` and enable strict security context by default. See [this issue](https://github.com/VictoriaMetrics/operator/issues/637), [this](https://github.com/VictoriaMetrics/operator/pull/692/) and [this](https://github.com/VictoriaMetrics/operator/pull/712) PR for details.
 - [vmoperator parameters](https://docs.victoriametrics.com/operator/vars): change option `VM_PSPAUTOCREATEENABLED` default value from `true` to `false` cause PodSecurityPolicy already got deprecated since [kubernetes v1.25](https://kubernetes.io/docs/reference/using-api/deprecation-guide/#psp-v125). See [this pr](https://github.com/VictoriaMetrics/operator/pull/726) for details.
 
-[Changes][v0.36.0]
+## [v0.35.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.35.1)
 
-<a name="v0.35.1"></a>
+**Release date:** 12 Jul 2023
 
-## [v0.35.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.35.1) - 12 Jul 2023
+![AppVersion: v1.91.3](https://img.shields.io/badge/v1.91.3-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1913)
 
 ### Fixes
 
 - [vmagent](https://docs.victoriametrics.com/operator/api#vmagent): fixes regression with remoteWrite authorization (basicAuth/token). When `UseCustomConfigReloader` option was set, operator incorrectly rendered mounts for `vmagent` container. <https://github.com/VictoriaMetrics/operator/commit/f2b8cf701a33f91cef19848c857fd6efb7db59dd>
 
-[Changes][v0.35.1]
+## [v0.35.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.35.0)
 
-<a name="v0.35.0"></a>
+**Release date:** 03 Jul 2023
 
-## [v0.35.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.35.0) - 03 Jul 2023
+![AppVersion: v1.91.3](https://img.shields.io/badge/v1.91.3-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1913)
 
 ### Fixes
 
@@ -511,11 +671,11 @@ aliases:
 - add more generators  Thanks [@Haleygo](https://github.com/Haleygo) in <https://github.com/VictoriaMetrics/operator/pull/668>
 - [vmsingle](https://docs.victoriametrics.com/operator/api#vmsingle): add status field. See [this issue for details](https://github.com/VictoriaMetrics/operator/issues/670). Thanks [@Haleygo](https://github.com/Haleygo)
 
-[Changes][v0.35.0]
+## [v0.34.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.34.1)
 
-<a name="v0.34.1"></a>
+**Release date:** 29 May 2023
 
-## [v0.34.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.34.1) - 29 May 2023
+![AppVersion: v1.91.0](https://img.shields.io/badge/v1.91.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1910)
 
 ### Fixes
 
@@ -523,11 +683,11 @@ aliases:
 - [vmauth](https://docs.victoriametrics.com/operator/api#vmauth)/[vmagent](https://docs.victoriametrics.com/operator/api#vmagent): correctly renders initConfig image with global container registry domain. See this [issue](https://github.com/VictoriaMetrics/operator/issues/654) for details.
 - [vmagent](https://docs.victoriametrics.com/operator/api#vmagent): correctly set RBAC permissions for single namespace mode and custom config reloader image. See this [issue](https://github.com/VictoriaMetrics/operator/issues/653) for details.
 
-[Changes][v0.34.1]
+## [v0.34.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.34.0)
 
-<a name="v0.34.0"></a>
+**Release date:** 24 May 2023
 
-## [v0.34.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.34.0) - 24 May 2023
+![AppVersion: v1.91.0](https://img.shields.io/badge/v1.91.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1910)
 
 ### Breaking changes
 
@@ -548,11 +708,11 @@ aliases:
 - [vmpodscrape](https://docs.victoriametrics.com/operator/api#vmpodscrape): adds FilterRunning option as prometheus does in <https://github.com/VictoriaMetrics/operator/pull/640>
 - [vmauth](https://docs.victoriametrics.com/operator/api#vmauth): adds latest features in <https://github.com/VictoriaMetrics/operator/pull/642>
 
-[Changes][v0.34.0]
+## [v0.33.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.33.0)
 
-<a name="v0.33.0"></a>
+**Release date:** 19 Apr 2023
 
-## [v0.33.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.33.0) - 19 Apr 2023
+![AppVersion: v1.89.1](https://img.shields.io/badge/v1.89.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1891)
 
 ### Fixes
 
@@ -573,22 +733,22 @@ aliases:
 - [vmalertmanagerconfig](https://docs.victoriametrics.com/operator/api#vmalertmanagerconfig): support sound field in pushover config. Thanks [@Haleygo](https://github.com/Haleygo) in <https://github.com/VictoriaMetrics/operator/pull/631>
 - [vmagent](https://docs.victoriametrics.com/operator/api#vmagent)/[vmauth](https://docs.victoriametrics.com/operator/api#vmauth): download initial config with initContainer <https://github.com/VictoriaMetrics/operator/commit/612e7c8f40659731e7938ef9556eb088c67eb4b7>
 
-[Changes][v0.33.0]
+## [v0.32.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.32.1)
 
-<a name="v0.32.1"></a>
+**Release date:** 16 Mar 2023
 
-## [v0.32.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.32.1) - 16 Mar 2023
+![AppVersion: v1.89.1](https://img.shields.io/badge/v1.89.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1891)
 
 ### Fixes
 
 - config: fixes typo at default vm apps version <https://github.com/VictoriaMetrics/operator/issues/608>
 - [vmsingle](https://docs.victoriametrics.com/operator/api#vmsingle): conditionally adds stream aggregation config <https://github.com/VictoriaMetrics/operator/commit/4a0ca54113afcde439ca4c77e22d3ef1c0d36241>
 
-[Changes][v0.32.1]
+## [v0.32.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.32.0)
 
-<a name="v0.32.0"></a>
+**Release date:** 15 Mar 2023
 
-## [v0.32.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.32.0) - 15 Mar 2023
+![AppVersion: v1.89.1](https://img.shields.io/badge/v1.89.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1891)
 
 ### Fixes
 
@@ -601,11 +761,11 @@ aliases:
 - [vmagent](https://docs.victoriametrics.com/operator/api#vmagent): adds [streaming aggregation](https://docs.victoriametrics.com/stream-aggregation) for `remoteWrite` targets <https://github.com/VictoriaMetrics/operator/commit/b8baa6c2b72bdda64ebfcc9c3d86d846cd9b3c98> Thanks [@Amper](https://github.com/Amper)
 - [vmsingle](https://docs.victoriametrics.com/operator/api#vmsingle): adds [streaming aggregation](https://docs.victoriametrics.com/stream-aggregation) as global configuration for database <https://github.com/VictoriaMetrics/operator/commit/b8baa6c2b72bdda64ebfcc9c3d86d846cd9b3c98> Thanks [@Amper](https://github.com/Amper)
 
-[Changes][v0.32.0]
+## [v0.31.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.31.0)
 
-<a name="v0.31.0"></a>
+**Release date:** 02 Mar 2023
 
-## [v0.31.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.31.0) - 02 Mar 2023
+![AppVersion: v1.85.3](https://img.shields.io/badge/v1.85.3-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1853)
 
 ### Fixes
 
@@ -617,11 +777,11 @@ aliases:
 - [vmalertmanager](https://docs.victoriametrics.com/operator/api#vmalertmanager): Add support of vmalertmanager.spec.templates and autoreload dirs for templates and configmaps  thanks [@Amper](https://github.com/Amper) <https://github.com/VictoriaMetrics/operator/issues/590> <https://github.com/VictoriaMetrics/operator/issues/592>
 - [vmalertmanager](https://docs.victoriametrics.com/operator/api#vmalertmanager): Add support "%SHARD_NUM%" placeholder for vmagent sts/deployment  Thanks [@Amper](https://github.com/Amper) <https://github.com/VictoriaMetrics/operator/issues/508>
 
-[Changes][v0.31.0]
+## [v0.30.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.4)
 
-<a name="v0.30.4"></a>
+**Release date:** 27 Jan 2023
 
-## [v0.30.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.4) - 27 Jan 2023
+![AppVersion: v1.85.3](https://img.shields.io/badge/v1.85.3-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1853)
 
 ### Fixes
 
@@ -633,22 +793,22 @@ aliases:
 
 - vmalertmanagerconfig: adds location, active_time_intervals <https://github.com/VictoriaMetrics/operator/commit/66ee8e544f480be386a4a126a6163599ed338705>
 
-[Changes][v0.30.4]
+## [v0.30.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.3)
 
-<a name="v0.30.3"></a>
+**Release date:** 16 Jan 2023
 
-## [v0.30.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.3) - 16 Jan 2023
+![AppVersion: v1.85.2](https://img.shields.io/badge/v1.85.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1852)
 
 ### Fixes
 
 - controllers: pass correct selector labels for pvc resize function <https://github.com/VictoriaMetrics/operator/commit/e7b57dd73b4fd8dc37b42b7ad7bf5a4d3483caae>
 - controllers: kubernetes 1.26+ deprecates v2 autoscaling, add api check for it <https://github.com/VictoriaMetrics/operator/issues/583>
 
-[Changes][v0.30.3]
+## [v0.30.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.2)
 
-<a name="v0.30.2"></a>
+**Release date:** 12 Jan 2023
 
-## [v0.30.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.2) - 12 Jan 2023
+![AppVersion: v1.85.2](https://img.shields.io/badge/v1.85.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1852)
 
 ### Upgrade notes
 
@@ -658,11 +818,11 @@ aliases:
 
 - controllers/vmagent: fixes degradation for vmagent statefulMode <https://github.com/VictoriaMetrics/operator/commit/6c26786db2ba0b2e85277418e588eac79e886b6e>
 
-[Changes][v0.30.2]
+## [v0.30.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.1)
 
-<a name="v0.30.1"></a>
+**Release date:** 09 Jan 2023
 
-## [v0.30.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.1) - 09 Jan 2023
+![AppVersion: v1.85.2](https://img.shields.io/badge/v1.85.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1852)
 
 ### Fixes
 
@@ -678,11 +838,11 @@ aliases:
 - controllers/concurrency: introduce new setting for reconciliation concurrency `controller.maxConcurrentReconciles` <https://github.com/VictoriaMetrics/operator/commit/e8bbf9159cd61257d11e515fa77510ab2444a557> <https://github.com/VictoriaMetrics/operator/issues/575>
 - api/relabelConfig: adds missing `if`, `labels` and `match` actions <https://github.com/VictoriaMetrics/operator/commit/93c9e780981ceb6869ee2953056a9bd3b6e6eae7>
 
-[Changes][v0.30.1]
+## [v0.30.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.0)
 
-<a name="v0.30.0"></a>
+**Release date:** 29 Dec 2022
 
-## [v0.30.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.30.0) - 29 Dec 2022
+![AppVersion: v1.85.2](https://img.shields.io/badge/v1.85.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1852)
 
 ### Fixes
 
@@ -700,22 +860,22 @@ aliases:
 - child labels filtering <https://github.com/VictoriaMetrics/operator/pull/571>
 - controllers/vmalert: adds oauth2 and bearer auth for remote dbs in <https://github.com/VictoriaMetrics/operator/pull/573>
 
-[Changes][v0.30.0]
+## [v0.29.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.29.2)
 
-<a name="v0.29.2"></a>
+**Release date:** 17 Nov 2022
 
-## [v0.29.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.29.2) - 17 Nov 2022
+![AppVersion: v1.83.1](https://img.shields.io/badge/v1.83.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1831)
 
 ### Fixes
 
 - vmalertmanagerconfig: fixes duplicates at configuration <https://github.com/VictoriaMetrics/operator/issues/554>
 - controllers: correctly set current and update revisions for statefulset  <https://github.com/VictoriaMetrics/operator/issues/547>
 
-[Changes][v0.29.2]
+## [v0.29.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.29.1)
 
-<a name="v0.29.1"></a>
+**Release date:** 14 Nov 2022
 
-## [v0.29.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.29.1) - 14 Nov 2022
+![AppVersion: v1.83.1](https://img.shields.io/badge/v1.83.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1831)
 
 ### Fixes
 
@@ -729,11 +889,11 @@ aliases:
 - {api/vmsingle,api/vmcluster}: add support of `vmbackupmanager` restore on pod start  <https://github.com/VictoriaMetrics/operator/pull/544> thanks [@zekker6](https://github.com/zekker6)
 - api: changes errors handling for objects unmarshal <https://github.com/VictoriaMetrics/operator/pull/550>
 
-[Changes][v0.29.1]
+## [v0.29.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.29.0)
 
-<a name="v0.29.0"></a>
+**Release date:** 24 Oct 2022
 
-## [v0.29.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.29.0) - 24 Oct 2022
+![AppVersion: v1.82.1](https://img.shields.io/badge/v1.82.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1821)
 
 ### Fixes
 
@@ -754,29 +914,11 @@ aliases:
 
 - [@miketth](https://github.com/miketth) made their first contribution in <https://github.com/VictoriaMetrics/operator/pull/535>
 
-[Changes][v0.29.0]
+## [v0.28.5](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.5)
 
-<a name="v0.28.5"></a>
+**Release date:** 13 Sep 2022
 
-## [v0.28.5](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.5) - 13 Sep 2022
-
-### Fixes
-
-- authorization cache usage <https://github.com/VictoriaMetrics/operator/commit/e43bdb6c975b712bf5f169b8fa74c8f7760c82f5> Thanks [@AndrewChubatiuk](https://github.com/AndrewChubatiuk)
-- claimTemplates: fixes CRD for it <https://github.com/VictoriaMetrics/operator/commit/a5d2f9f61ecfc37a776d8f8c1b0f1385536e773c>
-- vmrules: supress notFound errors <https://github.com/VictoriaMetrics/operator/issues/524>
-- vmagent: fixes regression at default values for tmpDataPath and maxDiskUsage flags <https://github.com/VictoriaMetrics/operator/issues/523>
-
-### Features
-
-- vmalertmanager: ignore broken receivers <https://github.com/VictoriaMetrics/operator/commit/68bbce1f7809d35b42a39925c09a4ddd61f64a9c>
-- service accounts: do not set labels and annotations for external service accounts <https://github.com/VictoriaMetrics/operator/commit/2ea1e640c362271484d0627c4ca571fd0afd74b2>
-
-[Changes][v0.28.5]
-
-<a name="v0.28.4"></a>
-
-## [v0.28.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.4) - 12 Sep 2022
+![AppVersion: v1.79.2](https://img.shields.io/badge/v1.79.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1792)
 
 ### Fixes
 
@@ -790,43 +932,61 @@ aliases:
 - vmalertmanager: ignore broken receivers <https://github.com/VictoriaMetrics/operator/commit/68bbce1f7809d35b42a39925c09a4ddd61f64a9c>
 - service accounts: do not set labels and annotations for external service accounts <https://github.com/VictoriaMetrics/operator/commit/2ea1e640c362271484d0627c4ca571fd0afd74b2>
 
-[Changes][v0.28.4]
+## [v0.28.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.4)
 
-<a name="v0.28.3"></a>
+**Release date:** 12 Sep 2022
 
-## [v0.28.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.3) - 02 Sep 2022
+![AppVersion: v1.79.2](https://img.shields.io/badge/v1.79.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1792)
+
+### Fixes
+
+- authorization cache usage <https://github.com/VictoriaMetrics/operator/commit/e43bdb6c975b712bf5f169b8fa74c8f7760c82f5> Thanks [@AndrewChubatiuk](https://github.com/AndrewChubatiuk)
+- claimTemplates: fixes CRD for it <https://github.com/VictoriaMetrics/operator/commit/a5d2f9f61ecfc37a776d8f8c1b0f1385536e773c>
+- vmrules: supress notFound errors <https://github.com/VictoriaMetrics/operator/issues/524>
+- vmagent: fixes regression at default values for tmpDataPath and maxDiskUsage flags <https://github.com/VictoriaMetrics/operator/issues/523>
+
+### Features
+
+- vmalertmanager: ignore broken receivers <https://github.com/VictoriaMetrics/operator/commit/68bbce1f7809d35b42a39925c09a4ddd61f64a9c>
+- service accounts: do not set labels and annotations for external service accounts <https://github.com/VictoriaMetrics/operator/commit/2ea1e640c362271484d0627c4ca571fd0afd74b2>
+
+## [v0.28.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.3)
+
+**Release date:** 02 Sep 2022
+
+![AppVersion: v1.79.2](https://img.shields.io/badge/v1.79.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1792)
 
 ### Fixes
 
 - vmalertmanagerConfig: regression at nested routes parsing <https://github.com/VictoriaMetrics/operator/commit/07ce4ca80d3ba09506fc41baaecd7087f799a8aa>
 - vmagent: password_file option was ignored <https://github.com/VictoriaMetrics/operator/commit/5ef9710976534be651687aaa71b2110b0a1a348f>
 
-[Changes][v0.28.3]
+## [v0.28.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.2)
 
-<a name="v0.28.2"></a>
+**Release date:** 01 Sep 2022
 
-## [v0.28.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.2) - 01 Sep 2022
+![AppVersion: v1.79.2](https://img.shields.io/badge/v1.79.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1792)
 
 ### Fixes
 
 - vmalert: regression at basicAuth  <https://github.com/VictoriaMetrics/operator/commit/f92463949c9fd8be961c52d98ac7f1f956f7eba3>
 - converter/alertmanager: changes parsing for nested routes - added more context and validation webhook <https://github.com/VictoriaMetrics/operator/commit/6af6071db733bbccfe066b45c73d0377a082b822>
 
-[Changes][v0.28.2]
+## [v0.28.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.1)
 
-<a name="v0.28.1"></a>
+**Release date:** 31 Aug 2022
 
-## [v0.28.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.1) - 31 Aug 2022
+![AppVersion: v1.79.2](https://img.shields.io/badge/v1.79.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1792)
 
 ### Fixes
 
 - vmalert: fixes generated crd <https://github.com/VictoriaMetrics/operator/commit/7b5b5b27c00e6ef42edb906ff00912157d21acea>
 
-[Changes][v0.28.1]
+## [v0.28.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.0)
 
-<a name="v0.28.0"></a>
+**Release date:** 30 Aug 2022
 
-## [v0.28.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.28.0) - 30 Aug 2022
+![AppVersion: v1.79.2](https://img.shields.io/badge/v1.79.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1792)
 
 ### Fixes
 
@@ -839,22 +999,22 @@ aliases:
 - converter: adds support for prometheus `AlertmanagerConfig`. It converts into `VMAlertmanagerConfig`. <https://github.com/VictoriaMetrics/operator/commit/0b99bc09b2bb1fede612bc509237f6ee6c7617a5>
 - vmalert: tokenFilePath support for any remote endpoint <https://github.com/VictoriaMetrics/operator/commit/5b010f4abcd778d35dca7c826bfb84af0e46e08d>
 
-[Changes][v0.28.0]
+## [v0.27.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.27.2)
 
-<a name="v0.27.2"></a>
+**Release date:** 22 Aug 2022
 
-## [v0.27.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.27.2) - 22 Aug 2022
+![AppVersion: v1.79.2](https://img.shields.io/badge/v1.79.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1792)
 
 ### Fixes
 
 - controllers: fixes `password_file` usage at basicAuth <https://github.com/VictoriaMetrics/operator/commit/979f6375d43e33c35137c1006dc3b4be4dba8528>
 - config-reloader: properly call gzip.Close method <https://github.com/VictoriaMetrics/operator/commit/0d3aac72caf3710172c404fbf89f9a4b125dd97c> thanks [@Cosrider](https://github.com/Cosrider)
 
-[Changes][v0.27.2]
+## [v0.27.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.27.1)
 
-<a name="v0.27.1"></a>
+**Release date:** 17 Aug 2022
 
-## [v0.27.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.27.1) - 17 Aug 2022
+![AppVersion: v1.79.2](https://img.shields.io/badge/v1.79.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1792)
 
 ### Fixes
 
@@ -864,11 +1024,11 @@ aliases:
 
 - vmalert: added `headers` setting for `remoteRead`, `remoteWrite` and `dataSource` <https://github.com/VictoriaMetrics/operator/issues/492>
 
-[Changes][v0.27.1]
+## [v0.27.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.27.0)
 
-<a name="v0.27.0"></a>
+**Release date:** 16 Aug 2022
 
-## [v0.27.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.27.0) - 16 Aug 2022
+![AppVersion: v1.79.0](https://img.shields.io/badge/v1.79.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1790)
 
 ### Fixes
 
@@ -888,22 +1048,22 @@ aliases:
 
 - [@mayurvaid-redvest](https://github.com/mayurvaid-redvest) made their first contribution in <https://github.com/VictoriaMetrics/operator/pull/511>
 
-[Changes][v0.27.0]
+## [v0.26.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.26.3)
 
-<a name="v0.26.3"></a>
+**Release date:** 26 Jul 2022
 
-## [v0.26.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.26.3) - 26 Jul 2022
+![AppVersion: v1.79.0](https://img.shields.io/badge/v1.79.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1790)
 
 ### Fixes
 
 - removes breaking changes introduced at v0.26.0. Operator added `docker.io` as container registry prefix and it may break applications, if private repository was configured at spec.repository.image. Now container registry is not set by default.
 - alertmanager: removes breaking changes introduced at 0.26.0 release with extraArgs <https://github.com/VictoriaMetrics/operator/commit/918595389e62e144c8f5ebae7472bcff62ccef44>
 
-[Changes][v0.26.3]
+## [v0.26.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.26.0)
 
-<a name="v0.26.0"></a>
+**Release date:** 25 Jul 2022
 
-## [v0.26.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.26.0) - 25 Jul 2022
+![AppVersion: v1.79.0](https://img.shields.io/badge/v1.79.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1790)
 
 ### Breaking changes
 
@@ -938,21 +1098,21 @@ aliases:
 - [@hadesy](https://github.com/hadesy) made their first contribution in <https://github.com/VictoriaMetrics/operator/pull/495>
 - [@tamcore](https://github.com/tamcore) made their first contribution in <https://github.com/VictoriaMetrics/operator/pull/501>
 
-[Changes][v0.26.0]
+## [v0.25.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.25.1)
 
-<a name="v0.25.1"></a>
+**Release date:** 20 May 2022
 
-## [v0.25.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.25.1) - 20 May 2022
+![AppVersion: v1.77.1](https://img.shields.io/badge/v1.77.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1771)
 
 ### Fixes
 
 - PersistentVolumeClaim creation for StatefulSet <https://github.com/VictoriaMetrics/operator/pull/483> Thanks [@cnych](https://github.com/cnych)
 
-[Changes][v0.25.1]
+## [v0.25.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.25.0)
 
-<a name="v0.25.0"></a>
+**Release date:** 19 May 2022
 
-## [v0.25.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.25.0) - 19 May 2022
+![AppVersion: v1.77.1](https://img.shields.io/badge/v1.77.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1771)
 
 ### Breaking changes
 
@@ -977,11 +1137,11 @@ aliases:
 - [@pavan541cs](https://github.com/pavan541cs) made their first contribution in <https://github.com/VictoriaMetrics/operator/pull/473>
 - [@gotosre](https://github.com/gotosre) made their first contribution in <https://github.com/VictoriaMetrics/operator/pull/475>
 
-[Changes][v0.25.0]
+## [v0.24.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.24.0)
 
-<a name="v0.24.0"></a>
+**Release date:** 11 Apr 2022
 
-## [v0.24.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.24.0) - 11 Apr 2022
+![AppVersion: v1.76.0](https://img.shields.io/badge/v1.76.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1760)
 
 ### Fixes
 
@@ -1009,11 +1169,11 @@ aliases:
 - [@okzheng](https://github.com/okzheng) made their first contribution in <https://github.com/VictoriaMetrics/operator/pull/439>
 - [@iyuroch](https://github.com/iyuroch) made their first contribution in <https://github.com/VictoriaMetrics/operator/pull/464>
 
-[Changes][v0.24.0]
+## [v0.23.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.3)
 
-<a name="v0.23.3"></a>
+**Release date:** 21 Feb 2022
 
-## [v0.23.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.3) - 21 Feb 2022
+![AppVersion: v1.72.0](https://img.shields.io/badge/v1.72.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1720)
 
 ### Fixes
 
@@ -1023,31 +1183,31 @@ aliases:
 
 - allows to control max and min scrape interval for `VMAgent`'s targets with `minScrapeInterval` and `maxScrapeInterval` <https://github.com/VictoriaMetrics/operator/commit/3d8183205bef78e877b4f54d7892c4bad47b3971>
 
-[Changes][v0.23.3]
+## [v0.23.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.2)
 
-<a name="v0.23.2"></a>
+**Release date:** 14 Feb 2022
 
-## [v0.23.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.2) - 14 Feb 2022
+![AppVersion: v1.72.0](https://img.shields.io/badge/v1.72.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1720)
 
 ### Fixes
 
 - fixed issue with parsing of kubernetes server version <https://github.com/VictoriaMetrics/operator/issues/428>
 
-[Changes][v0.23.2]
+## [v0.23.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.1)
 
-<a name="v0.23.1"></a>
+**Release date:** 10 Feb 2022
 
-## [v0.23.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.1) - 10 Feb 2022
+![AppVersion: v1.72.0](https://img.shields.io/badge/v1.72.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1720)
 
 ### Fixes
 
 - issue with incorrect vmservicescrape created for vminsert <https://github.com/VictoriaMetrics/operator/issues/420>
 
-[Changes][v0.23.1]
+## [v0.23.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.0)
 
-<a name="v0.23.0"></a>
+**Release date:** 09 Feb 2022
 
-## [v0.23.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.23.0) - 09 Feb 2022
+![AppVersion: v1.72.0](https://img.shields.io/badge/v1.72.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1720)
 
 ### Breaking changes
 
@@ -1062,11 +1222,11 @@ aliases:
 
 - check kubernetes api server version for deprecated objects and use proper API for it. First of all it's related with `PodSecurityPolicy`  and `PodDisruptionBudget` <https://github.com/VictoriaMetrics/operator/commit/5a64f6c01d535f5500a9d9a81ac851f9f12d547a>
 
-[Changes][v0.23.0]
+## [v0.22.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.22.1)
 
-<a name="v0.22.1"></a>
+**Release date:** 21 Jan 2022
 
-## [v0.22.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.22.1) - 21 Jan 2022
+![AppVersion: v1.71.0](https://img.shields.io/badge/v1.71.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1710)
 
 ### Fixes
 
@@ -1077,11 +1237,11 @@ aliases:
 
 - bumps VictoriaMetrics applications versions to the v1.72.0 <https://github.com/VictoriaMetrics/operator/commit/de289af8af8472e5299fc6ff6e99749b58012edd>
 
-[Changes][v0.22.1]
+## [v0.22.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.22.0)
 
-<a name="v0.22.0"></a>
+**Release date:** 26 Dec 2021
 
-## [v0.22.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.22.0) - 26 Dec 2021
+![AppVersion: v1.71.0](https://img.shields.io/badge/v1.71.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1710)
 
 ### Fixes
 
@@ -1095,11 +1255,11 @@ aliases:
 - allows to set `rollingUpdateStrategy` for statefullsets. With optional `rollingUpdateStrategy: rollingUpdate` operator uses kubernetes controller-manager updates for statefulsets, instead of own implementation. Allows kubectl rollout restart command for deployments and statefulsets <https://github.com/VictoriaMetrics/operator/issues/389>
 - allows to disable namespace label matcher for VMAlertmanager with global option `disableNamespaceMatcher` <https://github.com/VictoriaMetrics/operator/issues/390>
 
-[Changes][v0.22.0]
+## [v0.21.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.21.0)
 
-<a name="v0.21.0"></a>
+**Release date:** 30 Nov 2021
 
-## [v0.21.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.21.0) - 30 Nov 2021
+![AppVersion: v1.68.0](https://img.shields.io/badge/v1.68.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1680)
 
 ### Breaking changes
 
@@ -1121,43 +1281,43 @@ aliases:
 - Adds Arch labels for clusterversion template <https://github.com/VictoriaMetrics/operator/commit/9e89c3b2459fb85faa8e973fa1f1558d924000f3> thanks [@yselkowitz](https://github.com/yselkowitz)
 - improves docs and fixes typos <https://github.com/VictoriaMetrics/operator/commit/ae248dcb352a092d9f9caee87454b1ad25650a4c> thanks [@flokli](https://github.com/flokli)
 
-[Changes][v0.21.0]
+## [v0.20.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.3)
 
-<a name="v0.20.3"></a>
+**Release date:** 10 Nov 2021
 
-## [v0.20.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.3) - 10 Nov 2021
+![AppVersion: v1.68.0](https://img.shields.io/badge/v1.68.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1680)
 
 #### Fixes
 
 - changes v1.SecretKeySelector value for pointer, it should help mitigate null error for v1.SecretKeySelector.Key <https://github.com/VictoriaMetrics/operator/issues/365>
 - Fixes `VMAlertmanagerConfig` - some configurations didn't add `send_resolved` option properly to the configration. <https://github.com/VictoriaMetrics/operator/commit/6ee75053a4af2a163619908cd10ba4ec051755ab>
 
-[Changes][v0.20.3]
+## [v0.20.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.2)
 
-<a name="v0.20.2"></a>
+**Release date:** 07 Nov 2021
 
-## [v0.20.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.2) - 07 Nov 2021
+![AppVersion: v1.68.0](https://img.shields.io/badge/v1.68.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1680)
 
 #### Fixes
 
 - regression at statefulset update process <https://github.com/VictoriaMetrics/operator/issues/366>
 - adds nullable option for v1.SecretKeySelector <https://github.com/VictoriaMetrics/operator/issues/365>
 
-[Changes][v0.20.2]
+## [v0.20.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.1)
 
-<a name="v0.20.1"></a>
+**Release date:** 28 Oct 2021
 
-## [v0.20.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.1) - 28 Oct 2021
+![AppVersion: v1.68.0](https://img.shields.io/badge/v1.68.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1680)
 
 #### Fixes
 
 - regression at alertmanager config generation <https://github.com/VictoriaMetrics/operator/commit/0f4368be57b2ccb2fbaebe9ce5fb4394299d89b3>
 
-[Changes][v0.20.1]
+## [v0.20.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.0)
 
-<a name="v0.20.0"></a>
+**Release date:** 28 Oct 2021
 
-## [v0.20.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.20.0) - 28 Oct 2021
+![AppVersion: v1.68.0](https://img.shields.io/badge/v1.68.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1680)
 
 ### Breaking changes
 
@@ -1177,22 +1337,22 @@ aliases:
 - probes for vmagent <https://github.com/VictoriaMetrics/operator/commit/f6de9c5774be0a5cd797c145553579e2e76a8df7>
 - alertmanagerConfiguration build for slack <https://github.com/VictoriaMetrics/operator/issues/339>
 
-[Changes][v0.20.0]
+## [v0.19.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.19.1)
 
-<a name="v0.19.1"></a>
+**Release date:** 28 Sep 2021
 
-## [v0.19.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.19.1) - 28 Sep 2021
+![AppVersion: v1.66.2](https://img.shields.io/badge/v1.66.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1662)
 
 ### Fixes
 
 - Regression at `VMStaticScrape` - basic auth was incorrectly handled <https://github.com/VictoriaMetrics/operator/issues/337>
 - Conversion from `PodMonitor` to `VMPodScrape` <https://github.com/VictoriaMetrics/operator/issues/335>
 
-[Changes][v0.19.1]
+## [v0.19.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.19.0)
 
-<a name="v0.19.0"></a>
+**Release date:** 24 Sep 2021
 
-## [v0.19.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.19.0) - 24 Sep 2021
+![AppVersion: v1.66.2](https://img.shields.io/badge/v1.66.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1662)
 
 ### Features
 
@@ -1207,31 +1367,31 @@ aliases:
 - fixes psp rolebinding for operator <https://github.com/VictoriaMetrics/operator/issues/323>
 - fixes `VMAgent` reconciliation loop <https://github.com/VictoriaMetrics/operator/issues/325> Thanks [@silverlyra](https://github.com/silverlyra)
 
-[Changes][v0.19.0]
+## [v0.18.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.18.2)
 
-<a name="v0.18.2"></a>
+**Release date:** 03 Sep 2021
 
-## [v0.18.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.18.2) - 03 Sep 2021
+![AppVersion: v1.64.1](https://img.shields.io/badge/v1.64.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1641)
 
 ### Fixes
 
 - Fixes regression at CRD generation <https://github.com/VictoriaMetrics/operator/issues/321> <https://github.com/VictoriaMetrics/helm-charts/issues/199>
 
-[Changes][v0.18.2]
+## [v0.18.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.18.1)
 
-<a name="v0.18.1"></a>
+**Release date:** 30 Aug 2021
 
-## [v0.18.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.18.1) - 30 Aug 2021
+![AppVersion: v1.64.1](https://img.shields.io/badge/v1.64.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1641)
 
 ### Fixes
 
 - Fixes regression at CRD generation <https://github.com/VictoriaMetrics/operator/issues/316> Thanks [@Cosrider](https://github.com/Cosrider)
 
-[Changes][v0.18.1]
+## [v0.18.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.18.0)
 
-<a name="v0.18.0"></a>
+**Release date:** 24 Aug 2021
 
-## [v0.18.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.18.0) - 24 Aug 2021
+![AppVersion: v1.64.1](https://img.shields.io/badge/v1.64.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1641)
 
 ### Deprecations
 
@@ -1256,11 +1416,11 @@ aliases:
 
 - Fixes bug for incorrect finalizer remove <https://github.com/VictoriaMetrics/operator/issues/302>
 
-[Changes][v0.18.0]
+## [v0.17.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.17.2)
 
-<a name="v0.17.2"></a>
+**Release date:** 31 Jul 2021
 
-## [v0.17.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.17.2) - 31 Jul 2021
+![AppVersion: v1.63.0](https://img.shields.io/badge/v1.63.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1630)
 
 ### Features
 
@@ -1273,22 +1433,22 @@ aliases:
 - fixes VMAlert datasource TlsConfig <https://github.com/VictoriaMetrics/operator/issues/298>
 - fixes VMUser target_path_suffix typo at tags.
 
-[Changes][v0.17.2]
+## [v0.17.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.17.1)
 
-<a name="v0.17.1"></a>
+**Release date:** 28 Jul 2021
 
-## [v0.17.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.17.1) - 28 Jul 2021
+![AppVersion: v1.63.0](https://img.shields.io/badge/v1.63.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1630)
 
 ### Features
 
 - Updated default versions for vm apps to v1.63.0 version
 - Updated docs.
 
-[Changes][v0.17.1]
+## [v0.17.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.17.0)
 
-<a name="v0.17.0"></a>
+**Release date:** 27 Jul 2021
 
-## [v0.17.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.17.0) - 27 Jul 2021
+![AppVersion: v1.58.0](https://img.shields.io/badge/v1.58.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1580)
 
 ### Features
 
@@ -1304,11 +1464,11 @@ aliases:
 - Fixes new config reloader watch logic: <https://github.com/VictoriaMetrics/operator/commit/35cadb04b828238ffdec67b3fd1ae7430543055d>
 - Fixes `VMServiceScrape` for `VMAgent` <https://github.com/VictoriaMetrics/operator/commit/7bbbf2cd0557260b419e188b72a001572f848e35>
 
-[Changes][v0.17.0]
+## [v0.16.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.16.0)
 
-<a name="v0.16.0"></a>
+**Release date:** 11 Jul 2021
 
-## [v0.16.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.16.0) - 11 Jul 2021
+![AppVersion: v1.58.0](https://img.shields.io/badge/v1.58.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1580)
 
 ### Breaking Changes
 
@@ -1328,11 +1488,11 @@ aliases:
 - Fixes ownership for `ArgoCD` based deployments - <https://github.com/VictoriaMetrics/operator/issues/255>
 - Fixes doc typos <https://github.com/VictoriaMetrics/operator/pull/269> thanks [@zasdaym](https://github.com/zasdaym)
 
-[Changes][v0.16.0]
+## [v0.15.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.15.2)
 
-<a name="v0.15.2"></a>
+**Release date:** 17 Jun 2021
 
-## [v0.15.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.15.2) - 17 Jun 2021
+![AppVersion: v1.58.0](https://img.shields.io/badge/v1.58.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1580)
 
 ### Features
 
@@ -1340,21 +1500,21 @@ aliases:
 - updated lib versions.
 - updated docs.
 
-[Changes][v0.15.2]
+## [v0.15.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.15.1)
 
-<a name="v0.15.1"></a>
+**Release date:** 16 Jun 2021
 
-## [v0.15.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.15.1) - 16 Jun 2021
+![AppVersion: v1.58.0](https://img.shields.io/badge/v1.58.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1580)
 
 ### Fixes
 
 - Fixed panic at `VMCluster` <https://github.com/VictoriaMetrics/operator/issues/264>
 
-[Changes][v0.15.1]
+## [v0.15.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.15.0)
 
-<a name="v0.15.0"></a>
+**Release date:** 14 Jun 2021
 
-## [v0.15.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.15.0) - 14 Jun 2021
+![AppVersion: v1.58.0](https://img.shields.io/badge/v1.58.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1580)
 
 ### Features
 
@@ -1370,31 +1530,31 @@ aliases:
 - Fixes cluster status update process <https://github.com/VictoriaMetrics/operator/issues/253>
 - Fixes `VMAlertmanager` config generation <https://github.com/VictoriaMetrics/operator/issues/244>
 
-[Changes][v0.15.0]
+## [v0.14.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.14.2)
 
-<a name="v0.14.2"></a>
+**Release date:** 26 Apr 2021
 
-## [v0.14.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.14.2) - 26 Apr 2021
+![AppVersion: v1.58.0](https://img.shields.io/badge/v1.58.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1580)
 
 ### Fixes
 
 - fixes insertPorts type for `VMCluster`
 
-[Changes][v0.14.2]
+## [v0.14.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.14.1)
 
-<a name="v0.14.1"></a>
+**Release date:** 22 Apr 2021
 
-## [v0.14.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.14.1) - 22 Apr 2021
+![AppVersion: v1.58.0](https://img.shields.io/badge/v1.58.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1580)
 
 ### Fixes
 
 - fixes missing args for inline relabel configs.
 
-[Changes][v0.14.1]
+## [v0.14.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.14.0)
 
-<a name="v0.14.0"></a>
+**Release date:** 22 Apr 2021
 
-## [v0.14.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.14.0) - 22 Apr 2021
+![AppVersion: v1.58.0](https://img.shields.io/badge/v1.58.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1580)
 
 ### Fixes
 
@@ -1409,22 +1569,22 @@ aliases:
 - adds `inlineScrapeConfig` <https://github.com/VictoriaMetrics/operator/pull/230/files>
 - adds new RBAC permissions for `vmagent`, it should help to monitor `openshift` cluster correctly <https://github.com/VictoriaMetrics/operator/issues/229>
 
-[Changes][v0.14.0]
+## [v0.13.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.13.1)
 
-<a name="v0.13.1"></a>
+**Release date:** 13 Apr 2021
 
-## [v0.13.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.13.1) - 13 Apr 2021
+![AppVersion: v1.58.0](https://img.shields.io/badge/v1.58.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1580)
 
 ### Fixes
 
 - fixes operator role - added missing permission.
 - fixes operator crash and improper tlsConfig build <https://github.com/VictoriaMetrics/operator/issues/215>
 
-[Changes][v0.13.1]
+## [v0.13.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.13.0)
 
-<a name="v0.13.0"></a>
+**Release date:** 09 Apr 2021
 
-## [v0.13.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.13.0) - 09 Apr 2021
+![AppVersion: v1.58.0](https://img.shields.io/badge/v1.58.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1580)
 
 ### Fixes
 
@@ -1436,32 +1596,32 @@ aliases:
 
 - adds probes customization via CRD <https://github.com/VictoriaMetrics/operator/pull/204> thanks [@preved911](https://github.com/preved911)
 
-[Changes][v0.13.0]
+## [v0.12.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.12.2)
 
-<a name="v0.12.2"></a>
+**Release date:** 31 Mar 2021
 
-## [v0.12.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.12.2) - 31 Mar 2021
+![AppVersion: v1.56.0](https://img.shields.io/badge/v1.56.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1560)
 
 ### Fixes
 
 - fixes serviceAccount update <https://github.com/VictoriaMetrics/operator/issues/207>
 
-[Changes][v0.12.2]
+## [v0.12.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.12.1)
 
-<a name="v0.12.1"></a>
+**Release date:** 30 Mar 2021
 
-## [v0.12.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.12.1) - 30 Mar 2021
+![AppVersion: v1.56.0](https://img.shields.io/badge/v1.56.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1560)
 
 ### Fixes
 
 - removes liveness probe from vmstorage and `VMSingle` <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1158>
 - fixes update process for `VMCluster` and `VMAlertmanager`
 
-[Changes][v0.12.1]
+## [v0.12.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.12.0)
 
-<a name="v0.12.0"></a>
+**Release date:** 29 Mar 2021
 
-## [v0.12.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.12.0) - 29 Mar 2021
+![AppVersion: v1.56.0](https://img.shields.io/badge/v1.56.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1560)
 
 ### Breaking changes
 
@@ -1480,11 +1640,11 @@ aliases:
 - Fixes `VMProbes`, now it supports relabeling for static targets <https://github.com/VictoriaMetrics/operator/commit/b4db7d5128a22d4979d7284e15576322acbc9b4c>
 - Fixes `VMStaticScrape` - adds `honorLabels` and `honorTimestamps` setting to CRD
 
-[Changes][v0.12.0]
+## [v0.11.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.11.0)
 
-<a name="v0.11.0"></a>
+**Release date:** 22 Mar 2021
 
-## [v0.11.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.11.0) - 22 Mar 2021
+![AppVersion: v1.56.0](https://img.shields.io/badge/v1.56.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1560)
 
 ### Breaking changes
 
@@ -1499,11 +1659,11 @@ aliases:
 - fixes bug with insert ports.
 - minor fixes to examples.
 
-[Changes][v0.11.0]
+## [v0.10.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.10.0)
 
-<a name="v0.10.0"></a>
+**Release date:** 14 Mar 2021
 
-## [v0.10.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.10.0) - 14 Mar 2021
+![AppVersion: v1.53.1](https://img.shields.io/badge/v1.53.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1531)
 
 ### Features
 
@@ -1519,11 +1679,11 @@ aliases:
 - fixes `VMAlertmanager` version parse <https://github.com/VictoriaMetrics/operator/pull/179> thanks [@morimoto-cybozu](https://github.com/morimoto-cybozu)
 - other little improvements.
 
-[Changes][v0.10.0]
+## [v0.9.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.9.1)
 
-<a name="v0.9.1"></a>
+**Release date:** 22 Feb 2021
 
-## [v0.9.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.9.1) - 22 Feb 2021
+![AppVersion: v1.53.1](https://img.shields.io/badge/v1.53.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1531)
 
 ### Features
 
@@ -1533,11 +1693,11 @@ aliases:
 
 - rbac role namespace.
 
-[Changes][v0.9.1]
+## [v0.9.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.9.0)
 
-<a name="v0.9.0"></a>
+**Release date:** 21 Feb 2021
 
-## [v0.9.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.9.0) - 21 Feb 2021
+![AppVersion: v1.53.1](https://img.shields.io/badge/v1.53.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1531)
 
 ### Features
 
@@ -1548,11 +1708,11 @@ aliases:
 - rbac role <https://github.com/VictoriaMetrics/operator/issues/166>
 - fixes incorrect converter start and race condition.
 
-[Changes][v0.9.0]
+## [v0.8.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.8.0)
 
-<a name="v0.8.0"></a>
+**Release date:** 09 Feb 2021
 
-## [v0.8.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.8.0) - 09 Feb 2021
+![AppVersion: v1.53.1](https://img.shields.io/badge/v1.53.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1531)
 
 ### Features
 
@@ -1564,42 +1724,42 @@ aliases:
 - fixes operator-hub docs broken links.
 - fixes panic at vmcluster.
 
-[Changes][v0.8.0]
+## [v0.7.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.4)
 
-<a name="v0.7.4"></a>
+**Release date:** 25 Jan 2021
 
-## [v0.7.4](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.4) - 25 Jan 2021
+![AppVersion: v1.51.0](https://img.shields.io/badge/v1.51.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1510)
 
 ### Fixes
 
 - fixed ExtraArgs typo <https://github.com/VictoriaMetrics/operator/pull/150> thanks [@jansyk13](https://github.com/jansyk13)
 
-[Changes][v0.7.4]
+## [v0.7.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.3)
 
-<a name="v0.7.3"></a>
+**Release date:** 20 Jan 2021
 
-## [v0.7.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.3) - 20 Jan 2021
+![AppVersion: v1.51.0](https://img.shields.io/badge/v1.51.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1510)
 
 ### Fixes
 
 - fixed panic at vmcluster <https://github.com/VictoriaMetrics/operator/issues/147> thanks [@gideshrp1JL](https://github.com/gideshrp1JL)
 
-[Changes][v0.7.3]
+## [v0.7.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.2)
 
-<a name="v0.7.2"></a>
+**Release date:** 17 Jan 2021
 
-## [v0.7.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.2) - 17 Jan 2021
+![AppVersion: v1.51.0](https://img.shields.io/badge/v1.51.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1510)
 
 ### Fixes
 
 - serverName for tlsConfig <https://github.com/VictoriaMetrics/operator/issues/144>
 - minScrapeInterval for vmstorage <https://github.com/VictoriaMetrics/operator/pull/143> Thanks [@umezawatakeshi](https://github.com/umezawatakeshi)
 
-[Changes][v0.7.2]
+## [v0.7.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.1)
 
-<a name="v0.7.1"></a>
+**Release date:** 01 Jan 2021
 
-## [v0.7.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.1) - 01 Jan 2021
+![AppVersion: v1.51.0](https://img.shields.io/badge/v1.51.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1510)
 
 ### Fixes
 
@@ -1609,11 +1769,11 @@ aliases:
 
 - adds heuristic for selector match between `VMRule`, `VMNodeScrape`, `VMProbe`, `VMServiceScrape` and `VMPodScrape` and corresponding object - `VMAlert` or `VMAgent. It must speed up reconciliation in case of multi-tenancy.
 
-[Changes][v0.7.1]
+## [v0.7.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.0)
 
-<a name="v0.7.0"></a>
+**Release date:** 30 Dec 2020
 
-## [v0.7.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.7.0) - 30 Dec 2020
+![AppVersion: v1.51.0](https://img.shields.io/badge/v1.51.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1510)
 
 ### Fixes
 
@@ -1628,22 +1788,22 @@ aliases:
 - <https://github.com/VictoriaMetrics/operator/issues/131> adds support for classic relabelConfigs `target_label` and `source_labels`.
 - <https://github.com/VictoriaMetrics/operator/issues/127> adds `discoveryRole` with `endpoints`, `endpointslices` and `service` options.
 
-[Changes][v0.7.0]
+## [v0.6.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.6.1)
 
-<a name="v0.6.1"></a>
+**Release date:** 16 Dec 2020
 
-## [v0.6.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.6.1) - 16 Dec 2020
+![AppVersion: v1.50.1](https://img.shields.io/badge/v1.50.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1501)
 
 ### Fixes
 
 - VMAlert TLSConfig build was fixed.
 - Fixes docs for operator-hub.
 
-[Changes][v0.6.1]
+## [v0.6.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.6.0)
 
-<a name="v0.6.0"></a>
+**Release date:** 15 Dec 2020
 
-## [v0.6.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.6.0) - 15 Dec 2020
+![AppVersion: v1.50.1](https://img.shields.io/badge/v1.50.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1501)
 
 ### Breaking changes
 
@@ -1661,11 +1821,11 @@ aliases:
 - Fixes `VMProbe` spec <https://github.com/VictoriaMetrics/operator/issues/125>
 - Fixes remoteWrite.labels
 
-[Changes][v0.6.0]
+## [v0.5.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.5.0)
 
-<a name="v0.5.0"></a>
+**Release date:** 04 Dec 2020
 
-## [v0.5.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.5.0) - 04 Dec 2020
+![AppVersion: v1.48.0](https://img.shields.io/badge/v1.48.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1480)
 
 ### Breaking changes
 
@@ -1690,11 +1850,11 @@ aliases:
 - Fixes labels, now is forbidden to change Selector labels for for all VictoriaMetrics applications. This changes will be ignored.
 - Reduces size of CRDs.
 
-[Changes][v0.5.0]
+## [v0.4.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.4.0)
 
-<a name="v0.4.0"></a>
+**Release date:** 15 Nov 2020
 
-## [v0.4.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.4.0) - 15 Nov 2020
+![AppVersion: v1.46.0](https://img.shields.io/badge/v1.46.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1460)
 
 - Adds `VMRules` de-duplication with annotation <https://github.com/VictoriaMetrics/operator/issues/99>
 - Adds Operator-Hub integration <https://github.com/VictoriaMetrics/operator/issues/33>
@@ -1704,11 +1864,11 @@ aliases:
 - Fixes securityContext field <https://github.com/VictoriaMetrics/operator/pull/101> . Thanks [@zhiyin009](https://github.com/zhiyin009)
 - Fixes `VMAgent` start-up error <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/879>
 
-[Changes][v0.4.0]
+## [v0.3.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.3.0)
 
-<a name="v0.3.0"></a>
+**Release date:** 29 Oct 2020
 
-## [v0.3.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.3.0) - 29 Oct 2020
+![AppVersion: v1.43.0](https://img.shields.io/badge/v1.43.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1430)
 
 - adds fast config update for `VMAlert` <https://github.com/VictoriaMetrics/operator/issues/86>
 - adds docker multiarch support
@@ -1717,81 +1877,81 @@ aliases:
 - fixes prometheus relabel config inconsistency <https://github.com/VictoriaMetrics/operator/issues/92>
 - fixes vmselect args <https://github.com/VictoriaMetrics/operator/pull/95> thanks [@zhiyin009](https://github.com/zhiyin009)
 
-[Changes][v0.3.0]
+## [v0.2.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.2.1)
 
-<a name="v0.2.1"></a>
+**Release date:** 28 Aug 2020
 
-## [v0.2.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.2.1) - 28 Aug 2020
+![AppVersion: v1.40.0](https://img.shields.io/badge/v1.40.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1400)
 
 - [#78](https://github.com/VictoriaMetrics/operator/issues/78) fixed bug with rbac - without access to vmsingles api resource, operator wasn't able to start reconciliation loop.
 - [#76](https://github.com/VictoriaMetrics/operator/issues/76) added path prefix support if extraArgs was specified.
 - [#71](https://github.com/VictoriaMetrics/operator/issues/71) arm support with cross compilation.
 
-[Changes][v0.2.1]
+## [v0.2.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.2.0)
 
-<a name="v0.2.0"></a>
+**Release date:** 23 Aug 2020
 
-## [v0.2.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.2.0) - 23 Aug 2020
+![AppVersion: v1.40.0](https://img.shields.io/badge/v1.40.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1400)
 
 - Added VMProbe [#59](https://github.com/VictoriaMetrics/operator/issues/59)
 - Fixed various bug with prometheus api objects conversion.
 - added annotations for control conversion flow [#68](https://github.com/VictoriaMetrics/operator/issues/68)
 
-[Changes][v0.2.0]
+## [v0.1.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.1.2)
 
-<a name="v0.1.2"></a>
+**Release date:** 21 Aug 2020
 
-## [v0.1.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.1.2) - 21 Aug 2020
+![AppVersion: v1.40.0](https://img.shields.io/badge/v1.40.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1400)
 
 - [#66](https://github.com/VictoriaMetrics/operator/issues/66) added path replacement for `CAfile`, `Certfile`, `KeyFile`, `BearerTokenFile` at prometheus api converter.
 - [#65](https://github.com/VictoriaMetrics/operator/issues/65) fixed tlsConfig logic, now configuration file renders correctly, if empty value for Cert, Ca or KeySecret defined at tlsConf
 - minor documentation update
 
-[Changes][v0.1.2]
+## [v0.1.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.1.1)
 
-<a name="v0.1.1"></a>
+**Release date:** 18 Aug 2020
 
-## [v0.1.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.1.1) - 18 Aug 2020
+![AppVersion: v1.40.0](https://img.shields.io/badge/v1.40.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1400)
 
 - fixed issues with crd patching for 1.18 kubernetes version
 - fixed issue with rbac roles
 - upgraded go version to 1.15
 - upgraded operator-sdk version to 1.0.0
 
-[Changes][v0.1.1]
+## [v0.1.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.1.0)
 
-<a name="v0.1.0"></a>
+**Release date:** 12 Aug 2020
 
-## [v0.1.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.1.0) - 12 Aug 2020
+![AppVersion: v1.39.2](https://img.shields.io/badge/v1.39.2-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1392)
 
 Starting point of operator releases
 
 - Documentation update
 
-[Changes][v0.1.0]
+## [v0.0.6](https://github.com/VictoriaMetrics/operator/releases/tag/v0.0.6)
 
-<a name="v0.0.6"></a>
+**Release date:** 26 Jul 2020
 
-## [v0.0.6](https://github.com/VictoriaMetrics/operator/releases/tag/v0.0.6) - 26 Jul 2020
+![AppVersion: v1.37.0](https://img.shields.io/badge/v1.37.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1370)
 
 - breaking changes to api (changed group name to operator.victoriametrics.com)
 - changed build and release process
 - migrated to operator sdk 0.19
 
-[Changes][v0.0.6]
+## [v0.0.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.0.2)
 
-<a name="v0.0.2"></a>
+**Release date:** 12 Jun 2020
 
-## [v0.0.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.0.2) - 12 Jun 2020
+![AppVersion: v1.37.0](https://img.shields.io/badge/v1.37.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1370)
 
 - fixed panic at vmSingle update
 - added support for scraping tls targets with ServiceMonitor TLSConfig
 
-[Changes][v0.0.2]
+## [v0.0.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.0.1)
 
-<a name="v0.0.1"></a>
+**Release date:** 06 Jun 2020
 
-## [v0.0.1](https://github.com/VictoriaMetrics/operator/releases/tag/v0.0.1) - 06 Jun 2020
+![AppVersion: v1.37.0](https://img.shields.io/badge/v1.37.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v1370)
 
 it contains basic api objects support:
 
@@ -1805,90 +1965,3 @@ it contains basic api objects support:
 1) prometheusRule
 2) serviceMonitor
 3) podMonitor
-
-[Changes][v0.0.1]
-
-[v0.35.1]: https://github.com/VictoriaMetrics/operator/compare/v0.35.0...v0.35.1
-[v0.35.0]: https://github.com/VictoriaMetrics/operator/compare/v0.34.1...v0.35.0
-[v0.34.1]: https://github.com/VictoriaMetrics/operator/compare/v0.34.0...v0.34.1
-[v0.34.0]: https://github.com/VictoriaMetrics/operator/compare/v0.33.0...v0.34.0
-[v0.33.0]: https://github.com/VictoriaMetrics/operator/compare/v0.32.1...v0.33.0
-[v0.32.1]: https://github.com/VictoriaMetrics/operator/compare/v0.32.0...v0.32.1
-[v0.32.0]: https://github.com/VictoriaMetrics/operator/compare/v0.31.0...v0.32.0
-[v0.31.0]: https://github.com/VictoriaMetrics/operator/compare/v0.30.4...v0.31.0
-[v0.30.4]: https://github.com/VictoriaMetrics/operator/compare/v0.30.3...v0.30.4
-[v0.30.3]: https://github.com/VictoriaMetrics/operator/compare/v0.30.2...v0.30.3
-[v0.30.2]: https://github.com/VictoriaMetrics/operator/compare/v0.30.1...v0.30.2
-[v0.30.1]: https://github.com/VictoriaMetrics/operator/compare/v0.30.0...v0.30.1
-[v0.30.0]: https://github.com/VictoriaMetrics/operator/compare/v0.29.2...v0.30.0
-[v0.29.2]: https://github.com/VictoriaMetrics/operator/compare/v0.29.1...v0.29.2
-[v0.29.1]: https://github.com/VictoriaMetrics/operator/compare/v0.29.0...v0.29.1
-[v0.29.0]: https://github.com/VictoriaMetrics/operator/compare/v0.28.5...v0.29.0
-[v0.28.5]: https://github.com/VictoriaMetrics/operator/compare/v0.28.4...v0.28.5
-[v0.28.4]: https://github.com/VictoriaMetrics/operator/compare/v0.28.3...v0.28.4
-[v0.28.3]: https://github.com/VictoriaMetrics/operator/compare/v0.28.2...v0.28.3
-[v0.28.2]: https://github.com/VictoriaMetrics/operator/compare/v0.28.1...v0.28.2
-[v0.28.1]: https://github.com/VictoriaMetrics/operator/compare/v0.28.0...v0.28.1
-[v0.28.0]: https://github.com/VictoriaMetrics/operator/compare/v0.27.2...v0.28.0
-[v0.27.2]: https://github.com/VictoriaMetrics/operator/compare/v0.27.1...v0.27.2
-[v0.27.1]: https://github.com/VictoriaMetrics/operator/compare/v0.27.0...v0.27.1
-[v0.27.0]: https://github.com/VictoriaMetrics/operator/compare/v0.26.3...v0.27.0
-[v0.26.3]: https://github.com/VictoriaMetrics/operator/compare/v0.26.0...v0.26.3
-[v0.26.0]: https://github.com/VictoriaMetrics/operator/compare/v0.25.1...v0.26.0
-[v0.25.1]: https://github.com/VictoriaMetrics/operator/compare/v0.25.0...v0.25.1
-[v0.25.0]: https://github.com/VictoriaMetrics/operator/compare/v0.24.0...v0.25.0
-[v0.24.0]: https://github.com/VictoriaMetrics/operator/compare/v0.23.3...v0.24.0
-[v0.23.3]: https://github.com/VictoriaMetrics/operator/compare/v0.23.2...v0.23.3
-[v0.23.2]: https://github.com/VictoriaMetrics/operator/compare/v0.23.1...v0.23.2
-[v0.23.1]: https://github.com/VictoriaMetrics/operator/compare/v0.23.0...v0.23.1
-[v0.23.0]: https://github.com/VictoriaMetrics/operator/compare/v0.22.1...v0.23.0
-[v0.22.1]: https://github.com/VictoriaMetrics/operator/compare/v0.22.0...v0.22.1
-[v0.22.0]: https://github.com/VictoriaMetrics/operator/compare/v0.21.0...v0.22.0
-[v0.21.0]: https://github.com/VictoriaMetrics/operator/compare/v0.20.3...v0.21.0
-[v0.20.3]: https://github.com/VictoriaMetrics/operator/compare/v0.20.2...v0.20.3
-[v0.20.2]: https://github.com/VictoriaMetrics/operator/compare/v0.20.1...v0.20.2
-[v0.20.1]: https://github.com/VictoriaMetrics/operator/compare/v0.20.0...v0.20.1
-[v0.20.0]: https://github.com/VictoriaMetrics/operator/compare/v0.19.1...v0.20.0
-[v0.19.1]: https://github.com/VictoriaMetrics/operator/compare/v0.19.0...v0.19.1
-[v0.19.0]: https://github.com/VictoriaMetrics/operator/compare/v0.18.2...v0.19.0
-[v0.18.2]: https://github.com/VictoriaMetrics/operator/compare/v0.18.1...v0.18.2
-[v0.18.1]: https://github.com/VictoriaMetrics/operator/compare/v0.18.0...v0.18.1
-[v0.18.0]: https://github.com/VictoriaMetrics/operator/compare/v0.17.2...v0.18.0
-[v0.17.2]: https://github.com/VictoriaMetrics/operator/compare/v0.17.1...v0.17.2
-[v0.17.1]: https://github.com/VictoriaMetrics/operator/compare/v0.17.0...v0.17.1
-[v0.17.0]: https://github.com/VictoriaMetrics/operator/compare/v0.16.0...v0.17.0
-[v0.16.0]: https://github.com/VictoriaMetrics/operator/compare/v0.15.2...v0.16.0
-[v0.15.2]: https://github.com/VictoriaMetrics/operator/compare/v0.15.1...v0.15.2
-[v0.15.1]: https://github.com/VictoriaMetrics/operator/compare/v0.15.0...v0.15.1
-[v0.15.0]: https://github.com/VictoriaMetrics/operator/compare/v0.14.2...v0.15.0
-[v0.14.2]: https://github.com/VictoriaMetrics/operator/compare/v0.14.1...v0.14.2
-[v0.14.1]: https://github.com/VictoriaMetrics/operator/compare/v0.14.0...v0.14.1
-[v0.14.0]: https://github.com/VictoriaMetrics/operator/compare/v0.13.1...v0.14.0
-[v0.13.1]: https://github.com/VictoriaMetrics/operator/compare/v0.13.0...v0.13.1
-[v0.13.0]: https://github.com/VictoriaMetrics/operator/compare/v0.12.2...v0.13.0
-[v0.12.2]: https://github.com/VictoriaMetrics/operator/compare/v0.12.1...v0.12.2
-[v0.12.1]: https://github.com/VictoriaMetrics/operator/compare/v0.12.0...v0.12.1
-[v0.12.0]: https://github.com/VictoriaMetrics/operator/compare/v0.11.0...v0.12.0
-[v0.11.0]: https://github.com/VictoriaMetrics/operator/compare/v0.10.0...v0.11.0
-[v0.10.0]: https://github.com/VictoriaMetrics/operator/compare/v0.9.1...v0.10.0
-[v0.9.1]: https://github.com/VictoriaMetrics/operator/compare/v0.9.0...v0.9.1
-[v0.9.0]: https://github.com/VictoriaMetrics/operator/compare/v0.8.0...v0.9.0
-[v0.8.0]: https://github.com/VictoriaMetrics/operator/compare/v0.7.4...v0.8.0
-[v0.7.4]: https://github.com/VictoriaMetrics/operator/compare/v0.7.3...v0.7.4
-[v0.7.3]: https://github.com/VictoriaMetrics/operator/compare/v0.7.2...v0.7.3
-[v0.7.2]: https://github.com/VictoriaMetrics/operator/compare/v0.7.1...v0.7.2
-[v0.7.1]: https://github.com/VictoriaMetrics/operator/compare/v0.7.0...v0.7.1
-[v0.7.0]: https://github.com/VictoriaMetrics/operator/compare/v0.6.1...v0.7.0
-[v0.6.1]: https://github.com/VictoriaMetrics/operator/compare/v0.6.0...v0.6.1
-[v0.6.0]: https://github.com/VictoriaMetrics/operator/compare/v0.5.0...v0.6.0
-[v0.5.0]: https://github.com/VictoriaMetrics/operator/compare/v0.4.0...v0.5.0
-[v0.4.0]: https://github.com/VictoriaMetrics/operator/compare/v0.3.0...v0.4.0
-[v0.3.0]: https://github.com/VictoriaMetrics/operator/compare/v0.2.1...v0.3.0
-[v0.2.1]: https://github.com/VictoriaMetrics/operator/compare/v0.2.0...v0.2.1
-[v0.2.0]: https://github.com/VictoriaMetrics/operator/compare/v0.1.2...v0.2.0
-[v0.1.2]: https://github.com/VictoriaMetrics/operator/compare/v0.1.1...v0.1.2
-[v0.1.1]: https://github.com/VictoriaMetrics/operator/compare/v0.1.0...v0.1.1
-[v0.1.0]: https://github.com/VictoriaMetrics/operator/compare/v0.0.6...v0.1.0
-[v0.0.6]: https://github.com/VictoriaMetrics/operator/compare/v0.0.2...v0.0.6
-[v0.0.2]: https://github.com/VictoriaMetrics/operator/compare/v0.0.1...v0.0.2
-[v0.0.1]: https://github.com/VictoriaMetrics/operator/tree/v0.0.1

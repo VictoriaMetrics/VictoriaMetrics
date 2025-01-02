@@ -1,6 +1,7 @@
 package vlinsert
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -34,8 +35,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path = strings.TrimPrefix(path, "/insert")
 	path = strings.ReplaceAll(path, "//", "/")
 
-	if path == "/jsonline" {
+	switch path {
+	case "/jsonline":
 		jsonline.RequestHandler(w, r)
+		return true
+	case "/ready":
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	}
 	switch {

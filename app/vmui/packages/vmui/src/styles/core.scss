@@ -57,14 +57,51 @@ input[type=number]::-webkit-outer-spin-button {
   &-content {
     display: grid;
     grid-template-columns: 1fr auto;
-    align-items: center;
+    gap: $padding-large;
+    align-items: flex-start;
+    line-height: 24px;
 
     &__close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
       width: 24px;
       height: 24px;
       padding: 4px;
       color: inherit;
       opacity: 0.8;
+      border-radius: $border-radius-small;
+      cursor: pointer;
+
+      &:hover {
+        background-color: $color-hover-black;
+      }
+    }
+  }
+
+  &-details {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+
+    &__title {
+      font-weight: 600;
+      padding-bottom: calc($padding-small/2);
+      margin-bottom: calc($padding-small/2);
+      border-bottom: 1px solid inherit;
+    }
+
+    &__msg {
+      display: grid;
+      line-height: 150%;
+      white-space: pre-line;
+      text-wrap: pretty;
+      overflow-wrap: anywhere;
+
+      ul, ol {
+        list-style-position: inside;
+        margin-bottom: $padding-small;
+      }
     }
   }
 

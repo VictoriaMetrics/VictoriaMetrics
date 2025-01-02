@@ -4,6 +4,31 @@
 
 - TODO
 
+## 0.0.36
+
+**Release date:** 24 Dec 2024
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
+
+- Exclude markdown files from package
+- Unset empty registry in `vm.image` template to fix global registry propagation
+
+## 0.0.35
+
+**Release date:** 2024-12-17
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fixed tls in common templates. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1874)
+
+## 0.0.34
+
+**Release date:** 2024-12-11
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- moved helm chart requirement to a common template
+
 ## 0.0.33
 
 **Release date:** 2024-11-28
@@ -296,5 +321,5 @@
 
 - Added `vm.enterprise.only` template to fail rendering if required license arguments weren't set.
 - Added `vm.image` template that introduces common chart logic of how to build image name from application variables.
-- Added `vm.ingress.port` template to render properly tngress port configuration depending on args type.
+- Added `vm.ingress.port` template to render properly ingress port configuration depending on args type.
 - Added `vm.probe.*` templates to render probes params consistently across all templates.
