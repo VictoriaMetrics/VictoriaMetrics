@@ -6,8 +6,6 @@ import (
 	"math"
 	"sort"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
@@ -16,7 +14,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
 )
 
@@ -270,7 +267,7 @@ func getReverseCmpOp(op string) string {
 }
 
 func parsePromQLWithCache(q string) (metricsql.Expr, error) {
-	pcv := parseCacheV.Get(q)
+	pcv := parseCacheV.get(q)
 	if pcv == nil {
 		e, err := metricsql.Parse(q)
 		if err == nil {
@@ -284,7 +281,7 @@ func parsePromQLWithCache(q string) (metricsql.Expr, error) {
 			e:   e,
 			err: err,
 		}
-		parseCacheV.Put(q, pcv)
+		parseCacheV.put(q, pcv)
 	}
 	if pcv.err != nil {
 		return nil, pcv.err
@@ -327,81 +324,4 @@ func escapeDots(s string) string {
 		}
 	}
 	return string(result)
-}
-
-var parseCacheV = func() *parseCache {
-	pc := &parseCache{
-		m: make(map[string]*parseCacheValue),
-	}
-	metrics.NewGauge(`vm_cache_requests_total{type="promql/parse"}`, func() float64 {
-		return float64(pc.Requests())
-	})
-	metrics.NewGauge(`vm_cache_misses_total{type="promql/parse"}`, func() float64 {
-		return float64(pc.Misses())
-	})
-	metrics.NewGauge(`vm_cache_entries{type="promql/parse"}`, func() float64 {
-		return float64(pc.Len())
-	})
-	return pc
-}()
-
-const parseCacheMaxLen = 10e3
-
-type parseCacheValue struct {
-	e   metricsql.Expr
-	err error
-}
-
-type parseCache struct {
-	requests atomic.Uint64
-	misses   atomic.Uint64
-
-	m  map[string]*parseCacheValue
-	mu sync.RWMutex
-}
-
-func (pc *parseCache) Requests() uint64 {
-	return pc.requests.Load()
-}
-
-func (pc *parseCache) Misses() uint64 {
-	return pc.misses.Load()
-}
-
-func (pc *parseCache) Len() uint64 {
-	pc.mu.RLock()
-	n := len(pc.m)
-	pc.mu.RUnlock()
-	return uint64(n)
-}
-
-func (pc *parseCache) Get(q string) *parseCacheValue {
-	pc.requests.Add(1)
-
-	pc.mu.RLock()
-	pcv := pc.m[q]
-	pc.mu.RUnlock()
-
-	if pcv == nil {
-		pc.misses.Add(1)
-	}
-	return pcv
-}
-
-func (pc *parseCache) Put(q string, pcv *parseCacheValue) {
-	pc.mu.Lock()
-	overflow := len(pc.m) - parseCacheMaxLen
-	if overflow > 0 {
-		// Remove 10% of items from the cache.
-		overflow = int(float64(len(pc.m)) * 0.1)
-		for k := range pc.m {
-			delete(pc.m, k)
-			overflow--
-			if overflow <= 0 {
-				break
-			}
-		}
-	}
-	pc.m[q] = pcv
-	pc.mu.Unlock()
 }
