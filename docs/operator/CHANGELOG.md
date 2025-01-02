@@ -13,6 +13,8 @@ aliases:
 
 ## tip
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/operator/resources/vmagent/): properly route headless service traffic to vmagent `pods` with `statefulMode` and `shardCount` defined.
+
 ## [v0.51.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.51.2)
 
 **Release date:** 23 Dec 2024

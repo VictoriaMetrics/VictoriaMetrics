@@ -578,7 +578,7 @@
             "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
-          "expr": "sum(vm_persistentqueue_bytes_pending{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "sum(vmagent_remotewrite_pending_data_bytes{job=~\"$job\", instance=~\"$instance\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"

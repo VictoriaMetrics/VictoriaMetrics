@@ -318,7 +318,7 @@ See also:
 
 ### Querying facets
 
-VictoriaLogs provides `/select/logsql/facets?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns the most fequent values
+VictoriaLogs provides `/select/logsql/facets?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns the most frequent values
 per each [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) seen in the logs returned
 by the given [`<query>`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
 
