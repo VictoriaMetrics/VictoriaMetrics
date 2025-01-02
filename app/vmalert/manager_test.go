@@ -19,7 +19,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	if err := templates.Load([]string{"testdata/templates/*good.tmpl"}, url.URL{}); err != nil {
+	if err := templates.Init([]string{"testdata/templates/*good.tmpl"}, nil, url.URL{}); err != nil {
 		os.Exit(1)
 	}
 	os.Exit(m.Run())
@@ -72,7 +72,7 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 			r := rand.New(rand.NewSource(int64(n)))
 			for i := 0; i < iterations; i++ {
 				rnd := r.Intn(len(paths))
-				cfg, err := config.Parse([]string{paths[rnd]}, notifier.ValidateTemplates, true)
+				cfg, err := config.Parse([]string{paths[rnd]}, templates.ValidateTemplates, true)
 				if err != nil { // update can fail and this is expected
 					continue
 				}
@@ -135,7 +135,7 @@ func TestManagerUpdate_Success(t *testing.T) {
 			t.Fatalf("failed to complete initial rules update: %s", err)
 		}
 
-		cfgUpdate, err := config.Parse([]string{updatePath}, notifier.ValidateTemplates, true)
+		cfgUpdate, err := config.Parse([]string{updatePath}, templates.ValidateTemplates, true)
 		if err == nil { // update can fail and that's expected
 			_ = m.update(ctx, cfgUpdate, false)
 		}
@@ -326,7 +326,7 @@ func loadCfg(t *testing.T, path []string, validateAnnotations, validateExpressio
 	t.Helper()
 	var validateTplFn config.ValidateTplFn
 	if validateAnnotations {
-		validateTplFn = notifier.ValidateTemplates
+		validateTplFn = templates.ValidateTemplates
 	}
 	cfg, err := config.Parse(path, validateTplFn, validateExpressions)
 	if err != nil {
