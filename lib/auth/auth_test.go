@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"net/http"
 	"testing"
 )
 
@@ -29,9 +30,11 @@ func TestNewTokenSuccess(t *testing.T) {
 }
 
 func TestNewTokenPossibleMultitenantSuccess(t *testing.T) {
-	f := func(token string, want string) {
+	f := func(token string, tenantIDValue string, want string) {
 		t.Helper()
-		newToken, err := NewTokenPossibleMultitenant(token)
+		headers := http.Header{}
+		headers.Set("TenantID", tenantIDValue)
+		newToken, err := NewTokenPossibleMultitenant(token, headers)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -41,11 +44,13 @@ func TestNewTokenPossibleMultitenantSuccess(t *testing.T) {
 		}
 	}
 	// token with accountID only
-	f("1", "1")
+	f("1", "", "1")
 	// token with accountID and projecTID
-	f("1:2", "1:2")
+	f("1:2", "", "1:2")
 	// multitenant
-	f("multitenant", "multitenant")
+	f("multitenant", "", "multitenant")
+	// multitenant with tenantID in headers
+	f("multitenant", "1:2", "1:2")
 }
 
 func TestNewTokenFailure(t *testing.T) {
