@@ -76,8 +76,8 @@ export const TimeSelector: FC = () => {
   const setTimeAndClosePicker = () => {
     if (from && until) {
       dispatch({ type: "SET_PERIOD", payload: {
-        from: dayjs.tz(from).toDate(),
-        to: dayjs.tz(until).toDate()
+        from: dayjs.tz(from).startOf("second").toDate(),
+        to: dayjs.tz(until).endOf("second").toDate()
       } });
     }
     handleCloseOptions();
