@@ -10,13 +10,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -70,6 +70,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 	rowsTotal := 0
 	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
+	hasLimitsEnabled := timeserieslimits.Enabled()
 	for i := range rows {
 		r := &rows[i]
 		rowsTotal += len(r.Fields)
@@ -109,12 +110,9 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 				metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
 				ic.Labels = append(ic.Labels[:0], ctx.originLabels...)
 				ic.AddLabel("", metricGroup)
-				ic.ApplyRelabeling()
-				if len(ic.Labels) == 0 {
-					// Skip metric without labels.
+				if !ic.TryPrepareLabels(hasRelabeling) {
 					continue
 				}
-				ic.SortLabelsIfNeeded()
 				atLocal := ic.GetLocalAuthToken(at)
 				ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, nil)
 				for i := range ic.Labels {
@@ -127,7 +125,15 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 				perTenantRows[*atLocal]++
 			}
 		} else {
+			// special case for optimisations below
+			// do not call TryPrepareLabels
+			// manually apply sort and limits on demand
 			ic.SortLabelsIfNeeded()
+			if hasLimitsEnabled {
+				if timeserieslimits.IsExceeding(ic.Labels) {
+					continue
+				}
+			}
 			atLocal := ic.GetLocalAuthToken(at)
 			ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ic.Labels)
 			metricNameBufLen := len(ic.MetricNameBuf)
@@ -140,9 +146,10 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 				metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
 				ic.Labels = ic.Labels[:labelsLen]
 				ic.AddLabel("", metricGroup)
-				if len(ic.Labels) == 0 {
-					// Skip metric without labels.
-					continue
+				if hasLimitsEnabled {
+					if timeserieslimits.IsExceeding(ic.Labels[len(ic.Labels)-1:]) {
+						continue
+					}
 				}
 				ic.MetricNameBuf = ic.MetricNameBuf[:metricNameBufLen]
 				ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[len(ic.Labels)-1])
@@ -163,7 +170,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 type pushCtx struct {
 	Common         netstorage.InsertCtx
 	metricGroupBuf []byte
-	originLabels   []prompb.Label
+	originLabels   []prompbmarshal.Label
 }
 
 func (ctx *pushCtx) reset() {
@@ -172,7 +179,7 @@ func (ctx *pushCtx) reset() {
 
 	originLabels := ctx.originLabels
 	for i := range originLabels {
-		originLabels[i] = prompb.Label{}
+		originLabels[i] = prompbmarshal.Label{}
 	}
 	ctx.originLabels = originLabels[:0]
 }

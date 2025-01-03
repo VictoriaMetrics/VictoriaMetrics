@@ -36,15 +36,11 @@ func (pu *pipeUnroll) canLiveTail() bool {
 	return true
 }
 
-func (pu *pipeUnroll) optimize() {
-	pu.iff.optimizeFilterIn()
-}
-
 func (pu *pipeUnroll) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
 
-func (pu *pipeUnroll) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pu *pipeUnroll) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
@@ -115,9 +111,9 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.wctx.init(workerID, pup.ppNext, false, false, br)
 
 	bm := &shard.bm
-	bm.init(br.rowsLen)
-	bm.setBits()
 	if iff := pu.iff; iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pup.ppNext.writeBlock(workerID, br)
@@ -134,10 +130,10 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	fields := shard.fields
 	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
-		if bm.isSetBit(rowIdx) {
-			if needStop(pup.stopCh) {
-				return
-			}
+		if needStop(pup.stopCh) {
+			return
+		}
+		if pu.iff == nil || bm.isSetBit(rowIdx) {
 			shard.writeUnrolledFields(pu.fields, columnValues, rowIdx)
 		} else {
 			fields = fields[:0]
@@ -207,7 +203,7 @@ func (pup *pipeUnrollProcessor) flush() error {
 	return nil
 }
 
-func parsePipeUnroll(lex *lexer) (*pipeUnroll, error) {
+func parsePipeUnroll(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("unroll") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unroll")
 	}

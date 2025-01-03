@@ -733,7 +733,7 @@ Please read carefully and verify as you go.
 
 By default, Mimir uses the `prometheus` path prefix so specifying the source
 should be as simple as `--remote-read-src-addr=http://<mimir>:9009/prometheus`.
-But if prefix was overriden via `prometheus_http_prefix`, then source address should be updated
+But if prefix was overridden via `prometheus_http_prefix`, then source address should be updated
 to `--remote-read-src-addr=http://<mimir>:9009/{prometheus_http_prefix}`.
 
 Mimir supports [streamed remote read API](https://prometheus.io/blog/2019/10/10/remote-read-meets-streaming/),
@@ -869,6 +869,10 @@ Importing tips:
    --vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
    --vm-native-dst-addr=http://<dst-vminsert>:8480/insert/0/prometheus
    ```
+1. When migrating data from VM cluster to Single-node VictoriaMetrics, vmctl will use the `/api/v1/export/native` API of the VM cluster, 
+   which attaches `vm_account_id` and `vm_project_id` labels to each time series. If you don't need to distinguish between tenants 
+   or simply want to remove these labels, try setting the `--vm-native-disable-binary-protocol` flag, which will use the `/api/v1/export` API, 
+   exporting and importing data in JSON format. Deduplication should be enabled at `-vm-native-src-addr` side if needed.
 1. Migrating data from VM cluster which had replication (`-replicationFactor` > 1) enabled won't produce the same amount
    of data copies for the destination database, and will result only in creating duplicates. To remove duplicates,
    destination database need to be configured with `-dedup.minScrapeInterval=1ms`. To restore the replication factor
@@ -1125,3 +1129,348 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 1. [Install docker](https://docs.docker.com/install/).
 1. Run `make vmctl-linux-arm-prod` or `make vmctl-linux-arm64-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmctl-linux-arm-prod` or `vmctl-linux-arm64-prod` binary respectively and puts it into the `bin` folder.
+
+### Command-line flags
+
+Run `vmctl -help` in order to see all the available options.
+
+Commands:
+```shellhelp
+  influx
+     Migrate time series from InfluxDB
+  opentsdb
+     Migrate time series from OpenTSDB.
+  prometheus
+     Migrate time series from Prometheus.
+  remote-read
+     Migrate time series via Prometheus remote-read protocol.
+  verify-block
+     Verifies exported block with VictoriaMetrics Native format.
+  vm-native
+     Migrate time series between VictoriaMetrics installations.
+```
+
+Flags available for all commands:
+
+```shellhelp
+  -s
+     Whether to run in silent mode. If set to true no confirmation prompts will appear. (default false)
+  -verbose
+     Whether to enable verbosity in logs output. (default false)
+  -disable-progress-bar
+     Whether to disable progress bar during the import. (default false)
+```
+
+Flags available only for the `opentsdb` command:
+
+```shellhelp
+./vmctl influx -help
+
+   --influx-addr value
+     InfluxDB server addr (default: "http://localhost:8086")
+   --influx-user value
+     InfluxDB user [$INFLUX_USERNAME]
+   --influx-password value
+     InfluxDB user password [$INFLUX_PASSWORD]
+   --influx-database value
+     InfluxDB database
+   --influx-retention-policy value
+     InfluxDB retention policy (default: "autogen")
+   --influx-chunk-size value
+     The chunkSize defines max amount of series to be returned in one chunk (default: 10000)
+   --influx-concurrency value
+     Number of concurrently running fetch queries to InfluxDB (default: 1)
+   --influx-filter-series value
+     InfluxDB filter expression to select series. E.g. "from cpu where arch='x86' AND hostname='host_2753'".
+     See for details https://docs.influxdata.com/influxdb/v1.7/query_language/schema_exploration#show-series
+   --influx-filter-time-start value
+     The time filter to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'
+   --influx-filter-time-end value
+     The time filter to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
+   --influx-measurement-field-separator value
+     The {separator} symbol used to concatenate {measurement} and {field} names into series name {measurement}{separator}{field}. (default: "_")
+   --influx-skip-database-label
+     Wether to skip adding the label 'db' to timeseries. (default: false)
+   --influx-prometheus-mode
+     Whether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write. (default: false)
+   --influx-cert-file value
+     Optional path to client-side TLS certificate file to use when connecting to -influx-addr
+   --influx-key-file value
+     Optional path to client-side TLS key to use when connecting to -influx-addr
+   --influx-CA-file value
+     Optional path to TLS CA file to use for verifying connections to -influx-addr. By default, system CA is used
+   --influx-server-name value
+     Optional TLS server name to use for connections to -influx-addr. By default, the server name from -influx-addr is used
+   --influx-insecure-skip-verify
+     Whether to skip tls verification when connecting to -influx-addr (default: false)
+
+# There are flags available for influx, opentsdb, prometheus and remote-read commands. See below.
+```
+
+
+Flags available only for the `opentsdb` command:
+
+```shellhelp
+./vmctl opentsdb -help
+
+   --otsdb-addr value
+     OpenTSDB server addr (default: "http://localhost:4242")
+   --otsdb-concurrency value
+     Number of concurrently running fetch queries to OpenTSDB per metric (default: 1)
+   --otsdb-retentions value [ --otsdb-retentions value ]
+     Retentions patterns to collect on. Each pattern should describe the aggregation performed for the query, 
+     the row size (in HBase) that will define how long each individual query is, and the time range to query for. 
+     e.g. sum-1m-avg:1h:3d. The first time range defined should be a multiple of the row size in HBase. 
+     e.g. if the row size is 2 hours, 4h is good, 5h less so. We want each query to land on unique rows.
+   --otsdb-filters value [ --otsdb-filters value ]
+     Filters to process for discovering metrics in OpenTSDB (default: "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z")
+   --otsdb-offset-days value
+     Days to offset our 'starting' point for collecting data from OpenTSDB (default: 0)
+   --otsdb-hard-ts-start value
+     A specific timestamp to start from, will override using an offset (default: 0)
+   --otsdb-query-limit value
+     Result limit on meta queries to OpenTSDB (affects both metric name and tag value queries, recommended to use a value exceeding your largest series) (default: 100000000)
+   --otsdb-msecstime
+     Whether OpenTSDB is writing values in milliseconds or seconds (default: false)
+   --otsdb-normalize
+     Whether to normalize all data received to lower case before forwarding to VictoriaMetrics (default: false)
+   --otsdb-cert-file value
+     Optional path to client-side TLS certificate file to use when connecting to -otsdb-addr
+   --otsdb-key-file value
+     Optional path to client-side TLS key to use when connecting to -otsdb-addr
+   --otsdb-CA-file value
+     Optional path to TLS CA file to use for verifying connections to -otsdb-addr. By default, system CA is used
+   --otsdb-server-name value
+     Optional TLS server name to use for connections to -otsdb-addr. By default, the server name from -otsdb-addr is used
+   --otsdb-insecure-skip-verify
+     Whether to skip tls verification when connecting to -otsdb-addr (default: false)
+
+# There are flags available for influx, opentsdb, prometheus and remote-read commands. See below.
+```
+
+Flags available only for the `prometheus` command:
+
+```shellhelp
+./vmctl prometheus -help
+
+   --prom-snapshot value
+     Path to Prometheus snapshot. See for details https://www.robustperception.io/taking-snapshots-of-prometheus-data
+   --prom-concurrency value
+     Number of concurrently running snapshot readers (default: 1)
+   --prom-filter-time-start value
+     The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'
+   --prom-filter-time-end value
+     The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
+   --prom-filter-label value
+     Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.
+   --prom-filter-label-value value
+     Prometheus regular expression to filter label from "prom-filter-label" flag. (default: ".*")
+
+# There are flags available for influx, opentsdb, prometheus and remote-read commands. See below.
+```
+
+Flags available only for the `remote-read` command:
+
+```shellhelp
+./vmctl remote-read -help
+
+   --remote-read-concurrency value
+     Number of concurrently running remote read readers (default: 1)
+   --remote-read-filter-time-start value
+     The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'
+   --remote-read-filter-time-end value
+     The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
+   --remote-read-filter-label value
+     Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name. (default: "__name__")
+   --remote-read-filter-label-value value
+     Prometheus regular expression to filter label from "remote-read-filter-label-value" flag. (default: ".*")
+   --remote-read
+     Use Prometheus remote read protocol (default: false)
+   --remote-read-use-stream
+     Defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default, is uses SAMPLES mode. See https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#streamed-chunks (default: false)
+   --remote-read-step-interval value
+     The time interval to split the migration into steps. For example, to migrate 1y of data with '--remote-read-step-interval=month' vmctl will execute it in 12 separate requests from the beginning of the time range to its end. To reverse the order use '--remote-read-filter-time-reverse'. Requires setting '--remote-read-filter-time-start'. Valid values are 'month','week','day','hour','minute'.
+   --remote-read-filter-time-reverse
+     Whether to reverse the order of time intervals split by '--remote-read-step-interval' cmd-line flag. When set, the migration will start from the newest to the oldest data. (default: false)
+   --remote-read-src-addr value
+     Remote read address to perform read from.
+   --remote-read-user value
+     Remote read username for basic auth [$REMOTE_READ_USERNAME]
+   --remote-read-password value
+     Remote read password for basic auth [$REMOTE_READ_PASSWORD]
+   --remote-read-http-timeout value
+     Timeout defines timeout for HTTP requests made by remote read client (default: 0s)
+   --remote-read-headers value
+     Optional HTTP headers to send with each request to the corresponding remote source storage 
+     For example, --remote-read-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding remote source storage. 
+     Multiple headers must be delimited by '^^': --remote-read-headers='header1:value1^^header2:value2'
+   --remote-read-cert-file value
+     Optional path to client-side TLS certificate file to use when connecting to -remote-read-src-addr
+   --remote-read-key-file value
+     Optional path to client-side TLS key to use when connecting to -remote-read-src-addr
+   --remote-read-CA-file value
+     Optional path to TLS CA file to use for verifying connections to -remote-read-src-addr. By default, system CA is used
+   --remote-read-server-name value
+     Optional TLS server name to use for connections to remoteReadSrcAddr. By default, the server name from -remote-read-src-addr is used
+   --remote-read-insecure-skip-verify
+     Whether to skip TLS certificate verification when connecting to the remote read address (default: false)
+   --remote-read-disable-path-append
+     Whether to disable automatic appending of the /api/v1/read suffix to --remote-read-src-addr (default: false)
+
+# There are flags available for influx, opentsdb, prometheus and remote-read commands. See below.
+```
+
+Flags available only for the `verify-block` command:
+
+```shellhelp
+./vmctl verify-block -help
+
+   --gunzip
+     Use GNU zip decompression for exported block (default: false)
+```
+
+Flags available only for the `vm-native` command:
+
+```shellhelp
+./vmctl vm-native -help
+
+   --vm-native-filter-match value
+     Time series selector to match series for export. For example, select {instance!="localhost"} will match all series with "instance" label different to "localhost".
+     See more details here https://github.com/VictoriaMetrics/VictoriaMetrics#how-to-export-data-in-native-format (default: "{__name__!=\"\"}")
+   --vm-native-filter-time-start value
+     The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats
+   --vm-native-filter-time-end value
+     The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats
+   --vm-native-step-interval value
+     The time interval to split the migration into steps. For example, to migrate 1y of data with '--vm-native-step-interval=month' vmctl will execute it in 12 separate requests from the beginning of the time range to its end. To reverse the order use '--vm-native-filter-time-reverse'. Requires setting '--vm-native-filter-time-start'. Valid values are 'month','week','day','hour','minute'. (default: "month")
+   --vm-native-filter-time-reverse
+     Whether to reverse the order of time intervals split by '--vm-native-step-interval' cmd-line flag. When set, the migration will start from the newest to the oldest data. (default: false)
+   --vm-native-disable-http-keep-alive
+     Disable HTTP persistent connections for requests made to VictoriaMetrics components during export (default: false)
+   --vm-native-src-addr value
+     VictoriaMetrics address to perform export from. 
+     Should be the same as --httpListenAddr value for single-node version or vmselect component. If exporting from cluster version see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+   --vm-native-src-user value
+     VictoriaMetrics username for basic auth [$VM_NATIVE_SRC_USERNAME]
+   --vm-native-src-password value
+     VictoriaMetrics password for basic auth [$VM_NATIVE_SRC_PASSWORD]
+   --vm-native-src-headers value
+     Optional HTTP headers to send with each request to the corresponding source address. 
+     For example, --vm-native-src-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding source address. 
+     Multiple headers must be delimited by '^^': --vm-native-src-headers='header1:value1^^header2:value2'
+   --vm-native-src-bearer-token --vm-native-src-addr
+     Optional bearer auth token to use for the corresponding --vm-native-src-addr
+   --vm-native-src-cert-file --vm-native-src-addr
+     Optional path to client-side TLS certificate file to use when connecting to --vm-native-src-addr
+   --vm-native-src-key-file --vm-native-src-addr
+     Optional path to client-side TLS key to use when connecting to --vm-native-src-addr
+   --vm-native-src-ca-file --vm-native-src-addr
+     Optional path to TLS CA file to use for verifying connections to --vm-native-src-addr. By default, system CA is used
+   --vm-native-src-server-name --vm-native-src-addr
+     Optional TLS server name to use for connections to --vm-native-src-addr. By default, the server name from `--vm-native-src-addr` is used
+   --vm-native-src-insecure-skip-verify --vm-native-src-addr
+     Whether to skip TLS certificate verification when connecting to --vm-native-src-addr (default: false)
+   --vm-native-dst-addr value
+     VictoriaMetrics address to perform import to. 
+     Should be the same as --httpListenAddr value for single-node version or vminsert component. 
+     If importing into cluster version see https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
+   --vm-native-dst-user value
+     VictoriaMetrics username for basic auth [$VM_NATIVE_DST_USERNAME]
+   --vm-native-dst-password value
+     VictoriaMetrics password for basic auth [$VM_NATIVE_DST_PASSWORD]
+   --vm-native-dst-headers value
+     Optional HTTP headers to send with each request to the corresponding destination address. 
+     For example, --vm-native-dst-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding destination address. 
+     Multiple headers must be delimited by '^^': --vm-native-dst-headers='header1:value1^^header2:value2'
+   --vm-native-dst-bearer-token --vm-native-dst-addr
+     Optional bearer auth token to use for the corresponding --vm-native-dst-addr
+   --vm-native-dst-cert-file --vm-native-dst-addr
+     Optional path to client-side TLS certificate file to use when connecting to --vm-native-dst-addr
+   --vm-native-dst-key-file --vm-native-dst-addr
+     Optional path to client-side TLS key to use when connecting to --vm-native-dst-addr
+   --vm-native-dst-ca-file --vm-native-dst-addr
+     Optional path to TLS CA file to use for verifying connections to --vm-native-dst-addr. By default, system CA is used
+   --vm-native-dst-server-name --vm-native-dst-addr
+     Optional TLS server name to use for connections to --vm-native-dst-addr. By default, the server name from `--vm-native-dst-addr` is used
+   --vm-native-dst-insecure-skip-verify --vm-native-dst-addr
+     Whether to skip TLS certificate verification when connecting to --vm-native-dst-addr (default: false)
+   --vm-extra-label value [ --vm-extra-label value ]
+     Extra labels, that will be added to imported timeseries. In case of collision, label value defined by flagwill have priority. 
+     Flag can be set multiple times, to add few additional labels.
+   --vm-rate-limit value
+     Optional data transfer rate limit in bytes per second.
+     By default, the rate limit is disabled. It can be useful for limiting load on source or destination databases. (default: 0)
+   --vm-intercluster  Enables cluster-to-cluster migration mode with automatic tenants data migration.
+     In this mode --vm-native-src-addr flag format is: 'http://vmselect:8481/'. --vm-native-dst-addr flag format is: http://vminsert:8480/. 
+     TenantID will be appended automatically after discovering tenants from src. (default: false)
+   --vm-concurrency value
+     Number of workers concurrently performing import requests to VM (default: 2)
+   --vm-native-disable-per-metric-migration
+     Defines whether to disable per-metric migration and migrate all data via one connection. 
+     In this mode, vmctl makes less export/import requests, but can't provide a progress bar or retry failed requests. (default: false)
+   --vm-native-disable-binary-protocol
+     Whether to use https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format instead of 
+     https://docs.victoriametrics.com/#how-to-export-data-in-native-format API. 
+     Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks.
+     Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side. (default: false)
+   --vm-native-backoff-retries value
+     How many export/import retries to perform before giving up. (default: 10)
+   --vm-native-backoff-factor value
+     Factor to multiply the base duration after each failed export/import retry. Must be greater than 1.0 (default: 1.8)
+   --vm-native-backoff-min-duration value
+     Minimum duration to wait before the first export/import retry. Each subsequent export/import retry will be multiplied by the '--vm-native-backoff-factor'. (default: 2s)
+```
+
+Flags available for the `influx`, `opentsdb`, `prometheus` and `remote-read` commands:
+
+```shellhelp
+   --vm-addr vmctl
+     VictoriaMetrics address to perform import requests. 
+     Should be the same as --httpListenAddr value for single-node version or vminsert component. 
+     When importing into the clustered version do not forget to set additionally --vm-account-id flag. 
+     Please note, that vmctl performs initial readiness check for the given address by checking `/health` endpoint. (default: "http://localhost:8428")
+   --vm-user value
+     VictoriaMetrics username for basic auth [$VM_USERNAME]
+   --vm-password value
+     VictoriaMetrics password for basic auth [$VM_PASSWORD]
+   --vm-account-id value
+     AccountID is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). 
+     AccountID is required when importing into the clustered version of VictoriaMetrics. 
+     It is possible to set it as accountID:projectID, where projectID is also arbitrary 32-bit integer. 
+     If projectID isn't set, then it equals to 0
+   --vm-concurrency value
+     Number of workers concurrently performing import requests to VM (default: 2)
+   --vm-compress
+     Whether to apply gzip compression to import requests (default: true)
+   --vm-batch-size value
+     How many samples importer collects before sending the import request to VM (default: 200000)
+   --vm-significant-figures value
+     The number of significant figures to leave in metric values before importing. See https://en.wikipedia.org/wiki/Significant_figures.
+     Zero value saves all the significant figures. This option may be used for increasing on-disk compression level for the stored metrics.
+     See also --vm-round-digits option (default: 0)
+   --vm-round-digits value
+     Round metric values to the given number of decimal digits after the point. This option may be used for increasing 
+     on-disk compression level for the stored metrics (default: 100)
+   --vm-extra-label value [ --vm-extra-label value ]
+     Extra labels, that will be added to imported timeseries. In case of collision, label value defined by flagwill have priority.
+     Flag can be set multiple times, to add few additional labels.
+   --vm-rate-limit value
+     Optional data transfer rate limit in bytes per second.
+     By default, the rate limit is disabled. It can be useful for limiting load on configured via '--vmAddr' destination. (default: 0)
+   --vm-cert-file value
+     Optional path to client-side TLS certificate file to use when connecting to '--vmAddr'
+   --vm-key-file value
+     Optional path to client-side TLS key to use when connecting to '--vmAddr'
+   --vm-CA-file value
+     Optional path to TLS CA file to use for verifying connections to '--vmAddr'. By default, system CA is used
+   --vm-server-name value
+     Optional TLS server name to use for connections to '--vmAddr'. By default, the server name from '--vmAddr' is used
+   --vm-insecure-skip-verify
+     Whether to skip tls verification when connecting to '--vmAddr' (default: false)
+   --vm-backoff-retries value
+     How many import retries to perform before giving up. (default: 10)
+   --vm-backoff-factor value
+     Factor to multiply the base duration after each failed import retry. Must be greater than 1.0 (default: 1.8)
+   --vm-backoff-min-duration value
+     Minimum duration to wait before the first import retry. Each subsequent import retry will be multiplied by the '--vm-backoff-factor'. (default: 2s)
+```

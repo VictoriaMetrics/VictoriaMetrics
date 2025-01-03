@@ -15,7 +15,7 @@ VictoriaLogs provides the following features:
 - VictoriaLogs' capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
   It runs smoothly on Raspberry PI and on servers with hundreds of CPU cores and terabytes of RAM.
 - It can handle up to 30x bigger data volumes than Elasticsearch and Grafana Loki when running on the same hardware.
-  See [these docs](#benchmarks).
+  See [these docs](#benchmarks) and [this article](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f) for details.
 - It provides fast full-text search out of the box for [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   with high cardinality (e.g. high number of unique values) such as `trace_id`, `user_id` and `ip`.
 - It supports multitenancy - see [these docs](#multitenancy).
@@ -24,12 +24,27 @@ VictoriaLogs provides the following features:
 - It supports selecting surrounding logs in front and after the selected logs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe).
 - It provides web UI for querying logs - see [these docs](https://docs.victoriametrics.com/victorialogs/querying/#web-ui).
 - It provides [Grafana plugin for querying logs](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/).
+- It supports alerting - see [these docs](https://docs.victoriametrics.com/victorialogs/vmalert/).
 
 If you have questions about VictoriaLogs, then read [this FAQ](https://docs.victoriametrics.com/victorialogs/faq/).
 Also feel free asking any questions at [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/), 
 you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
 
 See [Quick start docs](https://docs.victoriametrics.com/victorialogs/quickstart/) for start working with VictoriaLogs.
+
+## Tuning
+
+* No need in tuning for VictoriaLogs - it uses reasonable defaults for command-line flags, which are automatically adjusted for the available CPU and RAM resources.
+* No need in tuning for Operating System - VictoriaLogs is optimized for default OS settings.
+  The only option is increasing the limit on [the number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a).
+* The recommended filesystem is `ext4`, the recommended persistent storage is [persistent HDD-based disk on GCP](https://cloud.google.com/compute/docs/disks/#pdspecs),
+  since it is protected from hardware failures via internal replication and it can be [resized on the fly](https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd).
+  If you plan to store more than 1TB of data on `ext4` partition or plan extending it to more than 16TB,
+  then the following options are recommended to pass to `mkfs.ext4`:
+
+```sh
+mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
+```
 
 ## Monitoring
 
@@ -38,7 +53,9 @@ It is recommended to set up monitoring of these metrics via VictoriaMetrics
 (see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
 vmagent (see [these docs](https://docs.victoriametrics.com/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
 
-We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vlogs.yml)
+We recommend installing [Grafana dashboard for VictoriaLogs](https://grafana.com/grafana/dashboards/22084).
+
+We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vlogs.yml)
 via [vmalert](https://docs.victoriametrics.com/vmalert/) or via Prometheus.
 
 VictoriaLogs emits its own logs to stdout. It is recommended to investigate these logs during troubleshooting.
@@ -180,7 +197,7 @@ Therefore, for a complete data **backup**, you need to run the `rsync` command *
 
 ```sh
 # example of rsync to remote host
-rsync -avh --progress <path-to-victorialogs-data> <username>@<host>:<path-to-victorialogs-backup>
+rsync -avh --progress --delete <path-to-victorialogs-data> <username>@<host>:<path-to-victorialogs-backup>
 ```
 
 The first `rsync` will sync the majority of the data, which can be time-consuming.
@@ -210,7 +227,7 @@ VictoriaLogs will automatically load this data upon startup.
 
 ```sh
 # example of rsync from remote backup to local
-rsync -avh --progress <username>@<host>:<path-to-victorialogs-backup> <path-to-victorialogs-data>
+rsync -avh --progress --delete <username>@<host>:<path-to-victorialogs-backup> <path-to-victorialogs-data>
 ```
 
 It is also possible to use **the disk snapshot** in order to perform a backup. This feature could be provided by your operating system,
@@ -227,6 +244,13 @@ If `AccountID` and/or `ProjectID` request headers aren't set, then the default `
 VictoriaLogs has very low overhead for per-tenant management, so it is OK to have thousands of tenants in a single VictoriaLogs instance.
 
 VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/vmauth/) or similar tools for per-tenant authorization.
+
+## Security
+
+It is expected that VictoriaLogs runs in a protected environment, which is unreachable from the Internet without proper authorization.
+It is recommended providing access to VictoriaLogs [data ingestion APIs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
+and [querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) via [vmauth](https://docs.victoriametrics.com/vmauth/)
+or similar authorization proxies.
 
 ## Benchmarks
 
@@ -246,8 +270,8 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
 ```
   -blockcache.missesBeforeCaching int
     	The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
-  -cacheExpireDuration duration
-    	Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
+  -defaultMsgValue string
+    	Default value for _msg field if the ingested log entry doesn't contain it; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field (default "missing _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field")
   -elasticsearch.version string
     	Elasticsearch version to report to client (default "8.9.0")
   -enableTCP6
@@ -261,6 +285,9 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -flagsAuthKey value
     	Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
     	Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
+  -forceMergeAuthKey value
+    	authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*
+    	Flag value can be read from the given file when using -forceMergeAuthKey=file:///abs/path/to/file or -forceMergeAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -forceMergeAuthKey=http://host/path or -forceMergeAuthKey=https://host/path
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -futureRetention value
@@ -312,6 +339,20 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
     	The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
+  -journald.ignoreFields array
+    	Journal fields to ignore. See the list of allowed fields at https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html.
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -journald.includeEntryMetadata
+    	Include journal entry fields, which with double underscores.
+  -journald.streamFields array
+    	Journal fields to be used as stream fields. See the list of allowed fields at https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html.
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -journald.tenantID string
+    	TenantID for logs ingested via the Journald endpoint. (default "0:0")
+  -journald.timeField string
+    	Journal field to be used as time field. See the list of allowed fields at https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html. (default "__REALTIME_TIMESTAMP")
   -logIngestedRows
     	Whether to log all the ingested log entries; this can be useful for debugging of data ingestion; see https://docs.victoriametrics.com/victorialogs/data-ingestion/ ; see also -logNewStreams
   -logNewStreams
@@ -327,7 +368,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -loggerLevel string
     	Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerMaxArgLen int
-    	The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 1000)
+    	The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 5000)
   -loggerOutput string
     	Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -347,10 +388,8 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
     	Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -pprofAuthKey value
-    	Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
+    	Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It -httpAuth.*
     	Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
-  -prevCacheRemovalPercent float
-    	Items in the previous caches are removed when the percent of requests it serves becomes lower than this value. Higher values reduce memory usage at the cost of higher CPU usage. See also -cacheExpireDuration (default 0.1)
   -pushmetrics.disableCompression
     	Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array
@@ -392,6 +431,22 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Compression method for syslog messages received at the corresponding -syslog.listenAddr.udp. Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#compression
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.extraFields.tcp array
+    	Fields to add to logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#adding-extra-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.extraFields.udp array
+    	Fields to add to logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#adding-extra-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.ignoreFields.tcp array
+    	Fields to ignore at logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#dropping-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.ignoreFields.udp array
+    	Fields to ignore at logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#dropping-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.listenAddr.tcp array
     	Comma-separated list of TCP addresses to listen to for Syslog messages. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
     	Supports an array of values separated by comma or specified via multiple flags.
@@ -400,12 +455,20 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Comma-separated list of UDP address to listen to for Syslog messages. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.streamFields.tcp array
+    	Fields to use as log stream labels for logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#stream-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.streamFields.udp array
+    	Fields to use as log stream labels for logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#stream-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.tenantID.tcp array
-    	TenantID for logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
+    	TenantID for logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#multitenancy
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.tenantID.udp array
-    	TenantID for logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
+    	TenantID for logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#multitenancy
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.timezone string

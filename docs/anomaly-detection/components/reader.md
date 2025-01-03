@@ -19,7 +19,7 @@ Future updates will introduce additional readers, expanding the range of data so
 
 ## VM reader
 
-> **Note**: Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130) there is backward-compatible change of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=queries#vm-reader) arg of [VmReader](#vm-reader). New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Please see [per-query parameters](#per-query-parameters) section for the details.
+> **Note**: There is backward-compatible change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=queries#vm-reader) arg of [VmReader](#vm-reader). New format allows to specify per-query parameters, like `step` to reduce amount of data read from VictoriaMetrics TSDB and to allow config flexibility. Please see [per-query parameters](#per-query-parameters) section for the details.
 
 Old format like
 
@@ -48,12 +48,13 @@ reader:
       expr: 'avg(vm_blocks)'  # initial MetricsQL expression
       step: '10s'  # individual step for this query, will be filled with `sampling_period` from the root level
       data_range: ['-inf', 'inf']  # by default, no constraints applied on data range
+      tz: 'UTC'  # by default, tz-free data is used throughout the model lifecycle
       # new query-level arguments will be added in backward-compatible way in future releases
 ```
 
 ### Per-query parameters
 
-Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130) there is change of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=queries#vm-reader) arg format. Now each query alias supports the next (sub)fields:
+There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=queries#vm-reader) arg format. Now each query alias supports the next (sub)fields:
 
 - `expr` (string): MetricsQL/PromQL expression that defines an input for VmReader. As accepted by `/query_range?query=%s`. i.e. `avg(vm_blocks)`
 
@@ -63,11 +64,15 @@ Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/chang
 
     > **Note**: having **different** individual `step` args for queries (i.e. `30s` for `q1` and `2m` for `q2`) is not yet supported for [multivariate model](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) if you want to run it on several queries simultaneously (i.e. setting [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/models/#queries) arg of a model to [`q1`, `q2`]).
 
-- `data_range` (list[float | string]): Introduced in [v1.15.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1151), it allows defining **valid** data ranges for input per individual query in `queries`, resulting in:
+- `data_range`{{% available_from "v1.15.1" anomaly %}} (list[float | string]): It allows defining **valid** data ranges for input per individual query in `queries`, resulting in:
   - **High anomaly scores** (>1) when the *data falls outside the expected range*, indicating a data constraint violation.
   - **Lowest anomaly scores** (=0) when the *model's predictions (`yhat`) fall outside the expected range*, meaning uncertain predictions.
 
-- `max_points_per_query` (int): Introduced in [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170), optional arg overrides how `search.maxPointsPerTimeseries` flag (available since [v1.14.1](#v1141)) impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. If set on a query-level, it overrides the global `max_points_per_query` (reader-level).
+  > **Note**: if not set explicitly (or if older config style prior to [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)) is used, then it is set to reader-level `data_range` arg{{% available_from "v1.18.1" anomaly %}}
+
+- `max_points_per_query` (int): Optional arg{{% available_from "v1.17.0" anomaly %}} overrides how `search.maxPointsPerTimeseries` flag{{% available_from "v1.14.1" anomaly %}} impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. If set on a query-level, it overrides the global `max_points_per_query` (reader-level).
+
+- `tz`{{% available_from "v1.18.0" anomaly %}} (string): this optional argument enables timezone specification per query, overriding the reader’s default `tz`. This setting helps to account for local timezone shifts, such as [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models that are sensitive to seasonal variations (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)).
 
 
 ### Per-query config example
@@ -83,6 +88,7 @@ reader:
       step: '2m'  # overrides global `sampling_period` of 1m
       data_range: [10, 'inf']  # meaning only positive values > 10 are expected, i.e. a value `y` < 10 will trigger anomaly score > 1
       max_points_per_query: 5000 # overrides reader-level value of 10000 for `ingestion_rate` query
+      tz: 'America/New_York'  # to override reader-wise `tz`
 ```
 
 ### Config parameters
@@ -102,7 +108,7 @@ reader:
 `class`
             </td>
             <td>
-`reader.vm.VmReader` (or `vm` starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130))
+`reader.vm.VmReader` (or `vm`{{% available_from "v1.13.0" anomaly %}})
             </td>
             <td>
 Name of the class needed to enable reading from VictoriaMetrics or Prometheus. VmReader is the default option, if not specified.
@@ -110,6 +116,7 @@ Name of the class needed to enable reading from VictoriaMetrics or Prometheus. V
         </tr>
         <tr>
             <td>
+
 `queries`
             </td>
             <td>
@@ -121,6 +128,7 @@ See [per-query config section](#per-query-parameters) above
         </tr>
         <tr>
             <td>
+
 `datasource_url`
             </td>
             <td>
@@ -132,9 +140,11 @@ Datasource URL address
         </tr>
         <tr>
             <td>
+
 `tenant_id`
             </td>
             <td>
+
 `0:0`, `multitenant`
             </td>
             <td>
@@ -143,6 +153,7 @@ For VictoriaMetrics Cluster version only, tenants are identified by `accountID` 
         </tr>
         <tr>
             <td>
+
 `sampling_period`
             </td>
             <td>
@@ -154,6 +165,7 @@ Frequency of the points returned. Will be converted to `/query_range?step=%s` pa
         </tr>
         <tr>
             <td>
+
 `query_range_path`
             </td>
             <td>
@@ -165,9 +177,11 @@ Performs PromQL/MetricsQL range query
         </tr>
         <tr>
             <td>
+
 `health_path`
             </td>
             <td>
+
 `health`
             </td>
             <td>
@@ -176,9 +190,11 @@ Absolute or relative URL address where to check availability of the datasource.
         </tr>
         <tr>
             <td>
+
 `user`
             </td>
             <td>
+
 `USERNAME`
             </td>
             <td>
@@ -187,9 +203,11 @@ BasicAuth username
         </tr>
         <tr>
             <td>
+
 `password`
             </td>
             <td>
+
 `PASSWORD`
             </td>
             <td>
@@ -198,9 +216,11 @@ BasicAuth password
         </tr>
         <tr>
             <td>
+
 `timeout`
             </td>
             <td>
+
 `30s`
             </td>
             <td>
@@ -209,9 +229,11 @@ Timeout for the requests, passed as a string
         </tr>
         <tr>
             <td>
+
 `verify_tls`
             </td>
             <td>
+
 `false`
             </td>
             <td>
@@ -222,31 +244,37 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
         </tr>
         <tr>
             <td>
+
 `tls_cert_file`
             </td>
             <td>
+
 `path/to/cert.crt`
             </td>
             <td>
-Path to a file with the client certificate, i.e. `client.crt`. Available since [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163).
+Path to a file with the client certificate, i.e. `client.crt`{{% available_from "v1.16.3" anomaly %}}.
             </td>
         </tr>
         <tr>
             <td>
+
 `tls_key_file`
             </td>
             <td>
+
 `path/to/key.crt`
             </td>
             <td>
-Path to a file with the client certificate key, i.e. `client.key`. Available since [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163).
+Path to a file with the client certificate key, i.e. `client.key`{{% available_from "v1.16.3" anomaly %}}.
             </td>
         </tr>
         <tr>
             <td>
+
 `bearer_token`
             </td>
             <td>
+
 `token`
             </td>
             <td>
@@ -255,20 +283,24 @@ Token is passed in the standard format with header: `Authorization: bearer {toke
         </tr>
         <tr>
             <td>
+
 `bearer_token_file`
             </td>
             <td>
+
 `path_to_file`
             </td>
             <td>
-Path to a file, which contains token, that is passed in the standard format with header: `Authorization: bearer {token}`. Available since [v1.15.9](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1159)
+Path to a file, which contains token, that is passed in the standard format with header: `Authorization: bearer {token}`{{% available_from "v1.15.9" anomaly %}}.
             </td>
         </tr>
         <tr>
             <td>
+
 `extra_filters`
             </td>
             <td>
+
 `[]`
             </td>
             <td>
@@ -277,9 +309,11 @@ List of strings with series selector. See: [Prometheus querying API enhancements
         </tr>
         <tr>
             <td>
+
 `query_from_last_seen_timestamp`
             </td>
             <td>
+
 `False`
             </td>
             <td>
@@ -288,24 +322,54 @@ If True, then query will be performed from the last seen timestamp for a given s
         </tr>
         <tr>
             <td>
+
 `latency_offset`
             </td>
             <td>
+
 `1ms`
             </td>
             <td>
-Introduced in [v1.15.1](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1151), it allows overriding the default `-search.latencyOffset` [flag of VictoriaMetrics](https://docs.victoriametrics.com/?highlight=search.latencyOffset#list-of-command-line-flags) (30s). The default value is set to 1ms, which should help in cases where `sampling_frequency` is low (10-60s) and `sampling_frequency` equals `infer_every` in the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/?highlight=infer_every#periodic-scheduler). This prevents users from receiving `service - WARNING - [Scheduler [scheduler_alias]] No data available for inference.` warnings in logs and allows for consecutive `infer` calls without gaps. To restore the old behavior, set it equal to your `-search.latencyOffset` [flag value]((https://docs.victoriametrics.com/?highlight=search.latencyOffset#list-of-command-line-flags)).
+It allows overriding the default `-search.latencyOffset`{{% available_from "v1.15.1" anomaly %}} [flag of VictoriaMetrics](https://docs.victoriametrics.com/?highlight=search.latencyOffset#list-of-command-line-flags) (30s). The default value is set to 1ms, which should help in cases where `sampling_frequency` is low (10-60s) and `sampling_frequency` equals `infer_every` in the [PeriodicScheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/?highlight=infer_every#periodic-scheduler). This prevents users from receiving `service - WARNING - [Scheduler [scheduler_alias]] No data available for inference.` warnings in logs and allows for consecutive `infer` calls without gaps. To restore the old behavior, set it equal to your `-search.latencyOffset` [flag value]((https://docs.victoriametrics.com/?highlight=search.latencyOffset#list-of-command-line-flags)).
             </td>
         </tr>
         <tr>
             <td>
+
 `max_points_per_query`
             </td>
             <td>
+
 `10000`
             </td>
             <td>
-Introduced in [v1.17.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1170), optional arg overrides how `search.maxPointsPerTimeseries` flag (available since [v1.14.1](#v1141)) impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. You can also set it on [per-query](#per-query-parameters) basis to override this global one.
+Optional arg{{% available_from "v1.17.0" anomaly %}} overrides how `search.maxPointsPerTimeseries` flag{{% available_from "v1.14.1" anomaly %}} impacts `vmanomaly` on splitting long `fit_window` [queries](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=queries#vm-reader) into smaller sub-intervals. This helps users avoid hitting the `search.maxQueryDuration` limit for individual queries by distributing initial query across multiple subquery requests with minimal overhead. Set less than `search.maxPointsPerTimeseries` if hitting `maxQueryDuration` limits. You can also set it on [per-query](#per-query-parameters) basis to override this global one.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`tz`
+            </td>
+            <td>
+
+`UTC`
+            </td>
+            <td>
+Optional argument{{% available_from "v1.18.0" anomaly %}} specifies the [IANA](https://nodatime.org/TimeZones) timezone to account for local shifts, like [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models sensitive to seasonal patterns (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)). Defaults to `UTC` if not set and can be overridden on a [per-query basis](#per-query-parameters).
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`data_range`
+            </td>
+            <td>
+
+`["-inf", "inf"]`
+            </td>
+            <td>
+Optional argument{{% available_from "v1.18.1" anomaly %}} allows defining **valid** data ranges for input of all the queries in `queries`. Defaults to `["-inf", "inf"]` if not set and can be overridden on a [per-query basis](#per-query-parameters).
             </td>
         </tr>
     </tbody>
@@ -318,11 +382,14 @@ reader:
   class: "vm"  # or "reader.vm.VmReader" until v1.13.0
   datasource_url: "https://play.victoriametrics.com/"
   tenant_id: "0:0"
+  tz: 'America/New_York'
+  data_range: [1, 'inf']  # reader-level
   queries:
     ingestion_rate:
       expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
-      step: '1m' # can override global `sampling_period` on per-query level
-      data_range: [0, 'inf']
+      step: '1m' # can override reader-level `sampling_period` on per-query level
+      data_range: [0, 'inf']  # if set, overrides reader-level data_range
+      tz: 'Australia/Sydney'  # if set, overrides reader-level tz
   sampling_period: '1m'
   query_from_last_seen_timestamp: True  # false by default
   latency_offset: '1ms'
@@ -330,7 +397,7 @@ reader:
 
 ### mTLS protection
 
-As of [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163), `vmanomaly` supports [mutual TLS (mTLS)](https://en.wikipedia.org/wiki/Mutual_authentication) for secure communication across its components, including [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer), and [Monitoring/Push](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters). This allows for mutual authentication between the client and server when querying or writing data to [VictoriaMetrics Enterprise, configured for mTLS](https://docs.victoriametrics.com/#mtls-protection).
+`vmanomaly` supports [mutual TLS (mTLS)](https://en.wikipedia.org/wiki/Mutual_authentication){{% available_from "v1.16.3" anomaly %}} for secure communication across its components, including [VmReader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader), [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer), and [Monitoring/Push](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/#push-config-parameters). This allows for mutual authentication between the client and server when querying or writing data to [VictoriaMetrics Enterprise, configured for mTLS](https://docs.victoriametrics.com/#mtls-protection).
 
 mTLS ensures that both the client and server verify each other's identity using certificates, which enhances security by preventing unauthorized access. 
 

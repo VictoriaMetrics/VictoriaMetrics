@@ -3,7 +3,6 @@ package logstorage
 import (
 	"math"
 	"strings"
-	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -21,17 +20,17 @@ func (sm *statsMin) updateNeededFields(neededFields fieldsSet) {
 	updateNeededFieldsForStatsFunc(neededFields, sm.fields)
 }
 
-func (sm *statsMin) newStatsProcessor() (statsProcessor, int) {
-	smp := &statsMinProcessor{
-		sm: sm,
-	}
-	return smp, int(unsafe.Sizeof(*smp))
+func (sm *statsMin) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	smp := a.newStatsMinProcessor()
+	smp.sm = sm
+	return smp
 }
 
 type statsMinProcessor struct {
 	sm *statsMin
 
-	min string
+	min      string
+	hasItems bool
 }
 
 func (smp *statsMinProcessor) updateStatsForAllRows(br *blockResult) int {
@@ -78,7 +77,9 @@ func (smp *statsMinProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 
 func (smp *statsMinProcessor) mergeState(sfp statsProcessor) {
 	src := sfp.(*statsMinProcessor)
-	smp.updateStateString(src.min)
+	if src.hasItems {
+		smp.updateStateString(src.min)
+	}
 }
 
 func (smp *statsMinProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) {
@@ -116,9 +117,9 @@ func (smp *statsMinProcessor) updateStateForColumn(br *blockResult, c *blockResu
 			smp.updateStateString(v)
 		}
 	case valueTypeDict:
-		for _, v := range c.dictValues {
+		c.forEachDictValue(br, func(v string) {
 			smp.updateStateString(v)
-		}
+		})
 	case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64:
 		bb := bbPool.Get()
 		bb.B = marshalUint64String(bb.B[:0], c.minValue)
@@ -151,18 +152,18 @@ func (smp *statsMinProcessor) updateStateBytes(b []byte) {
 }
 
 func (smp *statsMinProcessor) updateStateString(v string) {
-	if v == "" {
-		// Skip empty strings
+	if !smp.hasItems {
+		smp.min = strings.Clone(v)
+		smp.hasItems = true
 		return
 	}
-	if smp.min != "" && !lessString(v, smp.min) {
-		return
+	if lessString(v, smp.min) {
+		smp.min = strings.Clone(v)
 	}
-	smp.min = strings.Clone(v)
 }
 
-func (smp *statsMinProcessor) finalizeStats() string {
-	return smp.min
+func (smp *statsMinProcessor) finalizeStats(dst []byte) []byte {
+	return append(dst, smp.min...)
 }
 
 func parseStatsMin(lex *lexer) (*statsMin, error) {

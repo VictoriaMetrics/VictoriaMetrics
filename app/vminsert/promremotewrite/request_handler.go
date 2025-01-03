@@ -53,14 +53,10 @@ func insertRows(at *auth.Token, timeseries []prompb.TimeSeries, extraLabels []pr
 			label := &extraLabels[j]
 			ctx.AddLabel(label.Name, label.Value)
 		}
-		if hasRelabeling {
-			ctx.ApplyRelabeling()
-		}
-		if len(ctx.Labels) == 0 {
-			// Skip metric without labels.
+
+		if !ctx.TryPrepareLabels(hasRelabeling) {
 			continue
 		}
-		ctx.SortLabelsIfNeeded()
 		atLocal := ctx.GetLocalAuthToken(at)
 		storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
 		ctx.MetricNameBuf = ctx.MetricNameBuf[:0]

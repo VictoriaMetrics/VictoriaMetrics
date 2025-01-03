@@ -33,15 +33,11 @@ func (pp *pipePackJSON) updateNeededFields(neededFields, unneededFields fieldsSe
 	updateNeededFieldsForPipePack(neededFields, unneededFields, pp.resultField, pp.fields)
 }
 
-func (pp *pipePackJSON) optimize() {
-	// nothing to do
-}
-
 func (pp *pipePackJSON) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pp *pipePackJSON) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pp *pipePackJSON) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pp, nil
 }
 
@@ -49,7 +45,7 @@ func (pp *pipePackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ 
 	return newPipePackProcessor(workersCount, ppNext, pp.resultField, pp.fields, MarshalFieldsToJSON)
 }
 
-func parsePackJSON(lex *lexer) (*pipePackJSON, error) {
+func parsePipePackJSON(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("pack_json") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "pack_json")
 	}

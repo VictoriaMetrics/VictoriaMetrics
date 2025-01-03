@@ -11,24 +11,29 @@ aliases:
   - /victorialogs/data-ingestion/Promtail.html
   - /victorialogs/data-ingestion/promtail.html
 ---
-[Promtail](https://grafana.com/docs/loki/latest/clients/promtail/) is a default log shipper for Grafana Loki.
-Promtail can be configured to send the collected logs to VictoriaLogs according to the following docs.
+[Promtail](https://grafana.com/docs/loki/latest/clients/promtail/), [Grafana Agent](https://grafana.com/docs/agent/latest/)
+and [Grafana Alloy](https://grafana.com/docs/alloy/latest/) are default log collectors for Grafana Loki.
+They can be configured to send the collected logs to VictoriaLogs according to the following docs.
 
 Specify [`clients`](https://grafana.com/docs/loki/latest/clients/promtail/configuration/#clients) section in the configuration file
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
 
 ```yaml
 clients:
-  - url: http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app
+  - url: "http://localhost:9428/insert/loki/api/v1/push"
 ```
 
 Substitute `localhost:9428` address inside `clients` with the real TCP address of VictoriaLogs.
 
-By default VictoriaLogs stores all the ingested logs into a single [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
-Storing all the logs in a single log stream may be not so efficient, so it is recommended to specify `_stream_fields` query arg
-with the list of labels, which uniquely identify log streams. There is no need in specifying all the labels Promtail generates there -
-it is usually enough specifying `instance` and `job` labels. See [these docs](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
-for details.
+VictoriaLogs uses [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) defined at the client side,
+e.g. at Promtail, Grafana Agent or Grafana Allow. Sometimes it may be needed overriding the set of these fields. This can be done via `_stream_fields`
+query arg. For example, the following config instructs using only the `instance` and `job` labels as log stream fields, while other labels
+will be stored as [usual log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
+
+```yaml
+clients:
+  - url: "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job"
+```
 
 See also [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details on other supported query args.
 There is no need in specifying `_msg_field` and `_time_field` query args, since VictoriaLogs automatically extracts log message and timestamp from the ingested Loki data.
@@ -40,7 +45,7 @@ and inspecting VictoriaLogs logs then:
 
 ```yaml
 clients:
-  - url: http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app&debug=1
+  - url: "http://localhost:9428/insert/loki/api/v1/push?debug=1"
 ```
 
 If some [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) must be skipped
@@ -49,7 +54,7 @@ For example, the following config instructs VictoriaLogs to ignore `filename` an
 
 ```yaml
 clients:
-  - url: http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app&ignore_fields=filename,stream
+  - url: 'http://localhost:9428/insert/loki/api/v1/push?ignore_fields=filename,stream'
 ```
 
 By default the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy).
@@ -60,7 +65,7 @@ For example, the following config instructs VictoriaLogs to store logs in the `(
 
 ```yaml
 clients:
-  - url: http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app&debug=1
+  - url: "http://localhost:9428/insert/loki/api/v1/push"
     tenant_id: "12:34"
 ```
 

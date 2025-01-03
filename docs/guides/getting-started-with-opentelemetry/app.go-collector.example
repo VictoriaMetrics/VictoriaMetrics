@@ -13,17 +13,22 @@ import (
 	"strconv"
 	"time"
 
+	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/log/global"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
-	otelmetric "go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/sdk/metric"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.25.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 func main() {
@@ -98,14 +103,15 @@ func newHTTPHandler() http.Handler {
 var (
 	tracer  = otel.Tracer("rolldice")
 	meter   = otel.Meter("rolldice")
-	rollCnt otelmetric.Int64Counter
+	logger  = otelslog.NewLogger("rolldice")
+	rollCnt metric.Int64Counter
 )
 
 func init() {
 	var err error
 	rollCnt, err = meter.Int64Counter("dice.rolls",
-	otelmetric.WithDescription("The number of rolls by roll value"),
-	otelmetric.WithUnit("{roll}"))
+		metric.WithDescription("The number of rolls by roll value"),
+		metric.WithUnit("{roll}"))
 	if err != nil {
 		panic(err)
 	}
@@ -119,7 +125,8 @@ func rolldice(w http.ResponseWriter, r *http.Request) {
 
 	rollValueAttr := attribute.Int("roll.value", roll)
 	span.SetAttributes(rollValueAttr)
-	rollCnt.Add(ctx, 1, otelmetric.WithAttributes(rollValueAttr))
+	rollCnt.Add(ctx, 1, metric.WithAttributes(rollValueAttr))
+	logger.InfoContext(ctx, "Anonymous player is rolling the dice", "result", roll)
 
 	resp := strconv.Itoa(roll) + "\n"
 	if _, err := io.WriteString(w, resp); err != nil {
@@ -171,6 +178,15 @@ func setupOTelSDK(ctx context.Context) (shutdown func(context.Context) error, er
 	shutdownFuncs = append(shutdownFuncs, meterProvider.Shutdown)
 	otel.SetMeterProvider(meterProvider)
 
+	// Set up log provider.
+	logProvider, err := newLoggerProvider(ctx)
+	if err != nil {
+		handleErr(err)
+		return
+	}
+	global.SetLoggerProvider(logProvider)
+	shutdownFuncs = append(shutdownFuncs, logProvider.Shutdown)
+
 	return
 }
 
@@ -182,28 +198,32 @@ func newPropagator() propagation.TextMapPropagator {
 }
 
 func newTraceProvider(ctx context.Context) (*trace.TracerProvider, error) {
-	traceExporter, err := otlptracehttp.New(ctx, otlptracehttp.WithInsecure(), otlptracehttp.WithEndpoint("localhost:4318"))
+	exporter, err := otlptracehttp.New(ctx, otlptracehttp.WithInsecure(), otlptracehttp.WithEndpoint("localhost:4318"))
 	if err != nil {
 		return nil, err
 	}
 
-	traceProvider := trace.NewTracerProvider(
-		trace.WithBatcher(traceExporter,
+	provider := trace.NewTracerProvider(
+		trace.WithBatcher(exporter,
 			// Default is 5s. Set to 1s for demonstrative purposes.
 			trace.WithBatchTimeout(time.Second)),
 	)
-	return traceProvider, nil
+	return provider, nil
 }
 
-func newMeterProvider(ctx context.Context) (*metric.MeterProvider, error) {
-	metricExporter, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithInsecure(), otlpmetrichttp.WithEndpoint("localhost:4318"))
+func newMeterProvider(ctx context.Context) (*sdkmetric.MeterProvider, error) {
+	exporter, err := otlpmetrichttp.New(ctx,
+		otlpmetrichttp.WithInsecure(),
+		otlpmetrichttp.WithEndpoint("localhost:4318"),
+		otlpmetrichttp.WithTemporalitySelector(
+			func(kind sdkmetric.InstrumentKind) metricdata.Temporality {
+				return metricdata.DeltaTemporality
+			},
+		),
+	)
 	if err != nil {
 		return nil, err
 	}
-	//metricExporter, err := stdoutmetric.New()
-	//if err != nil {
-	//	return nil, err
-	//}
 	res, err := resource.Merge(resource.Default(),
 		resource.NewWithAttributes(semconv.SchemaURL,
 			semconv.ServiceName("dice-roller"),
@@ -212,12 +232,26 @@ func newMeterProvider(ctx context.Context) (*metric.MeterProvider, error) {
 	if err != nil {
 		return nil, err
 	}
-	meterProvider := metric.NewMeterProvider(
-		metric.WithResource(res),
-		metric.WithReader(metric.NewPeriodicReader(metricExporter,
-			// Default is 1m. Set to 3s for demonstrative purposes.
-			metric.WithInterval(3*time.Second))),
+	provider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithResource(res),
+		sdkmetric.WithReader(
+			sdkmetric.NewPeriodicReader(
+				exporter,
+				sdkmetric.WithInterval(3*time.Second),
+			),
+		),
 	)
 
-	return meterProvider, nil
+	return provider, nil
+}
+
+func newLoggerProvider(ctx context.Context) (*sdklog.LoggerProvider, error) {
+	exporter, err := otlploghttp.New(ctx, otlploghttp.WithInsecure(), otlploghttp.WithEndpoint("localhost:4318"))
+	if err != nil {
+		return nil, err
+	}
+	provider := sdklog.NewLoggerProvider(
+		sdklog.WithProcessor(sdklog.NewBatchProcessor(exporter)),
+	)
+	return provider, nil
 }

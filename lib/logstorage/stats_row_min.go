@@ -5,7 +5,6 @@ import (
 	"math"
 	"slices"
 	"strings"
-	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -35,11 +34,10 @@ func (sm *statsRowMin) updateNeededFields(neededFields fieldsSet) {
 	neededFields.add(sm.srcField)
 }
 
-func (sm *statsRowMin) newStatsProcessor() (statsProcessor, int) {
-	smp := &statsRowMinProcessor{
-		sm: sm,
-	}
-	return smp, int(unsafe.Sizeof(*smp))
+func (sm *statsRowMin) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	smp := a.newStatsRowMinProcessor()
+	smp.sm = sm
+	return smp
 }
 
 type statsRowMinProcessor struct {
@@ -82,12 +80,11 @@ func (smp *statsRowMinProcessor) updateStatsForAllRows(br *blockResult) int {
 	case valueTypeString:
 		needUpdateState = true
 	case valueTypeDict:
-		for _, v := range c.dictValues {
-			if smp.needUpdateStateString(v) {
+		c.forEachDictValue(br, func(v string) {
+			if !needUpdateState && smp.needUpdateStateString(v) {
 				needUpdateState = true
-				break
 			}
-		}
+		})
 	case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64:
 		bb := bbPool.Get()
 		bb.B = marshalUint64String(bb.B[:0], c.minValue)
@@ -214,13 +211,8 @@ func (smp *statsRowMinProcessor) updateState(v string, br *blockResult, rowIdx i
 	return stateSizeIncrease
 }
 
-func (smp *statsRowMinProcessor) finalizeStats() string {
-	bb := bbPool.Get()
-	bb.B = MarshalFieldsToJSON(bb.B, smp.fields)
-	result := string(bb.B)
-	bbPool.Put(bb)
-
-	return result
+func (smp *statsRowMinProcessor) finalizeStats(dst []byte) []byte {
+	return MarshalFieldsToJSON(dst, smp.fields)
 }
 
 func parseStatsRowMin(lex *lexer) (*statsRowMin, error) {

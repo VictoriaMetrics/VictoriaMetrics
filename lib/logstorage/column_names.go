@@ -52,10 +52,7 @@ func getColumnNameIDs(columnNames []string) (map[string]uint64, error) {
 
 func marshalColumnNames(dst []byte, columnNames []string) []byte {
 	data := encoding.MarshalVarUint64(nil, uint64(len(columnNames)))
-
-	for _, name := range columnNames {
-		data = encoding.MarshalBytes(data, bytesutil.ToUnsafeBytes(name))
-	}
+	data = marshalStrings(data, columnNames)
 
 	dst = encoding.CompressZSTDLevel(dst, data, 1)
 
@@ -76,24 +73,28 @@ func unmarshalColumnNames(src []byte) ([]string, error) {
 	src = src[nBytes:]
 
 	m := make(map[string]uint64, n)
+	dataBuf := make([]byte, len(src))
+	copy(dataBuf, src)
 	columnNames := make([]string, n)
 	for id := uint64(0); id < n; id++ {
-		name, nBytes := encoding.UnmarshalBytes(src)
+		name, nBytes := encoding.UnmarshalBytes(dataBuf)
 		if nBytes <= 0 {
 			return nil, fmt.Errorf("cannot parse colum name number %d out of %d", id, n)
 		}
-		src = src[nBytes:]
+		dataBuf = dataBuf[nBytes:]
 
-		if idPrev, ok := m[string(name)]; ok {
+		nameStr := bytesutil.ToUnsafeString(name)
+
+		if idPrev, ok := m[nameStr]; ok {
 			return nil, fmt.Errorf("duplicate ids for column name %q: %d and %d", name, idPrev, id)
 		}
 
-		m[string(name)] = id
-		columnNames[id] = string(name)
+		m[nameStr] = id
+		columnNames[id] = nameStr
 	}
 
-	if len(src) > 0 {
-		return nil, fmt.Errorf("unexpected non-empty tail left after unmarshaling column name ids; len(tail)=%d", len(src))
+	if len(dataBuf) > 0 {
+		return nil, fmt.Errorf("unexpected non-empty tail left after unmarshaling column name ids; len(tail)=%d", len(dataBuf))
 	}
 
 	return columnNames, nil

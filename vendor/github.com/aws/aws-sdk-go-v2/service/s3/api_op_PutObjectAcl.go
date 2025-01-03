@@ -14,7 +14,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Uses the acl subresource to set the access control list (ACL) permissions for a
 // new or existing object in an S3 bucket. You must have the WRITE_ACP permission

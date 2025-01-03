@@ -12,14 +12,13 @@ func TestPushJournaldOk(t *testing.T) {
 		tlp := &insertutils.TestLogMessageProcessor{}
 		cp := &insertutils.CommonParams{
 			TimeField: "__REALTIME_TIMESTAMP",
-			MsgField:  "MESSAGE",
+			MsgFields: []string{"MESSAGE"},
 		}
-		n, err := parseJournaldRequest([]byte(src), tlp, cp)
-		if err != nil {
+		if err := parseJournaldRequest([]byte(src), tlp, cp); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
-		if err := tlp.Verify(n, timestampsExpected, resultExpected); err != nil {
+		if err := tlp.Verify(timestampsExpected, resultExpected); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -48,10 +47,9 @@ func TestPushJournald_Failure(t *testing.T) {
 		tlp := &insertutils.TestLogMessageProcessor{}
 		cp := &insertutils.CommonParams{
 			TimeField: "__REALTIME_TIMESTAMP",
-			MsgField:  "MESSAGE",
+			MsgFields: []string{"MESSAGE"},
 		}
-		_, err := parseJournaldRequest([]byte(data), tlp, cp)
-		if err == nil {
+		if err := parseJournaldRequest([]byte(data), tlp, cp); err == nil {
 			t.Fatalf("expected non nil error")
 		}
 	}

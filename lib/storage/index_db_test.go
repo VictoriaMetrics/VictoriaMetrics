@@ -2216,3 +2216,196 @@ func stopTestStorage(s *Storage) {
 	s.tsidCache.Stop()
 	fs.MustRemoveDirAtomic(s.cachePath)
 }
+
+func TestSearchContainsTimeRange(t *testing.T) {
+	path := t.Name()
+	os.RemoveAll(path)
+	s := MustOpenStorage(path, retentionMax, 0, 0)
+	db := s.idb()
+
+	is := db.getIndexSearch(0, 0, noDeadline)
+
+	// Create a bunch of per-day time series
+	const (
+		days                = 6
+		tenant2IngestionDay = 8
+		metricsPerDay       = 1000
+	)
+	rotationDay := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC)
+	rotationMillis := uint64(rotationDay.UnixMilli())
+	rotationDate := rotationMillis / msecPerDay
+	var metricNameBuf []byte
+	perDayMetricIDs := make(map[uint64]*uint64set.Set)
+	labelNames := []string{
+		"__name__", "constant", "day", "UniqueId", "some_unique_id",
+	}
+
+	sort.Strings(labelNames)
+
+	newMN := func(name string, day, metric int) MetricName {
+		var mn MetricName
+		mn.MetricGroup = []byte(name)
+		mn.AddTag(
+			"constant",
+			"const",
+		)
+		mn.AddTag(
+			"day",
+			fmt.Sprintf("%v", day),
+		)
+		mn.AddTag(
+			"UniqueId",
+			fmt.Sprintf("%v", metric),
+		)
+		mn.AddTag(
+			"some_unique_id",
+			fmt.Sprintf("%v", day),
+		)
+		mn.sortTags()
+		return mn
+	}
+
+	// ingest metrics for tenant 0:0
+	for day := 0; day < days; day++ {
+		date := rotationDate - uint64(day)
+
+		var metricIDs uint64set.Set
+		for metric := range metricsPerDay {
+			mn := newMN("testMetric", day, metric)
+			metricNameBuf = mn.Marshal(metricNameBuf[:0])
+			var genTSID generationTSID
+			if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
+				generateTSID(&genTSID.TSID, &mn)
+				createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+			}
+			metricIDs.Add(genTSID.TSID.MetricID)
+		}
+
+		perDayMetricIDs[date] = &metricIDs
+	}
+	db.putIndexSearch(is)
+
+	// ingest metrics for tenant 1:1
+	isTenant2 := db.getIndexSearch(1, 1, noDeadline)
+	{
+		var metricIDs uint64set.Set
+		// ingestion day must be outside of tenant 0:0 data ingestion
+		date := rotationDate - uint64(tenant2IngestionDay)
+
+		for metric := range metricsPerDay {
+			mn := newMN("testMetric2", tenant2IngestionDay, metric)
+			mn.AccountID = 1
+			mn.ProjectID = 1
+			metricNameBuf = mn.Marshal(metricNameBuf[:0])
+			var genTSID generationTSID
+			if !isTenant2.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
+				generateTSID(&genTSID.TSID, &mn)
+				createAllIndexesForMetricName(isTenant2, &mn, &genTSID.TSID, date)
+			}
+			metricIDs.Add(genTSID.TSID.MetricID)
+		}
+		perDayMetricIDs[date] = &metricIDs
+	}
+	db.putIndexSearch(isTenant2)
+
+	// Flush index to disk, so it becomes visible for search
+	s.DebugFlush()
+
+	is2 := db.getIndexSearch(0, 0, noDeadline)
+
+	// Check that all the metrics are found for all the days.
+	for date := rotationDate - days + 1; date <= rotationDate; date++ {
+
+		metricIDs, err := is2.getMetricIDsForDate(date, metricsPerDay)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if !perDayMetricIDs[date].Equal(metricIDs) {
+			t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), perDayMetricIDs[date].AppendTo(nil))
+		}
+	}
+
+	db.putIndexSearch(is2)
+
+	// Check that all metrics for tenant 2 are found at ingestion day
+	is2Tenant2 := db.getIndexSearch(1, 1, noDeadline)
+	{
+		date := rotationDate - uint64(tenant2IngestionDay+1)
+		metricIDs, err := is2Tenant2.getMetricIDsForDate(date, metricsPerDay)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if !perDayMetricIDs[date].Equal(metricIDs) {
+			t.Fatalf("unexpected 1:1 tenant metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), perDayMetricIDs[date].AppendTo(nil))
+		}
+	}
+	db.putIndexSearch(is2Tenant2)
+
+	// rotate indexdb
+	s.mustRotateIndexDB(rotationDay)
+	db = s.idb()
+
+	isExtTenant2 := db.extDB.getIndexSearch(1, 1, noDeadline)
+
+	// search for range covers metrics for 1:1 at prev index
+	tr := TimeRange{
+		MinTimestamp: int64(rotationMillis - msecPerDay*(tenant2IngestionDay) + 1),
+		MaxTimestamp: int64(rotationMillis),
+	}
+	if !isExtTenant2.containsTimeRange(tr) {
+		t.Fatalf("expected to have given time range at prev IndexDB")
+	}
+	// search for range missing for 1:1 at prev index
+	tr = TimeRange{
+		MinTimestamp: int64(rotationMillis - msecPerDay*(tenant2IngestionDay-1)),
+		MaxTimestamp: int64(rotationMillis),
+	}
+	if isExtTenant2.containsTimeRange(tr) {
+		t.Fatalf("not expected to have given time range at prev IndexDB")
+	}
+	key := isExtTenant2.marshalCommonPrefix(nil, nsPrefixDateToMetricID)
+
+	db.extDB.minMissingTimestampByKeyLock.Lock()
+	minMissingTimetamp := db.extDB.minMissingTimestampByKey[string(key)]
+	db.extDB.minMissingTimestampByKeyLock.Unlock()
+
+	if minMissingTimetamp != tr.MinTimestamp {
+		t.Fatalf("unexpected minMissingTimestamp for 1:1 tenant got %d, want %d", minMissingTimetamp, tr.MinTimestamp)
+	}
+	db.extDB.putIndexSearch(isExtTenant2)
+
+	// perform search for 0:0 tenant
+	// results of previous search requests shouldn't affect it
+
+	isExt := db.extDB.getIndexSearch(0, 0, noDeadline)
+	// search for range that covers prev indexDB for dates before ingestion
+	tr = TimeRange{
+		MinTimestamp: int64(rotationMillis - msecPerDay*(days)),
+		MaxTimestamp: int64(rotationMillis),
+	}
+	if !isExt.containsTimeRange(tr) {
+		t.Fatalf("expected to have given time range at prev IndexDB")
+	}
+
+	// search for range not exist at prev indexDB
+	tr = TimeRange{
+		MinTimestamp: int64(rotationMillis + msecPerDay*(days+4)),
+		MaxTimestamp: int64(rotationMillis + msecPerDay*(days+2)),
+	}
+	if isExt.containsTimeRange(tr) {
+		t.Fatalf("not expected to have given time range at prev IndexDB")
+	}
+	key = isExt.marshalCommonPrefix(key[:0], nsPrefixDateToMetricID)
+
+	db.extDB.minMissingTimestampByKeyLock.Lock()
+	minMissingTimetamp = db.extDB.minMissingTimestampByKey[string(key)]
+	db.extDB.minMissingTimestampByKeyLock.Unlock()
+
+	if minMissingTimetamp != tr.MinTimestamp {
+		t.Fatalf("unexpected minMissingTimestamp for 0:0 tenant got %d, want %d", minMissingTimetamp, tr.MinTimestamp)
+	}
+
+	db.extDB.putIndexSearch(isExt)
+	s.MustClose()
+	fs.MustRemoveAll(path)
+}

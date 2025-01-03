@@ -23,11 +23,10 @@ func (sv *statsValues) updateNeededFields(neededFields fieldsSet) {
 	updateNeededFieldsForStatsFunc(neededFields, sv.fields)
 }
 
-func (sv *statsValues) newStatsProcessor() (statsProcessor, int) {
-	svp := &statsValuesProcessor{
-		sv: sv,
-	}
-	return svp, int(unsafe.Sizeof(*svp))
+func (sv *statsValues) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	svp := a.newStatsValuesProcessor()
+	svp.sv = sv
+	return svp
 }
 
 type statsValuesProcessor struct {
@@ -91,12 +90,13 @@ func (svp *statsValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColum
 	}
 
 	values := svp.values
+	vPrev := ""
 	for _, v := range c.getValues(br) {
-		if len(values) == 0 || values[len(values)-1] != v {
-			v = strings.Clone(v)
-			stateSizeIncrease += len(v)
+		if len(values) == 0 || v != vPrev {
+			vPrev = strings.Clone(v)
+			stateSizeIncrease += len(vPrev)
 		}
-		values = append(values, v)
+		values = append(values, vPrev)
 	}
 	svp.values = values
 
@@ -169,17 +169,17 @@ func (svp *statsValuesProcessor) mergeState(sfp statsProcessor) {
 	svp.values = append(svp.values, src.values...)
 }
 
-func (svp *statsValuesProcessor) finalizeStats() string {
+func (svp *statsValuesProcessor) finalizeStats(dst []byte) []byte {
 	items := svp.values
 	if len(items) == 0 {
-		return "[]"
+		return append(dst, "[]"...)
 	}
 
 	if limit := svp.sv.limit; limit > 0 && uint64(len(items)) > limit {
 		items = items[:limit]
 	}
 
-	return marshalJSONArray(items)
+	return marshalJSONArray(dst, items)
 }
 
 func (svp *statsValuesProcessor) limitReached() bool {

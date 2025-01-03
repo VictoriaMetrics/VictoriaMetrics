@@ -11,7 +11,7 @@ aliases:
 Scheduler defines how often to run and make inferences, as well as what timerange to use to train the model.
 Is specified in `scheduler` section of a config for VictoriaMetrics Anomaly Detection.
 
-> **Note: Starting from [v1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110) scheduler section in config supports multiple schedulers via aliasing. <br>Also, `vmanomaly` expects scheduler section to be named `schedulers`. Using old (flat) format with `scheduler` key is deprecated and will be removed in future versions.**
+> **Note: Scheduler section in config supports multiple schedulers via aliasing{{% available_from "v1.11.0" anomaly %}}. <br>Also, `vmanomaly` expects scheduler section to be named `schedulers`. Using old (flat) format with `scheduler` key is deprecated and will be removed in future versions.**
 
 ```yaml
 schedulers:
@@ -28,7 +28,7 @@ schedulers:
 ...
 ```  
 
-Old-style configs (< [1.11.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1110))
+Old-style configs {{% deprecated_from "v1.11.0" anomaly %}}
 
 ```yaml
 scheduler:
@@ -60,7 +60,7 @@ options={`"scheduler.periodic.PeriodicScheduler"`, `"scheduler.oneoff.OneoffSche
 -  `"scheduler.oneoff.OneoffScheduler"`: runs the process once and exits. Useful for testing.
 -  `"scheduler.backtesting.BacktestingScheduler"`: imitates consecutive backtesting runs of OneoffScheduler. Runs the process once and exits. Use to get more granular control over testing on historical data.
 
-> **Note**: starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), class aliases are supported, so `"scheduler.periodic.PeriodicScheduler"` can be substituted to `"periodic"`, `"scheduler.oneoff.OneoffScheduler"` - to `"oneoff"`, `"scheduler.backtesting.BacktestingScheduler"` - to `"backtesting"`
+> **Note**: Class aliases are supported{{% available_from "v1.13.0" anomaly %}}, so `"scheduler.periodic.PeriodicScheduler"` can be substituted to `"periodic"`, `"scheduler.oneoff.OneoffScheduler"` - to `"oneoff"`, `"scheduler.backtesting.BacktestingScheduler"` - to `"backtesting"`
 
 **Depending on selected class, different parameters should be used**
 
@@ -121,7 +121,7 @@ Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`.
             <td>str</td>
             <td>
 
-`"14d"`
+`14d`
             </td>
             <td>What time range to use for training the models. Must be at least 1 second.</td>
         </tr>
@@ -133,9 +133,9 @@ Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`.
             <td>str</td>
             <td>
 
-`"1m"`
+`1m`
             </td>
-            <td>How often a model will write its conclusions on newly added data. Must be at least 1 second.</td>
+            <td>How often a model produce and write its anomaly scores on new datapoints. Must be at least 1 second.</td>
         </tr>
         <tr>
             <td>
@@ -145,11 +145,41 @@ Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`.
             <td>str, Optional</td>
             <td>
 
-`"1h"`
+`1h`
             </td>
             <td>
 
-How often to completely retrain the models. If missing value of `infer_every` is used and retrain on every inference run.
+How often to completely retrain the models. If not set, value of `infer_every` is used and retrain happens on every inference run.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`start_from`{{% available_from "v1.18.5" anomaly %}}
+            </td>
+            <td>str, Optional</td>
+            <td>
+
+`2024-11-26T01:00:00Z`, `01:00`
+            </td>
+            <td>
+
+Specifies when to initiate the first `fit_every` call. Accepts either an ISO 8601 datetime or a time in HH:MM format. If the specified time is in the past, the next suitable time is calculated based on the `fit_every` interval. For the HH:MM format, if the time is in the past, it will be scheduled for the same time on the following day, respecting the `tz` argument if provided. By default, the timezone defaults to `UTC`.
+            </td>
+        </tr>
+        <tr>
+            <td>
+
+`tz`{{% available_from "v1.18.5" anomaly %}}
+            </td>
+            <td>str, Optional</td>
+            <td>
+
+`America/New_York`
+            </td>
+            <td>
+
+Defines the local timezone for the `start_from` parameter, if specified. Defaults to `UTC` if no timezone is provided.
             </td>
         </tr>
     </tbody>
@@ -161,13 +191,15 @@ How often to completely retrain the models. If missing value of `infer_every` is
 schedulers:
   periodic_scheduler_alias:
     class: "periodic"
-    # (or class: "scheduler.periodic.PeriodicScheduler" until v1.13.0 with class alias support)
+    # (or class: "scheduler.periodic.PeriodicScheduler" for versions before v1.13.0, without class alias support)
     fit_window: "14d" 
     infer_every: "1m" 
-    fit_every: "1h" 
+    fit_every: "1h"
+    start_from: "20:00"  # If launched before 20:00 (local Kyiv time), the first run starts today at 20:00. Otherwise, it starts tomorrow at 20:00.
+    tz: "Europe/Kyiv"  # Defaults to 'UTC' if not specified.
 ```
 
-This part of the config means that `vmanomaly` will calculate the time window of the previous 14 days and use it to train a model. Every hour model will be retrained again on 14 days’ data, which will include + 1 hour of new data. The time window is strictly the same 14 days and doesn't extend for the next retrains. Every minute `vmanomaly` will produce model inferences for newly added data points by using the model that is kept in memory at that time.
+This configuration specifies that `vmanomaly` will calculate a 14-day time window from the time of `fit_every` call to train the model. Starting at 20:00 Kyiv local time today (or tomorrow if launched after 20:00), the model will be retrained every hour using the most recent 14-day window, which always includes an additional hour of new data. The time window remains strictly 14 days and does not extend with subsequent retrains. Additionally, `vmanomaly` will perform model inference every minute, processing newly added data points using the most recent model.
 
 ## Oneoff scheduler 
 

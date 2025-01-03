@@ -2,27 +2,27 @@
 
 # Builds cspell image.
 cspell-install:
-	@ (docker inspect cspell > /dev/null) || (docker build cspell --tag cspell)
+	@docker build cspell -t cspell
 
 # Checks for spelling errors.
-cspell-check: cspell-install
-	@CMD="cspell --no-progress" $(MAKE) cspell-run-command
+cspell-check: CMD="--no-progress -r /vm"
+cspell-check: cspell-install cspell-run
 
 # Runs spelling error check.
 # A user facing alias to cspell-check command.
 spellcheck: cspell-check
 
 # Runs cspell container commands.
-cspell-run-command:
-	@cp cspell/cspell.json cspell.json
+cspell-run:
 	@-docker run \
-		--entrypoint /bin/sh \
-		--mount type=bind,src=".",dst=/victoriametrics \
+		--mount type=bind,src="$(PWD)",dst=/vm \
 		--rm \
-		--tty \
-		cspell -c "$(CMD)"
-	@rm cspell.json
+		cspell -c cspell/cspell.json "$(CMD)"
 
 cspell-update-deps: cspell-install
-	@CMD="cd /victoriametrics/cspell && npm update && rm -rf ./node_modules" $(MAKE) cspell-run-command
-
+	@-docker run \
+		--mount type=bind,src="$(PWD)",dst=/vm \
+		--entrypoint=/bin/sh \
+		--workdir=/vm/cspell \
+		--rm \
+		cspell -c "yarn install && yarn upgrade && rm -rf ./node_modules"

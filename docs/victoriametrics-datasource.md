@@ -124,7 +124,7 @@ Please find the example of provisioning Grafana instance with VictoriaMetrics da
        grafana:
          image: grafana/grafana:11.0.0
          environment:
-         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.10.1/victoriametrics-datasource-v0.10.1.zip;victoriametrics-datasource
+         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.10.3/victoriametrics-datasource-v0.10.3.zip;victoriametrics-datasource
          - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource
          ports:
          - 3000:3000/tcp
@@ -152,14 +152,14 @@ Option 1. Using Grafana provisioning:
 
 ``` yaml
 env:
-  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.10.1/victoriametrics-datasource-v0.10.1.zip;victoriametrics-datasource"
+  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.10.3/victoriametrics-datasource-v0.10.3.zip;victoriametrics-datasource"
 ```
 
 Option 2. Using Grafana plugins section in `values.yaml`:
 
 ``` yaml
 plugins:
-  - https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.10.1/victoriametrics-datasource-v0.10.1.zip;victoriametrics-datasource
+  - https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.10.3/victoriametrics-datasource-v0.10.3.zip;victoriametrics-datasource
 ```
 
 Option 3. Using init container:
@@ -257,7 +257,7 @@ This example uses init container to download and install plugin.
 
 1. To download plugin build and move contents into Grafana plugins directory:
 
-   ``` bash
+   ```sh
    ver=$(curl -s https://api.github.com/repos/VictoriaMetrics/victoriametrics-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
    curl -L https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/vm-plugin.tar.gz
    tar -xf /var/lib/grafana/plugins/vm-plugin.tar.gz -C /var/lib/grafana/plugins/
@@ -302,7 +302,7 @@ yarn build:zip
 From the root folder of the project run the following command:
 
 ```
-make victoriametrics-backend-plugin-build
+make vm-backend-plugin-build
 ```
 
 This command will build executable multi-platform files to the `dist` folder for the following platforms:
@@ -320,7 +320,7 @@ This command will build executable multi-platform files to the `dist` folder for
 From the root folder of the project run the following command:
 
 ```
-make victoriametrics-frontend-plugin-build
+make vm-frontend-plugin-build
 ```
 
 This command will build all frontend app into `dist` folder.
@@ -330,7 +330,7 @@ This command will build all frontend app into `dist` folder.
 When frontend and backend parts of the plugin is required, run the following command from the root folder of the project:
 
 ```
-make victoriametrics-datasource-plugin-build
+make vm-plugin-build
 ```
 
 This command will build frontend part and backend part or the plugin and locate both parts into `dist` folder.
@@ -386,12 +386,12 @@ To view the raw query in the interface, enable the `Raw` toggle.
 ## How to make new release
 
 1. Make sure there are no open security issues.
-1. Create a release tag:
-    * `git tag -s v1.xx.y` in `master` branch
-1. Run `TAG=v1.xx.y make build-release` to build and package binaries in `*.tar.gz` release archives.
-1. Run `git push origin v1.xx.y` to push the tag created `v1.xx.y` at step 2 to public GitHub repository
-1. Go to <https://github.com/VictoriaMetrics/victoriametrics-datasource/releases> and verify that draft release with the name `TAG` has been created and this release contains all the needed binaries and checksums.
-1. Remove the `draft` checkbox for the `TAG` release and manually publish it.
+1. Push a new release tag in `master` branch:
+
+```
+git tag -s v1.xx.y
+git push origin v1.xx.y
+```
 
 ## FAQ
 

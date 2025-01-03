@@ -108,6 +108,18 @@ scrape_configs:
   proxy_headers:
   - 'My-Auth-Header: top-secret'
 `)
+	f(`
+global:
+  scrape_interval: 10s
+  relabel_configs:
+  - source_labels: [job]
+    target_label: job
+    regex: (.+)
+    replacement: prefix-${1}
+  metric_relabel_configs:
+  - action: labeldrop
+    source_labels: [id]
+`)
 }
 
 func TestGetClusterMemberNumsForScrapeWork(t *testing.T) {
@@ -1351,4 +1363,139 @@ func checkEqualScrapeWorks(t *testing.T, got, want []*ScrapeWork) {
 			t.Fatalf("unexpected scrapeWork at position %d out of %d;\ngot\n%#v\nwant\n%#v", i, len(got), &gotItem, wantItem)
 		}
 	}
+}
+
+func TestStaticConfigWithGlobalRelabelConfigs(t *testing.T) {
+	f := func(data string, want []*ScrapeWork) {
+		t.Helper()
+		got, err := getStaticScrapeWork([]byte(data), "non-exsiting-file")
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if len(got) != len(want) {
+			t.Fatalf("unexpected number of ScrapeWork items; got %d; want %d", len(got), len(want))
+		}
+
+		for i := range got {
+			gotItem := got[i]
+			wantItem := want[i]
+			if wantItem.RelabelConfigs.String() != gotItem.RelabelConfigs.String() {
+				t.Fatalf("unexpected relabel_config at scrape work idx=%d, want:\n%s\ngot:\n%s",
+					i, wantItem.RelabelConfigs.String(), gotItem.RelabelConfigs.String())
+			}
+			if wantItem.RelabelConfigs.String() != gotItem.RelabelConfigs.String() {
+				t.Fatalf("unexpected metric_relabel_config at scrape work idx=%d, want:\n%s\ngot:\n%s",
+					i, wantItem.MetricRelabelConfigs.String(), gotItem.MetricRelabelConfigs.String())
+			}
+		}
+	}
+	f(`
+global:
+  relabel_configs:
+  - target_label: job
+    replacement: bar
+scrape_configs:
+- job_name: foo
+  relabel_configs:
+  - target_label: bar
+    replacement: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+`, []*ScrapeWork{
+		{
+			jobNameOriginal: "foo",
+			ScrapeURL:       "foo.bar:1234",
+			RelabelConfigs: mustParseRelabelConfigs(`
+  - target_label: job
+    replacement: bar
+  - target_label: bar
+    replacement: foo
+          `),
+		},
+	})
+	f(`
+global:
+  relabel_configs:
+  - target_label: job
+    replacement: prefix_${1}
+    source_labels: [job]
+    regex: (.+)
+  metric_relabel_configs:
+  - source_labels: [id]
+    action: labeldrop
+scrape_configs:
+- job_name: foo
+  relabel_configs:
+  - target_label: bar
+    replacement: foo
+  static_configs:
+  - targets: ["foo.bar:1234"]
+- job_name: bar
+  relabel_configs:
+  - target_label: baz
+    replacement: bar
+  metric_relabel_configs:
+  - source_labels: [mount_path]
+    replacement: ${2}
+    regex: '(\/.+)?\/(.+)'
+    target_label: mount_path
+  static_configs:
+  - targets: ["baz.bar:1235"]
+- job_name: baz
+  static_configs:
+  - targets: ["baz.bar:1235"]
+
+`, []*ScrapeWork{
+		{
+			jobNameOriginal: "foo",
+			ScrapeURL:       "foo.bar:1234",
+			RelabelConfigs: mustParseRelabelConfigs(`
+  - target_label: job
+    replacement: prefix_${1}
+    source_labels: [job]
+    regex: (.+)
+  - target_label: bar
+    replacement: foo
+          `),
+			MetricRelabelConfigs: mustParseRelabelConfigs(`
+  - source_labels: [id]
+    action: labeldrop
+          `),
+		},
+		{
+			jobNameOriginal: "bar",
+			ScrapeURL:       "baz.bar:1235",
+			RelabelConfigs: mustParseRelabelConfigs(`
+  - target_label: job
+    replacement: prefix_${1}
+    source_labels: [job]
+    regex: (.+)
+  - target_label: baz
+    replacement: bar
+          `),
+			MetricRelabelConfigs: mustParseRelabelConfigs(`
+  - source_labels: [id]
+    action: labeldrop
+  - source_labels: [mount_path]
+    replacement: ${2}
+    regex: '(\/.+)?\/(.+)'
+    target_label: mount_path
+          `),
+		},
+		{
+			jobNameOriginal: "baz",
+			ScrapeURL:       "baz.bar:1235",
+			RelabelConfigs: mustParseRelabelConfigs(`
+  - target_label: job
+    replacement: prefix_${1}
+    source_labels: [job]
+    regex: (.+)
+          `),
+			MetricRelabelConfigs: mustParseRelabelConfigs(`
+  - source_labels: [id]
+    action: labeldrop
+`),
+		},
+	})
+
 }

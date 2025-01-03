@@ -45,15 +45,11 @@ func (pe *pipeExtract) canLiveTail() bool {
 	return true
 }
 
-func (pe *pipeExtract) optimize() {
-	pe.iff.optimizeFilterIn()
-}
-
 func (pe *pipeExtract) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }
 
-func (pe *pipeExtract) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pe *pipeExtract) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
@@ -159,9 +155,9 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard := &pep.shards[workerID]
 
 	bm := &shard.bm
-	bm.init(br.rowsLen)
-	bm.setBits()
 	if iff := pe.iff; iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pep.ppNext.writeBlock(workerID, br)
@@ -192,13 +188,13 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.resultValues = slicesutil.SetLength(shard.resultValues, len(rcs))
 	resultValues := shard.resultValues
 
-	hadUpdates := false
+	needUpdates := true
 	vPrev := ""
 	for rowIdx, v := range values {
-		if bm.isSetBit(rowIdx) {
-			if !hadUpdates || vPrev != v {
+		if pe.iff == nil || bm.isSetBit(rowIdx) {
+			if needUpdates || vPrev != v {
 				vPrev = v
-				hadUpdates = true
+				needUpdates = false
 
 				ptn.apply(v)
 
@@ -219,6 +215,7 @@ func (pep *pipeExtractProcessor) writeBlock(workerID uint, br *blockResult) {
 			for i, c := range resultColumns {
 				resultValues[i] = c.getValueAtRow(br, rowIdx)
 			}
+			needUpdates = true
 		}
 
 		for i, v := range resultValues {
@@ -241,7 +238,7 @@ func (pep *pipeExtractProcessor) flush() error {
 	return nil
 }
 
-func parsePipeExtract(lex *lexer) (*pipeExtract, error) {
+func parsePipeExtract(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("extract") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "extract")
 	}

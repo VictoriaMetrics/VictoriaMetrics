@@ -47,7 +47,7 @@ Bumping the limits may significantly improve build speed.
    Changes in these branches must be synced immediately after they are committed in at least a single branch.
 1. Make sure that the release branches have no security issues.
 1. Update release versions if needed in [SECURITY.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/SECURITY.md).
-1. Add `(available starting from v1.xx.y)` line to feature docs introduced in the upcoming release.
+1. Run `PKG_TAG=v1.xx.y make docs-update-version` command to update version help tooltips.
 1. Cut new version in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md)
    and make it merged. See example in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/b771152039d23b5ccd637a23ea748bc44a9511a7).
 1. Cherry-pick bug fixes relevant for [LTS releases](https://docs.victoriametrics.com/lts-releases/).
@@ -95,12 +95,13 @@ Bumping the limits may significantly improve build speed.
 1. Publish release by pressing "Publish release" green button in GitHub's UI.
 1. Update GitHub tickets related to the new release. Usually, such tickets have label [waiting for release](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3A%22waiting+for+release%22). Close such tickets by mentioning which release they were included into, and remove the label. See example [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6637#issuecomment-2390729511). 
 1. Bump VictoriaMetrics version at `deployment/docker/docker-compose.yml` and at `deployment/docker/docker-compose-cluster.yml`.
+1. Bump VictoriaMetrics version mentioned in [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7388).
 1. Follow the instructions in [release follow-up](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md).
 
 ### Public Announcement
 
 * Publish message in Slack  at <https://victoriametrics.slack.com>
-* Post at Twitter at <https://twitter.com/MetricsVictoria>
+* Post at X (Twitter) at <https://x.com/VictoriaMetrics>
 * Post in Reddit at <https://www.reddit.com/r/VictoriaMetrics/>
 * Post in LinkedIn at <https://www.linkedin.com/company/victoriametrics/>
 * Publish message in Telegram at <https://t.me/VictoriaMetrics_en> and <https://t.me/VictoriaMetrics_ru1>
@@ -132,6 +133,8 @@ The helm chart repository [https://github.com/VictoriaMetrics/helm-charts/](http
 
 ### Bump the version of images
 
+> Note that helm charts versioning uses its own versioning scheme. The version of the charts not tied to the version of VictoriaMetrics components.
+
 Bump `tag` field in `values.yaml` with new release version.
 Bump `appVersion` field in `Chart.yaml` with new release version.
 Add new line to "Next release" section in `CHANGELOG.md` about version update (the line must always start with "`-`"). Do **NOT** change headers in `CHANGELOG.md`.
@@ -155,6 +158,8 @@ Once updated, run the following commands:
 1. Merge new PRs *"Automatic update CHANGELOGs and READMEs"* and *"Synchronize docs"* after pipelines are complete.
 
 ## Ansible Roles 
+
+> Note that ansible playbooks versioning uses its own versioning scheme. The version of the playbooks is not tied to the version of VictoriaMetrics components.
 
 1. Update the version of VictoriaMetrics components at [https://github.com/VictoriaMetrics/ansible-playbooks](https://github.com/VictoriaMetrics/ansible-playbooks).
 1. Commit changes.

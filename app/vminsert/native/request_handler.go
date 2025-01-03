@@ -59,14 +59,9 @@ func insertRows(at *auth.Token, block *stream.Block, extraLabels []prompbmarshal
 		label := &extraLabels[j]
 		ctx.AddLabel(label.Name, label.Value)
 	}
-	if hasRelabeling {
-		ctx.ApplyRelabeling()
-	}
-	if len(ctx.Labels) == 0 {
-		// Skip metric without labels.
+	if !ctx.TryPrepareLabels(hasRelabeling) {
 		return nil
 	}
-	ctx.SortLabelsIfNeeded()
 	atLocal := ctx.GetLocalAuthToken(at)
 	ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
 	storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)

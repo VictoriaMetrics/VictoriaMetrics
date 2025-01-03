@@ -1,6 +1,7 @@
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/)
 via the following ways:
 
+- [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/)
 - [Command-line interface](#command-line)
 - [HTTP API](#http-api)
 - [Web UI](#web-ui) - a web-based UI for querying logs
@@ -13,6 +14,7 @@ VictoriaLogs provides the following HTTP endpoints:
 - [`/select/logsql/query`](#querying-logs) for querying logs.
 - [`/select/logsql/tail`](#live-tailing) for live tailing of query results.
 - [`/select/logsql/hits`](#querying-hits-stats) for querying log hits stats over the given time range.
+- [`/select/logsql/facets`](#querying-facets) for querying the most frequent values per each field seen in the selected logs.
 - [`/select/logsql/stats_query`](#querying-log-stats) for querying log stats at the given time.
 - [`/select/logsql/stats_query_range`](#querying-log-range-stats) for querying log stats over the given time range.
 - [`/select/logsql/stream_ids`](#querying-stream_ids) for querying `_stream_id` values of [log streams](#https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
@@ -21,6 +23,7 @@ VictoriaLogs provides the following HTTP endpoints:
 - [`/select/logsql/stream_field_values`](#querying-stream-field-values) for querying [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field values.
 - [`/select/logsql/field_names`](#querying-field-names) for querying [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names.
 - [`/select/logsql/field_values`](#querying-field-values) for querying [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values.
+
 
 ### Querying logs
 
@@ -105,6 +108,8 @@ with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 
 See also:
 
+- [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/)
+- [Extra filters](#extra-filters)
 - [Live tailing](#live-tailing)
 - [Querying hits stats](#querying-hits-stats)
 - [Querying log stats](#querying-log-stats)
@@ -126,7 +131,8 @@ curl -N http://localhost:9428/select/logsql/tail -d 'query=error'
 ```
 
 The `-N` command-line flag is essential to pass to `curl` during live tailing, since otherwise curl may delay displaying matching logs
-because of internal response bufferring.
+because of internal response buffering. It is recommended using [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/) for live tailing -
+see [these docs](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/#live-tailing).
 
 The `<query>` must conform the following rules:
 
@@ -141,6 +147,30 @@ The `<query>` must conform the following rules:
 
 - It is recommended to return [`_stream_id`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field for more accurate live tailing
   across multiple streams.
+
+Live tailing supports returning historical logs, which were ingested into VictoriaLogs before the start of live tailing. Pass `start_offset=<d>` query
+arg to `/select/logsql/tail` where `<d>` is the duration for returning historical logs. For example, the following command returns historical logs
+which were ingested into VictoriaLogs during the last hour, before starting live tailing:
+
+```sh
+curl -N http://localhost:9428/select/logsql/tail -d 'query=*' -d 'start_offset=1h'
+```
+
+Live tailing delays delivering new logs for one second, so they could be properly delivered from log collectors to VictoriaLogs.
+This delay can be changed via `offset` query arg. For example, the following command delays delivering new logs for 30 seconds:
+
+```sh
+curl -N http://localhost:9428/select/logsql/tail -d 'query=*' -d 'offset=30s'
+```
+
+Live tailing checks for new logs every second. The frequency for the check can be changed via `refresh_interval` query arg.
+For example, the following command instructs live tailing to check for new logs every 10 seconds:
+
+```sh
+curl -N http://localhost:9428/select/logsql/tail -d 'query=*' -d 'refresh_interval=10s'
+```
+
+It isn't recommended setting too low value for `refresh_interval` query arg, since this may increase load on VictoriaLogs without measurable benefits.
 
 **Performance tip**: live tailing works the best if it matches newly ingested logs at relatively slow rate (e.g. up to 1K matching logs per second),
 e.g. it is optimized for the case when real humans inspect the output of live tailing in the real time. If live tailing returns logs at too high rate,
@@ -159,6 +189,8 @@ with `vl_live_tailing_requests` metric.
 
 See also:
 
+- [Live tailing in vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/#live-tailing)
+- [Extra filters](#extra-filters)
 - [Querying logs](#querying-logs)
 - [Querying streams](#querying-streams)
 
@@ -276,10 +308,102 @@ curl http://localhost:9428/select/logsql/hits -H 'AccountID: 12' -H 'ProjectID: 
 
 See also:
 
+- [Extra filters](#extra-filters)
+- [Querying facets](#querying-facets)
 - [Querying logs](#querying-logs)
 - [Querying log stats](#querying-log-stats)
 - [Querying log range stats](#querying-log-range-stats)
 - [Querying streams](#querying-streams)
+- [HTTP API](#http-api)
+
+### Querying facets
+
+VictoriaLogs provides `/select/logsql/facets?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns the most frequent values
+per each [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) seen in the logs returned
+by the given [`<query>`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
+
+The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/#timestamp-formats).
+If `<start>` is missing, then it equals to the minimum timestamp across logs stored in VictoriaLogs.
+If `<end>` is missing, then it equals to the maximum timestamp across logs stored in VictoriaLogs.
+
+For example, the following command returns the most frequent values per each field seen in the logs with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word)
+over the last hour:
+
+```sh
+curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h error'
+```
+
+Below is an example response:
+
+```json
+{
+  "facets": [
+    {
+      "field_name": "kubernetes_container_name",
+      "values": [
+        {
+          "field_value": "victoria-logs",
+          "hits": 442378
+        },
+        {
+          "field_value": "victoria-metrics",
+          "hits": 34783
+        }
+      ]
+    },
+    {
+      "field_name": "kubernetes_pod_name",
+      "values": [
+        {
+          "field_value": "victoria-logs-0",
+          "hits": 232385
+        }
+        {
+          "field_value": "victoria-logs-1",
+          "hits": 123898
+        }
+      ]
+    }
+  ]
+}
+```
+
+The `hits` value shows the number of logs with the given `field_name=field_value` pair.
+
+The number of values per each log field can be controlled via `limit` query arg. For example, the following command returns up to 3 most frequent values
+per each log field seen in the logs over the last hour:
+
+```sh
+curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h' -d 'limit=3'
+```
+
+The `/select/logsql/facets` endpoint ignores log fields, which contain too big number of unique values, since they can consume a lot of RAM to track.
+The limit on the number of unique values per each log field can be controlled via `max_values_per_field` query arg. For example, the following command
+returns the most frequent values across log fields containing up to 100000 unique values over the last hour:
+
+```sh
+curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h' -d 'max_values_per_field=100000'
+```
+
+The `/select/logsql/facets` endpoint ignores log fields, which contain too long values.
+The limit on the per-field value length can be controlled via `max_value_len` query arg. For example, the following command
+returns the most frequent values across log fields containing values no longer than 100 bytes over the last hour:
+
+```sh
+curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h' -d 'max_value_len=100'
+```
+
+By default the `/select/logsql/facets` endpoint doesn't return log fields, which contan the same constant value across all the logs matching the given `query`.
+Add `keep_const_fields=1` query arg if you need such log fields:
+
+```sh
+curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h' -d 'keep_const_fields=1'
+```
+
+See also:
+
+- [Extra filters](#extra-filters)
+- [Querying hits stats](#querying-hits-stats)
 - [HTTP API](#http-api)
 
 ### Querying log stats
@@ -348,6 +472,7 @@ The `/select/logsql/stats_query` API is useful for generating Prometheus-compati
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying log range stats](#querying-log-range-stats)
 - [Querying logs](#querying-logs)
 - [Querying hits stats](#querying-hits-stats)
@@ -441,6 +566,7 @@ The `/select/logsql/stats_query_range` API is useful for generating Prometheus-c
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying log stats](#querying-log-stats)
 - [Querying logs](#querying-logs)
 - [Querying hits stats](#querying-hits-stats)
@@ -499,6 +625,7 @@ curl http://localhost:9428/select/logsql/stream_ids -H 'AccountID: 12' -H 'Proje
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying streams](#querying-streams)
 - [Querying logs](#querying-logs)
 - [Querying hits stats](#querying-hits-stats)
@@ -556,6 +683,7 @@ curl http://localhost:9428/select/logsql/streams -H 'AccountID: 12' -H 'ProjectI
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying stream_ids](#querying-stream_ids)
 - [Querying logs](#querying-logs)
 - [Querying hits stats](#querying-hits-stats)
@@ -610,6 +738,7 @@ curl http://localhost:9428/select/logsql/stream_field_names -H 'AccountID: 12' -
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying stream field names](#querying-stream-field-names)
 - [Querying field values](#querying-field-values)
 - [Querying streams](#querying-streams)
@@ -664,6 +793,7 @@ curl http://localhost:9428/select/logsql/stream_field_values -H 'AccountID: 12' 
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying stream field values](#querying-stream-field-values)
 - [Querying field names](#querying-field-names)
 - [Querying streams](#querying-streams)
@@ -717,6 +847,7 @@ curl http://localhost:9428/select/logsql/field_names -H 'AccountID: 12' -H 'Proj
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying stream field names](#querying-stream-field-names)
 - [Querying field values](#querying-field-values)
 - [Querying streams](#querying-streams)
@@ -775,10 +906,37 @@ curl http://localhost:9428/select/logsql/field_values -H 'AccountID: 12' -H 'Pro
 
 See also:
 
+- [Extra filters](#extra-filters)
 - [Querying stream field values](#querying-stream-field-values)
 - [Querying field names](#querying-field-names)
 - [Querying streams](#querying-streams)
 - [HTTP API](#http-api)
+
+
+## Extra filters
+
+All the [HTTP querying APIs](#http-api) provided by VictoriaLogs support the following optional query args:
+
+- `extra_filters` - this arg may contain extra [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters), which must be applied
+  to the `query` before returning the results.
+- `extra_stream_filters` - this arg may contain extra [stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter),
+  which must be applied to the `query` before returning results.
+
+The `extra_filters` and `extra_stream_filters` values can have the following format:
+
+- JSON object with `"field":"value"` entries. For example, the following JSON applies `namespace:=my-app and env:=prod` filter to the `query`
+  passed to [HTTP querying APIs](#http-api): `extra_filters={"namespace":"my-app","env":"prod"}` .
+
+  The following JSON applies `{namespace="my-app",env="prod"}` [stream filter](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter)
+  to the `query`: `extra_stream_filters={"namespace":"my-app","env":"prod"}` .
+
+  Every JSON entry may contain either a single string value or an array of values. An array of `{"field:["v1","v2",..."vN"]}` values is converted
+  into `field:in(v1, v2, ... vN)` [filter](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter) when passed to `extra_filters`.
+  The same array is converted into `{field=~"v1|v2|...|vN"}` [stream filter](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter).
+
+- Arbitrary [LogsQL filter](https://docs.victoriametrics.com/victorialogs/logsql/#filters). For example, `extra_filters=foo:~bar -baz:x`.
+
+The arg passed to `extra_filters` and `extra_stream_filters` must be properly encoded with [percent encoding](https://en.wikipedia.org/wiki/Percent-encoding).
 
 
 ## Web UI

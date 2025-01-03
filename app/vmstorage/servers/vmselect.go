@@ -70,7 +70,7 @@ func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQu
 	if err := checkTimeRange(api.s, tr); err != nil {
 		return nil, err
 	}
-	maxMetrics := getMaxMetrics(sq)
+	maxMetrics := getMaxMetrics(sq.MaxMetrics)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQu
 
 func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
-	maxMetrics := getMaxMetrics(sq)
+	maxMetrics := getMaxMetrics(sq.MaxMetrics)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.S
 
 func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
-	maxMetrics := getMaxMetrics(sq)
+	maxMetrics := getMaxMetrics(sq.MaxMetrics)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func (api *vmstorageAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, pro
 
 func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
-	maxMetrics := getMaxMetrics(sq)
+	maxMetrics := getMaxMetrics(sq.MaxMetrics)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func (api *vmstorageAPI) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, d
 
 func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
 	tr := sq.GetTimeRange()
-	maxMetrics := getMaxMetrics(sq)
+	maxMetrics := getMaxMetrics(sq.MaxMetrics)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -154,7 +154,7 @@ func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQu
 
 func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
 	tr := sq.GetTimeRange()
-	maxMetrics := getMaxMetrics(sq)
+	maxMetrics := getMaxMetrics(sq.MaxMetrics)
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
 		return 0, err
@@ -253,16 +253,16 @@ func checkTimeRange(s *storage.Storage, tr storage.TimeRange) error {
 	}
 }
 
-func getMaxMetrics(sq *storage.SearchQuery) int {
-	maxMetrics := sq.MaxMetrics
-	maxMetricsLimit := *maxUniqueTimeseries
-	if maxMetricsLimit <= 0 {
-		maxMetricsLimit = GetMaxUniqueTimeSeries()
+func getMaxMetrics(searchQueryLimit int) int {
+	if searchQueryLimit <= 0 {
+		// use auto calculated maxUniqueTimeseries limit
+		return GetMaxUniqueTimeSeries()
 	}
-	if maxMetrics <= 0 || maxMetrics > maxMetricsLimit {
-		maxMetrics = maxMetricsLimit
+	// searchQueryLimit  can exceed value explicitly set to `-search.maxUniqueTimeseries`
+	if *maxUniqueTimeseries != 0 && searchQueryLimit > *maxUniqueTimeseries {
+		searchQueryLimit = *maxUniqueTimeseries
 	}
-	return maxMetrics
+	return searchQueryLimit
 }
 
 // GetMaxUniqueTimeSeries returns the max metrics limit calculated by available resources.

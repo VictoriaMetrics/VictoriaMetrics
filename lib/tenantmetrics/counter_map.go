@@ -2,6 +2,7 @@ package tenantmetrics
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -20,19 +21,16 @@ type TenantID struct {
 type CounterMap struct {
 	metric string
 
-	// do not use atomic.Pointer, since the stored map there is already a pointer type.
-	m atomic.Value
+	m sync.Map
 	// mt holds value for multi-tenant metrics.
 	mt atomic.Value
 }
 
 // NewCounterMap creates new CounterMap for the given metric.
 func NewCounterMap(metric string) *CounterMap {
-	cm := &CounterMap{
+	return &CounterMap{
 		metric: metric,
 	}
-	cm.m.Store(make(map[TenantID]*metrics.Counter))
-	return cm
 }
 
 // Get returns counter for the given at
@@ -67,21 +65,14 @@ func (cm *CounterMap) GetByTenant(key *TenantID) *metrics.Counter {
 		return mtm.(*metrics.Counter)
 	}
 
-	m := cm.m.Load().(map[TenantID]*metrics.Counter)
-	if c := m[*key]; c != nil {
-		// Fast path - the counter for k already exists.
-		return c
+	if counter, ok := cm.m.Load(*key); ok {
+		return counter.(*metrics.Counter)
 	}
 
-	// Slow path - create missing counter for k and re-create m.
-	newM := make(map[TenantID]*metrics.Counter, len(m)+1)
-	for k, c := range m {
-		newM[k] = c
-	}
+	// Slow path - create missing counter for k.
 	metricName := createMetricName(cm.metric, *key)
 	c := metrics.GetOrCreateCounter(metricName)
-	newM[*key] = c
-	cm.m.Store(newM)
+	cm.m.Store(*key, c)
 	return c
 }
 

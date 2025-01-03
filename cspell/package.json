@@ -11,6 +11,6 @@
     "@cspell/dict-software-terms": "^4.1.3",
     "@cspell/dict-uk-ua": "^4.0.1",
     "@cspell/dict-win32": "^2.0.3",
-    "cspell": "^8.14.2"
+    "cspell": "^8.17.1"
   }
 }

@@ -157,9 +157,9 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.uctx.init(pup.fieldPrefix)
 
 	bm := &shard.bm
-	bm.init(br.rowsLen)
-	bm.setBits()
 	if pup.iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		pup.iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pup.ppNext.writeBlock(workerID, br)
@@ -173,7 +173,7 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 		shard.uctx.resetFields()
 		pup.unpackFunc(&shard.uctx, v)
 		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
-			if bm.isSetBit(rowIdx) {
+			if pup.iff == nil || bm.isSetBit(rowIdx) {
 				shard.wctx.writeRow(rowIdx, shard.uctx.fields)
 			} else {
 				shard.wctx.writeRow(rowIdx, nil)
@@ -183,8 +183,8 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 		values := c.getValues(br)
 		vPrev := ""
 		hadUnpacks := false
-		for i, v := range values {
-			if bm.isSetBit(i) {
+		for rowIdx, v := range values {
+			if pup.iff == nil || bm.isSetBit(rowIdx) {
 				if !hadUnpacks || vPrev != v {
 					vPrev = v
 					hadUnpacks = true
@@ -192,9 +192,9 @@ func (pup *pipeUnpackProcessor) writeBlock(workerID uint, br *blockResult) {
 					shard.uctx.resetFields()
 					pup.unpackFunc(&shard.uctx, v)
 				}
-				shard.wctx.writeRow(i, shard.uctx.fields)
+				shard.wctx.writeRow(rowIdx, shard.uctx.fields)
 			} else {
-				shard.wctx.writeRow(i, nil)
+				shard.wctx.writeRow(rowIdx, nil)
 			}
 		}
 	}

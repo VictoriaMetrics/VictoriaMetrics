@@ -8,6 +8,6 @@ menu:
     identifier: helm-victoriametrics-distributed
 url: /helm/victoriametrics-distributed
 aliases:
-  - /helm/victoriametrics-distrinuted/index.html
+  - /helm/victoriametrics-distributed/index.html
 ---
 {{% content "README.md" %}}

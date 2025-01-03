@@ -310,9 +310,6 @@ func NewSearchQuery(accountID, projectID uint32, start, end int64, tagFilterss [
 		// This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
 		start = 0
 	}
-	if maxMetrics <= 0 {
-		maxMetrics = 2e9
-	}
 	return &SearchQuery{
 		MinTimestamp: start,
 		MaxTimestamp: end,
@@ -350,9 +347,6 @@ func NewMultiTenantSearchQuery(tenants []TenantToken, start, end int64, tagFilte
 	if start < 0 {
 		// This is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5553
 		start = 0
-	}
-	if maxMetrics <= 0 {
-		maxMetrics = 2e9
 	}
 	return &SearchQuery{
 		TenantTokens:  tenants,

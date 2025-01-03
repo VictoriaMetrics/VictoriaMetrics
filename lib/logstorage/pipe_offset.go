@@ -24,15 +24,11 @@ func (po *pipeOffset) updateNeededFields(_, _ fieldsSet) {
 	// nothing to do
 }
 
-func (po *pipeOffset) optimize() {
-	// nothing to do
-}
-
 func (po *pipeOffset) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (po *pipeOffset) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (po *pipeOffset) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return po, nil
 }
 
@@ -75,7 +71,7 @@ func (pop *pipeOffsetProcessor) flush() error {
 	return nil
 }
 
-func parsePipeOffset(lex *lexer) (*pipeOffset, error) {
+func parsePipeOffset(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("offset", "skip") {
 		return nil, fmt.Errorf("expecting 'offset' or 'skip'; got %q", lex.token)
 	}

@@ -67,6 +67,7 @@ type UserInfo struct {
 	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
 	DiscoverBackendIPs     *bool       `yaml:"discover_backend_ips,omitempty"`
 	URLMaps                []URLMap    `yaml:"url_map,omitempty"`
+	DumpRequestOnErrors    bool        `yaml:"dump_request_on_errors,omitempty"`
 	HeadersConf            HeadersConf `yaml:",inline"`
 	MaxConcurrentRequests  int         `yaml:"max_concurrent_requests,omitempty"`
 	DefaultURL             *URLPrefix  `yaml:"default_url,omitempty"`
@@ -462,7 +463,6 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 
 	// Slow path - select other backend urls.
 	n := atomicCounter.Add(1) - 1
-
 	for i := uint32(0); i < uint32(len(bus)); i++ {
 		idx := (n + i) % uint32(len(bus))
 		bu := bus[idx]
@@ -484,7 +484,7 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 		if bu.isBroken() {
 			continue
 		}
-		if n := bu.concurrentRequests.Load(); n < minRequests {
+		if n := bu.concurrentRequests.Load(); n < minRequests || buMin.isBroken() {
 			buMin = bu
 			minRequests = n
 		}
@@ -783,10 +783,11 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 
 func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	uis := ac.Users
-	if len(uis) == 0 && ac.UnauthorizedUser == nil {
-		return nil, fmt.Errorf("Missing `users` or `unauthorized_user` sections")
-	}
 	byAuthToken := make(map[string]*UserInfo, len(uis))
+	if len(uis) == 0 && ac.UnauthorizedUser == nil {
+		// fast path for empty configuration
+		return byAuthToken, nil
+	}
 	for i := range uis {
 		ui := &uis[i]
 		ats, err := getAuthTokens(ui.AuthToken, ui.BearerToken, ui.Username, ui.Password)
@@ -861,21 +862,22 @@ func (ui *UserInfo) initURLs() error {
 	loadBalancingPolicy := *defaultLoadBalancingPolicy
 	dropSrcPathPrefixParts := 0
 	discoverBackendIPs := *discoverBackendIPsGlobal
+	if ui.RetryStatusCodes != nil {
+		retryStatusCodes = ui.RetryStatusCodes
+	}
+	if ui.LoadBalancingPolicy != "" {
+		loadBalancingPolicy = ui.LoadBalancingPolicy
+	}
+	if ui.DropSrcPathPrefixParts != nil {
+		dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
+	}
+	if ui.DiscoverBackendIPs != nil {
+		discoverBackendIPs = *ui.DiscoverBackendIPs
+	}
+
 	if ui.URLPrefix != nil {
 		if err := ui.URLPrefix.sanitizeAndInitialize(); err != nil {
 			return err
-		}
-		if ui.RetryStatusCodes != nil {
-			retryStatusCodes = ui.RetryStatusCodes
-		}
-		if ui.LoadBalancingPolicy != "" {
-			loadBalancingPolicy = ui.LoadBalancingPolicy
-		}
-		if ui.DropSrcPathPrefixParts != nil {
-			dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
-		}
-		if ui.DiscoverBackendIPs != nil {
-			discoverBackendIPs = *ui.DiscoverBackendIPs
 		}
 		ui.URLPrefix.retryStatusCodes = retryStatusCodes
 		ui.URLPrefix.dropSrcPathPrefixParts = dropSrcPathPrefixParts

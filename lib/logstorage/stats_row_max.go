@@ -5,7 +5,6 @@ import (
 	"math"
 	"slices"
 	"strings"
-	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -35,11 +34,10 @@ func (sm *statsRowMax) updateNeededFields(neededFields fieldsSet) {
 	neededFields.add(sm.srcField)
 }
 
-func (sm *statsRowMax) newStatsProcessor() (statsProcessor, int) {
-	smp := &statsRowMaxProcessor{
-		sm: sm,
-	}
-	return smp, int(unsafe.Sizeof(*smp))
+func (sm *statsRowMax) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	smp := a.newStatsRowMaxProcessor()
+	smp.sm = sm
+	return smp
 }
 
 type statsRowMaxProcessor struct {
@@ -82,12 +80,11 @@ func (smp *statsRowMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 	case valueTypeString:
 		needUpdateState = true
 	case valueTypeDict:
-		for _, v := range c.dictValues {
-			if smp.needUpdateStateString(v) {
+		c.forEachDictValue(br, func(v string) {
+			if !needUpdateState && smp.needUpdateStateString(v) {
 				needUpdateState = true
-				break
 			}
-		}
+		})
 	case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64:
 		bb := bbPool.Get()
 		bb.B = marshalUint64String(bb.B[:0], c.maxValue)
@@ -214,13 +211,8 @@ func (smp *statsRowMaxProcessor) updateState(v string, br *blockResult, rowIdx i
 	return stateSizeIncrease
 }
 
-func (smp *statsRowMaxProcessor) finalizeStats() string {
-	bb := bbPool.Get()
-	bb.B = MarshalFieldsToJSON(bb.B, smp.fields)
-	result := string(bb.B)
-	bbPool.Put(bb)
-
-	return result
+func (smp *statsRowMaxProcessor) finalizeStats(dst []byte) []byte {
+	return MarshalFieldsToJSON(dst, smp.fields)
 }
 
 func parseStatsRowMax(lex *lexer) (*statsRowMax, error) {

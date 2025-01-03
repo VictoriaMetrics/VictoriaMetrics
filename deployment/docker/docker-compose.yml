@@ -4,7 +4,7 @@ services:
   #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.105.0
+    image: victoriametrics/vmagent:v1.108.1
     depends_on:
       - "victoriametrics"
     ports:
@@ -22,7 +22,7 @@ services:
   # storing metrics and serve read requests.
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.105.0
+    image: victoriametrics/victoria-metrics:v1.108.1
     ports:
       - 8428:8428
       - 8089:8089
@@ -65,21 +65,21 @@ services:
   # vmalert executes alerting and recording rules
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.105.0
+    image: victoriametrics/vmalert:v1.108.1
     depends_on:
       - "victoriametrics"
       - "alertmanager"
     ports:
       - 8880:8880
     volumes:
-      - ./alerts.yml:/etc/alerts/alerts.yml
-      - ./alerts-health.yml:/etc/alerts/alerts-health.yml
-      - ./alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
-      - ./alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
+      - ./rules/alerts.yml:/etc/alerts/alerts.yml
+      - ./rules/alerts-health.yml:/etc/alerts/alerts-health.yml
+      - ./rules/alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
+      - ./rules/alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
     command:
       - "--datasource.url=http://victoriametrics:8428/"
       - "--remoteRead.url=http://victoriametrics:8428/"
-      - "--remoteWrite.url=http://victoriametrics:8428/"
+      - "--remoteWrite.url=http://vmagent:8429/"
       - "--notifier.url=http://alertmanager:9093/"
       - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana

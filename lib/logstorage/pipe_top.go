@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
-	"strings"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -34,8 +34,11 @@ type pipeTop struct {
 	// limitStr is string representation of the limit.
 	limitStr string
 
-	// if hitsFieldName isn't empty, then the number of hits per each unique value is returned in this field.
+	// the number of hits per each unique value is returned in this field.
 	hitsFieldName string
+
+	// if rankFieldName isn't empty, then the rank per each unique value is returned in this field.
+	rankFieldName string
 }
 
 func (pt *pipeTop) String() string {
@@ -45,6 +48,12 @@ func (pt *pipeTop) String() string {
 	}
 	if len(pt.byFields) > 0 {
 		s += " by (" + fieldNamesString(pt.byFields) + ")"
+	}
+	if pt.hitsFieldName != "hits" {
+		s += " hits as " + quoteTokenIfNeeded(pt.hitsFieldName)
+	}
+	if pt.rankFieldName != "" {
+		s += rankFieldNameString(pt.rankFieldName)
 	}
 	return s
 }
@@ -64,15 +73,11 @@ func (pt *pipeTop) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (pt *pipeTop) optimize() {
-	// nothing to do
-}
-
 func (pt *pipeTop) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pt *pipeTop) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pt *pipeTop) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pt, nil
 }
 
@@ -125,6 +130,9 @@ type pipeTopProcessorShard struct {
 type pipeTopProcessorShardNopad struct {
 	// pt points to the parent pipeTop.
 	pt *pipeTop
+
+	// a reduces memory allocations when counting the number of hits over big number of unique values.
+	a chunkedAllocator
 
 	// m holds per-row hits.
 	m map[string]*uint64
@@ -203,9 +211,8 @@ func (shard *pipeTopProcessorShard) updateState(v string, hits uint64) {
 	m := shard.getM()
 	pHits := m[v]
 	if pHits == nil {
-		vCopy := strings.Clone(v)
-		hits := uint64(0)
-		pHits = &hits
+		vCopy := shard.a.cloneString(v)
+		pHits = shard.a.newUint64()
 		m[vCopy] = pHits
 		shard.stateSizeBudget -= len(vCopy) + int(unsafe.Sizeof(vCopy)+unsafe.Sizeof(hits)+unsafe.Sizeof(pHits))
 	}
@@ -273,8 +280,20 @@ func (ptp *pipeTopProcessor) flush() error {
 		return dst
 	}
 
+	addRankField := func(dst []Field, rank int) []Field {
+		if ptp.pt.rankFieldName == "" {
+			return dst
+		}
+		rankStr := strconv.Itoa(rank + 1)
+		dst = append(dst, Field{
+			Name:  ptp.pt.rankFieldName,
+			Value: rankStr,
+		})
+		return dst
+	}
+
 	if len(byFields) == 0 {
-		for _, e := range entries {
+		for i, e := range entries {
 			if needStop(ptp.stopCh) {
 				return nil
 			}
@@ -300,11 +319,12 @@ func (ptp *pipeTopProcessor) flush() error {
 				})
 			}
 			rowFields = addHitsField(rowFields, e.hits)
+			rowFields = addRankField(rowFields, i)
 			wctx.writeRow(rowFields)
 		}
 	} else if len(byFields) == 1 {
 		fieldName := byFields[0]
-		for _, e := range entries {
+		for i, e := range entries {
 			if needStop(ptp.stopCh) {
 				return nil
 			}
@@ -314,10 +334,11 @@ func (ptp *pipeTopProcessor) flush() error {
 				Value: e.k,
 			})
 			rowFields = addHitsField(rowFields, e.hits)
+			rowFields = addRankField(rowFields, i)
 			wctx.writeRow(rowFields)
 		}
 	} else {
-		for _, e := range entries {
+		for i, e := range entries {
 			if needStop(ptp.stopCh) {
 				return nil
 			}
@@ -339,6 +360,7 @@ func (ptp *pipeTopProcessor) flush() error {
 				fieldIdx++
 			}
 			rowFields = addHitsField(rowFields, e.hits)
+			rowFields = addRankField(rowFields, i)
 			wctx.writeRow(rowFields)
 		}
 	}
@@ -441,7 +463,7 @@ func (ptp *pipeTopProcessor) mergeShardsParallel() ([]*pipeTopEntry, error) {
 			}
 			perShardMaps[0][idx] = nil
 
-			entriess[idx] = getTopEntries(m, ptp.pt.limit, ptp.stopCh)
+			entriess[idx] = getTopEntries(m, limit, ptp.stopCh)
 		}(i)
 	}
 	wg.Wait()
@@ -613,7 +635,7 @@ func (wctx *pipeTopWriteContext) flush() {
 	}
 }
 
-func parsePipeTop(lex *lexer) (*pipeTop, error) {
+func parsePipeTop(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("top") {
 		return nil, fmt.Errorf("expecting 'top'; got %q", lex.token)
 	}
@@ -649,6 +671,17 @@ func parsePipeTop(lex *lexer) (*pipeTop, error) {
 	}
 
 	hitsFieldName := "hits"
+	if lex.isKeyword("hits") {
+		lex.nextToken()
+		if lex.isKeyword("as") {
+			lex.nextToken()
+		}
+		s, err := getCompoundToken(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'hits' name: %w", err)
+		}
+		hitsFieldName = s
+	}
 	for slices.Contains(byFields, hitsFieldName) {
 		hitsFieldName += "s"
 	}
@@ -660,5 +693,43 @@ func parsePipeTop(lex *lexer) (*pipeTop, error) {
 		hitsFieldName: hitsFieldName,
 	}
 
+	if lex.isKeyword("rank") {
+		rankFieldName, err := parseRankFieldName(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse rank field name in [%s]: %w", pt, err)
+		}
+		pt.rankFieldName = rankFieldName
+	}
 	return pt, nil
+}
+
+func parseRankFieldName(lex *lexer) (string, error) {
+	if !lex.isKeyword("rank") {
+		return "", fmt.Errorf("unexpected token: %q; want 'rank'", lex.token)
+	}
+	lex.nextToken()
+
+	rankFieldName := "rank"
+	if lex.isKeyword("as") {
+		lex.nextToken()
+		if lex.isKeyword("", "|", ")", "(") {
+			return "", fmt.Errorf("missing rank name")
+		}
+	}
+	if !lex.isKeyword("", "|", ")", "limit") {
+		s, err := getCompoundToken(lex)
+		if err != nil {
+			return "", err
+		}
+		rankFieldName = s
+	}
+	return rankFieldName, nil
+}
+
+func rankFieldNameString(rankFieldName string) string {
+	s := " rank"
+	if rankFieldName != "rank" {
+		s += " as " + quoteTokenIfNeeded(rankFieldName)
+	}
+	return s
 }

@@ -3,7 +3,6 @@ package logstorage
 import (
 	"math"
 	"strings"
-	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -21,17 +20,17 @@ func (sm *statsMax) updateNeededFields(neededFields fieldsSet) {
 	updateNeededFieldsForStatsFunc(neededFields, sm.fields)
 }
 
-func (sm *statsMax) newStatsProcessor() (statsProcessor, int) {
-	smp := &statsMaxProcessor{
-		sm: sm,
-	}
-	return smp, int(unsafe.Sizeof(*smp))
+func (sm *statsMax) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	smp := a.newStatsMaxProcessor()
+	smp.sm = sm
+	return smp
 }
 
 type statsMaxProcessor struct {
 	sm *statsMax
 
-	max string
+	max      string
+	hasItems bool
 }
 
 func (smp *statsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
@@ -76,7 +75,9 @@ func (smp *statsMaxProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 
 func (smp *statsMaxProcessor) mergeState(sfp statsProcessor) {
 	src := sfp.(*statsMaxProcessor)
-	smp.updateStateString(src.max)
+	if src.hasItems {
+		smp.updateStateString(src.max)
+	}
 }
 
 func (smp *statsMaxProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) {
@@ -114,9 +115,9 @@ func (smp *statsMaxProcessor) updateStateForColumn(br *blockResult, c *blockResu
 			smp.updateStateString(v)
 		}
 	case valueTypeDict:
-		for _, v := range c.dictValues {
+		c.forEachDictValue(br, func(v string) {
 			smp.updateStateString(v)
-		}
+		})
 	case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64:
 		bb := bbPool.Get()
 		bb.B = marshalUint64String(bb.B[:0], c.maxValue)
@@ -149,18 +150,18 @@ func (smp *statsMaxProcessor) updateStateBytes(b []byte) {
 }
 
 func (smp *statsMaxProcessor) updateStateString(v string) {
-	if v == "" {
-		// Skip empty strings
+	if !smp.hasItems {
+		smp.max = strings.Clone(v)
+		smp.hasItems = true
 		return
 	}
-	if smp.max != "" && !lessString(smp.max, v) {
-		return
+	if lessString(smp.max, v) {
+		smp.max = strings.Clone(v)
 	}
-	smp.max = strings.Clone(v)
 }
 
-func (smp *statsMaxProcessor) finalizeStats() string {
-	return smp.max
+func (smp *statsMaxProcessor) finalizeStats(dst []byte) []byte {
+	return append(dst, smp.max...)
 }
 
 func parseStatsMax(lex *lexer) (*statsMax, error) {

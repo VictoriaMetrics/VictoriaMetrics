@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"unsafe"
 )
 
 type statsAvg struct {
@@ -20,11 +19,10 @@ func (sa *statsAvg) updateNeededFields(neededFields fieldsSet) {
 	updateNeededFieldsForStatsFunc(neededFields, sa.fields)
 }
 
-func (sa *statsAvg) newStatsProcessor() (statsProcessor, int) {
-	sap := &statsAvgProcessor{
-		sa: sa,
-	}
-	return sap, int(unsafe.Sizeof(*sap))
+func (sa *statsAvg) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	sap := a.newStatsAvgProcessor()
+	sap.sa = sa
+	return sap
 }
 
 type statsAvgProcessor struct {
@@ -86,9 +84,9 @@ func (sap *statsAvgProcessor) mergeState(sfp statsProcessor) {
 	sap.count += src.count
 }
 
-func (sap *statsAvgProcessor) finalizeStats() string {
+func (sap *statsAvgProcessor) finalizeStats(dst []byte) []byte {
 	avg := sap.sum / float64(sap.count)
-	return strconv.FormatFloat(avg, 'f', -1, 64)
+	return strconv.AppendFloat(dst, avg, 'f', -1, 64)
 }
 
 func parseStatsAvg(lex *lexer) (*statsAvg, error) {

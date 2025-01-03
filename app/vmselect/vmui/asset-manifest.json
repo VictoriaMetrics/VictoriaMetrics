@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "./static/css/main.d781989c.css",
-    "main.js": "./static/js/main.68e2aae8.js",
+    "main.css": "./static/css/main.876c56b7.css",
+    "main.js": "./static/js/main.caf36c39.js",
     "static/js/685.f772060c.chunk.js": "./static/js/685.f772060c.chunk.js",
     "static/media/MetricsQL.md": "./static/media/MetricsQL.a00044c91d9781cf8557.md",
     "index.html": "./index.html"
   },
   "entrypoints": [
-    "static/css/main.d781989c.css",
-    "static/js/main.68e2aae8.js"
+    "static/css/main.876c56b7.css",
+    "static/js/main.caf36c39.js"
   ]
 }

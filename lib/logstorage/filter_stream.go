@@ -12,9 +12,13 @@ type filterStream struct {
 	f *StreamFilter
 
 	// tenantIDs is the list of tenantIDs to search for streamIDs.
+	//
+	// This field is initialized just before the search.
 	tenantIDs []TenantID
 
 	// idb is the indexdb to search for streamIDs.
+	//
+	// This field is initialized just before the search.
 	idb *indexdb
 
 	streamIDsOnce sync.Once

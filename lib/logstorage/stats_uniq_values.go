@@ -1,14 +1,17 @@
 package logstorage
 
 import (
+	"container/heap"
 	"fmt"
 	"slices"
-	"strings"
+	"sync"
 	"unsafe"
 
+	"github.com/cespare/xxhash/v2"
 	"github.com/valyala/quicktemplate"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 )
 
 type statsUniqValues struct {
@@ -28,19 +31,20 @@ func (su *statsUniqValues) updateNeededFields(neededFields fieldsSet) {
 	updateNeededFieldsForStatsFunc(neededFields, su.fields)
 }
 
-func (su *statsUniqValues) newStatsProcessor() (statsProcessor, int) {
-	sup := &statsUniqValuesProcessor{
-		su: su,
-
-		m: make(map[string]struct{}),
-	}
-	return sup, int(unsafe.Sizeof(*sup))
+func (su *statsUniqValues) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	sup := a.newStatsUniqValuesProcessor()
+	sup.a = a
+	sup.su = su
+	sup.m = make(map[string]struct{})
+	return sup
 }
 
 type statsUniqValuesProcessor struct {
+	a  *chunkedAllocator
 	su *statsUniqValues
 
-	m map[string]struct{}
+	m  map[string]struct{}
+	ms []map[string]struct{}
 }
 
 func (sup *statsUniqValuesProcessor) updateStatsForAllRows(br *blockResult) int {
@@ -65,36 +69,24 @@ func (sup *statsUniqValuesProcessor) updateStatsForAllRows(br *blockResult) int 
 }
 
 func (sup *statsUniqValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColumn, br *blockResult) int {
-	stateSizeIncrease := 0
 	if c.isConst {
 		// collect unique const values
 		v := c.valuesEncoded[0]
-		if v == "" {
-			// skip empty values
-			return stateSizeIncrease
-		}
-		stateSizeIncrease += sup.updateState(v)
-		return stateSizeIncrease
+		return sup.updateState(v)
 	}
+
+	stateSizeIncrease := 0
 	if c.valueType == valueTypeDict {
 		// collect unique non-zero c.dictValues
-		for _, v := range c.dictValues {
-			if v == "" {
-				// skip empty values
-				continue
-			}
+		c.forEachDictValue(br, func(v string) {
 			stateSizeIncrease += sup.updateState(v)
-		}
+		})
 		return stateSizeIncrease
 	}
 
 	// slow path - collect unique values across all rows
 	values := c.getValues(br)
 	for i, v := range values {
-		if v == "" {
-			// skip empty values
-			continue
-		}
 		if i > 0 && values[i-1] == v {
 			// This value has been already counted.
 			continue
@@ -126,38 +118,23 @@ func (sup *statsUniqValuesProcessor) updateStatsForRow(br *blockResult, rowIdx i
 }
 
 func (sup *statsUniqValuesProcessor) updateStatsForRowColumn(c *blockResultColumn, br *blockResult, rowIdx int) int {
-	stateSizeIncrease := 0
 	if c.isConst {
 		// collect unique const values
 		v := c.valuesEncoded[0]
-		if v == "" {
-			// skip empty values
-			return stateSizeIncrease
-		}
-		stateSizeIncrease += sup.updateState(v)
-		return stateSizeIncrease
+		return sup.updateState(v)
 	}
+
 	if c.valueType == valueTypeDict {
 		// collect unique non-zero c.dictValues
 		valuesEncoded := c.getValuesEncoded(br)
 		dictIdx := valuesEncoded[rowIdx][0]
 		v := c.dictValues[dictIdx]
-		if v == "" {
-			// skip empty values
-			return stateSizeIncrease
-		}
-		stateSizeIncrease += sup.updateState(v)
-		return stateSizeIncrease
+		return sup.updateState(v)
 	}
 
 	// collect unique values for the given rowIdx.
 	v := c.getValueAtRow(br, rowIdx)
-	if v == "" {
-		// skip empty values
-		return stateSizeIncrease
-	}
-	stateSizeIncrease += sup.updateState(v)
-	return stateSizeIncrease
+	return sup.updateState(v)
 }
 
 func (sup *statsUniqValuesProcessor) mergeState(sfp statsProcessor) {
@@ -166,6 +143,12 @@ func (sup *statsUniqValuesProcessor) mergeState(sfp statsProcessor) {
 	}
 
 	src := sfp.(*statsUniqValuesProcessor)
+	if len(src.m) > 100_000 {
+		// Postpone merging too big number of items in parallel
+		sup.ms = append(sup.ms, src.m)
+		return
+	}
+
 	for k := range src.m {
 		if _, ok := sup.m[k]; !ok {
 			sup.m[k] = struct{}{}
@@ -173,22 +156,131 @@ func (sup *statsUniqValuesProcessor) mergeState(sfp statsProcessor) {
 	}
 }
 
-func (sup *statsUniqValuesProcessor) finalizeStats() string {
-	if len(sup.m) == 0 {
-		return "[]"
+func (sup *statsUniqValuesProcessor) finalizeStats(dst []byte) []byte {
+	var items []string
+	if len(sup.ms) > 0 {
+		sup.ms = append(sup.ms, sup.m)
+		items = mergeSetsParallel(sup.ms)
+	} else {
+		items = setToSortedSlice(sup.m)
 	}
-
-	items := make([]string, 0, len(sup.m))
-	for k := range sup.m {
-		items = append(items, k)
-	}
-	sortStrings(items)
 
 	if limit := sup.su.limit; limit > 0 && uint64(len(items)) > limit {
 		items = items[:limit]
 	}
 
-	return marshalJSONArray(items)
+	return marshalJSONArray(dst, items)
+}
+
+func mergeSetsParallel(ms []map[string]struct{}) []string {
+	shardsLen := len(ms)
+	cpusCount := cgroup.AvailableCPUs()
+
+	var wg sync.WaitGroup
+	msShards := make([][]map[string]struct{}, shardsLen)
+	for i := range msShards {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+
+			perCPU := make([]map[string]struct{}, cpusCount)
+			for i := range perCPU {
+				perCPU[i] = make(map[string]struct{})
+			}
+
+			for s := range ms[idx] {
+				h := xxhash.Sum64(bytesutil.ToUnsafeBytes(s))
+				m := perCPU[h%uint64(len(perCPU))]
+				m[s] = struct{}{}
+			}
+
+			msShards[idx] = perCPU
+			ms[idx] = nil
+		}(i)
+	}
+	wg.Wait()
+
+	perCPUItems := make([][]string, cpusCount)
+	for i := range perCPUItems {
+		wg.Add(1)
+		go func(cpuIdx int) {
+			defer wg.Done()
+
+			m := msShards[0][cpuIdx]
+			for _, perCPU := range msShards[1:] {
+				for s := range perCPU[cpuIdx] {
+					if _, ok := m[s]; !ok {
+						m[s] = struct{}{}
+					}
+				}
+				perCPU[cpuIdx] = nil
+			}
+
+			items := setToSortedSlice(m)
+			perCPUItems[cpuIdx] = items
+		}(i)
+	}
+	wg.Wait()
+
+	itemsTotalLen := 0
+	for _, items := range perCPUItems {
+		itemsTotalLen += len(items)
+	}
+	itemsAll := make([]string, 0, itemsTotalLen)
+
+	var h sortedStringsHeap
+	for _, items := range perCPUItems {
+		if len(items) > 0 {
+			h = append(h, items)
+		}
+	}
+	heap.Init(&h)
+	for len(h) > 0 {
+		top := h[0]
+		s := top[0]
+		itemsAll = append(itemsAll, s)
+		if len(top) == 1 {
+			heap.Pop(&h)
+			continue
+		}
+		h[0] = top[1:]
+		heap.Fix(&h, 0)
+	}
+	return itemsAll
+}
+
+type sortedStringsHeap [][]string
+
+func (h *sortedStringsHeap) Len() int {
+	return len(*h)
+}
+func (h *sortedStringsHeap) Less(i, j int) bool {
+	a := *h
+	return lessString(a[i][0], a[j][0])
+}
+func (h *sortedStringsHeap) Swap(i, j int) {
+	a := *h
+	a[i], a[j] = a[j], a[i]
+}
+func (h *sortedStringsHeap) Push(x any) {
+	ss := x.([]string)
+	*h = append(*h, ss)
+}
+func (h *sortedStringsHeap) Pop() any {
+	a := *h
+	x := a[len(a)-1]
+	a[len(a)-1] = nil
+	*h = a[:len(a)-1]
+	return x
+}
+
+func setToSortedSlice(m map[string]struct{}) []string {
+	items := make([]string, 0, len(m))
+	for k := range m {
+		items = append(items, k)
+	}
+	sortStrings(items)
+	return items
 }
 
 func sortStrings(a []string) {
@@ -204,13 +296,16 @@ func sortStrings(a []string) {
 }
 
 func (sup *statsUniqValuesProcessor) updateState(v string) int {
-	stateSizeIncrease := 0
-	if _, ok := sup.m[v]; !ok {
-		vCopy := strings.Clone(v)
-		sup.m[vCopy] = struct{}{}
-		stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy))
+	if v == "" {
+		// Skip empty values
+		return 0
 	}
-	return stateSizeIncrease
+	if _, ok := sup.m[v]; ok {
+		return 0
+	}
+	vCopy := sup.a.cloneString(v)
+	sup.m[vCopy] = struct{}{}
+	return len(vCopy) + int(unsafe.Sizeof(vCopy))
 }
 
 func (sup *statsUniqValuesProcessor) limitReached() bool {
@@ -218,25 +313,18 @@ func (sup *statsUniqValuesProcessor) limitReached() bool {
 	return limit > 0 && uint64(len(sup.m)) > limit
 }
 
-func marshalJSONArray(items []string) string {
-	// Pre-allocate buffer for serialized items.
-	// Assume that there is no need in quoting items. Otherwise additional reallocations
-	// for the allocated buffer are possible.
-	bufSize := len(items) + 1
-	for _, item := range items {
-		bufSize += len(item)
+func marshalJSONArray(dst []byte, items []string) []byte {
+	if len(items) == 0 {
+		return append(dst, "[]"...)
 	}
-	b := make([]byte, 0, bufSize)
-
-	b = append(b, '[')
-	b = quicktemplate.AppendJSONString(b, items[0], true)
+	dst = append(dst, '[')
+	dst = quicktemplate.AppendJSONString(dst, items[0], true)
 	for _, item := range items[1:] {
-		b = append(b, ',')
-		b = quicktemplate.AppendJSONString(b, item, true)
+		dst = append(dst, ',')
+		dst = quicktemplate.AppendJSONString(dst, item, true)
 	}
-	b = append(b, ']')
-
-	return bytesutil.ToUnsafeString(b)
+	dst = append(dst, ']')
+	return dst
 }
 
 func parseStatsUniqValues(lex *lexer) (*statsUniqValues, error) {

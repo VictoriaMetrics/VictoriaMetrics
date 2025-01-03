@@ -61,7 +61,7 @@ Released at 2020-12-15
 * BUGFIX: vmagent: properly pass `datacenter` filter to Consul API server. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/574#issuecomment-740454170>
 * BUGFIX: properly handle CPU limits set on the host system or host container. The bugfix may result in lower memory usage on systems with CPU limits. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/946>
 * BUGFIX: prevent from duplicate `name` tag returned from `/tags/autoComplete/tags` handler. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/942>
-* BUGFIX: do not enable strict parsing for `-promscrape.config` if `-promscrape.config.dryRun` comand-line flag is set. Strict parsing can be enabled with `-promscrape.config.strictParse` command-line flag. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/944>
+* BUGFIX: do not enable strict parsing for `-promscrape.config` if `-promscrape.config.dryRun` command-line flag is set. Strict parsing can be enabled with `-promscrape.config.strictParse` command-line flag. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/944>
 * BUGFIX: vminsert: properly update `vm_rpc_rerouted_rows_processed_total` metric. Previously it wasn't updated. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/955>
 * BUGFIX: vmagent: properly recover when opening incorrectly stored persistent queue. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/964>
 * BUGFIX: vmagent: properly handle scrape errors when stream parsing is enabled with `-promscrape.streamParse` command-line flag or with `stream_parse: true` per-target config option. Previously such errors weren't reported at `/targets` page. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/967>
@@ -196,7 +196,7 @@ Released at 2020-11-02
 * BUGFIX: vmalert: skip automatically added labels on alerts restore. Label `alertgroup` was introduced in [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/611)
   and automatically added to generated time series. By mistake, this new label wasn't correctly purged on restore event and affected alert's ID uniqueness.
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/870>
-* BUGFIX: vmagent: fix panic at scrape error body formating. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/864>
+* BUGFIX: vmagent: fix panic at scrape error body formatting. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/864>
 * BUGFIX: vmagent: add leading missing slash to metrics path like Prometheus does. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/835>
 * BUGFIX: vmagent: drop packet if remote storage returns 4xx status code. This make the behaviour consistent with Prometheus.
   See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/873>
@@ -283,7 +283,7 @@ Released at 2020-10-06
 * BUGFIX: fill gaps on graphs for `range_*` and `running_*` functions. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/806> .
 * BUGFIX: make a copy of label with new name during relabeling with `action: labelmap` in the same way as Prometheus does.
   Previously the original label name has been replaced. See <https://github.com/VictoriaMetrics/VictoriaMetrics/issues/812> .
-* BUGFIX: support parsing floating-point timestamp like Graphite Carbon does. Such timestmaps are truncated to seconds.
+* BUGFIX: support parsing floating-point timestamp like Graphite Carbon does. Such timestamps are truncated to seconds.
 
 ## [v1.42.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0)
 

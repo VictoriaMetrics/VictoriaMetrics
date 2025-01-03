@@ -1,9 +1,11 @@
 package vlinsert
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/elasticsearch"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/journald"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jsonline"
@@ -25,6 +27,7 @@ func Stop() {
 // RequestHandler handles insert requests for VictoriaLogs
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
+
 	if !strings.HasPrefix(path, "/insert/") {
 		// Skip requests, which do not start with /insert/, since these aren't our requests.
 		return false
@@ -32,8 +35,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path = strings.TrimPrefix(path, "/insert")
 	path = strings.ReplaceAll(path, "//", "/")
 
-	if path == "/jsonline" {
+	switch path {
+	case "/jsonline":
 		jsonline.RequestHandler(w, r)
+		return true
+	case "/ready":
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	}
 	switch {
@@ -49,6 +58,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case strings.HasPrefix(path, "/journald/"):
 		path = strings.TrimPrefix(path, "/journald")
 		return journald.RequestHandler(path, w, r)
+	case strings.HasPrefix(path, "/datadog/"):
+		path = strings.TrimPrefix(path, "/datadog")
+		return datadog.RequestHandler(path, w, r)
 	default:
 		return false
 	}

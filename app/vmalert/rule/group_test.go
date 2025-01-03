@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net/url"
 	"os"
-	"reflect"
 	"sort"
 	"testing"
 	"time"
@@ -17,8 +17,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
@@ -29,7 +27,7 @@ func init() {
 }
 
 func TestMain(m *testing.M) {
-	if err := templates.Load([]string{}, true); err != nil {
+	if err := templates.Load([]string{}, url.URL{}); err != nil {
 		fmt.Println("failed to load template for test")
 		os.Exit(1)
 	}
@@ -383,153 +381,6 @@ func TestGetResolveDuration(t *testing.T) {
 	f(2*time.Minute, 0, 1*time.Minute, 8*time.Minute)
 }
 
-func TestGetStaleSeries(t *testing.T) {
-	ts := time.Now()
-	e := &executor{
-		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
-	}
-	f := func(r Rule, labels, expLabels [][]prompbmarshal.Label) {
-		t.Helper()
-
-		var tss []prompbmarshal.TimeSeries
-		for _, l := range labels {
-			tss = append(tss, newTimeSeriesPB([]float64{1}, []int64{ts.Unix()}, l))
-		}
-		staleS := e.getStaleSeries(r, tss, ts)
-		if staleS == nil && expLabels == nil {
-			return
-		}
-		if len(staleS) != len(expLabels) {
-			t.Fatalf("expected to get %d stale series, got %d",
-				len(expLabels), len(staleS))
-		}
-		for i, exp := range expLabels {
-			got := staleS[i]
-			if !reflect.DeepEqual(exp, got.Labels) {
-				t.Fatalf("expected to get labels: \n%v;\ngot instead: \n%v",
-					exp, got.Labels)
-			}
-			if len(got.Samples) != 1 {
-				t.Fatalf("expected to have 1 sample; got %d", len(got.Samples))
-			}
-			if !decimal.IsStaleNaN(got.Samples[0].Value) {
-				t.Fatalf("expected sample value to be %v; got %v", decimal.StaleNaN, got.Samples[0].Value)
-			}
-		}
-	}
-
-	// warn: keep in mind, that executor holds the state, so sequence of f calls matters
-
-	// single series
-	f(&AlertingRule{RuleID: 1},
-		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")},
-		nil)
-	f(&AlertingRule{RuleID: 1},
-		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")},
-		nil)
-	f(&AlertingRule{RuleID: 1},
-		nil,
-		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")})
-	f(&AlertingRule{RuleID: 1},
-		nil,
-		nil)
-
-	// multiple series
-	f(&AlertingRule{RuleID: 1},
-		[][]prompbmarshal.Label{
-			toPromLabels(t, "__name__", "job:foo", "job", "foo"),
-			toPromLabels(t, "__name__", "job:foo", "job", "bar"),
-		},
-		nil)
-	f(&AlertingRule{RuleID: 1},
-		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")},
-		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")})
-	f(&AlertingRule{RuleID: 1},
-		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")},
-		nil)
-	f(&AlertingRule{RuleID: 1},
-		nil,
-		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")})
-
-	// multiple rules and series
-	f(&AlertingRule{RuleID: 1},
-		[][]prompbmarshal.Label{
-			toPromLabels(t, "__name__", "job:foo", "job", "foo"),
-			toPromLabels(t, "__name__", "job:foo", "job", "bar"),
-		},
-		nil)
-	f(&AlertingRule{RuleID: 2},
-		[][]prompbmarshal.Label{
-			toPromLabels(t, "__name__", "job:foo", "job", "foo"),
-			toPromLabels(t, "__name__", "job:foo", "job", "bar"),
-		},
-		nil)
-	f(&AlertingRule{RuleID: 1},
-		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")},
-		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "foo")})
-	f(&AlertingRule{RuleID: 1},
-		[][]prompbmarshal.Label{toPromLabels(t, "__name__", "job:foo", "job", "bar")},
-		nil)
-}
-
-func TestPurgeStaleSeries(t *testing.T) {
-	ts := time.Now()
-	labels := toPromLabels(t, "__name__", "job:foo", "job", "foo")
-	tss := []prompbmarshal.TimeSeries{newTimeSeriesPB([]float64{1}, []int64{ts.Unix()}, labels)}
-
-	f := func(curRules, newRules, expStaleRules []Rule) {
-		t.Helper()
-		e := &executor{
-			previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
-		}
-		// seed executor with series for
-		// current rules
-		for _, rule := range curRules {
-			e.getStaleSeries(rule, tss, ts)
-		}
-
-		e.purgeStaleSeries(newRules)
-
-		if len(e.previouslySentSeriesToRW) != len(expStaleRules) {
-			t.Fatalf("expected to get %d stale series, got %d",
-				len(expStaleRules), len(e.previouslySentSeriesToRW))
-		}
-
-		for _, exp := range expStaleRules {
-			if _, ok := e.previouslySentSeriesToRW[exp.ID()]; !ok {
-				t.Fatalf("expected to have rule %d; got nil instead", exp.ID())
-			}
-		}
-	}
-
-	f(nil, nil, nil)
-	f(
-		nil,
-		[]Rule{&AlertingRule{RuleID: 1}},
-		nil,
-	)
-	f(
-		[]Rule{&AlertingRule{RuleID: 1}},
-		nil,
-		nil,
-	)
-	f(
-		[]Rule{&AlertingRule{RuleID: 1}},
-		[]Rule{&AlertingRule{RuleID: 2}},
-		nil,
-	)
-	f(
-		[]Rule{&AlertingRule{RuleID: 1}, &AlertingRule{RuleID: 2}},
-		[]Rule{&AlertingRule{RuleID: 2}},
-		[]Rule{&AlertingRule{RuleID: 2}},
-	)
-	f(
-		[]Rule{&AlertingRule{RuleID: 1}, &AlertingRule{RuleID: 2}},
-		[]Rule{&AlertingRule{RuleID: 1}, &AlertingRule{RuleID: 2}},
-		[]Rule{&AlertingRule{RuleID: 1}, &AlertingRule{RuleID: 2}},
-	)
-}
-
 func TestFaultyNotifier(t *testing.T) {
 	fq := &datasource.FakeQuerier{}
 	fq.Add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
@@ -580,8 +431,7 @@ func TestFaultyRW(t *testing.T) {
 	}
 
 	e := &executor{
-		Rw:                       &remotewrite.Client{},
-		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+		Rw: &remotewrite.Client{},
 	}
 
 	err := e.exec(context.Background(), r, time.Now(), 0, 10)

@@ -341,6 +341,7 @@ VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is
 (or at `http://<vmselect>:8481/select/<accountID>/vmui/` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)).
 The UI allows exploring query results via graphs and tables. It also provides the following features:
 
+- View [raw samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) via `Raw Query` tab {{% available_from "v1.107.0" %}}. Helps in debugging of [unexpected query results](https://docs.victoriametrics.com/troubleshooting/#unexpected-query-results).
 - Explore:
   - [Metrics explorer](#metrics-explorer) - automatically builds graphs for selected metrics; 
   - [Cardinality explorer](#cardinality-explorer) - stats about existing metrics in TSDB;
@@ -351,8 +352,8 @@ The UI allows exploring query results via graphs and tables. It also provides th
   - [Query analyzer](#query-tracing) - playground for loading query results and traces in JSON format. See `Export query` button below;  
   - [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work; 
   - [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - playground for [relabeling](#relabeling) configs.
-  - [Downsampling filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/downsampling-filters-debug) - playground for [relabeling](#downsampling) configs.
-  - [Retention filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/retention-filters-debug) - playground for [relabeling](#retention-filters) configs.
+  - [Downsampling filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/downsampling-filters-debug) - playground for [relabeling](#downsampling) configs {{% available_from "v1.105.0" %}}.
+  - [Retention filters debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/retention-filters-debug) - playground for [relabeling](#retention-filters) configs {{% available_from "v1.105.0" %}}.
 
 VMUI provides auto-completion for [MetricsQL](https://docs.victoriametrics.com/metricsql/) functions, metric names, label names and label values. The auto-completion can be enabled
 by checking the `Autocomplete` toggle. When the auto-completion is disabled, it can still be triggered for the current cursor position by pressing `ctrl+space`.
@@ -960,6 +961,13 @@ VictoriaMetrics accepts `limit` query arg at [/api/v1/series](https://docs.victo
 for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest of series.
 If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
 
+VictoriaMetrics returns an extra object `stats` in JSON response for [`/api/v1/query`](https://docs.victoriametrics.com/keyconcepts/#instant-query)
+and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyconcepts/#range-query) APIs. This object contains two
+fields: `executionTimeMsec` with number of milliseconds the request took and `seriesFetched` with number of series that
+were fetched from database before filtering. The `seriesFetched` field is effectively used by vmalert for detecting
+[misconfigured rule expressions](https://docs.victoriametrics.com/vmalert/#never-firing-alerts). Please note, `seriesFetched`
+provides approximate number of series, it is not recommended to rely on it in tests.
+
 Additionally, VictoriaMetrics provides the following handlers:
 
 * `/vmui` - Basic Web UI. See [these docs](#vmui).
@@ -986,6 +994,8 @@ in [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series).
 
 - Unix timestamps in seconds with optional milliseconds after the point. For example, `1562529662.678`.
 - Unix timestamps in milliseconds. For example, `1562529662678`.
+- Unix timestamps in microseconds. For example, `1562529662678901`.
+- Unix timestamps in nanoseconds. For example, `1562529662678901234`.
 - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt). For example, `2022-03-29T01:02:03Z` or `2022-03-29T01:02:03+02:30`.
 - Partial RFC3339. Examples: `2022`, `2022-03`, `2022-03-29`, `2022-03-29T01`, `2022-03-29T01:02`, `2022-03-29T01:02:03`.
   The partial RFC3339 time is in local timezone of the host where VictoriaMetrics runs.
@@ -1198,7 +1208,8 @@ In this case [forced merge](#forced-merge) may help freeing up storage space.
 
 It is recommended verifying which metrics will be deleted with the call to `http://<victoria-metrics-addr>:8428/api/v1/series?match[]=<timeseries_selector_for_delete>`
 before actually deleting the metrics. By default, this query will only scan series in the past 5 minutes, so you may need to
-adjust `start` and `end` to a suitable range to achieve match hits.
+adjust `start` and `end` to a suitable range to achieve match hits. Also, if the number of returned time series is 
+rather big you will need to set `-search.maxDeleteSeries` flag (see [Resource usage limits](#resource-usage-limits)).
 
 The `/api/v1/admin/tsdb/delete_series` handler may be protected with `authKey` if `-deleteAuthKey` command-line flag is set.
 Note that handler accepts any HTTP method, so sending a `GET` request to `/api/v1/admin/tsdb/delete_series` will result in deletion of time series.
@@ -1280,13 +1291,13 @@ of time series data. This enables gzip compression for the exported data. Exampl
 curl -H 'Accept-Encoding: gzip' http://localhost:8428/api/v1/export -d 'match[]={__name__!=""}' > data.jsonl.gz
 ```
 
-
 The maximum duration for each request to `/api/v1/export` is limited by `-search.maxExportDuration` command-line flag.
 
 Exported data can be imported via POST'ing it to [/api/v1/import](#how-to-import-data-in-json-line-format).
 
-The [deduplication](#deduplication) is applied to the data exported via `/api/v1/export` by default. The deduplication
-isn't applied if `reduce_mem_usage=1` query arg is passed to the request.
+By default, data exported via `/api/v1/export` is deduplicated according to [-dedup.minScrapeInterval](#deduplication) setting. 
+Pass GET param `reduce_mem_usage=1` in export request to disable deduplication for recently written data. 
+After [background merges](#storage) deduplication becomes permanent.
 
 ### How to export CSV data
 
@@ -1566,6 +1577,9 @@ exporters:
     encoding: proto
     endpoint: http://<collector/vmagent>.<namespace>.svc.cluster.local:<port>/opentelemetry
 ```
+> Note, [cluster version of VM](https://docs.victoriametrics.com/cluster-victoriametrics/#url-format) expects specifying tenant ID, i.e. `http://<vminsert>:<port>/insert/<accountID>/opentelemetry`.
+> See more about [multitenancy](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy).
+
 Remember to add the exporter to the desired service pipeline in order to activate the exporter.
 ```yaml
 service:
@@ -1587,7 +1601,7 @@ The format follows [JSON streaming concept](https://jsonlines.org/), e.g. each l
 
 ```json
 {
-  // metric contans metric name plus labels for a particular time series
+  // metric contains metric name plus labels for a particular time series
   "metric":{
     "__name__": "metric_name",  // <- this is metric name
 
@@ -1701,6 +1715,7 @@ See also [resource usage limits docs](#resource-usage-limits).
 
 By default, VictoriaMetrics is tuned for an optimal resource usage under typical workloads. Some workloads may need fine-grained resource usage limits. In these cases the following command-line flags may be useful:
 
+- `-maxIngestionRate` limits samples/second ingested. This may be useful when CPU resources are limited or overloaded.
 - `-memory.allowedPercent` and `-memory.allowedBytes` limit the amounts of memory, which may be used for various internal caches at VictoriaMetrics.
   Note that VictoriaMetrics may use more memory, since these flags don't limit additional memory, which may be needed on a per-query basis.
 - `-search.maxMemoryPerQuery` limits the amounts of memory, which can be used for processing a single query. Queries, which need more memory, are rejected.
@@ -1767,6 +1782,12 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   In this case it might be useful to set the `-search.maxLabelsAPIDuration` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPISeries` and `-search.ignoreExtraFiltersAtLabelsAPI`.
 - `-search.maxTagValueSuffixesPerSearch` limits the number of entries, which may be returned from `/metrics/find` endpoint. See [Graphite Metrics API usage docs](#graphite-metrics-api-usage).
+- `-search.maxFederateSeries` limits maximum number of time series, which can be returned via [/federate API](#federation). 
+  The duration of the `/federate` queries is limited via `-search.maxQueryDuration` flag. This option allows limiting memory usage.
+- `-search.maxExportSeries` limits maximum number of time series, which can be returned from [/api/v1/export* APIs](#how-to-export-data-in-json-line-format).
+  The duration of the export queries is limited via `-search.maxExportDuration` flag. This option allows limiting memory usage.
+- `-search.maxTSDBStatusSeries` limits maximum number of time series, which can be processed during the call to [/api/v1/status/tsdb](#tsdb-stats).
+  The duration of the status queries is limited via `-search.maxStatusRequestDuration` flag. This option allows limiting memory usage. 
 
 See also [resource usage limits at VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#resource-usage-limits),
 [cardinality limiter](#cardinality-limiter) and [capacity planning docs](#capacity-planning).
@@ -1824,7 +1845,8 @@ For example, `-dedup.minScrapeInterval=60s` would leave a single raw sample with
 This aligns with the [staleness rules in Prometheus](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness).
 
 If multiple raw samples have **the same timestamp** on the given `-dedup.minScrapeInterval` discrete interval, 
-then the sample with **the biggest value** is kept.
+then the sample with **the biggest value** is kept. 
+[Stale markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) are preferred over any other value.
 
 [Prometheus staleness markers](https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers) are processed as any other value during de-duplication.
 If raw sample with the biggest timestamp on `-dedup.minScrapeInterval` contains a stale marker, then it is kept after the deduplication.
@@ -2032,7 +2054,7 @@ Important notes:
   So the IndexDB size can grow big under [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
   even for small retentions configured via `-retentionFilter`.
 
-Retention filters configuration can be tested in enterprise version of vmui on the page `Tools.Retnetion filters debug`.
+Retention filters configuration can be tested in enterprise version of vmui on the page `Tools.Retention filters debug`.
 It is safe updating `-retentionFilter` during VictoriaMetrics restarts - the updated retention filters are applied eventually
 to historical data.
 
@@ -2054,7 +2076,7 @@ The `-downsampling.period` command-line flag can be specified multiple times in 
 For example, `-downsampling.period=30d:5m,180d:1h` instructs leaving the last sample per each 5-minute interval for samples older than 30 days,
 while leaving the last sample per each 1-hour interval for samples older than 180 days.
 
-VictoriaMetrics supports configuring independent downsampling per different sets of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
+VictoriaMetrics supports{{% available_from "v1.100.0" %}} configuring independent downsampling per different sets of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 via `-downsampling.period=filter:offset:interval` syntax. In this case the given `offset:interval` downsampling is applied only to time series matching the given `filter`.
 The `filter` can contain arbitrary [series filter](https://docs.victoriametrics.com/keyconcepts/#filtering).
 For example, `-downsampling.period='{__name__=~"(node|process)_.*"}:1d:1m` instructs VictoriaMetrics to deduplicate samples older than one day with one minute interval
@@ -2266,7 +2288,7 @@ VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way simi
 * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.
 
 In [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) each vmstorage tracks the stored time series individually.
-vmselect requests stats via [/api/v1/status/tsdb](#tsdb-stats) API from each vmstorage node and merges the results by summing per-series stats.
+vmselect requests stats via [/api/v1/status/tsdb](https://docs.victoriametrics.com/url-examples/#apiv1statustsdb) API from each vmstorage node and merges the results by summing per-series stats.
 This may lead to inflated values when samples for the same time series are spread across multiple vmstorage nodes
 due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=re-routes#cluster-availability).
 
@@ -2444,10 +2466,12 @@ and [cardinality explorer docs](#cardinality-explorer).
 
 * New time series can be logged if `-logNewSeries` command-line flag is passed to VictoriaMetrics.
 
-* VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag
-  and drops superfluous labels. This prevents from ingesting metrics with too many labels.
-  It is recommended [monitoring](#monitoring) `vm_metrics_with_dropped_labels_total`
-  metric in order to determine whether `-maxLabelsPerTimeseries` must be adjusted for your workload.
+* VictoriaMetrics limits the number of labels per each series, label name length and label value length
+  via `-maxLabelsPerTimeseries`, `-maxLabelNameLen` and `-maxLabelValueLen` command-line flags respectively.
+  Series that exceed the limits are ignored on ingestion. This prevents from ingesting malformed series.
+  It is recommended [monitoring](#monitoring) `vm_rows_ingored_total` metric and VictoriaMetrics logs in order 
+  to determine whether limits must be adjusted for your workload.
+  Alternatively, you can use [relabeling](https://docs.victoriametrics.com/single-server-victoriametrics/#relabeling) to change metric target labels.
 
 * If you store Graphite metrics like `foo.bar.baz` in VictoriaMetrics, then `{__graphite__="foo.*.baz"}` filter can be used for selecting such metrics.
   See [these docs](#selecting-graphite-metrics) for details. You can also query Graphite metrics with [Graphite querying API](#graphite-render-api-usage).
@@ -2686,7 +2710,7 @@ Contact us with any questions regarding VictoriaMetrics at [info@victoriametrics
 Feel free asking any questions regarding VictoriaMetrics:
 
 * [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
-* [Twitter](https://twitter.com/VictoriaMetrics/)
+* [X (Twitter)](https://x.com/VictoriaMetrics/)
 * [Linkedin](https://www.linkedin.com/company/victoriametrics/)
 * [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
 * [Telegram-en](https://t.me/VictoriaMetrics_en)
@@ -2939,13 +2963,18 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
      The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 32)
+  -maxIngestionRate int 
+     The maximum number of samples vmsingle can receive per second. Data ingestion is paused when the limit is exceeded
+     By default there are no limits on samples ingestion rate.
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
-  -maxLabelValueLen int
-     The maximum length of label values in the accepted time series. Longer label values are truncated. In this case the vm_too_long_label_values_total metric at /metrics page is incremented (default 4096)
   -maxLabelsPerTimeseries int
-     The maximum number of labels accepted per time series. Superfluous labels are dropped. In this case the vm_metrics_with_dropped_labels_total metric at /metrics page is incremented (default 30)
+     The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason="too_many_labels"} metric at /metrics page is incremented (default 40)
+  -maxLabelNameLen int
+     The maximum length of label names in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason="too_long_label_name"} metric at /metrics page is incremented (default 256)
+  -maxLabelValueLen int
+     The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason="too_long_label_value"} metric at /metrics page is incremented (default 4096)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -3249,9 +3278,6 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
   -storage.cacheSizeIndexDBDataBlocks size
      Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
-  -storage.cacheSizeIndexDBDataBlocksSparse size
-     Overrides max size for indexdb/dataBlocksSparse cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.cacheSizeIndexDBIndexBlocks size
      Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning

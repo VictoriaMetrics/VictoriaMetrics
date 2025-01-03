@@ -1,0 +1,128 @@
+# File contains default list of alerts for VictoriaMetrics single server.
+# The alerts below are just recommendations and may require some updates
+# and threshold calibration according to every specific setup.
+groups:
+  # Alerts group for VM single assumes that Grafana dashboard
+  # https://grafana.com/grafana/dashboards/10229 is installed.
+  # Pls update the `dashboard` annotation according to your setup.
+  - name: vmsingle
+    interval: 30s
+    concurrency: 2
+    rules:
+      - alert: DiskRunsOutOfSpaceIn3Days
+        expr: |
+          sum(vm_free_disk_space_bytes) without(path) /
+          (
+            rate(vm_rows_added_to_storage_total[1d]) * (
+              sum(vm_data_size_bytes{type!~"indexdb.*"}) without(type) /
+              sum(vm_rows{type!~"indexdb.*"}) without(type)
+            )
+          ) < 3 * 24 * 3600 > 0
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=73&var-instance={{ $labels.instance }}"
+          summary: "Instance {{ $labels.instance }} will run out of disk space soon"
+          description: "Taking into account current ingestion rate, free disk space will be enough only
+            for {{ $value | humanizeDuration }} on instance {{ $labels.instance }}.\n
+            Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
+
+      - alert: NodeBecomesReadonlyIn3Days
+        expr: |
+          sum(vm_free_disk_space_bytes - vm_free_disk_space_limit_bytes) without(path) /
+          (
+            rate(vm_rows_added_to_storage_total[1d]) * (
+              sum(vm_data_size_bytes{type!~"indexdb.*"}) without(type) /
+              sum(vm_rows{type!~"indexdb.*"}) without(type)
+            )
+          ) < 3 * 24 * 3600 > 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=113&var-instance={{ $labels.instance }}"
+          summary: "Instance {{ $labels.instance }} will become read-only in 3 days"
+          description: "Taking into account current ingestion rate and free disk space
+              instance {{ $labels.instance }} is writable for {{ $value | humanizeDuration }}.\n
+              Consider to limit the ingestion rate, decrease retention or scale the disk space up if possible."
+
+      - alert: DiskRunsOutOfSpace
+        expr: |
+          sum(vm_data_size_bytes) by(job, instance) /
+          (
+           sum(vm_free_disk_space_bytes) by(job, instance) +
+           sum(vm_data_size_bytes) by(job, instance)
+          ) > 0.8
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=53&var-instance={{ $labels.instance }}"
+          summary: "Instance {{ $labels.instance }} (job={{ $labels.job }}) will run out of disk space soon"
+          description: "Disk utilisation on instance {{ $labels.instance }} is more than 80%.\n
+            Having less than 20% of free disk space could cripple merge processes and overall performance.
+            Consider to limit the ingestion rate, decrease retention or scale the disk space if possible."
+
+      - alert: RequestErrorsToAPI
+        expr: increase(vm_http_request_errors_total[5m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=35&var-instance={{ $labels.instance }}"
+          summary: "Too many errors served for path {{ $labels.path }} (instance {{ $labels.instance }})"
+          description: "Requests to path {{ $labels.path }} are receiving errors.
+            Please verify if clients are sending correct requests."
+
+      - alert: TooHighChurnRate
+        expr: |
+          (
+             sum(rate(vm_new_timeseries_created_total[5m])) by(instance)
+             /
+             sum(rate(vm_rows_inserted_total[5m])) by(instance)
+           ) > 0.1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=66&var-instance={{ $labels.instance }}"
+          summary: "Churn rate is more than 10% on \"{{ $labels.instance }}\" for the last 15m"
+          description: "VM constantly creates new time series on \"{{ $labels.instance }}\".\n
+            This effect is known as Churn Rate.\n
+            High Churn Rate tightly connected with database performance and may
+            result in unexpected OOM's or slow queries."
+
+      - alert: TooHighChurnRate24h
+        expr: |
+          sum(increase(vm_new_timeseries_created_total[24h])) by(instance)
+          >
+          (sum(vm_cache_entries{type="storage/hour_metric_ids"}) by(instance) * 3)
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=66&var-instance={{ $labels.instance }}"
+          summary: "Too high number of new series on \"{{ $labels.instance }}\" created over last 24h"
+          description: "The number of created new time series over last 24h is 3x times higher than
+            current number of active series on \"{{ $labels.instance }}\".\n
+            This effect is known as Churn Rate.\n
+            High Churn Rate tightly connected with database performance and may
+            result in unexpected OOM's or slow queries."
+
+      - alert: TooHighSlowInsertsRate
+        expr: |
+          (
+             sum(rate(vm_slow_row_inserts_total[5m])) by(instance)
+             /
+             sum(rate(vm_rows_inserted_total[5m])) by(instance)
+           ) > 0.05
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=68&var-instance={{ $labels.instance }}"
+          summary: "Percentage of slow inserts is more than 5% on \"{{ $labels.instance }}\" for the last 15m"
+          description: "High rate of slow inserts on \"{{ $labels.instance }}\" may be a sign of resource exhaustion
+            for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series.
+            See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183"

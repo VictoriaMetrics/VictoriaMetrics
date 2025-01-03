@@ -64,7 +64,7 @@ type blockResult struct {
 func (br *blockResult) reset() {
 	br.rowsLen = 0
 
-	br.cs = nil
+	br.bs = nil
 	br.bm = nil
 
 	br.a.reset()
@@ -153,6 +153,10 @@ func (br *blockResult) initFromFilterAllColumns(brSrc *blockResult, bm *bitmap) 
 	br.timestampsBuf = dstTimestamps
 	br.rowsLen = len(br.timestampsBuf)
 
+	if br.rowsLen == 0 || bm.isZero() {
+		return
+	}
+
 	for _, cSrc := range brSrc.getColumns() {
 		br.appendFilteredColumn(brSrc, cSrc, bm)
 	}
@@ -163,8 +167,9 @@ func (br *blockResult) initFromFilterAllColumns(brSrc *blockResult, bm *bitmap) 
 // the br is valid until brSrc, cSrc or bm is updated.
 func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResultColumn, bm *bitmap) {
 	if br.rowsLen == 0 {
-		return
+		logger.Panicf("BUG: br.rowsLen must be greater than 0")
 	}
+
 	cDst := blockResultColumn{
 		name: cSrc.name,
 	}
@@ -385,9 +390,9 @@ func (br *blockResult) mustInit(bs *blockSearch, bm *bitmap) {
 	br.bm = bm
 }
 
-// intersectsTimeRange returns true if br timestamps intersect (minTimestamp .. maxTimestamp) time range.
+// intersectsTimeRange returns true if br timestamps intersect [minTimestamp .. maxTimestamp] time range.
 func (br *blockResult) intersectsTimeRange(minTimestamp, maxTimestamp int64) bool {
-	return minTimestamp < br.getMaxTimestamp(minTimestamp) && maxTimestamp > br.getMinTimestamp(maxTimestamp)
+	return minTimestamp <= br.getMaxTimestamp(minTimestamp) && maxTimestamp >= br.getMinTimestamp(maxTimestamp)
 }
 
 func (br *blockResult) getMinTimestamp(minTimestamp int64) int64 {
@@ -1553,7 +1558,7 @@ type blockResultColumn struct {
 
 	// isTime is set to true if the column contains _time values.
 	//
-	// The column values are stored in blockResult.timestamps, while valuesEncoded is nil.
+	// The column values are stored in blockResult.getTimestamps, while valuesEncoded is nil.
 	isTime bool
 
 	// valueType is the type of non-cost value
@@ -1726,7 +1731,9 @@ func (c *blockResultColumn) getValuesEncoded(br *blockResult) []string {
 	return c.valuesEncoded
 }
 
-// forEachDictValue calls f for every value in the column dictionary.
+// forEachDictValue calls f for every matching value in the column dictionary.
+//
+// It properly skips non-matching dict values.
 func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) {
 	if c.valueType != valueTypeDict {
 		logger.Panicf("BUG: unexpected column valueType=%d; want %d", c.valueType, valueTypeDict)
@@ -1756,7 +1763,9 @@ func (c *blockResultColumn) forEachDictValue(br *blockResult, f func(v string)) 
 	encoding.PutUint64s(a)
 }
 
-// forEachDictValueWithHits calls f for every value in the column dictionary.
+// forEachDictValueWithHits calls f for every matching value in the column dictionary.
+//
+// It properly skips non-matching dict values.
 //
 // hits is the number of rows with the given value v in the column.
 func (c *blockResultColumn) forEachDictValueWithHits(br *blockResult, f func(v string, hits uint64)) {
