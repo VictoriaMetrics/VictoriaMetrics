@@ -1576,6 +1576,9 @@ Below is the output for `/path/to/vmselect -help`:
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -search.logSlowQueryDuration duration
      Log queries with execution time exceeding this value. Zero disables slow query logging. See also -search.logQueryMemoryUsage (default 5s)
+  -search.maxBinaryOpPushdownLabelValues int
+     The maximum number of values for a label in the first expression that can be extracted as a common label filter and pushed down to the second expression in a binary operation. 
+     A larger value makes the pushed-down filter more complex but fewer time series will be returned. This flag is useful when selective label contains numerous values, for example `instance`, and storage resources are abundant. (default 100)
   -search.maxConcurrentRequests int
      The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration and -search.maxMemoryPerQuery (default 16)
   -search.maxDeleteSeries int
