@@ -73,7 +73,7 @@
     "eslint-plugin-react": "^7.36.1",
     "http-proxy-middleware": "^3.0.2",
     "react-app-rewired": "^2.2.1",
-    "webpack": "^5.94.0"
+    "webpack": "^5.96.1"
   },
   "overrides": {
     "react-app-rewired": {
