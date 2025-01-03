@@ -799,6 +799,36 @@ func TestBrokenBackend(t *testing.T) {
 	}
 }
 
+func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
+	up := mustParseURLs([]string{
+		"http://[2607:f8b0:400a:80b::200e]:8080",
+		"http://[2607:f8b0:400a:80b::200e]",
+		"http://10.0.10.100:8080",
+		"http://10.0.10.100",
+	})
+
+	expected := []string{
+		"[2607:f8b0:400a:80b::200e]:8080",
+		"[2607:f8b0:400a:80b::200e]",
+		"10.0.10.100:8080",
+		"10.0.10.100",
+	}
+
+	up.discoverBackendIPs = true
+	up.loadBalancingPolicy = "least_loaded"
+
+	up.discoverBackendAddrsIfNeeded()
+
+	pbus := up.bus.Load()
+	bus := *pbus
+
+	for i, addr := range bus {
+		if addr.url.Host != expected[i] {
+			t.Fatalf("unexpected host. expected: %s, got %s", expected[i], addr.url.Host)
+		}
+	}
+}
+
 func getRegexs(paths []string) []*Regex {
 	var sps []*Regex
 	for _, path := range paths {
