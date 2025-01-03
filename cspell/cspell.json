@@ -7,7 +7,7 @@
     {
       "addWords": true,
       "name": "custom-dict",
-      "path": "cspell/custom-dict.txt"
+      "path": "custom-dict.txt"
     }
   ],
   "dictionaries": [
@@ -50,18 +50,18 @@
     "/vm[a-zA-Z0-9-_]+/i"
   ],
   "import": [
-    "/home/node/node_modules/@cspell/dict-aws/cspell-ext.json",
-    "/home/node/node_modules/@cspell/dict-companies/cspell-ext.json",
-    "/home/node/node_modules/@cspell/dict-data-science/cspell-ext.json",
-    "/home/node/node_modules/@cspell/dict-en_us/cspell-ext.json",
-    "/home/node/node_modules/@cspell/dict-fullstack/cspell-ext.json",
-    "/home/node/node_modules/@cspell/dict-golang/cspell-ext.json",
-    "/home/node/node_modules/@cspell/dict-k8s/cspell-ext.json",
-    "/home/node/node_modules/@cspell/dict-people-names/cspell-ext.json",
-    "/home/node/node_modules/@cspell/dict-ru_ru/cspell-ext.json",
-    "/home/node/node_modules/@cspell/dict-software-terms/cspell-ext.json",
-    "/home/node/node_modules/@cspell/dict-uk-ua/cspell-ext.json",
-    "/home/node/node_modules/@cspell/dict-win32/cspell-ext.json"
+    "@cspell/dict-aws/cspell-ext.json",
+    "@cspell/dict-companies/cspell-ext.json",
+    "@cspell/dict-data-science/cspell-ext.json",
+    "@cspell/dict-en_us/cspell-ext.json",
+    "@cspell/dict-fullstack/cspell-ext.json",
+    "@cspell/dict-golang/cspell-ext.json",
+    "@cspell/dict-k8s/cspell-ext.json",
+    "@cspell/dict-people-names/cspell-ext.json",
+    "@cspell/dict-ru_ru/cspell-ext.json",
+    "@cspell/dict-software-terms/cspell-ext.json",
+    "@cspell/dict-uk-ua/cspell-ext.json",
+    "@cspell/dict-win32/cspell-ext.json"
   ],
   "useGitignore": true
 }

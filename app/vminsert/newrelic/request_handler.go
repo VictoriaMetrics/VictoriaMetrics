@@ -58,14 +58,9 @@ func insertRows(rows []newrelic.Row, extraLabels []prompbmarshal.Label) error {
 				label := &extraLabels[k]
 				ctx.AddLabel(label.Name, label.Value)
 			}
-			if hasRelabeling {
-				ctx.ApplyRelabeling()
-			}
-			if len(ctx.Labels) == 0 {
-				// Skip metric without labels.
+			if !ctx.TryPrepareLabels(hasRelabeling) {
 				continue
 			}
-			ctx.SortLabelsIfNeeded()
 			if err := ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, s.Value); err != nil {
 				return err
 			}

@@ -37,7 +37,7 @@ func (pp *pipePackLogfmt) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pp *pipePackLogfmt) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pp *pipePackLogfmt) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pp, nil
 }
 

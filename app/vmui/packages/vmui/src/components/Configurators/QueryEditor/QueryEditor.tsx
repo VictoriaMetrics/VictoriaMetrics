@@ -54,7 +54,8 @@ const QueryEditor: FC<QueryEditorProps> = ({
   const { isMobile } = useDeviceDetect();
 
   const [openAutocomplete, setOpenAutocomplete] = useState(false);
-  const [caretPosition, setCaretPosition] = useState<[number, number]>([0, 0]);
+  const [caretPositionAutocomplete, setCaretPositionAutocomplete] = useState<[number, number]>([0, 0]);
+  const [caretPositionInput, setCaretPositionInput] = useState<[number, number]>([0, 0]);
   const autocompleteAnchorEl = useRef<HTMLInputElement>(null);
 
   const [showAutocomplete, setShowAutocomplete] = useState(!!AutocompleteEl);
@@ -77,7 +78,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
 
   const handleSelect = (val: string, caretPosition: number) => {
     onChange(val);
-    setCaretPosition([caretPosition, caretPosition]);
+    setCaretPositionInput([caretPosition, caretPosition]);
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -119,7 +120,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   };
 
   const handleChangeCaret = (val: [number, number]) => {
-    setCaretPosition(prev => prev[0] === val[0] && prev[1] === val[1] ? prev : val);
+    setCaretPositionAutocomplete(prev => prev[0] === val[0] && prev[1] === val[1] ? prev : val);
   };
 
   useEffect(() => {
@@ -129,7 +130,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   useEffect(() => {
     setShowAutocomplete(false);
     debouncedSetShowAutocomplete(true);
-  }, [caretPosition]);
+  }, [caretPositionAutocomplete]);
 
   return (
     <div
@@ -148,13 +149,13 @@ const QueryEditor: FC<QueryEditorProps> = ({
         onChangeCaret={handleChangeCaret}
         disabled={disabled}
         inputmode={"search"}
-        caretPosition={caretPosition}
+        caretPosition={caretPositionInput}
       />
       {showAutocomplete && autocomplete && AutocompleteEl && (
         <AutocompleteEl
           value={value}
           anchorEl={autocompleteAnchorEl}
-          caretPosition={caretPosition}
+          caretPosition={caretPositionAutocomplete}
           hasHelperText={Boolean(warning || error)}
           includeFunctions={includeFunctions}
           onSelect={handleSelect}

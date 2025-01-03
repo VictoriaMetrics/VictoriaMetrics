@@ -11,10 +11,11 @@ aliases:
   - /victorialogs/data-ingestion/Vector.html
   - /victorialogs/data-ingestion/vector.html
 ---
-VictoriaLogs supports given below Vector sinks:
-- [Elasticsearch](#elasticsearch)
-- [Loki](#loki)
-- [HTTP JSON](#http)
+
+VictoriaLogs can accept logs from [Vector](https://vector.dev/) via the following protocols:
+
+- Elasticsearch - see [these docs](#elasticsearch)
+- HTTP JSON - see [these docs](#http)
 
 ## Elasticsearch
 
@@ -29,8 +30,8 @@ sinks:
     type: elasticsearch
     endpoints:
       - http://localhost:9428/insert/elasticsearch/
-    mode: bulk
     api_version: v8
+    compression: gzip
     healthcheck:
       enabled: false
     query:
@@ -39,29 +40,9 @@ sinks:
       _stream_fields: host,container_name
 ```
 
-## Loki
-
-Specify [Loki sink type](https://vector.dev/docs/reference/configuration/sinks/loki/) in the `vector.yaml`
-for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
-
-```yaml
-sinks:
-  vlogs:
-    type: "loki"
-    endpoint: "http://localhost:9428/insert/loki/"
-    inputs:
-      - your_input
-    compression: gzip
-    path: /api/v1/push?_msg_field=message.message&_time_field=timestamp&_stream_fields=source
-    encoding:
-      codec: json
-    labels:
-      source: vector
-```
+Replace `your_input` with the name of the `inputs` section, which collects logs. See [these docs](https://vector.dev/docs/reference/configuration/sources/) for details.
 
 Substitute the `localhost:9428` address inside `endpoints` section with the real TCP address of VictoriaLogs.
-
-Replace `your_input` with the name of the `inputs` section, which collects logs. See [these docs](https://vector.dev/docs/reference/configuration/sources/) for details.
 
 See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details on parameters specified
 in the `sinks.vlogs.query` section.
@@ -79,8 +60,8 @@ sinks:
     type: elasticsearch
     endpoints:
       - http://localhost:9428/insert/elasticsearch/
-    mode: bulk
     api_version: v8
+    compression: gzip
     healthcheck:
       enabled: false
     query:
@@ -102,60 +83,15 @@ sinks:
     type: elasticsearch
     endpoints:
       - http://localhost:9428/insert/elasticsearch/
-    mode: bulk
     api_version: v8
-    healthcheck:
-      enabled: false
-    query:
-      _msg_field: message
-      _time_field: timestamp
-      _stream_fields: host,container_name
-      _ignore_fields: log.offset,event.original
-```
-
-When Vector ingests logs into VictoriaLogs at a high rate, then it may be needed to tune `batch.max_events` option.
-For example, the following config is optimized for higher than usual ingestion rate:
-
-```yaml
-sinks:
-  vlogs:
-    inputs:
-      - your_input
-    type: elasticsearch
-    endpoints:
-      - http://localhost:9428/insert/elasticsearch/
-    mode: bulk
-    api_version: v8
-    healthcheck:
-      enabled: false
-    query: 
-      _msg_field: message
-      _time_field: timestamp
-      _stream_fields: host,container_name
-    batch:
-      max_events: 1000
-```
-
-If the Vector sends logs to VictoriaLogs in another datacenter, then it may be useful enabling data compression via `compression = "gzip"` option.
-This usually allows saving network bandwidth and costs by up to 5 times:
-
-```yaml
-sinks:
-  vlogs:
-    inputs:
-      - your_input
-    type: elasticsearch
-    endpoints:
-      - http://localhost:9428/insert/elasticsearch/
-    mode: bulk
-    api_version: v8
-    healthcheck:
-      enabled: false
     compression: gzip
+    healthcheck:
+      enabled: false
     query:
       _msg_field: message
       _time_field: timestamp
       _stream_fields: host,container_name
+      ignore_fields: log.offset,event.original
 ```
 
 By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/keyconcepts/#multitenancy).
@@ -186,8 +122,8 @@ sinks:
 
 ## HTTP
 
-Vector can be configured with [HTTP](https://vector.dev/docs/reference/configuration/sinks/http/) sink type 
-for sending data to [JSON stream API](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api):
+Vector can be configured with [HTTP sink type](https://vector.dev/docs/reference/configuration/sinks/http/)
+for sending data to VictoriaLogs via [JSON stream API](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api) format:
 
 ```yaml
 sinks:
@@ -196,16 +132,40 @@ sinks:
       - your_input
     type: http
     uri: http://localhost:9428/insert/jsonline?_stream_fields=host,container_name&_msg_field=message&_time_field=timestamp
+    compression: gzip
     encoding:
       codec: json
     framing:
       method: newline_delimited
     healthcheck:
       enabled: false
-    request:
-      headers:
-        AccountID: "12"
-        ProjectID: "34"
+```
+
+Replace `your_input` with the name of the `inputs` section, which collects logs. See [these docs](https://vector.dev/docs/reference/configuration/sources/) for details.
+
+Substitute the `localhost:9428` address inside `endpoints` section with the real TCP address of VictoriaLogs.
+
+See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details on parameters specified
+in the query args of the uri (`_stream_fields`, `_msg_field` and `_time_field`).
+
+It is recommended verifying whether the initial setup generates the needed [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+and uses the correct [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+This can be done by specifying `debug` [query arg](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) in the `uri`:
+
+```yaml
+sinks:
+  vlogs:
+    inputs:
+      - your_input
+    type: http
+    uri: http://localhost:9428/insert/jsonline?_stream_fields=host,container_name&_msg_field=message&_time_field=timestamp&debug=1
+    compression: gzip
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    healthcheck:
+      enabled: false
 ```
 
 See also:

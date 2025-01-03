@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -103,6 +104,25 @@ func NewPrometheusAPIV1QueryResponse(t *testing.T, s string) *PrometheusAPIV1Que
 	return res
 }
 
+// Sort performs data.Result sort by metric labels
+func (pqr *PrometheusAPIV1QueryResponse) Sort() {
+	sort.Slice(pqr.Data.Result, func(i, j int) bool {
+		leftS := make([]string, 0, len(pqr.Data.Result[i].Metric))
+		rightS := make([]string, 0, len(pqr.Data.Result[j].Metric))
+		for k, v := range pqr.Data.Result[i].Metric {
+			leftS = append(leftS, fmt.Sprintf("%s=%s", k, v))
+		}
+		for k, v := range pqr.Data.Result[j].Metric {
+			rightS = append(rightS, fmt.Sprintf("%s=%s", k, v))
+
+		}
+		sort.Strings(leftS)
+		sort.Strings(rightS)
+		return strings.Join(leftS, ",") < strings.Join(rightS, ",")
+	})
+
+}
+
 // QueryData holds the query result along with its type.
 type QueryData struct {
 	ResultType string
@@ -133,7 +153,7 @@ func NewSample(t *testing.T, timeStr string, value float64) *Sample {
 	if err != nil {
 		t.Fatalf("could not parse RFC3339 time %q: %v", timeStr, err)
 	}
-	return &Sample{parsedTime.Unix(), value}
+	return &Sample{parsedTime.UnixMilli(), value}
 }
 
 // UnmarshalJSON populates the sample fields from a JSON string.
@@ -149,7 +169,7 @@ func (s *Sample) UnmarshalJSON(b []byte) error {
 	if got, want := len(raw), 2; got != want {
 		return fmt.Errorf("unexpected number of fields: got %d, want %d (raw sample: %s)", got, want, string(b))
 	}
-	s.Timestamp = int64(ts)
+	s.Timestamp = int64(ts * 1000)
 	var err error
 	s.Value, err = strconv.ParseFloat(v, 64)
 	if err != nil {

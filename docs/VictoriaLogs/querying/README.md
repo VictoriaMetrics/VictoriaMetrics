@@ -318,7 +318,7 @@ See also:
 
 ### Querying facets
 
-VictoriaLogs provides `/select/logsql/facets?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns the most fequent values
+VictoriaLogs provides `/select/logsql/facets?query=<query>&start=<start>&end=<end>` HTTP endpoint, which returns the most frequent values
 per each [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) seen in the logs returned
 by the given [`<query>`](https://docs.victoriametrics.com/victorialogs/logsql/) on the given `[<start> ... <end>]` time range.
 
@@ -391,6 +391,13 @@ returns the most frequent values across log fields containing values no longer t
 
 ```sh
 curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h' -d 'max_value_len=100'
+```
+
+By default the `/select/logsql/facets` endpoint doesn't return log fields, which contan the same constant value across all the logs matching the given `query`.
+Add `keep_const_fields=1` query arg if you need such log fields:
+
+```sh
+curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h' -d 'keep_const_fields=1'
 ```
 
 See also:
@@ -910,22 +917,26 @@ See also:
 
 All the [HTTP querying APIs](#http-api) provided by VictoriaLogs support the following optional query args:
 
-- `extra_filters` - this arg may contain extra [`field:=value`](https://docs.victoriametrics.com/victorialogs/logsql/#exact-filter) filters, which must be applied
+- `extra_filters` - this arg may contain extra [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters), which must be applied
   to the `query` before returning the results.
-- `extra_stream_filters` - this arg may contain extra [`{field="value"}`](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter) filters,
+- `extra_stream_filters` - this arg may contain extra [stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter),
   which must be applied to the `query` before returning results.
 
-The filters must be passed as JSON object with `"field":"value"` entries. For example, the following JSON object applies `namespace:=my-app and env:prod` filter to the `query`
-passed to [HTTP querying APIs](#http-api):
+The `extra_filters` and `extra_stream_filters` values can have the following format:
 
-```json
-{
-  "namespace":"my-app",
-  "env":"prod"
-}
-```
+- JSON object with `"field":"value"` entries. For example, the following JSON applies `namespace:=my-app and env:=prod` filter to the `query`
+  passed to [HTTP querying APIs](#http-api): `extra_filters={"namespace":"my-app","env":"prod"}` .
 
-The JSON object must be properly encoded with [percent encoding](https://en.wikipedia.org/wiki/Percent-encoding) before being passed to VictoriaLogs.
+  The following JSON applies `{namespace="my-app",env="prod"}` [stream filter](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter)
+  to the `query`: `extra_stream_filters={"namespace":"my-app","env":"prod"}` .
+
+  Every JSON entry may contain either a single string value or an array of values. An array of `{"field:["v1","v2",..."vN"]}` values is converted
+  into `field:in(v1, v2, ... vN)` [filter](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter) when passed to `extra_filters`.
+  The same array is converted into `{field=~"v1|v2|...|vN"}` [stream filter](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter).
+
+- Arbitrary [LogsQL filter](https://docs.victoriametrics.com/victorialogs/logsql/#filters). For example, `extra_filters=foo:~bar -baz:x`.
+
+The arg passed to `extra_filters` and `extra_stream_filters` must be properly encoded with [percent encoding](https://en.wikipedia.org/wiki/Percent-encoding).
 
 
 ## Web UI

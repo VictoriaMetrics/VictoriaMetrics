@@ -7,7 +7,7 @@ groups:
         labels:
           label: bar
         annotations:
-          summary: "{{ $value }"
+          summary: "{{ }}"
           description: "{{$labels}}"
       - alert: UnkownAnnotationsFunction
         for: 5m

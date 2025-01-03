@@ -3,11 +3,13 @@ package logstorage
 import (
 	"fmt"
 	"strconv"
+	"sync"
 	"unsafe"
 
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
@@ -28,23 +30,20 @@ func (su *statsCountUniq) updateNeededFields(neededFields fieldsSet) {
 	updateNeededFieldsForStatsFunc(neededFields, su.fields)
 }
 
-func (su *statsCountUniq) newStatsProcessor() (statsProcessor, int) {
-	sup := &statsCountUniqProcessor{
-		su: su,
-
-		m: make(map[string]struct{}),
-	}
-	return sup, int(unsafe.Sizeof(*sup))
+func (su *statsCountUniq) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	sup := a.newStatsCountUniqProcessor()
+	sup.a = a
+	sup.su = su
+	sup.m = make(map[string]struct{})
+	return sup
 }
 
 type statsCountUniqProcessor struct {
+	a  *chunkedAllocator
 	su *statsCountUniq
 
-	// m holds unique values if it is non-nil
-	m map[string]struct{}
-
-	// mHash holds unique value hashes if it is non-nil
-	mHash map[uint64]struct{}
+	m  map[string]struct{}
+	ms []map[string]struct{}
 
 	columnValues [][]string
 	keyBuf       []byte
@@ -336,51 +335,97 @@ func (sup *statsCountUniqProcessor) mergeState(sfp statsProcessor) {
 	}
 
 	src := sfp.(*statsCountUniqProcessor)
+	if len(src.m) > 100_000 {
+		// Postpone merging too big number of items in parallel
+		sup.ms = append(sup.ms, src.m)
+		return
+	}
 
-	if sup.mHash != nil {
-		m := sup.mHash
-		for h := range src.mHash {
-			if _, ok := m[h]; !ok {
-				m[h] = struct{}{}
-			}
-		}
-	} else {
-		m := sup.m
-		for k := range src.m {
-			if _, ok := m[k]; !ok {
-				m[k] = struct{}{}
-			}
+	m := sup.m
+	for k := range src.m {
+		if _, ok := m[k]; !ok {
+			m[k] = struct{}{}
 		}
 	}
 }
 
-func (sup *statsCountUniqProcessor) finalizeStats() string {
+func (sup *statsCountUniqProcessor) finalizeStats(dst []byte) []byte {
 	var n uint64
-	if sup.mHash != nil {
-		n = uint64(len(sup.mHash))
+	if len(sup.ms) > 0 {
+		sup.ms = append(sup.ms, sup.m)
+		n = countUniqParallel(sup.ms)
 	} else {
 		n = uint64(len(sup.m))
 	}
+
 	if limit := sup.su.limit; limit > 0 && n > limit {
 		n = limit
 	}
-	return strconv.FormatUint(n, 10)
+	return strconv.AppendUint(dst, n, 10)
+}
+
+func countUniqParallel(ms []map[string]struct{}) uint64 {
+	shardsLen := len(ms)
+	cpusCount := cgroup.AvailableCPUs()
+
+	var wg sync.WaitGroup
+	msShards := make([][]map[string]struct{}, shardsLen)
+	for i := range msShards {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+
+			perCPU := make([]map[string]struct{}, cpusCount)
+			for i := range perCPU {
+				perCPU[i] = make(map[string]struct{})
+			}
+
+			for s := range ms[idx] {
+				h := xxhash.Sum64(bytesutil.ToUnsafeBytes(s))
+				m := perCPU[h%uint64(len(perCPU))]
+				m[s] = struct{}{}
+			}
+
+			msShards[idx] = perCPU
+			ms[idx] = nil
+		}(i)
+	}
+	wg.Wait()
+
+	perCPUCounts := make([]int, cpusCount)
+	for i := range perCPUCounts {
+		wg.Add(1)
+		go func(cpuIdx int) {
+			defer wg.Done()
+
+			m := msShards[0][cpuIdx]
+			for _, perCPU := range msShards[1:] {
+				for s := range perCPU[cpuIdx] {
+					if _, ok := m[s]; !ok {
+						m[s] = struct{}{}
+					}
+				}
+				perCPU[cpuIdx] = nil
+			}
+			perCPUCounts[cpuIdx] = len(m)
+		}(i)
+	}
+	wg.Wait()
+
+	countTotal := uint64(0)
+	for _, count := range perCPUCounts {
+		countTotal += uint64(count)
+	}
+	return countTotal
 }
 
 func (sup *statsCountUniqProcessor) updateState(v []byte) int {
 	stateSizeIncrease := 0
 
-	if sup.mHash != nil {
-		h := xxhash.Sum64(v)
-		if _, ok := sup.mHash[h]; !ok {
-			sup.mHash[h] = struct{}{}
-			stateSizeIncrease += int(unsafe.Sizeof(h))
-		}
-	} else {
-		if _, ok := sup.m[string(v)]; !ok {
-			sup.m[string(v)] = struct{}{}
-			stateSizeIncrease += len(v) + int(unsafe.Sizeof(""))
-		}
+	if _, ok := sup.m[string(v)]; !ok {
+		vCopy := sup.a.cloneBytesToString(v)
+		sup.m[vCopy] = struct{}{}
+		stateSizeIncrease += len(vCopy) + int(unsafe.Sizeof(vCopy))
 	}
 
 	return stateSizeIncrease
@@ -390,9 +435,6 @@ func (sup *statsCountUniqProcessor) limitReached() bool {
 	limit := sup.su.limit
 	if limit <= 0 {
 		return false
-	}
-	if sup.mHash != nil {
-		return uint64(len(sup.mHash)) > limit
 	}
 	return uint64(len(sup.m)) > limit
 }

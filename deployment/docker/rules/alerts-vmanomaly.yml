@@ -30,6 +30,18 @@ groups:
           summary: "Service {{ $labels.job }} is down on {{ $labels.instance }}"
           description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 5m"
 
+      # default value of 900 Should be changed to the scrape_interval for pull metrics. For push metrics this should be the lowest fit_every or infer_every in your vmanomaly config.
+      - alert: NoSelfMonitoringMetrics
+        expr: >
+          lag(vmanomaly_start_time_seconds{job="vmanomaly"}[24h]) > 900
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Metrics have not been seen from \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") for {{ $value }} seconds"
+          description: >
+           The missing metric may incidate that vmanomaly is not running or is inaccessable from vmagent or the remotewrite endpoint.
+
       - alert: ProcessNearFDLimits
         expr: (process_max_fds{job=~".*vmanomaly.*"} - process_open_fds{job=~".*vmanomaly.*"}) < 100
         for: 5m

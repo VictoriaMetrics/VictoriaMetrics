@@ -1,4 +1,4 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.6.0](https://img.shields.io/badge/Version-0.6.0-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.7.0](https://img.shields.io/badge/Version-0.7.0-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-distributed)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 
@@ -308,7 +308,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>availabilityZones</td>
       <td>list</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">- name: zone-eu-1
 - name: zone-us-1
 </code>
@@ -320,7 +320,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>availabilityZones[0].name</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">zone-eu-1
 </code>
 </pre>
@@ -331,7 +331,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>availabilityZones[1].name</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">zone-us-1
 </code>
 </pre>
@@ -342,7 +342,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>common.vmagent.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">port: "8429"
 </code>
 </pre>
@@ -353,7 +353,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>common.vmauth.spec.port</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">"8427"
 </code>
 </pre>
@@ -363,7 +363,7 @@ Change the values according to the need of the environment in ``victoria-metrics
     <tr>
       <td>common.vmcluster.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">vminsert:
     port: "8480"
     serviceSpec:
@@ -381,7 +381,7 @@ vmselect:
     <tr>
       <td>enableMultitenancy</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>
@@ -392,7 +392,7 @@ vmselect:
     <tr>
       <td>extra</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">vmagent:
     enabled: true
     name: test-vmagent
@@ -407,7 +407,7 @@ vmselect:
     <tr>
       <td>fullnameOverride</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">""
 </code>
 </pre>
@@ -418,7 +418,7 @@ vmselect:
     <tr>
       <td>global</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">cluster:
     dnsDomain: cluster.local.
 </code>
@@ -430,7 +430,7 @@ vmselect:
     <tr>
       <td>global.cluster.dnsDomain</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">cluster.local.
 </code>
 </pre>
@@ -441,7 +441,7 @@ vmselect:
     <tr>
       <td>nameOverride</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">vm-distributed
 </code>
 </pre>
@@ -452,7 +452,7 @@ vmselect:
     <tr>
       <td>read.global.vmauth.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -463,7 +463,7 @@ vmselect:
     <tr>
       <td>read.global.vmauth.name</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">vmauth-global-read-{{ .fullname }}
 </code>
 </pre>
@@ -474,7 +474,7 @@ vmselect:
     <tr>
       <td>read.global.vmauth.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -485,7 +485,7 @@ vmselect:
     <tr>
       <td>victoria-metrics-k8s-stack</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">alertmanager:
     enabled: false
 enabled: true
@@ -510,7 +510,7 @@ vmsingle:
     <tr>
       <td>write.global.vmauth.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -521,7 +521,7 @@ vmsingle:
     <tr>
       <td>write.global.vmauth.name</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">vmauth-global-write-{{ .fullname }}
 </code>
 </pre>
@@ -532,7 +532,7 @@ vmsingle:
     <tr>
       <td>write.global.vmauth.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -543,7 +543,7 @@ vmsingle:
     <tr>
       <td>zoneTpl</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">common:
     spec:
         affinity: {}
@@ -607,7 +607,7 @@ write:
     <tr>
       <td>zoneTpl.common.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">affinity: {}
 nodeSelector:
     topology.kubernetes.io/zone: '{{ (.zone).name }}'
@@ -624,7 +624,7 @@ topologySpreadConstraints:
     <tr>
       <td>zoneTpl.read.allow</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -635,7 +635,7 @@ topologySpreadConstraints:
     <tr>
       <td>zoneTpl.read.crossZone.vmauth.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -646,7 +646,7 @@ topologySpreadConstraints:
     <tr>
       <td>zoneTpl.read.crossZone.vmauth.name</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">vmauth-read-proxy-{{ (.zone).name }}
 </code>
 </pre>
@@ -657,7 +657,7 @@ topologySpreadConstraints:
     <tr>
       <td>zoneTpl.read.crossZone.vmauth.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -668,7 +668,7 @@ topologySpreadConstraints:
     <tr>
       <td>zoneTpl.read.perZone.vmauth.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -679,7 +679,7 @@ topologySpreadConstraints:
     <tr>
       <td>zoneTpl.read.perZone.vmauth.name</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">vmauth-read-balancer-{{ (.zone).name }}
 </code>
 </pre>
@@ -690,7 +690,7 @@ topologySpreadConstraints:
     <tr>
       <td>zoneTpl.read.perZone.vmauth.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">extraArgs:
     discoverBackendIPs: "true"
 </code>
@@ -702,7 +702,7 @@ topologySpreadConstraints:
     <tr>
       <td>zoneTpl.vmagent.annotations</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -713,7 +713,7 @@ topologySpreadConstraints:
     <tr>
       <td>zoneTpl.vmagent.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -724,7 +724,7 @@ topologySpreadConstraints:
     <tr>
       <td>zoneTpl.vmagent.name</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">vmagent-{{ (.zone).name }}
 </code>
 </pre>
@@ -735,7 +735,7 @@ topologySpreadConstraints:
     <tr>
       <td>zoneTpl.vmagent.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">{}
 </code>
 </pre>
@@ -746,7 +746,7 @@ topologySpreadConstraints:
     <tr>
       <td>zoneTpl.vmcluster.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -757,7 +757,7 @@ topologySpreadConstraints:
     <tr>
       <td>zoneTpl.vmcluster.name</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">vmcluster-{{ (.zone).name }}
 </code>
 </pre>
@@ -768,7 +768,7 @@ topologySpreadConstraints:
     <tr>
       <td>zoneTpl.vmcluster.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">replicationFactor: 2
 retentionPeriod: "14"
 vminsert:
@@ -792,7 +792,7 @@ vmstorage:
     <tr>
       <td>zoneTpl.write.allow</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -803,7 +803,7 @@ vmstorage:
     <tr>
       <td>zoneTpl.write.vmauth.enabled</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">true
 </code>
 </pre>
@@ -814,7 +814,7 @@ vmstorage:
     <tr>
       <td>zoneTpl.write.vmauth.name</td>
       <td>string</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">vmauth-write-balancer-{{ (.zone).name }}
 </code>
 </pre>
@@ -825,7 +825,7 @@ vmstorage:
     <tr>
       <td>zoneTpl.write.vmauth.spec</td>
       <td>object</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="plaintext">
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">extraArgs:
     discoverBackendIPs: "true"
 </code>
