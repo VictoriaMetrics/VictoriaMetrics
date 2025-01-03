@@ -5,10 +5,13 @@ import { LogHits } from "../../../api/types";
 import { useSearchParams } from "react-router-dom";
 import { getHitsTimeParams } from "../../../utils/logs";
 
+export const HITS_GROUP_FIELD = "_stream";  // In the future, this field can be made configurable
+
 export const useFetchLogHits = (server: string, query: string) => {
   const [searchParams] = useSearchParams();
 
   const [logHits, setLogHits] = useState<LogHits[]>([]);
+  const [otherHits, setOtherHits] = useState<LogHits[]>([]);
   const [isLoading, setIsLoading] = useState<{[key: number]: boolean;}>([]);
   const [error, setError] = useState<ErrorTypes | string>();
   const abortControllerRef = useRef(new AbortController());
@@ -30,7 +33,7 @@ export const useFetchLogHits = (server: string, query: string) => {
         step: `${step}ms`,
         start: start.toISOString(),
         end: end.toISOString(),
-        field: "_stream" // In the future, this field can be made configurable
+        field: HITS_GROUP_FIELD,
 
       })
     };
@@ -52,14 +55,15 @@ export const useFetchLogHits = (server: string, query: string) => {
 
   const getHitsWithTop = (hits: LogHits[]) => {
     const topN = 5;
-    const defaultHit = { fields: {}, timestamps: [], values: [], total: 0 };
+    const defaultHit: LogHits = { fields: {}, timestamps: [], values: [], total: 0, _isOther: true };
 
     const hitsByTotal = hits.sort((a, b) => (b.total || 0) - (a.total || 0));
     const result = [];
 
-    const otherHits: LogHits = hitsByTotal.slice(topN).reduce(accumulateHits, defaultHit);
-    if (otherHits.total) {
-      result.push(otherHits);
+    const otherHits = hitsByTotal.slice(topN);
+    const otherHitsAccumulated: LogHits = otherHits.reduce(accumulateHits, defaultHit);
+    if (otherHitsAccumulated.total) {
+      result.push(otherHitsAccumulated);
     }
 
     const topHits: LogHits[] = hitsByTotal.slice(0, topN);
@@ -67,7 +71,7 @@ export const useFetchLogHits = (server: string, query: string) => {
       result.push(...topHits);
     }
 
-    return result;
+    return { result, otherHits };
   };
 
   const fetchLogHits = useCallback(async (period: TimeParams) => {
@@ -87,6 +91,7 @@ export const useFetchLogHits = (server: string, query: string) => {
         const text = await response.text();
         setError(text);
         setLogHits([]);
+        setOtherHits([]);
         setIsLoading(prev => ({ ...prev, [id]: false }));
         return;
       }
@@ -98,12 +103,15 @@ export const useFetchLogHits = (server: string, query: string) => {
         setError(error);
       }
 
-      setLogHits(!hits ? [] : getHitsWithTop(hits));
+      const { result = [], otherHits = [] } = !hits ? {} : getHitsWithTop(hits);
+      setLogHits(result);
+      setOtherHits(otherHits);
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
         setError(String(e));
         console.error(e);
         setLogHits([]);
+        setOtherHits([]);
       }
     }
     setIsLoading(prev => ({ ...prev, [id]: false }));
@@ -111,6 +119,7 @@ export const useFetchLogHits = (server: string, query: string) => {
 
   return {
     logHits,
+    otherHits,
     isLoading: Object.values(isLoading).some(s => s),
     error,
     fetchLogHits,
