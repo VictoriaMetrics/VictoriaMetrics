@@ -1724,7 +1724,6 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) {
 			mrs = nil
 		}
 		rowsAdded := s.add(ic.rrs, ic.tmpMrs, mrsBlock, precisionBits)
-		// rowsAdded := s.addLegacy(ic.rrs, ic.tmpMrs, mrsBlock, precisionBits)
 
 		// If the number of received rows is greater than the number of added
 		// rows, then some rows have failed to add. Check logs for the first
@@ -1769,7 +1768,6 @@ const maxMetricRowsPerBlock = 8000
 // Th MetricRow.Value field is ignored.
 func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	s.registerMetricNames(qt, mrs)
-	// registerMetricNamesLegacy(qt, mrs)
 }
 
 func (s *Storage) registerMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
