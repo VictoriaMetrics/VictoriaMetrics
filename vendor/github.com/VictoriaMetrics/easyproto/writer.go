@@ -198,6 +198,16 @@ func (m *Marshaler) newFieldIndex() int {
 	return fsLen
 }
 
+// AppendRaw appends marshalled protobuf message to mm.
+func (mm *MessageMarshaler) AppendRaw(data []byte) {
+	m := mm.m
+	dst := m.buf
+	dstLen := len(dst)
+	dst = append(dst, data...)
+	m.buf = dst
+	mm.appendField(m, dstLen, len(dst))
+}
+
 // AppendInt32 appends the given int32 value under the given fieldNum to mm.
 func (mm *MessageMarshaler) AppendInt32(fieldNum uint32, i32 int32) {
 	mm.AppendUint64(fieldNum, uint64(uint32(i32)))
