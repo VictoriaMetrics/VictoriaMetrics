@@ -93,10 +93,10 @@ func TestParseTasks(t *testing.T) {
 }
 
 func TestAddTasksLabels(t *testing.T) {
-	f := func(tasks []task, nodesLabels []*promutils.Labels, networkLabels map[string]*promutils.Labels, services []service, labelssExpected []*promutils.Labels) {
+	f := func(tasks []task, nodesLabels []*promutils.Labels, networkLabels map[string]*promutils.Labels, serviceLabels []*promutils.Labels, services []service, labelssExpected []*promutils.Labels) {
 		t.Helper()
 
-		labelss := addTasksLabels(tasks, nodesLabels, nil, networkLabels, services, 9100)
+		labelss := addTasksLabels(tasks, nodesLabels, serviceLabels, networkLabels, services, 9100)
 		discoveryutils.TestEqualLabelss(t, labelss, labelssExpected)
 	}
 
@@ -124,6 +124,19 @@ func TestAddTasksLabels(t *testing.T) {
 					},
 				}},
 		},
+	}
+
+	svcLabels := []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
+			"__meta_dockerswarm_service_id":   "t91nf284wzle1ya09lqvyjgnq",
+			"__meta_dockerswarm_service_name": "real_service_name",
+			"__meta_dockerswarm_service_mode": "real_service_mode",
+		}),
+		promutils.NewLabelsFromMap(map[string]string{
+			"__meta_dockerswarm_service_id":   "fake_service_id",
+			"__meta_dockerswarm_service_name": "fake_service_name",
+			"__meta_dockerswarm_service_mode": "fake_service_mode",
+		}),
 	}
 
 	nodesLabels := []*promutils.Labels{
@@ -159,9 +172,12 @@ func TestAddTasksLabels(t *testing.T) {
 			"__meta_dockerswarm_task_port_publish_mode":     "ingress",
 			"__meta_dockerswarm_task_slot":                  "1",
 			"__meta_dockerswarm_task_state":                 "running",
+			"__meta_dockerswarm_service_id":                 "t91nf284wzle1ya09lqvyjgnq",
+			"__meta_dockerswarm_service_name":               "real_service_name",
+			"__meta_dockerswarm_service_mode":               "real_service_mode",
 		}),
 	}
-	f(tasks, nodesLabels, nil, nil, labelssExpected)
+	f(tasks, nodesLabels, nil, svcLabels, nil, labelssExpected)
 
 	//  adds 1 task with nodes, network and services labels
 	tasks = []task{
@@ -212,6 +228,19 @@ func TestAddTasksLabels(t *testing.T) {
 			"__meta_dockerswarm_node_platform_os":           "linux",
 			"__meta_dockerswarm_node_role":                  "manager",
 			"__meta_dockerswarm_node_status":                "ready",
+		}),
+	}
+
+	svcLabels = []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
+			"__meta_dockerswarm_service_id":   "tgsci5gd31aai3jyudv98pqxf",
+			"__meta_dockerswarm_service_name": "redis2",
+			"__meta_dockerswarm_service_mode": "replicated",
+		}),
+		promutils.NewLabelsFromMap(map[string]string{
+			"__meta_dockerswarm_service_id":   "fake_service_id",
+			"__meta_dockerswarm_service_name": "fake_service_name",
+			"__meta_dockerswarm_service_mode": "fake_service_mode",
 		}),
 	}
 
@@ -274,7 +303,10 @@ func TestAddTasksLabels(t *testing.T) {
 			"__meta_dockerswarm_task_port_publish_mode":     "ingress",
 			"__meta_dockerswarm_task_slot":                  "1",
 			"__meta_dockerswarm_task_state":                 "running",
+			"__meta_dockerswarm_service_id":                 "tgsci5gd31aai3jyudv98pqxf",
+			"__meta_dockerswarm_service_name":               "redis2",
+			"__meta_dockerswarm_service_mode":               "replicated",
 		}),
 	}
-	f(tasks, nodesLabels, networksLabels, services, labelssExpected)
+	f(tasks, nodesLabels, networksLabels, svcLabels, services, labelssExpected)
 }

@@ -27,7 +27,7 @@ func (pf *pipeFirst) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFirst) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pf *pipeFirst) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pf, nil
 }
 
@@ -35,11 +35,11 @@ func (pf *pipeFirst) newPipeProcessor(workersCount int, stopCh <-chan struct{}, 
 	return newPipeTopkProcessor(pf.ps, workersCount, stopCh, cancel, ppNext)
 }
 
-func (pf *pipeFirst) addPartitionByTime() {
-	pf.ps.addPartitionByTime()
+func (pf *pipeFirst) addPartitionByTime(step int64) {
+	pf.ps.addPartitionByTime(step)
 }
 
-func parsePipeFirst(lex *lexer) (*pipeFirst, error) {
+func parsePipeFirst(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("first") {
 		return nil, fmt.Errorf("expecting 'first'; got %q", lex.token)
 	}

@@ -25,7 +25,7 @@ func (pd *pipeDropEmptyFields) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pd *pipeDropEmptyFields) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pd *pipeDropEmptyFields) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pd, nil
 }
 
@@ -200,7 +200,7 @@ func (wctx *pipeDropEmptyFieldsWriteContext) flush() {
 	}
 }
 
-func parsePipeDropEmptyFields(lex *lexer) (*pipeDropEmptyFields, error) {
+func parsePipeDropEmptyFields(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("drop_empty_fields") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "drop_empty_fields")
 	}

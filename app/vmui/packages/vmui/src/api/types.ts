@@ -66,3 +66,11 @@ export interface LegendLogHitsMenu {
   icon?: ReactNode;
   handler?: () => void;
 }
+
+export interface ReportMetaData {
+  id: number;
+  title: string;
+  endpoint: string;
+  comment: string;
+  params: Record<string, string>;
+}

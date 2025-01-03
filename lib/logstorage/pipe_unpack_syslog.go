@@ -58,7 +58,7 @@ func (pu *pipeUnpackSyslog) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
 
-func (pu *pipeUnpackSyslog) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pu *pipeUnpackSyslog) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
@@ -101,7 +101,7 @@ func init() {
 	}()
 }
 
-func parsePipeUnpackSyslog(lex *lexer) (*pipeUnpackSyslog, error) {
+func parsePipeUnpackSyslog(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("unpack_syslog") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unpack_syslog")
 	}

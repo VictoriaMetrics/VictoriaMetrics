@@ -81,7 +81,10 @@ absolute path to all .tpl files in root.
 	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
 )
 
-var alertURLGeneratorFn notifier.AlertURLGenerator
+var (
+	alertURLGeneratorFn notifier.AlertURLGenerator
+	extURL              *url.URL
+)
 
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
@@ -95,9 +98,15 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 
-	err := templates.Load(*ruleTemplatesPath, true)
+	var err error
+	extURL, err = getExternalURL(*externalURL)
 	if err != nil {
-		logger.Fatalf("failed to parse %q: %s", *ruleTemplatesPath, err)
+		logger.Fatalf("failed to init external.url %q: %s", *externalURL, err)
+	}
+
+	err = templates.Load(*ruleTemplatesPath, *extURL)
+	if err != nil {
+		logger.Fatalf("failed to load template %q: %s", *ruleTemplatesPath, err)
 	}
 
 	if *dryRun {
@@ -111,12 +120,7 @@ func main() {
 		return
 	}
 
-	eu, err := getExternalURL(*externalURL)
-	if err != nil {
-		logger.Fatalf("failed to init `-external.url`: %s", err)
-	}
-
-	alertURLGeneratorFn, err = getAlertURLGenerator(eu, *externalAlertSource, *validateTemplates)
+	alertURLGeneratorFn, err = getAlertURLGenerator(extURL, *externalAlertSource, *validateTemplates)
 	if err != nil {
 		logger.Fatalf("failed to init `external.alert.source`: %s", err)
 	}
@@ -304,7 +308,7 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 		}
 		templated, err := alert.ExecTemplate(qFn, alert.Labels, m)
 		if err != nil {
-			logger.Errorf("can not exec source template %s", err)
+			logger.Errorf("cannot template alert source: %s", err)
 		}
 		return fmt.Sprintf("%s/%s", externalURL, templated["tpl"])
 	}, nil
@@ -359,7 +363,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			logger.Errorf("failed to reload notifier config: %s", err)
 			continue
 		}
-		err := templates.Load(*ruleTemplatesPath, false)
+		err := templates.Load(*ruleTemplatesPath, *extURL)
 		if err != nil {
 			setConfigError(err)
 			logger.Errorf("failed to load new templates: %s", err)

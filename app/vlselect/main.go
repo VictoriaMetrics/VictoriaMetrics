@@ -177,6 +177,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Request, path string) bool {
 	httpserver.EnableCORS(w, r)
 	switch path {
+	case "/select/logsql/facets":
+		logsqlFacetsRequests.Inc()
+		logsql.ProcessFacetsRequest(ctx, w, r)
+		return true
 	case "/select/logsql/field_names":
 		logsqlFieldNamesRequests.Inc()
 		logsql.ProcessFieldNamesRequest(ctx, w, r)
@@ -236,6 +240,7 @@ func getMaxQueryDuration(r *http.Request) time.Duration {
 }
 
 var (
+	logsqlFacetsRequests            = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/facets"}`)
 	logsqlFieldNamesRequests        = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_names"}`)
 	logsqlFieldValuesRequests       = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_values"}`)
 	logsqlHitsRequests              = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/hits"}`)

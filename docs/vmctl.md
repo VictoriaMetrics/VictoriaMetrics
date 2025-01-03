@@ -1254,7 +1254,7 @@ Flags available only for the `prometheus` command:
 ./vmctl prometheus -help
 
    --prom-snapshot value
-     Path to Prometheus snapshot. Pls see for details https://www.robustperception.io/taking-snapshots-of-prometheus-data
+     Path to Prometheus snapshot. See for details https://www.robustperception.io/taking-snapshots-of-prometheus-data
    --prom-concurrency value
      Number of concurrently running snapshot readers (default: 1)
    --prom-filter-time-start value

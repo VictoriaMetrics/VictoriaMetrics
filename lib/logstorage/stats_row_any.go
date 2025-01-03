@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"unsafe"
 )
 
 type statsRowAny struct {
@@ -23,11 +22,10 @@ func (sa *statsRowAny) updateNeededFields(neededFields fieldsSet) {
 	}
 }
 
-func (sa *statsRowAny) newStatsProcessor() (statsProcessor, int) {
-	sap := &statsRowAnyProcessor{
-		sa: sa,
-	}
-	return sap, int(unsafe.Sizeof(*sap))
+func (sa *statsRowAny) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	sap := a.newStatsRowAnyProcessor()
+	sap.sa = sa
+	return sap
 }
 
 type statsRowAnyProcessor struct {
@@ -97,13 +95,8 @@ func (sap *statsRowAnyProcessor) updateState(br *blockResult, rowIdx int) int {
 	return stateSizeIncrease
 }
 
-func (sap *statsRowAnyProcessor) finalizeStats() string {
-	bb := bbPool.Get()
-	bb.B = MarshalFieldsToJSON(bb.B, sap.fields)
-	result := string(bb.B)
-	bbPool.Put(bb)
-
-	return result
+func (sap *statsRowAnyProcessor) finalizeStats(dst []byte) []byte {
+	return MarshalFieldsToJSON(dst, sap.fields)
 }
 
 func parseStatsRowAny(lex *lexer) (*statsRowAny, error) {

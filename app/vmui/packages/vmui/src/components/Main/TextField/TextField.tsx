@@ -1,7 +1,6 @@
 import React, {
   FC,
   useEffect,
-  useState,
   useRef,
   useMemo,
   FormEvent,
@@ -65,7 +64,6 @@ const TextField: FC<TextFieldProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fieldRef = useMemo(() => type === "textarea" ? textareaRef : inputRef, [type]);
-  const [selectionPos, setSelectionPos] = useState<[start: number, end: number]>([0, 0]);
 
   const inputClasses = classNames({
     "vm-text-field__input": true,
@@ -77,8 +75,9 @@ const TextField: FC<TextFieldProps> = ({
   });
 
   const updateCaretPosition = (target: HTMLInputElement | HTMLTextAreaElement) => {
+    if (!onChangeCaret) return;
     const { selectionStart, selectionEnd } = target;
-    setSelectionPos([selectionStart || 0, selectionEnd || 0]);
+    onChangeCaret && onChangeCaret([selectionStart || 0, selectionEnd || 0]);
   };
 
   const handleMouseUp = (e: MouseEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -126,14 +125,6 @@ const TextField: FC<TextFieldProps> = ({
     if (!autofocus || isMobile) return;
     fieldRef?.current?.focus && fieldRef.current.focus();
   }, [fieldRef, autofocus]);
-
-  useEffect(() => {
-    onChangeCaret && onChangeCaret(selectionPos);
-  }, [selectionPos]);
-
-  useEffect(() => {
-    setSelectionRange(selectionPos);
-  }, [value]);
 
   useEffect(() => {
     caretPosition && setSelectionRange(caretPosition);

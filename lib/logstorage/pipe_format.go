@@ -93,7 +93,7 @@ func (pf *pipeFormat) hasFilterInWithQuery() bool {
 	return pf.iff.hasFilterInWithQuery()
 }
 
-func (pf *pipeFormat) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pf *pipeFormat) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pf.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
@@ -142,9 +142,9 @@ func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
 	pf := pfp.pf
 
 	bm := &shard.bm
-	bm.init(br.rowsLen)
-	bm.setBits()
 	if iff := pf.iff; iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pfp.ppNext.writeBlock(workerID, br)
@@ -157,7 +157,7 @@ func (pfp *pipeFormatProcessor) writeBlock(workerID uint, br *blockResult) {
 	resultColumn := br.getColumnByName(pf.resultField)
 	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 		v := ""
-		if bm.isSetBit(rowIdx) {
+		if pf.iff == nil || bm.isSetBit(rowIdx) {
 			v = shard.formatRow(pf, br, rowIdx)
 			if v == "" && pf.skipEmptyResults || pf.keepOriginalFields {
 				if vOrig := resultColumn.getValueAtRow(br, rowIdx); vOrig != "" {
@@ -227,7 +227,7 @@ func (shard *pipeFormatProcessorShard) formatRow(pf *pipeFormat, br *blockResult
 	return bytesutil.ToUnsafeString(b[bLen:])
 }
 
-func parsePipeFormat(lex *lexer) (*pipeFormat, error) {
+func parsePipeFormat(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("format") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "format")
 	}

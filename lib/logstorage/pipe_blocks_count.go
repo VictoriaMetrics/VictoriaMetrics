@@ -35,7 +35,7 @@ func (pc *pipeBlocksCount) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pc *pipeBlocksCount) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pc *pipeBlocksCount) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pc, nil
 }
 
@@ -103,7 +103,7 @@ func (pcp *pipeBlocksCountProcessor) flush() error {
 	return nil
 }
 
-func parsePipeBlocksCount(lex *lexer) (*pipeBlocksCount, error) {
+func parsePipeBlocksCount(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("blocks_count") {
 		return nil, fmt.Errorf("expecting 'blocks_count'; got %q", lex.token)
 	}

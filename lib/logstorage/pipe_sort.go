@@ -15,6 +15,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
 // pipeSort processes '| sort ...' queries.
@@ -110,7 +111,7 @@ func (ps *pipeSort) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeSort) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (ps *pipeSort) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return ps, nil
 }
 
@@ -121,7 +122,10 @@ func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, c
 	return newPipeSortProcessor(ps, workersCount, stopCh, cancel, ppNext)
 }
 
-func (ps *pipeSort) addPartitionByTime() {
+func (ps *pipeSort) addPartitionByTime(step int64) {
+	if step <= 0 {
+		return
+	}
 	if ps.limit <= 0 {
 		return
 	}
@@ -690,19 +694,6 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 			isDesc = !isDesc
 		}
 
-		if cA.c.isConst && cB.c.isConst {
-			// Fast path - compare const values
-			ccA := cA.c.valuesEncoded[0]
-			ccB := cB.c.valuesEncoded[0]
-			if ccA == ccB {
-				continue
-			}
-			if isDesc {
-				return ccB < ccA
-			}
-			return ccA < ccB
-		}
-
 		if cA.c.isTime && cB.c.isTime {
 			// Fast path - sort by _time
 			timestampsA := bA.br.getTimestamps()
@@ -759,14 +750,15 @@ func sortBlockLess(shardA *pipeSortProcessorShard, rowIdxA int, shardB *pipeSort
 			continue
 		}
 		if isDesc {
-			return lessString(sB, sA)
+			sA, sB = sB, sA
 		}
-		return lessString(sA, sB)
+		// Do not use lessString() here, since we already tried comparing by int64 and float64 values
+		return stringsutil.LessNatural(sA, sB)
 	}
 	return false
 }
 
-func parsePipeSort(lex *lexer) (*pipeSort, error) {
+func parsePipeSort(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("sort") && !lex.isKeyword("order") {
 		return nil, fmt.Errorf("expecting 'sort' or 'order'; got %q", lex.token)
 	}

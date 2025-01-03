@@ -37,7 +37,7 @@ func (pp *pipePackLogfmt) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pp *pipePackLogfmt) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pp *pipePackLogfmt) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pp, nil
 }
 
@@ -45,7 +45,7 @@ func (pp *pipePackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}, 
 	return newPipePackProcessor(workersCount, ppNext, pp.resultField, pp.fields, MarshalFieldsToLogfmt)
 }
 
-func parsePackLogfmt(lex *lexer) (*pipePackLogfmt, error) {
+func parsePipePackLogfmt(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("pack_logfmt") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "pack_logfmt")
 	}

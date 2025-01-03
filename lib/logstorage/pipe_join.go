@@ -41,7 +41,7 @@ func (pj *pipeJoin) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pj *pipeJoin) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pj *pipeJoin) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pj, nil
 }
 
@@ -148,7 +148,7 @@ func (pjp *pipeJoinProcessor) flush() error {
 	return nil
 }
 
-func parsePipeJoin(lex *lexer) (*pipeJoin, error) {
+func parsePipeJoin(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("join") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "join")
 	}
