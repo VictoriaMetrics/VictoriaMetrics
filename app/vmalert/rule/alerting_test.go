@@ -1046,6 +1046,7 @@ func TestAlertingRule_Template(t *testing.T) {
 		}
 		fq.Add(metrics...)
 
+		rule.initTemplate()
 		if _, err := rule.exec(context.TODO(), time.Now(), 0); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -1262,6 +1263,7 @@ func newTestAlertingRuleWithCustomFields(name string, waitFor, evalInterval, kee
 	}
 	rule.KeepFiringFor = keepFiringFor
 	rule.Annotations = annotation
+	rule.initTemplate()
 	return rule
 }
 
