@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
@@ -95,7 +96,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, hc := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		up, hc := ui.getURLPrefixAndHeaders(u, u.Host, nil, nil)
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
 		}
@@ -306,7 +307,7 @@ func TestUserInfoGetBackendURL_SRV(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, _ := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		up, _ := ui.getURLPrefixAndHeaders(u, u.Host, nil, nil)
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
 		}
@@ -384,7 +385,7 @@ func TestUserInfoGetBackendURL_SRVZeroBackends(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, _ := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		up, _ := ui.getURLPrefixAndHeaders(u, u.Host, nil, nil)
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
 		}
@@ -432,7 +433,7 @@ func TestCreateTargetURLFailure(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, hc := ui.getURLPrefixAndHeaders(u, u.Host, nil)
+		up, hc := ui.getURLPrefixAndHeaders(u, u.Host, nil, nil)
 		if up != nil {
 			t.Fatalf("unexpected non-empty up=%#v", up)
 		}
@@ -452,6 +453,46 @@ func TestCreateTargetURLFailure(t *testing.T) {
 			},
 		},
 	}, "/api/v1/write")
+}
+
+func TestMatchRelativeTimeRange(t *testing.T) {
+	f := func(ui *UserInfo, requestURI string, start int64, end int64, time int64, expectedTarget string) {
+		t.Helper()
+		u, err := url.Parse(requestURI)
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", requestURI, err)
+		}
+		u = normalizeURL(u)
+		params := make(map[string]int64)
+		params["start"] = start
+		params["end"] = end
+		params["time"] = time
+		up, _ := ui.getURLPrefixAndHeaders(u, u.Host, nil, params)
+		if up == nil {
+			t.Fatalf("cannot match available backend: %s", err)
+		}
+		bu := up.getBackendURL()
+		target := mergeURLs(bu.url, u, up.dropSrcPathPrefixParts)
+		bu.put()
+
+		gotTarget := target.String()
+		if gotTarget != expectedTarget {
+			t.Fatalf("unexpected target\ngot:\n%q\nwant\n%q", gotTarget, expectedTarget)
+		}
+	}
+	ui := &UserInfo{
+		URLMaps: []URLMap{
+			{
+				RelativeTimeRangeConfig: getRelativeTimeRange(-8*time.Hour, +1*time.Hour),
+				URLPrefix:               mustParseURL("http://srv+vmselect"),
+			},
+		},
+		URLPrefix: mustParseURL("http://non-exist-dns-addr"),
+	}
+	f(ui, `/select/0/prometheus/api/v1/query?query=up`, time.Now().UnixMilli()-7*3600*1000, time.Now().UnixMilli(), 0, "http://srv+vmselect/select/0/prometheus/api/v1/query?query=up")
+	f(ui, `/select/0/prometheus/api/v1/query?query=up`, time.Now().UnixMilli()-11*3600*1000, time.Now().UnixMilli(), 0, "http://non-exist-dns-addr/select/0/prometheus/api/v1/query?query=up")
+	f(ui, `/select/0/prometheus/api/v1/query?query=up`, 0, 0, time.Now().UnixMilli()-4*3600*1000, "http://srv+vmselect/select/0/prometheus/api/v1/query?query=up")
+	f(ui, `/select/0/prometheus/api/v1/query?query=up`, 0, 0, time.Now().UnixMilli()-9*3600*1000, "http://non-exist-dns-addr/select/0/prometheus/api/v1/query?query=up")
 }
 
 func headersToString(hs []*Header) string {
@@ -486,4 +527,8 @@ func (r *fakeResolver) LookupIPAddr(_ context.Context, host string) ([]net.IPAdd
 
 func (r *fakeResolver) LookupMX(_ context.Context, _ string) ([]*net.MX, error) {
 	return nil, nil
+}
+
+func getRelativeTimeRange(start time.Duration, end time.Duration) *RelativeTimeRangeConfig {
+	return &RelativeTimeRangeConfig{&start, &end}
 }
