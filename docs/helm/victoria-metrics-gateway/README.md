@@ -345,6 +345,17 @@ loggerFormat: json
 </td>
     </tr>
     <tr>
+      <td>extraObjects</td>
+      <td>list</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">[]
+</code>
+</pre>
+</td>
+      <td><p>Add extra specs dynamically to this chart</p>
+</td>
+    </tr>
+    <tr>
       <td>extraVolumeMounts</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
