@@ -13,6 +13,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -349,6 +350,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	hostToAddrs := make(map[string][]string)
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
+		port := bu.Port()
 		if hostToAddrs[host] != nil {
 			// ips for the given host have been already discovered
 			continue
@@ -365,7 +367,15 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			} else {
 				resolvedAddrs = make([]string, len(addrs))
 				for i, addr := range addrs {
-					resolvedAddrs[i] = fmt.Sprintf("%s:%d", addr.Target, addr.Port)
+					addrPort := port
+					if addrPort == "" && addr.Port == 0 {
+						resolvedAddrs[i] = addr.Target
+					} else {
+						if addrPort == "" {
+							addrPort = strconv.FormatUint(uint64(addr.Port), 10)
+						}
+						resolvedAddrs[i] = net.JoinHostPort(addr.Target, addrPort)
+					}
 				}
 			}
 		} else {
@@ -376,7 +386,11 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			} else {
 				resolvedAddrs = make([]string, len(addrs))
 				for i, addr := range addrs {
-					resolvedAddrs[i] = addr.String()
+					if port == "" {
+						resolvedAddrs[i] = addr.String()
+					} else {
+						resolvedAddrs[i] = net.JoinHostPort(addr.String(), port)
+					}
 				}
 			}
 		}
@@ -390,30 +404,9 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	var busNew []*backendURL
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
-		port := bu.Port()
 		for _, addr := range hostToAddrs[host] {
 			buCopy := *bu
 			buCopy.Host = addr
-
-			hostIP, hostPort, err := net.SplitHostPort(buCopy.Host)
-			if err != nil {
-				// addr does not contain port
-				hostIP = buCopy.Host
-			}
-
-			parsedIP := net.ParseIP(hostIP)
-			// check if is ipv6
-			if parsedIP != nil && parsedIP.To4() == nil {
-				hostIP = fmt.Sprintf("[%s]", parsedIP)
-			}
-
-			buCopy.Host = hostIP
-			if port != "" {
-				buCopy.Host += ":" + port
-			} else if hostPort != "" {
-				buCopy.Host += ":" + hostPort
-			}
-
 			busNew = append(busNew, &backendURL{
 				url: &buCopy,
 			})
