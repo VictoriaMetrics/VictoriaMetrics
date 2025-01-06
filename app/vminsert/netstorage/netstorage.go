@@ -54,7 +54,7 @@ func (sn *storageNode) isReady() bool {
 }
 
 func (sn *storageNode) isExcluded() bool {
-	return sn.isBroken.Load() && fasttime.UnixTimestamp()-sn.brokenAt.Load() > uint64(*rerouteDelay/time.Second)
+	return (sn.isBroken.Load() && fasttime.UnixTimestamp()-sn.brokenAt.Load() > uint64(*rerouteDelay/time.Second)) || sn.isReadOnly.Load()
 }
 
 func (sn *storageNode) setBroken(isBroken bool) {
