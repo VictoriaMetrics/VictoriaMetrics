@@ -119,16 +119,18 @@ again:
 			sn.brCond.Wait()
 			goto again
 		}
-		sn.brLock.Unlock()
 
 		// Reroute buf to healthy vmstorage nodes if the current node is broken for too long.
-		timeout := fasttime.UnixTimestamp() - sn.brokenAt.Load() + uint64(*rerouteDelay/time.Second)
+		timeout := uint64(*rerouteDelay/time.Second) - (fasttime.UnixTimestamp() - sn.brokenAt.Load())
 		if timeout <= 0 || sn.isReadOnly.Load() {
+			sn.brLock.Unlock()
+
 			rowsProcessed, err := rerouteRowsToReadyStorageNodes(snb, sn, buf)
 			rows -= rowsProcessed
 			if err != nil {
 				return fmt.Errorf("%d rows dropped because the current vsmtorage is unavailable and %w", rows, err)
 			}
+
 			return nil
 		}
 
@@ -142,11 +144,14 @@ again:
 		t := timerpool.Get(time.Duration(timeout) * time.Second)
 		select {
 		case <-sn.stopCh:
-			goto again
+			sn.brCond.Broadcast()
 		case <-waitCh:
-			goto again
 		case <-t.C:
+			sn.brCond.Broadcast()
 		}
+
+		timerpool.Put(t)
+		goto again
 	}
 
 	if len(sn.br.buf)+len(buf) <= maxBufSizePerStorageNode {
@@ -156,17 +161,20 @@ again:
 		sn.brLock.Unlock()
 		return nil
 	}
+
 	// Slow path: the buf contents doesn't fit sn.buf, so try re-routing it to other vmstorage nodes.
 	if len(sns) == 1 {
 		sn.brCond.Wait()
 		goto again
 	}
 	sn.brLock.Unlock()
+
 	rowsProcessed, err := rerouteRowsToFreeStorageNodes(snb, sn, buf)
 	rows -= rowsProcessed
 	if err != nil {
 		return fmt.Errorf("%d rows dropped because the current vmstorage buf is full and %w", rows, err)
 	}
+
 	return nil
 }
 
