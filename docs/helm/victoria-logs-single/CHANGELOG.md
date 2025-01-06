@@ -1,7 +1,9 @@
 ## Next release
 
-- updated common dependency 0.0.34 -> 0.0.36
+- updated common dependency 0.0.34 -> 0.0.37
 - Exclude markdown files from package
+- victorialogs version: v1.3.2 -> v1.4.0
+- support templating in `.Values.extraObjects`
 
 ## 0.8.11
 

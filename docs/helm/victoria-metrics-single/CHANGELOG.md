@@ -1,7 +1,8 @@
 ## Next release
 
 - Exclude markdown files from package
-- updated common dependency 0.0.35 -> 0.0.36
+- updated common dependency 0.0.35 -> 0.0.37
+- support templating in `.Values.extraObjects`
 
 ## 0.13.3
 

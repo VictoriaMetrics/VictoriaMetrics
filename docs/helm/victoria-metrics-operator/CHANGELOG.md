@@ -1,6 +1,7 @@
 ## Next release
 
-- TODO
+- updated common dependency 0.0.36 -> 0.0.37
+- support templating in `.Values.extraObjects`
 
 ## 0.40.2
 
