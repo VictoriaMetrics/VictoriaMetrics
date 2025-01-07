@@ -441,7 +441,7 @@ func CheckAuthFlag(w http.ResponseWriter, r *http.Request, expectedKey *flagutil
 	}
 	if r.FormValue("authKey") != expectedValue {
 		authKeyRequestErrors.Inc()
-		http.Error(w, fmt.Sprintf("The provided authKey doesn't match -%s", expectedKey.Name()), http.StatusUnauthorized)
+		http.Error(w, fmt.Sprintf("The provided authKey '%s' doesn't match -%s", r.FormValue("authKey"), expectedKey.Name()), http.StatusUnauthorized)
 		return false
 	}
 	return true
