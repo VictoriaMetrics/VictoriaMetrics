@@ -226,6 +226,21 @@ and then install it as a service according to the following guide:
 
 See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781) for more details.
 
+## Playgrounds
+
+VictoriaMetrics has the following publicly available resources:
+1. [https://play.victoriametrics.com/](https://play.victoriametrics.com/) - [VMUI](#vmui) of VictoriaMetrics cluster installation.
+  It is available for testing the query engine, relabeling playground, other tools and pages provided by VMUI.
+1. [https://play-grafana.victoriametrics.com/](https://play-grafana.victoriametrics.com/) - Grafana configured with many
+  typical dashboards using VictoriaMetrics and VictoriaLogs as datasource. It contains VictoriaMetrics cluster dashboard with
+  3 cluster installations for the recent OS and LTS versions running under the constant becnhmark.
+1. [https://play-vmlogs.victoriametrics.com/](https://play-vmlogs.victoriametrics.com/) - [VMUI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) of VictoriaLogs installation.
+   It is available for testing the query engine on demo logs set.
+
+Additionally, we provide a [docker-compose environment](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#docker-compose-environment-for-victoriametrics)
+for VictoriaMetrics and VictoriaLogs components. They are already configured, provisioned and interconnected.
+It can be used as an example for a [quick start](https://docs.victoriametrics.com/quick-start/).
+
 ## Prometheus setup
 
 Add the following lines to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`) in order to send data to VictoriaMetrics:
