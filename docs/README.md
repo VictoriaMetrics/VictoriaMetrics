@@ -226,26 +226,19 @@ and then install it as a service according to the following guide:
 
 See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781) for more details.
 
-
 ## Prometheus setup
 
 Add the following lines to Prometheus config file (it is usually located at `/etc/prometheus/prometheus.yml`) in order to send data to VictoriaMetrics:
-
-
 ```yaml
 remote_write:
   - url: http://<victoriametrics-addr>:8428/api/v1/write
 ```
 
-
 Substitute `<victoriametrics-addr>` with hostname or IP address of VictoriaMetrics.
 Then apply new config via the following command:
-
-
 ```sh
 kill -HUP `pidof prometheus`
 ```
-
 
 Prometheus writes incoming data to local storage and replicates it to remote storage in parallel.
 This means that data remains available in local storage for `--storage.tsdb.retention.time` duration
@@ -265,8 +258,6 @@ The label name can be arbitrary - `datacenter` is just an example. The label val
 across Prometheus instances, so time series could be filtered and grouped by this label.
 
 For highly loaded Prometheus instances (200k+ samples per second) the following tuning may be applied:
-
-
 ```yaml
 remote_write:
   - url: http://<victoriametrics-addr>:8428/api/v1/write
@@ -275,7 +266,6 @@ remote_write:
       capacity: 20000
       max_shards: 30
 ```
-
 
 Using remote write increases memory usage for Prometheus by up to ~25%. If you are experiencing issues with
 too high memory consumption of Prometheus, then try to lower `max_samples_per_send` and `capacity` params. 
@@ -293,7 +283,6 @@ which can be used as faster and less resource-hungry alternative to Prometheus.
 
 Create [Prometheus datasource](https://grafana.com/docs/grafana/latest/datasources/prometheus/configure-prometheus-data-source/) 
 in Grafana with the following url:
-
 ```url
 http://<victoriametrics-addr>:8428
 ```
