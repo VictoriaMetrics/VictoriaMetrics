@@ -2065,6 +2065,10 @@ Retention filters configuration can be tested in enterprise version of vmui on t
 It is safe updating `-retentionFilter` during VictoriaMetrics restarts - the updated retention filters are applied eventually
 to historical data.
 
+It's expected that resource usage will temporarily increase when `-retentionFilter` is applied.
+This is because additional operations are required to read the data, filter and apply retention to partitions,
+which will cost extra CPU and memory.
+
 See [how to configure multiple retentions in VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#retention-filters).
 
 See also [downsampling](#downsampling).
@@ -2120,6 +2124,10 @@ or [recording rules in vmalert](https://docs.victoriametrics.com/vmalert/#rules)
 
 Downsampling is performed during [background merges](https://docs.victoriametrics.com/#storage).
 It cannot be performed if there is not enough of free disk space or if vmstorage is in [read-only mode](https://docs.victoriametrics.com/cluster-victoriametrics/#readonly-mode).
+
+It's expected that resource usage will temporarily increase when **downsampling with filters** is applied. 
+This is because additional operations are required to read historical data, downsample, and persist it back, 
+which will cost extra CPU and memory.
 
 Please, note that intervals of `-downsampling.period` must be multiples of each other.
 In case [deduplication](https://docs.victoriametrics.com/#deduplication) is enabled, value of `-dedup.minScrapeInterval` command-line flag must also
