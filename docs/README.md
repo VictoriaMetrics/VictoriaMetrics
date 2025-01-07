@@ -393,7 +393,7 @@ can be loaded in VMUI via `Query Analyzer` tool.
 
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
-## Top queries
+### Top queries
 
 [VMUI](#vmui) provides `top queries` tab, which can help determining the following query types:
 
@@ -403,7 +403,7 @@ See the [example VMUI at VictoriaMetrics playground](https://play.victoriametric
 
 This information is obtained from the `/api/v1/status/top_queries` HTTP endpoint.
 
-## Active queries
+### Active queries
 
 [VMUI](#vmui) provides `active queries` tab, which shows currently execute queries.
 It provides the following information per each query:
@@ -414,7 +414,7 @@ It provides the following information per each query:
 
 This information is obtained from the `/api/v1/status/active_queries` HTTP endpoint.
 
-## Metrics explorer
+### Metrics explorer
 
 [VMUI](#vmui) provides an ability to explore metrics exported by a particular `job` / `instance` in the following way:
 
@@ -426,7 +426,7 @@ This information is obtained from the `/api/v1/status/active_queries` HTTP endpo
 
 It is possible to change the selected time range for the graphs in the top right corner.
 
-## Cardinality explorer
+### Cardinality explorer
 
 VictoriaMetrics provides an ability to explore time series cardinality at `Explore cardinality` tab in [vmui](#vmui) in the following ways:
 
@@ -448,7 +448,7 @@ Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 See [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
 See the example of using the cardinality explorer [here](https://victoriametrics.com/blog/cardinality-explorer/).
 
-## Cardinality explorer statistic inaccuracy
+### Cardinality explorer statistic inaccuracy
 
 In [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) each vmstorage tracks the stored time series individually.
 vmselect requests stats via [/api/v1/status/tsdb](#tsdb-stats) API from each vmstorage node and merges the results by summing per-series stats.
