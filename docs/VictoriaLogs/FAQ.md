@@ -180,7 +180,7 @@ And for the following log, its `_msg` will be `foo bar in body`:
 
 VictoriaLogs is optimized for logs with records of rather small length.
 Specifically, the total length of of all fields in a log record shouldn't
-exceed a few kilobytes. The max length the VictoriaLogs is capable of
+exceed a few kilobytes. The max length of a single log record the VictoriaLogs is capable of
 handling efficiently is `2MiB`. This limit is hadrcoded and is unlikely to
 change.
 
