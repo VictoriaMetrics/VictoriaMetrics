@@ -22,6 +22,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add export data functionality for the `Raw Query` page and the ability to import exported data into the `Query Analyzer` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7628).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add `markdown` support for comments during data export. [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7828).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): added `min` and `max` metrics for Datadog Sketches API metrics, changed `_` metric name separator to `.` if metrics are not sanitized for consistency.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): add service discovery support for [Marathon](https://mesosphere.github.io/marathon/). See [these docs](https://docs.victoriametrics.com/sd_configs/#marathon_sd_configs) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6642).
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): support `-maxIngestionRate` cmd-line flag to ratelimit samples/sec ingested. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7377) for details.
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): improve query performance on systems with high number of CPU cores. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7416) for details.
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add command-line flag `-search.maxBinaryOpPushdownLabelValues` to allow using labels with more candidate values as push down filter in binary operation. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7243). Thanks to @tydhot for implementation.
@@ -79,6 +80,7 @@ Released at 2024-12-13
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): prevent accordion from collapsing when selecting text in headers. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7742).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix query interval display in the instant query info. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7401).
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): respect `-search.skipSlowReplicas` when `-globalReplicationFactor` > 1. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6924).
+
 
 ## [v1.107.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.107.0)
 
