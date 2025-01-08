@@ -225,7 +225,7 @@
         "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows if the last configuration update was successful. \"Not Ok\" means there was an unsuccessful attempt to update the configuration due to some error. Check the log for details.",
+      "description": "Shows if the last configuration update was successful. \"Not OK\" means there was an unsuccessful attempt to update the configuration due to some error. Check the log for details.",
       "fieldConfig": {
         "defaults": {
           "mappings": [
@@ -234,7 +234,7 @@
                 "0": {
                   "color": "green",
                   "index": 0,
-                  "text": "Ok"
+                  "text": "OK"
                 }
               },
               "type": "value"
@@ -245,11 +245,21 @@
                 "result": {
                   "color": "red",
                   "index": 1,
-                  "text": "Not Ok"
+                  "text": "Not OK"
                 },
                 "to": 999999
               },
               "type": "range"
+            },
+            {
+              "options": {
+                "match": "null",
+                "result": {
+                  "index": 2,
+                  "text": "OK"
+                }
+              },
+              "type": "special"
             }
           ],
           "thresholds": {
@@ -296,7 +306,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "count(vmauth_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 ) or 0",
+          "expr": "count(vmauth_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 )",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
