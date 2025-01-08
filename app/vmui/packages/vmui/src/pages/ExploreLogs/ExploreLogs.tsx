@@ -69,7 +69,7 @@ const ExploreLogs: FC = () => {
   };
 
   const handleApplyFilter = (val: string) => {
-    setQuery(prev => `_stream: ${val === "other" ? "{}" : val} AND (${prev})`);
+    setQuery(prev => `${val} AND (${prev})`);
     setIsUpdatingQuery(true);
   };
 
