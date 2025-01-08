@@ -3,7 +3,6 @@ package logstorage
 import (
 	"fmt"
 	"slices"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -62,7 +61,7 @@ func (pu *pipeUniq) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pu *pipeUniq) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pu *pipeUniq) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pu, nil
 }
 
@@ -115,6 +114,9 @@ type pipeUniqProcessorShard struct {
 type pipeUniqProcessorShardNopad struct {
 	// pu points to the parent pipeUniq.
 	pu *pipeUniq
+
+	// a is used for reducing memory allocations when collecting unique values.
+	a chunkedAllocator
 
 	// m holds per-row hits.
 	m map[string]*uint64
@@ -215,9 +217,8 @@ func (shard *pipeUniqProcessorShard) updateState(v string, hits uint64) {
 	m := shard.getM()
 	pHits := m[v]
 	if pHits == nil {
-		vCopy := strings.Clone(v)
-		hits := uint64(0)
-		pHits = &hits
+		vCopy := shard.a.cloneString(v)
+		pHits = shard.a.newUint64()
 		m[vCopy] = pHits
 		shard.stateSizeBudget -= len(vCopy) + int(unsafe.Sizeof(vCopy)+unsafe.Sizeof(hits)+unsafe.Sizeof(pHits))
 	}

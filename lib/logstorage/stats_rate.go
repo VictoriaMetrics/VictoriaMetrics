@@ -3,7 +3,6 @@ package logstorage
 import (
 	"fmt"
 	"strconv"
-	"unsafe"
 )
 
 type statsRate struct {
@@ -19,11 +18,10 @@ func (sr *statsRate) updateNeededFields(_ fieldsSet) {
 	// There is no need in fetching any columns for rate() - the number of matching rows can be calculated as blockResult.rowsLen
 }
 
-func (sr *statsRate) newStatsProcessor() (statsProcessor, int) {
-	srp := &statsRateProcessor{
-		sr: sr,
-	}
-	return srp, int(unsafe.Sizeof(*srp))
+func (sr *statsRate) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	srp := a.newStatsRateProcessor()
+	srp.sr = sr
+	return srp
 }
 
 type statsRateProcessor struct {
@@ -47,12 +45,12 @@ func (srp *statsRateProcessor) mergeState(sfp statsProcessor) {
 	srp.rowsCount += src.rowsCount
 }
 
-func (srp *statsRateProcessor) finalizeStats() string {
+func (srp *statsRateProcessor) finalizeStats(dst []byte) []byte {
 	rate := float64(srp.rowsCount)
 	if srp.sr.stepSeconds > 0 {
 		rate /= srp.sr.stepSeconds
 	}
-	return strconv.FormatFloat(rate, 'f', -1, 64)
+	return strconv.AppendFloat(dst, rate, 'f', -1, 64)
 }
 
 func parseStatsRate(lex *lexer) (*statsRate, error) {

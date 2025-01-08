@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // pipeStats processes '| stats ...' queries.
@@ -45,9 +46,7 @@ type statsFunc interface {
 	updateNeededFields(neededFields fieldsSet)
 
 	// newStatsProcessor must create new statsProcessor for calculating stats for the given statsFunc
-	//
-	// It also must return the size in bytes of the returned statsProcessor
-	newStatsProcessor() (statsProcessor, int)
+	newStatsProcessor(a *chunkedAllocator) statsProcessor
 }
 
 // statsProcessor must process stats for some statsFunc.
@@ -68,8 +67,8 @@ type statsProcessor interface {
 	// mergeState must merge sfp state into statsProcessor state.
 	mergeState(sfp statsProcessor)
 
-	// finalizeStats must return the collected stats result from statsProcessor.
-	finalizeStats() string
+	// finalizeStats must append string represetnation of the collected stats result to dst and return it.
+	finalizeStats(dst []byte) []byte
 }
 
 func (ps *pipeStats) String() string {
@@ -132,7 +131,7 @@ func (ps *pipeStats) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeStats) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (ps *pipeStats) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	funcsNew := make([]pipeStatsFunc, len(ps.funcs))
 	for i := range ps.funcs {
 		f := &ps.funcs[i]
@@ -247,6 +246,10 @@ type pipeStatsProcessorShardNopad struct {
 	ps *pipeStats
 
 	m map[string]*pipeStatsGroup
+
+	// a and sfpsBuf are used for reducing memory allocations when calculating stats among big number of different groups.
+	a       chunkedAllocator
+	sfpsBuf []statsProcessor
 
 	// bms and brTmp are used for applying per-func filters.
 	bms   []bitmap
@@ -377,14 +380,16 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 func (shard *pipeStatsProcessorShard) applyPerFunctionFilters(br *blockResult) {
 	funcs := shard.ps.funcs
 	for i := range funcs {
+		iff := funcs[i].iff
+		if iff == nil {
+			continue
+		}
+
 		bm := &shard.bms[i]
 		bm.init(br.rowsLen)
 		bm.setBits()
 
-		iff := funcs[i].iff
-		if iff != nil {
-			iff.f.applyToBlockResult(br, bm)
-		}
+		iff.f.applyToBlockResult(br, bm)
 	}
 }
 
@@ -394,21 +399,40 @@ func (shard *pipeStatsProcessorShard) getPipeStatsGroup(key []byte) *pipeStatsGr
 		return psg
 	}
 
-	sfps := make([]statsProcessor, len(shard.ps.funcs))
+	sfps := shard.newStatsProcessors()
+
 	for i, f := range shard.ps.funcs {
-		sfp, stateSize := f.f.newStatsProcessor()
-		sfps[i] = sfp
-		shard.stateSizeBudget -= stateSize
+		bytesAllocated := shard.a.bytesAllocated
+		sfps[i] = f.f.newStatsProcessor(&shard.a)
+		shard.stateSizeBudget -= shard.a.bytesAllocated - bytesAllocated
 	}
-	psg = &pipeStatsGroup{
-		funcs: shard.ps.funcs,
-		sfps:  sfps,
-	}
-	shard.m[string(key)] = psg
-	shard.stateSizeBudget -= len(key) + int(unsafe.Sizeof("")+unsafe.Sizeof(psg)+unsafe.Sizeof(sfps[0])*uintptr(len(sfps)))
+
+	psg = shard.a.newPipeStatsGroup()
+	psg.funcs = shard.ps.funcs
+	psg.sfps = sfps
+
+	keyCopy := shard.a.cloneBytesToString(key)
+	shard.m[keyCopy] = psg
+	shard.stateSizeBudget -= len(keyCopy) + int(unsafe.Sizeof(keyCopy)+unsafe.Sizeof(psg)+unsafe.Sizeof(sfps[0])*uintptr(len(sfps)))
 
 	return psg
 }
+
+func (shard *pipeStatsProcessorShard) newStatsProcessors() []statsProcessor {
+	funcsLen := len(shard.ps.funcs)
+	if len(shard.sfpsBuf)+funcsLen > cap(shard.sfpsBuf) {
+		shard.sfpsBuf = nil
+	}
+	if shard.sfpsBuf == nil {
+		shard.sfpsBuf = make([]statsProcessor, 0, pipeStatsProcessorChunkLen)
+	}
+
+	sfpsBufLen := len(shard.sfpsBuf)
+	shard.sfpsBuf = slicesutil.SetLength(shard.sfpsBuf, sfpsBufLen+funcsLen)
+	return shard.sfpsBuf[sfpsBufLen:]
+}
+
+const pipeStatsProcessorChunkLen = 64 * 1024 / int(unsafe.Sizeof((statsProcessor)(nil)))
 
 type pipeStatsGroup struct {
 	funcs []pipeStatsFunc
@@ -432,7 +456,8 @@ func (psg *pipeStatsGroup) updateStatsForAllRows(bms []bitmap, br, brTmp *blockR
 func (psg *pipeStatsGroup) updateStatsForRow(bms []bitmap, br *blockResult, rowIdx int) int {
 	n := 0
 	for i, sfp := range psg.sfps {
-		if bms[i].isSetBit(rowIdx) {
+		iff := psg.funcs[i].iff
+		if iff == nil || bms[i].isSetBit(rowIdx) {
 			n += sfp.updateStatsForRow(br, rowIdx)
 		}
 	}
@@ -510,8 +535,8 @@ func (psp *pipeStatsProcessor) writeShardData(workerID uint, m map[string]*pipeS
 	var br blockResult
 
 	var values []string
+	var valuesBuf []byte
 	rowsCount := 0
-	valuesLen := 0
 	for key, psg := range m {
 		// m may be quite big, so this loop can take a lot of time and CPU.
 		// Stop processing data as soon as stopCh is closed without wasting additional CPU time.
@@ -536,7 +561,9 @@ func (psp *pipeStatsProcessor) writeShardData(workerID uint, m map[string]*pipeS
 
 		// calculate values for stats functions
 		for _, sfp := range psg.sfps {
-			value := sfp.finalizeStats()
+			valuesBufLen := len(valuesBuf)
+			valuesBuf = sfp.finalizeStats(valuesBuf)
+			value := bytesutil.ToUnsafeString(valuesBuf[valuesBufLen:])
 			values = append(values, value)
 		}
 
@@ -545,11 +572,13 @@ func (psp *pipeStatsProcessor) writeShardData(workerID uint, m map[string]*pipeS
 		}
 		for i, v := range values {
 			rcs[i].addValue(v)
-			valuesLen += len(v)
 		}
 
 		rowsCount++
-		if valuesLen >= 1_000_000 {
+
+		// The 64_000 limit provides the best performance results when generating stats
+		// over big number of distinct groups.
+		if len(valuesBuf) >= 64_000 {
 			br.setResultColumns(rcs, rowsCount)
 			rowsCount = 0
 			psp.ppNext.writeBlock(workerID, &br)
@@ -557,7 +586,7 @@ func (psp *pipeStatsProcessor) writeShardData(workerID uint, m map[string]*pipeS
 			for i := range rcs {
 				rcs[i].resetValues()
 			}
-			valuesLen = 0
+			valuesBuf = valuesBuf[:0]
 		}
 	}
 

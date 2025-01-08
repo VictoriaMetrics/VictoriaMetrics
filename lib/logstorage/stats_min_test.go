@@ -89,7 +89,7 @@ func TestStatsMin(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", "1"},
+			{"x", ""},
 		},
 	})
 
@@ -109,7 +109,7 @@ func TestStatsMin(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", "3"},
+			{"x", ""},
 		},
 	})
 
@@ -169,6 +169,7 @@ func TestStatsMin(t *testing.T) {
 			{"c", `54`},
 		},
 	}, [][]Field{
+
 		{
 			{"b", "3"},
 			{"x", "-12.34"},
@@ -198,9 +199,10 @@ func TestStatsMin(t *testing.T) {
 			{"b", `7`},
 		},
 	}, [][]Field{
+
 		{
 			{"a", "1"},
-			{"x", "3"},
+			{"x", ""},
 		},
 		{
 			{"a", "3"},
@@ -228,6 +230,7 @@ func TestStatsMin(t *testing.T) {
 			{"b", `7`},
 		},
 	}, [][]Field{
+
 		{
 			{"a", "1"},
 			{"x", "-34"},
@@ -257,13 +260,14 @@ func TestStatsMin(t *testing.T) {
 			{"b", `7`},
 		},
 	}, [][]Field{
+
 		{
 			{"a", "1"},
 			{"x", ""},
 		},
 		{
 			{"a", "3"},
-			{"x", "foo"},
+			{"x", ""},
 		},
 	})
 
@@ -281,15 +285,18 @@ func TestStatsMin(t *testing.T) {
 		{
 			{"a", `3`},
 			{"b", `5`},
+			{"c", `12`},
 		},
 		{
 			{"a", `3`},
 			{"b", `7`},
+			{"c", `14`},
 		},
 	}, [][]Field{
+
 		{
 			{"a", "1"},
-			{"x", "1"},
+			{"x", ""},
 		},
 		{
 			{"a", "3"},
@@ -313,6 +320,7 @@ func TestStatsMin(t *testing.T) {
 			{"b", `5`},
 		},
 	}, [][]Field{
+
 		{
 			{"a", "1"},
 			{"b", "3"},
@@ -347,6 +355,7 @@ func TestStatsMin(t *testing.T) {
 			{"c", "4"},
 		},
 	}, [][]Field{
+
 		{
 			{"a", "1"},
 			{"b", "3"},

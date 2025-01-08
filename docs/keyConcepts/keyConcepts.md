@@ -480,12 +480,13 @@ Params:
 
 * `query` - [MetricsQL](https://docs.victoriametrics.com/metricsql/) expression.
 * `time` - optional, [timestamp](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats)
-  in second precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
+  in millisecond precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
   The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
 * `step` - optional [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
   for searching for raw samples in the past when executing the `query` (used when a sample is missing at the specified `time`).
   For example, the request `/api/v1/query?query=up&step=1m` looks for the last written raw sample for the metric `up`
-  in the interval between `now()` and `now()-1m`. If omitted, `step` is set to `5m` (5 minutes) by default.
+  in the `(now()-1m, now()]` interval (the first millisecond is not included). If omitted, `step` is set to `5m` (5 minutes)
+  by default.
 * `timeout` - optional query timeout. For example, `timeout=5s`. Query is canceled when the timeout is reached.
   By default the timeout is set to the value of `-search.maxQueryDuration` command-line flag passed to single-node VictoriaMetrics
   or to `vmselect` component of VictoriaMetrics cluster.
@@ -592,7 +593,10 @@ Params:
 The result of Range query is a list of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 matching the filter in `query` expression. Each returned series contains `(timestamp, value)` results for the `query` executed
 at `start`, `start+step`, `start+2*step`, ..., `start+N*step` timestamps. In other words, Range query is an [Instant query](#instant-query)
-executed independently at `start`, `start+step`, ..., `start+N*step` timestamps.
+executed independently at `start`, `start+step`, ..., `start+N*step` timestamps with the only difference that an instant query
+does not return `ephemeral` samples (see below). Instead, if the database does not contain any samples for the requested time and step,
+it simply returns an empty result.
+
 
 For example, to get the values of `foo_bar` during the time range from `2022-05-10T07:59:00Z` to `2022-05-10T08:17:00Z`,
 we need to issue a range query:

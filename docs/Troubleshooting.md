@@ -136,7 +136,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    Note that responses returned from [/api/v1/query](https://docs.victoriametrics.com/keyconcepts/#instant-query)
    and from [/api/v1/query_range](https://docs.victoriametrics.com/keyconcepts/#range-query) contain **evaluated** data
    instead of raw samples stored in VictoriaMetrics. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness)
-   for details. The raw samples can be also viewed in [vmui](https://docs.victoriametrics.com/#vmui) in `Raw Query` tab.
+   for details. The raw samples can be also viewed in [vmui](https://docs.victoriametrics.com/#vmui) in `Raw Query` tab and shared via `export` button.
 
    If you migrate from InfluxDB, then pass `-search.setLookbackToStep` command-line flag to single-node VictoriaMetrics
    or to `vmselect` in VictoriaMetrics cluster. See also [how to migrate from InfluxDB to VictoriaMetrics](https://docs.victoriametrics.com/guides/migrate-from-influx.html).

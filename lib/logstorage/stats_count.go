@@ -3,7 +3,6 @@ package logstorage
 import (
 	"slices"
 	"strconv"
-	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -24,11 +23,10 @@ func (sc *statsCount) updateNeededFields(neededFields fieldsSet) {
 	neededFields.addFields(sc.fields)
 }
 
-func (sc *statsCount) newStatsProcessor() (statsProcessor, int) {
-	scp := &statsCountProcessor{
-		sc: sc,
-	}
-	return scp, int(unsafe.Sizeof(*scp))
+func (sc *statsCount) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	scp := a.newStatsCountProcessor()
+	scp.sc = sc
+	return scp
 }
 
 type statsCountProcessor struct {
@@ -194,8 +192,8 @@ func (scp *statsCountProcessor) mergeState(sfp statsProcessor) {
 	scp.rowsCount += src.rowsCount
 }
 
-func (scp *statsCountProcessor) finalizeStats() string {
-	return strconv.FormatUint(scp.rowsCount, 10)
+func (scp *statsCountProcessor) finalizeStats(dst []byte) []byte {
+	return strconv.AppendUint(dst, scp.rowsCount, 10)
 }
 
 func parseStatsCount(lex *lexer) (*statsCount, error) {

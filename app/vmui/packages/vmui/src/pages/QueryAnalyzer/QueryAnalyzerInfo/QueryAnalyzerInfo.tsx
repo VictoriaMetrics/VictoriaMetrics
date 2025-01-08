@@ -1,13 +1,20 @@
 import React, { FC, useMemo } from "preact/compat";
 import { DataAnalyzerType } from "../index";
-import Button from "../../../components/Main/Button/Button";
-import { ClockIcon, InfoIcon, TimelineIcon } from "../../../components/Main/Icons";
-import useBoolean from "../../../hooks/useBoolean";
-import Modal from "../../../components/Main/Modal/Modal";
+import {
+  ClockIcon,
+  CommentIcon,
+  InfoIcon,
+  TimelineIcon
+} from "../../../components/Main/Icons";
 import { TimeParams } from "../../../types";
 import "./style.scss";
 import dayjs from "dayjs";
 import { DATE_TIME_FORMAT } from "../../../constants/date";
+import useBoolean from "../../../hooks/useBoolean";
+import Modal from "../../../components/Main/Modal/Modal";
+import { marked } from "marked";
+import Button from "../../../components/Main/Button/Button";
+import get from "lodash.get";
 
 type Props = {
   data: DataAnalyzerType[];
@@ -15,8 +22,23 @@ type Props = {
 }
 
 const QueryAnalyzerInfo: FC<Props> = ({ data, period }) => {
-  const dataWithStats = useMemo(() => data.filter(d => d.stats && d.data.resultType === "matrix"), [data]);
-  const comment = useMemo(() => data.find(d => d?.vmui?.comment)?.vmui?.comment, [data]);
+  const dataWithStats = useMemo(() => data.filter(d => d.vmui || d.stats), [data]);
+  const title = dataWithStats.find(d => d?.vmui?.title)?.vmui?.title || "Report";
+  const comment = dataWithStats.find(d => d?.vmui?.comment)?.vmui?.comment;
+
+  const table = useMemo(() => {
+    return [
+      "vmui.endpoint",
+      ...new Set(dataWithStats.flatMap(d => [
+        ...Object.keys(d.vmui?.params || []).map(key => `vmui.params.${key}`),
+        ...Object.keys(d.stats || []).map(key => `stats.${key}`),
+        "isPartial"
+      ]))
+    ].map(key => ({
+      column: key.split(".").pop(),
+      values: dataWithStats.map(data => get(data, key, "-"))
+    })).filter(({ values }) => values.length && values.every(v => v !== "-"));
+  }, [dataWithStats]);
 
   const timeRange = useMemo(() => {
     if (!period) return "";
@@ -34,59 +56,80 @@ const QueryAnalyzerInfo: FC<Props> = ({ data, period }) => {
   return (
     <>
       <div className="vm-query-analyzer-info-header">
-        <Button
-          startIcon={<InfoIcon/>}
-          variant="outlined"
-          color="warning"
-          onClick={handleOpenModal}
-        >
-            Show report info
-        </Button>
-        {period && (
-          <>
-            <div className="vm-query-analyzer-info-header__period">
-              <TimelineIcon/> step: {period.step}
-            </div>
-            <div className="vm-query-analyzer-info-header__period">
-              <ClockIcon/> {timeRange}
-            </div>
-          </>
+        <h1 className="vm-query-analyzer-info-header__title">{title}</h1>
+        {timeRange && (
+          <div className="vm-query-analyzer-info-header__timerange">
+            <ClockIcon/> {timeRange}
+          </div>
+        )}
+        {period?.step && (
+          <div className="vm-query-analyzer-info-header__timerange">
+            <TimelineIcon/> step {period.step}
+          </div>
+        )}
+        {(comment || !!table.length) && (
+          <div className="vm-query-analyzer-info-header__info">
+            <Button
+              startIcon={<InfoIcon/>}
+              variant="outlined"
+              color="warning"
+              onClick={handleOpenModal}
+            >
+              Show stats{comment && " & comments"}
+            </Button>
+          </div>
         )}
       </div>
-
       {openModal && (
         <Modal
-          title="Report info"
+          title={title}
           onClose={handleCloseModal}
         >
-          <div className="vm-query-analyzer-info">
-            {comment && (
-              <div className="vm-query-analyzer-info-item vm-query-analyzer-info-item_comment">
-                <div className="vm-query-analyzer-info-item__title">Comment:</div>
-                <div className="vm-query-analyzer-info-item__text">{comment}</div>
+          <div className="vm-query-analyzer-info__modal">
+            {!!table.length && (
+              <div className="vm-query-analyzer-info-stats">
+                <div className="vm-query-analyzer-info-comment-header">
+                  <InfoIcon/>
+                  Stats
+                </div>
+                <table>
+                  <thead>
+                    <tr>
+                      {table.map(({ column }) => (
+                        <th key={column}>
+                          {column}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {table[0]?.values.map((_, rowIndex) => (
+                      <tr key={rowIndex}>
+                        {table.map(({ values }, j) => (
+                          <td key={j}>
+                            {values[rowIndex]}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
-            {dataWithStats.map((d, i) => (
-              <div
-                className="vm-query-analyzer-info-item"
-                key={i}
-              >
-                <div className="vm-query-analyzer-info-item__title">
-                  {dataWithStats.length > 1 ? `Query ${i + 1}:` : "Stats:"}
+
+            {comment && (
+              <div className="vm-query-analyzer-info-comment">
+                <div className="vm-query-analyzer-info-comment-header">
+                  <CommentIcon/>
+                  Comments
                 </div>
-                <div className="vm-query-analyzer-info-item__text">
-                  {Object.entries(d.stats || {}).map(([key, value]) => (
-                    <div key={key}>
-                      {key}: {value ?? "-"}
-                    </div>
-                  ))}
-                  isPartial: {String(d.isPartial ?? "-")}
-                </div>
+                <div
+                  className="vm-query-analyzer-info-comment-body vm-markdown"
+                  dangerouslySetInnerHTML={{ __html: (marked(comment) as string) || comment }}
+                />
               </div>
-            ))}
-            <div className="vm-query-analyzer-info-type">
-              {dataWithStats[0]?.vmui?.params ? "The report was created using vmui" : "The report was created manually"}
-            </div>
+            )}
           </div>
         </Modal>
       )}

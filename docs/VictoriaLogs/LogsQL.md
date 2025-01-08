@@ -1361,7 +1361,7 @@ See also:
 
 ### collapse_nums pipe
 
-`| collapse_nums at <field>` pipe replaces all the decimal and hexadecimal numbers at the given [`<field>`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with `<N>`.
+`| collapse_nums at <field>` pipe replaces all the decimal and hexadecimal numbers at the given [`<field>`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with `<N>` placeholder.
 For example, if the `_msg` field contains `2024-10-20T12:34:56Z request duration 1.34s`, then it is replaced with `<N>-<N>-<N>T<N>:<N>:<N>Z request duration <N>.<N>s` by the following query:
 
 ```logsql
@@ -1386,11 +1386,11 @@ _time:1h | collapse_nums | top 5 by (_msg)
 
 `collapse_nums` can detect certain patterns in the collapsed numbers and replace them with the corresponding placeholders if `prettify` suffix is added to the `collapse_nums` pipe:
 
-- `<N>-<N>-<N>-<N>-<N>` is replaced with `<UUID>`.
-- `<N>.<N>.<N>.<N>` is replaced with `<IP4>`.
-- `<N>:<N>:<N>` is replaced with `<TIME>`. Optional fractional seconds after the time are treated as a part of `<TIME>`.
-- `<N>-<N>-<N>` and `<N>/<N>/<N>` is replaced with `<DATE>`.
-- `<N>-<N>-<N>T<N>:<N>:<N>` and `<N>-<N>-<N> <N>:<N>:<N>` is replaced with `<DATETIME>`. Optional timezone after the datetime is treated as a part of `<DATETIME>`.
+- `<N>-<N>-<N>-<N>-<N>` is replaced with `<UUID>` placeholder.
+- `<N>.<N>.<N>.<N>` is replaced with `<IP4>` placeholder.
+- `<N>:<N>:<N>` is replaced with `<TIME>` placeholder. Optional fractional seconds after the time are treated as a part of `<TIME>`.
+- `<N>-<N>-<N>` and `<N>/<N>/<N>` is replaced with `<DATE>` placeholder.
+- `<N>-<N>-<N>T<N>:<N>:<N>` and `<N>-<N>-<N> <N>:<N>:<N>` is replaced with `<DATETIME>` placeholder. Optional timezone after the datetime is treated as a part of `<DATETIME>`.
 
 For example, the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 `2edfed59-3e98-4073-bbb2-28d321ca71a7 - [2024/12/08 15:21:02] 10.71.20.32 GET /foo 200` is replaced with `<UUID> - [<DATETIME>] <IP4> GET /foo <N>`
@@ -1399,6 +1399,9 @@ when the following query is executed:
 ```logsql
 _time:1h | collapse_nums prettify
 ```
+
+`collapse_nums` can miss some numbers or can collapse unexpected numbers. In this case [conditional `collapse_nums`](#conditional-collapse_nums) can be used
+for skipping such values and pre-processing them separately with [`replace_regexp`](#replace_regexp-pipe).
 
 See also:
 
@@ -1709,7 +1712,14 @@ By default `facets` pipe doesn't return log fields with too long values. The lim
 For example, the following query returns most frequently values for all the log fields containing values no longer than 100 bytes:
 
 ```logsql
-_time:1h error | facets mav_value_len 100
+_time:1h error | facets max_value_len 100
+```
+
+Be default `facets` pipe doesn't return log fields, which contain a single constant value across all the selected logs, since such facets aren't interesting in most cases.
+Add `keep_const_fields` suffix to the `facets` pipe in order to get such fields:
+
+```logsql
+_time:1h error | facets keep_const_fields
 ```
 
 See also:
@@ -2658,7 +2668,7 @@ See also:
 with the maximum number of matching log entries.
 
 For example, the following query returns top 7 [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
-with the maximum number of log entries over the last 5 minutes:
+with the maximum number of log entries over the last 5 minutes. The number of entries are returned in the `hits` field:
 
 ```logsql
 _time:5m | top 7 by (_stream)
@@ -2677,6 +2687,12 @@ For example, the following query is equivalent to the previous one:
 
 ```logsql
 _time:5m | fields ip | top
+```
+
+It is possible to give another name for the `hits` field via `hits as <new_name>` syntax. For example, the following query returns top per-`path` hits in the `visits` field:
+
+```logsql
+_time:5m | top by (path) hits as visits
 ```
 
 It is possible to set `rank` field per each returned entry for `top` pipe by adding `with rank`. For example, the following query sets the `rank` field per each returned `ip`:
@@ -3044,9 +3060,9 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`count_uniq`](#count_uniq-stats) returns the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`count_uniq_hash`](#count_uniq_hash-stats) returns the number of unique hashes for non-empty values at the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`max`](#max-stats) returns the maximum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`median`](#median-stats) returns the [median](https://en.wikipedia.org/wiki/Median) value over the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`median`](#median-stats) returns the [median](https://en.wikipedia.org/wiki/Median) value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) returns the minimum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`quantile`](#quantile-stats) returns the given quantile for the given numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`quantile`](#quantile-stats) returns the given quantile for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`rate`](#rate-stats) returns the average per-second rate of matching logs on the selected time range.
 - [`rate_sum`](#rate_sum-stats) returns the average per-second rate of sum for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`row_any`](#row_any-stats) returns a sample [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) per each selected [stats group](#stats-by-fields).
@@ -3164,7 +3180,7 @@ See also:
 - [`uniq_values`](#uniq_values-stats)
 - [`count`](#count-stats)
 
-### count_uniq_hash
+### count_uniq_hash stats
 
 `count_uniq_hash(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the number of unique hashes for non-empty `(field1, ..., fieldN)` tuples.
 This is a good estimation for the number of unique values in general case, while it works faster and uses less memory than [`count_uniq`](#count_uniq-stats)
@@ -3213,8 +3229,8 @@ See also:
 
 ### median stats
 
-`median(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the [median](https://en.wikipedia.org/wiki/Median) value across
-the give numeric [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+`median(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates the estimated [median](https://en.wikipedia.org/wiki/Median) value across
+the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 For example, the following query return median for the `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 over logs for the last 5 minutes:
@@ -3251,7 +3267,7 @@ See also:
 
 ### quantile stats
 
-`quantile(phi, field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates `phi` [percentile](https://en.wikipedia.org/wiki/Percentile) over numeric values
+`quantile(phi, field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) calculates an estimated `phi` [percentile](https://en.wikipedia.org/wiki/Percentile) over values
 for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). The `phi` must be in the range `0 ... 1`, where `0` means `0th` percentile,
 while `1` means `100th` percentile.
 

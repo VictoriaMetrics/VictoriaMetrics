@@ -38,7 +38,7 @@ func (pd *pipeDelete) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pd *pipeDelete) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pd *pipeDelete) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pd, nil
 }
 
