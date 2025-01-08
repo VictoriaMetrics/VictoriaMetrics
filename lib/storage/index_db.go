@@ -122,6 +122,19 @@ type indexDB struct {
 	// the amount of work when matching a set of filters.
 	loopsPerDateTagFilterCache *workingsetcache.Cache
 
+	// A cache that stores metricIDs that have been added to the index.
+	// The cache is not populated on startup nor does it store a complete set of
+	// metricIDs. A metricID is added to the cache either when a new entry is
+	// added to the global index or when the global index is searched for
+	// existing metricID (see is.createGlobalIndexes() and is.hasMetricID()).
+	//
+	// The cache is used solely for creating new index entries during the data
+	// ingestion (see Storage.RegisterMetricNames() and Storage.add())
+	//
+	// TODO(@rtm0): Change implementation? Clear on metric deletion?
+	metricIDCache     map[uint64]struct{}
+	metricIDCacheLock sync.RWMutex
+
 	indexSearchPool sync.Pool
 }
 
@@ -193,6 +206,7 @@ func mustOpenIndexDB(gen uint64, name, path string, s *Storage, isReadOnly *atom
 		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize),
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
+		metricIDCache:              make(map[uint64]struct{}),
 	}
 	db.incRef()
 	return db
@@ -563,6 +577,11 @@ func generateTSID(dst *TSID, mn *MetricName) {
 }
 
 func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
+	// Add new metricID to cache.
+	is.db.metricIDCacheLock.Lock()
+	is.db.metricIDCache[tsid.MetricID] = struct{}{}
+	is.db.metricIDCacheLock.Unlock()
+
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
@@ -2922,6 +2941,38 @@ func reverseBytes(dst, src []byte) []byte {
 		dst = append(dst, src[i])
 	}
 	return dst
+}
+
+func (is *indexSearch) hasMetricID(metricID uint64) bool {
+	is.db.metricIDCacheLock.RLock()
+	_, ok := is.db.metricIDCache[metricID]
+	is.db.metricIDCacheLock.RUnlock()
+	if ok {
+		return true
+	}
+
+	ok = is.hasMetricIDNoCache(metricID)
+	if ok {
+		is.db.metricIDCacheLock.Lock()
+		is.db.metricIDCache[metricID] = struct{}{}
+		is.db.metricIDCacheLock.Unlock()
+	}
+	return ok
+}
+
+func (is *indexSearch) hasMetricIDNoCache(metricID uint64) bool {
+	ts := &is.ts
+	kb := &is.kb
+	// TODO(@rtm0): Create a separate index for this?
+	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricIDToTSID)
+	kb.B = encoding.MarshalUint64(kb.B, metricID)
+	if err := ts.FirstItemWithPrefix(kb.B); err != nil {
+		if err == io.EOF {
+			return false
+		}
+		logger.Panicf("FATAL: error when searching TSID by metricID=%d; searchPrefix %q: %s", metricID, kb.B, err)
+	}
+	return true
 }
 
 func (is *indexSearch) hasDateMetricIDNoExtDB(date, metricID uint64) bool {

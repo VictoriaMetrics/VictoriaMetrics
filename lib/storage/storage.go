@@ -1630,7 +1630,17 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 
 // GetTSDBStatus returns TSDB status data for /api/v1/status/tsdb
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
-	return s.idb().GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
+	tr := TimeRange{
+		MinTimestamp: int64(date) * msecPerDay,
+		MaxTimestamp: int64(date+1)*msecPerDay - 1,
+	}
+	idbs := s.tb.GetIndexDBs(tr)
+	if len(idbs) == 0 {
+		return &TSDBStatus{}, nil
+	}
+	// TODO(@rtm0): Merge TSDB status collected from both partition index and
+	// legacy index.
+	return idbs[0].GetTSDBStatus(qt, tfss, date, focusLabel, topN, maxMetrics, deadline)
 }
 
 // MetricRow is a metric to insert into storage.
@@ -1767,10 +1777,6 @@ const maxMetricRowsPerBlock = 8000
 // The the MetricRow.Timestamp is used for registering the metric name at the given day according to the timestamp.
 // Th MetricRow.Value field is ignored.
 func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
-	s.registerMetricNames(qt, mrs)
-}
-
-func (s *Storage) registerMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	qt = qt.NewChild("registering %d series", len(mrs))
 	defer qt.Done()
 	var metricNameBuf []byte
@@ -1791,11 +1797,12 @@ func (s *Storage) registerMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 
 		// TODO(@rtm0): Optimize: use idb.HasTimestamp(ts) to check whether the
 		// timestamp is included into the partition the idb belongs to.
-		idb = s.tb.MustGetIndexDB(mr.Timestamp)
-		generation = idb.generation
-		if is != nil {
+		// TODO(@rtm0): Separate indexSearch instance for hasMetricID()?
+		if idb != nil && is != nil {
 			idb.putIndexSearch(is)
 		}
+		idb = s.tb.MustGetIndexDB(mr.Timestamp)
+		generation = idb.generation
 		is = idb.getIndexSearch(noDeadline)
 
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
@@ -1804,12 +1811,24 @@ func (s *Storage) registerMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 				// Skip row, since it exceeds cardinality limit
 				continue
 			}
+			if !is.hasMetricID(genTSID.TSID.MetricID) {
+				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
+					if firstWarn == nil {
+						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+					}
+					s.invalidRawMetricNames.Add(1)
+					continue
+				}
+				mn.sortTags()
+				is.createGlobalIndexes(&genTSID.TSID, mn)
+			}
 			if !s.dateMetricIDCache.Has(generation, date, genTSID.TSID.MetricID) {
 				if !is.hasDateMetricIDNoExtDB(date, genTSID.TSID.MetricID) {
 					if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
 						if firstWarn == nil {
 							firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
 						}
+						s.invalidRawMetricNames.Add(1)
 						continue
 					}
 					mn.sortTags()
@@ -1942,22 +1961,39 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		r.Value = mr.Value
 		r.PrecisionBits = precisionBits
 
+		// TODO(@rtm0): Optimize: use idb.HasTimestamp(ts) to check whether the
+		// timestamp is included into the partition the idb belongs to.
+		// TODO(@rtm0): Separate indexSearch instance for hasMetricID()?
+		if idb != nil && is != nil {
+			idb.putIndexSearch(is)
+		}
+		idb = s.tb.MustGetIndexDB(r.Timestamp)
+		generation = idb.generation
+		is = idb.getIndexSearch(noDeadline)
+
+		date := uint64(r.Timestamp) / msecPerDay
+
 		// Search for TSID for the given mr.MetricNameRaw and store it at r.TSID.
 		if string(mr.MetricNameRaw) == string(prevMetricNameRaw) {
 			// Fast path - the current mr contains the same metric name as the previous mr, so it contains the same TSID.
 			// This path should trigger on bulk imports when many rows contain the same MetricNameRaw.
+
+			if !is.hasMetricID(prevTSID.MetricID) {
+				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
+					if firstWarn == nil {
+						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+					}
+					j--
+					s.invalidRawMetricNames.Add(1)
+					continue
+				}
+				mn.sortTags()
+				is.createGlobalIndexes(&prevTSID, mn)
+			}
+
 			r.TSID = prevTSID
 			continue
 		}
-
-		// TODO(@rtm0): Optimize: use idb.HasTimestamp(ts) to check whether the
-		// timestamp is included into the partition the idb belongs to.
-		idb = s.tb.MustGetIndexDB(r.Timestamp)
-		generation = idb.generation
-		if is != nil {
-			idb.putIndexSearch(is)
-		}
-		is = idb.getIndexSearch(noDeadline)
 
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
@@ -1965,11 +2001,25 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			// contain MetricName->TSID entries for deleted time series.
 			// See Storage.DeleteSeries code for details.
 
-			if !s.registerSeriesCardinality(r.TSID.MetricID, mr.MetricNameRaw) {
+			if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
 				// Skip row, since it exceeds cardinality limit
 				j--
 				continue
 			}
+
+			if !is.hasMetricID(genTSID.TSID.MetricID) {
+				if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
+					if firstWarn == nil {
+						firstWarn = fmt.Errorf("cannot unmarshal MetricNameRaw %q: %w", mr.MetricNameRaw, err)
+					}
+					j--
+					s.invalidRawMetricNames.Add(1)
+					continue
+				}
+				mn.sortTags()
+				is.createGlobalIndexes(&genTSID.TSID, mn)
+			}
+
 			r.TSID = genTSID.TSID
 			prevTSID = r.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
@@ -1978,8 +2028,6 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 
 		// Slow path - the TSID for the given mr.MetricNameRaw is missing in the cache.
 		slowInsertsCount++
-
-		date := uint64(r.Timestamp) / msecPerDay
 
 		// Construct canonical metric name - it is used below.
 		if err := mn.UnmarshalRaw(mr.MetricNameRaw); err != nil {
