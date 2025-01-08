@@ -13,7 +13,16 @@ aliases:
 
 ## tip
 
+## [v0.51.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.51.3)
+
+**Release date:** 8 Jan 2025
+
+![AppVersion: v1.108.1](https://img.shields.io/badge/v1.108.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11070)
+![AppVersion: v1.3.2](https://img.shields.io/badge/v1.3.2-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v132)
+
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/operator/resources/vmagent/): properly route headless service traffic to vmagent `pods` with `statefulMode` and `shardCount` defined.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/operator/resources/vmsingle/): properly add `volumeMount` for external `storageDataPath` `volume`.
+* BUGFIX: [vmcluster](https://docs.victoriametrics.com/operator/resources/vmcluster/): properly mount `serviceAccount` for `requestsLoadBalancer` `Deployment`.  See [this issue](https://github.com/VictoriaMetrics/operator/issues/1210) for details.
 
 ## [v0.51.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.51.2)
 
