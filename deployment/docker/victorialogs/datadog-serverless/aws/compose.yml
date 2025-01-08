@@ -13,7 +13,6 @@ services:
       DD_SOURCE: test
       DD_API_KEY: test
       DD_DD_URL: http://dd-proxy:8427
-      DD_EXTENSION_VERSION: compatibility
       DD_PROFILING_ENABLED: false
       DD_ENHANCED_METRICS: false
       DD_LOGS_CONFIG_LOGS_DD_URL: http://dd-proxy:8427
