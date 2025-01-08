@@ -95,7 +95,7 @@ func getAppLabels(app *app) []*promutils.Labels {
 			}
 		}
 
-		prefix = "meta_marathon_port_definition_label_"
+		prefix = "__meta_marathon_port_definition_label_"
 	}
 
 	for ln, lv := range app.Labels {
