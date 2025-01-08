@@ -367,15 +367,11 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			} else {
 				resolvedAddrs = make([]string, len(addrs))
 				for i, addr := range addrs {
-					addrPort := port
-					if addrPort == "" && addr.Port == 0 {
-						resolvedAddrs[i] = addr.Target
-					} else {
-						if addrPort == "" {
-							addrPort = strconv.FormatUint(uint64(addr.Port), 10)
-						}
-						resolvedAddrs[i] = net.JoinHostPort(addr.Target, addrPort)
+					hostPort := port
+					if hostPort == "" && addr.Port > 0 {
+						hostPort = strconv.FormatUint(uint64(addr.Port), 10)
 					}
+					resolvedAddrs[i] = net.JoinHostPort(addr.Target, hostPort)
 				}
 			}
 		} else {
@@ -386,11 +382,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			} else {
 				resolvedAddrs = make([]string, len(addrs))
 				for i, addr := range addrs {
-					if port == "" {
-						resolvedAddrs[i] = addr.String()
-					} else {
-						resolvedAddrs[i] = net.JoinHostPort(addr.String(), port)
-					}
+					resolvedAddrs[i] = net.JoinHostPort(addr.String(), port)
 				}
 			}
 		}

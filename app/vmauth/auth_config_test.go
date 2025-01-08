@@ -818,29 +818,25 @@ func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
 
 		got := bus[0].url.Host
 		if got != expectedUrl {
-			t.Fatalf(`expected url to be "%s"; got "%s" instead`, expectedUrl, bus[0].url.Host)
+			t.Fatalf(`expected url to be %q; got %q instead`, expectedUrl, bus[0].url.Host)
 		}
 	}
 
 	// Discover backendURL with SRV hostnames
 	customResolver := &fakeResolver{
 		Resolver: &net.Resolver{},
+		// SRV records must return hostname
+		// not an IP address
 		lookupSRVResults: map[string][]*net.SRV{
-			"vmselect.local": {
+			"_vmselect._tcp.selectwithport.": {
 				{
-					Target: "10.0.10.12",
+					Target: "vmselect.local",
 					Port:   8481,
 				},
 			},
-			"ipv6.vmselect.local": {
+			"_vmselect._tcp.selectwoport.": {
 				{
-					Target: "2607:f8b0:400a:80b::200e",
-					Port:   8481,
-				},
-			},
-			"ipv6.noport.vmselect.local": {
-				{
-					Target: "2607:f8b0:400a:80b::200e",
+					Target: "vmselect.local",
 				},
 			},
 		},
@@ -862,18 +858,16 @@ func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
 	defer func() {
 		netutil.Resolver = origResolver
 	}()
-
-	f("http://srv+vmselect.local:8080", "10.0.10.12:8080")
-	f("http://srv+vmselect.local", "10.0.10.12:8481")
-	f("http://srv+ipv6.vmselect.local:8080", "[2607:f8b0:400a:80b::200e]:8080")
-	f("http://srv+ipv6.vmselect.local", "[2607:f8b0:400a:80b::200e]:8481")
-	f("http://srv+ipv6.noport.vmselect.local", "2607:f8b0:400a:80b::200e")
-	f("http://srv+ipv6.noport.vmselect.local:8080", "[2607:f8b0:400a:80b::200e]:8080")
+	f("http://srv+_vmselect._tcp.selectwithport.:8080", "vmselect.local:8080")
+	f("http://srv+_vmselect._tcp.selectwithport.:", "vmselect.local:8481")
+	f("http://srv+_vmselect._tcp.selectwoport.:8080", "vmselect.local:8080")
+	f("http://srv+_vmselect._tcp.selectwoport.", "vmselect.local:")
 
 	f("http://vminsert.local:8080", "10.0.10.13:8080")
-	f("http://vminsert.local", "10.0.10.13")
+	f("http://vminsert.local", "10.0.10.13:")
 	f("http://ipv6.vminsert.local:8080", "[2607:f8b0:400a:80b::200e]:8080")
-	f("http://ipv6.vminsert.local", "2607:f8b0:400a:80b::200e")
+	f("http://ipv6.vminsert.local", "[2607:f8b0:400a:80b::200e]:")
+
 }
 
 func getRegexs(paths []string) []*Regex {
