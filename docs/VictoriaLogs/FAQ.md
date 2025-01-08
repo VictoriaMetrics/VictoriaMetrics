@@ -175,3 +175,21 @@ And for the following log, its `_msg` will be `foo bar in body`:
   "body": "foo bar in body"
 }
 ```
+
+## What is the max size of a log record?
+
+VictoriaLogs is optimized for logs with records of rather small length.
+Specifically, the total length of of all fields in a log record shouldn't
+exceed a few kilobytes. The max length the VictoriaLogs is capable of
+handling efficiently is `2MiB`. This limit is hadrcoded and is unlikely to
+change.
+
+Why 2MiB? VictoriaLogs stores log data in blocks which are processed
+(compressed during ingestion and decompressed during retrieval) independently.
+While bigger blocks are compressed more effectively, they result in greater
+search costs because in order to find a single record an entire block needs to
+be decompressed. So the size should be a compromise between the compression rate
+and search costs. The optimal size seems to be 2MiB. No benchmarks have been
+performed to check this, but 2MiB is the size of L2 cache in most of the
+contemporary CPUs. Therefore, the blocks that have size up to 2MiB will be
+processed faster than blocks whose size is > 2MiB.
