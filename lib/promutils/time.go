@@ -146,7 +146,7 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 	return t.UnixNano(), nil
 }
 
-// parseNumericTimestamps parses timestamp at s in seconds, milliseconds, microseconds or nanoseconds.
+// parseNumericTimestamp parses timestamp at s in seconds, milliseconds, microseconds or nanoseconds.
 //
 // It returns nanoseconds for the parsed timestamp.
 func parseNumericTimestamp(s string) (int64, error) {
