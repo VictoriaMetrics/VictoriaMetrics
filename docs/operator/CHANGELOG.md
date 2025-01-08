@@ -14,6 +14,8 @@ aliases:
 ## tip
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/operator/resources/vmagent/): properly route headless service traffic to vmagent `pods` with `statefulMode` and `shardCount` defined.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/operator/resources/vmsingle/): properly add `volumeMount` for external `storageDataPath` `volume`.
+* BUGFIX: [vmcluster](https://docs.victoriametrics.com/operator/resources/vmcluster/): properly mount `serviceAccount` for `requestsLoadBalancer` `Deployment`.  See [this issue](https://github.com/VictoriaMetrics/operator/issues/1210) for details.
 
 ## [v0.51.2](https://github.com/VictoriaMetrics/operator/releases/tag/v0.51.2)
 
