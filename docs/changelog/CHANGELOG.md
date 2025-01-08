@@ -37,6 +37,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly ingest `influx` line protocol metrics with empty tags. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7933) for details.
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): allow to override the default unique time series limit in vmstorage with command-line flags like `-search.maxUniqueTimeseries`, `-search.maxLabelsAPISeries`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7852).
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): properly set tenancy information when evaluating numbers in a query. Previously, the tenancy information could lead to mismatch between query result and a number. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7987) for the details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix marshaling of request body for Alertmanager notification. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7985) for the details.
 
 ## [v1.108.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.1)
 
