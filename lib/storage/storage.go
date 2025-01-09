@@ -1380,8 +1380,7 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 }
 
 // SearchLabelNamesWithFiltersOnTimeRange searches for label names matching the given tfss on tr.
-func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64,
-) ([]string, error) {
+func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
 	qt = qt.NewChild("search for label names: filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", tfss, &tr, maxLabelNames, maxMetrics)
 	search := func(idb *indexDB, tr TimeRange) (any, error) {
 		return idb.SearchLabelNamesWithFiltersOnTimeRange(qt, tfss, tr, maxLabelNames, maxMetrics, deadline)
@@ -1415,10 +1414,42 @@ func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer,
 }
 
 // SearchLabelValuesWithFiltersOnTimeRange searches for label values for the given labelName, filters and tr.
-func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName string, tfss []*TagFilters,
-	tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64,
-) ([]string, error) {
-	idb := s.idb()
+func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
+	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
+
+	search := func(idb *indexDB, tr TimeRange) (any, error) {
+		return s.searchLabelValuesWithFiltersOnTimeRange(qt, idb, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+	}
+	merge := func(data []any) any {
+		var all []string
+		seen := make(map[string]bool)
+		for _, values := range data {
+			if values == nil {
+				continue
+			}
+			for _, value := range values.([]string) {
+				if seen[value] {
+					continue
+				}
+				all = append(all, value)
+				seen[value] = true
+			}
+		}
+		return all
+	}
+	stopOnError := true
+	var labelValues []string
+	result, err := s.searchAndMerge(tr, search, merge, stopOnError)
+	if result != nil {
+		labelValues = result.([]string)
+	}
+
+	qt.Donef("found %d label values", len(labelValues))
+	return labelValues, err
+}
+
+func (s *Storage) searchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, idb *indexDB, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
+	qt = qt.NewChild("search for label values: labelName=%q, filters=%s, timeRange=%s, maxLabelNames=%d, maxMetrics=%d", labelName, tfss, &tr, maxLabelValues, maxMetrics)
 
 	key := labelName
 	if key == "__name__" {
@@ -1430,6 +1461,7 @@ func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer
 		qt.Printf("search for up to %d values for the label %q on the time range %s", maxMetrics, labelName, &tr)
 		lvs, err := idb.SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, nil, tr, maxMetrics, maxMetrics, deadline)
 		if err != nil {
+			qt.Donef("found %d label values", len(lvs))
 			return nil, err
 		}
 		needSlowSearch := len(lvs) == maxMetrics
@@ -1446,12 +1478,15 @@ func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer
 			needSlowSearch = false
 		}
 		if !needSlowSearch {
+			qt.Donef("found %d label values", len(lvs))
 			return lvs, nil
 		}
 		qt.Printf("fall back to slow search because only a subset of label values is found")
 	}
 
-	return idb.SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+	lvs, err := idb.SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+	qt.Donef("found %d label values", len(lvs))
+	return lvs, err
 }
 
 func filterLabelValues(lvs []string, tf *tagFilter, key string) []string {

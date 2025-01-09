@@ -1852,6 +1852,55 @@ func TestStorageSearchLabelNames_VariousTimeRanges(t *testing.T) {
 	testStorageOpOnVariousTimeRanges(t, f)
 }
 
+func TestStorageSearchLabelValues_VariousTimeRanges(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numRows = 10000
+
+	f := func(t *testing.T, tr TimeRange) {
+		t.Helper()
+
+		mrs := make([]MetricRow, numRows)
+		want := make([]string, numRows)
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numRows)
+		mn := MetricName{
+			MetricGroup: []byte("metric"),
+			Tags: []Tag{
+				{
+					Key:   []byte("label"),
+					Value: []byte("tbd"),
+				},
+			},
+		}
+		for i := range numRows {
+			labelValue := fmt.Sprintf("value_%d", i)
+			mn.Tags[0].Value = []byte(labelValue)
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+			mrs[i].Value = float64(i)
+			want[i] = labelValue
+		}
+		slices.Sort(want)
+
+		s := MustOpenStorage(t.Name(), 0, 0, 0)
+		defer s.MustClose()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		got, err := s.SearchLabelValuesWithFiltersOnTimeRange(nil, "label", nil, tr, 1e9, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelValues() failed unexpectedly: %v", err)
+		}
+		slices.Sort(got)
+
+		if diff := cmp.Diff(got, want); diff != "" {
+			t.Errorf("unexpected label values (-want, +got):\n%s", diff)
+		}
+	}
+
+	testStorageOpOnVariousTimeRanges(t, f)
+}
+
 // testStorageOpOnVariousTimeRanges executes some storage operation on various
 // time ranges: 1h, 1d, 1m, etc.
 func testStorageOpOnVariousTimeRanges(t *testing.T, op func(t *testing.T, tr TimeRange)) {
