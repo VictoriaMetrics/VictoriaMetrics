@@ -28,5 +28,5 @@ func mustOpenLegacyIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) *in
 		logger.Panicf("FATAL: cannot parse indexdb path %q: %s", path, err)
 	}
 
-	return mustOpenIndexDB(gen, name, path, s, isReadOnly)
+	return mustOpenIndexDB(TimeRange{}, gen, name, path, s, isReadOnly)
 }

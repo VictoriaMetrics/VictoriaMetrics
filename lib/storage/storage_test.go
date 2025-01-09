@@ -1794,12 +1794,10 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 		wantErr:    true,
 	})
 
-	// Using one filter to search metric names within the time range of 41 days.
-	// This time range corresponds to the day difference of 40 days, which is
-	// the max day difference when the per-day index is still used for
-	// searching. The maxMetrics param is set to match exactly the number of
-	// time series that match the filter within that time range. Search
-	// operation must complete successfully.
+	// Using one filter to search metric names within 41 days. The maxMetrics
+	// param is set to match exactly the number of time series that match the
+	// filter within that time range. Search operation must complete
+	// successfully.
 	f(&options{
 		path:    "40Days/OneTagFilter/MaxMetricsNotExeeded",
 		filters: []string{"metric1"},
@@ -1811,35 +1809,19 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 		wantCount:  numRows * 41,
 	})
 
-	// Using one filter to search metric names within the time range of 42 days.
-	// This time range corresponds to the day difference of 41 days, which is
-	// longer than than 40 days. In this case, the search is performed using
-	// global index instead of per-day index and the metric names will be
-	// searched within the entire retention period. The maxMetrics parameter,
-	// however, is set to the number of time series within the 42 days. The
-	// search must fail because the number of metrics will be much larger.
+	// Using one filter to search metric names within 42 days. The maxMetrics
+	// param is set to match exactly the number of time series that match the
+	// filter within that time range. Search operation must complete
+	// successfully.
 	f(&options{
-		path:    "MoreThan40Days/OneTagFilter/MaxMetricsExeeded",
+		path:    "40Days/OneTagFilter/MaxMetricsNotExeeded",
 		filters: []string{"metric1"},
 		tr: TimeRange{
 			MinTimestamp: days[0].MinTimestamp,
 			MaxTimestamp: days[41].MaxTimestamp,
 		},
 		maxMetrics: numRows * 42,
-		wantErr:    true,
-	})
-
-	// To fix the above case, the maxMetrics must be adjusted to be not less
-	// than the number of time series within the entire retention period.
-	f(&options{
-		path:    "MoreThan40Days/OneTagFilter/MaxMetricsNotExeeded",
-		filters: []string{"metric1"},
-		tr: TimeRange{
-			MinTimestamp: days[0].MinTimestamp,
-			MaxTimestamp: days[41].MaxTimestamp,
-		},
-		maxMetrics: numRows * numDays,
-		wantCount:  numRows * numDays,
+		wantCount:  numRows * 42,
 	})
 }
 
@@ -1849,7 +1831,7 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 // The function is not a part of Storage beause it is currently used in unit
 // tests only.
 func testSearchMetricIDs(s *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) []uint64 {
-	search := func(idb *indexDB) (any, error) {
+	search := func(idb *indexDB, tr TimeRange) (any, error) {
 		return idb.searchMetricIDs(nil, tfss, tr, maxMetrics, deadline)
 	}
 	merge := func(data []any) any {

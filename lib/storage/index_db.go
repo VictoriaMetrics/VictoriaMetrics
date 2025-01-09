@@ -106,6 +106,9 @@ type indexDB struct {
 	// and is used for syncing items from different indexDBs
 	generation uint64
 
+	// Time range covered by this IndexDB.
+	tr TimeRange
+
 	name string
 	tb   *mergeset.Table
 
@@ -183,10 +186,15 @@ func mustOpenPartitionIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) 
 		logger.Panicf("FATAL: cannot parse indexdb path %q: %s", path, err)
 	}
 
-	return mustOpenIndexDB(gen, name, path, s, isReadOnly)
+	var tr TimeRange
+	if err := tr.fromPartitionName(name); err != nil {
+		logger.Panicf("FATAL: cannot parse indexdb time range from partition name %q: %s", name, err)
+	}
+
+	return mustOpenIndexDB(tr, gen, name, path, s, isReadOnly)
 }
 
-func mustOpenIndexDB(gen uint64, name, path string, s *Storage, isReadOnly *atomic.Bool) *indexDB {
+func mustOpenIndexDB(tr TimeRange, gen uint64, name, path string, s *Storage, isReadOnly *atomic.Bool) *indexDB {
 	if s == nil {
 		logger.Panicf("BUG: Storage must be nin-nil")
 	}
@@ -199,6 +207,7 @@ func mustOpenIndexDB(gen uint64, name, path string, s *Storage, isReadOnly *atom
 
 	db := &indexDB{
 		generation: gen,
+		tr:         tr,
 		tb:         tb,
 		name:       name,
 

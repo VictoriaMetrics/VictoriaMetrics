@@ -1146,24 +1146,27 @@ func nextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64) int64
 // and previous IndexDBs. The individual search results are then merged. If
 // stopOnError is true, the function returns the error of the first failed
 // individual result and merge op is skipped.
-func (s *Storage) searchAndMerge(tr TimeRange, search func(idb *indexDB) (any, error), merge func([]any) any, stopOnError bool) (any, error) {
+func (s *Storage) searchAndMerge(tr TimeRange, search func(idb *indexDB, tr TimeRange) (any, error), merge func([]any) any, stopOnError bool) (any, error) {
 	type result struct {
 		data any
 		err  error
 	}
 
 	idbs := s.tb.GetIndexDBs(tr)
-	idbCurr := s.idb()
-	if idbCurr != nil {
-		idbs = append(idbs, idbCurr)
-	}
 	var wg sync.WaitGroup
 	results := make(chan *result, len(idbs))
 	defer close(results)
 	for _, idb := range idbs {
 		wg.Add(1)
 		func() {
-			data, err := search(idb)
+			searchTR := idb.tr
+			if tr.MinTimestamp > searchTR.MinTimestamp {
+				searchTR.MinTimestamp = tr.MinTimestamp
+			}
+			if tr.MaxTimestamp < searchTR.MaxTimestamp {
+				searchTR.MaxTimestamp = tr.MaxTimestamp
+			}
+			data, err := search(idb, searchTR)
 			results <- &result{data, err}
 			wg.Done()
 		}()
@@ -1196,13 +1199,16 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
-	search := func(idb *indexDB) (any, error) {
+	search := func(idb *indexDB, tr TimeRange) (any, error) {
 		return s.searchMetricNames(qt, idb, tfss, tr, maxMetrics, deadline)
 	}
 	merge := func(data []any) any {
 		var all []string
 		seen := make(map[string]bool)
 		for _, names := range data {
+			if names == nil {
+				continue
+			}
 			for _, name := range names.([]string) {
 				if seen[name] {
 					continue
@@ -1214,8 +1220,12 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 		return all
 	}
 	stopOnError := true
+	var metricNames []string
 	result, err := s.searchAndMerge(tr, search, merge, stopOnError)
-	metricNames := result.([]string)
+	if result != nil {
+		metricNames = result.([]string)
+	}
+
 	qt.Printf("loaded %d metric names", len(metricNames))
 
 	return metricNames, err
