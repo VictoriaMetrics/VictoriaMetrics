@@ -195,7 +195,7 @@ unauthorized_user:
 	}
 	responseExpected = `
 statusCode=401
-The provided authKey '' doesn't match -reloadAuthKey`
+The provided empty authKey doesn't match -reloadAuthKey`
 	f(cfgStr, requestURL, backendHandler, responseExpected)
 	if err := reloadAuthKey.Set(origAuthKey); err != nil {
 		t.Fatalf("unexpected error: %s", err)
