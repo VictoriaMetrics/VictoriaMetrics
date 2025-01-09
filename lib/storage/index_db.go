@@ -2359,6 +2359,8 @@ func (is *indexSearch) searchMetricIDsInternal(qt *querytracer.Tracer, tfss []*T
 const maxDaysForPerDaySearch = 40
 
 func (is *indexSearch) updateMetricIDsForTagFilters(qt *querytracer.Tracer, metricIDs *uint64set.Set, tfs *TagFilters, tr TimeRange, maxMetrics int) error {
+	// TODO(@rtm0): Here and everywhere else, change logic to search global
+	// index instead of per-day if db.tr is fully included into the tr.
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
 	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
 	if minDate <= maxDate && maxDate-minDate <= maxDaysForPerDaySearch {

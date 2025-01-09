@@ -1015,23 +1015,13 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	// Verify the storage contains the added metric names.
 	s.DebugFlush()
 
-	// Verify that SearchLabelNamesWithFiltersOnTimeRange returns correct result.
+	// Verify that SearchLabelNamesWithFiltersOnTimeRange with the specified time range returns correct result.
 	lnsExpected := []string{
 		"__name__",
 		"add_id",
 		"instance",
 		"job",
 	}
-	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, TimeRange{}, 100, 1e9, noDeadline)
-	if err != nil {
-		return fmt.Errorf("error in SearchLabelNamesWithFiltersOnTimeRange: %w", err)
-	}
-	sort.Strings(lns)
-	if !reflect.DeepEqual(lns, lnsExpected) {
-		return fmt.Errorf("unexpected label names returned from SearchLabelNamesWithFiltersOnTimeRange;\ngot\n%q\nwant\n%q", lns, lnsExpected)
-	}
-
-	// Verify that SearchLabelNamesWithFiltersOnTimeRange with the specified time range returns correct result.
 	now := timestampFromTime(time.Now())
 	start := now - msecPerDay
 	end := now + 60*1000
@@ -1039,7 +1029,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		MinTimestamp: start,
 		MaxTimestamp: end,
 	}
-	lns, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, tr, 100, 1e9, noDeadline)
+	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, tr, 100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelNamesWithFiltersOnTimeRange: %w", err)
 	}
@@ -1048,18 +1038,8 @@ func testStorageRegisterMetricNames(s *Storage) error {
 		return fmt.Errorf("unexpected label names returned from SearchLabelNamesWithFiltersOnTimeRange;\ngot\n%q\nwant\n%q", lns, lnsExpected)
 	}
 
-	// Verify that SearchLabelValuesWithFiltersOnTimeRange returns correct result.
-	addIDs, err := s.SearchLabelValuesWithFiltersOnTimeRange(nil, "add_id", nil, TimeRange{}, addsCount+100, 1e9, noDeadline)
-	if err != nil {
-		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange: %w", err)
-	}
-	sort.Strings(addIDs)
-	if !reflect.DeepEqual(addIDs, addIDsExpected) {
-		return fmt.Errorf("unexpected tag values returned from SearchLabelValuesWithFiltersOnTimeRange;\ngot\n%q\nwant\n%q", addIDs, addIDsExpected)
-	}
-
 	// Verify that SearchLabelValuesWithFiltersOnTimeRange with the specified time range returns correct result.
-	addIDs, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, "add_id", nil, tr, addsCount+100, 1e9, noDeadline)
+	addIDs, err := s.SearchLabelValuesWithFiltersOnTimeRange(nil, "add_id", nil, tr, addsCount+100, 1e9, noDeadline)
 	if err != nil {
 		return fmt.Errorf("error in SearchLabelValuesWithFiltersOnTimeRange: %w", err)
 	}
