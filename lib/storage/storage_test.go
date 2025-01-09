@@ -1554,7 +1554,7 @@ func testCountAllMetricNames(s *Storage, tr TimeRange) int {
 	return len(names)
 }
 
-func TestStorageSearchMetricNames(t *testing.T) {
+func TestStorageSearchMetricNames_VariousTimeRanges(t *testing.T) {
 	defer testRemoveAll(t)
 
 	const numMetrics = 10000
@@ -1602,30 +1602,7 @@ func TestStorageSearchMetricNames(t *testing.T) {
 		}
 	}
 
-	t.Run("1h", func(t *testing.T) {
-		f(t, TimeRange{
-			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC).UnixMilli(),
-		})
-	})
-	t.Run("1d", func(t *testing.T) {
-		f(t, TimeRange{
-			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2000, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-		})
-	})
-	t.Run("1m", func(t *testing.T) {
-		f(t, TimeRange{
-			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2000, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-		})
-	})
-	t.Run("1y", func(t *testing.T) {
-		f(t, TimeRange{
-			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2000, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
-		})
-	})
+	testStorageOpOnVariousTimeRanges(t, f)
 }
 
 func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
@@ -1822,6 +1799,87 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 		},
 		maxMetrics: numRows * 42,
 		wantCount:  numRows * 42,
+	})
+}
+
+func TestStorageSearchLabelNames_VariousTimeRanges(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const numRows = 10000
+
+	f := func(t *testing.T, tr TimeRange) {
+		t.Helper()
+
+		mrs := make([]MetricRow, numRows)
+		want := make([]string, numRows)
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numRows)
+		mn := MetricName{
+			MetricGroup: []byte("metric"),
+			Tags: []Tag{
+				{
+					Key:   []byte("tbd"),
+					Value: []byte("value"),
+				},
+			},
+		}
+		for i := range numRows {
+			labelName := fmt.Sprintf("label_%d", i)
+			mn.Tags[0].Key = []byte(labelName)
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+			mrs[i].Value = float64(i)
+			want[i] = labelName
+		}
+		want = append(want, "__name__")
+		slices.Sort(want)
+
+		s := MustOpenStorage(t.Name(), 0, 0, 0)
+		defer s.MustClose()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		got, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, tr, 1e9, 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchLabelNames() failed unexpectedly: %v", err)
+		}
+		slices.Sort(got)
+
+		if diff := cmp.Diff(got, want); diff != "" {
+			t.Errorf("unexpected label names (-want, +got):\n%s", diff)
+		}
+	}
+
+	testStorageOpOnVariousTimeRanges(t, f)
+}
+
+// testStorageOpOnVariousTimeRanges executes some storage operation on various
+// time ranges: 1h, 1d, 1m, etc.
+func testStorageOpOnVariousTimeRanges(t *testing.T, op func(t *testing.T, tr TimeRange)) {
+	t.Helper()
+
+	t.Run("1h", func(t *testing.T) {
+		op(t, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC).UnixMilli(),
+		})
+	})
+	t.Run("1d", func(t *testing.T) {
+		op(t, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		})
+	})
+	t.Run("1m", func(t *testing.T) {
+		op(t, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		})
+	})
+	t.Run("1y", func(t *testing.T) {
+		op(t, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		})
 	})
 }
 
