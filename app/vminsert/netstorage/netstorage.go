@@ -44,7 +44,7 @@ var (
 		"On the other side, disabled re-routing minimizes the number of active time series in the cluster "+
 		"during rolling restarts and during spikes in series churn rate. "+
 		"See also -disableRerouting")
-	rerouteDelay = flag.Duration("rerouteDelay", 15*time.Second, "The maximum time the system waits for vmstorage nodes to become available before re-routing the data to other vmstorage nodes, minimum value is 1s and rounding to seconds")
+	rerouteDelay = flag.Duration("rerouteDelay", 20*time.Second, "The maximum time the system waits for vmstorage nodes to become available before re-routing the data to other vmstorage nodes, minimum value is 1s and rounding to seconds")
 )
 
 var errStorageReadOnly = errors.New("storage node is read only")
@@ -121,8 +121,8 @@ again:
 		}
 
 		// Reroute buf to healthy vmstorage nodes if the current node is broken for too long.
-		timeout := uint64(*rerouteDelay/time.Second) - (fasttime.UnixTimestamp() - sn.brokenAt.Load())
-		if timeout <= 0 || sn.isReadOnly.Load() {
+		timeoutAt := uint64(*rerouteDelay/time.Second) + sn.brokenAt.Load()
+		if timeoutAt <= fasttime.UnixTimestamp() || sn.isReadOnly.Load() {
 			sn.brLock.Unlock()
 
 			rowsProcessed, err := rerouteRowsToReadyStorageNodes(snb, sn, buf)
@@ -134,23 +134,19 @@ again:
 			return nil
 		}
 
-		// Wait for the vmstorage node to change its state, or... timeout.
-		waitCh := make(chan struct{})
-		go func() {
+		// Wait for the vmstorage node to change its state to ready, or timeout.
+		// sn.brCond.Wait() will be woken up at 200ms intervals.
+	waitLoop:
+		for sn.isBroken.Load() || timeoutAt > fasttime.UnixTimestamp() {
 			sn.brCond.Wait()
-			close(waitCh)
-		}()
 
-		t := timerpool.Get(time.Duration(timeout) * time.Second)
-		select {
-		case <-sn.stopCh:
-			sn.brCond.Broadcast()
-		case <-waitCh:
-		case <-t.C:
-			sn.brCond.Broadcast()
+			select {
+			case <-sn.stopCh:
+				break waitLoop
+			default:
+			}
 		}
 
-		timerpool.Put(t)
 		goto again
 	}
 
