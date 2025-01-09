@@ -135,9 +135,9 @@ again:
 		}
 
 		// Wait for the vmstorage node to change its state to ready, or timeout.
-		// sn.brCond.Wait() will be woken up at 200ms intervals.
+		// sn.brCond.Wait() will be woken up at ~200ms intervals by the health checker.
 	waitLoop:
-		for sn.isBroken.Load() || timeoutAt > fasttime.UnixTimestamp() {
+		for sn.isBroken.Load() && timeoutAt > fasttime.UnixTimestamp() {
 			sn.brCond.Wait()
 
 			select {
