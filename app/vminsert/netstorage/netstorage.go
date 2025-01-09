@@ -248,6 +248,15 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 func sendBufToReplicasNonblocking(snb *storageNodesBucket, br *bufRows, snIdx, replicas int) bool {
 	usedStorageNodes := make(map[*storageNode]struct{}, replicas)
 	sns := snb.sns
+
+	// If the current storage node is broken, wait for it to be ready or timeout
+	if sns[snIdx].isBroken.Load() {
+		timeoutAt := uint64(*rerouteDelay/time.Second) + sns[snIdx].brokenAt.Load()
+		if timeoutAt > fasttime.UnixTimestamp() {
+			return false
+		}
+	}
+
 	for i := 0; i < replicas; i++ {
 		idx := snIdx + i
 		attempts := 0
