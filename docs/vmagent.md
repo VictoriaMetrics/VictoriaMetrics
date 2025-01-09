@@ -1556,6 +1556,30 @@ To switch to [the VictoriaMetrics remote write protocol](https://docs.victoriame
 simply set the `-remoteWrite.forceVMProto=true` flag. It is also possible to adjust the compression level for the VictoriaMetrics remote write protocol using the `-remoteWrite.vmProtoCompressLevel` 
 command-line flag.
 
+#### Estimating message size and rate
+
+If you are migrating from remote write to Kafka, the request rate and request body size of remote write can roughly correspond to the message rate and size of Kafka.
+
+vmagent organizes scraped/ingested data into **blocks**. A block contains multiple time series and samples.
+Each block is compressed with Snappy or zstd before being sent out by the remote write or the Kafka producer.
+
+In order to get the request rate of remote write (as the estimated produce rate of Kafka), use this MetricsQL:
+
+```metricsql
+sum(rate(vmagent_remotewrite_requests_total{}[1m])) 
+```
+
+Similarly, the average size of the compressed block of remote write (serving as the estimated message size of Kafka) is as follows:
+
+```metricsql
+sum(rate(vmagent_remotewrite_conn_bytes_written_total{}[1m]))
+ / 
+sum(rate(vmagent_remotewrite_requests_total{}[1m])) 
+```
+
+Please note that the remote write body and Kafka message need to use the same compression algorithm in order to serve as 
+estimation references. See more in [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol).
+
 #### Kafka broker authorization and authentication
 
 Two types of auth are supported:
