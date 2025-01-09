@@ -26,7 +26,7 @@ RUN \
 WORKDIR /var/task
 COPY --from=aws-lambda-rie /aws-lambda-rie /var/task/aws-lambda-rie
 COPY main.py /var/task/
-COPY --from=public.ecr.aws/datadog/lambda-extension:67 /opt/. /opt/
+COPY --from=public.ecr.aws/datadog/lambda-extension:68 /opt/. /opt/
 
 ENTRYPOINT ["/var/task/aws-lambda-rie"]
 CMD ["/usr/local/bin/python", "-m", "awslambdaric", "main.lambda_handler"]
