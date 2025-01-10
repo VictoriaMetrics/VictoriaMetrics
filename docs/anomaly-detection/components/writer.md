@@ -31,8 +31,9 @@ Future updates will introduce additional export methods, offering users more fle
 `class`
             </td>
             <td>
-
+<span>
 `writer.vm.VmWriter` or `vm`{{% available_from "v1.13.0" anomaly %}}
+</span>
             </td>
             <td>
 
@@ -59,8 +60,9 @@ Datasource URL address
 `tenant_id`
             </td>
             <td>
-
+<span>
 `0:0`, `multitenant`{{% available_from "v1.16.2" anomaly %}}
+</span>
             </td>
             <td>
 
@@ -247,8 +249,9 @@ Token is passed in the standard format with header: `Authorization: bearer {toke
 `path_to_file`
             </td>
             <td>
+<span>
 Path to a file, which contains token, that is passed in the standard format with header: `Authorization: bearer {token}`{{% available_from "v1.15.9" anomaly %}}
-            </td>
+</span>            </td>
         </tr>
     </tbody>
 </table>
