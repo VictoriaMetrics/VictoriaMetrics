@@ -474,7 +474,8 @@ func (tb *table) finalDedupWatcher() {
 		}
 	}
 
-	// adds 25% jitter in order to prevent thundering herd problem at cluster version
+	// adds 25% jitter in order to prevent thundering herd problem
+	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7880
 	addJitter := func(d time.Duration) time.Duration {
 		dv := d / 4
 		p := float64(fastrand.Uint32()) / (1 << 32)

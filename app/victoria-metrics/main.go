@@ -91,7 +91,7 @@ func main() {
 	storage.SetDedupInterval(*minScrapeInterval)
 	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
 	if *finalDedupScheduleInterval < time.Hour {
-		logger.Fatalf("-dedup.finalDedupScheduleCheckInterval cannot be smaller than a 1 hour; got %s", *finalDedupScheduleInterval)
+		logger.Fatalf("-dedup.finalDedupScheduleCheckInterval cannot be smaller than 1 hour; got %s", *finalDedupScheduleInterval)
 	}
 	storage.SetFinalDedupScheduleInterval(*finalDedupScheduleInterval)
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
