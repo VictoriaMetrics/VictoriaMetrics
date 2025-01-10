@@ -481,6 +481,7 @@ func binaryOpDefault(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 
 func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	// group time series by condition.
+
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
 
 	// fast path: return right if all series in mLeft are NaNs.
@@ -534,7 +535,15 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
 	rvs = removeEmptySeries(rvs)
 	sortSeriesByMetricName(rvs)
-	return rvs, nil
+
+	// merge same metrics by filling right to left if necessary
+	for i := 0; i < len(rvs)-1; i++ {
+		if rvs[i].MetricName.String() == rvs[i+1].MetricName.String() {
+			fillLeftNaNsWithRightValues([]*timeseries{rvs[i]}, []*timeseries{rvs[i+1]})
+			rvs[i+1].Reset()
+		}
+	}
+	return removeEmptySeries(rvs), nil
 }
 
 func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) []*timeseries {
