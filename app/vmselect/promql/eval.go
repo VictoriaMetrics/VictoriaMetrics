@@ -1986,6 +1986,10 @@ func evalNumber(ec *EvalConfig, n float64) []*timeseries {
 	for i := range timestamps {
 		values[i] = n
 	}
+	if !ec.IsMultiTenant {
+		ts.MetricName.AccountID = ec.AuthTokens[0].AccountID
+		ts.MetricName.ProjectID = ec.AuthTokens[0].ProjectID
+	}
 	ts.Values = values
 	ts.Timestamps = timestamps
 	return []*timeseries{&ts}
