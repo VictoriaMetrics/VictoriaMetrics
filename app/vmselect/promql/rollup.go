@@ -521,7 +521,8 @@ type rollupFuncArg struct {
 	// Timestamps for values.
 	timestamps []int64
 
-	// Real value preceding values without restrictions on staleness interval.
+	// Real value preceding values.
+	// Is populated if preceding value is within the staleness interval.
 	realPrevValue float64
 
 	// Real value which goes after values.
@@ -769,10 +770,12 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		}
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
+		rfa.realPrevValue = nan
 		if i > 0 {
-			rfa.realPrevValue = values[i-1]
-		} else {
-			rfa.realPrevValue = nan
+			prevValue, prevTimestamp := values[i-1], timestamps[i-1]
+			if (tEnd - prevTimestamp) < maxPrevInterval {
+				rfa.realPrevValue = prevValue
+			}
 		}
 		if j < len(values) {
 			rfa.realNextValue = values[j]
