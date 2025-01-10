@@ -48,3 +48,16 @@ export interface LogHits {
     [key: string]: string;
   };
 }
+
+export interface ReportMetaData {
+  id: number;
+  title: string;
+  endpoint: string;
+  comment: string;
+  params: Record<string, string>;
+}
+
+export interface LogsFiledValues {
+  value: string;
+  hits: number;
+}

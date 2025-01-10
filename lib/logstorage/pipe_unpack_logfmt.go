@@ -62,7 +62,7 @@ func (pu *pipeUnpackLogfmt) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
 
-func (pu *pipeUnpackLogfmt) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pu *pipeUnpackLogfmt) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err

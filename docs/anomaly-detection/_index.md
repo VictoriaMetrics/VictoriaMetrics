@@ -10,5 +10,7 @@ aliases:
 - /anomaly-detection.html
 - /vmanomaly.html
 - /vmanomaly/
+- /anomaly-detection/overview.html
+- /anomaly-detection/overview/
 ---
 {{% content "README.md" %}}

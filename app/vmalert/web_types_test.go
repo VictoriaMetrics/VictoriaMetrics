@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
+	"reflect"
+	"testing"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/rule"
-	"reflect"
-	"testing"
 )
 
 func TestRecordingToApi(t *testing.T) {

@@ -9,9 +9,8 @@ import (
 func TestBlockMustInitFromRows(t *testing.T) {
 	f := func(timestamps []int64, rows [][]Field, bExpected *block) {
 		t.Helper()
-		b := getBlock()
-		defer putBlock(b)
 
+		b := &block{}
 		b.MustInitFromRows(timestamps, rows)
 		if b.uncompressedSizeBytes() >= maxUncompressedBlockSize {
 			t.Fatalf("expecting non-full block")

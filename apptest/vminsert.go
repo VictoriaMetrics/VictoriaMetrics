@@ -18,8 +18,9 @@ type Vminsert struct {
 	*app
 	*ServesMetrics
 
-	httpListenAddr string
-	cli            *Client
+	httpListenAddr          string
+	clusternativeListenAddr string
+	cli                     *Client
 }
 
 // storageNodes returns the storage node addresses passed to vminsert via
@@ -39,6 +40,7 @@ func storageNodes(flags []string) []string {
 func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, error) {
 	extractREs := []*regexp.Regexp{
 		httpListenAddrRE,
+		vminsertClusterNativeAddrRE,
 	}
 	// Add storateNode REs to block until vminsert establishes connections with
 	// all storage nodes. The extracted values are unused.
@@ -49,7 +51,8 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 
 	app, stderrExtracts, err := startApp(instance, "../../bin/vminsert", flags, &appOptions{
 		defaultFlags: map[string]string{
-			"-httpListenAddr": "127.0.0.1:0",
+			"-httpListenAddr":          "127.0.0.1:0",
+			"-clusternativeListenAddr": "127.0.0.1:0",
 		},
 		extractREs: extractREs,
 	})
@@ -63,9 +66,29 @@ func StartVminsert(instance string, flags []string, cli *Client) (*Vminsert, err
 			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[0]),
 			cli:        cli,
 		},
-		httpListenAddr: stderrExtracts[0],
-		cli:            cli,
+		httpListenAddr:          stderrExtracts[0],
+		clusternativeListenAddr: stderrExtracts[1],
+		cli:                     cli,
 	}, nil
+}
+
+// ClusternativeListenAddr returns the address at which the vminsert process is
+// listening for connections from other vminsert apps.
+func (app *Vminsert) ClusternativeListenAddr() string {
+	return app.clusternativeListenAddr
+}
+
+// InfluxWrite is a test helper function that inserts a
+// collection of records in Influx line format by sending a HTTP
+// POST request to /influx/write vmsingle endpoint.
+//
+// See https://docs.victoriametrics.com/url-examples/#influxwrite
+func (app *Vminsert) InfluxWrite(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/insert/%s/influx/write", app.httpListenAddr, opts.getTenant())
+	data := []byte(strings.Join(records, "\n"))
+	app.cli.Post(t, url, "text/plain", data, http.StatusNoContent)
 }
 
 // PrometheusAPIV1Write is a test helper function that inserts a

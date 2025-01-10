@@ -28,6 +28,7 @@ supports the following Prometheus-compatible service discovery options for Prome
 * `http_sd_configs` is for discovering and scraping targets provided by external http-based service discovery. See [these docs](#http_sd_configs).
 * `kubernetes_sd_configs` is for discovering and scraping [Kubernetes](https://kubernetes.io/) targets. See [these docs](#kubernetes_sd_configs).
 * `kuma_sd_configs` is for discovering and scraping [Kuma](https://kuma.io) targets. See [these docs](#kuma_sd_configs).
+* `marathon_sd_configs` is for discovering and scraping [Marathon](https://mesosphere.github.io/marathon/) targets. See [these docs](#marathon_sd_configs).
 * `nomad_sd_configs` is for discovering and scraping targets registered in [HashiCorp Nomad](https://www.nomadproject.io/). See [these docs](#nomad_sd_configs).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
 * `ovhcloud_sd_configs` is for discovering and scraping OVH Cloud VPS and dedicated server targets. See [these docs](#ovhcloud_sd_configs).
@@ -427,6 +428,12 @@ scrape_configs:
     # By default, localhost is used.
     #
     # host_networking_host: "..."
+
+    # Sort all networks in ascending order based on network name and
+    # get the first network if the container has multiple networks defined, 
+    # thus avoiding collecting duplicate targets.
+    #
+    # match_first_network: "<boolean>" | default true
 
     # filters is an optional filters to limit the discovery process to a subset of available resources.
     # See https://docs.docker.com/engine/api/v1.40/#operation/ContainerList
@@ -1266,6 +1273,43 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_kuma_label_<label_name>`: each label of target given from Kuma Control Plane
 
 The list of discovered Kuma targets is refreshed at the interval, which can be configured via `-promscrape.kumaSDCheckInterval` command-line flag.
+
+## marathon_sd_configs
+
+_Available from [CHANGEME](https://docs.victoriametrics.com/changelog/#vCHANGEME) version._
+
+Marathon SD configuration allows retrieving scrape targets from [Marathon](https://mesosphere.github.io/marathon/) REST API.
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: marathon
+  marathon_sd_configs:
+    # List of URLs to be used to contact Marathon servers.
+    # You need to provide at least one server URL, but should provide URLs for
+    # all masters you have running.
+    #
+    servers:
+      - "host1:port1"
+      - "host2:port2"
+      - "..."
+    
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs/#http-api-client-options
+```
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent/#relabeling):
+
+* `__meta_marathon_app`: the name of the app (with slashes replaced by dashes)
+* `__meta_marathon_image`: the name of the Docker image used (if available)
+* `__meta_marathon_task`: the ID of the Mesos task
+* `__meta_marathon_app_label_<labelname>`: any Marathon labels attached to the app
+* `__meta_marathon_port_definition_label_<labelname>`: the port definition labels
+* `__meta_marathon_port_mapping_label_<labelname>`: the port mapping labels
+* `__meta_marathon_port_index`: the port index number (e.g. `1` for `PORT1`)
+
+The list of discovered Marathon targets is refreshed at the interval, which can be configured via `-promscrape.marathonSDCheckInterval` command-line flag.
 
 ## nomad_sd_configs
 

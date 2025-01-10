@@ -134,8 +134,21 @@ func (c *vmcluster) ForceFlush(t *testing.T) {
 	}
 }
 
-// MustStartDefaultCluster is a typical cluster configuration suitable for most
-// tests.
+// MustStartDefaultCluster starts a typical cluster configuration with default
+// flags.
+func (tc *TestCase) MustStartDefaultCluster() PrometheusWriteQuerier {
+	tc.t.Helper()
+
+	return tc.MustStartCluster(&ClusterOptions{
+		Vmstorage1Instance: "vmstorage1",
+		Vmstorage2Instance: "vmstorage2",
+		VminsertInstance:   "vminsert",
+		VmselectInstance:   "vmselect",
+	})
+}
+
+// ClusterOptions holds the params for simple cluster configuration suitable for
+// most tests.
 //
 // The cluster consists of two vmstorages, one vminsert and one vmselect, no
 // data replication.
@@ -145,23 +158,42 @@ func (c *vmcluster) ForceFlush(t *testing.T) {
 // vmselect) but instead just need a typical cluster configuration to verify
 // some business logic (such as API surface, or MetricsQL). Such cluster
 // tests usually come paired with corresponding vmsingle tests.
-func (tc *TestCase) MustStartDefaultCluster() PrometheusWriteQuerier {
+type ClusterOptions struct {
+	Vmstorage1Instance string
+	Vmstorage1Flags    []string
+	Vmstorage2Instance string
+	Vmstorage2Flags    []string
+	VminsertInstance   string
+	VminsertFlags      []string
+	VmselectInstance   string
+	VmselectFlags      []string
+}
+
+// MustStartCluster starts a typical cluster configuration with custom flags.
+func (tc *TestCase) MustStartCluster(opts *ClusterOptions) PrometheusWriteQuerier {
 	tc.t.Helper()
 
-	vmstorage1 := tc.MustStartVmstorage("vmstorage-1", []string{
-		"-storageDataPath=" + tc.Dir() + "/vmstorage-1",
+	opts.Vmstorage1Flags = append(opts.Vmstorage1Flags, []string{
+		"-storageDataPath=" + tc.Dir() + "/" + opts.Vmstorage1Instance,
 		"-retentionPeriod=100y",
-	})
-	vmstorage2 := tc.MustStartVmstorage("vmstorage-2", []string{
-		"-storageDataPath=" + tc.Dir() + "/vmstorage-2",
+	}...)
+	vmstorage1 := tc.MustStartVmstorage(opts.Vmstorage1Instance, opts.Vmstorage1Flags)
+
+	opts.Vmstorage2Flags = append(opts.Vmstorage2Flags, []string{
+		"-storageDataPath=" + tc.Dir() + "/" + opts.Vmstorage2Instance,
 		"-retentionPeriod=100y",
-	})
-	vminsert := tc.MustStartVminsert("vminsert", []string{
+	}...)
+	vmstorage2 := tc.MustStartVmstorage(opts.Vmstorage2Instance, opts.Vmstorage2Flags)
+
+	opts.VminsertFlags = append(opts.VminsertFlags, []string{
 		"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
-	})
-	vmselect := tc.MustStartVmselect("vmselect", []string{
+	}...)
+	vminsert := tc.MustStartVminsert(opts.VminsertInstance, opts.VminsertFlags)
+
+	opts.VmselectFlags = append(opts.VmselectFlags, []string{
 		"-storageNode=" + vmstorage1.VmselectAddr() + "," + vmstorage2.VmselectAddr(),
-	})
+	}...)
+	vmselect := tc.MustStartVmselect(opts.VmselectInstance, opts.VmselectFlags)
 
 	return &vmcluster{vminsert, vmselect, []*Vmstorage{vmstorage1, vmstorage2}}
 }

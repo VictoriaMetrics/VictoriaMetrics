@@ -2,9 +2,9 @@
 
 DOCKER_NAMESPACE ?= victoriametrics
 
-ROOT_IMAGE ?= alpine:3.20.3
+ROOT_IMAGE ?= alpine:3.21.0
 ROOT_IMAGE_SCRATCH ?= scratch
-CERTS_IMAGE := alpine:3.20.3
+CERTS_IMAGE := alpine:3.21.0
 
 GO_BUILDER_IMAGE := golang:1.23.4-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
@@ -66,6 +66,12 @@ package-via-docker: package-base
 		$(DOCKER_BUILD) \
 			--build-arg src_binary=$(APP_NAME)$(APP_SUFFIX)-prod \
 			--build-arg base_image=$(BASE_IMAGE) \
+			--label "org.opencontainers.image.source=https://github.com/VictoriaMetrics/VictoriaMetrics" \
+			--label "org.opencontainers.image.documentation=https://docs.victoriametrics.com/" \
+			--label "org.opencontainers.image.title=$(APP_NAME)" \
+			--label "org.opencontainers.image.vendor=VictoriaMetrics" \
+			--label "org.opencontainers.image.version=$(PKG_TAG)" \
+			--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
 			--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(APP_SUFFIX)$(RACE) \
 			-f app/$(APP_NAME)/deployment/Dockerfile bin)
 
@@ -80,6 +86,12 @@ publish-via-docker:
 		--build-arg certs_image=$(CERTS_IMAGE) \
 		--build-arg root_image=$(ROOT_IMAGE) \
 		--build-arg APP_NAME=$(APP_NAME) \
+		--label "org.opencontainers.image.source=https://github.com/VictoriaMetrics/VictoriaMetrics" \
+		--label "org.opencontainers.image.documentation=https://docs.victoriametrics.com/" \
+		--label "org.opencontainers.image.title=$(APP_NAME)" \
+		--label "org.opencontainers.image.vendor=VictoriaMetrics" \
+		--label "org.opencontainers.image.version=$(PKG_TAG)" \
+		--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
 		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
 		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
 		-o type=image \
@@ -92,6 +104,12 @@ publish-via-docker:
 		--build-arg certs_image=$(CERTS_IMAGE) \
 		--build-arg root_image=$(ROOT_IMAGE_SCRATCH) \
 		--build-arg APP_NAME=$(APP_NAME) \
+		--label "org.opencontainers.image.source=https://github.com/VictoriaMetrics/VictoriaMetrics" \
+		--label "org.opencontainers.image.documentation=https://docs.victoriametrics.com/" \
+		--label "org.opencontainers.image.title=$(APP_NAME)" \
+		--label "org.opencontainers.image.vendor=VictoriaMetrics" \
+		--label "org.opencontainers.image.version=$(PKG_TAG)" \
+		--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
 		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)-scratch \
 		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE)-scratch \
 		-o type=image \

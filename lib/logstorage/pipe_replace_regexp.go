@@ -49,7 +49,7 @@ func (pr *pipeReplaceRegexp) hasFilterInWithQuery() bool {
 	return pr.iff.hasFilterInWithQuery()
 }
 
-func (pr *pipeReplaceRegexp) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pr *pipeReplaceRegexp) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pr.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
