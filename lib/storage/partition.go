@@ -634,7 +634,7 @@ func (pt *partition) inmemoryPartsMerger() {
 		}
 
 		inmemoryPartsConcurrencyCh <- struct{}{}
-		err := pt.mergeParts(pws, pt.stopCh, false)
+		err := pt.mergeParts(pws, pt.stopCh, false, false)
 		<-inmemoryPartsConcurrencyCh
 
 		if err == nil {
@@ -667,7 +667,7 @@ func (pt *partition) smallPartsMerger() {
 		}
 
 		smallPartsConcurrencyCh <- struct{}{}
-		err := pt.mergeParts(pws, pt.stopCh, false)
+		err := pt.mergeParts(pws, pt.stopCh, false, false)
 		<-smallPartsConcurrencyCh
 
 		if err == nil {
@@ -700,7 +700,7 @@ func (pt *partition) bigPartsMerger() {
 		}
 
 		bigPartsConcurrencyCh <- struct{}{}
-		err := pt.mergeParts(pws, pt.stopCh, false)
+		err := pt.mergeParts(pws, pt.stopCh, false, false)
 		<-bigPartsConcurrencyCh
 
 		if err == nil {
@@ -799,7 +799,7 @@ func (pt *partition) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrappe
 
 	// Merge parts.
 	// The merge shouldn't be interrupted by stopCh, so use nil stopCh.
-	ph, err := pt.mergePartsInternal("", bsw, bsrs, partInmemory, nil)
+	ph, err := pt.mergePartsInternal("", bsw, bsrs, partInmemory, nil, time.Now().UnixMilli(), false)
 	putBlockStreamWriter(bsw)
 	for _, bsr := range bsrs {
 		putBlockStreamReader(bsr)
@@ -1107,7 +1107,7 @@ func (pt *partition) flushInmemoryPartsToFiles(isFinal bool) {
 	}
 	pt.partsLock.Unlock()
 
-	if err := pt.mergePartsToFiles(pws, nil, inmemoryPartsConcurrencyCh); err != nil {
+	if err := pt.mergePartsToFiles(pws, nil, inmemoryPartsConcurrencyCh, false); err != nil {
 		logger.Panicf("FATAL: cannot merge in-memory parts: %s", err)
 	}
 }
@@ -1172,7 +1172,7 @@ func appendRawRowss(dst [][]rawRow, src []rawRow) [][]rawRow {
 	return dst
 }
 
-func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{}, concurrencyCh chan struct{}) error {
+func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{}, concurrencyCh chan struct{}, useSparseCache bool) error {
 	pwsLen := len(pws)
 
 	var errGlobal error
@@ -1188,7 +1188,7 @@ func (pt *partition) mergePartsToFiles(pws []*partWrapper, stopCh <-chan struct{
 				wg.Done()
 			}()
 
-			if err := pt.mergeParts(pwsChunk, stopCh, true); err != nil && !errors.Is(err, errForciblyStopped) {
+			if err := pt.mergeParts(pwsChunk, stopCh, true, useSparseCache); err != nil && !errors.Is(err, errForciblyStopped) {
 				errGlobalLock.Lock()
 				if errGlobal == nil {
 					errGlobal = err
@@ -1228,7 +1228,7 @@ func (pt *partition) ForceMergeAllParts(stopCh <-chan struct{}) error {
 	// If len(pws) == 1, then the merge must run anyway.
 	// This allows applying the configured retention, removing the deleted series
 	// and performing de-duplication if needed.
-	if err := pt.mergePartsToFiles(pws, stopCh, bigPartsConcurrencyCh); err != nil {
+	if err := pt.mergePartsToFiles(pws, stopCh, bigPartsConcurrencyCh, true); err != nil {
 		return fmt.Errorf("cannot force merge %d parts from partition %q: %w", len(pws), pt.name, err)
 	}
 
@@ -1379,7 +1379,7 @@ func getMinDedupInterval(pws []*partWrapper) int64 {
 //
 // All the parts inside pws must have isInMerge field set to true.
 // The isInMerge field inside pws parts is set to false before returning from the function.
-func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal bool) error {
+func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal, useSparseCache bool) error {
 	if len(pws) == 0 {
 		logger.Panicf("BUG: empty pws cannot be passed to mergeParts()")
 	}
@@ -1417,6 +1417,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 	}
 	rowsPerBlock := float64(srcRowsCount) / float64(srcBlocksCount)
 	compressLevel := getCompressLevel(rowsPerBlock)
+	currentTimestamp := startTime.UnixMilli()
 	bsw := getBlockStreamWriter()
 	var mpNew *inmemoryPart
 	if dstPartType == partInmemory {
@@ -1431,7 +1432,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 	}
 
 	// Merge source parts to destination part.
-	ph, err := pt.mergePartsInternal(dstPartPath, bsw, bsrs, dstPartType, stopCh)
+	ph, err := pt.mergePartsInternal(dstPartPath, bsw, bsrs, dstPartType, stopCh, currentTimestamp, useSparseCache)
 	putBlockStreamWriter(bsw)
 	for _, bsr := range bsrs {
 		putBlockStreamReader(bsr)
@@ -1543,7 +1544,7 @@ func mustOpenBlockStreamReaders(pws []*partWrapper) []*blockStreamReader {
 	return bsrs
 }
 
-func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, bsrs []*blockStreamReader, dstPartType partType, stopCh <-chan struct{}) (*partHeader, error) {
+func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, bsrs []*blockStreamReader, dstPartType partType, stopCh <-chan struct{}, currentTimestamp int64, useSparseCache bool) (*partHeader, error) {
 	var ph partHeader
 	var rowsMerged *atomic.Uint64
 	var rowsDeleted *atomic.Uint64
@@ -1568,9 +1569,9 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 	default:
 		logger.Panicf("BUG: unknown partType=%d", dstPartType)
 	}
-	retentionDeadline := timestampFromTime(time.Now()) - pt.s.retentionMsecs
+	retentionDeadline := currentTimestamp - pt.s.retentionMsecs
 	activeMerges.Add(1)
-	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, pt.s, retentionDeadline, rowsMerged, rowsDeleted)
+	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, pt.s, retentionDeadline, rowsMerged, rowsDeleted, useSparseCache)
 	activeMerges.Add(-1)
 	mergesCount.Add(1)
 	if err != nil {

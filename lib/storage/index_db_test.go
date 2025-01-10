@@ -772,7 +772,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, ten
 
 		// Search for metric name for the given metricID.
 		var ok bool
-		metricNameCopy, ok = db.searchMetricNameWithCache(metricNameCopy[:0], genTSID.TSID.MetricID, genTSID.TSID.AccountID, genTSID.TSID.ProjectID)
+		metricNameCopy, ok = db.searchMetricName(metricNameCopy[:0], genTSID.TSID.MetricID, genTSID.TSID.AccountID, genTSID.TSID.ProjectID, false)
 		if !ok {
 			return fmt.Errorf("cannot find metricName for metricID=%d; i=%d", genTSID.TSID.MetricID, i)
 		}
@@ -781,7 +781,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, ten
 		}
 
 		// Try searching metric name for non-existent MetricID.
-		buf, found := db.searchMetricNameWithCache(nil, 1, mn.AccountID, mn.ProjectID)
+		buf, found := db.searchMetricName(nil, 1, mn.AccountID, mn.ProjectID, false)
 		if found {
 			return fmt.Errorf("unexpected metricName found for non-existing metricID; got %X", buf)
 		}
