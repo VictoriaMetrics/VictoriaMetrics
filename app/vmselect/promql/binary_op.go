@@ -529,12 +529,20 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 		}
 	}
 
-	rvs := append(bfa.left, bfa.right...)
+	var rvs []*timeseries
 
-	// Sort series by metric name.
+	for _, tss := range mLeft {
+		rvs = append(rvs, tss...)
+	}
+	// Sort left-hand-side series by metric name as Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
-	rvs = removeEmptySeries(rvs)
 	sortSeriesByMetricName(rvs)
+	rvsLen := len(rvs)
+
+	for _, tss := range mRight {
+		rvs = append(rvs, tss...)
+	}
+	sortSeriesByMetricName(rvs[rvsLen:])
 
 	// merge same metrics by filling right to left if necessary
 	for i := 0; i < len(rvs)-1; i++ {
@@ -543,7 +551,7 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 			rvs[i+1].Reset()
 		}
 	}
-	return removeEmptySeries(rvs), nil
+	return rvs, nil
 }
 
 func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) []*timeseries {
