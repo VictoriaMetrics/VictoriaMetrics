@@ -483,11 +483,26 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	// group time series by condition.
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
 
+	// fast path: return right if all series in mLeft are NaNs.
+	isLeftEmpty := true
+	for _, tss := range mLeft {
+		if len(tss) > 0 {
+			isLeftEmpty = false
+			break
+		}
+	}
+	if isLeftEmpty {
+		sortSeriesByMetricName(bfa.right)
+		return bfa.right, nil
+	}
+
+	// slow path
 	for k, tssLeft := range mLeft {
 		// for tss in the left group, find tss in the right group
 		tssRight := mRight[k]
 
 		// set value to NaN if a non-NaN value has been found.
+		// this will go through all data points and no more than len(timestamps) data points will have a non-NaN value.
 		tsLen := len(tssLeft[0].Timestamps)
 		for i := 0; i < tsLen; i++ {
 			found := false
@@ -541,23 +556,6 @@ func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) []*timeseries 
 		}
 	}
 	return tssLeft
-}
-
-// fillLeftNaNsWithRightValuesForTimeseries Fill gaps in tsLeft with values from tsRight.
-func fillLeftNaNsWithRightValuesForTimeseries(tsLeft, tsRight *timeseries) {
-	if len(tsLeft.Values) != len(tsRight.Values) {
-		return
-	}
-	valuesLeft := tsLeft.Values
-	for i, v := range valuesLeft {
-		if !math.IsNaN(v) {
-			continue
-		}
-		vRight := tsRight.Values[i]
-		if !math.IsNaN(vRight) {
-			valuesLeft[i] = vRight
-		}
-	}
 }
 
 func binaryOpIfnot(bfa *binaryOpFuncArg) ([]*timeseries, error) {
