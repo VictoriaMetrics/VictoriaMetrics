@@ -3221,6 +3221,26 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`series or on() series - 4`, func(t *testing.T) {
+		t.Parallel()
+		// left + right for same series
+		q := `(label_set(time() <= 1200, "a", "a", "b", "b1")) or on(a) label_set(time() > 1400, "a", "a", "b", "b1")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("a"),
+		}, {
+			Key:   []byte("b"),
+			Value: []byte("b1"),
+		}}
+
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`scalar or scalar`, func(t *testing.T) {
 		t.Parallel()
 		q := `time() > 1400 or 123`
