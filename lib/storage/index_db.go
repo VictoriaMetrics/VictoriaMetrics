@@ -1538,7 +1538,7 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) (
 		}
 	}
 
-	is := db.getIndexSearch(noDeadline)
+	is := db.getIndexSearchInternal(noDeadline, noCache)
 	var ok bool
 	dst, ok = is.searchMetricName(dst, metricID)
 	db.putIndexSearch(is)
@@ -1553,7 +1553,7 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) (
 
 	// Try searching in the external indexDB.
 	db.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch(noDeadline)
+		is := extDB.getIndexSearchInternal(noDeadline, noCache)
 		dst, ok = is.searchMetricName(dst, metricID)
 		extDB.putIndexSearch(is)
 		if ok && !noCache {
