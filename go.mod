@@ -34,7 +34,7 @@ require (
 	github.com/valyala/gozstd v1.21.2
 	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.8.0
-	golang.org/x/net v0.31.0
+	golang.org/x/net v0.33.0
 	golang.org/x/oauth2 v0.24.0
 	golang.org/x/sys v0.28.0
 	google.golang.org/api v0.209.0

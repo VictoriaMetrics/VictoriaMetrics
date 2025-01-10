@@ -798,7 +798,7 @@ golang.org/x/crypto/pkcs12/internal/rc2
 # golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
 ## explicit; go 1.22.0
 golang.org/x/exp/constraints
-# golang.org/x/net v0.31.0
+# golang.org/x/net v0.33.0
 ## explicit; go 1.18
 golang.org/x/net/http/httpguts
 golang.org/x/net/http/httpproxy
