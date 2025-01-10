@@ -69,6 +69,11 @@ var (
 
 	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
 
+	finalDedupScheduleInterval = flag.Duration("storage.finalDedupScheduleCheckInterval", time.Hour, "The interval for checking when final deduplication process should be started."+
+		"Storage unconditionally adds 25% jitter to the interval value on each check evaluation."+
+		" Changing the interval to the bigger values may delay downsampling, deduplication for historical data."+
+		" See also https://docs.victoriametrics.com/#deduplication")
+
 	cacheSizeStorageTSID = flagutil.NewBytes("storage.cacheSizeStorageTSID", 0, "Overrides max size for storage/tsid cache. "+
 		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBIndexBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBIndexBlocks", 0, "Overrides max size for indexdb/indexBlocks cache. "+
@@ -103,6 +108,10 @@ func main() {
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
 	storage.SetTSIDCacheSize(cacheSizeStorageTSID.IntN())
 	storage.SetTagFiltersCacheSize(cacheSizeIndexDBTagFilters.IntN())
+	if *finalDedupScheduleInterval < time.Hour {
+		logger.Fatalf("-storage.finalDedupScheduleCheckInterval cannot be smaller than 1 hour; got %s", *finalDedupScheduleInterval)
+	}
+	storage.SetFinalDedupScheduleInterval(*finalDedupScheduleInterval)
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 
