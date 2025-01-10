@@ -1159,7 +1159,7 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 			}
 		}
 		var ok bool
-		metricName, ok = idb.searchMetricNameWithCache(metricName[:0], metricID)
+		metricName, ok = idb.searchMetricName(metricName[:0], metricID, false)
 		if !ok {
 			// Skip missing metricName for metricID.
 			// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.

@@ -14,6 +14,9 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/fastcache"
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -25,8 +28,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
-	"github.com/cespare/xxhash/v2"
 )
 
 const (
@@ -525,7 +526,12 @@ type indexSearch struct {
 	deadline uint64
 }
 
+// getIndexSearch returns an indexSearch with default configuration
 func (db *indexDB) getIndexSearch(deadline uint64) *indexSearch {
+	return db.getIndexSearchInternal(deadline, false)
+}
+
+func (db *indexDB) getIndexSearchInternal(deadline uint64, sparse bool) *indexSearch {
 	v := db.indexSearchPool.Get()
 	if v == nil {
 		v = &indexSearch{
@@ -533,7 +539,7 @@ func (db *indexDB) getIndexSearch(deadline uint64) *indexSearch {
 		}
 	}
 	is := v.(*indexSearch)
-	is.ts.Init(db.tb)
+	is.ts.Init(db.tb, sparse)
 	is.deadline = deadline
 	return is
 }
@@ -1522,12 +1528,14 @@ func (th *topHeap) Pop() any {
 	panic(fmt.Errorf("BUG: Pop shouldn't be called"))
 }
 
-// searchMetricNameWithCache appends metric name for the given metricID to dst
+// searchMetricName appends metric name for the given metricID to dst
 // and returns the result.
-func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64) ([]byte, bool) {
-	metricName := db.getMetricNameFromCache(dst, metricID)
-	if len(metricName) > len(dst) {
-		return metricName, true
+func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) ([]byte, bool) {
+	if !noCache {
+		metricName := db.getMetricNameFromCache(dst, metricID)
+		if len(metricName) > len(dst) {
+			return metricName, true
+		}
 	}
 
 	is := db.getIndexSearch(noDeadline)
@@ -1537,7 +1545,9 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64) ([]byt
 	if ok {
 		// There is no need in verifying whether the given metricID is deleted,
 		// since the filtering must be performed before calling this func.
-		db.putMetricNameToCache(metricID, dst)
+		if !noCache {
+			db.putMetricNameToCache(metricID, dst)
+		}
 		return dst, true
 	}
 
@@ -1546,7 +1556,7 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64) ([]byt
 		is := extDB.getIndexSearch(noDeadline)
 		dst, ok = is.searchMetricName(dst, metricID)
 		extDB.putIndexSearch(is)
-		if ok {
+		if ok && !noCache {
 			// There is no need in verifying whether the given metricID is deleted,
 			// since the filtering must be performed before calling this func.
 			extDB.putMetricNameToCache(metricID, dst)
