@@ -165,6 +165,9 @@ type URLMap struct {
 	// SrcHeaders is an optional list of headers, which must match request headers.
 	SrcHeaders []*Header `yaml:"src_headers,omitempty"`
 
+	// RelativeTimeRangeConfig defines a relative time range.
+	RelativeTimeRangeConfig *RelativeTimeRangeConfig `yaml:"relative_time_range,omitempty"`
+
 	// UrlPrefix contains backend url prefixes for the proxied request url.
 	URLPrefix *URLPrefix `yaml:"url_prefix,omitempty"`
 
@@ -224,6 +227,40 @@ func (qa *QueryArg) UnmarshalYAML(f func(any) error) error {
 // MarshalYAML marshals qa to yaml.
 func (qa *QueryArg) MarshalYAML() (any, error) {
 	return qa.sOriginal, nil
+}
+
+// RelativeTimeRangeConfig configures durations relative from "now"
+type RelativeTimeRangeConfig struct {
+	Start *time.Duration `yaml:"start"`
+	End   *time.Duration `yaml:"end"`
+}
+
+func (tr *RelativeTimeRangeConfig) TimeWindow() (time.Time, time.Time) {
+	now := time.Now()
+	var start, end time.Time
+	if tr.Start != nil {
+		start = now.Add(*tr.Start)
+	}
+	if tr.End != nil {
+		end = now.Add(*tr.End)
+	}
+	return start, end
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (tr *RelativeTimeRangeConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type plain RelativeTimeRangeConfig
+	if err := unmarshal((*plain)(tr)); err != nil {
+		return err
+	}
+	return tr.validate()
+}
+
+func (tr *RelativeTimeRangeConfig) validate() error {
+	if tr.End != nil && tr.Start != nil && *tr.End < *tr.Start {
+		return fmt.Errorf("RelativeTimeRangeConfig: End must be after start")
+	}
+	return nil
 }
 
 // URLPrefix represents passed `url_prefix`
@@ -892,8 +929,8 @@ func (ui *UserInfo) initURLs() error {
 		}
 	}
 	for _, e := range ui.URLMaps {
-		if len(e.SrcPaths) == 0 && len(e.SrcHosts) == 0 && len(e.SrcQueryArgs) == 0 && len(e.SrcHeaders) == 0 {
-			return fmt.Errorf("missing `src_paths`, `src_hosts`, `src_query_args` and `src_headers` in `url_map`")
+		if len(e.SrcPaths) == 0 && len(e.SrcHosts) == 0 && len(e.SrcQueryArgs) == 0 && len(e.SrcHeaders) == 0 && e.RelativeTimeRangeConfig == nil {
+			return fmt.Errorf("missing `src_paths`, `src_hosts`, `src_query_args` and `src_headers` and `relative_time_range` in `url_map`")
 		}
 		if e.URLPrefix == nil {
 			return fmt.Errorf("missing `url_prefix` in `url_map`")

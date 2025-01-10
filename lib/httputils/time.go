@@ -1,7 +1,9 @@
 package httputils
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"time"
@@ -39,6 +41,21 @@ func GetTime(r *http.Request, argKey string, defaultMs int64) (int64, error) {
 		msecs = maxTimeMsecs
 	}
 	return msecs, nil
+}
+
+// DumpRequest returns a copy of r with Body replaced with a new io.ReadCloser, as deep copy of the original body.
+func DumpRequest(r *http.Request) (*http.Request, error) {
+	dump := r.Clone(r.Context())
+	if r.Body != nil {
+		var b bytes.Buffer
+		_, err := b.ReadFrom(r.Body)
+		if err != nil {
+			return nil, err
+		}
+		r.Body = io.NopCloser(&b)
+		dump.Body = io.NopCloser(bytes.NewReader(b.Bytes()))
+	}
+	return dump, nil
 }
 
 var (
