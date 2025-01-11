@@ -212,7 +212,7 @@ func (fi *filterIn) initFloat64Values() {
 	m := make(map[string]struct{}, len(values))
 	buf := make([]byte, 0, len(values)*8)
 	for _, v := range values {
-		f, ok := tryParseFloat64(v)
+		f, ok := tryParseFloat64Exact(v)
 		if !ok {
 			continue
 		}

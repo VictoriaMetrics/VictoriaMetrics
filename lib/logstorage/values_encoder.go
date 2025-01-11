@@ -641,7 +641,7 @@ func tryFloat64Encoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, [
 	a := u64s.A
 	var minValue, maxValue float64
 	for i, v := range srcValues {
-		f, ok := tryParseFloat64(v)
+		f, ok := tryParseFloat64Exact(v)
 		if !ok {
 			return dstBuf, dstValues, valueTypeUnknown, 0, 0
 		}
@@ -673,13 +673,26 @@ func tryParseFloat64Prefix(s string) (float64, bool, string) {
 	if i == 0 {
 		return 0, false, s
 	}
+
 	f, ok := tryParseFloat64(s[:i])
 	return f, ok, s[i:]
 }
 
 // tryParseFloat64 tries parsing s as float64.
+//
+// The parsed result may lose precision, e.g. it may not match the original value when converting back to string.
+// Use tryParseFloat64Exact when lossless parsing is needed.
 func tryParseFloat64(s string) (float64, bool) {
-	if len(s) == 0 || len(s) > 20 {
+	return tryParseFloat64Internal(s, false)
+}
+
+// tryParseFloat64Exact tries parsing s as float64.
+func tryParseFloat64Exact(s string) (float64, bool) {
+	return tryParseFloat64Internal(s, true)
+}
+
+func tryParseFloat64Internal(s string, isExact bool) (float64, bool) {
+	if len(s) == 0 || len(s) > len("-18_446_744_073_709_551_615") {
 		return 0, false
 	}
 	// Allow only decimal digits, minus and a dot.
@@ -695,6 +708,10 @@ func tryParseFloat64(s string) (float64, bool) {
 		// fast path - there are no dots
 		n, ok := tryParseUint64(s)
 		if !ok {
+			return 0, false
+		}
+		if isExact && n >= (1 << 53) {
+			// The integer cannot be represented as float64 without precision loss.
 			return 0, false
 		}
 		f := float64(n)
@@ -755,25 +772,25 @@ func tryParseBytes(s string) (int64, bool) {
 		}
 		s = tail
 		if len(s) == 0 {
-			n += int64(f)
+			n = addInt64NoOverflow(n, f)
 			continue
 		}
 		if len(s) >= 3 {
 			switch {
 			case strings.HasPrefix(s, "KiB"):
-				n += int64(f * (1 << 10))
+				n = addInt64NoOverflow(n, f*(1<<10))
 				s = s[3:]
 				continue
 			case strings.HasPrefix(s, "MiB"):
-				n += int64(f * (1 << 20))
+				n = addInt64NoOverflow(n, f*(1<<20))
 				s = s[3:]
 				continue
 			case strings.HasPrefix(s, "GiB"):
-				n += int64(f * (1 << 30))
+				n = addInt64NoOverflow(n, f*(1<<30))
 				s = s[3:]
 				continue
 			case strings.HasPrefix(s, "TiB"):
-				n += int64(f * (1 << 40))
+				n = addInt64NoOverflow(n, f*(1<<40))
 				s = s[3:]
 				continue
 			}
@@ -781,58 +798,58 @@ func tryParseBytes(s string) (int64, bool) {
 		if len(s) >= 2 {
 			switch {
 			case strings.HasPrefix(s, "Ki"):
-				n += int64(f * (1 << 10))
+				n = addInt64NoOverflow(n, f*(1<<10))
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "Mi"):
-				n += int64(f * (1 << 20))
+				n = addInt64NoOverflow(n, f*(1<<20))
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "Gi"):
-				n += int64(f * (1 << 30))
+				n = addInt64NoOverflow(n, f*(1<<30))
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "Ti"):
-				n += int64(f * (1 << 40))
+				n = addInt64NoOverflow(n, f*(1<<40))
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "KB"):
-				n += int64(f * 1_000)
+				n = addInt64NoOverflow(n, f*1_000)
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "MB"):
-				n += int64(f * 1_000_000)
+				n = addInt64NoOverflow(n, f*1_000_000)
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "GB"):
-				n += int64(f * 1_000_000_000)
+				n = addInt64NoOverflow(n, f*1_000_000_000)
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "TB"):
-				n += int64(f * 1_000_000_000_000)
+				n = addInt64NoOverflow(n, f*1_000_000_000_000)
 				s = s[2:]
 				continue
 			}
 		}
 		switch {
 		case strings.HasPrefix(s, "B"):
-			n += int64(f)
+			n = addInt64NoOverflow(n, f)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "K"):
-			n += int64(f * 1_000)
+			n = addInt64NoOverflow(n, f*1_000)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "M"):
-			n += int64(f * 1_000_000)
+			n = addInt64NoOverflow(n, f*1_000_000)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "G"):
-			n += int64(f * 1_000_000_000)
+			n = addInt64NoOverflow(n, f*1_000_000_000)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "T"):
-			n += int64(f * 1_000_000_000_000)
+			n = addInt64NoOverflow(n, f*1_000_000_000_000)
 			s = s[1:]
 			continue
 		}
@@ -842,6 +859,14 @@ func tryParseBytes(s string) (int64, bool) {
 		n = -n
 	}
 	return n, true
+}
+
+func addInt64NoOverflow(n int64, f float64) int64 {
+	x := int64(f)
+	if n < 0 || x < 0 || x > 1<<63-1-n {
+		return 1<<63 - 1
+	}
+	return n + x
 }
 
 // tryParseIPv4Mask parses '/num' ipv4 mask and returns (1<<(32-num))
@@ -879,7 +904,7 @@ func tryParseDuration(s string) (int64, bool) {
 		}
 		if len(s) >= 3 {
 			if strings.HasPrefix(s, "µs") {
-				nsecs += int64(f * nsecsPerMicrosecond)
+				nsecs = addInt64NoOverflow(nsecs, f*nsecsPerMicrosecond)
 				s = s[3:]
 				continue
 			}
@@ -887,37 +912,37 @@ func tryParseDuration(s string) (int64, bool) {
 		if len(s) >= 2 {
 			switch {
 			case strings.HasPrefix(s, "ms"):
-				nsecs += int64(f * nsecsPerMillisecond)
+				nsecs = addInt64NoOverflow(nsecs, f*nsecsPerMillisecond)
 				s = s[2:]
 				continue
 			case strings.HasPrefix(s, "ns"):
-				nsecs += int64(f)
+				nsecs = addInt64NoOverflow(nsecs, f)
 				s = s[2:]
 				continue
 			}
 		}
 		switch {
 		case strings.HasPrefix(s, "y"):
-			nsecs += int64(f * nsecsPerYear)
+			nsecs = addInt64NoOverflow(nsecs, f*nsecsPerYear)
 			s = s[1:]
 		case strings.HasPrefix(s, "w"):
-			nsecs += int64(f * nsecsPerWeek)
+			nsecs = addInt64NoOverflow(nsecs, f*nsecsPerWeek)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "d"):
-			nsecs += int64(f * nsecsPerDay)
+			nsecs = addInt64NoOverflow(nsecs, f*nsecsPerDay)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "h"):
-			nsecs += int64(f * nsecsPerHour)
+			nsecs = addInt64NoOverflow(nsecs, f*nsecsPerHour)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "m"):
-			nsecs += int64(f * nsecsPerMinute)
+			nsecs = addInt64NoOverflow(nsecs, f*nsecsPerMinute)
 			s = s[1:]
 			continue
 		case strings.HasPrefix(s, "s"):
-			nsecs += int64(f * nsecsPerSecond)
+			nsecs = addInt64NoOverflow(nsecs, f*nsecsPerSecond)
 			s = s[1:]
 			continue
 		default:

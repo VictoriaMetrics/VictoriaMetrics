@@ -348,6 +348,15 @@ func TestTryParseDuration_Success(t *testing.T) {
 
 	// nedgative duration
 	f("-1h5m3s", -(nsecsPerHour + 5*nsecsPerMinute + 3*nsecsPerSecond))
+
+	// max int duration
+	f("9_223_372_036_854_775_807ns", 1<<63-1)
+	f("9223372036854775807ns", 1<<63-1)
+	f("-9223372036854775808ns", -1<<63+1)
+
+	// too big value is clapped to 1<<63-1
+	f("15_223_372_036_854_775_808ns", 1<<63-1)
+	f("-15_223_372_036_854_775_808ns", -1<<63+1)
 }
 
 func TestTryParseDuration_Failure(t *testing.T) {
@@ -438,6 +447,15 @@ func TestTryParseBytes_Success(t *testing.T) {
 	f("1.5TiB", 1.5*(1<<40))
 
 	f("1MiB500KiB200B", (1<<20)+500*(1<<10)+200)
+
+	// The maximum bytes value
+	f("9_223_372_036_854_775_807", 1<<63-1)
+	f("9223372036854775807B", 1<<63-1)
+	f("-9223372036854775808B", -1<<63+1)
+
+	// too big value is clapped to 1<<63-1
+	f("15_223_372_036_854_775_808", 1<<63-1)
+	f("-15_223_372_036_854_775_808", -1<<63+1)
 }
 
 func TestTryParseBytes_Failure(t *testing.T) {
@@ -517,6 +535,16 @@ func TestTryParseFloat64_Success(t *testing.T) {
 
 	f("0.345", 0.345)
 	f("-0.345", -0.345)
+
+	// The maximum integer
+	f("9007199254740991", (1<<53)-1)
+	f("9_007_199_254_740_991", (1<<53)-1)
+	f("-9007199254740991", (-1<<53)+1)
+
+	// Too big integer (exceeds 2^53-1). It leads to precision loss.
+	f("9_007_199_254_740_992", 9007199254740992)
+	f("10_007_199_254_740_992", 10007199254740993)
+	f("-9007199254740992", -9007199254740992)
 }
 
 func float64Equal(a, b float64) bool {
@@ -555,6 +583,73 @@ func TestTryParseFloat64_Failure(t *testing.T) {
 
 	// Minus in the middle of string isn't allowed
 	f("12-5")
+}
+
+func TestTryParseFloat64Exact_Success(t *testing.T) {
+	f := func(s string, resultExpected float64) {
+		t.Helper()
+
+		result, ok := tryParseFloat64Exact(s)
+		if !ok {
+			t.Fatalf("cannot parse %q", s)
+		}
+		if !float64Equal(result, resultExpected) {
+			t.Fatalf("unexpected value; got %f; want %f", result, resultExpected)
+		}
+	}
+
+	f("0", 0)
+	f("1", 1)
+	f("-1", -1)
+	f("1234567890", 1234567890)
+	f("1_234_567_890", 1234567890)
+	f("-1.234_567", -1.234567)
+
+	f("0.345", 0.345)
+	f("-0.345", -0.345)
+
+	// The maximum integer
+	f("9007199254740991", (1<<53)-1)
+	f("9_007_199_254_740_991", (1<<53)-1)
+	f("-9007199254740991", (-1<<53)+1)
+}
+
+func TestTryParseFloat64Exact_Failure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+
+		_, ok := tryParseFloat64Exact(s)
+		if ok {
+			t.Fatalf("expecting error when parsing %q", s)
+		}
+	}
+
+	// Empty value
+	f("")
+
+	// Plus in the value isn't allowed, since it cannot be convered back to the same string representation
+	f("+123")
+
+	// Dot at the beginning and the end of value isn't allowed, since it cannot converted back to the same string representation
+	f(".123")
+	f("123.")
+
+	// Multiple dots aren't allowed
+	f("123.434.55")
+
+	// Invalid dots
+	f("-.123")
+	f(".")
+
+	// Scientific notation isn't allowed, since it cannot be converted back to the same string representation
+	f("12e5")
+
+	// Minus in the middle of string isn't allowed
+	f("12-5")
+
+	// Too big integer (exceeds 2^53-1)
+	f("9_007_199_254_740_992")
+	f("-9007199254740992")
 }
 
 func TestMarshalFloat64String(t *testing.T) {

@@ -153,7 +153,7 @@ func matchFloat64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix 
 	// This means we cannot search in binary representation of floating-point numbers.
 	// Instead, we need searching for the whole prefix in string representation
 	// of floating-point numbers :(
-	_, ok := tryParseFloat64(prefix)
+	_, ok := tryParseFloat64Exact(prefix)
 	if !ok && prefix != "." && prefix != "+" && prefix != "-" && !strings.HasPrefix(prefix, "e") && !strings.HasPrefix(prefix, "E") {
 		bm.resetBits()
 		return
