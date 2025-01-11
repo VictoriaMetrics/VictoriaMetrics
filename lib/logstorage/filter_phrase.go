@@ -158,7 +158,7 @@ func matchFloat64ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase 
 	// This means we cannot search in binary representation of floating-point numbers.
 	// Instead, we need searching for the whole phrase in string representation
 	// of floating-point numbers :(
-	_, ok := tryParseFloat64(phrase)
+	_, ok := tryParseFloat64Exact(phrase)
 	if !ok && phrase != "." && phrase != "+" && phrase != "-" {
 		bm.resetBits()
 		return

@@ -126,7 +126,7 @@ func (fe *filterExact) applyToBlockResult(br *blockResult, bm *bitmap) {
 			return n == nNeeded
 		})
 	case valueTypeFloat64:
-		fNeeded, ok := tryParseFloat64(value)
+		fNeeded, ok := tryParseFloat64Exact(value)
 		if !ok {
 			bm.resetBits()
 			return
@@ -244,7 +244,7 @@ func matchIPv4ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value 
 }
 
 func matchFloat64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []uint64) {
-	f, ok := tryParseFloat64(value)
+	f, ok := tryParseFloat64Exact(value)
 	if !ok || f < math.Float64frombits(ch.minValue) || f > math.Float64frombits(ch.maxValue) {
 		bm.resetBits()
 		return
