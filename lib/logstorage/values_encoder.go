@@ -44,6 +44,9 @@ const (
 	// Every value occupies 8 bytes.
 	valueTypeUint64 = valueType(6)
 
+	// int values in the range [-(2^63) ... 2^63-1] are encoded into valueTypeInt64.
+	valueTypeInt64 = valueType(10)
+
 	// floating-point values are encoded into valueTypeFloat64.
 	valueTypeFloat64 = valueType(7)
 
@@ -71,6 +74,8 @@ func (t valueType) String() string {
 		return "uint32"
 	case valueTypeUint64:
 		return "uint64"
+	case valueTypeInt64:
+		return "int64"
 	case valueTypeFloat64:
 		return "float64"
 	case valueTypeIPv4:
@@ -118,6 +123,11 @@ func (ve *valuesEncoder) encode(values []string, dict *valuesDict) (valueType, u
 	}
 
 	ve.buf, ve.values, vt, minValue, maxValue = tryUintEncoding(ve.buf[:0], ve.values[:0], values)
+	if vt != valueTypeUnknown {
+		return vt, minValue, maxValue
+	}
+
+	ve.buf, ve.values, vt, minValue, maxValue = tryIntEncoding(ve.buf[:0], ve.values[:0], values)
 	if vt != valueTypeUnknown {
 		return vt, minValue, maxValue
 	}
@@ -229,6 +239,16 @@ func (vd *valuesDecoder) decodeInplace(values []string, vt valueType, dictValues
 			n := unmarshalUint64(v)
 			dstLen := len(dstBuf)
 			dstBuf = marshalUint64String(dstBuf, n)
+			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
+		}
+	case valueTypeInt64:
+		for i, v := range values {
+			if len(v) != 8 {
+				return fmt.Errorf("unexpected value length for int64; got %d; want 8", len(v))
+			}
+			n := unmarshalInt64(v)
+			dstLen := len(dstBuf)
+			dstBuf = marshalInt64String(dstBuf, n)
 			values[i] = bytesutil.ToUnsafeString(dstBuf[dstLen:])
 		}
 	case valueTypeFloat64:
@@ -550,6 +570,32 @@ func tryParseUint64(s string) (uint64, bool) {
 	return n, true
 }
 
+// tryParseInt64 parses s as int64 value.
+func tryParseInt64(s string) (int64, bool) {
+	if len(s) == 0 {
+		return 0, false
+	}
+	isMinus := s[0] == '-'
+	if isMinus {
+		s = s[1:]
+	}
+	n, ok := tryParseUint64(s)
+	if !ok {
+		return 0, false
+	}
+	if n >= 1<<63 {
+		if isMinus && n == 1<<63 {
+			return -1 << 63, true
+		}
+		return 0, false
+	}
+	ni := int64(n)
+	if isMinus {
+		ni = -ni
+	}
+	return ni, true
+}
+
 func tryIPv4Encoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, []string, valueType, uint64, uint64) {
 	u32s := encoding.GetUint32s(len(srcValues))
 	defer encoding.PutUint32s(u32s)
@@ -710,7 +756,7 @@ func tryParseFloat64Internal(s string, isExact bool) (float64, bool) {
 		if !ok {
 			return 0, false
 		}
-		if isExact && n >= (1 << 53) {
+		if isExact && n >= (1<<53) {
 			// The integer cannot be represented as float64 without precision loss.
 			return 0, false
 		}
@@ -1034,6 +1080,33 @@ const (
 	nsecsPerMicrosecond = 1e3
 )
 
+func tryIntEncoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, []string, valueType, uint64, uint64) {
+	i64s := encoding.GetInt64s(len(srcValues))
+	defer encoding.PutInt64s(i64s)
+	a := i64s.A
+	var minValue, maxValue int64
+	for i, v := range srcValues {
+		n, ok := tryParseInt64(v)
+		if !ok {
+			return dstBuf, dstValues, valueTypeUnknown, 0, 0
+		}
+		a[i] = n
+		if i == 0 || n < minValue {
+			minValue = n
+		}
+		if i == 0 || n > maxValue {
+			maxValue = n
+		}
+	}
+	for _, n := range a {
+		dstLen := len(dstBuf)
+		dstBuf = encoding.MarshalInt64(dstBuf, n)
+		v := bytesutil.ToUnsafeString(dstBuf[dstLen:])
+		dstValues = append(dstValues, v)
+	}
+	return dstBuf, dstValues, valueTypeInt64, uint64(minValue), uint64(maxValue)
+}
+
 func tryUintEncoding(dstBuf []byte, dstValues, srcValues []string) ([]byte, []string, valueType, uint64, uint64) {
 	u64s := encoding.GetUint64s(len(srcValues))
 	defer encoding.PutUint64s(u64s)
@@ -1210,6 +1283,11 @@ func unmarshalUint64(v string) uint64 {
 	return encoding.UnmarshalUint64(b)
 }
 
+func unmarshalInt64(v string) int64 {
+	b := bytesutil.ToUnsafeBytes(v)
+	return encoding.UnmarshalInt64(b)
+}
+
 func unmarshalFloat64(v string) float64 {
 	n := unmarshalUint64(v)
 	return math.Float64frombits(n)
@@ -1255,6 +1333,10 @@ func marshalUint32String(dst []byte, n uint32) []byte {
 
 func marshalUint64String(dst []byte, n uint64) []byte {
 	return strconv.AppendUint(dst, n, 10)
+}
+
+func marshalInt64String(dst []byte, n int64) []byte {
+	return strconv.AppendInt(dst, n, 10)
 }
 
 func marshalFloat64String(dst []byte, f float64) []byte {

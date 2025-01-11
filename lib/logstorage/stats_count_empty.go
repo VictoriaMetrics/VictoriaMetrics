@@ -77,7 +77,8 @@ func (scp *statsCountEmptyProcessor) updateStatsForAllRows(br *blockResult) int 
 				}
 			}
 			return 0
-		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
+		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeInt64,
+			valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
 			return 0
 		default:
 			logger.Panicf("BUG: unknown valueType=%d", c.valueType)
@@ -116,7 +117,8 @@ func (scp *statsCountEmptyProcessor) updateStatsForAllRows(br *blockResult) int 
 				dictIdx := valuesEncoded[i][0]
 				return c.dictValues[dictIdx] == ""
 			})
-		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
+		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeInt64,
+			valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
 			return 0
 		default:
 			logger.Panicf("BUG: unknown valueType=%d", c.valueType)
@@ -165,7 +167,8 @@ func (scp *statsCountEmptyProcessor) updateStatsForRow(br *blockResult, rowIdx i
 				scp.rowsCount++
 			}
 			return 0
-		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
+		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeInt64,
+			valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
 			return 0
 		default:
 			logger.Panicf("BUG: unknown valueType=%d", c.valueType)

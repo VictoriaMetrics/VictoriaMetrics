@@ -714,6 +714,60 @@ func TestTryParseUint64_Failure(t *testing.T) {
 
 	// invalid value
 	f("foo")
+	f("1.2")
+	f("1e3")
+}
+
+func TestTryParseInt64_Success(t *testing.T) {
+	f := func(s string, resultExpected int64) {
+		t.Helper()
+
+		result, ok := tryParseInt64(s)
+		if !ok {
+			t.Fatalf("cannot parse %q", s)
+		}
+		if result != resultExpected {
+			t.Fatalf("unexpected value; got %d; want %d", result, resultExpected)
+		}
+	}
+
+	f("0", 0)
+	f("-0", 0)
+	f("123", 123)
+	f("-123", -123)
+	f("1345678901234567890", 1345678901234567890)
+	f("-1_345_678_901_234_567_890", -1345678901234567890)
+
+	// the maximum possible value
+	f("9223372036854775807", 9223372036854775807)
+
+	// the minimum possible value
+	f("-9223372036854775808", -9223372036854775808)
+}
+
+func TestTryParseInt64_Failure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+
+		_, ok := tryParseInt64(s)
+		if ok {
+			t.Fatalf("expecting error when parsing %q", s)
+		}
+	}
+
+	// empty value
+	f("")
+
+	// too big value
+	f("9223372036854775808")
+
+	// too small value
+	f("-9223372036854775809")
+
+	// invalid value
+	f("foo")
+	f("1.2")
+	f("1e3")
 }
 
 func TestMarshalUint8String(t *testing.T) {

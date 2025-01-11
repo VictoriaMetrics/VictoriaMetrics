@@ -150,6 +150,14 @@ func (sqp *statsQuantileProcessor) updateStateForColumn(br *blockResult, c *bloc
 			stateSizeIncrease += h.update(bytesutil.ToUnsafeString(bb.B))
 		}
 		bbPool.Put(bb)
+	case valueTypeInt64:
+		bb := bbPool.Get()
+		for _, v := range c.getValuesEncoded(br) {
+			n := unmarshalInt64(v)
+			bb.B = marshalInt64String(bb.B[:0], n)
+			stateSizeIncrease += h.update(bytesutil.ToUnsafeString(bb.B))
+		}
+		bbPool.Put(bb)
 	case valueTypeFloat64:
 		bb := bbPool.Get()
 		for _, v := range c.getValuesEncoded(br) {

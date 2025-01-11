@@ -123,6 +123,11 @@ func (smp *statsMaxProcessor) updateStateForColumn(br *blockResult, c *blockResu
 		bb.B = marshalUint64String(bb.B[:0], c.maxValue)
 		smp.updateStateBytes(bb.B)
 		bbPool.Put(bb)
+	case valueTypeInt64:
+		bb := bbPool.Get()
+		bb.B = marshalInt64String(bb.B[:0], int64(c.maxValue))
+		smp.updateStateBytes(bb.B)
+		bbPool.Put(bb)
 	case valueTypeFloat64:
 		f := math.Float64frombits(c.maxValue)
 		bb := bbPool.Get()

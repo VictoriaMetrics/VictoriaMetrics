@@ -570,6 +570,7 @@ func getNamesFromColumnHeaders(chs []columnHeader) []string {
 //   - valueTypeDict doesn't store anything in the bloom filter, since all the encoded values
 //     are available directly in the valuesDict field
 //   - valueTypeUint8, valueTypeUint16, valueTypeUint32 and valueTypeUint64 stores encoded uint values
+//   - valueTypeInt64 stores encoded int64 values
 //   - valueTypeFloat64 stores encoded float64 values
 //   - valueTypeIPv4 stores encoded into uint32 ips
 //   - valueTypeTimestampISO8601 stores encoded into uint64 timestamps
@@ -629,20 +630,29 @@ func (ch *columnHeader) reset() {
 // marshal appends marshaled ch to dst and returns the result.
 func (ch *columnHeader) marshal(dst []byte) []byte {
 	// check minValue/maxValue
-	if ch.valueType == valueTypeFloat64 {
+	switch ch.valueType {
+	case valueTypeInt64:
+		minValue := int64(ch.minValue)
+		maxValue := int64(ch.maxValue)
+		if minValue > maxValue {
+			logger.Panicf("BUG: minValue=%d must be smaller than maxValue=%d for valueTypeInt64", minValue, maxValue)
+		}
+	case valueTypeFloat64:
 		minValue := math.Float64frombits(ch.minValue)
 		maxValue := math.Float64frombits(ch.maxValue)
 		if minValue > maxValue {
 			logger.Panicf("BUG: minValue=%g must be smaller than maxValue=%g for valueTypeFloat64", minValue, maxValue)
 		}
-	} else if ch.valueType == valueTypeTimestampISO8601 {
+	case valueTypeTimestampISO8601:
 		minValue := int64(ch.minValue)
 		maxValue := int64(ch.maxValue)
 		if minValue > maxValue {
-			logger.Panicf("BUG: minValue=%g must be smaller than maxValue=%g for valueTypeTimestampISO8601", minValue, maxValue)
+			logger.Panicf("BUG: minValue=%d must be smaller than maxValue=%d for valueTypeTimestampISO8601", minValue, maxValue)
 		}
-	} else if ch.minValue > ch.maxValue {
-		logger.Panicf("BUG: minValue=%d must be smaller than maxValue=%d for valueType=%d", ch.minValue, ch.maxValue, ch.valueType)
+	default:
+		if ch.minValue > ch.maxValue {
+			logger.Panicf("BUG: minValue=%d must be smaller than maxValue=%d for valueType=%d", ch.minValue, ch.maxValue, ch.valueType)
+		}
 	}
 
 	// Do not encode ch.name, since it should be encoded at columnsHeaderIndex.columnHeadersRefs
@@ -672,6 +682,10 @@ func (ch *columnHeader) marshal(dst []byte) []byte {
 	case valueTypeUint64:
 		dst = encoding.MarshalUint64(dst, ch.minValue)
 		dst = encoding.MarshalUint64(dst, ch.maxValue)
+		dst = ch.marshalValuesAndBloomFilters(dst)
+	case valueTypeInt64:
+		dst = encoding.MarshalInt64(dst, int64(ch.minValue))
+		dst = encoding.MarshalInt64(dst, int64(ch.maxValue))
 		dst = ch.marshalValuesAndBloomFilters(dst)
 	case valueTypeFloat64:
 		// float64 values are encoded as uint64 via math.Float64bits()
@@ -807,6 +821,19 @@ func (ch *columnHeader) unmarshalNoArena(src []byte, partFormatVersion uint) ([]
 		tail, err := ch.unmarshalValuesAndBloomFilters(src)
 		if err != nil {
 			return srcOrig, fmt.Errorf("cannot unmarshal values and bloom filters at valueTypeUint64 for column %q: %w", ch.name, err)
+		}
+		src = tail
+	case valueTypeInt64:
+		if len(src) < 16 {
+			return srcOrig, fmt.Errorf("cannot unmarshal min/max values at valueTypeInt64 from %d bytes for column %q; need at least 16 bytes", len(src), ch.name)
+		}
+		ch.minValue = uint64(encoding.UnmarshalInt64(src))
+		ch.maxValue = uint64(encoding.UnmarshalInt64(src[8:]))
+		src = src[16:]
+
+		tail, err := ch.unmarshalValuesAndBloomFilters(src)
+		if err != nil {
+			return srcOrig, fmt.Errorf("cannot unmarshal values and bloom filters at valueTypeInt64 for column %q: %w", ch.name, err)
 		}
 		src = tail
 	case valueTypeFloat64:

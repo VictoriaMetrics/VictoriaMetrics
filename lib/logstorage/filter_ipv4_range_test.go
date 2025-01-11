@@ -310,6 +310,37 @@ func TestFilterIPv4Range(t *testing.T) {
 		testFilterMatchForColumns(t, columns, fr, "foo", nil)
 	})
 
+	t.Run("int64", func(t *testing.T) {
+		t.Parallel()
+
+		columns := []column{
+			{
+				name: "foo",
+				values: []string{
+					"123",
+					"12",
+					"32",
+					"0",
+					"0",
+					"-12345678901",
+					"1",
+					"2",
+					"3",
+					"4",
+					"5",
+				},
+			},
+		}
+
+		// mismatch
+		fr := &filterIPv4Range{
+			fieldName: "foo",
+			minValue:  0,
+			maxValue:  0xffffffff,
+		}
+		testFilterMatchForColumns(t, columns, fr, "foo", nil)
+	})
+
 	t.Run("float64", func(t *testing.T) {
 		t.Parallel()
 

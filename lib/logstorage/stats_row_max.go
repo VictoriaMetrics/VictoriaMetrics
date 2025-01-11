@@ -90,6 +90,11 @@ func (smp *statsRowMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 		bb.B = marshalUint64String(bb.B[:0], c.maxValue)
 		needUpdateState = smp.needUpdateStateBytes(bb.B)
 		bbPool.Put(bb)
+	case valueTypeInt64:
+		bb := bbPool.Get()
+		bb.B = marshalInt64String(bb.B[:0], int64(c.maxValue))
+		needUpdateState = smp.needUpdateStateBytes(bb.B)
+		bbPool.Put(bb)
 	case valueTypeFloat64:
 		f := math.Float64frombits(c.maxValue)
 		bb := bbPool.Get()

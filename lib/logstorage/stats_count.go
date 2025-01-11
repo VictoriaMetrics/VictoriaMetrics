@@ -75,7 +75,8 @@ func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
 				}
 			}
 			return 0
-		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
+		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeInt64,
+			valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
 			scp.rowsCount += uint64(br.rowsLen)
 			return 0
 		default:
@@ -119,7 +120,8 @@ func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
 				dictIdx := valuesEncoded[i][0]
 				return c.dictValues[dictIdx] == ""
 			})
-		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
+		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeInt64,
+			valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
 			scp.rowsCount += uint64(br.rowsLen)
 			return 0
 		default:
@@ -167,7 +169,8 @@ func (scp *statsCountProcessor) updateStatsForRow(br *blockResult, rowIdx int) i
 				scp.rowsCount++
 			}
 			return 0
-		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
+		case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64, valueTypeInt64,
+			valueTypeFloat64, valueTypeIPv4, valueTypeTimestampISO8601:
 			scp.rowsCount++
 			return 0
 		default:
