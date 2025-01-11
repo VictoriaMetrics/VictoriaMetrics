@@ -344,6 +344,52 @@ func TestFilterLenRange(t *testing.T) {
 		testFilterMatchForColumns(t, columns, fr, "foo", nil)
 	})
 
+	t.Run("int64", func(t *testing.T) {
+		t.Parallel()
+
+		columns := []column{
+			{
+				name: "foo",
+				values: []string{
+					"123456789012",
+					"12",
+					"32",
+					"0",
+					"0",
+					"12",
+					"-1",
+					"2",
+					"3",
+					"4",
+					"5",
+				},
+			},
+		}
+
+		// match
+		fr := &filterLenRange{
+			fieldName: "foo",
+			minLen:    2,
+			maxLen:    2,
+		}
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{1, 2, 5, 6})
+
+		// mismatch
+		fr = &filterLenRange{
+			fieldName: "foo",
+			minLen:    0,
+			maxLen:    0,
+		}
+		testFilterMatchForColumns(t, columns, fr, "foo", nil)
+
+		fr = &filterLenRange{
+			fieldName: "foo",
+			minLen:    20,
+			maxLen:    20,
+		}
+		testFilterMatchForColumns(t, columns, fr, "foo", nil)
+	})
+
 	t.Run("float64", func(t *testing.T) {
 		t.Parallel()
 

@@ -48,6 +48,9 @@ type filterIn struct {
 	uint64ValuesOnce sync.Once
 	uint64Values     map[string]struct{}
 
+	int64ValuesOnce sync.Once
+	int64Values     map[string]struct{}
+
 	float64ValuesOnce sync.Once
 	float64Values     map[string]struct{}
 
@@ -185,6 +188,11 @@ func (fi *filterIn) getUint64Values() map[string]struct{} {
 	return fi.uint64Values
 }
 
+func (fi *filterIn) getInt64Values() map[string]struct{} {
+	fi.int64ValuesOnce.Do(fi.initInt64Values)
+	return fi.int64Values
+}
+
 func (fi *filterIn) initUint64Values() {
 	values := fi.values
 	m := make(map[string]struct{}, len(values))
@@ -200,6 +208,23 @@ func (fi *filterIn) initUint64Values() {
 		m[s] = struct{}{}
 	}
 	fi.uint64Values = m
+}
+
+func (fi *filterIn) initInt64Values() {
+	values := fi.values
+	m := make(map[string]struct{}, len(values))
+	buf := make([]byte, 0, len(values)*8)
+	for _, v := range values {
+		n, ok := tryParseInt64(v)
+		if !ok {
+			continue
+		}
+		bufLen := len(buf)
+		buf = encoding.MarshalInt64(buf, n)
+		s := bytesutil.ToUnsafeString(buf[bufLen:])
+		m[s] = struct{}{}
+	}
+	fi.int64Values = m
 }
 
 func (fi *filterIn) getFloat64Values() map[string]struct{} {
@@ -320,6 +345,9 @@ func (fi *filterIn) applyToBlockResult(br *blockResult, bm *bitmap) {
 	case valueTypeUint64:
 		binValues := fi.getUint64Values()
 		matchColumnByBinValues(br, bm, c, binValues)
+	case valueTypeInt64:
+		binValues := fi.getInt64Values()
+		matchColumnByBinValues(br, bm, c, binValues)
 	case valueTypeFloat64:
 		binValues := fi.getFloat64Values()
 		matchColumnByBinValues(br, bm, c, binValues)
@@ -406,6 +434,9 @@ func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchAnyValue(bs, ch, bm, binValues, commonTokens, tokenSets)
 	case valueTypeUint64:
 		binValues := fi.getUint64Values()
+		matchAnyValue(bs, ch, bm, binValues, commonTokens, tokenSets)
+	case valueTypeInt64:
+		binValues := fi.getInt64Values()
 		matchAnyValue(bs, ch, bm, binValues, commonTokens, tokenSets)
 	case valueTypeFloat64:
 		binValues := fi.getFloat64Values()

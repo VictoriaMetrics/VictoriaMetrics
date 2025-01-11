@@ -111,6 +111,8 @@ func (fr *filterRegexp) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32ByRegexp(bs, ch, bm, re, tokens)
 	case valueTypeUint64:
 		matchUint64ByRegexp(bs, ch, bm, re, tokens)
+	case valueTypeInt64:
+		matchInt64ByRegexp(bs, ch, bm, re, tokens)
 	case valueTypeFloat64:
 		matchFloat64ByRegexp(bs, ch, bm, re, tokens)
 	case valueTypeIPv4:
@@ -231,6 +233,19 @@ func matchUint64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *rege
 	bb := bbPool.Get()
 	visitValues(bs, ch, bm, func(v string) bool {
 		s := toUint64String(bs, bb, v)
+		return re.MatchString(s)
+	})
+	bbPool.Put(bb)
+}
+
+func matchInt64ByRegexp(bs *blockSearch, ch *columnHeader, bm *bitmap, re *regexutil.Regex, tokens []uint64) {
+	if !matchBloomFilterAllTokens(bs, ch, tokens) {
+		bm.resetBits()
+		return
+	}
+	bb := bbPool.Get()
+	visitValues(bs, ch, bm, func(v string) bool {
+		s := toInt64String(bs, bb, v)
 		return re.MatchString(s)
 	})
 	bbPool.Put(bb)

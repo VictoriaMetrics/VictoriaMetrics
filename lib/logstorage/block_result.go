@@ -519,6 +519,13 @@ func (br *blockResult) newValuesEncodedFromColumnHeader(bs *blockSearch, bm *bit
 			}
 			br.addValue(v)
 		})
+	case valueTypeInt64:
+		visitValuesReadonly(bs, ch, bm, func(v string) {
+			if len(v) != 8 {
+				logger.Panicf("FATAL: %s: unexpected size for int64 column %q; got %d bytes; want 8 bytes", bs.partPath(), ch.name, len(v))
+			}
+			br.addValue(v)
+		})
 	case valueTypeFloat64:
 		visitValuesReadonly(bs, ch, bm, func(v string) {
 			if len(v) != 8 {
@@ -642,6 +649,8 @@ func (br *blockResult) newValuesBucketedForColumn(c *blockResultColumn, bf *bySt
 		return br.getBucketedUint32Values(valuesEncoded, bf)
 	case valueTypeUint64:
 		return br.getBucketedUint64Values(valuesEncoded, bf)
+	case valueTypeInt64:
+		return br.getBucketedInt64Values(valuesEncoded, bf)
 	case valueTypeFloat64:
 		return br.getBucketedFloat64Values(valuesEncoded, bf)
 	case valueTypeIPv4:
@@ -999,6 +1008,64 @@ func (br *blockResult) getBucketedUint64Values(valuesEncoded []string, bf *bySta
 
 			bufLen := len(buf)
 			buf = marshalUint64String(buf, n)
+			s = bytesutil.ToUnsafeString(buf[bufLen:])
+			valuesBuf = append(valuesBuf, s)
+		}
+	}
+
+	br.valuesBuf = valuesBuf
+	br.a.b = buf
+
+	return br.valuesBuf[valuesBufLen:]
+}
+
+func (br *blockResult) getBucketedInt64Values(valuesEncoded []string, bf *byStatsField) []string {
+	buf := br.a.b
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+
+	var s string
+
+	if !bf.hasBucketConfig() {
+		for i, v := range valuesEncoded {
+			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
+				valuesBuf = append(valuesBuf, s)
+				continue
+			}
+
+			n := unmarshalInt64(v)
+			bufLen := len(buf)
+			buf = marshalInt64String(buf, n)
+			s = bytesutil.ToUnsafeString(buf[bufLen:])
+			valuesBuf = append(valuesBuf, s)
+		}
+	} else {
+		bucketSizeInt := int64(bf.bucketSize)
+		if bucketSizeInt == 0 {
+			bucketSizeInt = 1
+		}
+		bucketOffsetInt := int64(bf.bucketOffset)
+
+		nPrev := int64(0)
+		for i, v := range valuesEncoded {
+			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
+				valuesBuf = append(valuesBuf, s)
+				continue
+			}
+
+			n := unmarshalInt64(v)
+			n -= bucketOffsetInt
+			n -= n % bucketSizeInt
+			n += bucketOffsetInt
+
+			if i > 0 && nPrev == n {
+				valuesBuf = append(valuesBuf, s)
+				continue
+			}
+			nPrev = n
+
+			bufLen := len(buf)
+			buf = marshalInt64String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -1820,6 +1887,9 @@ func (c *blockResultColumn) getFloatValueAtRow(br *blockResult, rowIdx int) (flo
 	case valueTypeUint64:
 		v := valuesEncoded[rowIdx]
 		return float64(unmarshalUint64(v)), true
+	case valueTypeInt64:
+		v := valuesEncoded[rowIdx]
+		return float64(unmarshalInt64(v)), true
 	case valueTypeFloat64:
 		v := valuesEncoded[rowIdx]
 		f := unmarshalFloat64(v)
@@ -1862,6 +1932,8 @@ func (c *blockResultColumn) sumLenValues(br *blockResult) uint64 {
 	case valueTypeUint32:
 		return c.sumLenStringValues(br)
 	case valueTypeUint64:
+		return c.sumLenStringValues(br)
+	case valueTypeInt64:
 		return c.sumLenStringValues(br)
 	case valueTypeFloat64:
 		return c.sumLenStringValues(br)
@@ -1958,6 +2030,12 @@ func (c *blockResultColumn) sumValues(br *blockResult) (float64, int) {
 		sum := float64(0)
 		for _, v := range c.getValuesEncoded(br) {
 			sum += float64(unmarshalUint64(v))
+		}
+		return sum, br.rowsLen
+	case valueTypeInt64:
+		sum := float64(0)
+		for _, v := range c.getValuesEncoded(br) {
+			sum += float64(unmarshalInt64(v))
 		}
 		return sum, br.rowsLen
 	case valueTypeFloat64:
