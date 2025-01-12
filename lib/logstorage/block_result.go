@@ -270,8 +270,8 @@ func (br *blockResult) addResultColumnFloat64(rc *resultColumn, minValue, maxVal
 	br.csAdd(blockResultColumn{
 		name:          rc.name,
 		valueType:     valueTypeFloat64,
-		minValue: math.Float64bits(minValue),
-		maxValue: math.Float64bits(maxValue),
+		minValue:      math.Float64bits(minValue),
+		maxValue:      math.Float64bits(maxValue),
 		valuesEncoded: rc.values,
 	})
 }
