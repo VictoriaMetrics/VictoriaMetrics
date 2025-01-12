@@ -30,7 +30,7 @@ import (
 	"github.com/grafana/regexp"
 	"github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
-	"github.com/prometheus/common/sigv4"
+	"github.com/prometheus/sigv4"
 	"gopkg.in/yaml.v2"
 
 	"github.com/prometheus/prometheus/discovery"
@@ -117,11 +117,12 @@ func Load(s string, logger *slog.Logger) (*Config, error) {
 	default:
 		return nil, fmt.Errorf("unsupported OTLP translation strategy %q", cfg.OTLPConfig.TranslationStrategy)
 	}
-
+	cfg.loaded = true
 	return cfg, nil
 }
 
-// LoadFile parses the given YAML file into a Config.
+// LoadFile parses and validates the given YAML file into a read-only Config.
+// Callers should never write to or shallow copy the returned Config.
 func LoadFile(filename string, agentMode bool, logger *slog.Logger) (*Config, error) {
 	content, err := os.ReadFile(filename)
 	if err != nil {
@@ -270,9 +271,12 @@ type Config struct {
 	RemoteWriteConfigs []*RemoteWriteConfig `yaml:"remote_write,omitempty"`
 	RemoteReadConfigs  []*RemoteReadConfig  `yaml:"remote_read,omitempty"`
 	OTLPConfig         OTLPConfig           `yaml:"otlp,omitempty"`
+
+	loaded bool // Certain methods require configuration to use Load validation.
 }
 
 // SetDirectory joins any relative file paths with dir.
+// This method writes to config, and it's not concurrency safe.
 func (c *Config) SetDirectory(dir string) {
 	c.GlobalConfig.SetDirectory(dir)
 	c.AlertingConfig.SetDirectory(dir)
@@ -302,24 +306,26 @@ func (c Config) String() string {
 	return string(b)
 }
 
-// GetScrapeConfigs returns the scrape configurations.
+// GetScrapeConfigs returns the read-only, validated scrape configurations including
+// the ones from the scrape_config_files.
+// This method does not write to config, and it's concurrency safe (the pointer receiver is for efficiency).
+// This method also assumes the Config was created by Load or LoadFile function, it returns error
+// if it was not. We can't re-validate or apply globals here due to races,
+// read more https://github.com/prometheus/prometheus/issues/15538.
 func (c *Config) GetScrapeConfigs() ([]*ScrapeConfig, error) {
-	scfgs := make([]*ScrapeConfig, len(c.ScrapeConfigs))
+	if !c.loaded {
+		// Programmatic error, we warn before more confusing errors would happen due to lack of the globalization.
+		return nil, errors.New("scrape config cannot be fetched, main config was not validated and loaded correctly; should not happen")
+	}
 
+	scfgs := make([]*ScrapeConfig, len(c.ScrapeConfigs))
 	jobNames := map[string]string{}
 	for i, scfg := range c.ScrapeConfigs {
-		// We do these checks for library users that would not call validate in
-		// Unmarshal.
-		if err := scfg.Validate(c.GlobalConfig); err != nil {
-			return nil, err
-		}
-
-		if _, ok := jobNames[scfg.JobName]; ok {
-			return nil, fmt.Errorf("found multiple scrape configs with job name %q", scfg.JobName)
-		}
 		jobNames[scfg.JobName] = "main config file"
 		scfgs[i] = scfg
 	}
+
+	// Re-read and validate the dynamic scrape config rules.
 	for _, pat := range c.ScrapeConfigFiles {
 		fs, err := filepath.Glob(pat)
 		if err != nil {
@@ -355,6 +361,7 @@ func (c *Config) GetScrapeConfigs() ([]*ScrapeConfig, error) {
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
+// NOTE: This method should not be used outside of this package. Use Load or LoadFile instead.
 func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	*c = DefaultConfig
 	// We want to set c to the defaults and then overwrite it with the input.
@@ -391,18 +398,18 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		}
 	}
 
-	// Do global overrides and validate unique names.
+	// Do global overrides and validation.
 	jobNames := map[string]struct{}{}
 	for _, scfg := range c.ScrapeConfigs {
 		if err := scfg.Validate(c.GlobalConfig); err != nil {
 			return err
 		}
-
 		if _, ok := jobNames[scfg.JobName]; ok {
 			return fmt.Errorf("found multiple scrape configs with job name %q", scfg.JobName)
 		}
 		jobNames[scfg.JobName] = struct{}{}
 	}
+
 	rwNames := map[string]struct{}{}
 	for _, rwcfg := range c.RemoteWriteConfigs {
 		if rwcfg == nil {
@@ -1086,7 +1093,7 @@ func (c *AlertmanagerConfig) UnmarshalYAML(unmarshal func(interface{}) error) er
 		c.HTTPClientConfig.Authorization != nil || c.HTTPClientConfig.OAuth2 != nil
 
 	if httpClientConfigAuthEnabled && c.SigV4Config != nil {
-		return fmt.Errorf("at most one of basic_auth, authorization, oauth2, & sigv4 must be configured")
+		return errors.New("at most one of basic_auth, authorization, oauth2, & sigv4 must be configured")
 	}
 
 	// Check for users putting URLs in target groups.
@@ -1195,6 +1202,7 @@ type RemoteWriteConfig struct {
 	Name                 string            `yaml:"name,omitempty"`
 	SendExemplars        bool              `yaml:"send_exemplars,omitempty"`
 	SendNativeHistograms bool              `yaml:"send_native_histograms,omitempty"`
+	RoundRobinDNS        bool              `yaml:"round_robin_dns,omitempty"`
 	// ProtobufMessage specifies the protobuf message to use against the remote
 	// receiver as specified in https://prometheus.io/docs/specs/remote_write_spec_2_0/
 	ProtobufMessage RemoteWriteProtoMsg `yaml:"protobuf_message,omitempty"`
@@ -1419,17 +1427,21 @@ func getGoGCEnv() int {
 type translationStrategyOption string
 
 var (
-	// NoUTF8EscapingWithSuffixes will keep UTF-8 characters as they are, units and type suffixes will still be added.
+	// NoUTF8EscapingWithSuffixes will accept metric/label names as they are.
+	// Unit and type suffixes may be added to metric names, according to certain rules.
 	NoUTF8EscapingWithSuffixes translationStrategyOption = "NoUTF8EscapingWithSuffixes"
 	// UnderscoreEscapingWithSuffixes is the default option for translating OTLP to Prometheus.
-	// This option will translate all UTF-8 characters to underscores, while adding units and type suffixes.
+	// This option will translate metric name characters that are not alphanumerics/underscores/colons to underscores,
+	// and label name characters that are not alphanumerics/underscores to underscores.
+	// Unit and type suffixes may be appended to metric names, according to certain rules.
 	UnderscoreEscapingWithSuffixes translationStrategyOption = "UnderscoreEscapingWithSuffixes"
 )
 
 // OTLPConfig is the configuration for writing to the OTLP endpoint.
 type OTLPConfig struct {
-	PromoteResourceAttributes []string                  `yaml:"promote_resource_attributes,omitempty"`
-	TranslationStrategy       translationStrategyOption `yaml:"translation_strategy,omitempty"`
+	PromoteResourceAttributes         []string                  `yaml:"promote_resource_attributes,omitempty"`
+	TranslationStrategy               translationStrategyOption `yaml:"translation_strategy,omitempty"`
+	KeepIdentifyingResourceAttributes bool                      `yaml:"keep_identifying_resource_attributes,omitempty"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -1445,7 +1457,7 @@ func (c *OTLPConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	for i, attr := range c.PromoteResourceAttributes {
 		attr = strings.TrimSpace(attr)
 		if attr == "" {
-			err = errors.Join(err, fmt.Errorf("empty promoted OTel resource attribute"))
+			err = errors.Join(err, errors.New("empty promoted OTel resource attribute"))
 			continue
 		}
 		if _, exists := seen[attr]; exists {
