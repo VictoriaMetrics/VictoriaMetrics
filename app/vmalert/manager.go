@@ -160,8 +160,8 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 			// it is important to call InterruptEval before the update, because cancel fn
 			// can be re-assigned during the update.
 			item.old.InterruptEval()
-			go func(old *rule.Group, new *rule.Group) {
-				old.UpdateWith(new)
+			go func(oldGroup *rule.Group, newGroup *rule.Group) {
+				oldGroup.UpdateWith(newGroup)
 				wg.Done()
 			}(item.old, item.new)
 		}
