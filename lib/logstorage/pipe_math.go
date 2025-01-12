@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
@@ -267,7 +268,7 @@ type pipeMathProcessorShardNopad struct {
 	rsBuf []float64
 }
 
-func (shard *pipeMathProcessorShard) executeMathEntry(e *mathEntry, rc *resultColumn, br *blockResult) {
+func (shard *pipeMathProcessorShard) executeMathEntry(e *mathEntry, rc *resultColumn, br *blockResult) (float64, float64) {
 	clear(shard.rs)
 	shard.rs = shard.rs[:0]
 	shard.rsBuf = shard.rsBuf[:0]
@@ -276,13 +277,28 @@ func (shard *pipeMathProcessorShard) executeMathEntry(e *mathEntry, rc *resultCo
 	r := shard.rs[0]
 
 	b := shard.a.b
+	minValue := nan
+	maxValue := nan
 	for _, f := range r {
+		if math.IsNaN(minValue) {
+			minValue = f
+			maxValue = f
+		} else if !math.IsNaN(f) {
+			if f < minValue {
+				minValue = f
+			} else if f > maxValue {
+				maxValue = f
+			}
+		}
+		n := math.Float64bits(f)
 		bLen := len(b)
-		b = marshalFloat64String(b, f)
+		b = encoding.MarshalUint64(b, n)
 		v := bytesutil.ToUnsafeString(b[bLen:])
 		rc.addValue(v)
 	}
 	shard.a.b = b
+
+	return minValue, maxValue
 }
 
 func (shard *pipeMathProcessorShard) executeExpr(me *mathExpr, br *blockResult) {
@@ -300,15 +316,42 @@ func (shard *pipeMathProcessorShard) executeExpr(me *mathExpr, br *blockResult) 
 		return
 	}
 	if me.fieldName != "" {
-		c := br.getColumnByName(me.fieldName)
-		values := c.getValues(br)
 		r := shard.rs[rIdx]
-		var f float64
-		for i, v := range values {
-			if i == 0 || v != values[i-1] {
-				f = parseMathNumber(v)
+		c := br.getColumnByName(me.fieldName)
+		switch c.valueType {
+		case valueTypeUint8:
+			for i, v := range c.getValuesEncoded(br) {
+				r[i] = float64(unmarshalUint8(v))
 			}
-			r[i] = f
+		case valueTypeUint16:
+			for i, v := range c.getValuesEncoded(br) {
+				r[i] = float64(unmarshalUint16(v))
+			}
+		case valueTypeUint32:
+			for i, v := range c.getValuesEncoded(br) {
+				r[i] = float64(unmarshalUint32(v))
+			}
+		case valueTypeUint64:
+			for i, v := range c.getValuesEncoded(br) {
+				r[i] = float64(unmarshalUint64(v))
+			}
+		case valueTypeInt64:
+			for i, v := range c.getValuesEncoded(br) {
+				r[i] = float64(unmarshalInt64(v))
+			}
+		case valueTypeFloat64:
+			for i, v := range c.getValuesEncoded(br) {
+				r[i] = unmarshalFloat64(v)
+			}
+		default:
+			values := c.getValues(br)
+			var f float64
+			for i, v := range values {
+				if i == 0 || v != values[i-1] {
+					f = parseMathNumber(v)
+				}
+				r[i] = f
+			}
 		}
 		return
 	}
@@ -339,8 +382,8 @@ func (pmp *pipeMathProcessor) writeBlock(workerID uint, br *blockResult) {
 	for i, e := range entries {
 		rc := &rcs[i]
 		rc.name = e.resultField
-		shard.executeMathEntry(e, rc, br)
-		br.addResultColumn(rc)
+		minValue, maxValue := shard.executeMathEntry(e, rc, br)
+		br.addResultColumnFloat64(rc, minValue, maxValue)
 	}
 
 	pmp.ppNext.writeBlock(workerID, br)
