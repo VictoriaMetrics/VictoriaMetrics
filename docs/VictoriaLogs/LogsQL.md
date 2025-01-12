@@ -271,6 +271,7 @@ The list of LogsQL filters:
 - [IPv4 range filter](#ipv4-range-filter) - matches logs with ip address [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in the given range
 - [String range filter](#string-range-filter) - matches logs with [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in the given string range
 - [Length range filter](#length-range-filter) - matches logs with [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) of the given length range
+- [Value type filter](#value_type-filter) - matches logs with [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) stored under the given value type
 - [Logical filter](#logical-filter) - allows combining other filters
 
 
@@ -1224,9 +1225,27 @@ See also:
 - [Logical filter](#logical-filter)
 
 
+### value_type filter
+
+VictoriaLogs automatically detects types for the ingested [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) and stores log field values
+according to the detected type (such as `const`, `dict`, `string`, `int64`, `float64`, etc.). Value types for stored fields can be obtained via [`block_stats` pipe](#block_stats-pipe).
+
+Sometimes it is needed to select logs with fields of a particular value type. Then `value_type(type)` filter can be used.
+For example, the following filter selects logs where `user_id` field values are stored as `uint64` type:
+
+```logsql
+user_id:value_type(uint64)
+```
+
+See also:
+
+- [`block_stats` pipe](#block_stats-pipe)
+- [Logical filter](#logical-filter)
+
+
 ### Logical filter
 
-Simpler LogsQL [filters](#filters) can be combined into more complex filters with the following logical operations:
+Basic LogsQL [filters](#filters) can be combined into more complex filters with the following logical operations:
 
 - `q1 AND q2` - matches common log entries returned by both `q1` and `q2`. Arbitrary number of [filters](#filters) can be combined with `AND` operation.
   For example, `error AND file AND app` matches [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
@@ -1347,6 +1366,7 @@ The returned per-block stats:
 
 See also:
 
+- [`value_type` filter](#value_type-filter)
 - [`blocks_count` pipe](#blocks_count-pipe)
 - [`len` pipe](#len-pipe)
 
