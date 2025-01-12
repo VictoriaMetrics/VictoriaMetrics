@@ -18,6 +18,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 * FEATURE: [`count_uniq` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-stats): improve performance by up to 50% and reduce memory usage by up to 2.5x when this function is applied to fields with integer values.
 * FEATURE: [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe): improve performance by up to 8x.
+* FEATURE: add [`value_type` filter](https://docs.victoriametrics.com/victorialogs/logsql/#value_type-filter), which can be useful during exploration of the stored logs.
 * FEATURE: [Datadog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/): added `-datadog.streamFields` and `-datadog.ignoreFields` flags to configured default stream and ignore fields. Useful for Datadog serverless plugin, which doesn't allow to provide extra headers of query args.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add support for autocomplete in LogsQL queries. This feature provides suggestions for field names, field values, and pipe names.
 
