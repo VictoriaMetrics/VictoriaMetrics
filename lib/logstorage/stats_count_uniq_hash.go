@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"runtime"
 	"strconv"
 	"sync"
 	"unsafe"
@@ -34,7 +35,6 @@ func (su *statsCountUniqHash) newStatsProcessor(a *chunkedAllocator) statsProces
 	sup := a.newStatsCountUniqHashProcessor()
 	sup.a = a
 	sup.su = su
-	sup.m = make(map[uint64]struct{})
 	return sup
 }
 
@@ -42,12 +42,53 @@ type statsCountUniqHashProcessor struct {
 	a  *chunkedAllocator
 	su *statsCountUniqHash
 
-	m  map[uint64]struct{}
-	ms []map[uint64]struct{}
+	m  statsCountUniqHashSet
+	ms []statsCountUniqHashSet
 
 	columnValues [][]string
 	keyBuf       []byte
 	tmpNum       int
+}
+
+type statsCountUniqHashSet struct {
+	m            map[uint64]struct{}
+	entriesCount uint64
+}
+
+func (sus *statsCountUniqHashSet) reset() {
+	sus.m = nil
+	sus.entriesCount = 0
+}
+
+func (sus *statsCountUniqHashSet) updateStateTimestamp(ts int64) int {
+	v := unsafe.Slice((*byte)(unsafe.Pointer(&ts)), 8)
+	h := xxhash.Sum64(v)
+	runtime.KeepAlive(ts)
+	return sus.updateStateHash(h)
+}
+
+func (sus *statsCountUniqHashSet) updateState(v string) int {
+	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(v))
+	return sus.updateStateHash(h)
+}
+
+func (sus *statsCountUniqHashSet) updateStateHash(h uint64) int {
+	_, ok := sus.m[h]
+	if ok {
+		return 0
+	}
+	if sus.m == nil {
+		sus.m = make(map[uint64]struct{})
+	}
+	sus.m[h] = struct{}{}
+	sus.entriesCount++
+	return 8
+}
+
+func (sus *statsCountUniqHashSet) mergeState(src *statsCountUniqHashSet) {
+	for h := range src.m {
+		sus.updateStateHash(h)
+	}
 }
 
 func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(br *blockResult) int {
@@ -98,30 +139,24 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(br *blockResult) i
 				// Do not count empty values
 				continue
 			}
-			stateSizeIncrease += sup.updateState(keyBuf)
+			stateSizeIncrease += sup.m.updateState(bytesutil.ToUnsafeString(keyBuf))
 		}
 		sup.keyBuf = keyBuf
 		return stateSizeIncrease
 	}
 	if len(fields) == 1 {
 		// Fast path for a single column.
-		// The unique key is formed as "<is_time> <value>",
-		// This guarantees that keys do not clash for different column types across blocks.
 		c := br.getColumnByName(fields[0])
 		if c.isTime {
 			// Count unique timestamps
 			timestamps := br.getTimestamps()
-			keyBuf := sup.keyBuf[:0]
 			for i, timestamp := range timestamps {
 				if i > 0 && timestamps[i-1] == timestamps[i] {
 					// This timestamp has been already counted.
 					continue
 				}
-				keyBuf = append(keyBuf[:0], 1)
-				keyBuf = encoding.MarshalInt64(keyBuf, timestamp)
-				stateSizeIncrease += sup.updateState(keyBuf)
+				stateSizeIncrease += sup.m.updateStateTimestamp(timestamp)
 			}
-			sup.keyBuf = keyBuf
 			return stateSizeIncrease
 		}
 		if c.isConst {
@@ -129,14 +164,9 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(br *blockResult) i
 			v := c.valuesEncoded[0]
 			if v == "" {
 				// Do not count empty values
-				return stateSizeIncrease
+				return 0
 			}
-			keyBuf := sup.keyBuf[:0]
-			keyBuf = append(keyBuf[:0], 0)
-			keyBuf = append(keyBuf, v...)
-			stateSizeIncrease += sup.updateState(keyBuf)
-			sup.keyBuf = keyBuf
-			return stateSizeIncrease
+			return sup.m.updateState(v)
 		}
 		if c.valueType == valueTypeDict {
 			// count unique non-zero dict values for the selected logs
@@ -146,18 +176,13 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(br *blockResult) i
 					// Do not count empty values
 					return
 				}
-				keyBuf := append(sup.keyBuf[:0], 0)
-				keyBuf = append(keyBuf, v...)
-				sup.tmpNum += sup.updateState(keyBuf)
-				sup.keyBuf = keyBuf
+				sup.tmpNum += sup.m.updateState(v)
 			})
-			stateSizeIncrease += sup.tmpNum
-			return stateSizeIncrease
+			return sup.tmpNum
 		}
 
-		// Count unique values across values
+		// Count unique values across column values
 		values := c.getValues(br)
-		keyBuf := sup.keyBuf[:0]
 		for i, v := range values {
 			if v == "" {
 				// Do not count empty values
@@ -167,11 +192,8 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(br *blockResult) i
 				// This value has been already counted.
 				continue
 			}
-			keyBuf = append(keyBuf[:0], 0)
-			keyBuf = append(keyBuf, v...)
-			stateSizeIncrease += sup.updateState(keyBuf)
+			stateSizeIncrease += sup.m.updateState(v)
 		}
-		sup.keyBuf = keyBuf
 		return stateSizeIncrease
 	}
 
@@ -212,7 +234,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(br *blockResult) i
 			// Do not count empty values
 			continue
 		}
-		stateSizeIncrease += sup.updateState(keyBuf)
+		stateSizeIncrease += sup.m.updateState(bytesutil.ToUnsafeString(keyBuf))
 	}
 	sup.keyBuf = keyBuf
 	return stateSizeIncrease
@@ -225,7 +247,6 @@ func (sup *statsCountUniqHashProcessor) updateStatsForRow(br *blockResult, rowId
 
 	fields := sup.su.fields
 
-	stateSizeIncrease := 0
 	if len(fields) == 0 {
 		// Count unique rows
 		allEmptyValues := true
@@ -243,39 +264,27 @@ func (sup *statsCountUniqHashProcessor) updateStatsForRow(br *blockResult, rowId
 
 		if allEmptyValues {
 			// Do not count empty values
-			return stateSizeIncrease
+			return 0
 		}
-		stateSizeIncrease += sup.updateState(keyBuf)
-		return stateSizeIncrease
+		return sup.m.updateState(bytesutil.ToUnsafeString(keyBuf))
 	}
 	if len(fields) == 1 {
 		// Fast path for a single column.
-		// The unique key is formed as "<is_time> <value>",
-		// This guarantees that keys do not clash for different column types across blocks.
 		c := br.getColumnByName(fields[0])
 		if c.isTime {
 			// Count unique timestamps
 			timestamps := br.getTimestamps()
-			keyBuf := sup.keyBuf[:0]
-			keyBuf = append(keyBuf[:0], 1)
-			keyBuf = encoding.MarshalInt64(keyBuf, timestamps[rowIdx])
-			stateSizeIncrease += sup.updateState(keyBuf)
-			sup.keyBuf = keyBuf
-			return stateSizeIncrease
+			timestamp := timestamps[rowIdx]
+			return sup.m.updateStateTimestamp(timestamp)
 		}
 		if c.isConst {
 			// count unique const values
 			v := c.valuesEncoded[0]
 			if v == "" {
 				// Do not count empty values
-				return stateSizeIncrease
+				return 0
 			}
-			keyBuf := sup.keyBuf[:0]
-			keyBuf = append(keyBuf[:0], 0)
-			keyBuf = append(keyBuf, v...)
-			stateSizeIncrease += sup.updateState(keyBuf)
-			sup.keyBuf = keyBuf
-			return stateSizeIncrease
+			return sup.m.updateState(v)
 		}
 		if c.valueType == valueTypeDict {
 			// count unique non-zero c.dictValues
@@ -284,28 +293,18 @@ func (sup *statsCountUniqHashProcessor) updateStatsForRow(br *blockResult, rowId
 			v := c.dictValues[dictIdx]
 			if v == "" {
 				// Do not count empty values
-				return stateSizeIncrease
+				return 0
 			}
-			keyBuf := sup.keyBuf[:0]
-			keyBuf = append(keyBuf[:0], 0)
-			keyBuf = append(keyBuf, v...)
-			stateSizeIncrease += sup.updateState(keyBuf)
-			sup.keyBuf = keyBuf
-			return stateSizeIncrease
+			return sup.m.updateState(v)
 		}
 
 		// Count unique values for the given rowIdx
 		v := c.getValueAtRow(br, rowIdx)
 		if v == "" {
 			// Do not count empty values
-			return stateSizeIncrease
+			return 0
 		}
-		keyBuf := sup.keyBuf[:0]
-		keyBuf = append(keyBuf[:0], 0)
-		keyBuf = append(keyBuf, v...)
-		stateSizeIncrease += sup.updateState(keyBuf)
-		sup.keyBuf = keyBuf
-		return stateSizeIncrease
+		return sup.m.updateState(v)
 	}
 
 	// Slow path for multiple columns.
@@ -323,10 +322,9 @@ func (sup *statsCountUniqHashProcessor) updateStatsForRow(br *blockResult, rowId
 
 	if allEmptyValues {
 		// Do not count empty values
-		return stateSizeIncrease
+		return 0
 	}
-	stateSizeIncrease += sup.updateState(keyBuf)
-	return stateSizeIncrease
+	return sup.m.updateState(bytesutil.ToUnsafeString(keyBuf))
 }
 
 func (sup *statsCountUniqHashProcessor) mergeState(sfp statsProcessor) {
@@ -335,27 +333,20 @@ func (sup *statsCountUniqHashProcessor) mergeState(sfp statsProcessor) {
 	}
 
 	src := sfp.(*statsCountUniqHashProcessor)
-	if len(src.m) > 100_000 {
+	if src.m.entriesCount > 100_000 {
 		// Postpone merging too big number of items in parallel
 		sup.ms = append(sup.ms, src.m)
 		return
 	}
 
-	m := sup.m
-	for h := range src.m {
-		if _, ok := m[h]; !ok {
-			m[h] = struct{}{}
-		}
-	}
+	sup.m.mergeState(&src.m)
 }
 
 func (sup *statsCountUniqHashProcessor) finalizeStats(dst []byte) []byte {
-	var n uint64
+	n := sup.m.entriesCount
 	if len(sup.ms) > 0 {
 		sup.ms = append(sup.ms, sup.m)
 		n = countUniqHashParallel(sup.ms)
-	} else {
-		n = uint64(len(sup.m))
 	}
 
 	if limit := sup.su.limit; limit > 0 && n > limit {
@@ -364,70 +355,50 @@ func (sup *statsCountUniqHashProcessor) finalizeStats(dst []byte) []byte {
 	return strconv.AppendUint(dst, n, 10)
 }
 
-func countUniqHashParallel(ms []map[uint64]struct{}) uint64 {
+func countUniqHashParallel(ms []statsCountUniqHashSet) uint64 {
 	shardsLen := len(ms)
 	cpusCount := cgroup.AvailableCPUs()
 
 	var wg sync.WaitGroup
-	msShards := make([][]map[uint64]struct{}, shardsLen)
+	msShards := make([][]statsCountUniqHashSet, shardsLen)
 	for i := range msShards {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
 
-			perCPU := make([]map[uint64]struct{}, cpusCount)
-			for i := range perCPU {
-				perCPU[i] = make(map[uint64]struct{})
-			}
-
-			for h := range ms[idx] {
-				m := perCPU[h%uint64(len(perCPU))]
-				m[h] = struct{}{}
+			perCPU := make([]statsCountUniqHashSet, cpusCount)
+			for h := range ms[idx].m {
+				cpuIdx := h % uint64(len(perCPU))
+				perCPU[cpuIdx].updateStateHash(h)
 			}
 
 			msShards[idx] = perCPU
-			ms[idx] = nil
+			ms[idx].reset()
 		}(i)
 	}
 	wg.Wait()
 
-	perCPUCounts := make([]int, cpusCount)
+	perCPUCounts := make([]uint64, cpusCount)
 	for i := range perCPUCounts {
 		wg.Add(1)
 		go func(cpuIdx int) {
 			defer wg.Done()
 
-			m := msShards[0][cpuIdx]
+			sus := &msShards[0][cpuIdx]
 			for _, perCPU := range msShards[1:] {
-				for h := range perCPU[cpuIdx] {
-					if _, ok := m[h]; !ok {
-						m[h] = struct{}{}
-					}
-				}
-				perCPU[cpuIdx] = nil
+				sus.mergeState(&perCPU[cpuIdx])
+				perCPU[cpuIdx].reset()
 			}
-			perCPUCounts[cpuIdx] = len(m)
+			perCPUCounts[cpuIdx] = sus.entriesCount
 		}(i)
 	}
 	wg.Wait()
 
 	countTotal := uint64(0)
-	for _, count := range perCPUCounts {
-		countTotal += uint64(count)
+	for _, n := range perCPUCounts {
+		countTotal += n
 	}
 	return countTotal
-}
-
-func (sup *statsCountUniqHashProcessor) updateState(v []byte) int {
-	stateSizeIncrease := 0
-
-	h := xxhash.Sum64(v)
-	if _, ok := sup.m[h]; !ok {
-		sup.m[h] = struct{}{}
-		stateSizeIncrease += int(unsafe.Sizeof(h))
-	}
-
-	return stateSizeIncrease
 }
 
 func (sup *statsCountUniqHashProcessor) limitReached() bool {
@@ -435,7 +406,7 @@ func (sup *statsCountUniqHashProcessor) limitReached() bool {
 	if limit <= 0 {
 		return false
 	}
-	return uint64(len(sup.m)) > limit
+	return sup.m.entriesCount > limit
 }
 
 func parseStatsCountUniqHash(lex *lexer) (*statsCountUniqHash, error) {
