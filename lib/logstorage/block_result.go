@@ -192,8 +192,7 @@ func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResul
 		cDst.valuesEncodedCreator = &br.fvecs[len(br.fvecs)-1]
 	}
 
-	br.csBuf = append(br.csBuf, cDst)
-	br.csInitialized = false
+	br.csAdd(cDst)
 }
 
 type filteredValuesEncodedCreator struct {
@@ -264,25 +263,37 @@ func (br *blockResult) setResultColumns(rcs []resultColumn, rowsLen int) {
 	}
 }
 
+func (br *blockResult) addResultColumnFloat64(rc *resultColumn, minValue, maxValue float64) {
+	if len(rc.values) != br.rowsLen {
+		logger.Panicf("BUG: column %q must contain %d rows, but it contains %d rows", rc.name, br.rowsLen, len(rc.values))
+	}
+	br.csAdd(blockResultColumn{
+		name:          rc.name,
+		valueType:     valueTypeFloat64,
+		minValue: math.Float64bits(minValue),
+		maxValue: math.Float64bits(maxValue),
+		valuesEncoded: rc.values,
+	})
+}
+
 func (br *blockResult) addResultColumn(rc *resultColumn) {
 	if len(rc.values) != br.rowsLen {
 		logger.Panicf("BUG: column %q must contain %d rows, but it contains %d rows", rc.name, br.rowsLen, len(rc.values))
 	}
 	if areConstValues(rc.values) {
 		// This optimization allows reducing memory usage after br cloning
-		br.csBuf = append(br.csBuf, blockResultColumn{
+		br.csAdd(blockResultColumn{
 			name:          rc.name,
 			isConst:       true,
 			valuesEncoded: rc.values[:1],
 		})
 	} else {
-		br.csBuf = append(br.csBuf, blockResultColumn{
+		br.csAdd(blockResultColumn{
 			name:          rc.name,
 			valueType:     valueTypeString,
 			valuesEncoded: rc.values,
 		})
 	}
-	br.csInitialized = false
 }
 
 // initAllColumns initializes all the columns in br.
@@ -587,11 +598,10 @@ func (svec *searchValuesEncodedCreator) newValuesEncoded(br *blockResult) []stri
 }
 
 func (br *blockResult) addTimeColumn() {
-	br.csBuf = append(br.csBuf, blockResultColumn{
+	br.csAdd(blockResultColumn{
 		name:   "_time",
 		isTime: true,
 	})
-	br.csInitialized = false
 }
 
 func (br *blockResult) addStreamIDColumn() {
@@ -617,12 +627,11 @@ func (br *blockResult) addConstColumn(name, value string) {
 	br.addValue(value)
 	valuesEncoded := br.valuesBuf[valuesBufLen:]
 
-	br.csBuf = append(br.csBuf, blockResultColumn{
+	br.csAdd(blockResultColumn{
 		name:          nameCopy,
 		isConst:       true,
 		valuesEncoded: valuesEncoded,
 	})
-	br.csInitialized = false
 }
 
 func (br *blockResult) newValuesBucketedForColumn(c *blockResultColumn, bf *byStatsField) []string {
@@ -1528,18 +1537,29 @@ func (br *blockResult) getColumns() []*blockResultColumn {
 func (br *blockResult) csInit() {
 	csBuf := br.csBuf
 	clear(br.cs)
-	cs := br.cs[:0]
+	br.cs = br.cs[:0]
 	for i := range csBuf {
-		c := &csBuf[i]
-		idx := getBlockResultColumnIdxByName(cs, c.name)
-		if idx >= 0 {
-			cs[idx] = c
-		} else {
-			cs = append(cs, c)
-		}
+		br.csAddOrReplace(&csBuf[i])
 	}
-	br.cs = cs
 	br.csInitialized = true
+}
+
+func (br *blockResult) csAdd(rc blockResultColumn) {
+	br.csBuf = append(br.csBuf, rc)
+	if !br.csInitialized {
+		return
+	}
+	csBuf := br.csBuf
+	br.csAddOrReplace(&csBuf[len(csBuf)-1])
+}
+
+func (br *blockResult) csAddOrReplace(c *blockResultColumn) {
+	idx := getBlockResultColumnIdxByName(br.cs, c.name)
+	if idx >= 0 {
+		br.cs[idx] = c
+	} else {
+		br.cs = append(br.cs, c)
+	}
 }
 
 func (br *blockResult) csInitFast() {
@@ -2074,7 +2094,9 @@ func (rc *resultColumn) reset() {
 }
 
 func (rc *resultColumn) resetValues() {
-	clear(rc.values)
+	// Do not call clear(rc.values), since it is slow when the query processes big number of columns.
+	// It is OK if rc.values point to some old values - they will be eventually overwritten by new values.
+
 	rc.values = rc.values[:0]
 }
 
