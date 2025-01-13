@@ -70,7 +70,7 @@ func (ssp *statsSumLenProcessor) mergeState(sfp statsProcessor) {
 	ssp.sumLen += src.sumLen
 }
 
-func (ssp *statsSumLenProcessor) finalizeStats(dst []byte) []byte {
+func (ssp *statsSumLenProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
 	return strconv.AppendUint(dst, ssp.sumLen, 10)
 }
 

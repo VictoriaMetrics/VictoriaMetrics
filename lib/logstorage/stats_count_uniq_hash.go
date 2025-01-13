@@ -143,11 +143,11 @@ func (sus *statsCountUniqHashSet) updateStateString(v []byte) int {
 	return 8
 }
 
-func (sus *statsCountUniqHashSet) mergeState(src *statsCountUniqHashSet) {
-	mergeUint64Set(&sus.timestamps, src.timestamps)
-	mergeUint64Set(&sus.u64, src.u64)
-	mergeUint64Set(&sus.negative64, src.negative64)
-	mergeUint64Set(&sus.strings, src.strings)
+func (sus *statsCountUniqHashSet) mergeState(src *statsCountUniqHashSet, stopCh <-chan struct{}) {
+	mergeUint64Set(&sus.timestamps, src.timestamps, stopCh)
+	mergeUint64Set(&sus.u64, src.u64, stopCh)
+	mergeUint64Set(&sus.negative64, src.negative64, stopCh)
+	mergeUint64Set(&sus.strings, src.strings, stopCh)
 }
 
 func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(br *blockResult) int {
@@ -486,14 +486,14 @@ func (sup *statsCountUniqHashProcessor) mergeState(sfp statsProcessor) {
 		return
 	}
 
-	sup.m.mergeState(&src.m)
+	sup.m.mergeState(&src.m, nil)
 }
 
-func (sup *statsCountUniqHashProcessor) finalizeStats(dst []byte) []byte {
+func (sup *statsCountUniqHashProcessor) finalizeStats(dst []byte, stopCh <-chan struct{}) []byte {
 	n := sup.m.entriesCount()
 	if len(sup.ms) > 0 {
 		sup.ms = append(sup.ms, &sup.m)
-		n = countUniqHashParallel(sup.ms)
+		n = countUniqHashParallel(sup.ms, stopCh)
 	}
 
 	if limit := sup.su.limit; limit > 0 && n > limit {
@@ -502,7 +502,7 @@ func (sup *statsCountUniqHashProcessor) finalizeStats(dst []byte) []byte {
 	return strconv.AppendUint(dst, n, 10)
 }
 
-func countUniqHashParallel(ms []*statsCountUniqHashSet) uint64 {
+func countUniqHashParallel(ms []*statsCountUniqHashSet, stopCh <-chan struct{}) uint64 {
 	shardsLen := len(ms)
 	cpusCount := cgroup.AvailableCPUs()
 
@@ -521,24 +521,36 @@ func countUniqHashParallel(ms []*statsCountUniqHashSet) uint64 {
 			sus := ms[idx]
 
 			for ts := range sus.timestamps {
+				if needStop(stopCh) {
+					return
+				}
 				k := unsafe.Slice((*byte)(unsafe.Pointer(&ts)), 8)
 				h := xxhash.Sum64(k)
 				cpuIdx := h % uint64(len(perCPU))
 				perCPU[cpuIdx].timestamps[ts] = struct{}{}
 			}
 			for n := range sus.u64 {
+				if needStop(stopCh) {
+					return
+				}
 				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
 				h := xxhash.Sum64(k)
 				cpuIdx := h % uint64(len(perCPU))
 				perCPU[cpuIdx].u64[n] = struct{}{}
 			}
 			for n := range sus.negative64 {
+				if needStop(stopCh) {
+					return
+				}
 				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
 				h := xxhash.Sum64(k)
 				cpuIdx := h % uint64(len(perCPU))
 				perCPU[cpuIdx].negative64[n] = struct{}{}
 			}
 			for h := range sus.strings {
+				if needStop(stopCh) {
+					return
+				}
 				cpuIdx := h % uint64(len(perCPU))
 				perCPU[cpuIdx].strings[h] = struct{}{}
 			}
@@ -557,7 +569,7 @@ func countUniqHashParallel(ms []*statsCountUniqHashSet) uint64 {
 
 			sus := &msShards[0][cpuIdx]
 			for _, perCPU := range msShards[1:] {
-				sus.mergeState(&perCPU[cpuIdx])
+				sus.mergeState(&perCPU[cpuIdx], stopCh)
 				perCPU[cpuIdx].reset()
 			}
 			perCPUCounts[cpuIdx] = sus.entriesCount()

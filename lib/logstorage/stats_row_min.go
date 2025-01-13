@@ -216,7 +216,7 @@ func (smp *statsRowMinProcessor) updateState(v string, br *blockResult, rowIdx i
 	return stateSizeIncrease
 }
 
-func (smp *statsRowMinProcessor) finalizeStats(dst []byte) []byte {
+func (smp *statsRowMinProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
 	return MarshalFieldsToJSON(dst, smp.fields)
 }
 

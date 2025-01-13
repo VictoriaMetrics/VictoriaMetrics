@@ -95,7 +95,7 @@ func (sap *statsRowAnyProcessor) updateState(br *blockResult, rowIdx int) int {
 	return stateSizeIncrease
 }
 
-func (sap *statsRowAnyProcessor) finalizeStats(dst []byte) []byte {
+func (sap *statsRowAnyProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
 	return MarshalFieldsToJSON(dst, sap.fields)
 }
 

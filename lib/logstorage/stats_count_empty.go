@@ -192,7 +192,7 @@ func (scp *statsCountEmptyProcessor) mergeState(sfp statsProcessor) {
 	scp.rowsCount += src.rowsCount
 }
 
-func (scp *statsCountEmptyProcessor) finalizeStats(dst []byte) []byte {
+func (scp *statsCountEmptyProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
 	return strconv.AppendUint(dst, scp.rowsCount, 10)
 }
 

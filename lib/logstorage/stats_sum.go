@@ -92,7 +92,7 @@ func (ssp *statsSumProcessor) mergeState(sfp statsProcessor) {
 	}
 }
 
-func (ssp *statsSumProcessor) finalizeStats(dst []byte) []byte {
+func (ssp *statsSumProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
 	return strconv.AppendFloat(dst, ssp.sum, 'f', -1, 64)
 }
 

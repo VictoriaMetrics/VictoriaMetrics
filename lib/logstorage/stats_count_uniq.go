@@ -143,27 +143,33 @@ func (sus *statsCountUniqSet) updateStateString(a *chunkedAllocator, v string) i
 	return int(unsafe.Sizeof(v)) + len(v)
 }
 
-func (sus *statsCountUniqSet) mergeState(src *statsCountUniqSet) {
-	mergeUint64Set(&sus.timestamps, src.timestamps)
-	mergeUint64Set(&sus.u64, src.u64)
-	mergeUint64Set(&sus.negative64, src.negative64)
+func (sus *statsCountUniqSet) mergeState(src *statsCountUniqSet, stopCh <-chan struct{}) {
+	mergeUint64Set(&sus.timestamps, src.timestamps, stopCh)
+	mergeUint64Set(&sus.u64, src.u64, stopCh)
+	mergeUint64Set(&sus.negative64, src.negative64, stopCh)
 
 	if src.strings != nil && sus.strings == nil {
 		sus.strings = make(map[string]struct{})
 	}
 	for k := range src.strings {
+		if needStop(stopCh) {
+			return
+		}
 		if _, ok := sus.strings[k]; !ok {
 			sus.strings[k] = struct{}{}
 		}
 	}
 }
 
-func mergeUint64Set(pDst *map[uint64]struct{}, src map[uint64]struct{}) {
+func mergeUint64Set(pDst *map[uint64]struct{}, src map[uint64]struct{}, stopCh <-chan struct{}) {
 	if src != nil && *pDst == nil {
 		*pDst = make(map[uint64]struct{})
 	}
 	dst := *pDst
 	for n := range src {
+		if needStop(stopCh) {
+			return
+		}
 		if _, ok := dst[n]; !ok {
 			dst[n] = struct{}{}
 		}
@@ -505,14 +511,14 @@ func (sup *statsCountUniqProcessor) mergeState(sfp statsProcessor) {
 		return
 	}
 
-	sup.m.mergeState(&src.m)
+	sup.m.mergeState(&src.m, nil)
 }
 
-func (sup *statsCountUniqProcessor) finalizeStats(dst []byte) []byte {
+func (sup *statsCountUniqProcessor) finalizeStats(dst []byte, stopCh <-chan struct{}) []byte {
 	n := sup.m.entriesCount()
 	if len(sup.ms) > 0 {
 		sup.ms = append(sup.ms, &sup.m)
-		n = countUniqParallel(sup.ms)
+		n = countUniqParallel(sup.ms, stopCh)
 	}
 
 	if limit := sup.su.limit; limit > 0 && n > limit {
@@ -521,7 +527,7 @@ func (sup *statsCountUniqProcessor) finalizeStats(dst []byte) []byte {
 	return strconv.AppendUint(dst, n, 10)
 }
 
-func countUniqParallel(ms []*statsCountUniqSet) uint64 {
+func countUniqParallel(ms []*statsCountUniqSet, stopCh <-chan struct{}) uint64 {
 	shardsLen := len(ms)
 	cpusCount := cgroup.AvailableCPUs()
 
@@ -540,24 +546,36 @@ func countUniqParallel(ms []*statsCountUniqSet) uint64 {
 			sus := ms[idx]
 
 			for ts := range sus.timestamps {
+				if needStop(stopCh) {
+					return
+				}
 				k := unsafe.Slice((*byte)(unsafe.Pointer(&ts)), 8)
 				h := xxhash.Sum64(k)
 				cpuIdx := h % uint64(len(perCPU))
 				perCPU[cpuIdx].timestamps[ts] = struct{}{}
 			}
 			for n := range sus.u64 {
+				if needStop(stopCh) {
+					return
+				}
 				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
 				h := xxhash.Sum64(k)
 				cpuIdx := h % uint64(len(perCPU))
 				perCPU[cpuIdx].u64[n] = struct{}{}
 			}
 			for n := range sus.negative64 {
+				if needStop(stopCh) {
+					return
+				}
 				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
 				h := xxhash.Sum64(k)
 				cpuIdx := h % uint64(len(perCPU))
 				perCPU[cpuIdx].negative64[n] = struct{}{}
 			}
 			for k := range sus.strings {
+				if needStop(stopCh) {
+					return
+				}
 				h := xxhash.Sum64(bytesutil.ToUnsafeBytes(k))
 				cpuIdx := h % uint64(len(perCPU))
 				perCPU[cpuIdx].strings[k] = struct{}{}
@@ -577,7 +595,7 @@ func countUniqParallel(ms []*statsCountUniqSet) uint64 {
 
 			sus := &msShards[0][cpuIdx]
 			for _, perCPU := range msShards[1:] {
-				sus.mergeState(&perCPU[cpuIdx])
+				sus.mergeState(&perCPU[cpuIdx], stopCh)
 				perCPU[cpuIdx].reset()
 			}
 			perCPUCounts[cpuIdx] = sus.entriesCount()

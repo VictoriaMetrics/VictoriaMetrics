@@ -194,7 +194,7 @@ func (sqp *statsQuantileProcessor) mergeState(sfp statsProcessor) {
 	sqp.h.mergeState(&src.h)
 }
 
-func (sqp *statsQuantileProcessor) finalizeStats(dst []byte) []byte {
+func (sqp *statsQuantileProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
 	q := sqp.h.quantile(sqp.sq.phi)
 	return append(dst, q...)
 }

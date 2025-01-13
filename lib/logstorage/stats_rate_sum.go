@@ -46,7 +46,7 @@ func (srp *statsRateSumProcessor) mergeState(sfp statsProcessor) {
 	srp.ssp.mergeState(src.ssp)
 }
 
-func (srp *statsRateSumProcessor) finalizeStats(dst []byte) []byte {
+func (srp *statsRateSumProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
 	rate := srp.ssp.sum
 	if srp.sr.stepSeconds > 0 {
 		rate /= srp.sr.stepSeconds
