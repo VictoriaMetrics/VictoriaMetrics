@@ -2762,6 +2762,7 @@ See also:
 - [`uniq` pipe](#uniq-pipe)
 - [`stats` pipe](#stats-pipe)
 - [`sort` pipe](#sort-pipe)
+- [`histogram` stats function](#histogram-stats)
 
 ### uniq pipe
 
@@ -3106,6 +3107,7 @@ LogsQL supports the following functions for [`stats` pipe](#stats-pipe):
 - [`count_empty`](#count_empty-stats) returns the number logs with empty [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`count_uniq`](#count_uniq-stats) returns the number of unique non-empty values for the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`count_uniq_hash`](#count_uniq_hash-stats) returns the number of unique hashes for non-empty values at the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`histogram`](#histogram-stats) returns [VictoriaMetrics histogram](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`max`](#max-stats) returns the maximum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`median`](#median-stats) returns the [median](https://en.wikipedia.org/wiki/Median) value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`min`](#min-stats) returns the minimum value over the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -3253,6 +3255,25 @@ See also:
 - [`uniq_values`](#uniq_values-stats)
 - [`count`](#count-stats)
 
+### histogram stats
+
+`histogram(field)` [stats pipe function](#stats-pipe-functions) returns [VictoriaMetrics histogram buckets](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+for the given [`field`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
+For example, the following query returns histogram buckets for the `response_size` field grouped by `host` field, across logs for the last 5 minutes:
+
+```logsql
+_time:5m | stats by (host) histogram(response_size)
+```
+
+If the field contains [duration value](#duration-values), then `histogram` normalizes it to nanoseconds. For example, `1.25ms` is normalized to `1_250_000`.
+
+If the field contains [short numeric value](#short-numeric-values), then `histogram` normalizes it to numeric value without any suffixes. For example, `1KiB` is converted to `1024`.
+
+See also:
+
+- [`quantile`](#quantile-stats)
+
 ### max stats
 
 `max(field1, ..., fieldN)` [stats pipe function](#stats-pipe-functions) returns the maximum value across
@@ -3330,6 +3351,7 @@ _time:5m | stats
 
 See also:
 
+- [`histogram`](#histogram-stats)
 - [`min`](#min-stats)
 - [`max`](#max-stats)
 - [`median`](#median-stats)
