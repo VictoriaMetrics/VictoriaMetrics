@@ -1685,9 +1685,9 @@ func rollupRateOverSum(rfa *rollupFuncArg) float64 {
 }
 
 func rollupRange(rfa *rollupFuncArg) float64 {
-	max := rollupMax(rfa)
-	min := rollupMin(rfa)
-	return max - min
+	maxV := rollupMax(rfa)
+	minV := rollupMin(rfa)
+	return maxV - minV
 }
 
 func rollupSum2(rfa *rollupFuncArg) float64 {
@@ -2195,38 +2195,38 @@ func rollupClose(rfa *rollupFuncArg) float64 {
 
 func rollupHigh(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
-	max := getFirstValueForCandlestick(rfa)
-	if math.IsNaN(max) {
+	maxV := getFirstValueForCandlestick(rfa)
+	if math.IsNaN(maxV) {
 		if len(values) == 0 {
 			return nan
 		}
-		max = values[0]
+		maxV = values[0]
 		values = values[1:]
 	}
 	for _, v := range values {
-		if v > max {
-			max = v
+		if v > maxV {
+			maxV = v
 		}
 	}
-	return max
+	return maxV
 }
 
 func rollupLow(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
-	min := getFirstValueForCandlestick(rfa)
-	if math.IsNaN(min) {
+	minV := getFirstValueForCandlestick(rfa)
+	if math.IsNaN(minV) {
 		if len(values) == 0 {
 			return nan
 		}
-		min = values[0]
+		minV = values[0]
 		values = values[1:]
 	}
 	for _, v := range values {
-		if v < min {
-			min = v
+		if v < minV {
+			minV = v
 		}
 	}
-	return min
+	return minV
 }
 
 func rollupModeOverTime(rfa *rollupFuncArg) float64 {
