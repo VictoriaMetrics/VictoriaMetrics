@@ -34,21 +34,18 @@ func (sq *statsQuantile) updateNeededFields(neededFields fieldsSet) {
 }
 
 func (sq *statsQuantile) newStatsProcessor(a *chunkedAllocator) statsProcessor {
-	sqp := a.newStatsQuantileProcessor()
-	sqp.sq = sq
-	return sqp
+	return a.newStatsQuantileProcessor()
 }
 
 type statsQuantileProcessor struct {
-	sq *statsQuantile
-
 	h histogram
 }
 
-func (sqp *statsQuantileProcessor) updateStatsForAllRows(br *blockResult) int {
+func (sqp *statsQuantileProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	sq := sf.(*statsQuantile)
 	stateSizeIncrease := 0
 
-	fields := sqp.sq.fields
+	fields := sq.fields
 	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			stateSizeIncrease += sqp.updateStateForColumn(br, c)
@@ -63,11 +60,12 @@ func (sqp *statsQuantileProcessor) updateStatsForAllRows(br *blockResult) int {
 	return stateSizeIncrease
 }
 
-func (sqp *statsQuantileProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+func (sqp *statsQuantileProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	sq := sf.(*statsQuantile)
 	h := &sqp.h
 	stateSizeIncrease := 0
 
-	fields := sqp.sq.fields
+	fields := sq.fields
 	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			v := c.getValueAtRow(br, rowIdx)
@@ -189,13 +187,14 @@ func (sqp *statsQuantileProcessor) updateStateForColumn(br *blockResult, c *bloc
 	return stateSizeIncrease
 }
 
-func (sqp *statsQuantileProcessor) mergeState(sfp statsProcessor) {
+func (sqp *statsQuantileProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsQuantileProcessor)
 	sqp.h.mergeState(&src.h)
 }
 
-func (sqp *statsQuantileProcessor) finalizeStats(dst []byte) []byte {
-	q := sqp.h.quantile(sqp.sq.phi)
+func (sqp *statsQuantileProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-chan struct{}) []byte {
+	sq := sf.(*statsQuantile)
+	q := sqp.h.quantile(sq.phi)
 	return append(dst, q...)
 }
 
