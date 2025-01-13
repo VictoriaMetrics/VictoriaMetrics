@@ -1888,20 +1888,45 @@ then `as _msg` part can be omitted. The following query is equivalent to the pre
 _time:5m | format "request from <ip>:<port>"
 ```
 
-If some field values must be put into double quotes before formatting, then add `q:` in front of the corresponding field name.
-For example, the following command generates properly encoded JSON object from `_msg` and `stacktrace` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-and stores it into `my_json` output field:
+String fields can be formatted with the following additional formatting rules:
 
-```logsql
-_time:5m | format '{"_msg":<q:_msg>,"stacktrace":<q:stacktrace>}' as my_json
-```
+- JSON-compatible quoted string - add `q:` in front of the corresponding field name.
+  For example, the following query generates properly encoded JSON object from `_msg` and `stacktrace`
+  [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) and stores it into `my_json` output field:
 
-If some fields must be transformed to uppercase or to lowercase, then add `uc:` or `lc:` in front of the corresponding field name.
-For example, the following command stores uppercase value of `foo` field and lowercase value of `bar` field in the `result` field:
+  ```logsql
+  _time:5m | format '{"_msg":<q:_msg>,"stacktrace":<q:stacktrace>}' as my_json
+  ```
 
-```logsql
-_time:5m | format 'uppercase foo: <uc:foo>, lowercase bar: <lc:bar>' as result
-```
+- Uppercase and lowercase strings - add `uc:` or `lc:` in front of the corresponding field name.
+  For example, the following query stores uppercase value of `foo` field and lowercase value of `bar` field in the `result` field:
+
+  ```logsql
+  _time:5m | format 'uppercase foo: <uc:foo>, lowercase bar: <lc:bar>' as result
+  ```
+
+- [URL encoding](https://en.wikipedia.org/wiki/Percent-encoding) and decoding (aka `percent encoding`) - add `urlencode:` or `urldecode:`
+  in front of the corresponding field name. For example, the following query properly encodes `user` field in the url query arg:
+
+  ```logsql
+  _time:5m | format 'url: http://foo.com/?user=<urlencode:user>'
+  ```
+
+- Hex encoding and decoding - add `hexencode:` or `hexdecode:` in front of the corresponding field name.
+  For example, the following query hex-encodes `password` field:
+
+  ```logsql
+  _time:5m | format 'hex-encoded password: <hexencode:password>'
+  ```
+
+- [Base64 encoding](https://en.wikipedia.org/wiki/Base64) and decoding - add `base64encode:` or `base64decode:` in front of the corresponding
+  field name. For example, the following query base64-encodes `password` field:
+
+  ```logsql
+  _time:5m | format 'base64-encoded password: <base64encode:password>'
+  ```
+
+- Converting of hexadecimal number to decimal number - add `hexnumdecode:` in front of the corresponding field name. For example, `format "num=<hexnumdecode:some_hex_field>"`.
 
 Numeric fields can be transformed into the following string representation at `format` pipe:
 
@@ -1914,6 +1939,8 @@ Numeric fields can be transformed into the following string representation at `f
 
 - IPv4 - by adding `ipv4:` in front of the corresponding field name containing `uint32` representation of the IPv4 address.
   For example, `format "ip=<ipv4:ip_num>"`.
+
+- Zero-padded 64-bit hex number - by adding 'hexnumencode:' in front of the corresponding field name. For example, `format "hex_num=<hexnumencode:some_field>"`.
 
 Add `keep_original_fields` to the end of `format ... as result_field` when the original non-empty value of the `result_field` must be preserved
 instead of overwriting it with the `format` results. For example, the following query adds formatted result to `foo` field only if it was missing or empty:
