@@ -159,7 +159,7 @@ func (shp *statsHistogramProcessor) mergeState(_ statsFunc, sfp statsProcessor) 
 	shp.h.Merge(&src.h)
 }
 
-func (shp *statsHistogramProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-chan struct{}) []byte {
+func (shp *statsHistogramProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
 	dst = append(dst, '[')
 	shp.h.VisitNonZeroBuckets(func(vmrange string, count uint64) {
 		dst = append(dst, `{"vmrange":"`...)
