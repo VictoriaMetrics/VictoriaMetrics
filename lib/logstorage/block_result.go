@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -225,6 +226,16 @@ func (br *blockResult) cloneValues(values []string) []string {
 		br.addValue(v)
 	}
 	return br.valuesBuf[valuesBufLen:]
+}
+
+func (br *blockResult) addValues(values []string) {
+	valuesBufLen := len(br.valuesBuf)
+	br.valuesBuf = slicesutil.SetLength(br.valuesBuf, valuesBufLen+len(values))
+	valuesBuf := br.valuesBuf[valuesBufLen:]
+	_ = valuesBuf[len(values)-1]
+	for i, v := range values {
+		valuesBuf[i] = br.a.copyString(v)
+	}
 }
 
 func (br *blockResult) addValue(v string) {
@@ -490,79 +501,71 @@ func (br *blockResult) newValuesEncodedFromColumnHeader(bs *blockSearch, bm *bit
 
 	switch ch.valueType {
 	case valueTypeString:
-		visitValuesReadonly(bs, ch, bm, br.addValue)
+		visitValuesReadonly(bs, ch, bm, br.addValues)
 	case valueTypeDict:
-		visitValuesReadonly(bs, ch, bm, func(v string) {
-			if len(v) != 1 {
-				logger.Panicf("FATAL: %s: unexpected dict value size for column %q; got %d bytes; want 1 byte", bs.partPath(), ch.name, len(v))
+		visitValuesReadonly(bs, ch, bm, func(values []string) {
+			checkValuesSize(bs, ch, values, 1, "dict")
+			for _, v := range values {
+				dictIdx := v[0]
+				if int(dictIdx) >= len(ch.valuesDict.values) {
+					logger.Panicf("FATAL: %s: too big dict index for column %q: %d; should be smaller than %d", bs.partPath(), ch.name, dictIdx, len(ch.valuesDict.values))
+				}
 			}
-			dictIdx := v[0]
-			if int(dictIdx) >= len(ch.valuesDict.values) {
-				logger.Panicf("FATAL: %s: too big dict index for column %q: %d; should be smaller than %d", bs.partPath(), ch.name, dictIdx, len(ch.valuesDict.values))
-			}
-			br.addValue(v)
+			br.addValues(values)
 		})
 	case valueTypeUint8:
-		visitValuesReadonly(bs, ch, bm, func(v string) {
-			if len(v) != 1 {
-				logger.Panicf("FATAL: %s: unexpected size for uint8 column %q; got %d bytes; want 1 byte", bs.partPath(), ch.name, len(v))
-			}
-			br.addValue(v)
+		visitValuesReadonly(bs, ch, bm, func(values []string) {
+			checkValuesSize(bs, ch, values, 1, "uint8")
+			br.addValues(values)
 		})
 	case valueTypeUint16:
-		visitValuesReadonly(bs, ch, bm, func(v string) {
-			if len(v) != 2 {
-				logger.Panicf("FATAL: %s: unexpected size for uint16 column %q; got %d bytes; want 2 bytes", bs.partPath(), ch.name, len(v))
-			}
-			br.addValue(v)
+		visitValuesReadonly(bs, ch, bm, func(values []string) {
+			checkValuesSize(bs, ch, values, 2, "uint16")
+			br.addValues(values)
 		})
 	case valueTypeUint32:
-		visitValuesReadonly(bs, ch, bm, func(v string) {
-			if len(v) != 4 {
-				logger.Panicf("FATAL: %s: unexpected size for uint32 column %q; got %d bytes; want 4 bytes", bs.partPath(), ch.name, len(v))
-			}
-			br.addValue(v)
+		visitValuesReadonly(bs, ch, bm, func(values []string) {
+			checkValuesSize(bs, ch, values, 4, "uint32")
+			br.addValues(values)
 		})
 	case valueTypeUint64:
-		visitValuesReadonly(bs, ch, bm, func(v string) {
-			if len(v) != 8 {
-				logger.Panicf("FATAL: %s: unexpected size for uint64 column %q; got %d bytes; want 8 bytes", bs.partPath(), ch.name, len(v))
-			}
-			br.addValue(v)
+		visitValuesReadonly(bs, ch, bm, func(values []string) {
+			checkValuesSize(bs, ch, values, 8, "uint64")
+			br.addValues(values)
 		})
 	case valueTypeInt64:
-		visitValuesReadonly(bs, ch, bm, func(v string) {
-			if len(v) != 8 {
-				logger.Panicf("FATAL: %s: unexpected size for int64 column %q; got %d bytes; want 8 bytes", bs.partPath(), ch.name, len(v))
-			}
-			br.addValue(v)
+		visitValuesReadonly(bs, ch, bm, func(values []string) {
+			checkValuesSize(bs, ch, values, 8, "int64")
+			br.addValues(values)
 		})
 	case valueTypeFloat64:
-		visitValuesReadonly(bs, ch, bm, func(v string) {
-			if len(v) != 8 {
-				logger.Panicf("FATAL: %s: unexpected size for float64 column %q; got %d bytes; want 8 bytes", bs.partPath(), ch.name, len(v))
-			}
-			br.addValue(v)
+		visitValuesReadonly(bs, ch, bm, func(values []string) {
+			checkValuesSize(bs, ch, values, 8, "float64")
+			br.addValues(values)
 		})
 	case valueTypeIPv4:
-		visitValuesReadonly(bs, ch, bm, func(v string) {
-			if len(v) != 4 {
-				logger.Panicf("FATAL: %s: unexpected size for ipv4 column %q; got %d bytes; want 4 bytes", bs.partPath(), ch.name, len(v))
-			}
-			br.addValue(v)
+		visitValuesReadonly(bs, ch, bm, func(values []string) {
+			checkValuesSize(bs, ch, values, 4, "ipv4")
+			br.addValues(values)
 		})
 	case valueTypeTimestampISO8601:
-		visitValuesReadonly(bs, ch, bm, func(v string) {
-			if len(v) != 8 {
-				logger.Panicf("FATAL: %s: unexpected size for timestmap column %q; got %d bytes; want 8 bytes", bs.partPath(), ch.name, len(v))
-			}
-			br.addValue(v)
+		visitValuesReadonly(bs, ch, bm, func(values []string) {
+			checkValuesSize(bs, ch, values, 8, "iso8601")
+			br.addValues(values)
 		})
 	default:
 		logger.Panicf("FATAL: %s: unknown valueType=%d for column %q", bs.partPath(), ch.valueType, ch.name)
 	}
 
 	return br.valuesBuf[valuesBufLen:]
+}
+
+func checkValuesSize(bs *blockSearch, ch *columnHeader, values []string, sizeExpected int, typeStr string) {
+	for _, v := range values {
+		if len(v) != sizeExpected {
+			logger.Panicf("FATAL: %s: unexpected size for %s column %q; got %d bytes; want %d bytes", typeStr, bs.partPath(), ch.name, len(v), sizeExpected)
+		}
+	}
 }
 
 // addColumn adds column for the given ch to br.
@@ -2138,16 +2141,45 @@ func getEmptyStrings(rowsLen int) []string {
 
 var emptyStrings atomic.Pointer[[]string]
 
-func visitValuesReadonly(bs *blockSearch, ch *columnHeader, bm *bitmap, f func(value string)) {
+func visitValuesReadonly(bs *blockSearch, ch *columnHeader, bm *bitmap, f func(values []string)) {
 	if bm.isZero() {
 		// Fast path - nothing to visit
 		return
 	}
 	values := bs.getValuesForColumn(ch)
+	if bm.areAllBitsSet() {
+		// Faster path - visit all the values
+		f(values)
+		return
+	}
+
+	// Slower path - visit only the selected values
+	vb := getValuesBuf()
 	bm.forEachSetBitReadonly(func(idx int) {
-		f(values[idx])
+		vb.values = append(vb.values, values[idx])
 	})
+	f(vb.values)
+	putValuesBuf(vb)
 }
+
+type valuesBuf struct {
+	values []string
+}
+
+func getValuesBuf() *valuesBuf {
+	v := valuesBufPool.Get()
+	if v == nil {
+		return &valuesBuf{}
+	}
+	return v.(*valuesBuf)
+}
+
+func putValuesBuf(vb *valuesBuf) {
+	vb.values = vb.values[:0]
+	valuesBufPool.Put(vb)
+}
+
+var valuesBufPool sync.Pool
 
 func getCanonicalColumnName(columnName string) string {
 	if columnName == "" {
