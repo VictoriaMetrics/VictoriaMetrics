@@ -481,7 +481,6 @@ func binaryOpDefault(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 
 func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	// group time series by condition.
-
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
 
 	// fast path: return right if all series in mLeft are NaNs.
