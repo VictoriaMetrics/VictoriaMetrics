@@ -165,7 +165,7 @@ func (smp *statsMaxProcessor) updateStateString(v string) {
 	}
 }
 
-func (smp *statsMaxProcessor) finalizeStats(dst []byte) []byte {
+func (smp *statsMaxProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
 	return append(dst, smp.max...)
 }
 

@@ -45,7 +45,7 @@ func (srp *statsRateProcessor) mergeState(sfp statsProcessor) {
 	srp.rowsCount += src.rowsCount
 }
 
-func (srp *statsRateProcessor) finalizeStats(dst []byte) []byte {
+func (srp *statsRateProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
 	rate := float64(srp.rowsCount)
 	if srp.sr.stepSeconds > 0 {
 		rate /= srp.sr.stepSeconds

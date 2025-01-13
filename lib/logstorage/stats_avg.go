@@ -84,7 +84,7 @@ func (sap *statsAvgProcessor) mergeState(sfp statsProcessor) {
 	sap.count += src.count
 }
 
-func (sap *statsAvgProcessor) finalizeStats(dst []byte) []byte {
+func (sap *statsAvgProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
 	avg := sap.sum / float64(sap.count)
 	return strconv.AppendFloat(dst, avg, 'f', -1, 64)
 }

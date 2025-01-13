@@ -69,7 +69,9 @@ type statsProcessor interface {
 	mergeState(sfp statsProcessor)
 
 	// finalizeStats must append string represetnation of the collected stats result to dst and return it.
-	finalizeStats(dst []byte) []byte
+	//
+	// finalizeStats must immediately return if stopCh is closed.
+	finalizeStats(dst []byte, stopCh <-chan struct{}) []byte
 }
 
 func (ps *pipeStats) String() string {
@@ -733,7 +735,7 @@ func newPipeStatsWriter(psp *pipeStatsProcessor, workerID uint) *pipeStatsWriter
 func (psw *pipeStatsWriter) writePipeStatsGroup(psg *pipeStatsGroup) {
 	for _, sfp := range psg.sfps {
 		bufLen := len(psw.valuesBuf)
-		psw.valuesBuf = sfp.finalizeStats(psw.valuesBuf)
+		psw.valuesBuf = sfp.finalizeStats(psw.valuesBuf, psw.psp.stopCh)
 		value := bytesutil.ToUnsafeString(psw.valuesBuf[bufLen:])
 		psw.values = append(psw.values, value)
 	}

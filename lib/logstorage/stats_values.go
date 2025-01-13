@@ -169,7 +169,7 @@ func (svp *statsValuesProcessor) mergeState(sfp statsProcessor) {
 	svp.values = append(svp.values, src.values...)
 }
 
-func (svp *statsValuesProcessor) finalizeStats(dst []byte) []byte {
+func (svp *statsValuesProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
 	items := svp.values
 	if len(items) == 0 {
 		return append(dst, "[]"...)

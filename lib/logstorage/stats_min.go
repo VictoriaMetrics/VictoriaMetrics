@@ -167,7 +167,7 @@ func (smp *statsMinProcessor) updateStateString(v string) {
 	}
 }
 
-func (smp *statsMinProcessor) finalizeStats(dst []byte) []byte {
+func (smp *statsMinProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
 	return append(dst, smp.min...)
 }
 

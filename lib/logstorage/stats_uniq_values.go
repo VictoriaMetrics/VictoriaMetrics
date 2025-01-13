@@ -156,11 +156,11 @@ func (sup *statsUniqValuesProcessor) mergeState(sfp statsProcessor) {
 	}
 }
 
-func (sup *statsUniqValuesProcessor) finalizeStats(dst []byte) []byte {
+func (sup *statsUniqValuesProcessor) finalizeStats(dst []byte, stopCh <-chan struct{}) []byte {
 	var items []string
 	if len(sup.ms) > 0 {
 		sup.ms = append(sup.ms, sup.m)
-		items = mergeSetsParallel(sup.ms)
+		items = mergeSetsParallel(sup.ms, stopCh)
 	} else {
 		items = setToSortedSlice(sup.m)
 	}
@@ -172,7 +172,7 @@ func (sup *statsUniqValuesProcessor) finalizeStats(dst []byte) []byte {
 	return marshalJSONArray(dst, items)
 }
 
-func mergeSetsParallel(ms []map[string]struct{}) []string {
+func mergeSetsParallel(ms []map[string]struct{}, stopCh <-chan struct{}) []string {
 	shardsLen := len(ms)
 	cpusCount := cgroup.AvailableCPUs()
 
@@ -189,6 +189,9 @@ func mergeSetsParallel(ms []map[string]struct{}) []string {
 			}
 
 			for s := range ms[idx] {
+				if needStop(stopCh) {
+					return
+				}
 				h := xxhash.Sum64(bytesutil.ToUnsafeBytes(s))
 				m := perCPU[h%uint64(len(perCPU))]
 				m[s] = struct{}{}
@@ -209,6 +212,9 @@ func mergeSetsParallel(ms []map[string]struct{}) []string {
 			m := msShards[0][cpuIdx]
 			for _, perCPU := range msShards[1:] {
 				for s := range perCPU[cpuIdx] {
+					if needStop(stopCh) {
+						return
+					}
 					if _, ok := m[s]; !ok {
 						m[s] = struct{}{}
 					}
@@ -236,6 +242,9 @@ func mergeSetsParallel(ms []map[string]struct{}) []string {
 	}
 	heap.Init(&h)
 	for len(h) > 0 {
+		if needStop(stopCh) {
+			return nil
+		}
 		top := h[0]
 		s := top[0]
 		itemsAll = append(itemsAll, s)
