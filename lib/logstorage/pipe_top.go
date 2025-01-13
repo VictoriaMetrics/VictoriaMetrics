@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"unsafe"
@@ -133,7 +134,7 @@ type pipeTopProcessorShardNopad struct {
 	// pt points to the parent pipeTop.
 	pt *pipeTop
 
-	// m holds per-row hits.
+	// m holds per-value hits.
 	m pipeTopMap
 
 	// keyBuf is a temporary buffer for building keys for m.
@@ -282,10 +283,10 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 		// Take into account all the columns in br.
 		keyBuf := shard.keyBuf
 		cs := br.getColumns()
-		for i := 0; i < br.rowsLen; i++ {
+		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 			keyBuf = keyBuf[:0]
 			for _, c := range cs {
-				v := c.getValueAtRow(br, i)
+				v := c.getValueAtRow(br, rowIdx)
 				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(c.name))
 				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(v))
 			}
@@ -310,10 +311,10 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 	shard.columnValues = columnValues
 
 	keyBuf := shard.keyBuf
-	for i := 0; i < br.rowsLen; i++ {
+	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 		keyBuf = keyBuf[:0]
 		for _, values := range columnValues {
-			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[i]))
+			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[rowIdx]))
 		}
 		shard.m.updateStateString(keyBuf, 1)
 	}
@@ -523,7 +524,8 @@ func (ptp *pipeTopProcessor) mergeShardsParallel() ([]*pipeTopEntry, error) {
 	cpusCount := cgroup.AvailableCPUs()
 
 	if shardsLen == 1 {
-		entries := getTopEntries(&shards[0].m, limit, ptp.stopCh)
+		ptm := &shards[0].m
+		entries := getTopEntries(ptm, limit, ptp.stopCh)
 		return entries, nil
 	}
 
@@ -617,7 +619,6 @@ func getTopEntries(ptm *pipeTopMap, limit uint64, stopCh <-chan struct{}) []*pip
 		return nil
 	}
 
-	var a chunkedAllocator
 	var eh topEntriesHeap
 	var e pipeTopEntry
 
@@ -627,7 +628,7 @@ func getTopEntries(ptm *pipeTopMap, limit uint64, stopCh <-chan struct{}) []*pip
 		if uint64(len(eh)) < limit {
 			eCopy := e
 			if kCopy {
-				eCopy.k = a.cloneString(eCopy.k)
+				eCopy.k = strings.Clone(eCopy.k)
 			}
 			heap.Push(&eh, &eCopy)
 			return
@@ -638,7 +639,7 @@ func getTopEntries(ptm *pipeTopMap, limit uint64, stopCh <-chan struct{}) []*pip
 		}
 		eCopy := e
 		if kCopy {
-			eCopy.k = a.cloneString(eCopy.k)
+			eCopy.k = strings.Clone(eCopy.k)
 		}
 		eh[0] = &eCopy
 		heap.Fix(&eh, 0)
@@ -754,7 +755,9 @@ func (wctx *pipeTopWriteContext) writeRow(rowFields []Field) {
 	}
 
 	wctx.rowsCount++
-	if wctx.valuesLen >= 1_000_000 {
+
+	// The 64_000 limit provides the best performance results.
+	if wctx.valuesLen >= 64_000 {
 		wctx.flush()
 	}
 }
@@ -810,37 +813,41 @@ func parsePipeTop(lex *lexer) (pipe, error) {
 		byFields = bfs
 	}
 
-	hitsFieldName := "hits"
-	if lex.isKeyword("hits") {
-		lex.nextToken()
-		if lex.isKeyword("as") {
-			lex.nextToken()
-		}
-		s, err := getCompoundToken(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'hits' name: %w", err)
-		}
-		hitsFieldName = s
-	}
-	for slices.Contains(byFields, hitsFieldName) {
-		hitsFieldName += "s"
-	}
-
 	pt := &pipeTop{
 		byFields:      byFields,
 		limit:         limit,
 		limitStr:      limitStr,
-		hitsFieldName: hitsFieldName,
+		hitsFieldName: "hits",
 	}
 
-	if lex.isKeyword("rank") {
-		rankFieldName, err := parseRankFieldName(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse rank field name in [%s]: %w", pt, err)
+	for {
+		switch {
+		case lex.isKeyword("hits"):
+			lex.nextToken()
+			if lex.isKeyword("as") {
+				lex.nextToken()
+			}
+			s, err := getCompoundToken(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'hits' name: %w", err)
+			}
+			pt.hitsFieldName = s
+		case lex.isKeyword("rank"):
+			rankFieldName, err := parseRankFieldName(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse rank field name in [%s]: %w", pt, err)
+			}
+			pt.rankFieldName = rankFieldName
+			for slices.Contains(byFields, pt.rankFieldName) {
+				pt.rankFieldName += "s"
+			}
+		default:
+			for slices.Contains(byFields, pt.hitsFieldName) {
+				pt.hitsFieldName += "s"
+			}
+			return pt, nil
 		}
-		pt.rankFieldName = rankFieldName
 	}
-	return pt, nil
 }
 
 func parseRankFieldName(lex *lexer) (string, error) {
