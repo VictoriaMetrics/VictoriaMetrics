@@ -13,6 +13,8 @@ aliases:
 
 ## tip
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/operator/resources/vmagent/): properly build `relabelConfigs` with empty string values for `separator` and `replacement` fields. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1214) for details.
+
 ## [v0.51.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.51.3)
 
 **Release date:** 8 Jan 2025
