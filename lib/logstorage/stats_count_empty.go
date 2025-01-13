@@ -20,19 +20,16 @@ func (sc *statsCountEmpty) updateNeededFields(neededFields fieldsSet) {
 }
 
 func (sc *statsCountEmpty) newStatsProcessor(a *chunkedAllocator) statsProcessor {
-	scp := a.newStatsCountEmptyProcessor()
-	scp.sc = sc
-	return scp
+	return a.newStatsCountEmptyProcessor()
 }
 
 type statsCountEmptyProcessor struct {
-	sc *statsCountEmpty
-
 	rowsCount uint64
 }
 
-func (scp *statsCountEmptyProcessor) updateStatsForAllRows(br *blockResult) int {
-	fields := scp.sc.fields
+func (scp *statsCountEmptyProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	sc := sf.(*statsCountEmpty)
+	fields := sc.fields
 	if len(fields) == 0 {
 		bm := getBitmap(br.rowsLen)
 		bm.setBits()
@@ -130,8 +127,9 @@ func (scp *statsCountEmptyProcessor) updateStatsForAllRows(br *blockResult) int 
 	return 0
 }
 
-func (scp *statsCountEmptyProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	fields := scp.sc.fields
+func (scp *statsCountEmptyProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	sc := sf.(*statsCountEmpty)
+	fields := sc.fields
 	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			if v := c.getValueAtRow(br, rowIdx); v != "" {
@@ -187,12 +185,12 @@ func (scp *statsCountEmptyProcessor) updateStatsForRow(br *blockResult, rowIdx i
 	return 0
 }
 
-func (scp *statsCountEmptyProcessor) mergeState(sfp statsProcessor) {
+func (scp *statsCountEmptyProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsCountEmptyProcessor)
 	scp.rowsCount += src.rowsCount
 }
 
-func (scp *statsCountEmptyProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
+func (scp *statsCountEmptyProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
 	return strconv.AppendUint(dst, scp.rowsCount, 10)
 }
 

@@ -54,24 +54,27 @@ type statsFunc interface {
 //
 // All the statsProcessor methods are called from a single goroutine at a time,
 // so there is no need in the internal synchronization.
+//
+// sf is passed to every method here, so the implementation doesn't need to keep reference to statsFunc.
+// This allows saving memory when calculating stats over big number of groups.
 type statsProcessor interface {
 	// updateStatsForAllRows must update statsProcessor stats for all the rows in br.
 	//
 	// It must return the change of internal state size in bytes for the statsProcessor.
-	updateStatsForAllRows(br *blockResult) int
+	updateStatsForAllRows(sf statsFunc, br *blockResult) int
 
 	// updateStatsForRow must update statsProcessor stats for the row at rowIndex in br.
 	//
 	// It must return the change of internal state size in bytes for the statsProcessor.
-	updateStatsForRow(br *blockResult, rowIndex int) int
+	updateStatsForRow(sf statsFunc, br *blockResult, rowIndex int) int
 
 	// mergeState must merge sfp state into statsProcessor state.
-	mergeState(sfp statsProcessor)
+	mergeState(sf statsFunc, sfp statsProcessor)
 
 	// finalizeStats must append string represetnation of the collected stats result to dst and return it.
 	//
 	// finalizeStats must immediately return if stopCh is closed.
-	finalizeStats(dst []byte, stopCh <-chan struct{}) []byte
+	finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte
 }
 
 func (ps *pipeStats) String() string {
@@ -608,19 +611,20 @@ type pipeStatsGroup struct {
 
 func (psg *pipeStatsGroup) mergeState(src *pipeStatsGroup) {
 	for i, sfp := range psg.sfps {
-		sfp.mergeState(src.sfps[i])
+		sfp.mergeState(psg.funcs[i].f, src.sfps[i])
 	}
 }
 
 func (psg *pipeStatsGroup) updateStatsForAllRows(bms []bitmap, br, brTmp *blockResult) int {
 	n := 0
 	for i, sfp := range psg.sfps {
-		iff := psg.funcs[i].iff
+		f := &psg.funcs[i]
+		iff := f.iff
 		if iff == nil {
-			n += sfp.updateStatsForAllRows(br)
+			n += sfp.updateStatsForAllRows(f.f, br)
 		} else {
 			brTmp.initFromFilterAllColumns(br, &bms[i])
-			n += sfp.updateStatsForAllRows(brTmp)
+			n += sfp.updateStatsForAllRows(f.f, brTmp)
 		}
 	}
 	return n
@@ -629,9 +633,10 @@ func (psg *pipeStatsGroup) updateStatsForAllRows(bms []bitmap, br, brTmp *blockR
 func (psg *pipeStatsGroup) updateStatsForRow(bms []bitmap, br *blockResult, rowIdx int) int {
 	n := 0
 	for i, sfp := range psg.sfps {
-		iff := psg.funcs[i].iff
+		f := &psg.funcs[i]
+		iff := f.iff
 		if iff == nil || bms[i].isSetBit(rowIdx) {
-			n += sfp.updateStatsForRow(br, rowIdx)
+			n += sfp.updateStatsForRow(f.f, br, rowIdx)
 		}
 	}
 	return n
@@ -733,9 +738,9 @@ func newPipeStatsWriter(psp *pipeStatsProcessor, workerID uint) *pipeStatsWriter
 }
 
 func (psw *pipeStatsWriter) writePipeStatsGroup(psg *pipeStatsGroup) {
-	for _, sfp := range psg.sfps {
+	for i, sfp := range psg.sfps {
 		bufLen := len(psw.valuesBuf)
-		psw.valuesBuf = sfp.finalizeStats(psw.valuesBuf, psw.psp.stopCh)
+		psw.valuesBuf = sfp.finalizeStats(psg.funcs[i].f, psw.valuesBuf, psw.psp.stopCh)
 		value := bytesutil.ToUnsafeString(psw.valuesBuf[bufLen:])
 		psw.values = append(psw.values, value)
 	}

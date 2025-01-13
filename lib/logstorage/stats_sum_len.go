@@ -17,20 +17,16 @@ func (ss *statsSumLen) updateNeededFields(neededFields fieldsSet) {
 }
 
 func (ss *statsSumLen) newStatsProcessor(a *chunkedAllocator) statsProcessor {
-	ssp := a.newStatsSumLenProcessor()
-	ssp.ss = ss
-	ssp.sumLen = 0
-	return ssp
+	return a.newStatsSumLenProcessor()
 }
 
 type statsSumLenProcessor struct {
-	ss *statsSumLen
-
 	sumLen uint64
 }
 
-func (ssp *statsSumLenProcessor) updateStatsForAllRows(br *blockResult) int {
-	fields := ssp.ss.fields
+func (ssp *statsSumLenProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	ss := sf.(*statsSumLen)
+	fields := ss.fields
 	if len(fields) == 0 {
 		// Sum all the columns
 		for _, c := range br.getColumns() {
@@ -46,8 +42,9 @@ func (ssp *statsSumLenProcessor) updateStatsForAllRows(br *blockResult) int {
 	return 0
 }
 
-func (ssp *statsSumLenProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	fields := ssp.ss.fields
+func (ssp *statsSumLenProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	ss := sf.(*statsSumLen)
+	fields := ss.fields
 	if len(fields) == 0 {
 		// Sum all the fields for the given row
 		for _, c := range br.getColumns() {
@@ -65,12 +62,12 @@ func (ssp *statsSumLenProcessor) updateStatsForRow(br *blockResult, rowIdx int) 
 	return 0
 }
 
-func (ssp *statsSumLenProcessor) mergeState(sfp statsProcessor) {
+func (ssp *statsSumLenProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsSumLenProcessor)
 	ssp.sumLen += src.sumLen
 }
 
-func (ssp *statsSumLenProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
+func (ssp *statsSumLenProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
 	return strconv.AppendUint(dst, ssp.sumLen, 10)
 }
 

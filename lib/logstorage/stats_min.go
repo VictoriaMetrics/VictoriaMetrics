@@ -21,22 +21,19 @@ func (sm *statsMin) updateNeededFields(neededFields fieldsSet) {
 }
 
 func (sm *statsMin) newStatsProcessor(a *chunkedAllocator) statsProcessor {
-	smp := a.newStatsMinProcessor()
-	smp.sm = sm
-	return smp
+	return a.newStatsMinProcessor()
 }
 
 type statsMinProcessor struct {
-	sm *statsMin
-
 	min      string
 	hasItems bool
 }
 
-func (smp *statsMinProcessor) updateStatsForAllRows(br *blockResult) int {
+func (smp *statsMinProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	sm := sf.(*statsMin)
 	minLen := len(smp.min)
 
-	fields := smp.sm.fields
+	fields := sm.fields
 	if len(fields) == 0 {
 		// Find the minimum value across all the columns
 		for _, c := range br.getColumns() {
@@ -53,10 +50,11 @@ func (smp *statsMinProcessor) updateStatsForAllRows(br *blockResult) int {
 	return len(smp.min) - minLen
 }
 
-func (smp *statsMinProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+func (smp *statsMinProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	sm := sf.(*statsMin)
 	minLen := len(smp.min)
 
-	fields := smp.sm.fields
+	fields := sm.fields
 	if len(fields) == 0 {
 		// Find the minimum value across all the fields for the given row
 		for _, c := range br.getColumns() {
@@ -75,7 +73,7 @@ func (smp *statsMinProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 	return minLen - len(smp.min)
 }
 
-func (smp *statsMinProcessor) mergeState(sfp statsProcessor) {
+func (smp *statsMinProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsMinProcessor)
 	if src.hasItems {
 		smp.updateStateString(src.min)
@@ -167,7 +165,7 @@ func (smp *statsMinProcessor) updateStateString(v string) {
 	}
 }
 
-func (smp *statsMinProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
+func (smp *statsMinProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
 	return append(dst, smp.min...)
 }
 

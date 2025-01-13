@@ -23,20 +23,17 @@ func (sa *statsRowAny) updateNeededFields(neededFields fieldsSet) {
 }
 
 func (sa *statsRowAny) newStatsProcessor(a *chunkedAllocator) statsProcessor {
-	sap := a.newStatsRowAnyProcessor()
-	sap.sa = sa
-	return sap
+	return a.newStatsRowAnyProcessor()
 }
 
 type statsRowAnyProcessor struct {
-	sa *statsRowAny
-
 	captured bool
 
 	fields []Field
 }
 
-func (sap *statsRowAnyProcessor) updateStatsForAllRows(br *blockResult) int {
+func (sap *statsRowAnyProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	sa := sf.(*statsRowAny)
 	if br.rowsLen == 0 {
 		return 0
 	}
@@ -45,19 +42,20 @@ func (sap *statsRowAnyProcessor) updateStatsForAllRows(br *blockResult) int {
 	}
 	sap.captured = true
 
-	return sap.updateState(br, 0)
+	return sap.updateState(sa, br, 0)
 }
 
-func (sap *statsRowAnyProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+func (sap *statsRowAnyProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	sa := sf.(*statsRowAny)
 	if sap.captured {
 		return 0
 	}
 	sap.captured = true
 
-	return sap.updateState(br, rowIdx)
+	return sap.updateState(sa, br, rowIdx)
 }
 
-func (sap *statsRowAnyProcessor) mergeState(sfp statsProcessor) {
+func (sap *statsRowAnyProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsRowAnyProcessor)
 	if !sap.captured {
 		sap.captured = src.captured
@@ -65,10 +63,10 @@ func (sap *statsRowAnyProcessor) mergeState(sfp statsProcessor) {
 	}
 }
 
-func (sap *statsRowAnyProcessor) updateState(br *blockResult, rowIdx int) int {
+func (sap *statsRowAnyProcessor) updateState(sa *statsRowAny, br *blockResult, rowIdx int) int {
 	stateSizeIncrease := 0
 	fields := sap.fields
-	fetchFields := sap.sa.fields
+	fetchFields := sa.fields
 	if len(fetchFields) == 0 {
 		cs := br.getColumns()
 		for _, c := range cs {
@@ -95,7 +93,7 @@ func (sap *statsRowAnyProcessor) updateState(br *blockResult, rowIdx int) int {
 	return stateSizeIncrease
 }
 
-func (sap *statsRowAnyProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
+func (sap *statsRowAnyProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
 	return MarshalFieldsToJSON(dst, sap.fields)
 }
 

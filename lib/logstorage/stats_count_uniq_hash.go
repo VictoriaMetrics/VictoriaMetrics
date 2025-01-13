@@ -33,13 +33,11 @@ func (su *statsCountUniqHash) updateNeededFields(neededFields fieldsSet) {
 func (su *statsCountUniqHash) newStatsProcessor(a *chunkedAllocator) statsProcessor {
 	sup := a.newStatsCountUniqHashProcessor()
 	sup.a = a
-	sup.su = su
 	return sup
 }
 
 type statsCountUniqHashProcessor struct {
-	a  *chunkedAllocator
-	su *statsCountUniqHash
+	a *chunkedAllocator
 
 	m  statsCountUniqHashSet
 	ms []*statsCountUniqHashSet
@@ -150,12 +148,13 @@ func (sus *statsCountUniqHashSet) mergeState(src *statsCountUniqHashSet, stopCh 
 	mergeUint64Set(&sus.strings, src.strings, stopCh)
 }
 
-func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(br *blockResult) int {
-	if sup.limitReached() {
+func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	su := sf.(*statsCountUniqHash)
+	if sup.limitReached(su) {
 		return 0
 	}
 
-	fields := sup.su.fields
+	fields := su.fields
 
 	stateSizeIncrease := 0
 	if len(fields) == 0 {
@@ -251,12 +250,13 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(br *blockResult) i
 	return stateSizeIncrease
 }
 
-func (sup *statsCountUniqHashProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	if sup.limitReached() {
+func (sup *statsCountUniqHashProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	su := sf.(*statsCountUniqHash)
+	if sup.limitReached(su) {
 		return 0
 	}
 
-	fields := sup.su.fields
+	fields := su.fields
 
 	if len(fields) == 0 {
 		// Count unique rows
@@ -474,8 +474,9 @@ func (sup *statsCountUniqHashProcessor) updateStatsForRowSingleColumn(br *blockR
 	}
 }
 
-func (sup *statsCountUniqHashProcessor) mergeState(sfp statsProcessor) {
-	if sup.limitReached() {
+func (sup *statsCountUniqHashProcessor) mergeState(sf statsFunc, sfp statsProcessor) {
+	su := sf.(*statsCountUniqHash)
+	if sup.limitReached(su) {
 		return
 	}
 
@@ -489,14 +490,15 @@ func (sup *statsCountUniqHashProcessor) mergeState(sfp statsProcessor) {
 	sup.m.mergeState(&src.m, nil)
 }
 
-func (sup *statsCountUniqHashProcessor) finalizeStats(dst []byte, stopCh <-chan struct{}) []byte {
+func (sup *statsCountUniqHashProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte {
+	su := sf.(*statsCountUniqHash)
 	n := sup.m.entriesCount()
 	if len(sup.ms) > 0 {
 		sup.ms = append(sup.ms, &sup.m)
 		n = countUniqHashParallel(sup.ms, stopCh)
 	}
 
-	if limit := sup.su.limit; limit > 0 && n > limit {
+	if limit := su.limit; limit > 0 && n > limit {
 		n = limit
 	}
 	return strconv.AppendUint(dst, n, 10)
@@ -584,8 +586,8 @@ func countUniqHashParallel(ms []*statsCountUniqHashSet, stopCh <-chan struct{}) 
 	return countTotal
 }
 
-func (sup *statsCountUniqHashProcessor) limitReached() bool {
-	limit := sup.su.limit
+func (sup *statsCountUniqHashProcessor) limitReached(su *statsCountUniqHash) bool {
+	limit := su.limit
 	if limit <= 0 {
 		return false
 	}
