@@ -24,19 +24,16 @@ func (sc *statsCount) updateNeededFields(neededFields fieldsSet) {
 }
 
 func (sc *statsCount) newStatsProcessor(a *chunkedAllocator) statsProcessor {
-	scp := a.newStatsCountProcessor()
-	scp.sc = sc
-	return scp
+	return a.newStatsCountProcessor()
 }
 
 type statsCountProcessor struct {
-	sc *statsCount
-
 	rowsCount uint64
 }
 
-func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
-	fields := scp.sc.fields
+func (scp *statsCountProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	sc := sf.(*statsCount)
+	fields := sc.fields
 	if len(fields) == 0 {
 		// Fast path - unconditionally count all the columns.
 		scp.rowsCount += uint64(br.rowsLen)
@@ -135,8 +132,9 @@ func (scp *statsCountProcessor) updateStatsForAllRows(br *blockResult) int {
 	return 0
 }
 
-func (scp *statsCountProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	fields := scp.sc.fields
+func (scp *statsCountProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	sc := sf.(*statsCount)
+	fields := sc.fields
 	if len(fields) == 0 {
 		// Fast path - unconditionally count the given column
 		scp.rowsCount++
@@ -190,12 +188,12 @@ func (scp *statsCountProcessor) updateStatsForRow(br *blockResult, rowIdx int) i
 	return 0
 }
 
-func (scp *statsCountProcessor) mergeState(sfp statsProcessor) {
+func (scp *statsCountProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsCountProcessor)
 	scp.rowsCount += src.rowsCount
 }
 
-func (scp *statsCountProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
+func (scp *statsCountProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
 	return strconv.AppendUint(dst, scp.rowsCount, 10)
 }
 

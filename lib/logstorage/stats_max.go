@@ -21,29 +21,26 @@ func (sm *statsMax) updateNeededFields(neededFields fieldsSet) {
 }
 
 func (sm *statsMax) newStatsProcessor(a *chunkedAllocator) statsProcessor {
-	smp := a.newStatsMaxProcessor()
-	smp.sm = sm
-	return smp
+	return a.newStatsMaxProcessor()
 }
 
 type statsMaxProcessor struct {
-	sm *statsMax
-
 	max      string
 	hasItems bool
 }
 
-func (smp *statsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
+func (smp *statsMaxProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	sm := sf.(*statsMax)
 	maxLen := len(smp.max)
 
-	if len(smp.sm.fields) == 0 {
+	if len(sm.fields) == 0 {
 		// Find the minimum value across all the columns
 		for _, c := range br.getColumns() {
 			smp.updateStateForColumn(br, c)
 		}
 	} else {
 		// Find the minimum value across the requested columns
-		for _, field := range smp.sm.fields {
+		for _, field := range sm.fields {
 			c := br.getColumnByName(field)
 			smp.updateStateForColumn(br, c)
 		}
@@ -52,10 +49,11 @@ func (smp *statsMaxProcessor) updateStatsForAllRows(br *blockResult) int {
 	return len(smp.max) - maxLen
 }
 
-func (smp *statsMaxProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+func (smp *statsMaxProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	sm := sf.(*statsMax)
 	maxLen := len(smp.max)
 
-	if len(smp.sm.fields) == 0 {
+	if len(sm.fields) == 0 {
 		// Find the minimum value across all the fields for the given row
 		for _, c := range br.getColumns() {
 			v := c.getValueAtRow(br, rowIdx)
@@ -63,7 +61,7 @@ func (smp *statsMaxProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 		}
 	} else {
 		// Find the minimum value across the requested fields for the given row
-		for _, field := range smp.sm.fields {
+		for _, field := range sm.fields {
 			c := br.getColumnByName(field)
 			v := c.getValueAtRow(br, rowIdx)
 			smp.updateStateString(v)
@@ -73,7 +71,7 @@ func (smp *statsMaxProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 	return maxLen - len(smp.max)
 }
 
-func (smp *statsMaxProcessor) mergeState(sfp statsProcessor) {
+func (smp *statsMaxProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsMaxProcessor)
 	if src.hasItems {
 		smp.updateStateString(src.max)
@@ -165,7 +163,7 @@ func (smp *statsMaxProcessor) updateStateString(v string) {
 	}
 }
 
-func (smp *statsMaxProcessor) finalizeStats(dst []byte, _ <-chan struct{}) []byte {
+func (smp *statsMaxProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
 	return append(dst, smp.max...)
 }
 

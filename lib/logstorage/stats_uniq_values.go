@@ -34,27 +34,26 @@ func (su *statsUniqValues) updateNeededFields(neededFields fieldsSet) {
 func (su *statsUniqValues) newStatsProcessor(a *chunkedAllocator) statsProcessor {
 	sup := a.newStatsUniqValuesProcessor()
 	sup.a = a
-	sup.su = su
 	sup.m = make(map[string]struct{})
 	return sup
 }
 
 type statsUniqValuesProcessor struct {
-	a  *chunkedAllocator
-	su *statsUniqValues
+	a *chunkedAllocator
 
 	m  map[string]struct{}
 	ms []map[string]struct{}
 }
 
-func (sup *statsUniqValuesProcessor) updateStatsForAllRows(br *blockResult) int {
-	if sup.limitReached() {
+func (sup *statsUniqValuesProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	su := sf.(*statsUniqValues)
+	if sup.limitReached(su) {
 		// Limit on the number of unique values has been reached
 		return 0
 	}
 
 	stateSizeIncrease := 0
-	fields := sup.su.fields
+	fields := su.fields
 	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			stateSizeIncrease += sup.updateStatsForAllRowsColumn(c, br)
@@ -96,14 +95,15 @@ func (sup *statsUniqValuesProcessor) updateStatsForAllRowsColumn(c *blockResultC
 	return stateSizeIncrease
 }
 
-func (sup *statsUniqValuesProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	if sup.limitReached() {
+func (sup *statsUniqValuesProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	su := sf.(*statsUniqValues)
+	if sup.limitReached(su) {
 		// Limit on the number of unique values has been reached
 		return 0
 	}
 
 	stateSizeIncrease := 0
-	fields := sup.su.fields
+	fields := su.fields
 	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			stateSizeIncrease += sup.updateStatsForRowColumn(c, br, rowIdx)
@@ -137,8 +137,9 @@ func (sup *statsUniqValuesProcessor) updateStatsForRowColumn(c *blockResultColum
 	return sup.updateState(v)
 }
 
-func (sup *statsUniqValuesProcessor) mergeState(sfp statsProcessor) {
-	if sup.limitReached() {
+func (sup *statsUniqValuesProcessor) mergeState(sf statsFunc, sfp statsProcessor) {
+	su := sf.(*statsUniqValues)
+	if sup.limitReached(su) {
 		return
 	}
 
@@ -156,7 +157,8 @@ func (sup *statsUniqValuesProcessor) mergeState(sfp statsProcessor) {
 	}
 }
 
-func (sup *statsUniqValuesProcessor) finalizeStats(dst []byte, stopCh <-chan struct{}) []byte {
+func (sup *statsUniqValuesProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte {
+	su := sf.(*statsUniqValues)
 	var items []string
 	if len(sup.ms) > 0 {
 		sup.ms = append(sup.ms, sup.m)
@@ -165,7 +167,7 @@ func (sup *statsUniqValuesProcessor) finalizeStats(dst []byte, stopCh <-chan str
 		items = setToSortedSlice(sup.m)
 	}
 
-	if limit := sup.su.limit; limit > 0 && uint64(len(items)) > limit {
+	if limit := su.limit; limit > 0 && uint64(len(items)) > limit {
 		items = items[:limit]
 	}
 
@@ -317,8 +319,8 @@ func (sup *statsUniqValuesProcessor) updateState(v string) int {
 	return len(vCopy) + int(unsafe.Sizeof(vCopy))
 }
 
-func (sup *statsUniqValuesProcessor) limitReached() bool {
-	limit := sup.su.limit
+func (sup *statsUniqValuesProcessor) limitReached(su *statsUniqValues) bool {
+	limit := su.limit
 	return limit > 0 && uint64(len(sup.m)) > limit
 }
 

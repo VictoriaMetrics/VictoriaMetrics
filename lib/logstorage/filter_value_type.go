@@ -23,7 +23,7 @@ func (fv *filterValueType) updateNeededFields(neededFields fieldsSet) {
 }
 
 func (fv *filterValueType) applyToBlockResult(br *blockResult, bm *bitmap) {
-	typ := "unknown"
+	var typ string
 	c := br.getColumnByName(fv.fieldName)
 	if c.isConst {
 		typ = "const"

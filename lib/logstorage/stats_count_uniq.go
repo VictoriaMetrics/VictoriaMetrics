@@ -33,13 +33,11 @@ func (su *statsCountUniq) updateNeededFields(neededFields fieldsSet) {
 func (su *statsCountUniq) newStatsProcessor(a *chunkedAllocator) statsProcessor {
 	sup := a.newStatsCountUniqProcessor()
 	sup.a = a
-	sup.su = su
 	return sup
 }
 
 type statsCountUniqProcessor struct {
-	a  *chunkedAllocator
-	su *statsCountUniq
+	a *chunkedAllocator
 
 	m  statsCountUniqSet
 	ms []*statsCountUniqSet
@@ -176,12 +174,13 @@ func mergeUint64Set(pDst *map[uint64]struct{}, src map[uint64]struct{}, stopCh <
 	}
 }
 
-func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
-	if sup.limitReached() {
+func (sup *statsCountUniqProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	su := sf.(*statsCountUniq)
+	if sup.limitReached(su) {
 		return 0
 	}
 
-	fields := sup.su.fields
+	fields := su.fields
 
 	stateSizeIncrease := 0
 	if len(fields) == 0 {
@@ -277,12 +276,13 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRows(br *blockResult) int {
 	return stateSizeIncrease
 }
 
-func (sup *statsCountUniqProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	if sup.limitReached() {
+func (sup *statsCountUniqProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	su := sf.(*statsCountUniq)
+	if sup.limitReached(su) {
 		return 0
 	}
 
-	fields := sup.su.fields
+	fields := su.fields
 
 	if len(fields) == 0 {
 		// Count unique rows
@@ -499,8 +499,9 @@ func (sup *statsCountUniqProcessor) updateStatsForRowSingleColumn(br *blockResul
 	}
 }
 
-func (sup *statsCountUniqProcessor) mergeState(sfp statsProcessor) {
-	if sup.limitReached() {
+func (sup *statsCountUniqProcessor) mergeState(sf statsFunc, sfp statsProcessor) {
+	su := sf.(*statsCountUniq)
+	if sup.limitReached(su) {
 		return
 	}
 
@@ -514,14 +515,15 @@ func (sup *statsCountUniqProcessor) mergeState(sfp statsProcessor) {
 	sup.m.mergeState(&src.m, nil)
 }
 
-func (sup *statsCountUniqProcessor) finalizeStats(dst []byte, stopCh <-chan struct{}) []byte {
+func (sup *statsCountUniqProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte {
 	n := sup.m.entriesCount()
 	if len(sup.ms) > 0 {
 		sup.ms = append(sup.ms, &sup.m)
 		n = countUniqParallel(sup.ms, stopCh)
 	}
 
-	if limit := sup.su.limit; limit > 0 && n > limit {
+	su := sf.(*statsCountUniq)
+	if limit := su.limit; limit > 0 && n > limit {
 		n = limit
 	}
 	return strconv.AppendUint(dst, n, 10)
@@ -618,8 +620,8 @@ func (sup *statsCountUniqProcessor) updateStateString(v []byte) int {
 	return sup.m.updateStateString(sup.a, bytesutil.ToUnsafeString(v))
 }
 
-func (sup *statsCountUniqProcessor) limitReached() bool {
-	limit := sup.su.limit
+func (sup *statsCountUniqProcessor) limitReached(su *statsCountUniq) bool {
+	limit := su.limit
 	if limit <= 0 {
 		return false
 	}
