@@ -67,13 +67,13 @@ func (as *maxAggrState) flushState(ctx *flushCtx) {
 
 		sv := v.(*maxStateValue)
 		sv.mu.Lock()
-		max := sv.max
+		maxV := sv.max
 		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
 		sv.deleted = true
 		sv.mu.Unlock()
 
 		key := k.(string)
-		ctx.appendSeries(key, "max", max)
+		ctx.appendSeries(key, "max", maxV)
 		return true
 	})
 }
