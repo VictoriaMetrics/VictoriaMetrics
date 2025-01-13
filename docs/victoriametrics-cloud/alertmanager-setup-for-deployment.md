@@ -149,7 +149,7 @@ or [Prometheus recording rules definition format](https://prometheus.io/docs/pro
 
 There are limitations for the rules files:
 
-1. All files may contain no more than 100 rules in total. If you need to upload more rules contact us via [support@victoriametrics.com](mailto:support@victoriametrics.com).
+1. All files may contain no more than 100 rules in total. If you need to upload more rules contact us via [support-cloud@victoriametrics.com](mailto:support-cloud@victoriametrics.com).
 2. The maximum file size is 20mb.
 3. The names of the groups in the files should be unique.
 
