@@ -273,17 +273,17 @@ func (d *Dogsketch) unmarshalProtobuf(src []byte) (err error) {
 			}
 			d.Cnt = cnt
 		case 3:
-			min, ok := fc.Double()
+			v, ok := fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read min")
 			}
-			d.Min = min
+			d.Min = v
 		case 4:
-			max, ok := fc.Double()
+			v, ok := fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read max")
 			}
-			d.Max = max
+			d.Max = v
 		case 6:
 			sum, ok := fc.Double()
 			if !ok {

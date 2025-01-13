@@ -88,6 +88,12 @@ func (fr *filterLenRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 			return
 		}
 		matchColumnByLenRange(br, bm, c, minLen, maxLen)
+	case valueTypeInt64:
+		if minLen > 21 || maxLen == 0 {
+			bm.resetBits()
+			return
+		}
+		matchColumnByLenRange(br, bm, c, minLen, maxLen)
 	case valueTypeFloat64:
 		if minLen > 24 || maxLen == 0 {
 			bm.resetBits()
@@ -156,6 +162,8 @@ func (fr *filterLenRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32ByLenRange(bs, ch, bm, minLen, maxLen)
 	case valueTypeUint64:
 		matchUint64ByLenRange(bs, ch, bm, minLen, maxLen)
+	case valueTypeInt64:
+		matchInt64ByLenRange(bs, ch, bm, minLen, maxLen)
 	case valueTypeFloat64:
 		matchFloat64ByLenRange(bs, ch, bm, minLen, maxLen)
 	case valueTypeIPv4:
@@ -290,6 +298,33 @@ func matchUint64ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen
 		s := toUint64String(bs, bb, v)
 		return matchLenRange(s, minLen, maxLen)
 	})
+	bbPool.Put(bb)
+}
+
+func matchInt64ByLenRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minLen, maxLen uint64) {
+	if minLen > 21 || maxLen == 0 {
+		bm.resetBits()
+		return
+	}
+
+	bb := bbPool.Get()
+
+	bb.B = marshalInt64String(bb.B[:0], int64(ch.minValue))
+	maxvLen := len(bb.B)
+	bb.B = marshalInt64String(bb.B[:0], int64(ch.maxValue))
+	if len(bb.B) > maxvLen {
+		maxvLen = len(bb.B)
+	}
+	if uint64(maxvLen) < minLen {
+		bm.resetBits()
+		return
+	}
+
+	visitValues(bs, ch, bm, func(v string) bool {
+		s := toInt64String(bs, bb, v)
+		return matchLenRange(s, minLen, maxLen)
+	})
+
 	bbPool.Put(bb)
 }
 

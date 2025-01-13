@@ -67,12 +67,12 @@ func (as *minAggrState) flushState(ctx *flushCtx) {
 
 		sv := v.(*minStateValue)
 		sv.mu.Lock()
-		min := sv.min
+		minV := sv.min
 		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
 		sv.deleted = true
 		sv.mu.Unlock()
 		key := k.(string)
-		ctx.appendSeries(key, "min", min)
+		ctx.appendSeries(key, "min", minV)
 		return true
 	})
 }

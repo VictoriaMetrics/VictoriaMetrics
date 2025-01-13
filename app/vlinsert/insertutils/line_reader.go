@@ -15,6 +15,8 @@ import (
 // LineReader reads newline-delimited lines from the underlying reader
 type LineReader struct {
 	// Line contains the next line read after the call to NextLine
+	//
+	// The Line contents is valid until the next call to NextLine.
 	Line []byte
 
 	// name is the LineReader name
@@ -25,6 +27,9 @@ type LineReader struct {
 
 	// buf is a buffer for reading the next line
 	buf []byte
+
+	// bufOffset is the offset at buf to read the next line from
+	bufOffset int
 
 	// err is the last error when reading data from r
 	err error
@@ -51,26 +56,27 @@ func NewLineReader(name string, r io.Reader) *LineReader {
 // Check for Err in this case.
 func (lr *LineReader) NextLine() bool {
 	for {
-		if len(lr.buf) == 0 {
+		if lr.bufOffset >= len(lr.buf) {
 			if lr.err != nil || lr.eofReached {
 				return false
 			}
 			if !lr.readMoreData() {
 				return false
 			}
-			if len(lr.buf) == 0 && lr.eofReached {
+			if lr.bufOffset >= len(lr.buf) && lr.eofReached {
 				return false
 			}
 		}
 
-		if n := bytes.IndexByte(lr.buf, '\n'); n >= 0 {
-			lr.Line = append(lr.Line[:0], lr.buf[:n]...)
-			lr.buf = append(lr.buf[:0], lr.buf[n+1:]...)
+		buf := lr.buf[lr.bufOffset:]
+		if n := bytes.IndexByte(buf, '\n'); n >= 0 {
+			lr.Line = buf[:n]
+			lr.bufOffset += n + 1
 			return true
 		}
 		if lr.eofReached {
-			lr.Line = append(lr.Line[:0], lr.buf...)
-			lr.buf = lr.buf[:0]
+			lr.Line = buf
+			lr.bufOffset += len(buf)
 			return true
 		}
 		if !lr.readMoreData() {
@@ -88,6 +94,11 @@ func (lr *LineReader) Err() error {
 }
 
 func (lr *LineReader) readMoreData() bool {
+	if lr.bufOffset > 0 {
+		lr.buf = append(lr.buf[:0], lr.buf[lr.bufOffset:]...)
+		lr.bufOffset = 0
+	}
+
 	bufLen := len(lr.buf)
 	if bufLen >= MaxLineSizeBytes.IntN() {
 		logger.Warnf("%s: the line length exceeds -insert.maxLineSizeBytes=%d; skipping it; line contents=%q", lr.name, MaxLineSizeBytes.IntN(), lr.buf)

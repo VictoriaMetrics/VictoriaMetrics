@@ -451,6 +451,31 @@ func TestParseFilterStringRange(t *testing.T) {
 	f(`<="123.456.789"`, ``, ``, "123.456.789\x00")
 }
 
+func TestParseFilterValueType(t *testing.T) {
+	f := func(s, fieldNameExpected, valueTypeExpected string) {
+		t.Helper()
+		q, err := ParseQuery(s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		fv, ok := q.f.(*filterValueType)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterValueType; filter: %s", q.f, q.f)
+		}
+		if fv.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fv.fieldName, fieldNameExpected)
+		}
+		if fv.valueType != valueTypeExpected {
+			t.Fatalf("unexpected valueType; got %q; want %q", fv.valueType, valueTypeExpected)
+		}
+	}
+
+	f("value_type(foo)", "", "foo")
+	f("foo:value_type('dict')", "foo", "dict")
+	f("value_type:value_type('')", "value_type", "")
+	f(`z:value_type("string")`, "z", "string")
+}
+
 func TestParseFilterRegexp(t *testing.T) {
 	f := func(s, reExpected string) {
 		t.Helper()
@@ -875,6 +900,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("string_range-a", `"string_range-a"`)
 	f("x:string_range-a", `x:"string_range-a"`)
 	f("string_range-a:x", `"string_range-a":x`)
+	f("value_type", `"value_type"`)
+	f("x:value_type", `x:"value_type"`)
 
 	// exact filter
 	f("exact(foo)", `=foo`)
@@ -939,6 +966,11 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`range(-INF,+inF)`, `range(-INF, +inF)`)
 	f(`range(1.5K, 22.5GiB)`, `range(1.5K, 22.5GiB)`)
 	f(`foo:range(5,inf)`, `foo:range(5, inf)`)
+
+	// value_type filter
+	f(`value_type(foo)`, `value_type(foo)`)
+	f(`x:value_type("dict")`, `x:value_type(dict)`)
+	f(`x:value_type(dict:x)`, `x:value_type("dict:x")`)
 
 	// >,  >=, < and <= filter
 	f(`foo: > 10.5M`, `foo:>10.5M`)
@@ -1530,6 +1562,13 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`range[1,foo)`)
 	f(`range[1,2,3)`)
 	f(`range(1)`)
+
+	// invalid value_type
+	f(`value_type(`)
+	f(`value_type(1,`)
+	f(`value_type(foo())`)
+	f(`value_type()`)
+	f(`value_type(a,b)`)
 
 	// invalid re
 	f("re(")

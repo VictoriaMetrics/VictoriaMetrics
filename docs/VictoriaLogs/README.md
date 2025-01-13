@@ -263,6 +263,31 @@ log management systems and comparing resource usage + query performance between 
 Please share benchmark results and ideas on how to improve benchmarks / VictoriaLogs
 via [VictoriaMetrics community channels](https://docs.victoriametrics.com/#community-and-contributions).
 
+## Profiling
+
+VictoriaLogs provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
+
+* Memory profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+
+```sh
+curl http://0.0.0.0:9428/debug/pprof/heap > mem.pprof
+```
+
+
+* CPU profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+
+```sh
+curl http://0.0.0.0:9428/debug/pprof/profile > cpu.pprof
+```
+
+
+The command for collecting CPU profile waits for 30 seconds before returning.
+
+The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
+It is safe sharing the collected profiles from security point of view, since they do not contain sensitive information.
+
 ## List of command-line flags
 
 Pass `-help` to VictoriaLogs in order to see the list of supported command-line flags with their description:

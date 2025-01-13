@@ -892,31 +892,6 @@ func parseBySortFields(lex *lexer) ([]*bySortField, error) {
 	}
 }
 
-func tryParseInt64(s string) (int64, bool) {
-	if len(s) == 0 {
-		return 0, false
-	}
-
-	isMinus := s[0] == '-'
-	if isMinus {
-		s = s[1:]
-	}
-	u64, ok := tryParseUint64(s)
-	if !ok {
-		return 0, false
-	}
-	if !isMinus {
-		if u64 > math.MaxInt64 {
-			return 0, false
-		}
-		return int64(u64), true
-	}
-	if u64 > -math.MinInt64 {
-		return 0, false
-	}
-	return -int64(u64), true
-}
-
 func marshalJSONKeyValue(dst []byte, k, v string) []byte {
 	dst = quicktemplate.AppendJSONString(dst, k, true)
 	dst = append(dst, ':')

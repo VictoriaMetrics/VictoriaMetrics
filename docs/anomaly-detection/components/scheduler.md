@@ -155,7 +155,9 @@ How often to completely retrain the models. If not set, value of `infer_every` i
         <tr>
             <td>
 
+<span>
 `start_from`{{% available_from "v1.18.5" anomaly %}}
+</span>
             </td>
             <td>str, Optional</td>
             <td>
@@ -169,8 +171,9 @@ Specifies when to initiate the first `fit_every` call. Accepts either an ISO 860
         </tr>
         <tr>
             <td>
-
+<span>
 `tz`{{% available_from "v1.18.5" anomaly %}}
+</span>
             </td>
             <td>str, Optional</td>
             <td>

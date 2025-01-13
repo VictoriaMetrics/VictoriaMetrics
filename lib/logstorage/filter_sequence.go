@@ -121,6 +121,8 @@ func (fs *filterSequence) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32BySequence(bs, ch, bm, phrases, tokens)
 	case valueTypeUint64:
 		matchUint64BySequence(bs, ch, bm, phrases, tokens)
+	case valueTypeInt64:
+		matchInt64BySequence(bs, ch, bm, phrases, tokens)
 	case valueTypeFloat64:
 		matchFloat64BySequence(bs, ch, bm, phrases, tokens)
 	case valueTypeIPv4:
@@ -243,6 +245,14 @@ func matchUint64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase
 		return
 	}
 	matchUint64ByExactValue(bs, ch, bm, phrases[0], tokens)
+}
+
+func matchInt64BySequence(bs *blockSearch, ch *columnHeader, bm *bitmap, phrases []string, tokens []uint64) {
+	if len(phrases) > 1 {
+		bm.resetBits()
+		return
+	}
+	matchInt64ByExactValue(bs, ch, bm, phrases[0], tokens)
 }
 
 func matchSequence(s string, phrases []string) bool {
