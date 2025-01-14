@@ -116,7 +116,7 @@ Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`.
         <tr>
             <td>
 
-`fit_window`
+<span style="white-space: nowrap;">`fit_window`</span>
             </td>
             <td>str</td>
             <td>
@@ -128,7 +128,7 @@ Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`.
         <tr>
             <td>
 
-`infer_every`
+<span style="white-space: nowrap;">`infer_every`</span>
             </td>
             <td>str</td>
             <td>
@@ -140,7 +140,7 @@ Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`.
         <tr>
             <td>
 
-`fit_every`
+<span style="white-space: nowrap;">`fit_every`</span>
             </td>
             <td>str, Optional</td>
             <td>
@@ -155,9 +155,7 @@ How often to completely retrain the models. If not set, value of `infer_every` i
         <tr>
             <td>
 
-<span>
-`start_from`{{% available_from "v1.18.5" anomaly %}}
-</span>
+<span style="white-space: nowrap;">`start_from`{{% available_from "v1.18.5" anomaly %}}</span>
             </td>
             <td>str, Optional</td>
             <td>
@@ -171,9 +169,8 @@ Specifies when to initiate the first `fit_every` call. Accepts either an ISO 860
         </tr>
         <tr>
             <td>
-<span>
-`tz`{{% available_from "v1.18.5" anomaly %}}
-</span>
+
+<span style="white-space: nowrap;">`tz`{{% available_from "v1.18.5" anomaly %}}</span>
             </td>
             <td>str, Optional</td>
             <td>
@@ -232,7 +229,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>ISO 8601</td>
             <td>
 
-`fit_start_iso`
+<span style="white-space: nowrap;">`fit_start_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -245,7 +242,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>UNIX time</td>
             <td>
 
-`fit_start_s`
+<span style="white-space: nowrap;">`fit_start_s`</span>
             </td>
             <td>float</td>
             <td>1648771200</td>
@@ -254,7 +251,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>ISO 8601</td>
             <td>
 
-`fit_end_iso`
+<span style="white-space: nowrap;">`fit_end_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -270,7 +267,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>UNIX time</td>
             <td>
 
-`fit_end_s`
+<span style="white-space: nowrap;">`fit_end_s`</span>
             </td>
             <td>float</td>
             <td>1649548800</td>
@@ -294,7 +291,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>ISO 8601</td>
             <td>
 
-`infer_start_iso`
+<span style="white-space: nowrap;">`infer_start_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -307,7 +304,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>UNIX time</td>
             <td>
 
-`infer_start_s`
+<span style="white-space: nowrap;">`infer_start_s`</span>
             </td>
             <td>float</td>
             <td>1649635200</td>
@@ -316,7 +313,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>ISO 8601</td>
             <td>
 
-`infer_end_iso`
+<span style="white-space: nowrap;">`infer_end_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -332,7 +329,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>UNIX time</td>
             <td>
 
-`infer_end_s`
+<span style="white-space: nowrap;">`infer_end_s`</span>
             </td>
             <td>float</td>
             <td>1649894400</td>
@@ -391,7 +388,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
         <tr>
             <td>
 
-`n_jobs`
+<span style="white-space: nowrap;">`n_jobs`</span>
             </td>
             <td>int</td>
             <td>
@@ -424,7 +421,7 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
             <td>ISO 8601</td>
             <td>
 
-`from_iso`
+<span style="white-space: nowrap;">`from_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -437,7 +434,7 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
             <td>UNIX time</td>
             <td>
 
-`from_s`
+<span style="white-space: nowrap;">`from_s`</span>
             </td>
             <td>float</td>
             <td>1648771200</td>
@@ -446,7 +443,7 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
             <td>ISO 8601</td>
             <td>
 
-`to_iso`
+<span style="white-space: nowrap;">`to_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -462,7 +459,7 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
             <td>UNIX time</td>
             <td>
 
-`to_s`
+<span style="white-space: nowrap;">`to_s`</span>
             </td>
             <td>float</td>
             <td>1649548800</td>
@@ -487,7 +484,7 @@ The same *explicit* logic as in [Periodic scheduler](#periodic-scheduler)
             <td>ISO 8601</td>
             <td rowspan=2>
 
-`fit_window`
+<span style="white-space: nowrap;">`fit_window`</span>
             </td>
             <td rowspan=2>str</td>
             <td>
@@ -523,7 +520,7 @@ In `BacktestingScheduler`, the inference window is *implicitly* defined as a per
             <td>ISO 8601</td>
             <td rowspan=2>
 
-`fit_every`
+<span style="white-space: nowrap;">`fit_every`</span>
             </td>
             <td rowspan=2>str</td>
             <td>

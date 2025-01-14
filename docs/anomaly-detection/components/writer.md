@@ -28,7 +28,7 @@ Future updates will introduce additional export methods, offering users more fle
         <tr>
             <td>
 
-`class`
+<span style="white-space: nowrap;">`class`</span>
             </td>
             <td>
 <span>
@@ -43,7 +43,7 @@ Name of the class needed to enable writing to VictoriaMetrics or Prometheus. VmW
         <tr>
             <td>
 
-`datasource_url`
+<span style="white-space: nowrap;">`datasource_url`</span>
             </td>
             <td>
 
@@ -57,7 +57,7 @@ Datasource URL address
         <tr>
             <td>
 
-`tenant_id`
+<span style="white-space: nowrap;">`tenant_id`</span>
             </td>
             <td>
 <span>
@@ -73,11 +73,11 @@ For VictoriaMetrics Cluster version only, tenants are identified by `accountID` 
         <tr>
             <td rowspan="4">
 
-`metric_format`
+<span style="white-space: nowrap;">`metric_format`</span>
             </td>
             <td>
 
-`__name__: "vmanomaly_$VAR"`
+<span style="white-space: nowrap;">`__name__: "vmanomaly_$VAR"`</span>
             </td>
             <td rowspan="4">
 
@@ -99,26 +99,26 @@ Metrics to save the output (in metric names or labels). Must have `__name__` key
         <tr>
             <td>
 
-`for: "$QUERY_KEY"`
+<span style="white-space: nowrap;">`for: "$QUERY_KEY"`</span>
             </td>
         </tr>
         <tr>
             <td>
 
-`run: "test_metric_format"`
+<span style="white-space: nowrap;">`run: "test_metric_format"`</span>
             </td>
         </tr>
         <tr>
             <td>
 
-`config: "io_vm_single.yaml"`
+<span style="white-space: nowrap;">`config: "io_vm_single.yaml"`</span>
             </td>
         </tr>  
         <!-- End of additional rows -->
         <tr>
             <td>
 
-`import_json_path`
+<span style="white-space: nowrap;">`import_json_path`</span>
             </td>
             <td>
 
@@ -132,7 +132,7 @@ Optional, to override the default import path
         <tr>
             <td>
 
-`health_path`
+<span style="white-space: nowrap;">`health_path`</span>
             </td>
             <td>
 
@@ -146,7 +146,7 @@ Absolute or relative URL address where to check the availability of the datasour
         <tr>
             <td>
 
-`user`
+<span style="white-space: nowrap;">`user`</span>
             </td>
             <td>
 
@@ -160,7 +160,7 @@ BasicAuth username
         <tr>
             <td>
 
-`password`
+<span style="white-space: nowrap;">`password`</span>
             </td>
             <td>
 
@@ -174,7 +174,7 @@ BasicAuth password
         <tr>
             <td>
 
-`timeout`
+<span style="white-space: nowrap;">`timeout`</span>
             </td>
             <td>
 
@@ -188,7 +188,7 @@ Timeout for the requests, passed as a string
         <tr>
             <td>
 
-`verify_tls`
+<span style="white-space: nowrap;">`verify_tls`</span>
             </td>
             <td>
 
@@ -203,7 +203,7 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
         <tr>
             <td>
 
-`tls_cert_file`
+<span style="white-space: nowrap;">`tls_cert_file`</span>
             </td>
             <td>
 
@@ -216,7 +216,7 @@ Path to a file with the client certificate, i.e. `client.crt`{{% available_from 
         <tr>
             <td>
 
-`tls_key_file`
+<span style="white-space: nowrap;">`tls_key_file`</span>
             </td>
             <td>
 
@@ -229,7 +229,7 @@ Path to a file with the client certificate key, i.e. `client.key`{{% available_f
         <tr>
             <td>
 
-`bearer_token`
+<span style="white-space: nowrap;">`bearer_token`</span>
             </td>
             <td>
 
@@ -242,7 +242,7 @@ Token is passed in the standard format with header: `Authorization: bearer {toke
         <tr>
             <td>
 
-`bearer_token_file`
+<span style="white-space: nowrap;">`bearer_token_file`</span>
             </td>
             <td>
 

@@ -75,7 +75,7 @@ The `push_frequency` parameter{{% available_from "v1.18.7" anomaly %}} (default 
         <tr>
             <td>
 
-`url`
+<span style="white-space: nowrap;">`url`</span>
             </td>
             <td></td>
             <td>
@@ -86,7 +86,7 @@ Link where to push metrics to. Example: `"http://localhost:8480/"`
         <tr>
             <td>
 
-`tenant_id`
+<span style="white-space: nowrap;">`tenant_id`</span>
             </td>
             <td></td>
             <td>
@@ -97,7 +97,7 @@ Tenant ID for cluster version. Example: `"0:0"`
         <tr>
             <td>
 
-`health_path`
+<span style="white-space: nowrap;">`health_path`</span>
             </td>
             <td>
 
@@ -111,7 +111,7 @@ Tenant ID for cluster version. Example: `"0:0"`
         <tr>
             <td>
 
-`user`
+<span style="white-space: nowrap;">`user`</span>
             </td>
             <td></td>
             <td>BasicAuth username</td>
@@ -119,7 +119,7 @@ Tenant ID for cluster version. Example: `"0:0"`
         <tr>
             <td>
 
-`password`
+<span style="white-space: nowrap;">`password`</span>
             </td>
             <td></td>
             <td>BasicAuth password</td>
@@ -127,7 +127,7 @@ Tenant ID for cluster version. Example: `"0:0"`
         <tr>
             <td>
 
-`bearer_token`
+<span style="white-space: nowrap;">`bearer_token`</span>
             </td>
             <td>
 
@@ -140,7 +140,7 @@ Token is passed in the standard format with header: `Authorization: bearer {toke
         <tr>
             <td>
 
-`bearer_token_file`
+<span style="white-space: nowrap;">`bearer_token_file`</span>
             </td>
             <td>
 
@@ -153,7 +153,7 @@ Path to a file, which contains token, that is passed in the standard format with
         <tr>
             <td>
 
-`verify_tls`
+<span style="white-space: nowrap;">`verify_tls`</span>
             </td>
             <td>
 
@@ -168,7 +168,7 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
         <tr>
             <td>
 
-`tls_cert_file`
+<span style="white-space: nowrap;">`tls_cert_file`</span>
             </td>
             <td>
 
@@ -181,7 +181,7 @@ Path to a file with the client certificate, i.e. `client.crt`{{% available_from 
         <tr>
             <td>
 
-`tls_key_file`
+<span style="white-space: nowrap;">`tls_key_file`</span>
             </td>
             <td>
 
@@ -194,7 +194,7 @@ Path to a file with the client certificate key, i.e. `client.key`{{% available_f
         <tr>
             <td>
 
-`timeout`
+<span style="white-space: nowrap;">`timeout`</span>
             </td>
             <td>
 
@@ -205,7 +205,7 @@ Path to a file with the client certificate key, i.e. `client.key`{{% available_f
         <tr>
             <td>
 
-`push_frequency`
+<span style="white-space: nowrap;">`push_frequency`</span>
             </td>
             <td>
 
@@ -216,7 +216,7 @@ Path to a file with the client certificate key, i.e. `client.key`{{% available_f
         <tr>
             <td>
 
-`extra_labels`
+<span style="white-space: nowrap;">`extra_labels`</span>
             </td>
             <td></td>
             <td>Section for custom labels specified by user.</td>
@@ -271,7 +271,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
         <tr>
             <td>
 
-`vmanomaly_start_time_seconds`
+<span style="white-space: nowrap;">`vmanomaly_start_time_seconds`</span>
             </td>
             <td>Gauge</td>
             <td>vmanomaly start time in UNIX time</td>
@@ -279,7 +279,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
         <tr>
             <td>
 
-`vmanomaly_version_info`
+<span style="white-space: nowrap;">`vmanomaly_version_info`</span>
             </td>
             <td>Gauge</td>
             <td>vmanomaly version information, contained in `version` label{{% available_from "v1.17.2" anomaly %}}.</td>
@@ -287,7 +287,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
         <tr>
             <td>
 
-`vmanomaly_ui_version_info`
+<span style="white-space: nowrap;">`vmanomaly_ui_version_info`</span>
             </td>
             <td>Gauge</td>
             <td>vmanomaly UI version information, contained in `version` label{{% available_from "v1.17.2" anomaly %}}.</td>
@@ -295,7 +295,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
         <tr>
             <td>
 
-`vmanomaly_available_memory_bytes`
+<span style="white-space: nowrap;">`vmanomaly_available_memory_bytes`</span>
             </td>
             <td>Gauge</td>
             <td>Virtual memory size in bytes, available to the process{{% available_from "v1.18.4" anomaly %}}.</td>
@@ -303,7 +303,7 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
         <tr>
             <td>
 
-`vmanomaly_cpu_cores_available`
+<span style="white-space: nowrap;">`vmanomaly_cpu_cores_available`</span>
             </td>
             <td>Gauge</td>
             <td>Number of (logical) CPU cores available to the process{{% available_from "v1.18.4" anomaly %}}.</td>
@@ -331,7 +331,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_reader_request_duration_seconds`
+<span style="white-space: nowrap;">`vmanomaly_reader_request_duration_seconds`</span>
             </td>
             <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}})</td>
             <td>The total time (in seconds) taken by queries to VictoriaMetrics `url` for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -343,7 +343,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_reader_responses` (named `vmanomaly_reader_response_count`{{% deprecated_from "v1.17.0" anomaly %}})
+<span style="white-space: nowrap;">`vmanomaly_reader_responses`</span> (named `vmanomaly_reader_response_count`{{% deprecated_from "v1.17.0" anomaly %}})
             </td>
             <td>`Counter`</td>
             <td>The count of responses received from VictoriaMetrics `url` for the `query_key` query, categorized by `code`, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -355,7 +355,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_reader_received_bytes`
+<span style="white-space: nowrap;">`vmanomaly_reader_received_bytes`</span>
             </td>
             <td>`Counter`</td>
             <td>The total number of bytes received in responses for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -367,7 +367,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_reader_response_parsing_seconds`
+<span style="white-space: nowrap;">`vmanomaly_reader_response_parsing_seconds`</span>
             </td>
             <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}</td>
             <td>The total time (in seconds) taken for data parsing at each `step` (json, dataframe) for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -379,7 +379,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_reader_timeseries_received`
+<span style="white-space: nowrap;">`vmanomaly_reader_timeseries_received`</span>
             </td>
             <td>`Counter`</td>
             <td>The total number of timeseries received from VictoriaMetrics for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -391,7 +391,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_reader_datapoints_received`
+<span style="white-space: nowrap;">`vmanomaly_reader_datapoints_received`</span>
             </td>
             <td>`Counter`</td>
             <td>The total number of datapoints received from VictoriaMetrics for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -425,7 +425,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_model_runs`
+<span style="white-space: nowrap;">`vmanomaly_model_runs`</span>
             </td>
             <td>`Counter`</td>
             <td>How many successful `stage` (`fit`, `infer`, `fit_infer`) runs occurred for models of class `model_alias` based on results from the `query_key` query, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -437,7 +437,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_model_run_duration_seconds`
+<span style="white-space: nowrap;">`vmanomaly_model_run_duration_seconds`</span>
             </td>
             <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}) </td>
             <td>The total time (in seconds) taken by model invocations during the `stage` (`fit`, `infer`, `fit_infer`), based on the results of the `query_key` query, for models of class `model_alias`, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -449,7 +449,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_model_datapoints_accepted`
+<span style="white-space: nowrap;">`vmanomaly_model_datapoints_accepted`</span>
             </td>
             <td>`Counter`</td>
             <td>The number of datapoints accepted (excluding NaN or Inf values) by models of class `model_alias` from the results of the `query_key` query during the `stage` (`infer`, `fit_infer`), within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -461,7 +461,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_model_datapoints_produced`
+<span style="white-space: nowrap;">`vmanomaly_model_datapoints_produced`</span>
             </td>
             <td>`Counter`</td>
             <td>The number of datapoints generated by models of class `model_alias` during the `stage` (`infer`, `fit_infer`) based on results from the `query_key` query, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -473,7 +473,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_models_active`
+<span style="white-space: nowrap;">`vmanomaly_models_active`</span>
             </td>
             <td>`Gauge`</td>
             <td>The number of model instances of class `model_alias` currently available for inference for the `query_key` query, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -485,7 +485,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_model_runs_skipped`
+<span style="white-space: nowrap;">`vmanomaly_model_runs_skipped`</span>
             </td>
             <td>`Counter`</td>
             <td>The number of times model runs (of class `model_alias`) were skipped in expected situations (e.g., no data for fitting/inference, or no new data to infer on) during the `stage` (`fit`, `infer`, `fit_infer`), based on results from the `query_key` query, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -497,7 +497,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_model_run_errors`
+<span style="white-space: nowrap;">`vmanomaly_model_run_errors`</span>
             </td>
             <td>`Counter`</td>
             <td>The number of times model runs (of class `model_alias`) failed due to internal service errors during the `stage` (`fit`, `infer`, `fit_infer`), based on results from the `query_key` query, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -528,7 +528,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_writer_request_duration_seconds`
+<span style="white-space: nowrap;">`vmanomaly_writer_request_duration_seconds`</span>
             </td>
             <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}})</td>
             <td>The total time (in seconds) taken by write requests to VictoriaMetrics `url` for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.
@@ -541,7 +541,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_writer_responses` (named `vmanomaly_reader_response_count`{{% deprecated_from "v1.17.0" anomaly %}})
+<span style="white-space: nowrap;">`vmanomaly_writer_responses`</span> (named `vmanomaly_reader_response_count`{{% deprecated_from "v1.17.0" anomaly %}})
             </td>
             <td>`Counter`</td>
             <td>The count of response codes received from VictoriaMetrics `url` for the `query_key` query, categorized by `code`, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.
@@ -554,7 +554,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_writer_sent_bytes`
+<span style="white-space: nowrap;">`vmanomaly_writer_sent_bytes`</span>
             </td>
             <td>`Counter`</td>
             <td>The total number of bytes sent to VictoriaMetrics `url` for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -566,7 +566,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_writer_request_serialize_seconds`
+<span style="white-space: nowrap;">`vmanomaly_writer_request_serialize_seconds`</span>
             </td>
             <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}</td>
             <td>The total time (in seconds) taken for serializing data for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -578,7 +578,7 @@ Label names [description](#labelnames)
         <tr>
             <td>
 
-`vmanomaly_writer_datapoints_sent`
+<span style="white-space: nowrap;">`vmanomaly_writer_datapoints_sent`</span>
             </td>
             <td>`Counter`</td>
             <td>The total number of datapoints sent to VictoriaMetrics for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -589,7 +589,7 @@ Label names [description](#labelnames)
         </tr>
         <tr>
             <td>
-`vmanomaly_writer_timeseries_sent`
+<span style="white-space: nowrap;">`vmanomaly_writer_timeseries_sent`</span>
             </td>
             <td>`Counter`</td>
             <td>The total number of timeseries sent to VictoriaMetrics for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
