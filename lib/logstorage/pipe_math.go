@@ -275,20 +275,18 @@ func (shard *pipeMathProcessorShard) executeMathEntry(e *mathEntry, rc *resultCo
 
 	shard.executeExpr(e.expr, br)
 	r := shard.rs[0]
+	if len(r) == 0 {
+		return nan, nan
+	}
 
 	b := shard.a.b
-	minValue := nan
-	maxValue := nan
+	minValue := r[0]
+	maxValue := r[0]
 	for _, f := range r {
-		if math.IsNaN(minValue) {
+		if f < minValue {
 			minValue = f
+		} else if f > maxValue {
 			maxValue = f
-		} else if !math.IsNaN(f) {
-			if f < minValue {
-				minValue = f
-			} else if f > maxValue {
-				maxValue = f
-			}
 		}
 		n := math.Float64bits(f)
 		bLen := len(b)
@@ -318,41 +316,7 @@ func (shard *pipeMathProcessorShard) executeExpr(me *mathExpr, br *blockResult) 
 	if me.fieldName != "" {
 		r := shard.rs[rIdx]
 		c := br.getColumnByName(me.fieldName)
-		switch c.valueType {
-		case valueTypeUint8:
-			for i, v := range c.getValuesEncoded(br) {
-				r[i] = float64(unmarshalUint8(v))
-			}
-		case valueTypeUint16:
-			for i, v := range c.getValuesEncoded(br) {
-				r[i] = float64(unmarshalUint16(v))
-			}
-		case valueTypeUint32:
-			for i, v := range c.getValuesEncoded(br) {
-				r[i] = float64(unmarshalUint32(v))
-			}
-		case valueTypeUint64:
-			for i, v := range c.getValuesEncoded(br) {
-				r[i] = float64(unmarshalUint64(v))
-			}
-		case valueTypeInt64:
-			for i, v := range c.getValuesEncoded(br) {
-				r[i] = float64(unmarshalInt64(v))
-			}
-		case valueTypeFloat64:
-			for i, v := range c.getValuesEncoded(br) {
-				r[i] = unmarshalFloat64(v)
-			}
-		default:
-			values := c.getValues(br)
-			var f float64
-			for i, v := range values {
-				if i == 0 || v != values[i-1] {
-					f = parseMathNumber(v)
-				}
-				r[i] = f
-			}
-		}
+		shard.loadArgValuesFromColumn(r, br, c)
 		return
 	}
 
@@ -367,6 +331,80 @@ func (shard *pipeMathProcessorShard) executeExpr(me *mathExpr, br *blockResult) 
 
 	shard.rs = shard.rs[:rIdx+1]
 	shard.rsBuf = shard.rsBuf[:rsBufLen]
+}
+
+func (shard *pipeMathProcessorShard) loadArgValuesFromColumn(dst []float64, br *blockResult, c *blockResultColumn) {
+	if c.isConst {
+		v := c.valuesEncoded[0]
+		f := parseMathNumber(v)
+		for i := range dst {
+			dst[i] = f
+		}
+		return
+	}
+	if c.isTime {
+		timestamps := br.getTimestamps()
+		for i, ts := range timestamps {
+			dst[i] = float64(ts)
+		}
+		return
+	}
+
+	switch c.valueType {
+	case valueTypeDict:
+		a := encoding.GetFloat64s(len(c.dictValues))
+		fs := a.A
+		for i, v := range c.dictValues {
+			fs[i] = parseMathNumber(v)
+		}
+		values := c.getValuesEncoded(br)
+		for i, v := range values {
+			idx := v[0]
+			dst[i] = fs[idx]
+		}
+		encoding.PutFloat64s(a)
+	case valueTypeUint8:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = float64(unmarshalUint8(v))
+		}
+	case valueTypeUint16:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = float64(unmarshalUint16(v))
+		}
+	case valueTypeUint32:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = float64(unmarshalUint32(v))
+		}
+	case valueTypeUint64:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = float64(unmarshalUint64(v))
+		}
+	case valueTypeInt64:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = float64(unmarshalInt64(v))
+		}
+	case valueTypeFloat64:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = unmarshalFloat64(v)
+		}
+	case valueTypeIPv4:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = float64(unmarshalIPv4(v))
+		}
+	case valueTypeTimestampISO8601:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = float64(unmarshalTimestampISO8601(v))
+		}
+	default:
+		values := c.getValues(br)
+		var f float64
+		for i, v := range values {
+			if i == 0 || v != values[i-1] {
+				f = parseMathNumber(v)
+			}
+			dst[i] = f
+		}
+	}
 }
 
 func (pmp *pipeMathProcessor) writeBlock(workerID uint, br *blockResult) {
