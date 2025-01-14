@@ -6,6 +6,7 @@ import (
 	"math"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 
@@ -53,6 +54,8 @@ func ParseStream(r io.Reader, isGzipped bool, processBody func([]byte) ([]byte, 
 	return nil
 }
 
+var skippedSampleLogger = logger.WithThrottler("otlp_skipped_sample", 5*time.Second)
+
 func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 	for _, m := range sc.Metrics {
 		if len(m.Name) == 0 {
@@ -68,7 +71,7 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 		case m.Sum != nil:
 			if m.Sum.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedSum.Inc()
-				logger.Warnf("unsupported delta temporality for %q ('sum'): skipping it", metricName)
+				skippedSampleLogger.Warnf("unsupported delta temporality for %q ('sum'): skipping it", metricName)
 				continue
 			}
 			for _, p := range m.Sum.DataPoints {
@@ -81,7 +84,7 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 		case m.Histogram != nil:
 			if m.Histogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedHistogram.Inc()
-				logger.Warnf("unsupported delta temporality for %q ('histogram'): skipping it", metricName)
+				skippedSampleLogger.Warnf("unsupported delta temporality for %q ('histogram'): skipping it", metricName)
 				continue
 			}
 			for _, p := range m.Histogram.DataPoints {
@@ -90,7 +93,7 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 		case m.ExponentialHistogram != nil:
 			if m.ExponentialHistogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedExponentialHistogram.Inc()
-				logger.Warnf("unsupported delta temporality for %q ('exponential histogram'): skipping it", metricName)
+				skippedSampleLogger.Warnf("unsupported delta temporality for %q ('exponential histogram'): skipping it", metricName)
 				continue
 			}
 			for _, p := range m.ExponentialHistogram.DataPoints {
@@ -98,7 +101,7 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 			}
 		default:
 			rowsDroppedUnsupportedMetricType.Inc()
-			logger.Warnf("unsupported type for metric %q", metricName)
+			skippedSampleLogger.Warnf("unsupported type for metric %q", metricName)
 		}
 	}
 }
@@ -142,7 +145,7 @@ func (wr *writeContext) appendSamplesFromHistogram(metricName string, p *pb.Hist
 	}
 	if len(p.BucketCounts) != len(p.ExplicitBounds)+1 {
 		// fast path, broken data format
-		logger.Warnf("opentelemetry bad histogram format: %q, size of buckets: %d, size of bounds: %d", metricName, len(p.BucketCounts), len(p.ExplicitBounds))
+		skippedSampleLogger.Warnf("opentelemetry bad histogram format: %q, size of buckets: %d, size of bounds: %d", metricName, len(p.BucketCounts), len(p.ExplicitBounds))
 		return
 	}
 
