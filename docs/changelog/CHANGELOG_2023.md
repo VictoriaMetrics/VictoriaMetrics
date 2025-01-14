@@ -1,11 +1,11 @@
 ---
-weight: 3
+weight: 4
 title: Year 2023
 menu:
   docs:
     identifier: vm-changelog-2023
     parent: vm-changelog
-    weight: 3
+    weight: 4
 aliases:
 - /CHANGELOG_2023.html
 - /changelog_2023
