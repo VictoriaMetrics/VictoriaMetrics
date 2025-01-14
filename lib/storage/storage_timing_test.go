@@ -11,7 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func BenchmarkStorageAddRows_variousRowNumbers(b *testing.B) {
+func BenchmarkStorageAddRows(b *testing.B) {
 	defer fs.MustRemoveAll(b.Name())
 
 	f := func(b *testing.B, numRows int) {
@@ -54,12 +54,11 @@ func BenchmarkStorageAddRows_variousRowNumbers(b *testing.B) {
 	}
 }
 
-func BenchmarkStorageAddRows_variousTimeRanges(b *testing.B) {
-	defer fs.MustRemoveAll(b.Name())
+func BenchmarkStorageAddRows_VariousTimeRanges(b *testing.B) {
+	f := func(b *testing.B, tr TimeRange) {
+		b.Helper()
 
-	const numRows = 10000
-
-	addRows := func(path string, i int, tr TimeRange) {
+		const numRows = 10_000
 		mrs := make([]MetricRow, numRows)
 		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numRows)
 		mn := MetricName{
@@ -68,30 +67,43 @@ func BenchmarkStorageAddRows_variousTimeRanges(b *testing.B) {
 				{[]byte("instance"), []byte("1.2.3.4")},
 			},
 		}
-		for m := range numRows {
-			mn.MetricGroup = []byte(fmt.Sprintf("metric_%d_%d", i, m))
-			mrs[m].MetricNameRaw = mn.marshalRaw(nil)
-			mrs[m].Timestamp = tr.MinTimestamp + int64(m)*step
-			mrs[m].Value = float64(m)
+		s := MustOpenStorage(b.Name(), 0, 0, 0)
+
+		// Reset timer to exclude expensive initialization from measurement.
+		b.ResetTimer()
+
+		for n := range b.N {
+			// Stop timer to exclude expensive initialization from measurement.
+			b.StopTimer()
+			for i := range numRows {
+				mn.MetricGroup = []byte(fmt.Sprintf("metric_%d_%d", n, i))
+				mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+				mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+				mrs[i].Value = float64(i)
+			}
+			b.StartTimer()
+
+			s.AddRows(mrs, defaultPrecisionBits)
 		}
-		s := MustOpenStorage(path, 0, 0, 0)
-		s.AddRows(mrs, defaultPrecisionBits)
+
+		// Stop timer to exclude expensive cleanup from measurement.
+		b.StopTimer()
+
 		s.MustClose()
+		fs.MustRemoveAll(b.Name())
+
+		// Start timer again to conclude the benchmark correctly.
+		b.StartTimer()
 	}
 
-	benchmarkStorageOpOnVariousTimeRanges(b, func(b *testing.B, tr TimeRange) {
-		b.Helper()
-		for i := range b.N {
-			addRows(b.Name(), i, tr)
-		}
-	})
+	benchmarkStorageOpOnVariousTimeRanges(b, f)
 }
 
-func BenchmarkStorageSearchMetricNames(b *testing.B) {
-	defer fs.MustRemoveAll(b.Name())
-
-	addRowsThenSearchMetricNames := func(b *testing.B, numRows int, tr TimeRange) {
+func BenchmarkStorageSearchMetricNames_VariousTimeRanges(b *testing.B) {
+	f := func(b *testing.B, tr TimeRange) {
 		b.Helper()
+
+		const numRows = 10_000
 		mrs := make([]MetricRow, numRows)
 		want := make([]string, numRows)
 		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numRows)
@@ -101,17 +113,16 @@ func BenchmarkStorageSearchMetricNames(b *testing.B) {
 				{[]byte("instance"), []byte("1.2.3.4")},
 			},
 		}
-		for m := range numRows {
-			name := fmt.Sprintf("metric_%d", m)
+		for i := range numRows {
+			name := fmt.Sprintf("metric_%d", i)
 			mn.MetricGroup = []byte(name)
-			mrs[m].MetricNameRaw = mn.marshalRaw(nil)
-			mrs[m].Timestamp = tr.MinTimestamp + int64(m)*step
-			mrs[m].Value = float64(m)
-			want[m] = name
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+			mrs[i].Value = float64(i)
+			want[i] = name
 		}
 		slices.Sort(want)
 		s := MustOpenStorage(b.Name(), 0, 0, 0)
-		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
@@ -120,17 +131,22 @@ func BenchmarkStorageSearchMetricNames(b *testing.B) {
 			b.Fatalf("unexpected error in TagFilters.Add: %v", err)
 		}
 
+		// Reset timer to exclude expensive initialization from measurement.
+		b.ResetTimer()
+
 		var (
 			got []string
 			err error
 		)
-		b.ResetTimer()
 		for range b.N {
 			got, err = s.SearchMetricNames(nil, []*TagFilters{tfss}, tr, 1e9, noDeadline)
 			if err != nil {
 				b.Fatalf("SearchMetricNames() failed unexpectedly: %v", err)
 			}
 		}
+
+		// Stop timer to exclude expensive correctness check and cleanup from
+		// measurement.
 		b.StopTimer()
 
 		for i, name := range got {
@@ -144,23 +160,22 @@ func BenchmarkStorageSearchMetricNames(b *testing.B) {
 		if diff := cmp.Diff(got, want); diff != "" {
 			b.Errorf("unexpected metric names (-want, +got):\n%s", diff)
 		}
+
+		s.MustClose()
+		fs.MustRemoveAll(b.Name())
+
+		// Start timer again to conclude the benchmark correctly.
+		b.StartTimer()
 	}
 
-	for _, numRows := range []int{1, 10, 100, 1000, 10000} {
-		b.Run(fmt.Sprintf("%d-rows", numRows), func(b *testing.B) {
-			benchmarkStorageOpOnVariousTimeRanges(b, func(b *testing.B, tr TimeRange) {
-				b.Helper()
-				addRowsThenSearchMetricNames(b, numRows, tr)
-			})
-		})
-	}
+	benchmarkStorageOpOnVariousTimeRanges(b, f)
 }
 
-func BenchmarkStorageSearchLabelNames(b *testing.B) {
-	defer fs.MustRemoveAll(b.Name())
-
-	addRowsThenSearchLabelNames := func(b *testing.B, numRows int, tr TimeRange) {
+func BenchmarkStorageSearchLabelNames_VariousTimeRanges(b *testing.B) {
+	f := func(b *testing.B, tr TimeRange) {
 		b.Helper()
+
+		const numRows = 10_000
 		mrs := make([]MetricRow, numRows)
 		want := make([]string, numRows)
 		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numRows)
@@ -184,43 +199,48 @@ func BenchmarkStorageSearchLabelNames(b *testing.B) {
 		want = append(want, "__name__")
 		slices.Sort(want)
 		s := MustOpenStorage(b.Name(), 0, 0, 0)
-		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
+
+		// Reset timer to exclude expensive initialization from measurement.
+		b.ResetTimer()
 
 		var (
 			got []string
 			err error
 		)
-		b.ResetTimer()
+
 		for range b.N {
 			got, err = s.SearchLabelNamesWithFiltersOnTimeRange(nil, nil, tr, 1e9, 1e9, noDeadline)
 			if err != nil {
 				b.Fatalf("SearchLabelNames() failed unexpectedly: %v", err)
 			}
 		}
+
+		// Stop timer to exclude expensive correctness check and cleanup from
+		// measurement.
 		b.StopTimer()
+
 		slices.Sort(got)
 		if diff := cmp.Diff(got, want); diff != "" {
 			b.Errorf("unexpected label names (-want, +got):\n%s", diff)
 		}
+
+		s.MustClose()
+		fs.MustRemoveAll(b.Name())
+
+		// Start timer again to conclude the benchmark correctly.
+		b.StartTimer()
 	}
 
-	for _, numRows := range []int{1, 10, 100, 1000, 10000} {
-		b.Run(fmt.Sprintf("%d-rows", numRows), func(b *testing.B) {
-			benchmarkStorageOpOnVariousTimeRanges(b, func(b *testing.B, tr TimeRange) {
-				b.Helper()
-				addRowsThenSearchLabelNames(b, numRows, tr)
-			})
-		})
-	}
+	benchmarkStorageOpOnVariousTimeRanges(b, f)
 }
 
-func BenchmarkStorageSearchLabelValues(b *testing.B) {
-	defer fs.MustRemoveAll(b.Name())
-
-	addRowsThenSearchLabelValues := func(b *testing.B, numRows int, tr TimeRange) {
+func BenchmarkStorageSearchLabelValues_VariousTimeRanges(b *testing.B) {
+	f := func(b *testing.B, tr TimeRange) {
 		b.Helper()
+
+		const numRows = 10_000
 		mrs := make([]MetricRow, numRows)
 		want := make([]string, numRows)
 		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numRows)
@@ -243,36 +263,40 @@ func BenchmarkStorageSearchLabelValues(b *testing.B) {
 		}
 		slices.Sort(want)
 		s := MustOpenStorage(b.Name(), 0, 0, 0)
-		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
+
+		// Reset timer to exclude expensive initialization from measurement.
+		b.ResetTimer()
 
 		var (
 			got []string
 			err error
 		)
-		b.ResetTimer()
 		for range b.N {
 			got, err = s.SearchLabelValuesWithFiltersOnTimeRange(nil, "label", nil, tr, 1e9, 1e9, noDeadline)
 			if err != nil {
 				b.Fatalf("SearchLabelValues() failed unexpectedly: %v", err)
 			}
 		}
+
+		// Stop timer to exclude expensive correctness check and cleanup from
+		// measurement.
 		b.StopTimer()
+
 		slices.Sort(got)
 		if diff := cmp.Diff(got, want); diff != "" {
 			b.Errorf("unexpected label values (-want, +got):\n%s", diff)
 		}
+
+		s.MustClose()
+		fs.MustRemoveAll(b.Name())
+
+		// Start timer again to conclude the benchmark correctly.
+		b.StartTimer()
 	}
 
-	for _, numRows := range []int{1, 10, 100, 1000, 10000} {
-		b.Run(fmt.Sprintf("%d-rows", numRows), func(b *testing.B) {
-			benchmarkStorageOpOnVariousTimeRanges(b, func(b *testing.B, tr TimeRange) {
-				b.Helper()
-				addRowsThenSearchLabelValues(b, numRows, tr)
-			})
-		})
-	}
+	benchmarkStorageOpOnVariousTimeRanges(b, f)
 }
 
 // benchmarkStorageOpOnVariousTimeRanges measures the execution time of some
@@ -283,13 +307,37 @@ func benchmarkStorageOpOnVariousTimeRanges(b *testing.B, op func(b *testing.B, t
 	b.Run("1h", func(b *testing.B) {
 		op(b, TimeRange{
 			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 1, 1, 0, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		})
+	})
+	b.Run("2h", func(b *testing.B) {
+		op(b, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 1, 1, 1, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		})
+	})
+	b.Run("4h", func(b *testing.B) {
+		op(b, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 1, 1, 3, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 		})
 	})
 	b.Run("1d", func(b *testing.B) {
 		op(b, TimeRange{
 			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
 			MaxTimestamp: time.Date(2000, 1, 1, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		})
+	})
+	b.Run("2d", func(b *testing.B) {
+		op(b, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 1, 2, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		})
+	})
+	b.Run("4d", func(b *testing.B) {
+		op(b, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 1, 4, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 		})
 	})
 	b.Run("1m", func(b *testing.B) {
@@ -304,10 +352,10 @@ func benchmarkStorageOpOnVariousTimeRanges(b *testing.B, op func(b *testing.B, t
 			MaxTimestamp: time.Date(2000, 2, 29, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 		})
 	})
-	b.Run("6m", func(b *testing.B) {
+	b.Run("4m", func(b *testing.B) {
 		op(b, TimeRange{
 			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2000, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 3, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 		})
 	})
 	b.Run("1y", func(b *testing.B) {
@@ -316,10 +364,16 @@ func benchmarkStorageOpOnVariousTimeRanges(b *testing.B, op func(b *testing.B, t
 			MaxTimestamp: time.Date(2000, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 		})
 	})
-	b.Run("10y", func(b *testing.B) {
+	b.Run("2y", func(b *testing.B) {
 		op(b, TimeRange{
 			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
-			MaxTimestamp: time.Date(2009, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2001, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		})
+	})
+	b.Run("4y", func(b *testing.B) {
+		op(b, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2003, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 		})
 	})
 }
