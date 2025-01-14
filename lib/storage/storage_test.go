@@ -1577,7 +1577,7 @@ func TestStorageSearchMetricNames_VariousTimeRanges(t *testing.T) {
 		}
 		slices.Sort(got)
 
-		if diff := cmp.Diff(got, want); diff != "" {
+		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("unexpected metric names (-want, +got):\n%s", diff)
 		}
 	}
@@ -1824,7 +1824,7 @@ func TestStorageSearchLabelNames_VariousTimeRanges(t *testing.T) {
 		}
 		slices.Sort(got)
 
-		if diff := cmp.Diff(got, want); diff != "" {
+		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("unexpected label names (-want, +got):\n%s", diff)
 		}
 	}
@@ -1873,7 +1873,7 @@ func TestStorageSearchLabelValues_VariousTimeRanges(t *testing.T) {
 		}
 		slices.Sort(got)
 
-		if diff := cmp.Diff(got, want); diff != "" {
+		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("unexpected label values (-want, +got):\n%s", diff)
 		}
 	}
@@ -1910,6 +1910,116 @@ func testStorageOpOnVariousTimeRanges(t *testing.T, op func(t *testing.T, tr Tim
 			MaxTimestamp: time.Date(2000, 12, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 		})
 	})
+}
+
+func TestStorageGetTSDBStatus(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		numLabelNames    = 50
+		numLabelValues   = 30
+		numMetricNames   = numLabelNames * numLabelValues
+		focusLabel       = "label_0000"
+		nameValueRepeats = 10 // greatest common divisor
+		valuesPerName    = numLabelValues / nameValueRepeats
+	)
+
+	mrs := make([]MetricRow, numMetricNames)
+	tr := TimeRange{
+		MinTimestamp: time.Date(2025, 1, 13, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2025, 1, 13, 23, 59, 59, 0, time.UTC).UnixMilli(),
+	}
+	date := uint64(tr.MinTimestamp / msecPerDay)
+	for i := range numMetricNames {
+		metricName := fmt.Sprintf("metric_%04d", i)
+		labelName := fmt.Sprintf("label_%04d", i%numLabelNames)
+		labelValue := fmt.Sprintf("value_%04d", i%numLabelValues)
+		mn := MetricName{
+			MetricGroup: []byte(metricName),
+			Tags: []Tag{
+				{
+					Key:   []byte(labelName),
+					Value: []byte(labelValue),
+				},
+			},
+		}
+		mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+		mrs[i].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
+		mrs[i].Value = float64(i)
+	}
+
+	s := MustOpenStorage(t.Name(), 0, 0, 0)
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	var got, want *TSDBStatus
+
+	// Check the date on which there is no data.
+	got, err := s.GetTSDBStatus(nil, nil, date-1, "", 6, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("GetTSDBStatus() failed unexpectedly: %v", err)
+	}
+	want = &TSDBStatus{
+		SeriesCountByMetricName:      []TopHeapEntry{},
+		SeriesCountByLabelName:       []TopHeapEntry{},
+		SeriesCountByFocusLabelValue: []TopHeapEntry{},
+		SeriesCountByLabelValuePair:  []TopHeapEntry{},
+		LabelValueCountByLabelName:   []TopHeapEntry{},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("unexpected label values (-want, +got):\n%s", diff)
+	}
+
+	// Check the date on which there is data.
+	got, err = s.GetTSDBStatus(nil, nil, date, "label_0000", 6, 1e9, noDeadline)
+	if err != nil {
+		t.Fatalf("GetTSDBStatus() failed unexpectedly: %v", err)
+	}
+	want = &TSDBStatus{
+		TotalSeries:          numMetricNames,
+		TotalLabelValuePairs: numMetricNames + numLabelNames*numLabelValues,
+		SeriesCountByMetricName: []TopHeapEntry{
+			{Name: "metric_0000", Count: 1},
+			{Name: "metric_0001", Count: 1},
+			{Name: "metric_0002", Count: 1},
+			{Name: "metric_0003", Count: 1},
+			{Name: "metric_0004", Count: 1},
+			{Name: "metric_0005", Count: 1},
+		},
+		SeriesCountByLabelName: []TopHeapEntry{
+			{Name: "__name__", Count: numMetricNames},
+			{Name: "label_0000", Count: numLabelValues},
+			{Name: "label_0001", Count: numLabelValues},
+			{Name: "label_0002", Count: numLabelValues},
+			{Name: "label_0003", Count: numLabelValues},
+			{Name: "label_0004", Count: numLabelValues},
+		},
+		SeriesCountByFocusLabelValue: []TopHeapEntry{
+			{Name: "value_0000", Count: nameValueRepeats},
+			{Name: "value_0010", Count: nameValueRepeats},
+			{Name: "value_0020", Count: nameValueRepeats},
+		},
+		SeriesCountByLabelValuePair: []TopHeapEntry{
+			{Name: "label_0000=value_0000", Count: nameValueRepeats},
+			{Name: "label_0000=value_0010", Count: nameValueRepeats},
+			{Name: "label_0000=value_0020", Count: nameValueRepeats},
+			{Name: "label_0001=value_0001", Count: nameValueRepeats},
+			{Name: "label_0001=value_0011", Count: nameValueRepeats},
+			{Name: "label_0001=value_0021", Count: nameValueRepeats},
+		},
+		LabelValueCountByLabelName: []TopHeapEntry{
+			{Name: "__name__", Count: numMetricNames},
+			{Name: "label_0000", Count: valuesPerName},
+			{Name: "label_0001", Count: valuesPerName},
+			{Name: "label_0002", Count: valuesPerName},
+			{Name: "label_0003", Count: valuesPerName},
+			{Name: "label_0004", Count: valuesPerName},
+		},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("unexpected label values (-want, +got):\n%s", diff)
+	}
 }
 
 // testSearchMetricIDs returns metricIDs for the given tfss and tr.

@@ -93,7 +93,7 @@ func BenchmarkSearch_VariousTimeRanges(b *testing.B) {
 		sort.Slice(want, func(i, j int) bool {
 			return testMetricRowLess(&want[i], &want[j])
 		})
-		if diff := cmp.Diff(mrsToString(got), mrsToString(want)); diff != "" {
+		if diff := cmp.Diff(mrsToString(want), mrsToString(got)); diff != "" {
 			b.Errorf("unexpected metric names (-want, +got):\n%s", diff)
 		}
 

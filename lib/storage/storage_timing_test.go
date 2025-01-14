@@ -157,7 +157,7 @@ func BenchmarkStorageSearchMetricNames_VariousTimeRanges(b *testing.B) {
 			got[i] = string(mn.MetricGroup)
 		}
 		slices.Sort(got)
-		if diff := cmp.Diff(got, want); diff != "" {
+		if diff := cmp.Diff(want, got); diff != "" {
 			b.Errorf("unexpected metric names (-want, +got):\n%s", diff)
 		}
 
@@ -222,7 +222,7 @@ func BenchmarkStorageSearchLabelNames_VariousTimeRanges(b *testing.B) {
 		b.StopTimer()
 
 		slices.Sort(got)
-		if diff := cmp.Diff(got, want); diff != "" {
+		if diff := cmp.Diff(want, got); diff != "" {
 			b.Errorf("unexpected label names (-want, +got):\n%s", diff)
 		}
 
@@ -285,7 +285,7 @@ func BenchmarkStorageSearchLabelValues_VariousTimeRanges(b *testing.B) {
 		b.StopTimer()
 
 		slices.Sort(got)
-		if diff := cmp.Diff(got, want); diff != "" {
+		if diff := cmp.Diff(want, got); diff != "" {
 			b.Errorf("unexpected label values (-want, +got):\n%s", diff)
 		}
 
