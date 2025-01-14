@@ -298,6 +298,18 @@ func benchmarkStorageOpOnVariousTimeRanges(b *testing.B, op func(b *testing.B, t
 			MaxTimestamp: time.Date(2000, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
 		})
 	})
+	b.Run("2m", func(b *testing.B) {
+		op(b, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 2, 29, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		})
+	})
+	b.Run("6m", func(b *testing.B) {
+		op(b, TimeRange{
+			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2000, 5, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		})
+	})
 	b.Run("1y", func(b *testing.B) {
 		op(b, TimeRange{
 			MinTimestamp: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),

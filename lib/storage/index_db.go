@@ -1891,11 +1891,6 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 	if len(metricIDsToDelete) > 0 {
 		db.deleteMetricIDs(metricIDsToDelete)
 	}
-
-	// Sort the found tsids, since they must be passed to TSID search
-	// in the sorted order.
-	sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
-	qt.Printf("sort %d tsids", len(tsids))
 	return tsids, nil
 }
 

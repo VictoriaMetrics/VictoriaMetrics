@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -94,8 +95,10 @@ type Search struct {
 	// MetricBlockRef is updated with each Search.NextMetricBlock call.
 	MetricBlockRef MetricBlockRef
 
-	// idb is used for MetricName lookup for the found data blocks.
-	idb *indexDB
+	// storage is used for finding data blocks and MetricName lookup for those
+	// data blocks.
+	// TODO(@rtm0): Or use a list of idbs with refs increased?
+	storage *Storage
 
 	// retentionDeadline is used for filtering out blocks outside the configured retention.
 	retentionDeadline int64
@@ -124,7 +127,7 @@ func (s *Search) reset() {
 	s.MetricBlockRef.MetricName = s.MetricBlockRef.MetricName[:0]
 	s.MetricBlockRef.BlockRef = nil
 
-	s.idb = nil
+	s.storage = nil
 	s.retentionDeadline = 0
 	s.ts.reset()
 	s.tr = TimeRange{}
@@ -150,21 +153,14 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	retentionDeadline := int64(fasttime.UnixTimestamp()*1e3) - storage.retentionMsecs
 
 	s.reset()
-	s.idb = storage.idb()
+	s.storage = storage
 	s.retentionDeadline = retentionDeadline
 	s.tr = tr
 	s.tfss = tfss
 	s.deadline = deadline
 	s.needClosing = true
 
-	var tsids []TSID
-	metricIDs, err := s.idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
-	if err == nil {
-		tsids, err = s.idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
-		if err == nil {
-			err = storage.prefetchMetricNames(qt, s.idb, metricIDs, deadline)
-		}
-	}
+	tsids, err := s.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
 	// It is ok to call Init on non-nil err.
 	// Init must be called before returning because it will fail
 	// on Search.MustClose otherwise.
@@ -175,6 +171,53 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 		return 0
 	}
 	return len(tsids)
+}
+
+func (s *Search) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+	qt = qt.NewChild("search TSIDs: filters=%s, timeRange=%s, maxMetrics=%d", tfss, &tr, maxMetrics)
+	defer qt.Done()
+
+	search := func(idb *indexDB, tr TimeRange) (any, error) {
+		var tsids []TSID
+		metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
+		if err == nil {
+			tsids, err = idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
+			if err == nil {
+				err = s.storage.prefetchMetricNames(qt, idb, metricIDs, deadline)
+			}
+		}
+		return tsids, err
+	}
+
+	merge := func(data []any) any {
+		var all []TSID
+		seen := make(map[TSID]bool)
+		for _, tsids := range data {
+			if tsids == nil {
+				continue
+			}
+			for _, tsid := range tsids.([]TSID) {
+				if seen[tsid] {
+					continue
+				}
+				all = append(all, tsid)
+				seen[tsid] = true
+			}
+		}
+		return all
+	}
+	stopOnError := false
+	var tsids []TSID
+	result, err := s.storage.searchAndMerge(tr, search, merge, stopOnError)
+	if result != nil {
+		tsids = result.([]TSID)
+		// Sort the found tsids, since they must be passed to TSID search
+		// in the sorted order.
+		sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
+		qt.Printf("sort %d TSIDs", len(tsids))
+	}
+
+	return tsids, err
 }
 
 // MustClose closes the Search.
@@ -214,7 +257,10 @@ func (s *Search) NextMetricBlock() bool {
 				continue
 			}
 			var ok bool
-			s.MetricBlockRef.MetricName, ok = s.idb.searchMetricNameWithCache(s.MetricBlockRef.MetricName[:0], tsid.MetricID)
+			s.MetricBlockRef.MetricName, ok = s.searchMetricName(s.MetricBlockRef.MetricName[:0], tsid.MetricID, TimeRange{
+				MinTimestamp: s.ts.BlockRef.bh.MinTimestamp,
+				MaxTimestamp: s.ts.BlockRef.bh.MaxTimestamp,
+			})
 			if !ok {
 				// Skip missing metricName for tsid.MetricID.
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
@@ -232,6 +278,18 @@ func (s *Search) NextMetricBlock() bool {
 
 	s.err = io.EOF
 	return false
+}
+
+func (s *Search) searchMetricName(metricName []byte, metricID uint64, tr TimeRange) ([]byte, bool) {
+	idbs := s.storage.tb.GetIndexDBs(tr)
+	if len(idbs) == 0 {
+		return metricName, false
+	}
+	if len(idbs) > 1 {
+		// The expected time range must fit a single partition.
+		logger.Fatalf("BUG: more than one IndexDB is covered by time range %v", &tr)
+	}
+	return idbs[0].searchMetricNameWithCache(metricName, metricID)
 }
 
 // SearchQuery is used for sending search queries from vmselect to vmstorage.
