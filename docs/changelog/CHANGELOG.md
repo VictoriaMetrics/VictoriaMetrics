@@ -22,7 +22,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## [v1.109.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.109.0)
 
-Released at 2025-01-10
+Released at 2025-01-14
 
 * FEATURE: all the VictoriaMetrics components: increase the default value for [`GOGC`](https://tip.golang.org/doc/gc-guide#GOGC) from `30` to `100`. This should reduce CPU usage at the cost of slightly higher memory usage. [Single-node VictoriaMetrics](https://docs.victoriametrics.com/), [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview) components continue using `GOGC=30`, since they are optimized for low memory allocations and low memory usage, so they do not benefit from the increased GOGC value too much. It is possible to override the default `GOGC` value in any VictoriaMetrics component by setting `GOGC` environment variable to the desired value. For example, `GOGC=200 ./path/to/vmagent` starts `vmagent` with `GOGC=200`. See [these docs](https://tip.golang.org/doc/gc-guide#GOGC) about `GOGC` tuning. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7902).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add export data functionality for the `Raw Query` page and the ability to import exported data into the `Query Analyzer` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7628).
@@ -46,6 +46,29 @@ Released at 2025-01-10
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): properly set tenancy information when evaluating numbers in a query. Previously, the tenancy information could lead to mismatch between query result and a number. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7987) for the details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix marshaling of request body for Alertmanager notification. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7985) for the details.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): don't take into account the last raw sample before the lookbehind window is sample exceeds the staleness interval. This affects correctness of increase, increase_pure, delta functions when preforming calculations on time series with gaps. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8002) for details.
+
+## [v1.102.10](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.10)
+
+Released at 2025-01-14
+
+* FEATURE: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: add support of hot-reload for license key supplied by `-licenseFile` command-line flag.
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): make instant query results consistent. VictoriaMetrics detects and adjusts scrape interval and while this is very useful for range queries (i.e. this eliminates gaps on the graph), it may cause instant queries to return a non-empty result when no result is expected. The fix is to disable scrape interval detection and always use the step as the scrape interval in instant queries. This will guarantee that the samples are searched within the (time-step, time] interval. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5796) for details.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix cursor reset in query input field. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7288).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly handle discovery for ipv6 addresses. Thanks to @badie for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7955).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): fix support for migrating influx series without any tag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7921). Thanks to @bitbidu for reporting.
+* BUGFIX: [vminsert](https://docs.victoriametrics.com/vminsert/): storage nodes defined in `-storageNode` are now sorted, ensuring that varying node orders across different vminsert instances do not result in inconsistent replication.
+
+
+## [v1.97.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.15)
+
+Released at 2025-01-14
+
+* FEATURE: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: add support of hot-reload for license key supplied by `-licenseFile` command-line flag.
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): make instant query results consistent. VictoriaMetrics detects and adjusts scrape interval and while this is very useful for range queries (i.e. this eliminates gaps on the graph), it may cause instant queries to return a non-empty result when no result is expected. The fix is to disable scrape interval detection and always use the step as the scrape interval in instant queries. This will guarantee that the samples are searched within the (time-step, time] interval. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5796) for details.
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): fix support for migrating influx series without any tag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7921). Thanks to @bitbidu for reporting.
+* BUGFIX: [vminsert](https://docs.victoriametrics.com/vminsert/): storage nodes defined in `-storageNode` are now sorted, ensuring that varying node orders across different vminsert instances do not result in inconsistent replication.
 
 ## [v1.108.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.1)
 
