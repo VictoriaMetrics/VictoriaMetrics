@@ -157,10 +157,10 @@ How often to completely retrain the models. If not set, value of `infer_every` i
 
 <span style="white-space: nowrap;">`start_from`{{% available_from "v1.18.5" anomaly %}}</span>
             </td>
-            <td>str, Optional</td>
+            <td>str, <span style="white-space: nowrap;">Optional</span></td>
             <td>
 
-`2024-11-26T01:00:00Z`, `01:00`
+<span style="white-space: nowrap;">`2024-11-26T01:00:00Z`</span>, `01:00`
             </td>
             <td>
 
@@ -172,7 +172,7 @@ Specifies when to initiate the first `fit_every` call. Accepts either an ISO 860
 
 <span style="white-space: nowrap;">`tz`{{% available_from "v1.18.5" anomaly %}}</span>
             </td>
-            <td>str, Optional</td>
+            <td>str, <span style="white-space: nowrap;">Optional</span></td>
             <td>
 
 `America/New_York`
@@ -244,7 +244,10 @@ If a time zone is omitted, a timezone-naive datetime is used.
 
 <span style="white-space: nowrap;">`fit_start_s`</span>
             </td>
-            <td>float</td>
+            <td>
+
+<span style="white-space: nowrap;">float</span>
+            </td>
             <td>1648771200</td>
         </tr>
         <tr>
@@ -306,7 +309,10 @@ If a time zone is omitted, a timezone-naive datetime is used.
 
 <span style="white-space: nowrap;">`infer_start_s`</span>
             </td>
-            <td>float</td>
+            <td>
+
+<span style="white-space: nowrap;">float</span>
+            </td>
             <td>1649635200</td>
         </tr>
         <tr>
@@ -378,9 +384,18 @@ If a time zone is omitted, a timezone-naive datetime is used.
 <table class="params">
     <thead>
         <tr>
-            <th>Parameter</th>
-            <th>Type</th>
-            <th>Example</th>
+            <th>
+
+<span style="white-space: nowrap;">Parameter</span>
+</th>
+            <th>
+
+<span style="white-space: nowrap;">Type</span>
+            </th>
+            <th>
+
+<span style="white-space: nowrap;">Example</span>
+</th>
             <th>Description</th>  
         </tr>
     </thead>
@@ -409,10 +424,22 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
 <table class="params">
     <thead>
         <tr>
-            <th>Format</th>
-            <th>Parameter</th>
-            <th>Type</th>
-            <th>Example</th>
+            <th>
+
+<span style="white-space: nowrap;">Format</span>
+            </th>
+            <th>
+
+<span style="white-space: nowrap;">Parameter</span>
+            </th>
+            <th>
+
+<span style="white-space: nowrap;">Type</span>
+            </th>
+            <th>
+
+<span style="white-space: nowrap;">Example</span>
+            </th>
             <th>Description</th>  
         </tr>
     </thead>

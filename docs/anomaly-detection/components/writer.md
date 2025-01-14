@@ -31,9 +31,8 @@ Future updates will introduce additional export methods, offering users more fle
 <span style="white-space: nowrap;">`class`</span>
             </td>
             <td>
-<span>
-`writer.vm.VmWriter` or `vm`{{% available_from "v1.13.0" anomaly %}}
-</span>
+
+<span style="white-space: nowrap;">`writer.vm.VmWriter`</span> or `vm`{{% available_from "v1.13.0" anomaly %}}
             </td>
             <td>
 
@@ -47,7 +46,7 @@ Name of the class needed to enable writing to VictoriaMetrics or Prometheus. VmW
             </td>
             <td>
 
-`http://localhost:8481/`
+<span style="white-space: nowrap;">`http://localhost:8481/`</span>
             </td>
             <td>
 
@@ -61,6 +60,7 @@ Datasource URL address
             </td>
             <td>
 <span>
+
 `0:0`, `multitenant`{{% available_from "v1.16.2" anomaly %}}
 </span>
             </td>

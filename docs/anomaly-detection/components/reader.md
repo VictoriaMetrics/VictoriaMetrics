@@ -108,6 +108,7 @@ reader:
 <span style="white-space: nowrap;">`class`</span>
             </td>
             <td>
+
 `reader.vm.VmReader` (or `vm`{{% available_from "v1.13.0" anomaly %}})
             </td>
             <td>
@@ -132,7 +133,8 @@ See [per-query config section](#per-query-parameters) above
 <span style="white-space: nowrap;">`datasource_url`</span>
             </td>
             <td>
-`http://localhost:8481/`
+
+<span style="white-space: nowrap;">`http://localhost:8481/`</span>
             </td>
             <td>
 Datasource URL address
@@ -169,7 +171,8 @@ Frequency of the points returned. Will be converted to `/query_range?step=%s` pa
 <span style="white-space: nowrap;">`query_range_path`</span>
             </td>
             <td>
-`/api/v1/query_range`
+
+<span style="white-space: nowrap;">`/api/v1/query_range`</span>
             </td>
             <td>
 Performs PromQL/MetricsQL range query
