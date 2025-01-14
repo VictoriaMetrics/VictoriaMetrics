@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"net/http"
 	"os"
 	"testing"
 
@@ -34,10 +35,13 @@ func TestSingleIngestionProtocols(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /export query response",
 			Got: func() any {
-				got := sut.PrometheusAPIV1Export(t, opts.query, at.QueryOpts{
+				got, statusCode := sut.PrometheusAPIV1Export(t, opts.query, at.QueryOpts{
 					Start: "2024-02-05T08:50:00.700Z",
 					End:   "2024-02-05T09:00:00.700Z",
 				})
+				if statusCode != http.StatusOK {
+					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
+				}
 				got.Sort()
 				return got
 			},
@@ -192,10 +196,13 @@ func TestClusterIngestionProtocols(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /export query response",
 			Got: func() any {
-				got := vmselect.PrometheusAPIV1Export(t, opts.query, at.QueryOpts{
+				got, statusCode := vmselect.PrometheusAPIV1Export(t, opts.query, at.QueryOpts{
 					Start: "2024-02-05T08:50:00.700Z",
 					End:   "2024-02-05T09:00:00.700Z",
 				})
+				if statusCode != http.StatusOK {
+					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
+				}
 				got.Sort()
 				return got
 			},
