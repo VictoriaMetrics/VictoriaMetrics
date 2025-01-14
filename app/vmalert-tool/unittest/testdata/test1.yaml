@@ -10,6 +10,8 @@ tests:
     input_series:
       - series: "test"
         values: "_x5 1x5 _ stale"
+      - series: "test_query"
+        values: "1x100"
 
     alert_rule_test:
       - eval_time: 1m
@@ -50,6 +52,8 @@ tests:
         values: "0+0x1440"
       - series: "test"
         values: "0+1x1440"
+      - series: "test_query"
+        values: "0+1x100"
 
     metricsql_expr_test:
       - expr: count(ALERTS) by (alertgroup, alertname, alertstate)
@@ -97,6 +101,17 @@ tests:
         exp_alerts:
           - exp_labels:
               cluster: prod
+            exp_annotations:
+              queryValue: "0"
+
+      - eval_time: 5m
+        groupname: group1
+        alertname: AlwaysFiring
+        exp_alerts:
+          - exp_labels:
+              cluster: prod
+            exp_annotations:
+              queryValue: "5"
 
       - eval_time: 0
         groupname: alerts

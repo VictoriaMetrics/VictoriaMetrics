@@ -9,14 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"gopkg.in/yaml.v2"
 )
 
 func TestMain(m *testing.M) {
-	if err := templates.Load([]string{"testdata/templates/*good.tmpl"}, url.URL{}); err != nil {
+	if err := templates.Init([]string{"testdata/templates/*good.tmpl"}, nil, url.URL{}); err != nil {
 		os.Exit(1)
 	}
 	os.Exit(m.Run())
@@ -79,7 +78,7 @@ groups:
 		for i, u := range urls {
 			urls[i] = srv.URL + u
 		}
-		_, err := Parse(urls, notifier.ValidateTemplates, true)
+		_, err := Parse(urls, templates.ValidateTemplates, true)
 		if err != nil && !expErr {
 			t.Fatalf("error parsing URLs %s", err)
 		}
@@ -95,7 +94,7 @@ groups:
 }
 
 func TestParse_Success(t *testing.T) {
-	_, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, notifier.ValidateTemplates, true)
+	_, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, templates.ValidateTemplates, true)
 	if err != nil {
 		t.Fatalf("error parsing files %s", err)
 	}
@@ -105,7 +104,7 @@ func TestParse_Failure(t *testing.T) {
 	f := func(paths []string, errStrExpected string) {
 		t.Helper()
 
-		_, err := Parse(paths, notifier.ValidateTemplates, true)
+		_, err := Parse(paths, templates.ValidateTemplates, true)
 		if err == nil {
 			t.Fatalf("expected to get error")
 		}
@@ -116,7 +115,7 @@ func TestParse_Failure(t *testing.T) {
 
 	f([]string{"testdata/rules/rules_interval_bad.rules"}, "eval_offset should be smaller than interval")
 	f([]string{"testdata/rules/rules0-bad.rules"}, "unexpected token")
-	f([]string{"testdata/dir/rules0-bad.rules"}, "error parsing annotation")
+	f([]string{"testdata/dir/rules0-bad.rules"}, "failed to parse text")
 	f([]string{"testdata/dir/rules1-bad.rules"}, "duplicate in file")
 	f([]string{"testdata/dir/rules2-bad.rules"}, "function \"unknown\" not defined")
 	f([]string{"testdata/dir/rules3-bad.rules"}, "either `record` or `alert` must be set")
@@ -330,7 +329,7 @@ func TestGroupValidate_Success(t *testing.T) {
 
 		var validateTplFn ValidateTplFn
 		if validateAnnotations {
-			validateTplFn = notifier.ValidateTemplates
+			validateTplFn = templates.ValidateTemplates
 		}
 		err := group.Validate(validateTplFn, validateExpressions)
 		if err != nil {
