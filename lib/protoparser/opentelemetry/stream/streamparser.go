@@ -68,6 +68,7 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 		case m.Sum != nil:
 			if m.Sum.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedSum.Inc()
+				logger.Warnf("unsupported delta temporality for %q ('sum'): skipping it", metricName)
 				continue
 			}
 			for _, p := range m.Sum.DataPoints {
@@ -80,6 +81,7 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 		case m.Histogram != nil:
 			if m.Histogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedHistogram.Inc()
+				logger.Warnf("unsupported delta temporality for %q ('histogram'): skipping it", metricName)
 				continue
 			}
 			for _, p := range m.Histogram.DataPoints {
@@ -88,6 +90,7 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 		case m.ExponentialHistogram != nil:
 			if m.ExponentialHistogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedExponentialHistogram.Inc()
+				logger.Warnf("unsupported delta temporality for %q ('exponential histogram'): skipping it", metricName)
 				continue
 			}
 			for _, p := range m.ExponentialHistogram.DataPoints {
