@@ -20,7 +20,17 @@ unauthorized_user:
   url_map:
     - src_paths:
         - "/api/v2/logs"
-      url_prefix: "`<victoria-logs-base-url>`/insert/datadog/"
+        - "/api/v1/validate"
+      url_prefix: `<victoria-logs-base-url>`/insert/datadog/
+    - src_paths:
+        - "/api/v1/series"
+        - "/api/v2/series"
+        - "/api/beta/sketches"
+        - "/api/v1/validate"
+        - "/api/v1/check_run"
+        - "/intake"
+        - "/api/v1/metadata"
+      url_prefix: `<victoria-metrics-base-url>`/datadog/
 ```
 
 To start ingesting logs from DataDog agent please specify a custom URL instead of default one for sending collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
@@ -40,7 +50,7 @@ custom:
     apiKey: fakekey                 # Set any key, otherwise plugin fails
 provider:
   environment:
-    LOGS_DD_URL: `<vmauth-base-url>`/   # VictoriaLogs endpoint for DataDog
+    DD_DD_URL: `<vmauth-base-url>`/   # VMAuth endpoint for DataDog
 ```
 
 Substitute the `<vmauth-base-url>` address with the real address of VMAuth proxy.
@@ -50,3 +60,4 @@ See also:
 - [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
 - [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
 - [Docker-compose demo for Datadog integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/datadog-agent).
+- [Docker-compose demo for Datadog Serverless integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/datadog-serverless).

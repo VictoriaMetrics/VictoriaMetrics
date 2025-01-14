@@ -154,36 +154,39 @@ func (s *Sketch) RowsCount() int {
 
 // ToSummary generates Prometheus summary from the given s.
 func (s *Sketch) ToSummary() []*Metric {
-	metrics := make([]*Metric, len(quantiles)+2)
+	quantilesLen := len(quantiles)
+	metrics := make([]*Metric, quantilesLen, quantilesLen+4)
 	dogsketches := s.Dogsketches
 
-	sumPoints := make([]Point, len(dogsketches))
-	countPoints := make([]Point, len(dogsketches))
-	metrics[len(metrics)-2] = &Metric{
-		Name:   s.Metric + "_sum",
-		Points: sumPoints,
-	}
-	metrics[len(metrics)-1] = &Metric{
-		Name:   s.Metric + "_count",
-		Points: countPoints,
-	}
+	sumPoints := make([]Point, 0, len(dogsketches))
+	countPoints := make([]Point, 0, len(dogsketches))
+	minPoints := make([]Point, 0, len(dogsketches))
+	maxPoints := make([]Point, 0, len(dogsketches))
 
 	for i, q := range quantiles {
 		points := make([]Point, len(dogsketches))
-		for j, d := range dogsketches {
+		for _, d := range dogsketches {
 			timestamp := d.Ts * 1000
-			points[j] = Point{
+			points = append(points, Point{
 				Timestamp: timestamp,
 				Value:     d.quantile(q),
-			}
-			sumPoints[j] = Point{
+			})
+			sumPoints = append(sumPoints, Point{
 				Timestamp: timestamp,
 				Value:     d.Sum,
-			}
-			countPoints[j] = Point{
+			})
+			countPoints = append(countPoints, Point{
 				Timestamp: timestamp,
 				Value:     float64(d.Cnt),
-			}
+			})
+			minPoints = append(minPoints, Point{
+				Timestamp: timestamp,
+				Value:     float64(d.Min),
+			})
+			maxPoints = append(maxPoints, Point{
+				Timestamp: timestamp,
+				Value:     float64(d.Max),
+			})
 		}
 		metrics[i] = &Metric{
 			Name: s.Metric,
@@ -194,6 +197,25 @@ func (s *Sketch) ToSummary() []*Metric {
 			Points: points,
 		}
 	}
+
+	metrics = append(metrics,
+		&Metric{
+			Name:   s.Metric + ".sum",
+			Points: sumPoints,
+		},
+		&Metric{
+			Name:   s.Metric + ".count",
+			Points: countPoints,
+		},
+		&Metric{
+			Name:   s.Metric + ".min",
+			Points: minPoints,
+		},
+		&Metric{
+			Name:   s.Metric + ".max",
+			Points: maxPoints,
+		},
+	)
 
 	return metrics
 }
@@ -251,17 +273,17 @@ func (d *Dogsketch) unmarshalProtobuf(src []byte) (err error) {
 			}
 			d.Cnt = cnt
 		case 3:
-			min, ok := fc.Double()
+			v, ok := fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read min")
 			}
-			d.Min = min
+			d.Min = v
 		case 4:
-			max, ok := fc.Double()
+			v, ok := fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read max")
 			}
-			d.Max = max
+			d.Max = v
 		case 6:
 			sum, ok := fc.Double()
 			if !ok {

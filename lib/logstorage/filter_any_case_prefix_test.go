@@ -658,6 +658,71 @@ func TestFilterAnyCasePrefix(t *testing.T) {
 		testFilterMatchForColumns(t, columns, fp, "foo", nil)
 	})
 
+	t.Run("int64", func(t *testing.T) {
+		t.Parallel()
+
+		columns := []column{
+			{
+				name: "foo",
+				values: []string{
+					"1234",
+					"0",
+					"3454",
+					"65536",
+					"-12345678901",
+					"1",
+					"2",
+					"3",
+					"4",
+				},
+			},
+		}
+
+		// match
+		fp := &filterAnyCasePrefix{
+			fieldName: "foo",
+			prefix:    "1234",
+		}
+		testFilterMatchForColumns(t, columns, fp, "foo", []int{0, 4})
+
+		fp = &filterAnyCasePrefix{
+			fieldName: "foo",
+			prefix:    "",
+		}
+		testFilterMatchForColumns(t, columns, fp, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8})
+
+		fp = &filterAnyCasePrefix{
+			fieldName: "foo",
+			prefix:    "-12345678901",
+		}
+		testFilterMatchForColumns(t, columns, fp, "foo", []int{4})
+
+		// mismatch
+		fp = &filterAnyCasePrefix{
+			fieldName: "foo",
+			prefix:    "bar",
+		}
+		testFilterMatchForColumns(t, columns, fp, "foo", nil)
+
+		fp = &filterAnyCasePrefix{
+			fieldName: "foo",
+			prefix:    "33",
+		}
+		testFilterMatchForColumns(t, columns, fp, "foo", nil)
+
+		fp = &filterAnyCasePrefix{
+			fieldName: "foo",
+			prefix:    "12345678901234567890",
+		}
+		testFilterMatchForColumns(t, columns, fp, "foo", nil)
+
+		fp = &filterAnyCasePrefix{
+			fieldName: "non-existing-column",
+			prefix:    "",
+		}
+		testFilterMatchForColumns(t, columns, fp, "foo", nil)
+	})
+
 	t.Run("float64", func(t *testing.T) {
 		t.Parallel()
 

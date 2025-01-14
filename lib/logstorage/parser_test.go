@@ -451,6 +451,31 @@ func TestParseFilterStringRange(t *testing.T) {
 	f(`<="123.456.789"`, ``, ``, "123.456.789\x00")
 }
 
+func TestParseFilterValueType(t *testing.T) {
+	f := func(s, fieldNameExpected, valueTypeExpected string) {
+		t.Helper()
+		q, err := ParseQuery(s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		fv, ok := q.f.(*filterValueType)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterValueType; filter: %s", q.f, q.f)
+		}
+		if fv.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fv.fieldName, fieldNameExpected)
+		}
+		if fv.valueType != valueTypeExpected {
+			t.Fatalf("unexpected valueType; got %q; want %q", fv.valueType, valueTypeExpected)
+		}
+	}
+
+	f("value_type(foo)", "", "foo")
+	f("foo:value_type('dict')", "foo", "dict")
+	f("value_type:value_type('')", "value_type", "")
+	f(`z:value_type("string")`, "z", "string")
+}
+
 func TestParseFilterRegexp(t *testing.T) {
 	f := func(s, reExpected string) {
 		t.Helper()
@@ -875,6 +900,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("string_range-a", `"string_range-a"`)
 	f("x:string_range-a", `x:"string_range-a"`)
 	f("string_range-a:x", `"string_range-a":x`)
+	f("value_type", `"value_type"`)
+	f("x:value_type", `x:"value_type"`)
 
 	// exact filter
 	f("exact(foo)", `=foo`)
@@ -939,6 +966,11 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`range(-INF,+inF)`, `range(-INF, +inF)`)
 	f(`range(1.5K, 22.5GiB)`, `range(1.5K, 22.5GiB)`)
 	f(`foo:range(5,inf)`, `foo:range(5, inf)`)
+
+	// value_type filter
+	f(`value_type(foo)`, `value_type(foo)`)
+	f(`x:value_type("dict")`, `x:value_type(dict)`)
+	f(`x:value_type(dict:x)`, `x:value_type("dict:x")`)
 
 	// >,  >=, < and <= filter
 	f(`foo: > 10.5M`, `foo:>10.5M`)
@@ -1530,6 +1562,13 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`range[1,foo)`)
 	f(`range[1,2,3)`)
 	f(`range(1)`)
+
+	// invalid value_type
+	f(`value_type(`)
+	f(`value_type(1,`)
+	f(`value_type(foo())`)
+	f(`value_type()`)
+	f(`value_type(a,b)`)
 
 	// invalid re
 	f("re(")
@@ -2551,14 +2590,20 @@ func TestQueryHasGlobalTimeFilter(t *testing.T) {
 }
 
 func TestAddExtraFilters(t *testing.T) {
-	f := func(qStr string, extraFilters []Field, resultExpected string) {
+	f := func(qStr, extraFilters string, resultExpected string) {
 		t.Helper()
 
 		q, err := ParseQuery(qStr)
 		if err != nil {
 			t.Fatalf("unexpected error in ParseQuery: %s", err)
 		}
-		q.AddExtraFilters(extraFilters)
+		if extraFilters != "" {
+			efs, err := ParseFilter(extraFilters)
+			if err != nil {
+				t.Fatalf("unexpected error in ParseFilter: %s", err)
+			}
+			q.AddExtraFilters(efs)
+		}
 
 		result := q.String()
 		if result != resultExpected {
@@ -2566,125 +2611,17 @@ func TestAddExtraFilters(t *testing.T) {
 		}
 	}
 
-	f(`*`, nil, `*`)
-	f(`_time:5m`, nil, `_time:5m`)
-	f(`foo _time:5m`, nil, `foo _time:5m`)
+	f(`*`, "", `*`)
+	f(`_time:5m`, "", `_time:5m`)
+	f(`foo _time:5m`, "", `foo _time:5m`)
+	f(`*`, "foo:=bar", "foo:=bar *")
+	f("_time:5m", `"fo o":="=ba:r !"`, `"fo o":="=ba:r !" _time:5m`)
+	f("_time:5m {a=b}", `"fo o":="=ba:r !" and x:=y`, `"fo o":="=ba:r !" x:=y _time:5m {a="b"}`)
+	f(`a or (b c)`, `foo:=bar`, `foo:=bar (a or b c)`)
 
-	f(`*`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-	}, "foo:=bar *")
+	// extra stream filters
+	f(`*`, `{foo="bar",baz!="x"}`, `{foo="bar",baz!="x"} *`)
 
-	f("_time:5m", []Field{
-		{
-			Name:  "fo o",
-			Value: "=ba:r !",
-		},
-	}, `"fo o":="=ba:r !" _time:5m`)
-
-	f("_time:5m {a=b}", []Field{
-		{
-			Name:  "fo o",
-			Value: "=ba:r !",
-		},
-		{
-			Name:  "x",
-			Value: "y",
-		},
-	}, `"fo o":="=ba:r !" x:=y _time:5m {a="b"}`)
-
-	f(`a or (b c)`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-	}, `foo:=bar (a or b c)`)
-}
-
-func TestAddExtraStreamFilters(t *testing.T) {
-	f := func(qStr string, extraFilters []Field, resultExpected string) {
-		t.Helper()
-
-		q, err := ParseQuery(qStr)
-		if err != nil {
-			t.Fatalf("unexpected error in ParseQuery: %s", err)
-		}
-		q.AddExtraStreamFilters(extraFilters)
-
-		result := q.String()
-		if result != resultExpected {
-			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
-		}
-	}
-
-	f(`*`, nil, `*`)
-	f(`_time:5m`, nil, `_time:5m`)
-	f(`foo _time:5m`, nil, `foo _time:5m`)
-
-	f(`*`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-	}, `{foo="bar"} *`)
-
-	f(`_time:5m`, []Field{
-		{
-			Name:  "fo o=",
-			Value: `"bar}`,
-		},
-	}, `{"fo o="="\"bar}"} _time:5m`)
-
-	f(`a b`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-	}, `{foo="bar"} a b`)
-
-	f(`a or b {c="d"}`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-		{
-			Name:  "x",
-			Value: "y",
-		},
-	}, `{foo="bar",x="y"} (a or b {c="d"})`)
-
-	f(`{c=~"d|e"}`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-		{
-			Name:  "x",
-			Value: "y",
-		},
-	}, `{foo="bar",x="y",c=~"d|e"}`)
-
-	f(`a:b {c=~"d|e"}`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-		{
-			Name:  "x",
-			Value: "y",
-		},
-	}, `a:b {foo="bar",x="y",c=~"d|e"}`)
-
-	f(`a:b {c=~"d|e"} {q!="w"} asdf`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-		{
-			Name:  "x",
-			Value: "y",
-		},
-	}, `a:b {foo="bar",x="y",c=~"d|e"} {foo="bar",x="y",q!="w"} asdf`)
+	// mixed filters
+	f(`c`, `{foo="bar",baz!="x"} a:~b`, `{foo="bar",baz!="x"} a:~b c`)
 }

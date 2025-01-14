@@ -10,14 +10,14 @@ services:
       - 3000:3000
     volumes:
       - grafanadata:/var/lib/grafana
-      - ./provisioning/datasources/victorialogs-datasource:/etc/grafana/provisioning/datasources
+      - ./provisioning/datasources/victoriametrics-logs-datasource:/etc/grafana/provisioning/datasources
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       - ./provisioning/plugins/:/var/lib/grafana/plugins
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/victorialogs.json:/var/lib/grafana/dashboards/vl.json
     environment:
-      - "GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.11.1/victorialogs-datasource-v0.11.1.zip;victorialogs-datasource"
-      - "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victorialogs-datasource"
+      - "GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.13.0/victoriametrics-logs-datasource-v0.13.0.zip;victoriametrics-logs-datasource"
+      - "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-logs-datasource"
     networks:
       - vm_net
     restart: always
@@ -45,7 +45,7 @@ services:
   #  storing logs and serving read queries.
   victorialogs:
     container_name: victorialogs
-    image: victoriametrics/victoria-logs:v1.3.2-victorialogs
+    image: victoriametrics/victoria-logs:v1.5.0-victorialogs
     command:
       - "--storageDataPath=/vlogs"
       - "--httpListenAddr=:9428"
@@ -60,7 +60,7 @@ services:
   # scraping, storing metrics and serve read requests.
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.107.0
+    image: victoriametrics/victoria-metrics:v1.108.1
     ports:
       - 8428:8428
     volumes:
@@ -79,7 +79,7 @@ services:
   # depending on the requested path.
   vmauth:
     container_name: vmauth
-    image: victoriametrics/vmauth:v1.107.0
+    image: victoriametrics/vmauth:v1.108.1
     depends_on:
       - "victoriametrics"
       - "victorialogs"
@@ -96,7 +96,7 @@ services:
   # vmalert executes alerting and recording rules according to given rule type.
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.107.0
+    image: victoriametrics/vmalert:v1.108.1
     depends_on:
       - "vmauth"
       - "alertmanager"

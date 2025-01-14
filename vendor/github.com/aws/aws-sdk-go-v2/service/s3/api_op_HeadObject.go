@@ -113,13 +113,14 @@ import (
 //     query parameter in the request.
 //
 // HTTP Host header syntax  Directory buckets - The HTTP Host header syntax is
-// Bucket_name.s3express-az_id.region.amazonaws.com .
+// Bucket-name.s3express-zone-id.region-code.amazonaws.com .
 //
 // For directory buckets, you must make requests for this API operation to the
 // Zonal endpoint. These endpoints support virtual-hosted-style requests in the
-// format https://bucket_name.s3express-az_id.region.amazonaws.com/key-name .
-// Path-style requests are not supported. For more information, see [Regional and Zonal endpoints]in the Amazon
-// S3 User Guide.
+// format https://bucket-name.s3express-zone-id.region-code.amazonaws.com/key-name
+// . Path-style requests are not supported. For more information about endpoints in
+// Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information about
+// endpoints in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
 //
 // The following actions are related to HeadObject :
 //
@@ -127,13 +128,14 @@ import (
 //
 // [GetObjectAttributes]
 //
+// [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [Server-Side Encryption (Using Customer-Provided Encryption Keys)]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html
-// [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
 // [GetObjectAttributes]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html
 // [Protecting data with server-side encryption]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-serv-side-encryption.html
 // [Actions, resources, and condition keys for Amazon S3]: https://docs.aws.amazon.com/AmazonS3/latest/dev/list_amazons3.html
 // [GetObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
 // [Common Request Headers]: https://docs.aws.amazon.com/AmazonS3/latest/API/RESTCommonRequestHeaders.html
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
 //
 // [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 func (c *Client) HeadObject(ctx context.Context, params *HeadObjectInput, optFns ...func(*Options)) (*HeadObjectOutput, error) {
@@ -157,11 +159,12 @@ type HeadObjectInput struct {
 	//
 	// Directory buckets - When you use this operation with a directory bucket, you
 	// must use virtual-hosted-style requests in the format
-	// Bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests are not
-	// supported. Directory bucket names must be unique in the chosen Availability
-	// Zone. Bucket names must follow the format bucket_base_name--az-id--x-s3 (for
-	// example, DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket
-	// naming restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
+	// Bucket-name.s3express-zone-id.region-code.amazonaws.com . Path-style requests
+	// are not supported. Directory bucket names must be unique in the chosen Zone
+	// (Availability Zone or Local Zone). Bucket names must follow the format
+	// bucket-base-name--zone-id--x-s3 (for example,
+	// DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket naming
+	// restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
 	//
 	// Access points - When you use this action with an access point, you must provide
 	// the alias of the access point in place of the bucket name or specify the access
@@ -454,7 +457,9 @@ type HeadObjectOutput struct {
 	// key-value pairs providing object expiration information. The value of the
 	// rule-id is URL-encoded.
 	//
-	// This functionality is not supported for directory buckets.
+	// Object expiration information is not returned in directory buckets and this
+	// header returns the value " NotImplemented " in all responses for directory
+	// buckets.
 	//
 	// [PutBucketLifecycleConfiguration]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycleConfiguration.html
 	Expiration *string

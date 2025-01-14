@@ -14,6 +14,7 @@ import (
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -69,6 +70,7 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 	ic.Reset(rowsLen)
 	rowsTotal := 0
 	hasRelabeling := relabel.HasRelabeling()
+	hasLimitsEnabled := timeserieslimits.Enabled()
 	for i := range rows {
 		r := &rows[i]
 		rowsTotal += len(r.Fields)
@@ -108,12 +110,23 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 				metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
 				ic.Labels = append(ic.Labels[:0], ctx.originLabels...)
 				ic.AddLabel("", metricGroup)
-				if err := ic.WriteDataPoint(nil, true, ic.Labels, r.Timestamp, f.Value); err != nil {
+				if !ic.TryPrepareLabels(true) {
+					continue
+				}
+				if err := ic.WriteDataPoint(nil, ic.Labels, r.Timestamp, f.Value); err != nil {
 					return err
 				}
 			}
 		} else {
+			// special case for optimisations below
+			// do not call TryPrepareLabels
+			// manually apply sort and limits on demand
 			ic.SortLabelsIfNeeded()
+			if hasLimitsEnabled {
+				if timeserieslimits.IsExceeding(ic.Labels) {
+					continue
+				}
+			}
 			ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
 			labelsLen := len(ic.Labels)
 			for j := range r.Fields {
@@ -124,7 +137,12 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 				metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
 				ic.Labels = ic.Labels[:labelsLen]
 				ic.AddLabel("", metricGroup)
-				if err := ic.WriteDataPoint(ctx.metricNameBuf, false, ic.Labels[len(ic.Labels)-1:], r.Timestamp, f.Value); err != nil {
+				if hasLimitsEnabled {
+					if timeserieslimits.IsExceeding(ic.Labels[len(ic.Labels)-1:]) {
+						continue
+					}
+				}
+				if err := ic.WriteDataPoint(ctx.metricNameBuf, ic.Labels[len(ic.Labels)-1:], r.Timestamp, f.Value); err != nil {
 					return err
 				}
 			}

@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
@@ -69,7 +70,17 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[st
 
 func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[string]string) error {
 	b := &bytes.Buffer{}
-	writeamRequest(b, alerts, am.argFunc, am.relabelConfigs)
+	alertsToSend := alerts[:0]
+	lblss := make([][]prompbmarshal.Label, 0, len(alerts))
+	for _, a := range alerts {
+		lbls := a.applyRelabelingIfNeeded(am.relabelConfigs)
+		if len(lbls) == 0 {
+			continue
+		}
+		alertsToSend = append(alertsToSend, a)
+		lblss = append(lblss, lbls)
+	}
+	writeamRequest(b, alertsToSend, am.argFunc, lblss)
 
 	req, err := http.NewRequest(http.MethodPost, am.addr.String(), b)
 	if err != nil {

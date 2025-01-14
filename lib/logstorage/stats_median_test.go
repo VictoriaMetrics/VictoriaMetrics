@@ -108,7 +108,7 @@ func TestStatsMedian(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", "54"},
+			{"x", "3"},
 		},
 	})
 
@@ -128,7 +128,7 @@ func TestStatsMedian(t *testing.T) {
 		},
 	}, [][]Field{
 		{
-			{"x", "NaN"},
+			{"x", ""},
 		},
 	})
 
@@ -174,7 +174,7 @@ func TestStatsMedian(t *testing.T) {
 		},
 		{
 			{"b", ""},
-			{"x", "NaN"},
+			{"x", ""},
 		},
 	})
 
@@ -258,7 +258,7 @@ func TestStatsMedian(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "1"},
-			{"x", "NaN"},
+			{"x", ""},
 		},
 		{
 			{"a", "3"},
@@ -288,11 +288,11 @@ func TestStatsMedian(t *testing.T) {
 	}, [][]Field{
 		{
 			{"a", "1"},
-			{"x", "3"},
+			{"x", "1"},
 		},
 		{
 			{"a", "3"},
-			{"x", "5"},
+			{"x", "3"},
 		},
 	})
 
@@ -348,7 +348,7 @@ func TestStatsMedian(t *testing.T) {
 		{
 			{"a", "1"},
 			{"b", "3"},
-			{"x", "NaN"},
+			{"x", ""},
 		},
 		{
 			{"a", "1"},
@@ -358,7 +358,7 @@ func TestStatsMedian(t *testing.T) {
 		{
 			{"a", "3"},
 			{"b", "5"},
-			{"x", "NaN"},
+			{"x", ""},
 		},
 	})
 }

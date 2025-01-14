@@ -493,6 +493,80 @@ func TestFilterRange(t *testing.T) {
 		testFilterMatchForColumns(t, columns, fr, "foo", nil)
 	})
 
+	t.Run("int64", func(t *testing.T) {
+		t.Parallel()
+
+		columns := []column{
+			{
+				name: "foo",
+				values: []string{
+					"123",
+					"12",
+					"-32",
+					"0",
+					"0",
+					"12345678901",
+					"1",
+					"2",
+					"3",
+					"4",
+					"5",
+				},
+			},
+		}
+
+		// match
+		fr := &filterRange{
+			fieldName: "foo",
+			minValue:  -inf,
+			maxValue:  3,
+		}
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{2, 3, 4, 6, 7, 8})
+
+		fr = &filterRange{
+			fieldName: "foo",
+			minValue:  -10,
+			maxValue:  2.9,
+		}
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{3, 4, 6, 7})
+
+		fr = &filterRange{
+			fieldName: "foo",
+			minValue:  -1e18,
+			maxValue:  2.9,
+		}
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{2, 3, 4, 6, 7})
+
+		fr = &filterRange{
+			fieldName: "foo",
+			minValue:  1000,
+			maxValue:  inf,
+		}
+		testFilterMatchForColumns(t, columns, fr, "foo", []int{5})
+
+		// mismatch
+		fr = &filterRange{
+			fieldName: "foo",
+			minValue:  -1,
+			maxValue:  -0.1,
+		}
+		testFilterMatchForColumns(t, columns, fr, "foo", nil)
+
+		fr = &filterRange{
+			fieldName: "foo",
+			minValue:  0.1,
+			maxValue:  0.9,
+		}
+		testFilterMatchForColumns(t, columns, fr, "foo", nil)
+
+		fr = &filterRange{
+			fieldName: "foo",
+			minValue:  2.9,
+			maxValue:  0.1,
+		}
+		testFilterMatchForColumns(t, columns, fr, "foo", nil)
+	})
+
 	t.Run("float64", func(t *testing.T) {
 		t.Parallel()
 

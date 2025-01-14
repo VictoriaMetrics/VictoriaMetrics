@@ -175,3 +175,20 @@ And for the following log, its `_msg` will be `foo bar in body`:
   "body": "foo bar in body"
 }
 ```
+
+## What length a log record is expected to have?
+
+VictoriaLogs works optimally with log records of up to `10KB`. It works OK with
+log records of up to `100KB`. It works not so optimal with log records exceeding
+`100KB`.
+
+The max size of a log record VictoriaLogs can handle is `2MB`. This is
+because VictoriaLogs stores log records in blocks and `2MB` is the max size of a
+block. Blocks of this size fit the L2 cache of a typical CPU, which gives an
+optimal processing performance.
+
+However, log records whose size is close to `2MB` aren't handled efficiently by
+VictoriaLogs because per-block overhead translates to a single log record, and
+this overhead is big. 
+
+The `2MB` limit is hadrcoded and is unlikely to change.

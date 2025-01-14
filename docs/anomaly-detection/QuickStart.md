@@ -9,9 +9,7 @@ menu:
 aliases:
 - /anomaly-detection/QuickStart.html
 ---
-For service introduction visit [README](https://docs.victoriametrics.com/anomaly-detection/) page
-and [Overview](https://docs.victoriametrics.com/anomaly-detection/overview/) of how `vmanomaly` works.
-
+For a broader overview please visit the [navigation page](https://docs.victoriametrics.com/anomaly-detection/).
 ## How to install and run vmanomaly
 
 > To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
@@ -53,7 +51,47 @@ options:
 ```
 
 You can specify these options when running `vmanomaly` to fine-tune logging levels or handle licensing configurations, as per your requirements.
+### Licensing
 
+The license key can be passed via the following command-line flags: `--license`, `--licenseFile`, `--license.forceOffline`
+
+In order to make it easier to monitor the license expiration date, the following metrics are exposed(see
+[Monitoring](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) section for details on how to scrape them):
+
+```promtextmetric
+# HELP vm_license_expires_at When the license expires as a Unix timestamp in seconds
+# TYPE vm_license_expires_at gauge
+vm_license_expires_at 1.6963776e+09
+# HELP vm_license_expires_in_seconds Amount of seconds until the license expires
+# TYPE vm_license_expires_in_seconds gauge
+vm_license_expires_in_seconds 4.886608e+06
+```
+
+Example alerts for [vmalert](https://docs.victoriametrics.com/vmalert/):
+
+```yaml
+groups:
+  - name: vm-license
+    # note the `job` label and update accordingly to your setup
+    rules:
+      - alert: LicenseExpiresInLessThan30Days
+        expr: vm_license_expires_in_seconds < 30 * 24 * 3600
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.job }} instance {{ $labels.instance }} license expires in less than 30 days"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
+            Please make sure to update the license before it expires."
+
+      - alert: LicenseExpiresInLessThan7Days
+        expr: vm_license_expires_in_seconds < 7 * 24 * 3600
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} instance {{ $labels.instance }} license expires in less than 7 days"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} license expires in {{ $value | humanizeDuration }}. 
+            Please make sure to update the license before it expires."
+```
 ### Docker
 
 > To run `vmanomaly`, you need to have VictoriaMetrics Enterprise license. You can get a trial license key [**here**](https://victoriametrics.com/products/enterprise/trial/).
@@ -120,7 +158,7 @@ For a complete docker-compose example please refer to [our alerting guide](https
 
 See also:
 
-- Verify the license online OR offline. See the details [here](https://docs.victoriametrics.com/anomaly-detection/overview/#licensing).
+- Verify the license online OR offline. See the details [here](https://docs.victoriametrics.com/anomaly-detection/quickstart/#licensing).
 - [How to configure `vmanomaly`](#how-to-configure-vmanomaly)
 
 ### Kubernetes with Helm charts

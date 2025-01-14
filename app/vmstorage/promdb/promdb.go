@@ -4,17 +4,18 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/oklog/ulid"
 	"github.com/prometheus/prometheus/model/labels"
 	promstorage "github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
-	"log/slog"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 var prometheusDataPath = flag.String("prometheusDataPath", "", "Optional path to readonly historical Prometheus data")
@@ -169,7 +170,7 @@ func VisitSeries(sq *storage.SearchQuery, deadline searchutils.Deadline, f Serie
 		s := q.Select(ctx, false, nil, ms...)
 		seriesSet = append(seriesSet, s)
 	}
-	ss := promstorage.NewMergeSeriesSet(seriesSet, promstorage.ChainedSeriesMerge)
+	ss := promstorage.NewMergeSeriesSet(seriesSet, 0, promstorage.ChainedSeriesMerge)
 	var (
 		mn         storage.MetricName
 		metricName []byte

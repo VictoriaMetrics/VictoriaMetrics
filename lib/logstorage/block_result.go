@@ -64,7 +64,7 @@ type blockResult struct {
 func (br *blockResult) reset() {
 	br.rowsLen = 0
 
-	br.cs = nil
+	br.bs = nil
 	br.bm = nil
 
 	br.a.reset()
@@ -153,6 +153,10 @@ func (br *blockResult) initFromFilterAllColumns(brSrc *blockResult, bm *bitmap) 
 	br.timestampsBuf = dstTimestamps
 	br.rowsLen = len(br.timestampsBuf)
 
+	if br.rowsLen == 0 || bm.isZero() {
+		return
+	}
+
 	for _, cSrc := range brSrc.getColumns() {
 		br.appendFilteredColumn(brSrc, cSrc, bm)
 	}
@@ -163,8 +167,9 @@ func (br *blockResult) initFromFilterAllColumns(brSrc *blockResult, bm *bitmap) 
 // the br is valid until brSrc, cSrc or bm is updated.
 func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResultColumn, bm *bitmap) {
 	if br.rowsLen == 0 {
-		return
+		logger.Panicf("BUG: br.rowsLen must be greater than 0")
 	}
+
 	cDst := blockResultColumn{
 		name: cSrc.name,
 	}
@@ -187,8 +192,7 @@ func (br *blockResult) appendFilteredColumn(brSrc *blockResult, cSrc *blockResul
 		cDst.valuesEncodedCreator = &br.fvecs[len(br.fvecs)-1]
 	}
 
-	br.csBuf = append(br.csBuf, cDst)
-	br.csInitialized = false
+	br.csAdd(cDst)
 }
 
 type filteredValuesEncodedCreator struct {
@@ -259,25 +263,37 @@ func (br *blockResult) setResultColumns(rcs []resultColumn, rowsLen int) {
 	}
 }
 
+func (br *blockResult) addResultColumnFloat64(rc *resultColumn, minValue, maxValue float64) {
+	if len(rc.values) != br.rowsLen {
+		logger.Panicf("BUG: column %q must contain %d rows, but it contains %d rows", rc.name, br.rowsLen, len(rc.values))
+	}
+	br.csAdd(blockResultColumn{
+		name:          rc.name,
+		valueType:     valueTypeFloat64,
+		minValue:      math.Float64bits(minValue),
+		maxValue:      math.Float64bits(maxValue),
+		valuesEncoded: rc.values,
+	})
+}
+
 func (br *blockResult) addResultColumn(rc *resultColumn) {
 	if len(rc.values) != br.rowsLen {
 		logger.Panicf("BUG: column %q must contain %d rows, but it contains %d rows", rc.name, br.rowsLen, len(rc.values))
 	}
 	if areConstValues(rc.values) {
 		// This optimization allows reducing memory usage after br cloning
-		br.csBuf = append(br.csBuf, blockResultColumn{
+		br.csAdd(blockResultColumn{
 			name:          rc.name,
 			isConst:       true,
 			valuesEncoded: rc.values[:1],
 		})
 	} else {
-		br.csBuf = append(br.csBuf, blockResultColumn{
+		br.csAdd(blockResultColumn{
 			name:          rc.name,
 			valueType:     valueTypeString,
 			valuesEncoded: rc.values,
 		})
 	}
-	br.csInitialized = false
 }
 
 // initAllColumns initializes all the columns in br.
@@ -514,6 +530,13 @@ func (br *blockResult) newValuesEncodedFromColumnHeader(bs *blockSearch, bm *bit
 			}
 			br.addValue(v)
 		})
+	case valueTypeInt64:
+		visitValuesReadonly(bs, ch, bm, func(v string) {
+			if len(v) != 8 {
+				logger.Panicf("FATAL: %s: unexpected size for int64 column %q; got %d bytes; want 8 bytes", bs.partPath(), ch.name, len(v))
+			}
+			br.addValue(v)
+		})
 	case valueTypeFloat64:
 		visitValuesReadonly(bs, ch, bm, func(v string) {
 			if len(v) != 8 {
@@ -575,11 +598,10 @@ func (svec *searchValuesEncodedCreator) newValuesEncoded(br *blockResult) []stri
 }
 
 func (br *blockResult) addTimeColumn() {
-	br.csBuf = append(br.csBuf, blockResultColumn{
+	br.csAdd(blockResultColumn{
 		name:   "_time",
 		isTime: true,
 	})
-	br.csInitialized = false
 }
 
 func (br *blockResult) addStreamIDColumn() {
@@ -605,12 +627,11 @@ func (br *blockResult) addConstColumn(name, value string) {
 	br.addValue(value)
 	valuesEncoded := br.valuesBuf[valuesBufLen:]
 
-	br.csBuf = append(br.csBuf, blockResultColumn{
+	br.csAdd(blockResultColumn{
 		name:          nameCopy,
 		isConst:       true,
 		valuesEncoded: valuesEncoded,
 	})
-	br.csInitialized = false
 }
 
 func (br *blockResult) newValuesBucketedForColumn(c *blockResultColumn, bf *byStatsField) []string {
@@ -637,6 +658,8 @@ func (br *blockResult) newValuesBucketedForColumn(c *blockResultColumn, bf *bySt
 		return br.getBucketedUint32Values(valuesEncoded, bf)
 	case valueTypeUint64:
 		return br.getBucketedUint64Values(valuesEncoded, bf)
+	case valueTypeInt64:
+		return br.getBucketedInt64Values(valuesEncoded, bf)
 	case valueTypeFloat64:
 		return br.getBucketedFloat64Values(valuesEncoded, bf)
 	case valueTypeIPv4:
@@ -994,6 +1017,64 @@ func (br *blockResult) getBucketedUint64Values(valuesEncoded []string, bf *bySta
 
 			bufLen := len(buf)
 			buf = marshalUint64String(buf, n)
+			s = bytesutil.ToUnsafeString(buf[bufLen:])
+			valuesBuf = append(valuesBuf, s)
+		}
+	}
+
+	br.valuesBuf = valuesBuf
+	br.a.b = buf
+
+	return br.valuesBuf[valuesBufLen:]
+}
+
+func (br *blockResult) getBucketedInt64Values(valuesEncoded []string, bf *byStatsField) []string {
+	buf := br.a.b
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+
+	var s string
+
+	if !bf.hasBucketConfig() {
+		for i, v := range valuesEncoded {
+			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
+				valuesBuf = append(valuesBuf, s)
+				continue
+			}
+
+			n := unmarshalInt64(v)
+			bufLen := len(buf)
+			buf = marshalInt64String(buf, n)
+			s = bytesutil.ToUnsafeString(buf[bufLen:])
+			valuesBuf = append(valuesBuf, s)
+		}
+	} else {
+		bucketSizeInt := int64(bf.bucketSize)
+		if bucketSizeInt == 0 {
+			bucketSizeInt = 1
+		}
+		bucketOffsetInt := int64(bf.bucketOffset)
+
+		nPrev := int64(0)
+		for i, v := range valuesEncoded {
+			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
+				valuesBuf = append(valuesBuf, s)
+				continue
+			}
+
+			n := unmarshalInt64(v)
+			n -= bucketOffsetInt
+			n -= n % bucketSizeInt
+			n += bucketOffsetInt
+
+			if i > 0 && nPrev == n {
+				valuesBuf = append(valuesBuf, s)
+				continue
+			}
+			nPrev = n
+
+			bufLen := len(buf)
+			buf = marshalInt64String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
 			valuesBuf = append(valuesBuf, s)
 		}
@@ -1456,18 +1537,29 @@ func (br *blockResult) getColumns() []*blockResultColumn {
 func (br *blockResult) csInit() {
 	csBuf := br.csBuf
 	clear(br.cs)
-	cs := br.cs[:0]
+	br.cs = br.cs[:0]
 	for i := range csBuf {
-		c := &csBuf[i]
-		idx := getBlockResultColumnIdxByName(cs, c.name)
-		if idx >= 0 {
-			cs[idx] = c
-		} else {
-			cs = append(cs, c)
-		}
+		br.csAddOrReplace(&csBuf[i])
 	}
-	br.cs = cs
 	br.csInitialized = true
+}
+
+func (br *blockResult) csAdd(rc blockResultColumn) {
+	br.csBuf = append(br.csBuf, rc)
+	if !br.csInitialized {
+		return
+	}
+	csBuf := br.csBuf
+	br.csAddOrReplace(&csBuf[len(csBuf)-1])
+}
+
+func (br *blockResult) csAddOrReplace(c *blockResultColumn) {
+	idx := getBlockResultColumnIdxByName(br.cs, c.name)
+	if idx >= 0 {
+		br.cs[idx] = c
+	} else {
+		br.cs = append(br.cs, c)
+	}
 }
 
 func (br *blockResult) csInitFast() {
@@ -1553,7 +1645,7 @@ type blockResultColumn struct {
 
 	// isTime is set to true if the column contains _time values.
 	//
-	// The column values are stored in blockResult.timestamps, while valuesEncoded is nil.
+	// The column values are stored in blockResult.getTimestamps, while valuesEncoded is nil.
 	isTime bool
 
 	// valueType is the type of non-cost value
@@ -1815,6 +1907,9 @@ func (c *blockResultColumn) getFloatValueAtRow(br *blockResult, rowIdx int) (flo
 	case valueTypeUint64:
 		v := valuesEncoded[rowIdx]
 		return float64(unmarshalUint64(v)), true
+	case valueTypeInt64:
+		v := valuesEncoded[rowIdx]
+		return float64(unmarshalInt64(v)), true
 	case valueTypeFloat64:
 		v := valuesEncoded[rowIdx]
 		f := unmarshalFloat64(v)
@@ -1857,6 +1952,8 @@ func (c *blockResultColumn) sumLenValues(br *blockResult) uint64 {
 	case valueTypeUint32:
 		return c.sumLenStringValues(br)
 	case valueTypeUint64:
+		return c.sumLenStringValues(br)
+	case valueTypeInt64:
 		return c.sumLenStringValues(br)
 	case valueTypeFloat64:
 		return c.sumLenStringValues(br)
@@ -1955,6 +2052,12 @@ func (c *blockResultColumn) sumValues(br *blockResult) (float64, int) {
 			sum += float64(unmarshalUint64(v))
 		}
 		return sum, br.rowsLen
+	case valueTypeInt64:
+		sum := float64(0)
+		for _, v := range c.getValuesEncoded(br) {
+			sum += float64(unmarshalInt64(v))
+		}
+		return sum, br.rowsLen
 	case valueTypeFloat64:
 		sum := float64(0)
 		for _, v := range c.getValuesEncoded(br) {
@@ -1991,7 +2094,9 @@ func (rc *resultColumn) reset() {
 }
 
 func (rc *resultColumn) resetValues() {
-	clear(rc.values)
+	// Do not call clear(rc.values), since it is slow when the query processes big number of columns.
+	// It is OK if rc.values point to some old values - they will be eventually overwritten by new values.
+
 	rc.values = rc.values[:0]
 }
 

@@ -2,7 +2,6 @@ import React, { FC, useEffect, useRef, useState } from "preact/compat";
 import { KeyboardEvent } from "react";
 import { ErrorTypes } from "../../../types";
 import TextField from "../../Main/TextField/TextField";
-import QueryEditorAutocomplete from "./QueryEditorAutocomplete";
 import "./style.scss";
 import { QueryStats } from "../../../api/types";
 import { partialWarning, seriesFetchedWarning } from "./warningText";
@@ -10,6 +9,16 @@ import { AutocompleteOptions } from "../../Main/Autocomplete/Autocomplete";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { useQueryState } from "../../../state/query/QueryStateContext";
 import debounce from "lodash.debounce";
+
+export interface QueryEditorAutocompleteProps {
+  value: string;
+  anchorEl: React.RefObject<HTMLInputElement>;
+  caretPosition: [number, number]; // [start, end]
+  hasHelperText: boolean;
+  includeFunctions: boolean;
+  onSelect: (val: string, caretPosition: number) => void;
+  onFoundOptions: (val: AutocompleteOptions[]) => void;
+}
 
 export interface QueryEditorProps {
   onChange: (query: string) => void;
@@ -19,6 +28,7 @@ export interface QueryEditorProps {
   value: string;
   oneLiner?: boolean;
   autocomplete: boolean;
+  autocompleteEl?: FC<QueryEditorAutocompleteProps>;
   error?: ErrorTypes | string;
   stats?: QueryStats;
   label: string;
@@ -33,6 +43,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   onArrowUp,
   onArrowDown,
   autocomplete,
+  autocompleteEl: AutocompleteEl,
   error,
   stats,
   label,
@@ -43,10 +54,11 @@ const QueryEditor: FC<QueryEditorProps> = ({
   const { isMobile } = useDeviceDetect();
 
   const [openAutocomplete, setOpenAutocomplete] = useState(false);
-  const [caretPosition, setCaretPosition] = useState<[number, number]>([0, 0]);
+  const [caretPositionAutocomplete, setCaretPositionAutocomplete] = useState<[number, number]>([0, 0]);
+  const [caretPositionInput, setCaretPositionInput] = useState<[number, number]>([0, 0]);
   const autocompleteAnchorEl = useRef<HTMLInputElement>(null);
 
-  const [showAutocomplete, setShowAutocomplete] = useState(autocomplete);
+  const [showAutocomplete, setShowAutocomplete] = useState(!!AutocompleteEl);
   const debouncedSetShowAutocomplete = useRef(debounce(setShowAutocomplete, 500)).current;
 
   const warning = [
@@ -66,7 +78,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
 
   const handleSelect = (val: string, caretPosition: number) => {
     onChange(val);
-    setCaretPosition([caretPosition, caretPosition]);
+    setCaretPositionInput([caretPosition, caretPosition]);
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -108,17 +120,17 @@ const QueryEditor: FC<QueryEditorProps> = ({
   };
 
   const handleChangeCaret = (val: [number, number]) => {
-    setCaretPosition(prev => prev[0] === val[0] && prev[1] === val[1] ? prev : val);
+    setCaretPositionAutocomplete(prev => prev[0] === val[0] && prev[1] === val[1] ? prev : val);
   };
 
   useEffect(() => {
-    setOpenAutocomplete(autocomplete);
+    setOpenAutocomplete(!!AutocompleteEl);
   }, [autocompleteQuick]);
 
   useEffect(() => {
     setShowAutocomplete(false);
     debouncedSetShowAutocomplete(true);
-  }, [caretPosition]);
+  }, [caretPositionAutocomplete]);
 
   return (
     <div
@@ -137,13 +149,13 @@ const QueryEditor: FC<QueryEditorProps> = ({
         onChangeCaret={handleChangeCaret}
         disabled={disabled}
         inputmode={"search"}
-        caretPosition={caretPosition}
+        caretPosition={caretPositionInput}
       />
-      {showAutocomplete && autocomplete && (
-        <QueryEditorAutocomplete
+      {showAutocomplete && autocomplete && AutocompleteEl && (
+        <AutocompleteEl
           value={value}
           anchorEl={autocompleteAnchorEl}
-          caretPosition={caretPosition}
+          caretPosition={caretPositionAutocomplete}
           hasHelperText={Boolean(warning || error)}
           includeFunctions={includeFunctions}
           onSelect={handleSelect}
