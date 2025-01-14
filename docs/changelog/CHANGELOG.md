@@ -70,7 +70,6 @@ Released at 2025-01-14
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): fix support for migrating influx series without any tag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7921). Thanks to @bitbidu for reporting.
 * BUGFIX: [vminsert](https://docs.victoriametrics.com/vminsert/): storage nodes defined in `-storageNode` are now sorted, ensuring that varying node orders across different vminsert instances do not result in inconsistent replication.
 
-
 ## [v1.108.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.1)
 
 See changes [here](https://docs.victoriametrics.com/changelog_2024/#v11081)
