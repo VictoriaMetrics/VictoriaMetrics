@@ -2005,6 +2005,11 @@ scrape_configs:
   #
   # series_limit: ...
 
+  # label_limit is an optional limit on the number of labels per each sample
+  # exposed by a target. It can be set globally for a whole scrape configuration and for each scrape job
+  #
+  # label_limit: ...
+
   # no_stale_markers allows disabling staleness tracking.
   # By default, staleness tracking is enabled for all the discovered scrape targets.
   # See https://docs.victoriametrics.com/vmagent/#prometheus-staleness-markers
