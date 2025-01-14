@@ -614,7 +614,7 @@ func (ar *AlertingRule) alertToTimeSeries(a *notifier.Alert, timestamp int64) []
 }
 
 func alertToTimeSeries(a *notifier.Alert, timestamp int64) prompbmarshal.TimeSeries {
-	var labels []prompbmarshal.Label
+	labels := make([]prompbmarshal.Label, 0, len(a.Labels)+2)
 	for k, v := range a.Labels {
 		labels = append(labels, prompbmarshal.Label{
 			Name:  k,
@@ -634,7 +634,7 @@ func alertToTimeSeries(a *notifier.Alert, timestamp int64) prompbmarshal.TimeSer
 // alertForToTimeSeries returns a time series that represents
 // state of active alerts, where value is time when alert become active
 func alertForToTimeSeries(a *notifier.Alert, timestamp int64) prompbmarshal.TimeSeries {
-	var labels []prompbmarshal.Label
+	labels := make([]prompbmarshal.Label, 0, len(a.Labels)+1)
 	for k, v := range a.Labels {
 		labels = append(labels, prompbmarshal.Label{
 			Name:  k,
@@ -650,21 +650,24 @@ func alertForToTimeSeries(a *notifier.Alert, timestamp int64) prompbmarshal.Time
 // for alerts which changed their state from Pending to Inactive or Firing.
 func pendingAlertStaleTimeSeries(ls map[string]string, timestamp int64, includeAlertForState bool) []prompbmarshal.TimeSeries {
 	var result []prompbmarshal.TimeSeries
-	var baseLabels []prompbmarshal.Label
+	baseLabels := make([]prompbmarshal.Label, 0, len(ls)+1)
 	for k, v := range ls {
 		baseLabels = append(baseLabels, prompbmarshal.Label{
 			Name:  k,
 			Value: v,
 		})
 	}
+
+	alertsLabels := make([]prompbmarshal.Label, 0, len(ls)+2)
+	alertsLabels = append(alertsLabels, baseLabels...)
 	// __name__ already been dropped, no need to check duplication
-	alertsLabels := append(baseLabels, prompbmarshal.Label{Name: "__name__", Value: alertMetricName})
+	alertsLabels = append(alertsLabels, prompbmarshal.Label{Name: "__name__", Value: alertMetricName})
 	alertsLabels = append(alertsLabels, prompbmarshal.Label{Name: alertStateLabel, Value: notifier.StatePending.String()})
 	result = append(result, newTimeSeries([]float64{decimal.StaleNaN}, []int64{timestamp}, alertsLabels))
 
 	if includeAlertForState {
-		alertsForStateLabels := append(baseLabels, prompbmarshal.Label{Name: "__name__", Value: alertForStateMetricName})
-		result = append(result, newTimeSeries([]float64{decimal.StaleNaN}, []int64{timestamp}, alertsForStateLabels))
+		baseLabels = append(baseLabels, prompbmarshal.Label{Name: "__name__", Value: alertForStateMetricName})
+		result = append(result, newTimeSeries([]float64{decimal.StaleNaN}, []int64{timestamp}, baseLabels))
 	}
 	return result
 }
@@ -672,22 +675,25 @@ func pendingAlertStaleTimeSeries(ls map[string]string, timestamp int64, includeA
 // firingAlertStaleTimeSeries returns stale `ALERTS` and `ALERTS_FOR_STATE` time series
 // for alerts which changed their state from Firing to Inactive.
 func firingAlertStaleTimeSeries(ls map[string]string, timestamp int64) []prompbmarshal.TimeSeries {
-	var baseLabels []prompbmarshal.Label
+	baseLabels := make([]prompbmarshal.Label, 0, len(ls)+1)
 	for k, v := range ls {
 		baseLabels = append(baseLabels, prompbmarshal.Label{
 			Name:  k,
 			Value: v,
 		})
 	}
+
+	alertsLabels := make([]prompbmarshal.Label, 0, len(ls)+2)
+	alertsLabels = append(alertsLabels, baseLabels...)
 	// __name__ already been dropped, no need to check duplication
-	alertsLabels := append(baseLabels, prompbmarshal.Label{Name: "__name__", Value: alertMetricName})
+	alertsLabels = append(alertsLabels, prompbmarshal.Label{Name: "__name__", Value: alertMetricName})
 	alertsLabels = append(alertsLabels, prompbmarshal.Label{Name: alertStateLabel, Value: notifier.StateFiring.String()})
 
-	alertsForStateLabels := append(baseLabels, prompbmarshal.Label{Name: "__name__", Value: alertForStateMetricName})
+	baseLabels = append(baseLabels, prompbmarshal.Label{Name: "__name__", Value: alertForStateMetricName})
 
 	return []prompbmarshal.TimeSeries{
 		newTimeSeries([]float64{decimal.StaleNaN}, []int64{timestamp}, alertsLabels),
-		newTimeSeries([]float64{decimal.StaleNaN}, []int64{timestamp}, alertsForStateLabels),
+		newTimeSeries([]float64{decimal.StaleNaN}, []int64{timestamp}, baseLabels),
 	}
 }
 

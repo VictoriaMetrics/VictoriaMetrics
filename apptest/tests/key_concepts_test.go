@@ -3,9 +3,10 @@ package tests
 import (
 	"testing"
 
-	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	at "github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
 // Data used in examples in
@@ -49,7 +50,7 @@ func TestClusterKeyConceptsQueryData(t *testing.T) {
 	testKeyConceptsQueryData(t, sut)
 }
 
-// testClusterKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
+// testKeyConceptsQueryData verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
 func testKeyConceptsQueryData(t *testing.T, sut at.PrometheusWriteQuerier) {
 
 	// Insert example data from documentation.

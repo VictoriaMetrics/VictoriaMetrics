@@ -180,11 +180,7 @@ func (c *Client) Explore() ([]*Series, error) {
 			log.Printf("skip measurement %q since it has no fields", s.Measurement)
 			continue
 		}
-		tags, ok := measurementTags[s.Measurement]
-		if !ok {
-			return nil, fmt.Errorf("failed to find tags of measurement %s", s.Measurement)
-		}
-		emptyTags := getEmptyTags(tags, s.LabelPairs)
+		emptyTags := getEmptyTags(measurementTags[s.Measurement], s.LabelPairs)
 		for _, field := range fields {
 			is := &Series{
 				Measurement: s.Measurement,
@@ -201,11 +197,16 @@ func (c *Client) Explore() ([]*Series, error) {
 // getEmptyTags returns tags of a measurement that are missing in a specific series.
 // Tags represent all tags of a measurement. LabelPairs represent tags of a specific series.
 func getEmptyTags(tags map[string]struct{}, LabelPairs []LabelPair) []string {
+	if len(tags) == 0 {
+		// fast path: the measurement does not contain any tag
+		return nil
+	}
+
 	labelMap := make(map[string]struct{})
 	for _, pair := range LabelPairs {
 		labelMap[pair.Name] = struct{}{}
 	}
-	result := make([]string, 0, len(labelMap)-len(LabelPairs))
+	var result []string
 	for tag := range tags {
 		if _, ok := labelMap[tag]; !ok {
 			result = append(result, tag)

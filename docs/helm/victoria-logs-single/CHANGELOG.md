@@ -1,6 +1,17 @@
 ## Next release
 
-- updated common dependency 0.0.34 -> 0.0.35
+- TODO
+
+## 0.8.12
+
+**Release date:** 06 Jan 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.4.0](https://img.shields.io/badge/v1.4.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v140)
+
+- updated common dependency 0.0.34 -> 0.0.37
+- Exclude markdown files from package
+- victorialogs version: v1.3.2 -> v1.4.0
+- support templating in `.Values.extraObjects`
 
 ## 0.8.11
 

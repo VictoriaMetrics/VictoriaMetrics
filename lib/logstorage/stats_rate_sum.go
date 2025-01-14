@@ -2,59 +2,54 @@ package logstorage
 
 import (
 	"strconv"
-	"unsafe"
 )
 
 type statsRateSum struct {
-	fields []string
+	ss *statsSum
 
 	// stepSeconds must be updated by the caller before calling newStatsProcessor().
 	stepSeconds float64
 }
 
 func (sr *statsRateSum) String() string {
-	return "rate_sum(" + statsFuncFieldsToString(sr.fields) + ")"
+	return "rate_sum(" + statsFuncFieldsToString(sr.ss.fields) + ")"
 }
 
 func (sr *statsRateSum) updateNeededFields(neededFields fieldsSet) {
-	updateNeededFieldsForStatsFunc(neededFields, sr.fields)
+	updateNeededFieldsForStatsFunc(neededFields, sr.ss.fields)
 }
 
-func (sr *statsRateSum) newStatsProcessor() (statsProcessor, int) {
-	srp := &statsRateSumProcessor{
-		sr: sr,
-		ssp: &statsSumProcessor{
-			ss: &statsSum{
-				fields: sr.fields,
-			},
-			sum: nan,
-		},
-	}
-	return srp, int(unsafe.Sizeof(*srp))
+func (sr *statsRateSum) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	srp := a.newStatsRateSumProcessor()
+	srp.ssp.sum = nan
+	return srp
 }
 
 type statsRateSumProcessor struct {
-	sr  *statsRateSum
-	ssp *statsSumProcessor
+	ssp statsSumProcessor
 }
 
-func (srp *statsRateSumProcessor) updateStatsForAllRows(br *blockResult) int {
-	return srp.ssp.updateStatsForAllRows(br)
+func (srp *statsRateSumProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	ss := sf.(*statsRateSum)
+	return srp.ssp.updateStatsForAllRows(ss.ss, br)
 }
 
-func (srp *statsRateSumProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	return srp.ssp.updateStatsForRow(br, rowIdx)
+func (srp *statsRateSumProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	ss := sf.(*statsRateSum)
+	return srp.ssp.updateStatsForRow(ss.ss, br, rowIdx)
 }
 
-func (srp *statsRateSumProcessor) mergeState(sfp statsProcessor) {
+func (srp *statsRateSumProcessor) mergeState(sf statsFunc, sfp statsProcessor) {
+	ss := sf.(*statsRateSum)
 	src := sfp.(*statsRateSumProcessor)
-	srp.ssp.mergeState(src.ssp)
+	srp.ssp.mergeState(ss.ss, &src.ssp)
 }
 
-func (srp *statsRateSumProcessor) finalizeStats(dst []byte) []byte {
+func (srp *statsRateSumProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-chan struct{}) []byte {
+	sr := sf.(*statsRateSum)
 	rate := srp.ssp.sum
-	if srp.sr.stepSeconds > 0 {
-		rate /= srp.sr.stepSeconds
+	if sr.stepSeconds > 0 {
+		rate /= sr.stepSeconds
 	}
 	return strconv.AppendFloat(dst, rate, 'f', -1, 64)
 }
@@ -65,7 +60,9 @@ func parseStatsRateSum(lex *lexer) (*statsRateSum, error) {
 		return nil, err
 	}
 	sr := &statsRateSum{
-		fields: fields,
+		ss: &statsSum{
+			fields: fields,
+		},
 	}
 	return sr, nil
 }

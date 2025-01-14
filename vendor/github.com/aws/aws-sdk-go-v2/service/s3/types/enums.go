@@ -274,6 +274,7 @@ type DataRedundancy string
 // Enum values for DataRedundancy
 const (
 	DataRedundancySingleAvailabilityZone DataRedundancy = "SingleAvailabilityZone"
+	DataRedundancySingleLocalZone        DataRedundancy = "SingleLocalZone"
 )
 
 // Values returns all known values for DataRedundancy. Note that this can be
@@ -283,6 +284,7 @@ const (
 func (DataRedundancy) Values() []DataRedundancy {
 	return []DataRedundancy{
 		"SingleAvailabilityZone",
+		"SingleLocalZone",
 	}
 }
 
@@ -656,6 +658,7 @@ type LocationType string
 // Enum values for LocationType
 const (
 	LocationTypeAvailabilityZone LocationType = "AvailabilityZone"
+	LocationTypeLocalZone        LocationType = "LocalZone"
 )
 
 // Values returns all known values for LocationType. Note that this can be
@@ -665,6 +668,7 @@ const (
 func (LocationType) Values() []LocationType {
 	return []LocationType{
 		"AvailabilityZone",
+		"LocalZone",
 	}
 }
 

@@ -5,7 +5,6 @@ import (
 	"math"
 	"slices"
 	"strings"
-	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -35,28 +34,24 @@ func (sm *statsRowMin) updateNeededFields(neededFields fieldsSet) {
 	neededFields.add(sm.srcField)
 }
 
-func (sm *statsRowMin) newStatsProcessor() (statsProcessor, int) {
-	smp := &statsRowMinProcessor{
-		sm: sm,
-	}
-	return smp, int(unsafe.Sizeof(*smp))
+func (sm *statsRowMin) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	return a.newStatsRowMinProcessor()
 }
 
 type statsRowMinProcessor struct {
-	sm *statsRowMin
-
 	min string
 
 	fields []Field
 }
 
-func (smp *statsRowMinProcessor) updateStatsForAllRows(br *blockResult) int {
+func (smp *statsRowMinProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	sm := sf.(*statsRowMin)
 	stateSizeIncrease := 0
 
-	c := br.getColumnByName(smp.sm.srcField)
+	c := br.getColumnByName(sm.srcField)
 	if c.isConst {
 		v := c.valuesEncoded[0]
-		stateSizeIncrease += smp.updateState(v, br, 0)
+		stateSizeIncrease += smp.updateState(sm, v, br, 0)
 		return stateSizeIncrease
 	}
 	if c.isTime {
@@ -72,7 +67,7 @@ func (smp *statsRowMinProcessor) updateStatsForAllRows(br *blockResult) int {
 		bb := bbPool.Get()
 		bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], minTimestamp)
 		v := bytesutil.ToUnsafeString(bb.B)
-		stateSizeIncrease += smp.updateState(v, br, 0)
+		stateSizeIncrease += smp.updateState(sm, v, br, 0)
 		bbPool.Put(bb)
 		return stateSizeIncrease
 	}
@@ -90,6 +85,11 @@ func (smp *statsRowMinProcessor) updateStatsForAllRows(br *blockResult) int {
 	case valueTypeUint8, valueTypeUint16, valueTypeUint32, valueTypeUint64:
 		bb := bbPool.Get()
 		bb.B = marshalUint64String(bb.B[:0], c.minValue)
+		needUpdateState = smp.needUpdateStateBytes(bb.B)
+		bbPool.Put(bb)
+	case valueTypeInt64:
+		bb := bbPool.Get()
+		bb.B = marshalInt64String(bb.B[:0], int64(c.minValue))
 		needUpdateState = smp.needUpdateStateBytes(bb.B)
 		bbPool.Put(bb)
 	case valueTypeFloat64:
@@ -115,20 +115,21 @@ func (smp *statsRowMinProcessor) updateStatsForAllRows(br *blockResult) int {
 	if needUpdateState {
 		values := c.getValues(br)
 		for i, v := range values {
-			stateSizeIncrease += smp.updateState(v, br, i)
+			stateSizeIncrease += smp.updateState(sm, v, br, i)
 		}
 	}
 
 	return stateSizeIncrease
 }
 
-func (smp *statsRowMinProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+func (smp *statsRowMinProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	sm := sf.(*statsRowMin)
 	stateSizeIncrease := 0
 
-	c := br.getColumnByName(smp.sm.srcField)
+	c := br.getColumnByName(sm.srcField)
 	if c.isConst {
 		v := c.valuesEncoded[0]
-		stateSizeIncrease += smp.updateState(v, br, rowIdx)
+		stateSizeIncrease += smp.updateState(sm, v, br, rowIdx)
 		return stateSizeIncrease
 	}
 	if c.isTime {
@@ -136,18 +137,18 @@ func (smp *statsRowMinProcessor) updateStatsForRow(br *blockResult, rowIdx int) 
 		bb := bbPool.Get()
 		bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], timestamps[rowIdx])
 		v := bytesutil.ToUnsafeString(bb.B)
-		stateSizeIncrease += smp.updateState(v, br, rowIdx)
+		stateSizeIncrease += smp.updateState(sm, v, br, rowIdx)
 		bbPool.Put(bb)
 		return stateSizeIncrease
 	}
 
 	v := c.getValueAtRow(br, rowIdx)
-	stateSizeIncrease += smp.updateState(v, br, rowIdx)
+	stateSizeIncrease += smp.updateState(sm, v, br, rowIdx)
 
 	return stateSizeIncrease
 }
 
-func (smp *statsRowMinProcessor) mergeState(sfp statsProcessor) {
+func (smp *statsRowMinProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsRowMinProcessor)
 	if smp.needUpdateStateString(src.min) {
 		smp.min = src.min
@@ -167,7 +168,7 @@ func (smp *statsRowMinProcessor) needUpdateStateString(v string) bool {
 	return smp.min == "" || lessString(v, smp.min)
 }
 
-func (smp *statsRowMinProcessor) updateState(v string, br *blockResult, rowIdx int) int {
+func (smp *statsRowMinProcessor) updateState(sm *statsRowMin, v string, br *blockResult, rowIdx int) int {
 	stateSizeIncrease := 0
 
 	if !smp.needUpdateStateString(v) {
@@ -186,7 +187,7 @@ func (smp *statsRowMinProcessor) updateState(v string, br *blockResult, rowIdx i
 
 	clear(fields)
 	fields = fields[:0]
-	fetchFields := smp.sm.fetchFields
+	fetchFields := sm.fetchFields
 	if len(fetchFields) == 0 {
 		cs := br.getColumns()
 		for _, c := range cs {
@@ -213,7 +214,7 @@ func (smp *statsRowMinProcessor) updateState(v string, br *blockResult, rowIdx i
 	return stateSizeIncrease
 }
 
-func (smp *statsRowMinProcessor) finalizeStats(dst []byte) []byte {
+func (smp *statsRowMinProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
 	return MarshalFieldsToJSON(dst, smp.fields)
 }
 

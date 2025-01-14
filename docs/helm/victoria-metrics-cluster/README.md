@@ -1,6 +1,11 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.16.0](https://img.shields.io/badge/Version-0.16.0-informational?style=flat-square)
-[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-cluster)
-[![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
+
+
+![Version](https://img.shields.io/badge/0.17.0-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-cluster%2Fchangelog%2F%230170)
+![ArtifactHub](https://img.shields.io/badge/ArtifactHub-informational?logoColor=white&color=417598&logo=artifacthub&link=https%3A%2F%2Fartifacthub.io%2Fpackages%2Fhelm%2Fvictoriametrics%2Fvictoria-metrics-cluster)
+![License](https://img.shields.io/github/license/VictoriaMetrics/helm-charts?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2Fhelm-charts%2Fblob%2Fmaster%2FLICENSE)
+![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
+![X](https://img.shields.io/twitter/follow/VictoriaMetrics?style=flat&label=Follow&color=black&logo=x&labelColor=black&link=https%3A%2F%2Fx.com%2FVictoriaMetrics)
+![Reddit](https://img.shields.io/reddit/subreddit-subscribers/VictoriaMetrics?style=flat&label=Join&labelColor=red&logoColor=white&logo=reddit&link=https%3A%2F%2Fwww.reddit.com%2Fr%2FVictoriaMetrics)
 
 Victoria Metrics Cluster version - high-performance, cost-effective and scalable TSDB, long-term remote storage for Prometheus
 
@@ -787,10 +792,10 @@ timeoutSeconds: 5
       <td>vmauth.probe.readiness</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
-<code class="language-yaml">failureThreshold: 3
+<code class="language-yaml">failureThreshold: 10
 httpGet: {}
 initialDelaySeconds: 5
-periodSeconds: 15
+periodSeconds: 5
 timeoutSeconds: 5
 </code>
 </pre>
@@ -1586,10 +1591,10 @@ labels: {}
     tcpSocket: {}
     timeoutSeconds: 5
 readiness:
-    failureThreshold: 3
+    failureThreshold: 10
     httpGet: {}
     initialDelaySeconds: 5
-    periodSeconds: 15
+    periodSeconds: 5
     timeoutSeconds: 5
 startup: {}
 </code>
@@ -1617,10 +1622,10 @@ timeoutSeconds: 5
       <td>vminsert.probe.readiness</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
-<code class="language-yaml">failureThreshold: 3
+<code class="language-yaml">failureThreshold: 10
 httpGet: {}
 initialDelaySeconds: 5
-periodSeconds: 15
+periodSeconds: 5
 timeoutSeconds: 5
 </code>
 </pre>
@@ -2526,10 +2531,10 @@ labels: {}
     tcpSocket: {}
     timeoutSeconds: 5
 readiness:
-    failureThreshold: 3
+    failureThreshold: 10
     httpGet: {}
     initialDelaySeconds: 5
-    periodSeconds: 15
+    periodSeconds: 5
     timeoutSeconds: 5
 startup: {}
 </code>
@@ -2557,10 +2562,10 @@ timeoutSeconds: 5
       <td>vmselect.probe.readiness</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
-<code class="language-yaml">failureThreshold: 3
+<code class="language-yaml">failureThreshold: 10
 httpGet: {}
 initialDelaySeconds: 5
-periodSeconds: 15
+periodSeconds: 5
 timeoutSeconds: 5
 </code>
 </pre>
@@ -3211,6 +3216,16 @@ loggerFormat: json
 </td>
     </tr>
     <tr>
+      <td>vmstorage.minReadySeconds</td>
+      <td>int</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
+<code class="language-yaml">5
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
       <td>vmstorage.name</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="">
@@ -3423,48 +3438,27 @@ labels: {}
       <td>vmstorage.probe</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
-<code class="language-yaml">liveness:
+<code class="language-yaml">readiness:
     failureThreshold: 10
-    initialDelaySeconds: 30
-    periodSeconds: 30
-    tcpSocket: {}
-    timeoutSeconds: 5
-readiness:
-    failureThreshold: 3
     httpGet: {}
     initialDelaySeconds: 5
-    periodSeconds: 15
+    periodSeconds: 5
     timeoutSeconds: 5
 startup: {}
 </code>
 </pre>
 </td>
-      <td><p>Readiness &amp; Liveness probes</p>
-</td>
-    </tr>
-    <tr>
-      <td>vmstorage.probe.liveness</td>
-      <td>object</td>
-      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
-<code class="language-yaml">failureThreshold: 10
-initialDelaySeconds: 30
-periodSeconds: 30
-tcpSocket: {}
-timeoutSeconds: 5
-</code>
-</pre>
-</td>
-      <td><p>VMStorage liveness probe</p>
+      <td><p>Readiness probes</p>
 </td>
     </tr>
     <tr>
       <td>vmstorage.probe.readiness</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
-<code class="language-yaml">failureThreshold: 3
+<code class="language-yaml">failureThreshold: 10
 httpGet: {}
 initialDelaySeconds: 5
-periodSeconds: 15
+periodSeconds: 5
 timeoutSeconds: 5
 </code>
 </pre>
@@ -3947,11 +3941,11 @@ loggerFormat: json
         port: manager-http
     timeoutSeconds: 5
 readiness:
-    failureThreshold: 3
+    failureThreshold: 10
     httpGet:
         port: manager-http
     initialDelaySeconds: 5
-    periodSeconds: 15
+    periodSeconds: 5
     timeoutSeconds: 5
 startup: {}
 </code>
@@ -3980,11 +3974,11 @@ timeoutSeconds: 5
       <td>vmstorage.vmbackupmanager.probe.readiness</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
-<code class="language-yaml">failureThreshold: 3
+<code class="language-yaml">failureThreshold: 10
 httpGet:
     port: manager-http
 initialDelaySeconds: 5
-periodSeconds: 15
+periodSeconds: 5
 timeoutSeconds: 5
 </code>
 </pre>

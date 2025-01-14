@@ -443,8 +443,8 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 }
 
 // UpdateWith inserts new group to updateCh
-func (g *Group) UpdateWith(new *Group) {
-	g.updateCh <- new
+func (g *Group) UpdateWith(newGroup *Group) {
+	g.updateCh <- newGroup
 }
 
 // DeepCopy returns a deep copy of group

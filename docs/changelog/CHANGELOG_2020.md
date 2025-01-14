@@ -1,11 +1,11 @@
 ---
-weight: 6
+weight: 7
 title: Year 2020
 menu:
   docs:
     identifier: vm-changelog-2020
     parent: vm-changelog
-    weight: 6
+    weight: 7
 aliases:
 - /CHANGELOG_2020.html
 - /changelog_2020

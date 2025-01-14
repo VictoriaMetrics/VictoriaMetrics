@@ -2,14 +2,14 @@ package logstorage
 
 import (
 	"fmt"
-	"math"
 	"slices"
-	"strconv"
+	"sort"
+	"strings"
 	"unsafe"
 
 	"github.com/valyala/fastrand"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -33,23 +33,19 @@ func (sq *statsQuantile) updateNeededFields(neededFields fieldsSet) {
 	updateNeededFieldsForStatsFunc(neededFields, sq.fields)
 }
 
-func (sq *statsQuantile) newStatsProcessor() (statsProcessor, int) {
-	sqp := &statsQuantileProcessor{
-		sq: sq,
-	}
-	return sqp, int(unsafe.Sizeof(*sqp))
+func (sq *statsQuantile) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	return a.newStatsQuantileProcessor()
 }
 
 type statsQuantileProcessor struct {
-	sq *statsQuantile
-
 	h histogram
 }
 
-func (sqp *statsQuantileProcessor) updateStatsForAllRows(br *blockResult) int {
+func (sqp *statsQuantileProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	sq := sf.(*statsQuantile)
 	stateSizeIncrease := 0
 
-	fields := sqp.sq.fields
+	fields := sq.fields
 	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			stateSizeIncrease += sqp.updateStateForColumn(br, c)
@@ -64,25 +60,22 @@ func (sqp *statsQuantileProcessor) updateStatsForAllRows(br *blockResult) int {
 	return stateSizeIncrease
 }
 
-func (sqp *statsQuantileProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
+func (sqp *statsQuantileProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	sq := sf.(*statsQuantile)
 	h := &sqp.h
 	stateSizeIncrease := 0
 
-	fields := sqp.sq.fields
+	fields := sq.fields
 	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
-			f, ok := c.getFloatValueAtRow(br, rowIdx)
-			if ok {
-				stateSizeIncrease += h.update(f)
-			}
+			v := c.getValueAtRow(br, rowIdx)
+			stateSizeIncrease += h.update(v)
 		}
 	} else {
 		for _, field := range fields {
 			c := br.getColumnByName(field)
-			f, ok := c.getFloatValueAtRow(br, rowIdx)
-			if ok {
-				stateSizeIncrease += h.update(f)
-			}
+			v := c.getValueAtRow(br, rowIdx)
+			stateSizeIncrease += h.update(v)
 		}
 	}
 
@@ -94,73 +87,99 @@ func (sqp *statsQuantileProcessor) updateStateForColumn(br *blockResult, c *bloc
 	stateSizeIncrease := 0
 
 	if c.isConst {
-		f, ok := tryParseFloat64(c.valuesEncoded[0])
-		if ok {
-			for i := 0; i < br.rowsLen; i++ {
-				stateSizeIncrease += h.update(f)
-			}
+		v := c.valuesEncoded[0]
+		for i := 0; i < br.rowsLen; i++ {
+			stateSizeIncrease += h.update(v)
 		}
 		return stateSizeIncrease
 	}
 	if c.isTime {
-		return 0
+		timestamps := br.getTimestamps()
+		bb := bbPool.Get()
+		for _, ts := range timestamps {
+			bb.B = marshalTimestampRFC3339NanoString(bb.B[:0], ts)
+			stateSizeIncrease += h.update(bytesutil.ToUnsafeString(bb.B))
+		}
+		bbPool.Put(bb)
+		return stateSizeIncrease
 	}
 
 	switch c.valueType {
 	case valueTypeString:
 		for _, v := range c.getValues(br) {
-			f, ok := tryParseFloat64(v)
-			if ok {
-				stateSizeIncrease += h.update(f)
-			}
+			stateSizeIncrease += h.update(v)
 		}
 	case valueTypeDict:
 		dictValues := c.dictValues
-		a := encoding.GetFloat64s(len(dictValues))
-		for i, v := range dictValues {
-			f, ok := tryParseFloat64(v)
-			if !ok {
-				f = nan
-			}
-			a.A[i] = f
+		for _, ve := range c.getValuesEncoded(br) {
+			idx := ve[0]
+			v := dictValues[idx]
+			stateSizeIncrease += h.update(v)
 		}
-		for _, v := range c.getValuesEncoded(br) {
-			idx := v[0]
-			f := a.A[idx]
-			if !math.IsNaN(f) {
-				h.update(f)
-			}
-		}
-		encoding.PutFloat64s(a)
 	case valueTypeUint8:
+		bb := bbPool.Get()
 		for _, v := range c.getValuesEncoded(br) {
 			n := unmarshalUint8(v)
-			h.update(float64(n))
+			bb.B = marshalUint8String(bb.B[:0], n)
+			stateSizeIncrease += h.update(bytesutil.ToUnsafeString(bb.B))
 		}
+		bbPool.Put(bb)
 	case valueTypeUint16:
+		bb := bbPool.Get()
 		for _, v := range c.getValuesEncoded(br) {
 			n := unmarshalUint16(v)
-			h.update(float64(n))
+			bb.B = marshalUint16String(bb.B[:0], n)
+			stateSizeIncrease += h.update(bytesutil.ToUnsafeString(bb.B))
 		}
+		bbPool.Put(bb)
 	case valueTypeUint32:
+		bb := bbPool.Get()
 		for _, v := range c.getValuesEncoded(br) {
 			n := unmarshalUint32(v)
-			h.update(float64(n))
+			bb.B = marshalUint32String(bb.B[:0], n)
+			stateSizeIncrease += h.update(bytesutil.ToUnsafeString(bb.B))
 		}
+		bbPool.Put(bb)
 	case valueTypeUint64:
+		bb := bbPool.Get()
 		for _, v := range c.getValuesEncoded(br) {
 			n := unmarshalUint64(v)
-			h.update(float64(n))
+			bb.B = marshalUint64String(bb.B[:0], n)
+			stateSizeIncrease += h.update(bytesutil.ToUnsafeString(bb.B))
 		}
+		bbPool.Put(bb)
+	case valueTypeInt64:
+		bb := bbPool.Get()
+		for _, v := range c.getValuesEncoded(br) {
+			n := unmarshalInt64(v)
+			bb.B = marshalInt64String(bb.B[:0], n)
+			stateSizeIncrease += h.update(bytesutil.ToUnsafeString(bb.B))
+		}
+		bbPool.Put(bb)
 	case valueTypeFloat64:
+		bb := bbPool.Get()
 		for _, v := range c.getValuesEncoded(br) {
 			f := unmarshalFloat64(v)
-			if !math.IsNaN(f) {
-				h.update(f)
-			}
+			bb.B = marshalFloat64String(bb.B[:0], f)
+			stateSizeIncrease += h.update(bytesutil.ToUnsafeString(bb.B))
 		}
+		bbPool.Put(bb)
 	case valueTypeIPv4:
+		bb := bbPool.Get()
+		for _, v := range c.getValuesEncoded(br) {
+			n := unmarshalIPv4(v)
+			bb.B = marshalIPv4String(bb.B[:0], n)
+			stateSizeIncrease += h.update(bytesutil.ToUnsafeString(bb.B))
+		}
+		bbPool.Put(bb)
 	case valueTypeTimestampISO8601:
+		bb := bbPool.Get()
+		for _, v := range c.getValuesEncoded(br) {
+			n := unmarshalTimestampISO8601(v)
+			bb.B = marshalTimestampISO8601String(bb.B[:0], n)
+			stateSizeIncrease += h.update(bytesutil.ToUnsafeString(bb.B))
+		}
+		bbPool.Put(bb)
 	default:
 		logger.Panicf("BUG: unexpected valueType=%d", c.valueType)
 	}
@@ -168,14 +187,15 @@ func (sqp *statsQuantileProcessor) updateStateForColumn(br *blockResult, c *bloc
 	return stateSizeIncrease
 }
 
-func (sqp *statsQuantileProcessor) mergeState(sfp statsProcessor) {
+func (sqp *statsQuantileProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsQuantileProcessor)
 	sqp.h.mergeState(&src.h)
 }
 
-func (sqp *statsQuantileProcessor) finalizeStats(dst []byte) []byte {
-	q := sqp.h.quantile(sqp.sq.phi)
-	return strconv.AppendFloat(dst, q, 'f', -1, 64)
+func (sqp *statsQuantileProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-chan struct{}) []byte {
+	sq := sf.(*statsQuantile)
+	q := sqp.h.quantile(sq.phi)
+	return append(dst, q...)
 }
 
 func parseStatsQuantile(lex *lexer) (*statsQuantile, error) {
@@ -218,35 +238,45 @@ func parseStatsQuantile(lex *lexer) (*statsQuantile, error) {
 }
 
 type histogram struct {
-	a     []float64
-	min   float64
-	max   float64
+	a     []string
+	min   string
+	max   string
 	count uint64
 
 	rng fastrand.RNG
 }
 
-func (h *histogram) update(f float64) int {
-	if h.count == 0 || f < h.min {
-		h.min = f
+func (h *histogram) update(v string) int {
+	if h.count == 0 || lessString(v, h.min) {
+		h.min = strings.Clone(v)
 	}
-	if h.count == 0 || f > h.max {
-		h.max = f
+	if h.count == 0 || lessString(h.max, v) {
+		h.max = strings.Clone(v)
 	}
 
 	h.count++
 	if len(h.a) < maxHistogramSamples {
-		h.a = append(h.a, f)
-		return int(unsafe.Sizeof(f))
+		if len(h.a) > 0 && v == h.a[len(h.a)-1] {
+			h.a = append(h.a, h.a[len(h.a)-1])
+			return int(unsafe.Sizeof(v))
+		}
+		vCopy := strings.Clone(v)
+		h.a = append(h.a, vCopy)
+		return len(vCopy) + int(unsafe.Sizeof(vCopy))
 	}
 
 	if n := h.rng.Uint32n(uint32(h.count)); n < uint32(len(h.a)) {
-		h.a[n] = f
+		vPrev := h.a[n]
+		if vPrev != v {
+			vCopy := strings.Clone(v)
+			h.a[n] = vCopy
+			return len(vCopy) - len(vPrev)
+		}
 	}
 	return 0
 }
 
-const maxHistogramSamples = 100_000
+const maxHistogramSamples = 10_000
 
 func (h *histogram) mergeState(src *histogram) {
 	if src.count == 0 {
@@ -262,18 +292,18 @@ func (h *histogram) mergeState(src *histogram) {
 	}
 
 	h.a = append(h.a, src.a...)
-	if src.min < h.min {
+	if lessString(src.min, h.min) {
 		h.min = src.min
 	}
-	if src.max > h.max {
+	if lessString(h.max, src.max) {
 		h.max = src.max
 	}
 	h.count += src.count
 }
 
-func (h *histogram) quantile(phi float64) float64 {
+func (h *histogram) quantile(phi float64) string {
 	if len(h.a) == 0 {
-		return nan
+		return ""
 	}
 	if len(h.a) == 1 {
 		return h.a[0]
@@ -285,7 +315,9 @@ func (h *histogram) quantile(phi float64) float64 {
 		return h.max
 	}
 
-	slices.Sort(h.a)
+	sort.Slice(h.a, func(i, j int) bool {
+		return lessString(h.a[i], h.a[j])
+	})
 	idx := int(phi * float64(len(h.a)))
 	if idx == len(h.a) {
 		return h.max

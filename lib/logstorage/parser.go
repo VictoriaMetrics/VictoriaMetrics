@@ -1173,6 +1173,8 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterSequence(lex, fieldName)
 	case lex.isKeyword("string_range"):
 		return parseFilterStringRange(lex, fieldName)
+	case lex.isKeyword("value_type"):
+		return parseFilterValueType(lex, fieldName)
 	case lex.isKeyword(`"`, "'", "`"):
 		return nil, fmt.Errorf("improperly quoted string")
 	case lex.isKeyword(",", ")", "[", "]"):
@@ -1409,9 +1411,19 @@ func parseFilterStringRange(lex *lexer, fieldName string) (filter, error) {
 			minValue:  args[0],
 			maxValue:  args[1],
 
-			stringRepr: fmt.Sprintf("string_range(%s, %s)", quoteTokenIfNeeded(args[0]), quoteTokenIfNeeded(args[1])),
+			stringRepr: fmt.Sprintf("%s(%s, %s)", funcName, quoteTokenIfNeeded(args[0]), quoteTokenIfNeeded(args[1])),
 		}
 		return fr, nil
+	})
+}
+
+func parseFilterValueType(lex *lexer, fieldName string) (filter, error) {
+	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
+		fv := &filterValueType{
+			fieldName: fieldName,
+			valueType: arg,
+		}
+		return fv, nil
 	})
 }
 
@@ -2535,6 +2547,7 @@ var reservedKeywords = func() map[string]struct{} {
 		"re",
 		"seq",
 		"string_range",
+		"value_type",
 	}
 	m := make(map[string]struct{}, len(kws))
 	for _, kw := range kws {

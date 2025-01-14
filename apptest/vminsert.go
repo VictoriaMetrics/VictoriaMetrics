@@ -78,6 +78,19 @@ func (app *Vminsert) ClusternativeListenAddr() string {
 	return app.clusternativeListenAddr
 }
 
+// InfluxWrite is a test helper function that inserts a
+// collection of records in Influx line format by sending a HTTP
+// POST request to /influx/write vmsingle endpoint.
+//
+// See https://docs.victoriametrics.com/url-examples/#influxwrite
+func (app *Vminsert) InfluxWrite(t *testing.T, records []string, opts QueryOpts) {
+	t.Helper()
+
+	url := fmt.Sprintf("http://%s/insert/%s/influx/write", app.httpListenAddr, opts.getTenant())
+	data := []byte(strings.Join(records, "\n"))
+	app.cli.Post(t, url, "text/plain", data, http.StatusNoContent)
+}
+
 // PrometheusAPIV1Write is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vminsert endpoint.

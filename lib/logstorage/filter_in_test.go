@@ -504,6 +504,67 @@ func TestFilterIn(t *testing.T) {
 		testFilterMatchForColumns(t, columns, fi, "foo", nil)
 	})
 
+	t.Run("int64", func(t *testing.T) {
+		t.Parallel()
+
+		columns := []column{
+			{
+				name: "foo",
+				values: []string{
+					"123",
+					"12",
+					"-32",
+					"0",
+					"0",
+					"12",
+					"12345678901",
+					"2",
+					"3",
+					"4",
+					"5",
+				},
+			},
+		}
+
+		// match
+		fi := &filterIn{
+			fieldName: "foo",
+			values:    []string{"12", "-32"},
+		}
+		testFilterMatchForColumns(t, columns, fi, "foo", []int{1, 2, 5})
+
+		fi = &filterIn{
+			fieldName: "foo",
+			values:    []string{"0"},
+		}
+		testFilterMatchForColumns(t, columns, fi, "foo", []int{3, 4})
+
+		fi = &filterIn{
+			fieldName: "non-existing-column",
+			values:    []string{""},
+		}
+		testFilterMatchForColumns(t, columns, fi, "foo", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+
+		// mismatch
+		fi = &filterIn{
+			fieldName: "foo",
+			values:    []string{"bar"},
+		}
+		testFilterMatchForColumns(t, columns, fi, "foo", nil)
+
+		fi = &filterIn{
+			fieldName: "foo",
+			values:    []string{},
+		}
+		testFilterMatchForColumns(t, columns, fi, "foo", nil)
+
+		fi = &filterIn{
+			fieldName: "foo",
+			values:    []string{"33"},
+		}
+		testFilterMatchForColumns(t, columns, fi, "foo", nil)
+	})
+
 	t.Run("float64", func(t *testing.T) {
 		t.Parallel()
 

@@ -289,7 +289,7 @@ func (s *Search) searchMetricName(metricName []byte, metricID uint64, tr TimeRan
 		// The expected time range must fit a single partition.
 		logger.Fatalf("BUG: more than one IndexDB is covered by time range %v", &tr)
 	}
-	return idbs[0].searchMetricNameWithCache(metricName, metricID)
+	return idbs[0].searchMetricName(metricName, metricID, false)
 }
 
 // SearchQuery is used for sending search queries from vmselect to vmstorage.

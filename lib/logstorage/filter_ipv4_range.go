@@ -77,6 +77,8 @@ func (fr *filterIPv4Range) applyToBlockResult(br *blockResult, bm *bitmap) {
 		bm.resetBits()
 	case valueTypeUint64:
 		bm.resetBits()
+	case valueTypeInt64:
+		bm.resetBits()
 	case valueTypeFloat64:
 		bm.resetBits()
 	case valueTypeIPv4:
@@ -130,6 +132,8 @@ func (fr *filterIPv4Range) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	case valueTypeUint32:
 		bm.resetBits()
 	case valueTypeUint64:
+		bm.resetBits()
+	case valueTypeInt64:
 		bm.resetBits()
 	case valueTypeFloat64:
 		bm.resetBits()

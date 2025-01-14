@@ -41,7 +41,7 @@ We use [labels](https://docs.github.com/en/issues/using-labels-and-milestones-to
 to categorize GitHub issues. We have the following labels:
 1. A component label: vmalert, vmagent, etc. Add this label to the issue if it is related to a specific component.
 1. An issue type: `bug`, `enhancement`, `question`.
-1. `enterprize`, assigned to issues related to ENT features
+1. `enterprise`, assigned to issues related to ENT features
 1. `need more info`, assigned to issues which require elaboration from the issue creator.
   For example, if we weren't able to reproduce the reported bug based on the ticket description then we ask additional
   questions which could help to reproduce the issue and add `need more info` label. This label helps other maintainers

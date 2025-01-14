@@ -3,7 +3,6 @@ package logstorage
 import (
 	"fmt"
 	"sort"
-	"strings"
 	"sync/atomic"
 	"unsafe"
 
@@ -68,7 +67,7 @@ func (pf *pipeFacets) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFacets) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pf *pipeFacets) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pf, nil
 }
 
@@ -121,6 +120,9 @@ type pipeFacetsProcessorShard struct {
 type pipeFacetsProcessorShardNopad struct {
 	// pf points to the parent pipeFacets.
 	pf *pipeFacets
+
+	// a is used for reducing memory allocations when counting facets over big number of unique fields
+	a chunkedAllocator
 
 	// m holds hits per every field=value pair.
 	m map[string]*pipeFacetsFieldHits
@@ -202,9 +204,8 @@ func (shard *pipeFacetsProcessorShard) updateState(fhs *pipeFacetsFieldHits, v s
 			fhs.enableIgnoreField(shard)
 			return
 		}
-		vCopy := strings.Clone(v)
-		hits := uint64(0)
-		pHits = &hits
+		vCopy := shard.a.cloneString(v)
+		pHits = shard.a.newUint64()
 		fhs.m[vCopy] = pHits
 		shard.stateSizeBudget -= len(vCopy) + int(unsafe.Sizeof(vCopy)+unsafe.Sizeof(hits)+unsafe.Sizeof(pHits))
 	}
@@ -220,7 +221,7 @@ func (shard *pipeFacetsProcessorShard) getFieldHits(fieldName string) *pipeFacet
 		fhs = &pipeFacetsFieldHits{
 			m: make(map[string]*uint64),
 		}
-		fieldNameCopy := strings.Clone(fieldName)
+		fieldNameCopy := shard.a.cloneString(fieldName)
 		shard.m[fieldNameCopy] = fhs
 		shard.stateSizeBudget -= len(fieldNameCopy) + int(unsafe.Sizeof(*fhs))
 	}

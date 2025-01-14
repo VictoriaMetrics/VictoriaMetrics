@@ -2594,17 +2594,17 @@ func transformMinMax(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, e
 	}
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
 		values := s.Values
-		min := aggrMin(values)
-		if math.IsNaN(min) {
-			min = 0
+		minV := aggrMin(values)
+		if math.IsNaN(minV) {
+			minV = 0
 		}
-		max := aggrMax(values)
-		if math.IsNaN(max) {
-			max = 0
+		maxV := aggrMax(values)
+		if math.IsNaN(maxV) {
+			maxV = 0
 		}
-		vRange := max - min
+		vRange := maxV - minV
 		for i, v := range values {
-			v = (v - min) / vRange
+			v = (v - minV) / vRange
 			if math.IsInf(v, 0) {
 				v = 0
 			}
@@ -2975,9 +2975,9 @@ func transformRemoveAbovePercentile(ec *evalConfig, fe *graphiteql.FuncExpr) (ne
 	}
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
 		values := s.Values
-		max := aggrFunc(values)
+		maxV := aggrFunc(values)
 		for i, v := range values {
-			if v > max {
+			if v > maxV {
 				values[i] = nan
 			}
 		}
@@ -3035,9 +3035,9 @@ func transformRemoveBelowPercentile(ec *evalConfig, fe *graphiteql.FuncExpr) (ne
 	}
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
 		values := s.Values
-		min := aggrFunc(values)
+		minV := aggrFunc(values)
 		for i, v := range values {
-			if v < min {
+			if v < minV {
 				values[i] = nan
 			}
 		}
@@ -4514,11 +4514,11 @@ func transformOffsetToZero(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesF
 	}
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
 		values := s.Values
-		min := aggrMin(values)
+		minV := aggrMin(values)
 		for i, v := range values {
-			values[i] = v - min
+			values[i] = v - minV
 		}
-		s.Tags["offsetToZero"] = fmt.Sprintf("%g", min)
+		s.Tags["offsetToZero"] = fmt.Sprintf("%g", minV)
 		s.Name = fmt.Sprintf("offsetToZero(%s)", s.Name)
 		s.expr = fe
 		s.pathExpression = s.Name
@@ -4567,29 +4567,29 @@ func transformPerSecond(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc
 	return f, nil
 }
 
-func nonNegativeDelta(curr, prev, max, min float64) (float64, float64) {
-	if !math.IsNaN(max) && curr > max {
+func nonNegativeDelta(currV, prevV, maxV, minV float64) (float64, float64) {
+	if !math.IsNaN(maxV) && currV > maxV {
 		return nan, nan
 	}
-	if !math.IsNaN(min) && curr < min {
+	if !math.IsNaN(minV) && currV < minV {
 		return nan, nan
 	}
-	if math.IsNaN(curr) || math.IsNaN(prev) {
-		return nan, curr
+	if math.IsNaN(currV) || math.IsNaN(prevV) {
+		return nan, currV
 	}
-	if curr >= prev {
-		return curr - prev, curr
+	if currV >= prevV {
+		return currV - prevV, currV
 	}
-	if !math.IsNaN(max) {
-		if math.IsNaN(min) {
-			min = float64(0)
+	if !math.IsNaN(maxV) {
+		if math.IsNaN(minV) {
+			minV = float64(0)
 		}
-		return max + 1 + curr - prev - min, curr
+		return maxV + 1 + currV - prevV - minV, currV
 	}
-	if !math.IsNaN(min) {
-		return curr - min, curr
+	if !math.IsNaN(minV) {
+		return currV - minV, currV
 	}
-	return nan, curr
+	return nan, currV
 }
 
 // See https://graphite.readthedocs.io/en/stable/functions.html#graphite.render.functions.threshold
@@ -4941,8 +4941,8 @@ func transformSortByMinima(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesF
 	}
 	// Filter out series with all the values smaller than 0
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
-		max := aggrMax(s.Values)
-		if math.IsNaN(max) || max <= 0 {
+		maxV := aggrMax(s.Values)
+		if math.IsNaN(maxV) || maxV <= 0 {
 			return nil, nil
 		}
 		return s, nil

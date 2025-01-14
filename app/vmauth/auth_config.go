@@ -7,11 +7,13 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -348,6 +350,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	hostToAddrs := make(map[string][]string)
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
+		port := bu.Port()
 		if hostToAddrs[host] != nil {
 			// ips for the given host have been already discovered
 			continue
@@ -364,7 +367,11 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			} else {
 				resolvedAddrs = make([]string, len(addrs))
 				for i, addr := range addrs {
-					resolvedAddrs[i] = fmt.Sprintf("%s:%d", addr.Target, addr.Port)
+					hostPort := port
+					if hostPort == "" && addr.Port > 0 {
+						hostPort = strconv.FormatUint(uint64(addr.Port), 10)
+					}
+					resolvedAddrs[i] = net.JoinHostPort(addr.Target, hostPort)
 				}
 			}
 		} else {
@@ -375,7 +382,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			} else {
 				resolvedAddrs = make([]string, len(addrs))
 				for i, addr := range addrs {
-					resolvedAddrs[i] = addr.String()
+					resolvedAddrs[i] = net.JoinHostPort(addr.String(), port)
 				}
 			}
 		}
@@ -389,17 +396,9 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	var busNew []*backendURL
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
-		port := bu.Port()
 		for _, addr := range hostToAddrs[host] {
 			buCopy := *bu
 			buCopy.Host = addr
-			if port != "" {
-				if n := strings.IndexByte(buCopy.Host, ':'); n >= 0 {
-					// Drop the discovered port and substitute it the port specified in bu.
-					buCopy.Host = buCopy.Host[:n]
-				}
-				buCopy.Host += ":" + port
-			}
 			busNew = append(busNew, &backendURL{
 				url: &buCopy,
 			})

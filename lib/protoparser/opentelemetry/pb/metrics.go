@@ -792,17 +792,17 @@ func (dp *ExponentialHistogramDataPoint) unmarshalProtobuf(src []byte) (err erro
 			}
 			dp.Flags = flags
 		case 12:
-			min, ok := fc.Double()
+			v, ok := fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read Min")
 			}
-			dp.Min = &min
+			dp.Min = &v
 		case 13:
-			max, ok := fc.Double()
+			v, ok := fc.Double()
 			if !ok {
 				return fmt.Errorf("cannot read Max")
 			}
-			dp.Max = &max
+			dp.Max = &v
 		case 14:
 			zeroThreshold, ok := fc.Double()
 			if !ok {

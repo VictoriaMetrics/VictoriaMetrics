@@ -120,6 +120,8 @@ func (fp *filterAnyCasePhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32ByExactValue(bs, ch, bm, phraseLowercase, tokens)
 	case valueTypeUint64:
 		matchUint64ByExactValue(bs, ch, bm, phraseLowercase, tokens)
+	case valueTypeInt64:
+		matchInt64ByExactValue(bs, ch, bm, phraseLowercase, tokens)
 	case valueTypeFloat64:
 		matchFloat64ByPhrase(bs, ch, bm, phraseLowercase, tokens)
 	case valueTypeIPv4:

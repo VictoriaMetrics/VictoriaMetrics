@@ -12,7 +12,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/valyala/fastrand"
 )
+
+var finalDedupScheduleInterval = time.Hour
+
+// SetFinalDedupScheduleInterval configures the interval for checking when the final deduplication process should start.
+func SetFinalDedupScheduleInterval(d time.Duration) {
+	finalDedupScheduleInterval = d
+}
 
 // table represents a single table with time series data.
 type table struct {
@@ -513,7 +521,15 @@ func (tb *table) finalDedupWatcher() {
 			ptw.pt.isDedupScheduled.Store(false)
 		}
 	}
-	d := timeutil.AddJitterToDuration(time.Hour)
+
+	// adds 25% jitter in order to prevent thundering herd problem
+	// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7880
+	addJitter := func(d time.Duration) time.Duration {
+		dv := d / 4
+		p := float64(fastrand.Uint32()) / (1 << 32)
+		return d + time.Duration(p*float64(dv))
+	}
+	d := addJitter(finalDedupScheduleInterval)
 	t := time.NewTicker(d)
 	defer t.Stop()
 	for {

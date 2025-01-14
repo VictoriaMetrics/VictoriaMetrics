@@ -1997,8 +1997,8 @@ func testStorageVariousDataPatternsConcurrently(t *testing.T, registerOnly bool,
 func testStorageVariousDataPatterns(t *testing.T, registerOnly bool, op func(s *Storage, mrs []MetricRow), concurrency int, splitBatches bool) {
 	f := func(t *testing.T, sameBatchMetricNames, sameRowMetricNames, sameBatchDates, sameRowDates bool) {
 		batches, wantCounts := testGenerateMetricRowBatches(&batchOptions{
-			numBatches:           4,
-			numRowsPerBatch:      100,
+			numBatches:           3,
+			numRowsPerBatch:      30,
 			registerOnly:         registerOnly,
 			sameBatchMetricNames: sameBatchMetricNames,
 			sameRowMetricNames:   sameRowMetricNames,

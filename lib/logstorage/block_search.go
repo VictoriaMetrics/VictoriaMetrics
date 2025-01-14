@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -276,7 +275,7 @@ func (bs *blockSearch) getConstColumnValue(name string) string {
 		if _, err := cc.unmarshalNoArena(b, false); err != nil {
 			logger.Panicf("FATAL: %s: cannot unmarshal header for const column %q: %s", bs.bsw.p.path, name, err)
 		}
-		cc.Name = strings.Clone(name)
+		cc.Name = bs.getColumnNameByID(columnNameID)
 		return cc.Value
 	}
 	return ""
@@ -326,7 +325,7 @@ func (bs *blockSearch) getColumnHeader(name string) *columnHeader {
 		if _, err := ch.unmarshalNoArena(b, partFormatLatestVersion); err != nil {
 			logger.Panicf("FATAL: %s: cannot unmarshal header for column %q: %s", bs.bsw.p.path, name, err)
 		}
-		ch.name = strings.Clone(name)
+		ch.name = bs.getColumnNameByID(columnNameID)
 		return ch
 	}
 	return nil
