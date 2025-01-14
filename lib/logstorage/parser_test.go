@@ -1207,6 +1207,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats sum_len(*) x`, `* | stats sum_len(*) as x`)
 	f(`* | stats sum_len(foo,*,bar) x`, `* | stats sum_len(*) as x`)
 
+	// stats pipe histogram
+	f(`* | stats histogram(foo) bar`, `* | stats histogram(foo) as bar`)
+	f(`* | histogram(foo)`, `* | stats histogram(foo) as "histogram(foo)"`)
+
 	// stats pipe quantile
 	f(`* | stats quantile(0, foo) bar`, `* | stats quantile(0, foo) as bar`)
 	f(`* | stats quantile(1, foo) bar`, `* | stats quantile(1, foo) as bar`)
@@ -1742,6 +1746,12 @@ func TestParseQueryFailure(t *testing.T) {
 	// invalid stats sum_len
 	f(`foo | stats sum_len`)
 
+	// invalid stats histogram
+	f(`foo | stats histogram`)
+	f(`foo | stats histogram()`)
+	f(`foo | stats histogram(a, b)`)
+	f(`foo | stats histogram(*)`)
+
 	// invalid stats quantile
 	f(`foo | stats quantile`)
 	f(`foo | stats quantile() foo`)
@@ -1977,6 +1987,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | stats max() q`, `*`, ``)
 	f(`* | stats max(*) q`, `*`, ``)
 	f(`* | stats max(x) q`, `x`, ``)
+	f(`* | stats histogram(foo)`, `foo`, ``)
 	f(`* | stats quantile(0.5) q`, `*`, ``)
 	f(`* | stats quantile(0.5, *) q`, `*`, ``)
 	f(`* | stats quantile(0.5, x) q`, `x`, ``)
