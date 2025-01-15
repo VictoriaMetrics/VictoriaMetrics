@@ -445,6 +445,7 @@ Label names [description](#labelnames)
 <span style="white-space: nowrap;">`vmanomaly_model_runs`</span>
             </td>
             <td>
+
 `Counter`
             </td>
             <td>How many successful `stage` (`fit`, `infer`, `fit_infer`) runs occurred for models of class `model_alias` based on results from the `query_key` query, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
@@ -532,7 +533,10 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_model_run_errors`</span>
             </td>
-            <td>`Counter`</td>
+            <td>
+
+`Counter`
+            </td>
             <td>The number of times model runs (of class `model_alias`) failed due to internal service errors during the `stage` (`fit`, `infer`, `fit_infer`), based on results from the `query_key` query, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 `stage`, `query_key`, `model_alias`, <span style="white-space: nowrap;">`scheduler_alias`</span>, `preset`
@@ -563,7 +567,10 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_writer_request_duration_seconds`</span>
             </td>
-            <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}})</td>
+            <td>
+
+`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}})
+            </td>
             <td>The total time (in seconds) taken by write requests to VictoriaMetrics `url` for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.
 </td>
             <td>
@@ -576,7 +583,10 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_writer_responses`</span> (named `vmanomaly_reader_response_count`{{% deprecated_from "v1.17.0" anomaly %}})
             </td>
-            <td>`Counter`</td>
+            <td>
+
+`ś`
+            </td>
             <td>The count of response codes received from VictoriaMetrics `url` for the `query_key` query, categorized by `code`, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.
 </td>
             <td>
@@ -589,7 +599,10 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_writer_sent_bytes`</span>
             </td>
-            <td>`Counter`</td>
+            <td>
+
+`Counter`
+            </td>
             <td>The total number of bytes sent to VictoriaMetrics `url` for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -615,7 +628,10 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_writer_datapoints_sent`</span>
             </td>
-            <td>`Counter`</td>
+            <td>
+
+`Counter`
+            </td>
             <td>The total number of datapoints sent to VictoriaMetrics for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -626,7 +642,10 @@ Label names [description](#labelnames)
             <td>
 <span style="white-space: nowrap;">`vmanomaly_writer_timeseries_sent`</span>
             </td>
-            <td>`Counter`</td>
+            <td>
+
+`Counter`
+            </td>
             <td>The total number of timeseries sent to VictoriaMetrics for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
