@@ -6,6 +6,8 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/valyala/fastrand"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -576,6 +578,8 @@ func parseMathExprOperand(lex *lexer) (*mathExpr, error) {
 		return parseMathExprMax(lex)
 	case lex.isKeyword("min"):
 		return parseMathExprMin(lex)
+	case lex.isKeyword("rand"):
+		return parseMathExprRand(lex)
 	case lex.isKeyword("round"):
 		return parseMathExprRound(lex)
 	case lex.isKeyword("ceil"):
@@ -646,6 +650,26 @@ func parseMathExprMin(lex *lexer) (*mathExpr, error) {
 	}
 	if len(me.args) < 2 {
 		return nil, fmt.Errorf("'min' function needs at least 2 args; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
+func parseMathExprRand(lex *lexer) (*mathExpr, error) {
+	if !lex.isKeyword("rand") {
+		return nil, fmt.Errorf("missing 'rand' keyword")
+	}
+	lex.nextToken()
+
+	args, err := parseMathFuncArgs(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse args for 'rand' function: %w", err)
+	}
+	if len(args) != 0 {
+		return nil, fmt.Errorf("'rand' function must have no args; got %d args", len(args))
+	}
+	me := &mathExpr{
+		op: "rand",
+		f:  mathFuncRand,
 	}
 	return me, nil
 }
@@ -962,6 +986,13 @@ func mathFuncFloor(result []float64, args [][]float64) {
 	arg := args[0]
 	for i := range result {
 		result[i] = math.Floor(arg[i])
+	}
+}
+
+func mathFuncRand(result []float64, args [][]float64) {
+	for i := range result {
+		n := fastrand.Uint32()
+		result[i] = float64(n) / (1 << 32)
 	}
 }
 
