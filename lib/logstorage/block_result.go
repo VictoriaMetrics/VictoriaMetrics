@@ -292,11 +292,14 @@ func (br *blockResult) addResultColumn(rc *resultColumn) {
 		logger.Panicf("BUG: column %q must contain %d rows, but it contains %d rows", rc.name, br.rowsLen, len(rc.values))
 	}
 	if areConstValues(rc.values) {
-		// This optimization allows reducing memory usage after br cloning
+		// Clone the constant value into rc, so it doesn't hold the external memory.
+		// This optimization allows reducing memory usage after br cloning.
+		br.addValue(rc.values[0])
+		valuesEncoded := br.valuesBuf[len(br.valuesBuf)-1:]
 		br.csAdd(blockResultColumn{
 			name:          rc.name,
 			isConst:       true,
-			valuesEncoded: rc.values[:1],
+			valuesEncoded: valuesEncoded,
 		})
 	} else {
 		br.csAdd(blockResultColumn{
