@@ -3275,7 +3275,7 @@ See also:
 
 ### histogram stats
 
-`histogram(field)` [stats pipe function](#stats-pipe-functions) returns [VictoriaMetrics histogram buckets](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+`histogram(field)` [stats pipe function](#stats-pipe-functions) returns [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
 for the given [`field`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
 For example, the following query returns histogram buckets for the `response_size` field grouped by `host` field, across logs for the last 5 minutes:
