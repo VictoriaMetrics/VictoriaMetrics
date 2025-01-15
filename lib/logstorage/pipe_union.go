@@ -42,11 +42,11 @@ func (pu *pipeUnion) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) 
 	return pu, nil
 }
 
-func (pu *pipeUnion) updateNeededFields(neededFields, unneededFields fieldsSet) {
+func (pu *pipeUnion) updateNeededFields(_, _ fieldsSet) {
 	// nothing to do
 }
 
-func (pu *pipeUnion) newPipeProcessor(workersCount int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+func (pu *pipeUnion) newPipeProcessor(_ int, stopCh <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeUnionProcessor{
 		pu:     pu,
 		stopCh: stopCh,
