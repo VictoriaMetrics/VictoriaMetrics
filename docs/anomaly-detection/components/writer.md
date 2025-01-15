@@ -32,7 +32,8 @@ Future updates will introduce additional export methods, offering users more fle
             </td>
             <td>
 
-<span style="white-space: nowrap;">`writer.vm.VmWriter`</span> or `vm`{{% available_from "v1.13.0" anomaly %}}
+<span style="white-space: nowrap;">`writer.vm.VmWriter` or `vm`{{% available_from "v1.13.0" anomaly %}}
+</span>
             </td>
             <td>
 

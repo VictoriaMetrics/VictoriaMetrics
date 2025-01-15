@@ -379,7 +379,7 @@ Label names [description](#labelnames)
             </td>
             <td>
 
-`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}
+`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}})
             </td>
             <td>The total time (in seconds) taken for data parsing at each `step` (json, dataframe) for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
@@ -616,7 +616,7 @@ Label names [description](#labelnames)
             </td>
             <td>
 
-<span style="white-space: nowrap;">`Histogram`</span> (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}</td>
+<span style="white-space: nowrap;">`Histogram`</span> (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}})</td>
             <td>The total time (in seconds) taken for serializing data for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
