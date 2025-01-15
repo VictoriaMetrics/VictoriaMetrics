@@ -188,9 +188,11 @@ func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompbmarshal.L
 
 	// Exclude long-broken storage nodes.
 	var excludeIdxs []int
-	for i := range ctx.snb.sns {
-		if ctx.snb.sns[i].isExcluded() {
-			excludeIdxs = append(excludeIdxs, i)
+	if !*dropSamplesOnOverload {
+		for i := range ctx.snb.sns {
+			if ctx.snb.sns[i].isExcluded() {
+				excludeIdxs = append(excludeIdxs, i)
+			}
 		}
 	}
 	idx := ctx.snb.nodesHash.getNodeIdx(h, excludeIdxs)

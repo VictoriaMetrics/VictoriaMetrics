@@ -228,7 +228,8 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 			continue
 		}
 		// Send br to replicas storage nodes starting from snIdx.
-		for !sendBufToReplicasNonblocking(snb, &br, snIdx, replicas) {
+		usedStorageNodes := make(map[*storageNode]struct{}, replicas)
+		for !trySendBufToStorages(snb, &br, snIdx, replicas, usedStorageNodes) {
 			d := timeutil.AddJitterToDuration(time.Millisecond * 200)
 			t := timerpool.Get(d)
 			select {
@@ -245,8 +246,7 @@ func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 	}
 }
 
-func sendBufToReplicasNonblocking(snb *storageNodesBucket, br *bufRows, snIdx, replicas int) bool {
-	usedStorageNodes := make(map[*storageNode]struct{}, replicas)
+func trySendBufToStorages(snb *storageNodesBucket, br *bufRows, snIdx, replicas int, usedStorageNodes map[*storageNode]struct{}) bool {
 	sns := snb.sns
 
 	// If the current storage node is broken, wait for it to be ready or timeout
@@ -257,6 +257,14 @@ func sendBufToReplicasNonblocking(snb *storageNodesBucket, br *bufRows, snIdx, r
 		}
 	}
 
+	if *dropSamplesOnOverload {
+		return tryReplicateBufToStorages(sns, br, snIdx, replicas, usedStorageNodes)
+	}
+
+	return tryReplicateBufToStoragesUntilExhausted(sns, br, snIdx, replicas, usedStorageNodes)
+}
+
+func tryReplicateBufToStoragesUntilExhausted(sns []*storageNode, br *bufRows, snIdx, replicas int, usedStorageNodes map[*storageNode]struct{}) bool {
 	for i := 0; i < replicas; i++ {
 		idx := snIdx + i
 		attempts := 0
@@ -295,6 +303,40 @@ func sendBufToReplicasNonblocking(snb *storageNodesBucket, br *bufRows, snIdx, r
 			break
 		}
 	}
+	return true
+}
+
+func tryReplicateBufToStorages(sns []*storageNode, br *bufRows, snIdx, replicas int, usedStorageNodes map[*storageNode]struct{}) bool {
+	previousSuccessLen := len(usedStorageNodes)
+
+	for i := 0; i < replicas; i++ {
+		idx := snIdx + i
+		for {
+			if idx >= len(sns) {
+				idx %= len(sns)
+			}
+			sn := sns[idx]
+			idx++
+			if _, ok := usedStorageNodes[sn]; ok {
+				continue
+			}
+			if !sn.sendBufRowsNonblocking(br) {
+				continue
+			}
+			usedStorageNodes[sn] = struct{}{}
+			break
+		}
+	}
+
+	if _, ok := usedStorageNodes[sns[snIdx]]; !ok {
+		cannotReplicateLogger.Warnf("cannot push %d bytes with %d rows to degraded node %s, %d/%d nodes are replicated", len(br.buf), br.rows, sns[snIdx].dialer.Addr(), len(usedStorageNodes), replicas)
+		return false
+	} else if previousSuccessLen != len(usedStorageNodes) && len(usedStorageNodes) < replicas {
+		incompleteReplicationLogger.Warnf("dropping %d rows (%d bytes) as cannot make a copy #%d out of %d copies according to -replicationFactor=%d, since a part of storage nodes is temporarily unavailable", br.rows, len(br.buf), len(usedStorageNodes), replicas, *replicationFactor)
+		rowsIncompletelyReplicatedTotal.Add(br.rows)
+		return true
+	}
+
 	return true
 }
 
