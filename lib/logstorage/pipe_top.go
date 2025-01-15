@@ -11,8 +11,6 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/cespare/xxhash/v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -84,7 +82,7 @@ func (pt *pipeTop) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (p
 }
 
 func (pt *pipeTop) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
-	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
+	maxStateSize := int64(float64(memory.Allowed()) * 0.4)
 
 	shards := make([]pipeTopProcessorShard, workersCount)
 	for i := range shards {
@@ -93,7 +91,7 @@ func (pt *pipeTop) newPipeProcessor(workersCount int, stopCh <-chan struct{}, ca
 				pt: pt,
 			},
 		}
-		shards[i].m.init(&shards[i])
+		shards[i].m.init(&shards[i].stateSizeBudget)
 	}
 
 	ptp := &pipeTopProcessor{
@@ -135,7 +133,7 @@ type pipeTopProcessorShardNopad struct {
 	pt *pipeTop
 
 	// m holds per-value hits.
-	m pipeTopMap
+	m hitsMap
 
 	// keyBuf is a temporary buffer for building keys for m.
 	keyBuf []byte
@@ -146,134 +144,6 @@ type pipeTopProcessorShardNopad struct {
 	// stateSizeBudget is the remaining budget for the whole state size for the shard.
 	// The per-shard budget is provided in chunks from the parent pipeTopProcessor.
 	stateSizeBudget int
-}
-
-type pipeTopMap struct {
-	shard *pipeTopProcessorShard
-
-	u64        map[uint64]*uint64
-	negative64 map[uint64]*uint64
-	strings    map[string]*uint64
-
-	// a reduces memory allocations when counting the number of hits over big number of unique values.
-	a chunkedAllocator
-}
-
-func (ptm *pipeTopMap) reset() {
-	ptm.shard = nil
-
-	ptm.u64 = nil
-	ptm.negative64 = nil
-	ptm.strings = nil
-}
-
-func (ptm *pipeTopMap) init(shard *pipeTopProcessorShard) {
-	ptm.shard = shard
-
-	ptm.u64 = make(map[uint64]*uint64)
-	ptm.negative64 = make(map[uint64]*uint64)
-	ptm.strings = make(map[string]*uint64)
-}
-
-func (ptm *pipeTopMap) updateStateGeneric(key string, hits uint64) {
-	if n, ok := tryParseUint64(key); ok {
-		ptm.updateStateUint64(n, hits)
-		return
-	}
-	if len(key) > 0 && key[0] == '-' {
-		if n, ok := tryParseInt64(key); ok {
-			ptm.updateStateNegativeInt64(n, hits)
-			return
-		}
-	}
-	ptm.updateStateString(bytesutil.ToUnsafeBytes(key), hits)
-}
-
-func (ptm *pipeTopMap) updateStateInt64(n int64, hits uint64) {
-	if n >= 0 {
-		ptm.updateStateUint64(uint64(n), hits)
-	} else {
-		ptm.updateStateNegativeInt64(n, hits)
-	}
-}
-
-func (ptm *pipeTopMap) updateStateUint64(n, hits uint64) {
-	pHits := ptm.u64[n]
-	if pHits != nil {
-		*pHits += hits
-		return
-	}
-
-	pHits = ptm.a.newUint64()
-	*pHits += hits
-	ptm.u64[n] = pHits
-
-	ptm.shard.stateSizeBudget -= int(unsafe.Sizeof(*pHits) + unsafe.Sizeof(pHits))
-}
-
-func (ptm *pipeTopMap) updateStateNegativeInt64(n int64, hits uint64) {
-	pHits := ptm.negative64[uint64(n)]
-	if pHits != nil {
-		*pHits += hits
-		return
-	}
-
-	pHits = ptm.a.newUint64()
-	*pHits += hits
-	ptm.negative64[uint64(n)] = pHits
-
-	ptm.shard.stateSizeBudget -= int(unsafe.Sizeof(*pHits) + unsafe.Sizeof(pHits))
-}
-
-func (ptm *pipeTopMap) updateStateString(key []byte, hits uint64) {
-	pHits := ptm.strings[string(key)]
-	if pHits != nil {
-		*pHits += hits
-		return
-	}
-
-	keyCopy := ptm.a.cloneBytesToString(key)
-	pHits = ptm.a.newUint64()
-	*pHits += hits
-	ptm.strings[keyCopy] = pHits
-
-	ptm.shard.stateSizeBudget -= len(keyCopy) + int(unsafe.Sizeof(keyCopy)+unsafe.Sizeof(*pHits)+unsafe.Sizeof(pHits))
-}
-
-func (ptm *pipeTopMap) mergeState(src *pipeTopMap, stopCh <-chan struct{}) {
-	for n, pHitsSrc := range src.u64 {
-		if needStop(stopCh) {
-			return
-		}
-		pHitsDst := ptm.u64[n]
-		if pHitsDst == nil {
-			ptm.u64[n] = pHitsSrc
-		} else {
-			*pHitsDst += *pHitsSrc
-		}
-	}
-	for n, pHitsSrc := range src.negative64 {
-		if needStop(stopCh) {
-			return
-		}
-		pHitsDst := ptm.negative64[n]
-		if pHitsDst == nil {
-			ptm.negative64[n] = pHitsSrc
-		} else {
-			*pHitsDst += *pHitsSrc
-		}
-	}
-	for k, pHitsSrc := range src.strings {
-		if needStop(stopCh) {
-			return
-		}
-		pHitsDst := ptm.strings[k]
-		if pHitsDst == nil {
-			ptm.strings[k] = pHitsSrc
-		} else {
-			*pHitsDst += *pHitsSrc
-		}
-	}
 }
 
 // writeBlock writes br to shard.
@@ -399,10 +269,7 @@ func (ptp *pipeTopProcessor) flush() error {
 	}
 
 	// merge state across shards in parallel
-	entries, err := ptp.mergeShardsParallel()
-	if err != nil {
-		return err
-	}
+	entries := ptp.mergeShardsParallel()
 	if needStop(ptp.stopCh) {
 		return nil
 	}
@@ -513,108 +380,44 @@ func (ptp *pipeTopProcessor) flush() error {
 	return nil
 }
 
-func (ptp *pipeTopProcessor) mergeShardsParallel() ([]*pipeTopEntry, error) {
+func (ptp *pipeTopProcessor) mergeShardsParallel() []*pipeTopEntry {
 	limit := ptp.pt.limit
 	if limit == 0 {
-		return nil, nil
+		return nil
 	}
 
-	shards := ptp.shards
-	shardsLen := len(shards)
+	hms := make([]*hitsMap, 0, len(ptp.shards))
+	for i := range ptp.shards {
+		hm := &ptp.shards[i].m
+		if hm.entriesCount() > 0 {
+			hms = append(hms, hm)
+		}
+	}
+
 	cpusCount := cgroup.AvailableCPUs()
-
-	if shardsLen == 1 {
-		ptm := &shards[0].m
-		entries := getTopEntries(ptm, limit, ptp.stopCh)
-		return entries, nil
-	}
-
-	var wg sync.WaitGroup
-	perShardMaps := make([][]pipeTopMap, shardsLen)
-	for i := range shards {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-
-			perCPU := make([]pipeTopMap, cpusCount)
-			for i := range perCPU {
-				perCPU[i].init(&shards[idx])
-			}
-
-			ptm := &shards[idx].m
-
-			for n, pHits := range ptm.u64 {
-				if needStop(ptp.stopCh) {
-					return
-				}
-				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
-				h := xxhash.Sum64(k)
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].u64[n] = pHits
-			}
-			for n, pHits := range ptm.negative64 {
-				if needStop(ptp.stopCh) {
-					return
-				}
-				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
-				h := xxhash.Sum64(k)
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].negative64[n] = pHits
-			}
-			for k, pHits := range ptm.strings {
-				if needStop(ptp.stopCh) {
-					return
-				}
-				h := xxhash.Sum64(bytesutil.ToUnsafeBytes(k))
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].strings[k] = pHits
-			}
-
-			perShardMaps[idx] = perCPU
-			ptm.reset()
-		}(i)
-	}
-	wg.Wait()
-	if needStop(ptp.stopCh) {
-		return nil, nil
-	}
-
-	// Obtain topN entries per each shard
-	entriess := make([][]*pipeTopEntry, cpusCount)
-	for i := range entriess {
-		wg.Add(1)
-		go func(cpuIdx int) {
-			defer wg.Done()
-
-			ptm := &perShardMaps[0][cpuIdx]
-			for _, perCPU := range perShardMaps[1:] {
-				ptm.mergeState(&perCPU[cpuIdx], ptp.stopCh)
-				perCPU[cpuIdx].reset()
-			}
-
-			entriess[cpuIdx] = getTopEntries(ptm, limit, ptp.stopCh)
-		}(i)
-	}
-	wg.Wait()
-	if needStop(ptp.stopCh) {
-		return nil, nil
-	}
-
-	// merge entriess
-	entries := entriess[0]
-	for _, es := range entriess[1:] {
+	var entries []*pipeTopEntry
+	var entriesLock sync.Mutex
+	hitsMapMergeParallel(hms, cpusCount, ptp.stopCh, func(hm *hitsMap) {
+		es := getTopEntries(hm, limit, ptp.stopCh)
+		entriesLock.Lock()
 		entries = append(entries, es...)
+		entriesLock.Unlock()
+	})
+	if needStop(ptp.stopCh) {
+		return nil
 	}
+
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[j].less(entries[i])
 	})
 	if uint64(len(entries)) > limit {
 		entries = entries[:limit]
 	}
-	return entries, nil
+
+	return entries
 }
 
-func getTopEntries(ptm *pipeTopMap, limit uint64, stopCh <-chan struct{}) []*pipeTopEntry {
+func getTopEntries(hm *hitsMap, limit uint64, stopCh <-chan struct{}) []*pipeTopEntry {
 	if limit == 0 {
 		return nil
 	}
@@ -646,21 +449,21 @@ func getTopEntries(ptm *pipeTopMap, limit uint64, stopCh <-chan struct{}) []*pip
 	}
 
 	var b []byte
-	for n, pHits := range ptm.u64 {
+	for n, pHits := range hm.u64 {
 		if needStop(stopCh) {
 			return nil
 		}
 		b = marshalUint64String(b[:0], n)
 		pushEntry(bytesutil.ToUnsafeString(b), *pHits, true)
 	}
-	for n, pHits := range ptm.negative64 {
+	for n, pHits := range hm.negative64 {
 		if needStop(stopCh) {
 			return nil
 		}
 		b = marshalInt64String(b[:0], int64(n))
 		pushEntry(bytesutil.ToUnsafeString(b), *pHits, true)
 	}
-	for k, pHits := range ptm.strings {
+	for k, pHits := range hm.strings {
 		if needStop(stopCh) {
 			return nil
 		}

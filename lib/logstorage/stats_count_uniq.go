@@ -33,6 +33,7 @@ func (su *statsCountUniq) updateNeededFields(neededFields fieldsSet) {
 func (su *statsCountUniq) newStatsProcessor(a *chunkedAllocator) statsProcessor {
 	sup := a.newStatsCountUniqProcessor()
 	sup.a = a
+	sup.m.init()
 	return sup
 }
 
@@ -74,9 +75,6 @@ func (sus *statsCountUniqSet) entriesCount() uint64 {
 }
 
 func (sus *statsCountUniqSet) updateStateTimestamp(ts int64) int {
-	if sus.timestamps == nil {
-		sus.timestamps = make(map[uint64]struct{})
-	}
 	_, ok := sus.timestamps[uint64(ts)]
 	if ok {
 		return 0
@@ -86,9 +84,6 @@ func (sus *statsCountUniqSet) updateStateTimestamp(ts int64) int {
 }
 
 func (sus *statsCountUniqSet) updateStateUint64(n uint64) int {
-	if sus.u64 == nil {
-		sus.u64 = make(map[uint64]struct{})
-	}
 	_, ok := sus.u64[n]
 	if ok {
 		return 0
@@ -105,9 +100,6 @@ func (sus *statsCountUniqSet) updateStateInt64(n int64) int {
 }
 
 func (sus *statsCountUniqSet) updateStateNegativeInt64(n int64) int {
-	if sus.negative64 == nil {
-		sus.negative64 = make(map[uint64]struct{})
-	}
 	_, ok := sus.negative64[uint64(n)]
 	if ok {
 		return 0
@@ -129,9 +121,6 @@ func (sus *statsCountUniqSet) updateStateGeneric(a *chunkedAllocator, v string) 
 }
 
 func (sus *statsCountUniqSet) updateStateString(a *chunkedAllocator, v string) int {
-	if sus.strings == nil {
-		sus.strings = make(map[string]struct{})
-	}
 	_, ok := sus.strings[v]
 	if ok {
 		return 0
@@ -142,13 +131,10 @@ func (sus *statsCountUniqSet) updateStateString(a *chunkedAllocator, v string) i
 }
 
 func (sus *statsCountUniqSet) mergeState(src *statsCountUniqSet, stopCh <-chan struct{}) {
-	mergeUint64Set(&sus.timestamps, src.timestamps, stopCh)
-	mergeUint64Set(&sus.u64, src.u64, stopCh)
-	mergeUint64Set(&sus.negative64, src.negative64, stopCh)
+	mergeUint64Set(sus.timestamps, src.timestamps, stopCh)
+	mergeUint64Set(sus.u64, src.u64, stopCh)
+	mergeUint64Set(sus.negative64, src.negative64, stopCh)
 
-	if src.strings != nil && sus.strings == nil {
-		sus.strings = make(map[string]struct{})
-	}
 	for k := range src.strings {
 		if needStop(stopCh) {
 			return
@@ -159,11 +145,7 @@ func (sus *statsCountUniqSet) mergeState(src *statsCountUniqSet, stopCh <-chan s
 	}
 }
 
-func mergeUint64Set(pDst *map[uint64]struct{}, src map[uint64]struct{}, stopCh <-chan struct{}) {
-	if src != nil && *pDst == nil {
-		*pDst = make(map[uint64]struct{})
-	}
-	dst := *pDst
+func mergeUint64Set(dst map[uint64]struct{}, src map[uint64]struct{}, stopCh <-chan struct{}) {
 	for n := range src {
 		if needStop(stopCh) {
 			return
