@@ -172,7 +172,7 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
             </td>
             <td>
 
-`path/to/cert.crt`
+<span style="white-space: nowrap;">`path/to/cert.crt`</span>
             </td>
             <td>
 Path to a file with the client certificate, i.e. `client.crt`{{% available_from "v1.16.3" anomaly %}}. 
@@ -333,7 +333,9 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_reader_request_duration_seconds`</span>
             </td>
-            <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}})</td>
+            <td>
+
+<span style="white-space: nowrap;">`Histogram`</span> (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}})</td>
             <td>The total time (in seconds) taken by queries to VictoriaMetrics `url` for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -345,7 +347,10 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_reader_responses`</span> (named `vmanomaly_reader_response_count`{{% deprecated_from "v1.17.0" anomaly %}})
             </td>
-            <td>`Counter`</td>
+            <td>
+
+`Counter`
+            </td>
             <td>The count of responses received from VictoriaMetrics `url` for the `query_key` query, categorized by `code`, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -357,11 +362,14 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_reader_received_bytes`</span>
             </td>
-            <td>`Counter`</td>
+            <td>
+
+`Counter`
+            </td>
             <td>The total number of bytes received in responses for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
-`url`, `query_key`, `scheduler_alias`, `preset`
+`url`, `query_key`, <span style="white-space: nowrap;">`scheduler_alias`</span>, `preset`
             </td>
         </tr>
         <tr>
@@ -369,7 +377,10 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_reader_response_parsing_seconds`</span>
             </td>
-            <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}</td>
+            <td>
+
+`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}
+            </td>
             <td>The total time (in seconds) taken for data parsing at each `step` (json, dataframe) for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -381,7 +392,10 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_reader_timeseries_received`</span>
             </td>
-            <td>`Counter`</td>
+            <td>
+
+`Counter`
+            </td>
             <td>The total number of timeseries received from VictoriaMetrics for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -393,7 +407,10 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_reader_datapoints_received`</span>
             </td>
-            <td>`Counter`</td>
+            <td>
+
+`Counter`
+            </td>
             <td>The total number of datapoints received from VictoriaMetrics for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -427,7 +444,9 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_model_runs`</span>
             </td>
-            <td>`Counter`</td>
+            <td>
+`Counter`
+            </td>
             <td>How many successful `stage` (`fit`, `infer`, `fit_infer`) runs occurred for models of class `model_alias` based on results from the `query_key` query, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -439,7 +458,9 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_model_run_duration_seconds`</span>
             </td>
-            <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}) </td>
+            <td>
+
+<span style="white-space: nowrap;">`Histogram`</span> (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}) </td>
             <td>The total time (in seconds) taken by model invocations during the `stage` (`fit`, `infer`, `fit_infer`), based on the results of the `query_key` query, for models of class `model_alias`, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -451,7 +472,10 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_model_datapoints_accepted`</span>
             </td>
-            <td>`Counter`</td>
+            <td>
+
+`Counter`
+            </td>
             <td>The number of datapoints accepted (excluding NaN or Inf values) by models of class `model_alias` from the results of the `query_key` query during the `stage` (`infer`, `fit_infer`), within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -463,7 +487,10 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_model_datapoints_produced`</span>
             </td>
-            <td>`Counter`</td>
+            <td>
+
+`Counter`
+            </td>
             <td>The number of datapoints generated by models of class `model_alias` during the `stage` (`infer`, `fit_infer`) based on results from the `query_key` query, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -475,7 +502,10 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_models_active`</span>
             </td>
-            <td>`Gauge`</td>
+            <td>
+
+`Gauge`
+            </td>
             <td>The number of model instances of class `model_alias` currently available for inference for the `query_key` query, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -487,7 +517,10 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_model_runs_skipped`</span>
             </td>
-            <td>`Counter`</td>
+            <td>
+
+`Counter`
+            </td>
             <td>The number of times model runs (of class `model_alias`) were skipped in expected situations (e.g., no data for fitting/inference, or no new data to infer on) during the `stage` (`fit`, `infer`, `fit_infer`), based on results from the `query_key` query, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
@@ -502,7 +535,7 @@ Label names [description](#labelnames)
             <td>`Counter`</td>
             <td>The number of times model runs (of class `model_alias`) failed due to internal service errors during the `stage` (`fit`, `infer`, `fit_infer`), based on results from the `query_key` query, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
-`stage`, `query_key`, `model_alias`, `scheduler_alias`, `preset`
+`stage`, `query_key`, `model_alias`, <span style="white-space: nowrap;">`scheduler_alias`</span>, `preset`
             </td>
         </tr>
     </tbody>
@@ -535,7 +568,7 @@ Label names [description](#labelnames)
 </td>
             <td>
 
-`url`, `query_key`, `scheduler_alias`, `preset`
+`url`, `query_key`, <span style="white-space: nowrap;">`scheduler_alias`</span>, `preset`
             </td>
         </tr>
         <tr>
@@ -568,7 +601,9 @@ Label names [description](#labelnames)
 
 <span style="white-space: nowrap;">`vmanomaly_writer_request_serialize_seconds`</span>
             </td>
-            <td>`Histogram` (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}</td>
+            <td>
+
+<span style="white-space: nowrap;">`Histogram`</span> (was `Summary`{{% deprecated_from "v1.17.0" anomaly %}}</td>
             <td>The total time (in seconds) taken for serializing data for the `query_key` query within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
 
