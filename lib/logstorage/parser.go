@@ -396,6 +396,7 @@ func (q *Query) CanReturnLastNResults() bool {
 			*pipeTop,
 			*pipeSort,
 			*pipeStats,
+			*pipeUnion,
 			*pipeUniq:
 			return false
 		}
