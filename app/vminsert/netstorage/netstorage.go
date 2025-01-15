@@ -114,7 +114,7 @@ again:
 		rowsProcessed, err := rerouteRowsToReadyStorageNodes(snb, sn, buf)
 		rows -= rowsProcessed
 		if err != nil {
-			return fmt.Errorf("%d rows dropped because the current vsmtorage is unavailable and %w", rows, err)
+			return fmt.Errorf("%d rows dropped because the current vmstorage is unavailable and %w", rows, err)
 		}
 		return nil
 	}

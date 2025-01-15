@@ -507,6 +507,8 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	cp.deadline = searchutils.GetDeadlineForDelete(r, startTime)
+	
 	if !cp.IsDefaultTimeRange() {
 		return fmt.Errorf("start=%d and end=%d args aren't supported. Remove these args from the query in order to delete all the matching metrics", cp.start, cp.end)
 	}
