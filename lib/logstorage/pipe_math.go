@@ -989,7 +989,7 @@ func mathFuncFloor(result []float64, args [][]float64) {
 	}
 }
 
-func mathFuncRand(result []float64, args [][]float64) {
+func mathFuncRand(result []float64, _ [][]float64) {
 	for i := range result {
 		n := fastrand.Uint32()
 		result[i] = float64(n) / (1 << 32)
