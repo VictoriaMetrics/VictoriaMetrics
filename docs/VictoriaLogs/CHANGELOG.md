@@ -17,6 +17,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * FEATURE: add [`histogram` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#histogram-stats) for calculating [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) over the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+* FEATURE: [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe): add `rand()` function, which can be used for generating random numbers in the range `[0 ... 1)`.
 
 ## [v1.5.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.5.0-victorialogs)
 

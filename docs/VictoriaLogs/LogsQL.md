@@ -2141,6 +2141,7 @@ The following mathematical operations are supported by `math` pipe:
 - `ln(arg)` - returns [natural logarithm](https://en.wikipedia.org/wiki/Natural_logarithm) for the given `arg`
 - `max(arg1, ..., argN)` - returns the maximum value among the given `arg1`, ..., `argN`
 - `min(arg1, ..., argN)` - returns the minimum value among the given `arg1`, ..., `argN`
+- `rand()` - returns pseudo-random number in the range `[0...1)`.
 - `round(arg)` - returns rounded to integer value for the given `arg`. The `round()` accepts optional `nearest` arg, which allows rounding the number to the given `nearest` multiple.
   For example, `round(temperature, 0.1)` rounds `temperature` field to one decimal digit after the point.
 
