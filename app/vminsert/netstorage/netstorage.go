@@ -332,8 +332,8 @@ func tryReplicateBufToStorages(sns []*storageNode, br *bufRows, snIdx, replicas 
 		cannotReplicateLogger.Warnf("cannot push %d bytes with %d rows to degraded node %s, %d/%d nodes are replicated", len(br.buf), br.rows, sns[snIdx].dialer.Addr(), len(usedStorageNodes), replicas)
 		return false
 	} else if previousSuccessLen != len(usedStorageNodes) && len(usedStorageNodes) < replicas {
-		incompleteReplicationLogger.Warnf("dropping %d rows (%d bytes) as cannot make a copy #%d out of %d copies according to -replicationFactor=%d, since a part of storage nodes is temporarily unavailable", br.rows, len(br.buf), len(usedStorageNodes), replicas, *replicationFactor)
 		rowsIncompletelyReplicatedTotal.Add(br.rows)
+		incompleteReplicationLogger.Warnf("dropping %d rows (%d bytes) as cannot make a copy #%d out of %d copies according to -replicationFactor=%d, since a part of storage nodes is temporarily unavailable", br.rows, len(br.buf), len(usedStorageNodes), replicas, *replicationFactor)
 		return true
 	}
 
