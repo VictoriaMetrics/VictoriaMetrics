@@ -1765,8 +1765,8 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
 - `-search.maxDeleteSeries` limits the number of unique time series that can be
   deleted by a single
   [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series)
-  call. Deleting too many time series may require big amount of CPU and memory
-  and this limit guards against unplanned resource usage spikes. Also see
+  call. The duration is limited via `-search.maxDeleteDuration` flag. Deleting too many time series may require big
+  amount of CPU and memory and this limit guards against unplanned resource usage spikes. Also see
   [How to delete time series](#how-to-delete-time-series) section to learn about
   different ways of deleting series.
 - `-search.maxTagKeys` limits the number of items, which may be returned from [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels).
@@ -3199,6 +3199,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Log queries with execution time exceeding this value. Zero disables slow query logging. See also -search.logQueryMemoryUsage (default 5s)
   -search.maxConcurrentRequests int
      The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration and -search.maxMemoryPerQuery (default 16)
+  -search.maxDeleteDuration duration
+     The maximum duration for /api/v1/admin/tsdb/delete_series call (default 5m)
+  -search.maxDeleteSeries int
+     The maximum number of time series, which can be deleted using /api/v1/admin/tsdb/delete_series. This option allows limiting memory usage (default 1000000)
   -search.maxExportDuration duration
      The maximum duration for /api/v1/export call (default 720h0m0s)
   -search.maxExportSeries int
