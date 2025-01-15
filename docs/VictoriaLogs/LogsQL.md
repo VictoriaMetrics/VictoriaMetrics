@@ -1344,6 +1344,7 @@ LogsQL supports the following pipes:
 - [`stream_context`](#stream_context-pipe) allows selecting surrounding logs in front and after the matching logs
   per each [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
 - [`top`](#top-pipe) returns top `N` field sets with the maximum number of matching logs.
+- [`union`](#union-pipe) returns results from multiple LogsQL queries.
 - [`uniq`](#uniq-pipe) returns unique log entires.
 - [`unpack_json`](#unpack_json-pipe) unpacks JSON messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -2028,6 +2029,7 @@ _time:1d {app="app1"} | stats by (user) count() app1_hits
 
 See also:
 
+- [`in` filter](#multi-exact-filter)
 - [`stats` pipe](#stats-pipe)
 - [conditional `stats`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters)
 - [`filter` pipe](#filter-pipe)
@@ -2764,6 +2766,21 @@ See also:
 - [`stats` pipe](#stats-pipe)
 - [`sort` pipe](#sort-pipe)
 - [`histogram` stats function](#histogram-stats)
+
+### union pipe
+
+`q1 | union (q2)` [pipe](#pipes) returns results of `q1` followed by results of `q2`. It works similar to `UNION ALL` in SQL.
+`q1` and `q2` may contain arbitrary [LogsQL queries](#logsql-tutorial).
+For example, the following query returns logs with `error` [word](#word) for the last 5 minutes, plus logs with `panic` word for the last hour:
+
+```logsql
+_time:5m error | union (_time:1h panic)
+```
+
+See also:
+
+- [`join` pipe](#join-pipe)
+- [`in` filter](#multi-exact-filter)
 
 ### uniq pipe
 

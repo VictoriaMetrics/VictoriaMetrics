@@ -1322,6 +1322,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("* | extract foo<bar>baz from x", `* | extract "foo<bar>baz" from x`)
 	f("* | extract if (a:b) foo<bar>baz from x", `* | extract if (a:b) "foo<bar>baz" from x`)
 
+	// union pipe
+	f(`* | union(foo)`, `* | union (foo)`)
+	f(`* | union(foo | union(bar baz | count() x))`, `* | union (foo | union (bar baz | stats count(*) as x))`)
+
 	// unpack_json pipe
 	f(`* | unpack_json`, `* | unpack_json`)
 	f(`* | unpack_json result_prefix y`, `* | unpack_json result_prefix y`)
@@ -1838,6 +1842,12 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | extract from x "<abc`)
 	f(`foo | extract from x "<abc>" de`)
 
+	// invalid union pipe
+	f(`foo | union`)
+	f(`foo | union (`)
+	f(`foo | union ( bar`)
+	f(`foo | union (bar | count)`)
+
 	// invalid unpack_json pipe
 	f(`foo | unpack_json bar`)
 	f(`foo | unpack_json from`)
@@ -2195,6 +2205,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | stats count_uniq(a, b) if (q:w p:a) as c | count() r1`, ``, ``)
 	f(`* | stats by (a1,a2) count_uniq(a, b) as c | count() r1`, `a1,a2`, ``)
 	f(`* | stats by (a1,a2) count_uniq(a, b) if (q:w p:a) as c | count() r1`, `a1,a2`, ``)
+	f(`* | union (foo) | count() r1`, ``, ``)
 	f(`* | uniq by (a, b) | count() r1`, `a,b`, ``)
 	f(`* | unpack_json from x | count() r1`, ``, ``)
 	f(`* | unpack_json from x fields (a,b) | count() r1`, ``, ``)
@@ -2277,6 +2288,7 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | len(x)", true)
 	f("* | limit 10", false)
 	f("* | offset 10", false)
+	f("* | union (x)", false)
 	f("* | uniq (x)", false)
 	f("* | block_stats", false)
 	f("* | blocks_count", false)
@@ -2332,6 +2344,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | stats count() rows", false)
 	f("* | stream_context after 10", false)
 	f("* | top 10 by (x)", false)
+	f("* | union (foo)", false)
 	f("* | uniq by (a)", false)
 	f("* | unpack_json", true)
 	f("* | unpack_logfmt", true)
@@ -2538,6 +2551,7 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | replace_regexp ("foo.+bar", "baz")`)
 	f(`foo | count() | stream_context after 10`)
 	f(`foo | count() | top 5 by (x)`)
+	f(`foo | count() | union (foo)`)
 	f(`foo | count() | uniq by (x)`)
 	f(`foo | count() | unpack_json`)
 	f(`foo | count() | unpack_logfmt`)

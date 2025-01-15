@@ -276,6 +276,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'top' pipe: %w", err)
 		}
 		return pt, nil
+	case lex.isKeyword("union"):
+		pu, err := parsePipeUnion(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'union' pipe: %w", err)
+		}
+		return pu, nil
 	case lex.isKeyword("uniq"):
 		pu, err := parsePipeUniq(lex)
 		if err != nil {
@@ -359,6 +365,7 @@ var pipeNames = func() map[string]struct{} {
 		"stats", "by",
 		"stream_context",
 		"top",
+		"union",
 		"uniq",
 		"unpack_json",
 		"unpack_logfmt",
