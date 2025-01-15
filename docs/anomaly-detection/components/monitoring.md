@@ -585,7 +585,7 @@ Label names [description](#labelnames)
             </td>
             <td>
 
-`ś`
+`Counter`
             </td>
             <td>The count of response codes received from VictoriaMetrics `url` for the `query_key` query, categorized by `code`, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.
 </td>
