@@ -1512,10 +1512,35 @@ func filterLabelValues(lvs []string, tf *tagFilter, key string) []string {
 // This allows implementing https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find or similar APIs.
 //
 // If more than maxTagValueSuffixes suffixes is found, then only the first maxTagValueSuffixes suffixes is returned.
-func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string,
-	delimiter byte, maxTagValueSuffixes int, deadline uint64,
-) ([]string, error) {
-	return s.idb().SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
+func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string, delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
+	search := func(idb *indexDB, tr TimeRange) (any, error) {
+		return idb.SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
+	}
+	merge := func(data []any) any {
+		var all []string
+		seen := make(map[string]bool)
+		for _, names := range data {
+			if names == nil {
+				continue
+			}
+			for _, name := range names.([]string) {
+				if seen[name] {
+					continue
+				}
+				all = append(all, name)
+				seen[name] = true
+			}
+		}
+		return all
+	}
+	stopOnError := true
+	var tagValueSuffixes []string
+	result, err := s.searchAndMerge(tr, search, merge, stopOnError)
+	if result != nil {
+		tagValueSuffixes = result.([]string)
+	}
+
+	return tagValueSuffixes, err
 }
 
 // SearchGraphitePaths returns all the matching paths for the given graphite query on the given tr.
