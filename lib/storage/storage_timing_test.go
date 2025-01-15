@@ -354,6 +354,61 @@ func BenchmarkStorageSearchTagValueSuffixes_VariousTimeRanges(b *testing.B) {
 	benchmarkStorageOpOnVariousTimeRanges(b, f)
 }
 
+func BenchmarkStorageSearchGraphitePaths_VariousTimeRanges(b *testing.B) {
+	f := func(b *testing.B, tr TimeRange) {
+		b.Helper()
+
+		const numMetrics = 10_000
+		mrs := make([]MetricRow, numMetrics)
+		want := make([]string, numMetrics)
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numMetrics)
+		for i := range numMetrics {
+			name := fmt.Sprintf("prefix.metric%04d", i)
+			mn := MetricName{MetricGroup: []byte(name)}
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+			mrs[i].Value = float64(i)
+			want[i] = name
+		}
+		slices.Sort(want)
+
+		s := MustOpenStorage(b.Name(), 0, 0, 0)
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		// Reset timer to exclude expensive initialization from measurement.
+		b.ResetTimer()
+
+		var (
+			got []string
+			err error
+		)
+		for range b.N {
+			got, err = s.SearchGraphitePaths(nil, tr, []byte("*.*"), 1e9, noDeadline)
+			if err != nil {
+				b.Fatalf("SearchGraphitePaths() failed unexpectedly: %v", err)
+			}
+		}
+
+		// Stop timer to exclude expensive correctness check and cleanup from
+		// measurement.
+		b.StopTimer()
+
+		slices.Sort(got)
+		if diff := cmp.Diff(want, got); diff != "" {
+			b.Fatalf("unexpected graphite paths (-want, +got):\n%s", diff)
+		}
+
+		s.MustClose()
+		fs.MustRemoveAll(b.Name())
+
+		// Start timer again to conclude the benchmark correctly.
+		b.StartTimer()
+	}
+
+	benchmarkStorageOpOnVariousTimeRanges(b, f)
+}
+
 // benchmarkStorageOpOnVariousTimeRanges measures the execution time of some
 // storage operation on various time ranges: 1h, 1d, 1m, etc.
 func benchmarkStorageOpOnVariousTimeRanges(b *testing.B, op func(b *testing.B, tr TimeRange)) {

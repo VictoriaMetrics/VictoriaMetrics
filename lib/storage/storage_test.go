@@ -1922,7 +1922,42 @@ func TestStorageSearchTagValueSuffixes_VariousTimeRanges(t *testing.T) {
 }
 
 func TestStorageSearchGraphitePaths_VariousTimeRanges(t *testing.T) {
-	t.Skip()
+	defer testRemoveAll(t)
+
+	f := func(t *testing.T, tr TimeRange) {
+		t.Helper()
+
+		const numMetrics = 10000
+		mrs := make([]MetricRow, numMetrics)
+		want := make([]string, numMetrics)
+		step := (tr.MaxTimestamp - tr.MinTimestamp) / int64(numMetrics)
+		for i := range numMetrics {
+			name := fmt.Sprintf("prefix.metric%04d", i)
+			mn := MetricName{MetricGroup: []byte(name)}
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Timestamp = tr.MinTimestamp + int64(i)*step
+			mrs[i].Value = float64(i)
+			want[i] = name
+		}
+		slices.Sort(want)
+
+		s := MustOpenStorage(t.Name(), 0, 0, 0)
+		defer s.MustClose()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+
+		got, err := s.SearchGraphitePaths(nil, tr, []byte("*.*"), 1e9, noDeadline)
+		if err != nil {
+			t.Fatalf("SearchTagGraphitePaths() failed unexpectedly: %v", err)
+		}
+		slices.Sort(got)
+
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("unexpected graphite paths (-want, +got):\n%s", diff)
+		}
+	}
+
+	testStorageOpOnVariousTimeRanges(t, f)
 }
 
 // testStorageOpOnVariousTimeRanges executes some storage operation on various
