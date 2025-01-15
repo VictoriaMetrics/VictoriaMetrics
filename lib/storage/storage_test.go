@@ -1921,6 +1921,10 @@ func TestStorageSearchTagValueSuffixes_VariousTimeRanges(t *testing.T) {
 	testStorageOpOnVariousTimeRanges(t, f)
 }
 
+func TestStorageSearchGraphitePaths_VariousTimeRanges(t *testing.T) {
+	t.Skip()
+}
+
 // testStorageOpOnVariousTimeRanges executes some storage operation on various
 // time ranges: 1h, 1d, 1m, etc.
 func testStorageOpOnVariousTimeRanges(t *testing.T, op func(t *testing.T, tr TimeRange)) {

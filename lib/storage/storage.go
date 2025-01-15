@@ -1546,7 +1546,35 @@ func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, t
 // SearchGraphitePaths returns all the matching paths for the given graphite query on the given tr.
 func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
 	query = replaceAlternateRegexpsWithGraphiteWildcards(query)
-	return s.searchGraphitePaths(qt, tr, nil, query, maxPaths, deadline)
+
+	search := func(idb *indexDB, tr TimeRange) (any, error) {
+		return s.searchGraphitePaths(qt, idb, tr, nil, query, maxPaths, deadline)
+	}
+	merge := func(data []any) any {
+		var all []string
+		seen := make(map[string]bool)
+		for _, paths := range data {
+			if paths == nil {
+				continue
+			}
+			for _, path := range paths.([]string) {
+				if seen[path] {
+					continue
+				}
+				all = append(all, path)
+				seen[path] = true
+			}
+		}
+		return all
+	}
+	stopOnError := true
+	var paths []string
+	result, err := s.searchAndMerge(tr, search, merge, stopOnError)
+	if result != nil {
+		paths = result.([]string)
+	}
+
+	return paths, err
 }
 
 // replaceAlternateRegexpsWithGraphiteWildcards replaces (foo|..|bar) with {foo,...,bar} in b and returns the new value.
@@ -1591,12 +1619,12 @@ func replaceAlternateRegexpsWithGraphiteWildcards(b []byte) []byte {
 	}
 }
 
-func (s *Storage) searchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) ([]string, error) {
+func (s *Storage) searchGraphitePaths(qt *querytracer.Tracer, idb *indexDB, tr TimeRange, qHead, qTail []byte, maxPaths int, deadline uint64) ([]string, error) {
 	n := bytes.IndexAny(qTail, "*[{")
 	if n < 0 {
 		// Verify that qHead matches a metric name.
 		qHead = append(qHead, qTail...)
-		suffixes, err := s.SearchTagValueSuffixes(qt, tr, "", bytesutil.ToUnsafeString(qHead), '.', 1, deadline)
+		suffixes, err := idb.SearchTagValueSuffixes(qt, tr, "", bytesutil.ToUnsafeString(qHead), '.', 1, deadline)
 		if err != nil {
 			return nil, err
 		}
@@ -1611,7 +1639,7 @@ func (s *Storage) searchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHea
 		return []string{string(qHead)}, nil
 	}
 	qHead = append(qHead, qTail[:n]...)
-	suffixes, err := s.SearchTagValueSuffixes(qt, tr, "", bytesutil.ToUnsafeString(qHead), '.', maxPaths, deadline)
+	suffixes, err := idb.SearchTagValueSuffixes(qt, tr, "", bytesutil.ToUnsafeString(qHead), '.', maxPaths, deadline)
 	if err != nil {
 		return nil, err
 	}
@@ -1648,7 +1676,7 @@ func (s *Storage) searchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, qHea
 			continue
 		}
 		qHead = append(qHead[:qHeadLen], suffix...)
-		ps, err := s.searchGraphitePaths(qt, tr, qHead, qTail, maxPaths, deadline)
+		ps, err := s.searchGraphitePaths(qt, idb, tr, qHead, qTail, maxPaths, deadline)
 		if err != nil {
 			return nil, err
 		}
