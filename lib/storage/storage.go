@@ -1697,9 +1697,36 @@ func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
 // GetSeriesCount returns the approximate number of unique time series.
 //
 // It includes the deleted series too and may count the same series
-// up to two times - in db and extDB.
+// several times - in each parition and legacy IndexDB.
+//
+// TODO(@rtm0): As the number of partitions can be high, the resulting count may
+// contain a lot of duplicates. Make the count more accurate?
 func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
-	return s.idb().GetSeriesCount(deadline)
+	tr := TimeRange{
+		MinTimestamp: 0,
+		MaxTimestamp: time.Now().UnixMilli(),
+	}
+	search := func(idb *indexDB, _ TimeRange) (any, error) {
+		return idb.GetSeriesCount(deadline)
+	}
+	merge := func(data []any) any {
+		var total uint64
+		for _, cnt := range data {
+			if cnt == nil {
+				continue
+			}
+			total += cnt.(uint64)
+		}
+		return total
+	}
+	stopOnError := true
+	result, err := s.searchAndMerge(tr, search, merge, stopOnError)
+
+	var cnt uint64
+	if result != nil {
+		cnt = result.(uint64)
+	}
+	return cnt, err
 }
 
 // GetTSDBStatus returns TSDB status data for /api/v1/status/tsdb

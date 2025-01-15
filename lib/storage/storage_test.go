@@ -1912,6 +1912,65 @@ func testStorageOpOnVariousTimeRanges(t *testing.T, op func(t *testing.T, tr Tim
 	})
 }
 
+func TestStorageGetSeriesCount(t *testing.T) {
+	defer testRemoveAll(t)
+
+	// Inserts the numMetrics of the same metrics for each time range from trs
+	// and then gets the series count and compares it with wanted value.
+	f := func(numMetrics int, trs []TimeRange, want uint64) {
+		t.Helper()
+
+		mrs := make([]MetricRow, numMetrics)
+		for i := range numMetrics {
+			metricName := fmt.Sprintf("metric_%d", i)
+			mn := MetricName{
+				MetricGroup: []byte(metricName),
+			}
+			mrs[i].MetricNameRaw = mn.marshalRaw(nil)
+			mrs[i].Value = float64(i)
+		}
+
+		s := MustOpenStorage(t.Name(), 0, 0, 0)
+		defer s.MustClose()
+		for _, tr := range trs {
+			for i := range mrs {
+				mrs[i].Timestamp = tr.MinTimestamp + rand.Int63n(tr.MaxTimestamp-tr.MinTimestamp)
+			}
+			s.AddRows(mrs, defaultPrecisionBits)
+		}
+		s.DebugFlush()
+
+		got, err := s.GetSeriesCount(noDeadline)
+		if err != nil {
+			t.Fatalf("GetSeriesCount() failed unexpectedly: %v", err)
+		}
+		if got != want {
+			t.Errorf("unexpected series count: got %d, want %d", got, want)
+		}
+	}
+
+	const numMetrics = 100
+	month := func(m int) TimeRange {
+		return TimeRange{
+			MinTimestamp: time.Date(2024, time.Month(m), 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, time.Month(m), 20, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		}
+	}
+	var want uint64
+
+	oneMonth := []TimeRange{month(1)}
+	want = numMetrics
+	f(numMetrics, oneMonth, want)
+
+	twoMonths := []TimeRange{month(1), month(2)}
+	want = numMetrics * 2
+	f(numMetrics, twoMonths, want)
+
+	fourMonths := []TimeRange{month(1), month(2), month(3), month(4)}
+	want = numMetrics * 4
+	f(numMetrics, fourMonths, want)
+}
+
 func TestStorageGetTSDBStatus(t *testing.T) {
 	defer testRemoveAll(t)
 
