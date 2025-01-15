@@ -640,6 +640,7 @@ Label names [description](#labelnames)
         </tr>
         <tr>
             <td>
+
 <span style="white-space: nowrap;">`vmanomaly_writer_timeseries_sent`</span>
             </td>
             <td>
