@@ -28,7 +28,7 @@ There are 2 models to monitor VictoriaMetrics Anomaly Detection behavior - [push
         <tr>
             <th>Parameter</th>
             <th>Default</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -263,8 +263,8 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
     <thead>
         <tr>
             <th>Metric</th>
-            <th>Type</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Type</span></th>
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -273,7 +273,10 @@ For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_
 
 <span style="white-space: nowrap;">`vmanomaly_start_time_seconds`</span>
             </td>
-            <td>Gauge</td>
+            <td>
+
+<span style="white-space: nowrap;">Gauge</span>
+        </td>
             <td>vmanomaly start time in UNIX time</td>
         </tr>
         <tr>
@@ -323,7 +326,7 @@ Label names [description](#labelnames)
         <tr>
             <th>Metric</th>
             <th>Type</th>
-            <th>Description</th>
+            <th><span style="white-space: nowrap;">Description</span></th>
             <th>Labelnames</th>
         </tr>
     </thead>
@@ -434,7 +437,7 @@ Label names [description](#labelnames)
         <tr>
             <th>Metric</th>
             <th>Type</th>
-            <th>Description</th>
+            <th><span style="white-space: nowrap;">Description</span></th>
             <th>Labelnames</th>
         </tr>
     </thead>
@@ -557,7 +560,7 @@ Label names [description](#labelnames)
         <tr>
             <th>Metric</th>
             <th>Type</th>
-            <th>Description</th>
+            <th><span style="white-space: nowrap;">Description</span></th>
             <th>Labelnames</th>
         </tr>
     </thead>
