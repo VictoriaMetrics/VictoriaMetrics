@@ -1614,7 +1614,7 @@ func TestRollupIncreaseWithStaleness(t *testing.T) {
 		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
 
-	t.Run("step < gap", func(t *testing.T) {
+	t.Run("step < gap LookbackDelta==0", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:               rollupDelta,
 			Start:              0,
@@ -1622,6 +1622,27 @@ func TestRollupIncreaseWithStaleness(t *testing.T) {
 			Step:               10000,
 			Window:             0,
 			MaxPointsPerSeries: 1e4,
+			LookbackDelta:      0,
+		}
+		rc.Timestamps = rc.getTimestamps()
+		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
+		if samplesScanned != 8 {
+			t.Fatalf("expecting 8 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
+		}
+		valuesExpected := []float64{1, 0, 0, 0, 0, 0, 0, 0}
+		timestampsExpected := []int64{0, 10e3, 20e3, 30e3, 40e3, 50e3, 60e3, 70e3}
+		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+
+	t.Run("step < gap LookbackDelta > 0", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:               rollupDelta,
+			Start:              0,
+			End:                70000,
+			Step:               10000,
+			Window:             0,
+			MaxPointsPerSeries: 1e4,
+			LookbackDelta:      30e3,
 		}
 		rc.Timestamps = rc.getTimestamps()
 		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
@@ -1640,6 +1661,94 @@ func TestRollupIncreaseWithStaleness(t *testing.T) {
 	t.Run("staleness marker", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:               rollupDelta,
+			Start:              0,
+			End:                40000,
+			Step:               10000,
+			Window:             0,
+			MaxPointsPerSeries: 1e4,
+		}
+		rc.Timestamps = rc.getTimestamps()
+		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
+		if samplesScanned != 10 {
+			t.Fatalf("expecting 10 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
+		}
+		valuesExpected := []float64{1, 0, 0, nan, 1}
+		timestampsExpected := []int64{0, 10e3, 20e3, 30e3, 40e3}
+		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+}
+
+func TestRollupIncreasePureWithStaleness(t *testing.T) {
+	// there is a gap between samples in the dataset below
+	timestamps := []int64{0, 15000, 30000, 70000}
+	values := []float64{1, 1, 1, 1}
+
+	t.Run("step > gap", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:               rollupIncreasePure,
+			Start:              0,
+			End:                70000,
+			Step:               35000,
+			Window:             0,
+			MaxPointsPerSeries: 1e4,
+		}
+		rc.Timestamps = rc.getTimestamps()
+		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
+		if samplesScanned != 8 {
+			t.Fatalf("expecting 8 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
+		}
+		valuesExpected := []float64{1, 0, 0}
+		timestampsExpected := []int64{0, 35e3, 70e3}
+		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+
+	t.Run("step < gap LookbackDelta==0", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:               rollupIncreasePure,
+			Start:              0,
+			End:                70000,
+			Step:               10000,
+			Window:             0,
+			MaxPointsPerSeries: 1e4,
+			LookbackDelta:      0,
+		}
+		rc.Timestamps = rc.getTimestamps()
+		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
+		if samplesScanned != 8 {
+			t.Fatalf("expecting 8 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
+		}
+		valuesExpected := []float64{1, 0, 0, 0, 0, 0, 0, 0}
+		timestampsExpected := []int64{0, 10e3, 20e3, 30e3, 40e3, 50e3, 60e3, 70e3}
+		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+
+	t.Run("step < gap LookbackDelta > 0", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:               rollupIncreasePure,
+			Start:              0,
+			End:                70000,
+			Step:               10000,
+			Window:             0,
+			MaxPointsPerSeries: 1e4,
+			LookbackDelta:      30e3,
+		}
+		rc.Timestamps = rc.getTimestamps()
+		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
+		if samplesScanned != 8 {
+			t.Fatalf("expecting 8 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
+		}
+		valuesExpected := []float64{1, 0, 0, 0, 0, 0, 0, 1}
+		timestampsExpected := []int64{0, 10e3, 20e3, 30e3, 40e3, 50e3, 60e3, 70e3}
+		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+
+	// there is a staleness marker between samples in the dataset below
+	timestamps = []int64{0, 10000, 20000, 30000, 40000}
+	values = []float64{1, 1, 1, decimal.StaleNaN, 1}
+
+	t.Run("staleness marker", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:               rollupIncreasePure,
 			Start:              0,
 			End:                40000,
 			Step:               10000,
