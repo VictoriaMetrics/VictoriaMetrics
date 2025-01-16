@@ -1590,39 +1590,62 @@ func TestRollupDelta(t *testing.T) {
 	f(100, nan, nan, nil, 0)
 }
 
-func TestRollupIncreaseWithStaleness(t *testing.T) {
+func TestRollupDeltaWithStaleness(t *testing.T) {
 	// there is a gap between samples in the dataset below
 	timestamps := []int64{0, 15000, 30000, 70000}
 	values := []float64{1, 1, 1, 1}
 
-	t.Run("step > gap", func(t *testing.T) {
+	// if step > gap, then delta will always respect value before gap
+	t.Run("step>gap", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:               rollupDelta,
 			Start:              0,
 			End:                70000,
-			Step:               35000,
+			Step:               45000,
 			Window:             0,
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
 		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
-		if samplesScanned != 8 {
+		if samplesScanned != 7 {
 			t.Fatalf("expecting 8 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
-		valuesExpected := []float64{1, 0, 0}
-		timestampsExpected := []int64{0, 35e3, 70e3}
+		valuesExpected := []float64{1, 0}
+		timestampsExpected := []int64{0, 45e3}
+		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+	// even if LookbackDelta < gap
+	t.Run("step>gapLookbackDelta<gap", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:               rollupDelta,
+			Start:              0,
+			End:                70000,
+			Step:               45000,
+			LookbackDelta:      10e3,
+			Window:             0,
+			MaxPointsPerSeries: 1e4,
+		}
+		rc.Timestamps = rc.getTimestamps()
+		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
+		if samplesScanned != 7 {
+			t.Fatalf("expecting 8 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
+		}
+		valuesExpected := []float64{1, 0}
+		timestampsExpected := []int64{0, 45e3}
 		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
 
-	t.Run("step < gap LookbackDelta==0", func(t *testing.T) {
+	// if step < gap and LookbackDelta==0 then delta will always respect value before gap
+	// as LookbackDelta=0 ignores staleness
+	t.Run("step<gap;LookbackDelta=0", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:               rollupDelta,
 			Start:              0,
 			End:                70000,
 			Step:               10000,
+			LookbackDelta:      0,
 			Window:             0,
 			MaxPointsPerSeries: 1e4,
-			LookbackDelta:      0,
 		}
 		rc.Timestamps = rc.getTimestamps()
 		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
@@ -1634,7 +1657,9 @@ func TestRollupIncreaseWithStaleness(t *testing.T) {
 		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
 
-	t.Run("step < gap LookbackDelta > 0", func(t *testing.T) {
+	// if step < gap and LookbackDelta>0 then delta will respect value before gap
+	// only if it is not stale according to LookbackDelta
+	t.Run("step<gap;LookbackDelta>0", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:               rollupDelta,
 			Start:              0,
@@ -1683,34 +1708,57 @@ func TestRollupIncreasePureWithStaleness(t *testing.T) {
 	timestamps := []int64{0, 15000, 30000, 70000}
 	values := []float64{1, 1, 1, 1}
 
-	t.Run("step > gap", func(t *testing.T) {
+	// if step > gap, then delta will always respect value before gap
+	t.Run("step>gap", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:               rollupIncreasePure,
 			Start:              0,
 			End:                70000,
-			Step:               35000,
+			Step:               45000,
 			Window:             0,
 			MaxPointsPerSeries: 1e4,
 		}
 		rc.Timestamps = rc.getTimestamps()
 		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
-		if samplesScanned != 8 {
+		if samplesScanned != 7 {
 			t.Fatalf("expecting 8 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
 		}
-		valuesExpected := []float64{1, 0, 0}
-		timestampsExpected := []int64{0, 35e3, 70e3}
+		valuesExpected := []float64{1, 0}
+		timestampsExpected := []int64{0, 45e3}
+		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
+	})
+	// even if LookbackDelta < gap
+	t.Run("step>gap;LookbackDelta<gap", func(t *testing.T) {
+		rc := rollupConfig{
+			Func:               rollupIncreasePure,
+			Start:              0,
+			End:                70000,
+			Step:               45000,
+			LookbackDelta:      10e3,
+			Window:             0,
+			MaxPointsPerSeries: 1e4,
+		}
+		rc.Timestamps = rc.getTimestamps()
+		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
+		if samplesScanned != 7 {
+			t.Fatalf("expecting 8 samplesScanned from rollupConfig.Do; got %d", samplesScanned)
+		}
+		valuesExpected := []float64{1, 0}
+		timestampsExpected := []int64{0, 45e3}
 		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
 
-	t.Run("step < gap LookbackDelta==0", func(t *testing.T) {
+	// if step < gap and LookbackDelta==0 then delta will always respect value before gap
+	// as LookbackDelta=0 ignores staleness
+	t.Run("step<gap;LookbackDelta=0", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:               rollupIncreasePure,
 			Start:              0,
 			End:                70000,
 			Step:               10000,
+			LookbackDelta:      0,
 			Window:             0,
 			MaxPointsPerSeries: 1e4,
-			LookbackDelta:      0,
 		}
 		rc.Timestamps = rc.getTimestamps()
 		gotValues, samplesScanned := rc.Do(nil, values, timestamps)
@@ -1722,7 +1770,9 @@ func TestRollupIncreasePureWithStaleness(t *testing.T) {
 		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
 
-	t.Run("step < gap LookbackDelta > 0", func(t *testing.T) {
+	// if step < gap and LookbackDelta>0 then delta will respect value before gap
+	// only if it is not stale according to LookbackDelta
+	t.Run("step<gap;LookbackDelta>0", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:               rollupIncreasePure,
 			Start:              0,
