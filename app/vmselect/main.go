@@ -178,6 +178,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promql.ResetRollupResultCache()
 		return true
 	}
+	if path == "/internal/metric_names_usage_stats" {
+		if err := prometheus.MetricNamesUsageStatsHandler(qt, w, r); err != nil {
+			httpserver.SendPrometheusError(w, r, err)
+			return true
+		}
+		return true
+	}
 
 	if strings.HasPrefix(path, "/api/v1/label/") {
 		s := path[len("/api/v1/label/"):]

@@ -71,6 +71,10 @@ var (
 		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
 		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
+
+	trackMetricNamesUsage = flag.Bool("storage.trackMetricNamesUsage", false, "Whether to track ingest and query requests for timeseries metric names. "+
+		"This feature allows to track metric names unused at query requests. "+
+		" Enabling this flag increases memory usage, since vmstorage tracks requests stat in-memory.")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -104,6 +108,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 	mergeset.SetDataBlocksSparseCacheSize(cacheSizeIndexDBDataBlocksSparse.IntN())
 
+	storage.SetTrackMetricNamesStats(*trackMetricNamesUsage)
 	if retentionPeriod.Duration() < 24*time.Hour {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
 	}
@@ -237,6 +242,16 @@ func GetTSDBStatus(qt *querytracer.Tracer, tfss []*storage.TagFilters, date uint
 func GetSeriesCount(deadline uint64) (uint64, error) {
 	WG.Add(1)
 	n, err := Storage.GetSeriesCount(deadline)
+	WG.Done()
+	return n, err
+}
+
+// DeleteSeries deletes series matching tfss.
+//
+// Returns the number of deleted series.
+func GetUnusedMetrics(qt *querytracer.Tracer, tfss []*storage.TagFilters, maxMetrics int) (int, error) {
+	WG.Add(1)
+	n, err := Storage.DeleteSeries(qt, tfss, maxMetrics)
 	WG.Done()
 	return n, err
 }

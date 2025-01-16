@@ -1,0 +1,28 @@
+{% import (
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+) %}
+
+{% stripspace %}
+TSDBStatusResponse generates response for /api/v1/status/tsdb .
+{% func MetricNamesUsageStatsResponse(stats *storage.MetricNamesUsageStatsResponse, qt *querytracer.Tracer) %}
+{
+	"status":"success",
+  "stats_collected_sice": {%d= int(stats.CollectedSinceTs) %},
+  "records":
+  [
+    {% for i, r := range stats.Records %}
+      {
+        "metric_name":{%q= r.MetricName %},
+        "query_requests":{%dul= r.RequestCount %},
+        "last_request_timestamp":{%dul= r.LastRequestTs %}
+      }
+      {% if i+1 < len(stats.Records) %},{% endif %}
+    {% endfor %}
+  ]
+	{% code	qt.Done() %}
+	{%= dumpQueryTrace(qt) %}
+}
+{% endfunc %}
+
+{% endstripspace %}
