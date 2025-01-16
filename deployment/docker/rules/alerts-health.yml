@@ -3,6 +3,16 @@
 # The alerts below are just recommendations and may require some updates
 # and threshold calibration according to every specific setup.
 groups:
+  - name: alwayFiring
+    rules:
+      - alert: AlwaysFiring
+        expr: up==1
+        labels:
+          severity: critical
+        annotations:
+          summary: "job {{ $labels.job }} has an instance {{ $labels.instance | stripPort }}"
+          instance: "{{ $labels.instance }}"
+          description: "This alert is fine"
   - name: vm-health
     # note the `job` filter and update accordingly to your setup
     rules:
