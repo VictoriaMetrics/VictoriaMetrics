@@ -37,12 +37,12 @@ func ResetTimeSeries(tss []TimeSeries) []TimeSeries {
 // offsetMsecs is added to every timestamp in parsed metrics.
 //
 // This function is for testing purposes only. Do not use it in non-test code.
-func MustParsePromMetrics(s string, offsetMsecs int64) []TimeSeries {
+func MustParsePromMetrics(s string, contentType prometheus.ContentType, offsetMsecs int64) []TimeSeries {
 	var rows prometheus.Rows
 	errLogger := func(s string) {
 		panic(fmt.Errorf("unexpected error when parsing Prometheus metrics: %s", s))
 	}
-	rows.UnmarshalWithErrLogger(s, errLogger)
+	rows.UnmarshalWithErrLogger(s, contentType, errLogger)
 	tss := make([]TimeSeries, 0, len(rows.Rows))
 	samples := make([]Sample, 0, len(rows.Rows))
 	for _, row := range rows.Rows {

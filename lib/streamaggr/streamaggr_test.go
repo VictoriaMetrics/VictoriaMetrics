@@ -11,6 +11,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
 func TestAggregatorsFailure(t *testing.T) {
@@ -274,7 +275,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 
 		// Push the inputMetrics to Aggregators
 		offsetMsecs := time.Now().UnixMilli()
-		tssInput := prompbmarshal.MustParsePromMetrics(inputMetrics, offsetMsecs)
+		tssInput := prompbmarshal.MustParsePromMetrics(inputMetrics, parser.TextHeader, offsetMsecs)
 		matchIdxs := a.Push(tssInput, nil)
 		a.MustStop()
 
@@ -1005,7 +1006,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 
 		// Push the inputMetrics to Aggregators
 		offsetMsecs := time.Now().UnixMilli()
-		tssInput := prompbmarshal.MustParsePromMetrics(inputMetrics, offsetMsecs)
+		tssInput := prompbmarshal.MustParsePromMetrics(inputMetrics, parser.TextHeader, offsetMsecs)
 		matchIdxs := a.Push(tssInput, nil)
 		a.MustStop()
 
