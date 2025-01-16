@@ -578,6 +578,35 @@ func TestStorageRunQuery(t *testing.T) {
 			},
 		})
 	})
+	t.Run("stream-filter-single", func(t *testing.T) {
+		f(t, `{job="foobar",instance=~"host-1.+"} | count() hits`, [][]Field{
+			{
+				{"hits", "385"},
+			},
+		})
+		f(t, `{instance=~"host-1.+" or instance=~"host-2.+"} | count() hits`, [][]Field{
+			{
+				{"hits", "770"},
+			},
+		})
+	})
+	t.Run("stream-filter-multi", func(t *testing.T) {
+		f(t, `{job="foobar"} {instance=~"host-1.+"} | count() hits`, [][]Field{
+			{
+				{"hits", "385"},
+			},
+		})
+		f(t, `{instance=~"host-1.+"} {job="foobar"} | count() hits`, [][]Field{
+			{
+				{"hits", "385"},
+			},
+		})
+		f(t, `{job="foobar"} ({instance=~"host-1.+"} or {instance=~"host-2.+"}) | count() hits`, [][]Field{
+			{
+				{"hits", "770"},
+			},
+		})
+	})
 	t.Run("pipe-extract", func(t *testing.T) {
 		f(t, `* | extract "host-<host>:" from instance | uniq (host) with hits | sort by (host)`, [][]Field{
 			{

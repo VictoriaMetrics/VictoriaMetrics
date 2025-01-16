@@ -921,7 +921,7 @@ func (pt *partition) search(sf *StreamFilter, f filter, so *genericSearchOptions
 		tenantIDs = nil
 	}
 	if hasStreamFilters(f) {
-		f = initStreamFilters(tenantIDs, pt.idb, f)
+		f = initStreamFilters(so.tenantIDs, pt.idb, f)
 	}
 	soInternal := &searchOptions{
 		tenantIDs:           tenantIDs,
