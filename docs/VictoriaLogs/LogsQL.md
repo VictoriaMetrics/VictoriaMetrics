@@ -1508,10 +1508,10 @@ See also:
 
 For example, the following query selects logs with the `error` [word](#word) for the last day,
 extracts ip address from [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) into `ip` field and then calculates top 10 ip addresses
-with the biggest number of logs:
+with the biggest number of logs using [`top` pipe](#top-pipe):
 
 ```logsql
-_time:1d error | extract "ip=<ip> " from _msg | stats by (ip) count() logs | sort by (logs) desc limit 10
+_time:1d error | extract "ip=<ip> " from _msg | top 10 (ip)
 ```
 
 It is expected that `_msg` field contains `ip=...` substring ending with space. For example, `error ip=1.2.3.4 from user_id=42`.
@@ -1521,7 +1521,7 @@ If the `| extract ...` pipe is applied to [`_msg` field](https://docs.victoriame
 For example, the following query is equivalent to the previous one:
 
 ```logsql
-_time:1d error | extract "ip=<ip> " | stats by (ip) count() logs | sort by (logs) desc limit 10
+_time:1d error | extract "ip=<ip> " | top 10 (ip)
 ```
 
 If the `pattern` contains double quotes, then either put `\` in front of double quotes or put the `pattern` inside single quotes.
@@ -2065,7 +2065,7 @@ For example, the following query shows top 5 log entries with the maximum byte l
 logs for the last 5 minutes:
 
 ```logsql
-_time:5m | len(_msg) as msg_len | sort by (msg_len desc) | limit 1
+_time:5m | len(_msg) as msg_len | sort by (msg_len desc) | limit 5
 ```
 
 See also:
