@@ -1941,7 +1941,7 @@ Numeric fields can be transformed into the following string representation at `f
 - IPv4 - by adding `ipv4:` in front of the corresponding field name containing `uint32` representation of the IPv4 address.
   For example, `format "ip=<ipv4:ip_num>"`.
 
-- Zero-padded 64-bit hex number - by adding 'hexnumencode:' in front of the corresponding field name. For example, `format "hex_num=<hexnumencode:some_field>"`.
+- Zero-padded 64-bit hex number - by adding `hexnumencode:` in front of the corresponding field name. For example, `format "hex_num=<hexnumencode:some_field>"`.
 
 Add `keep_original_fields` to the end of `format ... as result_field` when the original non-empty value of the `result_field` must be preserved
 instead of overwriting it with the `format` results. For example, the following query adds formatted result to `foo` field only if it was missing or empty:
