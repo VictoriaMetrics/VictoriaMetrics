@@ -1615,7 +1615,7 @@ func TestRollupDeltaWithStaleness(t *testing.T) {
 		testRowsEqual(t, gotValues, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
 	// even if LookbackDelta < gap
-	t.Run("step>gapLookbackDelta<gap", func(t *testing.T) {
+	t.Run("step>gap;LookbackDelta<gap", func(t *testing.T) {
 		rc := rollupConfig{
 			Func:               rollupDelta,
 			Start:              0,
