@@ -1353,17 +1353,17 @@ LogsQL supports the following pipes:
 
 ### block_stats pipe
 
-`<q> | block_stats` [pipe](#pipes) returns the following stats per each block processed by `<q>`. This pipe is needed mostly for debugging.
-
-The returned per-block stats:
+`<q> | block_stats` [pipe](#pipes) returns the following stats per each block processed by `<q>` [query](#query-syntax):
 
 - `field` - [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) name
-- `rows` - the number of rows at the given `field.
+- `rows` - the number of rows at the given `field`
 - `type` - internal storage type for the given `field`
 - `values_bytes` - on-disk size of the data for the given `field`
 - `bloom_bytes` - on-disk size of bloom filter data for the given `field`
 - `dict_bytes` - on-disk size of the dictionary data for the given `field`
 - `dict_items` - the number of unique values in the dictionary for the given `field`
+
+The `block_stats` pipe is needed mostly for debugging purposes.
 
 See also:
 
