@@ -578,6 +578,13 @@ func TestStorageRunQuery(t *testing.T) {
 			},
 		})
 	})
+	t.Run("union=pipe", func(t *testing.T) {
+		f(t, `{instance=~"host-1.+"} | union ({instance=~"host-2.+"}) | count() hits`, [][]Field{
+			{
+				{"hits", "770"},
+			},
+		})
+	})
 	t.Run("stream-filter-single", func(t *testing.T) {
 		f(t, `{job="foobar",instance=~"host-1.+"} | count() hits`, [][]Field{
 			{
