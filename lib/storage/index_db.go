@@ -621,6 +621,19 @@ func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	is.db.tb.AddItems(ii.Items)
 }
 
+func (db *indexDB) createDeletedMetricIDsIndexes(metricIDs []uint64) {
+	ii := getIndexItems()
+	defer putIndexItems(ii)
+
+	for _, metricID := range metricIDs {
+		ii.B = append(ii.B, nsPrefixDeletedMetricID)
+		ii.B = encoding.MarshalUint64(ii.B, metricID)
+		ii.Next()
+	}
+
+	db.tb.AddItems(ii.Items)
+}
+
 type indexItems struct {
 	B     []byte
 	Items [][]byte
@@ -1604,80 +1617,6 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) (
 	}
 
 	return dst, false
-}
-
-// DeleteTSIDs marks as deleted all the TSIDs matching the given tfss and
-// updates or resets all caches where TSIDs and the corresponding MetricIDs may
-// be stored.
-//
-// If the number of the series exceeds maxMetrics, no series will be deleted and
-// an error will be returned. Otherwise, the funciton returns the number of
-// series deleted.
-func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
-	qt = qt.NewChild("deleting series for %s", tfss)
-	defer qt.Done()
-	if len(tfss) == 0 {
-		return 0, nil
-	}
-
-	// Obtain metricIDs to delete.
-	tr := TimeRange{
-		MinTimestamp: 0,
-		MaxTimestamp: (1 << 63) - 1,
-	}
-	is := db.getIndexSearch(noDeadline)
-	metricIDs, err := is.searchMetricIDs(qt, tfss, tr, maxMetrics)
-	db.putIndexSearch(is)
-	if err != nil {
-		return 0, err
-	}
-	db.deleteMetricIDs(metricIDs)
-
-	// Delete TSIDs in the extDB.
-	deletedCount := len(metricIDs)
-	db.doExtDB(func(extDB *indexDB) {
-		var n int
-		qtChild := qt.NewChild("deleting series from the previos indexdb")
-		n, err = extDB.DeleteTSIDs(qtChild, tfss, maxMetrics)
-		qtChild.Donef("deleted %d series", n)
-		deletedCount += n
-	})
-	if err != nil {
-		return deletedCount, fmt.Errorf("cannot delete tsids in extDB: %w", err)
-	}
-	return deletedCount, nil
-}
-
-func (db *indexDB) deleteMetricIDs(metricIDs []uint64) {
-	if len(metricIDs) == 0 {
-		// Nothing to delete
-		return
-	}
-
-	// atomically add deleted metricIDs to an inmemory map.
-	dmis := &uint64set.Set{}
-	dmis.AddMulti(metricIDs)
-	db.s.updateDeletedMetricIDs(dmis)
-
-	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
-	invalidateTagFiltersCache()
-
-	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
-	db.s.resetAndSaveTSIDCache()
-
-	// Store the metricIDs as deleted.
-	// Make this after updating the deletedMetricIDs and resetting caches
-	// in order to exclude the possibility of the inconsistent state when the deleted metricIDs
-	// remain available in the tsidCache after unclean shutdown.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
-	items := getIndexItems()
-	for _, metricID := range metricIDs {
-		items.B = append(items.B, nsPrefixDeletedMetricID)
-		items.B = encoding.MarshalUint64(items.B, metricID)
-		items.Next()
-	}
-	db.tb.AddItems(items.Items)
-	putIndexItems(items)
 }
 
 func (db *indexDB) loadDeletedMetricIDs() (*uint64set.Set, error) {
