@@ -43,9 +43,6 @@ import (
 	"cloud.google.com/go/storage/internal"
 	"cloud.google.com/go/storage/internal/apiv2/storagepb"
 	"github.com/googleapis/gax-go/v2"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
@@ -53,8 +50,6 @@ import (
 	raw "google.golang.org/api/storage/v1"
 	"google.golang.org/api/transport"
 	htransport "google.golang.org/api/transport/http"
-	"google.golang.org/grpc/experimental/stats"
-	"google.golang.org/grpc/stats/opentelemetry"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
@@ -72,8 +67,8 @@ var (
 	// errMethodNotSupported indicates that the method called is not currently supported by the client.
 	// TODO: Export this error when launching the transport-agnostic client.
 	errMethodNotSupported = errors.New("storage: method is not currently supported")
-	// errSignedURLMethodNotValid indicates that given HTTP method is not valid.
-	errSignedURLMethodNotValid = fmt.Errorf("storage: HTTP method should be one of %v", reflect.ValueOf(signedURLMethods).MapKeys())
+	// errMethodNotValid indicates that given HTTP method is not valid.
+	errMethodNotValid = fmt.Errorf("storage: HTTP method should be one of %v", reflect.ValueOf(signedURLMethods).MapKeys())
 )
 
 var userAgent = fmt.Sprintf("gcloud-golang-storage/%s", internal.Version)
@@ -219,10 +214,13 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 
 // NewGRPCClient creates a new Storage client using the gRPC transport and API.
 // Client methods which have not been implemented in gRPC will return an error.
-// In particular, methods for Cloud Pub/Sub notifications, Service Account HMAC
-// keys, and ServiceAccount are not supported.
+// In particular, methods for Cloud Pub/Sub notifications are not supported.
 // Using a non-default universe domain is also not supported with the Storage
 // gRPC client.
+//
+// The storage gRPC API is still in preview and not yet publicly available.
+// If you would like to use the API, please first contact your GCP account rep to
+// request access. The API may be subject to breaking changes.
 //
 // Clients should be reused instead of created as needed. The methods of Client
 // are safe for concurrent use by multiple goroutines.
@@ -236,62 +234,6 @@ func NewGRPCClient(ctx context.Context, opts ...option.ClientOption) (*Client, e
 	}
 
 	return &Client{tc: tc}, nil
-}
-
-// CheckDirectConnectivitySupported checks if gRPC direct connectivity
-// is available for a specific bucket from the environment where the client
-// is running. A `nil` error represents Direct Connectivity was detected.
-// Direct connectivity is expected to be available when running from inside
-// GCP and connecting to a bucket in the same region.
-//
-// Experimental helper that's subject to change.
-//
-// You can pass in [option.ClientOption] you plan on passing to [NewGRPCClient]
-func CheckDirectConnectivitySupported(ctx context.Context, bucket string, opts ...option.ClientOption) error {
-	view := metric.NewView(
-		metric.Instrument{
-			Name: "grpc.client.attempt.duration",
-			Kind: metric.InstrumentKindHistogram,
-		},
-		metric.Stream{AttributeFilter: attribute.NewAllowKeysFilter("grpc.lb.locality")},
-	)
-	mr := metric.NewManualReader()
-	provider := metric.NewMeterProvider(metric.WithReader(mr), metric.WithView(view))
-	// Provider handles shutting down ManualReader
-	defer provider.Shutdown(ctx)
-	mo := opentelemetry.MetricsOptions{
-		MeterProvider:  provider,
-		Metrics:        stats.NewMetrics("grpc.client.attempt.duration"),
-		OptionalLabels: []string{"grpc.lb.locality"},
-	}
-	combinedOpts := append(opts, WithDisabledClientMetrics(), option.WithGRPCDialOption(opentelemetry.DialOption(opentelemetry.Options{MetricsOptions: mo})))
-	client, err := NewGRPCClient(ctx, combinedOpts...)
-	if err != nil {
-		return fmt.Errorf("storage.NewGRPCClient: %w", err)
-	}
-	defer client.Close()
-	if _, err = client.Bucket(bucket).Attrs(ctx); err != nil {
-		return fmt.Errorf("Bucket.Attrs: %w", err)
-	}
-	// Call manual reader to collect metric
-	rm := metricdata.ResourceMetrics{}
-	if err = mr.Collect(context.Background(), &rm); err != nil {
-		return fmt.Errorf("ManualReader.Collect: %w", err)
-	}
-	for _, sm := range rm.ScopeMetrics {
-		for _, m := range sm.Metrics {
-			if m.Name == "grpc.client.attempt.duration" {
-				hist := m.Data.(metricdata.Histogram[float64])
-				for _, d := range hist.DataPoints {
-					v, present := d.Attributes.Value("grpc.lb.locality")
-					if present && v.AsString() != "" && v.AsString() != "{}" {
-						return nil
-					}
-				}
-			}
-		}
-	}
-	return errors.New("storage: direct connectivity not detected")
 }
 
 // Close closes the Client.
@@ -689,7 +631,7 @@ func validateOptions(opts *SignedURLOptions, now time.Time) error {
 	}
 	opts.Method = strings.ToUpper(opts.Method)
 	if _, ok := signedURLMethods[opts.Method]; !ok {
-		return errSignedURLMethodNotValid
+		return errMethodNotValid
 	}
 	if opts.Expires.IsZero() {
 		return errors.New("storage: missing required expires option")
@@ -937,9 +879,6 @@ func signedURLV2(bucket, name string, opts *SignedURLOptions) (string, error) {
 	return u.String(), nil
 }
 
-// ReadHandle associated with the object. This is periodically refreshed.
-type ReadHandle []byte
-
 // ObjectHandle provides operations on an object in a Google Cloud Storage bucket.
 // Use BucketHandle.Object to get a handle.
 type ObjectHandle struct {
@@ -955,23 +894,6 @@ type ObjectHandle struct {
 	retry             *retryConfig
 	overrideRetention *bool
 	softDeleted       bool
-	readHandle        ReadHandle
-}
-
-// ReadHandle returns a new ObjectHandle that uses the ReadHandle to open the objects.
-//
-// Objects that have already been opened can be opened an additional time,
-// using a read handle returned in the response, at lower latency.
-// This produces the exact same object and generation and does not check if
-// the generation is still the newest one.
-// Note that this will be a noop unless it's set on a gRPC client on buckets with
-// bi-directional read API access.
-// Also note that you can get a ReadHandle only via calling reader.ReadHandle() on a
-// previous read of the same object.
-func (o *ObjectHandle) ReadHandle(r ReadHandle) *ObjectHandle {
-	o2 := *o
-	o2.readHandle = r
-	return &o2
 }
 
 // ACL provides access to the object's access control list.
@@ -1174,38 +1096,6 @@ func (o *ObjectHandle) Restore(ctx context.Context, opts *RestoreOptions) (*Obje
 		conds:         o.conds,
 		copySourceACL: opts.CopySourceACL,
 	}, sOpts...)
-}
-
-// Move changes the name of the object to the destination name.
-// It can only be used to rename an object within the same bucket. The
-// bucket must have [HierarchicalNamespace] enabled to use this method.
-//
-// Any preconditions set on the ObjectHandle will be applied for the source
-// object. Set preconditions on the destination object using
-// [MoveObjectDestination.Conditions].
-//
-// This API is in preview and is not yet publicly available.
-func (o *ObjectHandle) Move(ctx context.Context, destination MoveObjectDestination) (*ObjectAttrs, error) {
-	if err := o.validate(); err != nil {
-		return nil, err
-	}
-
-	sOpts := makeStorageOpts(true, o.retry, o.userProject)
-	return o.c.tc.MoveObject(ctx, &moveObjectParams{
-		bucket:        o.bucket,
-		srcObject:     o.object,
-		dstObject:     destination.Object,
-		srcConds:      o.conds,
-		dstConds:      destination.Conditions,
-		encryptionKey: o.encryptionKey,
-	}, sOpts...)
-}
-
-// MoveObjectDestination provides the destination object name and (optional) preconditions
-// for [ObjectHandle.Move].
-type MoveObjectDestination struct {
-	Object     string
-	Conditions *Conditions
 }
 
 // NewWriter returns a storage Writer that writes to the GCS object
@@ -1805,6 +1695,7 @@ type Query struct {
 
 	// IncludeFoldersAsPrefixes includes Folders and Managed Folders in the set of
 	// prefixes returned by the query. Only applicable if Delimiter is set to /.
+	// IncludeFoldersAsPrefixes is not yet implemented in the gRPC API.
 	IncludeFoldersAsPrefixes bool
 
 	// SoftDeleted indicates whether to list soft-deleted objects.
@@ -2107,91 +1998,56 @@ func applyConds(method string, gen int64, conds *Conditions, call interface{}) e
 	return nil
 }
 
-// applySourceConds modifies the provided call using the conditions in conds.
-// call is something that quacks like a *raw.WhateverCall.
-// This is specifically for calls like Rewrite and Move which have a source and destination
-// object.
-func applySourceConds(method string, gen int64, conds *Conditions, call interface{}) error {
-	cval := reflect.ValueOf(call)
+func applySourceConds(gen int64, conds *Conditions, call *raw.ObjectsRewriteCall) error {
 	if gen >= 0 {
-		if !setSourceGeneration(cval, gen) {
-			return fmt.Errorf("storage: %s: source generation not supported", method)
-		}
+		call.SourceGeneration(gen)
 	}
 	if conds == nil {
 		return nil
 	}
-	if err := conds.validate(method); err != nil {
+	if err := conds.validate("CopyTo source"); err != nil {
 		return err
 	}
 	switch {
 	case conds.GenerationMatch != 0:
-		if !setIfSourceGenerationMatch(cval, conds.GenerationMatch) {
-			return fmt.Errorf("storage: %s: ifSourceGenerationMatch not supported", method)
-		}
+		call.IfSourceGenerationMatch(conds.GenerationMatch)
 	case conds.GenerationNotMatch != 0:
-		if !setIfSourceGenerationNotMatch(cval, conds.GenerationNotMatch) {
-			return fmt.Errorf("storage: %s: ifSourceGenerationNotMatch not supported", method)
-		}
+		call.IfSourceGenerationNotMatch(conds.GenerationNotMatch)
 	case conds.DoesNotExist:
-		if !setIfSourceGenerationMatch(cval, int64(0)) {
-			return fmt.Errorf("storage: %s: DoesNotExist not supported", method)
-		}
+		call.IfSourceGenerationMatch(0)
 	}
 	switch {
 	case conds.MetagenerationMatch != 0:
-		if !setIfSourceMetagenerationMatch(cval, conds.MetagenerationMatch) {
-			return fmt.Errorf("storage: %s: ifSourceMetagenerationMatch not supported", method)
-		}
+		call.IfSourceMetagenerationMatch(conds.MetagenerationMatch)
 	case conds.MetagenerationNotMatch != 0:
-		if !setIfSourceMetagenerationNotMatch(cval, conds.MetagenerationNotMatch) {
-			return fmt.Errorf("storage: %s: ifSourceMetagenerationNotMatch not supported", method)
-		}
+		call.IfSourceMetagenerationNotMatch(conds.MetagenerationNotMatch)
 	}
 	return nil
 }
 
-// applySourceCondsProto validates and attempts to set the conditions on a protobuf
-// message using protobuf reflection. This is specifically for RPCs which have separate
-// preconditions for source and destination objects (e.g. Rewrite and Move).
-func applySourceCondsProto(method string, gen int64, conds *Conditions, msg proto.Message) error {
-	rmsg := msg.ProtoReflect()
-
+func applySourceCondsProto(gen int64, conds *Conditions, call *storagepb.RewriteObjectRequest) error {
 	if gen >= 0 {
-		if !setConditionProtoField(rmsg, "source_generation", gen) {
-			return fmt.Errorf("storage: %s: generation not supported", method)
-		}
+		call.SourceGeneration = gen
 	}
 	if conds == nil {
 		return nil
 	}
-	if err := conds.validate(method); err != nil {
+	if err := conds.validate("CopyTo source"); err != nil {
 		return err
 	}
-
 	switch {
 	case conds.GenerationMatch != 0:
-		if !setConditionProtoField(rmsg, "if_source_generation_match", conds.GenerationMatch) {
-			return fmt.Errorf("storage: %s: ifSourceGenerationMatch not supported", method)
-		}
+		call.IfSourceGenerationMatch = proto.Int64(conds.GenerationMatch)
 	case conds.GenerationNotMatch != 0:
-		if !setConditionProtoField(rmsg, "if_source_generation_not_match", conds.GenerationNotMatch) {
-			return fmt.Errorf("storage: %s: ifSourceGenerationNotMatch not supported", method)
-		}
+		call.IfSourceGenerationNotMatch = proto.Int64(conds.GenerationNotMatch)
 	case conds.DoesNotExist:
-		if !setConditionProtoField(rmsg, "if_source_generation_match", int64(0)) {
-			return fmt.Errorf("storage: %s: DoesNotExist not supported", method)
-		}
+		call.IfSourceGenerationMatch = proto.Int64(0)
 	}
 	switch {
 	case conds.MetagenerationMatch != 0:
-		if !setConditionProtoField(rmsg, "if_source_metageneration_match", conds.MetagenerationMatch) {
-			return fmt.Errorf("storage: %s: ifSourceMetagenerationMatch not supported", method)
-		}
+		call.IfSourceMetagenerationMatch = proto.Int64(conds.MetagenerationMatch)
 	case conds.MetagenerationNotMatch != 0:
-		if !setConditionProtoField(rmsg, "if_source_metageneration_not_match", conds.MetagenerationNotMatch) {
-			return fmt.Errorf("storage: %s: ifSourceMetagenerationNotMatch not supported", method)
-		}
+		call.IfSourceMetagenerationNotMatch = proto.Int64(conds.MetagenerationNotMatch)
 	}
 	return nil
 }
@@ -2228,27 +2084,6 @@ func setIfMetagenerationMatch(cval reflect.Value, value interface{}) bool {
 // See also setGeneration.
 func setIfMetagenerationNotMatch(cval reflect.Value, value interface{}) bool {
 	return setCondition(cval.MethodByName("IfMetagenerationNotMatch"), value)
-}
-
-// More methods to set source object precondition fields (used by Rewrite and Move APIs).
-func setSourceGeneration(cval reflect.Value, value interface{}) bool {
-	return setCondition(cval.MethodByName("SourceGeneration"), value)
-}
-
-func setIfSourceGenerationMatch(cval reflect.Value, value interface{}) bool {
-	return setCondition(cval.MethodByName("IfSourceGenerationMatch"), value)
-}
-
-func setIfSourceGenerationNotMatch(cval reflect.Value, value interface{}) bool {
-	return setCondition(cval.MethodByName("IfSourceGenerationNotMatch"), value)
-}
-
-func setIfSourceMetagenerationMatch(cval reflect.Value, value interface{}) bool {
-	return setCondition(cval.MethodByName("IfSourceMetagenerationMatch"), value)
-}
-
-func setIfSourceMetagenerationNotMatch(cval reflect.Value, value interface{}) bool {
-	return setCondition(cval.MethodByName("IfSourceMetagenerationNotMatch"), value)
 }
 
 func setCondition(setter reflect.Value, value interface{}) bool {
@@ -2515,7 +2350,6 @@ func toProtoChecksums(sendCRC32C bool, attrs *ObjectAttrs) *storagepb.ObjectChec
 }
 
 // ServiceAccount fetches the email address of the given project's Google Cloud Storage service account.
-// Note: gRPC is not supported.
 func (c *Client) ServiceAccount(ctx context.Context, projectID string) (string, error) {
 	o := makeStorageOpts(true, c.retry, "")
 	return c.tc.GetServiceAccount(ctx, projectID, o...)
