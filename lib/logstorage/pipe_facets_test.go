@@ -16,6 +16,7 @@ func TestParsePipeFacetsSuccess(t *testing.T) {
 	f(`facets max_values_per_field 20`)
 	f(`facets max_value_len 123`)
 	f(`facets 34 max_values_per_field 20 max_value_len 30`)
+	f(`facets keep_const_fields`)
 }
 
 func TestParsePipeFacetsFailure(t *testing.T) {
@@ -31,6 +32,7 @@ func TestParsePipeFacetsFailure(t *testing.T) {
 	f(`facets 123 max_values_per_field bar`)
 	f(`facets 123 max_value_len`)
 	f(`facets 123 max_value_len bar`)
+	f(`facets keep_const_fields foo`)
 }
 
 func TestPipeFacets(t *testing.T) {
@@ -40,6 +42,33 @@ func TestPipeFacets(t *testing.T) {
 	}
 
 	f("facets 1", [][]Field{
+		{
+			{"a", `2`},
+			{"b", `3`},
+		},
+		{
+			{"a", "2"},
+			{"b", "3"},
+		},
+		{
+			{"a", `2`},
+			{"b", `54`},
+			{"c", "d"},
+		},
+	}, [][]Field{
+		{
+			{"field_name", "b"},
+			{"field_value", "3"},
+			{"hits", "2"},
+		},
+		{
+			{"field_name", "c"},
+			{"field_value", "d"},
+			{"hits", "1"},
+		},
+	})
+
+	f("facets 1 keep_const_fields", [][]Field{
 		{
 			{"a", `2`},
 			{"b", `3`},
@@ -86,11 +115,6 @@ func TestPipeFacets(t *testing.T) {
 			{"c", "d"},
 		},
 	}, [][]Field{
-		{
-			{"field_name", "a"},
-			{"field_value", "2"},
-			{"hits", "3"},
-		},
 		{
 			{"field_name", "b"},
 			{"field_value", "3"},

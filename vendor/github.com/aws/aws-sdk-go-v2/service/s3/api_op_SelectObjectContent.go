@@ -117,6 +117,9 @@ func (c *Client) SelectObjectContent(ctx context.Context, params *SelectObjectCo
 	return out, nil
 }
 
+// Learn Amazon S3 Select is no longer available to new customers. Existing
+// customers of Amazon S3 Select can continue to use the feature as usual. [Learn more]
+//
 // Request to filter the contents of an Amazon S3 object based on a simple
 // Structured Query Language (SQL) statement. In the request, along with the SQL
 // expression, you must specify a data serialization format (JSON or CSV) of the
@@ -124,6 +127,7 @@ func (c *Client) SelectObjectContent(ctx context.Context, params *SelectObjectCo
 // records that match the specified SQL expression. You must also specify the data
 // serialization format for the response. For more information, see [S3Select API Documentation].
 //
+// [Learn more]: http://aws.amazon.com/blogs/storage/how-to-optimize-querying-your-data-in-amazon-s3/
 // [S3Select API Documentation]: https://docs.aws.amazon.com/AmazonS3/latest/API/RESTObjectSELECTContent.html
 type SelectObjectContentInput struct {
 

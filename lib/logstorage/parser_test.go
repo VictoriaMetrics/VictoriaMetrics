@@ -35,6 +35,39 @@ func TestLexer(t *testing.T) {
 		[]string{"_stream", ":", "{", "foo", "=", "bar", ",", "a", "=~", "baz", ",", "b", "!=", "cd", ",", "d,}a", "!~", "abc", "}"})
 }
 
+func TestParseQuery_OptimizeStreamFilters(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+		q, err := ParseQuery(s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		result := q.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	// Missing stream filters
+	f(`*`, `*`)
+	f(`foo`, `foo`)
+	f(`foo bar`, `foo bar`)
+
+	// a single stream filter
+	f(`{foo=bar}`, `{foo="bar"}`)
+	f(`{foo=bar,baz=~"x|y"} error`, `{foo="bar",baz=~"x|y"} error`)
+	f(`a {foo=bar,baz=~"x|y" OR a!=b} x`, `{foo="bar",baz=~"x|y" or a!="b"} a x`)
+
+	// multiple stream filters, which can be merged
+	f(`{foo=bar} {baz="x"}`, `{foo="bar",baz="x"}`)
+	f(`a {foo=~"bar|x"} (b:c or d) _stream:{x="y"} {foo!~"q.+"} c`, `{foo=~"bar|x",x="y",foo!~"q.+"} a (b:c or d) c`)
+
+	// multiple stream filters, which cannot be merged
+	f(`{foo="bar" or baz="x"} {a="b"}`, `{foo="bar" or baz="x"} {a="b"}`)
+	f(`{x="y"} {foo="bar" or baz="x"} {a="b"}`, `{x="y"} {foo="bar" or baz="x"} {a="b"}`)
+	f(`{foo="bar"} or {baz="x"}`, `{foo="bar"} or {baz="x"}`)
+}
+
 func TestParseDayRange(t *testing.T) {
 	f := func(s string, startExpected, endExpected, offsetExpected int64) {
 		t.Helper()
@@ -449,6 +482,31 @@ func TestParseFilterStringRange(t *testing.T) {
 	f("x:>=foo", `x`, "foo", maxStringRangeValue)
 	f("x:<foo", `x`, ``, `foo`)
 	f(`<="123.456.789"`, ``, ``, "123.456.789\x00")
+}
+
+func TestParseFilterValueType(t *testing.T) {
+	f := func(s, fieldNameExpected, valueTypeExpected string) {
+		t.Helper()
+		q, err := ParseQuery(s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		fv, ok := q.f.(*filterValueType)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterValueType; filter: %s", q.f, q.f)
+		}
+		if fv.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fv.fieldName, fieldNameExpected)
+		}
+		if fv.valueType != valueTypeExpected {
+			t.Fatalf("unexpected valueType; got %q; want %q", fv.valueType, valueTypeExpected)
+		}
+	}
+
+	f("value_type(foo)", "", "foo")
+	f("foo:value_type('dict')", "foo", "dict")
+	f("value_type:value_type('')", "value_type", "")
+	f(`z:value_type("string")`, "z", "string")
 }
 
 func TestParseFilterRegexp(t *testing.T) {
@@ -875,6 +933,8 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("string_range-a", `"string_range-a"`)
 	f("x:string_range-a", `x:"string_range-a"`)
 	f("string_range-a:x", `"string_range-a":x`)
+	f("value_type", `"value_type"`)
+	f("x:value_type", `x:"value_type"`)
 
 	// exact filter
 	f("exact(foo)", `=foo`)
@@ -940,6 +1000,11 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`range(1.5K, 22.5GiB)`, `range(1.5K, 22.5GiB)`)
 	f(`foo:range(5,inf)`, `foo:range(5, inf)`)
 
+	// value_type filter
+	f(`value_type(foo)`, `value_type(foo)`)
+	f(`x:value_type("dict")`, `x:value_type(dict)`)
+	f(`x:value_type(dict:x)`, `x:value_type("dict:x")`)
+
 	// >,  >=, < and <= filter
 	f(`foo: > 10.5M`, `foo:>10.5M`)
 	f(`foo: >= 10.5M`, `foo:>=10.5M`)
@@ -1001,7 +1066,7 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// complex queries
 	f(`_time:[-1h, now] _stream:{job="foo",env=~"prod|staging"} level:(error or warn*) and not "connection reset by peer"`,
-		`_time:[-1h,now] {job="foo",env=~"prod|staging"} (level:error or level:warn*) !"connection reset by peer"`)
+		`{job="foo",env=~"prod|staging"} _time:[-1h,now] (level:error or level:warn*) !"connection reset by peer"`)
 	f(`(_time:(2023-04-20, now] or _time:[-10m, -1m))
 		and (_stream:{job="a"} or _stream:{instance!="b"})
 		and (err* or ip:(ipv4_range(1.2.3.0, 1.2.3.255) and not 1.2.3.4))`,
@@ -1175,6 +1240,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | stats sum_len(*) x`, `* | stats sum_len(*) as x`)
 	f(`* | stats sum_len(foo,*,bar) x`, `* | stats sum_len(*) as x`)
 
+	// stats pipe histogram
+	f(`* | stats histogram(foo) bar`, `* | stats histogram(foo) as bar`)
+	f(`* | histogram(foo)`, `* | stats histogram(foo) as "histogram(foo)"`)
+
 	// stats pipe quantile
 	f(`* | stats quantile(0, foo) bar`, `* | stats quantile(0, foo) as bar`)
 	f(`* | stats quantile(1, foo) bar`, `* | stats quantile(1, foo) as bar`)
@@ -1285,6 +1354,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("* | extract `foo<bar>baz` from x", `* | extract "foo<bar>baz" from x`)
 	f("* | extract foo<bar>baz from x", `* | extract "foo<bar>baz" from x`)
 	f("* | extract if (a:b) foo<bar>baz from x", `* | extract if (a:b) "foo<bar>baz" from x`)
+
+	// union pipe
+	f(`* | union(foo)`, `* | union (foo)`)
+	f(`* | union(foo | union(bar baz | count() x))`, `* | union (foo | union (bar baz | stats count(*) as x))`)
 
 	// unpack_json pipe
 	f(`* | unpack_json`, `* | unpack_json`)
@@ -1531,6 +1604,13 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`range[1,2,3)`)
 	f(`range(1)`)
 
+	// invalid value_type
+	f(`value_type(`)
+	f(`value_type(1,`)
+	f(`value_type(foo())`)
+	f(`value_type()`)
+	f(`value_type(a,b)`)
+
 	// invalid re
 	f("re(")
 	f("re(a, b)")
@@ -1703,6 +1783,12 @@ func TestParseQueryFailure(t *testing.T) {
 	// invalid stats sum_len
 	f(`foo | stats sum_len`)
 
+	// invalid stats histogram
+	f(`foo | stats histogram`)
+	f(`foo | stats histogram()`)
+	f(`foo | stats histogram(a, b)`)
+	f(`foo | stats histogram(*)`)
+
 	// invalid stats quantile
 	f(`foo | stats quantile`)
 	f(`foo | stats quantile() foo`)
@@ -1788,6 +1874,12 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | extract from x "abc"`)
 	f(`foo | extract from x "<abc`)
 	f(`foo | extract from x "<abc>" de`)
+
+	// invalid union pipe
+	f(`foo | union`)
+	f(`foo | union (`)
+	f(`foo | union ( bar`)
+	f(`foo | union (bar | count)`)
 
 	// invalid unpack_json pipe
 	f(`foo | unpack_json bar`)
@@ -1938,6 +2030,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | stats max() q`, `*`, ``)
 	f(`* | stats max(*) q`, `*`, ``)
 	f(`* | stats max(x) q`, `x`, ``)
+	f(`* | stats histogram(foo)`, `foo`, ``)
 	f(`* | stats quantile(0.5) q`, `*`, ``)
 	f(`* | stats quantile(0.5, *) q`, `*`, ``)
 	f(`* | stats quantile(0.5, x) q`, `x`, ``)
@@ -2145,6 +2238,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | stats count_uniq(a, b) if (q:w p:a) as c | count() r1`, ``, ``)
 	f(`* | stats by (a1,a2) count_uniq(a, b) as c | count() r1`, `a1,a2`, ``)
 	f(`* | stats by (a1,a2) count_uniq(a, b) if (q:w p:a) as c | count() r1`, `a1,a2`, ``)
+	f(`* | union (foo) | count() r1`, ``, ``)
 	f(`* | uniq by (a, b) | count() r1`, `a,b`, ``)
 	f(`* | unpack_json from x | count() r1`, ``, ``)
 	f(`* | unpack_json from x fields (a,b) | count() r1`, ``, ``)
@@ -2227,6 +2321,7 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | len(x)", true)
 	f("* | limit 10", false)
 	f("* | offset 10", false)
+	f("* | union (x)", false)
 	f("* | uniq (x)", false)
 	f("* | block_stats", false)
 	f("* | blocks_count", false)
@@ -2282,6 +2377,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | stats count() rows", false)
 	f("* | stream_context after 10", false)
 	f("* | top 10 by (x)", false)
+	f("* | union (foo)", false)
 	f("* | uniq by (a)", false)
 	f("* | unpack_json", true)
 	f("* | unpack_logfmt", true)
@@ -2488,6 +2584,7 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | replace_regexp ("foo.+bar", "baz")`)
 	f(`foo | count() | stream_context after 10`)
 	f(`foo | count() | top 5 by (x)`)
+	f(`foo | count() | union (foo)`)
 	f(`foo | count() | uniq by (x)`)
 	f(`foo | count() | unpack_json`)
 	f(`foo | count() | unpack_logfmt`)
@@ -2551,14 +2648,20 @@ func TestQueryHasGlobalTimeFilter(t *testing.T) {
 }
 
 func TestAddExtraFilters(t *testing.T) {
-	f := func(qStr string, extraFilters []Field, resultExpected string) {
+	f := func(qStr, extraFilters string, resultExpected string) {
 		t.Helper()
 
 		q, err := ParseQuery(qStr)
 		if err != nil {
 			t.Fatalf("unexpected error in ParseQuery: %s", err)
 		}
-		q.AddExtraFilters(extraFilters)
+		if extraFilters != "" {
+			efs, err := ParseFilter(extraFilters)
+			if err != nil {
+				t.Fatalf("unexpected error in ParseFilter: %s", err)
+			}
+			q.AddExtraFilters(efs)
+		}
 
 		result := q.String()
 		if result != resultExpected {
@@ -2566,125 +2669,17 @@ func TestAddExtraFilters(t *testing.T) {
 		}
 	}
 
-	f(`*`, nil, `*`)
-	f(`_time:5m`, nil, `_time:5m`)
-	f(`foo _time:5m`, nil, `foo _time:5m`)
+	f(`*`, "", `*`)
+	f(`_time:5m`, "", `_time:5m`)
+	f(`foo _time:5m`, "", `foo _time:5m`)
+	f(`*`, "foo:=bar", "foo:=bar *")
+	f("_time:5m", `"fo o":="=ba:r !"`, `"fo o":="=ba:r !" _time:5m`)
+	f("_time:5m {a=b}", `"fo o":="=ba:r !" and x:=y`, `"fo o":="=ba:r !" x:=y {a="b"} _time:5m`)
+	f(`a or (b c)`, `foo:=bar`, `foo:=bar (a or b c)`)
 
-	f(`*`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-	}, "foo:=bar *")
+	// extra stream filters
+	f(`*`, `{foo="bar",baz!="x"}`, `{foo="bar",baz!="x"} *`)
 
-	f("_time:5m", []Field{
-		{
-			Name:  "fo o",
-			Value: "=ba:r !",
-		},
-	}, `"fo o":="=ba:r !" _time:5m`)
-
-	f("_time:5m {a=b}", []Field{
-		{
-			Name:  "fo o",
-			Value: "=ba:r !",
-		},
-		{
-			Name:  "x",
-			Value: "y",
-		},
-	}, `"fo o":="=ba:r !" x:=y _time:5m {a="b"}`)
-
-	f(`a or (b c)`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-	}, `foo:=bar (a or b c)`)
-}
-
-func TestAddExtraStreamFilters(t *testing.T) {
-	f := func(qStr string, extraFilters []Field, resultExpected string) {
-		t.Helper()
-
-		q, err := ParseQuery(qStr)
-		if err != nil {
-			t.Fatalf("unexpected error in ParseQuery: %s", err)
-		}
-		q.AddExtraStreamFilters(extraFilters)
-
-		result := q.String()
-		if result != resultExpected {
-			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
-		}
-	}
-
-	f(`*`, nil, `*`)
-	f(`_time:5m`, nil, `_time:5m`)
-	f(`foo _time:5m`, nil, `foo _time:5m`)
-
-	f(`*`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-	}, `{foo="bar"} *`)
-
-	f(`_time:5m`, []Field{
-		{
-			Name:  "fo o=",
-			Value: `"bar}`,
-		},
-	}, `{"fo o="="\"bar}"} _time:5m`)
-
-	f(`a b`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-	}, `{foo="bar"} a b`)
-
-	f(`a or b {c="d"}`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-		{
-			Name:  "x",
-			Value: "y",
-		},
-	}, `{foo="bar",x="y"} (a or b {c="d"})`)
-
-	f(`{c=~"d|e"}`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-		{
-			Name:  "x",
-			Value: "y",
-		},
-	}, `{foo="bar",x="y",c=~"d|e"}`)
-
-	f(`a:b {c=~"d|e"}`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-		{
-			Name:  "x",
-			Value: "y",
-		},
-	}, `a:b {foo="bar",x="y",c=~"d|e"}`)
-
-	f(`a:b {c=~"d|e"} {q!="w"} asdf`, []Field{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-		{
-			Name:  "x",
-			Value: "y",
-		},
-	}, `a:b {foo="bar",x="y",c=~"d|e"} {foo="bar",x="y",q!="w"} asdf`)
+	// mixed filters
+	f(`c`, `{foo="bar",baz!="x"} a:~b`, `{foo="bar",baz!="x"} a:~b c`)
 }

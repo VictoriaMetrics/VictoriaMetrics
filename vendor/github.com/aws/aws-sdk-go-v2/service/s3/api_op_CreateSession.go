@@ -47,8 +47,10 @@ import (
 //
 //   - You must make requests for this API operation to the Zonal endpoint. These
 //     endpoints support virtual-hosted-style requests in the format
-//     https://bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests
-//     are not supported. For more information, see [Regional and Zonal endpoints]in the Amazon S3 User Guide.
+//     https://bucket-name.s3express-zone-id.region-code.amazonaws.com . Path-style
+//     requests are not supported. For more information about endpoints in Availability
+//     Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information about endpoints
+//     in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
 //
 //   - CopyObject API operation - Unlike other Zonal endpoint API operations, the
 //     CopyObject API operation doesn't use the temporary security credentials
@@ -119,11 +121,11 @@ import (
 // CreateSession request.
 //
 // HTTP Host header syntax  Directory buckets - The HTTP Host header syntax is
-// Bucket_name.s3express-az_id.region.amazonaws.com .
+// Bucket-name.s3express-zone-id.region-code.amazonaws.com .
 //
 // [Specifying server-side encryption with KMS for new object uploads]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-specifying-kms-encryption.html
+// [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [Performance guidelines and design patterns]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-optimizing-performance-guidelines-design-patterns.html#s3-express-optimizing-performance-session-authentication
-// [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
 // [CopyObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html
 // [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 // [S3 Express One Zone APIs]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-APIs.html
@@ -136,6 +138,7 @@ import (
 // [Protecting data with server-side encryption]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-serv-side-encryption.html
 // [x-amz-create-session-mode]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html#API_CreateSession_RequestParameters
 // [Zonal endpoint (object-level) API operations]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-differences.html#s3-express-differences-api-operations
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
 func (c *Client) CreateSession(ctx context.Context, params *CreateSessionInput, optFns ...func(*Options)) (*CreateSessionOutput, error) {
 	if params == nil {
 		params = &CreateSessionInput{}

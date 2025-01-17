@@ -1,3 +1,28 @@
+# v1.72.2 (2025-01-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.72.1 (2025-01-08)
+
+* No change notes available for this release.
+
+# v1.72.0 (2025-01-03)
+
+* **Feature**: This change is only for updating the model regexp of CopySource which is not for validation but only for documentation and user guide change.
+
+# v1.71.1 (2024-12-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.71.0 (2024-12-03.2)
+
+* **Feature**: Amazon S3 Metadata stores object metadata in read-only, fully managed Apache Iceberg metadata tables that you can query. You can create metadata table configurations for S3 general purpose buckets.
+
+# v1.70.0 (2024-12-02)
+
+* **Feature**: Amazon S3 introduces support for AWS Dedicated Local Zones
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.69.0 (2024-11-25)
 
 * **Feature**: Amazon Simple Storage Service / Features: Add support for ETag based conditional writes in PutObject and CompleteMultiPartUpload APIs to prevent unintended object modifications.

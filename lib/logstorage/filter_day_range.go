@@ -85,6 +85,8 @@ func (fr *filterDayRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 		bm.resetBits()
 	case valueTypeUint64:
 		bm.resetBits()
+	case valueTypeInt64:
+		bm.resetBits()
 	case valueTypeFloat64:
 		bm.resetBits()
 	case valueTypeIPv4:

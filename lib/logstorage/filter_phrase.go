@@ -95,6 +95,8 @@ func (fp *filterPhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32ByExactValue(bs, ch, bm, phrase, tokens)
 	case valueTypeUint64:
 		matchUint64ByExactValue(bs, ch, bm, phrase, tokens)
+	case valueTypeInt64:
+		matchInt64ByExactValue(bs, ch, bm, phrase, tokens)
 	case valueTypeFloat64:
 		matchFloat64ByPhrase(bs, ch, bm, phrase, tokens)
 	case valueTypeIPv4:
@@ -158,7 +160,7 @@ func matchFloat64ByPhrase(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase 
 	// This means we cannot search in binary representation of floating-point numbers.
 	// Instead, we need searching for the whole phrase in string representation
 	// of floating-point numbers :(
-	_, ok := tryParseFloat64(phrase)
+	_, ok := tryParseFloat64Exact(phrase)
 	if !ok && phrase != "." && phrase != "+" && phrase != "-" {
 		bm.resetBits()
 		return
@@ -396,6 +398,13 @@ func applyToBlockResultGeneric(br *blockResult, bm *bitmap, fieldName, phrase st
 		matchColumnByPhraseGeneric(br, bm, c, phrase, matchFunc)
 	case valueTypeUint64:
 		_, ok := tryParseUint64(phrase)
+		if !ok {
+			bm.resetBits()
+			return
+		}
+		matchColumnByPhraseGeneric(br, bm, c, phrase, matchFunc)
+	case valueTypeInt64:
+		_, ok := tryParseInt64(phrase)
 		if !ok {
 			bm.resetBits()
 			return

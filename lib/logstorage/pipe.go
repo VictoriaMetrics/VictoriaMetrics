@@ -32,7 +32,7 @@ type pipe interface {
 	// initFilterInValues must return new pipe with the initialized values for 'in(subquery)' filters (recursively).
 	//
 	// It is OK to return the pipe itself if it doesn't contain 'in(subquery)' filters.
-	initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error)
+	initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error)
 }
 
 // pipeProcessor must process a single pipe.
@@ -276,6 +276,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'top' pipe: %w", err)
 		}
 		return pt, nil
+	case lex.isKeyword("union"):
+		pu, err := parsePipeUnion(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'union' pipe: %w", err)
+		}
+		return pu, nil
 	case lex.isKeyword("uniq"):
 		pu, err := parsePipeUniq(lex)
 		if err != nil {
@@ -359,6 +365,7 @@ var pipeNames = func() map[string]struct{} {
 		"stats", "by",
 		"stream_context",
 		"top",
+		"union",
 		"uniq",
 		"unpack_json",
 		"unpack_logfmt",

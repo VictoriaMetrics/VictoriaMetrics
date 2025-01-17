@@ -1,5 +1,11 @@
-![Type: library](https://img.shields.io/badge/Type-library-informational?style=flat-square) ![Version: 0.0.34](https://img.shields.io/badge/Version-0.0.34-informational?style=flat-square)
-[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-common)
+
+
+![Version](https://img.shields.io/badge/0.0.37-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-common%2Fchangelog%2F%230037)
+![ArtifactHub](https://img.shields.io/badge/ArtifactHub-informational?logoColor=white&color=417598&logo=artifacthub&link=https%3A%2F%2Fartifacthub.io%2Fpackages%2Fhelm%2Fvictoriametrics%2Fvictoria-metrics-common)
+![License](https://img.shields.io/github/license/VictoriaMetrics/helm-charts?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2Fhelm-charts%2Fblob%2Fmaster%2FLICENSE)
+![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
+![X](https://img.shields.io/twitter/follow/VictoriaMetrics?style=flat&label=Follow&color=black&logo=x&labelColor=black&link=https%3A%2F%2Fx.com%2FVictoriaMetrics)
+![Reddit](https://img.shields.io/reddit/subreddit-subscribers/VictoriaMetrics?style=flat&label=Join&labelColor=red&logoColor=white&logo=reddit&link=https%3A%2F%2Fwww.reddit.com%2Fr%2FVictoriaMetrics)
 
 Victoria Metrics Common - contains shared templates for all Victoria Metrics helm charts
 
@@ -32,7 +38,7 @@ The following table lists the template functions of the chart and description.
     <tr>
       <td>unitTest</td>
       <td>bool</td>
-      <td><pre class="helm-vars-default-value" language-yaml" lang="">
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
 <code class="language-yaml">false
 </code>
 </pre>

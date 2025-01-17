@@ -40,7 +40,7 @@ func (pu *pipeUnroll) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
 
-func (pu *pipeUnroll) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pu *pipeUnroll) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
@@ -111,9 +111,9 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.wctx.init(workerID, pup.ppNext, false, false, br)
 
 	bm := &shard.bm
-	bm.init(br.rowsLen)
-	bm.setBits()
 	if iff := pu.iff; iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pup.ppNext.writeBlock(workerID, br)
@@ -133,7 +133,7 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 		if needStop(pup.stopCh) {
 			return
 		}
-		if bm.isSetBit(rowIdx) {
+		if pu.iff == nil || bm.isSetBit(rowIdx) {
 			shard.writeUnrolledFields(pu.fields, columnValues, rowIdx)
 		} else {
 			fields = fields[:0]

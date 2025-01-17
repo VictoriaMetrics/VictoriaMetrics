@@ -69,7 +69,7 @@ func insertRows(rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 		}
 		for j, value := range values {
 			timestamp := timestamps[j]
-			if err := ic.WriteDataPointUnchecked(ctx.metricNameBuf, nil, timestamp, value); err != nil {
+			if err := ic.WriteDataPoint(ctx.metricNameBuf, nil, timestamp, value); err != nil {
 				return err
 			}
 		}

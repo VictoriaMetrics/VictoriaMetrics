@@ -13,6 +13,7 @@ func TestParsePipeJoinSuccess(t *testing.T) {
 	f(`join by (foo) (error)`)
 	f(`join by (foo, bar) (a:b | fields x, y)`)
 	f(`join by (foo) (a:b) prefix c`)
+	f(`join by (foo) (bar | join by (x, z) (y))`)
 }
 
 func TestParsePipeJoinFailure(t *testing.T) {
