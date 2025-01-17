@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+## [v1.109.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.109.1)
+
+Released at 2025-01-17
+
 * SECURITY: upgrade base docker image (Alpine) from 3.21.0 to 3.21.2. See [Alpine 3.21.1 release notes](https://alpinelinux.org/posts/Alpine-3.21.1-released.html) and [Alpine 3.21.2 release notes](https://alpinelinux.org/posts/Alpine-3.18.11-3.19.6-3.20.5-3.21.2-released.html).
 
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): log metric names for signals with unsupported delta temporality on ingestion via [OpenTelemetry protocol for metrics](https://docs.victoriametrics.com/#sending-data-via-opentelemetry). Thanks to @chenlujjj for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8018).
