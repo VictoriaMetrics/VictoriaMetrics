@@ -109,7 +109,7 @@ Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`.
             <th>Parameter</th>
             <th>Type</th>
             <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -217,11 +217,11 @@ If a time zone is omitted, a timezone-naive datetime is used.
 <table class="params">
     <thead>
         <tr>
-            <th>Format</th>
+            <th><span style="white-space: nowrap;">Format</span></th>
             <th>Parameter</th>
-            <th>Type</th>
+            <th><span style="white-space: nowrap;">Type</span></th>
             <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -282,11 +282,11 @@ If a time zone is omitted, a timezone-naive datetime is used.
 <table class="params">
     <thead>
         <tr>
-            <th>Format</th>
+            <th><span style="white-space: nowrap;">Format</span></th>
             <th>Parameter</th>
-            <th>Type</th>
+            <th><span style="white-space: nowrap;">Type</span></th>
             <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -405,7 +405,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
 
 <span style="white-space: nowrap;">`n_jobs`</span>
             </td>
-            <td>int</td>
+            <td><span style="white-space: nowrap;">int</span></td>
             <td>
 
 `1`
@@ -440,17 +440,17 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
 
 <span style="white-space: nowrap;">Example</span>
             </th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
         <tr>
-            <td>ISO 8601</td>
+            <td><span style="white-space: nowrap;">ISO 8601</span></td>
             <td>
 
 <span style="white-space: nowrap;">`from_iso`</span>
             </td>
-            <td>str</td>
+            <td><span style="white-space: nowrap;">str</span></td>
             <td>
 
 `"2022-04-01T00:00:00Z", "2022-04-01T00:00:00+01:00", "2022-04-01T00:00:00+0100", "2022-04-01T00:00:00+01"`
@@ -499,11 +499,11 @@ The same *explicit* logic as in [Periodic scheduler](#periodic-scheduler)
 <table class="params">
     <thead>
         <tr>
-            <th>Format</th>
+            <th><span style="white-space: nowrap;">Format</span></th>
             <th>Parameter</th>
-            <th>Type</th>
-            <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Type</span></th>
+            <th><span style="white-space: nowrap;">Example</span></th>
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -516,7 +516,7 @@ The same *explicit* logic as in [Periodic scheduler](#periodic-scheduler)
             <td rowspan=2>str</td>
             <td>
 
-`"PT1M", "P1H"`
+<span style="white-space: nowrap;">`"PT1M"`</span>, `"P1H"`
             </td>
             <td rowspan=2>What time range to use for training the models. Must be at least 1 second.</td>
         </tr>
@@ -537,9 +537,9 @@ In `BacktestingScheduler`, the inference window is *implicitly* defined as a per
         <tr>
             <th>Format</th>
             <th>Parameter</th>
-            <th>Type</th>
-            <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Type</span></th>
+            <th><span style="white-space: nowrap;">Example</span></th>
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -552,7 +552,7 @@ In `BacktestingScheduler`, the inference window is *implicitly* defined as a per
             <td rowspan=2>str</td>
             <td>
 
-`"PT1M", "P1H"`
+<span style="white-space: nowrap;">`"PT1M"`</span>, `"P1H"`
             </td>
             <td rowspan=2>What time range to use previously trained model to infer on new data until next retrain happens.</td>
         </tr>

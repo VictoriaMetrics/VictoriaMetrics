@@ -98,7 +98,7 @@ reader:
         <tr>
             <th>Parameter</th>
             <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
