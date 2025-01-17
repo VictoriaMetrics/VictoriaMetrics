@@ -374,8 +374,8 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 	preFunc := func(_ []float64, _ []int64) {}
 	funcName = strings.ToLower(funcName)
 	if rollupFuncsRemoveCounterResets[funcName] {
-		preFunc = func(values []float64, _ []int64) {
-			removeCounterResets(values)
+		preFunc = func(values []float64, timestamps []int64) {
+			removeCounterResets(values, timestamps, lookbackDelta)
 		}
 	}
 	samplesScannedPerCall := rollupFuncsSamplesScannedPerCall[funcName]
@@ -486,8 +486,8 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 		for _, aggrFuncName := range aggrFuncNames {
 			if rollupFuncsRemoveCounterResets[aggrFuncName] {
 				// There is no need to save the previous preFunc, since it is either empty or the same.
-				preFunc = func(values []float64, _ []int64) {
-					removeCounterResets(values)
+				preFunc = func(values []float64, timestamps []int64) {
+					removeCounterResets(values, timestamps, lookbackDelta)
 				}
 			}
 			rf := rollupAggrFuncs[aggrFuncName]
@@ -900,7 +900,7 @@ func getMaxPrevInterval(scrapeInterval int64) int64 {
 	return scrapeInterval + scrapeInterval/8
 }
 
-func removeCounterResets(values []float64) {
+func removeCounterResets(values []float64, timestamps []int64, maxStalenessInterval int64) {
 	// There is no need in handling NaNs here, since they are impossible
 	// on values from vmstorage.
 	if len(values) == 0 {
@@ -908,9 +908,18 @@ func removeCounterResets(values []float64) {
 	}
 	var correction float64
 	prevValue := values[0]
+	prevTS := timestamps[0]
 	for i, v := range values {
 		d := v - prevValue
 		if d < 0 {
+			currTS := timestamps[i]
+			if maxStalenessInterval > 0 && ((currTS - prevTS) > maxStalenessInterval) {
+				// don't apply correction if previous sample exceeds staleness interval
+				correction = 0
+				prevValue = v
+				prevTS = timestamps[i]
+				continue
+			}
 			if (-d * 8) < prevValue {
 				// This is likely a partial counter reset.
 				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2787
@@ -920,6 +929,7 @@ func removeCounterResets(values []float64) {
 			}
 		}
 		prevValue = v
+		prevTS = timestamps[i]
 		values[i] = v + correction
 		// Check again, there could be precision error in float operations,
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5571
