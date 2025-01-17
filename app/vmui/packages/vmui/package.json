@@ -63,7 +63,7 @@
   "devDependencies": {
     "@babel/plugin-proposal-nullish-coalescing-operator": "^7.16.7",
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
-    "@types/react-dom": "^18.3.0",
+    "@types/react-dom": "^18.3.5",
     "@typescript-eslint/eslint-plugin": "^5.15.0",
     "@typescript-eslint/parser": "^5.15.0",
     "cross-env": "^7.0.3",
