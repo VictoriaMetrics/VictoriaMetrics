@@ -195,7 +195,8 @@ The `2MB` limit is hadrcoded and is unlikely to change.
 
 ## How to determine which log fields occupy the most of disk space?
 
-[Run](https://docs.victoriametrics.com/victorialogs/querying/) the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query:
+[Run](https://docs.victoriametrics.com/victorialogs/querying/) the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query
+based on [`block_stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#block_stats-pipe):
 
 ```logsql
 _time:1d
@@ -228,3 +229,32 @@ Log field may occupy a lot of disk space if it contains values with many unique 
 Such values do not compress well, so they occupy a lot of disk space. If you want reducing the amounts of occupied disk space,
 then either remove the given log field from the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs
 or remove the unique parts from the log field before ingesting it into VictoriaLogs.
+
+## How to detect the most frequently seen logs?
+
+Use [`collapse_nums` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#collapse_nums-pipe).
+For example, the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query
+returns top 10 the most freqently seen [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) over the last hour:
+
+```logsql
+_time:1h | collapse_nums prettify | top 10 (_msg)
+```
+
+Add [`_stream` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to the `top (...)` list in order to get top 10 the most frequently seen logs with the `_stream` field:
+
+```logsql
+_time:1h | collapse_nums prettify | top 10 (_stream, _msg)
+```
+
+## How to get field names seen in the selected logs?
+
+Use [`field_names` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#field_names-pipe).
+For example, the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query
+returns all the [field names](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) seen
+across all the logs during the last hour:
+
+```logsql
+_time:1h | field_names | sort by (name)
+```
+
+The `hits` field contains an estimated number of logs with the given log field.
