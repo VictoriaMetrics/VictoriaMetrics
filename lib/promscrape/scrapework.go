@@ -344,13 +344,13 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 				sw.seriesLimiter = nil
 			}
 			return
-		case <-ticker.C:
-			t := time.Now().UnixNano() / 1e6
+		case tt := <-ticker.C:
+			t := tt.UnixNano() / 1e6
 			if d := math.Abs(float64(t - timestamp)); d > 0 && d/float64(scrapeInterval.Milliseconds()) > 0.1 {
 				// Too big jitter. Adjust timestamp
 				timestamp = t
 			}
-			sw.scrapeAndLogError(timestamp, t)
+			sw.scrapeAndLogError(timestamp, time.Now().UnixNano()/1e6)
 		}
 	}
 }
