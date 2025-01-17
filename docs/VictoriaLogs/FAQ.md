@@ -192,3 +192,39 @@ VictoriaLogs because per-block overhead translates to a single log record, and
 this overhead is big. 
 
 The `2MB` limit is hadrcoded and is unlikely to change.
+
+## How to determine which log fields occupy the most of disk space?
+
+[Run](https://docs.victoriametrics.com/victorialogs/querying/) the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query:
+
+```logsql
+_time:1d
+  | block_stats
+  | stats by (field)
+      sum(values_bytes) as values_bytes,
+      sum(bloom_bytes) as bloom_bytes,
+      sum(rows) as rows
+  | math
+      (values_bytes+bloom_bytes) as total_bytes,
+      round(total_bytes / rows, 0.01) as bytes_per_row
+  | first 10 (total_bytes desc)
+```
+
+This query returns top 10 [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+which occupy the most of disk space across the logs ingested during the last day. The occupied disk space
+is returned in the `total_bytes` field.
+
+If you use [VictoriaLogs web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)
+or [Grafana plugin for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/),
+then make sure the selected time range covers the last day. Otherwise the query above returns
+results on the intersection of the last day and the selected time range.
+
+See [why the log field occupies a lot of disk space](#why-the-log-field-occupies-a-lot-of-disk-space).
+
+## Why the log field occupies a lot of disk space?
+
+See [how to determine which log fields occupy the most of disk space](#how-to-determine-which-log-fields-occupy-the-most-of-diskspace).
+Log field may occupy a lot of disk space if it contains values with many unique parts (aka "random" values).
+Such values do not compress well, so they occupy a lot of disk space. If you want reducing the amounts of occupied disk space,
+then either remove the given log field from the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs
+or remove the unique parts from the log field before ingesting it into VictoriaLogs.
