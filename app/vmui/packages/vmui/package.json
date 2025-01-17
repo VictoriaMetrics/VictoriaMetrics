@@ -22,7 +22,7 @@
     "preact": "^10.23.2",
     "qs": "^6.13.0",
     "react-input-mask": "^2.0.4",
-    "react-router-dom": "^6.26.2",
+    "react-router-dom": "^6.28.1",
     "sass": "^1.78.0",
     "source-map-explorer": "^2.5.3",
     "typescript": "~4.6.2",
