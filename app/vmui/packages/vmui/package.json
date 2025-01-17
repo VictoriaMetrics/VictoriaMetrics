@@ -7,7 +7,7 @@
     "@types/lodash.debounce": "^4.0.9",
     "@types/lodash.get": "^4.4.9",
     "@types/lodash.throttle": "^4.1.9",
-    "@types/node": "^22.5.4",
+    "@types/node": "^22.10.2",
     "@types/qs": "^6.9.15",
     "@types/react-input-mask": "^3.0.5",
     "@types/react-router-dom": "^5.3.3",
