@@ -36,7 +36,7 @@ import (
 //     https://bucket-name.s3express-zone-id.region-code.amazonaws.com/key-name .
 //     Path-style requests are not supported. For more information about endpoints in
 //     Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information
-//     about endpoints in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
+//     about endpoints in Local Zones, see [Available Local Zone for directory buckets]in the Amazon S3 User Guide.
 //
 // The operation supports two modes for the response: verbose and quiet. By
 // default, the operation uses verbose mode in which the response includes the
@@ -104,13 +104,13 @@ import (
 //
 // [AbortMultipartUpload]
 //
-// [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [ListParts]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html
 // [AbortMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html
 // [UploadPart]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html
 // [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 // [CompleteMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html
-// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [Available Local Zone for directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [MFA Delete]: https://docs.aws.amazon.com/AmazonS3/latest/dev/Versioning.html#MultiFactorAuthenticationDelete
 // [CreateMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html
 func (c *Client) DeleteObjects(ctx context.Context, params *DeleteObjectsInput, optFns ...func(*Options)) (*DeleteObjectsOutput, error) {
@@ -189,21 +189,22 @@ type DeleteObjectsInput struct {
 	// For the x-amz-checksum-algorithm  header, replace  algorithm  with the
 	// supported algorithm from the following list:
 	//
-	//   - CRC32
+	//   - CRC-32
 	//
-	//   - CRC32C
+	//   - CRC-32C
 	//
-	//   - SHA1
+	//   - CRC-64NVME
 	//
-	//   - SHA256
+	//   - SHA-1
+	//
+	//   - SHA-256
 	//
 	// For more information, see [Checking object integrity] in the Amazon S3 User Guide.
 	//
 	// If the individual checksum value you provide through x-amz-checksum-algorithm
 	// doesn't match the checksum algorithm you set through
-	// x-amz-sdk-checksum-algorithm , Amazon S3 ignores any provided ChecksumAlgorithm
-	// parameter and uses the checksum algorithm that matches the provided value in
-	// x-amz-checksum-algorithm .
+	// x-amz-sdk-checksum-algorithm , Amazon S3 fails the request with a BadDigest
+	// error.
 	//
 	// If you provide an individual checksum, Amazon S3 ignores any provided
 	// ChecksumAlgorithm parameter.
@@ -347,6 +348,9 @@ func (c *Client) addOperationDeleteObjectsMiddlewares(stack *middleware.Stack, o
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
+		return err
+	}
 	if err = addOpDeleteObjectsValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -430,6 +434,7 @@ func addDeleteObjectsInputChecksumMiddlewares(stack *middleware.Stack, options O
 	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getDeleteObjectsRequestAlgorithmMember,
 		RequireChecksum:                  true,
+		RequestChecksumCalculation:       options.RequestChecksumCalculation,
 		EnableTrailingChecksum:           false,
 		EnableComputeSHA256PayloadHash:   true,
 		EnableDecodedContentLengthHeader: true,

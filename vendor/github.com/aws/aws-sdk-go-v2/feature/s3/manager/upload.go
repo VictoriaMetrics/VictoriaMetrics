@@ -584,6 +584,8 @@ func (a completedParts) Less(i, j int) bool {
 // upload will perform a multipart upload using the firstBuf buffer containing
 // the first chunk of data.
 func (u *multiuploader) upload(firstBuf io.ReadSeeker, cleanup func()) (*UploadOutput, error) {
+	u.initChecksumAlgorithm()
+
 	var params s3.CreateMultipartUploadInput
 	awsutil.Copy(&params, u.in)
 
@@ -750,6 +752,25 @@ func (u *multiuploader) send(c chunk) error {
 	u.m.Unlock()
 
 	return nil
+}
+
+func (u *multiuploader) initChecksumAlgorithm() {
+	if u.in.ChecksumAlgorithm != "" {
+		return
+	}
+
+	switch {
+	case u.in.ChecksumCRC32 != nil:
+		u.in.ChecksumAlgorithm = types.ChecksumAlgorithmCrc32
+	case u.in.ChecksumCRC32C != nil:
+		u.in.ChecksumAlgorithm = types.ChecksumAlgorithmCrc32c
+	case u.in.ChecksumSHA1 != nil:
+		u.in.ChecksumAlgorithm = types.ChecksumAlgorithmSha1
+	case u.in.ChecksumSHA256 != nil:
+		u.in.ChecksumAlgorithm = types.ChecksumAlgorithmSha256
+	default:
+		u.in.ChecksumAlgorithm = types.ChecksumAlgorithmCrc32
+	}
 }
 
 // geterr is a thread-safe getter for the error object

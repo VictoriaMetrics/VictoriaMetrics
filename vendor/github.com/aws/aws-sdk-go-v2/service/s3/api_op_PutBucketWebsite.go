@@ -126,7 +126,7 @@ type PutBucketWebsiteInput struct {
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumAlgorithm types.ChecksumAlgorithm
 
-	// The base64-encoded 128-bit MD5 digest of the data. You must use this header as
+	// The Base64 encoded 128-bit MD5 digest of the data. You must use this header as
 	// a message integrity check to verify that the request body was not corrupted in
 	// transit. For more information, see [RFC 1864].
 	//
@@ -227,6 +227,9 @@ func (c *Client) addOperationPutBucketWebsiteMiddlewares(stack *middleware.Stack
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
+		return err
+	}
 	if err = addOpPutBucketWebsiteValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -310,6 +313,7 @@ func addPutBucketWebsiteInputChecksumMiddlewares(stack *middleware.Stack, option
 	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getPutBucketWebsiteRequestAlgorithmMember,
 		RequireChecksum:                  true,
+		RequestChecksumCalculation:       options.RequestChecksumCalculation,
 		EnableTrailingChecksum:           false,
 		EnableComputeSHA256PayloadHash:   true,
 		EnableDecodedContentLengthHeader: true,

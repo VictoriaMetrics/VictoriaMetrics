@@ -203,7 +203,7 @@ func (ps *pipeStats) initRateFuncs(step int64) {
 const stateSizeBudgetChunk = 1 << 20
 
 func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
-	maxStateSize := int64(float64(memory.Allowed()) * 0.3)
+	maxStateSize := int64(float64(memory.Allowed()) * 0.4)
 
 	shards := make([]pipeStatsProcessorShard, workersCount)
 	for i := range shards {
@@ -326,7 +326,7 @@ func (psm *pipeStatsGroupMap) getPipeStatsGroupUint64(n uint64) *pipeStatsGroup 
 
 	psg = psm.newPipeStatsGroup()
 	psm.u64[n] = psg
-	psm.shard.stateSizeBudget -= 8
+	psm.shard.stateSizeBudget -= int(unsafe.Sizeof(n) + unsafe.Sizeof(psg))
 
 	return psg
 }
@@ -339,7 +339,7 @@ func (psm *pipeStatsGroupMap) getPipeStatsGroupNegativeInt64(n int64) *pipeStats
 
 	psg = psm.newPipeStatsGroup()
 	psm.negative64[uint64(n)] = psg
-	psm.shard.stateSizeBudget -= 8
+	psm.shard.stateSizeBudget -= int(unsafe.Sizeof(n) + unsafe.Sizeof(psg))
 
 	return psg
 }
@@ -370,7 +370,7 @@ func (psm *pipeStatsGroupMap) newPipeStatsGroup() *pipeStatsGroup {
 	psg := psm.a.newPipeStatsGroup()
 	psg.funcs = psm.shard.ps.funcs
 	psg.sfps = sfps
-	psm.shard.stateSizeBudget -= int(unsafe.Sizeof(psg) + unsafe.Sizeof(sfps[0])*uintptr(len(sfps)))
+	psm.shard.stateSizeBudget -= int(unsafe.Sizeof(*psg) + unsafe.Sizeof(sfps[0])*uintptr(len(sfps)))
 
 	return psg
 }
@@ -874,8 +874,8 @@ func (psp *pipeStatsProcessor) mergeShardsParallel() ([]*pipeStatsGroupMap, erro
 				}
 				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
 				h := xxhash.Sum64(k)
-				shardIdx := h % uint64(len(perCPU))
-				perCPU[shardIdx].u64[n] = psg
+				cpuIdx := h % uint64(len(perCPU))
+				perCPU[cpuIdx].u64[n] = psg
 			}
 			for n, psg := range psm.negative64 {
 				if needStop(psp.stopCh) {
@@ -883,16 +883,16 @@ func (psp *pipeStatsProcessor) mergeShardsParallel() ([]*pipeStatsGroupMap, erro
 				}
 				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
 				h := xxhash.Sum64(k)
-				shardIdx := h % uint64(len(perCPU))
-				perCPU[shardIdx].negative64[n] = psg
+				cpuIdx := h % uint64(len(perCPU))
+				perCPU[cpuIdx].negative64[n] = psg
 			}
 			for k, psg := range psm.strings {
 				if needStop(psp.stopCh) {
 					return
 				}
 				h := xxhash.Sum64(bytesutil.ToUnsafeBytes(k))
-				shardIdx := h % uint64(len(perCPU))
-				perCPU[shardIdx].strings[k] = psg
+				cpuIdx := h % uint64(len(perCPU))
+				perCPU[cpuIdx].strings[k] = psg
 			}
 
 			perShardMaps[idx] = perCPU
@@ -902,9 +902,6 @@ func (psp *pipeStatsProcessor) mergeShardsParallel() ([]*pipeStatsGroupMap, erro
 	wg.Wait()
 	if needStop(psp.stopCh) {
 		return nil, nil
-	}
-	if n := psp.stateSizeBudget.Load(); n < 0 {
-		return nil, fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", psp.ps.String(), psp.maxStateSize/(1<<20))
 	}
 
 	// Merge per-shard entries into perShardMaps[0]
@@ -923,9 +920,6 @@ func (psp *pipeStatsProcessor) mergeShardsParallel() ([]*pipeStatsGroupMap, erro
 	wg.Wait()
 	if needStop(psp.stopCh) {
 		return nil, nil
-	}
-	if n := psp.stateSizeBudget.Load(); n < 0 {
-		return nil, fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", psp.ps.String(), psp.maxStateSize/(1<<20))
 	}
 
 	// Filter out maps without entries
@@ -1055,6 +1049,12 @@ func parseStatsFunc(lex *lexer) (statsFunc, error) {
 			return nil, fmt.Errorf("cannot parse 'count_uniq_hash' func: %w", err)
 		}
 		return sus, nil
+	case lex.isKeyword("histogram"):
+		shs, err := parseStatsHistogram(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'histogram' func: %w", err)
+		}
+		return shs, nil
 	case lex.isKeyword("max"):
 		sms, err := parseStatsMax(lex)
 		if err != nil {
@@ -1144,6 +1144,7 @@ var statsNames = []string{
 	"count_empty",
 	"count_uniq",
 	"count_uniq_hash",
+	"histogram",
 	"max",
 	"median",
 	"min",

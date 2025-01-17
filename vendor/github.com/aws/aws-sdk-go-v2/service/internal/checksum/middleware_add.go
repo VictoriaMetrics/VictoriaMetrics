@@ -1,6 +1,7 @@
 package checksum
 
 import (
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/smithy-go/middleware"
 )
 
@@ -14,10 +15,15 @@ type InputMiddlewareOptions struct {
 	// and true, or false if no algorithm is specified.
 	GetAlgorithm func(interface{}) (string, bool)
 
-	// Forces the middleware to compute the input payload's checksum. The
-	// request will fail if the algorithm is not specified or unable to compute
-	// the checksum.
+	// RequireChecksum indicates whether operation model forces middleware to compute the input payload's checksum.
+	// If RequireChecksum is set to true, checksum will be calculated and RequestChecksumCalculation will be ignored,
+	// otherwise RequestChecksumCalculation will be used to indicate if checksum will be calculated
 	RequireChecksum bool
+
+	// RequestChecksumCalculation is the user config to opt-in/out request checksum calculation. If RequireChecksum is
+	// set to true, checksum will be calculated and this field will be ignored, otherwise
+	// RequestChecksumCalculation will be used to indicate if checksum will be calculated
+	RequestChecksumCalculation aws.RequestChecksumCalculation
 
 	// Enables support for wrapping the serialized input payload with a
 	// content-encoding: aws-check wrapper, and including a trailer for the
@@ -72,7 +78,9 @@ func AddInputMiddleware(stack *middleware.Stack, options InputMiddlewareOptions)
 
 	// Initial checksum configuration look up middleware
 	err = stack.Initialize.Add(&setupInputContext{
-		GetAlgorithm: options.GetAlgorithm,
+		GetAlgorithm:               options.GetAlgorithm,
+		RequireChecksum:            options.RequireChecksum,
+		RequestChecksumCalculation: options.RequestChecksumCalculation,
 	}, middleware.Before)
 	if err != nil {
 		return err
@@ -81,7 +89,6 @@ func AddInputMiddleware(stack *middleware.Stack, options InputMiddlewareOptions)
 	stack.Build.Remove("ContentChecksum")
 
 	inputChecksum := &computeInputPayloadChecksum{
-		RequireChecksum:                  options.RequireChecksum,
 		EnableTrailingChecksum:           options.EnableTrailingChecksum,
 		EnableComputePayloadHash:         options.EnableComputeSHA256PayloadHash,
 		EnableDecodedContentLengthHeader: options.EnableDecodedContentLengthHeader,
@@ -94,7 +101,6 @@ func AddInputMiddleware(stack *middleware.Stack, options InputMiddlewareOptions)
 	if options.EnableTrailingChecksum {
 		trailerMiddleware := &addInputChecksumTrailer{
 			EnableTrailingChecksum:           inputChecksum.EnableTrailingChecksum,
-			RequireChecksum:                  inputChecksum.RequireChecksum,
 			EnableComputePayloadHash:         inputChecksum.EnableComputePayloadHash,
 			EnableDecodedContentLengthHeader: inputChecksum.EnableDecodedContentLengthHeader,
 		}
@@ -126,6 +132,9 @@ type OutputMiddlewareOptions struct {
 	// mode and true, or false if no mode is specified.
 	GetValidationMode func(interface{}) (string, bool)
 
+	// ResponseChecksumValidation is the user config to opt-in/out response checksum validation
+	ResponseChecksumValidation aws.ResponseChecksumValidation
+
 	// The set of checksum algorithms that should be used for response payload
 	// checksum validation. The algorithm(s) used will be a union of the
 	// output's returned algorithms and this set.
@@ -134,7 +143,7 @@ type OutputMiddlewareOptions struct {
 	ValidationAlgorithms []string
 
 	// If set the middleware will ignore output multipart checksums. Otherwise
-	// an checksum format error will be returned by the middleware.
+	// a checksum format error will be returned by the middleware.
 	IgnoreMultipartValidation bool
 
 	// When set the middleware will log when output does not have checksum or
@@ -150,7 +159,8 @@ type OutputMiddlewareOptions struct {
 // checksum.
 func AddOutputMiddleware(stack *middleware.Stack, options OutputMiddlewareOptions) error {
 	err := stack.Initialize.Add(&setupOutputContext{
-		GetValidationMode: options.GetValidationMode,
+		GetValidationMode:          options.GetValidationMode,
+		ResponseChecksumValidation: options.ResponseChecksumValidation,
 	}, middleware.Before)
 	if err != nil {
 		return err

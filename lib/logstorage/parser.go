@@ -396,6 +396,7 @@ func (q *Query) CanReturnLastNResults() bool {
 			*pipeTop,
 			*pipeSort,
 			*pipeStats,
+			*pipeUnion,
 			*pipeUniq:
 			return false
 		}
@@ -508,6 +509,70 @@ func (q *Query) optimize() {
 
 	// Substitute '*' prefixFilter with filterNoop in order to avoid reading _msg data.
 	q.f = removeStarFilters(q.f)
+
+	// Merge multiple {...} filters into a single one.
+	q.f = mergeFiltersStream(q.f)
+}
+
+func mergeFiltersStream(f filter) filter {
+	fa, ok := f.(*filterAnd)
+	if !ok {
+		return f
+	}
+	fss := make([]*filterStream, 0, len(fa.filters))
+	otherFilters := make([]filter, 0, len(fa.filters))
+	for _, f := range fa.filters {
+		fs, ok := f.(*filterStream)
+		if ok {
+			fss = append(fss, fs)
+		} else {
+			otherFilters = append(otherFilters, f)
+		}
+	}
+	if len(fss) == 0 {
+		// Nothing to merge
+		return f
+	}
+
+	fss = mergeFiltersStreamInternal(fss)
+	filters := make([]filter, 0, len(fss)+len(otherFilters))
+	for _, fs := range fss {
+		filters = append(filters, fs)
+	}
+	filters = append(filters, otherFilters...)
+	fa = &filterAnd{
+		filters: filters,
+	}
+	return fa
+}
+
+func mergeFiltersStreamInternal(fss []*filterStream) []*filterStream {
+	if len(fss) < 2 {
+		return fss
+	}
+
+	for _, fs := range fss {
+		if len(fs.f.orFilters) != 1 {
+			// Cannot merge or filters :(
+			return fss
+		}
+	}
+
+	var tfs []*streamTagFilter
+	for _, fs := range fss {
+		tfs = append(tfs, fs.f.orFilters[0].tagFilters...)
+	}
+	return []*filterStream{
+		{
+			f: &StreamFilter{
+				orFilters: []*andStreamFilter{
+					{
+						tagFilters: tfs,
+					},
+				},
+			},
+		},
+	}
 }
 
 // GetStatsByFields returns `by (...)` fields from the last `stats` pipe at q.

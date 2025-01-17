@@ -92,6 +92,12 @@ type Options struct {
 	// The region to send requests to. (Required)
 	Region string
 
+	// Indicates how user opt-in/out request checksum calculation
+	RequestChecksumCalculation aws.RequestChecksumCalculation
+
+	// Indicates how user opt-in/out response checksum validation
+	ResponseChecksumValidation aws.ResponseChecksumValidation
+
 	// RetryMaxAttempts specifies the maximum number attempts an API client will call
 	// an operation that fails with a retryable error. A value of 0 is ignored, and
 	// will not be used to configure the API client created default retryer, or modify
