@@ -19,7 +19,7 @@
     "lodash.throttle": "^4.1.1",
     "marked": "^14.1.2",
     "marked-emoji": "^1.4.2",
-    "preact": "^10.23.2",
+    "preact": "^10.25.3",
     "qs": "^6.13.0",
     "react-input-mask": "^2.0.4",
     "react-router-dom": "^6.26.2",
