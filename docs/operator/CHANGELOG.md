@@ -13,6 +13,13 @@ aliases:
 
 ## tip
 
+* Dependency: [vmoperator](https://docs.victoriametrics.com/operator/): Updated default versions for VM apps to v1.109.0 version
+
+* FEATURE: [vmscrapeconfig](https://docs.victoriametrics.com/operator/resources/vmscrapeconfig/): allow multiple values for `zone` at `gceSDConfigs`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1217) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/operator/resources/vmagent/): properly build `relabelConfigs` with empty string values for `separator` and `replacement` fields. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1214) for details.
+* BUGFIX: [converter]((https://docs.victoriametrics.com/operator/migration/#objects-conversion)): properly format `regex` single value expression at Prometheus Operator CRD `relabelings` and `metricsRelabelings`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1219) for details.
+
+
 ## [v0.51.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.51.3)
 
 **Release date:** 8 Jan 2025
