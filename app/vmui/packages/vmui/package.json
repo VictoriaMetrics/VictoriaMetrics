@@ -9,7 +9,7 @@
     "@types/lodash.throttle": "^4.1.9",
     "@types/node": "^22.5.4",
     "@types/qs": "^6.9.15",
-    "@types/react-input-mask": "^3.0.5",
+    "@types/react-input-mask": "^3.0.6",
     "@types/react-router-dom": "^5.3.3",
     "@types/webpack-env": "^1.18.5",
     "classnames": "^2.5.1",
