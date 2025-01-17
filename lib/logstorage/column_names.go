@@ -27,27 +27,19 @@ func mustReadColumnNames(r filestream.ReadCloser) ([]string, map[string]uint64) 
 		logger.Panicf("FATAL: %s: %s", r.Path(), err)
 	}
 
-	columnNameIDs, err := getColumnNameIDs(columnNames)
-	if err != nil {
-		logger.Panicf("BUG: %s: %s; columnNames=%v", r.Path(), err, columnNameIDs)
-	}
+	columnNameIDs := getColumnNameIDs(columnNames)
 
 	return columnNames, columnNameIDs
 }
 
-func getColumnNameIDs(columnNames []string) (map[string]uint64, error) {
-	m := make(map[uint64]string, len(columnNames))
+func getColumnNameIDs(columnNames []string) map[string]uint64 {
 	columnNameIDs := make(map[string]uint64, len(columnNames))
 	for i, name := range columnNames {
 		id := uint64(i)
-		if prevName, ok := m[id]; ok {
-			return nil, fmt.Errorf("duplicate column name id=%d for columns %q and %q", id, prevName, name)
-		}
-		m[id] = name
 		columnNameIDs[name] = id
 	}
 
-	return columnNameIDs, nil
+	return columnNameIDs
 }
 
 func marshalColumnNames(dst []byte, columnNames []string) []byte {
