@@ -16,10 +16,10 @@ import (
 
 // PrometheusQuerier contains methods available to Prometheus-like HTTP API for Querying
 type PrometheusQuerier interface {
-	PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
-	PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
-	PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
-	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
+	PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) (*PrometheusAPIV1QueryResponse, int)
+	PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) (*PrometheusAPIV1QueryResponse, int)
+	PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) (*PrometheusAPIV1QueryResponse, int)
+	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) (*PrometheusAPIV1SeriesResponse, int)
 }
 
 // PrometheusWriter contains methods available to Prometheus-like HTTP API for Writing new data

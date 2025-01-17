@@ -77,7 +77,10 @@ func (app *Vmstorage) VmselectAddr() string {
 func (app *Vmstorage) ForceFlush(t *testing.T) {
 	t.Helper()
 
-	app.cli.Get(t, app.forceFlushURL, http.StatusOK)
+	_, statusCode := app.cli.Get(t, app.forceFlushURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("failed to force flush data")
+	}
 }
 
 // String returns the string representation of the vmstorage app state.

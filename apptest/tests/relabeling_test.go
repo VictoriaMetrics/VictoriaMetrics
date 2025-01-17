@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 
@@ -70,10 +71,14 @@ func TestSingleIngestionWithRelabeling(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				return sut.PrometheusAPIV1Query(t, opts.query, at.QueryOpts{
+				res, statusCode := sut.PrometheusAPIV1Query(t, opts.query, at.QueryOpts{
 					Time: opts.qtime,
 					Step: opts.step,
 				})
+				if statusCode != http.StatusOK {
+					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
+				}
+				return res
 			},
 			Want: &at.PrometheusAPIV1QueryResponse{Data: &at.QueryData{Result: wantResult}},
 			CmpOpts: []cmp.Option{
