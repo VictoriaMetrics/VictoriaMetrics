@@ -374,7 +374,7 @@ _Appears in:_
 | `host_aliases` | HostAliasesUnderScore provides mapping for ip and hostname,<br />that would be propagated to pod,<br />cannot be used with HostNetwork.<br />Has Priority over hostAliases field | _[HostAlias](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#hostalias-v1-core) array_ | false |
 | `imagePullSecrets` | ImagePullSecrets An optional list of references to secrets in the same namespace<br />to use for pulling images from registries<br />see https://kubernetes.io/docs/concepts/containers/images/#referring-to-an-imagepullsecrets-on-a-pod | _[LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#localobjectreference-v1-core) array_ | false |
 | `initContainers` | InitContainers allows adding initContainers to the pod definition.<br />Any errors during the execution of an initContainer will lead to a restart of the Pod.<br />More info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/ | _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#container-v1-core) array_ | false |
-| `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
+| `minReadySeconds` | MinReadySeconds defines a minimum number of seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
 | `priorityClassName` | PriorityClassName class assigned to the Pods | _string_ | false |
@@ -511,6 +511,7 @@ _Appears in:_
 | `authorization` | Authorization header to use on every scrape request. | _[Authorization](#authorization)_ | false |
 | `basicAuth` | BasicAuth information to use on every scrape request. | _[BasicAuth](#basicauth)_ | false |
 | `datacenter` | Consul Datacenter name, if not provided it will use the local Consul Agent Datacenter. | _string_ | false |
+| `filter` | Filter defines filter for /v1/catalog/services requests<br />See https://developer.hashicorp.com/consul/api-docs/features/filtering | _string_ | false |
 | `followRedirects` | Configure whether HTTP requests follow HTTP 3xx redirects.<br />If unset, use its default value. | _boolean_ | false |
 | `namespace` | Namespaces are only supported in Consul Enterprise. | _string_ | false |
 | `nodeMeta` | Node metadata key/value pairs to filter nodes for a given service. | _object (keys:string, values:string)_ | false |
@@ -1027,7 +1028,7 @@ _Appears in:_
 | `port` | The port to scrape metrics from. If using the public IP address, this must<br />instead be specified in the relabeling rule. | _integer_ | false |
 | `project` | The Google Cloud Project ID | _string_ | true |
 | `tagSeparator` | The tag separator is used to separate the tags on concatenation | _string_ | false |
-| `zone` | The zone of the scrape targets. If you need multiple zones use multiple GCESDConfigs. | _string_ | true |
+| `zone` | The zone of the scrape targets. If you need multiple zones use multiple GCESDConfigs. | _[StringOrArray](#stringorarray)_ | true |
 
 
 #### HTTPAuth
@@ -2044,7 +2045,7 @@ _Appears in:_
 | --- | --- | --- | --- |
 | `conditions` | Known .status.conditions.type are: "Available", "Progressing", and "Degraded" | _[Condition](#condition) array_ | true |
 | `observedGeneration` | ObservedGeneration defines current generation picked by operator for the<br />reconcile | _integer_ | true |
-| `reason` | Reason defines human readadble error reason | _string_ | true |
+| `reason` | Reason defines human readable error reason | _string_ | true |
 | `updateStatus` | UpdateStatus defines a status for update rollout | _[UpdateStatus](#updatestatus)_ | true |
 
 
@@ -2134,6 +2135,7 @@ StringOrArray is a helper type for storing string or array of string.
 
 
 _Appears in:_
+- [GCESDConfig](#gcesdconfig)
 - [RelabelConfig](#relabelconfig)
 - [StreamAggrRule](#streamaggrrule)
 - [UnauthorizedAccessConfigURLMap](#unauthorizedaccessconfigurlmap)
@@ -2525,7 +2527,7 @@ _Appears in:_
 | `logLevel` | LogLevel for VictoriaLogs to be configured with. | _string_ | false |
 | `logNewStreams` | LogNewStreams Whether to log creation of new streams; this can be useful for debugging of high cardinality issues with log streams; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields | _boolean_ | true |
 | `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
-| `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
+| `minReadySeconds` | MinReadySeconds defines a minimum number of seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
 | `podMetadata` | PodMetadata configures Labels and Annotations which are propagated to the VLogs pods. | _[EmbeddedObjectMetadata](#embeddedobjectmetadata)_ | false |
@@ -2693,7 +2695,7 @@ _Appears in:_
 | `logLevel` | LogLevel for VMAgent to be configured with.<br />INFO, WARN, ERROR, FATAL, PANIC | _string_ | false |
 | `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `maxScrapeInterval` | MaxScrapeInterval allows limiting maximum scrape interval for VMServiceScrape, VMPodScrape and other scrapes<br />If interval is higher than defined limit, `maxScrapeInterval` will be used. | _string_ | true |
-| `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
+| `minReadySeconds` | MinReadySeconds defines a minimum number of seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `minScrapeInterval` | MinScrapeInterval allows limiting minimal scrape interval for VMServiceScrape, VMPodScrape and other scrapes<br />If interval is lower than defined limit, `minScrapeInterval` will be used. | _string_ | true |
 | `nodeScrapeNamespaceSelector` | NodeScrapeNamespaceSelector defines Namespaces to be selected for VMNodeScrape discovery.<br />Works in combination with Selector.<br />NamespaceSelector nil - only objects at VMAgent namespace.<br />Selector nil - only objects at NamespaceSelector namespaces.<br />If both nil - behaviour controlled by selectAllByDefault | _[LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#labelselector-v1-meta)_ | false |
 | `nodeScrapeRelabelTemplate` | NodeScrapeRelabelTemplate defines relabel config, that will be added to each VMNodeScrape.<br />it's useful for adding specific labels to all targets | _[RelabelConfig](#relabelconfig) array_ | false |
@@ -2900,7 +2902,7 @@ _Appears in:_
 | `logFormat` | LogFormat for VMAlert to be configured with.<br />default or json | _string_ | false |
 | `logLevel` | LogLevel for VMAlert to be configured with. | _string_ | false |
 | `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
-| `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
+| `minReadySeconds` | MinReadySeconds defines a minimum number of seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `notifier` | Notifier prometheus alertmanager endpoint spec. Required at least one of notifier or notifiers when there are alerting rules. e.g. http://127.0.0.1:9093<br />If specified both notifier and notifiers, notifier will be added as last element to notifiers.<br />only one of notifier options could be chosen: notifierConfigRef or notifiers +  notifier | _[VMAlertNotifierSpec](#vmalertnotifierspec)_ | false |
 | `notifierConfigRef` | NotifierConfigRef reference for secret with notifier configuration for vmalert<br />only one of notifier options could be chosen: notifierConfigRef or notifiers +  notifier | _[SecretKeySelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#secretkeyselector-v1-core)_ | false |
@@ -3047,7 +3049,7 @@ _Appears in:_
 | `logFormat` | LogFormat for VMAlertmanager to be configured with. | _string_ | false |
 | `logLevel` | Log level for VMAlertmanager to be configured with. | _string_ | false |
 | `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
-| `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
+| `minReadySeconds` | MinReadySeconds defines a minimum number of seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
 | `podDisruptionBudget` | PodDisruptionBudget created by operator | _[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec)_ | false |
@@ -3153,7 +3155,7 @@ _Appears in:_
 | `initContainers` | InitContainers allows adding initContainers to the pod definition.<br />Any errors during the execution of an initContainer will lead to a restart of the Pod.<br />More info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/ | _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#container-v1-core) array_ | false |
 | `logFormat` | LogFormat for vmauth<br />default or json | _string_ | false |
 | `logLevel` | LogLevel for vmauth container. | _string_ | false |
-| `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
+| `minReadySeconds` | MinReadySeconds defines a minimum number of seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
 | `podDisruptionBudget` | PodDisruptionBudget created by operator | _[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec)_ | false |
@@ -3205,6 +3207,7 @@ _Appears in:_
 | `dnsConfig` | Specifies the DNS parameters of a pod.<br />Parameters specified here will be merged to the generated DNS<br />configuration based on DNSPolicy. | _[PodDNSConfig](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#poddnsconfig-v1-core)_ | false |
 | `dnsPolicy` | DNSPolicy sets DNS policy for the pod | _[DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#dnspolicy-v1-core)_ | false |
 | `drop_src_path_prefix_parts` | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.<br />See [here](https://docs.victoriametrics.com/vmauth#dropping-request-path-prefix) for more details. | _integer_ | false |
+| `dump_request_on_errors` | DumpRequestOnErrors instructs vmauth to return detailed request params to the client<br />if routing rules don't allow to forward request to the backends.<br />Useful for debugging `src_hosts` and `src_headers` based routing rules<br /><br />available since v1.107.0 vmauth version | _boolean_ | false |
 | `externalConfig` | ExternalConfig defines a source of external VMAuth configuration.<br />If it's defined, configuration for vmauth becomes unmanaged and operator'll not create any related secrets/config-reloaders | _[ExternalConfig](#externalconfig)_ | false |
 | `extraArgs` | ExtraArgs that will be passed to the application container<br />for example remoteWrite.tmpDataPath: /tmp | _object (keys:string, values:string)_ | false |
 | `extraEnvs` | ExtraEnvs that will be passed to the application container | _[EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#envvar-v1-core) array_ | false |
@@ -3223,7 +3226,7 @@ _Appears in:_
 | `logLevel` | LogLevel for victoria metrics single to be configured with. | _string_ | false |
 | `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
 | `max_concurrent_requests` | MaxConcurrentRequests defines max concurrent requests per user<br />300 is default value for vmauth | _integer_ | false |
-| `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
+| `minReadySeconds` | MinReadySeconds defines a minimum number of seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
 | `podDisruptionBudget` | PodDisruptionBudget created by operator | _[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec)_ | false |
@@ -3277,6 +3280,7 @@ _Appears in:_
 | `default_url` | DefaultURLs backend url for non-matching paths filter<br />usually used for default backend with error message | _string array_ | true |
 | `discover_backend_ips` | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | _boolean_ | true |
 | `drop_src_path_prefix_parts` | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.<br />See [here](https://docs.victoriametrics.com/vmauth#dropping-request-path-prefix) for more details. | _integer_ | false |
+| `dump_request_on_errors` | DumpRequestOnErrors instructs vmauth to return detailed request params to the client<br />if routing rules don't allow to forward request to the backends.<br />Useful for debugging `src_hosts` and `src_headers` based routing rules<br /><br />available since v1.107.0 vmauth version | _boolean_ | false |
 | `headers` | Headers represent additional http headers, that vmauth uses<br />in form of ["header_key: header_value"]<br />multiple values for header key:<br />["header_key: value1,value2"]<br />it's available since 1.68.0 version of vmauth | _string array_ | false |
 | `ip_filters` | IPFilters defines per target src ip filters<br />supported only with enterprise version of [vmauth](https://docs.victoriametrics.com/vmauth/#ip-filters) | _[VMUserIPFilters](#vmuseripfilters)_ | false |
 | `load_balancing_policy` | LoadBalancingPolicy defines load balancing policy to use for backend urls.<br />Supported policies: least_loaded, first_available.<br />See [here](https://docs.victoriametrics.com/vmauth#load-balancing) for more details (default "least_loaded") | _string_ | false |
@@ -3408,7 +3412,7 @@ _Appears in:_
 | `insertPorts` | InsertPorts - additional listen ports for data ingestion. | _[InsertPorts](#insertports)_ | true |
 | `logFormat` | LogFormat for VMInsert to be configured with.<br />default or json | _string_ | false |
 | `logLevel` | LogLevel for VMInsert to be configured with. | _string_ | false |
-| `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
+| `minReadySeconds` | MinReadySeconds defines a minimum number of seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
 | `podDisruptionBudget` | PodDisruptionBudget created by operator | _[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec)_ | false |
@@ -3850,7 +3854,7 @@ _Appears in:_
 | `initContainers` | InitContainers allows adding initContainers to the pod definition.<br />Any errors during the execution of an initContainer will lead to a restart of the Pod.<br />More info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/ | _[Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.30/#container-v1-core) array_ | false |
 | `logFormat` | LogFormat for VMSelect to be configured with.<br />default or json | _string_ | false |
 | `logLevel` | LogLevel for VMSelect to be configured with. | _string_ | false |
-| `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
+| `minReadySeconds` | MinReadySeconds defines a minimum number of seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
 | `persistentVolume` | Storage - add persistent volume for cacheMountPath<br />its useful for persistent cache<br />use storage instead of persistentVolume. | _[StorageSpec](#storagespec)_ | false |
@@ -3985,7 +3989,7 @@ _Appears in:_
 | `logFormat` | LogFormat for VMSingle to be configured with. | _string_ | false |
 | `logLevel` | LogLevel for victoria metrics single to be configured with. | _string_ | false |
 | `managedMetadata` | ManagedMetadata defines metadata that will be added to the all objects<br />created by operator for the given CustomResource | _[ManagedObjectsMetadata](#managedobjectsmetadata)_ | true |
-| `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
+| `minReadySeconds` | MinReadySeconds defines a minimum number of seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
 | `podMetadata` | PodMetadata configures Labels and Annotations which are propagated to the VMSingle pods. | _[EmbeddedObjectMetadata](#embeddedobjectmetadata)_ | false |
@@ -4089,7 +4093,7 @@ _Appears in:_
 | `logLevel` | LogLevel for VMStorage to be configured with. | _string_ | false |
 | `maintenanceInsertNodeIDs` | MaintenanceInsertNodeIDs - excludes given node ids from insert requests routing, must contain pod suffixes - for pod-0, id will be 0 and etc.<br />lets say, you have pod-0, pod-1, pod-2, pod-3. to exclude pod-0 and pod-3 from insert routing, define nodeIDs: [0,3].<br />Useful at storage expanding, when you want to rebalance some data at cluster. | _integer array_ | false |
 | `maintenanceSelectNodeIDs` | MaintenanceInsertNodeIDs - excludes given node ids from select requests routing, must contain pod suffixes - for pod-0, id will be 0 and etc. | _integer array_ | true |
-| `minReadySeconds` | MinReadySeconds defines a minim number os seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
+| `minReadySeconds` | MinReadySeconds defines a minimum number of seconds to wait before starting update next pod<br />if previous in healthy state<br />Has no effect for VLogs and VMSingle | _integer_ | false |
 | `nodeSelector` | NodeSelector Define which Nodes the Pods are scheduled on. | _object (keys:string, values:string)_ | false |
 | `paused` | Paused If set to true all actions on the underlying managed objects are not<br />going to be performed, except for delete actions. | _boolean_ | false |
 | `podDisruptionBudget` | PodDisruptionBudget created by operator | _[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec)_ | false |
@@ -4157,6 +4161,7 @@ _Appears in:_
 | `default_url` | DefaultURLs backend url for non-matching paths filter<br />usually used for default backend with error message | _string array_ | true |
 | `discover_backend_ips` | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | _boolean_ | true |
 | `drop_src_path_prefix_parts` | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.<br />See [here](https://docs.victoriametrics.com/vmauth#dropping-request-path-prefix) for more details. | _integer_ | false |
+| `dump_request_on_errors` | DumpRequestOnErrors instructs vmauth to return detailed request params to the client<br />if routing rules don't allow to forward request to the backends.<br />Useful for debugging `src_hosts` and `src_headers` based routing rules<br /><br />available since v1.107.0 vmauth version | _boolean_ | false |
 | `headers` | Headers represent additional http headers, that vmauth uses<br />in form of ["header_key: header_value"]<br />multiple values for header key:<br />["header_key: value1,value2"]<br />it's available since 1.68.0 version of vmauth | _string array_ | false |
 | `ip_filters` | IPFilters defines per target src ip filters<br />supported only with enterprise version of [vmauth](https://docs.victoriametrics.com/vmauth/#ip-filters) | _[VMUserIPFilters](#vmuseripfilters)_ | false |
 | `load_balancing_policy` | LoadBalancingPolicy defines load balancing policy to use for backend urls.<br />Supported policies: least_loaded, first_available.<br />See [here](https://docs.victoriametrics.com/vmauth#load-balancing) for more details (default "least_loaded") | _string_ | false |
@@ -4205,6 +4210,7 @@ _Appears in:_
 | `disable_secret_creation` | DisableSecretCreation skips related secret creation for vmuser | _boolean_ | true |
 | `discover_backend_ips` | DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS. | _boolean_ | true |
 | `drop_src_path_prefix_parts` | DropSrcPathPrefixParts is the number of `/`-delimited request path prefix parts to drop before proxying the request to backend.<br />See [here](https://docs.victoriametrics.com/vmauth#dropping-request-path-prefix) for more details. | _integer_ | false |
+| `dump_request_on_errors` | DumpRequestOnErrors instructs vmauth to return detailed request params to the client<br />if routing rules don't allow to forward request to the backends.<br />Useful for debugging `src_hosts` and `src_headers` based routing rules<br /><br />available since v1.107.0 vmauth version | _boolean_ | false |
 | `generatePassword` | GeneratePassword instructs operator to generate password for user<br />if spec.password if empty. | _boolean_ | false |
 | `headers` | Headers represent additional http headers, that vmauth uses<br />in form of ["header_key: header_value"]<br />multiple values for header key:<br />["header_key: value1,value2"]<br />it's available since 1.68.0 version of vmauth | _string array_ | false |
 | `ip_filters` | IPFilters defines per target src ip filters<br />supported only with enterprise version of [vmauth](https://docs.victoriametrics.com/vmauth/#ip-filters) | _[VMUserIPFilters](#vmuseripfilters)_ | false |

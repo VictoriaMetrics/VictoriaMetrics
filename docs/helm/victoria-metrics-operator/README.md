@@ -1,5 +1,11 @@
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![Version: 0.40.1](https://img.shields.io/badge/Version-0.40.1-informational?style=flat-square)
-[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/victoriametrics)](https://artifacthub.io/packages/helm/victoriametrics/victoria-metrics-operator)
+
+
+![Version](https://img.shields.io/badge/0.40.4-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-operator%2Fchangelog%2F%230404)
+![ArtifactHub](https://img.shields.io/badge/ArtifactHub-informational?logoColor=white&color=417598&logo=artifacthub&link=https%3A%2F%2Fartifacthub.io%2Fpackages%2Fhelm%2Fvictoriametrics%2Fvictoria-metrics-operator)
+![License](https://img.shields.io/github/license/VictoriaMetrics/helm-charts?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2Fhelm-charts%2Fblob%2Fmaster%2FLICENSE)
+![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
+![X](https://img.shields.io/twitter/follow/VictoriaMetrics?style=flat&label=Follow&color=black&logo=x&labelColor=black&link=https%3A%2F%2Fx.com%2FVictoriaMetrics)
+![Reddit](https://img.shields.io/reddit/subreddit-subscribers/VictoriaMetrics?style=flat&label=Join&labelColor=red&logoColor=white&logo=reddit&link=https%3A%2F%2Fwww.reddit.com%2Fr%2FVictoriaMetrics)
 
 Victoria Metrics Operator
 
@@ -220,6 +226,15 @@ extraVolumeMounts:
 ```
 
 This configuration disables the automatic ServiceAccount token mount and mounts the token explicitly.
+
+## Enable hostNetwork on operator
+
+When running managed Kubernetes such as EKS with custom CNI solution like Cilium or Calico, EKS control plane cannot communicate with CNI's pod CIDR.
+In that scenario, we need to run webhook service i.e operator with hostNetwork so that it can share node's network namespace.
+
+```yaml
+hostNetwork: true
+```
 
 ## Parameters
 
@@ -559,6 +574,17 @@ requests:
 </pre>
 </td>
       <td><p>Image pull secrets, that can be shared across multiple helm charts</p>
+</td>
+    </tr>
+    <tr>
+      <td>hostNetwork</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Enable hostNetwork on operator deployment</p>
 </td>
     </tr>
     <tr>

@@ -90,6 +90,8 @@ func (fp *filterPrefix) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32ByPrefix(bs, ch, bm, prefix)
 	case valueTypeUint64:
 		matchUint64ByPrefix(bs, ch, bm, prefix)
+	case valueTypeInt64:
+		matchInt64ByPrefix(bs, ch, bm, prefix)
 	case valueTypeFloat64:
 		matchFloat64ByPrefix(bs, ch, bm, prefix, tokens)
 	case valueTypeIPv4:
@@ -153,7 +155,7 @@ func matchFloat64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix 
 	// This means we cannot search in binary representation of floating-point numbers.
 	// Instead, we need searching for the whole prefix in string representation
 	// of floating-point numbers :(
-	_, ok := tryParseFloat64(prefix)
+	_, ok := tryParseFloat64Exact(prefix)
 	if !ok && prefix != "." && prefix != "+" && prefix != "-" && !strings.HasPrefix(prefix, "e") && !strings.HasPrefix(prefix, "E") {
 		bm.resetBits()
 		return
@@ -286,6 +288,31 @@ func matchUint64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix s
 	bbPool.Put(bb)
 }
 
+func matchInt64ByPrefix(bs *blockSearch, ch *columnHeader, bm *bitmap, prefix string) {
+	if prefix == "" {
+		// Fast path - all the int64 values match an empty prefix aka `*`
+		return
+	}
+	// The prefix may contain a part of the number.
+	// For example, `foo:12*` must match `12` and `123`.
+	// This means we cannot search in binary representation of numbers.
+	// Instead, we need searching for the whole prefix in string representation of numbers :(
+	if prefix != "-" {
+		n, ok := tryParseInt64(prefix)
+		if !ok || n < int64(ch.minValue) || n > int64(ch.maxValue) {
+			bm.resetBits()
+			return
+		}
+	}
+	// There is no need in matching against bloom filters, since tokens is empty.
+	bb := bbPool.Get()
+	visitValues(bs, ch, bm, func(v string) bool {
+		s := toInt64String(bs, bb, v)
+		return matchPrefix(s, prefix)
+	})
+	bbPool.Put(bb)
+}
+
 func matchPrefix(s, prefix string) bool {
 	if len(prefix) == 0 {
 		// Special case - empty prefix matches any string.
@@ -366,5 +393,14 @@ func toUint64String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string 
 	}
 	n := unmarshalUint64(v)
 	bb.B = marshalUint64String(bb.B[:0], n)
+	return bytesutil.ToUnsafeString(bb.B)
+}
+
+func toInt64String(bs *blockSearch, bb *bytesutil.ByteBuffer, v string) string {
+	if len(v) != 8 {
+		logger.Panicf("FATAL: %s: unexpected length for binary representation of int64 number; got %d; want 8", bs.partPath(), len(v))
+	}
+	n := unmarshalInt64(v)
+	bb.B = marshalInt64String(bb.B[:0], n)
 	return bytesutil.ToUnsafeString(bb.B)
 }

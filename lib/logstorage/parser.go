@@ -396,6 +396,7 @@ func (q *Query) CanReturnLastNResults() bool {
 			*pipeTop,
 			*pipeSort,
 			*pipeStats,
+			*pipeUnion,
 			*pipeUniq:
 			return false
 		}
@@ -508,6 +509,70 @@ func (q *Query) optimize() {
 
 	// Substitute '*' prefixFilter with filterNoop in order to avoid reading _msg data.
 	q.f = removeStarFilters(q.f)
+
+	// Merge multiple {...} filters into a single one.
+	q.f = mergeFiltersStream(q.f)
+}
+
+func mergeFiltersStream(f filter) filter {
+	fa, ok := f.(*filterAnd)
+	if !ok {
+		return f
+	}
+	fss := make([]*filterStream, 0, len(fa.filters))
+	otherFilters := make([]filter, 0, len(fa.filters))
+	for _, f := range fa.filters {
+		fs, ok := f.(*filterStream)
+		if ok {
+			fss = append(fss, fs)
+		} else {
+			otherFilters = append(otherFilters, f)
+		}
+	}
+	if len(fss) == 0 {
+		// Nothing to merge
+		return f
+	}
+
+	fss = mergeFiltersStreamInternal(fss)
+	filters := make([]filter, 0, len(fss)+len(otherFilters))
+	for _, fs := range fss {
+		filters = append(filters, fs)
+	}
+	filters = append(filters, otherFilters...)
+	fa = &filterAnd{
+		filters: filters,
+	}
+	return fa
+}
+
+func mergeFiltersStreamInternal(fss []*filterStream) []*filterStream {
+	if len(fss) < 2 {
+		return fss
+	}
+
+	for _, fs := range fss {
+		if len(fs.f.orFilters) != 1 {
+			// Cannot merge or filters :(
+			return fss
+		}
+	}
+
+	var tfs []*streamTagFilter
+	for _, fs := range fss {
+		tfs = append(tfs, fs.f.orFilters[0].tagFilters...)
+	}
+	return []*filterStream{
+		{
+			f: &StreamFilter{
+				orFilters: []*andStreamFilter{
+					{
+						tagFilters: tfs,
+					},
+				},
+			},
+		},
+	}
 }
 
 // GetStatsByFields returns `by (...)` fields from the last `stats` pipe at q.
@@ -1173,6 +1238,8 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterSequence(lex, fieldName)
 	case lex.isKeyword("string_range"):
 		return parseFilterStringRange(lex, fieldName)
+	case lex.isKeyword("value_type"):
+		return parseFilterValueType(lex, fieldName)
 	case lex.isKeyword(`"`, "'", "`"):
 		return nil, fmt.Errorf("improperly quoted string")
 	case lex.isKeyword(",", ")", "[", "]"):
@@ -1409,9 +1476,19 @@ func parseFilterStringRange(lex *lexer, fieldName string) (filter, error) {
 			minValue:  args[0],
 			maxValue:  args[1],
 
-			stringRepr: fmt.Sprintf("string_range(%s, %s)", quoteTokenIfNeeded(args[0]), quoteTokenIfNeeded(args[1])),
+			stringRepr: fmt.Sprintf("%s(%s, %s)", funcName, quoteTokenIfNeeded(args[0]), quoteTokenIfNeeded(args[1])),
 		}
 		return fr, nil
+	})
+}
+
+func parseFilterValueType(lex *lexer, fieldName string) (filter, error) {
+	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
+		fv := &filterValueType{
+			fieldName: fieldName,
+			valueType: arg,
+		}
+		return fv, nil
 	})
 }
 
@@ -2535,6 +2612,7 @@ var reservedKeywords = func() map[string]struct{} {
 		"re",
 		"seq",
 		"string_range",
+		"value_type",
 	}
 	m := make(map[string]struct{}, len(kws))
 	for _, kw := range kws {

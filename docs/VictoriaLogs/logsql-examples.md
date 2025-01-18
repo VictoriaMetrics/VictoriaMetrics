@@ -24,11 +24,11 @@ the returned logs by some field (usually [`_time` field](https://docs.victoriame
 _time:5m | sort by (_time)
 ```
 
-If the number of returned logs is too big, it may be limited with the [`last` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#last-pipe).
+If the number of returned logs is too big, it may be limited with the [`first` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#first-pipe).
 For example, the following query returns 10 most recent logs, which were ingested during the last 5 minutes:
 
 ```logsql
-_time:5m | last 10 by (_time)
+_time:5m | first 10 by (_time desc)
 ```
 
 See also:
@@ -358,7 +358,7 @@ query returns top 10 `/24` subnetworks with the biggest number of logs for the l
 _time:5m | stats by (ip:/24) count() rows | last 10 by (rows)
 ```
 
-This query uses [`last` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#last-pipe) in order to get up to 10 per-subnetwork stats
+This query uses [`first` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#first-pipe) in order to get up to 10 per-subnetwork stats
 with the biggest number of rows.
 
 The query assumes the original logs have `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the IPv4 address.
@@ -369,7 +369,7 @@ extracts IPv4 address from [`_msg` field](https://docs.victoriametrics.com/victo
 `/16` subnetworks with the biggest number of logs for the last 5 minutes:
 
 ```logsql
-_time:5m | extract_regexp "(?P<ip>([0-9]+[.]){3}[0-9]+)" | stats by (ip:/16) count() rows | last 10 by (rows)
+_time:5m | extract_regexp "(?P<ip>([0-9]+[.]){3}[0-9]+)" | stats by (ip:/16) count() rows | first 10 by (rows desc)
 ```
 
 ## How to calculate the number of logs per every value of the given field?
@@ -407,12 +407,12 @@ _time:5m | uniq by (host, path)
 
 ## How to return last N logs for the given query?
 
-Use [`last` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#last-pipe). For example, the following query returns the last 10 logs with the `error`
+Use [`first` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#first-pipe). For example, the following query returns the last 10 logs with the `error`
 [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 over the logs for the last 5 minutes:
 
 ```logsql
-_time:5m error | last 10 by (_time)
+_time:5m error | first 10 by (_time desc)
 ```
 
 It sorts the matching logs by [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) and then selects

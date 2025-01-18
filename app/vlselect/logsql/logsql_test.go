@@ -28,7 +28,7 @@ func TestParseExtraFilters_Success(t *testing.T) {
 	// LogsQL filter
 	f(`foobar`, `foobar`)
 	f(`foo:bar`, `foo:bar`)
-	f(`foo:(bar or baz) error _time:5m {"foo"=bar,baz="z"}`, `(foo:bar or foo:baz) error _time:5m {foo="bar",baz="z"}`)
+	f(`foo:(bar or baz) error _time:5m {"foo"=bar,baz="z"}`, `{foo="bar",baz="z"} (foo:bar or foo:baz) error _time:5m`)
 }
 
 func TestParseExtraFilters_Failure(t *testing.T) {
@@ -77,7 +77,7 @@ func TestParseExtraStreamFilters_Success(t *testing.T) {
 	// LogsQL filter
 	f(`foobar`, `foobar`)
 	f(`foo:bar`, `foo:bar`)
-	f(`foo:(bar or baz) error _time:5m {"foo"=bar,baz="z"}`, `(foo:bar or foo:baz) error _time:5m {foo="bar",baz="z"}`)
+	f(`foo:(bar or baz) error _time:5m {"foo"=bar,baz="z"}`, `{foo="bar",baz="z"} (foo:bar or foo:baz) error _time:5m`)
 }
 
 func TestParseExtraStreamFilters_Failure(t *testing.T) {

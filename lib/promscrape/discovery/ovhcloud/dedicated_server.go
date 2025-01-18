@@ -88,7 +88,7 @@ func getDedicatedServerLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 	return ms, nil
 }
 
-// getVPSDetails get properties of a dedicated server.
+// getDedicatedServerDetails get properties of a dedicated server.
 // Also see: https://eu.api.ovh.com/console/#/dedicated/server/%7BserviceName%7D~GET
 func getDedicatedServerDetails(cfg *apiConfig, dedicatedServerName string) (*dedicatedServer, error) {
 	// get properties.

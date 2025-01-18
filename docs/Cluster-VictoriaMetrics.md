@@ -720,8 +720,8 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   This means that the maximum memory usage and CPU usage a single query can use at `vmstorage` is proportional to `-search.maxUniqueTimeseries`.
   By default, `vmstorage` calculates this limit automatically based on the available memory and the maximum number of concurrent read requests (see `-search.maxConcurrentRequests`).
   The calculated limit will be printed during process start-up logs and exposed as `vm_search_max_unique_timeseries` metric.
-- `-search.maxUniqueTimeseries` at `vmselect` adjusts the limit with the same name at `vmstorage`. The vmstorage limit can be adjusted
-  only to **lower value** and can't exceed it. By default, vmselect doesn't apply limit adjustments.
+- `-search.maxUniqueTimeseries` at `vmselect` adjusts the limit with the same name at `vmstorage`. The limit cannot exceed the
+   value set in vmstorage if the `-search.maxUniqueTimeseries` flag is explicitly defined there. By default, vmselect doesn't apply limit adjustments.
 - `-search.maxQueryDuration` at `vmselect` limits the duration of a single query. If the query takes longer than the given duration, then it is canceled.
   This allows saving CPU and RAM at `vmselect` and `vmstorage` when executing unexpectedly heavy queries.
   The limit can be overridden to a smaller value by passing `timeout` GET parameter.
@@ -761,8 +761,8 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
 - `-search.maxDeleteSeries` at `vmselect` limits the number of unique time
   series that can be deleted by a single
   [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series)
-  call. Deleting too many time series may require big amount of CPU and memory
-  at `vmstorage` and this limit guards against unplanned resource usage spikes.
+  call. The duration is limited via `-search.maxDeleteDuration` flag. Deleting too many time series may require big
+  amount of CPU and memory at `vmstorage` and this limit guards against unplanned resource usage spikes.
   Also see [How to delete time series](#how-to-delete-time-series) section to
   learn about different ways of deleting series.
 - `-search.maxTagKeys` at `vmstorage` limits the number of items, which may be returned from
@@ -1576,8 +1576,13 @@ Below is the output for `/path/to/vmselect -help`:
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -search.logSlowQueryDuration duration
      Log queries with execution time exceeding this value. Zero disables slow query logging. See also -search.logQueryMemoryUsage (default 5s)
+  -search.maxBinaryOpPushdownLabelValues int
+     The maximum number of values for a label in the first expression that can be extracted as a common label filter and pushed down to the second expression in a binary operation. 
+     A larger value makes the pushed-down filter more complex but fewer time series will be returned. This flag is useful when selective label contains numerous values, for example `instance`, and storage resources are abundant. (default 100)
   -search.maxConcurrentRequests int
      The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration and -search.maxMemoryPerQuery (default 16)
+  -search.maxDeleteDuration duration
+     The maximum duration for /api/v1/admin/tsdb/delete_series call (default 5m)
   -search.maxDeleteSeries int
      The maximum number of time series, which can be deleted using /api/v1/admin/tsdb/delete_series. This option allows limiting memory usage (default 1000000)
   -search.maxExportDuration duration
@@ -1633,7 +1638,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxTagValueSuffixesPerSearch int
      The maximum number of tag value suffixes returned from /metrics/find (default 100000)
   -search.maxUniqueTimeseries int
-     The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage. The limit can't exceed the corresponding -search.maxUniqueTimeseries limit on vmstorage, it can be only set to lower values. (default 0)
+     The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage. The limit can't exceed the corresponding value set in vmstorage if the `-search.maxUniqueTimeseries` flag is explicitly defined there. (default 0)
   -search.maxWorkersPerQuery int
      The maximum number of CPU cores a single query can use. The default value should work good for most cases. The flag can be set to lower values for improving performance of big number of concurrently executed queries. The flag can be set to bigger values for improving performance of heavy queries, which scan big number of time series (>10K) and/or big number of samples (>100M). There is no sense in setting this flag to values bigger than the number of CPU cores available on the system (default 16)
   -search.minStalenessInterval duration
@@ -1921,6 +1926,9 @@ Below is the output for `/path/to/vmstorage -help`:
   -storage.cacheSizeIndexDBDataBlocks size
      Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
+  -storage.cacheSizeIndexDBDataBlocksSparse size
+     Overrides max size for indexdb/dataBlocksSparse cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.cacheSizeIndexDBIndexBlocks size
      Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -1930,6 +1938,10 @@ Below is the output for `/path/to/vmstorage -help`:
   -storage.cacheSizeStorageTSID size
      Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
+  -storage.finalDedupScheduleCheckInterval duration
+     The interval for checking when final deduplication process should be started.Storage unconditionally adds 25% jitter to the interval value on each check evaluation.
+     Changing the interval to the bigger values may delay downsampling, deduplication for historical data.
+     See also https://docs.victoriametrics.com/#deduplication (default 1h0m0s)
   -storage.maxDailySeries int
      The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/#cardinality-limiter . See also -storage.maxHourlySeries
   -storage.maxHourlySeries int

@@ -111,7 +111,7 @@ func (ps *pipeSort) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (ps *pipeSort) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (ps *pipeSort) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return ps, nil
 }
 
@@ -890,31 +890,6 @@ func parseBySortFields(lex *lexer) ([]*bySortField, error) {
 			return nil, fmt.Errorf("unexpected token: %q; expecting ',' or ')'", lex.token)
 		}
 	}
-}
-
-func tryParseInt64(s string) (int64, bool) {
-	if len(s) == 0 {
-		return 0, false
-	}
-
-	isMinus := s[0] == '-'
-	if isMinus {
-		s = s[1:]
-	}
-	u64, ok := tryParseUint64(s)
-	if !ok {
-		return 0, false
-	}
-	if !isMinus {
-		if u64 > math.MaxInt64 {
-			return 0, false
-		}
-		return int64(u64), true
-	}
-	if u64 > -math.MinInt64 {
-		return 0, false
-	}
-	return -int64(u64), true
 }
 
 func marshalJSONKeyValue(dst []byte, k, v string) []byte {

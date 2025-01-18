@@ -12,8 +12,8 @@ var sortLabels = flag.Bool("sortLabels", false, `Whether to sort labels for inco
 	`For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. `+
 	`Enabled sorting for labels can slow down ingestion performance a bit`)
 
-// sortLabelsIfNeeded sorts labels if -sortLabels command-line flag is set
-func (ctx *InsertCtx) sortLabelsIfNeeded() {
+// SortLabelsIfNeeded sorts labels if -sortLabels command-line flag is set
+func (ctx *InsertCtx) SortLabelsIfNeeded() {
 	if *sortLabels {
 		sort.Sort(&ctx.Labels)
 	}

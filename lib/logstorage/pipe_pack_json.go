@@ -37,7 +37,7 @@ func (pp *pipePackJSON) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pp *pipePackJSON) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pp *pipePackJSON) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pp, nil
 }
 

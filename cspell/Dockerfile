@@ -1,12 +1,7 @@
 FROM node:lts-alpine3.20
 
-ENV PATH="/home/node/node_modules/.bin:$PATH"
-
-WORKDIR /home/node
-
-COPY package.json .
-COPY package-lock.json .
-
-RUN npm ci
-
-WORKDIR /victoriametrics
+WORKDIR /opt/node
+COPY yarn.lock package.json .
+RUN yarn install
+WORKDIR /vm
+ENTRYPOINT ["/opt/node/node_modules/.bin/cspell"]

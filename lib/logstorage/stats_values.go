@@ -23,27 +23,23 @@ func (sv *statsValues) updateNeededFields(neededFields fieldsSet) {
 	updateNeededFieldsForStatsFunc(neededFields, sv.fields)
 }
 
-func (sv *statsValues) newStatsProcessor() (statsProcessor, int) {
-	svp := &statsValuesProcessor{
-		sv: sv,
-	}
-	return svp, int(unsafe.Sizeof(*svp))
+func (sv *statsValues) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	return a.newStatsValuesProcessor()
 }
 
 type statsValuesProcessor struct {
-	sv *statsValues
-
 	values []string
 }
 
-func (svp *statsValuesProcessor) updateStatsForAllRows(br *blockResult) int {
-	if svp.limitReached() {
+func (svp *statsValuesProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	sv := sf.(*statsValues)
+	if svp.limitReached(sv) {
 		// Limit on the number of unique values has been reached
 		return 0
 	}
 
 	stateSizeIncrease := 0
-	fields := svp.sv.fields
+	fields := sv.fields
 	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			stateSizeIncrease += svp.updateStatsForAllRowsColumn(c, br)
@@ -105,14 +101,15 @@ func (svp *statsValuesProcessor) updateStatsForAllRowsColumn(c *blockResultColum
 	return stateSizeIncrease
 }
 
-func (svp *statsValuesProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	if svp.limitReached() {
+func (svp *statsValuesProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	sv := sf.(*statsValues)
+	if svp.limitReached(sv) {
 		// Limit on the number of unique values has been reached
 		return 0
 	}
 
 	stateSizeIncrease := 0
-	fields := svp.sv.fields
+	fields := sv.fields
 	if len(fields) == 0 {
 		for _, c := range br.getColumns() {
 			stateSizeIncrease += svp.updateStatsForRowColumn(c, br, rowIdx)
@@ -161,8 +158,9 @@ func (svp *statsValuesProcessor) updateStatsForRowColumn(c *blockResultColumn, b
 	return stateSizeIncrease
 }
 
-func (svp *statsValuesProcessor) mergeState(sfp statsProcessor) {
-	if svp.limitReached() {
+func (svp *statsValuesProcessor) mergeState(sf statsFunc, sfp statsProcessor) {
+	sv := sf.(*statsValues)
+	if svp.limitReached(sv) {
 		return
 	}
 
@@ -170,21 +168,22 @@ func (svp *statsValuesProcessor) mergeState(sfp statsProcessor) {
 	svp.values = append(svp.values, src.values...)
 }
 
-func (svp *statsValuesProcessor) finalizeStats(dst []byte) []byte {
+func (svp *statsValuesProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-chan struct{}) []byte {
+	sv := sf.(*statsValues)
 	items := svp.values
 	if len(items) == 0 {
 		return append(dst, "[]"...)
 	}
 
-	if limit := svp.sv.limit; limit > 0 && uint64(len(items)) > limit {
+	if limit := sv.limit; limit > 0 && uint64(len(items)) > limit {
 		items = items[:limit]
 	}
 
 	return marshalJSONArray(dst, items)
 }
 
-func (svp *statsValuesProcessor) limitReached() bool {
-	limit := svp.sv.limit
+func (svp *statsValuesProcessor) limitReached(sv *statsValues) bool {
+	limit := sv.limit
 	return limit > 0 && uint64(len(svp.values)) > limit
 }
 

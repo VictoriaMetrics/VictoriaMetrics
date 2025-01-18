@@ -42,15 +42,15 @@ type filter struct {
 	labelValue string
 }
 
-func (f filter) inRange(min, max int64) bool {
+func (f filter) inRange(minV, maxV int64) bool {
 	fmin, fmax := f.min, f.max
-	if min == 0 {
-		fmin = min
+	if minV == 0 {
+		fmin = minV
 	}
 	if fmax == 0 {
-		fmax = max
+		fmax = maxV
 	}
-	return min <= fmax && fmin <= max
+	return minV <= fmax && fmin <= maxV
 }
 
 // NewClient creates and validates new Client
