@@ -84,7 +84,9 @@ func (lbr *LazyBlockReader) initialize() error {
 		}
 	}
 
-	pb, err := tsdb.OpenBlock(nil, temp, nil)
+	// Set postingDecoder to nil because
+	// If it is nil then a default decoder is used, compatible with Prometheus v2.
+	pb, err := tsdb.OpenBlock(nil, temp, nil, nil)
 	if err != nil {
 		return fmt.Errorf("failed to open block %q: %s", lbr.ID, err)
 	}

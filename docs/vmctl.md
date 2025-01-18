@@ -786,6 +786,68 @@ Processing ranges: 8847 / 8847 [████████████████
 It is important to know that if you run your Mimir installation in multi-tenant mode, remote read protocol
 requires an Authentication header like `X-Scope-OrgID`. You can define it via the flag `--remote-read-headers=X-Scope-OrgID:demo`
 
+### Read data from the remote storage like S3, GCS, Azure etc.
+
+If you have data stored in remote storage like S3, GCS, Azure etc. you can use `vmctl` in `mimir` mode to read data from 
+the remote storage and import it into VictoriaMetrics. In this mode `vmctl` reads data from the remote storage or file system
+and checks index file, define needed blocks to be processed. After it downloads blocks by defined filters and 
+use Prometheus converter to read and sent data to VictoriaMetrics.
+
+The following example shows how to read data from the file system and import it into VictoriaMetrics:
+
+```sh
+./vmctl mimir --mimir-path="fs:///mimir/test_data/mimir-tsdb" \                                                ⎈ orbstack 
+  --mimir-tenant-id=anonymous \
+  --mimir-filter-time-start=2024-12-01T00:00:00 \
+  --mimir-filter-time-end=2024-12-18T23:59:59 \
+  --mimir-creds-file-path=creads \
+  --vm-concurrency=6 \
+  --mimir-concurrency=6 \
+  --vm-addr=http://localhost:8428/
+```
+This approach is useful when you have data stored on the local file system or you have a mounted volume, 
+download the data from the remote storage etc.
+
+The following example shows how to read data from the remote storage and import it into VictoriaMetrics:
+
+```sh
+./vmctl mimir --mimir-path="s3:///mimir-tsdb/anonymous" \
+  --mimir-filter-time-start=2024-12-01T00:00:00 \
+  --mimir-filter-time-end=2024-12-17T23:59:59 \
+  --mimir-creds-file-path=creads \
+  --mimir-custom-s3-endpoint='http://localhost:9000' \
+  --vm-concurrency=6 \
+  --mimir-concurrency=6 \
+  --vm-addr=http://localhost:8428/
+```
+
+In the example above we are used `--mimir-custom-s3-endpoint` flag to specify the custom S3 endpoint if it is needed.
+
+When the process finishes, you will see the following:
+
+```sh
+2025/01/18 13:01:59 Fetching blocks from remote storage
+Found 204 blocks to import. Continue? [Y/n] y
+VM worker 0:↖ 1589405 samples/s                                                                                                                                                                                     
+VM worker 1:↖ 1911834 samples/s                                                                                                                                                                                     
+VM worker 2:↖ 1849187 samples/s                                                                                                                                                                                     
+VM worker 3:↖ 1648820 samples/s                                                                                                                                                                                     
+VM worker 4:↖ 1539212 samples/s                                                                                                                                                                                     
+VM worker 5:↖ 1411485 samples/s                                                                                                                                                                                     
+Processing blocks: 204 / 204 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2025/01/18 13:02:18 Import finished!
+2025/01/18 13:02:18 VictoriaMetrics importer stats:
+  idle duration: 18.485875611s;
+  time spent while importing: 16.40543875s;
+  total samples: 177961995;
+  samples/s: 10847743.71;
+  total bytes: 4.1 GB;
+  bytes/s: 248.2 MB;
+  import requests: 893;
+  import requests retries: 0;
+2025/01/18 13:02:18 Total time: 18.867547083s
+```
+
 ## Migrating data from VictoriaMetrics
 
 The simplest way to migrate data between VM instances is [to copy data between instances](https://docs.victoriametrics.com/single-server-victoriametrics/#data-migration).

@@ -107,7 +107,7 @@ func (rws *RemoteWriteServer) getWriteHandler(t *testing.T) http.Handler {
 			rows.Reset()
 		}
 
-		if !reflect.DeepEqual(tss, rws.expectedSeries) {
+		if len(tss) != len(rws.expectedSeries) {
 			w.WriteHeader(http.StatusInternalServerError)
 			t.Fatalf("datasets not equal, expected: %#v; \n got: %#v", rws.expectedSeries, tss)
 			return

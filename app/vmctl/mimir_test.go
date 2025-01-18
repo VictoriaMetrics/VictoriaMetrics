@@ -8,14 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/prometheus/prometheus/model/labels"
-	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
-	"github.com/prometheus/prometheus/tsdb/chunkenc"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/mimir"
 	remote_read_integration "github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/testdata/servers_integration_test"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
@@ -23,12 +20,13 @@ import (
 )
 
 const (
-	testSnapshot = "./testdata/snapshots/20250118T124506Z-59d1b952d7eaf547"
-	blockData    = "./testdata/snapshots/20250118T124506Z-59d1b952d7eaf547/01JHWQ445Y2P1TDYB05AEKD6MC"
+	testMimirData  = "testdata/mimir-tsdb"
+	tenantID       = "anonymous"
+	mimirBlockData = "./testdata/mimir-tsdb/anonymous/01JFJBS3YP1SHZ3PJQ6HK76EC3"
 )
 
 // This test simulates close process if user abort it
-func TestPrometheusProcessorRun(t *testing.T) {
+func TestMimirProcessorRun(t *testing.T) {
 
 	f := func(startStr, endStr string, numOfSeries int, resultExpected []vm.TimeSeries) {
 		t.Helper()
@@ -69,19 +67,26 @@ func TestPrometheusProcessorRun(t *testing.T) {
 
 		matchName := "__name__"
 		matchValue := ".*"
-		filter := prometheus.Filter{
+		filter := mimir.Filter{
 			TimeMin:    startStr,
 			TimeMax:    endStr,
 			Label:      matchName,
 			LabelValue: matchValue,
 		}
 
-		runnner, err := prometheus.NewClient(prometheus.Config{
-			Snapshot: testSnapshot,
+		dir, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("cannot get current working directory: %s", err)
+		}
+
+		path := fmt.Sprintf("fs://%s/%s", dir, testMimirData)
+		runnner, err := mimir.NewClient(mimir.Config{
+			TenantID: tenantID,
+			Path:     path,
 			Filter:   filter,
 		})
 		if err != nil {
-			t.Fatalf("cannot create prometheus client: %s", err)
+			t.Fatalf("cannot create mimir client: %s", err)
 		}
 		p := &prometheusProcessor{
 			cl: runnner,
@@ -116,12 +121,12 @@ func TestPrometheusProcessorRun(t *testing.T) {
 		barpool.Disable(false)
 	}()
 
-	b, err := tsdb.OpenBlock(nil, blockData, nil, nil)
+	b, err := tsdb.OpenBlock(nil, mimirBlockData, nil, nil)
 	if err != nil {
 		t.Fatalf("cannot open block: %s", err)
 	}
 	// timestamp is equal to minTime and maxTime from meta.json
-	ss, err := readBlock(b, 1737204082361, 1737204302539)
+	ss, err := readBlock(b, 1734709200000, 1734709320000)
 	if err != nil {
 		t.Fatalf("cannot read block: %s", err)
 	}
@@ -130,79 +135,6 @@ func TestPrometheusProcessorRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot prepare expected data: %s", err)
 	}
-
-	f("2025-01-18T12:40:00Z", "2025-01-18T12:46:00Z", 2792, resultExpected)
-}
-
-func readBlock(b tsdb.BlockReader, timeMin int64, timeMax int64) (storage.SeriesSet, error) {
-	minTime, maxTime := b.Meta().MinTime, b.Meta().MaxTime
-
-	if timeMin != 0 {
-		minTime = timeMin
-	}
-	if timeMax != 0 {
-		maxTime = timeMax
-	}
-
-	q, err := tsdb.NewBlockQuerier(b, minTime, maxTime)
-	if err != nil {
-		return nil, err
-	}
-	matchName := "__name__"
-	matchValue := ".*"
-	ctx := context.Background()
-	ss := q.Select(ctx, false, nil, labels.MustNewMatcher(labels.MatchRegexp, matchName, matchValue))
-	return ss, nil
-}
-
-func prepareExpectedData(ss storage.SeriesSet) ([]vm.TimeSeries, error) {
-	var expectedSeriesSet []vm.TimeSeries
-	var it chunkenc.Iterator
-	for ss.Next() {
-		var name string
-		var labelPairs []vm.LabelPair
-		series := ss.At()
-
-		for _, label := range series.Labels() {
-			if label.Name == "__name__" {
-				name = label.Value
-				continue
-			}
-			labelPairs = append(labelPairs, vm.LabelPair{
-				Name:  label.Name,
-				Value: label.Value,
-			})
-		}
-		if name == "" {
-			return nil, fmt.Errorf("failed to find `__name__` label in labelset for block")
-		}
-
-		var timestamps []int64
-		var values []float64
-		it = series.Iterator(it)
-		for {
-			typ := it.Next()
-			if typ == chunkenc.ValNone {
-				break
-			}
-			if typ != chunkenc.ValFloat {
-				// Skip unsupported values
-				continue
-			}
-			t, v := it.At()
-			timestamps = append(timestamps, t)
-			values = append(values, v)
-		}
-		if err := it.Err(); err != nil {
-			return nil, err
-		}
-		ts := vm.TimeSeries{
-			Name:       name,
-			LabelPairs: labelPairs,
-			Timestamps: timestamps,
-			Values:     values,
-		}
-		expectedSeriesSet = append(expectedSeriesSet, ts)
-	}
-	return expectedSeriesSet, nil
+	// timestamp is equal to minTime and maxTime from meta.json
+	f("2024-12-20T15:40:00Z", "2025-01-18T12:42:00Z", 100, resultExpected)
 }
