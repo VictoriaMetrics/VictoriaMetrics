@@ -37,7 +37,7 @@ type panelSettings struct {
 	Unit        string   `json:"unit,omitempty"`
 	Expr        []string `json:"expr"`
 	Alias       []string `json:"alias,omitempty"`
-	ShowLegend  bool     `json:"showLegend,omitempty"`
+	ShowLegend  *bool    `json:"showLegend"`
 	Width       int      `json:"width,omitempty"`
 }
 
@@ -107,6 +107,17 @@ func collectDashboardsSettings(path string) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse file %s: %w", filePath, err)
 		}
+
+		for i := range ds.Rows {
+			for j := range ds.Rows[i].Panels {
+				// Set default value for ShowLegend = true if it is not specified
+				if ds.Rows[i].Panels[j].ShowLegend == nil {
+					defaultValue := true
+					ds.Rows[i].Panels[j].ShowLegend = &defaultValue
+				}
+			}
+		}
+
 		if len(ds.Rows) > 0 {
 			dss = append(dss, ds)
 		}

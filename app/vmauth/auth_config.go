@@ -7,11 +7,13 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -67,6 +69,7 @@ type UserInfo struct {
 	URLPrefix              *URLPrefix  `yaml:"url_prefix,omitempty"`
 	DiscoverBackendIPs     *bool       `yaml:"discover_backend_ips,omitempty"`
 	URLMaps                []URLMap    `yaml:"url_map,omitempty"`
+	DumpRequestOnErrors    bool        `yaml:"dump_request_on_errors,omitempty"`
 	HeadersConf            HeadersConf `yaml:",inline"`
 	MaxConcurrentRequests  int         `yaml:"max_concurrent_requests,omitempty"`
 	DefaultURL             *URLPrefix  `yaml:"default_url,omitempty"`
@@ -347,6 +350,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	hostToAddrs := make(map[string][]string)
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
+		port := bu.Port()
 		if hostToAddrs[host] != nil {
 			// ips for the given host have been already discovered
 			continue
@@ -363,7 +367,11 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			} else {
 				resolvedAddrs = make([]string, len(addrs))
 				for i, addr := range addrs {
-					resolvedAddrs[i] = fmt.Sprintf("%s:%d", addr.Target, addr.Port)
+					hostPort := port
+					if hostPort == "" && addr.Port > 0 {
+						hostPort = strconv.FormatUint(uint64(addr.Port), 10)
+					}
+					resolvedAddrs[i] = net.JoinHostPort(addr.Target, hostPort)
 				}
 			}
 		} else {
@@ -374,7 +382,7 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 			} else {
 				resolvedAddrs = make([]string, len(addrs))
 				for i, addr := range addrs {
-					resolvedAddrs[i] = addr.String()
+					resolvedAddrs[i] = net.JoinHostPort(addr.String(), port)
 				}
 			}
 		}
@@ -388,17 +396,9 @@ func (up *URLPrefix) discoverBackendAddrsIfNeeded() {
 	var busNew []*backendURL
 	for _, bu := range up.busOriginal {
 		host := bu.Hostname()
-		port := bu.Port()
 		for _, addr := range hostToAddrs[host] {
 			buCopy := *bu
 			buCopy.Host = addr
-			if port != "" {
-				if n := strings.IndexByte(buCopy.Host, ':'); n >= 0 {
-					// Drop the discovered port and substitute it the port specified in bu.
-					buCopy.Host = buCopy.Host[:n]
-				}
-				buCopy.Host += ":" + port
-			}
 			busNew = append(busNew, &backendURL{
 				url: &buCopy,
 			})
@@ -462,16 +462,11 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 
 	// Slow path - select other backend urls.
 	n := atomicCounter.Add(1) - 1
-	buMin := bus[n%uint32(len(bus))]
 	for i := uint32(0); i < uint32(len(bus)); i++ {
 		idx := (n + i) % uint32(len(bus))
 		bu := bus[idx]
 		if bu.isBroken() {
 			continue
-		}
-		if buMin.isBroken() {
-			// verify that buMin isn't set as broken
-			buMin = bu
 		}
 		if bu.concurrentRequests.Load() == 0 {
 			// Fast path - return the backend with zero concurrently executed requests.
@@ -482,12 +477,13 @@ func getLeastLoadedBackendURL(bus []*backendURL, atomicCounter *atomic.Uint32) *
 	}
 
 	// Slow path - return the backend with the minimum number of concurrently executed requests.
+	buMin := bus[n%uint32(len(bus))]
 	minRequests := buMin.concurrentRequests.Load()
 	for _, bu := range bus {
 		if bu.isBroken() {
 			continue
 		}
-		if n := bu.concurrentRequests.Load(); n < minRequests {
+		if n := bu.concurrentRequests.Load(); n < minRequests || buMin.isBroken() {
 			buMin = bu
 			minRequests = n
 		}
@@ -786,10 +782,11 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 
 func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	uis := ac.Users
-	if len(uis) == 0 && ac.UnauthorizedUser == nil {
-		return nil, fmt.Errorf("Missing `users` or `unauthorized_user` sections")
-	}
 	byAuthToken := make(map[string]*UserInfo, len(uis))
+	if len(uis) == 0 && ac.UnauthorizedUser == nil {
+		// fast path for empty configuration
+		return byAuthToken, nil
+	}
 	for i := range uis {
 		ui := &uis[i]
 		ats, err := getAuthTokens(ui.AuthToken, ui.BearerToken, ui.Username, ui.Password)
@@ -864,21 +861,22 @@ func (ui *UserInfo) initURLs() error {
 	loadBalancingPolicy := *defaultLoadBalancingPolicy
 	dropSrcPathPrefixParts := 0
 	discoverBackendIPs := *discoverBackendIPsGlobal
+	if ui.RetryStatusCodes != nil {
+		retryStatusCodes = ui.RetryStatusCodes
+	}
+	if ui.LoadBalancingPolicy != "" {
+		loadBalancingPolicy = ui.LoadBalancingPolicy
+	}
+	if ui.DropSrcPathPrefixParts != nil {
+		dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
+	}
+	if ui.DiscoverBackendIPs != nil {
+		discoverBackendIPs = *ui.DiscoverBackendIPs
+	}
+
 	if ui.URLPrefix != nil {
 		if err := ui.URLPrefix.sanitizeAndInitialize(); err != nil {
 			return err
-		}
-		if ui.RetryStatusCodes != nil {
-			retryStatusCodes = ui.RetryStatusCodes
-		}
-		if ui.LoadBalancingPolicy != "" {
-			loadBalancingPolicy = ui.LoadBalancingPolicy
-		}
-		if ui.DropSrcPathPrefixParts != nil {
-			dropSrcPathPrefixParts = *ui.DropSrcPathPrefixParts
-		}
-		if ui.DiscoverBackendIPs != nil {
-			discoverBackendIPs = *ui.DiscoverBackendIPs
 		}
 		ui.URLPrefix.retryStatusCodes = retryStatusCodes
 		ui.URLPrefix.dropSrcPathPrefixParts = dropSrcPathPrefixParts

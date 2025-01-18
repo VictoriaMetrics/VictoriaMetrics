@@ -1,0 +1,4 @@
+rule_files:
+  - non-existing-file.yaml
+
+tests: []

@@ -22,26 +22,26 @@ users:
   #  - or http://default2:8888/unsupported_url_handler?request_path=/non/existing/path
   #
   # Regular expressions are allowed in `src_paths` entries.
-- username: "foobar"
-  url_map:
-  - src_paths:
-    - "/api/v1/query"
-    - "/api/v1/query_range"
-    - "/api/v1/label/[^/]+/values"
-    url_prefix:
-    - "http://vmselect1:8481/select/42/prometheus"
-    - "http://vmselect2:8481/select/42/prometheus"
-  - src_paths: ["/api/v1/write"]
-    url_prefix: "http://vminsert:8480/insert/42/prometheus"
-    headers:
-    - "X-Scope-OrgID: abc"
+  - username: "foobar"
     ip_filters:
       deny_list: [127.0.0.1]
-  default_url:
-  - "http://default1:8888/unsupported_url_handler"
-  - "http://default2:8888/unsupported_url_handler"
+    url_map:
+      - src_paths:
+          - "/api/v1/query"
+          - "/api/v1/query_range"
+          - "/api/v1/label/[^/]+/values"
+        url_prefix:
+          - "http://vmselect1:8481/select/42/prometheus"
+          - "http://vmselect2:8481/select/42/prometheus"
+      - src_paths: ["/api/v1/write"]
+        url_prefix: "http://vminsert:8480/insert/42/prometheus"
+        headers:
+          - "X-Scope-OrgID: abc"
+    default_url:
+      - "http://default1:8888/unsupported_url_handler"
+      - "http://default2:8888/unsupported_url_handler"
 
 ip_filters:
   allow_list: ["1.2.3.0/24", "127.0.0.1"]
   deny_list:
-  - 10.1.0.1
+    - 10.1.0.1

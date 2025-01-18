@@ -295,6 +295,33 @@ func (q *Query) DropAllPipes() {
 	q.pipes = nil
 }
 
+// AddFacetsPipe adds ' facets <limit> max_values_per_field <maxValuesPerField> max_value_len <maxValueLen> <keepConstFields>` to the end of q.
+func (q *Query) AddFacetsPipe(limit, maxValuesPerField, maxValueLen int, keepConstFields bool) {
+	s := "facets"
+	if limit > 0 {
+		s += fmt.Sprintf(" %d", limit)
+	}
+	if maxValuesPerField > 0 {
+		s += fmt.Sprintf(" max_values_per_field %d", maxValuesPerField)
+	}
+	if maxValueLen > 0 {
+		s += fmt.Sprintf(" max_value_len %d", maxValueLen)
+	}
+	if keepConstFields {
+		s += " keep_const_fields"
+	}
+	lex := newLexer(s)
+
+	pf, err := parsePipeFacets(lex)
+	if err != nil {
+		logger.Panicf("BUG: unexpected error when parsing [%s]: %w", s, err)
+	}
+	if !lex.isEnd() {
+		logger.Panicf("BUG: unexpected tail left after parsing [%s]: %q", s, lex.s)
+	}
+	q.pipes = append(q.pipes, pf)
+}
+
 // AddCountByTimePipe adds '| stats by (_time:step offset off, field1, ..., fieldN) count() hits' to the end of q.
 func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 	{
@@ -358,14 +385,18 @@ func (q *Query) CanReturnLastNResults() bool {
 		switch p.(type) {
 		case *pipeBlockStats,
 			*pipeBlocksCount,
+			*pipeFacets,
 			*pipeFieldNames,
 			*pipeFieldValues,
+			*pipeFirst,
 			*pipeJoin,
+			*pipeLast,
 			*pipeLimit,
 			*pipeOffset,
 			*pipeTop,
 			*pipeSort,
 			*pipeStats,
+			*pipeUnion,
 			*pipeUniq:
 			return false
 		}
@@ -420,106 +451,21 @@ func (q *Query) AddTimeFilter(start, end int64) {
 	}
 }
 
-// AddExtraStreamFilters adds stream filters to q in the form `{f1.Name=f1.Value, ..., fN.Name=fN.Value}`
-func (q *Query) AddExtraStreamFilters(filters []Field) {
-	if len(filters) == 0 {
+// AddExtraFilters adds extraFilters to q
+func (q *Query) AddExtraFilters(extraFilters *Filter) {
+	if extraFilters == nil || extraFilters.f == nil {
 		return
 	}
 
+	filters := []filter{extraFilters.f}
 	fa, ok := q.f.(*filterAnd)
-	if !ok {
-		if fs, ok := q.f.(*filterStream); ok {
-			addExtraStreamFilters(fs, filters)
-			return
-		}
-
-		fa = &filterAnd{
-			filters: []filter{
-				newEmptyFilterStream(),
-				q.f,
-			},
-		}
-		q.f = fa
-	}
-
-	hasStreamFilters := false
-	for _, f := range fa.filters {
-		if _, ok := f.(*filterStream); ok {
-			hasStreamFilters = true
-			break
+	if ok {
+		fa.filters = append(filters, fa.filters...)
+	} else {
+		q.f = &filterAnd{
+			filters: append(filters, q.f),
 		}
 	}
-	if !hasStreamFilters {
-		var dst []filter
-		dst = append(dst, newEmptyFilterStream())
-		fa.filters = append(dst, fa.filters...)
-	}
-
-	for _, f := range fa.filters {
-		if fs, ok := f.(*filterStream); ok {
-			addExtraStreamFilters(fs, filters)
-		}
-	}
-}
-
-func newEmptyFilterStream() *filterStream {
-	return &filterStream{
-		f: &StreamFilter{},
-	}
-}
-
-func addExtraStreamFilters(fs *filterStream, filters []Field) {
-	f := fs.f
-	if len(f.orFilters) == 0 {
-		f.orFilters = []*andStreamFilter{
-			{
-				tagFilters: appendExtraStreamFilters(nil, filters),
-			},
-		}
-		return
-	}
-	for _, af := range f.orFilters {
-		af.tagFilters = appendExtraStreamFilters(af.tagFilters, filters)
-	}
-}
-
-func appendExtraStreamFilters(orig []*streamTagFilter, filters []Field) []*streamTagFilter {
-	var dst []*streamTagFilter
-	for _, f := range filters {
-		dst = append(dst, &streamTagFilter{
-			tagName: f.Name,
-			op:      "=",
-			value:   f.Value,
-		})
-	}
-	return append(dst, orig...)
-}
-
-// AddExtraFilters adds filters to q in the form of `f1.Name:=f1.Value AND ... fN.Name:=fN.Value`
-func (q *Query) AddExtraFilters(filters []Field) {
-	if len(filters) == 0 {
-		return
-	}
-
-	fa, ok := q.f.(*filterAnd)
-	if !ok {
-		fa = &filterAnd{
-			filters: []filter{q.f},
-		}
-		q.f = fa
-	}
-	fa.filters = addExtraFilters(fa.filters, filters)
-}
-
-func addExtraFilters(orig []filter, filters []Field) []filter {
-	var dst []filter
-	for _, f := range filters {
-		dst = append(dst, &filterExact{
-			fieldName: f.Name,
-			value:     f.Value,
-		})
-	}
-	return append(dst, orig...)
 }
 
 // AddPipeLimit adds `| limit n` pipe to q.
@@ -563,6 +509,70 @@ func (q *Query) optimize() {
 
 	// Substitute '*' prefixFilter with filterNoop in order to avoid reading _msg data.
 	q.f = removeStarFilters(q.f)
+
+	// Merge multiple {...} filters into a single one.
+	q.f = mergeFiltersStream(q.f)
+}
+
+func mergeFiltersStream(f filter) filter {
+	fa, ok := f.(*filterAnd)
+	if !ok {
+		return f
+	}
+	fss := make([]*filterStream, 0, len(fa.filters))
+	otherFilters := make([]filter, 0, len(fa.filters))
+	for _, f := range fa.filters {
+		fs, ok := f.(*filterStream)
+		if ok {
+			fss = append(fss, fs)
+		} else {
+			otherFilters = append(otherFilters, f)
+		}
+	}
+	if len(fss) == 0 {
+		// Nothing to merge
+		return f
+	}
+
+	fss = mergeFiltersStreamInternal(fss)
+	filters := make([]filter, 0, len(fss)+len(otherFilters))
+	for _, fs := range fss {
+		filters = append(filters, fs)
+	}
+	filters = append(filters, otherFilters...)
+	fa = &filterAnd{
+		filters: filters,
+	}
+	return fa
+}
+
+func mergeFiltersStreamInternal(fss []*filterStream) []*filterStream {
+	if len(fss) < 2 {
+		return fss
+	}
+
+	for _, fs := range fss {
+		if len(fs.f.orFilters) != 1 {
+			// Cannot merge or filters :(
+			return fss
+		}
+	}
+
+	var tfs []*streamTagFilter
+	for _, fs := range fss {
+		tfs = append(tfs, fs.f.orFilters[0].tagFilters...)
+	}
+	return []*filterStream{
+		{
+			f: &StreamFilter{
+				orFilters: []*andStreamFilter{
+					{
+						tagFilters: tfs,
+					},
+				},
+			},
+		},
+	}
 }
 
 // GetStatsByFields returns `by (...)` fields from the last `stats` pipe at q.
@@ -580,13 +590,18 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 	if idx < 0 {
 		return nil, fmt.Errorf("missing `| stats ...` pipe in the query [%s]", q)
 	}
-
 	ps := pipes[idx].(*pipeStats)
 
-	// add _time:step to ps.byFields if it doesn't contain it yet.
-	ps.byFields = addByTimeField(ps.byFields, step)
+	// add _time:step to by (...) list at stats pipes.
+	q.addByTimeFieldToStatsPipes(step)
 
-	// extract by(...) field names from stats pipe
+	// propagate the step into rate* funcs at stats pipes.
+	q.initStatsRateFuncs(step)
+
+	// add 'partition by (_time)' to 'sort', 'first' and 'last' pipes.
+	q.addPartitionByTime(step)
+
+	// extract by(...) field names from ps
 	byFields := make([]string, len(ps.byFields))
 	for i, f := range ps.byFields {
 		byFields[i] = f.name
@@ -606,7 +621,9 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 	for i := idx + 1; i < len(pipes); i++ {
 		p := pipes[i]
 		switch t := p.(type) {
-		case *pipeSort, *pipeOffset, *pipeLimit, *pipeFilter:
+		case *pipeFilter:
+			// This pipe doesn't change the set of fields.
+		case *pipeFirst, *pipeLast, *pipeSort:
 			// These pipes do not change the set of fields.
 		case *pipeMath:
 			// Allow `| math ...` pipe, since it adds additional metrics to the given set of fields.
@@ -710,34 +727,6 @@ func getLastPipeStatsIdx(pipes []pipe) int {
 		}
 	}
 	return -1
-}
-
-func addByTimeField(byFields []*byStatsField, step int64) []*byStatsField {
-	if step <= 0 {
-		return byFields
-	}
-	stepStr := fmt.Sprintf("%d", step)
-	dstFields := make([]*byStatsField, 0, len(byFields)+1)
-	hasByTime := false
-	for _, f := range byFields {
-		if f.name == "_time" {
-			f = &byStatsField{
-				name:          "_time",
-				bucketSizeStr: stepStr,
-				bucketSize:    float64(step),
-			}
-			hasByTime = true
-		}
-		dstFields = append(dstFields, f)
-	}
-	if !hasByTime {
-		dstFields = append(dstFields, &byStatsField{
-			name:          "_time",
-			bucketSizeStr: stepStr,
-			bucketSize:    float64(step),
-		})
-	}
-	return dstFields
 }
 
 func flattenFiltersAnd(f filter) filter {
@@ -1007,17 +996,8 @@ func ParseStatsQuery(s string, timestamp int64) (*Query, error) {
 
 // HasGlobalTimeFilter returns true when query contains a global time filter.
 func (q *Query) HasGlobalTimeFilter() bool {
-	switch t := q.f.(type) {
-	case *filterAnd:
-		for _, subF := range t.filters {
-			if _, ok := subF.(*filterTime); ok {
-				return true
-			}
-		}
-	case *filterTime:
-		return true
-	}
-	return false
+	start, end := q.GetFilterTimeRange()
+	return start != math.MinInt64 && end != math.MaxInt64
 }
 
 // ParseQueryAtTimestamp parses s in the context of the given timestamp.
@@ -1035,7 +1015,43 @@ func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 	}
 	q.timestamp = timestamp
 	q.optimize()
+
+	start, end := q.GetFilterTimeRange()
+	if start != math.MinInt64 && end != math.MaxInt64 {
+		step := end - start + 1 // 1 is needed in order to include [start ... end] in the step.
+		q.initStatsRateFuncs(step)
+	}
+
 	return q, nil
+}
+
+func (q *Query) initStatsRateFuncs(step int64) {
+	for _, p := range q.pipes {
+		if ps, ok := p.(*pipeStats); ok {
+			ps.initRateFuncs(step)
+		}
+	}
+}
+
+func (q *Query) addByTimeFieldToStatsPipes(step int64) {
+	for _, p := range q.pipes {
+		if ps, ok := p.(*pipeStats); ok {
+			ps.addByTimeField(step)
+		}
+	}
+}
+
+func (q *Query) addPartitionByTime(step int64) {
+	for _, p := range q.pipes {
+		switch t := p.(type) {
+		case *pipeFirst:
+			t.addPartitionByTime(step)
+		case *pipeLast:
+			t.addPartitionByTime(step)
+		case *pipeSort:
+			t.addPartitionByTime(step)
+		}
+	}
 }
 
 // GetTimestamp returns timestamp context for the given q, which was passed to ParseQueryAtTimestamp().
@@ -1062,6 +1078,38 @@ func parseQuery(lex *lexer) (*Query, error) {
 	}
 
 	return q, nil
+}
+
+// Filter represents LogsQL filter
+//
+// See https://docs.victoriametrics.com/victorialogs/logsql/#filters
+type Filter struct {
+	f filter
+}
+
+// String returns string representation of f.
+func (f *Filter) String() string {
+	if f == nil || f.f == nil {
+		return ""
+	}
+	return f.f.String()
+}
+
+// ParseFilter parses LogsQL filter
+//
+// See https://docs.victoriametrics.com/victorialogs/logsql/#filters
+func ParseFilter(s string) (*Filter, error) {
+	q, err := ParseQuery(s)
+	if err != nil {
+		return nil, err
+	}
+	if len(q.pipes) > 0 {
+		return nil, fmt.Errorf("unexpected pipes after the filter [%s]; pipes: %s", q.f, q.pipes)
+	}
+	f := &Filter{
+		f: q.f,
+	}
+	return f, nil
 }
 
 func parseFilter(lex *lexer) (filter, error) {
@@ -1190,6 +1238,8 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterSequence(lex, fieldName)
 	case lex.isKeyword("string_range"):
 		return parseFilterStringRange(lex, fieldName)
+	case lex.isKeyword("value_type"):
+		return parseFilterValueType(lex, fieldName)
 	case lex.isKeyword(`"`, "'", "`"):
 		return nil, fmt.Errorf("improperly quoted string")
 	case lex.isKeyword(",", ")", "[", "]"):
@@ -1426,9 +1476,19 @@ func parseFilterStringRange(lex *lexer, fieldName string) (filter, error) {
 			minValue:  args[0],
 			maxValue:  args[1],
 
-			stringRepr: fmt.Sprintf("string_range(%s, %s)", quoteTokenIfNeeded(args[0]), quoteTokenIfNeeded(args[1])),
+			stringRepr: fmt.Sprintf("%s(%s, %s)", funcName, quoteTokenIfNeeded(args[0]), quoteTokenIfNeeded(args[1])),
 		}
 		return fr, nil
+	})
+}
+
+func parseFilterValueType(lex *lexer, fieldName string) (filter, error) {
+	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
+		fv := &filterValueType{
+			fieldName: fieldName,
+			valueType: arg,
+		}
+		return fv, nil
 	})
 }
 
@@ -2552,6 +2612,7 @@ var reservedKeywords = func() map[string]struct{} {
 		"re",
 		"seq",
 		"string_range",
+		"value_type",
 	}
 	m := make(map[string]struct{}, len(kws))
 	for _, kw := range kws {

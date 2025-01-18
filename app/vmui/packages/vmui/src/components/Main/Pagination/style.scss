@@ -1,0 +1,66 @@
+@use "../../../styles/variables" as *;
+
+.vm-pagination {
+  position: sticky;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  gap: $padding-small;
+  padding: $padding-global 0;
+  font-size: $font-size;
+
+  &_mobile {
+    padding: $padding-global 0;
+  }
+
+  &__page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    min-width: 30px;
+    color: $color-text;
+    padding: 0 $padding-small;
+    border-radius: $border-radius-small;
+    transition: background-color 0.3s;
+    border: 1px solid transparent;
+    cursor: pointer;
+
+    &_active {
+      background-color: $color-primary;
+      color: $color-primary-text;
+    }
+
+    &_disabled {
+      cursor: default;
+      pointer-events: none;
+      color: $color-text-disabled;
+    }
+
+    &:hover {
+      background-color: $color-hover-black;
+    }
+  }
+
+  &__arrow {
+
+    svg {
+      max-width: $font-size;
+      max-height: $font-size;
+    }
+
+    &:disabled {
+      color: $color-text-disabled;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    &_prev {
+      transform: rotate(90deg);
+    }
+
+    &_next {
+      transform: rotate(-90deg);
+    }
+  }
+}

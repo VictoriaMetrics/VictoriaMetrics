@@ -1,3 +1,65 @@
+# v1.17.51 (2025-01-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.50 (2025-01-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.49 (2025-01-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.48 (2024-12-19)
+
+* **Bug Fix**: Fix improper use of printf-style functions.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.47 (2024-12-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.46 (2024-11-18)
+
+* **Dependency Update**: Update to smithy-go v1.22.1.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.45 (2024-11-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.44 (2024-11-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.43 (2024-11-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.42 (2024-10-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.41 (2024-10-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.40 (2024-10-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.39 (2024-10-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.38 (2024-10-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.37 (2024-09-27)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.17.36 (2024-09-25)
 
 * **Dependency Update**: Updated to the latest SDK module versions

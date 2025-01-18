@@ -9,9 +9,8 @@ import (
 func TestBlockMustInitFromRows(t *testing.T) {
 	f := func(timestamps []int64, rows [][]Field, bExpected *block) {
 		t.Helper()
-		b := getBlock()
-		defer putBlock(b)
 
+		b := &block{}
 		b.MustInitFromRows(timestamps, rows)
 		if b.uncompressedSizeBytes() >= maxUncompressedBlockSize {
 			t.Fatalf("expecting non-full block")
@@ -176,4 +175,33 @@ func TestBlockMustInitFromRowsFullBlock(t *testing.T) {
 	if n := b.uncompressedSizeBytes(); n < maxUncompressedBlockSize {
 		t.Fatalf("expecting full block with %d bytes; got %d bytes", maxUncompressedBlockSize, n)
 	}
+}
+
+func TestBlockMustInitFromRows_Overflow(t *testing.T) {
+	f := func(rowsCount int, fieldsPerRow int, expectedRowsProcessed int) {
+		t.Helper()
+		timestamps := make([]int64, rowsCount)
+		rows := make([][]Field, rowsCount)
+		for i := range timestamps {
+			fields := make([]Field, fieldsPerRow)
+			for j := range fields {
+				fields[j] = Field{
+					Name:  fmt.Sprintf("field_%d_%d", i, j),
+					Value: "very very looooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong value",
+				}
+			}
+			rows[i] = fields
+		}
+		b := getBlock()
+		defer putBlock(b)
+		b.MustInitFromRows(timestamps, rows)
+		b.assertValid()
+		if n := b.Len(); n != expectedRowsProcessed {
+			t.Fatalf("unexpected total log entries; got %d; want %d", n, expectedRowsProcessed)
+		}
+	}
+	f(10, 300, 6)
+	f(10, 10, 10)
+	f(15, 30, 15)
+	f(maxColumnsPerBlock+1000, 1, maxColumnsPerBlock)
 }

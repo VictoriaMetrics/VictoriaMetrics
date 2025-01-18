@@ -14,6 +14,9 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/fastcache"
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -25,8 +28,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
-	"github.com/VictoriaMetrics/fastcache"
-	"github.com/cespare/xxhash/v2"
 )
 
 const (
@@ -91,13 +92,17 @@ type indexDB struct {
 	// The db must be automatically recovered after that.
 	missingMetricNamesForMetricID atomic.Uint64
 
-	// minMissingTimestamp is the minimum timestamp, which is missing in the given indexDB.
+	// minMissingTimestampByKey holds the minimum timestamps by index search key,
+	// which is missing in the given indexDB.
+	// Key must be formed with marshalCommonPrefix function.
 	//
 	// This field is used at containsTimeRange() function only for the previous indexDB,
 	// since this indexDB is readonly.
 	// This field cannot be used for the current indexDB, since it may receive data
 	// with bigger timestamps at any time.
-	minMissingTimestamp atomic.Int64
+	minMissingTimestampByKey map[string]int64
+	// protects minMissingTimestampByKey
+	minMissingTimestampByKeyLock sync.RWMutex
 
 	// generation identifies the index generation ID
 	// and is used for syncing items from different indexDBs
@@ -162,6 +167,7 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) *indexDB 
 		tb:         tb,
 		name:       name,
 
+		minMissingTimestampByKey:   make(map[string]int64),
 		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize),
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
@@ -520,7 +526,12 @@ type indexSearch struct {
 	deadline uint64
 }
 
+// getIndexSearch returns an indexSearch with default configuration
 func (db *indexDB) getIndexSearch(deadline uint64) *indexSearch {
+	return db.getIndexSearchInternal(deadline, false)
+}
+
+func (db *indexDB) getIndexSearchInternal(deadline uint64, sparse bool) *indexSearch {
 	v := db.indexSearchPool.Get()
 	if v == nil {
 		v = &indexSearch{
@@ -528,7 +539,7 @@ func (db *indexDB) getIndexSearch(deadline uint64) *indexSearch {
 		}
 	}
 	is := v.(*indexSearch)
-	is.ts.Init(db.tb)
+	is.ts.Init(db.tb, sparse)
 	is.deadline = deadline
 	return is
 }
@@ -1517,31 +1528,35 @@ func (th *topHeap) Pop() any {
 	panic(fmt.Errorf("BUG: Pop shouldn't be called"))
 }
 
-// searchMetricNameWithCache appends metric name for the given metricID to dst
+// searchMetricName appends metric name for the given metricID to dst
 // and returns the result.
-func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64) ([]byte, bool) {
-	metricName := db.getMetricNameFromCache(dst, metricID)
-	if len(metricName) > len(dst) {
-		return metricName, true
+func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) ([]byte, bool) {
+	if !noCache {
+		metricName := db.getMetricNameFromCache(dst, metricID)
+		if len(metricName) > len(dst) {
+			return metricName, true
+		}
 	}
 
-	is := db.getIndexSearch(noDeadline)
+	is := db.getIndexSearchInternal(noDeadline, noCache)
 	var ok bool
 	dst, ok = is.searchMetricName(dst, metricID)
 	db.putIndexSearch(is)
 	if ok {
 		// There is no need in verifying whether the given metricID is deleted,
 		// since the filtering must be performed before calling this func.
-		db.putMetricNameToCache(metricID, dst)
+		if !noCache {
+			db.putMetricNameToCache(metricID, dst)
+		}
 		return dst, true
 	}
 
 	// Try searching in the external indexDB.
 	db.doExtDB(func(extDB *indexDB) {
-		is := extDB.getIndexSearch(noDeadline)
+		is := extDB.getIndexSearchInternal(noDeadline, noCache)
 		dst, ok = is.searchMetricName(dst, metricID)
 		extDB.putIndexSearch(is)
-		if ok {
+		if ok && !noCache {
 			// There is no need in verifying whether the given metricID is deleted,
 			// since the filtering must be performed before calling this func.
 			extDB.putMetricNameToCache(metricID, dst)
@@ -1945,25 +1960,36 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) bool {
 		// This means that it may contain data for the given tr with probability close to 100%.
 		return true
 	}
-
 	// The db corresponds to the previous indexDB, which is readonly.
 	// So it is safe caching the minimum timestamp, which isn't covered by the db.
-	minMissingTimestamp := db.minMissingTimestamp.Load()
-	if minMissingTimestamp != 0 && tr.MinTimestamp >= minMissingTimestamp {
+
+	// use common prefix as a key for minMissingTimestamp
+	// it's needed to properly track timestamps for cluster version
+	// which uses tenant labels for the index search
+	kb := &is.kb
+	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
+	key := kb.B
+
+	db.minMissingTimestampByKeyLock.RLock()
+	minMissingTimestamp, ok := db.minMissingTimestampByKey[string(key)]
+	db.minMissingTimestampByKeyLock.RUnlock()
+
+	if ok && tr.MinTimestamp >= minMissingTimestamp {
 		return false
 	}
-
-	if is.containsTimeRangeSlow(tr) {
+	if is.containsTimeRangeSlowForPrefixBuf(kb, tr) {
 		return true
 	}
 
-	db.minMissingTimestamp.CompareAndSwap(minMissingTimestamp, tr.MinTimestamp)
+	db.minMissingTimestampByKeyLock.Lock()
+	db.minMissingTimestampByKey[string(key)] = tr.MinTimestamp
+	db.minMissingTimestampByKeyLock.Unlock()
+
 	return false
 }
 
-func (is *indexSearch) containsTimeRangeSlow(tr TimeRange) bool {
+func (is *indexSearch) containsTimeRangeSlowForPrefixBuf(prefixBuf *bytesutil.ByteBuffer, tr TimeRange) bool {
 	ts := &is.ts
-	kb := &is.kb
 
 	// Verify whether the tr.MinTimestamp is included into `ts` or is smaller than the minimum date stored in `ts`.
 	// Do not check whether tr.MaxTimestamp is included into `ts` or is bigger than the max date stored in `ts` for performance reasons.
@@ -1972,13 +1998,12 @@ func (is *indexSearch) containsTimeRangeSlow(tr TimeRange) bool {
 	// The main practical case allows skipping searching in prev indexdb (`ts`) when `tr`
 	// is located above the max date stored there.
 	minDate := uint64(tr.MinTimestamp) / msecPerDay
-	kb.B = is.marshalCommonPrefix(kb.B[:0], nsPrefixDateToMetricID)
-	prefix := kb.B
-	kb.B = encoding.MarshalUint64(kb.B, minDate)
-	ts.Seek(kb.B)
+	prefix := prefixBuf.B
+	prefixBuf.B = encoding.MarshalUint64(prefixBuf.B, minDate)
+	ts.Seek(prefixBuf.B)
 	if !ts.NextItem() {
 		if err := ts.Error(); err != nil {
-			logger.Panicf("FATAL: error when searching for minDate=%d, prefix %q: %w", minDate, kb.B, err)
+			logger.Panicf("FATAL: error when searching for minDate=%d, prefix %q: %w", minDate, prefixBuf.B, err)
 		}
 		return false
 	}

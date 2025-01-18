@@ -166,7 +166,7 @@ func (idb *indexdb) getIndexSearch() *indexSearch {
 		}
 	}
 	is := v.(*indexSearch)
-	is.ts.Init(idb.tb)
+	is.ts.Init(idb.tb, false)
 	return is
 }
 

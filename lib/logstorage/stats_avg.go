@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"unsafe"
 )
 
 type statsAvg struct {
@@ -20,22 +19,18 @@ func (sa *statsAvg) updateNeededFields(neededFields fieldsSet) {
 	updateNeededFieldsForStatsFunc(neededFields, sa.fields)
 }
 
-func (sa *statsAvg) newStatsProcessor() (statsProcessor, int) {
-	sap := &statsAvgProcessor{
-		sa: sa,
-	}
-	return sap, int(unsafe.Sizeof(*sap))
+func (sa *statsAvg) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	return a.newStatsAvgProcessor()
 }
 
 type statsAvgProcessor struct {
-	sa *statsAvg
-
 	sum   float64
 	count uint64
 }
 
-func (sap *statsAvgProcessor) updateStatsForAllRows(br *blockResult) int {
-	fields := sap.sa.fields
+func (sap *statsAvgProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	sa := sf.(*statsAvg)
+	fields := sa.fields
 	if len(fields) == 0 {
 		// Scan all the columns
 		for _, c := range br.getColumns() {
@@ -55,8 +50,9 @@ func (sap *statsAvgProcessor) updateStatsForAllRows(br *blockResult) int {
 	return 0
 }
 
-func (sap *statsAvgProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	fields := sap.sa.fields
+func (sap *statsAvgProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	sa := sf.(*statsAvg)
+	fields := sa.fields
 	if len(fields) == 0 {
 		// Scan all the fields for the given row
 		for _, c := range br.getColumns() {
@@ -80,15 +76,15 @@ func (sap *statsAvgProcessor) updateStatsForRow(br *blockResult, rowIdx int) int
 	return 0
 }
 
-func (sap *statsAvgProcessor) mergeState(sfp statsProcessor) {
+func (sap *statsAvgProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsAvgProcessor)
 	sap.sum += src.sum
 	sap.count += src.count
 }
 
-func (sap *statsAvgProcessor) finalizeStats() string {
+func (sap *statsAvgProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
 	avg := sap.sum / float64(sap.count)
-	return strconv.FormatFloat(avg, 'f', -1, 64)
+	return strconv.AppendFloat(dst, avg, 'f', -1, 64)
 }
 
 func parseStatsAvg(lex *lexer) (*statsAvg, error) {

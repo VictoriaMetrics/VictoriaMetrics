@@ -21,18 +21,19 @@ Future updates will introduce additional export methods, offering users more fle
         <tr>
             <th>Parameter</th>
             <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
         <tr>
             <td>
 
-`class`
+<span style="white-space: nowrap;">`class`</span>
             </td>
             <td>
 
-`writer.vm.VmWriter` or `vm` starting from [`v1.13.0`](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130)
+<span style="white-space: nowrap;">`writer.vm.VmWriter` or `vm`{{% available_from "v1.13.0" anomaly %}}
+</span>
             </td>
             <td>
 
@@ -42,11 +43,11 @@ Name of the class needed to enable writing to VictoriaMetrics or Prometheus. VmW
         <tr>
             <td>
 
-`datasource_url`
+<span style="white-space: nowrap;">`datasource_url`</span>
             </td>
             <td>
 
-`http://localhost:8481/`
+<span style="white-space: nowrap;">`http://localhost:8481/`</span>
             </td>
             <td>
 
@@ -56,26 +57,28 @@ Datasource URL address
         <tr>
             <td>
 
-`tenant_id`
+<span style="white-space: nowrap;">`tenant_id`</span>
+            </td>
+            <td>
+<span>
+
+`0:0`, `multitenant`{{% available_from "v1.16.2" anomaly %}}
+</span>
             </td>
             <td>
 
-`0:0`, `multitenant` (starting from [v1.16.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1162))
-            </td>
-            <td>
-
-For VictoriaMetrics Cluster version only, tenants are identified by `accountID` or `accountID:projectID`. Starting from [v1.16.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1162), `multitenant` [endpoint](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=writes#multitenancy-via-labels) is supported, to write data to multiple [tenants](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy). See VictoriaMetrics Cluster [multitenancy docs](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
+For VictoriaMetrics Cluster version only, tenants are identified by `accountID` or `accountID:projectID`. multitenant` [endpoint](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=writes#multitenancy-via-labels){{% available_from "v1.16.2" anomaly %}} is supported, to write data to multiple [tenants](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy). See VictoriaMetrics Cluster [multitenancy docs](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy)
             </td>
         </tr>
         <!-- Additional rows for metric_format -->
         <tr>
             <td rowspan="4">
 
-`metric_format`
+<span style="white-space: nowrap;">`metric_format`</span>
             </td>
             <td>
 
-`__name__: "vmanomaly_$VAR"`
+<span style="white-space: nowrap;">`__name__: "vmanomaly_$VAR"`</span>
             </td>
             <td rowspan="4">
 
@@ -97,26 +100,26 @@ Metrics to save the output (in metric names or labels). Must have `__name__` key
         <tr>
             <td>
 
-`for: "$QUERY_KEY"`
+<span style="white-space: nowrap;">`for: "$QUERY_KEY"`</span>
             </td>
         </tr>
         <tr>
             <td>
 
-`run: "test_metric_format"`
+<span style="white-space: nowrap;">`run: "test_metric_format"`</span>
             </td>
         </tr>
         <tr>
             <td>
 
-`config: "io_vm_single.yaml"`
+<span style="white-space: nowrap;">`config: "io_vm_single.yaml"`</span>
             </td>
         </tr>  
         <!-- End of additional rows -->
         <tr>
             <td>
 
-`import_json_path`
+<span style="white-space: nowrap;">`import_json_path`</span>
             </td>
             <td>
 
@@ -130,7 +133,7 @@ Optional, to override the default import path
         <tr>
             <td>
 
-`health_path`
+<span style="white-space: nowrap;">`health_path`</span>
             </td>
             <td>
 
@@ -144,7 +147,7 @@ Absolute or relative URL address where to check the availability of the datasour
         <tr>
             <td>
 
-`user`
+<span style="white-space: nowrap;">`user`</span>
             </td>
             <td>
 
@@ -158,7 +161,7 @@ BasicAuth username
         <tr>
             <td>
 
-`password`
+<span style="white-space: nowrap;">`password`</span>
             </td>
             <td>
 
@@ -172,7 +175,7 @@ BasicAuth password
         <tr>
             <td>
 
-`timeout`
+<span style="white-space: nowrap;">`timeout`</span>
             </td>
             <td>
 
@@ -185,9 +188,11 @@ Timeout for the requests, passed as a string
         </tr>
         <tr>
             <td>
-`verify_tls`
+
+<span style="white-space: nowrap;">`verify_tls`</span>
             </td>
             <td>
+
 `false`
             </td>
             <td>
@@ -198,31 +203,37 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
         </tr>
         <tr>
             <td>
-`tls_cert_file`
+
+<span style="white-space: nowrap;">`tls_cert_file`</span>
             </td>
             <td>
+
 `path/to/cert.crt`
             </td>
             <td>
-Path to a file with the client certificate, i.e. `client.crt`. Available since [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163).
+Path to a file with the client certificate, i.e. `client.crt`{{% available_from "v1.16.3" anomaly %}}.
             </td>
         </tr>
         <tr>
             <td>
-`tls_key_file`
+
+<span style="white-space: nowrap;">`tls_key_file`</span>
             </td>
             <td>
+
 `path/to/key.crt`
             </td>
             <td>
-Path to a file with the client certificate key, i.e. `client.key`. Available since [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163).
+Path to a file with the client certificate key, i.e. `client.key`{{% available_from "v1.16.3" anomaly %}}.
             </td>
         </tr>
         <tr>
             <td>
-`bearer_token`
+
+<span style="white-space: nowrap;">`bearer_token`</span>
             </td>
             <td>
+
 `token`
             </td>
             <td>
@@ -231,14 +242,17 @@ Token is passed in the standard format with header: `Authorization: bearer {toke
         </tr>
         <tr>
             <td>
-`bearer_token_file`
+
+<span style="white-space: nowrap;">`bearer_token_file`</span>
             </td>
             <td>
+
 `path_to_file`
             </td>
             <td>
-Path to a file, which contains token, that is passed in the standard format with header: `Authorization: bearer {token}`. Available since [v1.15.9](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1159)
-            </td>
+<span>
+Path to a file, which contains token, that is passed in the standard format with header: `Authorization: bearer {token}`{{% available_from "v1.15.9" anomaly %}}
+</span>            </td>
         </tr>
     </tbody>
 </table>
@@ -263,7 +277,7 @@ writer:
 
 ### Multitenancy support
 
-> This feature applies to the VictoriaMetrics Cluster version only. Tenants are identified by either `accountID` or `accountID:projectID`. Starting with [v1.16.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1162), the `multitenant` [endpoint](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=writes#multitenancy-via-labels) is supported for writing data across multiple [tenants](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy). For more details, refer to the VictoriaMetrics Cluster [multitenancy documentation](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy).
+> This feature applies to the VictoriaMetrics Cluster version only. Tenants are identified by either `accountID` or `accountID:projectID`. `multitenant` [endpoint](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=writes#multitenancy-via-labels){{% available_from "v1.15.9" anomaly %}} is supported for writing data across multiple [tenants](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy). For more details, refer to the VictoriaMetrics Cluster [multitenancy documentation](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy).
 
 Please note the different behaviors depending on the `tenant_id` value:
 
@@ -295,7 +309,7 @@ Please note the different behaviors depending on the `tenant_id` value:
 
 ### mTLS protection
 
-Starting from [v1.16.3](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1163), `vmanomaly` components such as [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) support [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) to ensure secure communication with [VictoriaMetrics Enterprise, configured with mTLS](https://docs.victoriametrics.com/#mtls-protection).
+`vmanomaly` components such as [VmWriter](https://docs.victoriametrics.com/anomaly-detection/components/writer/#vm-writer) support [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication) to ensure secure communication with [VictoriaMetrics Enterprise, configured with mTLS](https://docs.victoriametrics.com/#mtls-protection){{% available_from "v1.16.3" anomaly %}}.
 
 For detailed guidance on configuring mTLS parameters such as `verify_tls`, `tls_cert_file`, and `tls_key_file`, please refer to the [mTLS protection section](https://docs.victoriametrics.com/anomaly-detection/components/reader/#mtls-protection) in the [Reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) documentation. The configuration principles apply consistently across all these `vmanomaly` components.
 

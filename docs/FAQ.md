@@ -29,7 +29,7 @@ Yes. See [these benchmarks](https://docs.victoriametrics.com/articles/#benchmark
 
 See [these docs](https://docs.victoriametrics.com/quick-start/).
 
-## Hot to contribute to VictoriaMetrics?
+## How to contribute to VictoriaMetrics?
 
 See [these docs](https://docs.victoriametrics.com/contributing/).
 
@@ -53,7 +53,7 @@ and send data to multiple remote storage systems, vmagent has the following addi
 
 * vmagent usually requires lower amounts of CPU, RAM and disk IO compared to Prometheus when scraping an enormous number of targets (more than 1000)
   or targets with a great number of exposed metrics.
-* vmagent provides independent disk-backed buffers for each configured remote storage (see `-remoteWrite.url`). This means that slow or temporarily unavailable storage
+* vmagent provides independent [disk-backed buffers](https://docs.victoriametrics.com/vmagent/#calculating-disk-space-for-persistence-queue) for each configured remote storage (see `-remoteWrite.url`). This means that slow or temporarily unavailable storage
   doesn't prevent it from sending data to healthy storage in parallel. Prometheus uses a single shared buffer for all the configured remote storage systems (see `remote_write->url`)
   with a hardcoded retention of 2 hours.
 * vmagent may accept, relabel and filter data obtained via multiple data ingestion protocols in addition to data scraped from Prometheus targets.
@@ -76,13 +76,15 @@ and send data to multiple remote storage systems, vmagent has the following addi
 Both [vmagent](https://docs.victoriametrics.com/vmagent/) and [Prometheus agent](https://prometheus.io/blog/2021/11/16/agent/) serve the same purpose – to efficiently scrape Prometheus-compatible targets at the edge. They have the following differences:
 
 * vmagent usually requires lower amounts of CPU, RAM and disk IO compared to the Prometheus agent.
-* Prometheus agent supports only pull-based data collection (e.g. it can scrape Prometheus-compatible targets), while vmagent supports both pull and push data collection – it can accept data via many popular data ingestion protocols such as InfluxDB line protocol, Graphite protocol, OpenTSDB protocol, DataDog protocol, Prometheus protocol, CSV and JSON – see [these docs](https://docs.victoriametrics.com/vmagent/#features).
+* vmagent supports both pull and push data collection – it can accept data via many popular data ingestion protocols such as InfluxDB line protocol, Graphite protocol, OpenTSDB protocol, DataDog protocol, Prometheus protocol, OpenTelemetry metrics protocol, CSV and JSON – see [these docs](https://docs.victoriametrics.com/vmagent/#features).
+* vmagent doesn't have limitations on backfilling of historical data.
 * vmagent can easily scale horizontally to multiple instances for scraping a big number of targets – see [these docs](https://docs.victoriametrics.com/vmagent/#scraping-big-number-of-targets).
 * vmagent supports [improved relabeling](https://docs.victoriametrics.com/vmagent/#relabeling).
 * vmagent can limit the number of scraped metrics per target – see [these docs](https://docs.victoriametrics.com/vmagent/#cardinality-limiter).
 * vmagent supports loading scrape configs from multiple files – see [these docs](https://docs.victoriametrics.com/vmagent/#loading-scrape-configs-from-multiple-files).
 * vmagent supports data reading and data writing from/to Kafka – see [these docs](https://docs.victoriametrics.com/vmagent/#kafka-integration).
 * vmagent can read and update scrape configs from http and https URLs, while the Prometheus agent can read them only from the local file system.
+* vmagent supports [stream aggregation](https://docs.victoriametrics.com/stream-aggregation/) feature for performing aggregates on collected or received samples before sending them to remote storage.
 
 ## Is it safe to enable [remote write](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage) in Prometheus?
 

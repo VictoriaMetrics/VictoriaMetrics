@@ -45,6 +45,8 @@ var (
 		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	u64FieldsPerLog = flag.Int("u64FieldsPerLog", 1, "The number of fields with uint64 values to generate per each log entry; "+
 		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
+	i64FieldsPerLog = flag.Int("i64FieldsPerLog", 1, "The number of fields with int64 values to generate per each log entry; "+
+		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	floatFieldsPerLog = flag.Int("floatFieldsPerLog", 1, "The number of fields with float64 values to generate per each log entry; "+
 		"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
 	ipFieldsPerLog = flag.Int("ipFieldsPerLog", 1, "The number of fields with IPv4 values to generate per each log entry; "+
@@ -253,6 +255,9 @@ func generateLogsAtTimestamp(bw *bufio.Writer, workerID int, ts int64, firstStre
 		}
 		for j := 0; j < *u64FieldsPerLog; j++ {
 			fmt.Fprintf(bw, `,"u64_%d":"%d"`, j, rand.Uint64())
+		}
+		for j := 0; j < *i64FieldsPerLog; j++ {
+			fmt.Fprintf(bw, `,"i64_%d":"%d"`, j, int64(rand.Uint64()))
 		}
 		for j := 0; j < *floatFieldsPerLog; j++ {
 			fmt.Fprintf(bw, `,"float_%d":"%v"`, j, math.Round(10_000*rand.Float64())/1000)

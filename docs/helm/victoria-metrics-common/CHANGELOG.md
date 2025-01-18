@@ -4,6 +4,122 @@
 
 - TODO
 
+## 0.0.37
+
+**Release date:** 06 Jan 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
+
+- quote collection values in arguments
+
+## 0.0.36
+
+**Release date:** 24 Dec 2024
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
+
+- Exclude markdown files from package
+- Unset empty registry in `vm.image` template to fix global registry propagation
+
+## 0.0.35
+
+**Release date:** 2024-12-17
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fixed tls in common templates. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1874)
+
+## 0.0.34
+
+**Release date:** 2024-12-11
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- moved helm chart requirement to a common template
+
+## 0.0.33
+
+**Release date:** 2024-11-28
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- use container port instead of service one in `vm.host` template, while appIdx is defined
+- expect tls extraArg parameter as boolean value
+
+## 0.0.32
+
+**Release date:** 2024-11-25
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- removed suffix, that starts with `@sha` from app version label. see [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1801).
+
+## 0.0.31
+
+**Release date:** 2024-11-21
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fixed minor typo in vm.labels
+
+## 0.0.30
+
+**Release date:** 2024-11-21
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- support template rendering in `vm.app.name` template
+
+## 0.0.29
+
+**Release date:** 2024-11-19
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Allow lookup in context root for `vm.url`, `vm.host` templates
+
+## 0.0.28
+
+**Release date:** 2024-11-14
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Allow lookup in context root for `vm.url`, `vm.host` templates
+
+## 0.0.27
+
+**Release date:** 2024-11-14
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fail fullname templates if data for appKey is not found
+- find by appKey in Values and context root
+
+## 0.0.26
+
+**Release date:** 2024-11-14
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- do not append key only if it's passed to a template
+
+## 0.0.25
+
+**Release date:** 2024-11-12
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- fixed adding suffix for `vm.plain.fullname`
+
+## 0.0.24
+
+**Release date:** 2024-11-12
+
+![Helm: v3](https://img.shields.io/static/v1?label=Helm&message=v3&color=informational&logo=helm)
+
+- Disabled impact of `<component>.name` on resource name to avoid confusion
+- Fixed `vm.app.name` template for appCtx that contains slice
+
 ## 0.0.23
 
 **Release date:** 2024-11-08
@@ -213,5 +329,5 @@
 
 - Added `vm.enterprise.only` template to fail rendering if required license arguments weren't set.
 - Added `vm.image` template that introduces common chart logic of how to build image name from application variables.
-- Added `vm.ingress.port` template to render properly tngress port configuration depending on args type.
+- Added `vm.ingress.port` template to render properly ingress port configuration depending on args type.
 - Added `vm.probe.*` templates to render probes params consistently across all templates.

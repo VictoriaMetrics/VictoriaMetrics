@@ -1,0 +1,133 @@
+# This file provides a recommended list of alerts to monitor the health of VictoriaMetrics Anomaly Detection (vmanomaly).
+# Note: The alerts below are general recommendations and may require customization,
+# including threshold adjustments, to suit the specifics of your setup.
+
+groups:
+    # Note - Adjust the `job` filter to match your specific setup.
+    # By default, the `job` label for vmanomaly in push-based self-monitoring mode is set to `vmanomaly`.
+    # However, this can be overridden using additional labels. For further details, refer to the example here:
+    # https://docs.victoriametrics.com/anomaly-detection/components/monitoring/?highlight=extra_labels#monitoring-section-config-example
+  - name: vmanomaly-health
+    rules:
+      - alert: TooManyRestarts
+        expr: changes(process_start_time_seconds{job=~".*vmanomaly.*"}[15m]) > 2
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} too many restarts (instance {{ $labels.instance }})"
+          description: |
+            Job {{ $labels.job }} (instance {{ $labels.instance }}) has restarted more than twice in the last 15 minutes.
+            It might be crashlooping. Please check the logs for more details.
+            Additionally, refer to the "r:errors" value in the "Instance Overview" section of the self-monitoring Grafana dashboard.
+
+      # works if you use Prometheus scraping (pull model only)
+      - alert: ServiceDown
+        expr: up{job=~".*vmanomaly.*"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down on {{ $labels.instance }}"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 5m"
+
+      # default value of 900 Should be changed to the scrape_interval for pull metrics. For push metrics this should be the lowest fit_every or infer_every in your vmanomaly config.
+      - alert: NoSelfMonitoringMetrics
+        expr: >
+          lag(vmanomaly_start_time_seconds{job="vmanomaly"}[24h]) > 900
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Metrics have not been seen from \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") for {{ $value }} seconds"
+          description: >
+           The missing metric may incidate that vmanomaly is not running or is inaccessable from vmagent or the remotewrite endpoint.
+
+      - alert: ProcessNearFDLimits
+        expr: (process_max_fds{job=~".*vmanomaly.*"} - process_open_fds{job=~".*vmanomaly.*"}) < 100
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Number of free file descriptors is less than 100 for \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") for the last 5m"
+          description: |
+            Exhausting OS file descriptors limit can cause severe degradation of the process.
+            Consider to increase the limit as fast as possible.
+
+      - alert: TooHighCPUUsage
+        expr: > 
+          sum(rate(process_cpu_seconds_total{job=~".*vmanomaly.*"}[5m])) by (job, instance) /
+          sum(vmanomaly_cpu_cores_available{job=~".*vmanomaly.*"}[5m]) by (job, instance) > 0.9
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "More than 90% of CPU is used by \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") during the last 5m"
+          description: >
+            Too high CPU usage may be a sign of insufficient resources and make process unstable.
+            Consider to either increase available CPU resources or decrease the load on the process.
+
+      - alert: TooHighMemoryUsage
+        expr: (min_over_time(process_resident_memory_bytes[10m]) / vmanomaly_available_memory_bytes) > 0.85
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "It is more than 85% of memory used by \"{{ $labels.job }}\"(\"{{ $labels.instance }}\")"
+          description: |
+            Too high memory usage may result into multiple issues such as OOMs or degraded performance.
+            E.g. it can be caused by high churn rate in your input data.
+            Consider to either increase available memory or decrease the load on the process.
+
+  - name: vmanomaly-issues
+    rules:
+      - alert: ServiceErrorsDetected
+        expr: sum(increase(vmanomaly_model_run_errors_total{job=~".*vmanomaly.*"}[5m])) by (job, instance, stage) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Model Run Errors in \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") stage: {{ $labels.stage }} during the last 5m"
+          description: >
+            Errors in the service may indicate a problem with the service itself or its dependencies.
+            Investigate the logs for more details.
+      - alert: SkippedModelRunsDetected
+        expr: sum(increase(vmanomaly_model_runs_skipped_total{job=~".*vmanomaly.*"}[5m])) by (job, instance, stage) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Skipped Model Runs in \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") stage: {{ $labels.stage }} during the last 5m"
+          description: >
+            Skipped model runs may indicate issues like:
+              1. No new or valid data is available for the current run.
+              2. The presence of new time series that do not have a trained model yet.
+              3. No new (or valid) datapoints produced during inference.
+            Investigate the logs for more details.
+      - alert: HighReadErrorRate
+        expr: >
+          (
+            sum(increase(vmanomaly_reader_responses_total{job=~".*vmanomaly.*", code=~"2.."}[5m])) by (job, instance, url) /
+            sum(increase(vmanomaly_reader_responses_total{job=~".*vmanomaly.*"}[5m])) by (job, instance, url)
+          ) < 0.95
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate in read requests for \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") for url: {{ $labels.url }} during the last 5m"
+          description: >
+            Reading errors may indicate issues with the input data source, server-side constraint violations, security or network issues. 
+            Investigate the logs for more details.
+      - alert: HighWriteErrorRate
+        expr: >
+          (
+            sum(increase(vmanomaly_writer_responses_total{job=~".*vmanomaly.*", code=~"2.."}[5m])) by (job, instance, url) /
+            sum(increase(vmanomaly_writer_responses_total{job=~".*vmanomaly.*"}[5m])) by (job, instance, url)
+          ) < 0.95
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate in write requests for \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") for url: {{ $labels.url }} during the last 5m"
+          description: >
+            Writing errors may indicate issues with the destination source, server-side constraint violations, security, or network issues. 
+            Investigate the logs for more details.

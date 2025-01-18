@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/valyala/fastjson"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -22,6 +24,82 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
+
+// ProcessFacetsRequest handles /select/logsql/facets request.
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-facets
+func ProcessFacetsRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	q, tenantIDs, err := parseCommonArgs(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+
+	limit, err := httputils.GetInt(r, "limit")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	maxValuesPerField, err := httputils.GetInt(r, "max_values_per_field")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	maxValueLen, err := httputils.GetInt(r, "max_value_len")
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
+	}
+	keepConstFields := httputils.GetBool(r, "keep_const_fields")
+
+	q.DropAllPipes()
+	q.AddFacetsPipe(limit, maxValuesPerField, maxValueLen, keepConstFields)
+
+	var mLock sync.Mutex
+	m := make(map[string][]facetEntry)
+	writeBlock := func(_ uint, _ []int64, columns []logstorage.BlockColumn) {
+		if len(columns) == 0 || len(columns[0].Values) == 0 {
+			return
+		}
+		if len(columns) != 3 {
+			logger.Panicf("BUG: expecting 3 columns; got %d columns", len(columns))
+		}
+
+		fieldNames := columns[0].Values
+		fieldValues := columns[1].Values
+		hits := columns[2].Values
+
+		bb := blockResultPool.Get()
+		for i := range fieldNames {
+			fieldName := strings.Clone(fieldNames[i])
+			fieldValue := strings.Clone(fieldValues[i])
+			hitsStr := strings.Clone(hits[i])
+
+			mLock.Lock()
+			m[fieldName] = append(m[fieldName], facetEntry{
+				value: fieldValue,
+				hits:  hitsStr,
+			})
+			mLock.Unlock()
+		}
+		blockResultPool.Put(bb)
+	}
+
+	// Execute the query
+	if err := vlstorage.RunQuery(ctx, tenantIDs, q, writeBlock); err != nil {
+		httpserver.Errorf(w, r, "cannot execute query [%s]: %s", q, err)
+		return
+	}
+
+	// Write response
+	w.Header().Set("Content-Type", "application/json")
+	WriteFacetsResponse(w, m)
+}
+
+type facetEntry struct {
+	value string
+	hits  string
+}
 
 // ProcessHitsRequest handles /select/logsql/hits request.
 //
@@ -1056,18 +1134,20 @@ func parseCommonArgs(r *http.Request) (*logstorage.Query, []logstorage.TenantID,
 	}
 
 	// Parse optional extra_filters
-	extraFilters, err := getExtraFilters(r, "extra_filters")
+	extraFiltersStr := r.FormValue("extra_filters")
+	extraFilters, err := parseExtraFilters(extraFiltersStr)
 	if err != nil {
 		return nil, nil, err
 	}
 	q.AddExtraFilters(extraFilters)
 
 	// Parse optional extra_stream_filters
-	extraStreamFilters, err := getExtraFilters(r, "extra_stream_filters")
+	extraStreamFiltersStr := r.FormValue("extra_stream_filters")
+	extraStreamFilters, err := parseExtraStreamFilters(extraStreamFiltersStr)
 	if err != nil {
 		return nil, nil, err
 	}
-	q.AddExtraStreamFilters(extraStreamFilters)
+	q.AddExtraFilters(extraStreamFilters)
 
 	return q, tenantIDs, nil
 }
@@ -1085,15 +1165,114 @@ func getTimeNsec(r *http.Request, argName string) (int64, bool, error) {
 	return nsecs, true, nil
 }
 
-func getExtraFilters(r *http.Request, argName string) ([]logstorage.Field, error) {
-	s := r.FormValue(argName)
+func parseExtraFilters(s string) (*logstorage.Filter, error) {
 	if s == "" {
 		return nil, nil
 	}
-
-	var p logstorage.JSONParser
-	if err := p.ParseLogMessage([]byte(s)); err != nil {
-		return nil, fmt.Errorf("cannot parse %s: %w", argName, err)
+	if !strings.HasPrefix(s, `{"`) {
+		return logstorage.ParseFilter(s)
 	}
-	return p.Fields, nil
+
+	// Extra filters in the form {"field":"value",...}.
+	kvs, err := parseExtraFiltersJSON(s)
+	if err != nil {
+		return nil, err
+	}
+
+	filters := make([]string, len(kvs))
+	for i, kv := range kvs {
+		if len(kv.values) == 1 {
+			filters[i] = fmt.Sprintf("%q:=%q", kv.key, kv.values[0])
+		} else {
+			orValues := make([]string, len(kv.values))
+			for j, v := range kv.values {
+				orValues[j] = fmt.Sprintf("%q", v)
+			}
+			filters[i] = fmt.Sprintf("%q:in(%s)", kv.key, strings.Join(orValues, ","))
+		}
+	}
+	s = strings.Join(filters, " ")
+	return logstorage.ParseFilter(s)
+}
+
+func parseExtraStreamFilters(s string) (*logstorage.Filter, error) {
+	if s == "" {
+		return nil, nil
+	}
+	if !strings.HasPrefix(s, `{"`) {
+		return logstorage.ParseFilter(s)
+	}
+
+	// Extra stream filters in the form {"field":"value",...}.
+	kvs, err := parseExtraFiltersJSON(s)
+	if err != nil {
+		return nil, err
+	}
+
+	filters := make([]string, len(kvs))
+	for i, kv := range kvs {
+		if len(kv.values) == 1 {
+			filters[i] = fmt.Sprintf("%q=%q", kv.key, kv.values[0])
+		} else {
+			orValues := make([]string, len(kv.values))
+			for j, v := range kv.values {
+				orValues[j] = regexp.QuoteMeta(v)
+			}
+			filters[i] = fmt.Sprintf("%q=~%q", kv.key, strings.Join(orValues, "|"))
+		}
+	}
+	s = "{" + strings.Join(filters, ",") + "}"
+	return logstorage.ParseFilter(s)
+}
+
+type extraFilter struct {
+	key    string
+	values []string
+}
+
+func parseExtraFiltersJSON(s string) ([]extraFilter, error) {
+	v, err := fastjson.Parse(s)
+	if err != nil {
+		return nil, err
+	}
+	o := v.GetObject()
+
+	var errOuter error
+	var filters []extraFilter
+	o.Visit(func(k []byte, v *fastjson.Value) {
+		if errOuter != nil {
+			return
+		}
+		switch v.Type() {
+		case fastjson.TypeString:
+			filters = append(filters, extraFilter{
+				key:    string(k),
+				values: []string{string(v.GetStringBytes())},
+			})
+		case fastjson.TypeArray:
+			a := v.GetArray()
+			if len(a) == 0 {
+				return
+			}
+			orValues := make([]string, len(a))
+			for i, av := range a {
+				ov, err := av.StringBytes()
+				if err != nil {
+					errOuter = fmt.Errorf("cannot obtain string item at the array for key %q; item: %s", k, av)
+					return
+				}
+				orValues[i] = string(ov)
+			}
+			filters = append(filters, extraFilter{
+				key:    string(k),
+				values: orValues,
+			})
+		default:
+			errOuter = fmt.Errorf("unexpected type of value for key %q: %s; value: %s", k, v.Type(), v)
+		}
+	})
+	if errOuter != nil {
+		return nil, errOuter
+	}
+	return filters, nil
 }

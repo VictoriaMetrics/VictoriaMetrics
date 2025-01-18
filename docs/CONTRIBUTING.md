@@ -41,7 +41,7 @@ We use [labels](https://docs.github.com/en/issues/using-labels-and-milestones-to
 to categorize GitHub issues. We have the following labels:
 1. A component label: vmalert, vmagent, etc. Add this label to the issue if it is related to a specific component.
 1. An issue type: `bug`, `enhancement`, `question`.
-1. `enterprize`, assigned to issues related to ENT features
+1. `enterprise`, assigned to issues related to ENT features
 1. `need more info`, assigned to issues which require elaboration from the issue creator.
   For example, if we weren't able to reproduce the reported bug based on the ticket description then we ask additional
   questions which could help to reproduce the issue and add `need more info` label. This label helps other maintainers
@@ -57,7 +57,8 @@ Implementing a bugfix or enhancement requires sending a pull request to the [cor
 A pull request should contain the following attributes:
 1. Don't use `master` branch for making PRs, as it makes it impossible for reviewers to modify the change.
 1. All commits need to be [signed](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
-1. A clear and concise description of what was done and for what purpose.
+1. A clear and concise description of what was done and for what purpose. Use the imperative, present tense: "change" not "changed" nor "changes". 
+   Read your commit message as "This commit will ..", don't capitalize the first letter
 1. A link to the issue related to this change, if any.
 1. Tests proving that the change is effective. See [this style guide](https://itnext.io/f-tests-as-a-replacement-for-table-driven-tests-in-go-8814a8b19e9e) for tests.
    To run tests and code checks locally execute commands `make tests-full` and `make check-all`.
@@ -66,7 +67,7 @@ A pull request should contain the following attributes:
    requires reflecting these changes in the documentation. For new features add `{{%/* available_from "#" */%}}` shortcode
    to the documentation. It will be later automatically replaced with an actual release version.
 1. A line in the [changelog](https://docs.victoriametrics.com/changelog/#tip) mentioning the change and related issue in a way
-  that would be clear to other readers even if they don't have the full context.
+  that would be clear to other readers even if they don't have the full context. Use the same guidelines as for commit message.
 1. Reviewers who you think have the best expertise on the matter.
 
 See good example of pull request [here](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6487).
@@ -95,7 +96,7 @@ We are open to third-party pull requests provided they follow [KISS design princ
 
 Adhering `KISS` principle simplifies the resulting code and architecture, so it can be reviewed, understood and debugged by wider audience.
 
-Due to `KISS`, [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) has no the following "features" popular in distributed computing world:
+Due to `KISS`, [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) has none of the following "features" popular in distributed computing world:
 
 - Fragile gossip protocols. See [failed attempt in Thanos](https://github.com/improbable-eng/thanos/blob/030bc345c12c446962225221795f4973848caab5/docs/proposals/completed/201809_gossip-removal.md).
 - Hard-to-understand-and-implement-properly [Paxos protocols](https://www.quora.com/In-distributed-systems-what-is-a-simple-explanation-of-the-Paxos-algorithm).

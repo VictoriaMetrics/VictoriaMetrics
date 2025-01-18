@@ -729,7 +729,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 
 		// Search for metric name for the given metricID.
 		var ok bool
-		metricNameCopy, ok = db.searchMetricNameWithCache(metricNameCopy[:0], genTSID.TSID.MetricID)
+		metricNameCopy, ok = db.searchMetricName(metricNameCopy[:0], genTSID.TSID.MetricID, false)
 		if !ok {
 			return fmt.Errorf("cannot find metricName for metricID=%d; i=%d", genTSID.TSID.MetricID, i)
 		}
@@ -738,7 +738,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 
 		// Try searching metric name for non-existent MetricID.
-		buf, found := db.searchMetricNameWithCache(nil, 1)
+		buf, found := db.searchMetricName(nil, 1, false)
 		if found {
 			return fmt.Errorf("unexpected metricName found for non-existing metricID; got %X", buf)
 		}
@@ -2100,4 +2100,131 @@ func stopTestStorage(s *Storage) {
 	s.metricNameCache.Stop()
 	s.tsidCache.Stop()
 	fs.MustRemoveDirAtomic(s.cachePath)
+}
+
+func TestSearchContainsTimeRange(t *testing.T) {
+	path := t.Name()
+	os.RemoveAll(path)
+	s := MustOpenStorage(path, retentionMax, 0, 0)
+	db := s.idb()
+
+	is := db.getIndexSearch(noDeadline)
+
+	// Create a bunch of per-day time series
+	const (
+		days                = 6
+		tenant2IngestionDay = 8
+		metricsPerDay       = 1000
+	)
+	rotationDay := time.Date(2019, time.October, 15, 5, 1, 0, 0, time.UTC)
+	rotationMillis := uint64(rotationDay.UnixMilli())
+	rotationDate := rotationMillis / msecPerDay
+	var metricNameBuf []byte
+	perDayMetricIDs := make(map[uint64]*uint64set.Set)
+	labelNames := []string{
+		"__name__", "constant", "day", "UniqueId", "some_unique_id",
+	}
+
+	sort.Strings(labelNames)
+
+	newMN := func(name string, day, metric int) MetricName {
+		var mn MetricName
+		mn.MetricGroup = []byte(name)
+		mn.AddTag(
+			"constant",
+			"const",
+		)
+		mn.AddTag(
+			"day",
+			fmt.Sprintf("%v", day),
+		)
+		mn.AddTag(
+			"UniqueId",
+			fmt.Sprintf("%v", metric),
+		)
+		mn.AddTag(
+			"some_unique_id",
+			fmt.Sprintf("%v", day),
+		)
+		mn.sortTags()
+		return mn
+	}
+
+	// ingest metrics for tenant 0:0
+	for day := 0; day < days; day++ {
+		date := rotationDate - uint64(day)
+
+		var metricIDs uint64set.Set
+		for metric := range metricsPerDay {
+			mn := newMN("testMetric", day, metric)
+			metricNameBuf = mn.Marshal(metricNameBuf[:0])
+			var genTSID generationTSID
+			if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
+				generateTSID(&genTSID.TSID, &mn)
+				createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
+			}
+			metricIDs.Add(genTSID.TSID.MetricID)
+		}
+
+		perDayMetricIDs[date] = &metricIDs
+	}
+	db.putIndexSearch(is)
+
+	// Flush index to disk, so it becomes visible for search
+	s.DebugFlush()
+
+	is2 := db.getIndexSearch(noDeadline)
+
+	// Check that all the metrics are found for all the days.
+	for date := rotationDate - days + 1; date <= rotationDate; date++ {
+
+		metricIDs, err := is2.getMetricIDsForDate(date, metricsPerDay)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if !perDayMetricIDs[date].Equal(metricIDs) {
+			t.Fatalf("unexpected metricIDs found;\ngot\n%d\nwant\n%d", metricIDs.AppendTo(nil), perDayMetricIDs[date].AppendTo(nil))
+		}
+	}
+
+	db.putIndexSearch(is2)
+
+	// rotate indexdb
+	s.mustRotateIndexDB(rotationDay)
+	db = s.idb()
+
+	// perform search for 0:0 tenant
+	// results of previous search requests shouldn't affect it
+
+	isExt := db.extDB.getIndexSearch(noDeadline)
+	// search for range that covers prev indexDB for dates before ingestion
+	tr := TimeRange{
+		MinTimestamp: int64(rotationMillis - msecPerDay*(days)),
+		MaxTimestamp: int64(rotationMillis),
+	}
+	if !isExt.containsTimeRange(tr) {
+		t.Fatalf("expected to have given time range at prev IndexDB")
+	}
+
+	// search for range not exist at prev indexDB
+	tr = TimeRange{
+		MinTimestamp: int64(rotationMillis + msecPerDay*(days+4)),
+		MaxTimestamp: int64(rotationMillis + msecPerDay*(days+2)),
+	}
+	if isExt.containsTimeRange(tr) {
+		t.Fatalf("not expected to have given time range at prev IndexDB")
+	}
+	key := isExt.marshalCommonPrefix(nil, nsPrefixDateToMetricID)
+
+	db.extDB.minMissingTimestampByKeyLock.Lock()
+	minMissingTimetamp := db.extDB.minMissingTimestampByKey[string(key)]
+	db.extDB.minMissingTimestampByKeyLock.Unlock()
+
+	if minMissingTimetamp != tr.MinTimestamp {
+		t.Fatalf("unexpected minMissingTimestamp for 0:0 tenant got %d, want %d", minMissingTimetamp, tr.MinTimestamp)
+	}
+
+	db.extDB.putIndexSearch(isExt)
+	s.MustClose()
+	fs.MustRemoveAll(path)
 }

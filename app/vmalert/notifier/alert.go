@@ -127,7 +127,7 @@ func ExecTemplate(q templates.QueryFn, annotations map[string]string, tplData Al
 
 // ValidateTemplates validate annotations for possible template error, uses empty data for template population
 func ValidateTemplates(annotations map[string]string) error {
-	tmpl, err := templates.Get()
+	tmpl, err := templates.GetWithFuncs(nil)
 	if err != nil {
 		return err
 	}
@@ -146,12 +146,21 @@ func templateAnnotations(annotations map[string]string, data AlertTplData, tmpl 
 	tData := tplData{data, externalLabels, externalURL}
 	header := strings.Join(tplHeaders, "")
 	for key, text := range annotations {
+		// simple check to skip text without template
+		if !strings.Contains(text, "{{") || !strings.Contains(text, "}}") {
+			r[key] = text
+			continue
+		}
+
 		buf.Reset()
 		builder.Reset()
 		builder.Grow(len(header) + len(text))
 		builder.WriteString(header)
 		builder.WriteString(text)
-		if err := templateAnnotation(&buf, builder.String(), tData, tmpl, execute); err != nil {
+		// clone a new template for each parse to avoid collision
+		ctmpl, _ := tmpl.Clone()
+		ctmpl = ctmpl.Option("missingkey=zero")
+		if err := templateAnnotation(&buf, builder.String(), tData, ctmpl, execute); err != nil {
 			r[key] = text
 			eg.Add(fmt.Errorf("key %q, template %q: %w", key, text, err))
 			continue
@@ -167,14 +176,8 @@ type tplData struct {
 	ExternalURL    string
 }
 
-func templateAnnotation(dst io.Writer, text string, data tplData, tmpl *textTpl.Template, execute bool) error {
-	tpl, err := tmpl.Clone()
-	if err != nil {
-		return fmt.Errorf("error cloning template before parse annotation: %w", err)
-	}
-	// Clone() doesn't copy tpl Options, so we set them manually
-	tpl = tpl.Option("missingkey=zero")
-	tpl, err = tpl.Parse(text)
+func templateAnnotation(dst io.Writer, text string, data tplData, tpl *textTpl.Template, execute bool) error {
+	tpl, err := tpl.Parse(text)
 	if err != nil {
 		return fmt.Errorf("error parsing annotation template: %w", err)
 	}

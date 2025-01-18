@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -175,7 +176,7 @@ func writeCompactObject(w io.Writer, fields []logstorage.Field) error {
 		_, err := fmt.Fprintf(w, "%s\n", fields[0].Value)
 		return err
 	}
-	if len(fields) == 2 && fields[0].Name == "_time" || fields[1].Name == "_time" {
+	if len(fields) == 2 && (fields[0].Name == "_time" || fields[1].Name == "_time") {
 		// Write _time\tfieldValue as is
 		if fields[0].Name == "_time" {
 			_, err := fmt.Fprintf(w, "%s\t%s\n", fields[0].Value, fields[1].Value)
@@ -234,5 +235,11 @@ func getJSONString(s string) string {
 	if err != nil {
 		panic(fmt.Errorf("unexpected error when marshaling string to JSON: %w", err))
 	}
-	return string(data)
+	return jsonHTMLReplacer.Replace(string(data))
 }
+
+var jsonHTMLReplacer = strings.NewReplacer(
+	`\u003c`, "\u003c",
+	`\u003e`, "\u003e",
+	`\u0026`, "\u0026",
+)

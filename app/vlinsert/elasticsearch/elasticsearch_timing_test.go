@@ -41,7 +41,7 @@ func benchmarkReadBulkRequest(b *testing.B, isGzip bool) {
 		r := &bytes.Reader{}
 		for pb.Next() {
 			r.Reset(dataBytes)
-			_, err := readBulkRequest(r, isGzip, timeField, msgFields, blp)
+			_, err := readBulkRequest("test", r, isGzip, timeField, msgFields, blp)
 			if err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
 			}

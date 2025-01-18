@@ -105,6 +105,16 @@ func TestAlertManager_Send(t *testing.T) {
 			if r.Header.Get(headerKey) != "bar" {
 				t.Fatalf("expected header %q to be set to %q; got %q instead", headerKey, "bar", r.Header.Get(headerKey))
 			}
+		case 4:
+			var a []struct {
+				Labels map[string]string `json:"labels"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&a); err != nil {
+				t.Fatalf("can not unmarshal data into alert %s", err)
+			}
+			if len(a) != 1 {
+				t.Fatalf("expected 1 alert in array got %d", len(a))
+			}
 		}
 	})
 	srv := httptest.NewServer(mux)
@@ -168,7 +178,20 @@ func TestAlertManager_Send(t *testing.T) {
 		t.Fatalf("unexpected error %s", err)
 	}
 
-	if c != 3 {
-		t.Fatalf("expected 3 calls(count from zero) to server got %d", c)
+	if err := am.Send(context.Background(), []Alert{
+		{
+			Name:   "alert1",
+			Labels: map[string]string{"rule": "test"},
+		},
+		{
+			Name:   "alert2",
+			Labels: map[string]string{},
+		},
+	}, map[string]string{}); err != nil {
+		t.Fatalf("unexpected error %s", err)
+	}
+
+	if c != 4 {
+		t.Fatalf("expected 4 calls(count from zero) to server got %d", c)
 	}
 }

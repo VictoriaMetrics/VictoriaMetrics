@@ -58,7 +58,7 @@ func (pc *pipeCopy) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pc *pipeCopy) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pc *pipeCopy) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pc, nil
 }
 
@@ -87,7 +87,7 @@ func (pcp *pipeCopyProcessor) flush() error {
 	return nil
 }
 
-func parsePipeCopy(lex *lexer) (*pipeCopy, error) {
+func parsePipeCopy(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("copy", "cp") {
 		return nil, fmt.Errorf("expecting 'copy' or 'cp'; got %q", lex.token)
 	}

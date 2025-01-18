@@ -3,12 +3,14 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"net/url"
 	"testing"
 
 	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 )
 
 func TestParseAuthConfigFailure(t *testing.T) {
@@ -24,15 +26,9 @@ func TestParseAuthConfigFailure(t *testing.T) {
 		}
 	}
 
-	// Empty config
-	f(``)
-
 	// Invalid entry
 	f(`foobar`)
 	f(`foobar: baz`)
-
-	// Empty users
-	f(`users: []`)
 
 	// Missing url_prefix
 	f(`
@@ -301,6 +297,12 @@ func TestParseAuthConfigSuccess(t *testing.T) {
 	}
 
 	insecureSkipVerifyTrue := true
+
+	// Empty config
+	f(``, map[string]*UserInfo{})
+
+	// Empty users
+	f(`users: []`, map[string]*UserInfo{})
 
 	// Single user
 	f(`
@@ -797,6 +799,75 @@ func TestBrokenBackend(t *testing.T) {
 			t.Fatalf("unexpected broken backend %q", b.url)
 		}
 	}
+}
+
+func TestDiscoverBackendIPsWithIPV6(t *testing.T) {
+	f := func(actualUrl, expectedUrl string) {
+		t.Helper()
+		up := mustParseURL(actualUrl)
+		up.discoverBackendIPs = true
+		up.loadBalancingPolicy = "least_loaded"
+
+		up.discoverBackendAddrsIfNeeded()
+		pbus := up.bus.Load()
+		bus := *pbus
+
+		if len(bus) != 1 {
+			t.Fatalf("expected url list to be of size 1; got %d instead", len(bus))
+		}
+
+		got := bus[0].url.Host
+		if got != expectedUrl {
+			t.Fatalf(`expected url to be %q; got %q instead`, expectedUrl, bus[0].url.Host)
+		}
+	}
+
+	// Discover backendURL with SRV hostnames
+	customResolver := &fakeResolver{
+		Resolver: &net.Resolver{},
+		// SRV records must return hostname
+		// not an IP address
+		lookupSRVResults: map[string][]*net.SRV{
+			"_vmselect._tcp.selectwithport.": {
+				{
+					Target: "vmselect.local",
+					Port:   8481,
+				},
+			},
+			"_vmselect._tcp.selectwoport.": {
+				{
+					Target: "vmselect.local",
+				},
+			},
+		},
+		lookupIPAddrResults: map[string][]net.IPAddr{
+			"vminsert.local": {
+				{
+					IP: net.ParseIP("10.0.10.13"),
+				},
+			},
+			"ipv6.vminsert.local": {
+				{
+					IP: net.ParseIP("2607:f8b0:400a:80b::200e"),
+				},
+			},
+		},
+	}
+	origResolver := netutil.Resolver
+	netutil.Resolver = customResolver
+	defer func() {
+		netutil.Resolver = origResolver
+	}()
+	f("http://srv+_vmselect._tcp.selectwithport.:8080", "vmselect.local:8080")
+	f("http://srv+_vmselect._tcp.selectwithport.:", "vmselect.local:8481")
+	f("http://srv+_vmselect._tcp.selectwoport.:8080", "vmselect.local:8080")
+	f("http://srv+_vmselect._tcp.selectwoport.", "vmselect.local:")
+
+	f("http://vminsert.local:8080", "10.0.10.13:8080")
+	f("http://vminsert.local", "10.0.10.13:")
+	f("http://ipv6.vminsert.local:8080", "[2607:f8b0:400a:80b::200e]:8080")
+	f("http://ipv6.vminsert.local", "[2607:f8b0:400a:80b::200e]:")
+
 }
 
 func getRegexs(paths []string) []*Regex {

@@ -3,6 +3,9 @@ package logstorage
 import (
 	"sort"
 	"sync"
+	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // LogRows holds a set of rows needed for Storage.MustAddRows
@@ -133,20 +136,49 @@ func (lr *LogRows) NeedFlush() bool {
 
 // MustAdd adds a log entry with the given args to lr.
 //
+// If streamFields is non-nil, the the given streamFields are used as log stream fields
+// instead of the pre-configured stream fields from GetLogRows().
+//
 // It is OK to modify the args after returning from the function,
 // since lr copies all the args to internal data.
 //
-// field names longer than MaxFieldNameSize are automatically truncated to MaxFieldNameSize length.
-func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields []Field) {
-	// Compose StreamTags from fields according to lr.streamFields and lr.extraStreamFields
+// Field names longer than MaxFieldNameSize are automatically truncated to MaxFieldNameSize length.
+//
+// Log entries with too big number of fields are ignored.
+// Loo long log entries are ignored.
+func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields, streamFields []Field) {
+	if len(fields) > maxColumnsPerBlock {
+		fieldNames := make([]string, len(fields))
+		for i, f := range fields {
+			fieldNames[i] = f.Name
+		}
+		logger.Infof("ignoring log entry with too big number of fields, which exceeds %d; fieldNames=%q", maxColumnsPerBlock, fieldNames)
+		return
+	}
+	rowLen := uncompressedRowSizeBytes(fields)
+	if rowLen > maxUncompressedBlockSize {
+		logger.Infof("ignoring too long log entry with the estimated size %d bytes, since it exceeds the limit %d", rowLen, maxUncompressedBlockSize)
+		return
+	}
+
+	// Compose StreamTags from fields according to streamFields, lr.streamFields and lr.extraStreamFields
 	st := GetStreamTags()
-	for _, f := range fields {
-		if _, ok := lr.streamFields[f.Name]; ok {
+	if streamFields != nil {
+		// streamFields overrride lr.streamFields
+		for _, f := range streamFields {
+			if _, ok := lr.ignoreFields[f.Name]; !ok {
+				st.Add(f.Name, f.Value)
+			}
+		}
+	} else {
+		for _, f := range fields {
+			if _, ok := lr.streamFields[f.Name]; ok {
+				st.Add(f.Name, f.Value)
+			}
+		}
+		for _, f := range lr.extraStreamFields {
 			st.Add(f.Name, f.Value)
 		}
-	}
-	for _, f := range lr.extraStreamFields {
-		st.Add(f.Name, f.Value)
 	}
 
 	// Marshal StreamTags
@@ -344,4 +376,18 @@ func (lr *LogRows) Swap(i, j int) {
 
 	fieldsA, fieldsB := &lr.rows[i], &lr.rows[j]
 	*fieldsA, *fieldsB = *fieldsB, *fieldsA
+}
+
+// EstimatedJSONRowLen returns an approximate length of the log entry with the given fields if represented as JSON.
+func EstimatedJSONRowLen(fields []Field) int {
+	n := len("{}\n")
+	n += len(`"_time":""`) + len(time.RFC3339Nano)
+	for _, f := range fields {
+		nameLen := len(f.Name)
+		if nameLen == 0 {
+			nameLen = len("_msg")
+		}
+		n += len(`,"":""`) + nameLen + len(f.Value)
+	}
+	return n
 }

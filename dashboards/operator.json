@@ -101,6 +101,7 @@
             "mode": "thresholds"
           },
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -242,6 +243,7 @@
             "mode": "thresholds"
           },
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -311,6 +313,7 @@
             "mode": "thresholds"
           },
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -365,7 +368,7 @@
           "refId": "A"
         }
       ],
-      "title": "Electer Leaders",
+      "title": "Elected Leaders",
       "type": "stat"
     },
     {
@@ -382,6 +385,7 @@
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
+            "min": 0,
             "steps": [
               {
                 "color": "green",

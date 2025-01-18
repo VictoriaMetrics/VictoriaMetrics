@@ -15,7 +15,7 @@ VictoriaLogs provides the following features:
 - VictoriaLogs' capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
   It runs smoothly on Raspberry PI and on servers with hundreds of CPU cores and terabytes of RAM.
 - It can handle up to 30x bigger data volumes than Elasticsearch and Grafana Loki when running on the same hardware.
-  See [these docs](#benchmarks).
+  See [these docs](#benchmarks) and [this article](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f) for details.
 - It provides fast full-text search out of the box for [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
   with high cardinality (e.g. high number of unique values) such as `trace_id`, `user_id` and `ip`.
 - It supports multitenancy - see [these docs](#multitenancy).
@@ -262,6 +262,31 @@ log management systems and comparing resource usage + query performance between 
 
 Please share benchmark results and ideas on how to improve benchmarks / VictoriaLogs
 via [VictoriaMetrics community channels](https://docs.victoriametrics.com/#community-and-contributions).
+
+## Profiling
+
+VictoriaLogs provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
+
+* Memory profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+
+```sh
+curl http://0.0.0.0:9428/debug/pprof/heap > mem.pprof
+```
+
+
+* CPU profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+
+```sh
+curl http://0.0.0.0:9428/debug/pprof/profile > cpu.pprof
+```
+
+
+The command for collecting CPU profile waits for 30 seconds before returning.
+
+The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
+It is safe sharing the collected profiles from security point of view, since they do not contain sensitive information.
 
 ## List of command-line flags
 

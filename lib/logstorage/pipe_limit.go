@@ -28,7 +28,7 @@ func (pl *pipeLimit) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pl *pipeLimit) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pl *pipeLimit) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pl, nil
 }
 
@@ -88,7 +88,7 @@ func (plp *pipeLimitProcessor) flush() error {
 	return nil
 }
 
-func parsePipeLimit(lex *lexer) (*pipeLimit, error) {
+func parsePipeLimit(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("limit", "head") {
 		return nil, fmt.Errorf("expecting 'limit' or 'head'; got %q", lex.token)
 	}

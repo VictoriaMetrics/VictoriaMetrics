@@ -82,6 +82,8 @@ func (fr *filterStringRange) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32ByStringRange(bs, ch, bm, minValue, maxValue)
 	case valueTypeUint64:
 		matchUint64ByStringRange(bs, ch, bm, minValue, maxValue)
+	case valueTypeInt64:
+		matchInt64ByStringRange(bs, ch, bm, minValue, maxValue)
 	case valueTypeFloat64:
 		matchFloat64ByStringRange(bs, ch, bm, minValue, maxValue)
 	case valueTypeIPv4:
@@ -206,6 +208,21 @@ func matchUint64ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, min
 	bbPool.Put(bb)
 }
 
+func matchInt64ByStringRange(bs *blockSearch, ch *columnHeader, bm *bitmap, minValue, maxValue string) {
+	if minValue != "-" && minValue > "9" || maxValue != "-" && maxValue < "0" {
+		bm.resetBits()
+		return
+	}
+	bb := bbPool.Get()
+	visitValues(bs, ch, bm, func(v string) bool {
+		s := toInt64String(bs, bb, v)
+		return matchStringRange(s, minValue, maxValue)
+	})
+	bbPool.Put(bb)
+}
+
 func matchStringRange(s, minValue, maxValue string) bool {
-	return !lessString(s, minValue) && lessString(s, maxValue)
+	// Do not use lessString() here, since string_range() filter
+	// works on plain strings without additional magic.
+	return s >= minValue && s < maxValue
 }

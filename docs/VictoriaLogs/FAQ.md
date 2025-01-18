@@ -11,6 +11,11 @@ aliases:
 - /VictoriaLogs/FAQ.html
 - /VictoriaLogs/faq.html
 ---
+
+## Is VictoriaLogs ready for production use?
+
+Yes. VictoriaLogs is ready for production use starting from [v1.0.0](https://docs.victoriametrics.com/victorialogs/changelog/).
+
 ## What is the difference between VictoriaLogs and Elasticsearch (OpenSearch)?
 
 Both Elasticsearch and VictoriaLogs allow ingesting structured and unstructured logs
@@ -29,7 +34,7 @@ VictoriaLogs is optimized specifically for logs. So it provides the following fe
 - Easy to setup and operate. There is no need in tuning configuration for optimal performance or in creating any indexes for various log types.
   Just run VictoriaLogs on the most suitable hardware, ingest logs into it via [supported data ingestion protocols](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
   and get the best available performance out of the box.
-- Up to 30x less RAM usage than Elasticsearch for the same workload.
+- Up to 30x less RAM usage than Elasticsearch for the same workload. See [this article](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f) for details.
 - Up to 15x less disk space usage than Elasticsearch for the same amounts of stored logs.
 - Ability to work efficiently with hundreds of terabytes of logs on a single node.
 - Easy to use query language optimized for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
@@ -170,3 +175,86 @@ And for the following log, its `_msg` will be `foo bar in body`:
   "body": "foo bar in body"
 }
 ```
+
+## What length a log record is expected to have?
+
+VictoriaLogs works optimally with log records of up to `10KB`. It works OK with
+log records of up to `100KB`. It works not so optimal with log records exceeding
+`100KB`.
+
+The max size of a log record VictoriaLogs can handle is `2MB`. This is
+because VictoriaLogs stores log records in blocks and `2MB` is the max size of a
+block. Blocks of this size fit the L2 cache of a typical CPU, which gives an
+optimal processing performance.
+
+However, log records whose size is close to `2MB` aren't handled efficiently by
+VictoriaLogs because per-block overhead translates to a single log record, and
+this overhead is big. 
+
+The `2MB` limit is hadrcoded and is unlikely to change.
+
+## How to determine which log fields occupy the most of disk space?
+
+[Run](https://docs.victoriametrics.com/victorialogs/querying/) the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query
+based on [`block_stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#block_stats-pipe):
+
+```logsql
+_time:1d
+  | block_stats
+  | stats by (field)
+      sum(values_bytes) as values_bytes,
+      sum(bloom_bytes) as bloom_bytes,
+      sum(rows) as rows
+  | math
+      (values_bytes+bloom_bytes) as total_bytes,
+      round(total_bytes / rows, 0.01) as bytes_per_row
+  | first 10 (total_bytes desc)
+```
+
+This query returns top 10 [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+which occupy the most of disk space across the logs ingested during the last day. The occupied disk space
+is returned in the `total_bytes` field.
+
+If you use [VictoriaLogs web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)
+or [Grafana plugin for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/),
+then make sure the selected time range covers the last day. Otherwise the query above returns
+results on the intersection of the last day and the selected time range.
+
+See [why the log field occupies a lot of disk space](#why-the-log-field-occupies-a-lot-of-disk-space).
+
+## Why the log field occupies a lot of disk space?
+
+See [how to determine which log fields occupy the most of disk space](#how-to-determine-which-log-fields-occupy-the-most-of-diskspace).
+Log field may occupy a lot of disk space if it contains values with many unique parts (aka "random" values).
+Such values do not compress well, so they occupy a lot of disk space. If you want reducing the amounts of occupied disk space,
+then either remove the given log field from the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs
+or remove the unique parts from the log field before ingesting it into VictoriaLogs.
+
+## How to detect the most frequently seen logs?
+
+Use [`collapse_nums` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#collapse_nums-pipe).
+For example, the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query
+returns top 10 the most freqently seen [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) over the last hour:
+
+```logsql
+_time:1h | collapse_nums prettify | top 10 (_msg)
+```
+
+Add [`_stream` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to the `top (...)` list in order to get top 10 the most frequently seen logs with the `_stream` field:
+
+```logsql
+_time:1h | collapse_nums prettify | top 10 (_stream, _msg)
+```
+
+## How to get field names seen in the selected logs?
+
+Use [`field_names` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#field_names-pipe).
+For example, the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query
+returns all the [field names](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) seen
+across all the logs during the last hour:
+
+```logsql
+_time:1h | field_names | sort by (name)
+```
+
+The `hits` field contains an estimated number of logs with the given log field.

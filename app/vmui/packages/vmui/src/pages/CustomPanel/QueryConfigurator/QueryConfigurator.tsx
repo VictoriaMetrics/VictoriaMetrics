@@ -25,13 +25,16 @@ import { QueryStats } from "../../../api/types";
 import { usePrettifyQuery } from "./hooks/usePrettifyQuery";
 import QueryHistory from "../QueryHistory/QueryHistory";
 import AnomalyConfig from "../../../components/ExploreAnomaly/AnomalyConfig";
+import QueryEditorAutocomplete from "../../../components/Configurators/QueryEditor/QueryEditorAutocomplete";
 
 export interface QueryConfiguratorProps {
   queryErrors: string[];
   setQueryErrors: Dispatch<SetStateAction<string[]>>;
   setHideError: Dispatch<SetStateAction<boolean>>;
   stats: QueryStats[];
+  label?: string;
   isLoading?: boolean;
+  includeFunctions?: boolean;
   onHideQuery?: (queries: number[]) => void
   onRunQuery: () => void;
   abortFetch?: () => void;
@@ -41,6 +44,8 @@ export interface QueryConfiguratorProps {
     autocomplete?: boolean;
     traceQuery?: boolean;
     anomalyConfig?: boolean;
+    disableCache?: boolean;
+    reduceMemUsage?: boolean;
   }
 }
 
@@ -49,7 +54,9 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
   setQueryErrors,
   setHideError,
   stats,
+  label,
   isLoading,
+  includeFunctions = true,
   onHideQuery,
   onRunQuery,
   abortFetch,
@@ -210,14 +217,16 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
           <QueryEditor
             value={stateQuery[i]}
             autocomplete={!hideButtons?.autocomplete && (autocomplete || autocompleteQuick)}
+            autocompleteEl={QueryEditorAutocomplete}
             error={queryErrors[i]}
             stats={stats[i]}
             onArrowUp={createHandlerArrow(-1, i)}
             onArrowDown={createHandlerArrow(1, i)}
             onEnter={handleRunQuery}
             onChange={createHandlerChangeQuery(i)}
-            label={`Query ${stateQuery.length > 1 ? i + 1 : ""}`}
+            label={`${label || "Query"} ${stateQuery.length > 1 ? i + 1 : ""}`}
             disabled={hideQuery.includes(i)}
+            includeFunctions={includeFunctions}
           />
           {onHideQuery && (
             <Tooltip title={hideQuery.includes(i) ? "Enable query" : "Disable query"}>

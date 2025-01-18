@@ -58,7 +58,7 @@ func (pf *pipeFields) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFields) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pf *pipeFields) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pf, nil
 }
 
@@ -89,7 +89,7 @@ func (pfp *pipeFieldsProcessor) flush() error {
 	return nil
 }
 
-func parsePipeFields(lex *lexer) (*pipeFields, error) {
+func parsePipeFields(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("fields", "keep") {
 		return nil, fmt.Errorf("expecting 'fields'; got %q", lex.token)
 	}
