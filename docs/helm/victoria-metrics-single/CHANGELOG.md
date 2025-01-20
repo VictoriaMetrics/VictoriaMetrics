@@ -2,6 +2,14 @@
 
 - TODO
 
+## 0.13.7
+
+**Release date:** 20 Jan 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.109.1](https://img.shields.io/badge/v1.109.1-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Foperator%2Fchangelog%23v11091)
+
+- fixed type in relabel config. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1922) for details.
+
 ## 0.13.6
 
 **Release date:** 17 Jan 2025
