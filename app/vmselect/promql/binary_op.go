@@ -480,7 +480,54 @@ func binaryOpDefault(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 }
 
 func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
+	// group time series by condition.
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
+
+	// fast path: return right if all series in mLeft are NaNs.
+	isLeftEmpty := true
+	for _, tss := range mLeft {
+		if len(tss) > 0 {
+			isLeftEmpty = false
+			break
+		}
+	}
+	if isLeftEmpty {
+		sortSeriesByMetricName(bfa.right)
+		return bfa.right, nil
+	}
+
+	// slow path
+	for k, tssLeft := range mLeft {
+		// for tss in the left group, find tss in the right group
+		tssRight := mRight[k]
+
+		// set value to NaN if a non-NaN value has been found.
+		// this will go through all data points and no more than len(timestamps) data points will have a non-NaN value.
+		tsLen := len(tssLeft[0].Timestamps)
+		for i := 0; i < tsLen; i++ {
+			found := false
+			for _, tsLeft := range tssLeft {
+				if found {
+					tsLeft.Values[i] = nan
+					continue
+				}
+				if !math.IsNaN(tsLeft.Values[i]) {
+					found = true
+				}
+			}
+
+			for _, tsRight := range tssRight {
+				if found {
+					tsRight.Values[i] = nan
+					continue
+				}
+				if !math.IsNaN(tsRight.Values[i]) {
+					found = true
+				}
+			}
+		}
+	}
+
 	var rvs []*timeseries
 
 	for _, tss := range mLeft {
@@ -491,22 +538,22 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	sortSeriesByMetricName(rvs)
 	rvsLen := len(rvs)
 
-	for k, tssRight := range mRight {
-		tssLeft := mLeft[k]
-		if tssLeft == nil {
-			rvs = append(rvs, tssRight...)
-			continue
-		}
-		fillLeftNaNsWithRightValues(tssLeft, tssRight)
+	for _, tss := range mRight {
+		rvs = append(rvs, tss...)
 	}
-	// Sort the added right-hand-side series by metric name as Prometheus does.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
 	sortSeriesByMetricName(rvs[rvsLen:])
 
+	// merge same metrics by filling right to left if necessary
+	for i := 0; i < len(rvs)-1; i++ {
+		if rvs[i].MetricName.String() == rvs[i+1].MetricName.String() {
+			fillLeftNaNsWithRightValues([]*timeseries{rvs[i]}, []*timeseries{rvs[i+1]})
+			rvs[i+1].Reset()
+		}
+	}
 	return rvs, nil
 }
 
-func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) {
+func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) []*timeseries {
 	// Fill gaps in tssLeft with values from tssRight as Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/552
 	for _, tsLeft := range tssLeft {
@@ -524,6 +571,7 @@ func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) {
 			}
 		}
 	}
+	return tssLeft
 }
 
 func binaryOpIfnot(bfa *binaryOpFuncArg) ([]*timeseries, error) {
