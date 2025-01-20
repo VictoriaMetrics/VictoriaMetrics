@@ -1,6 +1,7 @@
 ## Next release
 
-- TODO
+- Made certManager certificates commonName and duration configurable. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1924).
+- Add pod priority class configuration for operator. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1929).
 
 ## 0.40.4
 
