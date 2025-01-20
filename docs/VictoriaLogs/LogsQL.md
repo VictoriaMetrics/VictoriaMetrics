@@ -2004,15 +2004,14 @@ _time:1d {app="app1"} | stats by (user) count() app1_hits
   )
 ```
 
-If you need results similar to `INNER JOIN` in SQL, then apply [`filter` pipe](#filter-pipe) with [`*` filter](https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter)
-on fields, which must be non-empty after the join. For example, the following query returns stats only for users, which exist in both applications `app1` and `app2`:
+If you need results similar to `INNER JOIN` in SQL, then add `inner` suffix after the `join` pipe.
+For example, the following query returns stats only for users, which exist in both applications `app1` and `app2`:
 
 ```logsql
 _time:1d {app="app1"} | stats by (user) count() app1_hits
   | join by (user) (
     _time:1d {app="app2"} | stats by (user) count() app2_hits
-  )
-  | filter app2_hits:*
+  ) inner
 ```
 
 It is possible adding a prefix to all the field names returned by the `<query>` by specifying the needed prefix after the `<query>`.
