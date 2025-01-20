@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.23.4 to Go1.23.5. See the list of issues addressed in [Go1.23.5](https://github.com/golang/go/issues?q=milestone%3AGo1.23.5+label%3ACherryPickApproved).
+
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/metricsql/): allow executing queries with `$__interval` and `$__rate_interval` - these placeholders are automatically replaced with `1i` (e.g. `step` arg value at [`/api/v1/query_range`](https://docs.victoriametrics.com/keyconcepts/#range-query)) during query execution. This simplifies copying queries from Grafana dashboards.
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add command-line flag `-search.maxDeleteDuration(default 5m)` to limit the duration of the `/api/v1/admin/tsdb/delete_series` call. Previously, the call is limited by `-search.maxQueryDuration`.
 
