@@ -16,6 +16,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.7.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.7.0-victorialogs)
+
+Released at 2025-01-20
+
 * FEATURE: [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe): add an ability to execute `INNER JOIN` by adding `inner` suffix to the `join` pipe.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): updated the default graph type in the `hits panel` to bars with color fill. Removed options for `lines`, `stepped lines`, and `points`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7101).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): reduce logs text size and improved styles in grouped view. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7479).
