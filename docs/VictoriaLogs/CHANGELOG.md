@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): updated the default graph type in the `hits panel` to bars with color fill. Removed options for `lines`, `stepped lines`, and `points`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7101).
+
 ## [v1.6.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.6.1-victorialogs)
 
 Released at 2025-01-16
