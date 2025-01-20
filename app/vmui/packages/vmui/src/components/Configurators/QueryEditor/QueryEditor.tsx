@@ -145,6 +145,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
         error={error}
         warning={warning}
         onKeyDown={handleKeyDown}
+        onEnter={onEnter}
         onChange={onChange}
         onChangeCaret={handleChangeCaret}
         disabled={disabled}
