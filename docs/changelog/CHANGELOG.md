@@ -20,6 +20,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add command-line flag `-search.maxDeleteDuration(default 5m)` to limit the duration of the `/api/v1/admin/tsdb/delete_series` call. Previously, the call is limited by `-search.maxQueryDuration`.
 
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix an issue where pressing the "Enter" key in the query editor did not execute the query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8058).
+
 ## [v1.109.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.109.1)
 
 Released at 2025-01-17
