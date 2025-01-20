@@ -1138,6 +1138,17 @@ readOnlyRootFilesystem: true
 </td>
     </tr>
     <tr>
+      <td>server.statefulSet.updateStrategy</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>StatefulSet update strategy. Check <a href="https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#update-strategies" target="_blank">here</a> for details.</p>
+</td>
+    </tr>
+    <tr>
       <td>server.terminationGracePeriodSeconds</td>
       <td>int</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="">

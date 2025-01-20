@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- Added `.Values.statefulSet.updateStrategy`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1928) for details.
 
 ## 0.8.13
 
