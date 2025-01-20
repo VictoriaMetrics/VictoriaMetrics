@@ -2,6 +2,15 @@
 
 - TODO
 
+## 0.40.5
+
+**Release date:** 20 Jan 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v0.51.3](https://img.shields.io/badge/v0.51.3-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Foperator%2Fchangelog%23v0513)
+
+- Made certManager certificates commonName and duration configurable. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1924).
+- Add pod priority class configuration for operator. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1929).
+
 ## 0.40.4
 
 **Release date:** 13 Jan 2025
