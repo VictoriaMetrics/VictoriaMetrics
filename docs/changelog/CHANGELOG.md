@@ -30,6 +30,8 @@ Released at 2025-01-17
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): fix incorrect behavior of increase, increase_pure, delta caused by [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8002). This fix reverts to the previous behavior before [v1.109.0](https://docs.victoriametrics.com/changelog/#v11090). But allows controlling staleness detection for these functions explicitly via `-search.maxStalenessInterval`.
 * BUGFIX: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: remove unnecessary delay before failing if all online verification attempts have failed. This should reduce the time required for the component to proceed if all online verification attempts have failed.
 
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl/): add the ability to migrate data from Mimir object storage to VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7717).
+
 ## [v1.109.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.109.0)
 
 Released at 2025-01-14
