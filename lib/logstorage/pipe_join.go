@@ -18,6 +18,10 @@ type pipeJoin struct {
 	// q is a query for obtaining results for joining
 	q *Query
 
+	// The join is performed as INNER JOIN if isInner is set.
+	// Otherwise the join is performed as LEFT JOIN.
+	isInner bool
+
 	// prefix is the prefix to add to log fields from q query
 	prefix string
 
@@ -27,6 +31,9 @@ type pipeJoin struct {
 
 func (pj *pipeJoin) String() string {
 	s := fmt.Sprintf("join by (%s) (%s)", fieldNamesString(pj.byFields), pj.q.String())
+	if pj.isInner {
+		s += " inner"
+	}
 	if pj.prefix != "" {
 		s += " prefix " + quoteTokenIfNeeded(pj.prefix)
 	}
@@ -129,7 +136,9 @@ func (pjp *pipeJoinProcessor) writeBlock(workerID uint, br *blockResult) {
 		matchingRows := pj.m[string(shard.tmpBuf)]
 
 		if len(matchingRows) == 0 {
-			shard.wctx.writeRow(rowIdx, nil)
+			if !pj.isInner {
+				shard.wctx.writeRow(rowIdx, nil)
+			}
 			continue
 		}
 		for _, extraFields := range matchingRows {
@@ -189,6 +198,11 @@ func parsePipeJoin(lex *lexer) (pipe, error) {
 	pj := &pipeJoin{
 		byFields: byFields,
 		q:        q,
+	}
+
+	if lex.isKeyword("inner") {
+		lex.nextToken()
+		pj.isInner = true
 	}
 
 	if lex.isKeyword("prefix") {

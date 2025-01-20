@@ -98,16 +98,17 @@ reader:
         <tr>
             <th>Parameter</th>
             <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
         <tr>
             <td>
 
-`class`
+<span style="white-space: nowrap;">`class`</span>
             </td>
             <td>
+
 `reader.vm.VmReader` (or `vm`{{% available_from "v1.13.0" anomaly %}})
             </td>
             <td>
@@ -117,7 +118,7 @@ Name of the class needed to enable reading from VictoriaMetrics or Prometheus. V
         <tr>
             <td>
 
-`queries`
+<span style="white-space: nowrap;">`queries`</span>
             </td>
             <td>
 See [per-query config example](#per-query-config-example) above
@@ -129,10 +130,11 @@ See [per-query config section](#per-query-parameters) above
         <tr>
             <td>
 
-`datasource_url`
+<span style="white-space: nowrap;">`datasource_url`</span>
             </td>
             <td>
-`http://localhost:8481/`
+
+<span style="white-space: nowrap;">`http://localhost:8481/`</span>
             </td>
             <td>
 Datasource URL address
@@ -141,7 +143,7 @@ Datasource URL address
         <tr>
             <td>
 
-`tenant_id`
+<span style="white-space: nowrap;">`tenant_id`</span>
             </td>
             <td>
 
@@ -154,7 +156,7 @@ For VictoriaMetrics Cluster version only, tenants are identified by `accountID` 
         <tr>
             <td>
 
-`sampling_period`
+<span style="white-space: nowrap;">`sampling_period`</span>
             </td>
             <td>
 `1h`
@@ -166,10 +168,11 @@ Frequency of the points returned. Will be converted to `/query_range?step=%s` pa
         <tr>
             <td>
 
-`query_range_path`
+<span style="white-space: nowrap;">`query_range_path`</span>
             </td>
             <td>
-`/api/v1/query_range`
+
+<span style="white-space: nowrap;">`/api/v1/query_range`</span>
             </td>
             <td>
 Performs PromQL/MetricsQL range query
@@ -178,7 +181,7 @@ Performs PromQL/MetricsQL range query
         <tr>
             <td>
 
-`health_path`
+<span style="white-space: nowrap;">`health_path`</span>
             </td>
             <td>
 
@@ -191,7 +194,7 @@ Absolute or relative URL address where to check availability of the datasource.
         <tr>
             <td>
 
-`user`
+<span style="white-space: nowrap;">`user`</span>
             </td>
             <td>
 
@@ -204,7 +207,7 @@ BasicAuth username
         <tr>
             <td>
 
-`password`
+<span style="white-space: nowrap;">`password`</span>
             </td>
             <td>
 
@@ -217,7 +220,7 @@ BasicAuth password
         <tr>
             <td>
 
-`timeout`
+<span style="white-space: nowrap;">`timeout`</span>
             </td>
             <td>
 
@@ -230,7 +233,7 @@ Timeout for the requests, passed as a string
         <tr>
             <td>
 
-`verify_tls`
+<span style="white-space: nowrap;">`verify_tls`</span>
             </td>
             <td>
 
@@ -245,7 +248,7 @@ If a path to a CA bundle file (like `ca.crt`), it will verify the certificate us
         <tr>
             <td>
 
-`tls_cert_file`
+<span style="white-space: nowrap;">`tls_cert_file`</span>
             </td>
             <td>
 
@@ -258,7 +261,7 @@ Path to a file with the client certificate, i.e. `client.crt`{{% available_from 
         <tr>
             <td>
 
-`tls_key_file`
+<span style="white-space: nowrap;">`tls_key_file`</span>
             </td>
             <td>
 
@@ -271,7 +274,7 @@ Path to a file with the client certificate key, i.e. `client.key`{{% available_f
         <tr>
             <td>
 
-`bearer_token`
+<span style="white-space: nowrap;">`bearer_token`</span>
             </td>
             <td>
 
@@ -284,7 +287,7 @@ Token is passed in the standard format with header: `Authorization: bearer {toke
         <tr>
             <td>
 
-`bearer_token_file`
+<span style="white-space: nowrap;">`bearer_token_file`</span>
             </td>
             <td>
 
@@ -297,7 +300,7 @@ Path to a file, which contains token, that is passed in the standard format with
         <tr>
             <td>
 
-`extra_filters`
+<span style="white-space: nowrap;">`extra_filters`</span>
             </td>
             <td>
 
@@ -310,7 +313,7 @@ List of strings with series selector. See: [Prometheus querying API enhancements
         <tr>
             <td>
 
-`query_from_last_seen_timestamp`
+<span style="white-space: nowrap;">`query_from_last_seen_timestamp`</span>
             </td>
             <td>
 
@@ -323,7 +326,7 @@ If True, then query will be performed from the last seen timestamp for a given s
         <tr>
             <td>
 
-`latency_offset`
+<span style="white-space: nowrap;">`latency_offset`</span>
             </td>
             <td>
 
@@ -336,7 +339,7 @@ It allows overriding the default `-search.latencyOffset`{{% available_from "v1.1
         <tr>
             <td>
 
-`max_points_per_query`
+<span style="white-space: nowrap;">`max_points_per_query`</span>
             </td>
             <td>
 
@@ -349,7 +352,7 @@ Optional arg{{% available_from "v1.17.0" anomaly %}} overrides how `search.maxPo
         <tr>
             <td>
 
-`tz`
+<span style="white-space: nowrap;">`tz`</span>
             </td>
             <td>
 
@@ -362,7 +365,7 @@ Optional argument{{% available_from "v1.18.0" anomaly %}} specifies the [IANA](h
         <tr>
             <td>
 
-`data_range`
+<span style="white-space: nowrap;">`data_range`</span>
             </td>
             <td>
 

@@ -74,3 +74,8 @@ export interface ReportMetaData {
   comment: string;
   params: Record<string, string>;
 }
+
+export interface LogsFiledValues {
+  value: string;
+  hits: number;
+}

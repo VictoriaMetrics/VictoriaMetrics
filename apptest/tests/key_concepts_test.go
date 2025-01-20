@@ -50,7 +50,7 @@ func TestClusterKeyConceptsQueryData(t *testing.T) {
 	testKeyConceptsQueryData(t, sut)
 }
 
-// testClusterKeyConceptsQuery verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
+// testKeyConceptsQueryData verifies cases from https://docs.victoriametrics.com/keyconcepts/#query-data
 func testKeyConceptsQueryData(t *testing.T, sut at.PrometheusWriteQuerier) {
 
 	// Insert example data from documentation.

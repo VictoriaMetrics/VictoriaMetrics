@@ -25,6 +25,7 @@ import { QueryStats } from "../../../api/types";
 import { usePrettifyQuery } from "./hooks/usePrettifyQuery";
 import QueryHistory from "../QueryHistory/QueryHistory";
 import AnomalyConfig from "../../../components/ExploreAnomaly/AnomalyConfig";
+import QueryEditorAutocomplete from "../../../components/Configurators/QueryEditor/QueryEditorAutocomplete";
 
 export interface QueryConfiguratorProps {
   queryErrors: string[];
@@ -216,6 +217,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
           <QueryEditor
             value={stateQuery[i]}
             autocomplete={!hideButtons?.autocomplete && (autocomplete || autocompleteQuick)}
+            autocompleteEl={QueryEditorAutocomplete}
             error={queryErrors[i]}
             stats={stats[i]}
             onArrowUp={createHandlerArrow(-1, i)}

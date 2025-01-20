@@ -1028,7 +1028,7 @@ _Appears in:_
 | `port` | The port to scrape metrics from. If using the public IP address, this must<br />instead be specified in the relabeling rule. | _integer_ | false |
 | `project` | The Google Cloud Project ID | _string_ | true |
 | `tagSeparator` | The tag separator is used to separate the tags on concatenation | _string_ | false |
-| `zone` | The zone of the scrape targets. If you need multiple zones use multiple GCESDConfigs. | _string_ | true |
+| `zone` | The zone of the scrape targets. If you need multiple zones use multiple GCESDConfigs. | _[StringOrArray](#stringorarray)_ | true |
 
 
 #### HTTPAuth
@@ -2135,6 +2135,7 @@ StringOrArray is a helper type for storing string or array of string.
 
 
 _Appears in:_
+- [GCESDConfig](#gcesdconfig)
 - [RelabelConfig](#relabelconfig)
 - [StreamAggrRule](#streamaggrrule)
 - [UnauthorizedAccessConfigURLMap](#unauthorizedaccessconfigurlmap)

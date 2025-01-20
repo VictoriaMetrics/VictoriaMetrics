@@ -6,13 +6,13 @@ import (
 	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/cespare/xxhash/v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -82,7 +82,7 @@ func (pt *pipeTop) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (p
 }
 
 func (pt *pipeTop) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
-	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
+	maxStateSize := int64(float64(memory.Allowed()) * 0.4)
 
 	shards := make([]pipeTopProcessorShard, workersCount)
 	for i := range shards {
@@ -91,6 +91,7 @@ func (pt *pipeTop) newPipeProcessor(workersCount int, stopCh <-chan struct{}, ca
 				pt: pt,
 			},
 		}
+		shards[i].m.init(&shards[i].stateSizeBudget)
 	}
 
 	ptp := &pipeTopProcessor{
@@ -131,11 +132,8 @@ type pipeTopProcessorShardNopad struct {
 	// pt points to the parent pipeTop.
 	pt *pipeTop
 
-	// a reduces memory allocations when counting the number of hits over big number of unique values.
-	a chunkedAllocator
-
-	// m holds per-row hits.
-	m map[string]*uint64
+	// m holds per-value hits.
+	m hitsMap
 
 	// keyBuf is a temporary buffer for building keys for m.
 	keyBuf []byte
@@ -155,35 +153,21 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 		// Take into account all the columns in br.
 		keyBuf := shard.keyBuf
 		cs := br.getColumns()
-		for i := 0; i < br.rowsLen; i++ {
+		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 			keyBuf = keyBuf[:0]
 			for _, c := range cs {
-				v := c.getValueAtRow(br, i)
+				v := c.getValueAtRow(br, rowIdx)
 				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(c.name))
 				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(v))
 			}
-			shard.updateState(bytesutil.ToUnsafeString(keyBuf), 1)
+			shard.m.updateStateString(keyBuf, 1)
 		}
 		shard.keyBuf = keyBuf
 		return
 	}
 	if len(byFields) == 1 {
 		// Fast path for a single field.
-		c := br.getColumnByName(byFields[0])
-		if c.isConst {
-			v := c.valuesEncoded[0]
-			shard.updateState(v, uint64(br.rowsLen))
-			return
-		}
-		if c.valueType == valueTypeDict {
-			c.forEachDictValueWithHits(br, shard.updateState)
-			return
-		}
-
-		values := c.getValues(br)
-		for _, v := range values {
-			shard.updateState(v, 1)
-		}
+		shard.updateStatsSingleColumn(br, byFields[0])
 		return
 	}
 
@@ -197,33 +181,62 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 	shard.columnValues = columnValues
 
 	keyBuf := shard.keyBuf
-	for i := 0; i < br.rowsLen; i++ {
+	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 		keyBuf = keyBuf[:0]
 		for _, values := range columnValues {
-			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[i]))
+			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[rowIdx]))
 		}
-		shard.updateState(bytesutil.ToUnsafeString(keyBuf), 1)
+		shard.m.updateStateString(keyBuf, 1)
 	}
 	shard.keyBuf = keyBuf
 }
 
-func (shard *pipeTopProcessorShard) updateState(v string, hits uint64) {
-	m := shard.getM()
-	pHits := m[v]
-	if pHits == nil {
-		vCopy := shard.a.cloneString(v)
-		pHits = shard.a.newUint64()
-		m[vCopy] = pHits
-		shard.stateSizeBudget -= len(vCopy) + int(unsafe.Sizeof(vCopy)+unsafe.Sizeof(hits)+unsafe.Sizeof(pHits))
+func (shard *pipeTopProcessorShard) updateStatsSingleColumn(br *blockResult, fieldName string) {
+	c := br.getColumnByName(fieldName)
+	if c.isConst {
+		v := c.valuesEncoded[0]
+		shard.m.updateStateGeneric(v, uint64(br.rowsLen))
+		return
 	}
-	*pHits += hits
-}
-
-func (shard *pipeTopProcessorShard) getM() map[string]*uint64 {
-	if shard.m == nil {
-		shard.m = make(map[string]*uint64)
+	switch c.valueType {
+	case valueTypeDict:
+		c.forEachDictValueWithHits(br, shard.m.updateStateGeneric)
+	case valueTypeUint8:
+		values := c.getValuesEncoded(br)
+		for _, v := range values {
+			n := unmarshalUint8(v)
+			shard.m.updateStateUint64(uint64(n), 1)
+		}
+	case valueTypeUint16:
+		values := c.getValuesEncoded(br)
+		for _, v := range values {
+			n := unmarshalUint16(v)
+			shard.m.updateStateUint64(uint64(n), 1)
+		}
+	case valueTypeUint32:
+		values := c.getValuesEncoded(br)
+		for _, v := range values {
+			n := unmarshalUint32(v)
+			shard.m.updateStateUint64(uint64(n), 1)
+		}
+	case valueTypeUint64:
+		values := c.getValuesEncoded(br)
+		for _, v := range values {
+			n := unmarshalUint64(v)
+			shard.m.updateStateUint64(n, 1)
+		}
+	case valueTypeInt64:
+		values := c.getValuesEncoded(br)
+		for _, v := range values {
+			n := unmarshalInt64(v)
+			shard.m.updateStateInt64(n, 1)
+		}
+	default:
+		values := c.getValues(br)
+		for _, v := range values {
+			shard.m.updateStateGeneric(v, 1)
+		}
 	}
-	return shard.m
 }
 
 func (ptp *pipeTopProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -256,10 +269,7 @@ func (ptp *pipeTopProcessor) flush() error {
 	}
 
 	// merge state across shards in parallel
-	entries, err := ptp.mergeShardsParallel()
-	if err != nil {
-		return err
-	}
+	entries := ptp.mergeShardsParallel()
 	if needStop(ptp.stopCh) {
 		return nil
 	}
@@ -370,149 +380,94 @@ func (ptp *pipeTopProcessor) flush() error {
 	return nil
 }
 
-func (ptp *pipeTopProcessor) mergeShardsParallel() ([]*pipeTopEntry, error) {
+func (ptp *pipeTopProcessor) mergeShardsParallel() []*pipeTopEntry {
 	limit := ptp.pt.limit
 	if limit == 0 {
-		return nil, nil
+		return nil
 	}
 
-	shards := ptp.shards
-	shardsLen := len(shards)
-	if shardsLen == 1 {
-		entries := getTopEntries(shards[0].getM(), limit, ptp.stopCh)
-		return entries, nil
+	hms := make([]*hitsMap, 0, len(ptp.shards))
+	for i := range ptp.shards {
+		hm := &ptp.shards[i].m
+		if hm.entriesCount() > 0 {
+			hms = append(hms, hm)
+		}
 	}
 
-	var wg sync.WaitGroup
-	perShardMaps := make([][]map[string]*uint64, shardsLen)
-	for i := range shards {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-
-			shardMaps := make([]map[string]*uint64, shardsLen)
-			for i := range shardMaps {
-				shardMaps[i] = make(map[string]*uint64)
-			}
-
-			n := int64(0)
-			nTotal := int64(0)
-			for k, pHits := range shards[idx].getM() {
-				if needStop(ptp.stopCh) {
-					return
-				}
-				h := xxhash.Sum64(bytesutil.ToUnsafeBytes(k))
-				m := shardMaps[h%uint64(len(shardMaps))]
-				n += updatePipeTopMap(m, k, pHits)
-				if n > stateSizeBudgetChunk {
-					if nRemaining := ptp.stateSizeBudget.Add(-n); nRemaining < 0 {
-						return
-					}
-					nTotal += n
-					n = 0
-				}
-			}
-			nTotal += n
-			ptp.stateSizeBudget.Add(-n)
-
-			perShardMaps[idx] = shardMaps
-
-			// Clean the original map and return its state size budget back.
-			shards[idx].m = nil
-			ptp.stateSizeBudget.Add(nTotal)
-		}(i)
-	}
-	wg.Wait()
-	if needStop(ptp.stopCh) {
-		return nil, nil
-	}
-	if n := ptp.stateSizeBudget.Load(); n < 0 {
-		return nil, fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", ptp.pt.String(), ptp.maxStateSize/(1<<20))
-	}
-
-	// Obtain topN entries per each shard
-	entriess := make([][]*pipeTopEntry, shardsLen)
-	for i := range entriess {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-
-			m := perShardMaps[0][idx]
-			for i := 1; i < len(perShardMaps); i++ {
-				n := int64(0)
-				nTotal := int64(0)
-				for k, pHits := range perShardMaps[i][idx] {
-					if needStop(ptp.stopCh) {
-						return
-					}
-					n += updatePipeTopMap(m, k, pHits)
-					if n > stateSizeBudgetChunk {
-						if nRemaining := ptp.stateSizeBudget.Add(-n); nRemaining < 0 {
-							return
-						}
-						nTotal += n
-						n = 0
-					}
-				}
-				nTotal += n
-				ptp.stateSizeBudget.Add(-n)
-
-				// Clean the original map and return its state size budget back.
-				perShardMaps[i][idx] = nil
-				ptp.stateSizeBudget.Add(nTotal)
-			}
-			perShardMaps[0][idx] = nil
-
-			entriess[idx] = getTopEntries(m, limit, ptp.stopCh)
-		}(i)
-	}
-	wg.Wait()
-	if needStop(ptp.stopCh) {
-		return nil, nil
-	}
-	if n := ptp.stateSizeBudget.Load(); n < 0 {
-		return nil, fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", ptp.pt.String(), ptp.maxStateSize/(1<<20))
-	}
-
-	// merge entriess
-	entries := entriess[0]
-	for _, es := range entriess[1:] {
+	cpusCount := cgroup.AvailableCPUs()
+	var entries []*pipeTopEntry
+	var entriesLock sync.Mutex
+	hitsMapMergeParallel(hms, cpusCount, ptp.stopCh, func(hm *hitsMap) {
+		es := getTopEntries(hm, limit, ptp.stopCh)
+		entriesLock.Lock()
 		entries = append(entries, es...)
+		entriesLock.Unlock()
+	})
+	if needStop(ptp.stopCh) {
+		return nil
 	}
+
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[j].less(entries[i])
 	})
 	if uint64(len(entries)) > limit {
 		entries = entries[:limit]
 	}
-	return entries, nil
+
+	return entries
 }
 
-func getTopEntries(m map[string]*uint64, limit uint64, stopCh <-chan struct{}) []*pipeTopEntry {
+func getTopEntries(hm *hitsMap, limit uint64, stopCh <-chan struct{}) []*pipeTopEntry {
 	if limit == 0 {
 		return nil
 	}
 
 	var eh topEntriesHeap
-	for k, pHits := range m {
+	var e pipeTopEntry
+
+	pushEntry := func(k string, hits uint64, kCopy bool) {
+		e.k = k
+		e.hits = hits
+		if uint64(len(eh)) < limit {
+			eCopy := e
+			if kCopy {
+				eCopy.k = strings.Clone(eCopy.k)
+			}
+			heap.Push(&eh, &eCopy)
+			return
+		}
+
+		if !eh[0].less(&e) {
+			return
+		}
+		eCopy := e
+		if kCopy {
+			eCopy.k = strings.Clone(eCopy.k)
+		}
+		eh[0] = &eCopy
+		heap.Fix(&eh, 0)
+	}
+
+	var b []byte
+	for n, pHits := range hm.u64 {
 		if needStop(stopCh) {
 			return nil
 		}
-
-		e := pipeTopEntry{
-			k:    k,
-			hits: *pHits,
+		b = marshalUint64String(b[:0], n)
+		pushEntry(bytesutil.ToUnsafeString(b), *pHits, true)
+	}
+	for n, pHits := range hm.negative64 {
+		if needStop(stopCh) {
+			return nil
 		}
-		if uint64(len(eh)) < limit {
-			eCopy := e
-			heap.Push(&eh, &eCopy)
-			continue
+		b = marshalInt64String(b[:0], int64(n))
+		pushEntry(bytesutil.ToUnsafeString(b), *pHits, true)
+	}
+	for k, pHits := range hm.strings {
+		if needStop(stopCh) {
+			return nil
 		}
-		if eh[0].less(&e) {
-			eCopy := e
-			eh[0] = &eCopy
-			heap.Fix(&eh, 0)
-		}
+		pushEntry(k, *pHits, false)
 	}
 
 	result := ([]*pipeTopEntry)(eh)
@@ -522,17 +477,6 @@ func getTopEntries(m map[string]*uint64, limit uint64, stopCh <-chan struct{}) [
 	}
 
 	return result
-}
-
-func updatePipeTopMap(m map[string]*uint64, k string, pHitsSrc *uint64) int64 {
-	pHitsDst := m[k]
-	if pHitsDst != nil {
-		*pHitsDst += *pHitsSrc
-		return 0
-	}
-
-	m[k] = pHitsSrc
-	return int64(unsafe.Sizeof(k) + unsafe.Sizeof(pHitsSrc))
 }
 
 type topEntriesHeap []*pipeTopEntry
@@ -614,7 +558,9 @@ func (wctx *pipeTopWriteContext) writeRow(rowFields []Field) {
 	}
 
 	wctx.rowsCount++
-	if wctx.valuesLen >= 1_000_000 {
+
+	// The 64_000 limit provides the best performance results.
+	if wctx.valuesLen >= 64_000 {
 		wctx.flush()
 	}
 }
@@ -670,37 +616,41 @@ func parsePipeTop(lex *lexer) (pipe, error) {
 		byFields = bfs
 	}
 
-	hitsFieldName := "hits"
-	if lex.isKeyword("hits") {
-		lex.nextToken()
-		if lex.isKeyword("as") {
-			lex.nextToken()
-		}
-		s, err := getCompoundToken(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'hits' name: %w", err)
-		}
-		hitsFieldName = s
-	}
-	for slices.Contains(byFields, hitsFieldName) {
-		hitsFieldName += "s"
-	}
-
 	pt := &pipeTop{
 		byFields:      byFields,
 		limit:         limit,
 		limitStr:      limitStr,
-		hitsFieldName: hitsFieldName,
+		hitsFieldName: "hits",
 	}
 
-	if lex.isKeyword("rank") {
-		rankFieldName, err := parseRankFieldName(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse rank field name in [%s]: %w", pt, err)
+	for {
+		switch {
+		case lex.isKeyword("hits"):
+			lex.nextToken()
+			if lex.isKeyword("as") {
+				lex.nextToken()
+			}
+			s, err := getCompoundToken(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'hits' name: %w", err)
+			}
+			pt.hitsFieldName = s
+		case lex.isKeyword("rank"):
+			rankFieldName, err := parseRankFieldName(lex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse rank field name in [%s]: %w", pt, err)
+			}
+			pt.rankFieldName = rankFieldName
+			for slices.Contains(byFields, pt.rankFieldName) {
+				pt.rankFieldName += "s"
+			}
+		default:
+			for slices.Contains(byFields, pt.hitsFieldName) {
+				pt.hitsFieldName += "s"
+			}
+			return pt, nil
 		}
-		pt.rankFieldName = rankFieldName
 	}
-	return pt, nil
 }
 
 func parseRankFieldName(lex *lexer) (string, error) {

@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
@@ -279,7 +280,7 @@ func (shard *pipeTopkProcessorShard) addRow(br *blockResult, byColumns []string,
 	b := shard.partitionKey[:0]
 	for _, c := range shard.partitionColumns {
 		v := c.getValueAtRow(br, rowIdx)
-		b = marshalJSONKeyValue(b, c.name, v)
+		b = encoding.MarshalBytes(b, bytesutil.ToUnsafeBytes(v))
 	}
 	shard.partitionKey = b
 
@@ -408,8 +409,8 @@ func (ptp *pipeTopkProcessor) flush() error {
 	// Obtain all the partition keys
 	partitionKeysMap := make(map[string]struct{})
 	var partitionKeys []string
-	for _, shard := range shards {
-		for k := range shard.rowsByPartition {
+	for i := range shards {
+		for k := range shards[i].rowsByPartition {
 			if _, ok := partitionKeysMap[k]; !ok {
 				partitionKeysMap[k] = struct{}{}
 				partitionKeys = append(partitionKeys, k)
@@ -420,6 +421,9 @@ func (ptp *pipeTopkProcessor) flush() error {
 
 	// Merge sorted results across shards per each partitionKey
 	for _, k := range partitionKeys {
+		if needStop(ptp.stopCh) {
+			return nil
+		}
 		var rss []*pipeTopkRows
 		for _, shard := range shards {
 			rs, ok := shard.rowsByPartition[k]
@@ -428,9 +432,6 @@ func (ptp *pipeTopkProcessor) flush() error {
 			}
 		}
 		ptp.mergeAndFlushRows(rss)
-		if needStop(ptp.stopCh) {
-			return nil
-		}
 	}
 
 	return nil

@@ -16,14 +16,48 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
-* FEATURE: [Datadog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/): added `-datadog.streamFields` and `-datadog.ignoreFields` flags to configured default stream and ignore fields. Useful for Datadog serverless plugin, which doesn't allow to provide extra headers of query args.
+* FEATURE: [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe): add an ability to execute `INNER JOIN` by adding `inner` suffix to the `join` pipe.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): updated the default graph type in the `hits panel` to bars with color fill. Removed options for `lines`, `stepped lines`, and `points`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7101).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): reduce logs text size and improved styles in grouped view. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7479).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the ability to select fields for display instead of the `_msg` field. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7419).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add various display configuration settings for the grouped view. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7815)
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): added context menu for legend items with options to copy and filter streams and fields. See this [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7750).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): improved legend functionality with consistent click behavior across all vmui charts. See this [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7750).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): added sorting for group view by record count in descending order. See this [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7750).
 
-* BUGFIX: [Datadog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/): accepts `message` field as both string and object type to fix compatibility with Datadog serverless extension, which sends logs data in format, which is not documented. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7761).
-* BUGFIX: [vlinsert](https://docs.victoriametrics.com/victorialogs/): order of VL-Msg-Field values now defines a priority of these fields and it's now obvious for a user which field will be picked if multiple msg_field values exist in a row.
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): removed the ability to filter by other in the legend, as other represents an aggregated series of all streams not included in the top results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7552).
+
+## [v1.6.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.6.1-victorialogs)
+
+Released at 2025-01-16
+
+* BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): properly apply multiple [log stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter). For example, `{foo="bar"} AND {baz="x"}` must correctly return logs with `foo="bar"` and `baz="x"` [log stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8037).
+
+## [v1.6.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.6.0-victorialogs)
+
+Released at 2025-01-15
+
+* FEATURE: add [`union` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#union-pipe), which can be used for returning results from multiple independent LogsQL queries.
+* FEATURE: add [`histogram` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#histogram-stats) for calculating [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) over the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). They will be used for building heatmaps at the [built-in Web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) and [VictoriaLogs plugin for Grafana](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/).
+* FEATURE: [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe): add `rand()` function, which can be used for generating random numbers in the range `[0 ... 1)`.
+
+## [v1.5.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.5.0-victorialogs)
+
+Released at 2025-01-13
+
+* FEATURE: [`count_uniq` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-stats): improve performance by up to 50% and reduce memory usage by up to 4x when this function is applied to fields with big number of unique integer values.
+* FEATURE: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): improve performance and reduce memory usage by up to 50% for `log_field` with big number of unique values at `stats by (log_field) ...`.
+* FEATURE: [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe): improve performance by up to 8x.
+* FEATURE: [`format` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe): add ability to apply URL encoding / decoding (aka [percent encoding](https://en.wikipedia.org/wiki/Percent-encoding)) to the formatted log fields with `<urlencode:field_name>` and `<urldecode:field_name>` syntax.
+* FEATURE: [`format` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe): add ability to [base64-encode](https://en.wikipedia.org/wiki/Base64) / base64-decode log fields with `<base64encode:field_name>` and `<base64decode:field_name>` syntax.
+* FEATURE: [`format` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe): add ability to hex-encode / hex-decode log fields with `<hexencode:field_name>` and `<hexdecode:field_name>` syntax.
+* FEATURE: [`format` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#format-pipe): add ability to convert integers to hexadecimal numbers via `<hexnumencode:field_name>` and `<hexnumdecode:field_name>` syntax.
+* FEATURE: add [`value_type` filter](https://docs.victoriametrics.com/victorialogs/logsql/#value_type-filter), which can be useful during exploration of the stored logs.
+* FEATURE: [Datadog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/): added `-datadog.streamFields` and `-datadog.ignoreFields` flags to configured default stream and ignore fields. Useful for Datadog serverless plugin, which doesn't allow to provide extra headers of query args.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add support for autocomplete in LogsQL queries. This feature provides suggestions for field names, field values, and pipe names.
+
+* BUGFIX: [Datadog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/): accepts `message` field as both string and object type to fix compatibility with Datadog serverless extension, which sends logs data in format, which is not documented. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7761).
+* BUGFIX: [vlinsert](https://docs.victoriametrics.com/victorialogs/): order of `VL-Msg-Field` fields now defines a priority of these fields.
 
 ## [v1.4.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.4.0-victorialogs)
 

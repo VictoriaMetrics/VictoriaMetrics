@@ -1,7 +1,45 @@
 ## Next release
 
+- TODO
+
+## 0.17.2
+
+**Release date:** 17 Jan 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.109.1](https://img.shields.io/badge/v1.109.1-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11091)
+
+- bump version of VM components to [v1.109.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.109.1)
+
+## 0.17.1
+
+**Release date:** 14 Jan 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.109.0](https://img.shields.io/badge/v1.109.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11090)
+
+- bump version of VM components to [v1.109.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.109.0)
+
+## 0.17.0
+
+**Release date:** 09 Jan 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.108.1](https://img.shields.io/badge/v1.108.1-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11081)
+
+**Update note**: A default `minReadySeconds` has been added for the vmstorage statefulset, vmstorage pods will restart after the upgrade.
+**Update note**: The default probes of vminsert, vmselect, vmauth, and vmstorage have been changed, all pods will restart after the upgrade.
+
+- Remove vmstorage liveness probe, as vminsert already handles routing and retries, while liveness probes can inadvertently introduce delays, DNS instability, and unnecessary disruptions.
+- Reduce the default readiness probe interval to 5s (was 15s) and the failure threshold to 10 (was 3).
+- Add a default minReadySeconds for vmstorage, to help stabilizing service during rollout.
+
+## 0.16.2
+
+**Release date:** 06 Jan 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.108.1](https://img.shields.io/badge/v1.108.1-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11081)
+
 - Exclude markdown files from package
-- updated common dependency 0.0.35 -> 0.0.36
+- updated common dependency 0.0.35 -> 0.0.37
+- support templating in `.Values.extraObjects`
 
 ## 0.16.1
 

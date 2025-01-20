@@ -40,15 +40,15 @@ type filter struct {
 	labelValue string
 }
 
-func (f filter) inRange(min, max int64) bool {
+func (f filter) inRange(minV, maxV int64) bool {
 	fmin, fmax := f.min, f.max
-	if min == 0 {
-		fmin = min
+	if minV == 0 {
+		fmin = minV
 	}
 	if fmax == 0 {
-		fmax = max
+		fmax = maxV
 	}
-	return min <= fmax && fmin <= max
+	return minV <= fmax && fmin <= maxV
 }
 
 // NewClient creates and validates new Client
@@ -59,13 +59,13 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to open snapshot %q: %s", cfg.Snapshot, err)
 	}
 	c := &Client{DBReadOnly: db}
-	min, max, err := parseTime(cfg.Filter.TimeMin, cfg.Filter.TimeMax)
+	minTime, maxTime, err := parseTime(cfg.Filter.TimeMin, cfg.Filter.TimeMax)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse time in filter: %s", err)
 	}
 	c.filter = filter{
-		min:        min,
-		max:        max,
+		min:        minTime,
+		max:        maxTime,
 		label:      cfg.Filter.Label,
 		labelValue: cfg.Filter.LabelValue,
 	}

@@ -520,7 +520,8 @@ type rollupFuncArg struct {
 	// Timestamps for values.
 	timestamps []int64
 
-	// Real value preceding values without restrictions on staleness interval.
+	// Real value preceding values.
+	// Is populated if preceding value is within the -search.maxStalenessInterval (rc.LookbackDelta).
 	realPrevValue float64
 
 	// Real value which goes after values.
@@ -764,10 +765,18 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		}
 		rfa.values = values[i:j]
 		rfa.timestamps = timestamps[i:j]
+		rfa.realPrevValue = nan
 		if i > 0 {
-			rfa.realPrevValue = values[i-1]
-		} else {
-			rfa.realPrevValue = nan
+			prevValue, prevTimestamp := values[i-1], timestamps[i-1]
+			// set realPrevValue if rc.LookbackDelta == 0
+			// or if distance between datapoint in prev interval and beginning of this interval
+			// doesn't exceed LookbackDelta.
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1381
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/894
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8045
+			if rc.LookbackDelta == 0 || (tStart-prevTimestamp) < rc.LookbackDelta {
+				rfa.realPrevValue = prevValue
+			}
 		}
 		if j < len(values) {
 			rfa.realNextValue = values[j]
@@ -1682,9 +1691,9 @@ func rollupRateOverSum(rfa *rollupFuncArg) float64 {
 }
 
 func rollupRange(rfa *rollupFuncArg) float64 {
-	max := rollupMax(rfa)
-	min := rollupMin(rfa)
-	return max - min
+	maxV := rollupMax(rfa)
+	minV := rollupMin(rfa)
+	return maxV - minV
 }
 
 func rollupSum2(rfa *rollupFuncArg) float64 {
@@ -2192,38 +2201,38 @@ func rollupClose(rfa *rollupFuncArg) float64 {
 
 func rollupHigh(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
-	max := getFirstValueForCandlestick(rfa)
-	if math.IsNaN(max) {
+	maxV := getFirstValueForCandlestick(rfa)
+	if math.IsNaN(maxV) {
 		if len(values) == 0 {
 			return nan
 		}
-		max = values[0]
+		maxV = values[0]
 		values = values[1:]
 	}
 	for _, v := range values {
-		if v > max {
-			max = v
+		if v > maxV {
+			maxV = v
 		}
 	}
-	return max
+	return maxV
 }
 
 func rollupLow(rfa *rollupFuncArg) float64 {
 	values := getCandlestickValues(rfa)
-	min := getFirstValueForCandlestick(rfa)
-	if math.IsNaN(min) {
+	minV := getFirstValueForCandlestick(rfa)
+	if math.IsNaN(minV) {
 		if len(values) == 0 {
 			return nan
 		}
-		min = values[0]
+		minV = values[0]
 		values = values[1:]
 	}
 	for _, v := range values {
-		if v < min {
-			min = v
+		if v < minV {
+			minV = v
 		}
 	}
-	return min
+	return minV
 }
 
 func rollupModeOverTime(rfa *rollupFuncArg) float64 {
