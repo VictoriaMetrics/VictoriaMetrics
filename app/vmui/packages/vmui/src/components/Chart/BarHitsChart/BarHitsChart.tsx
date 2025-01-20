@@ -21,13 +21,12 @@ import { calculateTotalHits, sortLogHits } from "../../../utils/logs";
 
 interface Props {
   logHits: LogHits[];
-  otherHits: LogHits[];
   data: AlignedData;
   period: TimeParams;
   setPeriod: ({ from, to }: { from: Date, to: Date }) => void;
   onApplyFilter: (value: string) => void;
 }
-const BarHitsChart: FC<Props> = ({ logHits, otherHits, data: _data, period, setPeriod, onApplyFilter }) => {
+const BarHitsChart: FC<Props> = ({ logHits, data: _data, period, setPeriod, onApplyFilter }) => {
   const [containerRef, containerSize] = useElementSize();
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
@@ -59,22 +58,18 @@ const BarHitsChart: FC<Props> = ({ logHits, otherHits, data: _data, period, setP
     graphOptions
   });
 
-  const prepareLegend = useCallback((hits: LogHits[], totalHits: number, otherHits?: LogHits[]): LegendLogHits[] => {
+  const prepareLegend = useCallback((hits: LogHits[], totalHits: number): LegendLogHits[] => {
     return hits.map((hit) => {
       const label = getLabelFromLogHit(hit);
 
       const legendItem: LegendLogHits = {
         label,
-        isOther: hit._isOther ?? false,
+        isOther: hit._isOther,
         fields: hit.fields,
         total: hit.total || 0,
         totalHits,
         stroke: series.find((s) => s.label === label)?.stroke,
       };
-
-      if (hit._isOther && otherHits?.length) {
-        legendItem.includesHits = prepareLegend(otherHits, totalHits);
-      }
 
       return legendItem;
     }).sort(sortLogHits("total"));
@@ -83,8 +78,8 @@ const BarHitsChart: FC<Props> = ({ logHits, otherHits, data: _data, period, setP
 
   const legendDetails: LegendLogHits[] = useMemo(() => {
     const totalHits = calculateTotalHits(logHits);
-    return prepareLegend(logHits, totalHits, otherHits);
-  }, [logHits, otherHits, prepareLegend]);
+    return prepareLegend(logHits, totalHits);
+  }, [logHits, prepareLegend]);
 
   useEffect(() => {
     if (!uPlotInst) return;

@@ -1,9 +1,9 @@
 import React, { FC } from "preact/compat";
 import LegendHitsMenuRow from "./LegendHitsMenuRow";
 import useCopyToClipboard from "../../../../hooks/useCopyToClipboard";
-import { HITS_GROUP_FIELD } from "../../../../pages/ExploreLogs/hooks/useFetchLogHits";
 import { CopyIcon, FilterIcon, FilterOffIcon } from "../../../Main/Icons";
 import { LegendLogHits, LegendLogHitsMenu } from "../../../../api/types";
+import { LOGS_GROUP_BY } from "../../../../constants/logs";
 
 interface Props {
   legend: LegendLogHits;
@@ -15,12 +15,12 @@ const LegendHitsMenuBase: FC<Props> = ({ legend, onApplyFilter, onClose }) => {
   const copyToClipboard = useCopyToClipboard();
 
   const handleAddStreamToFilter = () => {
-    onApplyFilter(`${HITS_GROUP_FIELD}: ${legend.label}`);
+    onApplyFilter(`${LOGS_GROUP_BY}: ${legend.label}`);
     onClose();
   };
 
   const handleExcludeStreamToFilter = () => {
-    onApplyFilter(`(NOT ${HITS_GROUP_FIELD}: ${legend.label})`);
+    onApplyFilter(`(NOT ${LOGS_GROUP_BY}: ${legend.label})`);
     onClose();
   };
 
@@ -31,17 +31,17 @@ const LegendHitsMenuBase: FC<Props> = ({ legend, onApplyFilter, onClose }) => {
 
   const options: LegendLogHitsMenu[] = [
     {
-      title: `Copy ${HITS_GROUP_FIELD} name`,
+      title: `Copy ${LOGS_GROUP_BY} name`,
       icon: <CopyIcon/>,
       handler: handlerCopyLabel,
     },
     {
-      title: `Add ${HITS_GROUP_FIELD} to filter`,
+      title: `Add ${LOGS_GROUP_BY} to filter`,
       icon: <FilterIcon/>,
       handler: handleAddStreamToFilter,
     },
     {
-      title: `Exclude ${HITS_GROUP_FIELD} to filter`,
+      title: `Exclude ${LOGS_GROUP_BY} to filter`,
       icon: <FilterOffIcon/>,
       handler: handleExcludeStreamToFilter,
     }

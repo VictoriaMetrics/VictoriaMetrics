@@ -1,9 +1,8 @@
 import { TimeParams } from "../types";
 import dayjs from "dayjs";
-import { LOGS_BARS_VIEW } from "../constants/logs";
+import { LOGS_BARS_VIEW, LOGS_GROUP_BY } from "../constants/logs";
 import { LogHits } from "../api/types";
 import { OTHER_HITS_LABEL } from "../components/Chart/BarHitsChart/hooks/useBarHitsOptions";
-import { HITS_GROUP_FIELD } from "../pages/ExploreLogs/hooks/useFetchLogHits";
 
 export const getStreamPairs = (value: string): string[] => {
   const pairs = /^{.+}$/.test(value) ? value.slice(1, -1).split(",") : [value];
@@ -18,7 +17,7 @@ export const getHitsTimeParams = (period: TimeParams) => {
   return { start, end, step };
 };
 
-export const convertToFieldFilter = (value: string, field = HITS_GROUP_FIELD) => {
+export const convertToFieldFilter = (value: string, field = LOGS_GROUP_BY) => {
   const isKeyValue = /(.+)?=(".+")/.test(value);
 
   if (isKeyValue) {

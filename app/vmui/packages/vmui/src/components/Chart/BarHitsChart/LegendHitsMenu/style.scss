@@ -22,7 +22,6 @@
   }
 
   &-section {
-    padding: $padding-small 0;
     border-bottom: $border-divider;
 
     &:last-child {
@@ -50,6 +49,8 @@
 
     &_info {
       font-size: $font-size-small;
+      font-weight: 500;
+      padding-block: $padding-small;
     }
 
     &_info &__icon {
@@ -70,7 +71,7 @@
 
     &__title {
       flex-grow: 1;
-      padding: $padding-small 0;
+      padding: $padding-global 0;
       position: relative;
       max-width: 400px;
       white-space: nowrap;
@@ -117,7 +118,7 @@
     }
 
     &-cell {
-      padding: calc($padding-small/2) 0;
+      padding: calc($padding-small / 2) 0;
       text-align: left;
 
       &_header {
@@ -143,7 +144,7 @@
       justify-content: flex-start;
 
       &__field {
-        padding: calc($padding-small/2) $padding-small;
+        padding: calc($padding-small / 2) $padding-small;
         border-radius: $border-radius-small;
         transition: background-color 0.3s;
 

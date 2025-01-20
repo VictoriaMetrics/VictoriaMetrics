@@ -16,14 +16,13 @@ import { getHitsTimeParams } from "../../../utils/logs";
 interface Props {
   query: string;
   logHits: LogHits[];
-  otherHits: LogHits[];
   period: TimeParams;
   error?: string;
   isLoading: boolean;
   onApplyFilter: (value: string) => void;
 }
 
-const ExploreLogsBarChart: FC<Props> = ({ logHits, otherHits, period, error, isLoading, onApplyFilter }) => {
+const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error, isLoading, onApplyFilter }) => {
   const { isMobile } = useDeviceDetect();
   const timeDispatch = useTimeDispatch();
   const [searchParams] = useSearchParams();
@@ -112,7 +111,6 @@ const ExploreLogsBarChart: FC<Props> = ({ logHits, otherHits, period, error, isL
       {data && (
         <BarHitsChart
           logHits={logHits}
-          otherHits={otherHits}
           data={data}
           period={period}
           setPeriod={setPeriod}
