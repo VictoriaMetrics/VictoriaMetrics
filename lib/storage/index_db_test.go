@@ -1693,7 +1693,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	// delete the added metric. It is expected it won't be returned during searches
 	deletedSet := &uint64set.Set{}
 	deletedSet.Add(genTSID.TSID.MetricID)
-	s.setDeletedMetricIDs(deletedSet)
+	db.setDeletedMetricIDs(deletedSet)
 	db.putIndexSearch(is3)
 	s.DebugFlush()
 
@@ -2091,7 +2091,6 @@ func newTestStorage() *Storage {
 		dateMetricIDCache: newDateMetricIDCache(),
 		retentionMsecs:    retentionMax.Milliseconds(),
 	}
-	s.setDeletedMetricIDs(&uint64set.Set{})
 	return s
 }
 

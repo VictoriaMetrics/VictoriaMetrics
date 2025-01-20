@@ -144,13 +144,6 @@ type Storage struct {
 	// The minimum timestamp when composite index search can be used.
 	minTimestampForCompositeIndex int64
 
-	// An inmemory set of deleted metricIDs.
-	//
-	// It is safe to keep the set in memory even for big number of deleted
-	// metricIDs, since it usually requires 1 bit per deleted metricID.
-	deletedMetricIDs           atomic.Pointer[uint64set.Set]
-	deletedMetricIDsUpdateLock sync.Mutex
-
 	// missingMetricIDs maps metricID to the deadline in unix timestamp seconds
 	// after which all the indexdb entries for the given metricID
 	// must be deleted if index entry isn't found by the given metricID.
@@ -277,8 +270,6 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	tb := mustOpenTable(tablePath, s)
 	s.tb = tb
 
-	s.loadDeletedMetricIDs()
-
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
 	s.startRetentionWatcher()
@@ -300,51 +291,28 @@ func getTSIDCacheSize() int {
 	return maxTSIDCacheSize
 }
 
-func (s *Storage) loadDeletedMetricIDs() {
-	tr := TimeRange{
-		MinTimestamp: 0,
-		MaxTimestamp: (1 << 63) - 1,
-	}
-	search := func(idb *indexDB, _ TimeRange) (any, error) {
-		return idb.loadDeletedMetricIDs()
-	}
-	merge := func(dmisPerIndexDB []any) any {
-		all := &uint64set.Set{}
-		for _, dmis := range dmisPerIndexDB {
-			if dmis == nil {
-				continue
-			}
-			all.Union(dmis.(*uint64set.Set))
-		}
-		return all
-	}
-	stopOnError := true
-	result, err := s.searchAndMerge(tr, search, merge, stopOnError)
-	if err != nil {
-		// TODO(@rtm0): Make the message more specific, i.e. which IndexDB has
-		// failed to load the deleted metricIDs. Changing searchAndMerge may be
-		// needed, such as adding the idb partition to the error.
-		logger.Panicf("FATAL: cannot load deleted metricIDs: %v", err)
+// getDeletedMetricIDs gets the deleted metricIDs that belong to partition
+// IndexDBs that overlap with tr and legacy current and previous IndexDBs.
+//
+// This function exists solely for forward compatibility with deployments that
+// already have legacy IndexDB populated and is used during background merges of
+// data (see mergeBlockStreamsInternal() in merge.go).
+func (s *Storage) getDeletedMetricIDs(tr TimeRange) *uint64set.Set {
+	dmis := &uint64set.Set{}
+
+	idbs := s.tb.GetIndexDBs(tr)
+	for _, idb := range idbs {
+		dmis.Union(idb.getDeletedMetricIDs())
 	}
 
-	s.setDeletedMetricIDs(result.(*uint64set.Set))
-}
+	if idbCurr := s.idb(); idbCurr != nil {
+		dmis.Union(idbCurr.getDeletedMetricIDs())
+		idbCurr.doExtDB(func(extDB *indexDB) {
+			dmis.Union(extDB.getDeletedMetricIDs())
+		})
+	}
 
-func (s *Storage) getDeletedMetricIDs() *uint64set.Set {
-	return s.deletedMetricIDs.Load()
-}
-
-func (s *Storage) setDeletedMetricIDs(dmis *uint64set.Set) {
-	s.deletedMetricIDs.Store(dmis)
-}
-
-func (s *Storage) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
-	s.deletedMetricIDsUpdateLock.Lock()
-	dmisOld := s.getDeletedMetricIDs()
-	dmisNew := dmisOld.Clone()
-	dmisNew.Union(metricIDs)
-	s.setDeletedMetricIDs(dmisNew)
-	s.deletedMetricIDsUpdateLock.Unlock()
+	return dmis
 }
 
 // DebugFlush makes sure all the recently added data is visible to search.
@@ -1419,7 +1387,7 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	wg.Wait()
 
 	deletedMetricIDs := &uint64set.Set{}
-	var metricIDsByIDB map[*indexDB][]uint64
+	metricIDsByIDB := make(map[*indexDB][]uint64)
 	for range len(idbs) {
 		result := <-results
 		if result.err != nil {
@@ -1432,30 +1400,16 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 		metricIDsByIDB[result.idb] = result.metricIDs
 	}
 
-	// atomically add deleted metricIDs to an inmemory map.
-	// TODO(@rtm0): per-IndexDB deletedMetricIDs
-	s.updateDeletedMetricIDs(deletedMetricIDs)
-
-	// Reset TagFilters -> TSIDS cache, since it may contain deleted TSIDs.
-	// TODO(@rtm0): Invalidate per-idb since idbs that are not included into the
-	// tr need not to drop this cache.
-	invalidateTagFiltersCache()
-
 	// Reset MetricName -> TSID cache, since it may contain deleted TSIDs.
 	s.resetAndSaveTSIDCache()
 
 	// Do not reset MetricID->MetricName cache, since it must be used only
 	// after filtering out deleted metricIDs.
 
-	// Store the metricIDs as deleted.
-	// Make this after updating the deletedMetricIDs and resetting caches
-	// in order to exclude the possibility of the inconsistent state when the deleted metricIDs
-	// remain available in the tsidCache after unclean shutdown.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
 	for idb, metricIDs := range metricIDsByIDB {
 		wg.Add(1)
 		go func() {
-			idb.createDeletedMetricIDsIndexes(metricIDs)
+			idb.deleteMetricIDs(metricIDs)
 			wg.Done()
 		}()
 	}
