@@ -138,6 +138,7 @@ func (wr *writeContext) appendSamplesFromSummary(metricName string, p *pb.Summar
 }
 
 // appendSamplesFromHistogram appends histogram p to wr.tss
+// histograms are processed according to spec at https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram
 func (wr *writeContext) appendSamplesFromHistogram(metricName string, p *pb.HistogramDataPoint) {
 	if len(p.BucketCounts) == 0 {
 		// nothing to append
@@ -154,6 +155,7 @@ func (wr *writeContext) appendSamplesFromHistogram(metricName string, p *pb.Hist
 	wr.pointLabels = appendAttributesToPromLabels(wr.pointLabels[:0], p.Attributes)
 	wr.appendSample(metricName+"_count", t, float64(p.Count), isStale)
 	if p.Sum != nil {
+		// A Histogram MetricPoint SHOULD contain Sum
 		wr.appendSample(metricName+"_sum", t, *p.Sum, isStale)
 	}
 
