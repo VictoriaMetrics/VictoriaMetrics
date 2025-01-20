@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- fixed type in relabel config. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1922) for details.
 
 ## 0.13.6
 
