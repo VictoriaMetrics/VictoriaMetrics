@@ -52,7 +52,7 @@ func TestRequestHandler(t *testing.T) {
 		r.Header.Set("Pass-Header", "abc")
 
 		w := &fakeResponseWriter{}
-		if !requestHandler(w, r) {
+		if !requestHandlerWithPrivateRoutes(w, r) {
 			t.Fatalf("unexpected false is returned from requestHandler")
 		}
 
