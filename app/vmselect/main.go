@@ -63,6 +63,10 @@ var (
 
 	clusternativeListenAddr = flag.String("clusternativeListenAddr", "", "TCP address to listen for requests from other vmselect nodes in multi-level cluster setup. "+
 		"See https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup . Usually :8401 should be set to match default vmstorage port for vmselect. Disabled work if empty")
+	maxMemoryPerQuery = flagutil.NewBytes("search.maxMemoryPerQuery", 0, "The maximum amounts of memory a single query may consume. "+
+		"Queries requiring more memory are rejected. The total memory limit for concurrently executed queries can be estimated "+
+		"as -search.maxMemoryPerQuery multiplied by -search.maxConcurrentRequests . "+
+		"See also -search.logQueryMemoryUsage")
 )
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
@@ -116,6 +120,10 @@ func main() {
 		netstorage.InitTmpBlocksDir("")
 		promql.InitRollupResultCache("")
 	}
+
+	promql.SetMaxMemoryPerQuery(maxMemoryPerQuery.N)
+	netstorage.SetMaxMemoryUsagePerQuery(maxMemoryPerQuery.N)
+
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMAlertProxy()
 	var vmselectapiServer *vmselectapi.Server

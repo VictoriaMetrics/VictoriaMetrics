@@ -66,7 +66,7 @@ func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 	values := opts.asURLValues()
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
-	res := app.cli.PostForm(t, exportURL, values, http.StatusOK)
+	res := app.cli.PostForm(t, exportURL, values, getExpectedResponse(opts.ExpectedResponseCode, http.StatusOK))
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -82,7 +82,7 @@ func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query string, opts Query
 	values := opts.asURLValues()
 	values.Add("query", query)
 
-	res := app.cli.PostForm(t, queryURL, values, http.StatusOK)
+	res := app.cli.PostForm(t, queryURL, values, getExpectedResponse(opts.ExpectedResponseCode, http.StatusOK))
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -98,7 +98,7 @@ func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, query string, opts 
 	values := opts.asURLValues()
 	values.Add("query", query)
 
-	res := app.cli.PostForm(t, queryURL, values, http.StatusOK)
+	res := app.cli.PostForm(t, queryURL, values, getExpectedResponse(opts.ExpectedResponseCode, http.StatusOK))
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -113,8 +113,34 @@ func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
-	res := app.cli.PostForm(t, seriesURL, values, http.StatusOK)
+	res := app.cli.PostForm(t, seriesURL, values, getExpectedResponse(opts.ExpectedResponseCode, http.StatusOK))
 	return NewPrometheusAPIV1SeriesResponse(t, res)
+}
+
+// PrometheusAPIV1Labels sends a query to a /prometheus/api/v1/labels endpoint
+// and returns the list of label names.
+//
+// See https://docs.victoriametrics.com/url-examples/#apiv1labels
+func (app *Vmselect) PrometheusAPIV1Labels(t *testing.T, opts QueryOpts) *PrometheusAPIV1LabelsResponse {
+	t.Helper()
+
+	labelsURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/labels", app.httpListenAddr, opts.getTenant())
+	values := opts.asURLValues()
+	res := app.cli.PostForm(t, labelsURL, values, getExpectedResponse(opts.ExpectedResponseCode, http.StatusOK))
+	return NewPrometheusAPIV1LabelsResponse(t, res)
+}
+
+// PrometheusAPIV1LabelValues sends a query to a /prometheus/api/v1/label/{label}/values endpoint
+// and returns the list of label values for the specified label name.
+//
+// See https://docs.victoriametrics.com/url-examples/#apiv1labelvalues
+func (app *Vmselect) PrometheusAPIV1LabelValues(t *testing.T, labelName string, opts QueryOpts) *PrometheusAPIV1LabelValuesResponse {
+	t.Helper()
+
+	valuesURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/label/%s/values", app.httpListenAddr, opts.getTenant(), labelName)
+	values := opts.asURLValues()
+	res := app.cli.PostForm(t, valuesURL, values, getExpectedResponse(opts.ExpectedResponseCode, http.StatusOK))
+	return NewPrometheusAPIV1LabelValuesResponse(t, res)
 }
 
 // String returns the string representation of the vmselect app state.

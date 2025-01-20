@@ -906,10 +906,14 @@ func LabelNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 		return nil, false, err
 	}
 	sns := getStorageNodes()
+	ml := newMemoryLimiter()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.labelNamesRequests.Inc()
 			labelNames, err := sn.getLabelNames(qt, requestData, maxLabelNames, deadline)
+			if err == nil {
+				err = ml.GetStringSlice(labelNames)
+			}
 			if err != nil {
 				sn.labelNamesErrors.Inc()
 				err = fmt.Errorf("cannot get labels from vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -1023,7 +1027,7 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 		case "vm_project_id":
 			idx = 1
 		default:
-			logger.Fatalf("BUG: unexpected labeName=%q", labelName)
+			logger.Fatalf("BUG: unexpected labelName=%q", labelName)
 		}
 
 		labelValues := make([]string, 0, len(tenants))
@@ -1049,11 +1053,15 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 	if err != nil {
 		return nil, false, err
 	}
+	ml := newMemoryLimiter()
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.labelValuesRequests.Inc()
 			labelValues, err := sn.getLabelValues(qt, labelName, requestData, maxLabelValues, deadline)
+			if err == nil {
+				err = ml.GetStringSlice(labelValues)
+			}
 			if err != nil {
 				sn.labelValuesErrors.Inc()
 				err = fmt.Errorf("cannot get label values from vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -1194,10 +1202,14 @@ func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyP
 		suffixes []string
 		err      error
 	}
+	ml := newMemoryLimiter()
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		sn.tagValueSuffixesRequests.Inc()
 		suffixes, err := sn.getTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
+		if err == nil {
+			err = ml.GetStringSlice(suffixes)
+		}
 		if err != nil {
 			sn.tagValueSuffixesErrors.Inc()
 			err = fmt.Errorf("cannot get tag value suffixes for timeRange=%s, tagKey=%q, tagValuePrefix=%q, delimiter=%c from vmstorage %s: %w",
@@ -1695,11 +1707,15 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 	if err != nil {
 		return nil, false, err
 	}
+	ml := newMemoryLimiter()
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
 		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, t storage.TenantToken) any {
 			sn.searchMetricNamesRequests.Inc()
 			metricNames, err := sn.processSearchMetricNames(qt, requestData, deadline)
+			if err == nil {
+				err = ml.GetStringSlice(metricNames)
+			}
 			if sq.IsMultiTenant {
 				// TODO: (@f41gh7) this function could produce duplicate labels
 				// if original metricName already have tenant labels
