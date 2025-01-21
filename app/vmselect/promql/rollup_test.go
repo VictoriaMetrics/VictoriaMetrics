@@ -141,6 +141,7 @@ func TestRemoveCounterResets(t *testing.T) {
 	testRowsEqual(t, values, timestampsExpected, valuesExpected, timestampsExpected)
 
 	// verify that staleness interval is respected during resets
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8072
 	values = []float64{10, 12, 14, 4, 6, 8, 6, 8, 4, 6}
 	timestamps = []int64{10, 20, 30, 60, 70, 80, 90, 100, 120, 130}
 	valuesExpected = []float64{10, 12, 14, 4, 6, 8, 14, 16, 4, 6}

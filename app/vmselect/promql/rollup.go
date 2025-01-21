@@ -908,17 +908,18 @@ func removeCounterResets(values []float64, timestamps []int64, maxStalenessInter
 	}
 	var correction float64
 	prevValue := values[0]
-	prevTS := timestamps[0]
 	for i, v := range values {
 		d := v - prevValue
 		if d < 0 {
-			currTS := timestamps[i]
-			if maxStalenessInterval > 0 && ((currTS - prevTS) > maxStalenessInterval) {
-				// don't apply correction if previous sample exceeds staleness interval
-				correction = 0
-				prevValue = v
-				prevTS = timestamps[i]
-				continue
+			if maxStalenessInterval > 0 {
+				gap := timestamps[i] - timestamps[i-1]
+				if gap > maxStalenessInterval {
+					// reset correction if gap between samples exceeds staleness interval
+					// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8072
+					correction = 0
+					prevValue = v
+					continue
+				}
 			}
 			if (-d * 8) < prevValue {
 				// This is likely a partial counter reset.
@@ -929,7 +930,6 @@ func removeCounterResets(values []float64, timestamps []int64, maxStalenessInter
 			}
 		}
 		prevValue = v
-		prevTS = timestamps[i]
 		values[i] = v + correction
 		// Check again, there could be precision error in float operations,
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5571
