@@ -542,6 +542,7 @@ Label names [description](#labelnames)
             </td>
             <td>The number of times model runs (of class `model_alias`) failed due to internal service errors during the `stage` (`fit`, `infer`, `fit_infer`), based on results from the `query_key` query, within the specified scheduler `scheduler_alias`, in the `vmanomaly` service running in `preset` mode.</td>
             <td>
+
 `stage`, `query_key`, `model_alias`, <span style="white-space: nowrap;">`scheduler_alias`</span>, `preset`
             </td>
         </tr>
