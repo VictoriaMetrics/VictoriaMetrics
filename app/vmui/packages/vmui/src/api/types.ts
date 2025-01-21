@@ -48,7 +48,7 @@ export interface LogHits {
   values: number[];
   total?: number;
   fields: { [key: string]: string; };
-  _isOther?: boolean;
+  _isOther: boolean;
 }
 
 export interface LegendLogHits {
@@ -58,7 +58,6 @@ export interface LegendLogHits {
   isOther: boolean;
   fields: { [key: string]: string; };
   stroke?: uPlot.Series.Stroke;
-  includesHits?: LegendLogHits[];
 }
 
 export interface LegendLogHitsMenu {
