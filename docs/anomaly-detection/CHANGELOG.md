@@ -11,6 +11,16 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.19.0
+Released: 2025-01-20
+
+- FEATURE: Added support for per-query `tenant_id` in the [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). This allows overriding the reader-level `tenant_id` within a single global `vmanomaly` configuration on a *per-query* basis, enabling isolation of data for different tenants in separate queries when querying the [VictoriaMetrics cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/). For details, see the [documentation](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=tenant_id#per-query-parameters).
+- IMPROVEMEMT: Speedup the model infer stage on multicore systems.
+- IMPROVEMEMT: Speedup the model fitting stage by 1.25–3x, depending on configuration complexity.
+- IMPROVEMENT: Reduced service RAM usage by 5-10%, depending on configuration complexity.
+- FIX: Now [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader) properly handles the cases where the number of queries processed in parallel (up to `reader.queries` cardinality) exceeds the default limit of 10 HTTP(S) connections, preventing potential data loss from discarded queries. The pool limit will automatically adjust to match `reader.queries` cardinality.
+- FIX: Corrected the construction of write endpoints for cluster VictoriaMetrics `url`s (`tenant_id` arg is set) in `monitoring.push` [section configurations](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/?highlight=tenant_id#push-config-parameters).
+
 ## v1.18.8
 Released: 2024-12-03
 

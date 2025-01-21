@@ -8,9 +8,6 @@ menu:
 aliases:
   - /anomaly-detection/components/reader.html
 ---
-<!--
-There are 4 sources available to read data into VM Anomaly Detection from: VictoriaMetrics, (ND)JSON file, QueryRange, or CSV file. Depending on the data source, different parameters should be specified in the config file in the `reader` section.
--->
 
 VictoriaMetrics Anomaly Detection (`vmanomaly`) primarily uses [VmReader](#vm-reader) to ingest data. This reader focuses on fetching time-series data directly from VictoriaMetrics with the help of powerful [MetricsQL](https://docs.victoriametrics.com/metricsql/) expressions for aggregating, filtering and grouping your data, ensuring seamless integration and efficient data handling.
 
@@ -54,7 +51,7 @@ reader:
 
 ### Per-query parameters
 
-There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=queries#vm-reader) arg format. Now each query alias supports the next (sub)fields:
+There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://docs.victoriametrics.com/anomaly-detection/components/reader?highlight=queries#vm-reader) arg format. Now each query alias supports the next (sub)fields, which *override reader-level parameters*, if set:
 
 - `expr` (string): MetricsQL/PromQL expression that defines an input for VmReader. As accepted by `/query_range?query=%s`. i.e. `avg(vm_blocks)`
 
@@ -74,6 +71,13 @@ There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://d
 
 - `tz`{{% available_from "v1.18.0" anomaly %}} (string): this optional argument enables timezone specification per query, overriding the reader’s default `tz`. This setting helps to account for local timezone shifts, such as [DST](https://en.wikipedia.org/wiki/Daylight_saving_time), in models that are sensitive to seasonal variations (e.g., [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) or [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile)).
 
+- `tenant_id` {{% available_from "v1.19.0" anomaly %}} (string): this optional argument enables tenant-level separation for queries (e.g. `query1` to get the data from tenant "0:0", `query2` - from tenant "1:0"). It works as follows:
+  - if *not set, inherits* reader-level `tenant_id`
+  - if *set, overrides* reader-level `tenant_id`
+  - *raises config validation error*, if *reader-level is not set* and *query-level is found* (mixing of VictoriaMetrics [single-node](https://docs.victoriametrics.com/single-server-victoriametrics/) and [cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) is prohibited in a single config)
+  - *raises config validation warning*, if `writer.tenant_id` is not explicitly set to `multitenant` when reader uses tenants, meaning [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) will be used for data querying.
+  - also *raises config validation error* if a set of `reader.queries` for [multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/index.html#multivariate-models) has *different* tenant_ids (meaning tenant data is mixed, and special labels like `vm_project_id`, `vm_account_id` will have [ambiguous values](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels))
+  > **Note:** the recommended way of using per-query `tenant_id`s is in combination with setting both `reader.tenant_id` and `writer.tenant_id` to `multitenant`, see this [section for the explanations](https://docs.victoriametrics.com/anomaly-detection/components/writer/index.html#multitenancy-support).
 
 ### Per-query config example
 ```yaml
@@ -81,14 +85,24 @@ reader:
   class: 'vm'
   sampling_period: '1m'
   max_points_per_query: 10000
+  data_range: [0, 'inf']
+  tenant_id: 'multitenant'
   # other reader params ...
   queries:
-    ingestion_rate:
+    ingestion_rate_t1:
       expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
       step: '2m'  # overrides global `sampling_period` of 1m
       data_range: [10, 'inf']  # meaning only positive values > 10 are expected, i.e. a value `y` < 10 will trigger anomaly score > 1
       max_points_per_query: 5000 # overrides reader-level value of 10000 for `ingestion_rate` query
       tz: 'America/New_York'  # to override reader-wise `tz`
+      tenant_id: '1:0'  # overriding tenant_id to isolate data
+    ingestion_rate_t2:
+      expr: 'sum(rate(vm_rows_inserted_total[5m])) by (type) > 0'
+      step: '2m'  # overrides global `sampling_period` of 1m
+      data_range: [10, 'inf']  # meaning only positive values > 10 are expected, i.e. a value `y` < 10 will trigger anomaly score > 1
+      max_points_per_query: 5000 # overrides reader-level value of 10000 for `ingestion_rate` query
+      tz: 'America/New_York'  # to override reader-wise `tz`
+      tenant_id: '2:0'  # overriding tenant_id to isolate data
 ```
 
 ### Config parameters
@@ -384,7 +398,7 @@ Config file example:
 reader:
   class: "vm"  # or "reader.vm.VmReader" until v1.13.0
   datasource_url: "https://play.victoriametrics.com/"
-  tenant_id: "0:0"
+  tenant_id: '0:0'
   tz: 'America/New_York'
   data_range: [1, 'inf']  # reader-level
   queries:
@@ -393,6 +407,7 @@ reader:
       step: '1m' # can override reader-level `sampling_period` on per-query level
       data_range: [0, 'inf']  # if set, overrides reader-level data_range
       tz: 'Australia/Sydney'  # if set, overrides reader-level tz
+      # tenant_id: '1:0'  # if set, overrides reader-level tenant_id
   sampling_period: '1m'
   query_from_last_seen_timestamp: True  # false by default
   latency_offset: '1ms'

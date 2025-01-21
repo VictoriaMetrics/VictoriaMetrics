@@ -56,13 +56,13 @@ Respective config is defined in a [`reader`](https://docs.victoriametrics.com/an
 
 ## Handling timezones
 
-Starting from [v1.18.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1180), `vmanomaly` supports timezone-aware anomaly detection through a `tz` argument, available both globally (in the [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader) section) and at the [query level](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters).
+`vmanomaly` supports timezone-aware anomaly detection {{% available_from "v1.18.0" anomaly %}} through a `tz` argument, available both at the [reader level](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader) and at the [query level](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters).
 
 For models that depend on seasonality, such as [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) and [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile), handling timezone shifts is crucial. Changes like Daylight Saving Time (DST) can disrupt seasonality patterns learned by models, resulting in inaccurate anomaly predictions as the periodic patterns shift with time. Proper timezone configuration ensures that seasonal cycles align with expected intervals, even as DST changes occur.
 
 To enable timezone handling:
-1. **Globally**: Set `tz` in the [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader) section to a specific timezone (e.g., `Europe/Berlin`) to apply this setting to all queries.
-2. **Per query**: Override the global setting by specifying `tz` at the individual [query level](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters) for targeted adjustments.
+1. **Reader-level**: Set `tz` in the [`reader`](https://docs.victoriametrics.com/anomaly-detection/components/reader#vm-reader) section to a specific timezone (e.g., `Europe/Berlin`) to apply this setting to all queries.
+2. **Query-level**: Override the reader-level setting by specifying `tz` at the individual [query level](https://docs.victoriametrics.com/anomaly-detection/components/reader/#per-query-parameters) for targeted adjustments.
 
 **Example:**
 
@@ -87,7 +87,7 @@ models:
 ## Choosing the right model for vmanomaly
 Selecting the best model for `vmanomaly` depends on the data's nature and the [types of anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#categories-of-anomalies) to detect. For instance, [Z-score](https://docs.victoriametrics.com/anomaly-detection/components/models#z-score) is suitable for data without trends or seasonality, while more complex patterns might require models like [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models#prophet).
 
-Also, starting from [v1.12.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1120) it's possible to auto-tune the most important params of selected model class, find [the details here](https://docs.victoriametrics.com/anomaly-detection/components/models#autotuned).
+Also, it's possible to auto-tune the most important params of selected model class {{% available_from "v1.12.0" anomaly %}}, find [the details here](https://docs.victoriametrics.com/anomaly-detection/components/models#autotuned).
 
 Please refer to [respective blogpost on anomaly types and alerting heuristics](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/) for more details.
 
@@ -100,7 +100,8 @@ While `vmanomaly` detects anomalies and produces scores, it *does not directly g
 Produced anomaly scores are designed in such a way that values from 0.0 to 1.0 indicate non-anomalous data, while a value greater than 1.0 is generally classified as an anomaly. However, there are no perfect models for anomaly detection, that's why reasonable defaults expressions like `anomaly_score > 1` may not work 100% of the time. However, anomaly scores, produced by `vmanomaly` are written back as metrics to VictoriaMetrics, where tools like [`vmalert`](https://docs.victoriametrics.com/vmalert) can use [MetricsQL](https://docs.victoriametrics.com/metricsql/) expressions to fine-tune alerting thresholds and conditions, balancing between avoiding [false negatives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-negative) and reducing [false positives](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive).
 
 ## How to backtest particular configuration on historical data?
-Starting from [v1.7.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v172) you can produce (and write back to VictoriaMetrics TSDB) anomaly scores for historical (backtesting) period, using `BacktestingScheduler` [component](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#backtesting-scheduler) to imitate consecutive "production runs" of `PeriodicScheduler` [component](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#periodic-scheduler). Please find an example config below:
+
+Anomaly scores for historical (backtesting) period can be produced and written back {{% available_from "v1.7.2" anomaly %}}  to VictoriaMetrics TSDB using `BacktestingScheduler` [component](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#backtesting-scheduler) to imitate consecutive "production runs" of `PeriodicScheduler` [component](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#periodic-scheduler). Please find an example config below:
 
 ```yaml
 schedulers:
@@ -149,9 +150,7 @@ Configuration above will produce N intervals of full length (`fit_window`=14d + 
 
 ### On-disk mode
 
-> **Note**: Starting from [v1.13.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1130), there is an option to save anomaly detection models to the host filesystem after the `fit` stage (instead of keeping them in memory by default). This is particularly useful for **resource-intensive setups** (e.g., many models, many metrics, or larger [`fit_window` argument](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#periodic-scheduler-config-example)) and for 3rd-party models that store fit data (such as [ProphetModel](https://docs.victoriametrics.com/anomaly-detection/components/models#prophet) or [HoltWinters](https://docs.victoriametrics.com/anomaly-detection/components/models#holt-winters)). This reduces RAM consumption significantly, though at the cost of slightly slower `infer` stages. To enable this, set the environment variable `VMANOMALY_MODEL_DUMPS_DIR` to the desired location. If using [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md), starting from chart version `1.3.0` `.persistentVolume.enabled` should be set to `true` in [values.yaml](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/values.yaml).
-
-> **Note**: Starting from [v1.16.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1160), a similar optimization is available for data read from VictoriaMetrics TSDB. To use this, set the environment variable `VMANOMALY_DATA_DUMPS_DIR` to the desired location.
+> **Note**: {{% available_from "v1.13.0" anomaly %}} there is an option to save anomaly detection models to the host filesystem after the `fit` stage (instead of keeping them in memory by default). This is particularly useful for **resource-intensive setups** (e.g., many models, many metrics, or larger [`fit_window` argument](https://docs.victoriametrics.com/anomaly-detection/components/scheduler#periodic-scheduler-config-example)) and for 3rd-party models that store fit data (such as [ProphetModel](https://docs.victoriametrics.com/anomaly-detection/components/models#prophet) or [HoltWinters](https://docs.victoriametrics.com/anomaly-detection/components/models#holt-winters)). This reduces RAM consumption significantly, though at the cost of slightly slower `infer` stages. To enable this, set the environment variable `VMANOMALY_MODEL_DUMPS_DIR` to the desired location. If using [Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/README.md), starting from chart version `1.3.0` `.persistentVolume.enabled` should be set to `true` in [values.yaml](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-anomaly/values.yaml).  Similar optimization is available for data read from VictoriaMetrics TSDB {{% available_from "v1.16.0" anomaly %}}. To use this, set the environment variable `VMANOMALY_DATA_DUMPS_DIR` to the desired location.
 
 Here's an example of how to set it up in docker-compose using volumes:
 ```yaml
@@ -159,7 +158,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.18.8
+    image: victoriametrics/vmanomaly:v1.19.0
     # ...
     ports:
       - "8490:8490"
@@ -189,7 +188,7 @@ For Helm chart users, refer to the `persistentVolume` [section](https://github.c
 
 ### Online models
 
-> **Note**: Starting from [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog#v1150) with the introduction of [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models), you can additionally reduce resource consumption (e.g., flatten `fit` stage peaks by querying less data from VictoriaMetrics at once).
+With the introduction of [online models](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-models) {{% available_from "v1.15.0" anomaly %}} , you can additionally reduce resource consumption (e.g., flatten `fit` stage peaks by querying less data from VictoriaMetrics at once).
 
 - **Reduced Latency**: Online models update incrementally, which can lead to faster response times for anomaly detection since the model continuously adapts to new data without waiting for a batch `fit`.
 - **Scalability**: Handling smaller data chunks at a time reduces memory and computational overhead, making it easier to scale the anomaly detection system.
@@ -338,7 +337,7 @@ For **horizontal** scalability, `vmanomaly` can be deployed as multiple independ
 
 ### Splitting the config
 
-Starting from [v1.18.5](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1185), a CLI utility named `config_splitter.py` is available in vmanoamly. The config splitter tool enables splitting a parent vmanomaly YAML configuration file into multiple sub-configurations based on logical entities  such as `schedulers`, `queries`, `models`, `extra_filters`. The resulting sub-configurations are fully validated, functional, account for many-to-many relationships between models and their associated queries, and the schedulers they are linked to. These sub-configurations can then be saved to a specified directory for further use:
+CLI utility named `config_splitter` is available in `vmanomaly` {{% available_from "v1.18.5" anomaly %}}. The config splitter tool enables splitting a parent vmanomaly YAML configuration file into multiple sub-configurations based on logical entities  such as `schedulers`, `queries`, `models`, `extra_filters`. The resulting sub-configurations are fully validated, functional, account for many-to-many relationships between models and their associated queries, and the schedulers they are linked to. These sub-configurations can then be saved to a specified directory for further use:
 
 ```shellhelp
 usage: config_splitter.py [-h] --splitBy {schedulers,models,queries,extra_filters} --outputDir OUTPUT_DIR [--fileNameFormat {raw,hash,int}] [--loggerLevel {WARNING,INFO,ERROR,FATAL,DEBUG}]
@@ -365,25 +364,31 @@ options:
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.18.8 && docker image tag victoriametrics/vmanomaly:v1.18.8 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.19.0 && docker image tag victoriametrics/vmanomaly:v1.19.0 vmanomaly
 ```
 
 ```sh
-export YOUR_INPUT_CONFIG_PATH=path/to/input/config.yml
-export YOUR_OUTPUT_DIR_PATH=path/to/output/directory
+export INPUT_CONFIG_PATH=/absolute/path/to/input/config.yml
+export OUTPUT_DIR_PATH=/absolute/path/to/output/directory
 
 docker run -it --rm \
-    -v $YOUR_INPUT_CONFIG_PATH:/input_config.yml \
-    -v $YOUR_OUTPUT_DIR_PATH:/output_dir \
-    vmanomaly python3 /vmanomaly/config_splitter.py \
-    /input_config.yml \
+    --user="$(id -u):$(id -g)" \
+    --cap-drop=ALL \
+    -e "VM_LICENSE_FILE=/.secret/license" \
+    -v "$PWD/.secret/license":/.secret/license \
+    -v "$INPUT_CONFIG_PATH":/vmanomaly/input_config.yml \
+    -v "$OUTPUT_DIR_PATH":/vmanomaly/output \
+    --entrypoint python3 \
+    vmanomaly:latest \
+    -m config_splitter \
+    /vmanomaly/input_config.yml \
     --splitBy=extra_filters \
-    --outputDir=/output_dir \
+    --outputDir=/vmanomaly/output \
     --fileNameFormat=raw \
     --loggerLevel=INFO
 ```
 
-After running the command, the output directory (specified by `YOUR_OUTPUT_DIR_PATH`) will contain 1+ split configuration files like the examples below. Each file can be used to launch a separate vmanomaly instance. Use similar approach to split on other entities, like `models` or `schedulers`.
+After running the command, the output directory (specified by `OUTPUT_DIR_PATH`) will contain 1+ split configuration files like the examples below. Each file can be used to launch a separate vmanomaly instance. Use similar approach to split on other entities, like `models`, `queries` or `schedulers`.
 
 ```yaml
 # config file #1, for 1st vmanomaly instance
