@@ -93,7 +93,8 @@ func TestParseStream(t *testing.T) {
 	f(
 		[]*pb.Metric{
 			generateGauge("my-gauge", ""),
-			generateHistogram("my-histogram", ""),
+			generateHistogram("my-histogram", "", true),
+			generateHistogram("my-sumless-histogram", "", false),
 			generateSum("my-sum", "", false),
 			generateSummary("my-summary", ""),
 		},
@@ -106,6 +107,12 @@ func TestParseStream(t *testing.T) {
 			newPromPBTs("my-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("1")),
 			newPromPBTs("my-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("5")),
 			newPromPBTs("my-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("+Inf")),
+			newPromPBTs("my-sumless-histogram_count", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2")),
+			newPromPBTs("my-sumless-histogram_bucket", 30000, 0.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("0.1")),
+			newPromPBTs("my-sumless-histogram_bucket", 30000, 5.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("0.5")),
+			newPromPBTs("my-sumless-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("1")),
+			newPromPBTs("my-sumless-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("5")),
+			newPromPBTs("my-sumless-histogram_bucket", 30000, 15.0, jobLabelValue, kvLabel("label2", "value2"), leLabel("+Inf")),
 			newPromPBTs("my-sum", 150000, 15.5, jobLabelValue, kvLabel("label5", "value5")),
 			newPromPBTs("my-summary_sum", 35000, 32.5, jobLabelValue, kvLabel("label6", "value6")),
 			newPromPBTs("my-summary_count", 35000, 5.0, jobLabelValue, kvLabel("label6", "value6")),
@@ -284,23 +291,23 @@ func generateGauge(name, unit string) *pb.Metric {
 	}
 }
 
-func generateHistogram(name, unit string) *pb.Metric {
-	points := []*pb.HistogramDataPoint{
-		{
-			Attributes:     attributesFromKV("label2", "value2"),
-			Count:          15,
-			Sum:            func() *float64 { v := 30.0; return &v }(),
-			ExplicitBounds: []float64{0.1, 0.5, 1.0, 5.0},
-			BucketCounts:   []uint64{0, 5, 10, 0, 0},
-			TimeUnixNano:   uint64(30 * time.Second),
-		},
+func generateHistogram(name, unit string, hasSum bool) *pb.Metric {
+	point := &pb.HistogramDataPoint{
+		Attributes:     attributesFromKV("label2", "value2"),
+		Count:          15,
+		ExplicitBounds: []float64{0.1, 0.5, 1.0, 5.0},
+		BucketCounts:   []uint64{0, 5, 10, 0, 0},
+		TimeUnixNano:   uint64(30 * time.Second),
+	}
+	if hasSum {
+		point.Sum = func() *float64 { v := 30.0; return &v }()
 	}
 	return &pb.Metric{
 		Name: name,
 		Unit: unit,
 		Histogram: &pb.Histogram{
 			AggregationTemporality: pb.AggregationTemporalityCumulative,
-			DataPoints:             points,
+			DataPoints:             []*pb.HistogramDataPoint{point},
 		},
 	}
 }
