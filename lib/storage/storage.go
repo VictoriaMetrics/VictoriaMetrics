@@ -547,8 +547,7 @@ type Metrics struct {
 
 	NextRetentionSeconds uint64
 
-	IndexDBMetrics IndexDBMetrics
-	TableMetrics   TableMetrics
+	TableMetrics TableMetrics
 }
 
 // Reset resets m.
@@ -647,8 +646,11 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	}
 	m.NextRetentionSeconds = uint64(d)
 
-	s.idb().UpdateMetrics(&m.IndexDBMetrics)
 	s.tb.UpdateMetrics(&m.TableMetrics)
+	// Add legacy IndexDB metrics to partition IndexDB metrics
+	// TODO(@rtm0): Keep them separate and introduce separate metrics for legacy
+	// IndexDB?
+	s.idb().UpdateMetrics(&m.TableMetrics.IndexDBMetrics)
 }
 
 func (s *Storage) nextRetentionSeconds() int64 {

@@ -351,6 +351,8 @@ type partitionMetrics struct {
 
 	ScheduledDownsamplingPartitions     uint64
 	ScheduledDownsamplingPartitionsSize uint64
+
+	IndexDBMetrics IndexDBMetrics
 }
 
 // TotalRowsCount returns total number of rows in tm.
@@ -427,6 +429,8 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 	m.InmemoryRowsDeleted += pt.inmemoryRowsDeleted.Load()
 	m.SmallRowsDeleted += pt.smallRowsDeleted.Load()
 	m.BigRowsDeleted += pt.bigRowsDeleted.Load()
+
+	pt.idb.UpdateMetrics(&m.IndexDBMetrics)
 }
 
 // AddRows adds the given rows to the partition pt.
