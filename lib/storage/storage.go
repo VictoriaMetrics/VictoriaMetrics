@@ -357,8 +357,8 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	fs.MustMkdirFailIfExist(dstDir)
 	dirsToRemoveOnError = append(dirsToRemoveOnError, dstDir)
 
-	smallDir, bigDir := s.tb.MustCreateSnapshot(snapshotName)
-	dirsToRemoveOnError = append(dirsToRemoveOnError, smallDir, bigDir)
+	smallDir, bigDir, indexDBDir := s.tb.MustCreateSnapshot(snapshotName)
+	dirsToRemoveOnError = append(dirsToRemoveOnError, smallDir, bigDir, indexDBDir)
 
 	dstDataDir := filepath.Join(dstDir, dataDirname)
 	fs.MustMkdirFailIfExist(dstDataDir)
@@ -369,6 +369,9 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	dstBigDir := filepath.Join(dstDataDir, bigDirname)
 	fs.MustSymlinkRelative(bigDir, dstBigDir)
 
+	dstIndexDBDir := filepath.Join(dstDataDir, indexdbDirname)
+	fs.MustSymlinkRelative(indexDBDir, dstIndexDBDir)
+
 	fs.MustSyncPath(dstDataDir)
 
 	srcMetadataDir := filepath.Join(srcDir, metadataDirname)
@@ -378,7 +381,7 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	idbSnapshot := filepath.Join(srcDir, indexdbDirname, snapshotsDirname, snapshotName)
 	idb := s.idb()
 	currSnapshot := filepath.Join(idbSnapshot, idb.name)
-	if err := idb.tb.CreateSnapshotAt(currSnapshot); err != nil {
+	if err := idb.tb.LegacyCreateSnapshotAt(currSnapshot); err != nil {
 		return "", fmt.Errorf("cannot create curr indexDB snapshot: %w", err)
 	}
 	dirsToRemoveOnError = append(dirsToRemoveOnError, idbSnapshot)
@@ -386,7 +389,7 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	var err error
 	idb.doExtDB(func(extDB *indexDB) {
 		prevSnapshot := filepath.Join(idbSnapshot, extDB.name)
-		err = extDB.tb.CreateSnapshotAt(prevSnapshot)
+		err = extDB.tb.LegacyCreateSnapshotAt(prevSnapshot)
 	})
 	if err != nil {
 		return "", fmt.Errorf("cannot create prev indexDB snapshot: %w", err)

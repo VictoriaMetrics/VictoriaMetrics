@@ -132,8 +132,9 @@ func mustOpenTable(path string, s *Storage) *table {
 	return tb
 }
 
-// MustCreateSnapshot creates tb snapshot and returns paths to small and big parts of it.
-func (tb *table) MustCreateSnapshot(snapshotName string) (string, string) {
+// MustCreateSnapshot creates tb snapshot and returns paths to small parts, big
+// parts, and indexdb.
+func (tb *table) MustCreateSnapshot(snapshotName string) (string, string, string) {
 	logger.Infof("creating table snapshot of %q...", tb.path)
 	startTime := time.Now()
 
@@ -146,19 +147,25 @@ func (tb *table) MustCreateSnapshot(snapshotName string) (string, string) {
 	dstBigDir := filepath.Join(tb.path, bigDirname, snapshotsDirname, snapshotName)
 	fs.MustMkdirFailIfExist(dstBigDir)
 
+	dstIndexDBDir := filepath.Join(tb.path, indexdbDirname, snapshotsDirname, snapshotName)
+	fs.MustMkdirFailIfExist(dstIndexDBDir)
+
 	for _, ptw := range ptws {
 		smallPath := filepath.Join(dstSmallDir, ptw.pt.name)
 		bigPath := filepath.Join(dstBigDir, ptw.pt.name)
-		ptw.pt.MustCreateSnapshotAt(smallPath, bigPath)
+		indexDBPath := filepath.Join(dstIndexDBDir, ptw.pt.name)
+		ptw.pt.MustCreateSnapshotAt(smallPath, bigPath, indexDBPath)
 	}
 
 	fs.MustSyncPath(dstSmallDir)
 	fs.MustSyncPath(dstBigDir)
+	fs.MustSyncPath(dstIndexDBDir)
 	fs.MustSyncPath(filepath.Dir(dstSmallDir))
 	fs.MustSyncPath(filepath.Dir(dstBigDir))
+	fs.MustSyncPath(filepath.Dir(dstIndexDBDir))
 
-	logger.Infof("created table snapshot for %q at (%q, %q) in %.3f seconds", tb.path, dstSmallDir, dstBigDir, time.Since(startTime).Seconds())
-	return dstSmallDir, dstBigDir
+	logger.Infof("created table snapshot for %q at (%q, %q, %q) in %.3f seconds", tb.path, dstSmallDir, dstBigDir, dstIndexDBDir, time.Since(startTime).Seconds())
+	return dstSmallDir, dstBigDir, dstIndexDBDir
 }
 
 // MustDeleteSnapshot deletes snapshot with the given snapshotName.
@@ -167,6 +174,8 @@ func (tb *table) MustDeleteSnapshot(snapshotName string) {
 	fs.MustRemoveDirAtomic(smallDir)
 	bigDir := filepath.Join(tb.path, bigDirname, snapshotsDirname, snapshotName)
 	fs.MustRemoveDirAtomic(bigDir)
+	indexDBDir := filepath.Join(tb.path, indexdbDirname, snapshotsDirname, snapshotName)
+	fs.MustRemoveDirAtomic(indexDBDir)
 }
 
 func (tb *table) addPartitionNolock(pt *partition) {

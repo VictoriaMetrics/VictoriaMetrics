@@ -2,19 +2,21 @@ package storage
 
 import (
 	"fmt"
+	"io/fs"
 	"math/rand"
 	"os"
 	"path/filepath"
 	"reflect"
 	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"testing/quick"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	vmfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/google/go-cmp/cmp"
 )
@@ -1659,6 +1661,136 @@ func testCountAllMetricNamesNoExtDB(is *indexSearch, tr TimeRange) int {
 	return len(metricNames)
 }
 
+func testListDirEntries(t *testing.T, root string, ignorePrefix ...string) []string {
+	t.Helper()
+	var paths []string
+	f := func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == root {
+			return nil
+		}
+		for _, prefix := range ignorePrefix {
+			if strings.HasPrefix(path, prefix) {
+				return nil
+			}
+		}
+		paths = append(paths, strings.TrimPrefix(path, root))
+		return nil
+	}
+	if err := filepath.WalkDir(root, f); err != nil {
+		t.Fatalf("could not walk dir %q: %v", root, err)
+	}
+	return paths
+}
+
+func TestStorageSnapshots_CreateListDelete(t *testing.T) {
+	defer testRemoveAll(t)
+
+	rng := rand.New(rand.NewSource(1))
+	const numRows = 10000
+	minTimestamp := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	maxTimestamp := time.Date(2024, 2, 29, 0, 0, 0, 0, time.UTC).UnixMilli()
+	mrs := testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
+
+	root := t.Name()
+	s := MustOpenStorage(root, 0, 0, 0)
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	snapshotName, err := s.CreateSnapshot()
+	if err != nil {
+		t.Fatalf("cannot create snapshot from the storage: %v", err)
+	}
+	assertListSnapshots := func(want []string) {
+		got, err := s.ListSnapshots()
+		if err != nil {
+			t.Fatalf("could not list snapshots: %v", err)
+		}
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Fatalf("unexpected snapshot list (-want, +got):\n%s", diff)
+		}
+	}
+	assertListSnapshots([]string{snapshotName})
+
+	// Check snapshot dir entries
+
+	var (
+		data                 = filepath.Join(root, dataDirname)
+		smallData            = filepath.Join(data, smallDirname)
+		bigData              = filepath.Join(data, bigDirname)
+		indexData            = filepath.Join(data, indexdbDirname)
+		legacyIndexData      = filepath.Join(root, indexdbDirname)
+		legacyNextIndexData  = filepath.Join(legacyIndexData, s.idbNext.Load().name)
+		smallSnapshots       = filepath.Join(smallData, snapshotsDirname)
+		bigSnapshots         = filepath.Join(bigData, snapshotsDirname)
+		indexSnapshots       = filepath.Join(indexData, snapshotsDirname)
+		legacyIndexSnapshots = filepath.Join(legacyIndexData, snapshotsDirname)
+		smallSnapshot        = filepath.Join(smallSnapshots, snapshotName)
+		bigSnapshot          = filepath.Join(bigSnapshots, snapshotName)
+		indexSnapshot        = filepath.Join(indexSnapshots, snapshotName)
+		legacyIndexSnapshot  = filepath.Join(legacyIndexSnapshots, snapshotName)
+	)
+
+	assertDirEntries := func(srcDir, snapshotDir string, excludePath ...string) {
+		t.Helper()
+		dataDirEntries := testListDirEntries(t, srcDir, excludePath...)
+		snapshotDirEntries := testListDirEntries(t, snapshotDir)
+		if diff := cmp.Diff(dataDirEntries, snapshotDirEntries); diff != "" {
+			t.Fatalf("unexpected snapshot dir entries (-want, +got):\n%s", diff)
+		}
+	}
+	assertDirEntries(smallData, smallSnapshot, smallSnapshots)
+	assertDirEntries(bigData, bigSnapshot, bigSnapshots)
+	assertDirEntries(indexData, indexSnapshot, indexSnapshots)
+	assertDirEntries(legacyIndexData, legacyIndexSnapshot, legacyIndexSnapshots, legacyNextIndexData)
+
+	// Check snapshot symlinks
+
+	var (
+		snapshot           = filepath.Join(root, snapshotsDirname, snapshotName)
+		bigSymlink         = filepath.Join(snapshot, dataDirname, bigDirname)
+		smallSymlink       = filepath.Join(snapshot, dataDirname, smallDirname)
+		indexSymlink       = filepath.Join(snapshot, dataDirname, indexdbDirname)
+		legacyIndexSymlink = filepath.Join(snapshot, indexdbDirname)
+	)
+	assertSymlink := func(symlink string, wantRealpath string) {
+		t.Helper()
+		gotRealpath, err := filepath.EvalSymlinks(symlink)
+		if err != nil {
+			t.Fatalf("Could not evaluate symlink %q: %v", symlink, err)
+		}
+		if gotRealpath != wantRealpath {
+			t.Fatalf("unexpected realpath for symlink %q: got %q, want %q", symlink, gotRealpath, wantRealpath)
+		}
+	}
+	assertSymlink(bigSymlink, bigSnapshot)
+	assertSymlink(smallSymlink, smallSnapshot)
+	assertSymlink(indexSymlink, indexSnapshot)
+	assertSymlink(legacyIndexSymlink, legacyIndexSnapshot)
+
+	// Check snapshot deletion.
+
+	if err := s.DeleteSnapshot(snapshotName); err != nil {
+		t.Fatalf("could not delete snapshot %q: %v", snapshotName, err)
+	}
+	assertListSnapshots([]string{})
+
+	assertPathDoesNotExist := func(path string) {
+		t.Helper()
+		if vmfs.IsPathExist(path) {
+			t.Fatalf("path was not expected to exist: %q", path)
+		}
+	}
+	assertPathDoesNotExist(snapshot)
+	assertPathDoesNotExist(bigSnapshot)
+	assertPathDoesNotExist(smallSnapshot)
+	assertPathDoesNotExist(indexSnapshot)
+	assertPathDoesNotExist(legacyIndexSnapshot)
+}
+
 func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageDeleteStaleSnapshots"
@@ -1718,7 +1850,7 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 func testRemoveAll(t *testing.T) {
 	defer func() {
 		if !t.Failed() {
-			fs.MustRemoveAll(t.Name())
+			vmfs.MustRemoveAll(t.Name())
 		}
 	}()
 }

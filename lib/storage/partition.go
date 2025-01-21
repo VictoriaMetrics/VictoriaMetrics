@@ -1993,8 +1993,8 @@ func mustOpenParts(partsFile, path string, partNames []string) []*partWrapper {
 // MustCreateSnapshotAt creates pt snapshot at the given smallPath and bigPath dirs.
 //
 // Snapshot is created using linux hard links, so it is usually created very quickly.
-func (pt *partition) MustCreateSnapshotAt(smallPath, bigPath string) {
-	logger.Infof("creating partition snapshot of %q and %q...", pt.smallPartsPath, pt.bigPartsPath)
+func (pt *partition) MustCreateSnapshotAt(smallPath, bigPath, indexDBPath string) {
+	logger.Infof("creating partition snapshot of %q, %q, and %q...", pt.smallPartsPath, pt.bigPartsPath, pt.indexDBPartsPath)
 	startTime := time.Now()
 
 	// Flush inmemory data to disk.
@@ -2021,8 +2021,12 @@ func (pt *partition) MustCreateSnapshotAt(smallPath, bigPath string) {
 	pt.mustCreateSnapshot(pt.smallPartsPath, smallPath, pwsSmall)
 	pt.mustCreateSnapshot(pt.bigPartsPath, bigPath, pwsBig)
 
-	logger.Infof("created partition snapshot of %q and %q at %q and %q in %.3f seconds",
-		pt.smallPartsPath, pt.bigPartsPath, smallPath, bigPath, time.Since(startTime).Seconds())
+	if err := pt.idb.tb.CreateSnapshotAt(indexDBPath); err != nil {
+		logger.Panicf("FATAL: cannot create paritition indexDB snapshot of %v at %v: %v", pt.indexDBPartsPath, indexDBPath, err)
+	}
+
+	logger.Infof("created partition snapshot of %q, %q, and %q at %q, %q, and %q in %.3f seconds",
+		pt.smallPartsPath, pt.bigPartsPath, pt.indexDBPartsPath, smallPath, bigPath, indexDBPath, time.Since(startTime).Seconds())
 }
 
 // mustCreateSnapshot creates a snapshot from srcDir to dstDir.
