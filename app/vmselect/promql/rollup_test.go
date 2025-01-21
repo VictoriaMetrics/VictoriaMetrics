@@ -148,6 +148,14 @@ func TestRemoveCounterResets(t *testing.T) {
 	removeCounterResets(values, timestamps, 10)
 	testRowsEqual(t, values, timestamps, valuesExpected, timestamps)
 
+	// verify that staleness is respected if there was no counter reset
+	// but correction was made previously
+	values = []float64{10, 12, 2, 4}
+	timestamps = []int64{10, 20, 30, 60}
+	valuesExpected = []float64{10, 12, 14, 4}
+	removeCounterResets(values, timestamps, 10)
+	testRowsEqual(t, values, timestamps, valuesExpected, timestamps)
+
 	// verify results always increase monotonically with possible float operations precision error
 	values = []float64{34.094223, 2.7518, 2.140669, 0.044878, 1.887095, 2.546569, 2.490149, 0.045, 0.035684, 0.062454, 0.058296}
 	timestampsExpected = []int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
