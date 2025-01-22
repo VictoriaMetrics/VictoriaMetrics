@@ -640,6 +640,7 @@ func (pt *partition) NotifyReadWriteMode() {
 	pt.startInmemoryPartsMergers()
 	pt.startSmallPartsMergers()
 	pt.startBigPartsMergers()
+	pt.idb.tb.NotifyReadWriteMode()
 }
 
 func (pt *partition) inmemoryPartsMerger() {

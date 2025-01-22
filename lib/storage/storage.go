@@ -714,12 +714,8 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 
 func (s *Storage) notifyReadWriteMode() {
 	s.tb.NotifyReadWriteMode()
-
-	idb := s.idb()
-	idb.tb.NotifyReadWriteMode()
-	idb.doExtDB(func(extDB *indexDB) {
-		extDB.tb.NotifyReadWriteMode()
-	})
+	// NotifyReadWriteMode() is not called for legacy idbs becase they are
+	// opened in read-only mode and must remain so throughout the process life.
 }
 
 func (s *Storage) startRetentionWatcher() {
