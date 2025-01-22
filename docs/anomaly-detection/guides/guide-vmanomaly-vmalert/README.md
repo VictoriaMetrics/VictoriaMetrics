@@ -136,22 +136,24 @@ Below is an illustrative example of a `vmanomaly_config.yml` configuration file.
 ``` yaml
 schedulers:
   periodic:
-    # class: 'periodic'  # or "scheduler.periodic.PeriodicScheduler" until v1.13.0
     infer_every: "1m"
-    fit_every: "2m"
-    fit_window: "3h"
+    fit_every: "1h"
+    fit_window: "2d" # 2d-14d based on the presense of weekly seasonality in your data
 
 models:
   prophet:
-    class: "prophet"  # or "model.prophet.ProphetModel" until v1.13.0
+    class: "prophet" 
     args:
       interval_width: 0.98
+      weekly_seasonality: False  # comment it if your data has weekly seasonality
+      yearly_seasonality: False
 
 reader:
   datasource_url: "http://victoriametrics:8428/"
-  sampling_period: "60s" 
+  sampling_period: "60s"
   queries:
-    node_cpu_rate: "sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)"
+    node_cpu_rate: 
+      expr: "sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)"
 
 writer:
   datasource_url: "http://victoriametrics:8428/"
