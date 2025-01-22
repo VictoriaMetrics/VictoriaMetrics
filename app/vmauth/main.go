@@ -222,8 +222,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		isDefault = true
 	}
 
-	rtb := getReadTrackingBody(r.Body, maxRequestBodySizeToRetry.IntN())
-	defer putReadTrackingBody(rtb)
+	rtb := newReadTrackingBody(r.Body, maxRequestBodySizeToRetry.IntN())
 	r.Body = rtb
 
 	maxAttempts := up.getBackendsCount()
@@ -559,22 +558,11 @@ type readTrackingBody struct {
 	bufComplete bool
 }
 
-func (rtb *readTrackingBody) reset() {
-	rtb.maxBodySize = 0
-	rtb.r = nil
-	rtb.buf = rtb.buf[:0]
-	rtb.readBuf = nil
-	rtb.cannotRetry = false
-	rtb.bufComplete = false
-}
-
-func getReadTrackingBody(r io.ReadCloser, maxBodySize int) *readTrackingBody {
-	v := readTrackingBodyPool.Get()
-	if v == nil {
-		v = &readTrackingBody{}
-	}
-	rtb := v.(*readTrackingBody)
-
+func newReadTrackingBody(r io.ReadCloser, maxBodySize int) *readTrackingBody {
+	// do not use sync.Pool there
+	// since http.RoundTrip may still use request body after return
+	// See this issue for details https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8051
+	rtb := &readTrackingBody{}
 	if maxBodySize < 0 {
 		maxBodySize = 0
 	}
@@ -596,13 +584,6 @@ func (r *zeroReader) Read(_ []byte) (int, error) {
 func (r *zeroReader) Close() error {
 	return nil
 }
-
-func putReadTrackingBody(rtb *readTrackingBody) {
-	rtb.reset()
-	readTrackingBodyPool.Put(rtb)
-}
-
-var readTrackingBodyPool sync.Pool
 
 // Read implements io.Reader interface.
 func (rtb *readTrackingBody) Read(p []byte) (int, error) {
