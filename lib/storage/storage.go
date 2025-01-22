@@ -719,6 +719,8 @@ func (s *Storage) notifyReadWriteMode() {
 }
 
 func (s *Storage) startRetentionWatcher() {
+	// TODO(@rtm0): Do not start retention watcher if there is no previous or
+	// current IndexDB.
 	s.retentionWatcherWG.Add(1)
 	go func() {
 		s.retentionWatcher()
@@ -734,6 +736,7 @@ func (s *Storage) retentionWatcher() {
 			return
 		case currentTime := <-time.After(time.Second * time.Duration(d)):
 			s.mustRotateIndexDB(currentTime)
+			// TODO(@rtm0): Return if there is no previous or current IndexDB.
 		}
 	}
 }
@@ -788,6 +791,8 @@ func (s *Storage) nextDayMetricIDsUpdater() {
 	}
 }
 
+// TODO(@rtm0): Do not rotate, just remove outdated previous and then current
+// idb.
 func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 	// Create new indexdb table, which will be used as idbNext
 	newTableName := nextIndexDBTableName()
