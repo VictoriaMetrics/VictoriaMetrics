@@ -52,3 +52,27 @@ func TestColumnNameIDGenerator(t *testing.T) {
 		}
 	}
 }
+
+func TestGetColumnNameIDs(t *testing.T) {
+	testColumns := [][]string{
+		{},
+		{""},
+		{"", "foo", "bar.baz", "asdf dsf dfs"},
+		{"asdf.sdf.dsfds.f fds. fds ", "foo", "bar.sdfsdf.fd", "", "aso apaa"},
+	}
+
+	for _, col := range testColumns {
+		colmnNames := getColumnNameIDs(col)
+		if len(colmnNames) != len(col) {
+			t.Errorf("unexpected map length; got %d; want %d", len(colmnNames), len(col))
+		}
+
+		m := make(map[uint64]string, len(col))
+		for name, id := range colmnNames {
+			if prevName, ok := m[id]; ok {
+				t.Errorf("duplicate column name id=%d for columns %q and %q", id, prevName, name)
+			}
+			m[id] = name
+		}
+	}
+}
