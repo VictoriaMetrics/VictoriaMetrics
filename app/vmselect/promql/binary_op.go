@@ -483,7 +483,7 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	// group time series by condition.
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
 
-	// fast path: return right if all series in mLeft are NaNs.
+	// fast path: return mRight if all series in mLeft are NaNs.
 	isLeftEmpty := true
 	for _, tss := range mLeft {
 		if len(tss) > 0 {
@@ -496,60 +496,53 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 		return bfa.right, nil
 	}
 
+	var rvs []*timeseries
+
 	// slow path
 	for k, tssLeft := range mLeft {
-		// for tss in the left group, find tss in the right group
 		tssRight := mRight[k]
-
-		// set value to NaN if a non-NaN value has been found.
-		// this will go through all data points and no more than len(timestamps) data points will have a non-NaN value.
-		tsLen := len(tssLeft[0].Timestamps)
-		for i := 0; i < tsLen; i++ {
-			found := false
-			for _, tsLeft := range tssLeft {
-				if found {
-					tsLeft.Values[i] = nan
-					continue
+		if tssRight == nil {
+			rvs = append(rvs, tssLeft...)
+			continue
+		}
+		for _, tsLeft := range tssLeft {
+			valuesLeft := tsLeft.Values
+			tsLeftName := tsLeft.MetricName.String()
+			for i, tsRight := range tssRight {
+				canBeMerged := tsLeftName == tsRight.MetricName.String()
+				valuesRight := tsRight.Values
+				for j, v := range valuesLeft {
+					if math.IsNaN(v) {
+						if canBeMerged {
+							valuesLeft[j] = valuesRight[j]
+						}
+					} else {
+						valuesRight[j] = nan
+					}
 				}
-				if !math.IsNaN(tsLeft.Values[i]) {
-					found = true
-				}
-			}
-
-			for _, tsRight := range tssRight {
-				if found {
-					tsRight.Values[i] = nan
-					continue
-				}
-				if !math.IsNaN(tsRight.Values[i]) {
-					found = true
+				if canBeMerged {
+					tssRight[i] = nil
 				}
 			}
 		}
+		rvs = append(rvs, tssLeft...)
 	}
 
-	var rvs []*timeseries
-
-	for _, tss := range mLeft {
-		rvs = append(rvs, tss...)
-	}
 	// Sort left-hand-side series by metric name as Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
 	sortSeriesByMetricName(rvs)
 	rvsLen := len(rvs)
 
 	for _, tss := range mRight {
-		rvs = append(rvs, tss...)
+		for _, ts := range tss {
+			if ts == nil {
+				continue
+			}
+			rvs = append(rvs, ts)
+		}
+
 	}
 	sortSeriesByMetricName(rvs[rvsLen:])
-
-	// merge same metrics by filling right to left if necessary
-	for i := 0; i < len(rvs)-1; i++ {
-		if rvs[i].MetricName.String() == rvs[i+1].MetricName.String() {
-			fillLeftNaNsWithRightValues([]*timeseries{rvs[i]}, []*timeseries{rvs[i+1]})
-			rvs[i+1].Reset()
-		}
-	}
 	return rvs, nil
 }
 

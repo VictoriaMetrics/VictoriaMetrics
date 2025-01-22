@@ -5,7 +5,6 @@ import "./style.scss";
 import useStateSearchParams from "../../../../hooks/useStateSearchParams";
 import { useSearchParams } from "react-router-dom";
 import Button from "../../../Main/Button/Button";
-import classNames from "classnames";
 import { SettingsIcon, VisibilityIcon, VisibilityOffIcon } from "../../../Main/Icons";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import Popper from "../../../Main/Popper/Popper";
@@ -24,27 +23,20 @@ const BarHitsOptions: FC<Props> = ({ onChange }) => {
     setFalse: handleCloseOptions,
   } = useBoolean(false);
 
-  const [graphStyle, setGraphStyle] = useStateSearchParams(GRAPH_STYLES.LINE_STEPPED, "graph");
   const [stacked, setStacked] = useStateSearchParams(false, "stacked");
-  const [fill, setFill] = useStateSearchParams(false, "fill");
+  const [fill, setFill] = useStateSearchParams("true", "fill");
   const [hideChart, setHideChart] = useStateSearchParams(false, "hide_chart");
 
   const options: GraphOptions = useMemo(() => ({
-    graphStyle,
+    graphStyle: GRAPH_STYLES.BAR,
     stacked,
-    fill,
+    fill: fill === "true",
     hideChart,
-  }), [graphStyle, stacked, fill, hideChart]);
-
-  const handleChangeGraphStyle = (val: string) => () => {
-    setGraphStyle(val as GRAPH_STYLES);
-    searchParams.set("graph", val);
-    setSearchParams(searchParams);
-  };
+  }), [stacked, fill, hideChart]);
 
   const handleChangeFill = (val: boolean) => {
-    setFill(val);
-    val ? searchParams.set("fill", "true") : searchParams.delete("fill");
+    setFill(`${val}`);
+    searchParams.set("fill", `${val}`);
     setSearchParams(searchParams);
   };
 
@@ -97,21 +89,6 @@ const BarHitsOptions: FC<Props> = ({ onChange }) => {
         title={"Graph settings"}
       >
         <div className="vm-bar-hits-options-settings">
-          <div className="vm-bar-hits-options-settings-item vm-bar-hits-options-settings-item_list">
-            <p className="vm-bar-hits-options-settings-item__title">Graph style:</p>
-            {Object.values(GRAPH_STYLES).map(style => (
-              <div
-                key={style}
-                className={classNames({
-                  "vm-list-item": true,
-                  "vm-list-item_active": graphStyle === style,
-                })}
-                onClick={handleChangeGraphStyle(style)}
-              >
-                {style}
-              </div>
-            ))}
-          </div>
           <div className="vm-bar-hits-options-settings-item">
             <Switch
               label={"Stacked"}
@@ -122,7 +99,7 @@ const BarHitsOptions: FC<Props> = ({ onChange }) => {
           <div className="vm-bar-hits-options-settings-item">
             <Switch
               label={"Fill"}
-              value={fill}
+              value={fill === "true"}
               onChange={handleChangeFill}
             />
           </div>

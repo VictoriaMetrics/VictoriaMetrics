@@ -33,6 +33,7 @@ func (su *statsCountUniqHash) updateNeededFields(neededFields fieldsSet) {
 func (su *statsCountUniqHash) newStatsProcessor(a *chunkedAllocator) statsProcessor {
 	sup := a.newStatsCountUniqHashProcessor()
 	sup.a = a
+	sup.m.init()
 	return sup
 }
 
@@ -74,9 +75,6 @@ func (sus *statsCountUniqHashSet) entriesCount() uint64 {
 }
 
 func (sus *statsCountUniqHashSet) updateStateTimestamp(ts int64) int {
-	if sus.timestamps == nil {
-		sus.timestamps = make(map[uint64]struct{})
-	}
 	_, ok := sus.timestamps[uint64(ts)]
 	if ok {
 		return 0
@@ -86,9 +84,6 @@ func (sus *statsCountUniqHashSet) updateStateTimestamp(ts int64) int {
 }
 
 func (sus *statsCountUniqHashSet) updateStateUint64(n uint64) int {
-	if sus.u64 == nil {
-		sus.u64 = make(map[uint64]struct{})
-	}
 	_, ok := sus.u64[n]
 	if ok {
 		return 0
@@ -105,9 +100,6 @@ func (sus *statsCountUniqHashSet) updateStateInt64(n int64) int {
 }
 
 func (sus *statsCountUniqHashSet) updateStateNegativeInt64(n int64) int {
-	if sus.negative64 == nil {
-		sus.negative64 = make(map[uint64]struct{})
-	}
 	_, ok := sus.negative64[uint64(n)]
 	if ok {
 		return 0
@@ -130,9 +122,6 @@ func (sus *statsCountUniqHashSet) updateStateGeneric(v string) int {
 
 func (sus *statsCountUniqHashSet) updateStateString(v []byte) int {
 	h := xxhash.Sum64(v)
-	if sus.strings == nil {
-		sus.strings = make(map[uint64]struct{})
-	}
 	_, ok := sus.strings[h]
 	if ok {
 		return 0
@@ -142,10 +131,10 @@ func (sus *statsCountUniqHashSet) updateStateString(v []byte) int {
 }
 
 func (sus *statsCountUniqHashSet) mergeState(src *statsCountUniqHashSet, stopCh <-chan struct{}) {
-	mergeUint64Set(&sus.timestamps, src.timestamps, stopCh)
-	mergeUint64Set(&sus.u64, src.u64, stopCh)
-	mergeUint64Set(&sus.negative64, src.negative64, stopCh)
-	mergeUint64Set(&sus.strings, src.strings, stopCh)
+	mergeUint64Set(sus.timestamps, src.timestamps, stopCh)
+	mergeUint64Set(sus.u64, src.u64, stopCh)
+	mergeUint64Set(sus.negative64, src.negative64, stopCh)
+	mergeUint64Set(sus.strings, src.strings, stopCh)
 }
 
 func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {

@@ -109,14 +109,14 @@ Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`.
             <th>Parameter</th>
             <th>Type</th>
             <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
         <tr>
             <td>
 
-`fit_window`
+<span style="white-space: nowrap;">`fit_window`</span>
             </td>
             <td>str</td>
             <td>
@@ -128,7 +128,7 @@ Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`.
         <tr>
             <td>
 
-`infer_every`
+<span style="white-space: nowrap;">`infer_every`</span>
             </td>
             <td>str</td>
             <td>
@@ -140,7 +140,7 @@ Examples: `"50s"`, `"4m"`, `"3h"`, `"2d"`, `"1w"`.
         <tr>
             <td>
 
-`fit_every`
+<span style="white-space: nowrap;">`fit_every`</span>
             </td>
             <td>str, Optional</td>
             <td>
@@ -155,14 +155,12 @@ How often to completely retrain the models. If not set, value of `infer_every` i
         <tr>
             <td>
 
-<span>
-`start_from`{{% available_from "v1.18.5" anomaly %}}
-</span>
+<span style="white-space: nowrap;">`start_from`{{% available_from "v1.18.5" anomaly %}}</span>
             </td>
-            <td>str, Optional</td>
+            <td>str, <span style="white-space: nowrap;">Optional</span></td>
             <td>
 
-`2024-11-26T01:00:00Z`, `01:00`
+<span style="white-space: nowrap;">`2024-11-26T01:00:00Z`</span>, `01:00`
             </td>
             <td>
 
@@ -171,11 +169,10 @@ Specifies when to initiate the first `fit_every` call. Accepts either an ISO 860
         </tr>
         <tr>
             <td>
-<span>
-`tz`{{% available_from "v1.18.5" anomaly %}}
-</span>
+
+<span style="white-space: nowrap;">`tz`{{% available_from "v1.18.5" anomaly %}}</span>
             </td>
-            <td>str, Optional</td>
+            <td>str, <span style="white-space: nowrap;">Optional</span></td>
             <td>
 
 `America/New_York`
@@ -220,11 +217,11 @@ If a time zone is omitted, a timezone-naive datetime is used.
 <table class="params">
     <thead>
         <tr>
-            <th>Format</th>
+            <th><span style="white-space: nowrap;">Format</span></th>
             <th>Parameter</th>
-            <th>Type</th>
+            <th><span style="white-space: nowrap;">Type</span></th>
             <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -232,7 +229,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>ISO 8601</td>
             <td>
 
-`fit_start_iso`
+<span style="white-space: nowrap;">`fit_start_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -245,16 +242,19 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>UNIX time</td>
             <td>
 
-`fit_start_s`
+<span style="white-space: nowrap;">`fit_start_s`</span>
             </td>
-            <td>float</td>
+            <td>
+
+<span style="white-space: nowrap;">float</span>
+            </td>
             <td>1648771200</td>
         </tr>
         <tr>
             <td>ISO 8601</td>
             <td>
 
-`fit_end_iso`
+<span style="white-space: nowrap;">`fit_end_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -270,7 +270,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>UNIX time</td>
             <td>
 
-`fit_end_s`
+<span style="white-space: nowrap;">`fit_end_s`</span>
             </td>
             <td>float</td>
             <td>1649548800</td>
@@ -282,11 +282,11 @@ If a time zone is omitted, a timezone-naive datetime is used.
 <table class="params">
     <thead>
         <tr>
-            <th>Format</th>
+            <th><span style="white-space: nowrap;">Format</span></th>
             <th>Parameter</th>
-            <th>Type</th>
+            <th><span style="white-space: nowrap;">Type</span></th>
             <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -294,7 +294,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>ISO 8601</td>
             <td>
 
-`infer_start_iso`
+<span style="white-space: nowrap;">`infer_start_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -307,16 +307,19 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>UNIX time</td>
             <td>
 
-`infer_start_s`
+<span style="white-space: nowrap;">`infer_start_s`</span>
             </td>
-            <td>float</td>
+            <td>
+
+<span style="white-space: nowrap;">float</span>
+            </td>
             <td>1649635200</td>
         </tr>
         <tr>
             <td>ISO 8601</td>
             <td>
 
-`infer_end_iso`
+<span style="white-space: nowrap;">`infer_end_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -332,7 +335,7 @@ If a time zone is omitted, a timezone-naive datetime is used.
             <td>UNIX time</td>
             <td>
 
-`infer_end_s`
+<span style="white-space: nowrap;">`infer_end_s`</span>
             </td>
             <td>float</td>
             <td>1649894400</td>
@@ -381,9 +384,18 @@ If a time zone is omitted, a timezone-naive datetime is used.
 <table class="params">
     <thead>
         <tr>
-            <th>Parameter</th>
-            <th>Type</th>
-            <th>Example</th>
+            <th>
+
+<span style="white-space: nowrap;">Parameter</span>
+</th>
+            <th>
+
+<span style="white-space: nowrap;">Type</span>
+            </th>
+            <th>
+
+<span style="white-space: nowrap;">Example</span>
+</th>
             <th>Description</th>  
         </tr>
     </thead>
@@ -391,9 +403,9 @@ If a time zone is omitted, a timezone-naive datetime is used.
         <tr>
             <td>
 
-`n_jobs`
+<span style="white-space: nowrap;">`n_jobs`</span>
             </td>
-            <td>int</td>
+            <td><span style="white-space: nowrap;">int</span></td>
             <td>
 
 `1`
@@ -412,21 +424,33 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
 <table class="params">
     <thead>
         <tr>
-            <th>Format</th>
-            <th>Parameter</th>
-            <th>Type</th>
-            <th>Example</th>
-            <th>Description</th>  
+            <th>
+
+<span style="white-space: nowrap;">Format</span>
+            </th>
+            <th>
+
+<span style="white-space: nowrap;">Parameter</span>
+            </th>
+            <th>
+
+<span style="white-space: nowrap;">Type</span>
+            </th>
+            <th>
+
+<span style="white-space: nowrap;">Example</span>
+            </th>
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
         <tr>
-            <td>ISO 8601</td>
+            <td><span style="white-space: nowrap;">ISO 8601</span></td>
             <td>
 
-`from_iso`
+<span style="white-space: nowrap;">`from_iso`</span>
             </td>
-            <td>str</td>
+            <td><span style="white-space: nowrap;">str</span></td>
             <td>
 
 `"2022-04-01T00:00:00Z", "2022-04-01T00:00:00+01:00", "2022-04-01T00:00:00+0100", "2022-04-01T00:00:00+01"`
@@ -437,7 +461,7 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
             <td>UNIX time</td>
             <td>
 
-`from_s`
+<span style="white-space: nowrap;">`from_s`</span>
             </td>
             <td>float</td>
             <td>1648771200</td>
@@ -446,7 +470,7 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
             <td>ISO 8601</td>
             <td>
 
-`to_iso`
+<span style="white-space: nowrap;">`to_iso`</span>
             </td>
             <td>str</td>
             <td>
@@ -462,7 +486,7 @@ This timeframe will be used for slicing on intervals `(fit_window, infer_window 
             <td>UNIX time</td>
             <td>
 
-`to_s`
+<span style="white-space: nowrap;">`to_s`</span>
             </td>
             <td>float</td>
             <td>1649548800</td>
@@ -475,11 +499,11 @@ The same *explicit* logic as in [Periodic scheduler](#periodic-scheduler)
 <table class="params">
     <thead>
         <tr>
-            <th>Format</th>
+            <th><span style="white-space: nowrap;">Format</span></th>
             <th>Parameter</th>
-            <th>Type</th>
-            <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Type</span></th>
+            <th><span style="white-space: nowrap;">Example</span></th>
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -487,12 +511,12 @@ The same *explicit* logic as in [Periodic scheduler](#periodic-scheduler)
             <td>ISO 8601</td>
             <td rowspan=2>
 
-`fit_window`
+<span style="white-space: nowrap;">`fit_window`</span>
             </td>
             <td rowspan=2>str</td>
             <td>
 
-`"PT1M", "P1H"`
+<span style="white-space: nowrap;">`"PT1M"`</span>, `"P1H"`
             </td>
             <td rowspan=2>What time range to use for training the models. Must be at least 1 second.</td>
         </tr>
@@ -513,9 +537,9 @@ In `BacktestingScheduler`, the inference window is *implicitly* defined as a per
         <tr>
             <th>Format</th>
             <th>Parameter</th>
-            <th>Type</th>
-            <th>Example</th>
-            <th>Description</th>  
+            <th><span style="white-space: nowrap;">Type</span></th>
+            <th><span style="white-space: nowrap;">Example</span></th>
+            <th><span style="white-space: nowrap;">Description</span></th>  
         </tr>
     </thead>
     <tbody>
@@ -523,12 +547,12 @@ In `BacktestingScheduler`, the inference window is *implicitly* defined as a per
             <td>ISO 8601</td>
             <td rowspan=2>
 
-`fit_every`
+<span style="white-space: nowrap;">`fit_every`</span>
             </td>
             <td rowspan=2>str</td>
             <td>
 
-`"PT1M", "P1H"`
+<span style="white-space: nowrap;">`"PT1M"`</span>, `"P1H"`
             </td>
             <td rowspan=2>What time range to use previously trained model to infer on new data until next retrain happens.</td>
         </tr>
