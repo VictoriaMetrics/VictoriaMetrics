@@ -1,5 +1,12 @@
 package streamaggr
 
+func maxInitFn(v *aggrValues, enableWindows bool) {
+	v.blue = append(v.blue, new(maxAggrValue))
+	if enableWindows {
+		v.green = append(v.green, new(maxAggrValue))
+	}
+}
+
 type maxAggrValue struct {
 	max     float64
 	defined bool

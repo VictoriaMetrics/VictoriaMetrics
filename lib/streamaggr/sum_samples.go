@@ -1,5 +1,12 @@
 package streamaggr
 
+func sumSamplesInitFn(v *aggrValues, enableWindows bool) {
+	v.blue = append(v.blue, new(sumSamplesAggrValue))
+	if enableWindows {
+		v.green = append(v.green, new(sumSamplesAggrValue))
+	}
+}
+
 type sumSamplesAggrValue struct {
 	sum float64
 }

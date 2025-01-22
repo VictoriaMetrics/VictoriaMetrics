@@ -4,6 +4,13 @@ import (
 	"math"
 )
 
+func stddevInitFn(v *aggrValues, enableWindows bool) {
+	v.blue = append(v.blue, new(stddevAggrValue))
+	if enableWindows {
+		v.green = append(v.green, new(stddevAggrValue))
+	}
+}
+
 // stddevAggrValue calculates output=stddev, e.g. the average value over input samples.
 type stddevAggrValue struct {
 	count float64

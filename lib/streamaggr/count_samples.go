@@ -1,5 +1,12 @@
 package streamaggr
 
+func countSamplesInitFn(v *aggrValues, enableWindows bool) {
+	v.blue = append(v.blue, new(countSamplesAggrValue))
+	if enableWindows {
+		v.green = append(v.green, new(countSamplesAggrValue))
+	}
+}
+
 type countSamplesAggrValue struct {
 	count uint64
 }

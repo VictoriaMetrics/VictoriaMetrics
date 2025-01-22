@@ -17,7 +17,7 @@ func TestDeduplicator(t *testing.T) {
 		tssResultLock.Unlock()
 	}
 
-	offsetMsecs := time.Now().UnixMilli()
+	offsetMsecs := time.Now().Add(time.Minute).UnixMilli()
 	tss := prompbmarshal.MustParsePromMetrics(`
 foo{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",namespace="asdff",container="ohohffd"} 123
 bar{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",namespace="asdff",container="ohohffd"} 34.54
@@ -36,12 +36,7 @@ baz_aaa_aaa_fdd{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",n
 		d.Push(tss)
 	}
 
-	flushTime := time.Now()
-	flushIntervals := flushTime.UnixMilli()/dedupInterval.Milliseconds() + 1
-	aggrStateSize := 2
-	idx := int(flushIntervals % int64(aggrStateSize))
-
-	d.flush(pushFunc, time.Hour, time.Now().UnixMilli(), idx)
+	d.flush(pushFunc)
 	d.MustStop()
 
 	result := timeSeriessToString(tssResult)

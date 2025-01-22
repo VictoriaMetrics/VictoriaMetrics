@@ -1,5 +1,12 @@
 package streamaggr
 
+func lastInitFn(v *aggrValues, enableWindows bool) {
+	v.blue = append(v.blue, new(lastAggrValue))
+	if enableWindows {
+		v.green = append(v.green, new(lastAggrValue))
+	}
+}
+
 type lastAggrValue struct {
 	last      float64
 	timestamp int64

@@ -5,13 +5,15 @@ import (
 	"github.com/cespare/xxhash/v2"
 )
 
-func countSeriesInitFn(values []aggrValue) []aggrValue {
-	for i := range values {
-		values[i] = &countSeriesAggrValue{
+func countSeriesInitFn(v *aggrValues, enableWindows bool) {
+	v.blue = append(v.blue, &countSeriesAggrValue{
+		samples: make(map[uint64]struct{}),
+	})
+	if enableWindows {
+		v.green = append(v.green, &countSeriesAggrValue{
 			samples: make(map[uint64]struct{}),
-		}
+		})
 	}
-	return values
 }
 
 type countSeriesAggrValue struct {

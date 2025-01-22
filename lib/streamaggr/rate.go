@@ -4,19 +4,23 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
-func rateInitFn(isAvg bool) aggrValuesInitFn {
-	return func(values []aggrValue) []aggrValue {
+func rateInitFn(isAvg bool) aggrValuesFn {
+	return func(v *aggrValues, enableWindows bool) {
 		shared := &rateAggrValueShared{
 			lastValues: make(map[string]rateLastValue),
 		}
-		for i := range values {
-			values[i] = &rateAggrValue{
+		v.blue = append(v.blue, &rateAggrValue{
+			isAvg:  isAvg,
+			shared: shared,
+			state:  make(map[string]rateAggrValueState),
+		})
+		if enableWindows {
+			v.green = append(v.green, &rateAggrValue{
 				isAvg:  isAvg,
 				shared: shared,
 				state:  make(map[string]rateAggrValueState),
-			}
+			})
 		}
-		return values
 	}
 }
 

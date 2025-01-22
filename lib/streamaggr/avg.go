@@ -1,5 +1,12 @@
 package streamaggr
 
+func avgInitFn(v *aggrValues, enableWindows bool) {
+	v.blue = append(v.blue, new(avgAggrValue))
+	if enableWindows {
+		v.green = append(v.green, new(avgAggrValue))
+	}
+}
+
 type avgAggrValue struct {
 	sum   float64
 	count float64
