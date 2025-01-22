@@ -531,8 +531,7 @@ func TestReadTrackingBody_RetrySuccess(t *testing.T) {
 	f := func(s string, maxBodySize int) {
 		t.Helper()
 
-		rtb := getReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
-		defer putReadTrackingBody(rtb)
+		rtb := newReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
 
 		if !rtb.canRetry() {
 			t.Fatalf("canRetry() must return true before reading anything")
@@ -567,8 +566,7 @@ func TestReadTrackingBody_RetrySuccessPartialRead(t *testing.T) {
 		t.Helper()
 
 		// Check the case with partial read
-		rtb := getReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
-		defer putReadTrackingBody(rtb)
+		rtb := newReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
 
 		for i := 0; i < len(s); i++ {
 			buf := make([]byte, i)
@@ -617,8 +615,7 @@ func TestReadTrackingBody_RetryFailureTooBigBody(t *testing.T) {
 	f := func(s string, maxBodySize int) {
 		t.Helper()
 
-		rtb := getReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
-		defer putReadTrackingBody(rtb)
+		rtb := newReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
 
 		if !rtb.canRetry() {
 			t.Fatalf("canRetry() must return true before reading anything")
@@ -667,8 +664,7 @@ func TestReadTrackingBody_RetryFailureZeroOrNegativeMaxBodySize(t *testing.T) {
 	f := func(s string, maxBodySize int) {
 		t.Helper()
 
-		rtb := getReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
-		defer putReadTrackingBody(rtb)
+		rtb := newReadTrackingBody(io.NopCloser(bytes.NewBufferString(s)), maxBodySize)
 
 		if !rtb.canRetry() {
 			t.Fatalf("canRetry() must return true before reading anything")
