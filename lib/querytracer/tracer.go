@@ -66,6 +66,14 @@ func (t *Tracer) Enabled() bool {
 	return t != nil
 }
 
+// IsDone returns true if t is done.
+func (t *Tracer) IsDone() bool {
+	if !t.Enabled() {
+		return false
+	}
+	return t.isDone.Load()
+}
+
 // NewChild adds a new child Tracer to t with the given fmt.Sprintf(format, args...) message.
 //
 // The returned child must be closed via Done or Donef calls.

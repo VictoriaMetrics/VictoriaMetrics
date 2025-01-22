@@ -3274,10 +3274,13 @@ func execSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, cb func(qt
 		requestData = sq.MarshaWithoutTenant(requestData)
 		qtL := qt
 		if sq.IsMultiTenant && qt.Enabled() {
+			if qt.IsDone() {
+				return results
+			}
 			qtL = qt.NewChild("query for tenant: %s", sq.TenantTokens[i].String())
 		}
 		r := cb(qtL, requestData, sq.TenantTokens[i])
-		if sq.IsMultiTenant {
+		if sq.IsMultiTenant && qt.Enabled() {
 			qtL.Done()
 		}
 		results = append(results, r)
