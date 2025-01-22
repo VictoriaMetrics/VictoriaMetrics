@@ -1017,7 +1017,7 @@ Please find more detailed instructions (license, etc.) [here](https://docs.victo
 
 ### Output
 As the result, this model will return metric with labels, configured previously in `config.yaml`.
-In this particular example, 2 metrics will be produced. Also, there will be added other metrics from input query result.
+In this particular example, 2 metrics will be produced. Also, there will be added other labels from input query result.
 
 ```text
 {__name__="custom_anomaly_score", for="ingestion_rate", model_alias="custom_model", scheduler_alias="s1", run="test-format"},
