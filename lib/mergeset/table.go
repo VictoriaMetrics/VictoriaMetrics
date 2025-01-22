@@ -529,6 +529,8 @@ func (tb *Table) MustClose() {
 	tb.partsLock.Unlock()
 
 	for _, pw := range fileParts {
+		//TODO(@rtm0): Add check that refCount == 1? Similar to how it is done
+		// for partitions in table.MustClose() in lib/storage/table.go.
 		pw.decRef()
 	}
 }

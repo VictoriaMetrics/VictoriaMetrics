@@ -956,9 +956,13 @@ func (pt *partition) MustClose() {
 	pt.partsLock.Unlock()
 
 	for _, pw := range smallParts {
+		//TODO(@rtm0): Add check that refCount == 1? Similar to how it is done
+		// for partitions in table.MustClose().
 		pw.decRef()
 	}
 	for _, pw := range bigParts {
+		//TODO(@rtm0): Add check that refCount == 1? Similar to how it is done
+		// for partitions in table.MustClose().
 		pw.decRef()
 	}
 	idb.MustClose()
