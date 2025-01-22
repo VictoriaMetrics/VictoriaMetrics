@@ -77,7 +77,8 @@ There is change{{% available_from "v1.13.0" anomaly %}} of [`queries`](https://d
   - *raises config validation error*, if *reader-level is not set* and *query-level is found* (mixing of VictoriaMetrics [single-node](https://docs.victoriametrics.com/single-server-victoriametrics/) and [cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) is prohibited in a single config)
   - *raises config validation warning*, if `writer.tenant_id` is not explicitly set to `multitenant` when reader uses tenants, meaning [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) will be used for data querying.
   - also *raises config validation error* if a set of `reader.queries` for [multivariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/index.html#multivariate-models) has *different* tenant_ids (meaning tenant data is mixed, and special labels like `vm_project_id`, `vm_account_id` will have [ambiguous values](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels))
-  > **Note:** the recommended way of using per-query `tenant_id`s is in combination with setting both `reader.tenant_id` and `writer.tenant_id` to `multitenant`, see this [section for the explanations](https://docs.victoriametrics.com/anomaly-detection/components/writer/index.html#multitenancy-support).
+
+  > **Note:** The recommended approach for using per-query `tenant_id`s is to set both `reader.tenant_id` and `writer.tenant_id` to `multitenant`. See [this section](https://docs.victoriametrics.com/anomaly-detection/components/writer/index.html#multitenancy-support) for more details. Configurations where `reader.tenant_id` equals `writer.tenant_id` and is not `multitenant` are also considered safe, provided there is a single, DISTINCT `tenant_id` defined in the reader (either at the reader level or the query level, if set).
 
 ### Per-query config example
 ```yaml

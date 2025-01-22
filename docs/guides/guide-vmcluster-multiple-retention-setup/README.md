@@ -28,7 +28,7 @@ The diagram below shows a proposed solution
 
 1. Groups of vminserts A know about only vmstorages A and this is explicitly specified via `-storageNode` [configuration](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup). 
 1. Groups of vminserts B know about only vmstorages B and this is explicitly specified via `-storageNode` [configuration](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup). 
-1. Groups of vminserts C know about only vmstorages A and this is explicitly specified via `-storageNode` [configuration](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup). 
+1. Groups of vminserts C know about only vmstorages C and this is explicitly specified via `-storageNode` [configuration](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup). 
 1. vmselect reads data from all vmstorage nodes via `-storageNode` [configuration](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-setup) 
    with [deduplication](https://docs.victoriametrics.com/cluster-victoriametrics/#deduplication) setting equal to vmagent's scrape interval or minimum interval between collected samples. 
 1. vmagent routes incoming metrics to the given set of `vminsert` nodes using relabeling rules specified at `-remoteWrite.urlRelabelConfig` [configuration](https://docs.victoriametrics.com/vmagent/#relabeling).
