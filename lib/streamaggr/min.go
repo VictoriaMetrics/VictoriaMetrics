@@ -1,5 +1,13 @@
 package streamaggr
 
+func minInitFn(v *aggrValues, enableWindows bool) {
+	v.blue = append(v.blue, new(minAggrValue))
+	if enableWindows {
+		v.green = append(v.green, new(minAggrValue))
+
+	}
+}
+
 type minAggrValue struct {
 	min     float64
 	defined bool

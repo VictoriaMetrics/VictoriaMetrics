@@ -6,22 +6,22 @@ import (
 	"strconv"
 )
 
-func quantilesInitFn(stateSize int, phis []float64) aggrValuesInitFn {
-	states := make([]*quantilesAggrState, stateSize)
-	return func(values []aggrValue) []aggrValue {
-		for i := range values {
-			state := states[i]
-			if state == nil {
-				state = &quantilesAggrState{
-					phis: phis,
-				}
-				states[i] = state
-			}
-			values[i] = &quantilesAggrValue{
-				state: state,
-			}
+func quantilesInitFn(phis []float64) aggrValuesFn {
+	blue := &quantilesAggrState{
+		phis: phis,
+	}
+	green := &quantilesAggrState{
+		phis: phis,
+	}
+	return func(v *aggrValues, enableWindows bool) {
+		v.blue = append(v.blue, &quantilesAggrValue{
+			state: blue,
+		})
+		if enableWindows {
+			v.green = append(v.green, &quantilesAggrValue{
+				state: green,
+			})
 		}
-		return values
 	}
 }
 

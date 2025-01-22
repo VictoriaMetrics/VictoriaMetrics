@@ -15,8 +15,7 @@ import (
 const dedupAggrShardsCount = 128
 
 type dedupAggr struct {
-	shards    []dedupAggrShard
-	stateSize int
+	shards []dedupAggrShard
 }
 
 type dedupAggrShard struct {
@@ -36,7 +35,8 @@ type dedupAggrState struct {
 
 type dedupAggrShardNopad struct {
 	mu    sync.Mutex
-	state []*dedupAggrState
+	blue  *dedupAggrState
+	green *dedupAggrState
 }
 
 type dedupAggrSample struct {
@@ -44,21 +44,23 @@ type dedupAggrSample struct {
 	timestamp int64
 }
 
-func newDedupAggr(stateSize int) *dedupAggr {
-	shards := make([]dedupAggrShard, dedupAggrShardsCount)
+func newDedupAggr() *dedupAggr {
 	return &dedupAggr{
-		shards:    shards,
-		stateSize: stateSize,
+		shards: make([]dedupAggrShard, dedupAggrShardsCount),
 	}
 }
 
 func (da *dedupAggr) sizeBytes() uint64 {
 	n := uint64(unsafe.Sizeof(*da))
+	var state *dedupAggrState
 	for i := range da.shards {
-		for _, state := range da.shards[i].state {
-			if state != nil {
-				n += state.sizeBytes.Load()
-			}
+		state = da.shards[i].green
+		if state != nil {
+			n += state.sizeBytes.Load()
+		}
+		state = da.shards[i].blue
+		if state != nil {
+			n += state.sizeBytes.Load()
 		}
 	}
 	return n
@@ -66,11 +68,15 @@ func (da *dedupAggr) sizeBytes() uint64 {
 
 func (da *dedupAggr) itemsCount() uint64 {
 	n := uint64(0)
+	var state *dedupAggrState
 	for i := range da.shards {
-		for _, state := range da.shards[i].state {
-			if state != nil {
-				n += state.itemsCount.Load()
-			}
+		state = da.shards[i].green
+		if state != nil {
+			n += state.itemsCount.Load()
+		}
+		state = da.shards[i].blue
+		if state != nil {
+			n += state.itemsCount.Load()
 		}
 	}
 	return n
@@ -88,19 +94,19 @@ func (da *dedupAggr) pushSamples(data *pushCtxData) {
 		if len(shardSamples) == 0 {
 			continue
 		}
-		da.shards[i].pushSamples(shardSamples, da.stateSize, data.idx)
+		da.shards[i].pushSamples(shardSamples, data.isGreen)
 	}
 	putPerShardSamples(pss)
 }
 
-func getDedupFlushCtx(deleteDeadline int64, idx int) *dedupFlushCtx {
+func getDedupFlushCtx(deleteDeadline int64, isGreen bool) *dedupFlushCtx {
 	v := dedupFlushCtxPool.Get()
 	if v == nil {
 		v = &dedupFlushCtx{}
 	}
 	ctx := v.(*dedupFlushCtx)
 	ctx.deleteDeadline = deleteDeadline
-	ctx.idx = idx
+	ctx.isGreen = isGreen
 	return ctx
 }
 
@@ -114,14 +120,13 @@ var dedupFlushCtxPool sync.Pool
 type dedupFlushCtx struct {
 	samples        []pushSample
 	deleteDeadline int64
-	idx            int
+	isGreen        bool
 }
 
 func (ctx *dedupFlushCtx) getPushCtxData(samples []pushSample) *pushCtxData {
 	return &pushCtxData{
 		samples:        samples,
 		deleteDeadline: ctx.deleteDeadline,
-		idx:            0,
 	}
 }
 
@@ -129,10 +134,9 @@ func (ctx *dedupFlushCtx) reset() {
 	clear(ctx.samples)
 	ctx.samples = ctx.samples[:0]
 	ctx.deleteDeadline = 0
-	ctx.idx = 0
 }
 
-func (da *dedupAggr) flush(f aggrPushFunc, deleteDeadline int64, idx int) {
+func (da *dedupAggr) flush(f aggrPushFunc, deleteDeadline int64, isGreen bool) {
 	var wg sync.WaitGroup
 	for i := range da.shards {
 		flushConcurrencyCh <- struct{}{}
@@ -142,7 +146,7 @@ func (da *dedupAggr) flush(f aggrPushFunc, deleteDeadline int64, idx int) {
 				<-flushConcurrencyCh
 				wg.Done()
 			}()
-			ctx := getDedupFlushCtx(deleteDeadline, idx)
+			ctx := getDedupFlushCtx(deleteDeadline, isGreen)
 			shard.flush(ctx, f)
 			putDedupFlushCtx(ctx)
 		}(&da.shards[i])
@@ -181,19 +185,26 @@ func putPerShardSamples(pss *perShardSamples) {
 
 var perShardSamplesPool sync.Pool
 
-func (das *dedupAggrShard) pushSamples(samples []pushSample, stateSize, idx int) {
+func (das *dedupAggrShard) pushSamples(samples []pushSample, isGreen bool) {
 	das.mu.Lock()
 	defer das.mu.Unlock()
 
-	if len(das.state) == 0 {
-		das.state = make([]*dedupAggrState, stateSize)
-	}
-	state := das.state[idx]
-	if state == nil {
-		state = &dedupAggrState{
-			m: make(map[string]*dedupAggrSample, len(samples)),
+	var state *dedupAggrState
+
+	if isGreen {
+		if das.green == nil {
+			das.green = new(dedupAggrState)
 		}
-		das.state[idx] = state
+		state = das.green
+	} else {
+		if das.blue == nil {
+			das.blue = new(dedupAggrState)
+		}
+		state = das.blue
+	}
+
+	if state.m == nil {
+		state.m = make(map[string]*dedupAggrSample, len(samples))
 	}
 	samplesBuf := state.samplesBuf
 	for _, sample := range samples {
@@ -207,8 +218,8 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample, stateSize, idx int)
 			key := bytesutil.InternString(sample.key)
 			state.m[key] = s
 
-			das.state[idx].itemsCount.Add(1)
-			das.state[idx].sizeBytes.Add(uint64(len(key)) + uint64(unsafe.Sizeof(key)+unsafe.Sizeof(s)+unsafe.Sizeof(*s)))
+			state.itemsCount.Add(1)
+			state.sizeBytes.Add(uint64(len(key)) + uint64(unsafe.Sizeof(key)+unsafe.Sizeof(s)+unsafe.Sizeof(*s)))
 			continue
 		}
 		if !isDuplicate(s, sample) {
@@ -216,7 +227,7 @@ func (das *dedupAggrShard) pushSamples(samples []pushSample, stateSize, idx int)
 			s.timestamp = sample.timestamp
 		}
 	}
-	das.state[idx].samplesBuf = samplesBuf
+	state.samplesBuf = samplesBuf
 }
 
 // isDuplicate returns true if b is duplicate of a
@@ -240,17 +251,22 @@ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f aggrPushFunc) {
 	das.mu.Lock()
 
 	var m map[string]*dedupAggrSample
-	if len(das.state) == 0 {
+	var state *dedupAggrState
+	if ctx.isGreen {
+		state = das.green
+	} else {
+		state = das.blue
+	}
+	if state == nil {
 		das.mu.Unlock()
 		return
 	}
-	state := das.state[ctx.idx]
-	if state != nil && len(state.m) > 0 {
+	if len(state.m) > 0 {
 		m = state.m
-		das.state[ctx.idx].m = make(map[string]*dedupAggrSample, len(state.m))
-		das.state[ctx.idx].samplesBuf = make([]dedupAggrSample, 0, len(das.state[ctx.idx].samplesBuf))
-		das.state[ctx.idx].sizeBytes.Store(0)
-		das.state[ctx.idx].itemsCount.Store(0)
+		state.m = make(map[string]*dedupAggrSample, len(state.m))
+		state.samplesBuf = make([]dedupAggrSample, 0, len(state.samplesBuf))
+		state.sizeBytes.Store(0)
+		state.itemsCount.Store(0)
 	}
 
 	das.mu.Unlock()

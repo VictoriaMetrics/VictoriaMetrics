@@ -1,5 +1,12 @@
 package streamaggr
 
+func stdvarInitFn(v *aggrValues, enableWindows bool) {
+	v.blue = append(v.blue, new(stdvarAggrValue))
+	if enableWindows {
+		v.green = append(v.green, new(stdvarAggrValue))
+	}
+}
+
 // stdvarAggrValue calculates output=stdvar, e.g. the average value over input samples.
 type stdvarAggrValue struct {
 	count float64

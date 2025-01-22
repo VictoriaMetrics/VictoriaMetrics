@@ -2,27 +2,31 @@ package streamaggr
 
 import (
 	"math"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-func totalInitFn(ignoreFirstSampleInterval time.Duration, resetTotalOnFlush, keepFirstSample bool) aggrValuesInitFn {
-	ignoreFirstSampleDeadline := time.Now().Add(ignoreFirstSampleInterval)
-	return func(values []aggrValue) []aggrValue {
+func totalInitFn(ignoreFirstSampleIntervalSecs uint64, resetTotalOnFlush, keepFirstSample bool) aggrValuesFn {
+	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + ignoreFirstSampleIntervalSecs
+	return func(v *aggrValues, enableWindows bool) {
 		shared := &totalAggrValueShared{
 			lastValues: make(map[string]totalLastValue),
 		}
-		for i := range values {
-			values[i] = &totalAggrValue{
+		v.blue = append(v.green, &totalAggrValue{
+			keepFirstSample:           keepFirstSample,
+			resetTotalOnFlush:         resetTotalOnFlush,
+			shared:                    shared,
+			ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
+		})
+		if enableWindows {
+			v.green = append(v.green, &totalAggrValue{
 				keepFirstSample:           keepFirstSample,
 				resetTotalOnFlush:         resetTotalOnFlush,
 				shared:                    shared,
-				ignoreFirstSampleDeadline: uint64(ignoreFirstSampleDeadline.Unix()),
-			}
+				ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
+			})
 		}
-		return values
 	}
 }
 

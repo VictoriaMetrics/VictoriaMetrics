@@ -4,6 +4,13 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
+func histogramBucketInitFn(v *aggrValues, enableWindows bool) {
+	v.blue = append(v.blue, new(histogramBucketAggrValue))
+	if enableWindows {
+		v.green = append(v.green, new(histogramBucketAggrValue))
+	}
+}
+
 // histogramBucketAggrValue calculates output=histogram_bucket, e.g. VictoriaMetrics histogram over input samples.
 type histogramBucketAggrValue struct {
 	h     metrics.Histogram

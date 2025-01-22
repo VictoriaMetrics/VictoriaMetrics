@@ -7,44 +7,37 @@ import (
 )
 
 type pushSampleCtx struct {
-	stateSize      int
 	deleteDeadline int64
 	sample         *pushSample
-	idx            int
 	inputKey       string
 }
 
-type aggrValuesFn func(*pushSampleCtx) []aggrValue
-
-type aggrValuesInitFn func([]aggrValue) []aggrValue
-
-func newAggrValues[V any, VP aggrValuePtr[V]](initFn aggrValuesInitFn) aggrValuesFn {
-	return func(ctx *pushSampleCtx) []aggrValue {
-		output := make([]aggrValue, ctx.stateSize)
-		if initFn != nil {
-			return initFn(output)
-		}
-		for i := range output {
-			var v VP = new(V)
-			output[i] = v
-		}
-		return output
-	}
-}
+type aggrValuesFn func(*aggrValues, bool)
 
 type aggrOutputs struct {
 	m             sync.Map
-	stateSize     int
+	enableWindows bool
 	initFns       []aggrValuesFn
 	outputSamples *metrics.Counter
 }
 
-func (ao *aggrOutputs) pushSamples(data *pushCtxData) {
-	ctx := &pushSampleCtx{
-		stateSize:      ao.stateSize,
-		deleteDeadline: data.deleteDeadline,
-		idx:            data.idx,
+func getPushSampleCtx() *pushSampleCtx {
+	v := pushSampleCtxPool.Get()
+	if v == nil {
+		return &pushSampleCtx{}
 	}
+	return v.(*pushSampleCtx)
+}
+
+func putPushSampleCtx(ctx *pushSampleCtx) {
+	pushSampleCtxPool.Put(ctx)
+}
+
+var pushSampleCtxPool sync.Pool
+
+func (ao *aggrOutputs) pushSamples(data *pushCtxData) {
+	ctx := getPushSampleCtx()
+	ctx.deleteDeadline = data.deleteDeadline
 	var outputKey string
 	for i := range data.samples {
 		ctx.sample = &data.samples[i]
@@ -55,10 +48,13 @@ func (ao *aggrOutputs) pushSamples(data *pushCtxData) {
 		if !ok {
 			// The entry is missing in the map. Try creating it.
 			nv := &aggrValues{
-				values: make([][]aggrValue, len(ao.initFns)),
+				blue: make([]aggrValue, 0, len(ao.initFns)),
 			}
-			for i, initFn := range ao.initFns {
-				nv.values[i] = initFn(ctx)
+			if ao.enableWindows {
+				nv.green = make([]aggrValue, 0, len(ao.initFns))
+			}
+			for _, initFn := range ao.initFns {
+				initFn(nv, ao.enableWindows)
 			}
 			v = nv
 			outputKey = bytesutil.InternString(outputKey)
@@ -72,8 +68,14 @@ func (ao *aggrOutputs) pushSamples(data *pushCtxData) {
 		av.mu.Lock()
 		deleted := av.deleted
 		if !deleted {
-			for i := range av.values {
-				av.values[i][data.idx].pushSample(ctx)
+			if data.isGreen {
+				for _, sv := range av.green {
+					sv.pushSample(ctx)
+				}
+			} else {
+				for _, sv := range av.blue {
+					sv.pushSample(ctx)
+				}
 			}
 			av.deleteDeadline = data.deleteDeadline
 		}
@@ -84,10 +86,12 @@ func (ao *aggrOutputs) pushSamples(data *pushCtxData) {
 			goto again
 		}
 	}
+	putPushSampleCtx(ctx)
 }
 
 func (ao *aggrOutputs) flushState(ctx *flushCtx) {
 	m := &ao.m
+	var outputs []aggrValue
 	m.Range(func(k, v any) bool {
 		// Atomically delete the entry from the map, so new entry is created for the next flush.
 		av := v.(*aggrValues)
@@ -103,8 +107,13 @@ func (ao *aggrOutputs) flushState(ctx *flushCtx) {
 			return true
 		}
 		key := k.(string)
-		for _, ov := range av.values {
-			ov[ctx.idx].flush(ctx, key)
+		if ctx.isGreen {
+			outputs = av.green
+		} else {
+			outputs = av.blue
+		}
+		for _, state := range outputs {
+			state.flush(ctx, key)
 		}
 		av.mu.Unlock()
 		return true
@@ -113,7 +122,8 @@ func (ao *aggrOutputs) flushState(ctx *flushCtx) {
 
 type aggrValues struct {
 	mu             sync.Mutex
-	values         [][]aggrValue
+	blue           []aggrValue
+	green          []aggrValue
 	deleteDeadline int64
 	deleted        bool
 }
@@ -121,9 +131,4 @@ type aggrValues struct {
 type aggrValue interface {
 	pushSample(*pushSampleCtx)
 	flush(*flushCtx, string)
-}
-
-type aggrValuePtr[V any] interface {
-	*V
-	aggrValue
 }

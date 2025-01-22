@@ -277,7 +277,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 		}
 
 		// Push the inputMetrics to Aggregators
-		offsetMsecs := time.Now().UnixMilli()
+		offsetMsecs := time.Now().Add(15 * time.Second).UnixMilli()
 		tssInput := prompbmarshal.MustParsePromMetrics(inputMetrics, offsetMsecs)
 		matchIdxs := a.Push(tssInput, nil)
 		a.MustStop()
@@ -1009,7 +1009,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 		}
 
 		// Push the inputMetrics to Aggregators
-		offsetMsecs := time.Now().UnixMilli()
+		offsetMsecs := time.Now().Add(15 * time.Second).UnixMilli()
 		tssInput := prompbmarshal.MustParsePromMetrics(inputMetrics, offsetMsecs)
 		matchIdxs := a.Push(tssInput, nil)
 		a.MustStop()

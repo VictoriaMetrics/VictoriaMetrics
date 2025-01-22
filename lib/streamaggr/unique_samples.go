@@ -1,12 +1,14 @@
 package streamaggr
 
-func uniqueSamplesInitFn(values []aggrValue) []aggrValue {
-	for i := range values {
-		values[i] = &uniqueSamplesAggrValue{
+func uniqueSamplesInitFn(v *aggrValues, enableWindows bool) {
+	v.blue = append(v.blue, &uniqueSamplesAggrValue{
+		samples: make(map[float64]struct{}),
+	})
+	if enableWindows {
+		v.green = append(v.green, &uniqueSamplesAggrValue{
 			samples: make(map[float64]struct{}),
-		}
+		})
 	}
-	return values
 }
 
 type uniqueSamplesAggrValue struct {

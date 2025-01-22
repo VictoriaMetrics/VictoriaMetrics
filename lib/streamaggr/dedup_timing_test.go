@@ -19,7 +19,7 @@ func BenchmarkDedupAggr(b *testing.B) {
 func benchmarkDedupAggr(b *testing.B, samplesPerPush int) {
 	const loops = 2
 	benchSamples := newBenchSamples(samplesPerPush)
-	da := newDedupAggr(2)
+	da := newDedupAggr()
 
 	b.ResetTimer()
 	b.ReportAllocs()
