@@ -491,6 +491,7 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 			break
 		}
 	}
+
 	if isLeftEmpty {
 		sortSeriesByMetricName(bfa.right)
 		return bfa.right, nil
@@ -500,29 +501,39 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 
 	// slow path
 	for k, tssLeft := range mLeft {
+		if len(tssLeft) == 0 {
+			continue
+		}
+
+		filledValues := make([]bool, len(tssLeft[0].Timestamps), len(tssLeft[0].Timestamps)) // todo: could different tsLeft has different timestamps length?
+		leftMetricsNameMap := make(map[string]*timeseries)
+
 		tssRight := mRight[k]
 		if tssRight == nil {
 			rvs = append(rvs, tssLeft...)
 			continue
 		}
+
+		// find timestamp that missing value
 		for _, tsLeft := range tssLeft {
-			valuesLeft := tsLeft.Values
-			tsLeftName := tsLeft.MetricName.String()
-			for i, tsRight := range tssRight {
-				canBeMerged := tsLeftName == tsRight.MetricName.String()
-				valuesRight := tsRight.Values
-				for j, v := range valuesLeft {
-					if math.IsNaN(v) {
-						if canBeMerged {
-							valuesLeft[j] = valuesRight[j]
-						}
-					} else {
-						valuesRight[j] = nan
-					}
+			leftMetricsNameMap[tsLeft.MetricName.String()] = tsLeft
+			for i := range tsLeft.Values {
+				if !math.IsNaN(tsLeft.Values[i]) {
+					filledValues[i] = true
 				}
-				if canBeMerged {
-					tssRight[i] = nil
+			}
+		}
+
+		for _, tsRight := range tssRight {
+			for i := range tsRight.Values {
+				if filledValues[i] {
+					tsRight.Values[i] = nan
 				}
+			}
+			// check if tsRight can merge with same time series in tssLeft
+			if tsLeft, ok := leftMetricsNameMap[tsRight.MetricName.String()]; ok {
+				fillLeftNaNsWithRightValues([]*timeseries{tsLeft}, []*timeseries{tsRight})
+				tsRight.Reset()
 			}
 		}
 		rvs = append(rvs, tssLeft...)
@@ -546,7 +557,7 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	return rvs, nil
 }
 
-func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) []*timeseries {
+func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) {
 	// Fill gaps in tssLeft with values from tssRight as Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/552
 	for _, tsLeft := range tssLeft {
@@ -564,7 +575,6 @@ func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) []*timeseries 
 			}
 		}
 	}
-	return tssLeft
 }
 
 func binaryOpIfnot(bfa *binaryOpFuncArg) ([]*timeseries, error) {
