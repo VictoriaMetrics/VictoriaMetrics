@@ -1376,10 +1376,10 @@ func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
 const maxFastAllocBlockSize = 32 * 1024
 
 // GetMetricNamesUsageStats returns statistic for timeseries's metric names usage.
-func GetMetricNamesUsageStats(qt *querytracer.Tracer, limit int, lte uint64) (storage.MetricNamesUsageStatsResponse, error) {
-	qt = qt.NewChild("get metric names usage stats with limit: %d, less equal to: %d", limit, lte)
+func GetMetricNamesUsageStats(qt *querytracer.Tracer, limit, lte int, matchPattern string) (storage.MetricNamesUsageStatsResponse, error) {
+	qt = qt.NewChild("get metric names usage stats with limit: %d, less equal to: %d, match pattern=%q", limit, lte, matchPattern)
 	defer qt.Done()
-	return vmstorage.GetMetricNamesUsageStats(qt, limit, lte)
+	return vmstorage.GetMetricNamesUsageStats(qt, limit, lte, matchPattern)
 }
 
 // ResetMetricNamesUsageStats resets state of metric names usage

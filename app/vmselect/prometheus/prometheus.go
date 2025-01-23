@@ -1314,7 +1314,8 @@ func MetricNamesUsageStatsHandler(qt *querytracer.Tracer, w http.ResponseWriter,
 		}
 		lte = n
 	}
-	stats, err := netstorage.GetMetricNamesUsageStats(qt, limit, uint64(lte))
+	var matchPattern string
+	stats, err := netstorage.GetMetricNamesUsageStats(qt, limit, lte, matchPattern)
 	if err != nil {
 		return err
 	}

@@ -468,6 +468,7 @@ This endpoints requires flag `--storage.trackMetricNamesUsage` to be set. It acc
 
 * `limit` - limits an output records count.
 * `lte` - less than equal number for query requests count. By default, it's empty and returns all records. But it could be set to `0` and return only metrics without registered query requests.
+* `pattern` - a substring pattern to match metric names.
 
  The API endpoint returns the following `JSON` response:
 
@@ -491,7 +492,7 @@ This endpoints requires flag `--storage.trackMetricNamesUsage` to be set. It acc
 }
 ```
 
- `VictoriaMetrics` stores tracked metric names in-memory and saves state `on-disk` at `data/cache` folder. State could be reset via API call `/api/v1/admin/tsdb/reset_metric_names_usage`.
+ `VictoriaMetrics` stores tracked metric names in-memory and saves state `on-disk` at `data/cache` folder. State could be reset via API call `/api/v1/admin/tsdb/reset_metric_names_usage` or by manually per storage with [cache removal](#Cacheremoval).
 
 ## How to apply new config to VictoriaMetrics
 

@@ -1,7 +1,6 @@
 package metricnamestats
 
 import (
-	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -39,18 +38,15 @@ func BenchmarkTracker(b *testing.B) {
 		}
 	}
 	b.StopTimer()
-	got := mt.GetStats(100, 10000000000)
-	gotR := got.Records
+	got := mt.GetStats(100, 10000000000, "")
+	got.sort()
 	wantRecords := []StatRecord{
-		{"metric_1", uint64(b.N), 1},
 		{"metric_2", 0, 0},
-		{"metric_3", 3 * uint64(b.N), 1},
 		{"metric_4", 0, 0},
+		{"metric_1", uint64(b.N), 1},
+		{"metric_3", 3 * uint64(b.N), 1},
 	}
-	sort.Slice(gotR, func(i, j int) bool {
-		return gotR[i].MetricName < gotR[j].MetricName
-	})
-	if !cmp.Equal(wantRecords, gotR) {
-		b.Fatalf("unexpected result: %s", cmp.Diff(gotR, wantRecords))
+	if !cmp.Equal(wantRecords, got.Records) {
+		b.Fatalf("unexpected result: %s", cmp.Diff(wantRecords, got.Records))
 	}
 }

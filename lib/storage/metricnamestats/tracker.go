@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -214,7 +215,7 @@ func (mt *Tracker) shouldSkipNewItemAdd() bool {
 }
 
 // GetStats returns stats response for the tracked metrics
-func (mt *Tracker) GetStats(limit int, lte uint64) StatsResult {
+func (mt *Tracker) GetStats(limit, lte int, matchPattern string) StatsResult {
 	var result StatsResult
 	result.CollectedSinceTs = mt.creationTs.Load()
 	result.TotalRecords = mt.currentItemsCount.Load()
@@ -224,9 +225,13 @@ func (mt *Tracker) GetStats(limit int, lte uint64) StatsResult {
 		}
 		mi := value.(*statItem)
 		v := mi.requestsCount.Load()
-		if lte < 0 || v <= lte {
+		if lte < 0 || int(v) <= lte {
+			metricName := key.(string)
+			if len(matchPattern) > 0 && !strings.Contains(metricName, matchPattern) {
+				return true
+			}
 			result.Records = append(result.Records, StatRecord{
-				MetricName:    key.(string),
+				MetricName:    metricName,
 				RequestCount:  v,
 				LastRequestTs: mi.lastRequestTs.Load(),
 			})

@@ -247,7 +247,7 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	s.prefetchedMetricIDs = &uint64set.Set{}
 	s.trackMetricNamesStats = trackMetricNamesStat
 	if s.trackMetricNamesStats {
-		mnt := metricnamestats.MustLoadFrom(filepath.Join(s.cachePath, "unused_metric_names_cache"), uint64(mem/100))
+		mnt := metricnamestats.MustLoadFrom(filepath.Join(s.cachePath, "metric_names_usage_tracker"), uint64(mem/100))
 		s.metricsTracker = mnt
 		if mnt.IsEmpty() {
 			// metric names tracker adds metric names at ingest only if it's missing at tsid cache
@@ -1326,12 +1326,12 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 type MetricNamesUsageStatsResponse = metricnamestats.StatsResult
 
 // GetMetricNamesUsageStats returns metric names usage stats with give limit and lte predicate
-func (s *Storage) GetMetricNamesUsageStats(_ *querytracer.Tracer, limit int, lte uint64) (MetricNamesUsageStatsResponse, error) {
+func (s *Storage) GetMetricNamesUsageStats(_ *querytracer.Tracer, limit, lte int, matchPattern string) (MetricNamesUsageStatsResponse, error) {
 	// TODO: @f41gh7 return error if tracker is disabled ?
 	if !s.trackMetricNamesStats {
 		return MetricNamesUsageStatsResponse{}, nil
 	}
-	return s.metricsTracker.GetStats(limit, lte), nil
+	return s.metricsTracker.GetStats(limit, lte, matchPattern), nil
 }
 
 // ResetMetricNamesUsageStats resets state for metric names usage tracker

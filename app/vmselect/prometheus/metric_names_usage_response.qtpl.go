@@ -10,7 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
-// TSDBStatusResponse generates response for /api/v1/status/tsdb .
+// MetricNamesUsageStatsResponse generates response for /api/v1/status/metric_names_usage_stats .
 
 //line app/vmselect/prometheus/metric_names_usage_response.qtpl:8
 import (
