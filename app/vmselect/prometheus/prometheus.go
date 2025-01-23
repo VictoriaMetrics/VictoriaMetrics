@@ -755,7 +755,9 @@ var labelsDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 // SeriesCountHandler processes /api/v1/series/count request.
 func SeriesCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer seriesCountDuration.UpdateDuration(startTime)
-
+	if at == nil {
+		return fmt.Errorf("multi-tenant request to /api/v1/series/count is not supported")
+	}
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
 	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 	n, isPartial, err := netstorage.SeriesCount(nil, at.AccountID, at.ProjectID, denyPartialResponse, deadline)
