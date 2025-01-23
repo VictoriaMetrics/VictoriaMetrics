@@ -192,6 +192,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'join' pipe: %w", err)
 		}
 		return pj, nil
+	case lex.isKeyword("hash"):
+		ph, err := parsePipeHash(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'hash' pipe: %w", err)
+		}
+		return ph, nil
 	case lex.isKeyword("last"):
 		pl, err := parsePipeLast(lex)
 		if err != nil {
@@ -351,6 +357,7 @@ var pipeNames = func() map[string]struct{} {
 		"first",
 		"format",
 		"join",
+		"hash",
 		"last",
 		"len",
 		"limit", "head",
