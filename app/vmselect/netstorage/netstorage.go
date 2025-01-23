@@ -822,9 +822,13 @@ func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadli
 	}
 
 	// Push mrs to storage nodes in parallel.
-	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any {
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, workerID uint, sn *storageNode, cancelled *atomic.Bool) any {
 		sn.registerMetricNamesRequests.Inc()
-		err := sn.registerMetricNames(qt, mrsPerNode[workerID], deadline)
+		var err error
+		if cancelled.Load() {
+			return &err
+		}
+		err = sn.registerMetricNames(qt, mrsPerNode[workerID], deadline)
 		if err != nil {
 			sn.registerMetricNamesErrors.Inc()
 		}
@@ -857,8 +861,8 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		return 0, err
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode, cancelled *atomic.Bool) any {
+		return execSearchQuery(qt, sq, cancelled, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.deleteSeriesRequests.Inc()
 			deletedCount, err := sn.deleteSeries(qt, requestData, deadline)
 			if err != nil {
@@ -906,8 +910,8 @@ func LabelNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 		return nil, false, err
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode, cancelled *atomic.Bool) any {
+		return execSearchQuery(qt, sq, cancelled, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.labelNamesRequests.Inc()
 			labelNames, err := sn.getLabelNames(qt, requestData, maxLabelNames, deadline)
 			if err != nil {
@@ -1050,8 +1054,8 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 		return nil, false, err
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode, cancelled *atomic.Bool) any {
+		return execSearchQuery(qt, sq, cancelled, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.labelValuesRequests.Inc()
 			labelValues, err := sn.getLabelValues(qt, labelName, requestData, maxLabelValues, deadline)
 			if err != nil {
@@ -1114,8 +1118,14 @@ func Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.
 	}
 	sns := getStorageNodes()
 	// Deny partial responses when obtaining the list of tenants, since partial tenants have little sense.
-	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode, cancelled *atomic.Bool) any {
 		sn.tenantsRequests.Inc()
+		if cancelled.Load() {
+			return &nodeResult{
+				tenants: []string{},
+				err:     nil,
+			}
+		}
 		tenants, err := sn.getTenants(qt, tr, deadline)
 		if err != nil {
 			sn.tenantsErrors.Inc()
@@ -1195,8 +1205,14 @@ func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyP
 		err      error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode, cancelled *atomic.Bool) any {
 		sn.tagValueSuffixesRequests.Inc()
+		if cancelled.Load() {
+			return &nodeResult{
+				suffixes: nil,
+				err:      nil,
+			}
+		}
 		suffixes, err := sn.getTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 		if err != nil {
 			sn.tagValueSuffixesErrors.Inc()
@@ -1263,8 +1279,8 @@ func TSDBStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 		return nil, false, err
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode, cancelled *atomic.Bool) any {
+		return execSearchQuery(qt, sq, cancelled, func(qt *querytracer.Tracer, requestData []byte, _ storage.TenantToken) any {
 			sn.tsdbStatusRequests.Inc()
 			status, err := sn.getTSDBStatus(qt, requestData, focusLabel, topN, deadline)
 			if err != nil {
@@ -1373,8 +1389,14 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 		err error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode, cancelled *atomic.Bool) any {
 		sn.seriesCountRequests.Inc()
+		if cancelled.Load() {
+			return &nodeResult{
+				n:   0,
+				err: nil,
+			}
+		}
 		n, err := sn.getSeriesCount(qt, accountID, projectID, deadline)
 		if err != nil {
 			sn.seriesCountErrors.Inc()
@@ -1696,8 +1718,8 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 		return nil, false, err
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
-		return execSearchQuery(qt, sq, func(qt *querytracer.Tracer, requestData []byte, t storage.TenantToken) any {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode, cancelled *atomic.Bool) any {
+		return execSearchQuery(qt, sq, cancelled, func(qt *querytracer.Tracer, requestData []byte, t storage.TenantToken) any {
 			sn.searchMetricNamesRequests.Inc()
 			metricNames, err := sn.processSearchMetricNames(qt, requestData, deadline)
 			if sq.IsMultiTenant {
@@ -1887,10 +1909,10 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 		return false, err
 	}
 	// Send the query to all the storage nodes in parallel.
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode, cancelled *atomic.Bool) any {
 		// Use a separate variable for each goroutine
 		var err error
-		res := execSearchQuery(qt, sq, func(qt *querytracer.Tracer, rd []byte, _ storage.TenantToken) any {
+		res := execSearchQuery(qt, sq, cancelled, func(qt *querytracer.Tracer, rd []byte, _ storage.TenantToken) any {
 			sn.searchRequests.Inc()
 			err = sn.processSearchQuery(qt, rd, f, workerID, deadline)
 			if err != nil {
@@ -1953,6 +1975,8 @@ type storageNodesRequest struct {
 	resultsCh           chan rpcResult
 	qts                 map[*querytracer.Tracer]struct{}
 	sns                 []*storageNode
+	cancelled           *atomic.Bool
+	wg                  sync.WaitGroup
 }
 
 type rpcResult struct {
@@ -1962,15 +1986,25 @@ type rpcResult struct {
 }
 
 func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool,
-	f func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any,
+	f func(qt *querytracer.Tracer, workerID uint, sn *storageNode, cancelled *atomic.Bool) any,
 ) *storageNodesRequest {
 	resultsCh := make(chan rpcResult, len(sns))
 	qts := make(map[*querytracer.Tracer]struct{}, len(sns))
+	snr := &storageNodesRequest{
+		denyPartialResponse: denyPartialResponse,
+		resultsCh:           resultsCh,
+		qts:                 qts,
+		sns:                 sns,
+		cancelled:           &atomic.Bool{},
+	}
+
+	snr.wg.Add(len(sns))
 	for idx, sn := range sns {
 		qtChild := qt.NewChild("rpc at vmstorage %s", sn.connPool.Addr())
 		qts[qtChild] = struct{}{}
 		go func(workerID uint, sn *storageNode) {
-			data := f(qtChild, workerID, sn)
+			defer snr.wg.Done()
+			data := f(qtChild, workerID, sn, snr.cancelled)
 			resultsCh <- rpcResult{
 				data:  data,
 				qt:    qtChild,
@@ -1978,15 +2012,16 @@ func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPa
 			}
 		}(uint(idx), sn)
 	}
-	return &storageNodesRequest{
-		denyPartialResponse: denyPartialResponse,
-		resultsCh:           resultsCh,
-		qts:                 qts,
-		sns:                 sns,
-	}
+	return snr
 }
 
+// finishQueryTracers cancels all the query tracers and waits for all the workers to finish.
 func (snr *storageNodesRequest) finishQueryTracers(msg string) {
+	// Set cancelled flag to stop new work
+	snr.cancelled.Store(true)
+	// Wait for all workers to finish
+	snr.wg.Wait()
+	// Now safe to close all tracers
 	for qt := range snr.qts {
 		snr.finishQueryTracer(qt, msg)
 	}
@@ -3265,18 +3300,20 @@ func (pnc *perNodeCounter) GetTotal() uint64 {
 const maxFastAllocBlockSize = 32 * 1024
 
 // execSearchQuery calls cb for with marshaled requestData for each tenant in sq.
-func execSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, cb func(qt *querytracer.Tracer, requestData []byte, t storage.TenantToken) any) []any {
+func execSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, cancelled *atomic.Bool, cb func(qt *querytracer.Tracer, requestData []byte, t storage.TenantToken) any) []any {
 	var requestData []byte
 	var results []any
 
 	for i := range sq.TenantTokens {
+		// Stop processing the remaining tenants if the query is cancelled.
+		// It is safe to return the partial results.
+		if cancelled.Load() {
+			return results
+		}
 		requestData = sq.TenantTokens[i].Marshal(requestData)
 		requestData = sq.MarshaWithoutTenant(requestData)
 		qtL := qt
 		if sq.IsMultiTenant && qt.Enabled() {
-			if qt.IsDone() {
-				return results
-			}
 			qtL = qt.NewChild("query for tenant: %s", sq.TenantTokens[i].String())
 		}
 		r := cb(qtL, requestData, sq.TenantTokens[i])
