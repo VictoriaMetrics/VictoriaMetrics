@@ -3,7 +3,6 @@ package storage
 import (
 	"fmt"
 	"math/rand"
-	"os"
 	"sort"
 	"testing"
 	"time"
@@ -114,6 +113,8 @@ func TestPartitionSearch(t *testing.T) {
 func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, maxRowsPerPart, tsidsCount int) {
 	t.Helper()
 
+	defer testRemoveAll(t)
+
 	rng := rand.New(rand.NewSource(1))
 
 	// Generate tsids to search.
@@ -169,7 +170,7 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	// Create partition from rowss and test search on it.
 	strg := newTestStorage()
 	strg.retentionMsecs = timestampFromTime(time.Now()) - ptr.MinTimestamp + 3600*1000
-	pt := mustCreatePartition(ptt, "small-table", "big-table", "indexdb", strg)
+	pt := testCreatePartition(t, ptt, strg)
 	smallPartsPath := pt.smallPartsPath
 	bigPartsPath := pt.bigPartsPath
 	indexDBPartsPath := pt.indexDBPartsPath
@@ -187,16 +188,6 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	testPartitionSearch(t, pt, tsids, tr, rbsExpected, rowsCountExpected)
 	pt.MustClose()
 	stopTestStorage(strg)
-
-	if err := os.RemoveAll("small-table"); err != nil {
-		t.Fatalf("cannot remove small parts directory: %s", err)
-	}
-	if err := os.RemoveAll("big-table"); err != nil {
-		t.Fatalf("cannot remove big parts directory: %s", err)
-	}
-	if err := os.RemoveAll("indexdb"); err != nil {
-		t.Fatalf("cannot remove indexdb directory: %s", err)
-	}
 }
 
 func testPartitionSearch(t *testing.T, pt *partition, tsids []TSID, tr TimeRange, rbsExpected []rawBlock, rowsCountExpected int64) {

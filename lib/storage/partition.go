@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 // The maximum size of big part.
@@ -104,6 +105,7 @@ type partition struct {
 	indexDBPartsPath string
 
 	// The parent storage.
+	// TODO(@rtm0): Do not depend on Storage, pass only what is required.
 	s *Storage
 
 	// Name is the name of the partition in the form YYYY_MM.
@@ -285,7 +287,6 @@ func mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath string, s 
 }
 
 func newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath string, s *Storage) *partition {
-	// TODO(@rtm0): Do something with readonly.
 	idb := mustOpenPartitionIndexDB(indexDBPartsPath, s, &s.isReadOnly)
 
 	p := &partition{
@@ -294,9 +295,9 @@ func newPartition(name, smallPartsPath, bigPartsPath, indexDBPartsPath string, s
 		bigPartsPath:     bigPartsPath,
 		indexDBPartsPath: indexDBPartsPath,
 		s:                s,
+		idb:              idb,
 		stopCh:           make(chan struct{}),
 	}
-	p.idb = idb
 	p.mergeIdx.Store(uint64(time.Now().UnixNano()))
 	p.rawRows.init()
 
@@ -1603,8 +1604,9 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 		logger.Panicf("BUG: unknown partType=%d", dstPartType)
 	}
 	retentionDeadline := currentTimestamp - pt.s.retentionMsecs
+	dmis := pt.getDeletedMetricIDs()
 	activeMerges.Add(1)
-	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, pt.s, retentionDeadline, rowsMerged, rowsDeleted, useSparseCache)
+	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted, useSparseCache)
 	activeMerges.Add(-1)
 	mergesCount.Add(1)
 	if err != nil {
@@ -1615,6 +1617,15 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 		ph.MustWriteMetadata(dstPartPath)
 	}
 	return &ph, nil
+}
+
+func (pt *partition) getDeletedMetricIDs() *uint64set.Set {
+	if pt.s.legacyDeletedMetricIDs == nil {
+		return pt.idb.getDeletedMetricIDs()
+	}
+	dmis := pt.idb.getDeletedMetricIDs().Clone()
+	dmis.Union(pt.s.legacyDeletedMetricIDs)
+	return dmis
 }
 
 func (pt *partition) openCreatedPart(ph *partHeader, pws []*partWrapper, mpNew *inmemoryPart, dstPartPath string) *partWrapper {

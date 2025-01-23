@@ -29,6 +29,7 @@ type table struct {
 	bigPartitionsPath   string
 	indexDBPath         string
 
+	// TODO(@rtm0): Do not depend on Storage.
 	s *Storage
 
 	ptws     []*partitionWrapper

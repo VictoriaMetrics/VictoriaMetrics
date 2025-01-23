@@ -1500,17 +1500,17 @@ func TestMatchTagFilters(t *testing.T) {
 }
 
 func TestIndexDBRepopulateAfterRotation(t *testing.T) {
-	r := rand.New(rand.NewSource(1))
-	path := "TestIndexRepopulateAfterRotation"
-	s := MustOpenStorage(path, retention31Days, 1e5, 1e5)
+	defer testRemoveAll(t)
 
+	s := MustOpenStorage(t.Name(), retention31Days, 1e5, 1e5)
+	defer s.MustClose()
 	db := s.idb()
 	if db.generation == 0 {
 		t.Fatalf("expected indexDB generation to be not 0")
 	}
 
+	r := rand.New(rand.NewSource(1))
 	const metricRowsN = 1000
-
 	currentDayTimestamp := (time.Now().UnixMilli() / msecPerDay) * msecPerDay
 	timeMin := currentDayTimestamp - 24*3600*1000
 	timeMax := currentDayTimestamp + 24*3600*1000
@@ -1538,13 +1538,14 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 		t.Fatalf("expected tsidCache to contain %d rows; got %d", metricRowsN, cs.EntriesCount)
 	}
 
-	// check if cache entries do belong to current indexDB generation
+	// check if all metric names are cached and the generation is 0.
 	var genTSID generationTSID
 	for _, mr := range mrs {
-		s.getTSIDFromCache(&genTSID, mr.MetricNameRaw)
-		if genTSID.generation != db.generation {
-			t.Fatalf("expected all entries in tsidCache to have the same indexDB generation: %d;"+
-				"got %d", db.generation, genTSID.generation)
+		if !s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
+			t.Fatalf("metric name is not in cache: %q", mr.MetricNameRaw)
+		}
+		if genTSID.generation != 0 {
+			t.Fatalf("unexpected generation: got %d, want %d", genTSID.generation, 0)
 		}
 	}
 	prevGeneration := db.generation
@@ -1566,20 +1567,17 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 		t.Fatalf("expected new indexDB generation %d to be different from prev indexDB", dbNew.generation)
 	}
 
-	// Re-insert rows again and verify that all the entries belong to new generation
+	// Re-insert rows again and verify that all the entries have generation 0.
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
 
 	for _, mr := range mrs {
-		s.getTSIDFromCache(&genTSID, mr.MetricNameRaw)
-		if genTSID.generation != dbNew.generation {
-			t.Fatalf("unexpected generation for data after rotation; got %d; want %d", genTSID.generation, dbNew.generation)
+		if !s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
+			t.Fatalf("metric name is not in cache: %q", mr.MetricNameRaw)
 		}
-	}
-
-	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
+		if genTSID.generation != 0 {
+			t.Fatalf("unexpected generation: got %d, want %d", genTSID.generation, 0)
+		}
 	}
 }
 

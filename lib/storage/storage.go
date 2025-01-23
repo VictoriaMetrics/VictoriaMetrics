@@ -128,6 +128,10 @@ type Storage struct {
 	// prefetchedMetricIDsDeadline is used for periodic reset of prefetchedMetricIDs in order to limit its size under high rate of creating new series.
 	prefetchedMetricIDsDeadline atomic.Uint64
 
+	// legacyDeletedMetricIDs contains deleted metricIDs stored in legacy
+	// previous and current IndexDBs.
+	legacyDeletedMetricIDs *uint64set.Set
+
 	stopCh chan struct{}
 
 	currHourMetricIDsUpdaterWG sync.WaitGroup
@@ -261,6 +265,15 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	nextDayMetricIDs := s.mustLoadNextDayMetricIDs(idbCurr.generation, date)
 	s.nextDayMetricIDs.Store(nextDayMetricIDs)
 
+	// Load deleted metricIDs from legacy previous and current IndexDBs.
+	s.legacyDeletedMetricIDs = &uint64set.Set{}
+	if idbPrev != nil {
+		s.legacyDeletedMetricIDs.Union(idbPrev.getDeletedMetricIDs())
+	}
+	if idbCurr != nil {
+		s.legacyDeletedMetricIDs.Union(idbCurr.getDeletedMetricIDs())
+	}
+
 	// check for free disk space before opening the table
 	// to prevent unexpected part merges. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4023
 	s.startFreeDiskSpaceWatcher()
@@ -289,30 +302,6 @@ func getTSIDCacheSize() int {
 		return int(float64(memory.Allowed()) * 0.37)
 	}
 	return maxTSIDCacheSize
-}
-
-// getDeletedMetricIDs gets the deleted metricIDs that belong to partition
-// IndexDBs that overlap with tr and legacy current and previous IndexDBs.
-//
-// This function exists solely for forward compatibility with deployments that
-// already have legacy IndexDB populated and is used during background merges of
-// data (see mergeBlockStreamsInternal() in merge.go).
-func (s *Storage) getDeletedMetricIDs(tr TimeRange) *uint64set.Set {
-	dmis := &uint64set.Set{}
-
-	idbs := s.tb.GetIndexDBs(tr)
-	for _, idb := range idbs {
-		dmis.Union(idb.getDeletedMetricIDs())
-	}
-
-	if idbCurr := s.idb(); idbCurr != nil {
-		dmis.Union(idbCurr.getDeletedMetricIDs())
-		idbCurr.doExtDB(func(extDB *indexDB) {
-			dmis.Union(extDB.getDeletedMetricIDs())
-		})
-	}
-
-	return dmis
 }
 
 // DebugFlush makes sure all the recently added data is visible to search.
