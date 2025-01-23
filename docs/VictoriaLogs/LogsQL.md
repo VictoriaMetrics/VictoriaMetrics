@@ -3730,3 +3730,18 @@ Internally duration values are converted into nanoseconds.
   This rule doesn't apply to [time filter](#time-filter) and [stream filter](#stream-filter), which can be put at any place of the query.
 - If the selected logs are passed to [pipes](#pipes) for further transformations and statistics' calculations, then it is recommended
   reducing the number of selected logs by using more specific [filters](#filters), which return lower number of logs to process by [pipes](#pipes).
+
+
+## Query options
+
+VictoriaLogs supports the following options, which can be passed in the beginning of [LogsQL query](#query-syntax) `<q>` via `options(opt1=v1, ..., optN=vN) <q>` syntax:
+
+- `concurrency` - query concurrency. By default the query is executed in parallel on all the available CPU cores.
+  This usually provides the best query performance. Sometimes it is needed to reduce the number of used CPU cores,
+  in order to reduce RAM usage and/or CPU usage.
+  This can be done by setting `concurrency` option to the value smaller than the number of available CPU cores.
+  For example, the following query executes on at max 2 CPU cores:
+
+  ```logsql
+  options(concurrency=2) _time:1d | count_uniq(user_id)
+  ```

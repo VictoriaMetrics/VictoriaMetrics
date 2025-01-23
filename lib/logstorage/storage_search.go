@@ -144,6 +144,13 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	}
 
 	workersCount := cgroup.AvailableCPUs()
+	if q.opts != nil && q.opts.concurrency > 0 && int(q.opts.concurrency) < workersCount {
+		// Limit the number of workers by the number of available CPU cores,
+		// since bigger number of workers won't improve CPU-bound query performance -
+		// they just increase RAM usage and slow down query execution because
+		// of more context switches between workers.
+		workersCount = int(q.opts.concurrency)
+	}
 
 	ppMain := newDefaultPipeProcessor(writeBlockResultFunc)
 	pp := ppMain

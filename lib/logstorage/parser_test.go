@@ -702,7 +702,7 @@ func TestParseRangeFilter(t *testing.T) {
 	f(`foo:>=1_234e-3`, `foo`, 1.234, inf)
 }
 
-func TestParseQuerySuccess(t *testing.T) {
+func TestParseQuery_Success(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
 		q, err := ParseQuery(s)
@@ -935,6 +935,9 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("string_range-a:x", `"string_range-a":x`)
 	f("value_type", `"value_type"`)
 	f("x:value_type", `x:"value_type"`)
+	f("'options'", `"options"`)
+	f(`"options" foo`, `"options" foo`)
+	f("`options(x)`", `"options(x)"`)
 
 	// exact filter
 	f("exact(foo)", `=foo`)
@@ -1389,9 +1392,15 @@ func TestParseQuerySuccess(t *testing.T) {
 	// skip 'stats' and 'filter' prefixes
 	f(`* | by (host) count() rows | rows:>10`, `* | stats by (host) count(*) as rows | filter rows:>10`)
 	f(`* | (host) count() rows, count() if (error) errors | rows:>10`, `* | stats by (host) count(*) as rows, count(*) if (error) as errors | filter rows:>10`)
+
+	// options
+	f(`options () foo`, `foo`)
+	f(`options (concurrency=10) foo | count() c`, `options(concurrency=10) foo | stats count(*) as c`)
+	f(`options (concurrency=10, concurrency =   42,) foo | count() c`, `options(concurrency=42) foo | stats count(*) as c`)
+	f(`options (concurrency=0) *`, `*`)
 }
 
-func TestParseQueryFailure(t *testing.T) {
+func TestParseQuery_Failure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		q, err := ParseQuery(s)
@@ -1894,6 +1903,18 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | unpack_logfmt result_prefix`)
 	f(`foo | unpack_logfmt result_prefix x from y`)
 	f(`foo | unpack_logfmt from x result_prefix`)
+
+	// invalid options
+	f(`options`)
+	f(`options(`)
+	f(`options( foo`)
+	f(`options(foo=123)`)
+	f(`options(abc)`)
+	f(`options(concurrency=qwe)`)
+
+	// valid options, but missing query filter
+	f(`options(concurrency=12)`)
+	f(`options(concurrency=12) | count()`)
 }
 
 func TestQueryGetNeededColumns(t *testing.T) {
