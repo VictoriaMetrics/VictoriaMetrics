@@ -199,7 +199,7 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]ValueWithHits, error) {
 	pipes := append([]pipe{}, q.pipes...)
 	pipeStr := "field_names"
-	lex := newLexer(pipeStr)
+	lex := newLexer(pipeStr, q.timestamp)
 
 	p, err := parsePipeFieldNames(lex)
 	if err != nil {
@@ -297,7 +297,7 @@ func (s *Storage) getFieldValuesNoHits(ctx context.Context, tenantIDs []TenantID
 	pipes := append([]pipe{}, q.pipes...)
 	quotedFieldName := quoteTokenIfNeeded(fieldName)
 	pipeStr := fmt.Sprintf("uniq by (%s)", quotedFieldName)
-	lex := newLexer(pipeStr)
+	lex := newLexer(pipeStr, q.timestamp)
 
 	pu, err := parsePipeUniq(lex)
 	if err != nil {
@@ -362,7 +362,7 @@ func (s *Storage) GetFieldValues(ctx context.Context, tenantIDs []TenantID, q *Q
 	pipes := append([]pipe{}, q.pipes...)
 	quotedFieldName := quoteTokenIfNeeded(fieldName)
 	pipeStr := fmt.Sprintf("field_values %s limit %d", quotedFieldName, limit)
-	lex := newLexer(pipeStr)
+	lex := newLexer(pipeStr, q.timestamp)
 
 	pu, err := parsePipeFieldValues(lex)
 	if err != nil {

@@ -386,7 +386,7 @@ func TestStatsAvg(t *testing.T) {
 func expectParseStatsFuncFailure(t *testing.T, s string) {
 	t.Helper()
 
-	lex := newLexer(s)
+	lex := newLexer(s, 0)
 	sf, err := parseStatsFunc(lex)
 	if err == nil && lex.isEnd() {
 		t.Fatalf("expecting error when parsing [%s]; parsed result: [%s]", s, sf)
@@ -396,7 +396,7 @@ func expectParseStatsFuncFailure(t *testing.T, s string) {
 func expectParseStatsFuncSuccess(t *testing.T, s string) {
 	t.Helper()
 
-	lex := newLexer(s)
+	lex := newLexer(s, 0)
 	p, err := parseStatsFunc(lex)
 	if err != nil {
 		t.Fatalf("cannot parse [%s]: %s", s, err)

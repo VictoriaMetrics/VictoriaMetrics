@@ -54,15 +54,12 @@ func (lex *lexer) restoreState(ls *lexerState) {
 	*lex = ls.lex
 }
 
-// newLexer returns new lexer for the given s.
+// newLexer returns new lexer for the given s at the given timestamp.
+//
+// The timestamp is used for properly parsing relative timestamps such as _time:1d.
 //
 // The lex.token points to the first token in s.
-func newLexer(s string) *lexer {
-	timestamp := time.Now().UnixNano()
-	return newLexerAtTimestamp(s, timestamp)
-}
-
-func newLexerAtTimestamp(s string, timestamp int64) *lexer {
+func newLexer(s string, timestamp int64) *lexer {
 	lex := &lexer{
 		s:                s,
 		sOrig:            s,
@@ -310,7 +307,7 @@ func (q *Query) AddFacetsPipe(limit, maxValuesPerField, maxValueLen int, keepCon
 	if keepConstFields {
 		s += " keep_const_fields"
 	}
-	lex := newLexer(s)
+	lex := newLexer(s, q.timestamp)
 
 	pf, err := parsePipeFacets(lex)
 	if err != nil {
@@ -333,7 +330,7 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 			byFieldsStr += ", " + quoteTokenIfNeeded(f)
 		}
 		s := fmt.Sprintf("stats by (%s) count() hits", byFieldsStr)
-		lex := newLexer(s)
+		lex := newLexer(s, q.timestamp)
 
 		ps, err := parsePipeStats(lex, true)
 		if err != nil {
@@ -353,7 +350,7 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 			sortFieldsStr += ", " + quoteTokenIfNeeded(f)
 		}
 		s := fmt.Sprintf("sort by (%s)", sortFieldsStr)
-		lex := newLexer(s)
+		lex := newLexer(s, q.timestamp)
 		ps, err := parsePipeSort(lex)
 		if err != nil {
 			logger.Panicf("BUG: unexpected error when parsing %q: %s", s, err)
@@ -1004,7 +1001,7 @@ func (q *Query) HasGlobalTimeFilter() bool {
 //
 // E.g. _time:duration filters are adjusted according to the provided timestamp as _time:[timestamp-duration, duration].
 func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
-	lex := newLexerAtTimestamp(s, timestamp)
+	lex := newLexer(s, timestamp)
 
 	q, err := parseQuery(lex)
 	if err != nil {
@@ -1013,7 +1010,6 @@ func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 	if !lex.isEnd() {
 		return nil, fmt.Errorf("unexpected unparsed tail after [%s]; context: [%s]; tail: [%s]", q, lex.context(), lex.s)
 	}
-	q.timestamp = timestamp
 	q.optimize()
 
 	start, end := q.GetFilterTimeRange()
@@ -1065,7 +1061,8 @@ func parseQuery(lex *lexer) (*Query, error) {
 		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
 	}
 	q := &Query{
-		f: f,
+		f:         f,
+		timestamp: lex.currentTimestamp,
 	}
 
 	if lex.isKeyword("|") {
