@@ -994,7 +994,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.19.0
+docker pull victoriametrics/vmanomaly:v1.19.1
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1008,7 +1008,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.19.0 /config.yaml \
+victoriametrics/vmanomaly:v1.19.1 /config.yaml \
 --licenseFile=/license
 ```
 
@@ -1017,7 +1017,7 @@ Please find more detailed instructions (license, etc.) [here](https://docs.victo
 
 ### Output
 As the result, this model will return metric with labels, configured previously in `config.yaml`.
-In this particular example, 2 metrics will be produced. Also, there will be added other metrics from input query result.
+In this particular example, 2 metrics will be produced. Also, there will be added other labels from input query result.
 
 ```text
 {__name__="custom_anomaly_score", for="ingestion_rate", model_alias="custom_model", scheduler_alias="s1", run="test-format"},

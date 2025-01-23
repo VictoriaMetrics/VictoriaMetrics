@@ -101,13 +101,13 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.19.0
+docker pull victoriametrics/vmanomaly:v1.19.1
 ```
 
 2. (Optional step) tag the `vmanomaly` Docker image:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:v1.19.0 vmanomaly
+docker image tag victoriametrics/vmanomaly:v1.19.1 vmanomaly
 ```
 
 3. Start the `vmanomaly` Docker container with a *license file*, use the command below.
@@ -141,7 +141,7 @@ docker run -it --user 1000:1000 \
 services:
   # ...
   vmanomaly:
-    image: victoriametrics/vmanomaly:v1.19.0
+    image: victoriametrics/vmanomaly:v1.19.1
     volumes:
         $YOUR_LICENSE_FILE_PATH:/license
         $YOUR_CONFIG_FILE_PATH:/config.yml
@@ -177,19 +177,30 @@ Here is an example of config file that will run [Facebook Prophet](https://faceb
 
 ```yaml
 schedulers:
-  2h_1m:
+  1d_1m:
     # https://docs.victoriametrics.com/anomaly-detection/components/scheduler/#periodic-scheduler
     class: 'periodic'
     infer_every: '1m'
-    fit_every: '2h'
+    fit_every: '1d'
     fit_window: '2w'
 
 models:
   # https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet
   prophet_model:
-    class: "prophet"  # or "model.prophet.ProphetModel" until v1.13.0
+    class: 'prophet'
+    provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']  # for debugging
+    tz_aware: True
+    tz_use_cyclical_encoding: True
+    tz_seasonalities: # intra-day + intra-week seasonality
+      - name: 'hod'  # intra-day seasonality, hour of the day
+        fourier_order: 4  # keep it 3-8 based on intraday pattern complexity
+        prior_scale: 10
+      - name: 'dow'  # intra-week seasonality, time of the week
+        fourier_order: 2  # keep it 2-4, as dependencies are learned separately for each weekday
+    # inner model args (key-value pairs) accepted by
+    # https://facebook.github.io/prophet/docs/quick_start.html#python-api
     args:
-      interval_width: 0.98
+      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals.html
 
 reader:
   # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader

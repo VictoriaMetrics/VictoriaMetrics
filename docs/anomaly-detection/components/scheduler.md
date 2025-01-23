@@ -524,7 +524,7 @@ The same *explicit* logic as in [Periodic scheduler](#periodic-scheduler)
             <td>Prometheus-compatible</td>
             <td>
 
-`"1m", "1h"`
+<span style="white-space: nowrap;">`"1m"`</span>, `"1h"`
             </td>
         </tr>
     </tbody>
@@ -560,7 +560,7 @@ In `BacktestingScheduler`, the inference window is *implicitly* defined as a per
             <td>Prometheus-compatible</td>
             <td>
 
-`"1m", "1h"`
+<span style="white-space: nowrap;">`"1m"`</span>, `"1h"`
             </td>
         </tr>
     </tbody>

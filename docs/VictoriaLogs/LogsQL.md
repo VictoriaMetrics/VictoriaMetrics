@@ -1329,8 +1329,9 @@ LogsQL supports the following pipes:
 - [`first`](#first-pipe) returns the first N logs after sorting them by the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`format`](#format-pipe) formats output field from input [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`join`](#join-pipe) joins query results by the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`hash`](#hash-pipe) returns the hash over the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
 - [`last`](#last-pipe) returns the last N logs after sorting them by the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`len`](#len-pipe) calculates byte length of the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
+- [`len`](#len-pipe) returns byte length of the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
 - [`limit`](#limit-pipe) limits the number selected logs.
 - [`math`](#math-pipe) performs mathematical calculations over [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`offset`](#offset-pipe) skips the given number of selected logs.
@@ -2035,6 +2036,22 @@ See also:
 - [`in` filter](#multi-exact-filter)
 - [`stats` pipe](#stats-pipe)
 - [conditional `stats`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters)
+- [`filter` pipe](#filter-pipe)
+
+### hash pipe
+
+`<q> | hash(field) as result_field` calculates hash value for the given [`field`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+and stores it into the `result_field`, for every log entry returned by `<q>` [query](#query-syntax).
+
+For example, the following query calculates the hash value over `user_id` field and stores it into `user_id_hash` field, across logs for the last 5 minutes:
+
+```logsql
+_time:5m | hash(user_id) as user_id_hash
+```
+
+See also:
+
+- [`math` pipe](#math-pipe)
 - [`filter` pipe](#filter-pipe)
 
 ### last pipe
@@ -3730,3 +3747,18 @@ Internally duration values are converted into nanoseconds.
   This rule doesn't apply to [time filter](#time-filter) and [stream filter](#stream-filter), which can be put at any place of the query.
 - If the selected logs are passed to [pipes](#pipes) for further transformations and statistics' calculations, then it is recommended
   reducing the number of selected logs by using more specific [filters](#filters), which return lower number of logs to process by [pipes](#pipes).
+
+
+## Query options
+
+VictoriaLogs supports the following options, which can be passed in the beginning of [LogsQL query](#query-syntax) `<q>` via `options(opt1=v1, ..., optN=vN) <q>` syntax:
+
+- `concurrency` - query concurrency. By default the query is executed in parallel on all the available CPU cores.
+  This usually provides the best query performance. Sometimes it is needed to reduce the number of used CPU cores,
+  in order to reduce RAM usage and/or CPU usage.
+  This can be done by setting `concurrency` option to the value smaller than the number of available CPU cores.
+  For example, the following query executes on at max 2 CPU cores:
+
+  ```logsql
+  options(concurrency=2) _time:1d | count_uniq(user_id)
+  ```
