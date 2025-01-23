@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -15,7 +16,9 @@ import (
 const dedupAggrShardsCount = 128
 
 type dedupAggr struct {
-	shards []dedupAggrShard
+	shards        []dedupAggrShard
+	flushDuration *metrics.Histogram
+	flushTimeouts *metrics.Counter
 }
 
 type dedupAggrShard struct {
@@ -28,15 +31,15 @@ type dedupAggrShard struct {
 
 type dedupAggrState struct {
 	m          map[string]*dedupAggrSample
+	mu         sync.Mutex
 	samplesBuf []dedupAggrSample
 	sizeBytes  atomic.Uint64
 	itemsCount atomic.Uint64
 }
 
 type dedupAggrShardNopad struct {
-	mu    sync.Mutex
-	blue  *dedupAggrState
-	green *dedupAggrState
+	blue  dedupAggrState
+	green dedupAggrState
 }
 
 type dedupAggrSample struct {
@@ -52,32 +55,22 @@ func newDedupAggr() *dedupAggr {
 
 func (da *dedupAggr) sizeBytes() uint64 {
 	n := uint64(unsafe.Sizeof(*da))
-	var state *dedupAggrState
+	var shard *dedupAggrShard
 	for i := range da.shards {
-		state = da.shards[i].green
-		if state != nil {
-			n += state.sizeBytes.Load()
-		}
-		state = da.shards[i].blue
-		if state != nil {
-			n += state.sizeBytes.Load()
-		}
+		shard = &da.shards[i]
+		n += shard.blue.sizeBytes.Load()
+		n += shard.green.sizeBytes.Load()
 	}
 	return n
 }
 
 func (da *dedupAggr) itemsCount() uint64 {
 	n := uint64(0)
-	var state *dedupAggrState
+	var shard *dedupAggrShard
 	for i := range da.shards {
-		state = da.shards[i].green
-		if state != nil {
-			n += state.itemsCount.Load()
-		}
-		state = da.shards[i].blue
-		if state != nil {
-			n += state.itemsCount.Load()
-		}
+		shard = &da.shards[i]
+		n += shard.blue.itemsCount.Load()
+		n += shard.green.itemsCount.Load()
 	}
 	return n
 }
@@ -179,23 +172,16 @@ func putPerShardSamples(pss *perShardSamples) {
 var perShardSamplesPool sync.Pool
 
 func (das *dedupAggrShard) pushSamples(samples []pushSample, isGreen bool) {
-	das.mu.Lock()
-	defer das.mu.Unlock()
-
 	var state *dedupAggrState
 
 	if isGreen {
-		if das.green == nil {
-			das.green = new(dedupAggrState)
-		}
-		state = das.green
+		state = &das.green
 	} else {
-		if das.blue == nil {
-			das.blue = new(dedupAggrState)
-		}
-		state = das.blue
+		state = &das.blue
 	}
 
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	if state.m == nil {
 		state.m = make(map[string]*dedupAggrSample, len(samples))
 	}
@@ -241,19 +227,15 @@ func isDuplicate(a *dedupAggrSample, b pushSample) bool {
 }
 
 func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f aggrPushFunc) {
-	das.mu.Lock()
-
 	var m map[string]*dedupAggrSample
 	var state *dedupAggrState
 	if ctx.isGreen {
-		state = das.green
+		state = &das.green
 	} else {
-		state = das.blue
+		state = &das.blue
 	}
-	if state == nil {
-		das.mu.Unlock()
-		return
-	}
+
+	state.mu.Lock()
 	if len(state.m) > 0 {
 		m = state.m
 		state.m = make(map[string]*dedupAggrSample, len(state.m))
@@ -261,8 +243,7 @@ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f aggrPushFunc) {
 		state.sizeBytes.Store(0)
 		state.itemsCount.Store(0)
 	}
-
-	das.mu.Unlock()
+	state.mu.Unlock()
 
 	if len(m) == 0 {
 		return

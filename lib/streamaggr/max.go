@@ -1,18 +1,11 @@
 package streamaggr
 
-func maxInitFn(v *aggrValues, enableWindows bool) {
-	v.blue = append(v.blue, new(maxAggrValue))
-	if enableWindows {
-		v.green = append(v.green, new(maxAggrValue))
-	}
-}
-
 type maxAggrValue struct {
 	max     float64
 	defined bool
 }
 
-func (av *maxAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
+func (av *maxAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _ int64) {
 	if sample.value > av.max || !av.defined {
 		av.max = sample.value
 	}
@@ -21,10 +14,24 @@ func (av *maxAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
 	}
 }
 
-func (av *maxAggrValue) flush(ctx *flushCtx, key string) {
+func (av *maxAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string) {
 	if av.defined {
 		ctx.appendSeries(key, "max", av.max)
 		av.max = 0
 		av.defined = false
 	}
+}
+
+func (*maxAggrValue) state() any {
+	return nil
+}
+
+func newMaxAggrConfig() aggrConfig {
+	return &maxAggrConfig{}
+}
+
+type maxAggrConfig struct{}
+
+func (*maxAggrConfig) getValue(_ any) aggrValue {
+	return &maxAggrValue{}
 }

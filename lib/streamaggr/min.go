@@ -1,19 +1,11 @@
 package streamaggr
 
-func minInitFn(v *aggrValues, enableWindows bool) {
-	v.blue = append(v.blue, new(minAggrValue))
-	if enableWindows {
-		v.green = append(v.green, new(minAggrValue))
-
-	}
-}
-
 type minAggrValue struct {
 	min     float64
 	defined bool
 }
 
-func (av *minAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
+func (av *minAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _ int64) {
 	if sample.value < av.min || !av.defined {
 		av.min = sample.value
 	}
@@ -22,10 +14,24 @@ func (av *minAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
 	}
 }
 
-func (av *minAggrValue) flush(ctx *flushCtx, key string) {
+func (av *minAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string) {
 	if av.defined {
 		ctx.appendSeries(key, "min", av.min)
-		av.defined = false
 		av.min = 0
+		av.defined = false
 	}
+}
+
+func (*minAggrValue) state() any {
+	return nil
+}
+
+func newMinAggrConfig() aggrConfig {
+	return &minAggrConfig{}
+}
+
+type minAggrConfig struct{}
+
+func (*minAggrConfig) getValue(_ any) aggrValue {
+	return &minAggrValue{}
 }

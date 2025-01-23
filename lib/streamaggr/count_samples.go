@@ -1,21 +1,30 @@
 package streamaggr
 
-func countSamplesInitFn(v *aggrValues, enableWindows bool) {
-	v.blue = append(v.blue, new(countSamplesAggrValue))
-	if enableWindows {
-		v.green = append(v.green, new(countSamplesAggrValue))
-	}
-}
-
 type countSamplesAggrValue struct {
 	count uint64
 }
 
-func (av *countSamplesAggrValue) pushSample(_ string, _ *pushSample, _ int64) {
+func (av *countSamplesAggrValue) pushSample(_ aggrConfig, _ *pushSample, _ string, _ int64) {
 	av.count++
 }
 
-func (av *countSamplesAggrValue) flush(ctx *flushCtx, key string) {
-	ctx.appendSeries(key, "count_samples", float64(av.count))
-	av.count = 0
+func (av *countSamplesAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string) {
+	if av.count > 0 {
+		ctx.appendSeries(key, "count_samples", float64(av.count))
+		av.count = 0
+	}
+}
+
+func (*countSamplesAggrValue) state() any {
+	return nil
+}
+
+func newCountSamplesAggrConfig() aggrConfig {
+	return &countSamplesAggrConfig{}
+}
+
+type countSamplesAggrConfig struct{}
+
+func (*countSamplesAggrConfig) getValue(_ any) aggrValue {
+	return &countSamplesAggrValue{}
 }
