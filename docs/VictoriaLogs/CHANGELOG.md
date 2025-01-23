@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add an ability to limit query concurrency for the `<q>` [query](https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax) via `options(concurrency=N) <q>` syntax. This may be needed for reducing RAM and CPU usage at the cost of longer query execution times. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#query-options) for details.
+
 ## [v1.7.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.7.0-victorialogs)
 
 Released at 2025-01-20
