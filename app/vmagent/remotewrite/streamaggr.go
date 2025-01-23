@@ -35,7 +35,9 @@ var (
 		"clients pushing data into the vmagent. See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start")
 	streamAggrGlobalDropInputLabels = flagutil.NewArrayString("streamAggr.dropInputLabels", "An optional list of labels to drop from samples for aggregator "+
 		"before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
-	streamAggrGlobalEnableWindows = flag.Bool("streamAggr.enableWindows", false, "Enable aggregation windows")
+	streamAggrGlobalEnableWindows = flag.Bool("streamAggr.enableWindows", false, "Enables aggregation within fixed windows for all global aggregators. "+
+		"This allows to get more precise results, but impacts resource usage as it requires twice more memory to store two states. "+
+		"See https://docs.victoriametrics.com/stream-aggregation/#aggregation-windows.")
 
 	// Per URL config
 	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config for the corresponding -remoteWrite.url. "+
@@ -60,7 +62,9 @@ var (
 		"before stream de-duplication and aggregation with -remoteWrite.streamAggr.config and -remoteWrite.streamAggr.dedupInterval at the corresponding -remoteWrite.url. "+
 		"Multiple labels per remoteWrite.url must be delimited by '^^': -remoteWrite.streamAggr.dropInputLabels='replica^^az,replica'. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
-	streamAggrEnableWindows = flagutil.NewArrayBool("remoteWrite.streamAggr.enableWindows", "Enable aggregation windows")
+	streamAggrEnableWindows = flagutil.NewArrayBool("remoteWrite.streamAggr.enableWindows", "Enables aggregation within fixed windows for all remote write's aggregators. "+
+		"This allows to get more precise results, but impacts resource usage as it requires twice more memory to store two states. "+
+		"See https://docs.victoriametrics.com/stream-aggregation/#aggregation-windows.")
 )
 
 // CheckStreamAggrConfigs checks -remoteWrite.streamAggr.config and -streamAggr.config.

@@ -7,29 +7,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-func totalInitFn(ignoreFirstSampleIntervalSecs uint64, resetTotalOnFlush, keepFirstSample bool) aggrValuesFn {
-	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + ignoreFirstSampleIntervalSecs
-	return func(v *aggrValues, enableWindows bool) {
-		shared := &totalAggrValueShared{
-			lastValues: make(map[string]totalLastValue),
-		}
-		v.blue = append(v.green, &totalAggrValue{
-			keepFirstSample:           keepFirstSample,
-			resetTotalOnFlush:         resetTotalOnFlush,
-			shared:                    shared,
-			ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
-		})
-		if enableWindows {
-			v.green = append(v.green, &totalAggrValue{
-				keepFirstSample:           keepFirstSample,
-				resetTotalOnFlush:         resetTotalOnFlush,
-				shared:                    shared,
-				ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
-			})
-		}
-	}
-}
-
 type totalLastValue struct {
 	value          float64
 	timestamp      int64
@@ -42,24 +19,15 @@ type totalAggrValueShared struct {
 }
 
 type totalAggrValue struct {
-	total             float64
-	resetTotalOnFlush bool
-	shared            *totalAggrValueShared
-
-	// Whether to take into account the first sample in new time series when calculating the output value.
-	keepFirstSample bool
-
-	// The first sample per each new series is ignored until this unix timestamp deadline in seconds even if keepFirstSample is set.
-	// This allows avoiding an initial spike of the output values at startup when new time series
-	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
-	ignoreFirstSampleDeadline uint64
+	total  float64
+	shared *totalAggrValueShared
 }
 
-func (av *totalAggrValue) pushSample(inputKey string, sample *pushSample, deleteDeadline int64) {
-	shared := av.shared
+func (av *totalAggrValue) pushSample(c aggrConfig, sample *pushSample, key string, deleteDeadline int64) {
+	ac := c.(*totalAggrConfig)
 	currentTime := fasttime.UnixTimestamp()
-	keepFirstSample := av.keepFirstSample && currentTime >= av.ignoreFirstSampleDeadline
-	lv, ok := shared.lastValues[inputKey]
+	keepFirstSample := ac.keepFirstSample && currentTime >= ac.ignoreFirstSampleDeadline
+	lv, ok := av.shared.lastValues[key]
 	if ok || keepFirstSample {
 		if sample.timestamp < lv.timestamp {
 			// Skip out of order sample
@@ -75,13 +43,13 @@ func (av *totalAggrValue) pushSample(inputKey string, sample *pushSample, delete
 	lv.value = sample.value
 	lv.timestamp = sample.timestamp
 	lv.deleteDeadline = deleteDeadline
-
-	inputKey = bytesutil.InternString(inputKey)
-	shared.lastValues[inputKey] = lv
+	key = bytesutil.InternString(key)
+	av.shared.lastValues[key] = lv
 }
 
-func (av *totalAggrValue) flush(ctx *flushCtx, key string) {
-	suffix := av.getSuffix()
+func (av *totalAggrValue) flush(c aggrConfig, ctx *flushCtx, key string) {
+	ac := c.(*totalAggrConfig)
+	suffix := ac.getSuffix()
 	// check for stale entries
 	total := av.shared.total + av.total
 	av.total = 0
@@ -91,7 +59,7 @@ func (av *totalAggrValue) flush(ctx *flushCtx, key string) {
 			delete(lvs, lk)
 		}
 	}
-	if av.resetTotalOnFlush {
+	if ac.resetTotalOnFlush {
 		av.shared.total = 0
 	} else if math.Abs(total) >= (1 << 53) {
 		// It is time to reset the entry, since it starts losing float64 precision
@@ -102,15 +70,53 @@ func (av *totalAggrValue) flush(ctx *flushCtx, key string) {
 	ctx.appendSeries(key, suffix, total)
 }
 
-func (av *totalAggrValue) getSuffix() string {
-	// Note: this function is at hot path, so it shouldn't allocate.
-	if av.resetTotalOnFlush {
-		if av.keepFirstSample {
+func (av *totalAggrValue) state() any {
+	return av.shared
+}
+
+func newTotalAggrConfig(ignoreFirstSampleIntervalSecs uint64, resetTotalOnFlush, keepFirstSample bool) aggrConfig {
+	ignoreFirstSampleDeadline := fasttime.UnixTimestamp() + ignoreFirstSampleIntervalSecs
+	return &totalAggrConfig{
+		keepFirstSample:           keepFirstSample,
+		resetTotalOnFlush:         resetTotalOnFlush,
+		ignoreFirstSampleDeadline: ignoreFirstSampleDeadline,
+	}
+}
+
+type totalAggrConfig struct {
+	resetTotalOnFlush bool
+
+	// Whether to take into account the first sample in new time series when calculating the output value.
+	keepFirstSample bool
+
+	// The first sample per each new series is ignored until this unix timestamp deadline in seconds even if keepFirstSample is set.
+	// This allows avoiding an initial spike of the output values at startup when new time series
+	// cannot be distinguished from already existing series. This is tracked with ignoreFirstSampleDeadline.
+	ignoreFirstSampleDeadline uint64
+}
+
+func (*totalAggrConfig) getValue(s any) aggrValue {
+	var shared *totalAggrValueShared
+	if s == nil {
+		shared = &totalAggrValueShared{
+			lastValues: make(map[string]totalLastValue),
+		}
+	} else {
+		shared = s.(*totalAggrValueShared)
+	}
+	return &totalAggrValue{
+		shared: shared,
+	}
+}
+
+func (ac *totalAggrConfig) getSuffix() string {
+	if ac.resetTotalOnFlush {
+		if ac.keepFirstSample {
 			return "increase"
 		}
 		return "increase_prometheus"
 	}
-	if av.keepFirstSample {
+	if ac.keepFirstSample {
 		return "total"
 	}
 	return "total_prometheus"

@@ -291,6 +291,7 @@ metrics with different `vmrange` or `le` labels. As they're counters, the applic
 - match: 'http_request_duration_seconds_bucket'
   interval: 1m
   without: [instance]
+  enable_windows: true
   outputs: [total]
 ```
 
@@ -315,6 +316,8 @@ histogram_quantile(0.9, sum(rate(http_request_duration_seconds_bucket:1m_without
 Please note, histograms can be aggregated if their `le` labels are configured identically.
 [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
 have no such requirement.
+
+It's suggested to use [aggregation windows](#aggregation-windows) for valid histograms calculation. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4580).
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [histograms over input metrics](#histograms-over-input-metrics) and [quantiles over input metrics](#quantiles-over-input-metrics).
@@ -808,6 +811,11 @@ specified individually per each `-remoteWrite.url`:
   #
   # dedup_interval: 30s
 
+  # enable_windows is a boolean option to enable fixed aggregation windows.
+  # See https://docs.victoriametrics.com/stream-aggregation#aggregation-windows
+  #
+  # enable_windows: true
+
   # staleness_interval is an optional interval for resetting the per-series state if no new samples
   # are received during this interval for the following outputs:
   # - histogram_bucket
@@ -1143,6 +1151,29 @@ Typical use case is to drop `replica` label from samples, which are received fro
 - [Lower than expected values for `total_prometheus` and `increase_prometheus` outputs](#staleness).
 - [High memory usage and CPU usage](#high-resource-usage).
 - [Unexpected results in vmagent cluster mode](#cluster-mode).
+- [Inacurate aggregation results for histograms](#aggregation-windows)
+
+## Aggregation windows
+
+By default stream aggregation and deduplication store in memory a single state per each aggregation output sample, where data for each aggregator is flushed independently
+after each aggregation interval ends. There's no guarantee that samples, that are close to aggregation interval's threshold appear in an interval they should.
+E.g.: for 1m aggregation with flushes that are aligned to interval sample with timestamp 1739473078 (18:57:59) can be aggregated within interval, that ends at
+18:58:00 or at 18:59:00. It depends on network lag, load, clock synchronization and on a size of aggregated states as this state is not globally locked during
+flush. In most scenarios it doesn't impact aggregation or deduplication results, which are consistent within margin of error, but for metrics,
+which are represented by a collection of series, like histograms, such inaccuracy leads to invalid aggregation results.
+For this case streaming aggregation and deduplication support a fixed windows mode, which introduces two independent states: one aggregates samples with timestamps, that are less,
+than flush time, other - for the rest. In addition to it flush doesn't happen immediately, but is shifted by a calculated samples lag, which allows to drop less
+data comparing to effect caused by `ignore_old_samples` option. Cost of this is increased resource usage as aggregators now have to store twice more memory.
+Fixed aggregation windows can be enabled using:
+
+- `-streamAggr.enableWindows` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
+  and [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
+  `-remoteWrite.streamAggr.enableWindows` flag can be specified individually per each `-remoteWrite.url`.
+  If one of these flags is set, then all aggregators will be using fixed windows. In conjunction with `-remoteWrite.streamAggr.dedupInterval` or
+  `-streamAggr.dedupInterval` fixed aggregation windows are enabled on deduplicator as well.
+ - `enable_windows` option in aggregation config. With this option fixed windows are enabled on a given aggregator only.
+
+To enable aggregation windows for deduplicator listed above command-line flag
 
 ## Staleness
 

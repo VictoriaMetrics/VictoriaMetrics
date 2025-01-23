@@ -1,27 +1,34 @@
 package streamaggr
 
-func avgInitFn(v *aggrValues, enableWindows bool) {
-	v.blue = append(v.blue, new(avgAggrValue))
-	if enableWindows {
-		v.green = append(v.green, new(avgAggrValue))
-	}
-}
-
 type avgAggrValue struct {
 	sum   float64
 	count float64
 }
 
-func (sv *avgAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
-	sv.sum += sample.value
-	sv.count++
+func (av *avgAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _ int64) {
+	av.sum += sample.value
+	av.count++
 }
 
-func (sv *avgAggrValue) flush(ctx *flushCtx, key string) {
-	if sv.count > 0 {
-		avg := sv.sum / sv.count
+func (av *avgAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string) {
+	if av.count > 0 {
+		avg := av.sum / av.count
 		ctx.appendSeries(key, "avg", avg)
-		sv.sum = 0
-		sv.count = 0
+		av.sum = 0
+		av.count = 0
 	}
+}
+
+func (*avgAggrValue) state() any {
+	return nil
+}
+
+func newAvgAggrConfig() aggrConfig {
+	return &avgAggrConfig{}
+}
+
+type avgAggrConfig struct{}
+
+func (*avgAggrConfig) getValue(_ any) aggrValue {
+	return &avgAggrValue{}
 }

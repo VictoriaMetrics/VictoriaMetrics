@@ -1,39 +1,61 @@
 package streamaggr
 
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/metrics"
 	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
 )
 
-type aggrValuesFn func(*aggrValues, bool)
-
 type aggrOutputs struct {
-	m             sync.Map
-	enableWindows bool
-	initFns       []aggrValuesFn
-	outputSamples *metrics.Counter
+	m              sync.Map
+	useSharedState bool
+	useInputKey    bool
+	configs        []aggrConfig
+	outputSamples  *metrics.Counter
+}
+
+func (ao *aggrOutputs) getInputOutputKey(key string) (string, string) {
+	src := bytesutil.ToUnsafeBytes(key)
+	outputKeyLen, nSize := encoding.UnmarshalVarUint64(src)
+	if nSize <= 0 {
+		logger.Panicf("BUG: cannot unmarshal outputKeyLen from uvarint")
+	}
+	src = src[nSize:]
+	outputKey := src[:outputKeyLen]
+	if !ao.useInputKey {
+		return key, bytesutil.ToUnsafeString(outputKey)
+	}
+	inputKey := src[outputKeyLen:]
+	return bytesutil.ToUnsafeString(inputKey), bytesutil.ToUnsafeString(outputKey)
 }
 
 func (ao *aggrOutputs) pushSamples(samples []pushSample, deleteDeadline int64, isGreen bool) {
 	var inputKey, outputKey string
 	var sample *pushSample
+	var outputs []aggrValue
+	var nv *aggrValues
 	for i := range samples {
 		sample = &samples[i]
-		inputKey, outputKey = getInputOutputKey(sample.key)
+		inputKey, outputKey = ao.getInputOutputKey(sample.key)
 
 	again:
 		v, ok := ao.m.Load(outputKey)
 		if !ok {
 			// The entry is missing in the map. Try creating it.
-			nv := &aggrValues{
-				blue: make([]aggrValue, 0, len(ao.initFns)),
+			nv = &aggrValues{
+				blue: make([]aggrValue, len(ao.configs)),
 			}
-			if ao.enableWindows {
-				nv.green = make([]aggrValue, 0, len(ao.initFns))
+			if ao.useSharedState {
+				nv.green = make([]aggrValue, len(ao.configs))
 			}
-			for _, initFn := range ao.initFns {
-				initFn(nv, ao.enableWindows)
+			for idx, ac := range ao.configs {
+				nv.blue[idx] = ac.getValue(nil)
+				if ao.useSharedState {
+					nv.green[idx] = ac.getValue(nv.blue[idx].state())
+				}
 			}
 			v = nv
 			outputKey = bytesutil.InternString(outputKey)
@@ -45,16 +67,15 @@ func (ao *aggrOutputs) pushSamples(samples []pushSample, deleteDeadline int64, i
 		}
 		av := v.(*aggrValues)
 		av.mu.Lock()
-		deleted := av.deleted
+		deleted := av.deleteDeadline < 0
 		if !deleted {
 			if isGreen {
-				for _, sv := range av.green {
-					sv.pushSample(inputKey, sample, deleteDeadline)
-				}
+				outputs = av.green
 			} else {
-				for _, sv := range av.blue {
-					sv.pushSample(inputKey, sample, deleteDeadline)
-				}
+				outputs = av.blue
+			}
+			for idx, o := range outputs {
+				o.pushSample(ao.configs[idx], sample, inputKey, deleteDeadline)
 			}
 			av.deleteDeadline = deleteDeadline
 		}
@@ -79,21 +100,24 @@ func (ao *aggrOutputs) flushState(ctx *flushCtx) {
 		deleted := ctx.flushTimestamp > av.deleteDeadline
 		if deleted {
 			// Mark the current entry as deleted
-			av.deleted = deleted
+			av.deleteDeadline = -1
 			av.mu.Unlock()
 			m.Delete(k)
 			return true
 		}
-		key := k.(string)
+		outputKey := k.(string)
 		if ctx.isGreen {
 			outputs = av.green
 		} else {
 			outputs = av.blue
 		}
-		for _, state := range outputs {
-			state.flush(ctx, key)
+		for i, o := range outputs {
+			o.flush(ao.configs[i], ctx, outputKey)
 		}
 		av.mu.Unlock()
+		if ctx.isLast {
+			m.Delete(k)
+		}
 		return true
 	})
 }
@@ -103,10 +127,14 @@ type aggrValues struct {
 	blue           []aggrValue
 	green          []aggrValue
 	deleteDeadline int64
-	deleted        bool
+}
+
+type aggrConfig interface {
+	getValue(any) aggrValue
 }
 
 type aggrValue interface {
-	pushSample(string, *pushSample, int64)
-	flush(*flushCtx, string)
+	pushSample(aggrConfig, *pushSample, string, int64)
+	flush(aggrConfig, *flushCtx, string)
+	state() any
 }

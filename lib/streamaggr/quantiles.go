@@ -6,54 +6,49 @@ import (
 	"strconv"
 )
 
-func quantilesInitFn(phis []float64) aggrValuesFn {
-	blue := &quantilesAggrState{
-		phis: phis,
-	}
-	green := &quantilesAggrState{
-		phis: phis,
-	}
-	return func(v *aggrValues, enableWindows bool) {
-		v.blue = append(v.blue, &quantilesAggrValue{
-			state: blue,
-		})
-		if enableWindows {
-			v.green = append(v.green, &quantilesAggrValue{
-				state: green,
-			})
-		}
-	}
-}
-
-type quantilesAggrState struct {
-	phis      []float64
-	quantiles []float64
-	b         []byte
-}
-
 // quantilesAggrValue calculates output=quantiles, e.g. the given quantiles over the input samples.
 type quantilesAggrValue struct {
-	h     *histogram.Fast
-	state *quantilesAggrState
+	h *histogram.Fast
 }
 
-func (av *quantilesAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
+func (av *quantilesAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _ int64) {
 	if av.h == nil {
 		av.h = histogram.GetFast()
 	}
 	av.h.Update(sample.value)
 }
 
-func (av *quantilesAggrValue) flush(ctx *flushCtx, key string) {
+func (av *quantilesAggrValue) flush(c aggrConfig, ctx *flushCtx, key string) {
+	ac := c.(*quantilesAggrConfig)
 	if av.h != nil {
-		av.state.quantiles = av.h.Quantiles(av.state.quantiles[:0], av.state.phis)
+		ac.quantiles = av.h.Quantiles(ac.quantiles[:0], ac.phis)
 	}
 	histogram.PutFast(av.h)
-	if len(av.state.quantiles) > 0 {
-		for i, quantile := range av.state.quantiles {
-			av.state.b = strconv.AppendFloat(av.state.b[:0], av.state.phis[i], 'g', -1, 64)
-			phiStr := bytesutil.InternBytes(av.state.b)
+	if len(ac.quantiles) > 0 {
+		for i, quantile := range ac.quantiles {
+			ac.b = strconv.AppendFloat(ac.b[:0], ac.phis[i], 'g', -1, 64)
+			phiStr := bytesutil.InternBytes(ac.b)
 			ctx.appendSeriesWithExtraLabel(key, "quantiles", quantile, "quantile", phiStr)
 		}
 	}
+}
+
+func (*quantilesAggrValue) state() any {
+	return nil
+}
+
+func newQuantilesAggrConfig(phis []float64) aggrConfig {
+	return &quantilesAggrConfig{
+		phis: phis,
+	}
+}
+
+type quantilesAggrConfig struct {
+	phis      []float64
+	quantiles []float64
+	b         []byte
+}
+
+func (*quantilesAggrConfig) getValue(_ any) aggrValue {
+	return &quantilesAggrValue{}
 }

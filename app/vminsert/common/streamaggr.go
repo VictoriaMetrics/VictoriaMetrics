@@ -36,7 +36,9 @@ var (
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples")
 	streamAggrIgnoreFirstIntervals = flag.Int("streamAggr.ignoreFirstIntervals", 0, "Number of aggregation intervals to skip after the start. Increase this value if you observe incorrect aggregation results after restarts. It could be caused by receiving unordered delayed data from clients pushing data into the database. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start")
-	streamAggrEnableWindows = flag.Bool("streamAggr.enableWindows", false, "Enable aggregation windows")
+	streamAggrEnableWindows = flag.Bool("streamAggr.enableWindows", false, "Enables aggregation within fixed windows for all aggregators. "+
+		"This allows to get more precise results, but impacts resource usage as it requires twice more memory to store two states. "+
+		"See https://docs.victoriametrics.com/stream-aggregation/#aggregation-windows.")
 )
 
 var (
