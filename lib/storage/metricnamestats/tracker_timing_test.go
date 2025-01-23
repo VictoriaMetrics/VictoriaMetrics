@@ -38,7 +38,7 @@ func BenchmarkTracker(b *testing.B) {
 		}
 	}
 	b.StopTimer()
-	got := mt.GetStats(100, 10000000000, "")
+	got := mt.GetStats(100, -1, "")
 	got.sort()
 	wantRecords := []StatRecord{
 		{"metric_2", 0, 0},
