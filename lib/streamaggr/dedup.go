@@ -82,10 +82,10 @@ func (da *dedupAggr) itemsCount() uint64 {
 	return n
 }
 
-func (da *dedupAggr) pushSamples(data *pushCtxData) {
+func (da *dedupAggr) pushSamples(samples []pushSample, _ int64, isGreen bool) {
 	pss := getPerShardSamples()
 	shards := pss.shards
-	for _, sample := range data.samples {
+	for _, sample := range samples {
 		h := xxhash.Sum64(bytesutil.ToUnsafeBytes(sample.key))
 		idx := h % uint64(len(shards))
 		shards[idx] = append(shards[idx], sample)
@@ -94,7 +94,7 @@ func (da *dedupAggr) pushSamples(data *pushCtxData) {
 		if len(shardSamples) == 0 {
 			continue
 		}
-		da.shards[i].pushSamples(shardSamples, data.isGreen)
+		da.shards[i].pushSamples(shardSamples, isGreen)
 	}
 	putPerShardSamples(pss)
 }
@@ -121,13 +121,6 @@ type dedupFlushCtx struct {
 	samples        []pushSample
 	deleteDeadline int64
 	isGreen        bool
-}
-
-func (ctx *dedupFlushCtx) getPushCtxData(samples []pushSample) *pushCtxData {
-	return &pushCtxData{
-		samples:        samples,
-		deleteDeadline: ctx.deleteDeadline,
-	}
 }
 
 func (ctx *dedupFlushCtx) reset() {
@@ -285,13 +278,11 @@ func (das *dedupAggrShard) flush(ctx *dedupFlushCtx, f aggrPushFunc) {
 
 		// Limit the number of samples per each flush in order to limit memory usage.
 		if len(dstSamples) >= 10_000 {
-			data := ctx.getPushCtxData(dstSamples)
-			f(data)
+			f(dstSamples, ctx.deleteDeadline, false)
 			clear(dstSamples)
 			dstSamples = dstSamples[:0]
 		}
 	}
-	data := ctx.getPushCtxData(dstSamples)
-	f(data)
+	f(dstSamples, ctx.deleteDeadline, false)
 	ctx.samples = dstSamples
 }

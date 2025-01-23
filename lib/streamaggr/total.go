@@ -55,27 +55,26 @@ type totalAggrValue struct {
 	ignoreFirstSampleDeadline uint64
 }
 
-func (av *totalAggrValue) pushSample(ctx *pushSampleCtx) {
+func (av *totalAggrValue) pushSample(inputKey string, sample *pushSample, deleteDeadline int64) {
 	shared := av.shared
-	inputKey := ctx.inputKey
 	currentTime := fasttime.UnixTimestamp()
 	keepFirstSample := av.keepFirstSample && currentTime >= av.ignoreFirstSampleDeadline
 	lv, ok := shared.lastValues[inputKey]
 	if ok || keepFirstSample {
-		if ctx.sample.timestamp < lv.timestamp {
+		if sample.timestamp < lv.timestamp {
 			// Skip out of order sample
 			return
 		}
-		if ctx.sample.value >= lv.value {
-			av.total += ctx.sample.value - lv.value
+		if sample.value >= lv.value {
+			av.total += sample.value - lv.value
 		} else {
 			// counter reset
-			av.total += ctx.sample.value
+			av.total += sample.value
 		}
 	}
-	lv.value = ctx.sample.value
-	lv.timestamp = ctx.sample.timestamp
-	lv.deleteDeadline = ctx.deleteDeadline
+	lv.value = sample.value
+	lv.timestamp = sample.timestamp
+	lv.deleteDeadline = deleteDeadline
 
 	inputKey = bytesutil.InternString(inputKey)
 	shared.lastValues[inputKey] = lv

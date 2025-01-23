@@ -13,9 +13,9 @@ type minAggrValue struct {
 	defined bool
 }
 
-func (av *minAggrValue) pushSample(ctx *pushSampleCtx) {
-	if ctx.sample.value < av.min || !av.defined {
-		av.min = ctx.sample.value
+func (av *minAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
+	if sample.value < av.min || !av.defined {
+		av.min = sample.value
 	}
 	if !av.defined {
 		av.defined = true

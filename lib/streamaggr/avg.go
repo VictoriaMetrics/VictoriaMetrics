@@ -12,8 +12,8 @@ type avgAggrValue struct {
 	count float64
 }
 
-func (sv *avgAggrValue) pushSample(ctx *pushSampleCtx) {
-	sv.sum += ctx.sample.value
+func (sv *avgAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
+	sv.sum += sample.value
 	sv.count++
 }
 

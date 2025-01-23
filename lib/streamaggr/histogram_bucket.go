@@ -17,8 +17,8 @@ type histogramBucketAggrValue struct {
 	state metrics.Histogram
 }
 
-func (sv *histogramBucketAggrValue) pushSample(ctx *pushSampleCtx) {
-	sv.h.Update(ctx.sample.value)
+func (sv *histogramBucketAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
+	sv.h.Update(sample.value)
 }
 
 func (sv *histogramBucketAggrValue) flush(ctx *flushCtx, key string) {

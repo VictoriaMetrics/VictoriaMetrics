@@ -11,8 +11,8 @@ type sumSamplesAggrValue struct {
 	sum float64
 }
 
-func (av *sumSamplesAggrValue) pushSample(ctx *pushSampleCtx) {
-	av.sum += ctx.sample.value
+func (av *sumSamplesAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
+	av.sum += sample.value
 }
 
 func (av *sumSamplesAggrValue) flush(ctx *flushCtx, key string) {

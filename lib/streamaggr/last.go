@@ -12,10 +12,10 @@ type lastAggrValue struct {
 	timestamp int64
 }
 
-func (av *lastAggrValue) pushSample(ctx *pushSampleCtx) {
-	if ctx.sample.timestamp >= av.timestamp {
-		av.last = ctx.sample.value
-		av.timestamp = ctx.sample.timestamp
+func (av *lastAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
+	if sample.timestamp >= av.timestamp {
+		av.last = sample.value
+		av.timestamp = sample.timestamp
 	}
 }
 

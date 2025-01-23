@@ -15,9 +15,9 @@ type uniqueSamplesAggrValue struct {
 	samples map[float64]struct{}
 }
 
-func (av *uniqueSamplesAggrValue) pushSample(ctx *pushSampleCtx) {
-	if _, ok := av.samples[ctx.sample.value]; !ok {
-		av.samples[ctx.sample.value] = struct{}{}
+func (av *uniqueSamplesAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
+	if _, ok := av.samples[sample.value]; !ok {
+		av.samples[sample.value] = struct{}{}
 	}
 }
 

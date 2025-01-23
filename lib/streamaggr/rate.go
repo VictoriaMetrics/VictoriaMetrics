@@ -49,27 +49,26 @@ type rateAggrValue struct {
 	isAvg  bool
 }
 
-func (av *rateAggrValue) pushSample(ctx *pushSampleCtx) {
-	sv := av.state[ctx.inputKey]
-	inputKey := ctx.inputKey
-	lv, ok := av.shared.lastValues[ctx.inputKey]
+func (av *rateAggrValue) pushSample(inputKey string, sample *pushSample, deleteDeadline int64) {
+	sv := av.state[inputKey]
+	lv, ok := av.shared.lastValues[inputKey]
 	if ok {
-		if ctx.sample.timestamp < sv.timestamp {
+		if sample.timestamp < sv.timestamp {
 			// Skip out of order sample
 			return
 		}
-		if ctx.sample.value >= lv.value {
-			sv.increase += ctx.sample.value - lv.value
+		if sample.value >= lv.value {
+			sv.increase += sample.value - lv.value
 		} else {
 			// counter reset
-			sv.increase += ctx.sample.value
+			sv.increase += sample.value
 		}
 	} else {
-		lv.prevTimestamp = ctx.sample.timestamp
+		lv.prevTimestamp = sample.timestamp
 	}
-	lv.value = ctx.sample.value
-	lv.deleteDeadline = ctx.deleteDeadline
-	sv.timestamp = ctx.sample.timestamp
+	lv.value = sample.value
+	lv.deleteDeadline = deleteDeadline
+	sv.timestamp = sample.timestamp
 	inputKey = bytesutil.InternString(inputKey)
 	av.state[inputKey] = sv
 	av.shared.lastValues[inputKey] = lv

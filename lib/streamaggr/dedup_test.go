@@ -13,16 +13,14 @@ func TestDedupAggrSerial(t *testing.T) {
 
 	const seriesCount = 100_000
 	expectedSamplesMap := make(map[string]pushSample)
-	data := &pushCtxData{
-		samples: make([]pushSample, seriesCount),
-	}
-	for j := range data.samples {
-		sample := &data.samples[j]
+	samples := make([]pushSample, seriesCount)
+	for j := range samples {
+		sample := &samples[j]
 		sample.key = fmt.Sprintf("key_%d", j)
 		sample.value = float64(j)
 		expectedSamplesMap[sample.key] = *sample
 	}
-	da.pushSamples(data)
+	da.pushSamples(samples, 0, false)
 
 	if n := da.sizeBytes(); n > 5_000_000 {
 		t.Fatalf("too big dedupAggr state before flush: %d bytes; it shouldn't exceed 5_000_000 bytes", n)
@@ -33,9 +31,9 @@ func TestDedupAggrSerial(t *testing.T) {
 
 	flushedSamplesMap := make(map[string]pushSample)
 	var mu sync.Mutex
-	flushSamples := func(ctx *pushCtxData) {
+	flushSamples := func(samples []pushSample, _ int64, _ bool) {
 		mu.Lock()
-		for _, sample := range ctx.samples {
+		for _, sample := range samples {
 			flushedSamplesMap[sample.key] = sample
 		}
 		mu.Unlock()
@@ -67,15 +65,13 @@ func TestDedupAggrConcurrent(_ *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < 10; i++ {
-				data := &pushCtxData{
-					samples: make([]pushSample, seriesCount),
-				}
-				for j := range data.samples {
-					sample := &data.samples[j]
+				samples := make([]pushSample, seriesCount)
+				for j := range samples {
+					sample := &samples[j]
 					sample.key = fmt.Sprintf("key_%d", j)
 					sample.value = float64(i + j)
 				}
-				da.pushSamples(data)
+				da.pushSamples(samples, 0, false)
 			}
 		}()
 	}

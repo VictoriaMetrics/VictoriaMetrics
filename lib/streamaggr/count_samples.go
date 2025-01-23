@@ -11,7 +11,7 @@ type countSamplesAggrValue struct {
 	count uint64
 }
 
-func (av *countSamplesAggrValue) pushSample(_ *pushSampleCtx) {
+func (av *countSamplesAggrValue) pushSample(_ string, _ *pushSample, _ int64) {
 	av.count++
 }
 
