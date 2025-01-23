@@ -845,7 +845,7 @@ perReplica: false
   type: prometheus
 - isDefault: false
   name: VictoriaMetrics (DS)
-  type: victoriametrics-datasource
+  type: victoriametrics-metrics-datasource
 </code>
 </pre>
 </td>
@@ -1326,7 +1326,18 @@ vmsingle:
 </td>
     </tr>
     <tr>
-      <td>externalVM</td>
+      <td>external.grafana</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">host: grafana.external.host
+</code>
+</pre>
+</td>
+      <td><p>External Grafana host</p>
+</td>
+    </tr>
+    <tr>
+      <td>external.vm</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">read:
@@ -2475,7 +2486,7 @@ unauthorizedUserAccessSpec:
 </code>
 </pre>
 </td>
-      <td><p>Full spec for VMAuth CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmauthspec" target="_blank">here</a> It&rsquo;s possible to use given below predefined variables in spec: * <code>{{ .vm.read }}</code> - parsed vmselect, vmsingle or externalVM.read URL * <code>{{ .vm.write }}</code> - parsed vminsert, vmsingle or externalVM.write URL</p>
+      <td><p>Full spec for VMAuth CRD. Allowed values described <a href="https://docs.victoriametrics.com/operator/api#vmauthspec" target="_blank">here</a> It&rsquo;s possible to use given below predefined variables in spec: * <code>{{ .vm.read }}</code> - parsed vmselect, vmsingle or external.vm.read URL * <code>{{ .vm.write }}</code> - parsed vminsert, vmsingle or external.vm.write URL</p>
 </td>
     </tr>
     <tr>

@@ -1,6 +1,9 @@
 ## Next release
 
-- TODO
+**Update note**: This release contains breaking change. `.Values.externalVM` was renamed to `.Values.external.vm`
+
+- add `.Values.external.grafana.host` to configure grafana host for alerts, when `.Values.grafana.enabled: false`
+- rename `.Values.externalVM` to `.Values.external.vm` for consistency
 
 ## 0.34.0
 
