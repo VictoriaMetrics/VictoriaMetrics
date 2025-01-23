@@ -1379,6 +1379,11 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`* | join on (x, y) (foo:bar)`, `* | join by (x, y) (foo:bar)`)
 	f(`* | join (x, y) (foo:bar)`, `* | join by (x, y) (foo:bar)`)
 
+	// hash pipe
+	f(`* | hash(x)`, `* | hash(x)`)
+	f(`* | hash(x) y`, `* | hash(x) as y`)
+	f(`* | hash(x) as y`, `* | hash(x) as y`)
+
 	// multiple different pipes
 	f(`* | fields foo, bar | limit 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | limit 100 | stats by (foo, bar) count(baz) as qwert`)
 	f(`* | skip 100 | head 20 | skip 10`, `* | offset 100 | limit 20 | offset 10`)
@@ -2272,6 +2277,8 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | unroll (a, b) | count() r1`, `a,b`, ``)
 	f(`* | unroll if (q:w p:a) (a, b) | count() r1`, `a,b,p,q`, ``)
 	f(`* | join on (a, b) (xxx) | count() r1`, `a,b`, ``)
+	f(`* | len(a) as b | count() r1`, ``, ``)
+	f(`* | hash(a) as b | count() r1`, ``, ``)
 }
 
 func TestQueryClone(t *testing.T) {
@@ -2351,6 +2358,7 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | field_values x", false)
 	f("* | top 5 by (x)", false)
 	f("* | join by (x) (foo)", false)
+	f("* | hash(a)", true)
 
 }
 
@@ -2405,6 +2413,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | unpack_syslog", true)
 	f("* | unroll by (a)", true)
 	f("* | join by (a) (b)", true)
+	f("* | hash(a)", true)
 }
 
 func TestQueryDropAllPipes(t *testing.T) {
@@ -2612,6 +2621,8 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | unpack_syslog`)
 	f(`foo | count() | unroll by (x)`)
 	f(`foo | count() | join by (x) (y)`)
+	f(`foo | count() | len(a)`)
+	f(`foo | count() | hash(a)`)
 
 	// drop by(...) field
 	f(`* | by (x) count() as rows | math rows * 10, rows / 10 | drop x`)
