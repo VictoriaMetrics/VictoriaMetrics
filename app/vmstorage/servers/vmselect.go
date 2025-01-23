@@ -90,9 +90,10 @@ func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQu
 func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
-	// respect maxMetrics if it's already set
 	if maxMetrics <= 0 {
-		maxMetrics = getMaxMetrics(sq.MaxMetrics)
+		// fallback to maxUniqueTimeSeries if no limit is provided,
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
+		maxMetrics = GetMaxUniqueTimeSeries()
 	}
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
@@ -107,9 +108,10 @@ func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.S
 func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
-	// respect maxMetrics if it's already set
 	if maxMetrics <= 0 {
-		maxMetrics = getMaxMetrics(sq.MaxMetrics)
+		// fallback to maxUniqueTimeSeries if no limit is provided,
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
+		maxMetrics = GetMaxUniqueTimeSeries()
 	}
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
@@ -134,9 +136,10 @@ func (api *vmstorageAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, pro
 func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames int, deadline uint64) ([]string, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
-	// respect maxMetrics if it's already set
 	if maxMetrics <= 0 {
-		maxMetrics = getMaxMetrics(sq.MaxMetrics)
+		// fallback to maxUniqueTimeSeries if no limit is provided,
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
+		maxMetrics = GetMaxUniqueTimeSeries()
 	}
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
@@ -156,9 +159,10 @@ func (api *vmstorageAPI) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, d
 func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
-	// respect maxMetrics if it's already set
 	if maxMetrics <= 0 {
-		maxMetrics = getMaxMetrics(sq.MaxMetrics)
+		// fallback to maxUniqueTimeSeries if no limit is provided,
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
+		maxMetrics = GetMaxUniqueTimeSeries()
 	}
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
@@ -171,9 +175,10 @@ func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQu
 func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := sq.MaxMetrics
-	// respect maxMetrics if it's already set
 	if maxMetrics <= 0 {
-		maxMetrics = getMaxMetrics(sq.MaxMetrics)
+		// fallback to maxUniqueTimeSeries if no limit is provided,
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7857
+		maxMetrics = GetMaxUniqueTimeSeries()
 	}
 	tfss, err := api.setupTfss(qt, sq, tr, maxMetrics, deadline)
 	if err != nil {
