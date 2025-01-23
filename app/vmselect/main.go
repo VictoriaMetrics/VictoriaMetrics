@@ -29,7 +29,9 @@ import (
 )
 
 var (
-	deleteAuthKey         = flagutil.NewPassword("deleteAuthKey", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries. It could be passed via authKey query arg. It overrides -httpAuth.*")
+	deleteAuthKey                = flagutil.NewPassword("deleteAuthKey", "authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries. It could be passed via authKey query arg. It overrides -httpAuth.*")
+	metricNamesUsageResetAuthKey = flagutil.NewPassword("resetMetricsUsageAuthKey", "authKey for reseting metric names usage cache via /api/v1/admin/tsdb/reset_metric_names_usage. It overrides -httpAuth.*")
+
 	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
 		"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
@@ -178,7 +180,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promql.ResetRollupResultCache()
 		return true
 	}
-
 	if strings.HasPrefix(path, "/api/v1/label/") {
 		s := path[len("/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {
@@ -394,6 +395,26 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		deleteRequests.Inc()
 		if err := prometheus.DeleteHandler(startTime, r); err != nil {
 			deleteErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	case "/api/v1/status/metric_names_usage_stats":
+		metricNamesUsageRequests.Inc()
+		if err := prometheus.MetricNamesUsageStatsHandler(qt, w, r); err != nil {
+			metricNamesUsageErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
+	case "/api/v1/admin/tsdb/reset_metric_names_usage":
+		metricNamesUsageResetRequests.Inc()
+		if !httpserver.CheckAuthFlag(w, r, metricNamesUsageResetAuthKey) {
+			return true
+		}
+		if err := prometheus.ResetMetricNamesUsageStatsHandler(qt); err != nil {
+			metricNamesUsageResetErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
@@ -674,6 +695,12 @@ var (
 	metadataRequests       = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/metadata"}`)
 	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/buildinfo"}`)
 	queryExemplarsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/query_exemplars"}`)
+
+	metricNamesUsageRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/status/metric_names_usage_stats"}`)
+	metricNamesUsageErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/status/metric_names_usage_stats"}`)
+
+	metricNamesUsageResetRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/admin/tsdb/reset_metric_names_usage"}`)
+	metricNamesUsageResetErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/admin/tsdb/reset_metric_names_usage"}`)
 )
 
 func proxyVMAlertRequests(w http.ResponseWriter, r *http.Request) {

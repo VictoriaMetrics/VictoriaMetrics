@@ -1289,3 +1289,43 @@ func calculateMaxUniqueTimeSeriesForResource(maxConcurrentRequests, remainingMem
 func GetMaxUniqueTimeSeries() int {
 	return maxUniqueTimeseriesValue
 }
+
+// MetricNamesUsageStatsHandler returns timeseries metric names usage stats
+func MetricNamesUsageStatsHandler(qt *querytracer.Tracer, w http.ResponseWriter, r *http.Request) error {
+	limit := 1000
+	limitStr := r.FormValue("limit")
+	if len(limitStr) > 0 {
+		n, err := strconv.Atoi(limitStr)
+		if err != nil {
+			return fmt.Errorf("cannot parse `limit` arg %q: %w", limitStr, err)
+		}
+		if n <= 0 {
+			n = 1000
+		}
+		limit = n
+	}
+	// by default display all values
+	lte := -1
+	lteStr := r.FormValue("lte")
+	if len(lteStr) > 0 {
+		n, err := strconv.Atoi(lteStr)
+		if err != nil {
+			return fmt.Errorf("cannot parse `lte` arg %q: %w", lteStr, err)
+		}
+		lte = n
+	}
+	stats, err := netstorage.GetMetricNamesUsageStats(qt, limit, uint64(lte))
+	if err != nil {
+		return err
+	}
+	WriteMetricNamesUsageStatsResponse(w, &stats, qt)
+	return nil
+}
+
+// ResetMetricNamesUsageStatsHandler resets metric names usage state
+func ResetMetricNamesUsageStatsHandler(qt *querytracer.Tracer) error {
+	if err := netstorage.ResetMetricNamesUsageStats(qt); err != nil {
+		return err
+	}
+	return nil
+}
