@@ -10,7 +10,7 @@ import (
 func TestLexer(t *testing.T) {
 	f := func(s string, tokensExpected []string) {
 		t.Helper()
-		lex := newLexer(s)
+		lex := newLexer(s, 0)
 		for _, tokenExpected := range tokensExpected {
 			if lex.token != tokenExpected {
 				t.Fatalf("unexpected token; got %q; want %q", lex.token, tokenExpected)
