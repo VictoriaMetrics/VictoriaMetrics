@@ -71,6 +71,9 @@ var (
 		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
 		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
+
+	trackMetricNamesUsage = flag.Bool("storage.trackMetricNamesUsage", false, "Whether to track ingest and query requests for timeseries metric names. "+
+		"This feature allows to track metric names unused at query requests. ")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -104,6 +107,7 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 	mergeset.SetDataBlocksSparseCacheSize(cacheSizeIndexDBDataBlocksSparse.IntN())
 
+	storage.SetTrackMetricNamesStats(*trackMetricNamesUsage)
 	if retentionPeriod.Duration() < 24*time.Hour {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
 	}
@@ -179,6 +183,21 @@ func DeleteSeries(qt *querytracer.Tracer, tfss []*storage.TagFilters, maxMetrics
 	n, err := Storage.DeleteSeries(qt, tfss, maxMetrics)
 	WG.Done()
 	return n, err
+}
+
+// GetMetricNamesUsageStats returns metric names usage stats with give limit and lte predicate
+func GetMetricNamesUsageStats(qt *querytracer.Tracer, limit, lte int, matchPattern string) (storage.MetricNamesUsageStatsResponse, error) {
+	WG.Add(1)
+	r, err := Storage.GetMetricNamesUsageStats(qt, limit, lte, matchPattern)
+	WG.Done()
+	return r, err
+}
+
+// ResetMetricNamesUsageStats resets state for metric names usage tracker
+func ResetMetricNamesUsageStats(qt *querytracer.Tracer) {
+	WG.Add(1)
+	Storage.ResetMetricNamesUsageStats(qt)
+	WG.Done()
 }
 
 // SearchMetricNames returns metric names for the given tfss on the given tr.
@@ -645,6 +664,12 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteCounterUint64(w, `vm_cache_collisions_total{type="storage/metricName"}`, m.MetricNameCacheCollisions)
 
 	metrics.WriteGaugeUint64(w, `vm_next_retention_seconds`, m.NextRetentionSeconds)
+
+	if *trackMetricNamesUsage {
+		metrics.WriteCounterUint64(w, `vm_cache_size_bytes{type="storage/metricNamesUsageTracker"}`, m.MetricNamesUsageTrackerSizeBytes)
+		metrics.WriteCounterUint64(w, `vm_cache_size{type="storage/metricNamesUsageTracker"}`, m.MetricNamesUsageTrackerSize)
+		metrics.WriteCounterUint64(w, `vm_cache_size_max_bytes{type="storage/metricNamesUsageTracker"}`, m.MetricNamesUsageTrackerSizeMaxBytes)
+	}
 
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled`, tm.ScheduledDownsamplingPartitions)
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled_size_bytes`, tm.ScheduledDownsamplingPartitionsSize)

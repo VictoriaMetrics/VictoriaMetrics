@@ -26,6 +26,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot/snapshotutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
@@ -37,6 +38,14 @@ const (
 	retention31Days = 31 * 24 * time.Hour
 	retentionMax    = 100 * 12 * retention31Days
 )
+
+// TODO: should it be a part of MustOpenStorage arg?
+var trackMetricNamesStat = false
+
+// SetTrackMetricNamesStats configures metric names stats tracking
+func SetTrackMetricNamesStats(v bool) {
+	trackMetricNamesStat = v
+}
 
 // Storage represents TSDB storage.
 type Storage struct {
@@ -163,6 +172,9 @@ type Storage struct {
 
 	// isReadOnly is set to true when the storage is in read-only mode.
 	isReadOnly atomic.Bool
+
+	trackMetricNamesStats bool
+	metricsTracker        *metricnamestats.Tracker
 }
 
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
@@ -233,6 +245,18 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	s.pendingNextDayMetricIDs = &uint64set.Set{}
 
 	s.prefetchedMetricIDs = &uint64set.Set{}
+	s.trackMetricNamesStats = trackMetricNamesStat
+	if s.trackMetricNamesStats {
+		mnt := metricnamestats.MustLoadFrom(filepath.Join(s.cachePath, "metric_names_usage_tracker"), uint64(mem/100))
+		s.metricsTracker = mnt
+		if mnt.IsEmpty() {
+			// metric names tracker adds metric names at ingest only if it's missing at tsid cache
+			// so we have to either reset cache manually or perform automic reset if tracked
+			// TODO: should we prefer manual reset only?
+			logger.Infof("reseting tsidCache in order to track metric names stats usage")
+			s.tsidCache.Reset()
+		}
+	}
 
 	// Load metadata
 	metadataDir := filepath.Join(path, metadataDirname)
@@ -548,6 +572,10 @@ type Metrics struct {
 
 	NextRetentionSeconds uint64
 
+	MetricNamesUsageTrackerSize         uint64
+	MetricNamesUsageTrackerSizeBytes    uint64
+	MetricNamesUsageTrackerSizeMaxBytes uint64
+
 	IndexDBMetrics IndexDBMetrics
 	TableMetrics   TableMetrics
 }
@@ -641,6 +669,14 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.PrefetchedMetricIDsSize += uint64(prefetchedMetricIDs.Len())
 	m.PrefetchedMetricIDsSizeBytes += uint64(prefetchedMetricIDs.SizeBytes())
 	s.prefetchedMetricIDsLock.Unlock()
+
+	if s.trackMetricNamesStats {
+		var tm metricnamestats.TrackerMetrics
+		s.metricsTracker.UpdateMetrics(&tm)
+		m.MetricNamesUsageTrackerSizeBytes = tm.CurrentSizeBytes
+		m.MetricNamesUsageTrackerSize = tm.CurrentItemsCount
+		m.MetricNamesUsageTrackerSizeMaxBytes = tm.MaxSizeBytes
+	}
 
 	d := s.nextRetentionSeconds()
 	if d < 0 {
@@ -891,6 +927,9 @@ func (s *Storage) MustClose() {
 	nextDayMetricIDs := s.nextDayMetricIDs.Load()
 	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
 
+	if s.trackMetricNamesStats {
+		s.metricsTracker.MustClose()
+	}
 	// Release lock file.
 	fs.MustClose(s.flockF)
 	s.flockF = nil
@@ -1281,6 +1320,27 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	// after filtering out deleted metricIDs.
 
 	return deletedCount, nil
+}
+
+// MetricNamesUsageStatsResponse contains metric names usage stats API response
+type MetricNamesUsageStatsResponse = metricnamestats.StatsResult
+
+// GetMetricNamesUsageStats returns metric names usage stats with give limit and lte predicate
+func (s *Storage) GetMetricNamesUsageStats(_ *querytracer.Tracer, limit, lte int, matchPattern string) (MetricNamesUsageStatsResponse, error) {
+	// TODO: @f41gh7 return error if tracker is disabled ?
+	if !s.trackMetricNamesStats {
+		return MetricNamesUsageStatsResponse{}, nil
+	}
+	return s.metricsTracker.GetStats(limit, lte, matchPattern), nil
+}
+
+// ResetMetricNamesUsageStats resets state for metric names usage tracker
+func (s *Storage) ResetMetricNamesUsageStats(_ *querytracer.Tracer) {
+	if !s.trackMetricNamesStats {
+		return
+	}
+	s.metricsTracker.Reset()
+	s.tsidCache.Reset()
 }
 
 // SearchLabelNamesWithFiltersOnTimeRange searches for label names matching the given tfss on tr.
@@ -1927,6 +1987,9 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		}
 		mn.sortTags()
 		metricNameBuf = mn.Marshal(metricNameBuf[:0])
+		if s.trackMetricNamesStats {
+			s.metricsTracker.RegisterIngestRequest(mn.MetricGroup)
+		}
 
 		// Search for TSID for the given mr.MetricNameRaw in the indexdb.
 		if is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
@@ -1987,6 +2050,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			firstWarn = fmt.Errorf("cannot prefill next indexdb: %w", err)
 		}
 	}
+
 	if err := s.updatePerDateData(rows, dstMrs); err != nil {
 		if firstWarn == nil {
 			firstWarn = fmt.Errorf("cannot not update per-day index: %w", err)

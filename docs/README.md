@@ -461,6 +461,39 @@ vmselect requests stats via [/api/v1/status/tsdb](#tsdb-stats) API from each vms
 This may lead to inflated values when samples for the same time series are spread across multiple vmstorage nodes
 due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=re-routes#cluster-availability).
 
+### Track ingested metrics usage
+
+`VictoriaMetrics` provides an ability to explore time series metric names used at Query Requests. And exposes an API endpoint - `/api/v1/status/metric_names_usage_stats`.
+This endpoints requires flag `--storage.trackMetricNamesUsage` to be set. It accepts the following query parameters:
+
+* `limit` - limits an output records count.
+* `lte` - less than equal number for query requests count. By default, it's empty and returns all records. But it could be set to `0` and return only metrics without registered query requests.
+* `pattern` - a substring pattern to match metric names.
+
+ The API endpoint returns the following `JSON` response:
+
+```json
+{
+  "status": "success",
+  "stats_collected_since": 1737534094,
+  "stats_collected_records_total": 2,
+  "records": [
+    {
+      "metric_name": "node_disk_writes_completed_total",
+      "query_requests": 0,
+      "last_request_timestamp": 1737534262
+    },
+    {
+      "metric_name": "node_network_transmit_errs_total",
+      "query_requests": 100,
+      "last_request_timestamp": 1737534262
+    }
+  ]
+}
+```
+
+ `VictoriaMetrics` stores tracked metric names in-memory and saves state `on-disk` at `data/cache` folder. State could be reset via API call `/api/v1/admin/tsdb/reset_metric_names_usage` or by manually per storage with [cache removal](#Cacheremoval).
+
 ## How to apply new config to VictoriaMetrics
 
 VictoriaMetrics is configured via command-line flags, so it must be restarted when new command-line flags should be applied:
@@ -3169,6 +3202,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -reloadAuthKey value
      Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
+  -resetMetricsUsageAuthKey value
+        authKey for reseting metric names usage cache via /api/v1/admin/tsdb/reset_metric_names_usage. It overrides -httpAuth.*
+        Flag value can be read from the given file when using -resetMetricsUsageAuthKey=file:///abs/path/to/file or -resetMetricsUsageAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https
+ url when using -resetMetricsUsageAuthKey=http://host/path or -resetMetricsUsageAuthKey=https://host/path
   -retentionFilter array
      Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
@@ -3331,6 +3368,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -storage.minFreeDiskSpaceBytes size
      The minimum free disk space at -storageDataPath after which the storage stops accepting new data
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)
+  -storage.trackMetricNamesUsage
+        Whether to track ingest and query requests for timeseries metric names. This feature allows to track metric names unused at query requests.
   -storageDataPath string
      Path to storage data (default "victoria-metrics-data")
   -streamAggr.config string
