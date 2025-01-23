@@ -38,20 +38,43 @@ type lexer struct {
 
 	// currentTimestamp is the current timestamp in nanoseconds
 	currentTimestamp int64
+
+	// opts is a stack of options for nested parsed queries
+	optss []*queryOptions
 }
 
 type lexerState struct {
 	lex lexer
 }
 
+func (lex *lexer) copyFrom(src *lexer) {
+	*lex = *src
+	lex.optss = append(lex.optss[:0:0], src.optss...)
+}
+
 func (lex *lexer) backupState() *lexerState {
-	return &lexerState{
-		lex: *lex,
-	}
+	var ls lexerState
+	ls.lex.copyFrom(lex)
+	return &ls
 }
 
 func (lex *lexer) restoreState(ls *lexerState) {
-	*lex = ls.lex
+	lex.copyFrom(&ls.lex)
+}
+
+func (lex *lexer) pushQueryOptions(opts *queryOptions) {
+	lex.optss = append(lex.optss, opts)
+}
+
+func (lex *lexer) popQueryOptions() {
+	lex.optss = lex.optss[:len(lex.optss)-1]
+}
+
+func (lex *lexer) getQueryOptions() *queryOptions {
+	if len(lex.optss) == 0 {
+		return nil
+	}
+	return lex.optss[len(lex.optss)-1]
 }
 
 // newLexer returns new lexer for the given s at the given timestamp.
@@ -1088,6 +1111,9 @@ func parseQuery(lex *lexer) (*Query, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
 	}
+	lex.pushQueryOptions(opts)
+	defer lex.popQueryOptions()
+
 	f, err := parseFilter(lex)
 	if err != nil {
 		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
@@ -1143,8 +1169,14 @@ func ParseFilter(s string) (*Filter, error) {
 }
 
 func parseQueryOptions(lex *lexer) (*queryOptions, error) {
+	var opts queryOptions
+	defaultOpts := lex.getQueryOptions()
+	if defaultOpts != nil {
+		opts = *defaultOpts
+	}
+
 	if !lex.isKeyword("options") {
-		return nil, nil
+		return &opts, nil
 	}
 	lex.nextToken()
 
@@ -1153,7 +1185,6 @@ func parseQueryOptions(lex *lexer) (*queryOptions, error) {
 	}
 	lex.nextToken()
 
-	var opts queryOptions
 	for {
 		if lex.isKeyword(")") {
 			lex.nextToken()
