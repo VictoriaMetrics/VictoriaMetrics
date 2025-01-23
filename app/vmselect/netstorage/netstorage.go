@@ -824,11 +824,7 @@ func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadli
 	// Push mrs to storage nodes in parallel.
 	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, workerID uint, sn *storageNode, cancelled *atomic.Bool) any {
 		sn.registerMetricNamesRequests.Inc()
-		var err error
-		if cancelled.Load() {
-			return &err
-		}
-		err = sn.registerMetricNames(qt, mrsPerNode[workerID], deadline)
+		err := sn.registerMetricNames(qt, mrsPerNode[workerID], deadline)
 		if err != nil {
 			sn.registerMetricNamesErrors.Inc()
 		}
@@ -1120,12 +1116,6 @@ func Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.
 	// Deny partial responses when obtaining the list of tenants, since partial tenants have little sense.
 	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode, cancelled *atomic.Bool) any {
 		sn.tenantsRequests.Inc()
-		if cancelled.Load() {
-			return &nodeResult{
-				tenants: []string{},
-				err:     nil,
-			}
-		}
 		tenants, err := sn.getTenants(qt, tr, deadline)
 		if err != nil {
 			sn.tenantsErrors.Inc()
@@ -1207,12 +1197,6 @@ func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyP
 	sns := getStorageNodes()
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode, cancelled *atomic.Bool) any {
 		sn.tagValueSuffixesRequests.Inc()
-		if cancelled.Load() {
-			return &nodeResult{
-				suffixes: nil,
-				err:      nil,
-			}
-		}
 		suffixes, err := sn.getTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 		if err != nil {
 			sn.tagValueSuffixesErrors.Inc()
@@ -1389,14 +1373,8 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 		err error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode, cancelled *atomic.Bool) any {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, _ uint, sn *storageNode, _ *atomic.Bool) any {
 		sn.seriesCountRequests.Inc()
-		if cancelled.Load() {
-			return &nodeResult{
-				n:   0,
-				err: nil,
-			}
-		}
 		n, err := sn.getSeriesCount(qt, accountID, projectID, deadline)
 		if err != nil {
 			sn.seriesCountErrors.Inc()
