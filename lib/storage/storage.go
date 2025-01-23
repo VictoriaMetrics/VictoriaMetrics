@@ -267,12 +267,8 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 
 	// Load deleted metricIDs from legacy previous and current IndexDBs.
 	s.legacyDeletedMetricIDs = &uint64set.Set{}
-	if idbPrev != nil {
-		s.legacyDeletedMetricIDs.Union(idbPrev.getDeletedMetricIDs())
-	}
-	if idbCurr != nil {
-		s.legacyDeletedMetricIDs.Union(idbCurr.getDeletedMetricIDs())
-	}
+	s.legacyDeletedMetricIDs.Union(idbPrev.getDeletedMetricIDs())
+	s.legacyDeletedMetricIDs.Union(idbCurr.getDeletedMetricIDs())
 
 	// check for free disk space before opening the table
 	// to prevent unexpected part merges. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4023

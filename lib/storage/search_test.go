@@ -171,7 +171,9 @@ func TestSearch_VariousTimeRanges(t *testing.T) {
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
-		testSearchInternal(s, tr, mrs)
+		if err := testSearchInternal(s, tr, mrs); err != nil {
+			t.Fatalf("search test failed: %v", err)
+		}
 	}
 
 	testStorageOpOnVariousTimeRanges(t, f)

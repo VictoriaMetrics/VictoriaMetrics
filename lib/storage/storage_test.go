@@ -1665,7 +1665,7 @@ func testCountAllMetricNamesNoExtDB(is *indexSearch, tr TimeRange) int {
 func testListDirEntries(t *testing.T, root string, ignorePrefix ...string) []string {
 	t.Helper()
 	var paths []string
-	f := func(path string, d fs.DirEntry, err error) error {
+	f := func(path string, _ fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
