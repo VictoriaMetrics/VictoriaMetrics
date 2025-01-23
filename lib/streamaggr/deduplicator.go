@@ -152,16 +152,11 @@ func (d *Deduplicator) Push(tss []prompbmarshal.TimeSeries) {
 		d.flushAfter.Load().Update(float64(maxLagMsec))
 	}
 
-	data := &pushCtxData{}
 	if ctx.blue != nil {
-		data.samples = ctx.blue
-		data.isGreen = false
-		d.da.pushSamples(data)
+		d.da.pushSamples(ctx.blue, 0, false)
 	}
 	if ctx.green != nil {
-		data.samples = ctx.green
-		data.isGreen = true
-		d.da.pushSamples(data)
+		d.da.pushSamples(ctx.green, 0, true)
 	}
 
 	ctx.buf = buf
@@ -202,32 +197,32 @@ func (d *Deduplicator) flush(pushFunc PushFunc) {
 	current := d.current.Load()
 	deadlineTime := time.UnixMilli(current.deadline)
 	d.minDeadline.Store(current.deadline)
-	d.da.flush(func(data *pushCtxData) {
+	d.da.flush(func(samples []pushSample, _ int64, _ bool) {
 		ctx := getDeduplicatorFlushCtx()
 
 		tss := ctx.tss
 		labels := ctx.labels
-		samples := ctx.samples
-		for _, ps := range data.samples {
+		dstSamples := ctx.samples
+		for _, ps := range samples {
 			labelsLen := len(labels)
 			labels = decompressLabels(labels, ps.key)
 
-			samplesLen := len(samples)
-			samples = append(samples, prompbmarshal.Sample{
+			dstSamplesLen := len(dstSamples)
+			dstSamples = append(dstSamples, prompbmarshal.Sample{
 				Value:     ps.value,
 				Timestamp: ps.timestamp,
 			})
 
 			tss = append(tss, prompbmarshal.TimeSeries{
 				Labels:  labels[labelsLen:],
-				Samples: samples[samplesLen:],
+				Samples: dstSamples[dstSamplesLen:],
 			})
 		}
 		pushFunc(tss)
 
 		ctx.tss = tss
 		ctx.labels = labels
-		ctx.samples = samples
+		ctx.samples = dstSamples
 		putDeduplicatorFlushCtx(ctx)
 	}, current.deadline, current.isGreen)
 

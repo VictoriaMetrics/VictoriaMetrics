@@ -6,12 +6,6 @@ import (
 	"sync"
 )
 
-type pushSampleCtx struct {
-	deleteDeadline int64
-	sample         *pushSample
-	inputKey       string
-}
-
 type aggrValuesFn func(*aggrValues, bool)
 
 type aggrOutputs struct {
@@ -21,27 +15,12 @@ type aggrOutputs struct {
 	outputSamples *metrics.Counter
 }
 
-func getPushSampleCtx() *pushSampleCtx {
-	v := pushSampleCtxPool.Get()
-	if v == nil {
-		return &pushSampleCtx{}
-	}
-	return v.(*pushSampleCtx)
-}
-
-func putPushSampleCtx(ctx *pushSampleCtx) {
-	pushSampleCtxPool.Put(ctx)
-}
-
-var pushSampleCtxPool sync.Pool
-
-func (ao *aggrOutputs) pushSamples(data *pushCtxData) {
-	ctx := getPushSampleCtx()
-	ctx.deleteDeadline = data.deleteDeadline
-	var outputKey string
-	for i := range data.samples {
-		ctx.sample = &data.samples[i]
-		ctx.inputKey, outputKey = getInputOutputKey(ctx.sample.key)
+func (ao *aggrOutputs) pushSamples(samples []pushSample, deleteDeadline int64, isGreen bool) {
+	var inputKey, outputKey string
+	var sample *pushSample
+	for i := range samples {
+		sample = &samples[i]
+		inputKey, outputKey = getInputOutputKey(sample.key)
 
 	again:
 		v, ok := ao.m.Load(outputKey)
@@ -68,16 +47,16 @@ func (ao *aggrOutputs) pushSamples(data *pushCtxData) {
 		av.mu.Lock()
 		deleted := av.deleted
 		if !deleted {
-			if data.isGreen {
+			if isGreen {
 				for _, sv := range av.green {
-					sv.pushSample(ctx)
+					sv.pushSample(inputKey, sample, deleteDeadline)
 				}
 			} else {
 				for _, sv := range av.blue {
-					sv.pushSample(ctx)
+					sv.pushSample(inputKey, sample, deleteDeadline)
 				}
 			}
-			av.deleteDeadline = data.deleteDeadline
+			av.deleteDeadline = deleteDeadline
 		}
 		av.mu.Unlock()
 		if deleted {
@@ -86,7 +65,6 @@ func (ao *aggrOutputs) pushSamples(data *pushCtxData) {
 			goto again
 		}
 	}
-	putPushSampleCtx(ctx)
 }
 
 func (ao *aggrOutputs) flushState(ctx *flushCtx) {
@@ -129,6 +107,6 @@ type aggrValues struct {
 }
 
 type aggrValue interface {
-	pushSample(*pushSampleCtx)
+	pushSample(string, *pushSample, int64)
 	flush(*flushCtx, string)
 }

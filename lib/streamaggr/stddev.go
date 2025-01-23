@@ -18,10 +18,10 @@ type stddevAggrValue struct {
 	q     float64
 }
 
-func (av *stddevAggrValue) pushSample(ctx *pushSampleCtx) {
+func (av *stddevAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
 	av.count++
-	avg := av.avg + (ctx.sample.value-av.avg)/av.count
-	av.q += (ctx.sample.value - av.avg) * (ctx.sample.value - avg)
+	avg := av.avg + (sample.value-av.avg)/av.count
+	av.q += (sample.value - av.avg) * (sample.value - avg)
 	av.avg = avg
 }
 

@@ -12,9 +12,9 @@ type maxAggrValue struct {
 	defined bool
 }
 
-func (av *maxAggrValue) pushSample(ctx *pushSampleCtx) {
-	if ctx.sample.value > av.max || !av.defined {
-		av.max = ctx.sample.value
+func (av *maxAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
+	if sample.value > av.max || !av.defined {
+		av.max = sample.value
 	}
 	if !av.defined {
 		av.defined = true

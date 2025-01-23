@@ -441,7 +441,7 @@ type aggregator struct {
 // PushFunc is called by Aggregators when it needs to push its state to metrics storage
 type PushFunc func(tss []prompbmarshal.TimeSeries)
 
-type aggrPushFunc func(data *pushCtxData)
+type aggrPushFunc func([]pushSample, int64, bool)
 
 // newAggregator creates new aggregator for the given cfg, which pushes the aggregate data to pushFunc.
 //
@@ -1028,14 +1028,12 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 
 	if len(ctx.blue) > 0 {
 		a.matchedSamples.Add(len(ctx.blue))
-		data := ctx.getPushCtxData(ctx.blue, nowMsec, deleteDeadlineMsec, false)
-		pushSamples(data)
+		pushSamples(ctx.blue, deleteDeadlineMsec, false)
 	}
 
 	if len(ctx.green) > 0 {
 		a.matchedSamples.Add(len(ctx.green))
-		data := ctx.getPushCtxData(ctx.green, nowMsec, deleteDeadlineMsec, true)
-		pushSamples(data)
+		pushSamples(ctx.green, deleteDeadlineMsec, true)
 	}
 }
 
@@ -1065,13 +1063,6 @@ func getInputOutputKey(key string) (string, string) {
 	return bytesutil.ToUnsafeString(inputKey), bytesutil.ToUnsafeString(outputKey)
 }
 
-type pushCtxData struct {
-	samples        []pushSample
-	deleteDeadline int64
-	isGreen        bool
-	now            int64
-}
-
 type pushCtx struct {
 	green        []pushSample
 	blue         []pushSample
@@ -1079,15 +1070,6 @@ type pushCtx struct {
 	inputLabels  promutils.Labels
 	outputLabels promutils.Labels
 	buf          []byte
-}
-
-func (ctx *pushCtx) getPushCtxData(samples []pushSample, now, deleteDeadline int64, isGreen bool) *pushCtxData {
-	return &pushCtxData{
-		samples:        samples,
-		deleteDeadline: deleteDeadline,
-		isGreen:        isGreen,
-		now:            now,
-	}
 }
 
 func (ctx *pushCtx) reset() {

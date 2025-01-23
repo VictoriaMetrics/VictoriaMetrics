@@ -37,11 +37,11 @@ type quantilesAggrValue struct {
 	state *quantilesAggrState
 }
 
-func (av *quantilesAggrValue) pushSample(ctx *pushSampleCtx) {
+func (av *quantilesAggrValue) pushSample(_ string, sample *pushSample, _ int64) {
 	if av.h == nil {
 		av.h = histogram.GetFast()
 	}
-	av.h.Update(ctx.sample.value)
+	av.h.Update(sample.value)
 }
 
 func (av *quantilesAggrValue) flush(ctx *flushCtx, key string) {

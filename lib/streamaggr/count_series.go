@@ -20,10 +20,10 @@ type countSeriesAggrValue struct {
 	samples map[uint64]struct{}
 }
 
-func (av *countSeriesAggrValue) pushSample(ctx *pushSampleCtx) {
+func (av *countSeriesAggrValue) pushSample(inputKey string, _ *pushSample, _ int64) {
 	// Count unique hashes over the inputKeys instead of unique inputKey values.
 	// This reduces memory usage at the cost of possible hash collisions for distinct inputKey values.
-	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(ctx.inputKey))
+	h := xxhash.Sum64(bytesutil.ToUnsafeBytes(inputKey))
 	if _, ok := av.samples[h]; !ok {
 		av.samples[h] = struct{}{}
 	}
