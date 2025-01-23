@@ -374,8 +374,8 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 	preFunc := func(_ []float64, _ []int64) {}
 	funcName = strings.ToLower(funcName)
 	if rollupFuncsRemoveCounterResets[funcName] {
-		preFunc = func(values []float64, _ []int64) {
-			removeCounterResets(values)
+		preFunc = func(values []float64, timestamps []int64) {
+			removeCounterResets(values, timestamps, lookbackDelta)
 		}
 	}
 	samplesScannedPerCall := rollupFuncsSamplesScannedPerCall[funcName]
@@ -487,8 +487,8 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 		for _, aggrFuncName := range aggrFuncNames {
 			if rollupFuncsRemoveCounterResets[aggrFuncName] {
 				// There is no need to save the previous preFunc, since it is either empty or the same.
-				preFunc = func(values []float64, _ []int64) {
-					removeCounterResets(values)
+				preFunc = func(values []float64, timestamps []int64) {
+					removeCounterResets(values, timestamps, lookbackDelta)
 				}
 			}
 			rf := rollupAggrFuncs[aggrFuncName]
@@ -905,7 +905,7 @@ func getMaxPrevInterval(scrapeInterval int64) int64 {
 	return scrapeInterval + scrapeInterval/8
 }
 
-func removeCounterResets(values []float64) {
+func removeCounterResets(values []float64, timestamps []int64, maxStalenessInterval int64) {
 	// There is no need in handling NaNs here, since they are impossible
 	// on values from vmstorage.
 	if len(values) == 0 {
@@ -922,6 +922,16 @@ func removeCounterResets(values []float64) {
 				correction += prevValue - v
 			} else {
 				correction += prevValue
+			}
+		}
+		if i > 0 && maxStalenessInterval > 0 {
+			gap := timestamps[i] - timestamps[i-1]
+			if gap > maxStalenessInterval {
+				// reset correction if gap between samples exceeds staleness interval
+				// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8072
+				correction = 0
+				prevValue = v
+				continue
 			}
 		}
 		prevValue = v
