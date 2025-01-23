@@ -118,6 +118,10 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	if err != nil {
 		return err
 	}
+	qNew, err = s.initUnionQueries(tenantIDs, qNew)
+	if err != nil {
+		return err
+	}
 	q = qNew
 
 	streamIDs := q.getStreamIDs()
@@ -140,6 +144,13 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	}
 
 	workersCount := cgroup.AvailableCPUs()
+	if q.opts != nil && q.opts.concurrency > 0 && int(q.opts.concurrency) < workersCount {
+		// Limit the number of workers by the number of available CPU cores,
+		// since bigger number of workers won't improve CPU-bound query performance -
+		// they just increase RAM usage and slow down query execution because
+		// of more context switches between workers.
+		workersCount = int(q.opts.concurrency)
+	}
 
 	ppMain := newDefaultPipeProcessor(writeBlockResultFunc)
 	pp := ppMain
@@ -195,7 +206,7 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]ValueWithHits, error) {
 	pipes := append([]pipe{}, q.pipes...)
 	pipeStr := "field_names"
-	lex := newLexer(pipeStr)
+	lex := newLexer(pipeStr, q.timestamp)
 
 	p, err := parsePipeFieldNames(lex)
 	if err != nil {
@@ -293,7 +304,7 @@ func (s *Storage) getFieldValuesNoHits(ctx context.Context, tenantIDs []TenantID
 	pipes := append([]pipe{}, q.pipes...)
 	quotedFieldName := quoteTokenIfNeeded(fieldName)
 	pipeStr := fmt.Sprintf("uniq by (%s)", quotedFieldName)
-	lex := newLexer(pipeStr)
+	lex := newLexer(pipeStr, q.timestamp)
 
 	pu, err := parsePipeUniq(lex)
 	if err != nil {
@@ -358,7 +369,7 @@ func (s *Storage) GetFieldValues(ctx context.Context, tenantIDs []TenantID, q *Q
 	pipes := append([]pipe{}, q.pipes...)
 	quotedFieldName := quoteTokenIfNeeded(fieldName)
 	pipeStr := fmt.Sprintf("field_values %s limit %d", quotedFieldName, limit)
-	lex := newLexer(pipeStr)
+	lex := newLexer(pipeStr, q.timestamp)
 
 	pu, err := parsePipeFieldValues(lex)
 	if err != nil {
@@ -548,6 +559,38 @@ type inValuesCache struct {
 	m map[string][]string
 }
 
+func (s *Storage) initUnionQueries(tenantIDs []TenantID, q *Query) (*Query, error) {
+	if !hasUnionPipes(q.pipes) {
+		return q, nil
+	}
+
+	runUnionQuery := func(ctx context.Context, q *Query, writeBlock func(workerID uint, br *blockResult)) error {
+		return s.runQuery(ctx, tenantIDs, q, writeBlock)
+	}
+
+	pipesNew := make([]pipe, len(q.pipes))
+	for i, p := range q.pipes {
+		if pu, ok := p.(*pipeUnion); ok {
+			p = pu.initUnionQuery(runUnionQuery)
+		}
+		pipesNew[i] = p
+	}
+	qNew := &Query{
+		f:     q.f,
+		pipes: pipesNew,
+	}
+	return qNew, nil
+}
+
+func hasUnionPipes(pipes []pipe) bool {
+	for _, p := range pipes {
+		if _, ok := p.(*pipeUnion); ok {
+			return true
+		}
+	}
+	return false
+}
+
 type getJoinMapFunc func(q *Query, byFields []string, prefix string) (map[string][][]Field, error)
 
 func (s *Storage) initJoinMaps(ctx context.Context, tenantIDs []TenantID, q *Query) (*Query, error) {
@@ -560,8 +603,7 @@ func (s *Storage) initJoinMaps(ctx context.Context, tenantIDs []TenantID, q *Que
 	}
 
 	pipesNew := make([]pipe, len(q.pipes))
-	for i := range q.pipes {
-		p := q.pipes[i]
+	for i, p := range q.pipes {
 		if pj, ok := p.(*pipeJoin); ok {
 			pNew, err := pj.initJoinMap(getJoinMap)
 			if err != nil {
@@ -886,7 +928,7 @@ func (pt *partition) search(sf *StreamFilter, f filter, so *genericSearchOptions
 		tenantIDs = nil
 	}
 	if hasStreamFilters(f) {
-		f = initStreamFilters(tenantIDs, pt.idb, f)
+		f = initStreamFilters(so.tenantIDs, pt.idb, f)
 	}
 	soInternal := &searchOptions{
 		tenantIDs:           tenantIDs,

@@ -16,7 +16,32 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
-* FEATURE: add [`histogram` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#histogram-stats) for calculating [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) over the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+* FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add an ability to limit query concurrency for the `<q>` [query](https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax) via `options(concurrency=N) <q>` syntax. This may be needed for reducing RAM and CPU usage at the cost of longer query execution times. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#query-options) for details.
+* FEATURE: add [`hash` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#hash-pipe) for calculating hashes over the selected log fields. This may be useful for splitting the selected logs into distinct buckets. For example, the following query splits `user_id` fields into 4 buckets with the help of `hash` pipe: `_time:5m | hash(user_id) as h | math h%4 as bucket | stats by (bucket) count()`.
+
+## [v1.7.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.7.0-victorialogs)
+
+Released at 2025-01-20
+
+* FEATURE: [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe): add an ability to execute `INNER JOIN` by adding `inner` suffix to the `join` pipe.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): updated the default graph type in the `hits panel` to bars with color fill. Removed options for `lines`, `stepped lines`, and `points`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7101).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): reduce logs text size and improved styles in grouped view. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7479).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the ability to select fields for display instead of the `_msg` field. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7419).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add various display configuration settings for the grouped view. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7815)
+
+## [v1.6.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.6.1-victorialogs)
+
+Released at 2025-01-16
+
+* BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): properly apply multiple [log stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter). For example, `{foo="bar"} AND {baz="x"}` must correctly return logs with `foo="bar"` and `baz="x"` [log stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8037).
+
+## [v1.6.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.6.0-victorialogs)
+
+Released at 2025-01-15
+
+* FEATURE: add [`union` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#union-pipe), which can be used for returning results from multiple independent LogsQL queries.
+* FEATURE: add [`histogram` stats function](https://docs.victoriametrics.com/victorialogs/logsql/#histogram-stats) for calculating [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) over the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model). They will be used for building heatmaps at the [built-in Web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) and [VictoriaLogs plugin for Grafana](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/).
+* FEATURE: [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe): add `rand()` function, which can be used for generating random numbers in the range `[0 ... 1)`.
 
 ## [v1.5.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.5.0-victorialogs)
 

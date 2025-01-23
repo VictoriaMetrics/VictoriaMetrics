@@ -374,8 +374,8 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 	preFunc := func(_ []float64, _ []int64) {}
 	funcName = strings.ToLower(funcName)
 	if rollupFuncsRemoveCounterResets[funcName] {
-		preFunc = func(values []float64, _ []int64) {
-			removeCounterResets(values)
+		preFunc = func(values []float64, timestamps []int64) {
+			removeCounterResets(values, timestamps, lookbackDelta)
 		}
 	}
 	samplesScannedPerCall := rollupFuncsSamplesScannedPerCall[funcName]
@@ -486,8 +486,8 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 		for _, aggrFuncName := range aggrFuncNames {
 			if rollupFuncsRemoveCounterResets[aggrFuncName] {
 				// There is no need to save the previous preFunc, since it is either empty or the same.
-				preFunc = func(values []float64, _ []int64) {
-					removeCounterResets(values)
+				preFunc = func(values []float64, timestamps []int64) {
+					removeCounterResets(values, timestamps, lookbackDelta)
 				}
 			}
 			rf := rollupAggrFuncs[aggrFuncName]
@@ -521,7 +521,7 @@ type rollupFuncArg struct {
 	timestamps []int64
 
 	// Real value preceding values.
-	// Is populated if preceding value is within the staleness interval.
+	// Is populated if preceding value is within the -search.maxStalenessInterval (rc.LookbackDelta).
 	realPrevValue float64
 
 	// Real value which goes after values.
@@ -768,7 +768,13 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		rfa.realPrevValue = nan
 		if i > 0 {
 			prevValue, prevTimestamp := values[i-1], timestamps[i-1]
-			if (tEnd - prevTimestamp) < maxPrevInterval {
+			// set realPrevValue if rc.LookbackDelta == 0
+			// or if distance between datapoint in prev interval and beginning of this interval
+			// doesn't exceed LookbackDelta.
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1381
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/894
+			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8045
+			if rc.LookbackDelta == 0 || (tStart-prevTimestamp) < rc.LookbackDelta {
 				rfa.realPrevValue = prevValue
 			}
 		}
@@ -894,7 +900,7 @@ func getMaxPrevInterval(scrapeInterval int64) int64 {
 	return scrapeInterval + scrapeInterval/8
 }
 
-func removeCounterResets(values []float64) {
+func removeCounterResets(values []float64, timestamps []int64, maxStalenessInterval int64) {
 	// There is no need in handling NaNs here, since they are impossible
 	// on values from vmstorage.
 	if len(values) == 0 {
@@ -911,6 +917,16 @@ func removeCounterResets(values []float64) {
 				correction += prevValue - v
 			} else {
 				correction += prevValue
+			}
+		}
+		if i > 0 && maxStalenessInterval > 0 {
+			gap := timestamps[i] - timestamps[i-1]
+			if gap > maxStalenessInterval {
+				// reset correction if gap between samples exceeds staleness interval
+				// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8072
+				correction = 0
+				prevValue = v
+				continue
 			}
 		}
 		prevValue = v

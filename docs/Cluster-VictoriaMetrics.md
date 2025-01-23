@@ -761,8 +761,8 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
 - `-search.maxDeleteSeries` at `vmselect` limits the number of unique time
   series that can be deleted by a single
   [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series)
-  call. Deleting too many time series may require big amount of CPU and memory
-  at `vmstorage` and this limit guards against unplanned resource usage spikes.
+  call. The duration is limited via `-search.maxDeleteDuration` flag. Deleting too many time series may require big
+  amount of CPU and memory at `vmstorage` and this limit guards against unplanned resource usage spikes.
   Also see [How to delete time series](#how-to-delete-time-series) section to
   learn about different ways of deleting series.
 - `-search.maxTagKeys` at `vmstorage` limits the number of items, which may be returned from
@@ -1250,7 +1250,7 @@ Below is the output for `/path/to/vminsert -help`:
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 32)
+     The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
@@ -1397,7 +1397,7 @@ Below is the output for `/path/to/vmselect -help`:
   -clusternative.disableCompression
      Whether to disable compression of the data sent to vmselect via -clusternativeListenAddr. This reduces CPU usage at the cost of higher network bandwidth usage
   -clusternative.maxConcurrentRequests int
-     The maximum number of concurrent vmselect requests the server can process at -clusternativeListenAddr. It shouldn't be high, since a single request usually saturates a CPU core at the underlying vmstorage nodes, and many concurrently executed requests may require high amounts of memory. See also -clusternative.maxQueueDuration (default 32)
+     The maximum number of concurrent vmselect requests the server can process at -clusternativeListenAddr. It shouldn't be high, since a single request usually saturates a CPU core at the underlying vmstorage nodes, and many concurrently executed requests may require high amounts of memory. See also -clusternative.maxQueueDuration
   -clusternative.maxQueueDuration duration
      The maximum time the incoming query to -clusternativeListenAddr waits for execution when -clusternative.maxConcurrentRequests limit is reached (default 10s)
   -clusternative.maxTagKeys int
@@ -1425,7 +1425,7 @@ Below is the output for `/path/to/vmselect -help`:
   -dedup.minScrapeInterval duration
      Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details
   -deleteAuthKey value
-     authKey for metrics' deletion via /prometheus/api/v1/admin/tsdb/delete_series and /graphite/tags/delSeries
+     authKey for metrics' deletion via /prometheus/api/v1/admin/tsdb/delete_series and /graphite/tags/delSeries. It could be passed via authKey query arg.
      Flag value can be read from the given file when using -deleteAuthKey=file:///abs/path/to/file or -deleteAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -deleteAuthKey=http://host/path or -deleteAuthKey=https://host/path
   -denyQueryTracing
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
@@ -1581,6 +1581,8 @@ Below is the output for `/path/to/vmselect -help`:
      A larger value makes the pushed-down filter more complex but fewer time series will be returned. This flag is useful when selective label contains numerous values, for example `instance`, and storage resources are abundant. (default 100)
   -search.maxConcurrentRequests int
      The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration and -search.maxMemoryPerQuery (default 16)
+  -search.maxDeleteDuration duration
+     The maximum duration for /api/v1/admin/tsdb/delete_series call (default 5m)
   -search.maxDeleteSeries int
      The maximum number of time series, which can be deleted using /api/v1/admin/tsdb/delete_series. This option allows limiting memory usage (default 1000000)
   -search.maxExportDuration duration
@@ -1651,7 +1653,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.queryStats.minQueryDuration duration
      The minimum duration for queries to track in query stats at /api/v1/status/top_queries. Queries with lower duration are ignored in query stats (default 1ms)
   -search.resetCacheAuthKey value
-     Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call
+     Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg.
      Flag value can be read from the given file when using -search.resetCacheAuthKey=file:///abs/path/to/file or -search.resetCacheAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -search.resetCacheAuthKey=http://host/path or -search.resetCacheAuthKey=https://host/path
   -search.resetRollupResultCacheOnStartup
      Whether to reset rollup result cache on startup. See https://docs.victoriametrics.com/#rollup-result-cache . See also -search.disableCache
@@ -1846,7 +1848,7 @@ Below is the output for `/path/to/vmstorage -help`:
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 32)
+     The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -1900,7 +1902,7 @@ Below is the output for `/path/to/vmstorage -help`:
   -rpc.disableCompression
      Whether to disable compression of the data sent from vmstorage to vmselect. This reduces CPU usage at the cost of higher network bandwidth usage
   -search.maxConcurrentRequests int
-     The maximum number of concurrent vmselect requests the vmstorage can process at -vmselectAddr. It shouldn't be high, since a single request usually saturates a CPU core, and many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 32)
+     The maximum number of concurrent vmselect requests the vmstorage can process at -vmselectAddr. It shouldn't be high, since a single request usually saturates a CPU core, and many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration
   -search.maxQueueDuration duration
      The maximum time the incoming vmselect request waits for execution when -search.maxConcurrentRequests limit is reached (default 10s)
   -search.maxTagKeys int

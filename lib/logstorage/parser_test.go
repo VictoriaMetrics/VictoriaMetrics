@@ -10,7 +10,7 @@ import (
 func TestLexer(t *testing.T) {
 	f := func(s string, tokensExpected []string) {
 		t.Helper()
-		lex := newLexer(s)
+		lex := newLexer(s, 0)
 		for _, tokenExpected := range tokensExpected {
 			if lex.token != tokenExpected {
 				t.Fatalf("unexpected token; got %q; want %q", lex.token, tokenExpected)
@@ -33,6 +33,39 @@ func TestLexer(t *testing.T) {
 		[]string{"{", "foo", "=", "bar", ",", "a", "=~", "baz", ",", "b", "!=", "cd", ",", "d,}a", "!~", "abc", "}", "def"})
 	f(`_stream:{foo="bar",a=~"baz", b != 'cd',"d,}a"!~abc}`,
 		[]string{"_stream", ":", "{", "foo", "=", "bar", ",", "a", "=~", "baz", ",", "b", "!=", "cd", ",", "d,}a", "!~", "abc", "}"})
+}
+
+func TestParseQuery_OptimizeStreamFilters(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+		q, err := ParseQuery(s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		result := q.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	// Missing stream filters
+	f(`*`, `*`)
+	f(`foo`, `foo`)
+	f(`foo bar`, `foo bar`)
+
+	// a single stream filter
+	f(`{foo=bar}`, `{foo="bar"}`)
+	f(`{foo=bar,baz=~"x|y"} error`, `{foo="bar",baz=~"x|y"} error`)
+	f(`a {foo=bar,baz=~"x|y" OR a!=b} x`, `{foo="bar",baz=~"x|y" or a!="b"} a x`)
+
+	// multiple stream filters, which can be merged
+	f(`{foo=bar} {baz="x"}`, `{foo="bar",baz="x"}`)
+	f(`a {foo=~"bar|x"} (b:c or d) _stream:{x="y"} {foo!~"q.+"} c`, `{foo=~"bar|x",x="y",foo!~"q.+"} a (b:c or d) c`)
+
+	// multiple stream filters, which cannot be merged
+	f(`{foo="bar" or baz="x"} {a="b"}`, `{foo="bar" or baz="x"} {a="b"}`)
+	f(`{x="y"} {foo="bar" or baz="x"} {a="b"}`, `{x="y"} {foo="bar" or baz="x"} {a="b"}`)
+	f(`{foo="bar"} or {baz="x"}`, `{foo="bar"} or {baz="x"}`)
 }
 
 func TestParseDayRange(t *testing.T) {
@@ -669,7 +702,7 @@ func TestParseRangeFilter(t *testing.T) {
 	f(`foo:>=1_234e-3`, `foo`, 1.234, inf)
 }
 
-func TestParseQuerySuccess(t *testing.T) {
+func TestParseQuery_Success(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
 		q, err := ParseQuery(s)
@@ -902,6 +935,9 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("string_range-a:x", `"string_range-a":x`)
 	f("value_type", `"value_type"`)
 	f("x:value_type", `x:"value_type"`)
+	f("'options'", `"options"`)
+	f(`"options" foo`, `"options" foo`)
+	f("`options(x)`", `"options(x)"`)
 
 	// exact filter
 	f("exact(foo)", `=foo`)
@@ -1033,7 +1069,7 @@ func TestParseQuerySuccess(t *testing.T) {
 
 	// complex queries
 	f(`_time:[-1h, now] _stream:{job="foo",env=~"prod|staging"} level:(error or warn*) and not "connection reset by peer"`,
-		`_time:[-1h,now] {job="foo",env=~"prod|staging"} (level:error or level:warn*) !"connection reset by peer"`)
+		`{job="foo",env=~"prod|staging"} _time:[-1h,now] (level:error or level:warn*) !"connection reset by peer"`)
 	f(`(_time:(2023-04-20, now] or _time:[-10m, -1m))
 		and (_stream:{job="a"} or _stream:{instance!="b"})
 		and (err* or ip:(ipv4_range(1.2.3.0, 1.2.3.255) and not 1.2.3.4))`,
@@ -1322,6 +1358,10 @@ func TestParseQuerySuccess(t *testing.T) {
 	f("* | extract foo<bar>baz from x", `* | extract "foo<bar>baz" from x`)
 	f("* | extract if (a:b) foo<bar>baz from x", `* | extract if (a:b) "foo<bar>baz" from x`)
 
+	// union pipe
+	f(`* | union(foo)`, `* | union (foo)`)
+	f(`* | union(foo | union(bar baz | count() x))`, `* | union (foo | union (bar baz | stats count(*) as x))`)
+
 	// unpack_json pipe
 	f(`* | unpack_json`, `* | unpack_json`)
 	f(`* | unpack_json result_prefix y`, `* | unpack_json result_prefix y`)
@@ -1339,6 +1379,11 @@ func TestParseQuerySuccess(t *testing.T) {
 	f(`* | join on (x, y) (foo:bar)`, `* | join by (x, y) (foo:bar)`)
 	f(`* | join (x, y) (foo:bar)`, `* | join by (x, y) (foo:bar)`)
 
+	// hash pipe
+	f(`* | hash(x)`, `* | hash(x)`)
+	f(`* | hash(x) y`, `* | hash(x) as y`)
+	f(`* | hash(x) as y`, `* | hash(x) as y`)
+
 	// multiple different pipes
 	f(`* | fields foo, bar | limit 100 | stats by(foo,bar) count(baz) as qwert`, `* | fields foo, bar | limit 100 | stats by (foo, bar) count(baz) as qwert`)
 	f(`* | skip 100 | head 20 | skip 10`, `* | offset 100 | limit 20 | offset 10`)
@@ -1352,9 +1397,15 @@ func TestParseQuerySuccess(t *testing.T) {
 	// skip 'stats' and 'filter' prefixes
 	f(`* | by (host) count() rows | rows:>10`, `* | stats by (host) count(*) as rows | filter rows:>10`)
 	f(`* | (host) count() rows, count() if (error) errors | rows:>10`, `* | stats by (host) count(*) as rows, count(*) if (error) as errors | filter rows:>10`)
+
+	// options
+	f(`options () foo`, `foo`)
+	f(`options (concurrency=10) foo | count() c`, `options(concurrency=10) foo | stats count(*) as c`)
+	f(`options (concurrency=10, concurrency =   42,) foo | count() c`, `options(concurrency=42) foo | stats count(*) as c`)
+	f(`options (concurrency=0) *`, `*`)
 }
 
-func TestParseQueryFailure(t *testing.T) {
+func TestParseQuery_Failure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		q, err := ParseQuery(s)
@@ -1838,6 +1889,12 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | extract from x "<abc`)
 	f(`foo | extract from x "<abc>" de`)
 
+	// invalid union pipe
+	f(`foo | union`)
+	f(`foo | union (`)
+	f(`foo | union ( bar`)
+	f(`foo | union (bar | count)`)
+
 	// invalid unpack_json pipe
 	f(`foo | unpack_json bar`)
 	f(`foo | unpack_json from`)
@@ -1851,6 +1908,18 @@ func TestParseQueryFailure(t *testing.T) {
 	f(`foo | unpack_logfmt result_prefix`)
 	f(`foo | unpack_logfmt result_prefix x from y`)
 	f(`foo | unpack_logfmt from x result_prefix`)
+
+	// invalid options
+	f(`options`)
+	f(`options(`)
+	f(`options( foo`)
+	f(`options(foo=123)`)
+	f(`options(abc)`)
+	f(`options(concurrency=qwe)`)
+
+	// valid options, but missing query filter
+	f(`options(concurrency=12)`)
+	f(`options(concurrency=12) | count()`)
 }
 
 func TestQueryGetNeededColumns(t *testing.T) {
@@ -2195,6 +2264,7 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | stats count_uniq(a, b) if (q:w p:a) as c | count() r1`, ``, ``)
 	f(`* | stats by (a1,a2) count_uniq(a, b) as c | count() r1`, `a1,a2`, ``)
 	f(`* | stats by (a1,a2) count_uniq(a, b) if (q:w p:a) as c | count() r1`, `a1,a2`, ``)
+	f(`* | union (foo) | count() r1`, ``, ``)
 	f(`* | uniq by (a, b) | count() r1`, `a,b`, ``)
 	f(`* | unpack_json from x | count() r1`, ``, ``)
 	f(`* | unpack_json from x fields (a,b) | count() r1`, ``, ``)
@@ -2207,6 +2277,8 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | unroll (a, b) | count() r1`, `a,b`, ``)
 	f(`* | unroll if (q:w p:a) (a, b) | count() r1`, `a,b,p,q`, ``)
 	f(`* | join on (a, b) (xxx) | count() r1`, `a,b`, ``)
+	f(`* | len(a) as b | count() r1`, ``, ``)
+	f(`* | hash(a) as b | count() r1`, ``, ``)
 }
 
 func TestQueryClone(t *testing.T) {
@@ -2277,6 +2349,7 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | len(x)", true)
 	f("* | limit 10", false)
 	f("* | offset 10", false)
+	f("* | union (x)", false)
 	f("* | uniq (x)", false)
 	f("* | block_stats", false)
 	f("* | blocks_count", false)
@@ -2285,6 +2358,7 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | field_values x", false)
 	f("* | top 5 by (x)", false)
 	f("* | join by (x) (foo)", false)
+	f("* | hash(a)", true)
 
 }
 
@@ -2332,12 +2406,14 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | stats count() rows", false)
 	f("* | stream_context after 10", false)
 	f("* | top 10 by (x)", false)
+	f("* | union (foo)", false)
 	f("* | uniq by (a)", false)
 	f("* | unpack_json", true)
 	f("* | unpack_logfmt", true)
 	f("* | unpack_syslog", true)
 	f("* | unroll by (a)", true)
 	f("* | join by (a) (b)", true)
+	f("* | hash(a)", true)
 }
 
 func TestQueryDropAllPipes(t *testing.T) {
@@ -2538,12 +2614,15 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | replace_regexp ("foo.+bar", "baz")`)
 	f(`foo | count() | stream_context after 10`)
 	f(`foo | count() | top 5 by (x)`)
+	f(`foo | count() | union (foo)`)
 	f(`foo | count() | uniq by (x)`)
 	f(`foo | count() | unpack_json`)
 	f(`foo | count() | unpack_logfmt`)
 	f(`foo | count() | unpack_syslog`)
 	f(`foo | count() | unroll by (x)`)
 	f(`foo | count() | join by (x) (y)`)
+	f(`foo | count() | len(a)`)
+	f(`foo | count() | hash(a)`)
 
 	// drop by(...) field
 	f(`* | by (x) count() as rows | math rows * 10, rows / 10 | drop x`)
@@ -2627,7 +2706,7 @@ func TestAddExtraFilters(t *testing.T) {
 	f(`foo _time:5m`, "", `foo _time:5m`)
 	f(`*`, "foo:=bar", "foo:=bar *")
 	f("_time:5m", `"fo o":="=ba:r !"`, `"fo o":="=ba:r !" _time:5m`)
-	f("_time:5m {a=b}", `"fo o":="=ba:r !" and x:=y`, `"fo o":="=ba:r !" x:=y _time:5m {a="b"}`)
+	f("_time:5m {a=b}", `"fo o":="=ba:r !" and x:=y`, `"fo o":="=ba:r !" x:=y {a="b"} _time:5m`)
 	f(`a or (b c)`, `foo:=bar`, `foo:=bar (a or b c)`)
 
 	// extra stream filters

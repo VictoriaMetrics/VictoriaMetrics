@@ -18,20 +18,14 @@ It has the following features:
 - It supports live tailing - see [these docs](#live-tailing).
 
 This tool can be obtained from the linked release pages at the [changelog](https://docs.victoriametrics.com/victorialogs/changelog/)
-or from [docker images](https://hub.docker.com/r/victoriametrics/vlogscli/tags):
+or from [docker images](https://hub.docker.com/r/victoriametrics/vlogscli/tags).
 
 ### Running `vlogscli` from release binary
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.5.0-victorialogs/vlogscli-linux-amd64-v1.5.0-victorialogs.tar.gz
-tar xzf vlogscli-linux-amd64-v1.5.0-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v1.7.0-victorialogs/vlogscli-linux-amd64-v1.7.0-victorialogs.tar.gz
+tar xzf vlogscli-linux-amd64-v1.7.0-victorialogs.tar.gz
 ./vlogscli-prod
-```
-
-### Running `vlogscli` from Docker image
-
-```sh
-docker run --rm -it docker.io/victoriametrics/vlogscli:v1.5.0-victorialogs
 ```
 
 ## Configuration

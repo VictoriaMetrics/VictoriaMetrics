@@ -2,6 +2,23 @@
 
 - TODO
 
+## 0.8.14
+
+**Release date:** 20 Jan 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.6.1](https://img.shields.io/badge/v1.6.1-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v161)
+
+- update victorialogs version to v1.6.1
+- add `.Values.statefulSet.updateStrategy`. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1928) for details.
+
+## 0.8.13
+
+**Release date:** 14 Jan 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.5.0](https://img.shields.io/badge/v1.5.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v150)
+
+- victorialogs version: v1.4.0 -> v1.5.0
+
 ## 0.8.12
 
 **Release date:** 06 Jan 2025

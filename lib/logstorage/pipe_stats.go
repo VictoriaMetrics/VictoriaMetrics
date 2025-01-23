@@ -203,7 +203,7 @@ func (ps *pipeStats) initRateFuncs(step int64) {
 const stateSizeBudgetChunk = 1 << 20
 
 func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
-	maxStateSize := int64(float64(memory.Allowed()) * 0.3)
+	maxStateSize := int64(float64(memory.Allowed()) * 0.4)
 
 	shards := make([]pipeStatsProcessorShard, workersCount)
 	for i := range shards {
@@ -326,7 +326,7 @@ func (psm *pipeStatsGroupMap) getPipeStatsGroupUint64(n uint64) *pipeStatsGroup 
 
 	psg = psm.newPipeStatsGroup()
 	psm.u64[n] = psg
-	psm.shard.stateSizeBudget -= 8
+	psm.shard.stateSizeBudget -= int(unsafe.Sizeof(n) + unsafe.Sizeof(psg))
 
 	return psg
 }
@@ -339,7 +339,7 @@ func (psm *pipeStatsGroupMap) getPipeStatsGroupNegativeInt64(n int64) *pipeStats
 
 	psg = psm.newPipeStatsGroup()
 	psm.negative64[uint64(n)] = psg
-	psm.shard.stateSizeBudget -= 8
+	psm.shard.stateSizeBudget -= int(unsafe.Sizeof(n) + unsafe.Sizeof(psg))
 
 	return psg
 }
@@ -370,7 +370,7 @@ func (psm *pipeStatsGroupMap) newPipeStatsGroup() *pipeStatsGroup {
 	psg := psm.a.newPipeStatsGroup()
 	psg.funcs = psm.shard.ps.funcs
 	psg.sfps = sfps
-	psm.shard.stateSizeBudget -= int(unsafe.Sizeof(psg) + unsafe.Sizeof(sfps[0])*uintptr(len(sfps)))
+	psm.shard.stateSizeBudget -= int(unsafe.Sizeof(*psg) + unsafe.Sizeof(sfps[0])*uintptr(len(sfps)))
 
 	return psg
 }

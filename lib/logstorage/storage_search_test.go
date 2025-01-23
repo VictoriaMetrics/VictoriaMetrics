@@ -578,6 +578,42 @@ func TestStorageRunQuery(t *testing.T) {
 			},
 		})
 	})
+	t.Run("union=pipe", func(t *testing.T) {
+		f(t, `{instance=~"host-1.+"} | union ({instance=~"host-2.+"}) | count() hits`, [][]Field{
+			{
+				{"hits", "770"},
+			},
+		})
+	})
+	t.Run("stream-filter-single", func(t *testing.T) {
+		f(t, `{job="foobar",instance=~"host-1.+"} | count() hits`, [][]Field{
+			{
+				{"hits", "385"},
+			},
+		})
+		f(t, `{instance=~"host-1.+" or instance=~"host-2.+"} | count() hits`, [][]Field{
+			{
+				{"hits", "770"},
+			},
+		})
+	})
+	t.Run("stream-filter-multi", func(t *testing.T) {
+		f(t, `{job="foobar"} {instance=~"host-1.+"} | count() hits`, [][]Field{
+			{
+				{"hits", "385"},
+			},
+		})
+		f(t, `{instance=~"host-1.+"} {job="foobar"} | count() hits`, [][]Field{
+			{
+				{"hits", "385"},
+			},
+		})
+		f(t, `{job="foobar"} ({instance=~"host-1.+"} or {instance=~"host-2.+"}) | count() hits`, [][]Field{
+			{
+				{"hits", "770"},
+			},
+		})
+	})
 	t.Run("pipe-extract", func(t *testing.T) {
 		f(t, `* | extract "host-<host>:" from instance | uniq (host) with hits | sort by (host)`, [][]Field{
 			{
@@ -730,6 +766,7 @@ func TestStorageRunQuery(t *testing.T) {
 		})
 	})
 	t.Run("pipe-join", func(t *testing.T) {
+		// left join
 		f(t, `'message 5' | stats by (instance) count() x
 			| join on (instance) (
 				'block 0' instance:host-1 | stats by (instance)
@@ -745,6 +782,22 @@ func TestStorageRunQuery(t *testing.T) {
 				{"instance", "host-2:234"},
 				{"x", "55"},
 			},
+			{
+				{"instance", "host-1:234"},
+				{"x", "55"},
+				{"total", "77"},
+				{"streams", "1"},
+			},
+		})
+
+		// inner join
+		f(t, `'message 5' | stats by (instance) count() x
+			| join on (instance) (
+				'block 0' instance:host-1 | stats by (instance)
+					count() total,
+					count_uniq(stream-id) streams,
+					count_uniq(stream-id) x
+			) inner`, [][]Field{
 			{
 				{"instance", "host-1:234"},
 				{"x", "55"},

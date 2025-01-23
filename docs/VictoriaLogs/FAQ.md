@@ -192,3 +192,93 @@ VictoriaLogs because per-block overhead translates to a single log record, and
 this overhead is big. 
 
 The `2MB` limit is hadrcoded and is unlikely to change.
+
+## How to determine which log fields occupy the most of disk space?
+
+[Run](https://docs.victoriametrics.com/victorialogs/querying/) the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query
+based on [`block_stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#block_stats-pipe):
+
+```logsql
+_time:1d
+  | block_stats
+  | stats by (field)
+      sum(values_bytes) as values_bytes,
+      sum(bloom_bytes) as bloom_bytes,
+      sum(rows) as rows
+  | math
+      (values_bytes+bloom_bytes) as total_bytes,
+      round(total_bytes / rows, 0.01) as bytes_per_row
+  | first 10 (total_bytes desc)
+```
+
+This query returns top 10 [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
+which occupy the most of disk space across the logs ingested during the last day. The occupied disk space
+is returned in the `total_bytes` field.
+
+If you use [VictoriaLogs web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui)
+or [Grafana plugin for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/),
+then make sure the selected time range covers the last day. Otherwise the query above returns
+results on the intersection of the last day and the selected time range.
+
+See [why the log field occupies a lot of disk space](#why-the-log-field-occupies-a-lot-of-disk-space).
+
+## Why the log field occupies a lot of disk space?
+
+See [how to determine which log fields occupy the most of disk space](#how-to-determine-which-log-fields-occupy-the-most-of-disk-space).
+Log field may occupy a lot of disk space if it contains values with many unique parts (aka "random" values).
+Such values do not compress well, so they occupy a lot of disk space. If you want reducing the amounts of occupied disk space,
+then either remove the given log field from the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs
+or remove the unique parts from the log field before ingesting it into VictoriaLogs.
+
+## How to detect the most frequently seen logs?
+
+Use [`collapse_nums` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#collapse_nums-pipe).
+For example, the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query
+returns top 10 the most freqently seen [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) over the last hour:
+
+```logsql
+_time:1h | collapse_nums prettify | top 10 (_msg)
+```
+
+Add [`_stream` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) to the `top (...)` list in order to get top 10 the most frequently seen logs with the `_stream` field:
+
+```logsql
+_time:1h | collapse_nums prettify | top 10 (_stream, _msg)
+```
+
+## How to get field names seen in the selected logs?
+
+Use [`field_names` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#field_names-pipe).
+For example, the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query
+returns all the [field names](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) seen
+across all the logs during the last hour:
+
+```logsql
+_time:1h | field_names | sort by (name)
+```
+
+The `hits` field in the returned results contains an estimated number of logs with the given log field.
+
+## How to get unique field values seen in the selected logs?
+
+Use [`field_values` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#field_values-pipe).
+For example, the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query
+returns all the values for the `level` field across all the logs seen during the last hour:
+
+```logsql
+_time:1h | field_values level
+```
+
+The `hits` field in the returned results contains an esitmated number of logs with the given value for the `level` field.
+
+## How to get the number of unique log streams on the given time range?
+
+Use [`count_uniq` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-pipe)
+over [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field.
+For example, the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query
+returns the number of unique [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+across all the logs over the last day:
+
+```logsql
+_time:1d | count_uniq(_stream)
+```

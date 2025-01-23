@@ -2,6 +2,22 @@
 
 - TODO
 
+## 0.13.7
+
+**Release date:** 17 Jan 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.109.1](https://img.shields.io/badge/v1.109.1-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11091)
+
+- bump version of VM components to [v1.109.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.109.1)
+
+## 0.13.6
+
+**Release date:** 14 Jan 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.109.0](https://img.shields.io/badge/v1.109.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11090)
+
+- bump version of VM components to [v1.109.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.109.0)
+
 ## 0.13.5
 
 **Release date:** 06 Jan 2025

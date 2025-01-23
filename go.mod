@@ -2,7 +2,13 @@ module github.com/VictoriaMetrics/VictoriaMetrics
 
 go 1.23.3
 
+// See // See https://github.com/googleapis/google-cloud-go/issues/11283#issuecomment-2558515586
 exclude google.golang.org/grpc/stats/opentelemetry v0.0.0-20240907200651-3ffb98b2c93a
+
+// This is needed in order to avoid vmbackup and vmrestore binary size increase by 20MB
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8008
+// TODO: remove this entry after https://github.com/googleapis/google-cloud-go/issues/11448 is fixed
+replace cloud.google.com/go/storage => cloud.google.com/go/storage v1.43.0
 
 require (
 	cloud.google.com/go/storage v1.50.0
@@ -12,7 +18,7 @@ require (
 	github.com/VictoriaMetrics/easyproto v0.1.4
 	github.com/VictoriaMetrics/fastcache v1.12.2
 	github.com/VictoriaMetrics/metrics v1.35.1
-	github.com/VictoriaMetrics/metricsql v0.81.1
+	github.com/VictoriaMetrics/metricsql v0.82.0
 	github.com/aws/aws-sdk-go-v2 v1.32.8
 	github.com/aws/aws-sdk-go-v2/config v1.28.10
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.48
@@ -44,18 +50,13 @@ require (
 )
 
 require (
-	cel.dev/expr v0.19.1 // indirect
 	cloud.google.com/go v0.118.0 // indirect
 	cloud.google.com/go/auth v0.14.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.7 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
 	cloud.google.com/go/iam v1.3.1 // indirect
-	cloud.google.com/go/monitoring v1.22.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.10.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.3.2 // indirect
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.25.0 // indirect
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.49.0 // indirect
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.49.0 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b // indirect
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
@@ -81,7 +82,6 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dennwc/varint v1.0.0 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.32.3 // indirect
-	github.com/envoyproxy/protoc-gen-validate v1.1.0 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
@@ -104,7 +104,6 @@ require (
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
-	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.20.5 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
@@ -119,13 +118,11 @@ require (
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/collector/pdata v1.23.0 // indirect
 	go.opentelemetry.io/collector/semconv v0.117.0 // indirect
-	go.opentelemetry.io/contrib/detectors/gcp v1.33.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.58.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/httptrace/otelhttptrace v0.58.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.58.0 // indirect
 	go.opentelemetry.io/otel v1.33.0 // indirect
 	go.opentelemetry.io/otel/metric v1.33.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.33.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.33.0 // indirect
 	go.opentelemetry.io/otel/trace v1.33.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
