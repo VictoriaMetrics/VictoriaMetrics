@@ -33,6 +33,9 @@ type pipe interface {
 	//
 	// It is OK to return the pipe itself if it doesn't contain 'in(subquery)' filters.
 	initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error)
+
+	// visitSubqueries must call visitFunc for all the subqueries, which exist at the pipe (recursively).
+	visitSubqueries(visitFunc func(q *Query))
 }
 
 // pipeProcessor must process a single pipe.

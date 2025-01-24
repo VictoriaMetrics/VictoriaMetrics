@@ -61,6 +61,10 @@ func (pe *pipeExtractRegexp) initFilterInValues(cache *inValuesCache, getFieldVa
 	return &peNew, nil
 }
 
+func (pe *pipeExtractRegexp) visitSubqueries(visitFunc func(q *Query)) {
+	pe.iff.visitSubqueries(visitFunc)
+}
+
 func (pe *pipeExtractRegexp) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.isEmpty() {
 		if pe.iff != nil {

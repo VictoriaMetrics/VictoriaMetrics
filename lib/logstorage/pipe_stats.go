@@ -154,6 +154,12 @@ func (ps *pipeStats) initFilterInValues(cache *inValuesCache, getFieldValuesFunc
 	return &psNew, nil
 }
 
+func (ps *pipeStats) visitSubqueries(visitFunc func(q *Query)) {
+	for _, f := range ps.funcs {
+		f.iff.visitSubqueries(visitFunc)
+	}
+}
+
 func (ps *pipeStats) addByTimeField(step int64) {
 	if step <= 0 {
 		return

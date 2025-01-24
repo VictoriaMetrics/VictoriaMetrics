@@ -64,6 +64,10 @@ func (pu *pipeUniq) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (
 	return pu, nil
 }
 
+func (pu *pipeUniq) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pu *pipeUniq) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.4)
 

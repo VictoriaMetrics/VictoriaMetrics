@@ -72,6 +72,10 @@ func (pu *pipeUnpackLogfmt) initFilterInValues(cache *inValuesCache, getFieldVal
 	return &puNew, nil
 }
 
+func (pu *pipeUnpackLogfmt) visitSubqueries(visitFunc func(q *Query)) {
+	pu.iff.visitSubqueries(visitFunc)
+}
+
 func (pu *pipeUnpackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	unpackLogfmt := func(uctx *fieldsUnpackerContext, s string) {
 		p := getLogfmtParser()
