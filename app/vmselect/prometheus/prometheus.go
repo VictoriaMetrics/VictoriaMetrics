@@ -512,7 +512,10 @@ func DeleteHandler(startTime time.Time, at *auth.Token, r *http.Request) error {
 	if !cp.IsDefaultTimeRange() {
 		return fmt.Errorf("start=%d and end=%d args aren't supported. Remove these args from the query in order to delete all the matching metrics", cp.start, cp.end)
 	}
-	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxDeleteSeries)
+	sq, err := getSearchQuery(nil, at, cp, *maxDeleteSeries)
+	if err != nil {
+		return err
+	}
 	deletedCount, err := netstorage.DeleteSeries(nil, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series: %w", err)
