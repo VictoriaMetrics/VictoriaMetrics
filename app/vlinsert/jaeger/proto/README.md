@@ -1,0 +1,1 @@
+Files under `github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jaeger/proto` are copied from `github.com/jaegertracing/jaeger` with import path modified. For PoC usage only. 

@@ -2,6 +2,7 @@ package vlinsert
 
 import (
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jaeger"
 	"net/http"
 	"strings"
 
@@ -17,11 +18,13 @@ import (
 // Init initializes vlinsert
 func Init() {
 	syslog.MustInit()
+	jaeger.MustInit()
 }
 
 // Stop stops vlinsert
 func Stop() {
 	syslog.MustStop()
+	jaeger.MustStop()
 }
 
 // RequestHandler handles insert requests for VictoriaLogs
