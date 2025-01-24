@@ -98,7 +98,7 @@ func mUnmap(data []byte) error {
 	mmapByAddrLock.Lock()
 	h, ok := mmapByAddr[addr]
 	if !ok {
-		logger.Fatalf("BUG: unmapping for non exist addr: %d", addr)
+		logger.Panicf("BUG: unmapping for non exist addr: %d", addr)
 	}
 	delete(mmapByAddr, addr)
 	mmapByAddrLock.Unlock()

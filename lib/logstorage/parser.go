@@ -808,7 +808,7 @@ func flattenFiltersAnd(f filter) filter {
 	}
 	f, err := copyFilter(f, visitFunc, copyFunc)
 	if err != nil {
-		logger.Fatalf("BUG: unexpected error: %s", err)
+		logger.Panicf("BUG: unexpected error: %s", err)
 	}
 	return f
 }
@@ -844,7 +844,7 @@ func flattenFiltersOr(f filter) filter {
 	}
 	f, err := copyFilter(f, visitFunc, copyFunc)
 	if err != nil {
-		logger.Fatalf("BUG: unexpected error: %s", err)
+		logger.Panicf("BUG: unexpected error: %s", err)
 	}
 	return f
 }
@@ -861,7 +861,7 @@ func removeStarFilters(f filter) filter {
 	}
 	f, err := copyFilter(f, visitFunc, copyFunc)
 	if err != nil {
-		logger.Fatalf("BUG: unexpected error: %s", err)
+		logger.Panicf("BUG: unexpected error: %s", err)
 	}
 
 	// Drop filterNoop inside filterAnd
@@ -897,7 +897,7 @@ func removeStarFilters(f filter) filter {
 	}
 	f, err = copyFilter(f, visitFunc, copyFunc)
 	if err != nil {
-		logger.Fatalf("BUG: unexpected error: %s", err)
+		logger.Panicf("BUG: unexpected error: %s", err)
 	}
 
 	return f

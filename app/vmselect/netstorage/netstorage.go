@@ -1023,14 +1023,14 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 		case "vm_project_id":
 			idx = 1
 		default:
-			logger.Fatalf("BUG: unexpected labeName=%q", labelName)
+			logger.Panicf("BUG: unexpected labeName=%q", labelName)
 		}
 
 		labelValues := make([]string, 0, len(tenants))
 		for _, t := range tenants {
 			s := strings.Split(t, ":")
 			if len(s) != 2 {
-				logger.Fatalf("BUG: unexpected tenant received from storage: %q", t)
+				logger.Panicf("BUG: unexpected tenant received from storage: %q", t)
 			}
 
 			labelValues = append(labelValues, s[idx])
