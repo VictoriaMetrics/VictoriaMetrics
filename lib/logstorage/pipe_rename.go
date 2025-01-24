@@ -66,6 +66,10 @@ func (pr *pipeRename) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc)
 	return pr, nil
 }
 
+func (pr *pipeRename) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pr *pipeRename) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeRenameProcessor{
 		pr:     pr,

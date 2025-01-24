@@ -30,6 +30,10 @@ func (ps *pipeBlockStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesF
 	return ps, nil
 }
 
+func (ps *pipeBlockStats) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (ps *pipeBlockStats) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	unneededFields.reset()
 	neededFields.add("*")
