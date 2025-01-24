@@ -88,13 +88,13 @@ func (t *Tracer) NewChild(format string, args ...any) *Tracer {
 	return child
 }
 
-// NewOrphan returns new Tracer from given t.
+// NewOrphan returns a new Tracer without registering it as t child.
 //
-// The returned Tracer should be added to the parent manually by with AddChild() call.
+// The returned Tracer should be added to the parent manually via AddChild() call.
 //
 // NewOrphan cannot be called from concurrent goroutines.
-// Create orphans tracers from a single goroutine and then pass them
-// to concurrent goroutines.
+// Create orphaned Tracers from a single goroutine and then pass them
+// to concurrent goroutines instead.
 func NewOrphan(t *Tracer, format string, args ...any) *Tracer {
 	if t == nil {
 		return nil
