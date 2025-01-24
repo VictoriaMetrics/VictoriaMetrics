@@ -30,7 +30,9 @@ If you have questions about VictoriaLogs, then read [this FAQ](https://docs.vict
 Also feel free asking any questions at [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/), 
 you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
 
-See [Quick start docs](https://docs.victoriametrics.com/victorialogs/quickstart/) for start working with VictoriaLogs.
+See [quick start docs](https://docs.victoriametrics.com/victorialogs/quickstart/) for start working with VictoriaLogs.
+
+If you want playing with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query language, then go to [VictoriaLogs playground](https://play-vmlogs.victoriametrics.com/).
 
 ## Tuning
 
