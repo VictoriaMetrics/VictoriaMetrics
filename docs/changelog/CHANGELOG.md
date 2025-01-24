@@ -30,6 +30,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fix possible runtime panic during requests processing under heavy load. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8051) for details.
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): fix panic when trying to delete series by using [multitenant read](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels) endpoint. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8126) for the details.
 
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix an issue where pressing the "Enter" key in the query editor did not execute the query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8058).
+
 ## [v1.109.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.109.1)
 
 Released at 2025-01-17
