@@ -46,7 +46,7 @@ Installing VictoriaMetrics Grafana datasource [requires](https://grafana.com/doc
 
 ``` ini
 [plugins]
-allow_loading_unsigned_plugins = victoriametrics-datasource
+allow_loading_unsigned_plugins = victoriametrics-metrics-datasource
 ```
 
 For `grafana-operator` users, please adjust `config:` section in your `kind=Grafana` resource as below
@@ -54,7 +54,7 @@ For `grafana-operator` users, please adjust `config:` section in your `kind=Graf
 ```
   config:
     plugins:
-      allow_loading_unsigned_plugins: "victoriametrics-datasource"
+      allow_loading_unsigned_plugins: "victoriametrics-metrics-datasource"
 ```
 
 See [why VictoriaMetrics datasource is unsigned](#why-victoriaMetrics-datasource-is-unsigned).
@@ -83,7 +83,7 @@ datasources:
   # displayed in Grafana panels and queries.
   - name: VictoriaMetrics
     # <string, required> Sets the data source type.
-    type: victoriametrics-datasource
+    type: victoriametrics-metrics-datasource
       # <string, required> Sets the access mode, either
       # proxy or direct (Server or Browser in the UI).
       # Some data sources are incompatible with any setting
@@ -99,7 +99,7 @@ datasources:
     # displayed in Grafana panels and queries.
   - name: VictoriaMetrics - cluster
     # <string, required> Sets the data source type.
-    type: victoriametrics-datasource
+    type: victoriametrics-metrics-datasource
     # <string, required> Sets the access mode, either
     # proxy or direct (Server or Browser in the UI).
     # Some data sources are incompatible with any setting
@@ -124,8 +124,8 @@ Please find the example of provisioning Grafana instance with VictoriaMetrics da
        grafana:
          image: grafana/grafana:11.0.0
          environment:
-         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.10.3/victoriametrics-datasource-v0.10.3.zip;victoriametrics-datasource
-         - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource
+         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.12.2/victoriametrics-metrics-datasource-v0.12.2.zip;victoriametrics-metrics-datasource
+         - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-metrics-datasource
          ports:
          - 3000:3000/tcp
          volumes:
@@ -152,14 +152,14 @@ Option 1. Using Grafana provisioning:
 
 ``` yaml
 env:
-  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.10.3/victoriametrics-datasource-v0.10.3.zip;victoriametrics-datasource"
+  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.12.2/victoriametrics-metrics-datasource-v0.12.2.zip;victoriametrics-metrics-datasource"
 ```
 
 Option 2. Using Grafana plugins section in `values.yaml`:
 
 ``` yaml
 plugins:
-  - https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.10.3/victoriametrics-datasource-v0.10.3.zip;victoriametrics-datasource
+  - https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.12.2/victoriametrics-metrics-datasource-v0.12.2.zip;victoriametrics-metrics-datasource
 ```
 
 Option 3. Using init container:
@@ -179,7 +179,7 @@ extraInitContainers:
        set -ex
        mkdir -p /var/lib/grafana/plugins/
        ver=$(curl -s -L https://api.github.com/repos/VictoriaMetrics/victoriametrics-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-       curl -L https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/vm-plugin.tar.gz
+       curl -L https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/$ver/victoriametrics-metrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/vm-plugin.tar.gz
        tar -xf /var/lib/grafana/plugins/vm-plugin.tar.gz -C /var/lib/grafana/plugins/
        rm /var/lib/grafana/plugins/vm-plugin.tar.gz
     volumeMounts:
@@ -239,7 +239,7 @@ spec:
                   set -ex
                   mkdir -p /var/lib/grafana/plugins/
                   ver=$(curl -s https://api.github.com/repos/VictoriaMetrics/victoriametrics-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-                  curl -L https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/vm-plugin.tar.gz
+                  curl -L https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/$ver/victoriametrics-metrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/vm-plugin.tar.gz
                   tar -xf /var/lib/grafana/plugins/vm-plugin.tar.gz -C /var/lib/grafana/plugins/
                   rm /var/lib/grafana/plugins/vm-plugin.tar.gz
               volumeMounts:
@@ -247,7 +247,7 @@ spec:
                   mountPath: /var/lib/grafana
   config:
     plugins:
-      allow_loading_unsigned_plugins: victoriametrics-datasource
+      allow_loading_unsigned_plugins: victoriametrics-metrics-datasource
 ```
 
 See [Grafana operator reference](https://grafana-operator.github.io/grafana-operator/docs/grafana/) to find more about  Grafana operator.
@@ -259,7 +259,7 @@ This example uses init container to download and install plugin.
 
    ```sh
    ver=$(curl -s https://api.github.com/repos/VictoriaMetrics/victoriametrics-datasource/releases/latest | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-   curl -L https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/vm-plugin.tar.gz
+   curl -L https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/$ver/victoriametrics-metrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/vm-plugin.tar.gz
    tar -xf /var/lib/grafana/plugins/vm-plugin.tar.gz -C /var/lib/grafana/plugins/
    rm /var/lib/grafana/plugins/vm-plugin.tar.gz
    ```
@@ -279,7 +279,7 @@ plugins = {{path to directory with plugin}}
 
 ``` ini
 [plugins]
-allow_loading_unsigned_plugins = victoriametrics-datasource
+allow_loading_unsigned_plugins = victoriametrics-metrics-datasource
 ```
 
 ### 2. Run the plugin
