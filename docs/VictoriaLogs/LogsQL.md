@@ -9,7 +9,8 @@ aliases:
 - /VictoriaLogs/LogsQL.html
 ---
 LogsQL is a simple yet powerful query language for [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/).
-See [examples](https://docs.victoriametrics.com/victorialogs/logsql-examples/) and [tutorial](#logsql-tutorial)
+See [examples](https://docs.victoriametrics.com/victorialogs/logsql-examples/), [LogsQL tutorial](#logsql-tutorial)
+and [SQL to LogsQL conversion guide](https://docs.victoriametrics.com/victorialogs/sql-to-logsql/)
 in order to feel the language.
 
 LogsQL provides the following features:
