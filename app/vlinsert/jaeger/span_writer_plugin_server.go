@@ -32,6 +32,9 @@ func (s *SpanWriterPluginServer) WriteSpan(ctx context.Context, req *proto.Write
 	fields = append(fields, logstorage.Field{
 		Name:  "_msg",
 		Value: string(jsonSpan),
+	}, logstorage.Field{
+		Name:  "duration",
+		Value: strconv.FormatInt(span.Duration.Nanoseconds(), 10),
 	})
 
 	for i := range tags {
@@ -53,7 +56,6 @@ func (s *SpanWriterPluginServer) WriteSpan(ctx context.Context, req *proto.Write
 			Value: value,
 		})
 	}
-
 	processTags := span.GetProcess().GetTags()
 	streamFields := make([]logstorage.Field, 0, 2+len(processTags))
 	streamFields = append(streamFields,
