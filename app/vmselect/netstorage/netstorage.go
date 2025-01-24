@@ -1951,7 +1951,7 @@ func populateSqTenantTokensIfNeeded(sq *storage.SearchQuery) error {
 type storageNodesRequest struct {
 	denyPartialResponse bool
 	resultsCh           chan rpcResult
-	qtp                 *querytracer.Tracer
+	qt                  *querytracer.Tracer
 	// query tracers to storageAddresses mapping
 	qts map[*querytracer.Tracer]string
 	sns []*storageNode
@@ -1969,13 +1969,19 @@ func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPa
 	resultsCh := make(chan rpcResult, len(sns))
 	qts := make(map[*querytracer.Tracer]string, len(sns))
 	for idx, sn := range sns {
-		qtChild := querytracer.NewOrphan(qt, "rpc at vmstorage %s", sn.connPool.Addr())
-		qts[qtChild] = sn.connPool.Addr()
+		// Do not use qt.NewChild.
+		// StorageNodesRequest may be finished before goroutine returns.
+		// Caller must register tracker manually with finishQueryTracer after goroutine returns result.
+		// It ensures that tracker is no longer referenced by any concurrent goroutines.
+		//
+		// See this issue: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8114
+		qtOrphan := querytracer.NewOrphan(qt, "rpc at vmstorage %s", sn.connPool.Addr())
+		qts[qtOrphan] = sn.connPool.Addr()
 		go func(workerID uint, sn *storageNode) {
-			data := f(qtChild, workerID, sn)
+			data := f(qtOrphan, workerID, sn)
 			resultsCh <- rpcResult{
 				data:  data,
-				qt:    qtChild,
+				qt:    qtOrphan,
 				group: sn.group,
 			}
 		}(uint(idx), sn)
@@ -1983,7 +1989,7 @@ func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPa
 	return &storageNodesRequest{
 		denyPartialResponse: denyPartialResponse,
 		resultsCh:           resultsCh,
-		qtp:                 qt,
+		qt:                  qt,
 		qts:                 qts,
 		sns:                 sns,
 	}
@@ -1991,7 +1997,11 @@ func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPa
 
 func (snr *storageNodesRequest) finishQueryTracers(msg string) {
 	for qt, storageAddr := range snr.qts {
-		cancelledQt := snr.qtp.NewChild("rpc at vmstorage: %s: %s", storageAddr, msg)
+		// since qt cannot be used concurrently,
+		// replace child still referenced by concurrent storageNode goroutine
+		// with local child that belongs to current goroutine.
+		// Add reason msg why it was done.
+		cancelledQt := snr.qt.NewChild("rpc at vmstorage: %s: %s", storageAddr, msg)
 		cancelledQt.Done()
 		delete(snr.qts, qt)
 	}
@@ -2004,7 +2014,7 @@ func (snr *storageNodesRequest) finishQueryTracer(qt *querytracer.Tracer, msg st
 		qt.Donef("%s", msg)
 	}
 	delete(snr.qts, qt)
-	snr.qtp.AddChild(qt)
+	snr.qt.AddChild(qt)
 }
 
 func (snr *storageNodesRequest) collectAllResults(f func(result any) error) error {
