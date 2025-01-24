@@ -22,5 +22,5 @@ to [the latest available releases](https://docs.victoriametrics.com/changelog/).
 
 ## Currently supported LTS release lines
 
-- v1.102.x - the latest one is [v1.102.10 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.10)
-- v1.97.x - the latest one is [v1.97.15 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.15)
+- v1.102.x - the latest one is [v1.102.11 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.11)
+- v1.97.x - the latest one is [v1.97.16 LTS release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.16)
