@@ -37,6 +37,34 @@ Released at 2025-01-24
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic when `vmselect` receives an error response from `vmstorage` during the query execution and request processing for other `vmstorage` nodes is still in progress. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8114) for the details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix an issue where pressing the "Enter" key in the query editor did not execute the query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8058).
 
+## [v1.102.11](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.11)
+
+Released at 2025-01-24
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* SECURITY: upgrade Go builder from Go1.23.4 to Go1.23.5. See the list of issues addressed in [Go1.23.5](https://github.com/golang/go/issues?q=milestone%3AGo1.23.5+label%3ACherryPickApproved).
+
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): don't take into account the last raw sample before the lookbehind window is sample exceeds the staleness interval. This affects correctness of increase, increase_pure, delta functions when preforming calculations on time series with gaps. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8002) for details.
+* BUGFIX: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: remove unnecessary delay before failing if all online verification attempts have failed. This should reduce the time required for the component to proceed if all online verification attempts have failed.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): allow ingesting histograms with missing `_sum` metric via [OpenTelemetry ingestion protocol](https://docs.victoriametrics.com/#sending-data-via-opentelemetry) in the same way as Prometheus does.
+* BUGFIX: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: properly trim whitespaces at the end of license provided via `-license` and `-licenseFile` command-line flags. Previously, the trailing whitespaces could cause the license verification to fail.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): fix possible runtime panic during requests processing under heavy load. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8051) for details.
+
+## [v1.97.16](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.16)
+
+Released at 2025-01-24
+
+**v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.97.x line will be supported for at least 12 months since [v1.97.0](https://docs.victoriametrics.com/CHANGELOG.html#v1970) release**
+
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): allow ingesting histograms with missing `_sum` metric via [OpenTelemetry ingestion protocol](https://docs.victoriametrics.com/#sending-data-via-opentelemetry) in the same way as Prometheus does.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): don't take into account the last raw sample before the lookbehind window is sample exceeds the staleness interval. This affects correctness of increase, increase_pure, delta functions when preforming calculations on time series with gaps. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8002) for details.
+* BUGFIX: all VictoriaMetrics [enterprise](https://docs.victoriametrics.com/enterprise/) components: remove unnecessary delay before failing if all online verification attempts have failed. This should reduce the time required for the component to proceed if all online verification attempts have failed.
+
 ## [v1.109.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.109.1)
 
 Released at 2025-01-17
