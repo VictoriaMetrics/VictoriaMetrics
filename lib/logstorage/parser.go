@@ -1902,10 +1902,6 @@ func parseFilterLT(lex *lexer, fieldName string) (filter, error) {
 		return fr, nil
 	}
 
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse number after '%s': %w", op, err)
-	}
-
 	if !includeMaxValue {
 		maxValue = nextafter(maxValue, -inf)
 	}
