@@ -3152,6 +3152,9 @@ For example, the following query unrolls `timestamp` and `value` [log fields](ht
 _time:5m | unroll (timestamp, value)
 ```
 
+If the unrolled JSON array contains JSON objects, then it may be handy using [`unpack_json`](#unpack_json-pipe) for unpacking
+the unrolled array items into separate fields for further processing.
+
 See also:
 
 - [`unpack_json` pipe](#unpack_json-pipe)
@@ -3341,9 +3344,31 @@ If the field contains [duration value](#duration-values), then `histogram` norma
 
 If the field contains [short numeric value](#short-numeric-values), then `histogram` normalizes it to numeric value without any suffixes. For example, `1KiB` is converted to `1024`.
 
+Histogram buckets are returned as the following JSON array:
+
+```json
+[{"vmrange":"...","hits":...},...,{"vmrange":"...","hits":...}]
+```
+
+Every `vmrange` value contains value range for the corresponding [VictoriaMetrics histogram bucket](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350),
+while `hits` contains the number of values, which hit the given bucket.
+
+It may be handy to unroll the returned histogram buckets for further processing during the query. For example, the following query
+calculates a histogram over the `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+and then unrolls it into distinct rows with `vmrange` and `hits` fields with the help of [`unroll`](#unroll-pipe) and [`unpack_json`](#unpack_json-pipe) pipes:
+
+```logsql
+_time:5m
+  | stats histogram(response_size) as buckets
+  | unroll (buckets)
+  | unpack_json from buckets
+```
+
 See also:
 
 - [`quantile`](#quantile-stats)
+- [`unroll` pipe](#unroll-pipe)
+- [`unpack_json` pipe](#unpack_json-pipe)
 
 ### max stats
 
