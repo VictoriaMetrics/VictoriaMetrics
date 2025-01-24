@@ -16,6 +16,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.8.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.8.0-victorialogs)
+
+Released at 2025-01-24
+
 * FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add an ability to limit query concurrency for the `<q>` [query](https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax) via `options(concurrency=N) <q>` syntax. This may be needed for reducing RAM and CPU usage at the cost of longer query execution times. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#query-options) for details.
 * FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): allow overriding the global time range filter at subqueries inside [`in` filter](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter), [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe) and [`union` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#union-pipe) via `options(ignore_global_time_filter=true) <q>` syntax. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#query-options) for details.
 * FEATURE: add [`hash` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#hash-pipe) for calculating hashes over the selected log fields. This may be useful for splitting the selected logs into distinct buckets. For example, the following query splits `user_id` fields into 4 buckets with the help of `hash` pipe: `_time:5m | hash(user_id) as h | math h%4 as bucket | stats by (bucket) count()`.
