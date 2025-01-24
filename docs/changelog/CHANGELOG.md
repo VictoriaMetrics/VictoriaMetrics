@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+## [v1.110.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.0)
+
+Released at 2025-01-24
+
 * SECURITY: upgrade Go builder from Go1.23.4 to Go1.23.5. See the list of issues addressed in [Go1.23.5](https://github.com/golang/go/issues?q=milestone%3AGo1.23.5+label%3ACherryPickApproved).
 
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/metricsql/): allow executing queries with `$__interval` and `$__rate_interval` - these placeholders are automatically replaced with `1i` (e.g. `step` arg value at [`/api/v1/query_range`](https://docs.victoriametrics.com/keyconcepts/#range-query)) during query execution. This simplifies copying queries from Grafana dashboards.
