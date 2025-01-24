@@ -100,7 +100,7 @@ func NewOrphan(t *Tracer, format string, args ...any) *Tracer {
 		return nil
 	}
 	if t.isDone.Load() {
-		panic(fmt.Errorf("BUG: NewChild() cannot be called after Donef(%q) call", t.message))
+		panic(fmt.Errorf("BUG: NewOrphan() cannot be called after Donef(%q) call", t.message))
 	}
 	child := &Tracer{
 		message:   fmt.Sprintf(format, args...),
