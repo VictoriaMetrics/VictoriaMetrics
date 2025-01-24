@@ -43,7 +43,7 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
         values,
         pairs,
       };
-    }).sort((a, b) => a.keysString.localeCompare(b.keysString)); // groups sorting
+    }).sort((a, b) => b.values.length - a.values.length); // groups sorting
   }, [logs, groupBy]);
 
   const handleToggleExpandAll = useCallback(() => {
