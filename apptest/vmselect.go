@@ -131,7 +131,6 @@ func (app *Vmselect) DeleteSeries(t *testing.T, matchQuery string, opts QueryOpt
 	if res != "" {
 		t.Fatalf("unexpected non-empty DeleteSeries response=%q", res)
 	}
-	return
 }
 
 // String returns the string representation of the vmselect app state.
