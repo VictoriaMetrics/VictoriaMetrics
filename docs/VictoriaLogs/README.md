@@ -247,6 +247,37 @@ VictoriaLogs has very low overhead for per-tenant management, so it is OK to hav
 
 VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/vmauth/) or similar tools for per-tenant authorization.
 
+### Multitenancy access control
+
+Enforce access control for tenants by using [vmauth](https://docs.victoriametrics.com/vmauth/). Access control can be configured for each tenant by setting up the following rules:
+
+```yaml
+users:
+  - username: "foo"
+    password: "bar"
+    url_map:
+      - src_paths:
+        - "/select/.*"
+        - "/insert/.*"
+        headers:
+          - "AccountID: 1"
+          - "ProjectID: 0"
+        url_prefix:
+          - "http://localhost:9428/"
+
+  - username: "baz"
+    password: "bar"
+    url_map:
+      - src_paths: ["/select/.*"]
+        headers:
+          - "AccountID: 2"
+          - "ProjectID: 0"
+        url_prefix:
+          - "http://localhost:9428/"
+```
+
+This configuration allows `foo` to use the `/select/.*` and `/insert/.*` endpoints with `AccountID: 1` and `ProjectID: 0`, while `baz` can only use the `/select/.*` endpoint with `AccountID: 2` and `ProjectID: 0`.
+
 ## Security
 
 It is expected that VictoriaLogs runs in a protected environment, which is unreachable from the Internet without proper authorization.
