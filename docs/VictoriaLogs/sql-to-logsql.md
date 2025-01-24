@@ -39,7 +39,7 @@ FROM <table>
   <optional GROUP BY>
   <optional HAVING>
   <optional ORDER BY>
-  <optional LIMIT and OFFSET>
+  <optional LIMIT / OFFSET>
   <optional UNION>
 ```
 
@@ -77,7 +77,9 @@ The following rules must be used for converting SQL query into LogsQL query:
 * If the SQL query contains `JOIN`, then convert it into [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe).
 * If the SQL query contains `GROUP BY` / aggregate functions, then convert them to [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe).
   For example, `SELECT count(*) FROM table` is converted into `* | count()`, while `SELECT user_id, count(*) FROM table GROUP BY user_id`
-  is converted to `* | stats by (user_id) count()`.
+  is converted to `* | stats by (user_id) count()`. Note how the LogsQL query mentions the `GROUP BY` fields only once,
+  while SQL forces mentioning these fields twice - at the `SELECT` and at the `GROUP BY`. How many times did you hit the discrepancy
+  between `SELECT` and `GROUP BY` fields?
 * If the SQL query contains additional calculations and/or transformations at the `SELECT`, which aren't covered yet by `GROUP BY`,
   then convert them into the corresponding [LogsQL pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes).
   The most frequently used pipes are [`math`](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe)
