@@ -41,6 +41,10 @@ func (pp *pipePackJSON) initFilterInValues(_ *inValuesCache, _ getFieldValuesFun
 	return pp, nil
 }
 
+func (pp *pipePackJSON) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pp *pipePackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return newPipePackProcessor(workersCount, ppNext, pp.resultField, pp.fields, MarshalFieldsToJSON)
 }

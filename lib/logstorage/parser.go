@@ -259,6 +259,9 @@ type queryOptions struct {
 	//
 	// By default the number of concurrent workers equals to the number of available CPU cores.
 	concurrency uint
+
+	// if ignoreGlobalTimeFilter is set, then Query.AddTimeFilter doesn't add the time filter to the query and to all its subqueries.
+	ignoreGlobalTimeFilter *bool
 }
 
 func (opts *queryOptions) String() string {
@@ -268,6 +271,9 @@ func (opts *queryOptions) String() string {
 	var a []string
 	if opts.concurrency > 0 {
 		a = append(a, fmt.Sprintf("concurrency=%d", opts.concurrency))
+	}
+	if opts.ignoreGlobalTimeFilter != nil {
+		a = append(a, fmt.Sprintf("ignore_global_time_filter=%v", *opts.ignoreGlobalTimeFilter))
 	}
 	if len(a) == 0 {
 		return ""
@@ -486,6 +492,16 @@ func (q *Query) AddTimeFilter(start, end int64) {
 		stringRepr:   fmt.Sprintf("[%s, %s]", startStr, endStr),
 	}
 
+	q.visitSubqueries(func(q *Query) {
+		q.addTimeFilterNoSubqueries(ft)
+	})
+}
+
+func (q *Query) addTimeFilterNoSubqueries(ft *filterTime) {
+	if q.opts.ignoreGlobalTimeFilter != nil && *q.opts.ignoreGlobalTimeFilter {
+		return
+	}
+
 	fa, ok := q.f.(*filterAnd)
 	if ok {
 		filters := make([]filter, len(fa.filters)+1)
@@ -506,6 +522,12 @@ func (q *Query) AddExtraFilters(extraFilters *Filter) {
 	}
 
 	filters := []filter{extraFilters.f}
+	q.visitSubqueries(func(q *Query) {
+		q.addExtraFiltersNoSubqueries(filters)
+	})
+}
+
+func (q *Query) addExtraFiltersNoSubqueries(filters []filter) {
 	fa, ok := q.f.(*filterAnd)
 	if ok {
 		fa.filters = append(filters, fa.filters...)
@@ -527,6 +549,12 @@ func (q *Query) AddPipeLimit(n uint64) {
 
 // optimize applies various optimations to q.
 func (q *Query) optimize() {
+	q.visitSubqueries(func(q *Query) {
+		q.optimizeNoSubqueries()
+	})
+}
+
+func (q *Query) optimizeNoSubqueries() {
 	q.pipes = optimizeSortOffsetPipes(q.pipes)
 	q.pipes = optimizeSortLimitPipes(q.pipes)
 	q.pipes = optimizeUniqLimitPipes(q.pipes)
@@ -560,6 +588,39 @@ func (q *Query) optimize() {
 
 	// Merge multiple {...} filters into a single one.
 	q.f = mergeFiltersStream(q.f)
+}
+
+func (q *Query) visitSubqueries(visitFunc func(q *Query)) {
+	// call f for the query itself.
+	visitFunc(q)
+
+	// Visit subqueries in all the filters at q.
+	visitSubqueriesInFilter(q.f, visitFunc)
+
+	// Visit subqueries in all the pipes at q.
+	for _, p := range q.pipes {
+		p.visitSubqueries(visitFunc)
+	}
+}
+
+func visitSubqueriesInFilter(f filter, visitFunc func(q *Query)) {
+	if f == nil {
+		return
+	}
+	callback := func(f filter) bool {
+		switch t := f.(type) {
+		case *filterIn:
+			if t.q != nil {
+				t.q.visitSubqueries(visitFunc)
+			}
+		case *filterStreamID:
+			if t.q != nil {
+				t.q.visitSubqueries(visitFunc)
+			}
+		}
+		return false
+	}
+	_ = visitFilter(f, callback)
 }
 
 func mergeFiltersStream(f filter) filter {
@@ -1206,6 +1267,12 @@ func parseQueryOptions(lex *lexer) (*queryOptions, error) {
 				n = 1024
 			}
 			opts.concurrency = uint(n)
+		case "ignore_global_time_filter":
+			ignoreGlobalTimeFilter, err := strconv.ParseBool(v)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse 'ignore_global_time_filter=%q' option as boolean: %w", v, err)
+			}
+			opts.ignoreGlobalTimeFilter = &ignoreGlobalTimeFilter
 		default:
 			return nil, fmt.Errorf("unexpected option %q with value %q", k, v)
 		}

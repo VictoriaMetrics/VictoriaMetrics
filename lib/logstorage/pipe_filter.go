@@ -47,6 +47,10 @@ func (pf *pipeFilter) initFilterInValues(cache *inValuesCache, getFieldValuesFun
 	return &pfNew, nil
 }
 
+func (pf *pipeFilter) visitSubqueries(visitFunc func(q *Query)) {
+	visitSubqueriesInFilter(pf.f, visitFunc)
+}
+
 func (pf *pipeFilter) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	shards := make([]pipeFilterProcessorShard, workersCount)
 

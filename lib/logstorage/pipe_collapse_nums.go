@@ -47,6 +47,10 @@ func (pc *pipeCollapseNums) hasFilterInWithQuery() bool {
 	return pc.iff.hasFilterInWithQuery()
 }
 
+func (pc *pipeCollapseNums) visitSubqueries(visitFunc func(q *Query)) {
+	pc.iff.visitSubqueries(visitFunc)
+}
+
 func (pc *pipeCollapseNums) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pc.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {

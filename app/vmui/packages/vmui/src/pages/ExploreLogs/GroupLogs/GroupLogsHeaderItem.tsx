@@ -6,6 +6,7 @@ import { MouseEvent, useState } from "react";
 import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import { useSearchParams } from "react-router-dom";
 import { LOGS_GROUP_BY, LOGS_URL_PARAMS } from "../../../constants/logs";
+import { convertToFieldFilter } from "../../../utils/logs";
 
 interface Props {
   pair: string;
@@ -23,8 +24,7 @@ const GroupLogsHeaderItem: FC<Props> = ({ pair, isHide }) => {
 
   const handleClickByPair = (value: string) => async (e: MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    const isKeyValue = /(.+)?=(".+")/.test(value);
-    const copyValue = isKeyValue ? `${value.replace(/=/, ": ")}` : `${groupBy}: "${value}"`;
+    const copyValue = convertToFieldFilter(value, groupBy);
     const isCopied = await copyToClipboard(copyValue);
     if (isCopied) {
       setCopied(value);

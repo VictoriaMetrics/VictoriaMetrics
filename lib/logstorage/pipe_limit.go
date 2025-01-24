@@ -32,6 +32,10 @@ func (pl *pipeLimit) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) 
 	return pl, nil
 }
 
+func (pl *pipeLimit) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pl *pipeLimit) newPipeProcessor(_ int, _ <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	if pl.limit == 0 {
 		// Special case - notify the caller to stop writing data to the returned pipeLimitProcessor

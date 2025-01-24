@@ -33,13 +33,17 @@ func (pu *pipeUnion) canLiveTail() bool {
 }
 
 func (pu *pipeUnion) hasFilterInWithQuery() bool {
-	// The pu.q query with possible in(...) filters is processed independently at pu.flush(),
-	// so return false here.
+	// The pu.q query with possible in(...) filters is processed independently at pu.flush(), so return false here.
 	return false
 }
 
 func (pu *pipeUnion) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+	// The values for in(..) filters at pu.q query are obtained independently at pu.flush().
 	return pu, nil
+}
+
+func (pu *pipeUnion) visitSubqueries(visitFunc func(q *Query)) {
+	pu.q.visitSubqueries(visitFunc)
 }
 
 func (pu *pipeUnion) updateNeededFields(_, _ fieldsSet) {

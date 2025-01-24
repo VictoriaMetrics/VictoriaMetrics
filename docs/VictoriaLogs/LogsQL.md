@@ -3791,3 +3791,19 @@ VictoriaLogs supports the following options, which can be passed in the beginnin
   ```logsql
   options(concurrency=2) _time:1d | count_uniq(user_id)
   ```
+
+- `ignore_global_time_filter` - allows ignoring time filter from `start` and `end` args of [HTTP querying API](https://docs.victoriametrics.com/victorialogs/querying/#http-api)
+  for the given (sub)query. For example, the following query returns the number of logs with `user_id` values seen in logs during December 2024, on the `[start...end]`
+  time range passed to [`/api/v1/query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs):
+
+  ```logsql
+  user_id:in(options(ignore_global_time_filter=true) _time:2024-12Z | keep user_id) | count()
+  ```
+
+  The [`in`](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter) query without `options(ignore_global_time_filter=true)`
+  takes into account only `user_id` values on the intersection of December 2024 and `[start...end]` time range pased
+  to [`/api/v1/query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs):
+
+  ```logsql
+  user_id:in(_time:2024-12Z | keep user_id) | count()
+  ```
