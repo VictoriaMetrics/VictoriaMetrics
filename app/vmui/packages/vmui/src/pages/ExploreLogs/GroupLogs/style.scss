@@ -268,7 +268,7 @@ $font-size-logs: var(--font-size-logs, $font-size-small);
       border: $border-divider;
       border-radius: $border-radius-small;
       overflow: auto;
-      height: 300px;
+      max-height: 300px;
       resize: vertical;
       font-family: $font-family-monospace;
       font-size: $font-size-logs;

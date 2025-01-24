@@ -34,6 +34,11 @@ Released at 2025-01-20
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): reduce logs text size and improved styles in grouped view. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7479).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the ability to select fields for display instead of the `_msg` field. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7419).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add various display configuration settings for the grouped view. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7815)
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): added context menu for legend items with options to copy and filter streams and fields. See this [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7750).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): improved legend functionality with consistent click behavior across all vmui charts. See this [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7750).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): added sorting for group view by record count in descending order. See this [PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7750).
+
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): removed the ability to filter by other in the legend, as other represents an aggregated series of all streams not included in the top results. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7552).
 
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix an issue where pressing the "Enter" key in the query editor did not execute the query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8058).
 
