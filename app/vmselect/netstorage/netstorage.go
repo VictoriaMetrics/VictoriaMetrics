@@ -1951,8 +1951,10 @@ func populateSqTenantTokensIfNeeded(sq *storage.SearchQuery) error {
 type storageNodesRequest struct {
 	denyPartialResponse bool
 	resultsCh           chan rpcResult
-	qts                 map[*querytracer.Tracer]struct{}
-	sns                 []*storageNode
+	qtp                 *querytracer.Tracer
+	// query tracers to storageAddresses mapping
+	qts map[*querytracer.Tracer]string
+	sns []*storageNode
 }
 
 type rpcResult struct {
@@ -1965,10 +1967,10 @@ func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPa
 	f func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any,
 ) *storageNodesRequest {
 	resultsCh := make(chan rpcResult, len(sns))
-	qts := make(map[*querytracer.Tracer]struct{}, len(sns))
+	qts := make(map[*querytracer.Tracer]string, len(sns))
 	for idx, sn := range sns {
-		qtChild := qt.NewChild("rpc at vmstorage %s", sn.connPool.Addr())
-		qts[qtChild] = struct{}{}
+		qtChild := querytracer.NewOrphan(qt, "rpc at vmstorage %s", sn.connPool.Addr())
+		qts[qtChild] = sn.connPool.Addr()
 		go func(workerID uint, sn *storageNode) {
 			data := f(qtChild, workerID, sn)
 			resultsCh <- rpcResult{
@@ -1981,14 +1983,17 @@ func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPa
 	return &storageNodesRequest{
 		denyPartialResponse: denyPartialResponse,
 		resultsCh:           resultsCh,
+		qtp:                 qt,
 		qts:                 qts,
 		sns:                 sns,
 	}
 }
 
 func (snr *storageNodesRequest) finishQueryTracers(msg string) {
-	for qt := range snr.qts {
-		snr.finishQueryTracer(qt, msg)
+	for qt, storageAddr := range snr.qts {
+		cancelledQt := snr.qtp.NewChild("rpc at vmstorage: %s: %s", storageAddr, msg)
+		cancelledQt.Done()
+		delete(snr.qts, qt)
 	}
 }
 
@@ -1999,6 +2004,7 @@ func (snr *storageNodesRequest) finishQueryTracer(qt *querytracer.Tracer, msg st
 		qt.Donef("%s", msg)
 	}
 	delete(snr.qts, qt)
+	snr.qtp.AddChild(qt)
 }
 
 func (snr *storageNodesRequest) collectAllResults(f func(result any) error) error {
