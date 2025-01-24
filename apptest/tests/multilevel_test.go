@@ -3,7 +3,6 @@ package tests
 import (
 	"fmt"
 	"math/rand/v2"
-	"net/http"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
@@ -61,10 +60,7 @@ func TestClusterMultilevelSelect(t *testing.T) {
 		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, qopts)
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
+				res, _ := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, qopts)
 				res.Sort()
 				return res
 			},

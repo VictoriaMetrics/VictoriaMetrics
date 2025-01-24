@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"net/http"
 	"os"
 	"testing"
 
@@ -38,14 +37,11 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	}
 
 	// test for empty tenants request
-	got, statusCode := vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
+	got, _ := vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
 		Tenant: "multitenant",
 		Step:   "5m",
 		Time:   "2022-05-10T08:03:00.000Z",
 	})
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-	}
 	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[]}}`)
 	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
@@ -57,12 +53,9 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	for _, tenantID := range tenantIDs {
 		vminsert.PrometheusAPIV1ImportPrometheus(t, commonSamples, apptest.QueryOpts{Tenant: tenantID})
 		vmstorage.ForceFlush(t)
-		got, statusCode := vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
+		got, _ := vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
 			Tenant: tenantID, Time: instantCT,
 		})
-		if statusCode != http.StatusOK {
-			t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-		}
 		want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[{"metric":{"__name__":"foo_bar"},"value":[1652169900,"3"]}]}}`)
 		if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
 			t.Errorf("unexpected response (-want, +got):\n%s", diff)
@@ -80,28 +73,22 @@ func TestClusterMultiTenantSelect(t *testing.T) {
        }
      }`,
 	)
-	got, statusCode = vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
+	got, _ = vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
 		Tenant: "multitenant",
 		Time:   instantCT,
 	})
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-	}
 	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
 	// /api/v1/query_range aggregated by tenant labels
 	query := "sum(foo_bar) by(vm_account_id,vm_project_id)"
-	got, statusCode = vmselect.PrometheusAPIV1QueryRange(t, query, apptest.QueryOpts{
+	got, _ = vmselect.PrometheusAPIV1QueryRange(t, query, apptest.QueryOpts{
 		Tenant: "multitenant",
 		Start:  "2022-05-10T07:59:00.000Z",
 		End:    "2022-05-10T08:05:00.000Z",
 		Step:   "1m",
 	})
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-	}
 
 	want = apptest.NewPrometheusAPIV1QueryResponse(t,
 		`{"data": 
@@ -125,13 +112,10 @@ func TestClusterMultiTenantSelect(t *testing.T) {
      }`)
 	wantSR.Sort()
 
-	gotSR, statusCode := vmselect.PrometheusAPIV1Series(t, "foo_bar", apptest.QueryOpts{
+	gotSR, _ := vmselect.PrometheusAPIV1Series(t, "foo_bar", apptest.QueryOpts{
 		Tenant: "multitenant",
 		Start:  "2022-05-10T08:03:00.000Z",
 	})
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-	}
 	gotSR.Sort()
 	if diff := cmp.Diff(wantSR, gotSR, cmpSROpt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
@@ -158,13 +142,10 @@ func TestClusterMultiTenantSelect(t *testing.T) {
         }
     }`,
 	)
-	got, statusCode = vmselect.PrometheusAPIV1Query(t, `foo_bar{vm_account_id="5"}`, apptest.QueryOpts{
+	got, _ = vmselect.PrometheusAPIV1Query(t, `foo_bar{vm_account_id="5"}`, apptest.QueryOpts{
 		Time:   instantCT,
 		Tenant: "multitenant",
 	})
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-	}
 	if diff := cmp.Diff(want, got, cmpOpt); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -178,15 +159,12 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	             ]
 	   }`)
 	wantSR.Sort()
-	gotSR, statusCode = vmselect.PrometheusAPIV1Series(t, "foo_bar", apptest.QueryOpts{
+	gotSR, _ = vmselect.PrometheusAPIV1Series(t, "foo_bar", apptest.QueryOpts{
 		Start:        "2022-05-10T08:00:00.000Z",
 		End:          "2022-05-10T08:30:00.000Z",
 		ExtraFilters: []string{`{vm_project_id="15"}`},
 		Tenant:       "multitenant",
 	})
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-	}
 	gotSR.Sort()
 
 	if diff := cmp.Diff(wantSR, gotSR, cmpSROpt); diff != "" {

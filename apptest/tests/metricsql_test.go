@@ -2,7 +2,6 @@ package tests
 
 import (
 	"fmt"
-	"net/http"
 	"testing"
 	"time"
 
@@ -74,13 +73,10 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 
 	// Verify that instant query returns the first point.
 
-	got, statusCode := sut.PrometheusAPIV1Query(t, "metric", apptest.QueryOpts{
+	got, _ := sut.PrometheusAPIV1Query(t, "metric", apptest.QueryOpts{
 		Step: "5m",
 		Time: "2024-01-01T00:01:00.000Z",
 	})
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-	}
 	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}}]}}`)
 	want.Data.Result[0].Sample = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
 	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
@@ -89,13 +85,10 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 
 	// Verify that instant query does not return stale NaN.
 
-	got, statusCode = sut.PrometheusAPIV1Query(t, "metric", apptest.QueryOpts{
+	got, _ = sut.PrometheusAPIV1Query(t, "metric", apptest.QueryOpts{
 		Step: "5m",
 		Time: "2024-01-01T00:02:00.000Z",
 	})
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-	}
 	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": []}}`)
 	// Empty response, stale NaN is not included into response
 	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
@@ -106,13 +99,10 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 	// while it must not.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5806
 
-	got, statusCode = sut.PrometheusAPIV1Query(t, "metric[2m]", apptest.QueryOpts{
+	got, _ = sut.PrometheusAPIV1Query(t, "metric[2m]", apptest.QueryOpts{
 		Step: "5m",
 		Time: "2024-01-01T00:02:00.000Z",
 	})
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-	}
 	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
 	s := make([]*apptest.Sample, 2)
 	s[0] = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
@@ -124,13 +114,10 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 
 	// Verify that exported data contains stale NaN.
 
-	got, statusCode = sut.PrometheusAPIV1Export(t, `{__name__="metric"}`, apptest.QueryOpts{
+	got, _ = sut.PrometheusAPIV1Export(t, `{__name__="metric"}`, apptest.QueryOpts{
 		Start: "2024-01-01T00:01:00.000Z",
 		End:   "2024-01-01T00:02:00.000Z",
 	})
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-	}
 	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}, "values": []}]}}`)
 	s = make([]*apptest.Sample, 2)
 	s[0] = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)

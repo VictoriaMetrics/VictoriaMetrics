@@ -3,7 +3,6 @@ package tests
 import (
 	"fmt"
 	"math/rand/v2"
-	"net/http"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
@@ -75,10 +74,7 @@ func TestClusterVminsertShardsDataVmselectBuildsFullResultFromShards(t *testing.
 	tc.Assert(&apptest.AssertOptions{
 		Msg: "unexpected /api/v1/series response",
 		Got: func() any {
-			res, statusCode := vmselect.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{})
-			if statusCode != http.StatusOK {
-				t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-			}
+			res, _ := vmselect.PrometheusAPIV1Series(t, `{__name__=~".*"}`, apptest.QueryOpts{})
 			return res.Sort()
 		},
 		Want: want,

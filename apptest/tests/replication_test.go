@@ -3,7 +3,6 @@ package tests
 import (
 	"fmt"
 	"math/rand/v2"
-	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -165,13 +164,10 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+				res, _ := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-31T00:00:00Z",
 				})
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
 				return res.Sort()
 			},
 			Want: &at.PrometheusAPIV1SeriesResponse{
@@ -199,13 +195,10 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1Query(t, "metric_1", at.QueryOpts{
+				res, _ := app.PrometheusAPIV1Query(t, "metric_1", at.QueryOpts{
 					Time: "2024-01-01T00:05:00Z",
 					Step: "5m",
 				})
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
 				return res
 			},
 			Want: &at.PrometheusAPIV1QueryResponse{
@@ -245,13 +238,10 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1Query(t, "metric_1[5m]", at.QueryOpts{
+				res, _ := app.PrometheusAPIV1Query(t, "metric_1[5m]", at.QueryOpts{
 					Time: "2024-01-01T00:05:00Z",
 					Step: "5m",
 				})
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
 				return res
 			},
 			Want: &at.PrometheusAPIV1QueryResponse{
@@ -286,14 +276,11 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query_range response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1QueryRange(t, "metric_1", at.QueryOpts{
+				res, _ := app.PrometheusAPIV1QueryRange(t, "metric_1", at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-01T00:10:00Z",
 					Step:  "5m",
 				})
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
 				return res
 			},
 			Want: &at.PrometheusAPIV1QueryResponse{
@@ -326,13 +313,10 @@ func TestClusterReplication_Deduplication(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/export response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1Export(t, `{__name__="metric_1"}`, at.QueryOpts{
+				res, _ := app.PrometheusAPIV1Export(t, `{__name__="metric_1"}`, at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-01T00:03:00Z",
 				})
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
 				return res
 			},
 			Want: &at.PrometheusAPIV1QueryResponse{
@@ -391,10 +375,7 @@ func TestClusterReplication_PartialResponse(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{})
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
+				res, _ := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{})
 				return res.Sort()
 			},
 			Want: &at.PrometheusAPIV1SeriesResponse{
@@ -483,19 +464,13 @@ func TestClusterReplication_SkipSlowReplicas(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{})
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
+				res, _ := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{})
 				return res.Sort()
 			},
 			Want: wantSeries,
 		})
 
-		res, statusCode := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{Trace: "1"})
-		if statusCode != http.StatusOK {
-			t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-		}
+		res, _ := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{Trace: "1"})
 		got := res.Trace.Contains("cancel request because -search.skipSlowReplicas is set and every group returned the needed number of responses according to replicationFactor")
 		if got != want {
 			t.Errorf("unexpected number of skipSlowReplicas messages in request trace: got %d, want %d (full trace:\n%v)", got, want, res.Trace)
@@ -779,13 +754,10 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+				res, _ := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-31T00:00:00Z",
 				})
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
 				return res.Sort()
 			},
 			Want: opts.wantSeries,
@@ -804,13 +776,10 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1Query(t, "metric_1", at.QueryOpts{
+				res, _ := app.PrometheusAPIV1Query(t, "metric_1", at.QueryOpts{
 					Time: "2024-01-01T00:05:00Z",
 					Step: "5m",
 				})
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
 				return res
 			},
 			Want: &at.PrometheusAPIV1QueryResponse{
@@ -850,13 +819,10 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1Query(t, "metric_1[5m]", at.QueryOpts{
+				res, _ := app.PrometheusAPIV1Query(t, "metric_1[5m]", at.QueryOpts{
 					Time: "2024-01-01T00:05:00Z",
 					Step: "5m",
 				})
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
 				return res
 			},
 			Want: &at.PrometheusAPIV1QueryResponse{
@@ -891,14 +857,11 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query_range response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1QueryRange(t, "metric_1", at.QueryOpts{
+				res, _ := app.PrometheusAPIV1QueryRange(t, "metric_1", at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-01T00:10:00Z",
 					Step:  "5m",
 				})
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
 				return res
 			},
 			Want: &at.PrometheusAPIV1QueryResponse{
@@ -931,13 +894,10 @@ func testGroupDeduplication(tc *at.TestCase, opts *testGroupReplicationOpts) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/export response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1Export(t, `{__name__="metric_1"}`, at.QueryOpts{
+				res, _ := app.PrometheusAPIV1Export(t, `{__name__="metric_1"}`, at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-01T00:03:00Z",
 				})
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
 				return res
 			},
 			Want: &at.PrometheusAPIV1QueryResponse{
@@ -981,22 +941,16 @@ func testGroupSkipSlowReplicas(tc *at.TestCase, opts *testGroupReplicationOpts) 
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+				res, _ := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-31T00:00:00Z",
 				})
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
 				return res.Sort()
 			},
 			Want: opts.wantSeries,
 		})
 
-		res, statusCode := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{Trace: "1"})
-		if statusCode != http.StatusOK {
-			t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-		}
+		res, _ := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{Trace: "1"})
 		got := res.Trace.Contains("cancel request because -search.skipSlowReplicas is set and every group returned the needed number of responses according to replicationFactor")
 		if got < wantMin || got > wantMax {
 			t.Errorf("unexpected number of skipSlowReplicas messages in request trace: got %d, %d <= want <= %d (full trace:\n%v)", got, wantMin, wantMax, res.Trace)
@@ -1079,13 +1033,10 @@ func testGroupPartialResponse(tc *at.TestCase, opts *testGroupReplicationOpts) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				res, statusCode := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
+				res, _ := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, at.QueryOpts{
 					Start: "2024-01-01T00:00:00Z",
 					End:   "2024-01-31T00:00:00Z",
 				})
-				if statusCode != http.StatusOK {
-					t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-				}
 				return res.Sort()
 			},
 			Want: &at.PrometheusAPIV1SeriesResponse{

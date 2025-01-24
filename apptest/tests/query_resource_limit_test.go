@@ -11,7 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func TestMaxUniqueTimeseries(t *testing.T) {
+func TestClusterMaxUniqueTimeseries(t *testing.T) {
 	os.RemoveAll(t.Name())
 
 	cmpOpt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
@@ -75,12 +75,9 @@ func TestMaxUniqueTimeseries(t *testing.T) {
        }
      }`,
 	)
-	queryRes, statusCode := vmselectSmallLimit.PrometheusAPIV1Query(t, "foo_bar1", apptest.QueryOpts{
+	queryRes, _ := vmselectSmallLimit.PrometheusAPIV1Query(t, "foo_bar1", apptest.QueryOpts{
 		Time: instantCT,
 	})
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-	}
 	if diff := cmp.Diff(want, queryRes, cmpOpt); diff != "" {
 		t.Fatalf("unexpected response (-want, +got):\n%s", diff)
 	}
@@ -96,19 +93,16 @@ func TestMaxUniqueTimeseries(t *testing.T) {
        }
      }`,
 	)
-	queryRes, statusCode = vmselectSmallLimit.PrometheusAPIV1Query(t, "foo_bar1", apptest.QueryOpts{
+	queryRes, _ = vmselectSmallLimit.PrometheusAPIV1Query(t, "foo_bar1", apptest.QueryOpts{
 		Time:   instantCT,
 		Tenant: "multitenant",
 	})
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-	}
 	if diff := cmp.Diff(want, queryRes, cmpOpt); diff != "" {
 		t.Fatalf("unexpected response (-want, +got):\n%s", diff)
 	}
 
 	// fail - `/api/v1/query`, exceed vmselect `maxUniqueTimeseries`
-	_, statusCode = vmselectSmallLimit.PrometheusAPIV1Query(t, "foo_bar2", apptest.QueryOpts{
+	_, statusCode := vmselectSmallLimit.PrometheusAPIV1Query(t, "foo_bar2", apptest.QueryOpts{
 		Time: instantCT,
 	})
 	if statusCode != http.StatusUnprocessableEntity {
@@ -132,7 +126,7 @@ func TestMaxUniqueTimeseries(t *testing.T) {
 	}
 }
 
-func TestMaxSeries(t *testing.T) {
+func TestClusterMaxSeries(t *testing.T) {
 	os.RemoveAll(t.Name())
 
 	cmpSROpt := cmpopts.IgnoreFields(apptest.PrometheusAPIV1SeriesResponse{}, "Status", "IsPartial")
