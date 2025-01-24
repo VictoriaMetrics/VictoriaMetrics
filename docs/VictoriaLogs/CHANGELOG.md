@@ -29,6 +29,8 @@ Released at 2025-01-20
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the ability to select fields for display instead of the `_msg` field. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7419).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add various display configuration settings for the grouped view. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7815)
 
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix an issue where pressing the "Enter" key in the query editor did not execute the query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8058).
+
 ## [v1.6.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.6.1-victorialogs)
 
 Released at 2025-01-16
