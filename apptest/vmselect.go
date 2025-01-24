@@ -117,6 +117,23 @@ func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
+// DeleteSeries sends a query to a /prometheus/api/v1/admin/tsdb/delete_series
+//
+// See https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series
+func (app *Vmselect) DeleteSeries(t *testing.T, matchQuery string, opts QueryOpts) {
+	t.Helper()
+
+	seriesURL := fmt.Sprintf("http://%s/delete/%s/prometheus/api/v1/admin/tsdb/delete_series", app.httpListenAddr, opts.getTenant())
+	values := opts.asURLValues()
+	values.Add("match[]", matchQuery)
+
+	res := app.cli.PostForm(t, seriesURL, values, http.StatusNoContent)
+	if res != "" {
+		t.Fatalf("unexpected non-empty DeleteSeries response=%q", res)
+	}
+	return
+}
+
 // String returns the string representation of the vmselect app state.
 func (app *Vmselect) String() string {
 	return fmt.Sprintf("{app: %s httpListenAddr: %q}", app.app, app.httpListenAddr)
