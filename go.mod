@@ -9,7 +9,6 @@ exclude google.golang.org/grpc/stats/opentelemetry v0.0.0-20240907200651-3ffb98b
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8008
 // TODO: remove this entry after https://github.com/googleapis/google-cloud-go/issues/11448 is fixed
 replace cloud.google.com/go/storage => cloud.google.com/go/storage v1.43.0
-
 require (
 	cloud.google.com/go/storage v1.50.0
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.0

@@ -99,8 +99,7 @@ func TestParseMetricSelectorSuccess(t *testing.T) {
 	f(`{foo="bar"}`)
 	f(`{:f:oo=~"bar.+"}`)
 	f(`foo {bar != "baz"}`)
-	// multiple names?
-	//	f(` foo { bar !~ "^ddd(x+)$", a="ss", __name__="sffd"}  `)
+	f(` foo { bar !~ "^ddd(x+)$", a="ss", __name__="sffd"}  `)
 	f(`(foo)`)
 	f(`\п\р\и\в\е\т{\ы="111"}`)
 }
