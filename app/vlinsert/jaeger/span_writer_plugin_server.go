@@ -3,10 +3,11 @@ package jaeger
 import (
 	"context"
 	"encoding/json"
+	"strconv"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jaeger/proto"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"strconv"
 )
 
 type SpanWriterPluginServer struct {
@@ -22,8 +23,7 @@ func (s *SpanWriterPluginServer) WriteSpan(ctx context.Context, req *proto.Write
 	if err != nil {
 		return nil, err
 	}
-
-	cp, err := insertutils.GetCommonParams(nil)
+	cp, err := insertutils.GetJaegerCommonParams()
 	lmp := cp.NewLogMessageProcessor("jaeger")
 	defer lmp.MustClose()
 
@@ -83,8 +83,8 @@ func (s *SpanWriterPluginServer) WriteSpan(ctx context.Context, req *proto.Write
 		})
 	}
 	lmp.AddRow(span.StartTime.UnixNano(), fields, streamFields)
-
-	return nil, nil
+	resp := &proto.WriteSpanResponse{}
+	return resp, nil
 }
 func (s *SpanWriterPluginServer) Close(ctx context.Context, req *proto.CloseWriterRequest) (*proto.CloseWriterResponse, error) {
 	return nil, nil

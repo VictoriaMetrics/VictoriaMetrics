@@ -2,10 +2,12 @@ package jaeger
 
 import (
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jaeger/proto"
-	"google.golang.org/grpc"
 	"log"
 	"net"
+
+	"google.golang.org/grpc"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jaeger/proto"
 )
 
 func MustInit() {
@@ -17,7 +19,7 @@ func MustInit() {
 	grpcServer := grpc.NewServer(opts...)
 
 	proto.RegisterSpanWriterPluginServer(grpcServer, &SpanWriterPluginServer{})
-	proto.RegisterSpanReaderPluginServer(grpcServer, &proto.UnimplementedSpanReaderPluginServer{})
+	proto.RegisterSpanReaderPluginServer(grpcServer, &SpanReaderPluginServer{})
 
 	go grpcServer.Serve(lis)
 }

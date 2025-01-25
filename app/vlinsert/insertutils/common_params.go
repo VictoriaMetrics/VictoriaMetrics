@@ -40,6 +40,41 @@ type CommonParams struct {
 	DebugRemoteAddr string
 }
 
+// GetJaegerCommonParams returns CommonParams for Jaeger.
+func GetJaegerCommonParams() (*CommonParams, error) {
+	// Extract tenantID
+	var tenantID logstorage.TenantID
+	tenantID = logstorage.TenantID{
+		AccountID: 0,
+		ProjectID: 0,
+	}
+	timeField := "_time"
+
+	msgFields := []string{"_msg"}
+	streamFields := []string{"_stream"}
+	ignoreFields := []string{"_ignore"}
+
+	extraFields := []logstorage.Field{}
+
+	debug := false
+	debugRequestURI := ""
+	debugRemoteAddr := ""
+
+	cp := &CommonParams{
+		TenantID:        tenantID,
+		TimeField:       timeField,
+		MsgFields:       msgFields,
+		StreamFields:    streamFields,
+		IgnoreFields:    ignoreFields,
+		ExtraFields:     extraFields,
+		Debug:           debug,
+		DebugRequestURI: debugRequestURI,
+		DebugRemoteAddr: debugRemoteAddr,
+	}
+
+	return cp, nil
+}
+
 // GetCommonParams returns CommonParams from r.
 func GetCommonParams(r *http.Request) (*CommonParams, error) {
 	// Extract tenantID

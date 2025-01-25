@@ -833,9 +833,11 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 			// Already expanded.
 			return t, nil
 		}
+		metricName := ""
 		{
 			var me MetricExpr
 			// Populate me.LabelFilterss
+
 			for _, lfes := range t.labelFilterss {
 				var lfsNew []LabelFilter
 				for _, lfe := range lfes {
@@ -843,6 +845,20 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 						// Expand lfe.Label into lfsNew.
 						wa := getWithArgExpr(was, lfe.Label)
 						if wa == nil {
+							// Check to see if this is a possible metric name
+							// This means label name set and starts and ends with quotes
+							// but value is nil
+							if lfe.IsPossibleMetricName {
+								if metricName == "" {
+									metricName = lfe.Label
+									continue
+								} else {
+									if metricName != lfe.Label {
+										return nil, fmt.Errorf("parse error: metric name must not be set twice: %q or %q", metricName, lfe.Label)
+									}
+									continue
+								}
+							}
 							return nil, fmt.Errorf("cannot find WITH template for %q inside %q", lfe.Label, t.AppendString(nil))
 						}
 						eNew, err := expandWithExprExt(was, wa, []Expr{})
@@ -867,7 +883,6 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 						}
 						continue
 					}
-
 					// convert lfe to LabelFilter.
 					se, err := expandWithExpr(was, lfe.Value)
 					if err != nil {
@@ -882,14 +897,36 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 					if err != nil {
 						return nil, err
 					}
+					if lf.isMetricNameFilter() {
+						if metricName != "" && metricName != lf.Value {
+							return nil, fmt.Errorf("parse error: metric name must not be set twice: %q or %q", metricName, lf.Value)
+						}
+						metricName = lf.Value
+						continue
+					}
 					lfsNew = append(lfsNew, *lf)
 				}
 				lfsNew = removeDuplicateLabelFilters(lfsNew)
 				me.LabelFilterss = append(me.LabelFilterss, lfsNew)
 			}
+			// Prepend metric name to latest
+			if metricName != "" {
+				lfesCount := len(t.labelFilterss)
+				for i := 1; i <= lfesCount; i++ {
+					lfsLastIndex := len(me.LabelFilterss) - i
+					var lfsNew []LabelFilter
+					var lfNew LabelFilter
+					lfNew.Label = "__name__"
+					lfNew.Value = metricName
+					lfNew.IsNegative = false
+					lfNew.IsRegexp = false
+					lfsNew = append(lfsNew, lfNew)
+					lfsNew = append(lfsNew, me.LabelFilterss[lfsLastIndex]...)
+					me.LabelFilterss[lfsLastIndex] = lfsNew
+				}
+			}
 			t = &me
 		}
-		metricName := t.getMetricName()
 		if metricName == "" {
 			return t, nil
 		}
@@ -1347,9 +1384,24 @@ func (p *parser) parseLabelFilters(mf *labelFilterExpr) ([]*labelFilterExpr, err
 	}
 }
 
+func isQuotedString(s string) bool {
+	if isStringPrefix(s) && isStringPrefix(s[len(s)-1:]) {
+		return true
+	}
+	return false
+}
+
 func (p *parser) parseLabelFilterExpr() (*labelFilterExpr, error) {
-	if !isIdentPrefix(p.lex.Token) {
-		return nil, fmt.Errorf(`labelFilterExpr: unexpected token %q; want "ident"`, p.lex.Token)
+	var isPossibleMetricName bool
+
+	// Strip quotes if they exist
+	if isQuotedString(p.lex.Token) {
+		p.lex.Token = p.lex.Token[1 : len(p.lex.Token)-1]
+		isPossibleMetricName = true
+	} else {
+		if !isIdentPrefix(p.lex.Token) {
+			return nil, fmt.Errorf(`labelFilterExpr: unexpected token %q; want "ident"`, p.lex.Token)
+		}
 	}
 	var lfe labelFilterExpr
 	lfe.Label = unescapeIdent(p.lex.Token)
@@ -1375,6 +1427,11 @@ func (p *parser) parseLabelFilterExpr() (*labelFilterExpr, error) {
 		//   - {lf or other="filter"}
 		//
 		// It must be substituted by complete label filter during WITH template expand.
+		// If we have a label name that is quoted with a nil value it is possible it's the metric
+		// name as per Prometheus 3.0 UTF8 quoted label names specifications, this is used later
+		// in our expanding of the with statements
+		lfe.IsPossibleMetricName = isPossibleMetricName
+
 		return &lfe, nil
 	default:
 		return nil, fmt.Errorf(`labelFilterExpr: unexpected token %q; want "=", "!=", "=~", "!~", ",", "or", "}"`, p.lex.Token)
@@ -1401,8 +1458,9 @@ type labelFilterExpr struct {
 	// Value can be nil if Label contains unexpanded WITH template reference.
 	Value *StringExpr
 
-	IsRegexp   bool
-	IsNegative bool
+	IsRegexp             bool
+	IsNegative           bool
+	IsPossibleMetricName bool
 }
 
 func (lfe *labelFilterExpr) AppendString(dst []byte) []byte {
@@ -2163,7 +2221,7 @@ type LabelFilter struct {
 
 // AppendString appends string representation of me to dst and returns the result.
 func (lf *LabelFilter) AppendString(dst []byte) []byte {
-	dst = appendEscapedIdent(dst, lf.Label)
+	dst = appendQuotedIdent(dst, lf.Label)
 	dst = appendLabelFilterOp(dst, lf.IsNegative, lf.IsRegexp)
 	dst = strconv.AppendQuote(dst, lf.Value)
 	return dst

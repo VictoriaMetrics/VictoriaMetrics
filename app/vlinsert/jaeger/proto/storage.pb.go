@@ -88,9 +88,9 @@ func (m *GetDependenciesRequest) GetEndTime() time.Time {
 
 type GetDependenciesResponse struct {
 	Dependencies         []DependencyLink `protobuf:"bytes,1,rep,name=dependencies,proto3" json:"dependencies"`
-	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
-	XXX_unrecognized     []byte                 `json:"-"`
-	XXX_sizecache        int32                  `json:"-"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
+	XXX_unrecognized     []byte           `json:"-"`
+	XXX_sizecache        int32            `json:"-"`
 }
 
 func (m *GetDependenciesResponse) Reset()         { *m = GetDependenciesResponse{} }
@@ -134,10 +134,10 @@ func (m *GetDependenciesResponse) GetDependencies() []DependencyLink {
 }
 
 type WriteSpanRequest struct {
-	Span                 *Span `protobuf:"bytes,1,opt,name=span,proto3" json:"span,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
-	XXX_unrecognized     []byte      `json:"-"`
-	XXX_sizecache        int32       `json:"-"`
+	Span                 *Span    `protobuf:"bytes,1,opt,name=span,proto3" json:"span,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *WriteSpanRequest) Reset()         { *m = WriteSpanRequest{} }
@@ -301,12 +301,12 @@ func (m *CloseWriterResponse) XXX_DiscardUnknown() {
 var xxx_messageInfo_CloseWriterResponse proto.InternalMessageInfo
 
 type GetTraceRequest struct {
-	TraceID              TraceID `protobuf:"bytes,1,opt,name=trace_id,json=traceId,proto3,customtype=github.com/jaegertracing/jaeger/TraceID" json:"trace_id"`
-	StartTime            time.Time                                     `protobuf:"bytes,2,opt,name=start_time,json=startTime,proto3,stdtime" json:"start_time"`
-	EndTime              time.Time                                     `protobuf:"bytes,3,opt,name=end_time,json=endTime,proto3,stdtime" json:"end_time"`
-	XXX_NoUnkeyedLiteral struct{}                                      `json:"-"`
-	XXX_unrecognized     []byte                                        `json:"-"`
-	XXX_sizecache        int32                                         `json:"-"`
+	TraceID              TraceID   `protobuf:"bytes,1,opt,name=trace_id,json=traceId,proto3,customtype=github.com/jaegertracing/jaeger/TraceID" json:"trace_id"`
+	StartTime            time.Time `protobuf:"bytes,2,opt,name=start_time,json=startTime,proto3,stdtime" json:"start_time"`
+	EndTime              time.Time `protobuf:"bytes,3,opt,name=end_time,json=endTime,proto3,stdtime" json:"end_time"`
+	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
+	XXX_unrecognized     []byte    `json:"-"`
+	XXX_sizecache        int32     `json:"-"`
 }
 
 func (m *GetTraceRequest) Reset()         { *m = GetTraceRequest{} }
@@ -758,10 +758,10 @@ func (m *FindTracesRequest) GetQuery() *TraceQueryParameters {
 }
 
 type SpansResponseChunk struct {
-	Spans                []Span `protobuf:"bytes,1,rep,name=spans,proto3" json:"spans"`
-	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
-	XXX_unrecognized     []byte       `json:"-"`
-	XXX_sizecache        int32        `json:"-"`
+	Spans                []Span   `protobuf:"bytes,1,rep,name=spans,proto3" json:"spans"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *SpansResponseChunk) Reset()         { *m = SpansResponseChunk{} }
@@ -853,9 +853,9 @@ func (m *FindTraceIDsRequest) GetQuery() *TraceQueryParameters {
 
 type FindTraceIDsResponse struct {
 	TraceIDs             []TraceID `protobuf:"bytes,1,rep,name=trace_ids,json=traceIds,proto3,customtype=github.com/jaegertracing/jaeger/TraceID" json:"trace_ids"`
-	XXX_NoUnkeyedLiteral struct{}                                        `json:"-"`
-	XXX_unrecognized     []byte                                          `json:"-"`
-	XXX_sizecache        int32                                           `json:"-"`
+	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
+	XXX_unrecognized     []byte    `json:"-"`
+	XXX_sizecache        int32     `json:"-"`
 }
 
 func (m *FindTraceIDsResponse) Reset()         { *m = FindTraceIDsResponse{} }

@@ -2,6 +2,7 @@ package jaeger
 
 import (
 	"context"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jaeger/proto"
 )
 
