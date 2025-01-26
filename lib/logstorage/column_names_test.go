@@ -10,12 +10,23 @@ func TestMarshalUnmarshalColumnNames(t *testing.T) {
 		t.Helper()
 
 		data := marshalColumnNames(nil, columnNames)
-		result, err := unmarshalColumnNames(data)
+		resultColumnNames, resultColumnNameIDs, err := unmarshalColumnNames(data)
 		if err != nil {
 			t.Fatalf("unexpected error when unmarshaling columnNames: %s", err)
 		}
-		if !reflect.DeepEqual(columnNames, result) {
-			t.Fatalf("unexpected umarshaled columnNames\ngot\n%v\nwant\n%v", result, columnNames)
+
+		// Check columnNames
+		if !reflect.DeepEqual(resultColumnNames, columnNames) {
+			t.Fatalf("unexpected umarshaled columnNames\ngot\n%v\nwant\n%v", resultColumnNames, columnNames)
+		}
+
+		// Check columnNameIDs
+		expectedColumnNameIDs := make(map[string]uint64)
+		for i, n := range columnNames {
+			expectedColumnNameIDs[n] = uint64(i)
+		}
+		if !reflect.DeepEqual(resultColumnNameIDs, expectedColumnNameIDs) {
+			t.Fatalf("unexpected columnNameIDs\ngot\n%v\nwant\n%v", resultColumnNameIDs, expectedColumnNameIDs)
 		}
 	}
 
