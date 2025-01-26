@@ -264,20 +264,30 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	fs.MustMkdirIfNotExist(partitionsPath)
 	des := fs.MustReadDir(partitionsPath)
 	ptws := make([]*partitionWrapper, len(des))
+
+	// Open partitions in parallel. This should improve VictoriaLogs initializiation duration
+	// when it opens many partitions.
+	var wg sync.WaitGroup
 	for i, de := range des {
 		fname := de.Name()
 
-		// Parse the day for the partition
-		t, err := time.Parse(partitionNameFormat, fname)
-		if err != nil {
-			logger.Panicf("FATAL: cannot parse partition filename %q at %q; it must be in the form YYYYMMDD: %s", fname, partitionsPath, err)
-		}
-		day := t.UTC().UnixNano() / nsecsPerDay
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
 
-		partitionPath := filepath.Join(partitionsPath, fname)
-		pt := mustOpenPartition(s, partitionPath)
-		ptws[i] = newPartitionWrapper(pt, day)
+			t, err := time.Parse(partitionNameFormat, fname)
+			if err != nil {
+				logger.Panicf("FATAL: cannot parse partition filename %q at %q; it must be in the form YYYYMMDD: %s", fname, partitionsPath, err)
+			}
+			day := t.UTC().UnixNano() / nsecsPerDay
+
+			partitionPath := filepath.Join(partitionsPath, fname)
+			pt := mustOpenPartition(s, partitionPath)
+			ptws[idx] = newPartitionWrapper(pt, day)
+		}(i)
 	}
+	wg.Wait()
+
 	sort.Slice(ptws, func(i, j int) bool {
 		return ptws[i].day < ptws[j].day
 	})
