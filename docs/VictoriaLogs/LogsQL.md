@@ -1364,6 +1364,7 @@ LogsQL supports the following pipes:
 - `bloom_bytes` - on-disk size of bloom filter data for the given `field`
 - `dict_bytes` - on-disk size of the dictionary data for the given `field`
 - `dict_items` - the number of unique values in the dictionary for the given `field`
+- `part_path` - the path to the data part where the block is stored
 
 The `block_stats` pipe is needed mostly for debugging purposes.
 
