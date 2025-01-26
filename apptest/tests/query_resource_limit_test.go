@@ -1,14 +1,13 @@
 package tests
 
 import (
-	"net/http"
 	"os"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
 func TestClusterMaxUniqueTimeseries(t *testing.T) {
@@ -50,11 +49,6 @@ func TestClusterMaxUniqueTimeseries(t *testing.T) {
 		`foo_bar3{instance="a"} 1.00 1652169660000`,
 		`foo_bar3{instance="b"} 2.00 1652169660000`,
 		`foo_bar3{instance="c"} 3.00 1652169660000`,
-
-		`foo_bar4{instance="a"} 1.00 1652169660000`,
-		`foo_bar4{instance="b"} 2.00 1652169660000`,
-		`foo_bar4{instance="c"} 3.00 1652169660000`,
-		`foo_bar4{instance="d"} 4.00 1652169660000`,
 	}
 
 	// write data to two tenants
@@ -75,7 +69,7 @@ func TestClusterMaxUniqueTimeseries(t *testing.T) {
        }
      }`,
 	)
-	queryRes, _ := vmselectSmallLimit.PrometheusAPIV1Query(t, "foo_bar1", apptest.QueryOpts{
+	queryRes := vmselectSmallLimit.PrometheusAPIV1Query(t, "foo_bar1", apptest.QueryOpts{
 		Time: instantCT,
 	})
 	if diff := cmp.Diff(want, queryRes, cmpOpt); diff != "" {
@@ -83,7 +77,7 @@ func TestClusterMaxUniqueTimeseries(t *testing.T) {
 	}
 
 	// success - multitenant `/api/v1/query`
-	// query is split into two queries for each tenant, so the result could exceed the limit
+	// query is split into two queries for each tenant, so the final result can exceed the limit.
 	want = apptest.NewPrometheusAPIV1QueryResponse(t,
 		`{"data":
        {"result":[
@@ -93,7 +87,7 @@ func TestClusterMaxUniqueTimeseries(t *testing.T) {
        }
      }`,
 	)
-	queryRes, _ = vmselectSmallLimit.PrometheusAPIV1Query(t, "foo_bar1", apptest.QueryOpts{
+	queryRes = vmselectSmallLimit.PrometheusAPIV1Query(t, "foo_bar1", apptest.QueryOpts{
 		Time:   instantCT,
 		Tenant: "multitenant",
 	})
@@ -102,27 +96,27 @@ func TestClusterMaxUniqueTimeseries(t *testing.T) {
 	}
 
 	// fail - `/api/v1/query`, exceed vmselect `maxUniqueTimeseries`
-	_, statusCode := vmselectSmallLimit.PrometheusAPIV1Query(t, "foo_bar2", apptest.QueryOpts{
+	queryRes = vmselectSmallLimit.PrometheusAPIV1Query(t, "foo_bar2", apptest.QueryOpts{
 		Time: instantCT,
 	})
-	if statusCode != http.StatusUnprocessableEntity {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
+	if queryRes.ErrorType != "422" {
+		t.Fatalf("unexpected status code, want %d, got %s, error message is: %v", 422, queryRes.ErrorType, queryRes.Error)
 	}
 
 	// fail - `/api/v1/query`, exceed vmstorage `maxUniqueTimeseries`
-	_, statusCode = vmselectNoLimit.PrometheusAPIV1Query(t, "foo_bar3", apptest.QueryOpts{
+	queryRes = vmselectNoLimit.PrometheusAPIV1Query(t, "foo_bar3", apptest.QueryOpts{
 		Time: instantCT,
 	})
-	if statusCode != http.StatusUnprocessableEntity {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
+	if queryRes.ErrorType != "422" {
+		t.Fatalf("unexpected status code, want %d, got %s, error message is: %v", 422, queryRes.ErrorType, queryRes.Error)
 	}
 
 	// fail - `/api/v1/query`, vmselect `maxUniqueTimeseries` cannot exceed vmstorage `maxUniqueTimeseries`
-	_, statusCode = vmselectBigLimit.PrometheusAPIV1Query(t, "foo_bar3", apptest.QueryOpts{
+	queryRes = vmselectBigLimit.PrometheusAPIV1Query(t, "foo_bar3", apptest.QueryOpts{
 		Time: instantCT,
 	})
-	if statusCode != http.StatusUnprocessableEntity {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusUnprocessableEntity, statusCode)
+	if queryRes.ErrorType != "422" {
+		t.Fatalf("unexpected status code, want %d, got %s, error message is: %v", 422, queryRes.ErrorType, queryRes.Error)
 	}
 }
 
@@ -141,11 +135,6 @@ func TestClusterMaxSeries(t *testing.T) {
 	vminsert := tc.MustStartVminsert("vminsert", []string{
 		"-storageNode=" + vmstorage.VminsertAddr(),
 	})
-	vmselectSmallLimit := tc.MustStartVmselect("vmselect1", []string{
-		"-storageNode=" + vmstorage.VmselectAddr(),
-		"-search.tenantCacheExpireDuration=0",
-		"-search.maxSeries=1",
-	})
 	vmselectBigLimit := tc.MustStartVmselect("vmselect2", []string{
 		"-storageNode=" + vmstorage.VmselectAddr(),
 		"-search.tenantCacheExpireDuration=0",
@@ -162,30 +151,39 @@ func TestClusterMaxSeries(t *testing.T) {
 	vminsert.PrometheusAPIV1ImportPrometheus(t, commonSamples, apptest.QueryOpts{})
 	vmstorage.ForceFlush(t)
 
-	// fail - `/api/v1/series`, exceed vmselect `maxSeries`
-	_, statusCode := vmselectSmallLimit.PrometheusAPIV1Series(t, "foo_bar3", apptest.QueryOpts{
-		Start: "2022-05-10T08:03:00.000Z",
-	})
-	if statusCode != http.StatusUnprocessableEntity {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusUnprocessableEntity, statusCode)
-	}
-
 	// success - `/api/v1/series`, vmselect `maxLabelsAPISeries` can exceed vmstorage `maxLabelsAPISeries``
 	wantSR := apptest.NewPrometheusAPIV1SeriesResponse(t,
 		`{"data": [
-        {"__name__":"foo_bar3","instance":"a"},
-        {"__name__":"foo_bar3","instance":"b"},
-        {"__name__":"foo_bar3","instance":"c"}
-
-              ]
-     }`)
-	seriesRes, statusCode := vmselectBigLimit.PrometheusAPIV1Series(t, "foo_bar3", apptest.QueryOpts{
+			{"__name__":"foo_bar3","instance":"a"},
+			{"__name__":"foo_bar3","instance":"b"},
+			{"__name__":"foo_bar3","instance":"c"}
+	
+				  ]
+		 }`)
+	seriesRes := vmselectBigLimit.PrometheusAPIV1Series(t, "foo_bar3", apptest.QueryOpts{
 		Start: "2022-05-10T08:03:00.000Z",
 	})
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code, want %d, got %d", http.StatusOK, statusCode)
-	}
 	if diff := cmp.Diff(wantSR.Sort(), seriesRes.Sort(), cmpSROpt); diff != "" {
 		t.Fatalf("unexpected response (-want, +got):\n%s", diff)
 	}
+
+	tc.StopApp("vmstorage")
+	vmstorage = tc.MustStartVmstorage("vmstorage", []string{
+		"-storageDataPath=" + tc.Dir() + "/vmstorage",
+		"-retentionPeriod=100y",
+		"-search.maxUniqueTimeseries=2",
+	})
+	vmselectSmallLimit := tc.MustStartVmselect("vmselect1", []string{
+		"-storageNode=" + vmstorage.VmselectAddr(),
+		"-search.tenantCacheExpireDuration=0",
+		"-search.maxSeries=1",
+	})
+	// fail - `/api/v1/series`, exceed vmselect `maxSeries`
+	seriesRes1 := vmselectSmallLimit.PrometheusAPIV1Series(t, "foo_bar3", apptest.QueryOpts{
+		Start: "2022-05-10T08:03:00.000Z",
+	})
+	if seriesRes1.ErrorType != "422" {
+		t.Fatalf("unexpected status code, want %d, got %s", 422, seriesRes.ErrorType)
+	}
+
 }

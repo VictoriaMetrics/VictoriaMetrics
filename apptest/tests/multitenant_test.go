@@ -37,7 +37,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	}
 
 	// test for empty tenants request
-	got, _ := vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
+	got := vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
 		Tenant: "multitenant",
 		Step:   "5m",
 		Time:   "2022-05-10T08:03:00.000Z",
@@ -53,7 +53,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	for _, tenantID := range tenantIDs {
 		vminsert.PrometheusAPIV1ImportPrometheus(t, commonSamples, apptest.QueryOpts{Tenant: tenantID})
 		vmstorage.ForceFlush(t)
-		got, _ := vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
+		got := vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
 			Tenant: tenantID, Time: instantCT,
 		})
 		want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[{"metric":{"__name__":"foo_bar"},"value":[1652169900,"3"]}]}}`)
@@ -73,7 +73,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
        }
      }`,
 	)
-	got, _ = vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
+	got = vmselect.PrometheusAPIV1Query(t, "foo_bar", apptest.QueryOpts{
 		Tenant: "multitenant",
 		Time:   instantCT,
 	})
@@ -83,7 +83,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 
 	// /api/v1/query_range aggregated by tenant labels
 	query := "sum(foo_bar) by(vm_account_id,vm_project_id)"
-	got, _ = vmselect.PrometheusAPIV1QueryRange(t, query, apptest.QueryOpts{
+	got = vmselect.PrometheusAPIV1QueryRange(t, query, apptest.QueryOpts{
 		Tenant: "multitenant",
 		Start:  "2022-05-10T07:59:00.000Z",
 		End:    "2022-05-10T08:05:00.000Z",
@@ -112,7 +112,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
      }`)
 	wantSR.Sort()
 
-	gotSR, _ := vmselect.PrometheusAPIV1Series(t, "foo_bar", apptest.QueryOpts{
+	gotSR := vmselect.PrometheusAPIV1Series(t, "foo_bar", apptest.QueryOpts{
 		Tenant: "multitenant",
 		Start:  "2022-05-10T08:03:00.000Z",
 	})
@@ -142,7 +142,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
         }
     }`,
 	)
-	got, _ = vmselect.PrometheusAPIV1Query(t, `foo_bar{vm_account_id="5"}`, apptest.QueryOpts{
+	got = vmselect.PrometheusAPIV1Query(t, `foo_bar{vm_account_id="5"}`, apptest.QueryOpts{
 		Time:   instantCT,
 		Tenant: "multitenant",
 	})
@@ -159,7 +159,7 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 	             ]
 	   }`)
 	wantSR.Sort()
-	gotSR, _ = vmselect.PrometheusAPIV1Series(t, "foo_bar", apptest.QueryOpts{
+	gotSR = vmselect.PrometheusAPIV1Series(t, "foo_bar", apptest.QueryOpts{
 		Start:        "2022-05-10T08:00:00.000Z",
 		End:          "2022-05-10T08:30:00.000Z",
 		ExtraFilters: []string{`{vm_project_id="15"}`},

@@ -70,7 +70,7 @@ func testInstantQuery(t *testing.T, q at.PrometheusQuerier) {
 	// step of 5m and timeout 5s. There is no sample at exactly this timestamp.
 	// Therefore, VictoriaMetrics will search for the nearest sample within the
 	// [time-5m..time] interval.
-	got, _ := q.PrometheusAPIV1Query(t, "foo_bar", at.QueryOpts{Time: "2022-05-10T08:03:00.000Z", Step: "5m"})
+	got := q.PrometheusAPIV1Query(t, "foo_bar", at.QueryOpts{Time: "2022-05-10T08:03:00.000Z", Step: "5m"})
 	want := at.NewPrometheusAPIV1QueryResponse(t, `{"data":{"result":[{"metric":{"__name__":"foo_bar"},"value":[1652169780,"3"]}]}}`)
 	opt := cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
 	if diff := cmp.Diff(want, got, opt); diff != "" {
@@ -82,7 +82,7 @@ func testInstantQuery(t *testing.T, q at.PrometheusQuerier) {
 	// Therefore, VictoriaMetrics will search for the nearest sample within the
 	// [time-1m..time] interval. Since the nearest sample is 2m away and the
 	// step is 1m, then the VictoriaMetrics must return empty response.
-	got, _ = q.PrometheusAPIV1Query(t, "foo_bar", at.QueryOpts{Time: "2022-05-10T08:18:00.000Z", Step: "1m"})
+	got = q.PrometheusAPIV1Query(t, "foo_bar", at.QueryOpts{Time: "2022-05-10T08:18:00.000Z", Step: "1m"})
 	if len(got.Data.Result) > 0 {
 		t.Errorf("unexpected response: got non-empty result, want empty result:\n%v", got)
 	}
@@ -95,7 +95,7 @@ func testRangeQuery(t *testing.T, q at.PrometheusQuerier) {
 	f := func(start, end, step string, wantSamples []*at.Sample) {
 		t.Helper()
 
-		got, _ := q.PrometheusAPIV1QueryRange(t, "foo_bar", at.QueryOpts{Start: start, End: end, Step: step})
+		got := q.PrometheusAPIV1QueryRange(t, "foo_bar", at.QueryOpts{Start: start, End: end, Step: step})
 		want := at.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "foo_bar"}, "values": []}]}}`)
 		want.Data.Result[0].Samples = wantSamples
 		opt := cmpopts.IgnoreFields(at.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType")
@@ -168,7 +168,7 @@ func testRangeQueryIsEquivalentToManyInstantQueries(t *testing.T, q at.Prometheu
 	f := func(timestamp string, want *at.Sample) {
 		t.Helper()
 
-		gotInstant, _ := q.PrometheusAPIV1Query(t, "foo_bar", at.QueryOpts{Time: timestamp, Step: "1m"})
+		gotInstant := q.PrometheusAPIV1Query(t, "foo_bar", at.QueryOpts{Time: timestamp, Step: "1m"})
 		if want == nil {
 			if got, want := len(gotInstant.Data.Result), 0; got != want {
 				t.Errorf("unexpected instant result size: got %d, want %d", got, want)
@@ -181,7 +181,7 @@ func testRangeQueryIsEquivalentToManyInstantQueries(t *testing.T, q at.Prometheu
 		}
 	}
 
-	rangeRes, _ := q.PrometheusAPIV1QueryRange(t, "foo_bar", at.QueryOpts{
+	rangeRes := q.PrometheusAPIV1QueryRange(t, "foo_bar", at.QueryOpts{
 		Start: "2022-05-10T07:59:00.000Z",
 		End:   "2022-05-10T08:17:00.000Z",
 		Step:  "1m",
@@ -251,11 +251,10 @@ func testMillisecondPrecisionInInstantQueries(tc *at.TestCase, sut at.Prometheus
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /api/v1/query response",
 			Got: func() any {
-				resp, _ := sut.PrometheusAPIV1Query(t, opts.query, at.QueryOpts{
+				return sut.PrometheusAPIV1Query(t, opts.query, at.QueryOpts{
 					Time: opts.qtime,
 					Step: opts.step,
 				})
-				return resp
 			},
 			Want: &at.PrometheusAPIV1QueryResponse{Data: &at.QueryData{Result: wantResult}},
 			CmpOpts: []cmp.Option{

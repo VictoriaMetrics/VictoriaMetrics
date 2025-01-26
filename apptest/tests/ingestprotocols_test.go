@@ -34,7 +34,7 @@ func TestSingleIngestionProtocols(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /export query response",
 			Got: func() any {
-				got, _ := sut.PrometheusAPIV1Export(t, opts.query, at.QueryOpts{
+				got := sut.PrometheusAPIV1Export(t, opts.query, at.QueryOpts{
 					Start: "2024-02-05T08:50:00.700Z",
 					End:   "2024-02-05T09:00:00.700Z",
 				})
@@ -192,7 +192,7 @@ func TestClusterIngestionProtocols(t *testing.T) {
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /export query response",
 			Got: func() any {
-				got, _ := vmselect.PrometheusAPIV1Export(t, opts.query, at.QueryOpts{
+				got := vmselect.PrometheusAPIV1Export(t, opts.query, at.QueryOpts{
 					Start: "2024-02-05T08:50:00.700Z",
 					End:   "2024-02-05T09:00:00.700Z",
 				})

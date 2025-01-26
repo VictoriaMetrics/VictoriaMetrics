@@ -66,6 +66,7 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 	sut.PrometheusAPIV1Write(t, staleNaNsData, apptest.QueryOpts{})
 	sut.ForceFlush(t)
 
+	var got, want *apptest.PrometheusAPIV1QueryResponse
 	cmpOptions := []cmp.Option{
 		cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
 		cmpopts.EquateNaNs(),
@@ -73,11 +74,11 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 
 	// Verify that instant query returns the first point.
 
-	got, _ := sut.PrometheusAPIV1Query(t, "metric", apptest.QueryOpts{
+	got = sut.PrometheusAPIV1Query(t, "metric", apptest.QueryOpts{
 		Step: "5m",
 		Time: "2024-01-01T00:01:00.000Z",
 	})
-	want := apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}}]}}`)
+	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "metric"}}]}}`)
 	want.Data.Result[0].Sample = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
 	if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
@@ -85,7 +86,7 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 
 	// Verify that instant query does not return stale NaN.
 
-	got, _ = sut.PrometheusAPIV1Query(t, "metric", apptest.QueryOpts{
+	got = sut.PrometheusAPIV1Query(t, "metric", apptest.QueryOpts{
 		Step: "5m",
 		Time: "2024-01-01T00:02:00.000Z",
 	})
@@ -99,7 +100,7 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 	// while it must not.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5806
 
-	got, _ = sut.PrometheusAPIV1Query(t, "metric[2m]", apptest.QueryOpts{
+	got = sut.PrometheusAPIV1Query(t, "metric[2m]", apptest.QueryOpts{
 		Step: "5m",
 		Time: "2024-01-01T00:02:00.000Z",
 	})
@@ -114,7 +115,7 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 
 	// Verify that exported data contains stale NaN.
 
-	got, _ = sut.PrometheusAPIV1Export(t, `{__name__="metric"}`, apptest.QueryOpts{
+	got = sut.PrometheusAPIV1Export(t, `{__name__="metric"}`, apptest.QueryOpts{
 		Start: "2024-01-01T00:01:00.000Z",
 		End:   "2024-01-01T00:02:00.000Z",
 	})

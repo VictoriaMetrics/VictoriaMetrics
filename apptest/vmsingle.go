@@ -2,7 +2,6 @@ package apptest
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -80,10 +79,7 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 func (app *Vmsingle) ForceFlush(t *testing.T) {
 	t.Helper()
 
-	_, statusCode := app.cli.Get(t, app.forceFlushURL)
-	if statusCode != http.StatusOK {
-		t.Fatalf("failed to force flush data")
-	}
+	app.cli.Get(t, app.forceFlushURL)
 }
 
 // InfluxWrite is a test helper function that inserts a
@@ -95,10 +91,7 @@ func (app *Vmsingle) InfluxWrite(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
 
 	data := []byte(strings.Join(records, "\n"))
-	_, statusCode := app.cli.Post(t, app.influxLineWriteURL, "text/plain", data)
-	if statusCode != http.StatusNoContent {
-		t.Fatalf("failed to write influx data, status code: %d", statusCode)
-	}
+	app.cli.Post(t, app.influxLineWriteURL, "text/plain", data)
 }
 
 // PrometheusAPIV1Write is a test helper function that inserts a
@@ -109,10 +102,7 @@ func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries,
 
 	wr := pb.WriteRequest{Timeseries: records}
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
-	_, statusCode := app.cli.Post(t, app.prometheusAPIV1WriteURL, "application/x-protobuf", data)
-	if statusCode != http.StatusNoContent {
-		t.Fatalf("failed to write prometheus data, status code: %d", statusCode)
-	}
+	app.cli.Post(t, app.prometheusAPIV1WriteURL, "application/x-protobuf", data)
 }
 
 // PrometheusAPIV1ImportPrometheus is a test helper function that inserts a
@@ -124,10 +114,7 @@ func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 	t.Helper()
 
 	data := []byte(strings.Join(records, "\n"))
-	_, statusCode := app.cli.Post(t, app.prometheusAPIV1ImportPrometheusURL, "text/plain", data)
-	if statusCode != http.StatusNoContent {
-		t.Fatalf("failed to import prometheus data, status code: %d", statusCode)
-	}
+	app.cli.Post(t, app.prometheusAPIV1ImportPrometheusURL, "text/plain", data)
 }
 
 // PrometheusAPIV1Export is a test helper function that performs the export of
@@ -135,14 +122,14 @@ func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 // /prometheus/api/v1/export vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/url-examples/#apiv1export
-func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) (*PrometheusAPIV1QueryResponse, int) {
+func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 	values := opts.asURLValues()
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
 
-	res, statusCode := app.cli.PostForm(t, app.prometheusAPIV1ExportURL, values)
-	return NewPrometheusAPIV1QueryResponse(t, res), statusCode
+	res := app.cli.PostForm(t, app.prometheusAPIV1ExportURL, values)
+	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
 // PrometheusAPIV1Query is a test helper function that performs PromQL/MetricsQL
@@ -150,13 +137,13 @@ func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 // vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/url-examples/#apiv1query
-func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) (*PrometheusAPIV1QueryResponse, int) {
+func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
 	values := opts.asURLValues()
 	values.Add("query", query)
-	res, statusCode := app.cli.PostForm(t, app.prometheusAPIV1QueryURL, values)
-	return NewPrometheusAPIV1QueryResponse(t, res), statusCode
+	res := app.cli.PostForm(t, app.prometheusAPIV1QueryURL, values)
+	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
 // PrometheusAPIV1QueryRange is a test helper function that performs
@@ -164,28 +151,28 @@ func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query string, opts Query
 // /prometheus/api/v1/query_range vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/url-examples/#apiv1query_range
-func (app *Vmsingle) PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) (*PrometheusAPIV1QueryResponse, int) {
+func (app *Vmsingle) PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse {
 	t.Helper()
 
 	values := opts.asURLValues()
 	values.Add("query", query)
 
-	res, statusCode := app.cli.PostForm(t, app.prometheusAPIV1QueryRangeURL, values)
-	return NewPrometheusAPIV1QueryResponse(t, res), statusCode
+	res := app.cli.PostForm(t, app.prometheusAPIV1QueryRangeURL, values)
+	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
 // PrometheusAPIV1Series sends a query to a /prometheus/api/v1/series endpoint
 // and returns the list of time series that match the query.
 //
 // See https://docs.victoriametrics.com/url-examples/#apiv1series
-func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) (*PrometheusAPIV1SeriesResponse, int) {
+func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse {
 	t.Helper()
 
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
-	res, statusCode := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values)
-	return NewPrometheusAPIV1SeriesResponse(t, res), statusCode
+	res := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values)
+	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
 // String returns the string representation of the vmsingle app state.

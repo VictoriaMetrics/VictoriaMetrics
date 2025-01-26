@@ -2,7 +2,6 @@ package apptest
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"regexp"
 	"testing"
@@ -77,10 +76,7 @@ func (app *Vmstorage) VmselectAddr() string {
 func (app *Vmstorage) ForceFlush(t *testing.T) {
 	t.Helper()
 
-	_, statusCode := app.cli.Get(t, app.forceFlushURL)
-	if statusCode != http.StatusOK {
-		t.Fatalf("failed to force flush data")
-	}
+	app.cli.Get(t, app.forceFlushURL)
 }
 
 // String returns the string representation of the vmstorage app state.

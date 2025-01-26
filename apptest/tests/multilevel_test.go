@@ -60,7 +60,7 @@ func TestClusterMultilevelSelect(t *testing.T) {
 		tc.Assert(&apptest.AssertOptions{
 			Msg: "unexpected /api/v1/series response",
 			Got: func() any {
-				res, _ := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, qopts)
+				res := app.PrometheusAPIV1Series(t, `{__name__=~".*"}`, qopts)
 				res.Sort()
 				return res
 			},

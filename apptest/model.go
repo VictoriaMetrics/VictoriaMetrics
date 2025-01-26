@@ -16,10 +16,10 @@ import (
 
 // PrometheusQuerier contains methods available to Prometheus-like HTTP API for Querying
 type PrometheusQuerier interface {
-	PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) (*PrometheusAPIV1QueryResponse, int)
-	PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) (*PrometheusAPIV1QueryResponse, int)
-	PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) (*PrometheusAPIV1QueryResponse, int)
-	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) (*PrometheusAPIV1SeriesResponse, int)
+	PrometheusAPIV1Export(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
+	PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
+	PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
+	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
 }
 
 // PrometheusWriter contains methods available to Prometheus-like HTTP API for Writing new data
@@ -88,8 +88,10 @@ func (qos *QueryOpts) getTenant() string {
 // PrometheusAPIV1QueryResponse is an inmemory representation of the
 // /prometheus/api/v1/query or /prometheus/api/v1/query_range response.
 type PrometheusAPIV1QueryResponse struct {
-	Status string
-	Data   *QueryData
+	Status    string
+	Data      *QueryData
+	ErrorType string
+	Error     string
 }
 
 // NewPrometheusAPIV1QueryResponse is a test helper function that creates a new
@@ -185,6 +187,8 @@ type PrometheusAPIV1SeriesResponse struct {
 	IsPartial bool
 	Data      []map[string]string
 	Trace     *Trace
+	ErrorType string
+	Error     string
 }
 
 // NewPrometheusAPIV1SeriesResponse is a test helper function that creates a new
