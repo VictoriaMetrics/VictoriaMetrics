@@ -1135,7 +1135,7 @@ func (s *Storage) searchAndMerge(tr TimeRange, search func(idb *indexDB, tr Time
 	defer close(results)
 	for _, idb := range idbs {
 		wg.Add(1)
-		func() {
+		go func() {
 			searchTR := idb.tr
 			if tr.MinTimestamp > searchTR.MinTimestamp {
 				searchTR.MinTimestamp = tr.MinTimestamp
@@ -1367,7 +1367,7 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	defer close(results)
 	for _, idb := range idbs {
 		wg.Add(1)
-		func() {
+		go func() {
 			is := idb.getIndexSearch(noDeadline)
 			metricIDs, err := is.searchMetricIDs(qt, tfss, idb.tr, maxMetrics)
 			idb.putIndexSearch(is)

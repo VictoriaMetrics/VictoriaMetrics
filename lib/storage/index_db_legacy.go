@@ -9,8 +9,8 @@ import (
 )
 
 // mustOpenLegacyIndexDB opens legacy index db from the given path.
-// Legacy IndexDB is previous implementation of inverted index, it is monolith,
-// (not broken down into partitions) and contains records for the entire
+// Legacy IndexDB is previous implementation of inverted index, it is monolith
+// (i.e. not broken down into partitions) and contains records for the entire
 // retention period.
 //
 // Legacy IndexDB operates in read-only mode to enable retrieval of index

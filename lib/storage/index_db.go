@@ -177,7 +177,7 @@ func partitionNameToGeneration(partitionName string) (uint64, error) {
 	}
 	nanos := t.UnixNano()
 	if nanos < 0 {
-		return 0, fmt.Errorf("unsupporte partition: got %q, want > 1970_01", partitionName)
+		return 0, fmt.Errorf("unsupported partition: got %q, want > 1970_01", partitionName)
 	}
 	return uint64(nanos), nil
 }
@@ -205,7 +205,7 @@ func mustOpenPartitionIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) 
 
 func mustOpenIndexDB(tr TimeRange, gen uint64, name, path string, s *Storage, isReadOnly *atomic.Bool) *indexDB {
 	if s == nil {
-		logger.Panicf("BUG: Storage must be nin-nil")
+		logger.Panicf("BUG: Storage must not be nil")
 	}
 
 	// Do not persist tagFiltersToMetricIDsCache in files, since it is very volatile because of tagFiltersKeyGen.
