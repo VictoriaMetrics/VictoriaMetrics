@@ -20,6 +20,8 @@ type PrometheusQuerier interface {
 	PrometheusAPIV1Query(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1QueryRange(t *testing.T, query string, opts QueryOpts) *PrometheusAPIV1QueryResponse
 	PrometheusAPIV1Series(t *testing.T, matchQuery string, opts QueryOpts) *PrometheusAPIV1SeriesResponse
+	PrometheusAPIV1Labels(t *testing.T, opts QueryOpts) *PrometheusAPIV1LabelsResponse
+	PrometheusAPIV1LabelValues(t *testing.T, labelName string, opts QueryOpts) *PrometheusAPIV1LabelValuesResponse
 }
 
 // PrometheusWriter contains methods available to Prometheus-like HTTP API for Writing new data
@@ -53,6 +55,8 @@ type QueryOpts struct {
 	ExtraFilters []string
 	ExtraLabels  []string
 	Trace        string
+
+	ExpectedResponseCode int
 }
 
 func (qos *QueryOpts) asURLValues() url.Values {
@@ -253,4 +257,40 @@ func (t *Trace) Contains(s string) int {
 		times += c.Contains(s)
 	}
 	return times
+}
+
+// PrometheusAPIV1LabelsResponse represents the response from /api/v1/labels endpoint
+type PrometheusAPIV1LabelsResponse struct {
+	Status    string   `json:"status"`
+	Data      []string `json:"data"`
+	ErrorType string   `json:"errorType,omitempty"`
+	Error     string   `json:"error,omitempty"`
+}
+
+// NewPrometheusAPIV1LabelsResponse creates a new PrometheusAPIV1LabelsResponse from JSON
+func NewPrometheusAPIV1LabelsResponse(t *testing.T, s string) *PrometheusAPIV1LabelsResponse {
+	t.Helper()
+	res := &PrometheusAPIV1LabelsResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal labels response data:\n%s\n err: %v", s, err)
+	}
+	return res
+}
+
+// PrometheusAPIV1LabelValuesResponse represents the response from /api/v1/label/{label}/values endpoint
+type PrometheusAPIV1LabelValuesResponse struct {
+	Status    string   `json:"status"`
+	Data      []string `json:"data"`
+	ErrorType string   `json:"errorType,omitempty"`
+	Error     string   `json:"error,omitempty"`
+}
+
+// NewPrometheusAPIV1LabelValuesResponse creates a new PrometheusAPIV1LabelValuesResponse from JSON
+func NewPrometheusAPIV1LabelValuesResponse(t *testing.T, s string) *PrometheusAPIV1LabelValuesResponse {
+	t.Helper()
+	res := &PrometheusAPIV1LabelValuesResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal label values response data:\n%s\n err: %v", s, err)
+	}
+	return res
 }
