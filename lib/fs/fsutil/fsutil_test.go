@@ -1,18 +1,18 @@
-package envutil
+package fsutil
 
 import (
 	"os"
 	"testing"
 )
 
-func TestIsFsyncDisabled(t *testing.T) {
+func TestIsFsyncDisabledInternal(t *testing.T) {
 	f := func(envVarValue string, resultExpected bool) {
 		t.Helper()
 
 		os.Setenv("DISABLE_FSYNC_FOR_TESTING", envVarValue)
 		defer os.Unsetenv("DISABLE_FSYNC_FOR_TESTING")
 
-		result := IsFsyncDisabled()
+		result := isFsyncDisabledInternal()
 		if result != resultExpected {
 			t.Errorf("unexpected value for DISABLE_FSYNC_FOR_TESTING=%q; got %v; want %v", envVarValue, result, resultExpected)
 		}
