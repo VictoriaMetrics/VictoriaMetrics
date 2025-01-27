@@ -159,14 +159,15 @@ Total amount of CPU time consumed by the system in seconds by CPU processing mod
         <tr>
             <td>
 
-`host_network_receive_errors` & `host_network_transmit_errors`
+<span style="white-space: nowrap;">`host_network_transmit_errors`</span>
+& `host_network_receive_errors`
             </td>
             <td>
 
 `node_network_receive_errs_total`, 
 `node_network_receive_packets_total`, 
-`node_network_transmit_errs_total`, 
-`node_network_transmit_packets_total`
+`node_network_transmit_errs_total`,
+<span style="white-space: nowrap;">`node_network_transmit_packets_total`</span>
             <td>
 
 Total number of errors encountered while receiving/transmitting packets on the network interfaces of a node.

@@ -15,8 +15,8 @@ services:
       - ./../../dashboards/vm/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vm/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
     environment:
-      - "GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.10.3/victoriametrics-datasource-v0.10.3.zip;victoriametrics-datasource"
-      - "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource"
+      - "GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.12.1/victoriametrics-metrics-datasource-v0.12.1.zip;victoriametrics-metrics-datasource"
+      - "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-metrics-datasource"
     networks:
       - vm_net
     restart: always

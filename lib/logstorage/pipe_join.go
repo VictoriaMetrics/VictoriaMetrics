@@ -18,6 +18,10 @@ type pipeJoin struct {
 	// q is a query for obtaining results for joining
 	q *Query
 
+	// The join is performed as INNER JOIN if isInner is set.
+	// Otherwise the join is performed as LEFT JOIN.
+	isInner bool
+
 	// prefix is the prefix to add to log fields from q query
 	prefix string
 
@@ -27,6 +31,9 @@ type pipeJoin struct {
 
 func (pj *pipeJoin) String() string {
 	s := fmt.Sprintf("join by (%s) (%s)", fieldNamesString(pj.byFields), pj.q.String())
+	if pj.isInner {
+		s += " inner"
+	}
 	if pj.prefix != "" {
 		s += " prefix " + quoteTokenIfNeeded(pj.prefix)
 	}
@@ -38,11 +45,17 @@ func (pj *pipeJoin) canLiveTail() bool {
 }
 
 func (pj *pipeJoin) hasFilterInWithQuery() bool {
+	// Do not check for in(...) filters at pj.q, since they are checked separately during pj.q execution.
 	return false
 }
 
 func (pj *pipeJoin) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+	// Do not init values for in(...) filters at pj.q, since they are initialized separately at initJoinMap.
 	return pj, nil
+}
+
+func (pj *pipeJoin) visitSubqueries(visitFunc func(q *Query)) {
+	pj.q.visitSubqueries(visitFunc)
 }
 
 func (pj *pipeJoin) initJoinMap(getJoinMapFunc getJoinMapFunc) (pipe, error) {
@@ -129,7 +142,9 @@ func (pjp *pipeJoinProcessor) writeBlock(workerID uint, br *blockResult) {
 		matchingRows := pj.m[string(shard.tmpBuf)]
 
 		if len(matchingRows) == 0 {
-			shard.wctx.writeRow(rowIdx, nil)
+			if !pj.isInner {
+				shard.wctx.writeRow(rowIdx, nil)
+			}
 			continue
 		}
 		for _, extraFields := range matchingRows {
@@ -189,6 +204,11 @@ func parsePipeJoin(lex *lexer) (pipe, error) {
 	pj := &pipeJoin{
 		byFields: byFields,
 		q:        q,
+	}
+
+	if lex.isKeyword("inner") {
+		lex.nextToken()
+		pj.isInner = true
 	}
 
 	if lex.isKeyword("prefix") {

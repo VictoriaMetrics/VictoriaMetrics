@@ -59,6 +59,10 @@ func (pr *pipeReplaceRegexp) initFilterInValues(cache *inValuesCache, getFieldVa
 	return &peNew, nil
 }
 
+func (pr *pipeReplaceRegexp) visitSubqueries(visitFunc func(q *Query)) {
+	pr.iff.visitSubqueries(visitFunc)
+}
+
 func (pr *pipeReplaceRegexp) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	updateFunc := func(a *arena, v string) string {
 		bLen := len(a.b)

@@ -99,11 +99,13 @@ VictoriaLogs is designed solely for logs. VictoriaLogs uses [similar design idea
   ClickHouse needs an intermediate applications for converting the ingested logs into `INSERT` SQL statements for the particular database schema.
   This may increase the complexity of the system and, subsequently, increase its' maintenance costs.
 
+- VictoriaLogs provides [built-in Web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) for logs' exploration.
+
 
 ## How does VictoriaLogs work?
 
 VictoriaLogs accepts logs as [JSON entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-Then it stores log fields into a distinct data block. E.g. values for the same log field across multiple log entries
+Then it stores log fields into distinct data blocks. E.g. values for the same log field across multiple log entries
 are stored in a single data block. This allows reading data blocks only for the needed fields during querying.
 
 Data blocks are compressed before being saved to persistent storage. This allows saving disk space and improving query performance
@@ -123,7 +125,7 @@ On top of this, VictoriaLogs employs additional optimizations for achieving high
 - It uses [bloom filters](https://en.wikipedia.org/wiki/Bloom_filter) for skipping blocks without the given
   [word](https://docs.victoriametrics.com/victorialogs/logsql/#word-filter) or [phrase](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter).
 - It uses custom encoding and compression for fields with different data types.
-  For example, it encodes IP addresses int 4 bytes. Custom fields' encoding reduces data size on disk and improves query performance.
+  For example, it encodes IP addresses into 4 bytes. Custom fields' encoding reduces data size on disk and improves query performance.
 - It physically groups logs for the same [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
   close to each other in the storage. This improves compression ratio, which helps reducing disk space usage. This also improves query performance
   by skipping blocks for unneeded streams when [stream filter](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter) is used.
@@ -224,7 +226,7 @@ See [why the log field occupies a lot of disk space](#why-the-log-field-occupies
 
 ## Why the log field occupies a lot of disk space?
 
-See [how to determine which log fields occupy the most of disk space](#how-to-determine-which-log-fields-occupy-the-most-of-diskspace).
+See [how to determine which log fields occupy the most of disk space](#how-to-determine-which-log-fields-occupy-the-most-of-disk-space).
 Log field may occupy a lot of disk space if it contains values with many unique parts (aka "random" values).
 Such values do not compress well, so they occupy a lot of disk space. If you want reducing the amounts of occupied disk space,
 then either remove the given log field from the [ingested](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs
@@ -257,4 +259,28 @@ across all the logs during the last hour:
 _time:1h | field_names | sort by (name)
 ```
 
-The `hits` field contains an estimated number of logs with the given log field.
+The `hits` field in the returned results contains an estimated number of logs with the given log field.
+
+## How to get unique field values seen in the selected logs?
+
+Use [`field_values` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#field_values-pipe).
+For example, the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query
+returns all the values for the `level` field across all the logs seen during the last hour:
+
+```logsql
+_time:1h | field_values level
+```
+
+The `hits` field in the returned results contains an esitmated number of logs with the given value for the `level` field.
+
+## How to get the number of unique log streams on the given time range?
+
+Use [`count_uniq` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-pipe)
+over [`_stream`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) field.
+For example, the following [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query
+returns the number of unique [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+across all the logs over the last day:
+
+```logsql
+_time:1d | count_uniq(_stream)
+```

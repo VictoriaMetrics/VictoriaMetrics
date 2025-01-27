@@ -232,6 +232,10 @@ func (pm *pipeMath) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (
 	return pm, nil
 }
 
+func (pm *pipeMath) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pm *pipeMath) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	pmp := &pipeMathProcessor{
 		pm:     pm,
@@ -282,10 +286,13 @@ func (shard *pipeMathProcessorShard) executeMathEntry(e *mathEntry, rc *resultCo
 	}
 
 	b := shard.a.b
-	minValue := r[0]
-	maxValue := r[0]
+	minValue := nan
+	maxValue := nan
 	for _, f := range r {
-		if f < minValue {
+		if math.IsNaN(minValue) {
+			minValue = f
+			maxValue = f
+		} else if f < minValue {
 			minValue = f
 		} else if f > maxValue {
 			maxValue = f
@@ -899,7 +906,17 @@ func mathFuncMod(result []float64, args [][]float64) {
 	a := args[0]
 	b := args[1]
 	for i := range result {
-		result[i] = math.Mod(a[i], b[i])
+		x := a[i]
+		y := b[i]
+		xInt := int64(x)
+		yInt := int64(y)
+		if float64(xInt) == x && float64(yInt) == y {
+			// Fast path - integer modulo
+			result[i] = float64(xInt % yInt)
+		} else {
+			// Slow path - floating point modulo
+			result[i] = math.Mod(x, y)
+		}
 	}
 }
 
