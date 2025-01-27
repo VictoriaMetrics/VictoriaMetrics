@@ -25,7 +25,7 @@ Released: 2025-01-27
 ## v1.19.1
 Released: 2025-01-21
 
-> **Note**: There is a known bug in [v1.19.0](#v1190) - swapped `AccountID` and `ProjectID` extracted from `tenant_id`, which are appended as labels `vm_account_id` and `vm_project_id`, respectively by `VmReader` when using the per-query `tenant_id` feature. Please update to patch [v1.19.2](#v1192), which resolves this issue.
+> **Note**: There is a known bug in [v1.19.0](#v1190) - the `AccountID` and `ProjectID` are swapped when they are extracted from the `tenant_id` argument in `VMReader`. This can cause results being read and written to the wrong tenant when when using the per-query `tenant_id` feature. Please update to patch [v1.19.2](#v1192), which resolves this issue.
 
 - FIX: Resolved writer warnings for configurations where `reader.tenant_id` equals `writer.tenant_id` and **is not** `multitenant`, as this is a valid setup. Enhanced tenant_id-related log messages across config validation, reader, and writer for improved clarity.
 
