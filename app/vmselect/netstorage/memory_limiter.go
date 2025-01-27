@@ -34,7 +34,7 @@ func newMemoryLimiter() *memoryLimiter {
 	}
 }
 
-func (ml *memoryLimiter) Get(n uint64) error {
+func (ml *memoryLimiter) AddBytes(n uint64) error {
 	if ml.maxSize <= 0 {
 		return nil
 	}
@@ -54,8 +54,8 @@ func (ml *memoryLimiter) Get(n uint64) error {
 	return nil
 }
 
-// GetStringSlice accounts for and limits memory usage of string slices
-func (ml *memoryLimiter) GetStringSlice(v []string) error {
+// AddStrings accounts for and limits memory usage of string slices
+func (ml *memoryLimiter) AddStrings(v []string) error {
 	if len(v) == 0 {
 		return nil
 	}
@@ -69,5 +69,5 @@ func (ml *memoryLimiter) GetStringSlice(v []string) error {
 	for _, s := range v {
 		dataSize += uint64(len(s))
 	}
-	return ml.Get(overhead + dataSize)
+	return ml.AddBytes(overhead + dataSize)
 }

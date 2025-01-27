@@ -912,7 +912,7 @@ func LabelNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 			sn.labelNamesRequests.Inc()
 			labelNames, err := sn.getLabelNames(qt, requestData, maxLabelNames, deadline)
 			if err == nil {
-				err = ml.GetStringSlice(labelNames)
+				err = ml.AddStrings(labelNames)
 			}
 			if err != nil {
 				sn.labelNamesErrors.Inc()
@@ -1060,7 +1060,7 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 			sn.labelValuesRequests.Inc()
 			labelValues, err := sn.getLabelValues(qt, labelName, requestData, maxLabelValues, deadline)
 			if err == nil {
-				err = ml.GetStringSlice(labelValues)
+				err = ml.AddStrings(labelValues)
 			}
 			if err != nil {
 				sn.labelValuesErrors.Inc()
@@ -1208,7 +1208,7 @@ func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyP
 		sn.tagValueSuffixesRequests.Inc()
 		suffixes, err := sn.getTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 		if err == nil {
-			err = ml.GetStringSlice(suffixes)
+			err = ml.AddStrings(suffixes)
 		}
 		if err != nil {
 			sn.tagValueSuffixesErrors.Inc()
@@ -1714,7 +1714,7 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 			sn.searchMetricNamesRequests.Inc()
 			metricNames, err := sn.processSearchMetricNames(qt, requestData, deadline)
 			if err == nil {
-				err = ml.GetStringSlice(metricNames)
+				err = ml.AddStrings(metricNames)
 			}
 			if sq.IsMultiTenant {
 				// TODO: (@f41gh7) this function could produce duplicate labels
