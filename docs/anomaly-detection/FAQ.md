@@ -158,7 +158,7 @@ services:
   # ...
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.19.1
+    image: victoriametrics/vmanomaly:v1.19.2
     # ...
     ports:
       - "8490:8490"
@@ -337,10 +337,10 @@ For **horizontal** scalability, `vmanomaly` can be deployed as multiple independ
 
 ### Splitting the config
 
-CLI utility named `config_splitter` is available in `vmanomaly` {{% available_from "v1.18.5" anomaly %}}. The config splitter tool enables splitting a parent vmanomaly YAML configuration file into multiple sub-configurations based on logical entities  such as `schedulers`, `queries`, `models`, `extra_filters`. The resulting sub-configurations are fully validated, functional, account for many-to-many relationships between models and their associated queries, and the schedulers they are linked to. These sub-configurations can then be saved to a specified directory for further use:
+CLI utility named `config_splitter` is available in `vmanomaly` {{% available_from "v1.18.5" anomaly %}}. The config splitter tool enables splitting a parent vmanomaly YAML configuration file into multiple sub-configurations based on logical entities  such as `schedulers`, `queries`, `models`, `extra_filters` and `complete` {{% available_from "v1.19.2" anomaly %}}. The resulting sub-configurations are fully validated, functional, account for many-to-many relationships between models and their associated queries, and the schedulers they are linked to. These sub-configurations can then be saved to a specified directory for further use:
 
 ```shellhelp
-usage: config_splitter.py [-h] --splitBy {schedulers,models,queries,extra_filters} --outputDir OUTPUT_DIR [--fileNameFormat {raw,hash,int}] [--loggerLevel {WARNING,INFO,ERROR,FATAL,DEBUG}]
+usage: config_splitter.py [-h] --splitBy {schedulers,models,queries,extra_filters,complete} --outputDir OUTPUT_DIR [--fileNameFormat {raw,hash,int}] [--loggerLevel {WARNING,ERROR,FATAL,INFO,DEBUG}]
                           config [config ...]
 
 Splits the configuration of VictoriaMetrics Anomaly Detection service by a logical entity.
@@ -350,21 +350,22 @@ positional arguments:
 
 options:
   -h                    show this help message and exit
-  --splitBy {schedulers,models,queries,extra_filters}
-                        The logical entity to split by. Choices: ['schedulers', 'models', 'queries', 'extra_filters'].
+  --splitBy {schedulers,models,queries,extra_filters,complete}
+                        The logical entity to split by. Choices: ['schedulers', 'models', 'queries', 'extra_filters', 'complete']. `complete` produces configurations based on combinations of
+                        (scheduler, model, queries). Default: complete.
   --outputDir output_dir
                         Directory where the split configuration files will be saved.
   --fileNameFormat {raw,hash,int}
-                        The naming format for the output configuration files. Choices: raw (use the entity alias), hash (use hashed alias), int (use a sequential integer from 0 to N for N
-                        produced sub-configs). Default: raw.
-  --loggerLevel {WARNING,INFO,ERROR,FATAL,DEBUG}
+                        The naming format for the output configuration files. Choices: raw (use the entity alias), hash (use hashed alias), int (use a sequential integer from 0 to N for N produced
+                        sub-configs). Default: raw.
+  --loggerLevel {WARNING,ERROR,FATAL,INFO,DEBUG}
                         Minimum level to log. Default: INFO
 ```
 
 Here’s an example of using the config splitter to divide configurations based on the `extra_filters` argument from the reader section:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.19.1 && docker image tag victoriametrics/vmanomaly:v1.19.1 vmanomaly
+docker pull victoriametrics/vmanomaly:v1.19.2 && docker image tag victoriametrics/vmanomaly:v1.19.2 vmanomaly
 ```
 
 ```sh
