@@ -57,3 +57,15 @@ export const getLastFromArray = (a: number[]) => {
     }
   }
 };
+
+export const formatNumberShort = (value: number) => {
+  if (value >= 1_000_000_000) {
+    return (value / 1_000_000_000).toFixed(1).replace(/\.0$/, "") + "B"; // Миллиарды
+  } else if (value >= 1_000_000) {
+    return (value / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M"; // Миллионы
+  } else if (value >= 1_000) {
+    return (value / 1_000).toFixed(1).replace(/\.0$/, "") + "K"; // Тысячи
+  } else {
+    return value.toString(); // Для чисел меньше 1000
+  }
+};

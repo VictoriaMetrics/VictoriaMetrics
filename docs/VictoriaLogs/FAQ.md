@@ -99,11 +99,13 @@ VictoriaLogs is designed solely for logs. VictoriaLogs uses [similar design idea
   ClickHouse needs an intermediate applications for converting the ingested logs into `INSERT` SQL statements for the particular database schema.
   This may increase the complexity of the system and, subsequently, increase its' maintenance costs.
 
+- VictoriaLogs provides [built-in Web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) for logs' exploration.
+
 
 ## How does VictoriaLogs work?
 
 VictoriaLogs accepts logs as [JSON entries](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-Then it stores log fields into a distinct data block. E.g. values for the same log field across multiple log entries
+Then it stores log fields into distinct data blocks. E.g. values for the same log field across multiple log entries
 are stored in a single data block. This allows reading data blocks only for the needed fields during querying.
 
 Data blocks are compressed before being saved to persistent storage. This allows saving disk space and improving query performance
@@ -123,7 +125,7 @@ On top of this, VictoriaLogs employs additional optimizations for achieving high
 - It uses [bloom filters](https://en.wikipedia.org/wiki/Bloom_filter) for skipping blocks without the given
   [word](https://docs.victoriametrics.com/victorialogs/logsql/#word-filter) or [phrase](https://docs.victoriametrics.com/victorialogs/logsql/#phrase-filter).
 - It uses custom encoding and compression for fields with different data types.
-  For example, it encodes IP addresses int 4 bytes. Custom fields' encoding reduces data size on disk and improves query performance.
+  For example, it encodes IP addresses into 4 bytes. Custom fields' encoding reduces data size on disk and improves query performance.
 - It physically groups logs for the same [log stream](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
   close to each other in the storage. This improves compression ratio, which helps reducing disk space usage. This also improves query performance
   by skipping blocks for unneeded streams when [stream filter](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter) is used.

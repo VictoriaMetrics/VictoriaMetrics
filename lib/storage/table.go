@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -582,13 +583,32 @@ func mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, indexDBPath stri
 	mustPopulatePartitionNames(bigPartitionsPath, ptNames)
 	mustPopulatePartitionNames(indexDBPath, ptNames)
 	var pts []*partition
+	var ptsLock sync.Mutex
+
+	// Open partitions in parallel. This should reduce the time needed for opening multiple partitions.
+	var wg sync.WaitGroup
+	concurrencyLimiterCh := make(chan struct{}, cgroup.AvailableCPUs())
 	for ptName := range ptNames {
-		smallPartsPath := filepath.Join(smallPartitionsPath, ptName)
-		bigPartsPath := filepath.Join(bigPartitionsPath, ptName)
-		indexDBPartsPath := filepath.Join(indexDBPath, ptName)
-		pt := mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath, s)
-		pts = append(pts, pt)
+		wg.Add(1)
+		concurrencyLimiterCh <- struct{}{}
+		go func(ptName string) {
+			defer func() {
+				<-concurrencyLimiterCh
+				wg.Done()
+			}()
+
+			smallPartsPath := filepath.Join(smallPartitionsPath, ptName)
+			bigPartsPath := filepath.Join(bigPartitionsPath, ptName)
+			indexDBPartsPath := filepath.Join(indexDBPath, ptName)
+			pt := mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath, s)
+
+			ptsLock.Lock()
+			pts = append(pts, pt)
+			ptsLock.Unlock()
+		}(ptName)
 	}
+	wg.Wait()
+
 	return pts
 }
 

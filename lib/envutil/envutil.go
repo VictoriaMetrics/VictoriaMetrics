@@ -3,14 +3,21 @@ package envutil
 import (
 	"os"
 	"strconv"
+	"testing"
 )
 
-// GetenvBool retrieves the value of the environment variable named by the key,
-// attempts to convert the value to bool type and returns the result. In order
-// for conversion to succeed, the value must be any value supported by
-// strconv.ParseBool() function, otherwise the function will return false.
-func GetenvBool(key string) bool {
-	s := os.Getenv(key)
+// IsFsyncDisabled returns true if fsync must be disabled
+//
+// The fsync is disabled in tests, since it significantly slows down tests which work with files.
+// The fsync can be enabled in tests by setting DISABLE_FSYNC_FOR_TESTING environment variable to false.
+//
+// The fsync is enabled for ordinary programs. It can be disabled by setting DISABLE_FSYNC_FOR_TESTING
+// environment variable to true.
+func IsFsyncDisabled() bool {
+	s := os.Getenv("DISABLE_FSYNC_FOR_TESTING")
+	if s == "" {
+		return testing.Testing()
+	}
 	b, err := strconv.ParseBool(s)
 	if err != nil {
 		return false

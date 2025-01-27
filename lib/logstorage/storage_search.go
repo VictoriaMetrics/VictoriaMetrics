@@ -629,6 +629,12 @@ func hasJoinPipes(pipes []pipe) bool {
 	return false
 }
 
+func (iff *ifFilter) visitSubqueries(visitFunc func(q *Query)) {
+	if iff != nil {
+		visitSubqueriesInFilter(iff.f, visitFunc)
+	}
+}
+
 func (iff *ifFilter) hasFilterInWithQuery() bool {
 	if iff == nil {
 		return false
