@@ -11,13 +11,28 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.19.2
+Released: 2025-01-27
+
+- IMPROVEMENT: Added the `complete` option to the `--splitBy` argument in `config_splitter.py` [util](https://docs.victoriametrics.com/anomaly-detection/faq/index.html#splitting-the-config). This allows splitting a parent configuration into the smallest possible sub-configurations, each containing exactly one scheduler, one model, and either one or multiple queries (depending on whether the model is [multivariate](https://docs.victoriametrics.com/anomaly-detection/components/models/#multivariate-models) or not).
+
+- FIX: Resolved an issue where duplicate log messages were generated during sub-config validation of the parent configuration.
+
+- FIX: Corrected usage of `AccountID` and `ProjectID` extracted from `tenant_id`, which are appended as labels `vm_account_id` and `vm_project_id`, respectively (previously swapped) by `VmReader` when using the per-query `tenant_id` feature. **This issue affected versions [v1.19.0](#v1190) and [v1.19.1](#v1191).**
+
+- FIX: Resolved an issue with the `VmReader` instance string representation that caused errors when `vmanomaly` was run with `--loggerLevel DEBUG`.
+
 ## v1.19.1
 Released: 2025-01-21
+
+> **Note**: There is a known bug in [v1.19.0](#v1190) - the `AccountID` and `ProjectID` are swapped when they are extracted from the `tenant_id` argument in `VMReader`. This can cause correctly read results being written to the wrong tenant when using the per-query `tenant_id` feature with `AccountID` != `ProjectID`. Please update to patch [v1.19.2](#v1192), which resolves this issue.
 
 - FIX: Resolved writer warnings for configurations where `reader.tenant_id` equals `writer.tenant_id` and **is not** `multitenant`, as this is a valid setup. Enhanced tenant_id-related log messages across config validation, reader, and writer for improved clarity.
 
 ## v1.19.0
 Released: 2025-01-20
+
+> **Note**: There is a known bug in [v1.19.0](#v1190) - the `AccountID` and `ProjectID` are swapped when they are extracted from the `tenant_id` argument in `VMReader`. This can cause correctly read results being written to the wrong tenant when using the per-query `tenant_id` feature with `AccountID` != `ProjectID`. Please update to patch [v1.19.2](#v1192), which resolves this issue.
 
 - FEATURE: Added support for per-query `tenant_id` in the [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). This allows overriding the reader-level `tenant_id` within a single global `vmanomaly` configuration on a *per-query* basis, enabling isolation of data for different tenants in separate queries when querying the [VictoriaMetrics cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/). For details, see the [documentation](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=tenant_id#per-query-parameters).
 - IMPROVEMEMT: Speedup the model infer stage on multicore systems.
