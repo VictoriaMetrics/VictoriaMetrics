@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
@@ -268,12 +269,17 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	// Open partitions in parallel. This should improve VictoriaLogs initializiation duration
 	// when it opens many partitions.
 	var wg sync.WaitGroup
+	concurrencyLimiterCh := make(chan struct{}, cgroup.AvailableCPUs())
 	for i, de := range des {
 		fname := de.Name()
 
 		wg.Add(1)
+		concurrencyLimiterCh <- struct{}{}
 		go func(idx int) {
-			defer wg.Done()
+			defer func() {
+				<-concurrencyLimiterCh
+				wg.Done()
+			}()
 
 			t, err := time.Parse(partitionNameFormat, fname)
 			if err != nil {
