@@ -449,15 +449,17 @@ func setResolvedDefaultsMode(o *Options) {
 // NewFromConfig returns a new client from the provided config.
 func NewFromConfig(cfg aws.Config, optFns ...func(*Options)) *Client {
 	opts := Options{
-		Region:             cfg.Region,
-		DefaultsMode:       cfg.DefaultsMode,
-		RuntimeEnvironment: cfg.RuntimeEnvironment,
-		HTTPClient:         cfg.HTTPClient,
-		Credentials:        cfg.Credentials,
-		APIOptions:         cfg.APIOptions,
-		Logger:             cfg.Logger,
-		ClientLogMode:      cfg.ClientLogMode,
-		AppID:              cfg.AppID,
+		Region:                     cfg.Region,
+		DefaultsMode:               cfg.DefaultsMode,
+		RuntimeEnvironment:         cfg.RuntimeEnvironment,
+		HTTPClient:                 cfg.HTTPClient,
+		Credentials:                cfg.Credentials,
+		APIOptions:                 cfg.APIOptions,
+		Logger:                     cfg.Logger,
+		ClientLogMode:              cfg.ClientLogMode,
+		AppID:                      cfg.AppID,
+		RequestChecksumCalculation: cfg.RequestChecksumCalculation,
+		ResponseChecksumValidation: cfg.ResponseChecksumValidation,
 	}
 	resolveAWSRetryerProvider(cfg, &opts)
 	resolveAWSRetryMaxAttempts(cfg, &opts)
@@ -718,7 +720,7 @@ func addRetry(stack *middleware.Stack, o Options) error {
 		m.LogAttempts = o.ClientLogMode.IsRetries()
 		m.OperationMeter = o.MeterProvider.Meter("github.com/aws/aws-sdk-go-v2/service/s3")
 	})
-	if err := stack.Finalize.Insert(attempt, "Signing", middleware.Before); err != nil {
+	if err := stack.Finalize.Insert(attempt, "ResolveAuthScheme", middleware.Before); err != nil {
 		return err
 	}
 	if err := stack.Finalize.Insert(&retry.MetricsHeader{}, attempt.ID(), middleware.After); err != nil {
@@ -845,6 +847,30 @@ func addUserAgentRetryMode(stack *middleware.Stack, options Options) error {
 	return nil
 }
 
+func addRequestChecksumMetricsTracking(stack *middleware.Stack, options Options) error {
+	ua, err := getOrAddRequestUserAgent(stack)
+	if err != nil {
+		return err
+	}
+
+	return stack.Build.Insert(&internalChecksum.RequestChecksumMetricsTracking{
+		RequestChecksumCalculation: options.RequestChecksumCalculation,
+		UserAgent:                  ua,
+	}, "UserAgent", middleware.Before)
+}
+
+func addResponseChecksumMetricsTracking(stack *middleware.Stack, options Options) error {
+	ua, err := getOrAddRequestUserAgent(stack)
+	if err != nil {
+		return err
+	}
+
+	return stack.Build.Insert(&internalChecksum.ResponseChecksumMetricsTracking{
+		ResponseChecksumValidation: options.ResponseChecksumValidation,
+		UserAgent:                  ua,
+	}, "UserAgent", middleware.Before)
+}
+
 func resolveTracerProvider(options *Options) {
 	if options.TracerProvider == nil {
 		options.TracerProvider = &tracing.NopTracerProvider{}
@@ -888,6 +914,41 @@ func GetComputedInputChecksumsMetadata(m middleware.Metadata) (ComputedInputChec
 		ComputedChecksums: values,
 	}, true
 
+}
+
+func addInputChecksumMiddleware(stack *middleware.Stack, options internalChecksum.InputMiddlewareOptions) (err error) {
+	err = stack.Initialize.Add(&internalChecksum.SetupInputContext{
+		GetAlgorithm:               options.GetAlgorithm,
+		RequireChecksum:            options.RequireChecksum,
+		RequestChecksumCalculation: options.RequestChecksumCalculation,
+	}, middleware.Before)
+	if err != nil {
+		return err
+	}
+
+	stack.Build.Remove("ContentChecksum")
+
+	inputChecksum := &internalChecksum.ComputeInputPayloadChecksum{
+		EnableTrailingChecksum:           options.EnableTrailingChecksum,
+		EnableComputePayloadHash:         options.EnableComputeSHA256PayloadHash,
+		EnableDecodedContentLengthHeader: options.EnableDecodedContentLengthHeader,
+	}
+	if err := stack.Finalize.Insert(inputChecksum, "ResolveEndpointV2", middleware.After); err != nil {
+		return err
+	}
+
+	if options.EnableTrailingChecksum {
+		trailerMiddleware := &internalChecksum.AddInputChecksumTrailer{
+			EnableTrailingChecksum:           inputChecksum.EnableTrailingChecksum,
+			EnableComputePayloadHash:         inputChecksum.EnableComputePayloadHash,
+			EnableDecodedContentLengthHeader: inputChecksum.EnableDecodedContentLengthHeader,
+		}
+		if err := stack.Finalize.Insert(trailerMiddleware, inputChecksum.ID(), middleware.After); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ChecksumValidationMetadata contains metadata such as the checksum algorithm
@@ -1146,6 +1207,10 @@ func (c presignConverter) convertToPresignMiddleware(stack *middleware.Stack, op
 		return err
 	}
 	return nil
+}
+
+func withNoDefaultChecksumAPIOption(options *Options) {
+	options.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
 }
 
 func addRequestResponseLogging(stack *middleware.Stack, o Options) error {
