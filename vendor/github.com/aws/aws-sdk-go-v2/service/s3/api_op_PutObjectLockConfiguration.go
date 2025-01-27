@@ -270,7 +270,7 @@ func getPutObjectLockConfigurationRequestAlgorithmMember(input interface{}) (str
 }
 
 func addPutObjectLockConfigurationInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getPutObjectLockConfigurationRequestAlgorithmMember,
 		RequireChecksum:                  true,
 		RequestChecksumCalculation:       options.RequestChecksumCalculation,

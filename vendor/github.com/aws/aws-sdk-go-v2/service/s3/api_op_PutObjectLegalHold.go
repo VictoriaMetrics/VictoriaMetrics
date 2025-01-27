@@ -279,7 +279,7 @@ func getPutObjectLegalHoldRequestAlgorithmMember(input interface{}) (string, boo
 }
 
 func addPutObjectLegalHoldInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getPutObjectLegalHoldRequestAlgorithmMember,
 		RequireChecksum:                  true,
 		RequestChecksumCalculation:       options.RequestChecksumCalculation,

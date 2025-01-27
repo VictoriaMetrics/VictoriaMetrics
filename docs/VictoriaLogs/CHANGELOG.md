@@ -16,6 +16,22 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): add an ability to limit query concurrency for the `<q>` [query](https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax) via `options(concurrency=N) <q>` syntax. This may be needed for reducing RAM and CPU usage at the cost of longer query execution times. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#query-options) for details.
+* FEATURE: add [`hash` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#hash-pipe) for calculating hashes over the selected log fields. This may be useful for splitting the selected logs into distinct buckets. For example, the following query splits `user_id` fields into 4 buckets with the help of `hash` pipe: `_time:5m | hash(user_id) as h | math h%4 as bucket | stats by (bucket) count()`.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): reflect column settings for the table view in URL, so the table view can be shared via link. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7662).
+
+## [v1.7.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.7.0-victorialogs)
+
+Released at 2025-01-20
+
+* FEATURE: [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe): add an ability to execute `INNER JOIN` by adding `inner` suffix to the `join` pipe.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): updated the default graph type in the `hits panel` to bars with color fill. Removed options for `lines`, `stepped lines`, and `points`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7101).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): reduce logs text size and improved styles in grouped view. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7479).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the ability to select fields for display instead of the `_msg` field. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7419).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add various display configuration settings for the grouped view. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7815)
+
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix an issue where pressing the "Enter" key in the query editor did not execute the query. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8058).
+
 ## [v1.6.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.6.1-victorialogs)
 
 Released at 2025-01-16

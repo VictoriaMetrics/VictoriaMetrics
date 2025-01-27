@@ -322,7 +322,7 @@ func getPutObjectTaggingRequestAlgorithmMember(input interface{}) (string, bool)
 }
 
 func addPutObjectTaggingInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getPutObjectTaggingRequestAlgorithmMember,
 		RequireChecksum:                  true,
 		RequestChecksumCalculation:       options.RequestChecksumCalculation,

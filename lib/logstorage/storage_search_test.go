@@ -766,6 +766,7 @@ func TestStorageRunQuery(t *testing.T) {
 		})
 	})
 	t.Run("pipe-join", func(t *testing.T) {
+		// left join
 		f(t, `'message 5' | stats by (instance) count() x
 			| join on (instance) (
 				'block 0' instance:host-1 | stats by (instance)
@@ -781,6 +782,22 @@ func TestStorageRunQuery(t *testing.T) {
 				{"instance", "host-2:234"},
 				{"x", "55"},
 			},
+			{
+				{"instance", "host-1:234"},
+				{"x", "55"},
+				{"total", "77"},
+				{"streams", "1"},
+			},
+		})
+
+		// inner join
+		f(t, `'message 5' | stats by (instance) count() x
+			| join on (instance) (
+				'block 0' instance:host-1 | stats by (instance)
+					count() total,
+					count_uniq(stream-id) streams,
+					count_uniq(stream-id) x
+			) inner`, [][]Field{
 			{
 				{"instance", "host-1:234"},
 				{"x", "55"},

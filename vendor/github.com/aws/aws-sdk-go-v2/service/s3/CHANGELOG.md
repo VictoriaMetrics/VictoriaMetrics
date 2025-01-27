@@ -1,3 +1,18 @@
+# v1.74.1 (2025-01-24)
+
+* **Bug Fix**: Enable request checksum validation mode by default
+* **Dependency Update**: Updated to the latest SDK module versions
+* **Dependency Update**: Upgrade to smithy-go v1.22.2.
+
+# v1.74.0 (2025-01-22)
+
+* **Feature**: Add a client config option to disable logging when output checksum validation is skipped due to an unsupported algorithm.
+
+# v1.73.2 (2025-01-17)
+
+* **Bug Fix**: Fix bug where credentials weren't refreshed during retry loop.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.73.1 (2025-01-16)
 
 * **Dependency Update**: Updated to the latest SDK module versions

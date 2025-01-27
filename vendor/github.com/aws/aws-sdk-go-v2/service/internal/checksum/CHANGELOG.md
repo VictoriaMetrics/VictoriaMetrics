@@ -1,3 +1,13 @@
+# v1.5.3 (2025-01-24)
+
+* **Bug Fix**: Enable request checksum validation mode by default
+* **Dependency Update**: Updated to the latest SDK module versions
+* **Dependency Update**: Upgrade to smithy-go v1.22.2.
+
+# v1.5.2 (2025-01-17)
+
+* **Bug Fix**: Fix bug where credentials weren't refreshed during retry loop.
+
 # v1.5.1 (2025-01-16)
 
 * **Bug Fix**: Fix nil dereference panic for operations that require checksums, but do not have an input setting for which algorithm to use.

@@ -814,14 +814,20 @@ func getGetObjectRequestValidationModeMember(input interface{}) (string, bool) {
 	return string(in.ChecksumMode), true
 }
 
+func setGetObjectRequestValidationModeMember(input interface{}, mode string) {
+	in := input.(*GetObjectInput)
+	in.ChecksumMode = types.ChecksumMode(mode)
+}
+
 func addGetObjectOutputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
 	return internalChecksum.AddOutputMiddleware(stack, internalChecksum.OutputMiddlewareOptions{
 		GetValidationMode:             getGetObjectRequestValidationModeMember,
+		SetValidationMode:             setGetObjectRequestValidationModeMember,
 		ResponseChecksumValidation:    options.ResponseChecksumValidation,
 		ValidationAlgorithms:          []string{"CRC64NVME", "CRC32", "CRC32C", "SHA256", "SHA1"},
 		IgnoreMultipartValidation:     true,
-		LogValidationSkipped:          true,
-		LogMultipartValidationSkipped: true,
+		LogValidationSkipped:          !options.DisableLogOutputChecksumValidationSkipped,
+		LogMultipartValidationSkipped: !options.DisableLogOutputChecksumValidationSkipped,
 	})
 }
 

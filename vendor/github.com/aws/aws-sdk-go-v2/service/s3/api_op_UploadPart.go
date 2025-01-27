@@ -614,7 +614,7 @@ func getUploadPartRequestAlgorithmMember(input interface{}) (string, bool) {
 }
 
 func addUploadPartInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getUploadPartRequestAlgorithmMember,
 		RequireChecksum:                  false,
 		RequestChecksumCalculation:       options.RequestChecksumCalculation,

@@ -11,7 +11,7 @@ import useBoolean from "../../../hooks/useBoolean";
 import TextField from "../../Main/TextField/TextField";
 import { KeyboardEvent, useState } from "react";
 import Modal from "../../Main/Modal/Modal";
-import { getFromStorage, removeFromStorage, saveToStorage } from "../../../utils/storage";
+import { useSearchParams } from "react-router-dom";
 
 const title = "Table settings";
 
@@ -30,6 +30,8 @@ const TableSettings: FC<TableSettingsProps> = ({
   onChangeColumns,
   toggleTableCompact
 }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const buttonRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -37,11 +39,6 @@ const TableSettings: FC<TableSettingsProps> = ({
     toggle: toggleOpenSettings,
     setFalse: handleClose,
   } = useBoolean(false);
-
-  const {
-    value: saveColumns,
-    toggle: toggleSaveColumns,
-  } = useBoolean(Boolean(getFromStorage("TABLE_COLUMNS")));
 
   const [searchColumn, setSearchColumn] = useState("");
   const [indexFocusItem, setIndexFocusItem] = useState(-1);
@@ -60,15 +57,34 @@ const TableSettings: FC<TableSettingsProps> = ({
     return filteredColumns.every(col => selectedColumns.includes(col));
   }, [selectedColumns, filteredColumns]);
 
+  const handleChangeDisplayColumns = (displayColumns: string[]) => {
+    onChangeColumns(displayColumns);
+
+    const updatedParams = new URLSearchParams(searchParams.toString());
+    const isAllCheck = displayColumns.length === columns.length;
+
+    if (isAllCheck) {
+      updatedParams.delete("columns");
+    } else {
+      updatedParams.set("columns", displayColumns.map(encodeURIComponent).join(","));
+    }
+
+    setSearchParams(updatedParams);
+  };
+
   const handleChange = (key: string) => {
-    onChangeColumns(selectedColumns.includes(key) ? selectedColumns.filter(col => col !== key) : [...selectedColumns, key]);
+    const displayColumns = selectedColumns.includes(key)
+      ? selectedColumns.filter(col => col !== key)
+      : [...selectedColumns, key];
+
+    handleChangeDisplayColumns(displayColumns);
   };
 
   const toggleAllColumns = () => {
     if (isAllChecked) {
-      onChangeColumns(selectedColumns.filter(col => !filteredColumns.includes(col)));
+      handleChangeDisplayColumns(selectedColumns.filter(col => !filteredColumns.includes(col)));
     } else {
-      onChangeColumns(filteredColumns);
+      handleChangeDisplayColumns(filteredColumns);
     }
   };
 
@@ -95,22 +111,16 @@ const TableSettings: FC<TableSettingsProps> = ({
   };
 
   useEffect(() => {
-    if (arrayEquals(columns, selectedColumns) || saveColumns) return;
+    if (arrayEquals(columns, selectedColumns) || searchParams.has("columns")) return;
     onChangeColumns(columns);
   }, [columns]);
 
   useEffect(() => {
-    if (!saveColumns) {
-      removeFromStorage(["TABLE_COLUMNS"]);
-    } else if (selectedColumns.length) {
-      saveToStorage("TABLE_COLUMNS", selectedColumns.join(","));
-    }
-  }, [saveColumns, selectedColumns]);
-
-  useEffect(() => {
-    const saveColumns = getFromStorage("TABLE_COLUMNS") as string;
-    if (!saveColumns) return;
-    onChangeColumns(saveColumns.split(","));
+    const hasColumns = searchParams.has("columns");
+    if (!hasColumns) return;
+    const columnsParam = searchParams.get("columns") || "";
+    const columnsArray = columnsParam.split(",").map(decodeURIComponent).filter(Boolean);
+    onChangeColumns(columnsArray);
   }, []);
 
   return (
@@ -182,19 +192,6 @@ const TableSettings: FC<TableSettingsProps> = ({
                     />
                   </div>
                 ))}
-              </div>
-              <div className="vm-table-settings-modal-preserve">
-                <Checkbox
-                  checked={saveColumns}
-                  onChange={toggleSaveColumns}
-                  label={"Preserve column settings"}
-                  disabled={tableCompact}
-                  color={"primary"}
-                />
-                <p className="vm-table-settings-modal-preserve__info">
-                  This label indicates that when the checkbox is activated,
-                  the current column configurations will not be reset.
-                </p>
               </div>
             </div>
           </div>

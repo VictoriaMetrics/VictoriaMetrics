@@ -39,8 +39,8 @@ func SetComputedInputChecksums(m *middleware.Metadata, vs map[string]string) {
 	m.Set(computedInputChecksumsKey{}, vs)
 }
 
-// computeInputPayloadChecksum middleware computes payload checksum
-type computeInputPayloadChecksum struct {
+// ComputeInputPayloadChecksum middleware computes payload checksum
+type ComputeInputPayloadChecksum struct {
 	// Enables support for wrapping the serialized input payload with a
 	// content-encoding: aws-check wrapper, and including a trailer for the
 	// algorithm's checksum value.
@@ -71,7 +71,7 @@ type computeInputPayloadChecksum struct {
 type useTrailer struct{}
 
 // ID provides the middleware's identifier.
-func (m *computeInputPayloadChecksum) ID() string {
+func (m *ComputeInputPayloadChecksum) ID() string {
 	return "AWSChecksum:ComputeInputPayloadChecksum"
 }
 
@@ -91,14 +91,14 @@ func (e computeInputHeaderChecksumError) Error() string {
 }
 func (e computeInputHeaderChecksumError) Unwrap() error { return e.Err }
 
-// HandleBuild handles computing the payload's checksum, in the following cases:
+// HandleFinalize handles computing the payload's checksum, in the following cases:
 //   - Is HTTP, not HTTPS
 //   - RequireChecksum is true, and no checksums were specified via the Input
 //   - Trailing checksums are not supported
 //
 // The build handler must be inserted in the stack before ContentPayloadHash
 // and after ComputeContentLength.
-func (m *computeInputPayloadChecksum) HandleFinalize(
+func (m *ComputeInputPayloadChecksum) HandleFinalize(
 	ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler,
 ) (
 	out middleware.FinalizeOutput, metadata middleware.Metadata, err error,
@@ -228,23 +228,23 @@ func (e computeInputTrailingChecksumError) Error() string {
 }
 func (e computeInputTrailingChecksumError) Unwrap() error { return e.Err }
 
-// addInputChecksumTrailer
+// AddInputChecksumTrailer adds HTTP checksum when
 //   - Is HTTPS, not HTTP
 //   - A checksum was specified via the Input
 //   - Trailing checksums are supported.
-type addInputChecksumTrailer struct {
+type AddInputChecksumTrailer struct {
 	EnableTrailingChecksum           bool
 	EnableComputePayloadHash         bool
 	EnableDecodedContentLengthHeader bool
 }
 
 // ID identifies this middleware.
-func (*addInputChecksumTrailer) ID() string {
+func (*AddInputChecksumTrailer) ID() string {
 	return "addInputChecksumTrailer"
 }
 
 // HandleFinalize wraps the request body to write the trailing checksum.
-func (m *addInputChecksumTrailer) HandleFinalize(
+func (m *AddInputChecksumTrailer) HandleFinalize(
 	ctx context.Context, in middleware.FinalizeInput, next middleware.FinalizeHandler,
 ) (
 	out middleware.FinalizeOutput, metadata middleware.Metadata, err error,

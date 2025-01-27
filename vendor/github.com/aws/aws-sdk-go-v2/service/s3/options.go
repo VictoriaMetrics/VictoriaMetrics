@@ -52,6 +52,10 @@ type Options struct {
 	// clients initial default settings.
 	DefaultsMode aws.DefaultsMode
 
+	// Disables logging when the client skips output checksum validation due to lack
+	// of algorithm support.
+	DisableLogOutputChecksumValidationSkipped bool
+
 	// Allows you to disable S3 Multi-Region access points feature.
 	DisableMultiRegionAccessPoints bool
 

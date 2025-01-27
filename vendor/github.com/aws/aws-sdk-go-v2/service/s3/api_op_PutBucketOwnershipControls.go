@@ -229,7 +229,7 @@ func newServiceMetadataMiddleware_opPutBucketOwnershipControls(region string) *a
 }
 
 func addPutBucketOwnershipControlsInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     nil,
 		RequireChecksum:                  true,
 		RequestChecksumCalculation:       options.RequestChecksumCalculation,

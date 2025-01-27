@@ -2,7 +2,7 @@ apiVersion: 1
 
 datasources:
   - name: VictoriaMetrics - cluster
-    type: victoriametrics-datasource
+    type: victoriametrics-metrics-datasource
     access: proxy
     url: http://vmauth:8427/select/0/prometheus
     isDefault: true

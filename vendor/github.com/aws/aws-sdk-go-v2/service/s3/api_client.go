@@ -720,7 +720,7 @@ func addRetry(stack *middleware.Stack, o Options) error {
 		m.LogAttempts = o.ClientLogMode.IsRetries()
 		m.OperationMeter = o.MeterProvider.Meter("github.com/aws/aws-sdk-go-v2/service/s3")
 	})
-	if err := stack.Finalize.Insert(attempt, "Signing", middleware.Before); err != nil {
+	if err := stack.Finalize.Insert(attempt, "ResolveAuthScheme", middleware.Before); err != nil {
 		return err
 	}
 	if err := stack.Finalize.Insert(&retry.MetricsHeader{}, attempt.ID(), middleware.After); err != nil {
@@ -914,6 +914,41 @@ func GetComputedInputChecksumsMetadata(m middleware.Metadata) (ComputedInputChec
 		ComputedChecksums: values,
 	}, true
 
+}
+
+func addInputChecksumMiddleware(stack *middleware.Stack, options internalChecksum.InputMiddlewareOptions) (err error) {
+	err = stack.Initialize.Add(&internalChecksum.SetupInputContext{
+		GetAlgorithm:               options.GetAlgorithm,
+		RequireChecksum:            options.RequireChecksum,
+		RequestChecksumCalculation: options.RequestChecksumCalculation,
+	}, middleware.Before)
+	if err != nil {
+		return err
+	}
+
+	stack.Build.Remove("ContentChecksum")
+
+	inputChecksum := &internalChecksum.ComputeInputPayloadChecksum{
+		EnableTrailingChecksum:           options.EnableTrailingChecksum,
+		EnableComputePayloadHash:         options.EnableComputeSHA256PayloadHash,
+		EnableDecodedContentLengthHeader: options.EnableDecodedContentLengthHeader,
+	}
+	if err := stack.Finalize.Insert(inputChecksum, "ResolveEndpointV2", middleware.After); err != nil {
+		return err
+	}
+
+	if options.EnableTrailingChecksum {
+		trailerMiddleware := &internalChecksum.AddInputChecksumTrailer{
+			EnableTrailingChecksum:           inputChecksum.EnableTrailingChecksum,
+			EnableComputePayloadHash:         inputChecksum.EnableComputePayloadHash,
+			EnableDecodedContentLengthHeader: inputChecksum.EnableDecodedContentLengthHeader,
+		}
+		if err := stack.Finalize.Insert(trailerMiddleware, inputChecksum.ID(), middleware.After); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ChecksumValidationMetadata contains metadata such as the checksum algorithm

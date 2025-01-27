@@ -2,6 +2,7 @@ package checksum
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 
 	internalcontext "github.com/aws/aws-sdk-go-v2/internal/context"
@@ -12,10 +13,10 @@ const (
 	checksumValidationModeEnabled = "ENABLED"
 )
 
-// setupChecksumContext is the initial middleware that looks up the input
+// SetupInputContext is the initial middleware that looks up the input
 // used to configure checksum behavior. This middleware must be executed before
 // input validation step or any other checksum middleware.
-type setupInputContext struct {
+type SetupInputContext struct {
 	// GetAlgorithm is a function to get the checksum algorithm of the
 	// input payload from the input parameters.
 	//
@@ -35,13 +36,13 @@ type setupInputContext struct {
 }
 
 // ID for the middleware
-func (m *setupInputContext) ID() string {
+func (m *SetupInputContext) ID() string {
 	return "AWSChecksum:SetupInputContext"
 }
 
 // HandleInitialize initialization middleware that setups up the checksum
 // context based on the input parameters provided in the stack.
-func (m *setupInputContext) HandleInitialize(
+func (m *SetupInputContext) HandleInitialize(
 	ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler,
 ) (
 	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
@@ -69,6 +70,9 @@ type setupOutputContext struct {
 	// mode and true, or false if no mode is specified.
 	GetValidationMode func(interface{}) (string, bool)
 
+	// SetValidationMode is a function to set the checksum validation mode of input parameters
+	SetValidationMode func(interface{}, string)
+
 	// ResponseChecksumValidation states user config to opt-in/out checksum validation
 	ResponseChecksumValidation aws.ResponseChecksumValidation
 }
@@ -89,6 +93,7 @@ func (m *setupOutputContext) HandleInitialize(
 	mode, _ := m.GetValidationMode(in.Parameters)
 
 	if m.ResponseChecksumValidation == aws.ResponseChecksumValidationWhenSupported || mode == checksumValidationModeEnabled {
+		m.SetValidationMode(in.Parameters, checksumValidationModeEnabled)
 		ctx = setContextOutputValidationMode(ctx, checksumValidationModeEnabled)
 	}
 

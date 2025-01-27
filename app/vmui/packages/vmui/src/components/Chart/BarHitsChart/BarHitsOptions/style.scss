@@ -11,12 +11,12 @@
   &-settings {
     display: grid;
     align-items: flex-start;
-    gap: $padding-global;
     min-width: 200px;
+    gap: $padding-global;
+    padding-bottom: $padding-global;
 
     &-item {
-      border-bottom: $border-divider;
-      padding: 0 $padding-global $padding-global;
+      padding: 0 $padding-global;
 
       &_list {
         padding: 0;

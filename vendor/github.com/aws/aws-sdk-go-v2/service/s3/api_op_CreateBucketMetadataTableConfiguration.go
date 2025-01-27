@@ -253,7 +253,7 @@ func getCreateBucketMetadataTableConfigurationRequestAlgorithmMember(input inter
 }
 
 func addCreateBucketMetadataTableConfigurationInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getCreateBucketMetadataTableConfigurationRequestAlgorithmMember,
 		RequireChecksum:                  true,
 		RequestChecksumCalculation:       options.RequestChecksumCalculation,

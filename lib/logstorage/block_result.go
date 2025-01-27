@@ -294,13 +294,7 @@ func (br *blockResult) addResultColumn(rc *resultColumn) {
 	if areConstValues(rc.values) {
 		// Clone the constant value into rc, so it doesn't hold the external memory.
 		// This optimization allows reducing memory usage after br cloning.
-		br.addValue(rc.values[0])
-		valuesEncoded := br.valuesBuf[len(br.valuesBuf)-1:]
-		br.csAdd(blockResultColumn{
-			name:          rc.name,
-			isConst:       true,
-			valuesEncoded: valuesEncoded,
-		})
+		br.addResultColumnConst(rc)
 	} else {
 		br.csAdd(blockResultColumn{
 			name:          rc.name,
@@ -308,6 +302,16 @@ func (br *blockResult) addResultColumn(rc *resultColumn) {
 			valuesEncoded: rc.values,
 		})
 	}
+}
+
+func (br *blockResult) addResultColumnConst(rc *resultColumn) {
+	br.valuesBuf = append(br.valuesBuf, rc.values[0])
+	valuesEncoded := br.valuesBuf[len(br.valuesBuf)-1:]
+	br.csAdd(blockResultColumn{
+		name:          rc.name,
+		isConst:       true,
+		valuesEncoded: valuesEncoded,
+	})
 }
 
 // initAllColumns initializes all the columns in br.

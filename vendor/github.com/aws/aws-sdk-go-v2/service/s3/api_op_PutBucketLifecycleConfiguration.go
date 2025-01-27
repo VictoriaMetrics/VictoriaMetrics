@@ -376,7 +376,7 @@ func getPutBucketLifecycleConfigurationRequestAlgorithmMember(input interface{})
 }
 
 func addPutBucketLifecycleConfigurationInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getPutBucketLifecycleConfigurationRequestAlgorithmMember,
 		RequireChecksum:                  true,
 		RequestChecksumCalculation:       options.RequestChecksumCalculation,

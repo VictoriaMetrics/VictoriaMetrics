@@ -421,7 +421,7 @@ func getRestoreObjectRequestAlgorithmMember(input interface{}) (string, bool) {
 }
 
 func addRestoreObjectInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getRestoreObjectRequestAlgorithmMember,
 		RequireChecksum:                  false,
 		RequestChecksumCalculation:       options.RequestChecksumCalculation,

@@ -38,31 +38,51 @@ type lexer struct {
 
 	// currentTimestamp is the current timestamp in nanoseconds
 	currentTimestamp int64
+
+	// opts is a stack of options for nested parsed queries
+	optss []*queryOptions
 }
 
 type lexerState struct {
 	lex lexer
 }
 
+func (lex *lexer) copyFrom(src *lexer) {
+	*lex = *src
+	lex.optss = append(lex.optss[:0:0], src.optss...)
+}
+
 func (lex *lexer) backupState() *lexerState {
-	return &lexerState{
-		lex: *lex,
-	}
+	var ls lexerState
+	ls.lex.copyFrom(lex)
+	return &ls
 }
 
 func (lex *lexer) restoreState(ls *lexerState) {
-	*lex = ls.lex
+	lex.copyFrom(&ls.lex)
 }
 
-// newLexer returns new lexer for the given s.
+func (lex *lexer) pushQueryOptions(opts *queryOptions) {
+	lex.optss = append(lex.optss, opts)
+}
+
+func (lex *lexer) popQueryOptions() {
+	lex.optss = lex.optss[:len(lex.optss)-1]
+}
+
+func (lex *lexer) getQueryOptions() *queryOptions {
+	if len(lex.optss) == 0 {
+		return nil
+	}
+	return lex.optss[len(lex.optss)-1]
+}
+
+// newLexer returns new lexer for the given s at the given timestamp.
+//
+// The timestamp is used for properly parsing relative timestamps such as _time:1d.
 //
 // The lex.token points to the first token in s.
-func newLexer(s string) *lexer {
-	timestamp := time.Now().UnixNano()
-	return newLexerAtTimestamp(s, timestamp)
-}
-
-func newLexerAtTimestamp(s string, timestamp int64) *lexer {
+func newLexer(s string, timestamp int64) *lexer {
 	lex := &lexer{
 		s:                s,
 		sOrig:            s,
@@ -224,6 +244,8 @@ again:
 
 // Query represents LogsQL query.
 type Query struct {
+	opts *queryOptions
+
 	f filter
 
 	pipes []pipe
@@ -232,9 +254,35 @@ type Query struct {
 	timestamp int64
 }
 
+type queryOptions struct {
+	// concurrency is the number of concurrent workers to use for query execution on every.
+	//
+	// By default the number of concurrent workers equals to the number of available CPU cores.
+	concurrency uint
+}
+
+func (opts *queryOptions) String() string {
+	if opts == nil {
+		return ""
+	}
+	var a []string
+	if opts.concurrency > 0 {
+		a = append(a, fmt.Sprintf("concurrency=%d", opts.concurrency))
+	}
+	if len(a) == 0 {
+		return ""
+	}
+	return "options(" + strings.Join(a, ", ") + ")"
+}
+
 // String returns string representation for q.
 func (q *Query) String() string {
-	s := q.f.String()
+	s := q.opts.String()
+	if len(s) > 0 {
+		s += " "
+	}
+
+	s += q.f.String()
 
 	for _, p := range q.pipes {
 		s += " | " + p.String()
@@ -310,7 +358,7 @@ func (q *Query) AddFacetsPipe(limit, maxValuesPerField, maxValueLen int, keepCon
 	if keepConstFields {
 		s += " keep_const_fields"
 	}
-	lex := newLexer(s)
+	lex := newLexer(s, q.timestamp)
 
 	pf, err := parsePipeFacets(lex)
 	if err != nil {
@@ -333,7 +381,7 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 			byFieldsStr += ", " + quoteTokenIfNeeded(f)
 		}
 		s := fmt.Sprintf("stats by (%s) count() hits", byFieldsStr)
-		lex := newLexer(s)
+		lex := newLexer(s, q.timestamp)
 
 		ps, err := parsePipeStats(lex, true)
 		if err != nil {
@@ -353,7 +401,7 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 			sortFieldsStr += ", " + quoteTokenIfNeeded(f)
 		}
 		s := fmt.Sprintf("sort by (%s)", sortFieldsStr)
-		lex := newLexer(s)
+		lex := newLexer(s, q.timestamp)
 		ps, err := parsePipeSort(lex)
 		if err != nil {
 			logger.Panicf("BUG: unexpected error when parsing %q: %s", s, err)
@@ -1004,7 +1052,7 @@ func (q *Query) HasGlobalTimeFilter() bool {
 //
 // E.g. _time:duration filters are adjusted according to the provided timestamp as _time:[timestamp-duration, duration].
 func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
-	lex := newLexerAtTimestamp(s, timestamp)
+	lex := newLexer(s, timestamp)
 
 	q, err := parseQuery(lex)
 	if err != nil {
@@ -1013,7 +1061,6 @@ func ParseQueryAtTimestamp(s string, timestamp int64) (*Query, error) {
 	if !lex.isEnd() {
 		return nil, fmt.Errorf("unexpected unparsed tail after [%s]; context: [%s]; tail: [%s]", q, lex.context(), lex.s)
 	}
-	q.timestamp = timestamp
 	q.optimize()
 
 	start, end := q.GetFilterTimeRange()
@@ -1060,12 +1107,21 @@ func (q *Query) GetTimestamp() int64 {
 }
 
 func parseQuery(lex *lexer) (*Query, error) {
+	opts, err := parseQueryOptions(lex)
+	if err != nil {
+		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
+	}
+	lex.pushQueryOptions(opts)
+	defer lex.popQueryOptions()
+
 	f, err := parseFilter(lex)
 	if err != nil {
 		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
 	}
 	q := &Query{
-		f: f,
+		opts:      opts,
+		f:         f,
+		timestamp: lex.currentTimestamp,
 	}
 
 	if lex.isKeyword("|") {
@@ -1110,6 +1166,83 @@ func ParseFilter(s string) (*Filter, error) {
 		f: q.f,
 	}
 	return f, nil
+}
+
+func parseQueryOptions(lex *lexer) (*queryOptions, error) {
+	var opts queryOptions
+	defaultOpts := lex.getQueryOptions()
+	if defaultOpts != nil {
+		opts = *defaultOpts
+	}
+
+	if !lex.isKeyword("options") {
+		return &opts, nil
+	}
+	lex.nextToken()
+
+	if !lex.isKeyword("(") {
+		return nil, fmt.Errorf("missing '(' after 'options' keyword; wrap 'options' into quotes if you are searching for this word in the log message")
+	}
+	lex.nextToken()
+
+	for {
+		if lex.isKeyword(")") {
+			lex.nextToken()
+			return &opts, nil
+		}
+
+		k, v, err := parseKeyValuePair(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'options': %w", err)
+		}
+		switch k {
+		case "concurrency":
+			n, ok := tryParseUint64(v)
+			if !ok {
+				return nil, fmt.Errorf("cannot parse 'concurrency=%q' option as unsinged interger", v)
+			}
+			if n > 1024 {
+				// There is zero sense in running too many workers.
+				n = 1024
+			}
+			opts.concurrency = uint(n)
+		default:
+			return nil, fmt.Errorf("unexpected option %q with value %q", k, v)
+		}
+
+		if lex.isKeyword(")") {
+			lex.nextToken()
+			return &opts, nil
+		}
+		if !lex.isKeyword(",") {
+			return nil, fmt.Errorf("unexpected token inside the 'options(...)': %q; want ',' or ')'", lex.token)
+		}
+		lex.nextToken()
+	}
+}
+
+func parseKeyValuePair(lex *lexer) (string, string, error) {
+	k, err := getKeyValueToken(lex)
+	if err != nil {
+		return "", "", fmt.Errorf("cannot read key in the 'key=value' pair: %w", err)
+	}
+
+	if !lex.isKeyword("=") {
+		return "", "", fmt.Errorf("missing '=' after %q key; got %q instead", k, lex.token)
+	}
+	lex.nextToken()
+
+	v, err := getKeyValueToken(lex)
+	if err != nil {
+		return "", "", fmt.Errorf("cannot read value after '%q=': %w", k, err)
+	}
+
+	return k, v, nil
+}
+
+func getKeyValueToken(lex *lexer) (string, error) {
+	stopTokens := []string{"=", ",", "(", ")", "[", "]", "|", ""}
+	return getCompoundTokenExt(lex, stopTokens)
 }
 
 func parseFilter(lex *lexer) (filter, error) {
@@ -1767,10 +1900,6 @@ func parseFilterLT(lex *lexer, fieldName string) (filter, error) {
 			return nil, fmt.Errorf("cannot parse [%s] as number: %w", fStr, err)
 		}
 		return fr, nil
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse number after '%s': %w", op, err)
 	}
 
 	if !includeMaxValue {
@@ -2613,6 +2742,9 @@ var reservedKeywords = func() map[string]struct{} {
 		"seq",
 		"string_range",
 		"value_type",
+
+		// queryOptions start with this keyword
+		"options",
 	}
 	m := make(map[string]struct{}, len(kws))
 	for _, kw := range kws {
