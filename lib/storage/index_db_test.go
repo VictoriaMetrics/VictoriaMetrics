@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -564,15 +565,14 @@ func TestRemoveDuplicateMetricIDs(t *testing.T) {
 }
 
 func TestIndexDBOpenClose(t *testing.T) {
+	defer testRemoveAll(t)
+
 	var s Storage
-	tableName := nextIndexDBTableName()
+	path := filepath.Join(t.Name(), "2025_01")
 	for i := 0; i < 5; i++ {
 		var isReadOnly atomic.Bool
-		db := mustOpenLegacyIndexDB(tableName, &s, &isReadOnly)
+		db := mustOpenPartitionIndexDB(path, &s, &isReadOnly)
 		db.MustClose()
-	}
-	if err := os.RemoveAll(tableName); err != nil {
-		t.Fatalf("cannot remove indexDB: %s", err)
 	}
 }
 
