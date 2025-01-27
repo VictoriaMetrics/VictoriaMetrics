@@ -244,7 +244,7 @@ func (w *Writer) MustClose() {
 
 	if !envutil.IsFsyncDisabled() {
 		if err := w.f.Sync(); err != nil {
-			logger.Panicf("FATAL: cannot sync file %q: %d", w.f.Name(), err)
+			logger.Panicf("FATAL: cannot sync file %q: %s", w.f.Name(), err)
 		}
 	}
 	if err := w.st.close(); err != nil {
