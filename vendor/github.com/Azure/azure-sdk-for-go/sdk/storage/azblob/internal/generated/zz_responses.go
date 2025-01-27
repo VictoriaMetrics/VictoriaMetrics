@@ -88,6 +88,9 @@ type AppendBlobClientAppendBlockResponse struct {
 	// RequestID contains the information returned from the x-ms-request-id header response.
 	RequestID *string
 
+	// StructuredBodyType contains the information returned from the x-ms-structured-body header response.
+	StructuredBodyType *string
+
 	// Version contains the information returned from the x-ms-version header response.
 	Version *string
 }
@@ -468,6 +471,12 @@ type BlobClientDownloadResponse struct {
 
 	// RequestID contains the information returned from the x-ms-request-id header response.
 	RequestID *string
+
+	// StructuredBodyType contains the information returned from the x-ms-structured-body header response.
+	StructuredBodyType *string
+
+	// StructuredContentLength contains the information returned from the x-ms-structured-content-length header response.
+	StructuredContentLength *int64
 
 	// TagCount contains the information returned from the x-ms-tag-count header response.
 	TagCount *int64
@@ -1170,6 +1179,9 @@ type BlockBlobClientStageBlockResponse struct {
 	// RequestID contains the information returned from the x-ms-request-id header response.
 	RequestID *string
 
+	// StructuredBodyType contains the information returned from the x-ms-structured-body header response.
+	StructuredBodyType *string
+
 	// Version contains the information returned from the x-ms-version header response.
 	Version *string
 }
@@ -1205,6 +1217,9 @@ type BlockBlobClientUploadResponse struct {
 
 	// RequestID contains the information returned from the x-ms-request-id header response.
 	RequestID *string
+
+	// StructuredBodyType contains the information returned from the x-ms-structured-body header response.
+	StructuredBodyType *string
 
 	// Version contains the information returned from the x-ms-version header response.
 	Version *string
@@ -1881,6 +1896,9 @@ type PageBlobClientUploadPagesResponse struct {
 
 	// RequestID contains the information returned from the x-ms-request-id header response.
 	RequestID *string
+
+	// StructuredBodyType contains the information returned from the x-ms-structured-body header response.
+	StructuredBodyType *string
 
 	// Version contains the information returned from the x-ms-version header response.
 	Version *string
