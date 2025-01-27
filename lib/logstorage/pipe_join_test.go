@@ -14,6 +14,8 @@ func TestParsePipeJoinSuccess(t *testing.T) {
 	f(`join by (foo, bar) (a:b | fields x, y)`)
 	f(`join by (foo) (a:b) prefix c`)
 	f(`join by (foo) (bar | join by (x, z) (y))`)
+	f(`join by (x) (y) inner`)
+	f(`join by (x) (y) inner prefix a.b`)
 }
 
 func TestParsePipeJoinFailure(t *testing.T) {
@@ -35,6 +37,7 @@ func TestParsePipeJoinFailure(t *testing.T) {
 	f(`join by (x) (abc`)
 	f(`join (x) (y) prefix`)
 	f(`join (x) (y) prefix |`)
+	f(`join by (x) (y) prefix x inner`)
 }
 
 func TestPipeJoinUpdateNeededFields(t *testing.T) {
@@ -47,7 +50,7 @@ func TestPipeJoinUpdateNeededFields(t *testing.T) {
 	f("join on (x, y) (abc)", "*", "", "*", "")
 
 	// all the needed fields, unneeded fields do not intersect with src
-	f("join on (x, y) (abc)", "*", "f1,f2", "*", "f1,f2")
+	f("join on (x, y) (abc) inner", "*", "f1,f2", "*", "f1,f2")
 
 	// all the needed fields, unneeded fields intersect with src
 	f("join on (x, y) (abc)", "*", "f2,x", "*", "f2")

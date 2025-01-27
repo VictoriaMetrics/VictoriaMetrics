@@ -229,7 +229,7 @@ func expectPipeNeededFields(t *testing.T, s, neededFields, unneededFields, neede
 	nfs := newTestFieldsSet(neededFields)
 	unfs := newTestFieldsSet(unneededFields)
 
-	lex := newLexer(s)
+	lex := newLexer(s, 0)
 	p, err := parsePipe(lex)
 	if err != nil {
 		t.Fatalf("cannot parse %s: %s", s, err)

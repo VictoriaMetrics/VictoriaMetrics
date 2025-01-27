@@ -42,6 +42,10 @@ func (pd *pipeDelete) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc)
 	return pd, nil
 }
 
+func (pd *pipeDelete) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pd *pipeDelete) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeDeleteProcessor{
 		pd:     pd,

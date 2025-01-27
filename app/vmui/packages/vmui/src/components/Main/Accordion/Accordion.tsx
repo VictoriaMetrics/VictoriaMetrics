@@ -30,6 +30,10 @@ const Accordion: FC<AccordionProps> = ({
     onChange && onChange(isOpen);
   }, [isOpen]);
 
+  useEffect(() => {
+    setIsOpen(defaultExpanded);
+  }, [defaultExpanded]);
+
   return (
     <>
       <header

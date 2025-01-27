@@ -157,7 +157,8 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields, streamFie
 	}
 	rowLen := uncompressedRowSizeBytes(fields)
 	if rowLen > maxUncompressedBlockSize {
-		logger.Infof("ignoring too long log entry with the estimated size %d bytes, since it exceeds the limit %d", rowLen, maxUncompressedBlockSize)
+		logger.Infof("ignoring too long log record with the estimated size %d bytes, since it exceeds the limit %d; "+
+			"see https://docs.victoriametrics.com/victorialogs/faq/#what-length-a-log-record-is-expected-to-have", rowLen, maxUncompressedBlockSize)
 		return
 	}
 

@@ -74,6 +74,10 @@ func (pu *pipeUnpackJSON) initFilterInValues(cache *inValuesCache, getFieldValue
 	return &puNew, nil
 }
 
+func (pu *pipeUnpackJSON) visitSubqueries(visitFunc func(q *Query)) {
+	pu.iff.visitSubqueries(visitFunc)
+}
+
 func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	unpackJSON := func(uctx *fieldsUnpackerContext, s string) {
 		if len(s) == 0 || s[0] != '{' {

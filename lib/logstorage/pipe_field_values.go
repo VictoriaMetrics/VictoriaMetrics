@@ -54,6 +54,10 @@ func (pf *pipeFieldValues) initFilterInValues(_ *inValuesCache, _ getFieldValues
 	return pf, nil
 }
 
+func (pf *pipeFieldValues) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pf *pipeFieldValues) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	hitsFieldName := "hits"
 	if hitsFieldName == pf.field {

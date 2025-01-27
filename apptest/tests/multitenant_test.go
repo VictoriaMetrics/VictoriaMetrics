@@ -171,4 +171,49 @@ func TestClusterMultiTenantSelect(t *testing.T) {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
+	// Delete series from specific tenant
+	vmselect.DeleteSeries(t, "foo_bar", apptest.QueryOpts{
+		Tenant: "5:15",
+	})
+	wantSR = apptest.NewPrometheusAPIV1SeriesResponse(t,
+		`{"data": [
+        {"__name__":"foo_bar", "vm_account_id":"0", "vm_project_id":"10"},
+        {"__name__":"foo_bar", "vm_account_id":"1", "vm_project_id":"1"},
+        {"__name__":"foo_bar", "vm_account_id":"1", "vm_project_id":"15"},
+        {"__name__":"foo_bar", "vm_account_id":"5", "vm_project_id":"0"}
+              ]
+     }`)
+	wantSR.Sort()
+
+	gotSR = vmselect.PrometheusAPIV1Series(t, "foo_bar", apptest.QueryOpts{
+		Tenant: "multitenant",
+		Start:  "2022-05-10T08:03:00.000Z",
+	})
+	gotSR.Sort()
+	if diff := cmp.Diff(wantSR, gotSR, cmpSROpt); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
+	// Delete series for multitenant with tenant filter
+	vmselect.DeleteSeries(t, `foo_bar{vm_account_id="1"}`, apptest.QueryOpts{
+		Tenant: "multitenant",
+	})
+
+	wantSR = apptest.NewPrometheusAPIV1SeriesResponse(t,
+		`{"data": [
+        {"__name__":"foo_bar", "vm_account_id":"0", "vm_project_id":"10"},
+        {"__name__":"foo_bar", "vm_account_id":"5", "vm_project_id":"0"}
+              ]
+     }`)
+	wantSR.Sort()
+
+	gotSR = vmselect.PrometheusAPIV1Series(t, `foo_bar`, apptest.QueryOpts{
+		Tenant: "multitenant",
+		Start:  "2022-05-10T08:03:00.000Z",
+	})
+	gotSR.Sort()
+	if diff := cmp.Diff(wantSR, gotSR, cmpSROpt); diff != "" {
+		t.Errorf("unexpected response (-want, +got):\n%s", diff)
+	}
+
 }

@@ -1556,6 +1556,30 @@ To switch to [the VictoriaMetrics remote write protocol](https://docs.victoriame
 simply set the `-remoteWrite.forceVMProto=true` flag. It is also possible to adjust the compression level for the VictoriaMetrics remote write protocol using the `-remoteWrite.vmProtoCompressLevel` 
 command-line flag.
 
+#### Estimating message size and rate
+
+If you are migrating from remote write to Kafka, the request rate and request body size of remote write can roughly correspond to the message rate and size of Kafka.
+
+vmagent organizes scraped/ingested data into **blocks**. A block contains multiple time series and samples.
+Each block is compressed with Snappy or zstd before being sent out by the remote write or the Kafka producer.
+
+In order to get the request rate of remote write (as the estimated produce rate of Kafka), use this MetricsQL:
+
+```metricsql
+sum(rate(vmagent_remotewrite_requests_total{}[1m])) 
+```
+
+Similarly, the average size of the compressed block of remote write (serving as the estimated message size of Kafka) is as follows:
+
+```metricsql
+sum(rate(vmagent_remotewrite_conn_bytes_written_total{}[1m]))
+ / 
+sum(rate(vmagent_remotewrite_requests_total{}[1m])) 
+```
+
+Please note that the remote write body and Kafka message need to use the same compression algorithm in order to serve as 
+estimation references. See more in [the VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol).
+
 #### Kafka broker authorization and authentication
 
 Two types of auth are supported:
@@ -1887,7 +1911,7 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 32)
+     The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration
   -maxIngestionRate int
      The maximum number of samples vmagent can receive per second. Data ingestion is paused when the limit is exceeded. By default there are no limits on samples ingestion rate. See also -remoteWrite.rateLimit
   -maxInsertRequestSize size
@@ -2189,7 +2213,7 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.queues int
-     The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues isn't enough for sending high volume of collected data to remote storage. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage (default 32)
+     The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues isn't enough for sending high volume of collected data to remote storage. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage
   -remoteWrite.rateLimit array
      Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data is sent after temporary unavailability of the remote storage. See also -maxIngestionRate (default 0)
      Supports array of values separated by comma or specified via multiple flags.

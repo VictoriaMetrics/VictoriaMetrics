@@ -688,13 +688,13 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 	m := make(map[string]*statsSeries)
 	var mLock sync.Mutex
 
+	timestamp := q.GetTimestamp()
 	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
 		}
 		for i := range timestamps {
-			timestamp := q.GetTimestamp()
 			labels := make([]logstorage.Field, 0, len(byFields))
 			for j, c := range columns {
 				if c.Name == "_time" {

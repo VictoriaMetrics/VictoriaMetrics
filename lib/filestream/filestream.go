@@ -19,8 +19,6 @@ var disableFadvise = flag.Bool("filestream.disableFadvise", false, "Whether to d
 	"The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. "+
 	"In some rare cases it is better to disable the syscall if it uses too much CPU")
 
-var disableFSyncForTesting = envutil.GetenvBool("DISABLE_FSYNC_FOR_TESTING")
-
 const dontNeedBlockSize = 16 * 1024 * 1024
 
 // ReadCloser is a standard interface for filestream Reader.
@@ -244,7 +242,7 @@ func (w *Writer) MustClose() {
 	putBufioWriter(w.bw)
 	w.bw = nil
 
-	if !disableFSyncForTesting {
+	if !envutil.IsFsyncDisabled() {
 		if err := w.f.Sync(); err != nil {
 			logger.Panicf("FATAL: cannot sync file %q: %d", w.f.Name(), err)
 		}

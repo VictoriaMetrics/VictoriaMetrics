@@ -5,18 +5,21 @@ import (
 	"testing"
 )
 
-func TestGetenvBool(t *testing.T) {
-	f := func(value string, want bool) {
+func TestIsFsyncDisabled(t *testing.T) {
+	f := func(envVarValue string, resultExpected bool) {
 		t.Helper()
 
-		key := "VM_LIB_ENVUTIL_TEST_GETENV_BOOL"
-		os.Setenv(key, value)
-		defer os.Unsetenv(key)
+		os.Setenv("DISABLE_FSYNC_FOR_TESTING", envVarValue)
+		defer os.Unsetenv("DISABLE_FSYNC_FOR_TESTING")
 
-		if got := GetenvBool(key); got != want {
-			t.Errorf("GetenvBool(%s=%s) unexpected return value: got %t, want %t", key, value, got, want)
+		result := IsFsyncDisabled()
+		if result != resultExpected {
+			t.Errorf("unexpected value for DISABLE_FSYNC_FOR_TESTING=%q; got %v; want %v", envVarValue, result, resultExpected)
 		}
 	}
+
+	// fsync must be unconditionally disabled in tests
+	f("", true)
 
 	f("TRUE", true)
 	f("True", true)
@@ -31,7 +34,6 @@ func TestGetenvBool(t *testing.T) {
 	f("f", false)
 	f("0", false)
 
-	f("", false)
 	f("unsupported", false)
 	f("tRuE", false)
 }
