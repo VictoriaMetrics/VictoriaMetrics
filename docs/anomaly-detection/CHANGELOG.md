@@ -25,14 +25,14 @@ Released: 2025-01-27
 ## v1.19.1
 Released: 2025-01-21
 
-> **Note**: There is a known bug in [v1.19.0](#v1190) - the `AccountID` and `ProjectID` are swapped when they are extracted from the `tenant_id` argument in `VMReader`. This can cause results being read and written to the wrong tenant when when using the per-query `tenant_id` feature. Please update to patch [v1.19.2](#v1192), which resolves this issue.
+> **Note**: There is a known bug in [v1.19.0](#v1190) - the `AccountID` and `ProjectID` are swapped when they are extracted from the `tenant_id` argument in `VMReader`. This can cause correctly read results being written to the wrong tenant when using the per-query `tenant_id` feature with `AccountID` != `ProjectID`. Please update to patch [v1.19.2](#v1192), which resolves this issue.
 
 - FIX: Resolved writer warnings for configurations where `reader.tenant_id` equals `writer.tenant_id` and **is not** `multitenant`, as this is a valid setup. Enhanced tenant_id-related log messages across config validation, reader, and writer for improved clarity.
 
 ## v1.19.0
 Released: 2025-01-20
 
-> **Note**: There is a known bug in [v1.19.0](#v1190) - the `AccountID` and `ProjectID` are swapped when they are extracted from the `tenant_id` argument in `VMReader`. This can cause results being read and written to the wrong tenant when when using the per-query `tenant_id` feature. Please update to patch [v1.19.2](#v1192), which resolves this issue.
+> **Note**: There is a known bug in [v1.19.0](#v1190) - the `AccountID` and `ProjectID` are swapped when they are extracted from the `tenant_id` argument in `VMReader`. This can cause correctly read results being written to the wrong tenant when using the per-query `tenant_id` feature with `AccountID` != `ProjectID`. Please update to patch [v1.19.2](#v1192), which resolves this issue.
 
 - FEATURE: Added support for per-query `tenant_id` in the [`VmReader`](https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader). This allows overriding the reader-level `tenant_id` within a single global `vmanomaly` configuration on a *per-query* basis, enabling isolation of data for different tenants in separate queries when querying the [VictoriaMetrics cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/). For details, see the [documentation](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=tenant_id#per-query-parameters).
 - IMPROVEMEMT: Speedup the model infer stage on multicore systems.
