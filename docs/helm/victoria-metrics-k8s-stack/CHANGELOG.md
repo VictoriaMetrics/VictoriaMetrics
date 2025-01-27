@@ -2,6 +2,18 @@
 
 - TODO
 
+## 0.35.0
+
+**Release date:** 27 Jan 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.110.0](https://img.shields.io/badge/v1.110.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11100)
+
+**Update note**: This release contains breaking change. `.Values.externalVM` was renamed to `.Values.external.vm`
+
+- add `.Values.external.grafana.host` to configure grafana host for alerts, when `.Values.grafana.enabled: false`
+- rename `.Values.externalVM` to `.Values.external.vm` for consistency
+- bump version of VM components to [v1.110.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.0)
+
 ## 0.34.0
 
 **Release date:** 22 Jan 2025
