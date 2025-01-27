@@ -117,7 +117,6 @@ func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
-
 // PrometheusAPIV1Labels sends a query to a /prometheus/api/v1/labels endpoint
 // and returns the list of label names.
 //
