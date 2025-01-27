@@ -483,8 +483,14 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
 	var rvs []*timeseries
 
+	dropEmptySeries := func(tss []*timeseries) []*timeseries {
+		tssCopy := append([]*timeseries{}, tss...)
+		return removeEmptySeries(tssCopy)
+	}
+
 	for _, tss := range mLeft {
-		rvs = append(rvs, tss...)
+		tssLeft := dropEmptySeries(tss)
+		rvs = append(rvs, tssLeft...)
 	}
 	// Sort left-hand-side series by metric name as Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
@@ -497,7 +503,10 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 			rvs = append(rvs, tssRight...)
 			continue
 		}
-		fillLeftNaNsWithRightValues(tssLeft, tssRight)
+		fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight)
+		// tssRight might be filled with NaNs after merge
+		tssRight = dropEmptySeries(tssRight)
+		rvs = append(rvs, tssRight...)
 	}
 	// Sort the added right-hand-side series by metric name as Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
@@ -520,6 +529,35 @@ func fillLeftNaNsWithRightValues(tssLeft, tssRight []*timeseries) {
 				if !math.IsNaN(vRight) {
 					valuesLeft[i] = vRight
 					break
+				}
+			}
+		}
+	}
+}
+
+// fill gaps in tssLeft with values from tssRight when labels match
+// Set NaNs to tssRight when tssLeft has corresponding values
+// or if tssLeft and tssRight can be merged.
+//
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759
+// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640
+func fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight []*timeseries) {
+	for _, tsLeft := range tssLeft {
+		valuesLeft := tsLeft.Values
+		nameLeft := tsLeft.MetricName.String()
+		for i, v := range valuesLeft {
+			leftIsNaN := math.IsNaN(v)
+			for _, tsRight := range tssRight {
+				canBeMerged := nameLeft == tsRight.MetricName.String()
+				valueRight := tsRight.Values[i]
+				if leftIsNaN && canBeMerged {
+					// fill NaNs with valueRight if labels match
+					valuesLeft[i] = valueRight
+				}
+				if !leftIsNaN || canBeMerged {
+					// set NaN to valueRight if valueLeft is not NaN
+					// or if left and right can be merged
+					tsRight.Values[i] = nan
 				}
 			}
 		}
