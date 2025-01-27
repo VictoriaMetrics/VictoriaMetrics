@@ -661,6 +661,19 @@ unauthorized_user:
   headers:
   - "TenantID: foobar"
   - "X-Forwarded-For:"
+
+users:
+  - username: "foo"
+    password: "bar"
+    dump_request_on_errors: true
+    url_map:
+      - src_paths: ["/select/.*"]
+        headers:
+          - "AccountID: 1"
+          - "ProjectID: 0"
+        url_prefix:
+          - "http://backend:9428/"
+
 ```
 
 `vmauth` also supports the ability to set and remove HTTP response headers before returning the response from the backend to client.
