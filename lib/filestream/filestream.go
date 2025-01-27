@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/metrics"
@@ -242,7 +242,7 @@ func (w *Writer) MustClose() {
 	putBufioWriter(w.bw)
 	w.bw = nil
 
-	if !envutil.IsFsyncDisabled() {
+	if !fsutil.IsFsyncDisabled() {
 		if err := w.f.Sync(); err != nil {
 			logger.Panicf("FATAL: cannot sync file %q: %s", w.f.Name(), err)
 		}
