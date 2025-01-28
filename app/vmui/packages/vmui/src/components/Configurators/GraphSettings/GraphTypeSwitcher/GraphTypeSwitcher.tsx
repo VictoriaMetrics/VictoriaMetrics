@@ -2,7 +2,7 @@ import React, { FC } from "preact/compat";
 import Switch from "../../../Main/Switch/Switch";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import { useSearchParams } from "react-router-dom";
-import { useTimeDispatch } from "../../../../state/time/TimeStateContext";
+import { useChangeDisplayMode } from "./useChangeDisplayMode";
 
 type Props = {
   onChange: () => void;
@@ -10,16 +10,14 @@ type Props = {
 
 const GraphTypeSwitcher: FC<Props> = ({ onChange }) => {
   const { isMobile } = useDeviceDetect();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const dispatch = useTimeDispatch();
+
+  const { handleChange } = useChangeDisplayMode();
+  const [searchParams] = useSearchParams();
 
   const value = !searchParams.get("display_mode");
 
   const handleChangeMode = (val: boolean) => {
-    val ? searchParams.delete("display_mode") : searchParams.set("display_mode", "lines");
-    setSearchParams(searchParams);
-    dispatch({ type: "RUN_QUERY" });
-    onChange();
+    handleChange(val, onChange);
   };
 
   return (

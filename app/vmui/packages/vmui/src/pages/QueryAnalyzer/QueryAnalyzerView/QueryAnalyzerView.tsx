@@ -21,6 +21,7 @@ import { getColumns } from "../../../hooks/useSortedCategories";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import TableView from "../../../components/Views/TableView/TableView";
 import { useSearchParams } from "react-router-dom";
+import WarningHeatmapToLine from "../../CustomPanel/WarningHeatmapToLine/WarningHeatmapToLine";
 
 type Props = {
   data: DataAnalyzerType[];
@@ -128,6 +129,7 @@ const QueryAnalyzerView: FC<Props> = ({ data, period }) => {
           onDeleteClick={handleTraceDelete}
         />
       )}
+      <WarningHeatmapToLine/>
       <div
         className={classNames({
           "vm-block": true,
