@@ -2313,13 +2313,20 @@ func createAllIndexesForMetricName(is *indexSearch, mn *MetricName, tsid *TSID, 
 }
 
 func (s *Storage) putSeriesToCache(metricNameRaw []byte, genTSID *generationTSID, generation, date uint64) {
-	// Store the TSID for the current indexdb into cache,
-	// so future rows for that TSID are ingested via fast path.
+	// Store the TSID indexdb into cache, so future rows for that TSID are
+	// ingested via fast path.
+	//
+	// With partition index there is no need to store generation in this cache.
+	// We still need to put generation in cache to preserve the cache entry data
+	// format in order address cases when users, once tried partition index,
+	// decided to switch back to legacy monolithic index. Thus, we store 0
+	// generation.
 	genTSID.generation = 0
 	s.putTSIDToCache(genTSID, metricNameRaw)
 
 	// Register the (generation, date, metricID) entry in the cache,
-	// so next time the entry is found there instead of searching for it in the indexdb.
+	// so next time the entry is found there instead of searching for it in the
+	// indexdb.
 	s.dateMetricIDCache.Set(generation, date, genTSID.TSID.MetricID)
 }
 

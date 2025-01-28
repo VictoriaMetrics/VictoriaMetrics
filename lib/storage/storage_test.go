@@ -1662,6 +1662,8 @@ func testCountAllMetricNamesNoExtDB(is *indexSearch, tr TimeRange) int {
 	return len(metricNames)
 }
 
+// testListDirEntries returns the all paths inside `root` dir. The `root` dir
+// itself and paths that start with `ignorePrefix` are omitted.
 func testListDirEntries(t *testing.T, root string, ignorePrefix ...string) []string {
 	t.Helper()
 	var paths []string
