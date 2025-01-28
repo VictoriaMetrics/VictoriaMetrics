@@ -270,7 +270,7 @@ func printCommandsHelp(w io.Writer) {
 \h - show this help
 \s - singleline json output mode
 \m - multiline json output mode
-\c - compact output
+\c - compact output mode
 \logfmt - logfmt output mode
 \wrap_long_lines - toggles wrapping long lines
 \tail <query> - live tail <query> results
