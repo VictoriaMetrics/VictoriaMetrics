@@ -20,6 +20,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/): improve startup times when opening a storage with the [retention](https://docs.victoriametrics.com/#retention) exceeding a few months.
 
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): replaced `await navigator.clipboard.writeText` with `useCopyToClipboard` hook. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7778).
+
 ## [v1.102.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.12)
 
 Released at 2025-01-28
