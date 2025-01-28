@@ -196,6 +196,8 @@ const GraphView: FC<GraphViewProps> = ({
 
   const [containerRef, containerSize] = useElementSize();
 
+  const hasTimeData = dataChart[0]?.length > 0;
+
   return (
     <div
       className={classNames({
@@ -205,7 +207,7 @@ const GraphView: FC<GraphViewProps> = ({
       })}
       ref={containerRef}
     >
-      {!isHistogram && (
+      {!isHistogram && hasTimeData && (
         <LineChart
           data={dataChart}
           series={series}

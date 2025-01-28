@@ -20,6 +20,7 @@ import TableSettings from "../../../components/Table/TableSettings/TableSettings
 import { getColumns } from "../../../hooks/useSortedCategories";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import TableView from "../../../components/Views/TableView/TableView";
+import { useSearchParams } from "react-router-dom";
 
 type Props = {
   data: DataAnalyzerType[];
@@ -28,6 +29,8 @@ type Props = {
 
 const QueryAnalyzerView: FC<Props> = ({ data, period }) => {
   const { isMobile } = useDeviceDetect();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const { tableCompact } = useCustomPanelState();
   const customPanelDispatch = useCustomPanelDispatch();
 
@@ -101,11 +104,16 @@ const QueryAnalyzerView: FC<Props> = ({ data, period }) => {
     setQueries(tempQueries);
     setGraphData(tempGraphData);
     setLiveData(tempLiveData);
+
+    // reset display mode
+    searchParams.delete("display_mode");
+    setSearchParams(searchParams);
   }, [data]);
 
   useEffect(() => {
-    setIsHistogram(!!graphData && isHistogramData(graphData));
-  }, [graphData]);
+    const noSpecificDisplayMode = !searchParams.get("display_mode");
+    setIsHistogram(!!graphData && noSpecificDisplayMode && isHistogramData(graphData));
+  }, [graphData, searchParams]);
 
   return (
     <div
@@ -138,7 +146,9 @@ const QueryAnalyzerView: FC<Props> = ({ data, period }) => {
             {displayType === "chart" && <GraphTips/>}
             {displayType === "chart" && (
               <GraphSettings
+                data={graphData || []}
                 yaxis={yaxis}
+                isHistogram={isHistogram}
                 setYaxisLimits={setYaxisLimits}
                 toggleEnableLimits={toggleEnableLimits}
                 spanGaps={{ value: spanGaps, onChange: setSpanGaps }}
