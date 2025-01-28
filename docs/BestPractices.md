@@ -48,6 +48,18 @@ VictoriaMetrics can run also on MacOS for testing and development purposes.
 * **MacOS**: amd64, arm64 (for testing and development purposes)
 * **Windows**: amd64
 
+## Kubernetes
+
+VictoriaMetrics natively supports deployment in Kubernetes via [helm charts](https://docs.victoriametrics.com/helm/)
+and [kubernetes operator](https://docs.victoriametrics.com/operator/)
+
+Prefer setting [requests equal to limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#requests-and-limits)
+for stateful components like [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview) to avoid unnecessary
+component restarts.
+
+Do not use [fractional CPU units](https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/#cpu-units) for resources,
+as VictoriaMetrics will automatically round it down to reduce chances of CPU starvation. 
+
 ## Upgrade procedure
 
 It is safe to upgrade VictoriaMetrics to new versions unless the [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) say otherwise.
