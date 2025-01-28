@@ -12,12 +12,12 @@ func (s *SpanReaderPluginServer) GetTrace(*proto.GetTraceRequest, proto.SpanRead
 	return nil
 }
 
-func (s *SpanReaderPluginServer) GetServices(context.Context, *proto.GetServicesRequest) (*proto.GetServicesResponse, error) {
+func (s *SpanReaderPluginServer) GetServices(ctx context.Context, req *proto.GetServicesRequest) (*proto.GetServicesResponse, error) {
 	return nil, nil
 }
 
 func (s *SpanReaderPluginServer) GetOperations(context.Context, *proto.GetOperationsRequest) (*proto.GetOperationsResponse, error) {
-	return nil, nil
+	return &proto.GetOperationsResponse{}, nil
 }
 
 func (s *SpanReaderPluginServer) FindTraces(*proto.FindTracesRequest, proto.SpanReaderPlugin_FindTracesServer) error {
