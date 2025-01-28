@@ -65,15 +65,6 @@ func (sf *sortedFields) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
-// RowFormatter implementes fmt.Stringer for []Field aka a single log row
-type RowFormatter []Field
-
-// String returns user-readable representation for rf
-func (rf *RowFormatter) String() string {
-	result := MarshalFieldsToJSON(nil, *rf)
-	return string(result)
-}
-
 // Reset resets lr with all its settings.
 //
 // Call ResetKeepSettings() for resetting lr without resetting its settings.
@@ -274,20 +265,21 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields map[string]str
 func (lr *LogRows) GetRowString(idx int) string {
 	tf := TimeFormatter(lr.timestamps[idx])
 	streamTags := getStreamTagsString(lr.streamTagsCanonicals[idx])
-	var rf RowFormatter
-	rf = append(rf[:0], lr.rows[idx]...)
-	rf = append(rf, Field{
+	var fields []Field
+	fields = append(fields[:0], lr.rows[idx]...)
+	fields = append(fields, Field{
 		Name:  "_time",
 		Value: tf.String(),
 	})
-	rf = append(rf, Field{
+	fields = append(fields, Field{
 		Name:  "_stream",
 		Value: streamTags,
 	})
-	sort.Slice(rf, func(i, j int) bool {
-		return rf[i].Name < rf[j].Name
+	sort.Slice(fields, func(i, j int) bool {
+		return fields[i].Name < fields[j].Name
 	})
-	return rf.String()
+	line := MarshalFieldsToJSON(nil, fields)
+	return string(line)
 }
 
 // GetLogRows returns LogRows from the pool for the given streamFields.
