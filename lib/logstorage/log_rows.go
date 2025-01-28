@@ -142,23 +142,33 @@ func (lr *LogRows) NeedFlush() bool {
 // It is OK to modify the args after returning from the function,
 // since lr copies all the args to internal data.
 //
-// Field names longer than MaxFieldNameSize are automatically truncated to MaxFieldNameSize length.
-//
-// Log entries with too big number of fields are ignored.
-// Loo long log entries are ignored.
+// Log entries are dropped with the warning message in the following cases:
+// - if there are too many log fields
+// - if there are too long log field names
+// - if the total length of log entries is too long
 func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields, streamFields []Field) {
+	// Verify that the log entry doesn't exceed limits.
 	if len(fields) > maxColumnsPerBlock {
-		fieldNames := make([]string, len(fields))
-		for i, f := range fields {
-			fieldNames[i] = f.Name
-		}
-		logger.Infof("ignoring log entry with too big number of fields, which exceeds %d; fieldNames=%q", maxColumnsPerBlock, fieldNames)
+		line := MarshalFieldsToJSON(nil, fields)
+		logger.Warnf("ignoring log entry with too big number of fields %d, since it exceeds the limit %d; "+
+			"see https://docs.victoriametrics.com/victorialogs/faq/#how-many-fields-a-single-log-entry-may-contain ; log entry: %s", len(fields), maxColumnsPerBlock, line)
 		return
+	}
+	for i := range fields {
+		fieldName := fields[i].Name
+		if len(fieldName) > maxFieldNameSize {
+			line := MarshalFieldsToJSON(nil, fields)
+			logger.Warnf("ignoring log entry with too long field name %q, since its length (%d) exceeds the limit %d bytes; "+
+				"see https://docs.victoriametrics.com/victorialogs/faq/#what-is-the-maximum-supported-field-name-length ; log entry: %s",
+				fieldName, len(fieldName), maxFieldNameSize, line)
+			return
+		}
 	}
 	rowLen := uncompressedRowSizeBytes(fields)
 	if rowLen > maxUncompressedBlockSize {
-		logger.Infof("ignoring too long log record with the estimated size %d bytes, since it exceeds the limit %d; "+
-			"see https://docs.victoriametrics.com/victorialogs/faq/#what-length-a-log-record-is-expected-to-have", rowLen, maxUncompressedBlockSize)
+		line := MarshalFieldsToJSON(nil, fields)
+		logger.Warnf("ignoring too long log entry with the estimated length of %d bytes, since it exceeds the limit %d bytes; "+
+			"see https://docs.victoriametrics.com/victorialogs/faq/#what-length-a-log-record-is-expected-to-have ; log entry: %s", rowLen, maxUncompressedBlockSize, line)
 		return
 	}
 
@@ -248,9 +258,6 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields map[string]str
 		dstField := &fb[len(fb)-1]
 
 		fieldName := f.Name
-		if len(fieldName) > MaxFieldNameSize {
-			fieldName = fieldName[:MaxFieldNameSize]
-		}
 		if fieldName == "_msg" {
 			fieldName = ""
 			hasMsgField = true
