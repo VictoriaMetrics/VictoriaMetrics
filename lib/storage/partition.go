@@ -121,7 +121,7 @@ type partition struct {
 	// rawRows aren't visible for search due to performance reasons.
 	rawRows rawRowsShards
 
-	// partsLock protects inmemoryParts, smallParts, bigParts.
+	// partsLock protects inmemoryParts, smallParts and bigParts.
 	partsLock sync.Mutex
 
 	// Contains inmemory parts with recently ingested data, which are visible for search.
