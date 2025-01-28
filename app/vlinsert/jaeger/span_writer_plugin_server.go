@@ -3,6 +3,7 @@ package jaeger
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
@@ -16,7 +17,7 @@ type SpanWriterPluginServer struct {
 func (s *SpanWriterPluginServer) WriteSpan(ctx context.Context, req *proto.WriteSpanRequest) (*proto.WriteSpanResponse, error) {
 	span := req.GetSpan()
 	if span == nil {
-		return nil, nil
+		return &proto.WriteSpanResponse{}, fmt.Errorf("span not found")
 	}
 
 	jsonSpan, err := json.Marshal(span)
