@@ -121,8 +121,7 @@ type partition struct {
 	// rawRows aren't visible for search due to performance reasons.
 	rawRows rawRowsShards
 
-	// partsLock protects inmemoryParts, smallParts, bigParts, and idb.
-	// TODO(@rtm0): Use separate lock for IndexDB?
+	// partsLock protects inmemoryParts, smallParts, bigParts.
 	partsLock sync.Mutex
 
 	// Contains inmemory parts with recently ingested data, which are visible for search.
@@ -951,9 +950,6 @@ func (pt *partition) MustClose() {
 	bigParts := pt.bigParts
 	pt.bigParts = nil
 
-	idb := pt.idb
-	pt.idb = nil
-
 	pt.partsLock.Unlock()
 
 	for _, pw := range smallParts {
@@ -966,6 +962,9 @@ func (pt *partition) MustClose() {
 		// for partitions in table.MustClose().
 		pw.decRef()
 	}
+
+	idb := pt.idb
+	pt.idb = nil
 	idb.MustClose()
 }
 
