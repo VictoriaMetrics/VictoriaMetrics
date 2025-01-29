@@ -10,14 +10,17 @@ interface Props {
 const LinesConfigurator: FC<Props> = ({ spanGaps, onChange }) => {
   const { isMobile } = useDeviceDetect();
 
-  return <div>
-    <Switch
-      value={spanGaps}
-      onChange={onChange}
-      label="Connect null values"
-      fullWidth={isMobile}
-    />
-  </div>;
+  return (
+    <div className="vm-graph-settings-row">
+      <span className="vm-graph-settings-row__label">Connect null values</span>
+      <Switch
+        value={spanGaps}
+        onChange={onChange}
+        label={spanGaps ? "Enabled" : "Disabled"}
+        fullWidth={isMobile}
+      />
+    </div>
+  );
 };
 
 export default LinesConfigurator;

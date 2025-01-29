@@ -153,7 +153,10 @@ export const normalizeData = (buckets: MetricResult[], isHistogram?: boolean): M
   const totalHitsPerTimestamp: { [timestamp: number]: number } = {};
   vmBuckets.forEach(bucket =>
     bucket.values.forEach(([timestamp, value]) => {
-      totalHitsPerTimestamp[timestamp] = (totalHitsPerTimestamp[timestamp] || 0) + +value;
+      const valueNum = Number(value);
+      const number = isNaN(valueNum) ? 0 : valueNum;
+      const prevTotal = totalHitsPerTimestamp[timestamp] || 0;
+      totalHitsPerTimestamp[timestamp] = prevTotal + number;
     })
   );
 
