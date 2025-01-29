@@ -36,7 +36,7 @@ import (
 // https://bucket-name.s3express-zone-id.region-code.amazonaws.com/key-name .
 // Path-style requests are not supported. For more information about endpoints in
 // Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information about
-// endpoints in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
+// endpoints in Local Zones, see [Available Local Zone for directory buckets]in the Amazon S3 User Guide.
 //
 // Permissions
 //   - General purpose bucket permissions - For information about permissions
@@ -78,7 +78,6 @@ import (
 // [ListMultipartUploads]
 //
 // [Uploading Objects Using Multipart Upload]: https://docs.aws.amazon.com/AmazonS3/latest/dev/uploadobjusingmpu.html
-// [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [AbortMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html
 // [UploadPart]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html
 // [GetObjectAttributes]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html
@@ -86,7 +85,8 @@ import (
 // [Multipart Upload and Permissions]: https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html
 // [CompleteMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html
 // [CreateMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html
-// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [Available Local Zone for directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 //
 // [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 func (c *Client) ListParts(ctx context.Context, params *ListPartsInput, optFns ...func(*Options)) (*ListPartsOutput, error) {
@@ -244,6 +244,15 @@ type ListPartsOutput struct {
 
 	// The algorithm that was used to create a checksum of the object.
 	ChecksumAlgorithm types.ChecksumAlgorithm
+
+	// The checksum type, which determines how part-level checksums are combined to
+	// create an object-level checksum for multipart objects. You can use this header
+	// response to verify that the checksum type that is received is the same checksum
+	// type that was specified in CreateMultipartUpload request. For more information,
+	// see [Checking object integrity in the Amazon S3 User Guide].
+	//
+	// [Checking object integrity in the Amazon S3 User Guide]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
+	ChecksumType types.ChecksumType
 
 	// Container element that identifies who initiated the multipart upload. If the
 	// initiator is an Amazon Web Services account, this element provides the same

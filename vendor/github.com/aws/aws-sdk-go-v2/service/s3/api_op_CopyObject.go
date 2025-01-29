@@ -34,7 +34,7 @@ import (
 //     https://bucket-name.s3express-zone-id.region-code.amazonaws.com/key-name .
 //     Path-style requests are not supported. For more information about endpoints in
 //     Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information
-//     about endpoints in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
+//     about endpoints in Local Zones, see [Available Local Zone for directory buckets]in the Amazon S3 User Guide.
 //
 //   - VPC endpoints don't support cross-Region requests (including copies). If
 //     you're using VPC endpoints, your source and destination buckets should be in the
@@ -144,7 +144,6 @@ import (
 //
 // [GetObject]
 //
-// [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [Amazon Web Services Identity and Access Management (IAM) identity-based policies for S3 Express One Zone]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam-identity-policies.html
 // [Resolve the Error 200 response when copying objects to Amazon S3]: https://repost.aws/knowledge-center/s3-resolve-200-internalerror
 // [Copy Object Using the REST Multipart Upload API]: https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjctsUsingRESTMPUapi.html
@@ -154,7 +153,8 @@ import (
 // [Transfer Acceleration]: https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html
 // [PutObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
 // [GetObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
-// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [Available Local Zone for directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [Amazon S3 pricing]: http://aws.amazon.com/s3/pricing/
 func (c *Client) CopyObject(ctx context.Context, params *CopyObjectInput, optFns ...func(*Options)) (*CopyObjectOutput, error) {
 	if params == nil {
@@ -859,7 +859,7 @@ type CopyObjectOutput struct {
 	SSECustomerKeyMD5 *string
 
 	// If present, indicates the Amazon Web Services KMS Encryption Context to use for
-	// object encryption. The value of this header is a base64-encoded UTF-8 string
+	// object encryption. The value of this header is a Base64 encoded UTF-8 string
 	// holding JSON with the encryption context key-value pairs.
 	SSEKMSEncryptionContext *string
 

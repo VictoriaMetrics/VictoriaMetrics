@@ -184,16 +184,36 @@ VictoriaLogs works optimally with log records of up to `10KB`. It works OK with
 log records of up to `100KB`. It works not so optimal with log records exceeding
 `100KB`.
 
-The max size of a log record VictoriaLogs can handle is `2MB`. This is
-because VictoriaLogs stores log records in blocks and `2MB` is the max size of a
-block. Blocks of this size fit the L2 cache of a typical CPU, which gives an
-optimal processing performance.
+The max size of a log record VictoriaLogs can accept during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
+is `2MB`, because log records are stored in blocks of up to `2MB` size.
+Blocks of this size fit the L2 cache of a typical CPU, which gives an
+optimal performance during data ingestion and querying.
 
-However, log records whose size is close to `2MB` aren't handled efficiently by
+Note that log records with sizes close to `2MB` aren't handled efficiently by
 VictoriaLogs because per-block overhead translates to a single log record, and
-this overhead is big. 
+this overhead is big.
 
-The `2MB` limit is hadrcoded and is unlikely to change.
+The `2MB` limit is hadrcoded and is unlikely to increase.
+
+The limit can be set to the lower value during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
+via `-insert.maxLineSizeBytes` command-line flag.
+
+## What is the maximum supported field name length
+
+VictoriaLogs limits [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) name length to 128 bytes -
+Log entries with longer field names are ignored during [date ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+
+The maximum length of a field name is hardcoded and is unikely to increase, since this may increase RAM and CPU usage.
+
+## How many fields a single log entry may contain
+
+A single log entry may contain up to 2000 fields. This fits well the majority of use cases for structured logs and
+for [wide events](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/).
+
+The maximum number of fields per log entry is hardcoded and is unlikely to increase, since this may increase RAM and CPU usage.
+
+The limit can be set to the lower value during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
+via `-insert.maxFieldsPerLine` command-line flag.
 
 ## How to determine which log fields occupy the most of disk space?
 
