@@ -51,14 +51,17 @@ VictoriaMetrics can run also on MacOS for testing and development purposes.
 ## Kubernetes
 
 VictoriaMetrics natively supports deployment in Kubernetes via [helm charts](https://docs.victoriametrics.com/helm/)
-and [kubernetes operator](https://docs.victoriametrics.com/operator/)
+and [kubernetes operator](https://docs.victoriametrics.com/operator/). See how to [start using k8s operator](https://docs.victoriametrics.com/guides/getting-started-with-vm-operator/).
 
-Prefer setting [requests equal to limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#requests-and-limits)
+Common recommendations:
+1. Prefer setting [requests equal to limits](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#requests-and-limits)
 for stateful components like [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview) to avoid unnecessary
 component restarts.
 
-Do not use [fractional CPU units](https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/#cpu-units) for resources,
-as VictoriaMetrics will automatically round it down to reduce chances of CPU starvation. 
+1. Avoid using [fractional CPU units](https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/#cpu-units) 
+when setting resources for optimal performance. VictoriaMetrics is written in Go and its runtime requires specifying
+[integer number](https://pkg.go.dev/runtime#GOMAXPROCS) of concurrently running threads. 
+When fractional CPU unit is specified, VictoriaMetrics will automatically round it down. 
 
 ## Upgrade procedure
 

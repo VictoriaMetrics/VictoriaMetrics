@@ -47,7 +47,7 @@ func updateGOMAXPROCSToCPUQuota(cpuQuota float64) {
 		gomaxprocs = 1
 	}
 	if cpuQuota > float64(gomaxprocs) {
-		logger.Infof("rounding CPU quota %.1f to %d CPUs for performance reasons - see https://docs.victoriametrics.com/bestpractices/#kubernetes", cpuQuota, gomaxprocs)
+		logger.Warnf("rounding CPU quota %.1f to %d CPUs for performance reasons - see https://docs.victoriametrics.com/bestpractices/#kubernetes", cpuQuota, gomaxprocs)
 	}
 
 	numCPU := runtime.NumCPU()
