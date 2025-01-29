@@ -19,9 +19,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 ## tip
 
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/): improve startup times when opening a storage with the [retention](https://docs.victoriametrics.com/#retention) exceeding a few months.
-* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to switch the heatmap to a line chart. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8057).
-
-* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix an issue where the chart could fail to display when switching from a heatmap to a line chart.
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to switch the heatmap to a line chart. Now, vmui would suggest to switch to line graph display if heatmap can't be properly rendered. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8057).
 
 ## [v1.102.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.12)
 
