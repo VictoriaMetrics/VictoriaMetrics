@@ -76,7 +76,7 @@ const useBarHitsOptions = ({
         width: strokeWidth[graphOptions.graphStyle],
         spanGaps: true,
         stroke: color,
-        fill: graphOptions.fill ? color + "80" : "",
+        fill: graphOptions.fill ? color + (target?._isOther ? "" : "80") : "",
         paths: getSeriesPaths(graphOptions.graphStyle),
       };
     });

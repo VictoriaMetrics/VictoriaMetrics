@@ -46,7 +46,7 @@ export interface Logs {
 export interface LogHits {
   timestamps: string[];
   values: number[];
-  total?: number;
+  total: number;
   fields: { [key: string]: string; };
   _isOther: boolean;
 }
