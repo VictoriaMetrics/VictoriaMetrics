@@ -31,6 +31,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
@@ -152,10 +153,13 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 		WriteFederate(bb, rs)
 		return sw.maybeFlushBuffer(bb)
 	})
-	if err != nil {
+	if err == nil {
+		err = sw.flush()
+	}
+	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		return fmt.Errorf("error during sending data to remote client: %w", err)
 	}
-	return sw.flush()
+	return nil
 }
 
 var federateDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/federate"}`)
@@ -242,10 +246,13 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 		}()
 	}
 	err = <-doneCh
-	if err != nil {
+	if err == nil {
+		err = sw.flush()
+	}
+	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		return fmt.Errorf("error during sending the exported csv data to remote client: %w", err)
 	}
-	return sw.flush()
+	return nil
 }
 
 var exportCSVDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export/csv"}`)
@@ -300,10 +307,13 @@ func ExportNativeHandler(startTime time.Time, at *auth.Token, w http.ResponseWri
 		bb.B = dst
 		return sw.maybeFlushBuffer(bb)
 	})
-	if err != nil {
+	if err == nil {
+		err = sw.flush()
+	}
+	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		return fmt.Errorf("error during sending native data to remote client: %w", err)
 	}
-	return sw.flush()
+	return nil
 }
 
 var exportNativeDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export/native"}`)
@@ -467,16 +477,19 @@ func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter
 		}()
 	}
 	err = <-doneCh
-	if err != nil {
+	if err == nil {
+		err = sw.flush()
+	}
+	if err == nil {
+		if format == "promapi" {
+			WriteExportPromAPIFooter(bw, qt)
+		}
+		err = bw.Flush()
+	}
+	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		return fmt.Errorf("cannot send data to remote client: %w", err)
 	}
-	if err := sw.flush(); err != nil {
-		return fmt.Errorf("cannot send data to remote client: %w", err)
-	}
-	if format == "promapi" {
-		WriteExportPromAPIFooter(bw, qt)
-	}
-	return bw.Flush()
+	return nil
 }
 
 type exportBlock struct {
