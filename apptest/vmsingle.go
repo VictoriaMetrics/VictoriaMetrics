@@ -24,6 +24,7 @@ type Vmsingle struct {
 
 	// vmstorage URLs.
 	forceFlushURL string
+	forceMergeURL string
 
 	// vminsert URLs.
 	influxLineWriteURL                 string
@@ -65,6 +66,7 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 		httpListenAddr:  stderrExtracts[1],
 
 		forceFlushURL:                      fmt.Sprintf("http://%s/internal/force_flush", stderrExtracts[1]),
+		forceMergeURL:                      fmt.Sprintf("http://%s/internal/force_merge", stderrExtracts[1]),
 		influxLineWriteURL:                 fmt.Sprintf("http://%s/influx/write", stderrExtracts[1]),
 		prometheusAPIV1ImportPrometheusURL: fmt.Sprintf("http://%s/prometheus/api/v1/import/prometheus", stderrExtracts[1]),
 		prometheusAPIV1WriteURL:            fmt.Sprintf("http://%s/prometheus/api/v1/write", stderrExtracts[1]),
@@ -81,6 +83,13 @@ func (app *Vmsingle) ForceFlush(t *testing.T) {
 	t.Helper()
 
 	app.cli.Get(t, app.forceFlushURL, http.StatusOK)
+}
+
+// ForceMerge is a test helper function that forces the merging of parts.
+func (app *Vmsingle) ForceMerge(t *testing.T) {
+	t.Helper()
+
+	app.cli.Get(t, app.forceMergeURL, http.StatusOK)
 }
 
 // InfluxWrite is a test helper function that inserts a
