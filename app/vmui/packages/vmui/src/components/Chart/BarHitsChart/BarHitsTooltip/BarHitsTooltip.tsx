@@ -122,7 +122,7 @@ const BarHitsTooltip: FC<Props> = ({ data, focusDataIdx, uPlotInst }) => {
         </div>
       )}
       <div className="vm-chart-tooltip-header">
-        <div className="vm-chart-tooltip-header__title">
+        <div className="vm-chart-tooltip-header__title vm-bar-hits-tooltip__date">
           {tooltipData.timestamp}
         </div>
       </div>

@@ -11,7 +11,7 @@
   border-radius: $border-radius-small;
 
   &_open {
-    z-index: 100;
+    z-index: 101;
     opacity: 1;
     transform-origin: top center;
     animation: vm-slider 150ms cubic-bezier(0.280, 0.840, 0.420, 1.1);

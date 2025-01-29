@@ -30,6 +30,9 @@ const (
 
 	// AlgorithmSHA256 represents SHA256 hash algorithm
 	AlgorithmSHA256 Algorithm = "SHA256"
+
+	// AlgorithmCRC64NVME represents CRC64NVME hash algorithm
+	AlgorithmCRC64NVME Algorithm = "CRC64NVME"
 )
 
 var supportedAlgorithms = []Algorithm{

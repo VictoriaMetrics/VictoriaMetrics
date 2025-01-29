@@ -41,13 +41,13 @@ const GroupLogsConfigurators: FC<Props> = ({ logs }) => {
   const noWrapLines = searchParams.get(NO_WRAP_LINES) === "true";
   const compactGroupHeader = searchParams.get(COMPACT_GROUP_HEADER) === "true";
   const displayFieldsString = searchParams.get(DISPLAY_FIELDS) || "";
-  const displayFields = displayFieldsString ? displayFieldsString.split(",") : [];
+  const displayFields = displayFieldsString ? displayFieldsString.split(",") : [LOGS_DISPLAY_FIELDS];
 
   const [dateFormat, setDateFormat] = useState(searchParams.get(DATE_FORMAT) || LOGS_DATE_FORMAT);
   const [errorFormat, setErrorFormat] = useState("");
 
   const isGroupChanged = groupBy !== LOGS_GROUP_BY;
-  const isDisplayFieldsChanged = displayFields.length > 0;
+  const isDisplayFieldsChanged = displayFields.length !== 1 || displayFields[0] !== LOGS_DISPLAY_FIELDS;
   const isTimeChanged = searchParams.get(DATE_FORMAT) !== LOGS_DATE_FORMAT;
   const hasChanges = [
     isGroupChanged,
@@ -58,9 +58,7 @@ const GroupLogsConfigurators: FC<Props> = ({ logs }) => {
   ].some(Boolean);
 
   const logsKeys = useMemo(() => {
-    const excludeKeys = ["_msg", "_time"];
-    const uniqKeys = Array.from(new Set(logs.map(l => Object.keys(l)).flat()));
-    return uniqKeys.filter(k => !excludeKeys.includes(k));
+    return Array.from(new Set(logs.map(l => Object.keys(l)).flat()));
   }, [logs]);
 
   const {

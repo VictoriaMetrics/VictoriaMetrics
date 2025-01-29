@@ -66,7 +66,7 @@ export const useFetchLogHits = (server: string, query: string) => {
         setError(error);
       }
 
-      setLogHits(hits.map(hit => ({ ...hit, _isOther: isEmptyObject(hit.fields) })));
+      setLogHits(hits.map(markIsOther).sort(sortHits));
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
         setError(String(e));
@@ -84,4 +84,19 @@ export const useFetchLogHits = (server: string, query: string) => {
     fetchLogHits,
     abortController: abortControllerRef.current
   };
+};
+
+
+// Helper function to check if a hit is "other"
+const markIsOther = (hit: LogHits) => ({
+  ...hit,
+  _isOther: isEmptyObject(hit.fields)
+});
+
+// Comparison function for sorting hits
+const sortHits = (a: LogHits, b: LogHits) => {
+  if (a._isOther !== b._isOther) {
+    return a._isOther ? -1 : 1; // "Other" hits first to avoid graph overlap
+  }
+  return b.total - a.total; // Sort remaining by total for better visibility
 };

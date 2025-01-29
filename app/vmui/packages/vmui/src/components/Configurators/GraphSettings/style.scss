@@ -1,15 +1,31 @@
 @use "src/styles/variables" as *;
 
 .vm-graph-settings {
+  display: flex;
+  align-items: center;
+  gap: $padding-small;
+
   &-popper {
     display: grid;
     gap: $padding-global;
-    padding: 0 0 $padding-global;
+    padding: $padding-small $padding-large $padding-large;
+    min-width: 300px;
 
     &__body {
       display: grid;
       gap: $padding-large;
-      padding: 0 $padding-global;
+    }
+  }
+
+  &-row {
+    display: grid;
+    gap: $padding-small;
+    grid-template-columns: minmax(150px, max-content) 1fr;
+
+    &__label {
+      &:after{
+        content: ":";
+      }
     }
   }
 }

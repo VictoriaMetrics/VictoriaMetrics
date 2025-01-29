@@ -29,7 +29,7 @@ type AppendBlobClient struct {
 // AppendBlob. Append Block is supported only on version 2015-02-21 version or later.
 // If the operation fails it returns an *azcore.ResponseError type.
 //
-// Generated from API version 2024-08-04
+// Generated from API version 2025-01-05
 //   - contentLength - The length of the request.
 //   - body - Initial data
 //   - options - AppendBlobClientAppendBlockOptions contains the optional parameters for the AppendBlobClient.AppendBlock method.
@@ -116,7 +116,13 @@ func (client *AppendBlobClient) appendBlockCreateRequest(ctx context.Context, co
 	if leaseAccessConditions != nil && leaseAccessConditions.LeaseID != nil {
 		req.Raw().Header["x-ms-lease-id"] = []string{*leaseAccessConditions.LeaseID}
 	}
-	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
+	if options != nil && options.StructuredBodyType != nil {
+		req.Raw().Header["x-ms-structured-body"] = []string{*options.StructuredBodyType}
+	}
+	if options != nil && options.StructuredContentLength != nil {
+		req.Raw().Header["x-ms-structured-content-length"] = []string{strconv.FormatInt(*options.StructuredContentLength, 10)}
+	}
+	req.Raw().Header["x-ms-version"] = []string{"2025-01-05"}
 	if err := req.SetBody(body, "application/octet-stream"); err != nil {
 		return nil, err
 	}
@@ -187,6 +193,9 @@ func (client *AppendBlobClient) appendBlockHandleResponse(resp *http.Response) (
 	if val := resp.Header.Get("x-ms-request-id"); val != "" {
 		result.RequestID = &val
 	}
+	if val := resp.Header.Get("x-ms-structured-body"); val != "" {
+		result.StructuredBodyType = &val
+	}
 	if val := resp.Header.Get("x-ms-version"); val != "" {
 		result.Version = &val
 	}
@@ -198,7 +207,7 @@ func (client *AppendBlobClient) appendBlockHandleResponse(resp *http.Response) (
 // created with x-ms-blob-type set to AppendBlob. Append Block is supported only on version 2015-02-21 version or later.
 // If the operation fails it returns an *azcore.ResponseError type.
 //
-// Generated from API version 2024-08-04
+// Generated from API version 2025-01-05
 //   - sourceURL - Specify a URL to the copy source.
 //   - contentLength - The length of the request.
 //   - options - AppendBlobClientAppendBlockFromURLOptions contains the optional parameters for the AppendBlobClient.AppendBlockFromURL
@@ -310,7 +319,7 @@ func (client *AppendBlobClient) appendBlockFromURLCreateRequest(ctx context.Cont
 	if options != nil && options.SourceRange != nil {
 		req.Raw().Header["x-ms-source-range"] = []string{*options.SourceRange}
 	}
-	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
+	req.Raw().Header["x-ms-version"] = []string{"2025-01-05"}
 	return req, nil
 }
 
@@ -384,7 +393,7 @@ func (client *AppendBlobClient) appendBlockFromURLHandleResponse(resp *http.Resp
 // Create - The Create Append Blob operation creates a new append blob.
 // If the operation fails it returns an *azcore.ResponseError type.
 //
-// Generated from API version 2024-08-04
+// Generated from API version 2025-01-05
 //   - contentLength - The length of the request.
 //   - options - AppendBlobClientCreateOptions contains the optional parameters for the AppendBlobClient.Create method.
 //   - BlobHTTPHeaders - BlobHTTPHeaders contains a group of parameters for the BlobClient.SetHTTPHeaders method.
@@ -494,7 +503,7 @@ func (client *AppendBlobClient) createCreateRequest(ctx context.Context, content
 	if options != nil && options.BlobTagsString != nil {
 		req.Raw().Header["x-ms-tags"] = []string{*options.BlobTagsString}
 	}
-	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
+	req.Raw().Header["x-ms-version"] = []string{"2025-01-05"}
 	return req, nil
 }
 
@@ -557,7 +566,7 @@ func (client *AppendBlobClient) createHandleResponse(resp *http.Response) (Appen
 // or later.
 // If the operation fails it returns an *azcore.ResponseError type.
 //
-// Generated from API version 2024-08-04
+// Generated from API version 2025-01-05
 //   - options - AppendBlobClientSealOptions contains the optional parameters for the AppendBlobClient.Seal method.
 //   - LeaseAccessConditions - LeaseAccessConditions contains a group of parameters for the ContainerClient.GetProperties method.
 //   - ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
@@ -615,7 +624,7 @@ func (client *AppendBlobClient) sealCreateRequest(ctx context.Context, options *
 	if leaseAccessConditions != nil && leaseAccessConditions.LeaseID != nil {
 		req.Raw().Header["x-ms-lease-id"] = []string{*leaseAccessConditions.LeaseID}
 	}
-	req.Raw().Header["x-ms-version"] = []string{ServiceVersion}
+	req.Raw().Header["x-ms-version"] = []string{"2025-01-05"}
 	return req, nil
 }
 

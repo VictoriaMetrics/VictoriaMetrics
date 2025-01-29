@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/metrics"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // AvailableCPUs returns the number of available CPU cores for the app.
@@ -43,6 +45,9 @@ func updateGOMAXPROCSToCPUQuota(cpuQuota float64) {
 	gomaxprocs := int(cpuQuota)
 	if gomaxprocs <= 0 {
 		gomaxprocs = 1
+	}
+	if cpuQuota > float64(gomaxprocs) {
+		logger.Warnf("rounding CPU quota %.1f to %d CPUs for performance reasons - see https://docs.victoriametrics.com/bestpractices/#kubernetes", cpuQuota, gomaxprocs)
 	}
 
 	numCPU := runtime.NumCPU()
