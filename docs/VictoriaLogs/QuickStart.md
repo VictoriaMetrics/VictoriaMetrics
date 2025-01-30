@@ -70,7 +70,7 @@ See also:
 ### Helm charts
 
 You can run VictoriaLogs in Kubernetes environment
-with [these Helm charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-logs-single/README.md).
+with [these Helm charts](https://docs.victoriametrics.com/helm/victorialogs-single/).
 
 ### Building from source code
 
@@ -145,5 +145,5 @@ Here are a Docker-compose demos, which start VictoriaLogs and push logs to it vi
 - [Vector demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/vector)
 - [Promtail demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/promtail)
 
-You can use [this Helm chart](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-logs-single/README.md)
+You can use [this Helm chart](https://docs.victoriametrics.com/helm/victorialogs-single/)
 as a demo for running Vector in Kubernetes with VictoriaLogs.
