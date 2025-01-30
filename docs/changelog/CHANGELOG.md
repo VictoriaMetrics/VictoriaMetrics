@@ -127,7 +127,7 @@ Released at 2025-01-14
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly set `host` field at debug information formatted with `dump_request_on_errors: true` setting.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly handle discovery for ipv6 addresses. Thanks to @badie for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7955).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): fix support for migrating influx series without any tag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7921). Thanks to @bitbidu for reporting.
-* BUGFIX: [vminsert](https://docs.victoriametrics.com/vminsert/): storage nodes defined in `-storageNode` are now sorted, ensuring that varying node orders across different vminsert instances do not result in inconsistent replication.
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): storage nodes defined in `-storageNode` are now sorted, ensuring that varying node orders across different vminsert instances do not result in inconsistent replication.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly ingest `influx` line protocol metrics with empty tags. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7933) for details.
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): allow to override the default unique time series limit in vmstorage with command-line flags like `-search.maxUniqueTimeseries`, `-search.maxLabelsAPISeries`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7852).
 * BUGFIX: [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): properly set tenancy information when evaluating numbers in a query. Previously, the tenancy information could lead to mismatch between query result and a number. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7987) for the details.
@@ -144,7 +144,7 @@ Released at 2025-01-14
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix cursor reset in query input field. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7288).
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly handle discovery for ipv6 addresses. Thanks to @badie for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7955).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): fix support for migrating influx series without any tag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7921). Thanks to @bitbidu for reporting.
-* BUGFIX: [vminsert](https://docs.victoriametrics.com/vminsert/): storage nodes defined in `-storageNode` are now sorted, ensuring that varying node orders across different vminsert instances do not result in inconsistent replication.
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): storage nodes defined in `-storageNode` are now sorted, ensuring that varying node orders across different vminsert instances do not result in inconsistent replication.
 
 
 ## [v1.97.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.15)
@@ -155,7 +155,7 @@ Released at 2025-01-14
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): make instant query results consistent. VictoriaMetrics detects and adjusts scrape interval and while this is very useful for range queries (i.e. this eliminates gaps on the graph), it may cause instant queries to return a non-empty result when no result is expected. The fix is to disable scrape interval detection and always use the step as the scrape interval in instant queries. This will guarantee that the samples are searched within the (time-step, time] interval. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5796) for details.
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): fix support for migrating influx series without any tag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7921). Thanks to @bitbidu for reporting.
-* BUGFIX: [vminsert](https://docs.victoriametrics.com/vminsert/): storage nodes defined in `-storageNode` are now sorted, ensuring that varying node orders across different vminsert instances do not result in inconsistent replication.
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): storage nodes defined in `-storageNode` are now sorted, ensuring that varying node orders across different vminsert instances do not result in inconsistent replication.
 
 ## [v1.108.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.1)
 
