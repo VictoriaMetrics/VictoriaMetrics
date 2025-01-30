@@ -69,6 +69,8 @@ Released at 2025-01-24
 
 Released at 2025-01-24
 
+It is recommended upgrading to [v1.102.12](https://docs.victoriametrics.com/changelog/#v110212) because [v1.102.11](https://docs.victoriametrics.com/changelog/#v110211) contains a bug with staleness detection.
+
 **v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
 The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
@@ -84,6 +86,8 @@ The v1.102.x line will be supported for at least 12 months since [v1.102.0](http
 ## [v1.97.16](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.16)
 
 Released at 2025-01-24
+
+It is recommended upgrading to [v1.97.17](https://docs.victoriametrics.com/changelog/#v19717) because [v1.97.16](https://docs.victoriametrics.com/changelog/#v19716) contains a bug with staleness detection.
 
 **v1.97.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
