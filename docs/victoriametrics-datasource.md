@@ -124,7 +124,7 @@ Please find the example of provisioning Grafana instance with VictoriaMetrics da
        grafana:
          image: grafana/grafana:11.0.0
          environment:
-         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.13.0/victoriametrics-metrics-datasource-v0.13.0.zip;victoriametrics-metrics-datasource
+         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.13.1/victoriametrics-metrics-datasource-v0.13.1.zip;victoriametrics-metrics-datasource
          - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-metrics-datasource
          ports:
          - 3000:3000/tcp
@@ -152,14 +152,14 @@ Option 1. Using Grafana provisioning:
 
 ``` yaml
 env:
-  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.13.0/victoriametrics-metrics-datasource-v0.13.0.zip;victoriametrics-metrics-datasource"
+  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.13.1/victoriametrics-metrics-datasource-v0.13.1.zip;victoriametrics-metrics-datasource"
 ```
 
 Option 2. Using Grafana plugins section in `values.yaml`:
 
 ``` yaml
 plugins:
-  - https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.13.0/victoriametrics-metrics-datasource-v0.13.0.zip;victoriametrics-metrics-datasource
+  - https://github.com/VictoriaMetrics/victoriametrics-datasource/releases/download/v0.13.1/victoriametrics-metrics-datasource-v0.13.1.zip;victoriametrics-metrics-datasource
 ```
 
 Option 3. Using init container:
@@ -386,12 +386,10 @@ To view the raw query in the interface, enable the `Raw` toggle.
 ## How to make new release
 
 1. Make sure there are no open security issues.
-1. Push a new release tag in `master` branch:
-
-```
-git tag -s v1.xx.y
-git push origin v1.xx.y
-```
+1. Change version in `package.json` in a `main` branch
+1. Push changes to the github repository and be shure that the `main` branch is up to date.
+1. Trigger [release pipeline](https://github.com/VictoriaMetrics/victoriametrics-datasource/actions/workflows/release.yaml).
+1. Go to [releases page](https://github.com/VictoriaMetrics/victoriametrics-datasource/releases) once pipeline is finished and verify release with the name `TAG` has been created and has all the needed binaries and checksums attached.
 
 ## FAQ
 
