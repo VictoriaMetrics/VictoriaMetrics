@@ -23,6 +23,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): improve clipboard error handling in tables and code snippets by showing detailed messages with possible reasons. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7778).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui) for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html) components: properly display enterprise features when the enterprise version is used.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 
 ## [v1.102.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.12)
 
@@ -45,8 +46,6 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): log metric names for signals with unsupported delta temporality on ingestion via [OpenTelemetry protocol for metrics](https://docs.victoriametrics.com/#sending-data-via-opentelemetry). Thanks to @chenlujjj for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8018).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): respect staleness detection in increase, increase_pure and delta functions when time series has gaps and `-search.maxStalenessInterval` is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8072) for details.
-
-* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
 
 ## [v1.110.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.0)
 
