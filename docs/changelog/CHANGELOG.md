@@ -99,11 +99,14 @@ The v1.97.x line will be supported for at least 12 months since [v1.97.0](https:
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): don't take into account the last raw sample before the lookbehind window is sample exceeds the staleness interval. This affects correctness of increase, increase_pure, delta functions when preforming calculations on time series with gaps. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8002) for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): allow ingesting histograms with missing `_sum` metric via [OpenTelemetry ingestion protocol](https://docs.victoriametrics.com/#sending-data-via-opentelemetry) in the same way as Prometheus does.
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): Use `now()` as the real scrape timestamp. Previously, the real scrape timestamp could have a time gap with `now()`, resulting in inaccurate scrape durations for the `vm_promscrape_scrape_duration_seconds` and `scrape_duration_seconds` metrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7760). Thanks to @tIGO for reporting.
+
 ## [v1.109.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.109.1)
 
 Released at 2025-01-17
 
 * SECURITY: upgrade base docker image (Alpine) from 3.21.0 to 3.21.2. See [Alpine 3.21.1 release notes](https://alpinelinux.org/posts/Alpine-3.21.1-released.html) and [Alpine 3.21.2 release notes](https://alpinelinux.org/posts/Alpine-3.18.11-3.19.6-3.20.5-3.21.2-released.html).
+
 
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): log metric names for signals with unsupported delta temporality on ingestion via [OpenTelemetry protocol for metrics](https://docs.victoriametrics.com/#sending-data-via-opentelemetry). Thanks to @chenlujjj for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8018).
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): fix incorrect behavior of increase, increase_pure, delta caused by [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8002). This fix reverts to the previous behavior before [v1.109.0](https://docs.victoriametrics.com/changelog/#v11090). But allows controlling staleness detection for these functions explicitly via `-search.maxStalenessInterval`.
