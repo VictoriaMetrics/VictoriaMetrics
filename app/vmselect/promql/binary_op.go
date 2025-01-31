@@ -483,13 +483,10 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
 	var rvs []*timeseries
 
-	dropEmptySeries := func(tss []*timeseries) []*timeseries {
-		tssCopy := append([]*timeseries{}, tss...)
-		return removeEmptySeries(tssCopy)
-	}
-
-	for _, tss := range mLeft {
-		tssLeft := dropEmptySeries(tss)
+	for k, tss := range mLeft {
+		tssLeft := removeEmptySeries(tss)
+		// re-assign modified slice to map, since it can be referred later
+		mLeft[k] = tssLeft
 		rvs = append(rvs, tssLeft...)
 	}
 	// Sort left-hand-side series by metric name as Prometheus does.
@@ -505,7 +502,7 @@ func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 		}
 		fillLeftNaNsWithRightValuesOrMerge(tssLeft, tssRight)
 		// tssRight might be filled with NaNs after merge
-		tssRight = dropEmptySeries(tssRight)
+		tssRight = removeEmptySeries(tssRight)
 		rvs = append(rvs, tssRight...)
 	}
 	// Sort the added right-hand-side series by metric name as Prometheus does.
