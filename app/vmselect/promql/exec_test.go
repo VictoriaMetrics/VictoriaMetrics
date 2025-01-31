@@ -3078,8 +3078,8 @@ func TestExecSuccess(t *testing.T) {
 			label_set(time(), "x", "foo"),
 			label_set(time()+1, "x", "bar"),
 		) or (
-			label_set(time()+2, "x", "foo"),
 			label_set(time()+3, "x", "baz"),
+			label_set(time()+2, "x", "foo"),
 		)`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
@@ -3113,6 +3113,187 @@ func TestExecSuccess(t *testing.T) {
 				Key:   []byte("x"),
 				Value: []byte("baz"),
 			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
+	t.Run(`nan or on() series`, func(t *testing.T) {
+		t.Parallel()
+		// left side returns NaNs only, so the right side should replace its values and labels
+		q := `(label_set(1, "a", "a", "b", "b1") == 0) or on(a) label_set(2, "a", "a", "b", "b2")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("a"),
+		}, {
+			Key:   []byte("b"),
+			Value: []byte("b2"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`series or on() series - 1`, func(t *testing.T) {
+		t.Parallel()
+		// left side + right side
+		q := `(label_set(time() <= 1200, "a", "a", "b", "b1")) or on(a) label_set(time() > 1200, "a", "a", "b", "b2")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, nan, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("a"),
+		}, {
+			Key:   []byte("b"),
+			Value: []byte("b1"),
+		}}
+
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("a"),
+		}, {
+			Key:   []byte("b"),
+			Value: []byte("b2"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`series or on() series - 2`, func(t *testing.T) {
+		t.Parallel()
+		// left side contains all needed values, so the right side should be dropped
+		q := `(label_set(time() < 3000, "a", "a", "b", "b1")) or on(a) label_set(time() > 3000, "a", "a", "b", "b2")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("a"),
+		}, {
+			Key:   []byte("b"),
+			Value: []byte("b1"),
+		}}
+
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`series or on() series - 3`, func(t *testing.T) {
+		t.Parallel()
+		// left overlap with right
+		q := `(label_set(time() <= 1500, "a", "a", "b", "b1")) or on(a) label_set(time() > 1100, "a", "a", "b", "b2")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("a"),
+		}, {
+			Key:   []byte("b"),
+			Value: []byte("b1"),
+		}}
+
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("a"),
+		}, {
+			Key:   []byte("b"),
+			Value: []byte("b2"),
+		}}
+
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`series or on() series - 4`, func(t *testing.T) {
+		t.Parallel()
+		// left + right for same series
+		q := `(label_set(time() <= 1200, "a", "a", "b", "b1")) or on(a) label_set(time() > 1400, "a", "a", "b", "b1")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("a"),
+			Value: []byte("a"),
+		}, {
+			Key:   []byte("b"),
+			Value: []byte("b1"),
+		}}
+
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`scalar or timeseries`, func(t *testing.T) {
+		t.Parallel()
+		q := `time() > 1400 or label_set(123, "foo", "bar")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{123, 123, 123, 123, 123, 123},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`or on label`, func(t *testing.T) {
+		t.Parallel()
+		q := `(
+			label_set(time()!=1200, "x", "foo"),
+		) or on(x) (
+			label_set(time()+1, "x", "foo", "y", "bar"),
+			label_set(time()+2, "y", "baz", "x", "foo"),
+		)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, nan, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{Key: []byte("x"), Value: []byte("foo")},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, 1201, nan, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{Key: []byte("x"), Value: []byte("foo")},
+			{Key: []byte("y"), Value: []byte("bar")},
+		}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, 1202, nan, nan, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{
+			{Key: []byte("x"), Value: []byte("foo")},
+			{Key: []byte("y"), Value: []byte("baz")},
 		}
 		resultExpected := []netstorage.Result{r1, r2, r3}
 		f(q, resultExpected)

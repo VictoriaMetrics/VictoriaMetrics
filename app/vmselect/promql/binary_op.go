@@ -480,29 +480,80 @@ func binaryOpDefault(bfa *binaryOpFuncArg) ([]*timeseries, error) {
 }
 
 func binaryOpOr(bfa *binaryOpFuncArg) ([]*timeseries, error) {
+	// group time series by condition.
 	mLeft, mRight := createTimeseriesMapByTagSet(bfa.be, bfa.left, bfa.right)
+
+	// fast path: return mRight if all series in mLeft are NaNs.
+	isLeftEmpty := true
+	for _, tss := range mLeft {
+		if len(tss) > 0 {
+			isLeftEmpty = false
+			break
+		}
+	}
+
+	if isLeftEmpty {
+		sortSeriesByMetricName(bfa.right)
+		return bfa.right, nil
+	}
+
 	var rvs []*timeseries
 
-	for _, tss := range mLeft {
-		rvs = append(rvs, tss...)
+	// slow path
+	for k, tssLeft := range mLeft {
+		if len(tssLeft) == 0 {
+			continue
+		}
+
+		filledValues := make([]bool, len(tssLeft[0].Timestamps), len(tssLeft[0].Timestamps)) // todo: could different tsLeft has different timestamps length?
+		leftMetricsNameMap := make(map[string]*timeseries)
+
+		tssRight := mRight[k]
+		if tssRight == nil {
+			rvs = append(rvs, tssLeft...)
+			continue
+		}
+
+		// find timestamp that missing value
+		for _, tsLeft := range tssLeft {
+			leftMetricsNameMap[tsLeft.MetricName.String()] = tsLeft
+			for i := range tsLeft.Values {
+				if !math.IsNaN(tsLeft.Values[i]) {
+					filledValues[i] = true
+				}
+			}
+		}
+
+		for _, tsRight := range tssRight {
+			for i := range tsRight.Values {
+				if filledValues[i] {
+					tsRight.Values[i] = nan
+				}
+			}
+			// check if tsRight can merge with same time series in tssLeft
+			if tsLeft, ok := leftMetricsNameMap[tsRight.MetricName.String()]; ok {
+				fillLeftNaNsWithRightValues([]*timeseries{tsLeft}, []*timeseries{tsRight})
+				tsRight.Reset()
+			}
+		}
+		rvs = append(rvs, tssLeft...)
 	}
+
 	// Sort left-hand-side series by metric name as Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
 	sortSeriesByMetricName(rvs)
 	rvsLen := len(rvs)
 
-	for k, tssRight := range mRight {
-		tssLeft := mLeft[k]
-		if tssLeft == nil {
-			rvs = append(rvs, tssRight...)
-			continue
+	for _, tss := range mRight {
+		for _, ts := range tss {
+			if ts == nil {
+				continue
+			}
+			rvs = append(rvs, ts)
 		}
-		fillLeftNaNsWithRightValues(tssLeft, tssRight)
-	}
-	// Sort the added right-hand-side series by metric name as Prometheus does.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5393
-	sortSeriesByMetricName(rvs[rvsLen:])
 
+	}
+	sortSeriesByMetricName(rvs[rvsLen:])
 	return rvs, nil
 }
 
