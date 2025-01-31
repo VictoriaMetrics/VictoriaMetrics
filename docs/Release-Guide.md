@@ -42,7 +42,7 @@ Bumping the limits may significantly improve build speed.
 1. Make sure all the changes are documented in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md).
    Ideally, every change must be documented in the commit with the change. Alternatively, the change must be documented immediately
    after the commit, which adds the change.
-1. Run `make vmui-update` and `make vmui-logs-update` commands to re-build static files for `vmui`. See [commit example](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/9dde5b8ee3fdc9d4cd495c8118e04ff4ee32e650). 
+1. Run `make vmui-update` and `make vmui-logs-update` commands to re-build static files for `vmui`. Static assets needs to be rebuilt separately for oss and enterprise branches (changes should not be cherry-picked between these branches). See [commit example](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/9dde5b8ee3fdc9d4cd495c8118e04ff4ee32e650). 
 1. Make sure all the changes are synced between `master`, `cluster`, `enterprise-single-node` and `enterprise-cluster` branches.
    Changes in these branches must be synced immediately after they are committed in at least a single branch.
 1. Make sure that the release branches have no security issues.
