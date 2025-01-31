@@ -81,7 +81,9 @@ groups:
           description: "The remote write connection between vmagent \"{{ $labels.job }}\" (instance {{ $labels.instance }}) and destination \"{{ $labels.url }}\"
             is saturated by more than 90% and vmagent won't be able to keep up.\n
             This usually means that `-remoteWrite.queues` command-line flag must be increased in order to increase
-            the number of connections per each remote storage."
+            the number of connections per each remote storage.\n
+            Another reason could be that the vminsert can't keep up with incoming data, possibly because the vmstorage can't accept it.
+            Therefore checking vminsert and vmstorage dashboards can also be helpful in identifying the root cause of saturation."
 
       - alert: PersistentQueueForWritesIsSaturated
         expr: rate(vm_persistentqueue_write_duration_seconds_total[5m]) > 0.9
