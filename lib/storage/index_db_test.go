@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -564,15 +565,14 @@ func TestRemoveDuplicateMetricIDs(t *testing.T) {
 }
 
 func TestIndexDBOpenClose(t *testing.T) {
+	defer testRemoveAll(t)
+
 	var s Storage
-	tableName := nextIndexDBTableName()
+	path := filepath.Join(t.Name(), "2025_01")
 	for i := 0; i < 5; i++ {
 		var isReadOnly atomic.Bool
-		db := mustOpenIndexDB(tableName, &s, &isReadOnly)
+		db := mustOpenPartitionIndexDB(path, &s, &isReadOnly)
 		db.MustClose()
-	}
-	if err := os.RemoveAll(tableName); err != nil {
-		t.Fatalf("cannot remove indexDB: %s", err)
 	}
 }
 
@@ -671,7 +671,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 
 		// Create tsid for the metricName.
 		var genTSID generationTSID
-		if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
+		if !is.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricNameBuf, date) {
 			generateTSID(&genTSID.TSID, &mn)
 			createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
 		}
@@ -713,7 +713,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		metricName := mn.Marshal(nil)
 
 		is := db.getIndexSearch(noDeadline)
-		if !is.getTSIDByMetricName(&genTSID, metricName, uint64(currentTime)/msecPerDay) {
+		if !is.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricName, uint64(currentTime)/msecPerDay) {
 			return fmt.Errorf("cannot obtain tsid #%d for mn %s", i, mn)
 		}
 		db.putIndexSearch(is)
@@ -1500,17 +1500,17 @@ func TestMatchTagFilters(t *testing.T) {
 }
 
 func TestIndexDBRepopulateAfterRotation(t *testing.T) {
-	r := rand.New(rand.NewSource(1))
-	path := "TestIndexRepopulateAfterRotation"
-	s := MustOpenStorage(path, retention31Days, 1e5, 1e5)
+	defer testRemoveAll(t)
 
+	s := MustOpenStorage(t.Name(), retention31Days, 1e5, 1e5)
+	defer s.MustClose()
 	db := s.idb()
 	if db.generation == 0 {
 		t.Fatalf("expected indexDB generation to be not 0")
 	}
 
+	r := rand.New(rand.NewSource(1))
 	const metricRowsN = 1000
-
 	currentDayTimestamp := (time.Now().UnixMilli() / msecPerDay) * msecPerDay
 	timeMin := currentDayTimestamp - 24*3600*1000
 	timeMax := currentDayTimestamp + 24*3600*1000
@@ -1538,13 +1538,14 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 		t.Fatalf("expected tsidCache to contain %d rows; got %d", metricRowsN, cs.EntriesCount)
 	}
 
-	// check if cache entries do belong to current indexDB generation
+	// check if all metric names are cached and the generation is 0.
 	var genTSID generationTSID
 	for _, mr := range mrs {
-		s.getTSIDFromCache(&genTSID, mr.MetricNameRaw)
-		if genTSID.generation != db.generation {
-			t.Fatalf("expected all entries in tsidCache to have the same indexDB generation: %d;"+
-				"got %d", db.generation, genTSID.generation)
+		if !s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
+			t.Fatalf("metric name is not in cache: %q", mr.MetricNameRaw)
+		}
+		if genTSID.generation != 0 {
+			t.Fatalf("unexpected generation: got %d, want %d", genTSID.generation, 0)
 		}
 	}
 	prevGeneration := db.generation
@@ -1566,20 +1567,17 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 		t.Fatalf("expected new indexDB generation %d to be different from prev indexDB", dbNew.generation)
 	}
 
-	// Re-insert rows again and verify that all the entries belong to new generation
+	// Re-insert rows again and verify that all the entries have generation 0.
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
 
 	for _, mr := range mrs {
-		s.getTSIDFromCache(&genTSID, mr.MetricNameRaw)
-		if genTSID.generation != dbNew.generation {
-			t.Fatalf("unexpected generation for data after rotation; got %d; want %d", genTSID.generation, dbNew.generation)
+		if !s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
+			t.Fatalf("metric name is not in cache: %q", mr.MetricNameRaw)
 		}
-	}
-
-	s.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
+		if genTSID.generation != 0 {
+			t.Fatalf("unexpected generation: got %d, want %d", genTSID.generation, 0)
+		}
 	}
 }
 
@@ -1636,7 +1634,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 			mn := newMN("testMetric", day, metric)
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
 			var genTSID generationTSID
-			if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
+			if !is.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricNameBuf, date) {
 				generateTSID(&genTSID.TSID, &mn)
 				createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
 			}
@@ -1686,14 +1684,14 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	mn.sortTags()
 	metricNameBuf = mn.Marshal(metricNameBuf[:0])
 	var genTSID generationTSID
-	if !is3.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
+	if !is3.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricNameBuf, date) {
 		generateTSID(&genTSID.TSID, &mn)
 		createAllIndexesForMetricName(is3, &mn, &genTSID.TSID, date)
 	}
 	// delete the added metric. It is expected it won't be returned during searches
 	deletedSet := &uint64set.Set{}
 	deletedSet.Add(genTSID.TSID.MetricID)
-	s.setDeletedMetricIDs(deletedSet)
+	db.setDeletedMetricIDs(deletedSet)
 	db.putIndexSearch(is3)
 	s.DebugFlush()
 
@@ -2091,7 +2089,6 @@ func newTestStorage() *Storage {
 		dateMetricIDCache: newDateMetricIDCache(),
 		retentionMsecs:    retentionMax.Milliseconds(),
 	}
-	s.setDeletedMetricIDs(&uint64set.Set{})
 	return s
 }
 
@@ -2159,7 +2156,7 @@ func TestSearchContainsTimeRange(t *testing.T) {
 			mn := newMN("testMetric", day, metric)
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
 			var genTSID generationTSID
-			if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
+			if !is.getTSIDByMetricNameNoExtDB(&genTSID.TSID, metricNameBuf, date) {
 				generateTSID(&genTSID.TSID, &mn)
 				createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
 			}
