@@ -35,6 +35,9 @@ var (
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
+	disableBuiltinRoutes = flagutil.NewArrayBool("httpListenAddr.disableBuiltinRoutes", "Whether to disable built-in routes for the corresponding -httpListenAddr. "+
+		"This option allows proper routing of requests to backends with the same built-in routes, such as /metrics. "+
+		"It is recommended to disable built-in routes for the main -httpListenAddr and expose them via an additional -httpListenAddr.")
 	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host. "+
 		"See also -maxConcurrentRequests")
 	idleConnTimeout = flag.Duration("idleConnTimeout", 50*time.Second, "The timeout for HTTP keep-alive connections to backend services. "+
@@ -91,7 +94,12 @@ func main() {
 	logger.Infof("starting vmauth at %q...", listenAddrs)
 	startTime := time.Now()
 	initAuthConfig()
-	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
+	serveOpts := &httpserver.ServeOptions{
+		UseProxyProtocol:     useProxyProtocol,
+		DisableBuiltinRoutes: disableBuiltinRoutes,
+	}
+	rhs := buildRequestHandlers(listenAddrs)
+	go httpserver.ServeWithOpts(listenAddrs, rhs, serveOpts)
 	logger.Infof("started vmauth in %.3f seconds", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
@@ -109,7 +117,19 @@ func main() {
 	logger.Infof("successfully stopped vmauth in %.3f seconds", time.Since(startTime).Seconds())
 }
 
-func requestHandler(w http.ResponseWriter, r *http.Request) bool {
+func buildRequestHandlers(listenAddrs []string) []httpserver.RequestHandler {
+	rhs := make([]httpserver.RequestHandler, len(listenAddrs))
+	for idx := range listenAddrs {
+		rh := requestHandlerWithPrivateRoutes
+		if disableBuiltinRoutes.GetOptionalArg(idx) {
+			rh = requestHandler
+		}
+		rhs[idx] = rh
+	}
+	return rhs
+}
+
+func requestHandlerWithPrivateRoutes(w http.ResponseWriter, r *http.Request) bool {
 	switch r.URL.Path {
 	case "/-/reload":
 		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey) {
@@ -120,6 +140,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.WriteHeader(http.StatusOK)
 		return true
 	}
+	return requestHandler(w, r)
+}
+
+func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	ats := getAuthTokensFromRequest(r)
 	if len(ats) == 0 {

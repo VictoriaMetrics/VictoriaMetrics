@@ -162,8 +162,11 @@ func TestHandlerWrapper(t *testing.T) {
 
 	srv := &server{s: &http.Server{}}
 	w := &httptest.ResponseRecorder{}
-	handlerWrapper(srv, w, req, func(_ http.ResponseWriter, _ *http.Request) bool {
-		return true
+
+	handlerWrapper(w, req, func(w http.ResponseWriter, r *http.Request) bool {
+		return builtinRoutesHandler(srv, r, w, func(_ http.ResponseWriter, _ *http.Request) bool {
+			return true
+		})
 	})
 
 	h := w.Header()
