@@ -31,6 +31,7 @@ git branch
 
 * Make your changes and tests to the new branch.
 * Run command ``helm-docs`` to update content of ``README.md`` file of all charts using the ``README.md.gotmpl`` template.
+* Add a line to the ``CHANGELOG.md`` file of the modified chart with the changes made.
 * Commit the changes to the branch.
 * Push files to repository remote with command:
 

@@ -259,6 +259,7 @@ Change the values according to the need of the environment in ``victoria-metrics
         commonName: ca.validation.victoriametrics
         duration: 63800h0m0s
     cert:
+        commonName: ""
         duration: 45800h0m0s
     enabled: false
     issuer: {}
@@ -294,6 +295,7 @@ tls:
     commonName: ca.validation.victoriametrics
     duration: 63800h0m0s
 cert:
+    commonName: ""
     duration: 45800h0m0s
 enabled: false
 issuer: {}
@@ -319,7 +321,8 @@ duration: 63800h0m0s
       <td>admissionWebhooks.certManager.cert</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
-<code class="language-yaml">duration: 45800h0m0s
+<code class="language-yaml">commonName: ""
+duration: 45800h0m0s
 </code>
 </pre>
 </td>
