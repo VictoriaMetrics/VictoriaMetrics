@@ -412,6 +412,16 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			return true
 		}
 		return true
+	case "prometheus/-/healthy":
+		// This is needed for Prometheus compatibility
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1833
+		fmt.Fprintf(w, "VictoriaMetrics is Healthy.\n")
+		return true
+	case "prometheus/-/ready":
+		// This is needed for Prometheus compatibility
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1833
+		fmt.Fprintf(w, "VictoriaMetrics is Ready.\n")
+		return true
 	case "graphite/metrics/find", "graphite/metrics/find/":
 		graphiteMetricsFindRequests.Inc()
 		httpserver.EnableCORS(w, r)
