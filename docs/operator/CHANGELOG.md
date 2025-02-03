@@ -13,6 +13,8 @@ aliases:
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.23.4 to Go1.23.5. See the list of issues addressed in [Go1.23.5](https://github.com/golang/go/issues?q=milestone%3AGo1.23.5+label%3ACherryPickApproved).
+
 * Dependency: [vmoperator](https://docs.victoriametrics.com/operator/): Updated default versions for VM apps to v1.110.0 version
 
 * FEATURE: [vmalertmanagerconfig](https://docs.victoriametrics.com/operator/resources/vmalertmanagerconfig/): add `thread_message_id` to `telegram_configs` definition. It's supported by [alertmanager v0.28.0+](https://github.com/prometheus/alertmanager/releases/tag/v0.28.0). See [this issue](https://github.com/VictoriaMetrics/operator/issues/1229) for details.
