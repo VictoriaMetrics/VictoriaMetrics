@@ -16,7 +16,7 @@ func TestVMAuthRouterWithAuth(t *testing.T) {
 	defer tc.Stop()
 
 	var authorizedRequestsCount, unauthorizedRequestsCount int
-	backendWithAuth := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+	backendWithAuth := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		authorizedRequestsCount++
 	}))
 	defer backendWithAuth.Close()
