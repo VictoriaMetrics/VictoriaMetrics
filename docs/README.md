@@ -2597,8 +2597,7 @@ See the full description of flags [here](#list-of-command-line-flags).
 ## Index tuning for low churn rate
 
 By default, VictoriaMetrics uses the following indexes for data retrieval:
-`global` and `per-day`. Both store the same data, the only difference is that
-the per-day index adds the date to each record. See [IndexDB](#indexdb) for
+`global` and `per-day`. Both store the same data and on query time VictoriaMetrics can choose between indexes for optimal performance. See [IndexDB](#indexdb) for
 details.
 
 If your use case involves
