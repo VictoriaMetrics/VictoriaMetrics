@@ -2611,7 +2611,7 @@ significantly increasing churn rate. The per-day index speeds up data retrieval 
 
 But if your use case assumes low or no churn rate, then you might benefit
 from disabling the per-day index by setting the flag `-disablePerDayIndex`. This
-will improve the time series ingestion rate and decrease the disk space usage,
+will improve the time series ingestion speed and decrease disk space usage,
 since no time is spent to write to the per-day index and no disk space is used
 to store it.
 
