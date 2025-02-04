@@ -28,7 +28,9 @@ type table struct {
 	path                string
 	smallPartitionsPath string
 	bigPartitionsPath   string
+	indexDBPath         string
 
+	// TODO(@rtm0): Do not depend on Storage.
 	s *Storage
 
 	ptws     []*partitionWrapper
@@ -108,13 +110,18 @@ func mustOpenTable(path string, s *Storage) *table {
 	fs.MustMkdirIfNotExist(bigSnapshotsPath)
 	fs.MustRemoveTemporaryDirs(bigSnapshotsPath)
 
+	indexDBPath := filepath.Join(path, indexdbDirname)
+	fs.MustMkdirIfNotExist(indexDBPath)
+	fs.MustRemoveTemporaryDirs(indexDBPath)
+
 	// Open partitions.
-	pts := mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, s)
+	pts := mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, indexDBPath, s)
 
 	tb := &table{
 		path:                path,
 		smallPartitionsPath: smallPartitionsPath,
 		bigPartitionsPath:   bigPartitionsPath,
+		indexDBPath:         indexDBPath,
 		s:                   s,
 
 		stopCh: make(chan struct{}),
@@ -127,8 +134,9 @@ func mustOpenTable(path string, s *Storage) *table {
 	return tb
 }
 
-// MustCreateSnapshot creates tb snapshot and returns paths to small and big parts of it.
-func (tb *table) MustCreateSnapshot(snapshotName string) (string, string) {
+// MustCreateSnapshot creates tb snapshot and returns paths to small parts, big
+// parts, and indexdb.
+func (tb *table) MustCreateSnapshot(snapshotName string) (string, string, string) {
 	logger.Infof("creating table snapshot of %q...", tb.path)
 	startTime := time.Now()
 
@@ -141,19 +149,25 @@ func (tb *table) MustCreateSnapshot(snapshotName string) (string, string) {
 	dstBigDir := filepath.Join(tb.path, bigDirname, snapshotsDirname, snapshotName)
 	fs.MustMkdirFailIfExist(dstBigDir)
 
+	dstIndexDBDir := filepath.Join(tb.path, indexdbDirname, snapshotsDirname, snapshotName)
+	fs.MustMkdirFailIfExist(dstIndexDBDir)
+
 	for _, ptw := range ptws {
 		smallPath := filepath.Join(dstSmallDir, ptw.pt.name)
 		bigPath := filepath.Join(dstBigDir, ptw.pt.name)
-		ptw.pt.MustCreateSnapshotAt(smallPath, bigPath)
+		indexDBPath := filepath.Join(dstIndexDBDir, ptw.pt.name)
+		ptw.pt.MustCreateSnapshotAt(smallPath, bigPath, indexDBPath)
 	}
 
 	fs.MustSyncPath(dstSmallDir)
 	fs.MustSyncPath(dstBigDir)
+	fs.MustSyncPath(dstIndexDBDir)
 	fs.MustSyncPath(filepath.Dir(dstSmallDir))
 	fs.MustSyncPath(filepath.Dir(dstBigDir))
+	fs.MustSyncPath(filepath.Dir(dstIndexDBDir))
 
-	logger.Infof("created table snapshot for %q at (%q, %q) in %.3f seconds", tb.path, dstSmallDir, dstBigDir, time.Since(startTime).Seconds())
-	return dstSmallDir, dstBigDir
+	logger.Infof("created table snapshot for %q at (%q, %q, %q) in %.3f seconds", tb.path, dstSmallDir, dstBigDir, dstIndexDBDir, time.Since(startTime).Seconds())
+	return dstSmallDir, dstBigDir, dstIndexDBDir
 }
 
 // MustDeleteSnapshot deletes snapshot with the given snapshotName.
@@ -162,6 +176,8 @@ func (tb *table) MustDeleteSnapshot(snapshotName string) {
 	fs.MustRemoveDirAtomic(smallDir)
 	bigDir := filepath.Join(tb.path, bigDirname, snapshotsDirname, snapshotName)
 	fs.MustRemoveDirAtomic(bigDir)
+	indexDBDir := filepath.Join(tb.path, indexdbDirname, snapshotsDirname, snapshotName)
+	fs.MustRemoveDirAtomic(indexDBDir)
 }
 
 func (tb *table) addPartitionNolock(pt *partition) {
@@ -193,14 +209,16 @@ func (tb *table) MustClose() {
 	}
 }
 
-// flushPendingRows flushes all the pending raw rows, so they become visible to search.
+// debugFlush flushes all pending raw index and data rows, so they become
+// visible to search.
 //
 // This function is for debug purposes only.
-func (tb *table) flushPendingRows() {
+func (tb *table) DebugFlush() {
 	ptws := tb.GetPartitions(nil)
 	defer tb.PutPartitions(ptws)
 
 	for _, ptw := range ptws {
+		ptw.pt.idb.tb.DebugFlush()
 		ptw.pt.flushPendingRows(true)
 	}
 }
@@ -366,11 +384,51 @@ func (tb *table) MustAddRows(rows []rawRow) {
 			continue
 		}
 
-		pt := mustCreatePartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.s)
+		pt := mustCreatePartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.indexDBPath, tb.s)
 		pt.AddRows(missingRows[i : i+1])
 		tb.addPartitionNolock(pt)
 	}
 	tb.ptwsLock.Unlock()
+}
+
+// MustGetIndexDB returns an IndexDB that belongs to the partition that
+// corresponds to the given date.
+//
+// If the partition does not exist yet, it will be created.
+func (tb *table) MustGetIndexDB(timestamp int64) *indexDB {
+	tb.ptwsLock.Lock()
+	defer tb.ptwsLock.Unlock()
+
+	for _, ptw := range tb.ptws {
+		if ptw.pt.HasTimestamp(timestamp) {
+			// TODO(@rtm0): Icrement partition and idb refs?
+			return ptw.pt.idb
+		}
+	}
+
+	pt := mustCreatePartition(timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.indexDBPath, tb.s)
+	tb.addPartitionNolock(pt)
+
+	// TODO(@rtm0): Icrement partition and idb refs?
+	return pt.idb
+}
+
+// GetIndexDBs returns the list of IndexDBs whose time ranges overlap with the
+// given time range.
+func (tb *table) GetIndexDBs(tr TimeRange) []*indexDB {
+	tb.ptwsLock.Lock()
+	defer tb.ptwsLock.Unlock()
+
+	var idbs []*indexDB
+
+	for _, ptw := range tb.ptws {
+		if ptw.pt.tr.overlapsWith(tr) {
+			// TODO(@rtm0): Icrement partition and idb refs?
+			idbs = append(idbs, ptw.pt.idb)
+		}
+	}
+
+	return idbs
 }
 
 func (tb *table) getMinMaxTimestamps() (int64, int64) {
@@ -517,12 +575,13 @@ func (tb *table) PutPartitions(ptws []*partitionWrapper) {
 	}
 }
 
-func mustOpenPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storage) []*partition {
+func mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, indexDBPath string, s *Storage) []*partition {
 	// Certain partition directories in either `big` or `small` dir may be missing
 	// after restoring from backup. So populate partition names from both dirs.
 	ptNames := make(map[string]bool)
 	mustPopulatePartitionNames(smallPartitionsPath, ptNames)
 	mustPopulatePartitionNames(bigPartitionsPath, ptNames)
+	mustPopulatePartitionNames(indexDBPath, ptNames)
 	var pts []*partition
 	var ptsLock sync.Mutex
 
@@ -540,7 +599,8 @@ func mustOpenPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storag
 
 			smallPartsPath := filepath.Join(smallPartitionsPath, ptName)
 			bigPartsPath := filepath.Join(bigPartitionsPath, ptName)
-			pt := mustOpenPartition(smallPartsPath, bigPartsPath, s)
+			indexDBPartsPath := filepath.Join(indexDBPath, ptName)
+			pt := mustOpenPartition(smallPartsPath, bigPartsPath, indexDBPartsPath, s)
 
 			ptsLock.Lock()
 			pts = append(pts, pt)
