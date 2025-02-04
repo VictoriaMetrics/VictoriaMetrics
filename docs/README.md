@@ -2619,7 +2619,7 @@ Example use cases:
 -   Historical weather data, such as
     [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels).
     It consists of millions time series whose hourly values span tens of years.
-    The time series	set never changes. If the per-day index is disabled, once
+    The time series set never changes. If the per-day index is disabled, once
     the first hour of data is ingested the entire time series set will be
     written into the global index and subsequent portions of data will not
     result in index update. But if the per-day index is enabled, the same set of
