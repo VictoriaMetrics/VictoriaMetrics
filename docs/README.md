@@ -2609,7 +2609,7 @@ then this default setting should be ideal for you.
 A prominent example is Kubernetes. Services in k8s expose big number of series with short life time,
 significantly increasing churn rate. The per-day index speeds up data retrieval in this case.
 
-But if your use case assumes low or no churn rate, then you might be benefiting
+But if your use case assumes low or no churn rate, then you might benefit
 from disabling the per-day index by setting the flag `-disablePerDayIndex`. This
 will improve the time series ingestion rate and decrease the disk space usage,
 since no time is spent to write to the per-day index and no disk space is used
