@@ -2606,10 +2606,8 @@ with
 [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
 then this default setting should be ideal for you.
 
-A prominent example is Kubernetes. Its resources export a lot of metrics. The
-resources are also created and deleted very often causing the metric label
-values to change. This, in turn, results in new time series. The per-day index
-speeds up data retrieval in this case.
+A prominent example is Kubernetes. Services in k8s expose big number of series with short life time,
+significantly increasing churn rate. The per-day index speeds up data retrieval in this case.
 
 But if your use case assumes low or no churn rate, then you might be benefiting
 from disabling the per-day index by setting the flag `-disablePerDayIndex`. This
