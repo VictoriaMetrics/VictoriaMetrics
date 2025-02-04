@@ -1,6 +1,6 @@
 
 
-![Version](https://img.shields.io/badge/0.35.2-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-k8s-stack%2Fchangelog%2F%230352)
+![Version](https://img.shields.io/badge/0.35.4-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-k8s-stack%2Fchangelog%2F%230354)
 ![ArtifactHub](https://img.shields.io/badge/ArtifactHub-informational?logoColor=white&color=417598&logo=artifacthub&link=https%3A%2F%2Fartifacthub.io%2Fpackages%2Fhelm%2Fvictoriametrics%2Fvictoria-metrics-k8s-stack)
 ![License](https://img.shields.io/github/license/VictoriaMetrics/helm-charts?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2Fhelm-charts%2Fblob%2Fmaster%2FLICENSE)
 ![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
@@ -835,6 +835,47 @@ perReplica: false
 </td>
       <td><p>Configure additional grafana datasources (passed through tpl). Check <a href="http://docs.grafana.org/administration/provisioning/#datasources" target="_blank">here</a> for details</p>
 </td>
+    </tr>
+    <tr>
+      <td>defaultDatasources.grafanaOperator.annotations</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>defaultDatasources.grafanaOperator.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Create datasources as CRDs (requires grafana-operator to be installed)</p>
+</td>
+    </tr>
+    <tr>
+      <td>defaultDatasources.grafanaOperator.spec.allowCrossNamespaceImport</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>defaultDatasources.grafanaOperator.spec.instanceSelector.matchLabels.dashboards</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
+<code class="language-yaml">grafana
+</code>
+</pre>
+</td>
+      <td></td>
     </tr>
     <tr>
       <td>defaultDatasources.victoriametrics.datasources</td>
