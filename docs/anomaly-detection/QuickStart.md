@@ -232,4 +232,4 @@ Here are other materials that you might find useful:
 - [Guide: Anomaly Detection and Alerting Setup](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/)
 - [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/)
 - [Changelog](https://docs.victoriametrics.com/anomaly-detection/changelog/)
-- [Anomaly Detection Blog](https://victoriametrics.com/blog/tags/anomaly-detection/)
+- [Anomaly Detection Blog](https://victoriametrics.com/tags/anomaly-detection/)
