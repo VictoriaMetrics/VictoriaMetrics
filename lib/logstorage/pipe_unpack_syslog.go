@@ -54,15 +54,11 @@ func (pu *pipeUnpackSyslog) updateNeededFields(neededFields, unneededFields fiel
 	updateNeededFieldsForUnpackPipe(pu.fromField, nil, pu.keepOriginalFields, false, pu.iff, neededFields, unneededFields)
 }
 
-func (pu *pipeUnpackSyslog) optimize() {
-	pu.iff.optimizeFilterIn()
-}
-
 func (pu *pipeUnpackSyslog) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
 
-func (pu *pipeUnpackSyslog) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pu *pipeUnpackSyslog) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
@@ -70,6 +66,10 @@ func (pu *pipeUnpackSyslog) initFilterInValues(cache map[string][]string, getFie
 	puNew := *pu
 	puNew.iff = iffNew
 	return &puNew, nil
+}
+
+func (pu *pipeUnpackSyslog) visitSubqueries(visitFunc func(q *Query)) {
+	pu.iff.visitSubqueries(visitFunc)
 }
 
 func (pu *pipeUnpackSyslog) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
@@ -105,7 +105,7 @@ func init() {
 	}()
 }
 
-func parsePipeUnpackSyslog(lex *lexer) (*pipeUnpackSyslog, error) {
+func parsePipeUnpackSyslog(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("unpack_syslog") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unpack_syslog")
 	}

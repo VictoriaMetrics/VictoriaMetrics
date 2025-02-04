@@ -41,7 +41,7 @@ func (ft *filterTime) applyToBlockResult(br *blockResult, bm *bitmap) {
 		return
 	}
 	if c.isTime {
-		timestamps := br.timestamps
+		timestamps := br.getTimestamps()
 		bm.forEachSetBit(func(idx int) bool {
 			timestamp := timestamps[idx]
 			return ft.matchTimestampValue(timestamp)
@@ -78,6 +78,8 @@ func (ft *filterTime) applyToBlockResult(br *blockResult, bm *bitmap) {
 	case valueTypeUint32:
 		bm.resetBits()
 	case valueTypeUint64:
+		bm.resetBits()
+	case valueTypeInt64:
 		bm.resetBits()
 	case valueTypeFloat64:
 		bm.resetBits()

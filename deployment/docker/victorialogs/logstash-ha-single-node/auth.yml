@@ -1,6 +1,0 @@
-# balance load among victorialogs instances
-# see https://docs.victoriametrics.com/vmauth/#load-balancing
-unauthorized_user:
-  url_prefix:
-    - http://victorialogs-1:9428
-    - http://victorialogs-2:9428

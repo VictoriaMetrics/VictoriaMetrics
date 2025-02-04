@@ -19,8 +19,12 @@
 package mem
 
 import (
-	"compress/flate"
 	"io"
+)
+
+const (
+	// 32 KiB is what io.Copy uses.
+	readAllBufSize = 32 * 1024
 )
 
 // BufferSlice offers a means to represent data that spans one or more Buffer
@@ -92,9 +96,11 @@ func (s BufferSlice) Materialize() []byte {
 }
 
 // MaterializeToBuffer functions like Materialize except that it writes the data
-// to a single Buffer pulled from the given BufferPool. As a special case, if the
-// input BufferSlice only actually has one Buffer, this function has nothing to
-// do and simply returns said Buffer.
+// to a single Buffer pulled from the given BufferPool.
+//
+// As a special case, if the input BufferSlice only actually has one Buffer, this
+// function simply increases the refcount before returning said Buffer. Freeing this
+// buffer won't release it until the BufferSlice is itself released.
 func (s BufferSlice) MaterializeToBuffer(pool BufferPool) Buffer {
 	if len(s) == 1 {
 		s[0].Ref()
@@ -124,7 +130,8 @@ func (s BufferSlice) Reader() Reader {
 // Remaining(), which returns the number of unread bytes remaining in the slice.
 // Buffers will be freed as they are read.
 type Reader interface {
-	flate.Reader
+	io.Reader
+	io.ByteReader
 	// Close frees the underlying BufferSlice and never returns an error. Subsequent
 	// calls to Read will return (0, io.EOF).
 	Close() error
@@ -217,8 +224,58 @@ func (w *writer) Write(p []byte) (n int, err error) {
 
 // NewWriter wraps the given BufferSlice and BufferPool to implement the
 // io.Writer interface. Every call to Write copies the contents of the given
-// buffer into a new Buffer pulled from the given pool and the Buffer is added to
-// the given BufferSlice.
+// buffer into a new Buffer pulled from the given pool and the Buffer is
+// added to the given BufferSlice.
 func NewWriter(buffers *BufferSlice, pool BufferPool) io.Writer {
 	return &writer{buffers: buffers, pool: pool}
+}
+
+// ReadAll reads from r until an error or EOF and returns the data it read.
+// A successful call returns err == nil, not err == EOF. Because ReadAll is
+// defined to read from src until EOF, it does not treat an EOF from Read
+// as an error to be reported.
+//
+// Important: A failed call returns a non-nil error and may also return
+// partially read buffers. It is the responsibility of the caller to free the
+// BufferSlice returned, or its memory will not be reused.
+func ReadAll(r io.Reader, pool BufferPool) (BufferSlice, error) {
+	var result BufferSlice
+	if wt, ok := r.(io.WriterTo); ok {
+		// This is more optimal since wt knows the size of chunks it wants to
+		// write and, hence, we can allocate buffers of an optimal size to fit
+		// them. E.g. might be a single big chunk, and we wouldn't chop it
+		// into pieces.
+		w := NewWriter(&result, pool)
+		_, err := wt.WriteTo(w)
+		return result, err
+	}
+nextBuffer:
+	for {
+		buf := pool.Get(readAllBufSize)
+		// We asked for 32KiB but may have been given a bigger buffer.
+		// Use all of it if that's the case.
+		*buf = (*buf)[:cap(*buf)]
+		usedCap := 0
+		for {
+			n, err := r.Read((*buf)[usedCap:])
+			usedCap += n
+			if err != nil {
+				if usedCap == 0 {
+					// Nothing in this buf, put it back
+					pool.Put(buf)
+				} else {
+					*buf = (*buf)[:usedCap]
+					result = append(result, NewBuffer(buf, pool))
+				}
+				if err == io.EOF {
+					err = nil
+				}
+				return result, err
+			}
+			if len(*buf) == usedCap {
+				result = append(result, NewBuffer(buf, pool))
+				continue nextBuffer
+			}
+		}
+	}
 }

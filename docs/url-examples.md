@@ -180,6 +180,8 @@ Single-node VictoriaMetrics:
 
 ```sh
 curl -d "GOOG,1.23,4.56,NYSE" 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
+
+curl -X POST 'http://localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market' -T exported_data.csv
 ```
 
 
@@ -187,6 +189,8 @@ Cluster version of VictoriaMetrics:
 
 ```sh
 curl -d "GOOG,1.23,4.56,NYSE" 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market'
+
+curl -X POST 'http://<vminsert>:8480/insert/0/prometheus/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market' -T exported_data.csv
 ```
 
 
@@ -661,7 +665,7 @@ curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"m
 Cluster version of VictoriaMetrics:
 
 ```sh
-curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://<vminsert>:8480/insert/42/opentsdb/api/put
+curl -H 'Content-Type: application/json' -d '[{"metric":"foo","value":45.34},{"metric":"bar","value":43}]' http://<vminsert>:4242/insert/42/opentsdb/api/put
 ```
 
 

@@ -33,23 +33,23 @@ func (pp *pipePackLogfmt) updateNeededFields(neededFields, unneededFields fields
 	updateNeededFieldsForPipePack(neededFields, unneededFields, pp.resultField, pp.fields)
 }
 
-func (pp *pipePackLogfmt) optimize() {
-	// nothing to do
-}
-
 func (pp *pipePackLogfmt) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pp *pipePackLogfmt) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pp *pipePackLogfmt) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pp, nil
+}
+
+func (pp *pipePackLogfmt) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
 }
 
 func (pp *pipePackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return newPipePackProcessor(workersCount, ppNext, pp.resultField, pp.fields, MarshalFieldsToLogfmt)
 }
 
-func parsePackLogfmt(lex *lexer) (*pipePackLogfmt, error) {
+func parsePipePackLogfmt(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("pack_logfmt") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "pack_logfmt")
 	}

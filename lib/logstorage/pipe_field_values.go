@@ -46,16 +46,16 @@ func (pf *pipeFieldValues) updateNeededFields(neededFields, unneededFields field
 	}
 }
 
-func (pf *pipeFieldValues) optimize() {
-	// nothing to do
-}
-
 func (pf *pipeFieldValues) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pf *pipeFieldValues) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pf *pipeFieldValues) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pf, nil
+}
+
+func (pf *pipeFieldValues) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
 }
 
 func (pf *pipeFieldValues) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
@@ -71,13 +71,13 @@ func (pf *pipeFieldValues) newPipeProcessor(workersCount int, stopCh <-chan stru
 	return pu.newPipeProcessor(workersCount, stopCh, cancel, ppNext)
 }
 
-func parsePipeFieldValues(lex *lexer) (*pipeFieldValues, error) {
+func parsePipeFieldValues(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("field_values") {
 		return nil, fmt.Errorf("expecting 'field_values'; got %q", lex.token)
 	}
 	lex.nextToken()
 
-	field, err := parseFieldName(lex)
+	field, err := parseFieldNameWithOptionalParens(lex)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse field name for 'field_values': %w", err)
 	}

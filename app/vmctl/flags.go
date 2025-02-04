@@ -596,7 +596,8 @@ var (
 		&cli.Int64Flag{
 			Name: vmRateLimit,
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
-				"By default, the rate limit is disabled. It can be useful for limiting load on source or destination databases.",
+				"By default, the rate limit is disabled. It can be useful for limiting load on source or destination databases. \n" +
+				"Rate limit is applied per worker, see `--vm-concurrency`.",
 		},
 		&cli.BoolFlag{
 			Name: vmInterCluster,
@@ -616,7 +617,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name: vmNativeDisableBinaryProtocol,
-			Usage: "Whether to use https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format" +
+			Usage: "Whether to use https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format " +
 				"instead of https://docs.victoriametrics.com/#how-to-export-data-in-native-format API." +
 				"Binary export/import API protocol implies less network and resource usage, as it transfers compressed binary data blocks." +
 				"Non-binary export/import API is less efficient, but supports deduplication if it is configured on vm-native-src-addr side.",

@@ -62,16 +62,16 @@ type pipeUpdateProcessorShardNopad struct {
 }
 
 func (pup *pipeUpdateProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
 	shard := &pup.shards[workerID]
 
 	bm := &shard.bm
-	bm.init(len(br.timestamps))
-	bm.setBits()
 	if iff := pup.iff; iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pup.ppNext.writeBlock(workerID, br)
@@ -84,18 +84,21 @@ func (pup *pipeUpdateProcessor) writeBlock(workerID uint, br *blockResult) {
 	c := br.getColumnByName(pup.field)
 	values := c.getValues(br)
 
-	hadUpdates := false
+	needUpdates := true
 	vPrev := ""
+	vNew := ""
 	for rowIdx, v := range values {
-		if bm.isSetBit(rowIdx) {
-			if !hadUpdates || vPrev != v {
+		if pup.iff == nil || bm.isSetBit(rowIdx) {
+			if needUpdates || vPrev != v {
 				vPrev = v
-				hadUpdates = true
+				needUpdates = false
 
-				v = pup.updateFunc(&shard.a, v)
+				vNew = pup.updateFunc(&shard.a, v)
 			}
+			shard.rc.addValue(vNew)
+		} else {
+			shard.rc.addValue(v)
 		}
-		shard.rc.addValue(v)
 	}
 
 	br.addResultColumn(&shard.rc)

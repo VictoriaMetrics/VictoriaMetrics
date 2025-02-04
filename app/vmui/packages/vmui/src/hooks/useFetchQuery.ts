@@ -13,6 +13,7 @@ import { isHistogramData } from "../utils/metric";
 import { useGraphState } from "../state/graph/GraphStateContext";
 import { getStepFromDuration } from "../utils/time";
 import { AppType } from "../types/appType";
+import { getQueryStringValue } from "../utils/query-string";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
@@ -34,7 +35,8 @@ interface FetchQueryReturn {
   queryStats: QueryStats[],
   warning?: string,
   traces?: Trace[],
-  isHistogram: boolean
+  isHistogram: boolean,
+  abortFetch: () => void
 }
 
 interface FetchDataParams {
@@ -110,7 +112,12 @@ export const useFetchQuery = ({
           continue;
         }
 
-        const response = await fetch(url, { signal: controller.signal });
+        const urlObj = new URL(url);
+        const response = await fetch(`${urlObj.origin}${urlObj.pathname}`, {
+          signal: controller.signal,
+          method: "POST",
+          body: urlObj.searchParams
+        });
         const resp = await response.json();
 
         if (response.ok) {
@@ -126,7 +133,8 @@ export const useFetchQuery = ({
             tempTraces.push(trace);
           }
 
-          isHistogramResult = !isAnomalyUI && isDisplayChart && isHistogramData(resp.data.result);
+          const preventChangeType = !!getQueryStringValue("display_mode", null);
+          isHistogramResult = !isAnomalyUI && isDisplayChart && !preventChangeType && isHistogramData(resp.data.result);
           seriesLimit = isHistogramResult ? Infinity : defaultLimit;
           const freeTempSize = seriesLimit - tempData.length;
           resp.data.result.slice(0, freeTempSize).forEach((d: MetricBase) => {
@@ -155,6 +163,7 @@ export const useFetchQuery = ({
       const error = e as Error;
       if (error.name === "AbortError") {
         // Aborts are expected, don't show an error for them.
+        setIsLoading(false);
         return;
       }
       const helperText = "Please check your serverURL settings and confirm server availability.";
@@ -191,6 +200,13 @@ export const useFetchQuery = ({
     }
   },
   [serverUrl, period, displayType, customStep, hideQuery]);
+
+  const abortFetch = useCallback(() => {
+    fetchQueue.map(f => f.abort());
+    setFetchQueue([]);
+    setGraphData([]);
+    setLiveData([]);
+  }, [fetchQueue]);
 
   const [prevUrl, setPrevUrl] = useState<string[]>([]);
 
@@ -233,6 +249,7 @@ export const useFetchQuery = ({
     queryStats,
     warning,
     traces,
-    isHistogram
+    isHistogram,
+    abortFetch,
   };
 };

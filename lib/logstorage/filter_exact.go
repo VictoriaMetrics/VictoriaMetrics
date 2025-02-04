@@ -125,8 +125,19 @@ func (fe *filterExact) applyToBlockResult(br *blockResult, bm *bitmap) {
 			n := unmarshalUint64(valuesEncoded[idx])
 			return n == nNeeded
 		})
+	case valueTypeInt64:
+		nNeeded, ok := tryParseInt64(value)
+		if !ok {
+			bm.resetBits()
+			return
+		}
+		valuesEncoded := c.getValuesEncoded(br)
+		bm.forEachSetBit(func(idx int) bool {
+			n := unmarshalInt64(valuesEncoded[idx])
+			return n == nNeeded
+		})
 	case valueTypeFloat64:
-		fNeeded, ok := tryParseFloat64(value)
+		fNeeded, ok := tryParseFloat64Exact(value)
 		if !ok {
 			bm.resetBits()
 			return
@@ -174,7 +185,7 @@ func (fe *filterExact) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	fieldName := fe.fieldName
 	value := fe.value
 
-	v := bs.csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if value != v {
 			bm.resetBits()
@@ -183,7 +194,7 @@ func (fe *filterExact) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		// It matches anything only for empty value.
@@ -208,6 +219,8 @@ func (fe *filterExact) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32ByExactValue(bs, ch, bm, value, tokens)
 	case valueTypeUint64:
 		matchUint64ByExactValue(bs, ch, bm, value, tokens)
+	case valueTypeInt64:
+		matchInt64ByExactValue(bs, ch, bm, value, tokens)
 	case valueTypeFloat64:
 		matchFloat64ByExactValue(bs, ch, bm, value, tokens)
 	case valueTypeIPv4:
@@ -244,7 +257,7 @@ func matchIPv4ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value 
 }
 
 func matchFloat64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, value string, tokens []uint64) {
-	f, ok := tryParseFloat64(value)
+	f, ok := tryParseFloat64Exact(value)
 	if !ok || f < math.Float64frombits(ch.minValue) || f > math.Float64frombits(ch.maxValue) {
 		bm.resetBits()
 		return
@@ -323,6 +336,18 @@ func matchUint64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phra
 	}
 	bb := bbPool.Get()
 	bb.B = encoding.MarshalUint64(bb.B, n)
+	matchBinaryValue(bs, ch, bm, bb.B, tokens)
+	bbPool.Put(bb)
+}
+
+func matchInt64ByExactValue(bs *blockSearch, ch *columnHeader, bm *bitmap, phrase string, tokens []uint64) {
+	n, ok := tryParseInt64(phrase)
+	if !ok || n < int64(ch.minValue) || n > int64(ch.maxValue) {
+		bm.resetBits()
+		return
+	}
+	bb := bbPool.Get()
+	bb.B = encoding.MarshalInt64(bb.B, n)
 	matchBinaryValue(bs, ch, bm, bb.B, tokens)
 	bbPool.Put(bb)
 }

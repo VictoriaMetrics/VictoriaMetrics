@@ -55,11 +55,11 @@ You can read detailed instructions about configuring prometheus-objects conversi
 
 ## Helm-charts
 
-In [helm-charts](https://github.com/VictoriaMetrics/helm-charts) some important configuration parameters are implemented as separate flags in `values.yaml`:
+In [Helm charts](https://docs.victoriametrics.com/helm) some important configuration parameters are implemented as separate flags in `values.yaml`:
 
 ### victoria-metrics-k8s-stack
 
-For possible values refer to [parameters](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-k8s-stack#parameters).
+For possible values refer to [parameters](https://docs.victoriametrics.com/helm/victoriametrics-k8s-stack#parameters).
 
 Also, checkout [here possible ENV variables](https://docs.victoriametrics.com/operator/vars/) to configure operator behaviour.
 ENV variables can be set in the `victoria-metrics-operator.env` section.
@@ -134,7 +134,7 @@ victoria-metrics-operator:
 
 ### victoria-metrics-operator
 
-For possible values refer to [parameters](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator#parameters).
+For possible values refer to [parameters](https://docs.victoriametrics.com/helm/victoriametrics-operator#parameters).
 
 Also, checkout [here possible ENV variables](https://docs.victoriametrics.com/operator/vars/) to configure operator behaviour.
 ENV variables can be set in the `env` section.

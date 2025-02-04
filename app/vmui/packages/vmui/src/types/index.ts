@@ -165,3 +165,9 @@ export enum QueryContextType {
   label = "label",
   labelValue = "labelValue",
 }
+
+export interface AppConfig {
+  license?: {
+    type?: "enterprise" | "opensource";
+  }
+}

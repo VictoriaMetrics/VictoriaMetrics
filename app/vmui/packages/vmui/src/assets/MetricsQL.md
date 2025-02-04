@@ -103,7 +103,7 @@ The list of MetricsQL features on top of PromQL:
 * Trailing commas on all the lists are allowed - label filters, function args and with expressions.
   For instance, the following queries are valid: `m{foo="bar",}`, `f(a, b,)`, `WITH (x=y,) x`.
   This simplifies maintenance of multi-line queries.
-* Metric names and label names may contain any unicode letter. For example `температура{город="Київ"}` is a valid MetricsQL expression.
+* Metric names and label names may contain any unicode letter. For example `ტემპერატურა{πόλη="Київ"}` is a valid MetricsQL expression.
 * Metric names and labels names may contain escaped chars. For example, `foo\-bar{baz\=aa="b"}` is valid expression.
   It returns time series with name `foo-bar` containing label `baz=aa` with value `b`.
   Additionally, the following escape sequences are supported:

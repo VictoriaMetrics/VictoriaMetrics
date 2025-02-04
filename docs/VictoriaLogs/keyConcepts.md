@@ -103,7 +103,7 @@ Unicode chars must be encoded with [UTF-8](https://en.wikipedia.org/wiki/UTF-8) 
 ```json
 {
   "field with whitespace": "value\nwith\nnewlines",
-  "Поле": "价值",
+  "Поле": "价值"
 }
 ```
 
@@ -127,16 +127,27 @@ log entry, which can be ingested into VictoriaLogs:
 }
 ```
 
-If the actual log message has other than `_msg` field name, then it is possible to specify the real log message field
-via `_msg_field` query arg during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+If the actual log message has other than `_msg` field name, then it can be specified via `_msg_field` HTTP query arg or via `VL-Msg-Field` HTTP header
+during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
+according to [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
 For example, if log message is located in the `event.original` field, then specify `_msg_field=event.original` query arg
 during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+
+If the `_msg` field remains empty after an attempt to get it from `_msg_field`, then VictoriaLogs automatically sets it to the value specified
+via `-defaultMsgValue` command-line flag.
 
 ### Time field
 
 The ingested [log entries](#data-model) may contain `_time` field with the timestamp of the ingested log entry.
-The timestamp must be in [RFC3339](https://www.rfc-editor.org/rfc/rfc3339) format. The most commonly used subset of [ISO8601](https://en.wikipedia.org/wiki/ISO_8601)
-is also supported. It is allowed specifying seconds part of the timestamp with any precision up to nanoseconds.
+The timestamp field must be in one of the following formats:
+
+- [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) or [RFC3339](https://www.rfc-editor.org/rfc/rfc3339).
+  For example, `2023-06-20T15:32:10Z` or `2023-06-20 15:32:10.123456789+02:00`.
+  If timezone information is missing (for example, `2023-06-20 15:32:10`),
+  then the time is parsed in the local timezone of the host where VictoriaLogs runs.
+
+- Unix timestamp in seconds or in milliseconds. For example, `1686026893` (seconds) or `1686026893735` (milliseconds).
+
 For example, the following [log entry](#data-model) contains valid timestamp with millisecond precision in the `_time` field:
 
 ```json
@@ -151,7 +162,7 @@ field via `_time_field` query arg during [data ingestion](https://docs.victoriam
 For example, if timestamp is located in the `event.created` field, then specify `_time_field=event.created` query arg
 during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 
-If `_time` field is missing, then the data ingestion time is used as log entry timestamp.
+If `_time` field is missing or if it equals `0`, then the data ingestion time is used as log entry timestamp.
 
 The `_time` field is used in [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) for quickly narrowing down
 the search to a particular time range.

@@ -49,7 +49,7 @@ func (fr *filterWeekRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 		return
 	}
 	if c.isTime {
-		timestamps := br.timestamps
+		timestamps := br.getTimestamps()
 		bm.forEachSetBit(func(idx int) bool {
 			timestamp := timestamps[idx]
 			return fr.matchTimestampValue(timestamp)
@@ -86,6 +86,8 @@ func (fr *filterWeekRange) applyToBlockResult(br *blockResult, bm *bitmap) {
 	case valueTypeUint32:
 		bm.resetBits()
 	case valueTypeUint64:
+		bm.resetBits()
+	case valueTypeInt64:
 		bm.resetBits()
 	case valueTypeFloat64:
 		bm.resetBits()

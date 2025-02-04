@@ -3,7 +3,6 @@ package logstorage
 import (
 	"math"
 	"strconv"
-	"unsafe"
 )
 
 type statsSum struct {
@@ -18,22 +17,19 @@ func (ss *statsSum) updateNeededFields(neededFields fieldsSet) {
 	updateNeededFieldsForStatsFunc(neededFields, ss.fields)
 }
 
-func (ss *statsSum) newStatsProcessor() (statsProcessor, int) {
-	ssp := &statsSumProcessor{
-		ss:  ss,
-		sum: nan,
-	}
-	return ssp, int(unsafe.Sizeof(*ssp))
+func (ss *statsSum) newStatsProcessor(a *chunkedAllocator) statsProcessor {
+	ssp := a.newStatsSumProcessor()
+	ssp.sum = nan
+	return ssp
 }
 
 type statsSumProcessor struct {
-	ss *statsSum
-
 	sum float64
 }
 
-func (ssp *statsSumProcessor) updateStatsForAllRows(br *blockResult) int {
-	fields := ssp.ss.fields
+func (ssp *statsSumProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
+	ss := sf.(*statsSum)
+	fields := ss.fields
 	if len(fields) == 0 {
 		// Sum all the columns
 		for _, c := range br.getColumns() {
@@ -49,8 +45,9 @@ func (ssp *statsSumProcessor) updateStatsForAllRows(br *blockResult) int {
 	return 0
 }
 
-func (ssp *statsSumProcessor) updateStatsForRow(br *blockResult, rowIdx int) int {
-	fields := ssp.ss.fields
+func (ssp *statsSumProcessor) updateStatsForRow(sf statsFunc, br *blockResult, rowIdx int) int {
+	ss := sf.(*statsSum)
+	fields := ss.fields
 	if len(fields) == 0 {
 		// Sum all the fields for the given row
 		for _, c := range br.getColumns() {
@@ -87,15 +84,15 @@ func (ssp *statsSumProcessor) updateState(f float64) {
 	}
 }
 
-func (ssp *statsSumProcessor) mergeState(sfp statsProcessor) {
+func (ssp *statsSumProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsSumProcessor)
 	if !math.IsNaN(src.sum) {
 		ssp.updateState(src.sum)
 	}
 }
 
-func (ssp *statsSumProcessor) finalizeStats() string {
-	return strconv.FormatFloat(ssp.sum, 'f', -1, 64)
+func (ssp *statsSumProcessor) finalizeStats(_ statsFunc, dst []byte, _ <-chan struct{}) []byte {
+	return strconv.AppendFloat(dst, ssp.sum, 'f', -1, 64)
 }
 
 func parseStatsSum(lex *lexer) (*statsSum, error) {

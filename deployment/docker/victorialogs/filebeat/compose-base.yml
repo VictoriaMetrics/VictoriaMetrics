@@ -1,0 +1,18 @@
+include:
+ - ../compose-base.yml
+services:
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.15.1
+    restart: on-failure
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: /var/lib/docker/containers/
+        target: /var/lib/docker/containers/
+      - ${PWD}/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    user: root
+    command:
+      - "--strict.perms=false"
+    depends_on: [victorialogs]

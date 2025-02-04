@@ -34,11 +34,13 @@ the `request` was served. Label-value pairs are always of a `string` type. Victo
 which means there is no need to define metric names or their labels in advance. User is free to add or change ingested
 metrics anytime.
 
-Actually, the metric name is also a label with a special name `__name__`. So the following two series are identical:
+Actually, the metric name is also a label with a special name `__name__`. 
+The `__name__` key could be omitted {{% available_from "#" %}} for simplicity. So the following series are identical:
 
 ```
 requests_total{path="/", code="200"} 
 {__name__="requests_total", path="/", code="200"} 
+{"requests_total", path="/", code="200"} 
 ```
 
 Labels can be automatically attached to the [time series](#time-series) 
@@ -480,12 +482,13 @@ Params:
 
 * `query` - [MetricsQL](https://docs.victoriametrics.com/metricsql/) expression.
 * `time` - optional, [timestamp](https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats)
-  in second precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
+  in millisecond precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
   The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
 * `step` - optional [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
   for searching for raw samples in the past when executing the `query` (used when a sample is missing at the specified `time`).
   For example, the request `/api/v1/query?query=up&step=1m` looks for the last written raw sample for the metric `up`
-  in the interval between `now()` and `now()-1m`. If omitted, `step` is set to `5m` (5 minutes) by default.
+  in the `(now()-1m, now()]` interval (the first millisecond is not included). If omitted, `step` is set to `5m` (5 minutes)
+  by default.
 * `timeout` - optional query timeout. For example, `timeout=5s`. Query is canceled when the timeout is reached.
   By default the timeout is set to the value of `-search.maxQueryDuration` command-line flag passed to single-node VictoriaMetrics
   or to `vmselect` component of VictoriaMetrics cluster.
@@ -497,19 +500,19 @@ where `timestamp` equals to the `time` query arg, while the `value` contains `qu
 To understand how instant queries work, let's begin with a data sample:
 
 ```
-foo_bar 1.00 1652169600000 # 2022-05-10 10:00:00
-foo_bar 2.00 1652169660000 # 2022-05-10 10:01:00
-foo_bar 3.00 1652169720000 # 2022-05-10 10:02:00
-foo_bar 5.00 1652169840000 # 2022-05-10 10:04:00, one point missed
-foo_bar 5.50 1652169960000 # 2022-05-10 10:06:00, one point missed
-foo_bar 5.50 1652170020000 # 2022-05-10 10:07:00
-foo_bar 4.00 1652170080000 # 2022-05-10 10:08:00
-foo_bar 3.50 1652170260000 # 2022-05-10 10:11:00, two points missed
-foo_bar 3.25 1652170320000 # 2022-05-10 10:12:00
-foo_bar 3.00 1652170380000 # 2022-05-10 10:13:00
-foo_bar 2.00 1652170440000 # 2022-05-10 10:14:00
-foo_bar 1.00 1652170500000 # 2022-05-10 10:15:00
-foo_bar 4.00 1652170560000 # 2022-05-10 10:16:00
+foo_bar 1.00 1652169600000 # 2022-05-10T08:00:00Z
+foo_bar 2.00 1652169660000 # 2022-05-10T08:01:00Z
+foo_bar 3.00 1652169720000 # 2022-05-10T08:02:00Z
+foo_bar 5.00 1652169840000 # 2022-05-10T08:04:00Z, one point missed
+foo_bar 5.50 1652169960000 # 2022-05-10T08:06:00Z, one point missed
+foo_bar 5.50 1652170020000 # 2022-05-10T08:07:00Z
+foo_bar 4.00 1652170080000 # 2022-05-10T08:08:00Z
+foo_bar 3.50 1652170260000 # 2022-05-10T08:11:00Z, two points missed
+foo_bar 3.25 1652170320000 # 2022-05-10T08:12:00Z
+foo_bar 3.00 1652170380000 # 2022-05-10T08:13:00Z
+foo_bar 2.00 1652170440000 # 2022-05-10T08:14:00Z
+foo_bar 1.00 1652170500000 # 2022-05-10T08:15:00Z
+foo_bar 4.00 1652170560000 # 2022-05-10T08:16:00Z
 ```
 
 The data above contains a list of samples for the `foo_bar` time series with time intervals between samples
@@ -518,11 +521,11 @@ ranging from 1m to 3m. If we plot this data sample on the graph, it will have th
 ![data samples](data_samples.webp)
 {width="500"}
     
-To get the value of the `foo_bar` series at some specific moment of time, for example `2022-05-10 10:03:00`, in
+To get the value of the `foo_bar` series at some specific moment of time, for example `2022-05-10T08:03:00Z`, in
 VictoriaMetrics we need to issue an **instant query**:
 
 ```sh
-curl "http://<victoria-metrics-addr>/api/v1/query?query=foo_bar&time=2022-05-10T10:03:00.000Z"
+curl "http://<victoria-metrics-addr>/api/v1/query?query=foo_bar&time=2022-05-10T08:03:00.000Z"
 ```
 
 ```json
@@ -536,7 +539,7 @@ curl "http://<victoria-metrics-addr>/api/v1/query?query=foo_bar&time=2022-05-10T
           "__name__": "foo_bar"
         },
         "value": [
-          1652169780, // 2022-05-10 10:03:00
+          1652169780, // 2022-05-10T08:03:00Z
           "3"
         ]
       }
@@ -546,8 +549,8 @@ curl "http://<victoria-metrics-addr>/api/v1/query?query=foo_bar&time=2022-05-10T
 ```
 
 In response, VictoriaMetrics returns a single sample-timestamp pair with a value of `3` for the series
-`foo_bar` at the given moment in time `2022-05-10 10:03`. But, if we take a look at the original data sample again,
-we'll see that there is no raw sample at `2022-05-10 10:03`. When there is no raw sample at the
+`foo_bar` at the given moment in time `2022-05-10T08:03:00Z`. But, if we take a look at the original data sample again,
+we'll see that there is no raw sample at `2022-05-10T08:03:00Z`. When there is no raw sample at the
 requested timestamp, VictoriaMetrics will try to locate the closest sample before the requested timestamp:
 
 ![instant query](instant_query.webp)
@@ -581,7 +584,9 @@ Params:
   If the `end` isn't set, then the `end` is automatically set to the current time.
 * `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) 
   between data points, which must be returned from the range query.
-  The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `end` timestamps.
+  The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `start+N*step` timestamps,
+  where `N` is the whole number of steps that fit between `start` and `end`.
+  `end` is included only when it equals to `start+N*step`.
   If the `step` isn't set, then it default to `5m` (5 minutes).
 * `timeout` - optional query timeout. For example, `timeout=5s`. Query is canceled when the timeout is reached.
   By default the timeout is set to the value of `-search.maxQueryDuration` command-line flag passed to single-node VictoriaMetrics
@@ -589,14 +594,17 @@ Params:
 
 The result of Range query is a list of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 matching the filter in `query` expression. Each returned series contains `(timestamp, value)` results for the `query` executed
-at `start`, `start+step`, `start+2*step`, ..., `end` timestamps. In other words, Range query is an [Instant query](#instant-query)
-executed independently at `start`, `start+step`, ..., `end` timestamps.
+at `start`, `start+step`, `start+2*step`, ..., `start+N*step` timestamps. In other words, Range query is an [Instant query](#instant-query)
+executed independently at `start`, `start+step`, ..., `start+N*step` timestamps with the only difference that an instant query
+does not return `ephemeral` samples (see below). Instead, if the database does not contain any samples for the requested time and step,
+it simply returns an empty result.
 
-For example, to get the values of `foo_bar` during the time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`,
+
+For example, to get the values of `foo_bar` during the time range from `2022-05-10T07:59:00Z` to `2022-05-10T08:17:00Z`,
 we need to issue a range query:
 
 ```sh
-curl "http://<victoria-metrics-addr>/api/v1/query_range?query=foo_bar&step=1m&start=2022-05-10T09:59:00.000Z&end=2022-05-10T10:17:00.000Z"
+curl "http://<victoria-metrics-addr>/api/v1/query_range?query=foo_bar&step=1m&start=2022-05-10T07:59:00.000Z&end=2022-05-10T08:17:00.000Z"
 ```
 
 ```json
@@ -628,43 +636,43 @@ curl "http://<victoria-metrics-addr>/api/v1/query_range?query=foo_bar&step=1m&st
           ],
           [
             1652169840,
-            "7"
-          ],
-          [
-            1652169900,
-            "7"
-          ],
-          [
-            1652169960,
-            "7.5"
-          ],
-          [
-            1652170020,
-            "7.5"
-          ],
-          [
-            1652170080,
-            "6"
-          ],
-          [
-            1652170140,
-            "6"
-          ],
-          [
-            1652170260,
-            "5.5"
-          ],
-          [
-            1652170320,
-            "5.25"
-          ],
-          [
-            1652170380,
             "5"
           ],
           [
-            1652170440,
+            1652169900,
+            "5"
+          ],
+          [
+            1652169960,
+            "5.5"
+          ],
+          [
+            1652170020,
+            "5.5"
+          ],
+          [
+            1652170080,
+            "4"
+          ],
+          [
+            1652170140,
+            "4"
+          ],
+          [
+            1652170260,
+            "3.5"
+          ],
+          [
+            1652170320,
+            "3.25"
+          ],
+          [
+            1652170380,
             "3"
+          ],
+          [
+            1652170440,
+            "2"
           ],
           [
             1652170500,
@@ -686,7 +694,7 @@ curl "http://<victoria-metrics-addr>/api/v1/query_range?query=foo_bar&step=1m&st
 ```
 
 In response, VictoriaMetrics returns `17` sample-timestamp pairs for the series `foo_bar` at the given time range
-from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`. But, if we take a look at the original data sample again, we'll
+from `2022-05-10T07:59:00Z` to `2022-05-10T08:17:00Z`. But, if we take a look at the original data sample again, we'll
 see that it contains only 13 raw samples. What happens here is that the range query is actually
 an [instant query](#instant-query) executed `1 + (start-end)/step` times on the time range from `start` to `end`. If we plot
 this request in VictoriaMetrics the graph will be shown as the following:
@@ -745,7 +753,7 @@ duration throughout the `-search.latencyOffset` duration:
 It can be overridden on per-query basis via `latency_offset` query arg.
 
 VictoriaMetrics buffers recently ingested samples in memory for up to a few seconds and then periodically flushes these samples to disk.
-This bufferring improves data ingestion performance. The buffered samples are invisible in query results, even if `-search.latencyOffset` command-line flag is set to 0,
+This buffering improves data ingestion performance. The buffered samples are invisible in query results, even if `-search.latencyOffset` command-line flag is set to 0,
 or if `latency_offset` query arg is set to 0.
 You can send GET request to `/internal/force_flush` http handler at single-node VictoriaMetrics
 or to `vmstorage` at [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)

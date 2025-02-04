@@ -1,10 +1,11 @@
 ---
 weight: 0
-title: Operator
+title: Kubernetes Operator
 menu:
   docs:
-    weight: 0
+    weight: 30
     identifier: operator
+    pageRef: /operator/
 aliases:
   - /operator/
   - /operator/index.html

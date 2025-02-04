@@ -149,7 +149,7 @@ or [Prometheus recording rules definition format](https://prometheus.io/docs/pro
 
 There are limitations for the rules files:
 
-1. All files may contain no more than 100 rules in total. If you need to upload more rules contact us via [support@victoriametrics.com](mailto:support@victoriametrics.com).
+1. All files may contain no more than 100 rules in total. If you need to upload more rules contact us via [support-cloud@victoriametrics.com](mailto:support-cloud@victoriametrics.com).
 2. The maximum file size is 20mb.
 3. The names of the groups in the files should be unique.
 
@@ -165,7 +165,7 @@ You can use the following API endpoints for the automation with rules:
 * POST: `/api/v1/deployments/{deploymentId}/rule-sets/files/{fileName}` - create/update rules file
 * DELETE `/api/v1/deployments/{deploymentId}/rule-sets/files/{fileName}` - delete rules file
 
-For more details, please check [OpenAPI Reference](https://cloud.victoriametrics.com/api-docs).
+For more details, please check [OpenAPI Reference](https://console.victoriametrics.cloud/api-docs).
 
 ### Example of alerting rules
 

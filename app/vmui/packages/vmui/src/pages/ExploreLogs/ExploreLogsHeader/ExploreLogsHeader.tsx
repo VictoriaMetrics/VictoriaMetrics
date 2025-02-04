@@ -1,16 +1,20 @@
 import React, { FC, useEffect, useState } from "preact/compat";
-import { InfoIcon, PlayIcon, WikiIcon } from "../../../components/Main/Icons";
+import { InfoIcon, PlayIcon, SpinnerIcon, WikiIcon } from "../../../components/Main/Icons";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import Button from "../../../components/Main/Button/Button";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import TextField from "../../../components/Main/TextField/TextField";
+import LogsQueryEditorAutocomplete from "../../../components/Configurators/QueryEditor/LogsQL/LogsQueryEditorAutocomplete";
+import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
+import Switch from "../../../components/Main/Switch/Switch";
 
 export interface ExploreLogHeaderProps {
   query: string;
   limit: number;
   error?: string;
+  isLoading: boolean;
   onChange: (val: string) => void;
   onChangeLimit: (val: number) => void;
   onRun: () => void;
@@ -20,11 +24,14 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
   query,
   limit,
   error,
+  isLoading,
   onChange,
   onChangeLimit,
   onRun,
 }) => {
   const { isMobile } = useDeviceDetect();
+  const { autocomplete } = useQueryState();
+  const queryDispatch = useQueryDispatch();
 
   const [errorLimit, setErrorLimit] = useState("");
   const [limitInput, setLimitInput] = useState(limit);
@@ -38,6 +45,10 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
       setErrorLimit("");
       onChangeLimit(number);
     }
+  };
+
+  const onChangeAutocomplete = () => {
+    queryDispatch({ type: "TOGGLE_AUTOCOMPLETE" });
   };
 
   useEffect(() => {
@@ -55,7 +66,8 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
       <div className="vm-explore-logs-header-top">
         <QueryEditor
           value={query}
-          autocomplete={false}
+          autocomplete={autocomplete}
+          autocompleteEl={LogsQueryEditorAutocomplete}
           onArrowUp={() => null}
           onArrowDown={() => null}
           onEnter={onRun}
@@ -73,7 +85,14 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
         />
       </div>
       <div className="vm-explore-logs-header-bottom">
-        <div className="vm-explore-logs-header-bottom-contols"></div>
+        <div className="vm-explore-logs-header-bottom-contols">
+          <Switch
+            label={"Autocomplete"}
+            value={autocomplete}
+            onChange={onChangeAutocomplete}
+            fullWidth={isMobile}
+          />
+        </div>
         <div className="vm-explore-logs-header-bottom-helpful">
           <a
             className="vm-link vm-link_with-icon"
@@ -94,13 +113,16 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
             Documentation
           </a>
         </div>
-        <div className="vm-explore-logs-header-bottom__execute">
+        <div className="vm-explore-logs-header-bottom-execute">
           <Button
-            startIcon={<PlayIcon/>}
+            startIcon={isLoading ? <SpinnerIcon/> : <PlayIcon/>}
             onClick={onRun}
             fullWidth
           >
-            Execute Query
+            <span className="vm-explore-logs-header-bottom-execute__text">
+              {isLoading ? "Cancel Query" : "Execute Query"}
+            </span>
+            <span className="vm-explore-logs-header-bottom-execute__text_hidden">Execute Query</span>
           </Button>
         </div>
       </div>

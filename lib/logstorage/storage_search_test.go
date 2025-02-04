@@ -47,7 +47,7 @@ func TestStorageRunQuery(t *testing.T) {
 		for j := 0; j < streamsPerTenant; j++ {
 			streamIDValue := fmt.Sprintf("stream_id=%d", j)
 			for k := 0; k < blocksPerStream; k++ {
-				lr := GetLogRows(streamTags, nil)
+				lr := GetLogRows(streamTags, nil, nil, "")
 				for m := 0; m < rowsPerBlock; m++ {
 					timestamp := baseTimestamp + int64(m)*1e9 + int64(k)
 					// Append stream fields
@@ -75,7 +75,7 @@ func TestStorageRunQuery(t *testing.T) {
 						Name:  "stream-id",
 						Value: streamIDValue,
 					})
-					lr.MustAdd(tenantID, timestamp, fields)
+					lr.MustAdd(tenantID, timestamp, fields, nil)
 				}
 				s.MustAddRows(lr)
 				PutLogRows(lr)
@@ -384,9 +384,9 @@ func TestStorageRunQuery(t *testing.T) {
 		}
 
 		resultsExpected := []ValueWithHits{
-			{`{instance="host-0:234",job="foobar"}`, 0},
-			{`{instance="host-1:234",job="foobar"}`, 0},
-			{`{instance="host-2:234",job="foobar"}`, 0},
+			{`{instance="host-0:234",job="foobar"}`, 385},
+			{`{instance="host-1:234",job="foobar"}`, 385},
+			{`{instance="host-2:234",job="foobar"}`, 385},
 		}
 		if !reflect.DeepEqual(results, resultsExpected) {
 			t.Fatalf("unexpected result; got\n%v\nwant\n%v", results, resultsExpected)
@@ -578,6 +578,42 @@ func TestStorageRunQuery(t *testing.T) {
 			},
 		})
 	})
+	t.Run("union=pipe", func(t *testing.T) {
+		f(t, `{instance=~"host-1.+"} | union ({instance=~"host-2.+"}) | count() hits`, [][]Field{
+			{
+				{"hits", "770"},
+			},
+		})
+	})
+	t.Run("stream-filter-single", func(t *testing.T) {
+		f(t, `{job="foobar",instance=~"host-1.+"} | count() hits`, [][]Field{
+			{
+				{"hits", "385"},
+			},
+		})
+		f(t, `{instance=~"host-1.+" or instance=~"host-2.+"} | count() hits`, [][]Field{
+			{
+				{"hits", "770"},
+			},
+		})
+	})
+	t.Run("stream-filter-multi", func(t *testing.T) {
+		f(t, `{job="foobar"} {instance=~"host-1.+"} | count() hits`, [][]Field{
+			{
+				{"hits", "385"},
+			},
+		})
+		f(t, `{instance=~"host-1.+"} {job="foobar"} | count() hits`, [][]Field{
+			{
+				{"hits", "385"},
+			},
+		})
+		f(t, `{job="foobar"} ({instance=~"host-1.+"} or {instance=~"host-2.+"}) | count() hits`, [][]Field{
+			{
+				{"hits", "770"},
+			},
+		})
+	})
 	t.Run("pipe-extract", func(t *testing.T) {
 		f(t, `* | extract "host-<host>:" from instance | uniq (host) with hits | sort by (host)`, [][]Field{
 			{
@@ -662,7 +698,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context before 0
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "33"},
+				{"rows", "66"},
 			},
 		})
 	})
@@ -671,7 +707,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context before 0 after 0
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "33"},
+				{"rows", "66"},
 			},
 		})
 	})
@@ -680,7 +716,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context before 1
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "66"},
+				{"rows", "99"},
 			},
 		})
 	})
@@ -689,7 +725,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context after 1
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "66"},
+				{"rows", "99"},
 			},
 		})
 	})
@@ -698,7 +734,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context before 1 after 1
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "99"},
+				{"rows", "132"},
 			},
 		})
 	})
@@ -707,7 +743,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context before 1000
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "825"},
+				{"rows", "990"},
 			},
 		})
 	})
@@ -716,7 +752,7 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context after 1000
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "495"},
+				{"rows", "660"},
 			},
 		})
 	})
@@ -725,7 +761,73 @@ func TestStorageRunQuery(t *testing.T) {
 			| stream_context before 1000 after 1000
 			| stats count() rows`, [][]Field{
 			{
-				{"rows", "1155"},
+				{"rows", "1320"},
+			},
+		})
+	})
+	t.Run("pipe-join", func(t *testing.T) {
+		// left join
+		f(t, `'message 5' | stats by (instance) count() x
+			| join on (instance) (
+				'block 0' instance:host-1 | stats by (instance)
+					count() total,
+					count_uniq(stream-id) streams,
+					count_uniq(stream-id) x
+			)`, [][]Field{
+			{
+				{"instance", "host-0:234"},
+				{"x", "55"},
+			},
+			{
+				{"instance", "host-2:234"},
+				{"x", "55"},
+			},
+			{
+				{"instance", "host-1:234"},
+				{"x", "55"},
+				{"total", "77"},
+				{"streams", "1"},
+			},
+		})
+
+		// inner join
+		f(t, `'message 5' | stats by (instance) count() x
+			| join on (instance) (
+				'block 0' instance:host-1 | stats by (instance)
+					count() total,
+					count_uniq(stream-id) streams,
+					count_uniq(stream-id) x
+			) inner`, [][]Field{
+			{
+				{"instance", "host-1:234"},
+				{"x", "55"},
+				{"total", "77"},
+				{"streams", "1"},
+			},
+		})
+	})
+	t.Run("pipe-join-prefix", func(t *testing.T) {
+		f(t, `'message 5' | stats by (instance) count() x
+			| join on (instance) (
+				'block 0' instance:host-1 | stats by (instance)
+					count() total,
+					count_uniq(stream-id) streams,
+					count_uniq(stream-id) x
+			) prefix "abc."`, [][]Field{
+			{
+				{"instance", "host-0:234"},
+				{"x", "55"},
+			},
+			{
+				{"instance", "host-2:234"},
+				{"x", "55"},
+			},
+			{
+				{"instance", "host-1:234"},
+				{"x", "55"},
+				{"abc.total", "77"},
+				{"abc.streams", "1"},
+				{"abc.x", "1"},
 			},
 		})
 	})
@@ -774,7 +876,7 @@ func TestStorageSearch(t *testing.T) {
 		allTenantIDs = append(allTenantIDs, tenantID)
 		for j := 0; j < streamsPerTenant; j++ {
 			for k := 0; k < blocksPerStream; k++ {
-				lr := GetLogRows(streamTags, nil)
+				lr := GetLogRows(streamTags, nil, nil, "")
 				for m := 0; m < rowsPerBlock; m++ {
 					timestamp := baseTimestamp + int64(m)*1e9 + int64(k)
 					// Append stream fields
@@ -794,7 +896,7 @@ func TestStorageSearch(t *testing.T) {
 						Name:  "source-file",
 						Value: "/foo/bar/baz",
 					})
-					lr.MustAdd(tenantID, timestamp, fields)
+					lr.MustAdd(tenantID, timestamp, fields, nil)
 				}
 				s.MustAddRows(lr)
 				PutLogRows(lr)
@@ -876,7 +978,7 @@ func TestStorageSearch(t *testing.T) {
 			so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 			var rowsCountTotal atomic.Uint32
 			processBlock := func(_ uint, br *blockResult) {
-				rowsCountTotal.Add(uint32(len(br.timestamps)))
+				rowsCountTotal.Add(uint32(br.rowsLen))
 			}
 			s.search(workersCount, so, nil, processBlock)
 
@@ -893,7 +995,7 @@ func TestStorageSearch(t *testing.T) {
 		so := newTestGenericSearchOptions(allTenantIDs, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
-			rowsCountTotal.Add(uint32(len(br.timestamps)))
+			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
 		s.search(workersCount, so, nil, processBlock)
 
@@ -926,7 +1028,7 @@ func TestStorageSearch(t *testing.T) {
 			so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 			var rowsCountTotal atomic.Uint32
 			processBlock := func(_ uint, br *blockResult) {
-				rowsCountTotal.Add(uint32(len(br.timestamps)))
+				rowsCountTotal.Add(uint32(br.rowsLen))
 			}
 			s.search(workersCount, so, nil, processBlock)
 
@@ -948,7 +1050,7 @@ func TestStorageSearch(t *testing.T) {
 		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
-			rowsCountTotal.Add(uint32(len(br.timestamps)))
+			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
 		s.search(workersCount, so, nil, processBlock)
 
@@ -978,7 +1080,7 @@ func TestStorageSearch(t *testing.T) {
 		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
-			rowsCountTotal.Add(uint32(len(br.timestamps)))
+			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
 		s.search(workersCount, so, nil, processBlock)
 
@@ -999,7 +1101,7 @@ func TestStorageSearch(t *testing.T) {
 		so := newTestGenericSearchOptions([]TenantID{tenantID}, f, []string{"_msg"})
 		var rowsCountTotal atomic.Uint32
 		processBlock := func(_ uint, br *blockResult) {
-			rowsCountTotal.Add(uint32(len(br.timestamps)))
+			rowsCountTotal.Add(uint32(br.rowsLen))
 		}
 		s.search(workersCount, so, nil, processBlock)
 

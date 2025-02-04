@@ -3,7 +3,6 @@ package promscrape
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -25,13 +24,18 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
+type connReadWriteCloser struct {
+	io.Reader
+	io.WriteCloser
+}
+
 func proxyTunnel(w http.ResponseWriter, r *http.Request) {
 	transfer := func(src io.ReadCloser, dst io.WriteCloser) {
 		defer dst.Close()
 		defer src.Close()
 		io.Copy(dst, src) //nolint
 	}
-	destConn, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
+	server, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
@@ -42,12 +46,16 @@ func proxyTunnel(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Hijacking not supported", http.StatusInternalServerError)
 		return
 	}
-	clientConn, _, err := hijacker.Hijack()
+	clientConn, clientBuf, err := hijacker.Hijack()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 	}
-	go transfer(clientConn, destConn)
-	transfer(destConn, clientConn)
+	// For hijacked connections, one has to read from the connection buffer, but
+	// still write directly to the connection.
+	client := &connReadWriteCloser{clientBuf, clientConn}
+
+	go transfer(client, server)
+	transfer(server, client)
 }
 
 type testProxyServer struct {
@@ -149,14 +157,7 @@ func TestClientProxyReadOk(t *testing.T) {
 		}
 
 		var bb bytesutil.ByteBuffer
-		err = c.ReadData(&bb)
-		if errors.Is(err, io.EOF) {
-			bb.Reset()
-			// EOF could occur in slow envs, like CI
-			err = c.ReadData(&bb)
-		}
-
-		if err != nil {
+		if err = c.ReadData(&bb); err != nil {
 			t.Fatalf("unexpected error at ReadData: %s", err)
 		}
 		got, err := io.ReadAll(bb.NewReader())

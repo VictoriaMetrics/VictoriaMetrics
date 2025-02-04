@@ -9,7 +9,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -80,13 +82,8 @@ type WriteBlockFunc func(workerID uint, timestamps []int64, columns []BlockColum
 
 // RunQuery runs the given q and calls writeBlock for results.
 func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlock WriteBlockFunc) error {
-	qNew, err := s.initFilterInValues(ctx, tenantIDs, q)
-	if err != nil {
-		return err
-	}
-
 	writeBlockResult := func(workerID uint, br *blockResult) {
-		if len(br.timestamps) == 0 {
+		if br.rowsLen == 0 {
 			return
 		}
 
@@ -101,16 +98,32 @@ func (s *Storage) RunQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 				Values: values,
 			})
 		}
-		writeBlock(workerID, br.timestamps, csDst)
+
+		timestamps := br.getTimestamps()
+		writeBlock(workerID, timestamps, csDst)
 
 		brs.cs = csDst
 		putBlockRows(brs)
 	}
 
-	return s.runQuery(ctx, tenantIDs, qNew, writeBlockResult)
+	return s.runQuery(ctx, tenantIDs, q, writeBlockResult)
 }
 
 func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, writeBlockResultFunc func(workerID uint, br *blockResult)) error {
+	qNew, err := s.initFilterInValues(ctx, tenantIDs, q)
+	if err != nil {
+		return err
+	}
+	qNew, err = s.initJoinMaps(ctx, tenantIDs, qNew)
+	if err != nil {
+		return err
+	}
+	qNew, err = s.initUnionQueries(tenantIDs, qNew)
+	if err != nil {
+		return err
+	}
+	q = qNew
+
 	streamIDs := q.getStreamIDs()
 	sort.Slice(streamIDs, func(i, j int) bool {
 		return streamIDs[i].less(&streamIDs[j])
@@ -131,6 +144,13 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 	}
 
 	workersCount := cgroup.AvailableCPUs()
+	if q.opts != nil && q.opts.concurrency > 0 && int(q.opts.concurrency) < workersCount {
+		// Limit the number of workers by the number of available CPU cores,
+		// since bigger number of workers won't improve CPU-bound query performance -
+		// they just increase RAM usage and slow down query execution because
+		// of more context switches between workers.
+		workersCount = int(q.opts.concurrency)
+	}
 
 	ppMain := newDefaultPipeProcessor(writeBlockResultFunc)
 	pp := ppMain
@@ -146,7 +166,7 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 
 		pcp, ok := pp.(*pipeStreamContextProcessor)
 		if ok {
-			pcp.init(ctx, s, minTimestamp, maxTimestamp)
+			pcp.init(s, neededColumnNames, unneededColumnNames)
 			if i > 0 {
 				errPipe = fmt.Errorf("[%s] pipe must go after [%s] filter; now it goes after the [%s] pipe", p, q.f, q.pipes[i-1])
 			}
@@ -186,12 +206,13 @@ func (s *Storage) runQuery(ctx context.Context, tenantIDs []TenantID, q *Query, 
 func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Query) ([]ValueWithHits, error) {
 	pipes := append([]pipe{}, q.pipes...)
 	pipeStr := "field_names"
-	lex := newLexer(pipeStr)
+	lex := newLexer(pipeStr, q.timestamp)
 
-	pf, err := parsePipeFieldNames(lex)
+	p, err := parsePipeFieldNames(lex)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error when parsing 'field_names' pipe at [%s]: %s", pipeStr, err)
 	}
+	pf := p.(*pipeFieldNames)
 	pf.isFirstPipe = len(pipes) == 0
 
 	if !lex.isEnd() {
@@ -208,11 +229,82 @@ func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Qu
 	return s.runValuesWithHitsQuery(ctx, tenantIDs, q)
 }
 
+func (s *Storage) getJoinMap(ctx context.Context, tenantIDs []TenantID, q *Query, byFields []string, prefix string) (map[string][][]Field, error) {
+	// TODO: track memory usage
+
+	m := make(map[string][][]Field)
+	var mLock sync.Mutex
+	writeBlockResult := func(_ uint, br *blockResult) {
+		if br.rowsLen == 0 {
+			return
+		}
+
+		cs := br.getColumns()
+		columnNames := make([]string, len(cs))
+		byValuesIdxs := make([]int, len(cs))
+		for i := range cs {
+			name := strings.Clone(cs[i].name)
+			idx := slices.Index(byFields, name)
+			if prefix != "" && idx < 0 {
+				name = prefix + name
+			}
+			columnNames[i] = name
+			byValuesIdxs[i] = idx
+		}
+
+		byValues := make([]string, len(byFields))
+		var tmpBuf []byte
+
+		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+			fields := make([]Field, 0, len(cs))
+			clear(byValues)
+			for j := range cs {
+				name := columnNames[j]
+				v := cs[j].getValueAtRow(br, rowIdx)
+				if cIdx := byValuesIdxs[j]; cIdx >= 0 {
+					byValues[cIdx] = v
+					continue
+				}
+				if v == "" {
+					continue
+				}
+				value := strings.Clone(v)
+				fields = append(fields, Field{
+					Name:  name,
+					Value: value,
+				})
+			}
+
+			tmpBuf = marshalStrings(tmpBuf[:0], byValues)
+			k := string(tmpBuf)
+
+			mLock.Lock()
+			m[k] = append(m[k], fields)
+			mLock.Unlock()
+		}
+	}
+
+	if err := s.runQuery(ctx, tenantIDs, q, writeBlockResult); err != nil {
+		return nil, err
+	}
+
+	return m, nil
+}
+
+func marshalStrings(dst []byte, a []string) []byte {
+	for _, v := range a {
+		dst = encoding.MarshalBytes(dst, bytesutil.ToUnsafeBytes(v))
+	}
+	return dst
+}
+
 func (s *Storage) getFieldValuesNoHits(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string) ([]string, error) {
+	// TODO: track memory usage
+
 	pipes := append([]pipe{}, q.pipes...)
 	quotedFieldName := quoteTokenIfNeeded(fieldName)
 	pipeStr := fmt.Sprintf("uniq by (%s)", quotedFieldName)
-	lex := newLexer(pipeStr)
+	lex := newLexer(pipeStr, q.timestamp)
 
 	pu, err := parsePipeUniq(lex)
 	if err != nil {
@@ -230,10 +322,11 @@ func (s *Storage) getFieldValuesNoHits(ctx context.Context, tenantIDs []TenantID
 		pipes: pipes,
 	}
 
-	var values []string
-	var valuesLock sync.Mutex
-	writeBlockResult := func(_ uint, br *blockResult) {
-		if len(br.timestamps) == 0 {
+	cpusCount := cgroup.AvailableCPUs()
+	valuesPerCPU := make([][]string, cpusCount)
+	allocatorsPerCPU := make([]chunkedAllocator, cpusCount)
+	writeBlockResult := func(workerID uint, br *blockResult) {
+		if br.rowsLen == 0 {
 			return
 		}
 
@@ -244,21 +337,29 @@ func (s *Storage) getFieldValuesNoHits(ctx context.Context, tenantIDs []TenantID
 
 		columnValues := cs[0].getValues(br)
 
-		columnValuesCopy := make([]string, len(columnValues))
+		valuesDst := valuesPerCPU[workerID]
+		a := allocatorsPerCPU[workerID]
 		for i := range columnValues {
-			columnValuesCopy[i] = strings.Clone(columnValues[i])
+			vCopy := a.cloneString(columnValues[i])
+			valuesDst = append(valuesDst, vCopy)
 		}
-
-		valuesLock.Lock()
-		values = append(values, columnValuesCopy...)
-		valuesLock.Unlock()
+		valuesPerCPU[workerID] = valuesDst
 	}
 
 	if err := s.runQuery(ctx, tenantIDs, q, writeBlockResult); err != nil {
 		return nil, err
 	}
 
-	return values, nil
+	valuesLen := 0
+	for _, values := range valuesPerCPU {
+		valuesLen += len(values)
+	}
+	valuesAll := make([]string, 0, valuesLen)
+	for _, values := range valuesPerCPU {
+		valuesAll = append(valuesAll, values...)
+	}
+
+	return valuesAll, nil
 }
 
 // GetFieldValues returns unique values with the number of hits for the given fieldName returned by q for the given tenantIDs.
@@ -268,7 +369,7 @@ func (s *Storage) GetFieldValues(ctx context.Context, tenantIDs []TenantID, q *Q
 	pipes := append([]pipe{}, q.pipes...)
 	quotedFieldName := quoteTokenIfNeeded(fieldName)
 	pipeStr := fmt.Sprintf("field_values %s limit %d", quotedFieldName, limit)
-	lex := newLexer(pipeStr)
+	lex := newLexer(pipeStr, q.timestamp)
 
 	pu, err := parsePipeFieldValues(lex)
 	if err != nil {
@@ -335,8 +436,8 @@ func (s *Storage) GetStreamFieldNames(ctx context.Context, tenantIDs []TenantID,
 
 	m := make(map[string]*uint64)
 	forEachStreamField(streams, func(f Field, hits uint64) {
-		pHits, ok := m[f.Name]
-		if !ok {
+		pHits := m[f.Name]
+		if pHits == nil {
 			nameCopy := strings.Clone(f.Name)
 			hitsLocal := uint64(0)
 			pHits = &hitsLocal
@@ -362,8 +463,8 @@ func (s *Storage) GetStreamFieldValues(ctx context.Context, tenantIDs []TenantID
 		if f.Name != fieldName {
 			return
 		}
-		pHits, ok := m[f.Value]
-		if !ok {
+		pHits := m[f.Value]
+		if pHits == nil {
 			valueCopy := strings.Clone(f.Value)
 			hitsLocal := uint64(0)
 			pHits = &hitsLocal
@@ -396,7 +497,7 @@ func (s *Storage) runValuesWithHitsQuery(ctx context.Context, tenantIDs []Tenant
 	var results []ValueWithHits
 	var resultsLock sync.Mutex
 	writeBlockResult := func(_ uint, br *blockResult) {
-		if len(br.timestamps) == 0 {
+		if br.rowsLen == 0 {
 			return
 		}
 
@@ -438,12 +539,12 @@ func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, 
 	getFieldValues := func(q *Query, fieldName string) ([]string, error) {
 		return s.getFieldValuesNoHits(ctx, tenantIDs, q, fieldName)
 	}
-	cache := make(map[string][]string)
-	fNew, err := initFilterInValuesForFilter(cache, q.f, getFieldValues)
+	var cache inValuesCache
+	fNew, err := initFilterInValuesForFilter(&cache, q.f, getFieldValues)
 	if err != nil {
 		return nil, err
 	}
-	pipesNew, err := initFilterInValuesForPipes(cache, q.pipes, getFieldValues)
+	pipesNew, err := initFilterInValuesForPipes(&cache, q.pipes, getFieldValues)
 	if err != nil {
 		return nil, err
 	}
@@ -452,6 +553,86 @@ func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, 
 		pipes: pipesNew,
 	}
 	return qNew, nil
+}
+
+type inValuesCache struct {
+	m map[string][]string
+}
+
+func (s *Storage) initUnionQueries(tenantIDs []TenantID, q *Query) (*Query, error) {
+	if !hasUnionPipes(q.pipes) {
+		return q, nil
+	}
+
+	runUnionQuery := func(ctx context.Context, q *Query, writeBlock func(workerID uint, br *blockResult)) error {
+		return s.runQuery(ctx, tenantIDs, q, writeBlock)
+	}
+
+	pipesNew := make([]pipe, len(q.pipes))
+	for i, p := range q.pipes {
+		if pu, ok := p.(*pipeUnion); ok {
+			p = pu.initUnionQuery(runUnionQuery)
+		}
+		pipesNew[i] = p
+	}
+	qNew := &Query{
+		f:     q.f,
+		pipes: pipesNew,
+	}
+	return qNew, nil
+}
+
+func hasUnionPipes(pipes []pipe) bool {
+	for _, p := range pipes {
+		if _, ok := p.(*pipeUnion); ok {
+			return true
+		}
+	}
+	return false
+}
+
+type getJoinMapFunc func(q *Query, byFields []string, prefix string) (map[string][][]Field, error)
+
+func (s *Storage) initJoinMaps(ctx context.Context, tenantIDs []TenantID, q *Query) (*Query, error) {
+	if !hasJoinPipes(q.pipes) {
+		return q, nil
+	}
+
+	getJoinMap := func(q *Query, byFields []string, prefix string) (map[string][][]Field, error) {
+		return s.getJoinMap(ctx, tenantIDs, q, byFields, prefix)
+	}
+
+	pipesNew := make([]pipe, len(q.pipes))
+	for i, p := range q.pipes {
+		if pj, ok := p.(*pipeJoin); ok {
+			pNew, err := pj.initJoinMap(getJoinMap)
+			if err != nil {
+				return nil, err
+			}
+			p = pNew
+		}
+		pipesNew[i] = p
+	}
+	qNew := &Query{
+		f:     q.f,
+		pipes: pipesNew,
+	}
+	return qNew, nil
+}
+
+func hasJoinPipes(pipes []pipe) bool {
+	for _, p := range pipes {
+		if _, ok := p.(*pipeJoin); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func (iff *ifFilter) visitSubqueries(visitFunc func(q *Query)) {
+	if iff != nil {
+		visitSubqueriesInFilter(iff.f, visitFunc)
+	}
 }
 
 func (iff *ifFilter) hasFilterInWithQuery() bool {
@@ -489,7 +670,7 @@ func hasFilterInWithQueryForPipes(pipes []pipe) bool {
 
 type getFieldValuesFunc func(q *Query, fieldName string) ([]string, error)
 
-func (iff *ifFilter) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (*ifFilter, error) {
+func (iff *ifFilter) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (*ifFilter, error) {
 	if iff == nil {
 		return nil, nil
 	}
@@ -504,7 +685,7 @@ func (iff *ifFilter) initFilterInValues(cache map[string][]string, getFieldValue
 	return &iffNew, nil
 }
 
-func initFilterInValuesForFilter(cache map[string][]string, f filter, getFieldValuesFunc getFieldValuesFunc) (filter, error) {
+func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesFunc getFieldValuesFunc) (filter, error) {
 	if f == nil {
 		return nil, nil
 	}
@@ -560,9 +741,9 @@ func initFilterInValuesForFilter(cache map[string][]string, f filter, getFieldVa
 	return copyFilter(f, visitFunc, copyFunc)
 }
 
-func getValuesForQuery(q *Query, qFieldName string, cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) ([]string, error) {
+func getValuesForQuery(q *Query, qFieldName string, cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) ([]string, error) {
 	qStr := q.String()
-	values, ok := cache[qStr]
+	values, ok := cache.m[qStr]
 	if ok {
 		return values, nil
 	}
@@ -571,11 +752,14 @@ func getValuesForQuery(q *Query, qFieldName string, cache map[string][]string, g
 	if err != nil {
 		return nil, err
 	}
-	cache[qStr] = vs
+	if cache.m == nil {
+		cache.m = make(map[string][]string)
+	}
+	cache.m[qStr] = vs
 	return vs, nil
 }
 
-func initFilterInValuesForPipes(cache map[string][]string, pipes []pipe, getFieldValuesFunc getFieldValuesFunc) ([]pipe, error) {
+func initFilterInValuesForPipes(cache *inValuesCache, pipes []pipe, getFieldValuesFunc getFieldValuesFunc) ([]pipe, error) {
 	pipesNew := make([]pipe, len(pipes))
 	for i, p := range pipes {
 		pNew, err := p.initFilterInValues(cache, getFieldValuesFunc)
@@ -656,7 +840,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 					}
 
 					bs.search(bsw, bm)
-					if len(bs.br.timestamps) > 0 {
+					if bs.br.rowsLen > 0 {
 						processBlockResult(workerID, &bs.br)
 					}
 					bsw.reset()
@@ -683,6 +867,10 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, stopCh <-ch
 		return ptws[i].day > maxDay
 	})
 	ptws = ptws[:n]
+
+	// Copy the selected partitions, so they don't interfere with s.partitions.
+	ptws = append([]*partitionWrapper{}, ptws...)
+
 	for _, ptw := range ptws {
 		ptw.incRef()
 	}
@@ -746,7 +934,7 @@ func (pt *partition) search(sf *StreamFilter, f filter, so *genericSearchOptions
 		tenantIDs = nil
 	}
 	if hasStreamFilters(f) {
-		f = initStreamFilters(tenantIDs, pt.idb, f)
+		f = initStreamFilters(so.tenantIDs, pt.idb, f)
 	}
 	soInternal := &searchOptions{
 		tenantIDs:           tenantIDs,

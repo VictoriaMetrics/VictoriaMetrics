@@ -231,6 +231,7 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -275,7 +276,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "count(vmalert_alerting_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"})",
+          "expr": "count(vmalert_alerting_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -293,6 +294,7 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -337,7 +339,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"})",
+          "expr": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -355,6 +357,7 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -403,7 +406,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "(sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) or vector(0)) + \n(sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) or vector(0))",
+          "expr": "(sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])) or vector(0)) + \n(sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])) or vector(0))",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -421,6 +424,7 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -909,9 +913,9 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "topk_max($topk, max(sum(\n    rate(vmalert_iteration_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])\n/\n    rate(vmalert_iteration_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])\n) by(job, instance, group)) \nby(job, group))",
+          "expr": "topk_max($topk, max(sum(\n    rate(vmalert_iteration_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])\n/\n    rate(vmalert_iteration_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])\n) by(job, instance, group, file)) \nby(job, group, file))",
           "interval": "",
-          "legendFormat": "{{group}} ({{job}})",
+          "legendFormat": "({{job}}) {{group}}({{file}})",
           "range": true,
           "refId": "A"
         }
@@ -967,8 +971,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1070,8 +1073,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1126,234 +1128,6 @@
       "type": "timeseries"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$ds"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Value"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Time"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 25
-      },
-      "id": 50,
-      "options": {
-        "footer": {
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "job"
-          }
-        ]
-      },
-      "pluginVersion": "9.2.7",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(flag{is_set=\"true\", job=~\"$job\", instance=~\"$instance\"}) by(job, instance, name, value)",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "__auto",
-          "range": false,
-          "refId": "A"
-        }
-      ],
-      "title": "Non-default flags",
-      "transformations": [
-        {
-          "id": "groupBy",
-          "options": {
-            "fields": {
-              "instance": {
-                "aggregations": [
-                  "uniqueValues"
-                ],
-                "operation": "aggregate"
-              },
-              "job": {
-                "aggregations": [],
-                "operation": "groupby"
-              },
-              "name": {
-                "aggregations": [],
-                "operation": "groupby"
-              },
-              "value": {
-                "aggregations": [],
-                "operation": "groupby"
-              }
-            }
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$ds"
-      },
-      "description": "Missed evaluation means that group evaluation time takes longer than the configured evaluation interval. \nThis may result in missed alerting notifications or recording rules samples. Try increasing evaluation interval or concurrency for such groups. See https://docs.victoriametrics.com/vmalert/#groups\n\nIf rule expressions are taking longer than expected, please see https://docs.victoriametrics.com/troubleshooting/#slow-queries.\"",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "bars",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 12,
-        "y": 25
-      },
-      "id": 58,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "9.2.6",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(increase(vmalert_iteration_missed_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, group) > 0",
-          "interval": "1m",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Missed evaluations ($instance)",
-      "type": "timeseries"
-    },
-    {
       "collapsed": true,
       "datasource": {
         "type": "datasource",
@@ -1363,7 +1137,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 25
       },
       "id": 43,
       "panels": [
@@ -1434,7 +1208,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3
+            "y": 11
           },
           "id": 37,
           "links": [
@@ -1539,8 +1313,7 @@
                   }
                 ]
               },
-              "unit": "bytes",
-              "unitScale": true
+              "unit": "bytes"
             },
             "overrides": []
           },
@@ -1548,7 +1321,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3
+            "y": 11
           },
           "id": 57,
           "links": [
@@ -1662,7 +1435,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 11
+            "y": 19
           },
           "id": 35,
           "links": [
@@ -1699,7 +1472,7 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "max(\n  rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) \n  / \n  vm_available_cpu_cores{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "max(\n  rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) \n  / \n  process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -1778,7 +1551,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 11
+            "y": 19
           },
           "id": 56,
           "links": [
@@ -1911,7 +1684,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 27
           },
           "id": 39,
           "links": [],
@@ -2019,7 +1792,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 27
           },
           "id": 41,
           "links": [],
@@ -2127,7 +1900,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 35
           },
           "id": 59,
           "links": [],
@@ -2166,6 +1939,112 @@
           ],
           "title": "CPU spent on GC ($instance)",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the time goroutines have spent in runnable state before actually running. The lower is better.\n\nHigh values or values exceeding the threshold is usually a sign of            insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.1
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 35
+          },
+          "id": 61,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (job, instance, le))) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Go scheduling latency",
+          "type": "timeseries"
         }
       ],
       "targets": [
@@ -2182,6 +2061,356 @@
     },
     {
       "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "id": 62,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 27
+          },
+          "id": 50,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true,
+            "sortBy": [
+              {
+                "desc": true,
+                "displayName": "job"
+              }
+            ]
+          },
+          "pluginVersion": "10.4.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(flag{is_set=\"true\", job=~\"$job\", instance=~\"$instance\"}) by(job, instance, name, value)",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "__auto",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Non-default flags",
+          "transformations": [
+            {
+              "id": "groupBy",
+              "options": {
+                "fields": {
+                  "instance": {
+                    "aggregations": [
+                      "uniqueValues"
+                    ],
+                    "operation": "aggregate"
+                  },
+                  "job": {
+                    "aggregations": [],
+                    "operation": "groupby"
+                  },
+                  "name": {
+                    "aggregations": [],
+                    "operation": "groupby"
+                  },
+                  "value": {
+                    "aggregations": [],
+                    "operation": "groupby"
+                  }
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Missed evaluation means that group evaluation time takes longer than the configured evaluation interval. \nThis may result in missed alerting notifications or recording rules samples. Try increasing evaluation interval or concurrency for such groups. See https://docs.victoriametrics.com/vmalert/#groups\n\nIf rule expressions are taking longer than expected, please see https://docs.victoriametrics.com/troubleshooting/#slow-queries.\"",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "bars",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 27
+          },
+          "id": 58,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(increase(vmalert_iteration_missed_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(job, group, file) > 0",
+              "interval": "1m",
+              "legendFormat": "({{job}}) {{group}}({{file}})",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Missed evaluations ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. Normally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. ",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "stepAfter",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 34
+          },
+          "id": 63,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.1.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) by(job)",
+              "format": "time_series",
+              "instant": false,
+              "legendFormat": "{{job}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Restarts ($job)",
+          "type": "timeseries"
+        }
+      ],
+      "title": "Troubleshooting",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
       "datasource": {
         "type": "datasource",
         "uid": "grafana"
@@ -2190,7 +2419,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 33
+        "y": 27
       },
       "id": 17,
       "panels": [
@@ -2256,7 +2485,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 36
+            "y": 52
           },
           "id": 14,
           "options": {
@@ -2286,9 +2515,9 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, sum(vmalert_alerts_firing{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(job, group, alertname) > 0)",
+              "expr": "topk_max($topk, sum(vmalert_alerts_firing{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, group, file, alertname) > 0)",
               "interval": "",
-              "legendFormat": "{{group}}.{{alertname}} ({{job}})",
+              "legendFormat": "({{job}}) {{group}}.{{alertname}}({{file}})",
               "range": true,
               "refId": "A"
             }
@@ -2358,7 +2587,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 36
+            "y": 52
           },
           "id": 13,
           "options": {
@@ -2388,9 +2617,9 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(job, group, alertname) > 0",
+              "expr": "sum(increase(vmalert_alerting_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])) by(job, group, file, alertname) > 0",
               "interval": "",
-              "legendFormat": "{{group}}.{{alertname}} ({{job}})",
+              "legendFormat": "({{job}}) {{group}}.{{alertname}}({{file}})",
               "range": true,
               "refId": "A"
             }
@@ -2460,7 +2689,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 44
+            "y": 60
           },
           "id": 20,
           "options": {
@@ -2490,9 +2719,9 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(vmalert_alerts_pending{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(job, group, alertname) > 0",
+              "expr": "sum(vmalert_alerts_pending{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, group, file, alertname) > 0",
               "interval": "",
-              "legendFormat": "{{group}}.{{alertname}} ({{job}})",
+              "legendFormat": "({{job}}) {{group}}.{{alertname}}({{file}})",
               "range": true,
               "refId": "A"
             }
@@ -2563,7 +2792,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 44
+            "y": 60
           },
           "id": 32,
           "options": {
@@ -2662,7 +2891,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 52
+            "y": 68
           },
           "id": 26,
           "options": {
@@ -2723,7 +2952,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 28
       },
       "id": 28,
       "panels": [
@@ -2789,7 +3018,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 67
           },
           "id": 31,
           "options": {
@@ -2819,9 +3048,9 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "topk_max($topk, \n  max(\n    sum(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(job, instance, group, recording) > 0\n  ) by(job, group, recording)\n)",
+              "expr": "topk_max($topk, \n  max(\n    sum(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}) by(job, instance, group, file, recording) > 0\n  ) by(job, group, file, recording)\n)",
               "interval": "",
-              "legendFormat": "{{group}}.{{recording}} ({{job}})",
+              "legendFormat": "({{job}}) {{group}}.{{recording}}({{file}})",
               "range": true,
               "refId": "A"
             }
@@ -2891,7 +3120,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 51
+            "y": 67
           },
           "id": 33,
           "options": {
@@ -2921,9 +3150,9 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"} < 1) by(job, group, recording)",
+              "expr": "count(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"} < 1) by(job, group, file, recording)",
               "interval": "",
-              "legendFormat": "{{group}}.{{recording}} ({{job}})",
+              "legendFormat": "({{job}}) {{group}}.{{recording}}({{file}})",
               "range": true,
               "refId": "A"
             }
@@ -2992,7 +3221,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 59
+            "y": 75
           },
           "id": 30,
           "options": {
@@ -3020,9 +3249,9 @@
               },
               "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(job, group, recording) > 0",
+              "expr": "sum(increase(vmalert_recording_rules_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\", file=~\"$file\"}[$__rate_interval])) by(job, group, file, recording) > 0",
               "interval": "",
-              "legendFormat": "{{group}}.{{recording}} ({{job}})",
+              "legendFormat": "({{job}}) {{group}}.{{recording}}({{file}})",
               "range": true,
               "refId": "A"
             }
@@ -3049,7 +3278,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 35
+        "y": 29
       },
       "id": 55,
       "panels": [
@@ -3113,7 +3342,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 17
+            "y": 33
           },
           "id": 52,
           "options": {
@@ -3205,7 +3434,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 17
+            "y": 33
           },
           "id": 53,
           "options": {
@@ -3302,7 +3531,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 44
+            "y": 60
           },
           "id": 54,
           "options": {
@@ -3389,8 +3618,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3406,9 +3634,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 44
+            "y": 60
           },
-          "id": 55,
+          "id": 60,
           "options": {
             "legend": {
               "calcs": [
@@ -3459,8 +3687,8 @@
       {
         "current": {
           "selected": false,
-          "text": "VictoriaMetrics",
-          "value": "P4169E866C3094E38"
+          "text": "VictoriaMetrics - cluster",
+          "value": "PAF93674D0B4E9963"
         },
         "hide": 0,
         "includeAll": false,
@@ -3512,6 +3740,29 @@
         "query": {
           "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
           "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
+        "definition": "label_values(vmalert_iteration_total{job=~\"$job\", instance=~\"$instance\"},file)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "file",
+        "options": [],
+        "query": {
+          "query": "label_values(vmalert_iteration_total{job=~\"$job\", instance=~\"$instance\"},file)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
         "regex": "",

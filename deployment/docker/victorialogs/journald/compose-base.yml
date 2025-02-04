@@ -1,0 +1,14 @@
+include:
+ - ../compose-base.yml
+services:
+  journald:
+    build: .
+    restart: on-failure
+    privileged: true
+    user: root
+    entrypoint: /lib/systemd/systemd
+    depends_on:
+      victorialogs:
+        condition: service_healthy
+      victoriametrics:
+        condition: service_healthy

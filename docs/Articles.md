@@ -85,13 +85,15 @@ See also [case studies](https://docs.victoriametrics.com/casestudies/).
 * [Persistent Data Structures in VictoriaMetrics (Part 1): vmagent](https://medium.com/devops-dev/persistent-data-structures-in-victoriametrics-part-1-vmagent-2e9c7681a6f0)
 * [Persistent Data Structures in VictoriaMetrics (Part 2): vmselect](https://medium.com/@jiekun/persistent-data-structures-in-victoriametrics-part-2-vmselect-9e3de39a4d20)
 * [Migrating to VictoriaMetrics (by Zomato): A Complete Overhaul for Enhanced Observability](https://blog.zomato.com/migrating-to-victoriametrics-a-complete-overhaul-for-enhanced-observability)
+* [Harness the Power of VictoriaMetrics and Grafana Operators for Metrics Management](https://blog.ogenki.io/post/series/observability/metrics/)
+* [Reducing Inter-AZ traffic in VictoriaMetrics with Zonekeeper](https://tanmay-bhat.medium.com/reducing-inter-az-traffic-in-victoriametrics-with-zonekeeper-3bd7e1526796)
 
 ## Our articles
 
 ### Announcements
 
 * [Open-source strategy at VictoriaMetrics](https://www.youtube.com/watch?v=-DbbIZzFHIY)
-* [Open-sourcing VictoriaMetrics](https://blog.usejournal.com/open-sourcing-victoriametrics-f31e34485c2b)
+* [Open-sourcing VictoriaMetrics](https://valyala.medium.com/open-sourcing-victoriametrics-f31e34485c2b)
 * [VictoriaMetrics — creating the best remote storage for Prometheus](https://faun.pub/victoriametrics-creating-the-best-remote-storage-for-prometheus-5d92d66787ac)
 * [Anomaly Detection in VictoriaMetrics](https://victoriametrics.medium.com/anomaly-detection-in-victoriametrics-9528538786a7)
 
@@ -118,6 +120,7 @@ See also [case studies](https://docs.victoriametrics.com/casestudies/).
 * [Improving histogram usability for Prometheus and Grafana](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
 * [Why irate from Prometheus doesn't capture spikes](https://valyala.medium.com/why-irate-from-prometheus-doesnt-capture-spikes-45f9896d7832)
 * [VictoriaMetrics: PromQL compliance](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e)
+* [How do open source solutions for logs work: Elasticsearch, Loki and VictoriaLogs](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f)
 
 ### Tutorials, guides and how-to articles
 

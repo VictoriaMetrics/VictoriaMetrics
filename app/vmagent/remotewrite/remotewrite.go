@@ -7,12 +7,9 @@ import (
 	"net/url"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
@@ -21,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
@@ -30,6 +28,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 )
@@ -98,9 +97,6 @@ var (
 var (
 	// rwctxsGlobal contains statically populated entries when -remoteWrite.url is specified.
 	rwctxsGlobal []*remoteWriteCtx
-
-	// Data without tenant id is written to defaultAuthToken if -enableMultitenantHandlers is specified.
-	defaultAuthToken = &auth.Token{}
 
 	// ErrQueueFullHTTPRetry must be returned when TryPush() returns false.
 	ErrQueueFullHTTPRetry = &httpserver.ErrorWithStatusCode{
@@ -209,7 +205,7 @@ func Init() {
 
 	initStreamAggrConfigGlobal()
 
-	rwctxsGlobal = newRemoteWriteCtxs(nil, *remoteWriteURLs)
+	rwctxsGlobal = newRemoteWriteCtxs(*remoteWriteURLs)
 
 	disableOnDiskQueues := []bool(*disableOnDiskQueue)
 	disableOnDiskQueueAny = slices.Contains(disableOnDiskQueues, true)
@@ -294,7 +290,7 @@ var (
 	relabelConfigTimestamp    = metrics.NewCounter(`vmagent_relabel_config_last_reload_success_timestamp_seconds`)
 )
 
-func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
+func newRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
 	if len(urls) == 0 {
 		logger.Panicf("BUG: urls must be non-empty")
 	}
@@ -316,11 +312,6 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 			logger.Fatalf("invalid -remoteWrite.url=%q: %s", remoteWriteURL, err)
 		}
 		sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
-		if at != nil {
-			// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/cluster-victoriametrics/#url-format
-			remoteWriteURL.Path = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", remoteWriteURL.Path, at.AccountID, at.ProjectID)
-			sanitizedURL = fmt.Sprintf("%s:%d:%d", sanitizedURL, at.AccountID, at.ProjectID)
-		}
 		if *showRemoteWriteURL {
 			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
 		}
@@ -411,11 +402,6 @@ func TryPush(at *auth.Token, wr *prompbmarshal.WriteRequest) bool {
 func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnFailure bool) bool {
 	tss := wr.Timeseries
 
-	if at == nil && MultitenancyEnabled() {
-		// Write data to default tenant if at isn't set when multitenancy is enabled.
-		at = defaultAuthToken
-	}
-
 	var tenantRctx *relabelCtx
 	if at != nil {
 		// Convert at to (vm_account_id, vm_project_id) labels.
@@ -484,6 +470,15 @@ func tryPush(at *auth.Token, wr *prompbmarshal.WriteRequest, forceDropSamplesOnF
 			tssBlock = rctx.applyRelabeling(tssBlock, pcsGlobal)
 			rowsCountAfterRelabel := getRowsCount(tssBlock)
 			rowsDroppedByGlobalRelabel.Add(rowsCountBeforeRelabel - rowsCountAfterRelabel)
+		}
+		if timeserieslimits.Enabled() {
+			tmpBlock := tssBlock[:0]
+			for _, ts := range tssBlock {
+				if !timeserieslimits.IsExceeding(ts.Labels) {
+					tmpBlock = append(tmpBlock, ts)
+				}
+			}
+			tssBlock = tmpBlock
 		}
 		sortLabelsIfNeeded(tssBlock)
 		tssBlock = limitSeriesCardinality(tssBlock)
@@ -729,28 +724,13 @@ func logSkippedSeries(labels []prompbmarshal.Label, flagName string, flagValue i
 	select {
 	case <-logSkippedSeriesTicker.C:
 		// Do not use logger.WithThrottler() here, since this will increase CPU usage
-		// because every call to logSkippedSeries will result to a call to labelsToString.
-		logger.Warnf("skip series %s because %s=%d reached", labelsToString(labels), flagName, flagValue)
+		// because every call to logSkippedSeries will result to a call to prompbmarshal.LabelsToString.
+		logger.Warnf("skip series %s because %s=%d reached", prompbmarshal.LabelsToString(labels), flagName, flagValue)
 	default:
 	}
 }
 
 var logSkippedSeriesTicker = time.NewTicker(5 * time.Second)
-
-func labelsToString(labels []prompbmarshal.Label) string {
-	var b []byte
-	b = append(b, '{')
-	for i, label := range labels {
-		b = append(b, label.Name...)
-		b = append(b, '=')
-		b = strconv.AppendQuote(b, label.Value)
-		if i+1 < len(labels) {
-			b = append(b, ',')
-		}
-	}
-	b = append(b, '}')
-	return string(b)
-}
 
 var (
 	globalRowsPushedBeforeRelabel = metrics.NewCounter("vmagent_remotewrite_global_rows_pushed_before_relabel_total")

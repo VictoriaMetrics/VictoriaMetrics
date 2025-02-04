@@ -163,7 +163,7 @@ func TestNewTestStreamFilterSuccess(t *testing.T) {
 	f(`{foo="bar"}`, `{foo="bar"}`)
 	f(`{ "foo" =~ "bar.+" , baz!="a" or x="y"}`, `{foo=~"bar.+",baz!="a" or x="y"}`)
 	f(`{"a b"='c}"d' OR de="aaa"}`, `{"a b"="c}\"d" or de="aaa"}`)
-	f(`{a="b", c="d" or x="y"}`, `{a="b",c="d" or x="y"}`)
+	f(`{a-q:w.z="b", c="d" or 'x a'=y-z=q}`, `{"a-q:w.z"="b",c="d" or "x a"="y-z=q"}`)
 }
 
 func TestNewTestStreamFilterFailure(t *testing.T) {
@@ -200,7 +200,7 @@ func mustNewTestStreamFilter(s string) *StreamFilter {
 }
 
 func newTestStreamFilter(s string) (*StreamFilter, error) {
-	lex := newLexer(s)
+	lex := newLexer(s, 0)
 	fs, err := parseFilterStream(lex)
 	if err != nil {
 		return nil, err

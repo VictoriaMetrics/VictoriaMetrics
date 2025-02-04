@@ -86,7 +86,7 @@ func (fp *filterAnyCasePhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	phraseLowercase := fp.getPhraseLowercase()
 
 	// Verify whether fp matches const column
-	v := bs.csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		if !matchAnyCasePhrase(v, phraseLowercase) {
 			bm.resetBits()
@@ -95,7 +95,7 @@ func (fp *filterAnyCasePhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether fp matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		// It matches anything only for empty phrase.
@@ -120,6 +120,8 @@ func (fp *filterAnyCasePhrase) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchUint32ByExactValue(bs, ch, bm, phraseLowercase, tokens)
 	case valueTypeUint64:
 		matchUint64ByExactValue(bs, ch, bm, phraseLowercase, tokens)
+	case valueTypeInt64:
+		matchInt64ByExactValue(bs, ch, bm, phraseLowercase, tokens)
 	case valueTypeFloat64:
 		matchFloat64ByPhrase(bs, ch, bm, phraseLowercase, tokens)
 	case valueTypeIPv4:

@@ -1,22 +1,23 @@
-import React, { FC, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useCallback, useMemo, useRef, useState } from "preact/compat";
 import "./style.scss";
 import "uplot/dist/uPlot.min.css";
 import useElementSize from "../../../hooks/useElementSize";
 import uPlot, { AlignedData } from "uplot";
 import { useEffect } from "react";
-import useBarHitsOptions from "./hooks/useBarHitsOptions";
+import useBarHitsOptions, { getLabelFromLogHit } from "./hooks/useBarHitsOptions";
 import BarHitsTooltip from "./BarHitsTooltip/BarHitsTooltip";
 import { TimeParams } from "../../../types";
 import usePlotScale from "../../../hooks/uplot/usePlotScale";
 import useReadyChart from "../../../hooks/uplot/useReadyChart";
 import useZoomChart from "../../../hooks/uplot/useZoomChart";
 import classNames from "classnames";
-import { LogHits } from "../../../api/types";
+import { LegendLogHits, LogHits } from "../../../api/types";
 import { addSeries, delSeries, setBand } from "../../../utils/uplot";
 import { GraphOptions, GRAPH_STYLES } from "./types";
 import BarHitsOptions from "./BarHitsOptions/BarHitsOptions";
 import stack from "../../../utils/uplot/stack";
 import BarHitsLegend from "./BarHitsLegend/BarHitsLegend";
+import { calculateTotalHits, sortLogHits } from "../../../utils/logs";
 
 interface Props {
   logHits: LogHits[];
@@ -33,11 +34,14 @@ const BarHitsChart: FC<Props> = ({ logHits, data: _data, period, setPeriod, onAp
     graphStyle: GRAPH_STYLES.LINE_STEPPED,
     stacked: false,
     fill: false,
+    hideChart: false,
   });
 
   const { xRange, setPlotScale } = usePlotScale({ period, setPeriod });
   const { onReadyChart, isPanning } = useReadyChart(setPlotScale);
   useZoomChart({ uPlotInst, xRange, setPlotScale });
+
+  const isEmptyData = useMemo(() => _data.every(d => d.length === 0), [_data]);
 
   const { data, bands } = useMemo(() => {
     return graphOptions.stacked ? stack(_data, () => false) : { data: _data, bands: [] };
@@ -53,6 +57,29 @@ const BarHitsChart: FC<Props> = ({ logHits, data: _data, period, setPeriod, onAp
     setPlotScale,
     graphOptions
   });
+
+  const prepareLegend = useCallback((hits: LogHits[], totalHits: number): LegendLogHits[] => {
+    return hits.map((hit) => {
+      const label = getLabelFromLogHit(hit);
+
+      const legendItem: LegendLogHits = {
+        label,
+        isOther: hit._isOther,
+        fields: hit.fields,
+        total: hit.total || 0,
+        totalHits,
+        stroke: series.find((s) => s.label === label)?.stroke,
+      };
+
+      return legendItem;
+    }).sort(sortLogHits("total"));
+  }, [series]);
+
+
+  const legendDetails: LegendLogHits[] = useMemo(() => {
+    const totalHits = calculateTotalHits(logHits);
+    return prepareLegend(logHits, totalHits);
+  }, [logHits, prepareLegend]);
 
   useEffect(() => {
     if (!uPlotInst) return;
@@ -88,29 +115,37 @@ const BarHitsChart: FC<Props> = ({ logHits, data: _data, period, setPeriod, onAp
   }, [data]);
 
   return (
-    <div className="vm-bar-hits-chart__wrapper">
-      <div
-        className={classNames({
-          "vm-bar-hits-chart": true,
-          "vm-bar-hits-chart_panning": isPanning
-        })}
-        ref={containerRef}
-      >
+    <div
+      className={classNames({
+        "vm-bar-hits-chart__wrapper": true,
+        "vm-bar-hits-chart__wrapper_hidden": graphOptions.hideChart
+      })}
+    >
+      {!graphOptions.hideChart && (
         <div
-          className="vm-line-chart__u-plot"
-          ref={uPlotRef}
-        />
-        <BarHitsTooltip
-          uPlotInst={uPlotInst}
-          data={_data}
-          focusDataIdx={focusDataIdx}
-        />
-      </div>
+          className={classNames({
+            "vm-bar-hits-chart": true,
+            "vm-bar-hits-chart_panning": isPanning
+          })}
+          ref={containerRef}
+        >
+          <div
+            className="vm-line-chart__u-plot"
+            ref={uPlotRef}
+          />
+          <BarHitsTooltip
+            uPlotInst={uPlotInst}
+            data={_data}
+            focusDataIdx={focusDataIdx}
+          />
+        </div>
+      )}
       <BarHitsOptions onChange={setGraphOptions}/>
-      {uPlotInst && (
+      {uPlotInst && !isEmptyData && !graphOptions.hideChart && (
         <BarHitsLegend
           uPlotInst={uPlotInst}
           onApplyFilter={onApplyFilter}
+          legendDetails={legendDetails}
         />
       )}
     </div>

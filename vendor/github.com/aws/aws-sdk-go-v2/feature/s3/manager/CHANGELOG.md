@@ -1,3 +1,151 @@
+# v1.17.54 (2025-01-24)
+
+* **Bug Fix**: Fix incorrect reference to old s3manager in comments.
+* **Dependency Update**: Updated to the latest SDK module versions
+* **Dependency Update**: Upgrade to smithy-go v1.22.2.
+
+# v1.17.53 (2025-01-22)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.52 (2025-01-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.51 (2025-01-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.50 (2025-01-15)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.49 (2025-01-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.48 (2025-01-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.47 (2025-01-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.46 (2025-01-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.45 (2025-01-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.44 (2024-12-19)
+
+* **Bug Fix**: Fix improper use of printf-style functions.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.43 (2024-12-03.2)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.42 (2024-12-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.41 (2024-11-25)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.40 (2024-11-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.39 (2024-11-18)
+
+* **Dependency Update**: Update to smithy-go v1.22.1.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.38 (2024-11-14)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.37 (2024-11-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.36 (2024-11-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.35 (2024-10-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.34 (2024-10-25)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.33 (2024-10-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.32 (2024-10-11)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.31 (2024-10-09)
+
+* **Bug Fix**: Fixup some integration tests.
+
+# v1.17.30 (2024-10-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.29 (2024-10-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.28 (2024-10-04)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.27 (2024-10-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.26 (2024-10-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.25 (2024-09-27)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.24 (2024-09-25)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.23 (2024-09-23)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.22 (2024-09-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.21 (2024-09-18)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.20 (2024-09-17)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.17.19 (2024-09-16)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.17.18 (2024-09-04)
 
 * **Dependency Update**: Updated to the latest SDK module versions

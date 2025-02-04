@@ -5,6 +5,7 @@ menu:
   docs:
     parent: "cloud"
     weight: 7
+    name: Notifications
 aliases:
   - /victoriametrics-cloud/setup-notifications/index.html
   - /managed-victoriametrics/setup-notifications/index.html

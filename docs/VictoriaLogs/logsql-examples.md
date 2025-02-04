@@ -6,6 +6,7 @@ menu:
     parent: "victorialogs"
     weight: 100
 ---
+
 ## How to select recently ingested logs?
 
 [Run](https://docs.victoriametrics.com/victorialogs/querying/) the following query:
@@ -23,11 +24,11 @@ the returned logs by some field (usually [`_time` field](https://docs.victoriame
 _time:5m | sort by (_time)
 ```
 
-If the number of returned logs is too big, it may be limited with the [`limit` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe).
+If the number of returned logs is too big, it may be limited with the [`first` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#first-pipe).
 For example, the following query returns 10 most recent logs, which were ingested during the last 5 minutes:
 
 ```logsql
-_time:5m | sort by (_time desc) | limit 10
+_time:5m | first 10 by (_time desc)
 ```
 
 See also:
@@ -58,7 +59,7 @@ to the query. For example, the following query selects logs with `error` [word](
 which do not contain `kubernetes` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word), over the last hour:
 
 ```logsql
-error !kubernetes _time:1h
+error -kubernetes _time:1h
 ```
 
 The logs are returned in arbitrary order because of performance reasons. Add [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
@@ -86,14 +87,14 @@ Use [`NOT` logical filter](https://docs.victoriametrics.com/victorialogs/logsql/
 without the `INFO` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) in the [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 ```logsql
-!INFO
+-INFO
 ```
 
 If the number of returned logs is too big, then add [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter)
 for limiting the time range for the selected logs. For example, the following query returns matching logs over the last hour:
 
 ```logsql
-!INFO _time:1h
+-INFO _time:1h
 ```
 
 If the number of returned logs is still too big, then consider adding more specific [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters)
@@ -101,7 +102,7 @@ to the query. For example, the following query selects logs without `INFO` [word
 which contain `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word), over the last hour:
 
 ```logsql
-!INFO error _time:1h
+-INFO error _time:1h
 ```
 
 The logs are returned in arbitrary order because of performance reasons. Add [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
@@ -109,7 +110,7 @@ for sorting logs by the needed [fields](https://docs.victoriametrics.com/victori
 sorts the selected logs by [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field):
 
 ```logsql
-!INFO _time:1h | sort by (_time)
+-INFO _time:1h | sort by (_time)
 ```
 
 See also:
@@ -146,7 +147,7 @@ to the query. For example, the following query selects logs with `error` and `ku
 from [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) containing `container="my-app"` field, over the last hour:
 
 ```logsql
-error kubernetes _stream:{container="my-app"} _time:1h
+error kubernetes {container="my-app"} _time:1h
 ```
 
 The logs are returned in arbitrary order because of performance reasons. Add [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
@@ -191,7 +192,7 @@ to the query. For example, the following query selects logs without `error`, `ER
 which do not contain `kubernetes` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word), over the last hour:
 
 ```logsql
-(error or ERROR or Error) !kubernetes _time:1h
+(error or ERROR or Error) -kubernetes _time:1h
 ```
 
 The logs are returned in arbitrary order because of performance reasons. Add [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
@@ -220,14 +221,14 @@ For example, if the application contains `job="app-42"` and `instance="host-123:
 then the following query selects all the logs from this application:
 
 ```logsql
-_stream:{job="app-42",instance="host-123:5678"}
+{job="app-42",instance="host-123:5678"}
 ```
 
 If the number of returned logs is too big, it is recommended adding [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter)
 to the query in order to reduce the number of matching logs. For example, the following query returns logs for the given application for the last day:
 
 ```logsql
-_stream:{job="app-42",instance="host-123:5678"} _time:1d
+{job="app-42",instance="host-123:5678"} _time:1d
 ```
 
 If the number of returned logs is still too big, then consider adding more specific [filters](https://docs.victoriametrics.com/victorialogs/logsql/#filters)
@@ -236,7 +237,7 @@ which contain `error` [word](https://docs.victoriametrics.com/victorialogs/logsq
 over the last day:
 
 ```logsql
-_stream:{job="app-42",instance="host-123:5678"} error _time:1d
+{job="app-42",instance="host-123:5678"} error _time:1d
 ```
 
 The logs are returned in arbitrary order because of performance reasons. Use [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe)
@@ -244,7 +245,7 @@ for sorting the returned logs by the needed fields. For example, the following q
 by [`_time`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field):
 
 ```logsql
-_stream:{job="app-42",instance="host-123:5678"} _time:1d | sort by (_time)
+{job="app-42",instance="host-123:5678"} _time:1d | sort by (_time)
 ```
 
 See also:
@@ -354,11 +355,11 @@ Use [`stats` by IPv4 bucket](https://docs.victoriametrics.com/victorialogs/logsq
 query returns top 10 `/24` subnetworks with the biggest number of logs for the last 5 minutes:
 
 ```logsql
-_time:5m | stats by (ip:/24) count() rows | sort by (rows desc) limit 10
+_time:5m | stats by (ip:/24) count() rows | last 10 by (rows)
 ```
 
-This query uses [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe) in order to sort per-subnetwork stats
-by descending number of rows and limiting the result to top 10 rows.
+This query uses [`first` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#first-pipe) in order to get up to 10 per-subnetwork stats
+with the biggest number of rows.
 
 The query assumes the original logs have `ip` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with the IPv4 address.
 If the IPv4 address is located inside [log message](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) or any other text field,
@@ -368,7 +369,7 @@ extracts IPv4 address from [`_msg` field](https://docs.victoriametrics.com/victo
 `/16` subnetworks with the biggest number of logs for the last 5 minutes:
 
 ```logsql
-_time:5m | extract_regexp "(?P<ip>([0-9]+[.]){3}[0-9]+)" | stats by (ip:/16) count() rows | sort by (rows desc) limit 10
+_time:5m | extract_regexp "(?P<ip>([0-9]+[.]){3}[0-9]+)" | stats by (ip:/16) count() rows | first 10 by (rows desc)
 ```
 
 ## How to calculate the number of logs per every value of the given field?
@@ -406,16 +407,16 @@ _time:5m | uniq by (host, path)
 
 ## How to return last N logs for the given query?
 
-Use [`sort` pipe with limit](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe). For example, the following query returns the last 10 logs with the `error`
+Use [`first` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#first-pipe). For example, the following query returns the last 10 logs with the `error`
 [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 over the logs for the last 5 minutes:
 
 ```logsql
-_time:5m error | sort by (_time desc) limit 10
+_time:5m error | first 10 by (_time desc)
 ```
 
-It sorts the matching logs by [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) in descending order and then selects
-the first 10 logs with the highest values for the `_time` field.
+It sorts the matching logs by [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) and then selects
+the last 10 logs with the highest values for the `_time` field.
 
 If the query is sent to [`/select/logsql/query` HTTP API](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs), then `limit=N` query arg
 can be passed to it in order to return up to `N` latest log entries. For example, the following command returns up to 10 latest log entries with the `error` word:

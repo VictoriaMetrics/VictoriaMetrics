@@ -1,3 +1,64 @@
+# v1.5.3 (2025-01-24)
+
+* **Bug Fix**: Enable request checksum validation mode by default
+* **Dependency Update**: Updated to the latest SDK module versions
+* **Dependency Update**: Upgrade to smithy-go v1.22.2.
+
+# v1.5.2 (2025-01-17)
+
+* **Bug Fix**: Fix bug where credentials weren't refreshed during retry loop.
+
+# v1.5.1 (2025-01-16)
+
+* **Bug Fix**: Fix nil dereference panic for operations that require checksums, but do not have an input setting for which algorithm to use.
+
+# v1.5.0 (2025-01-15)
+
+* **Feature**: S3 client behavior is updated to always calculate a checksum by default for operations that support it (such as PutObject or UploadPart), or require it (such as DeleteObjects). The checksum algorithm used by default now becomes CRC32. Checksum behavior can be configured using `when_supported` and `when_required` options - in code using RequestChecksumCalculation, in shared config using request_checksum_calculation, or as env variable using AWS_REQUEST_CHECKSUM_CALCULATION. The S3 client attempts to validate response checksums for all S3 API operations that support checksums. However, if the SDK has not implemented the specified checksum algorithm then this validation is skipped. Checksum validation behavior can be configured using `when_supported` and `when_required` options - in code using ResponseChecksumValidation, in shared config using response_checksum_validation, or as env variable using AWS_RESPONSE_CHECKSUM_VALIDATION.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.4.8 (2025-01-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.4.7 (2024-12-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.4.6 (2024-12-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.4.5 (2024-11-18)
+
+* **Dependency Update**: Update to smithy-go v1.22.1.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.4.4 (2024-11-06)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.4.3 (2024-10-28)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.4.2 (2024-10-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.4.1 (2024-10-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.4.0 (2024-10-04)
+
+* **Feature**: Add support for HTTP client metrics.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.3.20 (2024-09-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.3.19 (2024-09-03)
 
 * **Dependency Update**: Updated to the latest SDK module versions

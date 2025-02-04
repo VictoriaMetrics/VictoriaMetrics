@@ -11,7 +11,7 @@ import (
 func expectParsePipeFailure(t *testing.T, pipeStr string) {
 	t.Helper()
 
-	lex := newLexer(pipeStr)
+	lex := newLexer(pipeStr, 0)
 	p, err := parsePipe(lex)
 	if err == nil && lex.isEnd() {
 		t.Fatalf("expecting error when parsing [%s]; parsed result: [%s]", pipeStr, p)
@@ -21,7 +21,7 @@ func expectParsePipeFailure(t *testing.T, pipeStr string) {
 func expectParsePipeSuccess(t *testing.T, pipeStr string) {
 	t.Helper()
 
-	lex := newLexer(pipeStr)
+	lex := newLexer(pipeStr, 0)
 	p, err := parsePipe(lex)
 	if err != nil {
 		t.Fatalf("cannot parse [%s]: %s", pipeStr, err)
@@ -39,7 +39,7 @@ func expectParsePipeSuccess(t *testing.T, pipeStr string) {
 func expectPipeResults(t *testing.T, pipeStr string, rows, rowsExpected [][]Field) {
 	t.Helper()
 
-	lex := newLexer(pipeStr)
+	lex := newLexer(pipeStr, 0)
 	p, err := parsePipe(lex)
 	if err != nil {
 		t.Fatalf("unexpected error when parsing %q: %s", pipeStr, err)
@@ -136,7 +136,7 @@ func (pp *testPipeProcessor) writeBlock(_ uint, br *blockResult) {
 		columnValues = append(columnValues, values)
 	}
 
-	for i := range br.timestamps {
+	for i := 0; i < br.rowsLen; i++ {
 		row := make([]Field, len(columnValues))
 		for j, values := range columnValues {
 			r := &row[j]

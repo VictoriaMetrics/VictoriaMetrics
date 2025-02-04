@@ -1,0 +1,29 @@
+groups:
+  - name: groupTest
+    rules:
+      - alert: VMRows
+        for: 1ms
+        expr: vm_rows > 0
+        labels:
+          label: bar
+          host: "{{ $labels.instance }}"
+        annotations:
+          summary: "{{ $value }}"
+invalid-field-1: invalid-value-1
+invalid-field-2: invalid-value-2
+---
+groups:
+  - name: TestGroup
+    interval: 2s
+    concurrency: 2
+    type: graphite
+    rules:
+      - alert: Conns
+        expr: filterSeries(sumSeries(host.receiver.interface.cons),'last','>', 500)
+        for: 3m
+
+        annotations:
+          summary: Too high connection number for {{$labels.instance}}
+          description: "It is {{ $value }} connections for {{$labels.instance}}"
+invalid-field-2: invalid-value-2
+invalid-field-3: invalid-value-3

@@ -32,6 +32,30 @@ func (u *u128) equal(a *u128) bool {
 	return u.hi == a.hi && u.lo == a.lo
 }
 
+func (u *u128) marshalString(dst []byte) []byte {
+	dst = marshalUint64Hex(dst, u.hi)
+	dst = marshalUint64Hex(dst, u.lo)
+	return dst
+}
+
+func marshalUint64Hex(dst []byte, n uint64) []byte {
+	dst = marshalByteHex(dst, byte(n>>56))
+	dst = marshalByteHex(dst, byte(n>>48))
+	dst = marshalByteHex(dst, byte(n>>40))
+	dst = marshalByteHex(dst, byte(n>>32))
+	dst = marshalByteHex(dst, byte(n>>24))
+	dst = marshalByteHex(dst, byte(n>>16))
+	dst = marshalByteHex(dst, byte(n>>8))
+	dst = marshalByteHex(dst, byte(n))
+	return dst
+}
+
+func marshalByteHex(dst []byte, x byte) []byte {
+	return append(dst, hexByteMap[(x>>4)&15], hexByteMap[x&15])
+}
+
+var hexByteMap = [16]byte{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'}
+
 // marshal appends the marshaled u to dst and returns the result.
 func (u *u128) marshal(dst []byte) []byte {
 	dst = encoding.MarshalUint64(dst, u.hi)

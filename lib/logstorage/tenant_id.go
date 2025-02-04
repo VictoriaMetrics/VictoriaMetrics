@@ -44,6 +44,12 @@ func (tid *TenantID) less(a *TenantID) bool {
 	return tid.ProjectID < a.ProjectID
 }
 
+func (tid *TenantID) marshalString(dst []byte) []byte {
+	n := uint64(tid.AccountID)<<32 | uint64(tid.ProjectID)
+	dst = marshalUint64Hex(dst, n)
+	return dst
+}
+
 // marshal appends the marshaled tid to dst and returns the result
 func (tid *TenantID) marshal(dst []byte) []byte {
 	dst = encoding.MarshalUint32(dst, tid.AccountID)

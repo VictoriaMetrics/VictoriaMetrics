@@ -1,0 +1,37 @@
+api:
+  enabled: true
+  address: 0.0.0.0:8686
+sources:
+  docker:
+    type: docker_logs
+  vector_metrics:
+    type: internal_metrics
+transforms:
+  parser:
+    type: remap
+    inputs: [docker]
+    source: |
+      .message = parse_json(.message) ?? .message
+sinks:
+  elasticsearch:
+    type: elasticsearch
+    inputs: [parser]
+    endpoints: [http://victorialogs:9428/insert/elasticsearch/]
+    mode: bulk
+    api_version: v8
+    compression: gzip
+    healthcheck:
+      enabled: false
+    request:
+      headers:
+        AccountID: "0"
+        ProjectID: "0"
+        VL-Stream-Fields: source_type,label.com.docker.compose.service
+        VL-Time-Field: timestamp
+        VL-Msg-Field: message.msg,message
+  victoriametrics:
+    type: prometheus_remote_write
+    endpoint: http://victoriametrics:8428/api/v1/write
+    inputs: [vector_metrics]
+    healthcheck:
+      enabled: false

@@ -24,7 +24,7 @@ var (
 	loggerTimezone = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
 		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
 	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
-	maxLogArgLen      = flag.Int("loggerMaxArgLen", 1000, "The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', "+
+	maxLogArgLen      = flag.Int("loggerMaxArgLen", 5000, "The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', "+
 		"where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2")
 
 	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 0, `Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit`)
@@ -37,13 +37,27 @@ var (
 //
 // There is no need in calling Init from tests.
 func Init() {
+	initInternal(true)
+}
+
+// InitNoLogFlags initializes the logger without writing flags to stdout
+//
+// InitNoLogFlags must be called after flag.Parse()
+func InitNoLogFlags() {
+	initInternal(false)
+}
+
+func initInternal(logFlags bool) {
 	setLoggerJSONFields()
 	setLoggerOutput()
 	validateLoggerLevel()
 	validateLoggerFormat()
 	initTimezone()
 	go logLimiterCleaner()
-	logAllFlags()
+
+	if logFlags {
+		logAllFlags()
+	}
 }
 
 func initTimezone() {

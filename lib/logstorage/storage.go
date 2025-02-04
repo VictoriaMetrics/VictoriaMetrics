@@ -4,15 +4,15 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 )
 
 // StorageStats represents stats for the storage. It may be obtained by calling Storage.UpdateStats().
@@ -113,6 +113,8 @@ type Storage struct {
 	// partitions is a list of partitions for the Storage.
 	//
 	// It must be accessed under partitionsLock.
+	//
+	// partitions are sorted by time.
 	partitions []*partitionWrapper
 
 	// ptwHot is the "hot" partition, were the last rows were ingested.
@@ -133,21 +135,12 @@ type Storage struct {
 	//
 	// It reduces the load on persistent storage during data ingestion by skipping
 	// the check whether the given stream is already registered in the persistent storage.
-	streamIDCache *workingsetcache.Cache
-
-	// streamTagsCache caches StreamTags entries keyed by streamID.
-	//
-	// There is no need to put partition into the key for StreamTags,
-	// since StreamTags are uniquely identified by streamID.
-	//
-	// It reduces the load on persistent storage during querying
-	// when StreamTags must be found for the particular streamID
-	streamTagsCache *workingsetcache.Cache
+	streamIDCache *cache
 
 	// filterStreamCache caches streamIDs keyed by (partition, []TenanID, StreamFilter).
 	//
 	// It reduces the load on persistent storage during querying by _stream:{...} filter.
-	filterStreamCache *workingsetcache.Cache
+	filterStreamCache *cache
 }
 
 type partitionWrapper struct {
@@ -249,13 +242,8 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	flockF := fs.MustCreateFlockFile(path)
 
 	// Load caches
-	mem := memory.Allowed()
-	streamIDCachePath := filepath.Join(path, cacheDirname, streamIDCacheFilename)
-	streamIDCache := workingsetcache.Load(streamIDCachePath, mem/16)
-
-	streamTagsCache := workingsetcache.New(mem / 10)
-
-	filterStreamCache := workingsetcache.New(mem / 10)
+	streamIDCache := newCache()
+	filterStreamCache := newCache()
 
 	s := &Storage{
 		path:                   path,
@@ -270,7 +258,6 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 		stopCh:                 make(chan struct{}),
 
 		streamIDCache:     streamIDCache,
-		streamTagsCache:   streamTagsCache,
 		filterStreamCache: filterStreamCache,
 	}
 
@@ -278,20 +265,35 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	fs.MustMkdirIfNotExist(partitionsPath)
 	des := fs.MustReadDir(partitionsPath)
 	ptws := make([]*partitionWrapper, len(des))
+
+	// Open partitions in parallel. This should improve VictoriaLogs initializiation duration
+	// when it opens many partitions.
+	var wg sync.WaitGroup
+	concurrencyLimiterCh := make(chan struct{}, cgroup.AvailableCPUs())
 	for i, de := range des {
 		fname := de.Name()
 
-		// Parse the day for the partition
-		t, err := time.Parse(partitionNameFormat, fname)
-		if err != nil {
-			logger.Panicf("FATAL: cannot parse partition filename %q at %q; it must be in the form YYYYMMDD: %s", fname, partitionsPath, err)
-		}
-		day := t.UTC().UnixNano() / nsecsPerDay
+		wg.Add(1)
+		concurrencyLimiterCh <- struct{}{}
+		go func(idx int) {
+			defer func() {
+				<-concurrencyLimiterCh
+				wg.Done()
+			}()
 
-		partitionPath := filepath.Join(partitionsPath, fname)
-		pt := mustOpenPartition(s, partitionPath)
-		ptws[i] = newPartitionWrapper(pt, day)
+			t, err := time.Parse(partitionNameFormat, fname)
+			if err != nil {
+				logger.Panicf("FATAL: cannot parse partition filename %q at %q; it must be in the form YYYYMMDD: %s", fname, partitionsPath, err)
+			}
+			day := t.UTC().UnixNano() / nsecsPerDay
+
+			partitionPath := filepath.Join(partitionsPath, fname)
+			pt := mustOpenPartition(s, partitionPath)
+			ptws[idx] = newPartitionWrapper(pt, day)
+		}(i)
 	}
+	wg.Wait()
+
 	sort.Slice(ptws, func(i, j int) bool {
 		return ptws[i].day < ptws[j].day
 	})
@@ -466,18 +468,17 @@ func (s *Storage) MustClose() {
 	s.partitions = nil
 	s.ptwHot = nil
 
-	// Save caches
-	streamIDCachePath := filepath.Join(s.path, cacheDirname, streamIDCacheFilename)
-	if err := s.streamIDCache.Save(streamIDCachePath); err != nil {
-		logger.Panicf("FATAL: cannot save streamID cache to %q: %s", streamIDCachePath, err)
-	}
-	s.streamIDCache.Stop()
+	// Stop caches
+
+	// Do not persist caches, since they may become out of sync with partitions
+	// if partitions are deleted, restored from backups or copied from other sources
+	// between VictoriaLogs restarts. This may result in various issues
+	// during data ingestion and querying.
+
+	s.streamIDCache.MustStop()
 	s.streamIDCache = nil
 
-	s.streamTagsCache.Stop()
-	s.streamTagsCache = nil
-
-	s.filterStreamCache.Stop()
+	s.filterStreamCache.MustStop()
 	s.filterStreamCache = nil
 
 	// release lock file
@@ -485,6 +486,33 @@ func (s *Storage) MustClose() {
 	s.flockF = nil
 
 	s.path = ""
+}
+
+// MustForceMerge force-merges parts in s partitions with names starting from the given partitionNamePrefix.
+//
+// Partitions are merged sequentially in order to reduce load on the system.
+func (s *Storage) MustForceMerge(partitionNamePrefix string) {
+	var ptws []*partitionWrapper
+
+	s.partitionsLock.Lock()
+	for _, ptw := range s.partitions {
+		if strings.HasPrefix(ptw.pt.name, partitionNamePrefix) {
+			ptw.incRef()
+			ptws = append(ptws, ptw)
+		}
+	}
+	s.partitionsLock.Unlock()
+
+	s.wg.Add(1)
+	defer s.wg.Done()
+
+	for _, ptw := range ptws {
+		logger.Infof("started force merge for partition %s", ptw.pt.name)
+		startTime := time.Now()
+		ptw.pt.mustForceMerge()
+		ptw.decRef()
+		logger.Infof("finished force merge for partition %s in %.3fs", ptw.pt.name, time.Since(startTime).Seconds())
+	}
 }
 
 // MustAddRows adds lr to s.
@@ -516,28 +544,28 @@ func (s *Storage) MustAddRows(lr *LogRows) {
 	for i, ts := range lr.timestamps {
 		day := ts / nsecsPerDay
 		if day < minAllowedDay {
-			rf := RowFormatter(lr.rows[i])
+			line := MarshalFieldsToJSON(nil, lr.rows[i])
 			tsf := TimeFormatter(ts)
 			minAllowedTsf := TimeFormatter(minAllowedDay * nsecsPerDay)
 			tooSmallTimestampLogger.Warnf("skipping log entry with too small timestamp=%s; it must be bigger than %s according "+
 				"to the configured -retentionPeriod=%dd. See https://docs.victoriametrics.com/victorialogs/#retention ; "+
-				"log entry: %s", &tsf, &minAllowedTsf, durationToDays(s.retention), &rf)
+				"log entry: %s", &tsf, &minAllowedTsf, durationToDays(s.retention), line)
 			s.rowsDroppedTooSmallTimestamp.Add(1)
 			continue
 		}
 		if day > maxAllowedDay {
-			rf := RowFormatter(lr.rows[i])
+			line := MarshalFieldsToJSON(nil, lr.rows[i])
 			tsf := TimeFormatter(ts)
 			maxAllowedTsf := TimeFormatter(maxAllowedDay * nsecsPerDay)
 			tooBigTimestampLogger.Warnf("skipping log entry with too big timestamp=%s; it must be smaller than %s according "+
 				"to the configured -futureRetention=%dd; see https://docs.victoriametrics.com/victorialogs/#retention ; "+
-				"log entry: %s", &tsf, &maxAllowedTsf, durationToDays(s.futureRetention), &rf)
+				"log entry: %s", &tsf, &maxAllowedTsf, durationToDays(s.futureRetention), line)
 			s.rowsDroppedTooBigTimestamp.Add(1)
 			continue
 		}
 		lrPart := m[day]
 		if lrPart == nil {
-			lrPart = GetLogRows(nil, nil)
+			lrPart = GetLogRows(nil, nil, nil, "")
 			m[day] = lrPart
 		}
 		lrPart.mustAddInternal(lr.streamIDs[i], ts, lr.rows[i], lr.streamTagsCanonicals[i])

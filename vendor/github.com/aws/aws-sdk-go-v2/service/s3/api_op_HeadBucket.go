@@ -57,18 +57,21 @@ import (
 //	User Guide.
 //
 // HTTP Host header syntax  Directory buckets - The HTTP Host header syntax is
-// Bucket_name.s3express-az_id.region.amazonaws.com .
+// Bucket-name.s3express-zone-id.region-code.amazonaws.com .
 //
 // You must make requests for this API operation to the Zonal endpoint. These
 // endpoints support virtual-hosted-style requests in the format
-// https://bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests
-// are not supported. For more information, see [Regional and Zonal endpoints]in the Amazon S3 User Guide.
+// https://bucket-name.s3express-zone-id.region-code.amazonaws.com . Path-style
+// requests are not supported. For more information about endpoints in Availability
+// Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information about endpoints in
+// Local Zones, see [Available Local Zone for directory buckets]in the Amazon S3 User Guide.
 //
 // [Amazon Web Services Identity and Access Management (IAM) identity-based policies for S3 Express One Zone]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam-identity-policies.html
 // [REST Authentication]: https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html
 // [Example bucket policies for S3 Express One Zone]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam-example-bucket-policies.html
-// [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
 // [Managing access permissions to your Amazon S3 resources]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [Available Local Zone for directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 func (c *Client) HeadBucket(ctx context.Context, params *HeadBucketInput, optFns ...func(*Options)) (*HeadBucketOutput, error) {
 	if params == nil {
 		params = &HeadBucketInput{}
@@ -90,11 +93,12 @@ type HeadBucketInput struct {
 	//
 	// Directory buckets - When you use this operation with a directory bucket, you
 	// must use virtual-hosted-style requests in the format
-	// Bucket_name.s3express-az_id.region.amazonaws.com . Path-style requests are not
-	// supported. Directory bucket names must be unique in the chosen Availability
-	// Zone. Bucket names must follow the format bucket_base_name--az-id--x-s3 (for
-	// example, DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket
-	// naming restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
+	// Bucket-name.s3express-zone-id.region-code.amazonaws.com . Path-style requests
+	// are not supported. Directory bucket names must be unique in the chosen Zone
+	// (Availability Zone or Local Zone). Bucket names must follow the format
+	// bucket-base-name--zone-id--x-s3 (for example,
+	// DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket naming
+	// restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
 	//
 	// Access points - When you use this action with an access point, you must provide
 	// the alias of the access point in place of the bucket name or specify the access
@@ -153,8 +157,9 @@ type HeadBucketOutput struct {
 
 	// The name of the location where the bucket will be created.
 	//
-	// For directory buckets, the AZ ID of the Availability Zone where the bucket is
-	// created. An example AZ ID value is usw2-az1 .
+	// For directory buckets, the Zone ID of the Availability Zone or the Local Zone
+	// where the bucket is created. An example Zone ID value for an Availability Zone
+	// is usw2-az1 .
 	//
 	// This functionality is only supported by directory buckets.
 	BucketLocationName *string
@@ -216,6 +221,9 @@ func (c *Client) addOperationHeadBucketMiddlewares(stack *middleware.Stack, opti
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -271,6 +279,18 @@ func (c *Client) addOperationHeadBucketMiddlewares(stack *middleware.Stack, opti
 		return err
 	}
 	if err = addSerializeImmutableHostnameBucketMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil
@@ -445,6 +465,9 @@ func bucketExistsStateRetryable(ctx context.Context, input *HeadBucketInput, out
 		}
 	}
 
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -614,6 +637,9 @@ func bucketNotExistsStateRetryable(ctx context.Context, input *HeadBucketInput, 
 		}
 	}
 
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
 

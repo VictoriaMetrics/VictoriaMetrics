@@ -88,6 +88,9 @@ type AppendBlobClientAppendBlockResponse struct {
 	// RequestID contains the information returned from the x-ms-request-id header response.
 	RequestID *string
 
+	// StructuredBodyType contains the information returned from the x-ms-structured-body header response.
+	StructuredBodyType *string
+
 	// Version contains the information returned from the x-ms-version header response.
 	Version *string
 }
@@ -469,6 +472,12 @@ type BlobClientDownloadResponse struct {
 	// RequestID contains the information returned from the x-ms-request-id header response.
 	RequestID *string
 
+	// StructuredBodyType contains the information returned from the x-ms-structured-body header response.
+	StructuredBodyType *string
+
+	// StructuredContentLength contains the information returned from the x-ms-structured-content-length header response.
+	StructuredContentLength *int64
+
 	// TagCount contains the information returned from the x-ms-tag-count header response.
 	TagCount *int64
 
@@ -489,6 +498,9 @@ type BlobClientGetAccountInfoResponse struct {
 
 	// Date contains the information returned from the Date header response.
 	Date *time.Time
+
+	// IsHierarchicalNamespaceEnabled contains the information returned from the x-ms-is-hns-enabled header response.
+	IsHierarchicalNamespaceEnabled *bool
 
 	// RequestID contains the information returned from the x-ms-request-id header response.
 	RequestID *string
@@ -1167,6 +1179,9 @@ type BlockBlobClientStageBlockResponse struct {
 	// RequestID contains the information returned from the x-ms-request-id header response.
 	RequestID *string
 
+	// StructuredBodyType contains the information returned from the x-ms-structured-body header response.
+	StructuredBodyType *string
+
 	// Version contains the information returned from the x-ms-version header response.
 	Version *string
 }
@@ -1175,6 +1190,9 @@ type BlockBlobClientStageBlockResponse struct {
 type BlockBlobClientUploadResponse struct {
 	// ClientRequestID contains the information returned from the x-ms-client-request-id header response.
 	ClientRequestID *string
+
+	// ContentCRC64 contains the information returned from the x-ms-content-crc64 header response.
+	ContentCRC64 []byte
 
 	// ContentMD5 contains the information returned from the Content-MD5 header response.
 	ContentMD5 []byte
@@ -1199,6 +1217,9 @@ type BlockBlobClientUploadResponse struct {
 
 	// RequestID contains the information returned from the x-ms-request-id header response.
 	RequestID *string
+
+	// StructuredBodyType contains the information returned from the x-ms-structured-body header response.
+	StructuredBodyType *string
 
 	// Version contains the information returned from the x-ms-version header response.
 	Version *string
@@ -1370,6 +1391,9 @@ type ContainerClientGetAccountInfoResponse struct {
 
 	// Date contains the information returned from the Date header response.
 	Date *time.Time
+
+	// IsHierarchicalNamespaceEnabled contains the information returned from the x-ms-is-hns-enabled header response.
+	IsHierarchicalNamespaceEnabled *bool
 
 	// RequestID contains the information returned from the x-ms-request-id header response.
 	RequestID *string
@@ -1872,6 +1896,9 @@ type PageBlobClientUploadPagesResponse struct {
 
 	// RequestID contains the information returned from the x-ms-request-id header response.
 	RequestID *string
+
+	// StructuredBodyType contains the information returned from the x-ms-structured-body header response.
+	StructuredBodyType *string
 
 	// Version contains the information returned from the x-ms-version header response.
 	Version *string

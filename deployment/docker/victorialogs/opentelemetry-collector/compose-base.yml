@@ -1,0 +1,15 @@
+include:
+ - ../compose-base.yml
+services:
+  collector:
+    image: docker.io/otel/opentelemetry-collector-contrib:0.108.0
+    restart: on-failure
+    user: 0:0
+    volumes:
+      - ${PWD}/config.yaml:/etc/otelcol-contrib/config.yaml
+      - /var/lib/docker/containers:/var/lib/docker/containers
+    depends_on:
+      victorialogs:
+        condition: service_healthy
+      victoriametrics:
+        condition: service_healthy

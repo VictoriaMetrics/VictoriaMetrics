@@ -6,15 +6,19 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// filterStream is the filter for `_stream:{...}`
+// filterStream is the filter for `{}` aka `_stream:{...}`
 type filterStream struct {
 	// f is the filter to apply
 	f *StreamFilter
 
 	// tenantIDs is the list of tenantIDs to search for streamIDs.
+	//
+	// This field is initialized just before the search.
 	tenantIDs []TenantID
 
 	// idb is the indexdb to search for streamIDs.
+	//
+	// This field is initialized just before the search.
 	idb *indexdb
 
 	streamIDsOnce sync.Once
@@ -22,7 +26,7 @@ type filterStream struct {
 }
 
 func (fs *filterStream) String() string {
-	return "_stream:" + fs.f.String()
+	return fs.f.String()
 }
 
 func (fs *filterStream) updateNeededFields(neededFields fieldsSet) {
@@ -90,6 +94,8 @@ func (fs *filterStream) applyToBlockResult(br *blockResult, bm *bitmap) {
 	case valueTypeUint32:
 		bm.resetBits()
 	case valueTypeUint64:
+		bm.resetBits()
+	case valueTypeInt64:
 		bm.resetBits()
 	case valueTypeFloat64:
 		bm.resetBits()

@@ -54,16 +54,16 @@ func (pc *pipeCopy) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (pc *pipeCopy) optimize() {
-	// Nothing to do
-}
-
 func (pc *pipeCopy) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pc *pipeCopy) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pc *pipeCopy) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pc, nil
+}
+
+func (pc *pipeCopy) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
 }
 
 func (pc *pipeCopy) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
@@ -79,7 +79,7 @@ type pipeCopyProcessor struct {
 }
 
 func (pcp *pipeCopyProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -91,7 +91,7 @@ func (pcp *pipeCopyProcessor) flush() error {
 	return nil
 }
 
-func parsePipeCopy(lex *lexer) (*pipeCopy, error) {
+func parsePipeCopy(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("copy", "cp") {
 		return nil, fmt.Errorf("expecting 'copy' or 'cp'; got %q", lex.token)
 	}

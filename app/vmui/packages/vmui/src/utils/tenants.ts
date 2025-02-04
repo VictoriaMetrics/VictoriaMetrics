@@ -7,3 +7,7 @@ export const replaceTenantId = (serverUrl: string, tenantId: string) => {
 export const getTenantIdFromUrl = (url: string): string => {
   return url.match(regexp)?.[2] || "";
 };
+
+export const getUrlWithoutTenant = (url: string): string => {
+  return url.replace(regexp, "");
+};

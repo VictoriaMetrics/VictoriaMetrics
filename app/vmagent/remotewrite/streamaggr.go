@@ -3,6 +3,7 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -23,7 +24,7 @@ var (
 	streamAggrGlobalDropInput = flag.Bool("streamAggr.dropInput", false, "Whether to drop all the input samples after the aggregation "+
 		"with -remoteWrite.streamAggr.config. By default, only aggregates samples are dropped, while the remaining samples "+
 		"are written to remote storages write. See also -streamAggr.keepInput and https://docs.victoriametrics.com/stream-aggregation/")
-	streamAggrGlobalDedupInterval = flagutil.NewDuration("streamAggr.dedupInterval", "0s", "Input samples are de-duplicated with this interval on "+
+	streamAggrGlobalDedupInterval = flag.Duration("streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval on "+
 		"aggregator before optional aggregation with -streamAggr.config . "+
 		"See also -dedup.minScrapeInterval and https://docs.victoriametrics.com/stream-aggregation/#deduplication")
 	streamAggrGlobalIgnoreOldSamples = flag.Bool("streamAggr.ignoreOldSamples", false, "Whether to ignore input samples with old timestamps outside the "+
@@ -56,6 +57,7 @@ var (
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start")
 	streamAggrDropInputLabels = flagutil.NewArrayString("remoteWrite.streamAggr.dropInputLabels", "An optional list of labels to drop from samples "+
 		"before stream de-duplication and aggregation with -remoteWrite.streamAggr.config and -remoteWrite.streamAggr.dedupInterval at the corresponding -remoteWrite.url. "+
+		"Multiple labels per remoteWrite.url must be delimited by '^^': -remoteWrite.streamAggr.dropInputLabels='replica^^az,replica'. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels")
 )
 
@@ -131,7 +133,7 @@ func initStreamAggrConfigGlobal() {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_successful{path=%q}`, filePath)).Set(1)
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, filePath)).Set(fasttime.UnixTimestamp())
 	}
-	dedupInterval := streamAggrGlobalDedupInterval.Duration()
+	dedupInterval := *streamAggrGlobalDedupInterval
 	if dedupInterval > 0 {
 		deduplicatorGlobal = streamaggr.NewDeduplicator(pushToRemoteStoragesTrackDropped, dedupInterval, *streamAggrGlobalDropInputLabels, "dedup-global")
 	}
@@ -155,7 +157,11 @@ func (rwctx *remoteWriteCtx) initStreamAggrConfig() {
 	dedupInterval := streamAggrDedupInterval.GetOptionalArg(idx)
 	if dedupInterval > 0 {
 		alias := fmt.Sprintf("dedup-%d", idx+1)
-		rwctx.deduplicator = streamaggr.NewDeduplicator(rwctx.pushInternalTrackDropped, dedupInterval, *streamAggrDropInputLabels, alias)
+		var dropLabels []string
+		if streamAggrDropInputLabels.GetOptionalArg(idx) != "" {
+			dropLabels = strings.Split(streamAggrDropInputLabels.GetOptionalArg(idx), "^^")
+		}
+		rwctx.deduplicator = streamaggr.NewDeduplicator(rwctx.pushInternalTrackDropped, dedupInterval, dropLabels, alias)
 	}
 }
 
@@ -196,7 +202,7 @@ func newStreamAggrConfigGlobal() (*streamaggr.Aggregators, error) {
 	}
 
 	opts := &streamaggr.Options{
-		DedupInterval:        streamAggrGlobalDedupInterval.Duration(),
+		DedupInterval:        *streamAggrGlobalDedupInterval,
 		DropInputLabels:      *streamAggrGlobalDropInputLabels,
 		IgnoreOldSamples:     *streamAggrGlobalIgnoreOldSamples,
 		IgnoreFirstIntervals: *streamAggrGlobalIgnoreFirstIntervals,
@@ -224,9 +230,13 @@ func newStreamAggrConfigPerURL(idx int, pushFunc streamaggr.PushFunc) (*streamag
 	if *showRemoteWriteURL {
 		alias = fmt.Sprintf("%d:%s", idx+1, remoteWriteURLs.GetOptionalArg(idx))
 	}
+	var dropLabels []string
+	if streamAggrDropInputLabels.GetOptionalArg(idx) != "" {
+		dropLabels = strings.Split(streamAggrDropInputLabels.GetOptionalArg(idx), "^^")
+	}
 	opts := &streamaggr.Options{
 		DedupInterval:        streamAggrDedupInterval.GetOptionalArg(idx),
-		DropInputLabels:      *streamAggrDropInputLabels,
+		DropInputLabels:      dropLabels,
 		IgnoreOldSamples:     streamAggrIgnoreOldSamples.GetOptionalArg(idx),
 		IgnoreFirstIntervals: streamAggrIgnoreFirstIntervals.GetOptionalArg(idx),
 		KeepInput:            streamAggrKeepInput.GetOptionalArg(idx),

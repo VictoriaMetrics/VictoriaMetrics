@@ -12,10 +12,14 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
+	"github.com/prometheus/prometheus/model/histogram"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/prompb"
+	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/storage/remote"
+	"github.com/prometheus/prometheus/tsdb/chunkenc"
 	"github.com/prometheus/prometheus/tsdb/chunks"
+	"github.com/prometheus/prometheus/util/annotations"
 )
 
 const (
@@ -327,13 +331,16 @@ func NewMockStorage(series []*prompb.TimeSeries) *MockStorage {
 	return &MockStorage{store: series}
 }
 
-func (ms *MockStorage) Read(_ context.Context, query *prompb.Query) (*prompb.QueryResult, error) {
+func (ms *MockStorage) Read(_ context.Context, query *prompb.Query, sortSeries bool) (storage.SeriesSet, error) {
+	if sortSeries {
+		return nil, fmt.Errorf("unexpected sortSeries=true")
+	}
 	if ms.query != nil {
 		return nil, fmt.Errorf("expected only one call to remote client got: %v", query)
 	}
 	ms.query = query
 
-	q := &prompb.QueryResult{Timeseries: make([]*prompb.TimeSeries, 0, len(ms.store))}
+	tss := make([]*prompb.TimeSeries, 0, len(ms.store))
 	for _, s := range ms.store {
 		var samples []prompb.Sample
 		for _, sample := range s.Samples {
@@ -347,13 +354,107 @@ func (ms *MockStorage) Read(_ context.Context, query *prompb.Query) (*prompb.Que
 			series.Samples = samples
 		}
 
-		q.Timeseries = append(q.Timeseries, &series)
+		tss = append(tss, &series)
 	}
-	return q, nil
+	return &mockSeriesSet{
+		tss: tss,
+	}, nil
 }
 
 func (ms *MockStorage) Reset() {
 	ms.query = nil
+}
+
+type mockSeriesSet struct {
+	tss  []*prompb.TimeSeries
+	next int
+}
+
+func (ss *mockSeriesSet) Next() bool {
+	if ss.next >= len(ss.tss) {
+		return false
+	}
+	ss.next++
+	return true
+}
+
+func (ss *mockSeriesSet) At() storage.Series {
+	return &mockSeries{
+		s: ss.tss[ss.next-1],
+	}
+}
+
+func (ss *mockSeriesSet) Err() error {
+	return nil
+}
+
+func (ss *mockSeriesSet) Warnings() annotations.Annotations {
+	return nil
+}
+
+type mockSeries struct {
+	s *prompb.TimeSeries
+}
+
+func (s *mockSeries) Labels() labels.Labels {
+	a := make(labels.Labels, len(s.s.Labels))
+	for i, label := range s.s.Labels {
+		a[i] = labels.Label{
+			Name:  label.Name,
+			Value: label.Value,
+		}
+	}
+	return a
+}
+
+func (s *mockSeries) Iterator(chunkenc.Iterator) chunkenc.Iterator {
+	return &mockSamplesIterator{
+		samples: s.s.Samples,
+	}
+}
+
+type mockSamplesIterator struct {
+	samples []prompb.Sample
+	next    int
+}
+
+func (si *mockSamplesIterator) Next() chunkenc.ValueType {
+	if si.next >= len(si.samples) {
+		return chunkenc.ValNone
+	}
+	si.next++
+	return chunkenc.ValFloat
+}
+
+func (si *mockSamplesIterator) Seek(t int64) chunkenc.ValueType {
+	for i := range si.samples {
+		if si.samples[i].Timestamp >= t {
+			si.next = i + 1
+			return chunkenc.ValFloat
+		}
+	}
+	return chunkenc.ValNone
+}
+
+func (si *mockSamplesIterator) At() (int64, float64) {
+	s := si.samples[si.next-1]
+	return s.Timestamp, s.Value
+}
+
+func (si *mockSamplesIterator) AtHistogram(*histogram.Histogram) (int64, *histogram.Histogram) {
+	panic("BUG: musn't be called")
+}
+
+func (si *mockSamplesIterator) AtFloatHistogram(*histogram.FloatHistogram) (int64, *histogram.FloatHistogram) {
+	panic("BUG: mustn't be called")
+}
+
+func (si *mockSamplesIterator) AtT() int64 {
+	return si.samples[si.next-1].Timestamp
+}
+
+func (si *mockSamplesIterator) Err() error {
+	return nil
 }
 
 func labelsToLabelsProto(labels labels.Labels) []prompb.Label {

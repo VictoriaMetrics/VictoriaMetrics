@@ -8,16 +8,14 @@
 **Precondition**
 
 We will use:
-* [Kubernetes cluster 1.19.9-gke.1900](https://cloud.google.com/kubernetes-engine)
+* [Kubernetes cluster 1.31.1-gke.1678000](https://cloud.google.com/kubernetes-engine)
 > We use GKE cluster from [GCP](https://cloud.google.com/) but this guide is also applied on any Kubernetes cluster. For example [Amazon EKS](https://aws.amazon.com/ru/eks/).
-* [Helm 3 ](https://helm.sh/docs/intro/install)
-* [kubectl 1.21](https://kubernetes.io/docs/tasks/tools/install-kubectl)
+* [Helm 3.14+](https://helm.sh/docs/intro/install)
+* [kubectl 1.31](https://kubernetes.io/docs/tasks/tools/install-kubectl)
 
 ![VictoriaMetrics Single on Kubernetes cluster](k8s-scheme.webp)
 
 ## 1. VictoriaMetrics Helm repository
-
-> For this guide we will use Helm 3 but if you already use Helm 2 please see this [https://github.com/VictoriaMetrics/helm-charts#for-helm-v2](https://github.com/VictoriaMetrics/helm-charts#for-helm-v2)
 
 You need to add the VictoriaMetrics Helm repository to install VictoriaMetrics components. We’re going to use [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/). You can do this by running the following command:
 
@@ -150,7 +148,7 @@ server:
 
 
 * By running `helm install vmsingle vm/victoria-metrics-single` we install [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/) to default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) inside your cluster
-* By adding `scrape: enable: true` we add and enable autodiscovery scraping from kubernetes cluster to [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/)
+* By adding `scrape: enabled: true` we add and enable autodiscovery scraping from kubernetes cluster to [VictoriaMetrics Single](https://docs.victoriametrics.com/single-server-victoriametrics/)
 * On line 166 from [https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml](https://docs.victoriametrics.com/guides/examples/guide-vmsingle-values.yaml) we added `metric_relabel_configs` section that will help us to show Kubernetes metrics on Grafana dashboard.
 
 

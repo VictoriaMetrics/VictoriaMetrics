@@ -8,11 +8,11 @@ const path = require('path');
 const pathIndexHTML = (() => {
   switch (process.env.REACT_APP_TYPE) {
     case 'logs':
-      return 'public/victorialogs.html';
+      return 'src/html/victorialogs.html';
     case 'anomaly':
-      return 'public/vmanomaly.html';
+      return 'src/html/vmanomaly.html';
     default:
-      return 'public/victoriametrics.html';
+      return 'src/html/victoriametrics.html';
   }
 })();
 const fileContent = fs.readFileSync(path.resolve(__dirname, pathIndexHTML), 'utf8');

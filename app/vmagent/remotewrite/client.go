@@ -7,11 +7,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -23,6 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -35,7 +35,7 @@ var (
 		"By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data "+
 		"is sent after temporary unavailability of the remote storage. See also -maxIngestionRate")
 	sendTimeout      = flagutil.NewArrayDuration("remoteWrite.sendTimeout", time.Minute, "Timeout for sending a single block of data to the corresponding -remoteWrite.url")
-	retryMinInterval = flagutil.NewArrayDuration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval")
+	retryMinInterval = flagutil.NewArrayDuration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts to send a block of data to the corresponding -remoteWrite.url. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxTime")
 	retryMaxTime     = flagutil.NewArrayDuration("remoteWrite.retryMaxTime", time.Minute, "The max time spent on retry attempts to send a block of data to the corresponding -remoteWrite.url. Change this value if it is expected for -remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
 	proxyURL         = flagutil.NewArrayString("remoteWrite.proxyURL", "Optional proxy URL for writing data to the corresponding -remoteWrite.url. "+
 		"Supported proxies: http, https, socks5. Example: -remoteWrite.proxyURL=socks5://proxy:1234")
@@ -463,10 +463,10 @@ again:
 
 	// Unexpected status code returned
 	retriesCount++
-	retryDuration *= 2
-	if retryDuration > maxRetryDuration {
-		retryDuration = maxRetryDuration
-	}
+	retryAfterHeader := parseRetryAfterHeader(resp.Header.Get("Retry-After"))
+	retryDuration = getRetryDuration(retryAfterHeader, retryDuration, maxRetryDuration)
+
+	// Handle response
 	body, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
@@ -488,3 +488,49 @@ again:
 }
 
 var remoteWriteRejectedLogger = logger.WithThrottler("remoteWriteRejected", 5*time.Second)
+
+// getRetryDuration returns retry duration.
+// retryAfterDuration has the highest priority.
+// If retryAfterDuration is not specified, retryDuration gets doubled.
+// retryDuration can't exceed maxRetryDuration.
+//
+// Also see: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6097
+func getRetryDuration(retryAfterDuration, retryDuration, maxRetryDuration time.Duration) time.Duration {
+	// retryAfterDuration has the highest priority duration
+	if retryAfterDuration > 0 {
+		return timeutil.AddJitterToDuration(retryAfterDuration)
+	}
+
+	// default backoff retry policy
+	retryDuration *= 2
+	if retryDuration > maxRetryDuration {
+		retryDuration = maxRetryDuration
+	}
+
+	return retryDuration
+}
+
+// parseRetryAfterHeader parses `Retry-After` value retrieved from HTTP response header.
+// retryAfterString should be in either HTTP-date or a number of seconds.
+// It will return time.Duration(0) if `retryAfterString` does not follow RFC 7231.
+func parseRetryAfterHeader(retryAfterString string) (retryAfterDuration time.Duration) {
+	if retryAfterString == "" {
+		return retryAfterDuration
+	}
+
+	defer func() {
+		v := retryAfterDuration.Seconds()
+		logger.Infof("'Retry-After: %s' parsed into %.2f second(s)", retryAfterString, v)
+	}()
+
+	// Retry-After could be in "Mon, 02 Jan 2006 15:04:05 GMT" format.
+	if parsedTime, err := time.Parse(http.TimeFormat, retryAfterString); err == nil {
+		return time.Duration(time.Until(parsedTime).Seconds()) * time.Second
+	}
+	// Retry-After could be in seconds.
+	if seconds, err := strconv.Atoi(retryAfterString); err == nil {
+		return time.Duration(seconds) * time.Second
+	}
+
+	return 0
+}

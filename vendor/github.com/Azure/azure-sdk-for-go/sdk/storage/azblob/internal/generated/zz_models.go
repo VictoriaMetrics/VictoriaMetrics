@@ -86,6 +86,9 @@ type BlobName struct {
 type BlobPrefix struct {
 	// REQUIRED
 	Name *string `xml:"Name"`
+
+	// Properties of a blob
+	Properties *BlobProperties `xml:"Properties"`
 }
 
 // BlobProperties - Properties of a blob
@@ -95,6 +98,7 @@ type BlobProperties struct {
 
 	// REQUIRED
 	LastModified         *time.Time     `xml:"Last-Modified"`
+	ACL                  *string        `xml:"Acl"`
 	AccessTier           *AccessTier    `xml:"AccessTier"`
 	AccessTierChangeTime *time.Time     `xml:"AccessTierChangeTime"`
 	AccessTierInferred   *bool          `xml:"AccessTierInferred"`
@@ -124,6 +128,7 @@ type BlobProperties struct {
 	// The name of the encryption scope under which the blob is encrypted.
 	EncryptionScope             *string                 `xml:"EncryptionScope"`
 	ExpiresOn                   *time.Time              `xml:"Expiry-Time"`
+	Group                       *string                 `xml:"Group"`
 	ImmutabilityPolicyExpiresOn *time.Time              `xml:"ImmutabilityPolicyUntilDate"`
 	ImmutabilityPolicyMode      *ImmutabilityPolicyMode `xml:"ImmutabilityPolicyMode"`
 	IncrementalCopy             *bool                   `xml:"IncrementalCopy"`
@@ -133,11 +138,14 @@ type BlobProperties struct {
 	LeaseState                  *LeaseStateType         `xml:"LeaseState"`
 	LeaseStatus                 *LeaseStatusType        `xml:"LeaseStatus"`
 	LegalHold                   *bool                   `xml:"LegalHold"`
+	Owner                       *string                 `xml:"Owner"`
+	Permissions                 *string                 `xml:"Permissions"`
 
 	// If an object is in rehydrate pending state then this header is returned with priority of rehydrate. Valid values are High
 	// and Standard.
 	RehydratePriority      *RehydratePriority `xml:"RehydratePriority"`
 	RemainingRetentionDays *int32             `xml:"RemainingRetentionDays"`
+	ResourceType           *string            `xml:"ResourceType"`
 	ServerEncrypted        *bool              `xml:"ServerEncrypted"`
 	TagCount               *int32             `xml:"TagCount"`
 }

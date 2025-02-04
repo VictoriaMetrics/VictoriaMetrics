@@ -15,6 +15,9 @@ const router = {
   icons: "/icons",
   anomaly: "/anomaly",
   query: "/query",
+  rawQuery: "/raw-query",
+  downsamplingDebug: "/downsampling-filters-debug",
+  retentionDebug: "/retention-filters-debug",
 };
 
 export interface RouterOptionsHeader {
@@ -43,9 +46,13 @@ const routerOptionsDefault = {
   }
 };
 
-export const routerOptions: {[key: string]: RouterOptions} = {
+export const routerOptions: { [key: string]: RouterOptions } = {
   [router.home]: {
     title: "Query",
+    ...routerOptionsDefault
+  },
+  [router.rawQuery]: {
+    title: "Raw query",
     ...routerOptionsDefault
   },
   [router.metrics]: {
@@ -108,6 +115,14 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   [router.query]: {
     title: "Query",
     ...routerOptionsDefault
+  },
+  [router.downsamplingDebug]: {
+    title: "Downsampling filters debug",
+    header: {}
+  },
+  [router.retentionDebug]: {
+    title: "Retention filters debug",
+    header: {}
   }
 };
 

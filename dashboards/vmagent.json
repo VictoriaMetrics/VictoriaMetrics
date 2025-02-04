@@ -141,6 +141,7 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -210,6 +211,7 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -280,6 +282,7 @@
         "defaults": {
           "decimals": 1,
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -343,6 +346,7 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -524,6 +528,7 @@
       "fieldConfig": {
         "defaults": {
           "mappings": [],
+          "min": 0,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -572,7 +577,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "expr": "sum(vm_persistentqueue_bytes_pending{job=~\"$job\", instance=~\"$instance\"})",
+          "expr": "sum(vmagent_remotewrite_pending_data_bytes{job=~\"$job\", instance=~\"$instance\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -950,7 +955,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "Shows the persistent queue size of pending samples in bytes >2MB which hasn't been flushed to remote storage yet. \n\nIncreasing of value might be a sign of connectivity issues. In such cases, vmagent starts to flush pending data on disk with attempt to send it later once connection is restored.\n\nRemote write URLs are hidden by default but might be unveiled once `-remoteWrite.showURL` is set to true.\n\nClick on the line and choose Drilldown to show CPU usage per instance.\n",
+      "description": "Shows the persistent queue size of pending samples in bytes >2MB which hasn't been flushed to remote storage yet. \n\nIncreasing of value might be a sign of connectivity issues. In such cases, vmagent starts to flush pending data on disk with attempt to send it later once connection is restored.\n\nRemote write URLs are hidden by default but might be unveiled once `-remoteWrite.showURL` is set to true.\n\nClick on the line and choose Drilldown to show the persistent queue size per instance.\n",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1114,8 +1119,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1224,8 +1228,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1335,8 +1338,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1439,8 +1441,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1634,7 +1635,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 11
+            "y": 3
           },
           "id": 109,
           "options": {
@@ -1664,7 +1665,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_cpu_cores{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -1748,7 +1749,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 11
+            "y": 3
           },
           "id": 111,
           "options": {
@@ -1872,7 +1873,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 11
           },
           "id": 81,
           "options": {
@@ -2007,7 +2008,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 11
           },
           "id": 7,
           "options": {
@@ -2125,7 +2126,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 19
           },
           "id": 83,
           "options": {
@@ -2230,7 +2231,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 19
           },
           "id": 39,
           "options": {
@@ -2336,7 +2337,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 27
           },
           "id": 135,
           "options": {
@@ -2373,6 +2374,112 @@
             }
           ],
           "title": "CPU spent on GC ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the time goroutines have spent in runnable state before actually running. The lower is better.\n\nHigh values or values exceeding the threshold is usually a sign of            insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.1
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 27
+          },
+          "id": 149,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\"}[$__rate_interval])) by (job, instance, le))) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Go scheduling latency",
           "type": "timeseries"
         },
         {
@@ -2570,7 +2677,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 12
+            "y": 4
           },
           "id": 92,
           "options": {
@@ -2674,7 +2781,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 12
+            "y": 4
           },
           "id": 95,
           "options": {
@@ -2719,7 +2826,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows saturation persistent queue for writes. If the threshold of 0.9sec is reached, then persistent is saturated by more than 90% and vmagent won't be able to keep up with flushing data on disk. In this case, consider to decrease load on the vmagent or improve the disk throughput.",
+          "description": "Shows write saturation of the persistent queue. If the threshold of 0.9sec is reached, then the persistent queue is saturated by more than 90% and vmagent won't be able to keep up with flushing data on disk. In this case, consider to decrease load on the vmagent or improve the disk throughput.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2781,7 +2888,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 20
+            "y": 12
           },
           "id": 98,
           "options": {
@@ -2826,7 +2933,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows saturation persistent queue for reads. If the threshold of 0.9sec is reached, then persistent is saturated by more than 90% and vmagent won't be able to keep up with reading data from the disk. In this case, consider to decrease load on the vmagent or improve the disk throughput.",
+          "description": "Shows read saturation of the persistent queue. If the threshold of 0.9sec is reached, then the persistent queue is saturated by more than 90% and vmagent won't be able to keep up with reading data from the disk. In this case, consider to decrease load on the vmagent or improve the disk throughput.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2888,7 +2995,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 20
+            "y": 12
           },
           "id": 99,
           "options": {
@@ -2940,6 +3047,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -2953,6 +3061,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -2992,7 +3101,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 28
+            "y": 20
           },
           "id": 79,
           "options": {
@@ -3044,6 +3153,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -3057,6 +3167,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -3096,7 +3207,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 28
+            "y": 20
           },
           "id": 18,
           "links": [
@@ -3154,6 +3265,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -3167,6 +3279,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -3206,7 +3319,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 36
+            "y": 28
           },
           "id": 127,
           "options": {
@@ -3256,6 +3369,7 @@
                 "mode": "palette-classic"
               },
               "custom": {
+                "axisBorderShow": false,
                 "axisCenteredZero": false,
                 "axisColorMode": "text",
                 "axisLabel": "",
@@ -3269,6 +3383,7 @@
                   "tooltip": false,
                   "viz": false
                 },
+                "insertNulls": false,
                 "lineInterpolation": "linear",
                 "lineWidth": 1,
                 "pointSize": 5,
@@ -3308,7 +3423,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 36
+            "y": 28
           },
           "id": 50,
           "options": {
@@ -3406,13 +3521,15 @@
           },
           "gridPos": {
             "h": 7,
-            "w": 24,
+            "w": 12,
             "x": 0,
-            "y": 44
+            "y": 36
           },
           "id": 129,
           "options": {
+            "cellHeight": "sm",
             "footer": {
+              "countRows": false,
               "fields": "",
               "reducer": [
                 "sum"
@@ -3427,7 +3544,7 @@
               }
             ]
           },
-          "pluginVersion": "9.2.6",
+          "pluginVersion": "10.4.2",
           "targets": [
             {
               "datasource": {
@@ -3470,6 +3587,212 @@
             }
           ],
           "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. Normally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. ",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "stepAfter",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 36
+          },
+          "id": 150,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.1.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) by(job)",
+              "format": "time_series",
+              "instant": false,
+              "legendFormat": "{{job}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Restarts ($job)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows how many samples were ignored on insertion due to various resons. See the reason of rejection application logs.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 70
+          },
+          "id": 135,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "9.1.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "sum(increase(vm_rows_ignored_total{job=~\"$job\", instance=~\"$instance\"}[1h])) by (reason)",
+              "interval": "",
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Rows ignored for last 1h ($instance)",
+          "type": "timeseries"
         }
       ],
       "targets": [
@@ -3547,8 +3870,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3564,7 +3886,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 37
+            "y": 53
           },
           "id": 48,
           "options": {
@@ -3654,8 +3976,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3671,7 +3992,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 37
+            "y": 53
           },
           "id": 76,
           "options": {
@@ -3759,8 +4080,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3776,7 +4096,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 44
+            "y": 60
           },
           "id": 132,
           "options": {
@@ -3866,8 +4186,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3883,7 +4202,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 44
+            "y": 60
           },
           "id": 133,
           "options": {
@@ -3972,8 +4291,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3989,7 +4307,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 67
           },
           "id": 20,
           "options": {
@@ -4077,8 +4395,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4094,7 +4411,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 51
+            "y": 67
           },
           "id": 126,
           "options": {
@@ -4181,8 +4498,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4198,7 +4514,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 59
+            "y": 75
           },
           "id": 46,
           "options": {
@@ -4285,8 +4601,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4302,7 +4617,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 59
+            "y": 75
           },
           "id": 148,
           "options": {
@@ -4389,8 +4704,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4406,7 +4720,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 67
+            "y": 83
           },
           "id": 31,
           "options": {
@@ -4585,7 +4899,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 14
+            "y": 6
           },
           "id": 73,
           "options": {
@@ -5057,7 +5371,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7
+            "y": 23
           },
           "id": 146,
           "options": {
@@ -5159,7 +5473,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7
+            "y": 23
           },
           "id": 143,
           "options": {
@@ -5255,7 +5569,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 15
+            "y": 31
           },
           "id": 147,
           "options": {
@@ -5358,7 +5672,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 15
+            "y": 31
           },
           "id": 139,
           "options": {
@@ -5469,7 +5783,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 23
+            "y": 39
           },
           "id": 142,
           "options": {
@@ -5566,7 +5880,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 23
+            "y": 39
           },
           "id": 137,
           "options": {
@@ -5679,7 +5993,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 31
+            "y": 47
           },
           "id": 141,
           "options": {
@@ -5810,7 +6124,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 8
+            "y": 24
           },
           "id": 60,
           "options": {
@@ -5914,7 +6228,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 8
+            "y": 24
           },
           "id": 66,
           "options": {
@@ -6018,7 +6332,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 16
+            "y": 32
           },
           "id": 61,
           "options": {
@@ -6122,7 +6436,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 16
+            "y": 32
           },
           "id": 65,
           "options": {
@@ -6225,7 +6539,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 24
+            "y": 40
           },
           "id": 88,
           "options": {
@@ -6324,7 +6638,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 24
+            "y": 40
           },
           "id": 84,
           "options": {
@@ -6427,7 +6741,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 32
+            "y": 48
           },
           "id": 90,
           "options": {
@@ -6493,7 +6807,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 17
+            "y": 33
           },
           "id": 115,
           "options": {
@@ -6571,7 +6885,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 35
           },
           "id": 119,
           "options": {
@@ -6675,7 +6989,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 35
           },
           "id": 117,
           "options": {
@@ -6781,7 +7095,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 43
           },
           "id": 125,
           "links": [
@@ -6903,7 +7217,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 43
           },
           "id": 123,
           "options": {
@@ -7033,7 +7347,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 51
           },
           "id": 121,
           "options": {
@@ -7106,8 +7420,8 @@
       {
         "current": {
           "selected": false,
-          "text": "VictoriaMetrics",
-          "value": "P4169E866C3094E38"
+          "text": "VictoriaMetrics - cluster",
+          "value": "PAF93674D0B4E9963"
         },
         "hide": 0,
         "includeAll": false,

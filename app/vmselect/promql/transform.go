@@ -1544,10 +1544,8 @@ func transformRangeFirst(tfa *transformFuncArg) ([]*timeseries, error) {
 			continue
 		}
 		vFirst := values[0]
-		for i, v := range values {
-			if math.IsNaN(v) {
-				continue
-			}
+		values = ts.Values
+		for i := range values {
 			values[i] = vFirst
 		}
 	}
@@ -1571,10 +1569,8 @@ func setLastValues(tss []*timeseries) {
 			continue
 		}
 		vLast := values[len(values)-1]
-		for i, v := range values {
-			if math.IsNaN(v) {
-				continue
-			}
+		values = ts.Values
+		for i := range values {
 			values[i] = vLast
 		}
 	}

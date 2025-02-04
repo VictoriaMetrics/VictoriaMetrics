@@ -11,7 +11,7 @@
     },
     {
       "type": "datasource",
-      "id": "victoriametrics-datasource",
+      "id": "victoriametrics-metrics-datasource",
       "name": "VictoriaMetrics",
       "version": "1.0.0"
     },
@@ -62,7 +62,7 @@
       },
       {
         "datasource": {
-          "type": "victoriametrics-datasource",
+          "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "enable": true,
@@ -73,7 +73,7 @@
       },
       {
         "datasource": {
-          "type": "victoriametrics-datasource",
+          "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "enable": true,
@@ -86,7 +86,7 @@
       },
       {
         "datasource": {
-          "type": "victoriametrics-datasource",
+          "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "enable": true,
@@ -133,7 +133,7 @@
     {
       "collapsed": false,
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -149,7 +149,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "How many [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) are in storage",
@@ -201,7 +201,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "exemplar": true,
@@ -219,7 +219,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Shows the datapoints ingestion rate, including replication factor.",
@@ -271,7 +271,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -291,7 +291,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Shows the rate of HTTP read requests.",
@@ -343,7 +343,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -362,7 +362,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Total number of available CPUs for all VM components. ",
@@ -414,7 +414,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -433,7 +433,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Shows the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) with new data points inserted during the last hour. High value may result in ingestion slowdown.",
@@ -485,7 +485,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -504,7 +504,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Total amount of used disk space",
@@ -556,7 +556,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "exemplar": false,
@@ -574,7 +574,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Average disk usage per datapoint.",
@@ -627,7 +627,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "exemplar": true,
@@ -645,7 +645,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Total size of available memory for all VM components.",
@@ -697,7 +697,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -716,7 +716,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "fieldConfig": {
@@ -803,7 +803,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -819,7 +819,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "fieldConfig": {
@@ -907,7 +907,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -924,7 +924,7 @@
     {
       "collapsed": false,
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -940,7 +940,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "How many [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) are inserted into cluster per second by protocol before the replication. Check vminsert metrics if there are any issues with ingestion.",
@@ -1033,7 +1033,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1050,7 +1050,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
@@ -1140,7 +1140,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1157,7 +1157,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Shows the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series) with new data points inserted during the last hour across all storage nodes. High value may result in ingestion slowdown and high memory usage.",
@@ -1247,7 +1247,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "expr": "sum(vm_cache_entries{job=~\"$job\", instance=~\"$instance\", type=\"storage/hour_metric_ids\"})",
@@ -1262,7 +1262,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "The less time it takes is better.\n* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
@@ -1352,7 +1352,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1369,7 +1369,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
@@ -1459,7 +1459,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1476,7 +1476,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
@@ -1572,7 +1572,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1593,7 +1593,7 @@
     {
       "collapsed": true,
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -1606,7 +1606,7 @@
       "panels": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Percentage of used RSS memory (resident).\nThe RSS memory shows the amount of memory recently accessed by the application. It includes anonymous memory and data from recently accessed files (aka page cache).\nThe application's performance will significantly degrade when memory usage is close to 100%.\n\nClick on the line and choose Drilldown to show memory usage per instance",
@@ -1660,7 +1660,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1668,8 +1669,7 @@
                   }
                 ]
               },
-              "unit": "percentunit",
-              "unitScale": true
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -1680,7 +1680,6 @@
             "y": 3
           },
           "id": 66,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -1703,7 +1702,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -1720,7 +1719,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Share for memory allocated by the process itself. When memory usage reaches 100% it will be likely OOM-killed.\nSafe memory usage % considered to be below 80%\n\nClick on the line and choose Drilldown to show memory usage per instance",
@@ -1817,7 +1816,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -1834,7 +1833,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -1930,12 +1929,12 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_cpu_cores{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -1949,7 +1948,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the number of bytes read/write from the storage layer.",
@@ -2052,7 +2051,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -2068,7 +2067,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -2087,7 +2086,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the percentage of open file descriptors compared to the limit set in the OS.\nReaching the limit of open files can cause various issues and must be prevented.\n\nSee how to change limits here https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a",
@@ -2195,7 +2194,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -2214,7 +2213,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the number of read/write syscalls such as read, pread, write, pwrite.",
@@ -2269,8 +2268,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": [
               {
@@ -2294,7 +2292,6 @@
             "y": 19
           },
           "id": 204,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2317,7 +2314,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -2333,7 +2330,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -2352,7 +2349,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -2400,7 +2397,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2408,8 +2406,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2420,7 +2417,6 @@
             "y": 27
           },
           "id": 68,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2443,7 +2439,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -2462,7 +2458,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -2507,7 +2503,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2515,8 +2512,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2549,7 +2545,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -2566,7 +2562,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -2614,7 +2610,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2622,8 +2619,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2634,7 +2630,6 @@
             "y": 35
           },
           "id": 70,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2657,7 +2652,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -2676,7 +2671,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -2721,7 +2716,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2729,8 +2725,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2763,7 +2758,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -2780,7 +2775,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the percent of CPU spent on garbage collection.\n\nIf % is high, then CPU usage can be decreased by changing GOGC to higher values. Increasing GOGC value will increase memory usage, and decrease CPU usage.\n\nTry searching for keyword `GOGC` at https://docs.victoriametrics.com/troubleshooting/ ",
@@ -2829,7 +2824,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2837,8 +2833,7 @@
                   }
                 ]
               },
-              "unit": "percentunit",
-              "unitScale": true
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -2849,7 +2844,6 @@
             "y": 43
           },
           "id": 210,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2870,7 +2864,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -2885,6 +2879,113 @@
           ],
           "title": "CPU spent on GC ($instance)",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows the time goroutines have spent in runnable state before actually running. The lower is better.\n\nHigh values or values exceeding the threshold is usually a sign of            insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.1
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 43
+          },
+          "id": 213,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job, instance, le))) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Go scheduling latency",
+          "type": "timeseries"
         }
       ],
       "title": "Resource usage ($job)",
@@ -2893,7 +2994,7 @@
     {
       "collapsed": true,
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -2906,7 +3007,7 @@
       "panels": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "",
@@ -2914,7 +3015,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 4
+            "y": 12
           },
           "id": 211,
           "links": [],
@@ -2933,7 +3034,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh [churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected [cardinality](https://docs.victoriametrics.com/keyconcepts/#cardinality) \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nTo investigate stats about most expensive series use `api/v1/status/tsdb` handler. More details here https://docs.victoriametrics.com/cluster-victoriametrics/#url-format\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b",
@@ -3012,7 +3113,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 23
+            "y": 31
           },
           "id": 102,
           "options": {
@@ -3037,7 +3138,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -3048,7 +3149,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -3064,10 +3165,10 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>10%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series). \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on many other factors such as the number of labels per time series and the length of label values. See also [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183) for details.",
+          "description": "The percentage of [slow inserts](https://docs.victoriametrics.com/faq/#what-is-a-slow-insert) compared to the total ingestion rate. \\n\\nThe lower the better. \\n\\nIn short, slow insert is a cache miss. There are following reasons for slow inserts to go up: \\n* Ingestion of completely new, not seen before time series;\\n* [Re-routing](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-availability) of series when one or more vmstorage nodes are unavailable;\\n* Not enough memory to maintain big enough caches for the current workload.\\n\\nIf percentage remains high (>10%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series). \\n\\nSee [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183) for details.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3126,7 +3227,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 23
+            "y": 31
           },
           "id": 108,
           "options": {
@@ -3149,7 +3250,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3165,7 +3266,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "The value is above 0 when the vmstorage at the given `addr` communicates to the given vminsert node that it cannot accept new data because it is in the read-only mode.",
@@ -3227,7 +3328,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 31
+            "y": 39
           },
           "id": 142,
           "links": [
@@ -3257,7 +3358,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3276,7 +3377,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows % of slow queries according to `search.logSlowQueryDuration` flag, which is `5s` by default.\n\nThe less value is better.",
@@ -3339,7 +3440,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 31
+            "y": 39
           },
           "id": 107,
           "options": {
@@ -3362,7 +3463,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3378,7 +3479,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Merge assist happens when vmstorage can't keep up with merging parts. This is usually a sign of overload for vmstorage.",
@@ -3440,7 +3541,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 47
           },
           "id": 170,
           "links": [],
@@ -3464,7 +3565,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3483,112 +3584,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
-            "uid": "$ds"
-          },
-          "description": "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n\nThis prevents from ingesting metrics with too many labels. The value of `maxLabelsPerTimeseries` must be adjusted for your workload.\n\nWhen limit is exceeded (graph is > 0) - extra labels are dropped, which could result in unexpected identical time series. See more details about dropped labels in vminsert logs.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "decimals": 2,
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 39
-          },
-          "id": 116,
-          "links": [],
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "9.1.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "victoriametrics-datasource",
-                "uid": "$ds"
-              },
-              "exemplar": true,
-              "expr": "sum(increase(vm_metrics_with_dropped_labels_total{job=~\"$job_insert\", instance=~\"$instance\"}[$__rate_interval]))",
-              "format": "time_series",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "metrics with dropped labels",
-              "refId": "A"
-            }
-          ],
-          "title": "Labels limit exceeded ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the percentage of used cache size from the allowed size by type. \nValues close to 100% show the maximum potential utilization.\nValues close to 0% show that cache is underutilized.",
@@ -3648,7 +3644,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 55
           },
           "id": 144,
           "options": {
@@ -3671,7 +3667,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3688,7 +3684,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows cache miss ratio. Lower is better.",
@@ -3751,7 +3747,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 47
+            "y": 55
           },
           "id": 58,
           "links": [],
@@ -3777,7 +3773,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3797,7 +3793,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -3857,7 +3853,7 @@
             "h": 6,
             "w": 24,
             "x": 0,
-            "y": 56
+            "y": 64
           },
           "id": 183,
           "options": {
@@ -3880,7 +3876,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3925,10 +3921,10 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows how many rows were ignored on insertion due to corrupted or out of retention timestamps.",
+          "description": "Shows how many rows were ignored on insertion due to corrupted or out of retention timestamps or too long label names, values and excessive labels count",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3985,7 +3981,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 62
+            "y": 70
           },
           "id": 135,
           "options": {
@@ -4010,12 +4006,12 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum(increase(vm_rows_ignored_total{job=~\"$job_storage\", instance=~\"$instance\"}[1h])) by (reason)",
+              "expr": "sum(increase(vm_rows_ignored_total{job=~\"$job\", instance=~\"$instance\"}[1h])) by (reason)",
               "interval": "",
               "legendFormat": "__auto",
               "range": true,
@@ -4023,6 +4019,111 @@
             }
           ],
           "title": "Rows ignored for last 1h ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Shows the number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. Normally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. ",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "stepAfter",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 70
+          },
+          "id": 214,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.1.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) by(job)",
+              "format": "time_series",
+              "instant": false,
+              "legendFormat": "{{job}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Restarts ($job)",
           "type": "timeseries"
         }
       ],
@@ -4032,7 +4133,7 @@
     {
       "collapsed": true,
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -4045,7 +4146,7 @@
       "panels": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows number of pushed and sent rows. \n* `Pushed rows` - rows added to internal inserter buffers before send\n* `Sent rows` - successfully transmitted rows to storage nodes\n\nPlease note, it could be that `Sent > Pushed` because of the replication factor.",
@@ -4107,7 +4208,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 37
+            "y": 45
           },
           "id": 76,
           "links": [],
@@ -4131,7 +4232,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -4144,7 +4245,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -4161,7 +4262,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Rate of RPC errors by type:\n* `Connection` - the number of connection errors to vmstorage node\n* `Dial` -  the number of dial errors to vmstorage node.\n* `Handshake` - the number of handshake errors to vmstorage node\n* `Rerouted` - errors appeared during rerouting of rows from un-healthy storage node to a healthy one.",
@@ -4223,7 +4324,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 37
+            "y": 45
           },
           "id": 86,
           "links": [],
@@ -4247,7 +4348,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -4260,7 +4361,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(rate(vm_rpc_dial_errors_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
@@ -4271,7 +4372,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(rate(vm_rpc_handshake_errors_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval]))",
@@ -4286,7 +4387,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "The number of rows rerouted to the vmstorage node from other nodes when they were unhealthy.",
@@ -4348,7 +4449,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 46
+            "y": 54
           },
           "id": 80,
           "links": [],
@@ -4372,7 +4473,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -4391,7 +4492,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "The number of rows rerouted from the vmstorage node to healthy nodes when the given node was unhealthy.",
@@ -4453,7 +4554,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 46
+            "y": 54
           },
           "id": 78,
           "links": [],
@@ -4477,7 +4578,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -4494,7 +4595,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "The number of rows or bytes that vminsert internal buffer contains at the moment.",
@@ -4569,7 +4670,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 54
+            "y": 62
           },
           "id": 82,
           "options": {
@@ -4592,7 +4693,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(vm_rpc_buf_pending_bytes{job=~\"$job\", instance=~\"$instance\"})",
@@ -4601,7 +4702,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(vm_rpc_rows_pending{job=~\"$job\", instance=~\"$instance\"})",
@@ -4614,7 +4715,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Network usage by internal VictoriaMetrics RPC protocol",
@@ -4676,7 +4777,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 54
+            "y": 62
           },
           "id": 74,
           "options": {
@@ -4699,7 +4800,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -4719,7 +4820,7 @@
     {
       "collapsed": true,
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -4732,7 +4833,7 @@
       "panels": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the number of datapoints ingested into storage nodes per second. This metric doesn't show all stored datapoints since some of them may be dropped because of wrong timestamps or decode errors.",
@@ -4780,8 +4881,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4797,7 +4897,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 6
+            "y": 14
           },
           "id": 100,
           "options": {
@@ -4822,7 +4922,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -4839,10 +4939,10 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the approx time needed to reach 100% of disk capacity for at least one vmstorage node based on the following params:\n* free disk space;\n* row ingestion rate;\n* compression.\n\nNote: this panel doesn't account for deduplication process.",
+          "description": "Shows the approx time needed to reach 100% of disk capacity for at least one vmstorage node based on the following params:\n* free disk space (after -storage.minFreeDiskSpaceBytes);\n* row ingestion rate;\n* compression.\n\nNote: this panel doesn't account for deduplication process.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4893,8 +4993,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4910,7 +5009,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 6
+            "y": 14
           },
           "id": 113,
           "options": {
@@ -4935,11 +5034,11 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "min(vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"} \n/ \nignoring(path) (\n    rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n    * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n))",
+              "expr": "min((vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"} - vm_free_disk_space_limit_bytes{job=~\"$job_storage\", instance=~\"$instance\"}) \n/ \nignoring(path) (\n    rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n    * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -4953,7 +5052,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "",
@@ -5007,8 +5106,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5024,7 +5122,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 14
+            "y": 22
           },
           "id": 151,
           "options": {
@@ -5049,7 +5147,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -5064,7 +5162,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -5080,7 +5178,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -5100,7 +5198,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Percentage of used memory (resident).\nThe application's performance will significantly degrade when memory usage is close to 100%.",
@@ -5154,8 +5252,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5171,7 +5268,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 14
+            "y": 22
           },
           "id": 167,
           "options": {
@@ -5196,7 +5293,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -5211,7 +5308,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -5227,7 +5324,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -5247,7 +5344,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. The `max` is an internal limit and can't be changed. It is always equal to the number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU (see CPU usage) or disks with more IOPS (see disk writes and reads panels in Resource Usage row).",
@@ -5293,8 +5390,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5326,7 +5422,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 21
+            "y": 29
           },
           "id": 212,
           "links": [
@@ -5358,7 +5454,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -5371,7 +5467,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -5389,7 +5485,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the number of concurrently executed read requests, where:\n* `max` - equal to `-search.maxConcurrentRequest` cmd-line flag;\n* `current` - current number of concurrent select requests executed by storage.\n\nEach concurrent select request requires RAM, CPU and disk IO resources during processing. Too many concurrent requests could result into OOM exceptions.\n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU (see CPU usage) or disks with more IOPS (see disk writes and reads panels in Resource Usage row).\n\nSee more at https://docs.victoriametrics.com/cluster-victoriametrics/#resource-usage-limits",
@@ -5435,8 +5531,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5468,7 +5563,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 21
+            "y": 29
           },
           "id": 133,
           "options": {
@@ -5493,7 +5588,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -5506,7 +5601,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -5524,7 +5619,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "The max number of on-going merges across storage nodes.\n The drastic change in number of merges could be a sign of on-going deduplication/downsampling activity.\n It is expected to have high numbers for `storage/small` metric.",
@@ -5573,8 +5668,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5590,7 +5684,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 29
+            "y": 37
           },
           "id": 54,
           "options": {
@@ -5615,7 +5709,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -5630,7 +5724,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "The number of rows merged per second by storage nodes. Merge speed depends on available CPU and disk IO bandwidth.",
@@ -5679,8 +5773,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5696,7 +5789,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 29
+            "y": 37
           },
           "id": 55,
           "options": {
@@ -5721,7 +5814,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -5736,7 +5829,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the percentage of used disk space. It is recommended to have at least 20% of free disk space for the best performance.",
@@ -5790,8 +5883,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5807,7 +5899,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 37
+            "y": 45
           },
           "id": 20,
           "options": {
@@ -5832,11 +5924,11 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
+              "expr": "max(\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}-vm_free_disk_space_limit_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "max",
@@ -5845,11 +5937,11 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "min(\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
+              "expr": "min(\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}-vm_free_disk_space_limit_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -5859,11 +5951,11 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "quantile(0.5,\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
+              "expr": "quantile(0.5,\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}-vm_free_disk_space_limit_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -5877,7 +5969,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "The max number of data parts of LSM tree across all storage nodes.\nHigh number of parts (the hard limit is 512) is an evidence of slow merge performance - check the resource utilization.\n* `indexdb` - inverted index\n* `storage/small` - recently added parts of data ingested into storage (hot data)\n* `storage/big` -  small parts gradually merged into big parts (cold data)",
@@ -5925,8 +6017,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5942,7 +6033,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 37
+            "y": 45
           },
           "id": 22,
           "options": {
@@ -5967,7 +6058,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -5985,7 +6076,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the percentage of used disk space by type: datapoints or indexdb. Normally, indexdb takes much less space comparing to datapoints. But with high [churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate) the size of the indexdb could grow significantly.\n\nThe sum of the % can be > 100% since panel shows max % per-job and per-instance. It means different instance can have different ratio between datapoints and indexdb size.",
@@ -6039,8 +6130,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -6052,7 +6142,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 45
+            "y": 53
           },
           "id": 202,
           "options": {
@@ -6077,7 +6167,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -6090,7 +6180,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -6108,10 +6198,10 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `2*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every second. The index datapoints value in general is much lower.",
+          "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `3*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every two seconds. The index datapoints value in general is much lower.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6156,8 +6246,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6190,7 +6279,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 45
+            "y": 53
           },
           "id": 14,
           "options": {
@@ -6215,7 +6304,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -6229,7 +6318,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -6247,7 +6336,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows network usage by vmstorage services.\n* Writes show traffic sent to clients.\n* Reads show traffic received from clients.",
@@ -6294,8 +6383,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6324,7 +6412,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 53
+            "y": 61
           },
           "id": 206,
           "options": {
@@ -6348,7 +6436,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -6361,7 +6449,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -6379,7 +6467,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Value > 0 means vmstorage is in readonly mode.",
@@ -6425,8 +6513,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6442,7 +6529,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 53
+            "y": 61
           },
           "id": 141,
           "links": [
@@ -6468,7 +6555,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -6490,7 +6577,7 @@
     {
       "collapsed": true,
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -6503,7 +6590,7 @@
       "panels": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Request rate accepted by vmselect nodes",
@@ -6565,7 +6652,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 50
+            "y": 58
           },
           "id": 92,
           "links": [],
@@ -6591,7 +6678,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -6608,7 +6695,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the max number of concurrent selects across instances.\n* `max` limit can be configured via `search.maxConcurrentRequests` flag\n* `current` shows the current number of goroutines busy with processing requests\n\nWhen `current` hits `max` constantly, it means one or more vmselect nodes are overloaded with number of requests. If you observe that CPU for vmselects is saturated, consider adding more vmselect replicas or increase CPU resources. If CPU panel shows a plenty of free resources - try increasing `search.maxConcurrentRequests`.",
@@ -6691,7 +6778,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 50
+            "y": 58
           },
           "id": 95,
           "links": [],
@@ -6717,7 +6804,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -6731,7 +6818,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "expr": "min(vm_concurrent_select_capacity{job=~\"$job_select\", instance=~\"$instance\"})",
@@ -6746,7 +6833,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -6813,7 +6900,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 58
+            "y": 66
           },
           "id": 163,
           "links": [],
@@ -6839,7 +6926,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -6854,7 +6941,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -6870,7 +6957,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -6890,7 +6977,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -6957,7 +7044,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 58
+            "y": 66
           },
           "id": 165,
           "links": [],
@@ -6983,7 +7070,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -6998,7 +7085,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -7014,7 +7101,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -7034,7 +7121,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "99th percentile of the number of time series read per query.",
@@ -7097,7 +7184,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 66
+            "y": 74
           },
           "id": 178,
           "links": [],
@@ -7123,7 +7210,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -7141,7 +7228,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) read per queried time series.",
@@ -7204,7 +7291,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 66
+            "y": 74
           },
           "id": 180,
           "links": [],
@@ -7230,7 +7317,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -7248,7 +7335,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) read per query.",
@@ -7311,7 +7398,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 74
+            "y": 82
           },
           "id": 179,
           "links": [],
@@ -7337,7 +7424,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -7355,10 +7442,10 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) scanner per query.\n\nThis number can exceed number of DatapointsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://victoriametrics-datasource.io/docs/victoriametrics-datasource/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/metricsql/#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
+          "description": "99th percentile of number of [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) scanner per query.\n\nThis number can exceed number of DatapointsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://victoriametrics-metrics-datasource.io/docs/victoriametrics-metrics-datasource/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/metricsql/#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same [data samples](https://docs.victoriametrics.com/keyconcepts/#raw-samples) on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7418,7 +7505,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 74
+            "y": 82
           },
           "id": 181,
           "links": [],
@@ -7444,7 +7531,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -7462,7 +7549,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows network usage between vmselects and clients, such as vmalert, Grafana, vmui, etc.",
@@ -7536,7 +7623,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 82
+            "y": 90
           },
           "id": 93,
           "links": [],
@@ -7561,7 +7648,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -7574,7 +7661,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -7592,7 +7679,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows network usage between vmselects and vmstorages.",
@@ -7666,7 +7753,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 82
+            "y": 90
           },
           "id": 207,
           "links": [],
@@ -7691,7 +7778,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -7704,7 +7791,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -7727,7 +7814,7 @@
     {
       "collapsed": true,
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -7740,7 +7827,7 @@
       "panels": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
@@ -7802,7 +7889,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 59
           },
           "id": 97,
           "links": [],
@@ -7828,7 +7915,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -7845,7 +7932,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the max number of ongoing insertions.\n* `max` - equal to number of CPU * 2 by default. May be configured with `maxConcurrentInserts` flag;\n* `current` - current number of goroutines busy with processing requests.\n\n`-maxConcurrentInserts` limits the number of insert requests which may be actively processed at any given point in time. All the other insert requests are queued for up to `-insert.maxQueueDuration` in the hope they will get a chance to be processed. This queue is used mostly for absorbing spikes for incoming insert request rate.\n\nWhen `current` hits `max` constantly, it means vminsert node is overloaded and requires more CPU or higher limits.",
@@ -7928,7 +8015,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 51
+            "y": 59
           },
           "id": 99,
           "links": [],
@@ -7954,7 +8041,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -7968,7 +8055,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -7985,7 +8072,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -8052,7 +8139,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 59
+            "y": 67
           },
           "id": 185,
           "links": [],
@@ -8078,7 +8165,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -8093,7 +8180,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -8109,7 +8196,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -8129,7 +8216,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -8196,7 +8283,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 59
+            "y": 67
           },
           "id": 187,
           "links": [],
@@ -8222,7 +8309,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -8237,7 +8324,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -8253,7 +8340,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -8273,7 +8360,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the saturation level of connection between vminsert and vmstorage components. \n\nIf the threshold of 0.9sec is reached, then the connection is saturated by more than 90% and vminsert won't be able to keep up. This usually means that either vminsert or vmstorage nodes are struggling with the load. Verify CPU/mem saturation of both components and network saturation between them.\nIf vminsert resources are saturated - consider adding more resources or scale vminserts horizontally.\n\nIf vminsert resources and network are fine, check vmstorage metrics for anomalies.",
@@ -8336,7 +8423,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 67
+            "y": 75
           },
           "id": 139,
           "links": [],
@@ -8361,7 +8448,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -8380,7 +8467,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows when vmstorage node is unreachable for vminsert.",
@@ -8443,7 +8530,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 67
+            "y": 75
           },
           "id": 114,
           "links": [],
@@ -8466,7 +8553,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -8484,7 +8571,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows network usage between vminserts and clients, such as vmagent, VictoriaMetrics, or any other client pushing metrics to vminsert.",
@@ -8558,7 +8645,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 75
+            "y": 83
           },
           "id": 208,
           "links": [],
@@ -8583,7 +8670,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -8596,7 +8683,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -8614,7 +8701,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows network usage between vminserts and vmstorages.",
@@ -8688,7 +8775,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 75
+            "y": 83
           },
           "id": 209,
           "links": [],
@@ -8713,7 +8800,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -8726,7 +8813,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -8744,7 +8831,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "",
@@ -8807,7 +8894,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 83
+            "y": 91
           },
           "id": 88,
           "links": [],
@@ -8833,7 +8920,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -8865,14 +8952,14 @@
       "panels": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "gridPos": {
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 100
+            "y": 108
           },
           "id": 198,
           "options": {
@@ -8890,7 +8977,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the used memory (resident).\nThe application's performance will significantly degrade when memory usage is close to 100%.",
@@ -8948,7 +9035,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 102
+            "y": 110
           },
           "id": 189,
           "links": [],
@@ -8974,7 +9061,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -8991,7 +9078,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "RSS share for memory allocated by the process itself. This share cannot be freed by the OS, so it must be taken into account by OOM killer.",
@@ -9049,7 +9136,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 102
+            "y": 110
           },
           "id": 190,
           "links": [],
@@ -9075,7 +9162,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -9092,7 +9179,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "",
@@ -9150,7 +9237,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 110
+            "y": 118
           },
           "id": 192,
           "links": [],
@@ -9176,7 +9263,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -9195,10 +9282,10 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows the approx time needed to reach 100% of disk capacity based on the following params:\n* free disk space;\n* row ingestion rate;\n* compression.\n\nNote: this panel doesn't account for deduplication process.",
+          "description": "Shows the approx time needed to reach 100% of disk capacity based on the following params:\n* free disk space (after -storage.minFreeDiskSpaceBytes);\n* row ingestion rate;\n* compression.\n\nNote: this panel doesn't account for deduplication process.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -9257,7 +9344,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 110
+            "y": 118
           },
           "id": 196,
           "links": [],
@@ -9283,11 +9370,11 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"} \n/ \nignoring(path) (\n    rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n    * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n)",
+              "expr": "(vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"}-vm_free_disk_space_limit_bytes{job=~\"$job_storage\", instance=~\"$instance\"}) \n/ \nignoring(path) (\n    rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n    * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -9301,7 +9388,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the percentage of used disk space. It is recommended to have at least 20% of free disk space for the best performance.",
@@ -9359,7 +9446,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 117
+            "y": 125
           },
           "id": 200,
           "links": [],
@@ -9385,7 +9472,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -9402,7 +9489,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "",
@@ -9460,7 +9547,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 117
+            "y": 125
           },
           "id": 201,
           "links": [],
@@ -9486,7 +9573,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -9499,7 +9586,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -9517,7 +9604,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
@@ -9579,7 +9666,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 125
+            "y": 133
           },
           "id": 203,
           "links": [],
@@ -9605,7 +9692,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -9644,7 +9731,7 @@
         "multi": false,
         "name": "ds",
         "options": [],
-        "query": "victoriametrics-datasource",
+        "query": "victoriametrics-metrics-datasource",
         "queryValue": "",
         "refresh": 1,
         "regex": "",
@@ -9654,7 +9741,7 @@
       {
         "current": {},
         "datasource": {
-          "type": "victoriametrics-datasource",
+          "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"^vm(insert|select|storage).*\"}, job)",
@@ -9679,7 +9766,7 @@
       {
         "current": {},
         "datasource": {
-          "type": "victoriametrics-datasource",
+          "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\", version=~\"^vminsert.*\"}, job)",
@@ -9704,7 +9791,7 @@
       {
         "current": {},
         "datasource": {
-          "type": "victoriametrics-datasource",
+          "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\", version=~\"^vmselect.*\"}, job)",
@@ -9729,7 +9816,7 @@
       {
         "current": {},
         "datasource": {
-          "type": "victoriametrics-datasource",
+          "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\", version=~\"^vmstorage.*\"}, job)",
@@ -9755,7 +9842,7 @@
         "allValue": ".*",
         "current": {},
         "datasource": {
-          "type": "victoriametrics-datasource",
+          "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
@@ -9776,7 +9863,7 @@
       },
       {
         "datasource": {
-          "type": "victoriametrics-datasource",
+          "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "filters": [],

@@ -3,11 +3,12 @@ package logstorage
 import (
 	"fmt"
 	"slices"
-	"strings"
+	"sync"
 	"sync/atomic"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -55,30 +56,29 @@ func (pu *pipeUniq) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (pu *pipeUniq) optimize() {
-	// nothing to do
-}
-
 func (pu *pipeUniq) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pu *pipeUniq) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pu *pipeUniq) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pu, nil
 }
 
+func (pu *pipeUniq) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pu *pipeUniq) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
-	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
+	maxStateSize := int64(float64(memory.Allowed()) * 0.4)
 
 	shards := make([]pipeUniqProcessorShard, workersCount)
 	for i := range shards {
 		shards[i] = pipeUniqProcessorShard{
 			pipeUniqProcessorShardNopad: pipeUniqProcessorShardNopad{
-				pu:              pu,
-				stateSizeBudget: stateSizeBudgetChunk,
+				pu: pu,
 			},
 		}
-		maxStateSize -= stateSizeBudgetChunk
+		shards[i].m.init(&shards[i].stateSizeBudget)
 	}
 
 	pup := &pipeUniqProcessor{
@@ -120,7 +120,7 @@ type pipeUniqProcessorShardNopad struct {
 	pu *pipeUniq
 
 	// m holds per-row hits.
-	m map[string]*uint64
+	m hitsMap
 
 	// keyBuf is a temporary buffer for building keys for m.
 	keyBuf []byte
@@ -137,7 +137,7 @@ type pipeUniqProcessorShardNopad struct {
 //
 // It returns false if the block cannot be written because of the exceeded limit.
 func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
-	if limit := shard.pu.limit; limit > 0 && uint64(len(shard.m)) >= limit {
+	if limit := shard.pu.limit; limit > 0 && shard.m.entriesCount() > limit {
 		return false
 	}
 
@@ -147,53 +147,21 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 		// Take into account all the columns in br.
 		keyBuf := shard.keyBuf
 		cs := br.getColumns()
-		for i := range br.timestamps {
+		for i := 0; i < br.rowsLen; i++ {
 			keyBuf = keyBuf[:0]
 			for _, c := range cs {
 				v := c.getValueAtRow(br, i)
 				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(c.name))
 				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(v))
 			}
-			shard.updateState(bytesutil.ToUnsafeString(keyBuf), 1)
+			shard.m.updateStateString(keyBuf, 1)
 		}
 		shard.keyBuf = keyBuf
 		return true
 	}
 	if len(byFields) == 1 {
 		// Fast path for a single field.
-		c := br.getColumnByName(byFields[0])
-		if c.isConst {
-			v := c.valuesEncoded[0]
-			shard.updateState(v, uint64(len(br.timestamps)))
-			return true
-		}
-		if c.valueType == valueTypeDict {
-			if needHits {
-				a := encoding.GetUint64s(len(c.dictValues))
-				hits := a.A
-				valuesEncoded := c.getValuesEncoded(br)
-				for _, v := range valuesEncoded {
-					idx := unmarshalUint8(v)
-					hits[idx]++
-				}
-				for i, v := range c.dictValues {
-					shard.updateState(v, hits[i])
-				}
-				encoding.PutUint64s(a)
-			} else {
-				for _, v := range c.dictValues {
-					shard.updateState(v, 0)
-				}
-			}
-			return true
-		}
-
-		values := c.getValues(br)
-		for i, v := range values {
-			if needHits || i == 0 || values[i-1] != values[i] {
-				shard.updateState(v, 1)
-			}
-		}
+		shard.updateStatsSingleColumn(br, byFields[0], needHits)
 		return true
 	}
 
@@ -207,7 +175,7 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 	shard.columnValues = columnValues
 
 	keyBuf := shard.keyBuf
-	for i := range br.timestamps {
+	for i := 0; i < br.rowsLen; i++ {
 		seenValue := true
 		for _, values := range columnValues {
 			if needHits || i == 0 || values[i-1] != values[i] {
@@ -223,35 +191,65 @@ func (shard *pipeUniqProcessorShard) writeBlock(br *blockResult) bool {
 		for _, values := range columnValues {
 			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[i]))
 		}
-		shard.updateState(bytesutil.ToUnsafeString(keyBuf), 1)
+		shard.m.updateStateString(keyBuf, 1)
 	}
 	shard.keyBuf = keyBuf
 
 	return true
 }
 
-func (shard *pipeUniqProcessorShard) updateState(v string, hits uint64) {
-	m := shard.getM()
-	pHits, ok := m[v]
-	if !ok {
-		vCopy := strings.Clone(v)
-		hits := uint64(0)
-		pHits = &hits
-		m[vCopy] = pHits
-		shard.stateSizeBudget -= len(vCopy) + int(unsafe.Sizeof(vCopy)+unsafe.Sizeof(hits)+unsafe.Sizeof(pHits))
+func (shard *pipeUniqProcessorShard) updateStatsSingleColumn(br *blockResult, columnName string, needHits bool) {
+	c := br.getColumnByName(columnName)
+	if c.isConst {
+		v := c.valuesEncoded[0]
+		shard.m.updateStateGeneric(v, uint64(br.rowsLen))
+		return
 	}
-	*pHits += hits
-}
-
-func (shard *pipeUniqProcessorShard) getM() map[string]*uint64 {
-	if shard.m == nil {
-		shard.m = make(map[string]*uint64)
+	switch c.valueType {
+	case valueTypeDict:
+		c.forEachDictValueWithHits(br, shard.m.updateStateGeneric)
+	case valueTypeUint8:
+		values := c.getValuesEncoded(br)
+		for _, v := range values {
+			n := unmarshalUint8(v)
+			shard.m.updateStateUint64(uint64(n), 1)
+		}
+	case valueTypeUint16:
+		values := c.getValuesEncoded(br)
+		for _, v := range values {
+			n := unmarshalUint16(v)
+			shard.m.updateStateUint64(uint64(n), 1)
+		}
+	case valueTypeUint32:
+		values := c.getValuesEncoded(br)
+		for _, v := range values {
+			n := unmarshalUint32(v)
+			shard.m.updateStateUint64(uint64(n), 1)
+		}
+	case valueTypeUint64:
+		values := c.getValuesEncoded(br)
+		for _, v := range values {
+			n := unmarshalUint64(v)
+			shard.m.updateStateUint64(n, 1)
+		}
+	case valueTypeInt64:
+		values := c.getValuesEncoded(br)
+		for _, v := range values {
+			n := unmarshalInt64(v)
+			shard.m.updateStateInt64(n, 1)
+		}
+	default:
+		values := c.getValues(br)
+		for i, v := range values {
+			if needHits || i == 0 || values[i-1] != v {
+				shard.m.updateStateGeneric(v, 1)
+			}
+		}
 	}
-	return shard.m
 }
 
 func (pup *pipeUniqProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -281,55 +279,99 @@ func (pup *pipeUniqProcessor) flush() error {
 		return fmt.Errorf("cannot calculate [%s], since it requires more than %dMB of memory", pup.pu.String(), pup.maxStateSize/(1<<20))
 	}
 
-	// merge state across shards
-	shards := pup.shards
-	m := shards[0].getM()
-	shards = shards[1:]
-	for i := range shards {
-		if needStop(pup.stopCh) {
-			return nil
-		}
+	// merge state across shards in parallel
+	hms := pup.mergeShardsParallel()
+	if needStop(pup.stopCh) {
+		return nil
+	}
 
-		for k, pHitsSrc := range shards[i].getM() {
-			pHits, ok := m[k]
-			if !ok {
-				m[k] = pHitsSrc
-			} else {
-				*pHits += *pHitsSrc
+	resetHits := false
+	if limit := pup.pu.limit; limit > 0 {
+		// Trim the number of entries according to the given limit
+		entriesLen := uint64(0)
+		result := hms[:0]
+		for _, hm := range hms {
+			entriesLen += hm.entriesCount()
+			if entriesLen <= limit {
+				result = append(result, hm)
+				continue
 			}
+
+			// There is little sense in returning partial hits when the limit on the number of unique entries is reached,
+			// since arbitrary number of unique entries and hits for these entries could be skipped.
+			// It is better to return zero hits instead of misleading hits results.
+			resetHits = true
+			for n := range hm.u64 {
+				if entriesLen <= limit {
+					break
+				}
+				delete(hm.u64, n)
+				entriesLen--
+			}
+			for n := range hm.negative64 {
+				if entriesLen <= limit {
+					break
+				}
+				delete(hm.negative64, n)
+				entriesLen--
+			}
+			for k := range hm.strings {
+				if entriesLen <= limit {
+					break
+				}
+				delete(hm.strings, k)
+				entriesLen--
+			}
+			if hm.entriesCount() > 0 {
+				result = append(result, hm)
+			}
+			break
 		}
+		hms = result
 	}
 
-	// There is little sense in returning partial hits when the limit on the number of unique entries is reached.
-	// It is better from UX experience is to return zero hits instead.
-	resetHits := pup.pu.limit > 0 && uint64(len(m)) >= pup.pu.limit
+	// Write the calculated stats in parallel to the next pipe.
+	var wg sync.WaitGroup
+	for i := range hms {
+		wg.Add(1)
+		go func(workerID uint) {
+			defer wg.Done()
+			pup.writeShardData(workerID, hms[workerID], resetHits)
+		}(uint(i))
+	}
+	wg.Wait()
 
-	// write result
+	return nil
+}
+
+func (pup *pipeUniqProcessor) writeShardData(workerID uint, hm *hitsMap, resetHits bool) {
 	wctx := &pipeUniqWriteContext{
-		pup: pup,
+		workerID: workerID,
+		pup:      pup,
 	}
+
 	byFields := pup.pu.byFields
 	var rowFields []Field
 
-	addHitsFieldIfNeeded := func(dst []Field, hits uint64) []Field {
+	addHitsFieldIfNeeded := func(dst []Field, pHits *uint64) []Field {
 		if pup.pu.hitsFieldName == "" {
 			return dst
 		}
-		if resetHits {
-			hits = 0
+		hits := uint64(0)
+		if !resetHits {
+			hits = *pHits
 		}
-		hitsStr := string(marshalUint64String(nil, hits))
 		dst = append(dst, Field{
 			Name:  pup.pu.hitsFieldName,
-			Value: hitsStr,
+			Value: wctx.getUint64String(hits),
 		})
 		return dst
 	}
 
 	if len(byFields) == 0 {
-		for k, pHits := range m {
+		for k, pHits := range hm.strings {
 			if needStop(pup.stopCh) {
-				return nil
+				return
 			}
 
 			rowFields = rowFields[:0]
@@ -352,27 +394,48 @@ func (pup *pipeUniqProcessor) flush() error {
 					Value: bytesutil.ToUnsafeString(value),
 				})
 			}
-			rowFields = addHitsFieldIfNeeded(rowFields, *pHits)
+			rowFields = addHitsFieldIfNeeded(rowFields, pHits)
 			wctx.writeRow(rowFields)
 		}
 	} else if len(byFields) == 1 {
 		fieldName := byFields[0]
-		for k, pHits := range m {
+		for n, pHits := range hm.u64 {
 			if needStop(pup.stopCh) {
-				return nil
+				return
 			}
-
+			rowFields = append(rowFields[:0], Field{
+				Name:  fieldName,
+				Value: wctx.getUint64String(n),
+			})
+			rowFields = addHitsFieldIfNeeded(rowFields, pHits)
+			wctx.writeRow(rowFields)
+		}
+		for n, pHits := range hm.negative64 {
+			if needStop(pup.stopCh) {
+				return
+			}
+			rowFields = append(rowFields[:0], Field{
+				Name:  fieldName,
+				Value: wctx.getInt64String(int64(n)),
+			})
+			rowFields = addHitsFieldIfNeeded(rowFields, pHits)
+			wctx.writeRow(rowFields)
+		}
+		for k, pHits := range hm.strings {
+			if needStop(pup.stopCh) {
+				return
+			}
 			rowFields = append(rowFields[:0], Field{
 				Name:  fieldName,
 				Value: k,
 			})
-			rowFields = addHitsFieldIfNeeded(rowFields, *pHits)
+			rowFields = addHitsFieldIfNeeded(rowFields, pHits)
 			wctx.writeRow(rowFields)
 		}
 	} else {
-		for k, pHits := range m {
+		for k, pHits := range hm.strings {
 			if needStop(pup.stopCh) {
-				return nil
+				return
 			}
 
 			rowFields = rowFields[:0]
@@ -391,23 +454,47 @@ func (pup *pipeUniqProcessor) flush() error {
 				})
 				fieldIdx++
 			}
-			rowFields = addHitsFieldIfNeeded(rowFields, *pHits)
+			rowFields = addHitsFieldIfNeeded(rowFields, pHits)
 			wctx.writeRow(rowFields)
 		}
 	}
 
 	wctx.flush()
+}
 
-	return nil
+func (pup *pipeUniqProcessor) mergeShardsParallel() []*hitsMap {
+	hms := make([]*hitsMap, 0, len(pup.shards))
+	for i := range pup.shards {
+		hm := &pup.shards[i].m
+		if hm.entriesCount() > 0 {
+			hms = append(hms, hm)
+		}
+	}
+
+	cpusCount := cgroup.AvailableCPUs()
+	hmsResult := make([]*hitsMap, 0, cpusCount)
+	var hmsLock sync.Mutex
+	hitsMapMergeParallel(hms, cpusCount, pup.stopCh, func(hm *hitsMap) {
+		if hm.entriesCount() > 0 {
+			hmsLock.Lock()
+			hmsResult = append(hmsResult, hm)
+			hmsLock.Unlock()
+		}
+	})
+	if needStop(pup.stopCh) {
+		return nil
+	}
+
+	return hmsResult
 }
 
 type pipeUniqWriteContext struct {
-	pup *pipeUniqProcessor
-	rcs []resultColumn
-	br  blockResult
+	workerID uint
+	pup      *pipeUniqProcessor
+	rcs      []resultColumn
+	br       blockResult
 
-	// rowsWritten is the total number of rows passed to writeRow.
-	rowsWritten uint64
+	a arena
 
 	// rowsCount is the number of rows in the current block
 	rowsCount int
@@ -416,12 +503,19 @@ type pipeUniqWriteContext struct {
 	valuesLen int
 }
 
-func (wctx *pipeUniqWriteContext) writeRow(rowFields []Field) {
-	if limit := wctx.pup.pu.limit; limit > 0 && wctx.rowsWritten >= limit {
-		return
-	}
-	wctx.rowsWritten++
+func (wctx *pipeUniqWriteContext) getUint64String(n uint64) string {
+	bLen := len(wctx.a.b)
+	wctx.a.b = marshalUint64String(wctx.a.b, n)
+	return bytesutil.ToUnsafeString(wctx.a.b[bLen:])
+}
 
+func (wctx *pipeUniqWriteContext) getInt64String(n int64) string {
+	bLen := len(wctx.a.b)
+	wctx.a.b = marshalInt64String(wctx.a.b, n)
+	return bytesutil.ToUnsafeString(wctx.a.b[bLen:])
+}
+
+func (wctx *pipeUniqWriteContext) writeRow(rowFields []Field) {
 	rcs := wctx.rcs
 
 	areEqualColumns := len(rcs) == len(rowFields)
@@ -451,28 +545,31 @@ func (wctx *pipeUniqWriteContext) writeRow(rowFields []Field) {
 	}
 
 	wctx.rowsCount++
-	if wctx.valuesLen >= 1_000_000 {
+
+	// The 64_000 limit provides the best performance results.
+	if wctx.valuesLen >= 64_000 {
 		wctx.flush()
 	}
 }
 
 func (wctx *pipeUniqWriteContext) flush() {
-	rcs := wctx.rcs
-	br := &wctx.br
-
-	wctx.valuesLen = 0
+	if wctx.rowsCount == 0 {
+		return
+	}
 
 	// Flush rcs to ppNext
-	br.setResultColumns(rcs, wctx.rowsCount)
+	wctx.br.setResultColumns(wctx.rcs, wctx.rowsCount)
+	wctx.valuesLen = 0
 	wctx.rowsCount = 0
-	wctx.pup.ppNext.writeBlock(0, br)
-	br.reset()
-	for i := range rcs {
-		rcs[i].resetValues()
+	wctx.pup.ppNext.writeBlock(wctx.workerID, &wctx.br)
+	wctx.br.reset()
+	for i := range wctx.rcs {
+		wctx.rcs[i].resetValues()
 	}
+	wctx.a.reset()
 }
 
-func parsePipeUniq(lex *lexer) (*pipeUniq, error) {
+func parsePipeUniq(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("uniq") {
 		return nil, fmt.Errorf("expecting 'uniq'; got %q", lex.token)
 	}

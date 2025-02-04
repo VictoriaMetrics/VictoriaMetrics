@@ -15,7 +15,7 @@ func TestBlockHeaderMarshalUnmarshal(t *testing.T) {
 			t.Fatalf("unexpected lengths of the marshaled blockHeader; got %d; want %d", len(data), marshaledLen)
 		}
 		bh2 := &blockHeader{}
-		tail, err := bh2.unmarshal(data)
+		tail, err := bh2.unmarshal(data, partFormatLatestVersion)
 		if err != nil {
 			t.Fatalf("unexpected error in unmarshal: %s", err)
 		}
@@ -26,7 +26,7 @@ func TestBlockHeaderMarshalUnmarshal(t *testing.T) {
 			t.Fatalf("unexpected blockHeader unmarshaled\ngot\n%v\nwant\n%v", bh2, bh)
 		}
 	}
-	f(&blockHeader{}, 61)
+	f(&blockHeader{}, 63)
 	f(&blockHeader{
 		streamID: streamID{
 			tenantID: TenantID{
@@ -47,27 +47,71 @@ func TestBlockHeaderMarshalUnmarshal(t *testing.T) {
 			maxTimestamp: 23434,
 			marshalType:  encoding.MarshalTypeNearestDelta2,
 		},
-		columnsHeaderOffset: 4384,
-		columnsHeaderSize:   894,
-	}, 65)
+		columnsHeaderIndexOffset: 8923481,
+		columnsHeaderIndexSize:   8989832,
+		columnsHeaderOffset:      4384,
+		columnsHeaderSize:        894,
+	}, 73)
+}
+
+func TestColumnsHeaderIndexMarshalUnmarshal(t *testing.T) {
+	f := func(cshIndex *columnsHeaderIndex, marshaledLen int) {
+		t.Helper()
+
+		data := cshIndex.marshal(nil)
+		if len(data) != marshaledLen {
+			t.Fatalf("unexpected lengths of the marshaled columnsHeader; got %d; want %d", len(data), marshaledLen)
+		}
+		cshIndex2 := &columnsHeaderIndex{}
+		if err := cshIndex2.unmarshalNoArena(data); err != nil {
+			t.Fatalf("unexpected error in unmarshal: %s", err)
+		}
+
+		if !reflect.DeepEqual(cshIndex, cshIndex2) {
+			t.Fatalf("unexpected blockHeaderIndex unmarshaled\ngot\n%v\nwant\n%v", cshIndex2, cshIndex)
+		}
+	}
+
+	f(&columnsHeaderIndex{}, 2)
+	f(&columnsHeaderIndex{
+		columnHeadersRefs: []columnHeaderRef{
+			{
+				columnNameID: 234,
+				offset:       123432,
+			},
+			{
+				columnNameID: 23898,
+				offset:       0,
+			},
+		},
+		constColumnsRefs: []columnHeaderRef{
+			{
+				columnNameID: 0,
+				offset:       8989,
+			},
+		},
+	}, 14)
 }
 
 func TestColumnsHeaderMarshalUnmarshal(t *testing.T) {
 	f := func(csh *columnsHeader, marshaledLen int) {
 		t.Helper()
 
-		a := getArena()
-		defer putArena(a)
+		cshIndex := getColumnsHeaderIndex()
+		g := &columnNameIDGenerator{}
 
-		data := csh.marshal(nil)
+		data := csh.marshal(nil, cshIndex, g)
 		if len(data) != marshaledLen {
-			t.Fatalf("unexpected lengths of the marshaled columnsHeader; got %d; want %d", len(data), marshaledLen)
+			t.Fatalf("unexpected length of the marshaled columnsHeader; got %d; want %d", len(data), marshaledLen)
 		}
 		csh2 := &columnsHeader{}
-		err := csh2.unmarshal(a, data)
-		if err != nil {
+		if err := csh2.unmarshalNoArena(data, partFormatLatestVersion); err != nil {
 			t.Fatalf("unexpected error in unmarshal: %s", err)
 		}
+		if err := csh2.setColumnNames(cshIndex, g.columnNames); err != nil {
+			t.Fatalf("cannot set column names: %s", err)
+		}
+
 		if !reflect.DeepEqual(csh, csh2) {
 			t.Fatalf("unexpected blockHeader unmarshaled\ngot\n%v\nwant\n%v", csh2, csh)
 		}
@@ -101,7 +145,7 @@ func TestColumnsHeaderMarshalUnmarshal(t *testing.T) {
 				Value: "bar",
 			},
 		},
-	}, 50)
+	}, 31)
 }
 
 func TestBlockHeaderUnmarshalFailure(t *testing.T) {
@@ -110,7 +154,7 @@ func TestBlockHeaderUnmarshalFailure(t *testing.T) {
 		dataOrig := append([]byte{}, data...)
 		bh := getBlockHeader()
 		defer putBlockHeader(bh)
-		tail, err := bh.unmarshal(data)
+		tail, err := bh.unmarshal(data, partFormatLatestVersion)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -141,10 +185,51 @@ func TestBlockHeaderUnmarshalFailure(t *testing.T) {
 			maxTimestamp: 23434,
 			marshalType:  encoding.MarshalTypeNearestDelta2,
 		},
-		columnsHeaderOffset: 4384,
-		columnsHeaderSize:   894,
+		columnsHeaderIndexOffset: 89434,
+		columnsHeaderIndexSize:   89123,
+		columnsHeaderOffset:      4384,
+		columnsHeaderSize:        894,
 	}
 	data := bh.marshal(nil)
+	for len(data) > 0 {
+		data = data[:len(data)-1]
+		f(data)
+	}
+}
+
+func TestColumnsHeaderIndexUnmarshalFailure(t *testing.T) {
+	f := func(data []byte) {
+		t.Helper()
+
+		cshIndex := getColumnsHeaderIndex()
+		defer putColumnsHeaderIndex(cshIndex)
+		if err := cshIndex.unmarshalNoArena(data); err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+	}
+
+	f(nil)
+	f([]byte("foo"))
+
+	cshIndex := &columnsHeaderIndex{
+		columnHeadersRefs: []columnHeaderRef{
+			{
+				columnNameID: 0,
+				offset:       123,
+			},
+		},
+		constColumnsRefs: []columnHeaderRef{
+			{
+				columnNameID: 2,
+				offset:       89834,
+			},
+			{
+				columnNameID: 234,
+				offset:       8934,
+			},
+		},
+	}
+	data := cshIndex.marshal(nil)
 	for len(data) > 0 {
 		data = data[:len(data)-1]
 		f(data)
@@ -155,13 +240,9 @@ func TestColumnsHeaderUnmarshalFailure(t *testing.T) {
 	f := func(data []byte) {
 		t.Helper()
 
-		a := getArena()
-		defer putArena(a)
-
 		csh := getColumnsHeader()
 		defer putColumnsHeader(csh)
-		err := csh.unmarshal(a, data)
-		if err == nil {
+		if err := csh.unmarshalNoArena(data, partFormatLatestVersion); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
 	}
@@ -169,7 +250,7 @@ func TestColumnsHeaderUnmarshalFailure(t *testing.T) {
 	f(nil)
 	f([]byte("foo"))
 
-	csh := columnsHeader{
+	csh := &columnsHeader{
 		columnHeaders: []columnHeader{
 			{
 				name:              "foobar",
@@ -197,11 +278,14 @@ func TestColumnsHeaderUnmarshalFailure(t *testing.T) {
 			},
 		},
 	}
-	data := csh.marshal(nil)
+	cshIndex := getColumnsHeaderIndex()
+	g := &columnNameIDGenerator{}
+	data := csh.marshal(nil, cshIndex, g)
 	for len(data) > 0 {
 		data = data[:len(data)-1]
 		f(data)
 	}
+	putColumnsHeaderIndex(cshIndex)
 }
 
 func TestBlockHeaderReset(t *testing.T) {
@@ -225,13 +309,44 @@ func TestBlockHeaderReset(t *testing.T) {
 			maxTimestamp: 23434,
 			marshalType:  encoding.MarshalTypeNearestDelta2,
 		},
-		columnsHeaderOffset: 12332,
-		columnsHeaderSize:   234,
+		columnsHeaderIndexOffset: 18934,
+		columnsHeaderIndexSize:   8912,
+		columnsHeaderOffset:      12332,
+		columnsHeaderSize:        234,
 	}
 	bh.reset()
 	bhZero := &blockHeader{}
 	if !reflect.DeepEqual(bh, bhZero) {
 		t.Fatalf("unexpected non-zero blockHeader after reset: %v", bh)
+	}
+}
+
+func TestColumnsHeaderIndexReset(t *testing.T) {
+	cshIndex := &columnsHeaderIndex{
+		columnHeadersRefs: []columnHeaderRef{
+			{
+				columnNameID: 234,
+				offset:       1234,
+			},
+		},
+		constColumnsRefs: []columnHeaderRef{
+			{
+				columnNameID: 328,
+				offset:       21344,
+			},
+			{
+				columnNameID: 1,
+				offset:       234,
+			},
+		},
+	}
+	cshIndex.reset()
+	cshIndexZero := &columnsHeaderIndex{
+		columnHeadersRefs: []columnHeaderRef{},
+		constColumnsRefs:  []columnHeaderRef{},
+	}
+	if !reflect.DeepEqual(cshIndex, cshIndexZero) {
+		t.Fatalf("unexpected non-zero columnsHeaderIndex after reset: %v", cshIndex)
 	}
 }
 
@@ -284,7 +399,7 @@ func TestMarshalUnmarshalBlockHeaders(t *testing.T) {
 		if len(data) != marshaledLen {
 			t.Fatalf("unexpected length for marshaled blockHeader entries; got %d; want %d", len(data), marshaledLen)
 		}
-		bhs2, err := unmarshalBlockHeaders(nil, data)
+		bhs2, err := unmarshalBlockHeaders(nil, data, partFormatLatestVersion)
 		if err != nil {
 			t.Fatalf("unexpected error when unmarshaling blockHeader entries: %s", err)
 		}
@@ -293,7 +408,7 @@ func TestMarshalUnmarshalBlockHeaders(t *testing.T) {
 		}
 	}
 	f(nil, 0)
-	f([]blockHeader{{}}, 61)
+	f([]blockHeader{{}}, 63)
 	f([]blockHeader{
 		{},
 		{
@@ -316,31 +431,34 @@ func TestMarshalUnmarshalBlockHeaders(t *testing.T) {
 				maxTimestamp: 23434,
 				marshalType:  encoding.MarshalTypeNearestDelta2,
 			},
-			columnsHeaderOffset: 12332,
-			columnsHeaderSize:   234,
+			columnsHeaderIndexOffset: 1234,
+			columnsHeaderIndexSize:   89324,
+			columnsHeaderOffset:      12332,
+			columnsHeaderSize:        234,
 		},
-	}, 127)
+	}, 134)
 }
 
 func TestColumnHeaderMarshalUnmarshal(t *testing.T) {
 	f := func(ch *columnHeader, marshaledLen int) {
 		t.Helper()
 
-		a := getArena()
-		defer putArena(a)
-
 		data := ch.marshal(nil)
 		if len(data) != marshaledLen {
 			t.Fatalf("unexpected marshaled length of columnHeader; got %d; want %d", len(data), marshaledLen)
 		}
 		var ch2 columnHeader
-		tail, err := ch2.unmarshal(a, data)
+		tail, err := ch2.unmarshalNoArena(data, partFormatLatestVersion)
 		if err != nil {
 			t.Fatalf("unexpected error in umarshal(%v): %s", ch, err)
 		}
 		if len(tail) > 0 {
 			t.Fatalf("unexpected non-empty tail after unmarshal(%v): %X", ch, tail)
 		}
+
+		// columnHeader.name isn't marshaled, since it is marshaled via columnsHeaderIndex starting from part format v1.
+		ch2.name = ch.name
+
 		if !reflect.DeepEqual(ch, &ch2) {
 			t.Fatalf("unexpected columnHeader after unmarshal;\ngot\n%v\nwant\n%v", &ch2, ch)
 		}
@@ -349,7 +467,7 @@ func TestColumnHeaderMarshalUnmarshal(t *testing.T) {
 	f(&columnHeader{
 		name:      "foo",
 		valueType: valueTypeUint8,
-	}, 11)
+	}, 7)
 	ch := &columnHeader{
 		name:      "foobar",
 		valueType: valueTypeDict,
@@ -358,19 +476,16 @@ func TestColumnHeaderMarshalUnmarshal(t *testing.T) {
 		valuesSize:   254452,
 	}
 	ch.valuesDict.getOrAdd("abc")
-	f(ch, 18)
+	f(ch, 11)
 }
 
 func TestColumnHeaderUnmarshalFailure(t *testing.T) {
 	f := func(data []byte) {
 		t.Helper()
 
-		a := getArena()
-		defer putArena(a)
-
 		dataOrig := append([]byte{}, data...)
 		var ch columnHeader
-		tail, err := ch.unmarshal(a, data)
+		tail, err := ch.unmarshalNoArena(data, partFormatLatestVersion)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}

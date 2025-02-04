@@ -6,8 +6,11 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/valyala/fastrand"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
@@ -97,7 +100,7 @@ func (me *mathExpr) String() string {
 		if isMathBinaryOp(left.op) && getMathBinaryOpPriority(left.op) > opPriority {
 			leftStr = "(" + leftStr + ")"
 		}
-		if isMathBinaryOp(right.op) && getMathBinaryOpPriority(right.op) > opPriority {
+		if isMathBinaryOp(right.op) && getMathBinaryOpPriority(right.op) >= opPriority {
 			rightStr = "(" + rightStr + ")"
 		}
 		return fmt.Sprintf("%s %s %s", leftStr, me.op, rightStr)
@@ -221,16 +224,16 @@ func (me *mathExpr) updateNeededFields(neededFields fieldsSet) {
 	}
 }
 
-func (pm *pipeMath) optimize() {
-	// nothing to do
-}
-
 func (pm *pipeMath) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pm *pipeMath) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pm *pipeMath) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pm, nil
+}
+
+func (pm *pipeMath) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
 }
 
 func (pm *pipeMath) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
@@ -271,49 +274,58 @@ type pipeMathProcessorShardNopad struct {
 	rsBuf []float64
 }
 
-func (shard *pipeMathProcessorShard) executeMathEntry(e *mathEntry, rc *resultColumn, br *blockResult) {
+func (shard *pipeMathProcessorShard) executeMathEntry(e *mathEntry, rc *resultColumn, br *blockResult) (float64, float64) {
 	clear(shard.rs)
 	shard.rs = shard.rs[:0]
 	shard.rsBuf = shard.rsBuf[:0]
 
 	shard.executeExpr(e.expr, br)
 	r := shard.rs[0]
+	if len(r) == 0 {
+		return nan, nan
+	}
 
 	b := shard.a.b
+	minValue := nan
+	maxValue := nan
 	for _, f := range r {
+		if math.IsNaN(minValue) {
+			minValue = f
+			maxValue = f
+		} else if f < minValue {
+			minValue = f
+		} else if f > maxValue {
+			maxValue = f
+		}
+		n := math.Float64bits(f)
 		bLen := len(b)
-		b = marshalFloat64String(b, f)
+		b = encoding.MarshalUint64(b, n)
 		v := bytesutil.ToUnsafeString(b[bLen:])
 		rc.addValue(v)
 	}
 	shard.a.b = b
+
+	return minValue, maxValue
 }
 
 func (shard *pipeMathProcessorShard) executeExpr(me *mathExpr, br *blockResult) {
 	rIdx := len(shard.rs)
 	shard.rs = slicesutil.SetLength(shard.rs, len(shard.rs)+1)
 
-	shard.rsBuf = slicesutil.SetLength(shard.rsBuf, len(shard.rsBuf)+len(br.timestamps))
-	shard.rs[rIdx] = shard.rsBuf[len(shard.rsBuf)-len(br.timestamps):]
+	shard.rsBuf = slicesutil.SetLength(shard.rsBuf, len(shard.rsBuf)+br.rowsLen)
+	shard.rs[rIdx] = shard.rsBuf[len(shard.rsBuf)-br.rowsLen:]
 
 	if me.isConst {
 		r := shard.rs[rIdx]
-		for i := range br.timestamps {
+		for i := 0; i < br.rowsLen; i++ {
 			r[i] = me.constValue
 		}
 		return
 	}
 	if me.fieldName != "" {
-		c := br.getColumnByName(me.fieldName)
-		values := c.getValues(br)
 		r := shard.rs[rIdx]
-		var f float64
-		for i, v := range values {
-			if i == 0 || v != values[i-1] {
-				f = parseMathNumber(v)
-			}
-			r[i] = f
-		}
+		c := br.getColumnByName(me.fieldName)
+		shard.loadArgValuesFromColumn(r, br, c)
 		return
 	}
 
@@ -330,8 +342,82 @@ func (shard *pipeMathProcessorShard) executeExpr(me *mathExpr, br *blockResult) 
 	shard.rsBuf = shard.rsBuf[:rsBufLen]
 }
 
+func (shard *pipeMathProcessorShard) loadArgValuesFromColumn(dst []float64, br *blockResult, c *blockResultColumn) {
+	if c.isConst {
+		v := c.valuesEncoded[0]
+		f := parseMathNumber(v)
+		for i := range dst {
+			dst[i] = f
+		}
+		return
+	}
+	if c.isTime {
+		timestamps := br.getTimestamps()
+		for i, ts := range timestamps {
+			dst[i] = float64(ts)
+		}
+		return
+	}
+
+	switch c.valueType {
+	case valueTypeDict:
+		a := encoding.GetFloat64s(len(c.dictValues))
+		fs := a.A
+		for i, v := range c.dictValues {
+			fs[i] = parseMathNumber(v)
+		}
+		values := c.getValuesEncoded(br)
+		for i, v := range values {
+			idx := v[0]
+			dst[i] = fs[idx]
+		}
+		encoding.PutFloat64s(a)
+	case valueTypeUint8:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = float64(unmarshalUint8(v))
+		}
+	case valueTypeUint16:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = float64(unmarshalUint16(v))
+		}
+	case valueTypeUint32:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = float64(unmarshalUint32(v))
+		}
+	case valueTypeUint64:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = float64(unmarshalUint64(v))
+		}
+	case valueTypeInt64:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = float64(unmarshalInt64(v))
+		}
+	case valueTypeFloat64:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = unmarshalFloat64(v)
+		}
+	case valueTypeIPv4:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = float64(unmarshalIPv4(v))
+		}
+	case valueTypeTimestampISO8601:
+		for i, v := range c.getValuesEncoded(br) {
+			dst[i] = float64(unmarshalTimestampISO8601(v))
+		}
+	default:
+		values := c.getValues(br)
+		var f float64
+		for i, v := range values {
+			if i == 0 || v != values[i-1] {
+				f = parseMathNumber(v)
+			}
+			dst[i] = f
+		}
+	}
+}
+
 func (pmp *pipeMathProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -343,8 +429,8 @@ func (pmp *pipeMathProcessor) writeBlock(workerID uint, br *blockResult) {
 	for i, e := range entries {
 		rc := &rcs[i]
 		rc.name = e.resultField
-		shard.executeMathEntry(e, rc, br)
-		br.addResultColumn(rc)
+		minValue, maxValue := shard.executeMathEntry(e, rc, br)
+		br.addResultColumnFloat64(rc, minValue, maxValue)
 	}
 
 	pmp.ppNext.writeBlock(workerID, br)
@@ -359,7 +445,7 @@ func (pmp *pipeMathProcessor) flush() error {
 	return nil
 }
 
-func parsePipeMath(lex *lexer) (*pipeMath, error) {
+func parsePipeMath(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("math", "eval") {
 		return nil, fmt.Errorf("unexpected token: %q; want 'math' or 'eval'", lex.token)
 	}
@@ -499,6 +585,8 @@ func parseMathExprOperand(lex *lexer) (*mathExpr, error) {
 		return parseMathExprMax(lex)
 	case lex.isKeyword("min"):
 		return parseMathExprMin(lex)
+	case lex.isKeyword("rand"):
+		return parseMathExprRand(lex)
 	case lex.isKeyword("round"):
 		return parseMathExprRound(lex)
 	case lex.isKeyword("ceil"):
@@ -569,6 +657,26 @@ func parseMathExprMin(lex *lexer) (*mathExpr, error) {
 	}
 	if len(me.args) < 2 {
 		return nil, fmt.Errorf("'min' function needs at least 2 args; got %d args: [%s]", len(me.args), me)
+	}
+	return me, nil
+}
+
+func parseMathExprRand(lex *lexer) (*mathExpr, error) {
+	if !lex.isKeyword("rand") {
+		return nil, fmt.Errorf("missing 'rand' keyword")
+	}
+	lex.nextToken()
+
+	args, err := parseMathFuncArgs(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse args for 'rand' function: %w", err)
+	}
+	if len(args) != 0 {
+		return nil, fmt.Errorf("'rand' function must have no args; got %d args", len(args))
+	}
+	me := &mathExpr{
+		op: "rand",
+		f:  mathFuncRand,
 	}
 	return me, nil
 }
@@ -798,7 +906,17 @@ func mathFuncMod(result []float64, args [][]float64) {
 	a := args[0]
 	b := args[1]
 	for i := range result {
-		result[i] = math.Mod(a[i], b[i])
+		x := a[i]
+		y := b[i]
+		xInt := int64(x)
+		yInt := int64(y)
+		if float64(xInt) == x && float64(yInt) == y {
+			// Fast path - integer modulo
+			result[i] = float64(xInt % yInt)
+		} else {
+			// Slow path - floating point modulo
+			result[i] = math.Mod(x, y)
+		}
 	}
 }
 
@@ -885,6 +1003,13 @@ func mathFuncFloor(result []float64, args [][]float64) {
 	arg := args[0]
 	for i := range result {
 		result[i] = math.Floor(arg[i])
+	}
+}
+
+func mathFuncRand(result []float64, _ [][]float64) {
+	for i := range result {
+		n := fastrand.Uint32()
+		result[i] = float64(n) / (1 << 32)
 	}
 }
 

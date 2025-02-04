@@ -23,7 +23,8 @@ The document covers the following topics:
 
 ## Registration
 
-Start your registration process by visiting the [Sign Up](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_quickstart) page.
+Start your registration process by visiting the [Sign Up](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_quickstart) page.
+![Signup default](quick_start_signup_default.webp)
 
 There are two different methods to create an account:
 1. Create an account via Google Auth service;
@@ -31,7 +32,7 @@ There are two different methods to create an account:
 
 ### Create an account via Google Auth service:
 
-1. Click `Continue with Google` button on the [Sign Up page](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_quickstart)
+1. Click `Continue with Google` button on the [Sign Up page](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_quickstart)
 ![Signup Google click](quick_start_signup_google_click.webp)
    
 1. Choose Google account you want to use for registration
@@ -41,13 +42,13 @@ There are two different methods to create an account:
 ![Signup success](quick_start_signup_success.webp)
 
 ### Create an account by filling in a registration form:
-1. Fill in your email, password and password confirmation on [Sign Up page](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_quickstart).
-![Signup](quick_start_signup.webp)
+1. Fill in your email, password and password confirmation on [Sign Up page](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_quickstart).
+![Signup](quick_start_signup_fill.webp)
 
 1.All fields are required. Any errors will be shown in the interface, so it is easy to understand what should be adjusted.
    ![Signup errors](quick_start_signup_errors.webp)
 
-1. Press `Create account` button when all fields are filled in.
+1. Press `Sign Up` button when all fields are filled in.
    ![Signup create account](quick_start_signup_create_account_click.webp)
 
 You will be redirected to the main page with a notification message to confirm your email.
@@ -56,11 +57,9 @@ You will be redirected to the main page with a notification message to confirm y
 
 
 You will also receive an email with a confirmation link as shown on the picture below:
-
-   ![Signup email confirm](quick_start_signup_email_confirm.webp)
-
-
+    ![Signup email](quick_start_signup_email.webp)
 It is necessary to confirm your email address. Otherwise, you won't be able to create a deployment.
+    ![Signup email confirm](quick_start_signup_email_confirm.webp)
 
 After successful confirmation of your email address, you'll be able to [create your first deployment](#creating-deployments) or [add a payment method](#adding-a-payment-method).
 
@@ -69,7 +68,7 @@ After successful confirmation of your email address, you'll be able to [create y
 
 ## Adding a payment method
 
-1. Navigate to a [Billing](https://cloud.victoriametrics.com/billing?utm_source=website&utm_campaign=docs_quickstart) page or click on `Upgrade` button as shown below:
+1. Navigate to a [Billing](https://console.victoriametrics.cloud/billing?utm_source=website&utm_campaign=docs_quickstart) page:
    
      ![Add payment method](how_to_add_payment_method_upgrade.webp)
    
@@ -85,7 +84,7 @@ After successful confirmation of your email address, you'll be able to [create y
    
      ![Add payment method add card](how_to_add_payment_method_add_card.webp)
    
-1. An error message will appear if a card us invalid
+1. An error message will appear if a card is invalid
    
      ![Add payment method invalid card](how_to_add_payment_method_invalid_card.webp)
    
@@ -119,7 +118,7 @@ When you need to unify your AWS billing, you can start a subscription on AWS Mar
    
      ![Setup your account](quickstart_setup-your-account.webp)
    
-1. You'll be redirected back to VictoriaMetrics Cloud <a href="https://cloud.victoriametrics.com/billing?utm_source=website&utm_campaign=docs_quickstart" target="_blank">billing page</a>:
+1. You'll be redirected back to VictoriaMetrics Cloud <a href="https://console.victoriametrics.cloud/billing?utm_source=website&utm_campaign=docs_quickstart" target="_blank">billing page</a>:
    
      ![Add payment method finish](how_to_add_payment_method_aws_finish.webp)
    
@@ -147,7 +146,7 @@ If the payment method was changed successfully, the following message will appea
 
 If you forgot your password, it can be restored in the following way:
 
-1. Click `Forgot password?` link on the [Sign In](https://cloud.victoriametrics.com/signIn?utm_source=website&utm_campaign=docs_quickstart) page:
+1. Click `Forgot password?` link on the [Sign In](https://console.victoriametrics.cloud/signIn?utm_source=website&utm_campaign=docs_quickstart) page:
    
      ![Restore password](quick_start_restore_password.webp)
    
@@ -155,11 +154,8 @@ If you forgot your password, it can be restored in the following way:
 1. Enter your email and click `Reset password` button:
    
      ![Restore password email](quick_start_restore_password_email_field.webp)
-   
 
-   
      ![Restore password message](quick_start_restore_password_message.webp)
-   
 
 1. Follow the instructions sent to your email in order to get access to your VictoriaMetrics Cloud account:
    
@@ -173,36 +169,60 @@ If you forgot your password, it can be restored in the following way:
 
 1. Enter a new password on the Profile page and press `Save`:
    
-     ![Restpre password profile fields](quick_start_restore_password_profile_fields.webp)
+     ![Restore password profile fields](quick_start_restore_password_profile_fields.webp)
    
 
 ## Creating deployments
 
-On the [Deployments](https://cloud.victoriametrics.com/deployments?utm_source=website&utm_campaign=docs_quickstart) page you 
+On the [Deployments](https://console.victoriametrics.cloud/deployments?utm_source=website&utm_campaign=docs_quickstart) page you 
 will see a list of your existing deployments and will be able to manage them. 
 
-To create a deployment click on the button `Start sending metrics` button:
+To create a deployment click on the button `Start using VictoriaMetrics cloud` button:
 
 
   ![Create deployment start](create_deployment_start.webp)
 
-When you already have at least one deployment you can create a new one by clicking on the `Create deployment` button:
+When you already have at least one deployment you can create a new one by clicking on the `Create` button:
 
    ![Create deployment continue](create_deployment_continue.webp)
 
 
 On the opened screen, choose parameters of your new deployment:
 
-* `Deployment type` 
+* `Deployment name` – a unique name for your deployment;
+* `Global settings` – choose between:
   * Single - for affordable, performant single-node deployments;
   * Cluster - for highly available and multi-tenant deployments;
-* `Region` – AWS region where deployment will run;
-* Desired `storage capacity` for storing metrics (you always can expand disk size later);
-* `Retention` period for stored metrics.
-* `Size` of your deployment [based on your needs](https://docs.victoriametrics.com/guides/understand-your-setup-size.html)
+  * Cloud provider - for deployments on AWS, GCP, Azure, etc.
+  * Region - cloud provider region where deployment will run;
+* `Tier and storage` – choose between:
+  * [Tier](https://docs.victoriametrics.com/victoriametrics-cloud/tiers-parameters/) – predefined set of parameters for your deployment [based on your needs](https://docs.victoriametrics.com/guides/understand-your-setup-size.html);
+  * Retention – desired retention period for stored metrics;
+  * Storage - desired storage capacity for storing metrics (you always can expand disk size later);
+  
+    We provide recommended capacity depends on how much data your ingestion rate and retention period involve, 
+    as well as on the size of each data point. We assume each data point is 0.8 byte based on our experience 
+    with VictoriaMetrics Cloud and take the ingestion rate and retention period from your deployment configuration.
+    We suggest using the recommended capacity for retention periods of one month or less. 
+    If you need to keep data longer (6 months or more), you can start with a smaller storage size and increase it over time.
+    If you ingest high cardinality data, this increases the data point size, and you may need more storage than we recommend.
+    Please note that while you can increase storage size, you cannot reduce it due to AWS limitations. 
+    We charge $0.09 per GB-month for SSD storage.
+    Since VictoriaMetrics Cloud doesn’t charge extra for storage, we recommend using enterprise features like [downsampling](https://docs.victoriametrics.com/#downsampling)
+    and [retention filters](https://docs.victoriametrics.com/#retention-filters) to optimize disk space.
+    You can find the formula for calculating the recommended storage [here](https://docs.victoriametrics.com/guides/understand-your-setup-size/#retention-perioddisk-space).  
+    Feel free to adjust parameters as needed.
+
+* `Advanced settings` – additional parameters for your deployment:
+  * `Deduplication` – defines interval when deployment leaves a single raw sample with the biggest timestamp per each discrete interval;
+  * `Maintenance Window` – when deployment should start an upgrade process if needed;
+
+Also see the [Tier Parameters and Flag Parameters Configuration](https://docs.victoriametrics.com/victoriametrics-cloud/tiers-parameters/).
+This document provides an overview of tier parameters and predefined flag settings for VictoriaMetrics Cloud.
 
 
-  ![Create deployment form](create_deployment_form.webp)
+![Create deployment continue](create_deployment_form_up.webp)
+![Create deployment continue](create_deployment_form_down.webp)
 
 
 When all parameters are configured, click on the `Create` button, and deployment will be created.
@@ -224,17 +244,25 @@ You'll also be notified via email once your deployment is ready to use:
 After transition from `PROVISIONING` to `RUNNING` state, VictoriaMetrics Cloud deployment is fully operational 
 and is ready to accept write and read requests. 
 
-Click on deployment name and navigate to the Access tab to get the access token:
+Click on right three dots and navigate to the Access menu to get the access token:
 
 
   ![Deployment access](deployment_access.webp)
 
+Click on the `Generate token`. Fill `Name` field. Select token `Permission` and click `Generate` button:
+  
+  ![Deployment generate access token](deployment_access_generate_token.webp)
+
+Generated token will be shown in the list of access tokens. Click on the three dots and choose `Show examples` to see the usage examples:
+
+  ![Deployment access token](deployment_access_token_generated.webp)
 
 Access tokens are used in token-based authentication to allow an application to access the VictoriaMetrics API. 
-Supported token types are `Read-Only`, `Write-Only` and `Read-Write`. Click on token created by default 
-to see usage examples:
+Supported token types are `Read-Only`, `Write-Only` and `Read-Write`. Click on three dots in `Actions` and select `Show examples`
+in the dropdown to see usage examples:
 
-
+  ![Deployment access token examples](deployment_access_token_examples.webp)
+ 
   ![Deployment access write example](deployment_access_write_example.webp)
 
 
@@ -259,6 +287,7 @@ To discover additional configuration options click on `Advanced Settings` button
 
 
   ![Modify deployment additional settings](modify_deployment_additional_settings.webp)
+  ![Modify deployment additional settings with description](modify_deployment_additional_settings_with_description.webp)
 
 
 In that section, additional params can be set:

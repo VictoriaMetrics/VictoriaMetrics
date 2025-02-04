@@ -9,12 +9,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -34,7 +34,7 @@ var (
 //
 // See https://github.com/influxdata/telegraf/tree/master/plugins/inputs/socket_listener/
 func InsertHandlerForReader(r io.Reader) error {
-	return stream.Parse(r, false, "", "", func(db string, rows []parser.Row) error {
+	return stream.Parse(r, true, false, "", "", func(db string, rows []parser.Row) error {
 		return insertRows(db, rows, nil)
 	})
 }
@@ -48,11 +48,12 @@ func InsertHandlerForHTTP(req *http.Request) error {
 		return err
 	}
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
+	isStreamMode := req.Header.Get("Stream-Mode") == "1"
 	q := req.URL.Query()
 	precision := q.Get("precision")
 	// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
 	db := q.Get("db")
-	return stream.Parse(req.Body, isGzipped, precision, db, func(db string, rows []parser.Row) error {
+	return stream.Parse(req.Body, isStreamMode, isGzipped, precision, db, func(db string, rows []parser.Row) error {
 		return insertRows(db, rows, extraLabels)
 	})
 }
@@ -69,6 +70,7 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 	ic.Reset(rowsLen)
 	rowsTotal := 0
 	hasRelabeling := relabel.HasRelabeling()
+	hasLimitsEnabled := timeserieslimits.Enabled()
 	for i := range rows {
 		r := &rows[i]
 		rowsTotal += len(r.Fields)
@@ -108,18 +110,23 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 				metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
 				ic.Labels = append(ic.Labels[:0], ctx.originLabels...)
 				ic.AddLabel("", metricGroup)
-				ic.ApplyRelabeling()
-				if len(ic.Labels) == 0 {
-					// Skip metric without labels.
+				if !ic.TryPrepareLabels(true) {
 					continue
 				}
-				ic.SortLabelsIfNeeded()
 				if err := ic.WriteDataPoint(nil, ic.Labels, r.Timestamp, f.Value); err != nil {
 					return err
 				}
 			}
 		} else {
+			// special case for optimisations below
+			// do not call TryPrepareLabels
+			// manually apply sort and limits on demand
 			ic.SortLabelsIfNeeded()
+			if hasLimitsEnabled {
+				if timeserieslimits.IsExceeding(ic.Labels) {
+					continue
+				}
+			}
 			ctx.metricNameBuf = storage.MarshalMetricNameRaw(ctx.metricNameBuf[:0], ic.Labels)
 			labelsLen := len(ic.Labels)
 			for j := range r.Fields {
@@ -130,9 +137,10 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 				metricGroup := bytesutil.ToUnsafeString(ctx.metricGroupBuf)
 				ic.Labels = ic.Labels[:labelsLen]
 				ic.AddLabel("", metricGroup)
-				if len(ic.Labels) == 0 {
-					// Skip metric without labels.
-					continue
+				if hasLimitsEnabled {
+					if timeserieslimits.IsExceeding(ic.Labels[len(ic.Labels)-1:]) {
+						continue
+					}
 				}
 				if err := ic.WriteDataPoint(ctx.metricNameBuf, ic.Labels[len(ic.Labels)-1:], r.Timestamp, f.Value); err != nil {
 					return err
@@ -149,7 +157,7 @@ type pushCtx struct {
 	Common         common.InsertCtx
 	metricNameBuf  []byte
 	metricGroupBuf []byte
-	originLabels   []prompb.Label
+	originLabels   []prompbmarshal.Label
 }
 
 func (ctx *pushCtx) reset() {
@@ -159,7 +167,7 @@ func (ctx *pushCtx) reset() {
 
 	originLabels := ctx.originLabels
 	for i := range originLabels {
-		originLabels[i] = prompb.Label{}
+		originLabels[i] = prompbmarshal.Label{}
 	}
 	ctx.originLabels = originLabels[:0]
 }

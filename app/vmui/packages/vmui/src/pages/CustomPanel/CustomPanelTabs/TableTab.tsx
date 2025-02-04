@@ -26,7 +26,7 @@ const TableTab: FC<Props> = ({ liveData, controlsRef }) => {
   const controls = (
     <TableSettings
       columns={columns}
-      defaultColumns={displayColumns}
+      selectedColumns={displayColumns}
       onChangeColumns={setDisplayColumns}
       tableCompact={tableCompact}
       toggleTableCompact={toggleTableCompact}

@@ -3,7 +3,7 @@ import QueryConfigurator from "./QueryConfigurator/QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
 import { DisplayTypeSwitch } from "./DisplayTypeSwitch";
 import { useGraphDispatch, useGraphState } from "../../state/graph/GraphStateContext";
-import Spinner from "../../components/Main/Spinner/Spinner";
+import LineLoader from "../../components/Main/LineLoader/LineLoader";
 import { useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
 import { useQueryState } from "../../state/query/QueryStateContext";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
@@ -18,6 +18,7 @@ import WarningLimitSeries from "./WarningLimitSeries/WarningLimitSeries";
 import CustomPanelTabs from "./CustomPanelTabs";
 import { DisplayType } from "../../types";
 import DownloadReport from "./DownloadReport/DownloadReport";
+import WarningHeatmapToLine from "./WarningHeatmapToLine/WarningHeatmapToLine";
 
 const CustomPanel: FC = () => {
   useSetQueryParams();
@@ -45,7 +46,8 @@ const CustomPanel: FC = () => {
     queryStats,
     warning,
     traces,
-    isHistogram
+    isHistogram,
+    abortFetch,
   } = useFetchQuery({
     visible: true,
     customStep,
@@ -80,16 +82,19 @@ const CustomPanel: FC = () => {
         setQueryErrors={setQueryErrors}
         setHideError={setHideError}
         stats={queryStats}
+        isLoading={isLoading}
         onHideQuery={handleHideQuery}
         onRunQuery={handleRunQuery}
+        abortFetch={abortFetch}
+        hideButtons={{ reduceMemUsage: true }}
       />
       <CustomPanelTraces
         traces={traces}
         displayType={displayType}
       />
-      {isLoading && <Spinner />}
       {showError && <Alert variant="error">{error}</Alert>}
       {showInstantQueryTip && <Alert variant="info"><InstantQueryTip/></Alert>}
+      <WarningHeatmapToLine/>
       {warning && (
         <WarningLimitSeries
           warning={warning}
@@ -105,6 +110,7 @@ const CustomPanel: FC = () => {
           "vm-block_mobile": isMobile,
         })}
       >
+        {isLoading && <LineLoader />}
         <div
           className="vm-custom-panel-body-header"
           ref={controlsRef}

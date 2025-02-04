@@ -3,8 +3,10 @@ package stream
 import (
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/metrics"
 
@@ -52,6 +54,8 @@ func ParseStream(r io.Reader, isGzipped bool, processBody func([]byte) ([]byte, 
 	return nil
 }
 
+var skippedSampleLogger = logger.WithThrottler("otlp_skipped_sample", 5*time.Second)
+
 func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 	for _, m := range sc.Metrics {
 		if len(m.Name) == 0 {
@@ -67,6 +71,7 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 		case m.Sum != nil:
 			if m.Sum.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedSum.Inc()
+				skippedSampleLogger.Warnf("unsupported delta temporality for %q ('sum'): skipping it", metricName)
 				continue
 			}
 			for _, p := range m.Sum.DataPoints {
@@ -79,14 +84,24 @@ func (wr *writeContext) appendSamplesFromScopeMetrics(sc *pb.ScopeMetrics) {
 		case m.Histogram != nil:
 			if m.Histogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
 				rowsDroppedUnsupportedHistogram.Inc()
+				skippedSampleLogger.Warnf("unsupported delta temporality for %q ('histogram'): skipping it", metricName)
 				continue
 			}
 			for _, p := range m.Histogram.DataPoints {
 				wr.appendSamplesFromHistogram(metricName, p)
 			}
+		case m.ExponentialHistogram != nil:
+			if m.ExponentialHistogram.AggregationTemporality != pb.AggregationTemporalityCumulative {
+				rowsDroppedUnsupportedExponentialHistogram.Inc()
+				skippedSampleLogger.Warnf("unsupported delta temporality for %q ('exponential histogram'): skipping it", metricName)
+				continue
+			}
+			for _, p := range m.ExponentialHistogram.DataPoints {
+				wr.appendSamplesFromExponentialHistogram(metricName, p)
+			}
 		default:
 			rowsDroppedUnsupportedMetricType.Inc()
-			logger.Warnf("unsupported type for metric %q", metricName)
+			skippedSampleLogger.Warnf("unsupported type for metric %q", metricName)
 		}
 	}
 }
@@ -123,6 +138,7 @@ func (wr *writeContext) appendSamplesFromSummary(metricName string, p *pb.Summar
 }
 
 // appendSamplesFromHistogram appends histogram p to wr.tss
+// histograms are processed according to spec at https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#histogram
 func (wr *writeContext) appendSamplesFromHistogram(metricName string, p *pb.HistogramDataPoint) {
 	if len(p.BucketCounts) == 0 {
 		// nothing to append
@@ -130,10 +146,31 @@ func (wr *writeContext) appendSamplesFromHistogram(metricName string, p *pb.Hist
 	}
 	if len(p.BucketCounts) != len(p.ExplicitBounds)+1 {
 		// fast path, broken data format
-		logger.Warnf("opentelemetry bad histogram format: %q, size of buckets: %d, size of bounds: %d", metricName, len(p.BucketCounts), len(p.ExplicitBounds))
+		skippedSampleLogger.Warnf("opentelemetry bad histogram format: %q, size of buckets: %d, size of bounds: %d", metricName, len(p.BucketCounts), len(p.ExplicitBounds))
 		return
 	}
 
+	t := int64(p.TimeUnixNano / 1e6)
+	isStale := (p.Flags)&uint32(1) != 0
+	wr.pointLabels = appendAttributesToPromLabels(wr.pointLabels[:0], p.Attributes)
+	wr.appendSample(metricName+"_count", t, float64(p.Count), isStale)
+	if p.Sum != nil {
+		// A Histogram MetricPoint SHOULD contain Sum
+		wr.appendSample(metricName+"_sum", t, *p.Sum, isStale)
+	}
+
+	var cumulative uint64
+	for index, bound := range p.ExplicitBounds {
+		cumulative += p.BucketCounts[index]
+		boundLabelValue := strconv.FormatFloat(bound, 'f', -1, 64)
+		wr.appendSampleWithExtraLabel(metricName+"_bucket", "le", boundLabelValue, t, float64(cumulative), isStale)
+	}
+	cumulative += p.BucketCounts[len(p.BucketCounts)-1]
+	wr.appendSampleWithExtraLabel(metricName+"_bucket", "le", "+Inf", t, float64(cumulative), isStale)
+}
+
+// appendSamplesFromExponentialHistogram appends histogram p to wr.tss
+func (wr *writeContext) appendSamplesFromExponentialHistogram(metricName string, p *pb.ExponentialHistogramDataPoint) {
 	t := int64(p.TimeUnixNano / 1e6)
 	isStale := (p.Flags)&uint32(1) != 0
 	wr.pointLabels = appendAttributesToPromLabels(wr.pointLabels[:0], p.Attributes)
@@ -147,15 +184,34 @@ func (wr *writeContext) appendSamplesFromHistogram(metricName string, p *pb.Hist
 	}
 
 	wr.appendSample(metricName+"_sum", t, *p.Sum, isStale)
-
-	var cumulative uint64
-	for index, bound := range p.ExplicitBounds {
-		cumulative += p.BucketCounts[index]
-		boundLabelValue := strconv.FormatFloat(bound, 'f', -1, 64)
-		wr.appendSampleWithExtraLabel(metricName+"_bucket", "le", boundLabelValue, t, float64(cumulative), isStale)
+	if p.ZeroCount > 0 {
+		vmRange := fmt.Sprintf("%.3e...%.3e", 0.0, p.ZeroThreshold)
+		wr.appendSampleWithExtraLabel(metricName+"_bucket", "vmrange", vmRange, t, float64(p.ZeroCount), isStale)
 	}
-	cumulative += p.BucketCounts[len(p.BucketCounts)-1]
-	wr.appendSampleWithExtraLabel(metricName+"_bucket", "le", "+Inf", t, float64(cumulative), isStale)
+	ratio := math.Pow(2, -float64(p.Scale))
+	base := math.Pow(2, ratio)
+	if p.Positive != nil {
+		bound := math.Pow(2, float64(p.Positive.Offset)*ratio)
+		for i, s := range p.Positive.BucketCounts {
+			if s > 0 {
+				lowerBound := bound * math.Pow(base, float64(i))
+				upperBound := lowerBound * base
+				vmRange := fmt.Sprintf("%.3e...%.3e", lowerBound, upperBound)
+				wr.appendSampleWithExtraLabel(metricName+"_bucket", "vmrange", vmRange, t, float64(s), isStale)
+			}
+		}
+	}
+	if p.Negative != nil {
+		bound := math.Pow(2, -float64(p.Negative.Offset)*ratio)
+		for i, s := range p.Negative.BucketCounts {
+			if s > 0 {
+				upperBound := bound * math.Pow(base, float64(i))
+				lowerBound := upperBound / base
+				vmRange := fmt.Sprintf("%.3e...%.3e", lowerBound, upperBound)
+				wr.appendSampleWithExtraLabel(metricName+"_bucket", "vmrange", vmRange, t, float64(s), isStale)
+			}
+		}
+	}
 }
 
 // appendSample appends sample with the given metricName to wr.tss
@@ -300,8 +356,9 @@ func putWriteContext(wr *writeContext) {
 }
 
 var (
-	rowsRead                         = metrics.NewCounter(`vm_protoparser_rows_read_total{type="opentelemetry"}`)
-	rowsDroppedUnsupportedHistogram  = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_histogram_aggregation"}`)
-	rowsDroppedUnsupportedSum        = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_sum_aggregation"}`)
-	rowsDroppedUnsupportedMetricType = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_metric_type"}`)
+	rowsRead                                   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="opentelemetry"}`)
+	rowsDroppedUnsupportedHistogram            = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_histogram_aggregation"}`)
+	rowsDroppedUnsupportedExponentialHistogram = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_exponential_histogram_aggregation"}`)
+	rowsDroppedUnsupportedSum                  = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_sum_aggregation"}`)
+	rowsDroppedUnsupportedMetricType           = metrics.NewCounter(`vm_protoparser_rows_dropped_total{type="opentelemetry",reason="unsupported_metric_type"}`)
 )

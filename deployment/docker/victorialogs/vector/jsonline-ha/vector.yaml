@@ -1,0 +1,61 @@
+api:
+  enabled: true
+  address: 0.0.0.0:8686
+sources:
+  docker:
+    type: docker_logs
+  metrics:
+    type: internal_metrics
+transforms:
+  parser:
+    type: remap
+    inputs:
+      - docker
+    source: |
+      .message = parse_json(.message) ?? .message
+sinks:
+  vlogs-1:
+    type: http
+    inputs:
+      - parser
+    uri: http://victorialogs:9428/insert/jsonline
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    compression: gzip
+    healthcheck:
+      enabled: false
+    request:
+      headers:
+        AccountID: '0'
+        ProjectID: '0'
+        VL-Stream-Fields: source_type,host,container_name,label.com.docker.compose.service
+        VL-Msg-Field: message.msg
+        VL-Time-Field: timestamp
+  vlogs-2:
+    type: http
+    inputs:
+      - parser
+    uri: http://victorialogs-2:9428/insert/jsonline
+    encoding:
+      codec: json
+    framing:
+      method: newline_delimited
+    compression: gzip
+    healthcheck:
+      enabled: false
+    request:
+      headers:
+        AccountID: '0'
+        ProjectID: '0'
+        VL-Stream-Fields: source_type,host,container_name,label.com.docker.compose.service
+        VL-Msg-Field: message.msg
+        VL-Time-Field: timestamp
+  victoriametrics:
+    type: prometheus_remote_write
+    endpoint: http://victoriametrics:8428/api/v1/write
+    inputs:
+      - metrics
+    healthcheck:
+      enabled: false

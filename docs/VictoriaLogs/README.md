@@ -3,31 +3,52 @@ from [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/).
 
 VictoriaLogs provides the following features:
 
-- VictoriaLogs can accept logs from popular log collectors. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
-- VictoriaLogs is much easier to set up and operate compared to Elasticsearch and Grafana Loki.
+- It can accept logs from popular log collectors. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+- It is much easier to set up and operate compared to Elasticsearch and Grafana Loki, since it is basically zero-config.
   See [these docs](https://docs.victoriametrics.com/victorialogs/quickstart/).
-- VictoriaLogs provides easy yet powerful query language with full-text search across
+- It provides easy yet powerful query language with full-text search capabilities across
   all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
   See [LogsQL docs](https://docs.victoriametrics.com/victorialogs/logsql/).
-- VictoriaLogs can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
+- It provides [built-in web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) for logs' exploration.
+- Ir provides [Grafana plugin](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/) for building arbitrary dashboards in Grafana.
+- It provides [interactive command-line tool for querying VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/).
+- It can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
   See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line) for details.
-- VictoriaLogs capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
-  It runs smoothly on both Raspberry PI and a server with hundreds of CPU cores and terabytes of RAM.
-- VictoriaLogs can handle up to 30x bigger data volumes than Elasticsearch and Grafana Loki when running on the same hardware.
-  See [these docs](#benchmarks).
-- VictoriaLogs supports fast full-text search over high-cardinality [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-  such as `trace_id`, `user_id` and `ip`.
-- VictoriaLogs supports multitenancy - see [these docs](#multitenancy).
-- VictoriaLogs supports out-of-order logs' ingestion aka backfilling.
-- VictoriaLogs supports live tailing for newly ingested logs. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing).
-- VictoriaLogs supports selecting surrounding logs in front and after the selected logs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe).
-- VictoriaLogs provides web UI for querying logs - see [these docs](https://docs.victoriametrics.com/victorialogs/querying/#web-ui).
+- VictoriaLogs' capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
+  It runs smoothly on Raspberry PI and on servers with hundreds of CPU cores and terabytes of RAM.
+- It can handle up to 30x bigger data volumes than Elasticsearch and Grafana Loki when running on the same hardware.
+  See [these docs](#benchmarks) and [this article](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f) for details.
+- It support [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with high cardinality (e.g. high number of unique values) such as `trace_id`, `user_id` and `ip`.
+- It is optimized for logs with hundreds of fields (aka [`wide events`](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/)).
+- It supports multitenancy - see [these docs](#multitenancy).
+- It supports out-of-order logs' ingestion aka backfilling.
+- It supports live tailing for newly ingested logs. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing).
+- It supports selecting surrounding logs in front and after the selected logs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe).
+- It supports alerting - see [these docs](https://docs.victoriametrics.com/victorialogs/vmalert/).
+
+You can play with VictoriaLogs web UI at [this playground](https://play-vmlogs.victoriametrics.com/).
 
 If you have questions about VictoriaLogs, then read [this FAQ](https://docs.victoriametrics.com/victorialogs/faq/).
 Also feel free asking any questions at [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/), 
 you can join it via [Slack Inviter](https://slack.victoriametrics.com/).
 
-See [Quick start docs](https://docs.victoriametrics.com/victorialogs/quickstart/) for start working with VictoriaLogs.
+See [quick start docs](https://docs.victoriametrics.com/victorialogs/quickstart/) for start working with VictoriaLogs.
+
+If you want playing with [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query language, then go to [VictoriaLogs playground](https://play-vmlogs.victoriametrics.com/).
+
+## Tuning
+
+* No need in tuning for VictoriaLogs - it uses reasonable defaults for command-line flags, which are automatically adjusted for the available CPU and RAM resources.
+* No need in tuning for Operating System - VictoriaLogs is optimized for default OS settings.
+  The only option is increasing the limit on [the number of open files in the OS](https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a).
+* The recommended filesystem is `ext4`, the recommended persistent storage is [persistent HDD-based disk on GCP](https://cloud.google.com/compute/docs/disks/#pdspecs),
+  since it is protected from hardware failures via internal replication and it can be [resized on the fly](https://cloud.google.com/compute/docs/disks/add-persistent-disk#resize_pd).
+  If you plan to store more than 1TB of data on `ext4` partition or plan extending it to more than 16TB,
+  then the following options are recommended to pass to `mkfs.ext4`:
+
+```sh
+mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
+```
 
 ## Monitoring
 
@@ -35,6 +56,11 @@ VictoriaLogs exposes internal metrics in Prometheus exposition format at `http:/
 It is recommended to set up monitoring of these metrics via VictoriaMetrics
 (see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
 vmagent (see [these docs](https://docs.victoriametrics.com/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
+
+We recommend installing [Grafana dashboard for VictoriaLogs](https://grafana.com/grafana/dashboards/22084).
+
+We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vlogs.yml)
+via [vmalert](https://docs.victoriametrics.com/vmalert/) or via Prometheus.
 
 VictoriaLogs emits its own logs to stdout. It is recommended to investigate these logs during troubleshooting.
 
@@ -115,7 +141,7 @@ Set the `-retentionPeriod` to some big value (e.g. `100y` - 100 years) if logs s
 For example:
 
 ```sh
-/path/to/victoria-logs -retention.maxDiskSpaceUsageBytes=10TiB -retention=100y
+/path/to/victoria-logs -retention.maxDiskSpaceUsageBytes=10TiB -retentionPeriod=100y
 ```
 
 ## Storage
@@ -128,6 +154,19 @@ For example, the following command starts VictoriaLogs, which stores the data at
 ```
 
 VictoriaLogs automatically creates the `-storageDataPath` directory on the first run if it is missing.
+
+## Forced merge
+
+VictoriaLogs performs data compactions in background in order to keep good performance characteristics when accepting new data.
+These compactions (merges) are performed independently on per-day partitions.
+This means that compactions are stopped for per-day partitions if no new data is ingested into these partitions.
+Sometimes it is necessary to trigger compactions for old partitions. In this case forced compaction may be initiated on the specified per-day partition
+by sending request to `/internal/force_merge?partition_prefix=YYYYMMDD`,
+where `YYYYMMDD` is per-day partition name. For example, `http://victoria-logs:9428/internal/force_merge?partition_prefix=20240921` would initiate forced
+merge for September 21, 2024 partition. The call to `/internal/force_merge` returns immediately, while the corresponding forced merge continues running in background.
+
+Forced merges may require additional CPU, disk IO and storage space resources. It is unnecessary to run forced merge under normal conditions,
+since VictoriaLogs automatically performs optimal merges in background when new data is ingested into it.
 
 ## High Availability
 
@@ -145,9 +184,9 @@ This schema outlines how to configure a High Availability (HA) setup using Victo
 
 Here are the working example of HA configuration for VictoriaLogs using Docker Compose:
 
-- [Fluent Bit + VictoriaLogs Single-Node + vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit-ha-single-node)
-- [Logstash + VictoriaLogs Single-Node + vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash-ha-single-node)
-- [Vector + VictoriaLogs Single-Node + vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/vector-ha-single-node)
+- [Fluent Bit + VictoriaLogs Single-Node + vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit/jsonline-ha)
+- [Logstash + VictoriaLogs Single-Node + vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash/jsonline-ha)
+- [Vector + VictoriaLogs Single-Node + vmauth](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/vector/jsonline-ha)
 
 ## Backup and restore
 
@@ -162,7 +201,7 @@ Therefore, for a complete data **backup**, you need to run the `rsync` command *
 
 ```sh
 # example of rsync to remote host
-rsync -avh --progress <path-to-victorialogs-data> <username>@<host>:<path-to-victorialogs-backup>
+rsync -avh --progress --delete <path-to-victorialogs-data> <username>@<host>:<path-to-victorialogs-backup>
 ```
 
 The first `rsync` will sync the majority of the data, which can be time-consuming.
@@ -192,7 +231,7 @@ VictoriaLogs will automatically load this data upon startup.
 
 ```sh
 # example of rsync from remote backup to local
-rsync -avh --progress <username>@<host>:<path-to-victorialogs-backup> <path-to-victorialogs-data>
+rsync -avh --progress --delete <username>@<host>:<path-to-victorialogs-backup> <path-to-victorialogs-data>
 ```
 
 It is also possible to use **the disk snapshot** in order to perform a backup. This feature could be provided by your operating system,
@@ -210,7 +249,47 @@ VictoriaLogs has very low overhead for per-tenant management, so it is OK to hav
 
 VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/vmauth/) or similar tools for per-tenant authorization.
 
+### Multitenancy access control
+
+Enforce access control for tenants by using [vmauth](https://docs.victoriametrics.com/vmauth/). Access control can be configured for each tenant by setting up the following rules:
+
+```yaml
+users:
+  - username: "foo"
+    password: "bar"
+    url_map:
+      - src_paths:
+        - "/select/.*"
+        - "/insert/.*"
+        headers:
+          - "AccountID: 1"
+          - "ProjectID: 0"
+        url_prefix:
+          - "http://localhost:9428/"
+
+  - username: "baz"
+    password: "bar"
+    url_map:
+      - src_paths: ["/select/.*"]
+        headers:
+          - "AccountID: 2"
+          - "ProjectID: 0"
+        url_prefix:
+          - "http://localhost:9428/"
+```
+
+This configuration allows `foo` to use the `/select/.*` and `/insert/.*` endpoints with `AccountID: 1` and `ProjectID: 0`, while `baz` can only use the `/select/.*` endpoint with `AccountID: 2` and `ProjectID: 0`.
+
+## Security
+
+It is expected that VictoriaLogs runs in a protected environment, which is unreachable from the Internet without proper authorization.
+It is recommended providing access to VictoriaLogs [data ingestion APIs](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
+and [querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) via [vmauth](https://docs.victoriametrics.com/vmauth/)
+or similar authorization proxies.
+
 ## Benchmarks
+
+See [the comparison of VictoriaLogs with Elasticsearch, MongoDB, TimescaleDB, PostgreSQL, MySQL and SQLite](https://benchmark.clickhouse.com/#eyJzeXN0ZW0iOnsiQWxsb3lEQiI6ZmFsc2UsIkFsbG95REIgKHR1bmVkKSI6ZmFsc2UsIkF0aGVuYSAocGFydGl0aW9uZWQpIjpmYWxzZSwiQXRoZW5hIChzaW5nbGUpIjpmYWxzZSwiQXVyb3JhIGZvciBNeVNRTCI6ZmFsc2UsIkF1cm9yYSBmb3IgUG9zdGdyZVNRTCI6ZmFsc2UsIkJ5Q29uaXR5IjpmYWxzZSwiQnl0ZUhvdXNlIjpmYWxzZSwiY2hEQiAoRGF0YUZyYW1lKSI6ZmFsc2UsImNoREIgKFBhcnF1ZXQsIHBhcnRpdGlvbmVkKSI6ZmFsc2UsImNoREIiOmZhbHNlLCJDaXR1cyI6ZmFsc2UsIkNsaWNrSG91c2UgQ2xvdWQgKGF3cykiOmZhbHNlLCJDbGlja0hvdXNlIENsb3VkIChhenVyZSkiOmZhbHNlLCJDbGlja0hvdXNlIENsb3VkIChnY3ApIjpmYWxzZSwiQ2xpY2tIb3VzZSAoZGF0YSBsYWtlLCBwYXJ0aXRpb25lZCkiOmZhbHNlLCJDbGlja0hvdXNlIChkYXRhIGxha2UsIHNpbmdsZSkiOmZhbHNlLCJDbGlja0hvdXNlIChQYXJxdWV0LCBwYXJ0aXRpb25lZCkiOmZhbHNlLCJDbGlja0hvdXNlIChQYXJxdWV0LCBzaW5nbGUpIjpmYWxzZSwiQ2xpY2tIb3VzZSAod2ViKSI6ZmFsc2UsIkNsaWNrSG91c2UiOmZhbHNlLCJDbGlja0hvdXNlICh0dW5lZCkiOmZhbHNlLCJDbGlja0hvdXNlICh0dW5lZCwgbWVtb3J5KSI6ZmFsc2UsIkNsb3VkYmVycnkiOmZhbHNlLCJDcmF0ZURCIjpmYWxzZSwiQ3J1bmNoeSBCcmlkZ2UgZm9yIEFuYWx5dGljcyAoUGFycXVldCkiOmZhbHNlLCJEYXRhYmVuZCI6ZmFsc2UsIkRhdGFGdXNpb24gKFBhcnF1ZXQsIHBhcnRpdGlvbmVkKSI6ZmFsc2UsIkRhdGFGdXNpb24gKFBhcnF1ZXQsIHNpbmdsZSkiOmZhbHNlLCJBcGFjaGUgRG9yaXMiOmZhbHNlLCJEcmlsbCI6ZmFsc2UsIkRydWlkIjpmYWxzZSwiRHVja0RCIChEYXRhRnJhbWUpIjpmYWxzZSwiRHVja0RCIChtZW1vcnkpIjpmYWxzZSwiRHVja0RCIChQYXJxdWV0LCBwYXJ0aXRpb25lZCkiOmZhbHNlLCJEdWNrREIiOmZhbHNlLCJFbGFzdGljc2VhcmNoIjp0cnVlLCJFbGFzdGljc2VhcmNoICh0dW5lZCkiOmZhbHNlLCJHbGFyZURCIjpmYWxzZSwiR3JlZW5wbHVtIjpmYWxzZSwiSGVhdnlBSSI6ZmFsc2UsIkh5ZHJhIjpmYWxzZSwiSW5mb2JyaWdodCI6ZmFsc2UsIktpbmV0aWNhIjpmYWxzZSwiTWFyaWFEQiBDb2x1bW5TdG9yZSI6ZmFsc2UsIk1hcmlhREIiOmZhbHNlLCJNb25ldERCIjpmYWxzZSwiTW9uZ29EQiI6dHJ1ZSwiTW90aGVyRHVjayI6ZmFsc2UsIk15U1FMIChNeUlTQU0pIjpmYWxzZSwiTXlTUUwiOnRydWUsIk9jdG9TUUwiOmZhbHNlLCJPeGxhIjpmYWxzZSwiUGFuZGFzIChEYXRhRnJhbWUpIjpmYWxzZSwiUGFyYWRlREIgKFBhcnF1ZXQsIHBhcnRpdGlvbmVkKSI6ZmFsc2UsIlBhcmFkZURCIChQYXJxdWV0LCBzaW5nbGUpIjpmYWxzZSwicGdfZHVja2RiIChNb3RoZXJEdWNrIGVuYWJsZWQpIjpmYWxzZSwicGdfZHVja2RiIjpmYWxzZSwiUGlub3QiOmZhbHNlLCJQb2xhcnMgKERhdGFGcmFtZSkiOmZhbHNlLCJQb2xhcnMgKFBhcnF1ZXQpIjpmYWxzZSwiUG9zdGdyZVNRTCAodHVuZWQpIjpmYWxzZSwiUG9zdGdyZVNRTCI6dHJ1ZSwiUXVlc3REQiI6ZmFsc2UsIlJlZHNoaWZ0IjpmYWxzZSwiU2VsZWN0REIiOmZhbHNlLCJTaW5nbGVTdG9yZSI6ZmFsc2UsIlNub3dmbGFrZSI6ZmFsc2UsIlNwYXJrIjpmYWxzZSwiU1FMaXRlIjp0cnVlLCJTdGFyUm9ja3MiOmZhbHNlLCJUYWJsZXNwYWNlIjpmYWxzZSwiVGVtYm8gT0xBUCAoY29sdW1uYXIpIjpmYWxzZSwiVGltZXNjYWxlIENsb3VkIjpmYWxzZSwiVGltZXNjYWxlREIgKG5vIGNvbHVtbnN0b3JlKSI6ZmFsc2UsIlRpbWVzY2FsZURCIjp0cnVlLCJUaW55YmlyZCAoRnJlZSBUcmlhbCkiOmZhbHNlLCJVbWJyYSI6ZmFsc2UsIlZpY3RvcmlhTG9ncyI6dHJ1ZX0sInR5cGUiOnsiQyI6dHJ1ZSwiY29sdW1uLW9yaWVudGVkIjp0cnVlLCJQb3N0Z3JlU1FMIGNvbXBhdGlibGUiOnRydWUsIm1hbmFnZWQiOnRydWUsImdjcCI6dHJ1ZSwic3RhdGVsZXNzIjp0cnVlLCJKYXZhIjp0cnVlLCJDKysiOnRydWUsIk15U1FMIGNvbXBhdGlibGUiOnRydWUsInJvdy1vcmllbnRlZCI6dHJ1ZSwiQ2xpY2tIb3VzZSBkZXJpdmF0aXZlIjp0cnVlLCJlbWJlZGRlZCI6dHJ1ZSwic2VydmVybGVzcyI6dHJ1ZSwiZGF0YWZyYW1lIjp0cnVlLCJhd3MiOnRydWUsImF6dXJlIjp0cnVlLCJhbmFseXRpY2FsIjp0cnVlLCJSdXN0Ijp0cnVlLCJzZWFyY2giOnRydWUsImRvY3VtZW50Ijp0cnVlLCJHbyI6dHJ1ZSwic29tZXdoYXQgUG9zdGdyZVNRTCBjb21wYXRpYmxlIjp0cnVlLCJEYXRhRnJhbWUiOnRydWUsInBhcnF1ZXQiOnRydWUsInRpbWUtc2VyaWVzIjp0cnVlfSwibWFjaGluZSI6eyIxNiB2Q1BVIDEyOEdCIjpmYWxzZSwiOCB2Q1BVIDY0R0IiOmZhbHNlLCJzZXJ2ZXJsZXNzIjpmYWxzZSwiMTZhY3UiOmZhbHNlLCJjNmEuNHhsYXJnZSwgNTAwZ2IgZ3AyIjp0cnVlLCJMIjpmYWxzZSwiTSI6ZmFsc2UsIlMiOmZhbHNlLCJYUyI6ZmFsc2UsImM2YS5tZXRhbCwgNTAwZ2IgZ3AyIjpmYWxzZSwiMTkyR0IiOmZhbHNlLCIyNEdCIjpmYWxzZSwiMzYwR0IiOmZhbHNlLCI0OEdCIjpmYWxzZSwiNzIwR0IiOmZhbHNlLCI5NkdCIjpmYWxzZSwiZGV2IjpmYWxzZSwiNzA4R0IiOmZhbHNlLCJjNW4uNHhsYXJnZSwgNTAwZ2IgZ3AyIjpmYWxzZSwiQW5hbHl0aWNzLTI1NkdCICg2NCB2Q29yZXMsIDI1NiBHQikiOmZhbHNlLCJjNS40eGxhcmdlLCA1MDBnYiBncDIiOmZhbHNlLCJjNmEuNHhsYXJnZSwgMTUwMGdiIGdwMiI6dHJ1ZSwiY2xvdWQiOmZhbHNlLCJkYzIuOHhsYXJnZSI6ZmFsc2UsInJhMy4xNnhsYXJnZSI6ZmFsc2UsInJhMy40eGxhcmdlIjpmYWxzZSwicmEzLnhscGx1cyI6ZmFsc2UsIlMyIjpmYWxzZSwiUzI0IjpmYWxzZSwiMlhMIjpmYWxzZSwiM1hMIjpmYWxzZSwiNFhMIjpmYWxzZSwiWEwiOmZhbHNlLCJMMSAtIDE2Q1BVIDMyR0IiOmZhbHNlLCJjNmEuNHhsYXJnZSwgNTAwZ2IgZ3AzIjpmYWxzZSwiMTYgdkNQVSA2NEdCIjpmYWxzZSwiNCB2Q1BVIDE2R0IiOmZhbHNlLCI4IHZDUFUgMzJHQiI6ZmFsc2V9LCJjbHVzdGVyX3NpemUiOnsiMSI6dHJ1ZSwiMiI6ZmFsc2UsIjQiOmZhbHNlLCI4IjpmYWxzZSwiMTYiOmZhbHNlLCIzMiI6ZmFsc2UsIjY0IjpmYWxzZSwiMTI4IjpmYWxzZSwic2VydmVybGVzcyI6ZmFsc2UsInVuZGVmaW5lZCI6ZmFsc2V9LCJtZXRyaWMiOiJob3QiLCJxdWVyaWVzIjpbdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZV19).
 
 Here is a [benchmark suite](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/logs-benchmark) for comparing data ingestion performance
 and resource usage between VictoriaLogs and Elasticsearch or Loki.
@@ -221,6 +300,31 @@ log management systems and comparing resource usage + query performance between 
 Please share benchmark results and ideas on how to improve benchmarks / VictoriaLogs
 via [VictoriaMetrics community channels](https://docs.victoriametrics.com/#community-and-contributions).
 
+## Profiling
+
+VictoriaLogs provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
+
+* Memory profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+
+```sh
+curl http://0.0.0.0:9428/debug/pprof/heap > mem.pprof
+```
+
+
+* CPU profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+
+```sh
+curl http://0.0.0.0:9428/debug/pprof/profile > cpu.pprof
+```
+
+
+The command for collecting CPU profile waits for 30 seconds before returning.
+
+The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
+It is safe sharing the collected profiles from security point of view, since they do not contain sensitive information.
+
 ## List of command-line flags
 
 Pass `-help` to VictoriaLogs in order to see the list of supported command-line flags with their description:
@@ -228,8 +332,8 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
 ```
   -blockcache.missesBeforeCaching int
     	The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
-  -cacheExpireDuration duration
-    	Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
+  -defaultMsgValue string
+    	Default value for _msg field if the ingested log entry doesn't contain it; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field (default "missing _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field")
   -elasticsearch.version string
     	Elasticsearch version to report to client (default "8.9.0")
   -enableTCP6
@@ -243,11 +347,14 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -flagsAuthKey value
     	Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
     	Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
+  -forceMergeAuthKey value
+    	authKey, which must be passed in query string to /internal/force_merge pages. It overrides -httpAuth.*
+    	Flag value can be read from the given file when using -forceMergeAuthKey=file:///abs/path/to/file or -forceMergeAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -forceMergeAuthKey=http://host/path or -forceMergeAuthKey=https://host/path
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -futureRetention value
     	Log entries with timestamps bigger than now+futureRetention are rejected during data ingestion; see https://docs.victoriametrics.com/victorialogs/#retention
-    	The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 2d)
+    	The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 2d)
   -http.connTimeout duration
     	Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableResponseCompression
@@ -294,6 +401,20 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
     	The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
+  -journald.ignoreFields array
+    	Journal fields to ignore. See the list of allowed fields at https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html.
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -journald.includeEntryMetadata
+    	Include journal entry fields, which with double underscores.
+  -journald.streamFields array
+    	Journal fields to be used as stream fields. See the list of allowed fields at https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html.
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -journald.tenantID string
+    	TenantID for logs ingested via the Journald endpoint. (default "0:0")
+  -journald.timeField string
+    	Journal field to be used as time field. See the list of allowed fields at https://www.freedesktop.org/software/systemd/man/latest/systemd.journal-fields.html. (default "__REALTIME_TIMESTAMP")
   -logIngestedRows
     	Whether to log all the ingested log entries; this can be useful for debugging of data ingestion; see https://docs.victoriametrics.com/victorialogs/data-ingestion/ ; see also -logNewStreams
   -logNewStreams
@@ -309,7 +430,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -loggerLevel string
     	Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerMaxArgLen int
-    	The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 1000)
+    	The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 5000)
   -loggerOutput string
     	Output for the logs. Supported values: stderr, stdout (default "stderr")
   -loggerTimezone string
@@ -317,7 +438,7 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -loggerWarnsPerSecondLimit int
     	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-    	The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 32)
+    	The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration
   -memory.allowedBytes size
     	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -329,10 +450,8 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
     	Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
   -pprofAuthKey value
-    	Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
+    	Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It -httpAuth.*
     	Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path
-  -prevCacheRemovalPercent float
-    	Items in the previous caches are removed when the percent of requests it serves becomes lower than this value. Higher values reduce memory usage at the cost of higher CPU usage. See also -cacheExpireDuration (default 0.1)
   -pushmetrics.disableCompression
     	Whether to disable request body compression when pushing metrics to every -pushmetrics.url
   -pushmetrics.extraLabel array
@@ -354,11 +473,11 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -retentionPeriod value
     	Log entries with timestamps older than now-retentionPeriod are automatically deleted; log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); see https://docs.victoriametrics.com/victorialogs/#retention ; see also -retention.maxDiskSpaceUsageBytes
-    	The following optional suffixes are supported: s (second), m (minute), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 7d)
+    	The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 7d)
   -search.maxConcurrentRequests int
     	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 16)
   -search.maxQueryDuration duration
-    	The maximum duration for query execution. It can be overridden on a per-query basis via 'timeout' query arg (default 30s)
+    	The maximum duration for query execution. It can be overridden to a smaller value on a per-query basis via 'timeout' query arg (default 30s)
   -search.maxQueueDuration duration
     	The maximum time the search request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
   -storage.minFreeDiskSpaceBytes size
@@ -374,6 +493,22 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Compression method for syslog messages received at the corresponding -syslog.listenAddr.udp. Supported values: none, gzip, deflate. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#compression
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.extraFields.tcp array
+    	Fields to add to logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#adding-extra-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.extraFields.udp array
+    	Fields to add to logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#adding-extra-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.ignoreFields.tcp array
+    	Fields to ignore at logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#dropping-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.ignoreFields.udp array
+    	Fields to ignore at logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#dropping-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.listenAddr.tcp array
     	Comma-separated list of TCP addresses to listen to for Syslog messages. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
     	Supports an array of values separated by comma or specified via multiple flags.
@@ -382,12 +517,20 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Comma-separated list of UDP address to listen to for Syslog messages. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.streamFields.tcp array
+    	Fields to use as log stream labels for logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#stream-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -syslog.streamFields.udp array
+    	Fields to use as log stream labels for logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#stream-fields
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.tenantID.tcp array
-    	TenantID for logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
+    	TenantID for logs ingested via the corresponding -syslog.listenAddr.tcp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#multitenancy
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.tenantID.udp array
-    	TenantID for logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/
+    	TenantID for logs ingested via the corresponding -syslog.listenAddr.udp. See https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/#multitenancy
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -syslog.timezone string

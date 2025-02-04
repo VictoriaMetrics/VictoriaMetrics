@@ -47,15 +47,11 @@ func (pe *pipeExtractRegexp) canLiveTail() bool {
 	return true
 }
 
-func (pe *pipeExtractRegexp) optimize() {
-	pe.iff.optimizeFilterIn()
-}
-
 func (pe *pipeExtractRegexp) hasFilterInWithQuery() bool {
 	return pe.iff.hasFilterInWithQuery()
 }
 
-func (pe *pipeExtractRegexp) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pe *pipeExtractRegexp) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pe.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
@@ -63,6 +59,10 @@ func (pe *pipeExtractRegexp) initFilterInValues(cache map[string][]string, getFi
 	peNew := *pe
 	peNew.iff = iffNew
 	return &peNew, nil
+}
+
+func (pe *pipeExtractRegexp) visitSubqueries(visitFunc func(q *Query)) {
+	pe.iff.visitSubqueries(visitFunc)
 }
 
 func (pe *pipeExtractRegexp) updateNeededFields(neededFields, unneededFields fieldsSet) {
@@ -175,7 +175,7 @@ type pipeExtractRegexpProcessorShardNopad struct {
 }
 
 func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -183,9 +183,9 @@ func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult
 	shard := &pep.shards[workerID]
 
 	bm := &shard.bm
-	bm.init(len(br.timestamps))
-	bm.setBits()
 	if iff := pe.iff; iff != nil {
+		bm.init(br.rowsLen)
+		bm.setBits()
 		iff.f.applyToBlockResult(br, bm)
 		if bm.isZero() {
 			pep.ppNext.writeBlock(workerID, br)
@@ -215,13 +215,13 @@ func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult
 	shard.resultValues = slicesutil.SetLength(shard.resultValues, len(rcs))
 	resultValues := shard.resultValues
 
-	hadUpdates := false
+	needUpdates := true
 	vPrev := ""
 	for rowIdx, v := range values {
-		if bm.isSetBit(rowIdx) {
-			if !hadUpdates || vPrev != v {
+		if pe.iff == nil || bm.isSetBit(rowIdx) {
+			if needUpdates || vPrev != v {
 				vPrev = v
-				hadUpdates = true
+				needUpdates = false
 
 				shard.apply(pe.re, v)
 
@@ -246,6 +246,7 @@ func (pep *pipeExtractRegexpProcessor) writeBlock(workerID uint, br *blockResult
 					resultValues[i] = c.getValueAtRow(br, rowIdx)
 				}
 			}
+			needUpdates = true
 		}
 
 		for i, v := range resultValues {
@@ -272,7 +273,7 @@ func (pep *pipeExtractRegexpProcessor) flush() error {
 	return nil
 }
 
-func parsePipeExtractRegexp(lex *lexer) (*pipeExtractRegexp, error) {
+func parsePipeExtractRegexp(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("extract_regexp") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "extract_regexp")
 	}

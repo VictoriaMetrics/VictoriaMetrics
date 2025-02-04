@@ -4,14 +4,20 @@
   display: grid;
   gap: $padding-large;
   padding-top: calc($padding-large - $padding-global);
-  min-width: 400px;
+  width: 700px;
+  max-width: 100%;
 
   &-settings {
     display: grid;
-    gap: $padding-global;
+    gap: $padding-large;
 
-    textarea {
-      min-height: 100px;
+    &__title {
+      display: flex;
+      align-items: center;
+      margin-right: $padding-global;
+      font-size: $font-size;
+      font-weight: 600;
+      white-space: nowrap;
     }
   }
 
@@ -33,7 +39,7 @@
       line-height: 1.3;
 
       p {
-        margin-bottom: calc($padding-small/2);
+        margin-bottom: calc($padding-small / 2);
       }
     }
 

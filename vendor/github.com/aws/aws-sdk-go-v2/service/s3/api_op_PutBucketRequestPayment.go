@@ -15,7 +15,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Sets the request payment configuration for a bucket. By default, the bucket
 // owner pays for downloads from the bucket. This configuration parameter enables
@@ -71,7 +71,7 @@ type PutBucketRequestPaymentInput struct {
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumAlgorithm types.ChecksumAlgorithm
 
-	// The base64-encoded 128-bit MD5 digest of the data. You must use this header as
+	// The Base64 encoded 128-bit MD5 digest of the data. You must use this header as
 	// a message integrity check to verify that the request body was not corrupted in
 	// transit. For more information, see [RFC 1864].
 	//
@@ -145,6 +145,9 @@ func (c *Client) addOperationPutBucketRequestPaymentMiddlewares(stack *middlewar
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -167,6 +170,9 @@ func (c *Client) addOperationPutBucketRequestPaymentMiddlewares(stack *middlewar
 		return err
 	}
 	if err = addIsExpressUserAgent(stack); err != nil {
+		return err
+	}
+	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
 		return err
 	}
 	if err = addOpPutBucketRequestPaymentValidationMiddleware(stack); err != nil {
@@ -208,6 +214,18 @@ func (c *Client) addOperationPutBucketRequestPaymentMiddlewares(stack *middlewar
 	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -237,9 +255,10 @@ func getPutBucketRequestPaymentRequestAlgorithmMember(input interface{}) (string
 }
 
 func addPutBucketRequestPaymentInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getPutBucketRequestPaymentRequestAlgorithmMember,
 		RequireChecksum:                  true,
+		RequestChecksumCalculation:       options.RequestChecksumCalculation,
 		EnableTrailingChecksum:           false,
 		EnableComputeSHA256PayloadHash:   true,
 		EnableDecodedContentLengthHeader: true,

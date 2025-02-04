@@ -122,6 +122,18 @@ again:
 		}
 		goto tokenFoundLabel
 	}
+	if strings.HasPrefix(s, "$__interval") {
+		// Automatically replace $__interval with 1i.
+		// This allows running copy-n-pasted queries from Grafana.
+		lex.sTail = s[len("$__interval"):]
+		return "1i", nil
+	}
+	if strings.HasPrefix(s, "$__rate_interval") {
+		// Automatically replace $__rate_interval with 1i.
+		// This allows running copy-n-pasted queries from Grafana.
+		lex.sTail = s[len("$__rate_interval"):]
+		return "1i", nil
+	}
 	return "", fmt.Errorf("cannot recognize %q", s)
 
 tokenFoundLabel:
@@ -575,25 +587,25 @@ func parseSingleDuration(s string, step int64) (float64, error) {
 	var mp float64
 	switch s[len(numPart):] {
 	case "ms":
-		mp = 1e-3
-	case "s":
 		mp = 1
+	case "s":
+		mp = 1000
 	case "m":
-		mp = 60
+		mp = 60 * 1000
 	case "h":
-		mp = 60 * 60
+		mp = 60 * 60 * 1000
 	case "d":
-		mp = 24 * 60 * 60
+		mp = 24 * 60 * 60 * 1000
 	case "w":
-		mp = 7 * 24 * 60 * 60
+		mp = 7 * 24 * 60 * 60 * 1000
 	case "y":
-		mp = 365 * 24 * 60 * 60
+		mp = 365 * 24 * 60 * 60 * 1000
 	case "i":
-		mp = float64(step) / 1e3
+		mp = float64(step)
 	default:
 		return 0, fmt.Errorf("invalid duration suffix in %q", s)
 	}
-	return mp * f * 1e3, nil
+	return mp * f, nil
 }
 
 // scanDuration scans duration, which must start with positive num.

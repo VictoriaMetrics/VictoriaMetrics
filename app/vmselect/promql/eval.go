@@ -44,8 +44,10 @@ var (
 		"See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery")
 	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, "+
 		"so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
-	minWindowForInstantRollupOptimization = flagutil.NewDuration("search.minWindowForInstantRollupOptimization", "3h", "Enable cache-based optimization for repeated queries "+
+	minWindowForInstantRollupOptimization = flag.Duration("search.minWindowForInstantRollupOptimization", time.Hour*3, "Enable cache-based optimization for repeated queries "+
 		"to /api/v1/query (aka instant queries), which contain rollup functions with lookbehind window exceeding the given value")
+	maxBinaryOpPushdownLabelValues = flag.Int("search.maxBinaryOpPushdownLabelValues", 100, "The maximum number of values for a label in the first expression that can be extracted as a common label filter and pushed down to the second expression in a binary operation. "+
+		"A larger value makes the pushed-down filter more complex but fewer time series will be returned. This flag is useful when selective label contains numerous values, for example `instance`, and storage resources are abundant.")
 )
 
 // The minimum number of points per timeseries for enabling time rounding.
@@ -582,7 +584,7 @@ func getCommonLabelFilters(tss []*timeseries) []metricsql.LabelFilter {
 				}
 				continue
 			}
-			if len(vc.values) > 100 {
+			if len(vc.values) > *maxBinaryOpPushdownLabelValues {
 				// Too many unique values found for the given tag.
 				// Do not make a filter on such values, since it may slow down
 				// search for matching time series.
@@ -1092,7 +1094,6 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 	again:
 		offset := int64(0)
 		tssCached := rollupResultCacheV.GetInstantValues(qt, expr, window, ec.Step, ec.EnforcedTagFilterss)
-		ec.QueryStats.addSeriesFetched(len(tssCached))
 		if len(tssCached) == 0 {
 			// Cache miss. Re-populate the missing data.
 			start := int64(fasttime.UnixTimestamp()*1000) - cacheTimestampOffset.Milliseconds()
@@ -1136,6 +1137,7 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 			deleteCachedSeries(qt)
 			goto again
 		}
+		ec.QueryStats.addSeriesFetched(len(tssCached))
 		return tssCached, offset, nil
 	}
 
@@ -1647,6 +1649,10 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 		ecNew = copyEvalConfig(ec)
 		ecNew.Start = start
 	}
+	// call to evalWithConfig also updates QueryStats.addSeriesFetched
+	// without checking whether tss has intersection with tssCached.
+	// So final number could be bigger than actual number of unique series.
+	// This discrepancy is acceptable, since seriesFetched stat is used as info only.
 	tss, err := evalWithConfig(ecNew)
 	if err != nil {
 		return nil, err

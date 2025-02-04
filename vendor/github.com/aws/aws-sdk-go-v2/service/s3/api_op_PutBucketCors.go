@@ -15,7 +15,7 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This operation is not supported by directory buckets.
+// This operation is not supported for directory buckets.
 //
 // Sets the cors configuration for your bucket. If the configuration exists,
 // Amazon S3 replaces it.
@@ -106,7 +106,7 @@ type PutBucketCorsInput struct {
 	// [Checking object integrity]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html
 	ChecksumAlgorithm types.ChecksumAlgorithm
 
-	// The base64-encoded 128-bit MD5 digest of the data. This header must be used as
+	// The Base64 encoded 128-bit MD5 digest of the data. This header must be used as
 	// a message integrity check to verify that the request body was not corrupted in
 	// transit. For more information, go to [RFC 1864.]
 	//
@@ -180,6 +180,9 @@ func (c *Client) addOperationPutBucketCorsMiddlewares(stack *middleware.Stack, o
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -202,6 +205,9 @@ func (c *Client) addOperationPutBucketCorsMiddlewares(stack *middleware.Stack, o
 		return err
 	}
 	if err = addIsExpressUserAgent(stack); err != nil {
+		return err
+	}
+	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
 		return err
 	}
 	if err = addOpPutBucketCorsValidationMiddleware(stack); err != nil {
@@ -243,6 +249,18 @@ func (c *Client) addOperationPutBucketCorsMiddlewares(stack *middleware.Stack, o
 	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -272,9 +290,10 @@ func getPutBucketCorsRequestAlgorithmMember(input interface{}) (string, bool) {
 }
 
 func addPutBucketCorsInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getPutBucketCorsRequestAlgorithmMember,
 		RequireChecksum:                  true,
+		RequestChecksumCalculation:       options.RequestChecksumCalculation,
 		EnableTrailingChecksum:           false,
 		EnableComputeSHA256PayloadHash:   true,
 		EnableDecodedContentLengthHeader: true,

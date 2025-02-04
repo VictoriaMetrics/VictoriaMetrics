@@ -53,6 +53,17 @@ func Match(pattern, name string) (bool, error) {
 	return matchWithSeparator(pattern, name, '/', true)
 }
 
+// MatchUnvalidated can provide a small performance improvement if you don't
+// care about whether or not the pattern is valid (perhaps because you already
+// ran `ValidatePattern`). Note that there's really only one case where this
+// performance improvement is realized: when pattern matching reaches the end
+// of `name` before reaching the end of `pattern`, such as `Match("a/b/c",
+// "a")`.
+func MatchUnvalidated(pattern, name string) bool {
+	matched, _ := matchWithSeparator(pattern, name, '/', false)
+	return matched
+}
+
 // PathMatch returns true if `name` matches the file name `pattern`. The
 // difference between Match and PathMatch is that PathMatch will automatically
 // use your system's path separator to split `name` and `pattern`. On systems
@@ -65,6 +76,17 @@ func Match(pattern, name string) (bool, error) {
 //
 func PathMatch(pattern, name string) (bool, error) {
 	return matchWithSeparator(pattern, name, filepath.Separator, true)
+}
+
+// PathMatchUnvalidated can provide a small performance improvement if you
+// don't care about whether or not the pattern is valid (perhaps because you
+// already ran `ValidatePattern`). Note that there's really only one case where
+// this performance improvement is realized: when pattern matching reaches the
+// end of `name` before reaching the end of `pattern`, such as `Match("a/b/c",
+// "a")`.
+func PathMatchUnvalidated(pattern, name string) bool {
+	matched, _ := matchWithSeparator(pattern, name, filepath.Separator, false)
+	return matched
 }
 
 func matchWithSeparator(pattern, name string, separator rune, validate bool) (matched bool, err error) {
@@ -297,10 +319,10 @@ MATCH:
 	// we've reached the end of `name`; we've successfully matched if we've also
 	// reached the end of `pattern`, or if the rest of `pattern` can match a
 	// zero-length string
-	return isZeroLengthPattern(pattern[patIdx:], separator)
+	return isZeroLengthPattern(pattern[patIdx:], separator, validate)
 }
 
-func isZeroLengthPattern(pattern string, separator rune) (ret bool, err error) {
+func isZeroLengthPattern(pattern string, separator rune, validate bool) (ret bool, err error) {
 	// `/**`, `**/`, and `/**/` are special cases - a pattern such as `path/to/a/**` or `path/to/a/**/`
 	// *should* match `path/to/a` because `a` might be a directory
 	if pattern == "" ||
@@ -328,18 +350,18 @@ func isZeroLengthPattern(pattern string, separator rune) (ret bool, err error) {
 			}
 			commaIdx += patIdx
 
-			ret, err = isZeroLengthPattern(pattern[patIdx:commaIdx]+pattern[closingIdx+1:], separator)
+			ret, err = isZeroLengthPattern(pattern[patIdx:commaIdx]+pattern[closingIdx+1:], separator, validate)
 			if ret || err != nil {
 				return
 			}
 
 			patIdx = commaIdx + 1
 		}
-		return isZeroLengthPattern(pattern[patIdx:closingIdx]+pattern[closingIdx+1:], separator)
+		return isZeroLengthPattern(pattern[patIdx:closingIdx]+pattern[closingIdx+1:], separator, validate)
 	}
 
 	// no luck - validate the rest of the pattern
-	if !doValidatePattern(pattern, separator) {
+	if validate && !doValidatePattern(pattern, separator) {
 		return false, ErrBadPattern
 	}
 	return false, nil

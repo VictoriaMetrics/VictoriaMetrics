@@ -42,12 +42,12 @@ Bumping the limits may significantly improve build speed.
 1. Make sure all the changes are documented in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md).
    Ideally, every change must be documented in the commit with the change. Alternatively, the change must be documented immediately
    after the commit, which adds the change.
-1. Run `make vmui-update` and `make vmui-logs-update` commands to re-build static files for `vmui`. See [commit example](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/9dde5b8ee3fdc9d4cd495c8118e04ff4ee32e650). 
+1. Run `make vmui-update` and `make vmui-logs-update` commands to re-build static files for `vmui`. Static assets needs to be rebuilt separately for oss and enterprise branches (changes should not be cherry-picked between these branches). See [commit example](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/9dde5b8ee3fdc9d4cd495c8118e04ff4ee32e650). 
 1. Make sure all the changes are synced between `master`, `cluster`, `enterprise-single-node` and `enterprise-cluster` branches.
    Changes in these branches must be synced immediately after they are committed in at least a single branch.
 1. Make sure that the release branches have no security issues.
 1. Update release versions if needed in [SECURITY.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/SECURITY.md).
-1. Add `(available starting from v1.xx.y)` line to feature docs introduced in the upcoming release.
+1. Run `PKG_TAG=v1.xx.y make docs-update-version` command to update version help tooltips.
 1. Cut new version in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md)
    and make it merged. See example in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/b771152039d23b5ccd637a23ea748bc44a9511a7).
 1. Cherry-pick bug fixes relevant for [LTS releases](https://docs.victoriametrics.com/lts-releases/).
@@ -69,6 +69,8 @@ Bumping the limits may significantly improve build speed.
       * linux/ppc64le
       * linux/386
       This step can be run manually with the command `make publish` from the needed git tag.
+1. Verify that created images are stable and don't introduce regressions on [test environment](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md#testing-releases).
+1. Test new images on [sandbox](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md#testing-releases).
 1. Push the tags `v1.xx.y` and `v1.xx.y-cluster` created at previous steps to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics.
    Push the tags `v1.xx.y`, `v1.xx.y-cluster`, `v1.xx.y-enterprise` and `v1.xx.y-enterprise-cluster` to the corresponding
    branches in private repository.
@@ -91,14 +93,15 @@ Bumping the limits may significantly improve build speed.
    and this release contains all the needed binaries and checksums.
 1. Update the release description with the content of [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release.
 1. Publish release by pressing "Publish release" green button in GitHub's UI.
-1. Bump version of the VictoriaMetrics cluster in the sandbox environment by opening and merging PR.
+1. Update GitHub tickets related to the new release. Usually, such tickets have label [waiting for release](https://github.com/VictoriaMetrics/VictoriaMetrics/issues?q=is%3Aopen+is%3Aissue+label%3A%22waiting+for+release%22). Close such tickets by mentioning which release they were included into, and remove the label. See example [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6637#issuecomment-2390729511). 
 1. Bump VictoriaMetrics version at `deployment/docker/docker-compose.yml` and at `deployment/docker/docker-compose-cluster.yml`.
+1. Bump VictoriaMetrics version mentioned in [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7388).
 1. Follow the instructions in [release follow-up](https://github.com/VictoriaMetrics/VictoriaMetrics-enterprise/blob/master/Release-Guide.md).
 
 ### Public Announcement
 
 * Publish message in Slack  at <https://victoriametrics.slack.com>
-* Post at Twitter at <https://twitter.com/MetricsVictoria>
+* Post at X (Twitter) at <https://x.com/VictoriaMetrics>
 * Post in Reddit at <https://www.reddit.com/r/VictoriaMetrics/>
 * Post in LinkedIn at <https://www.linkedin.com/company/victoriametrics/>
 * Publish message in Telegram at <https://t.me/VictoriaMetrics_en> and <https://t.me/VictoriaMetrics_ru1>
@@ -130,20 +133,23 @@ The helm chart repository [https://github.com/VictoriaMetrics/helm-charts/](http
 
 ### Bump the version of images
 
-Bump `tag` field in `values.yaml` with new release version.
+> Note that helm charts versioning uses its own versioning scheme. The version of the charts not tied to the version of VictoriaMetrics components.
+
 Bump `appVersion` field in `Chart.yaml` with new release version.
 Add new line to "Next release" section in `CHANGELOG.md` about version update (the line must always start with "`-`"). Do **NOT** change headers in `CHANGELOG.md`.
 Bump `version` field in `Chart.yaml` with incremental semver version (based on the `CHANGELOG.md` analysis). 
 
 Do these updates to the following charts:
 
-1. Update `vmagent` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-agent/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-agent/Chart.yaml) 
-1. Update `vmalert` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-alert/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-alert/Chart.yaml)
-1. Update `vmauth` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-auth/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-auth/Chart.yaml)
-1. Update `cluster` chart versions in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-cluster/values.yaml), bump version for `vmselect`, `vminsert` and `vmstorage` and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-cluster/Chart.yaml)
-1. Update `k8s-stack` chart versions in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-k8s-stack/values.yaml), bump version for `vmselect`, `vminsert`, `vmstorage`, `vmsingle`, `vmalert`, `vmagent` and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-k8s-stack/Chart.yaml)
-1. Update `single-node` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-single/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-single/Chart.yaml)
-1. Update `vmgateway` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-gateway/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-gateway/Chart.yaml)
+1. Update `vmagent` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-agent/Chart.yaml) 
+1. Update `vmalert` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-alert/Chart.yaml)
+1. Update `vmauth` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-auth/Chart.yaml)
+1. Update `cluster` chart `version` and `appVersion` in  [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-cluster/Chart.yaml)
+1. Update `k8s-stack` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-k8s-stack/Chart.yaml)
+1. Update `single-node` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-single/Chart.yaml)
+1. Update `vmgateway` chart `version` and `appVersion` in [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-gateway/Chart.yaml)
+
+See commit example [here](https://github.com/VictoriaMetrics/helm-charts/commit/0ec3ab81795cb098d4741451b66886cc6d9be36c).
 
 Once updated, run the following commands:
 
@@ -153,6 +159,8 @@ Once updated, run the following commands:
 1. Merge new PRs *"Automatic update CHANGELOGs and READMEs"* and *"Synchronize docs"* after pipelines are complete.
 
 ## Ansible Roles 
+
+> Note that ansible playbooks versioning uses its own versioning scheme. The version of the playbooks is not tied to the version of VictoriaMetrics components.
 
 1. Update the version of VictoriaMetrics components at [https://github.com/VictoriaMetrics/ansible-playbooks](https://github.com/VictoriaMetrics/ansible-playbooks).
 1. Commit changes.

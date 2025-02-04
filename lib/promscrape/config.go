@@ -12,6 +12,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
+	"gopkg.in/yaml.v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -35,15 +39,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/http"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kuma"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/marathon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/nomad"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/ovhcloud"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/puppetdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/vultr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/cespare/xxhash/v2"
-	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -260,9 +264,11 @@ func (cfg *Config) getJobNames() []string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
-	ScrapeInterval *promutils.Duration `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout  *promutils.Duration `yaml:"scrape_timeout,omitempty"`
-	ExternalLabels *promutils.Labels   `yaml:"external_labels,omitempty"`
+	ScrapeInterval       *promutils.Duration         `yaml:"scrape_interval,omitempty"`
+	ScrapeTimeout        *promutils.Duration         `yaml:"scrape_timeout,omitempty"`
+	ExternalLabels       *promutils.Labels           `yaml:"external_labels,omitempty"`
+	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
+	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 }
 
 // ScrapeConfig represents essential parts for `scrape_config` section of Prometheus config.
@@ -310,8 +316,11 @@ type ScrapeConfig struct {
 	HTTPSDConfigs         []http.SDConfig         `yaml:"http_sd_configs,omitempty"`
 	KubernetesSDConfigs   []kubernetes.SDConfig   `yaml:"kubernetes_sd_configs,omitempty"`
 	KumaSDConfigs         []kuma.SDConfig         `yaml:"kuma_sd_configs,omitempty"`
+	MarathonSDConfigs     []marathon.SDConfig     `yaml:"marathon_sd_configs,omitempty"`
 	NomadSDConfigs        []nomad.SDConfig        `yaml:"nomad_sd_configs,omitempty"`
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
+	OVHCloudSDConfigs     []ovhcloud.SDConfig     `yaml:"ovhcloud_sd_configs,omitempty"`
+	PuppetDBSDConfigs     []puppetdb.SDConfig     `yaml:"puppetdb_sd_configs,omitempty"`
 	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
 	VultrSDConfigs        []vultr.SDConfig        `yaml:"vultr_configs,omitempty"`
 	YandexCloudSDConfigs  []yandexcloud.SDConfig  `yaml:"yandexcloud_sd_configs,omitempty"`
@@ -393,6 +402,12 @@ func (sc *ScrapeConfig) mustStop() {
 	}
 	for i := range sc.OpenStackSDConfigs {
 		sc.OpenStackSDConfigs[i].MustStop()
+	}
+	for i := range sc.OVHCloudSDConfigs {
+		sc.OVHCloudSDConfigs[i].MustStop()
+	}
+	for i := range sc.PuppetDBSDConfigs {
+		sc.PuppetDBSDConfigs[i].MustStop()
 	}
 	for i := range sc.VultrSDConfigs {
 		sc.VultrSDConfigs[i].MustStop()
@@ -737,6 +752,16 @@ func (cfg *Config) getKumaSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	return cfg.getScrapeWorkGeneric(visitConfigs, "kuma_sd_config", prev)
 }
 
+// getMarathonSDScrapeWork returns `marathon_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getMarathonSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.MarathonSDConfigs {
+			visitor(&sc.MarathonSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "marathon_sd_config", prev)
+}
+
 // getNomadSDScrapeWork returns `nomad_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getNomadSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
@@ -755,6 +780,26 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		}
 	}
 	return cfg.getScrapeWorkGeneric(visitConfigs, "openstack_sd_config", prev)
+}
+
+// getOVHCloudSDScrapeWork returns `ovhcloud_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getOVHCloudSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.OVHCloudSDConfigs {
+			visitor(&sc.OVHCloudSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "ovhcloud_sd_config", prev)
+}
+
+// getPuppetDBSDScrapeWork returns `puppetdb_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getPuppetDBSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	visitConfigs := func(sc *ScrapeConfig, visitor func(sdc targetLabelsGetter)) {
+		for i := range sc.PuppetDBSDConfigs {
+			visitor(&sc.PuppetDBSDConfigs[i])
+		}
+	}
+	return cfg.getScrapeWorkGeneric(visitConfigs, "puppetdb_sd_config", prev)
 }
 
 // getVultrSDScrapeWork returns `vultr_sd_configs` ScrapeWork from cfg.
@@ -888,11 +933,23 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config for `job_name` %q: %w", jobName, err)
 	}
-	relabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.RelabelConfigs)
+	rcs := sc.RelabelConfigs
+	if len(globalCfg.RelabelConfigs) > 0 {
+		rcs = make([]promrelabel.RelabelConfig, 0, len(globalCfg.RelabelConfigs)+len(sc.RelabelConfigs))
+		rcs = append(rcs, globalCfg.RelabelConfigs...)
+		rcs = append(rcs, sc.RelabelConfigs...)
+	}
+	relabelConfigs, err := promrelabel.ParseRelabelConfigs(rcs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
-	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.MetricRelabelConfigs)
+	mrcs := sc.MetricRelabelConfigs
+	if len(globalCfg.MetricRelabelConfigs) > 0 {
+		mrcs = make([]promrelabel.RelabelConfig, 0, len(globalCfg.MetricRelabelConfigs)+len(sc.MetricRelabelConfigs))
+		mrcs = append(mrcs, globalCfg.MetricRelabelConfigs...)
+		mrcs = append(mrcs, sc.MetricRelabelConfigs...)
+	}
+	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(mrcs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}

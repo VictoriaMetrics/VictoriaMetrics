@@ -34,16 +34,16 @@ func (pd *pipeDelete) updateNeededFields(neededFields, unneededFields fieldsSet)
 	}
 }
 
-func (pd *pipeDelete) optimize() {
-	// nothing to do
-}
-
 func (pd *pipeDelete) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pd *pipeDelete) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pd *pipeDelete) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pd, nil
+}
+
+func (pd *pipeDelete) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
 }
 
 func (pd *pipeDelete) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
@@ -59,7 +59,7 @@ type pipeDeleteProcessor struct {
 }
 
 func (pdp *pipeDeleteProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -71,7 +71,7 @@ func (pdp *pipeDeleteProcessor) flush() error {
 	return nil
 }
 
-func parsePipeDelete(lex *lexer) (*pipeDelete, error) {
+func parsePipeDelete(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("delete", "del", "rm", "drop") {
 		return nil, fmt.Errorf("expecting 'delete', 'del', 'rm' or 'drop'; got %q", lex.token)
 	}

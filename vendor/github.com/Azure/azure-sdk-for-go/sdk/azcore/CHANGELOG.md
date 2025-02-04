@@ -1,5 +1,37 @@
 # Release History
 
+## 1.17.0 (2025-01-07)
+
+### Features Added
+
+* Added field `OperationLocationResultPath` to `runtime.NewPollerOptions[T]` for LROs that use the `Operation-Location` pattern.
+* Support `encoding.TextMarshaler` and `encoding.TextUnmarshaler` interfaces in `arm.ResourceID`.
+
+## 1.16.0 (2024-10-17)
+
+### Features Added
+
+* Added field `Kind` to `runtime.StartSpanOptions` to allow a kind to be set when starting a span.
+
+### Bugs Fixed
+
+* `BearerTokenPolicy` now rewinds request bodies before retrying
+
+## 1.15.0 (2024-10-14)
+
+### Features Added
+
+* `BearerTokenPolicy` handles CAE claims challenges
+
+### Bugs Fixed
+
+* Omit the `ResponseError.RawResponse` field from JSON marshaling so instances can be marshaled.
+* Fixed an integer overflow in the retry policy.
+
+### Other Changes
+
+* Update dependencies.
+
 ## 1.14.0 (2024-08-07)
 
 ### Features Added

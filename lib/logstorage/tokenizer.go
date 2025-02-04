@@ -8,7 +8,7 @@ import (
 
 // tokenizeStrings extracts word tokens from a, appends them to dst and returns the result.
 //
-// the order of returned tokens is unspecified.
+// The order of returned tokens equals the order of tokens seen in a.
 func tokenizeStrings(dst, a []string) []string {
 	t := getTokenizer()
 	for i, s := range a {
@@ -145,27 +145,3 @@ func putTokenizer(t *tokenizer) {
 }
 
 var tokenizerPool sync.Pool
-
-type tokensBuf struct {
-	A []string
-}
-
-func (tb *tokensBuf) reset() {
-	clear(tb.A)
-	tb.A = tb.A[:0]
-}
-
-func getTokensBuf() *tokensBuf {
-	v := tokensBufPool.Get()
-	if v == nil {
-		return &tokensBuf{}
-	}
-	return v.(*tokensBuf)
-}
-
-func putTokensBuf(tb *tokensBuf) {
-	tb.reset()
-	tokensBufPool.Put(tb)
-}
-
-var tokensBufPool sync.Pool

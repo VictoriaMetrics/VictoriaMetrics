@@ -13,7 +13,7 @@ VictoriaMetrics Operator serves to make running VictoriaMetrics applications on 
 while preserving Kubernetes-native configuration options.
 
 The shortest way to deploy full-stack monitoring cluster with VictoriaMetrics Operator is 
-to use Helm-chart [victoria-metrics-k8s-stack](https://victoriametrics.github.io/helm-charts/charts/victoria-metrics-k8s-stack/).
+to use Helm-chart [victoria-metrics-k8s-stack](https://docs.victoriametrics.com/helm/victoriametrics-k8s-stack/).
 
 Also you can follow the other steps in documentation to use VictoriaMetrics Operator:
 
@@ -55,7 +55,7 @@ You can find out how to and instructions for installing the VictoriaMetrics oper
 on the [Setup page](https://docs.victoriametrics.com/operator/setup).
 
 Here we will elaborate on just one of the ways - for instance, we will install operator via Helm-chart
-[victoria-metrics-operator](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-operator/README.md):
+[victoria-metrics-operator](https://docs.victoriametrics.com/helm/victoriametrics-operator/):
 
 Add repo with helm-chart:
 
@@ -136,7 +136,7 @@ helm install vmoperator vm/victoria-metrics-operator -f values.yaml -n vm
 # victoria-metrics-operator has been installed. Check its status by running:
 #   kubectl --namespace vm get pods -l "app.kubernetes.io/instance=vmoperator"
 #
-# Get more information on https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator.
+# Get more information on https://docs.victoriametrics.com/helm/victoriametrics-operator/
 # See "Getting started guide for VM Operator" on https://docs.victoriametrics.com/guides/getting-started-with-vm-operator/.
 ```
 

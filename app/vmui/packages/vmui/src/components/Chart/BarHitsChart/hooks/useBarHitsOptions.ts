@@ -19,8 +19,8 @@ const seriesColors = [
 ];
 
 const strokeWidth = {
-  [GRAPH_STYLES.BAR]: 0.8,
-  [GRAPH_STYLES.LINE_STEPPED]: 1.2,
+  [GRAPH_STYLES.BAR]: 1,
+  [GRAPH_STYLES.LINE_STEPPED]: 2,
   [GRAPH_STYLES.LINE]: 1.2,
   [GRAPH_STYLES.POINTS]: 0,
 };
@@ -35,6 +35,14 @@ interface UseGetBarHitsOptionsArgs {
   onReadyChart: (u: uPlot) => void;
   graphOptions: GraphOptions;
 }
+
+export const OTHER_HITS_LABEL = "other";
+
+export const getLabelFromLogHit = (logHit: LogHits) => {
+  if (logHit?._isOther) return OTHER_HITS_LABEL;
+  const fields = Object.values(logHit?.fields || {});
+  return fields.map((value) => value || "\"\"").join(", ");
+};
 
 const useBarHitsOptions = ({
   data,
@@ -59,16 +67,16 @@ const useBarHitsOptions = ({
     let colorN = 0;
     return data.map((_d, i) => {
       if (i === 0) return {}; // 0 index is xAxis(timestamps)
-      const fields = Object.values(logHits?.[i - 1]?.fields || {});
-      const label = fields.map((value) => value || "\"\"").join(", ");
-      const color = getCssVariable(label ? seriesColors[colorN] : "color-log-hits-bar-0");
-      if (label) colorN++;
+      const target = logHits?.[i - 1];
+      const label = getLabelFromLogHit(target);
+      const color = getCssVariable(target?._isOther ? "color-log-hits-bar-0" : seriesColors[colorN]);
+      if (!target?._isOther) colorN++;
       return {
-        label: label || "other",
+        label,
         width: strokeWidth[graphOptions.graphStyle],
         spanGaps: true,
         stroke: color,
-        fill: graphOptions.fill ? color + "80" : "",
+        fill: graphOptions.fill ? color + (target?._isOther ? "" : "80") : "",
         paths: getSeriesPaths(graphOptions.graphStyle),
       };
     });
@@ -82,7 +90,7 @@ const useBarHitsOptions = ({
     cursor: {
       points: {
         width: (u, seriesIdx, size) => size / 4,
-        size: (u, seriesIdx) => (u.series?.[seriesIdx]?.points?.size || 1) * 2.5,
+        size: (u, seriesIdx) => (u.series?.[seriesIdx]?.points?.size || 1) * 1.5,
         stroke: (u, seriesIdx) => `${series?.[seriesIdx]?.stroke || "#ffffff"}`,
         fill: () => "#ffffff",
       },

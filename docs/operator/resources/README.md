@@ -55,7 +55,7 @@ Usage example:
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMSingle
 metadata:
-  name: vmsingle-example-exrtaargs
+  name: vmsingle-example-extraargs
 spec:
   retentionPeriod: "1"
   extraArgs:
@@ -73,7 +73,7 @@ Usage example:
 ```yaml
 kind: VMSingle
 metadata:
-  name: vmsingle-example--exrtaenvs
+  name: vmsingle-example-extraenvs
 spec:
   retentionPeriod: "1"
   extraEnvs:
@@ -107,7 +107,7 @@ Page for every custom resource contains examples section:
 - [VMUser examples](https://docs.victoriametrics.com/operator/resources/vmuser#examples)
 - [VMScrapeConfig examples](https://docs.victoriametrics.com/operator/resources/vmscrapeconfig#examples)
 
-In addition, you can find examples of the custom resources for VIctoriMetrics operator in 
+In addition, you can find examples of the custom resources for VictoriaMetrics operator in
 the **[examples directory](https://github.com/VictoriaMetrics/operator/tree/master/config/examples) of operator repository**.
 
 ## Managing versions of VM

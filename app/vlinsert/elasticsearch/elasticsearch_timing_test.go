@@ -32,7 +32,7 @@ func benchmarkReadBulkRequest(b *testing.B, isGzip bool) {
 	dataBytes := bytesutil.ToUnsafeBytes(data)
 
 	timeField := "@timestamp"
-	msgField := "message"
+	msgFields := []string{"message"}
 	blp := &insertutils.BenchmarkLogMessageProcessor{}
 
 	b.ReportAllocs()
@@ -41,7 +41,7 @@ func benchmarkReadBulkRequest(b *testing.B, isGzip bool) {
 		r := &bytes.Reader{}
 		for pb.Next() {
 			r.Reset(dataBytes)
-			_, err := readBulkRequest(r, isGzip, timeField, msgField, blp)
+			_, err := readBulkRequest("test", r, isGzip, timeField, msgFields, blp)
 			if err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
 			}

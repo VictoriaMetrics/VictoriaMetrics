@@ -24,16 +24,16 @@ func (pl *pipeLimit) updateNeededFields(_, _ fieldsSet) {
 	// nothing to do
 }
 
-func (pl *pipeLimit) optimize() {
-	// nothing to do
-}
-
 func (pl *pipeLimit) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pl *pipeLimit) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pl *pipeLimit) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pl, nil
+}
+
+func (pl *pipeLimit) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
 }
 
 func (pl *pipeLimit) newPipeProcessor(_ int, _ <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
@@ -57,11 +57,11 @@ type pipeLimitProcessor struct {
 }
 
 func (plp *pipeLimitProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
-	rowsProcessed := plp.rowsProcessed.Add(uint64(len(br.timestamps)))
+	rowsProcessed := plp.rowsProcessed.Add(uint64(br.rowsLen))
 	limit := plp.pl.limit
 	if rowsProcessed <= limit {
 		// Fast path - write all the rows to ppNext.
@@ -73,7 +73,7 @@ func (plp *pipeLimitProcessor) writeBlock(workerID uint, br *blockResult) {
 	}
 
 	// Slow path - overflow. Write the remaining rows if needed.
-	rowsProcessed -= uint64(len(br.timestamps))
+	rowsProcessed -= uint64(br.rowsLen)
 	if rowsProcessed >= limit {
 		// Nothing to write. There is no need in cancel() call, since it has been called by another goroutine.
 		return
@@ -92,7 +92,7 @@ func (plp *pipeLimitProcessor) flush() error {
 	return nil
 }
 
-func parsePipeLimit(lex *lexer) (*pipeLimit, error) {
+func parsePipeLimit(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("limit", "head") {
 		return nil, fmt.Errorf("expecting 'limit' or 'head'; got %q", lex.token)
 	}

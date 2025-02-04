@@ -33,9 +33,9 @@
         align-items: center;
         justify-content: center;
         background-color: $color-hover-black;
-        padding: 2px 2px 2px 6px;
+        padding: 2px 2px 2px $padding-small;
         border-radius: $border-radius-small;
-        font-size: $font-size;
+        font-size: $font-size-small;
         line-height: $font-size;
         max-width: 100%;
 

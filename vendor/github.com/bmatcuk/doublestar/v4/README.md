@@ -89,6 +89,19 @@ Note: users should _not_ count on the returned error,
 `doublestar.ErrBadPattern`, being equal to `path.ErrBadPattern`.
 
 
+### MatchUnvalidated
+
+```go
+func MatchUnvalidated(pattern, name string) bool
+```
+
+MatchUnvalidated can provide a small performance improvement if you don't care
+about whether or not the pattern is valid (perhaps because you already ran
+`ValidatePattern`). Note that there's really only one case where this
+performance improvement is realized: when pattern matching reaches the end of
+`name` before reaching the end of `pattern`, such as `Match("a/b/c", "a")`.
+
+
 ### PathMatch
 
 ```go
@@ -104,6 +117,20 @@ Note: this is meant as a drop-in replacement for `filepath.Match()`. It assumes
 that both `pattern` and `name` are using the system's path separator. If you
 can't be sure of that, use `filepath.ToSlash()` on both `pattern` and `name`,
 and then use the `Match()` function instead.
+
+
+### PathMatchUnvalidated
+
+```go
+func PathMatchUnvalidated(pattern, name string) bool
+```
+
+PathMatchUnvalidated can provide a small performance improvement if you don't
+care about whether or not the pattern is valid (perhaps because you already ran
+`ValidatePattern`). Note that there's really only one case where this
+performance improvement is realized: when pattern matching reaches the end of
+`name` before reaching the end of `pattern`, such as `Match("a/b/c", "a")`.
+
 
 ### GlobOption
 
@@ -292,6 +319,9 @@ If SplitPattern cannot find somewhere to split the pattern (for example,
 `meta*/**`), it will return "." and the unaltered pattern (`meta*/**` in this
 example).
 
+Note that SplitPattern will also unescape any meta characters in the returned
+base string, so that it can be passed straight to os.DirFS().
+
 Of course, it is your responsibility to decide if the returned base path is
 "safe" in the context of your application. Perhaps you could use Match() to
 validate against a list of approved base directories?
@@ -346,8 +376,9 @@ Character classes support the following:
 
 Class      | Meaning
 ---------- | -------
-`[abc]`    | matches any single character within the set
-`[a-z]`    | matches any single character in the range
+`[abc123]` | matches any single character within the set
+`[a-z0-9]` | matches any single character in the range a-z or 0-9
+`[125-79]` | matches any single character within the set 129, or the range 5-7
 `[^class]` | matches any single character which does *not* match the class
 `[!class]` | same as `^`: negates the class
 

@@ -26,6 +26,7 @@ import useElementSize from "../../../hooks/useElementSize";
 import { ChartTooltipProps } from "../../Chart/ChartTooltip/ChartTooltip";
 import LegendAnomaly from "../../Chart/Line/LegendAnomaly/LegendAnomaly";
 import { groupByMultipleKeys } from "../../../utils/array";
+import { useGraphDispatch } from "../../../state/graph/GraphStateContext";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -62,6 +63,8 @@ const GraphView: FC<GraphViewProps> = ({
   isAnomalyView,
   spanGaps
 }) => {
+  const graphDispatch = useGraphDispatch();
+
   const { isMobile } = useDeviceDetect();
   const { timezone } = useTimeState();
   const currentStep = useMemo(() => customStep || period.step || "1s", [period.step, customStep]);
@@ -180,7 +183,7 @@ const GraphView: FC<GraphViewProps> = ({
     if (isAnomalyView) {
       setHideSeries(legend.map(s => s.label || "").slice(1));
     }
-  }, [data, timezone, isHistogram]);
+  }, [data, timezone, isHistogram, currentStep]);
 
   useEffect(() => {
     const tempLegend: LegendItemType[] = [];
@@ -196,6 +199,26 @@ const GraphView: FC<GraphViewProps> = ({
 
   const [containerRef, containerSize] = useElementSize();
 
+  const hasTimeData = dataChart[0]?.length > 0;
+
+  useEffect(() => {
+    const checkEmptyHistogram = () => {
+      if (!isHistogram || !data[1]) {
+        return false;
+      }
+
+      try {
+        const values = (dataChart?.[1]?.[2] || []) as (number | null)[];
+        return values.every(v => v === null);
+      } catch (e) {
+        return false;
+      }
+    };
+
+    const isEmpty = checkEmptyHistogram();
+    graphDispatch({ type: "SET_IS_EMPTY_HISTOGRAM", payload: isEmpty });
+  }, [dataChart, isHistogram]);
+
   return (
     <div
       className={classNames({
@@ -205,7 +228,7 @@ const GraphView: FC<GraphViewProps> = ({
       })}
       ref={containerRef}
     >
-      {!isHistogram && (
+      {!isHistogram && hasTimeData && (
         <LineChart
           data={dataChart}
           series={series}

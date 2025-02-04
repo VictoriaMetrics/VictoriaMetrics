@@ -58,16 +58,16 @@ func (pr *pipeRename) updateNeededFields(neededFields, unneededFields fieldsSet)
 	}
 }
 
-func (pr *pipeRename) optimize() {
-	// nothing to do
-}
-
 func (pr *pipeRename) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pr *pipeRename) initFilterInValues(_ map[string][]string, _ getFieldValuesFunc) (pipe, error) {
+func (pr *pipeRename) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pr, nil
+}
+
+func (pr *pipeRename) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
 }
 
 func (pr *pipeRename) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
@@ -83,7 +83,7 @@ type pipeRenameProcessor struct {
 }
 
 func (prp *pipeRenameProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -95,7 +95,7 @@ func (prp *pipeRenameProcessor) flush() error {
 	return nil
 }
 
-func parsePipeRename(lex *lexer) (*pipeRename, error) {
+func parsePipeRename(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("rename", "mv") {
 		return nil, fmt.Errorf("expecting 'rename' or 'mv'; got %q", lex.token)
 	}

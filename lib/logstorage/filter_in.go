@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -47,6 +48,9 @@ type filterIn struct {
 	uint64ValuesOnce sync.Once
 	uint64Values     map[string]struct{}
 
+	int64ValuesOnce sync.Once
+	int64Values     map[string]struct{}
+
 	float64ValuesOnce sync.Once
 	float64Values     map[string]struct{}
 
@@ -86,9 +90,15 @@ func (fi *filterIn) initTokens() {
 
 	fi.commonTokensHashes = appendTokensHashes(nil, commonTokens)
 
+	var hashesBuf []uint64
 	tokenSetsHashes := make([][]uint64, len(tokenSets))
 	for i, tokens := range tokenSets {
-		tokenSetsHashes[i] = appendTokensHashes(nil, tokens)
+		if hashesBuf == nil || len(hashesBuf) > 60_000/int(unsafe.Sizeof(hashesBuf[0])) {
+			hashesBuf = make([]uint64, 0, 64*1024/int(unsafe.Sizeof(hashesBuf[0])))
+		}
+		hashesBufLen := len(hashesBuf)
+		hashesBuf = appendTokensHashes(hashesBuf, tokens)
+		tokenSetsHashes[i] = hashesBuf[hashesBufLen:]
 	}
 	fi.tokenSetsHashes = tokenSetsHashes
 }
@@ -178,6 +188,11 @@ func (fi *filterIn) getUint64Values() map[string]struct{} {
 	return fi.uint64Values
 }
 
+func (fi *filterIn) getInt64Values() map[string]struct{} {
+	fi.int64ValuesOnce.Do(fi.initInt64Values)
+	return fi.int64Values
+}
+
 func (fi *filterIn) initUint64Values() {
 	values := fi.values
 	m := make(map[string]struct{}, len(values))
@@ -195,6 +210,23 @@ func (fi *filterIn) initUint64Values() {
 	fi.uint64Values = m
 }
 
+func (fi *filterIn) initInt64Values() {
+	values := fi.values
+	m := make(map[string]struct{}, len(values))
+	buf := make([]byte, 0, len(values)*8)
+	for _, v := range values {
+		n, ok := tryParseInt64(v)
+		if !ok {
+			continue
+		}
+		bufLen := len(buf)
+		buf = encoding.MarshalInt64(buf, n)
+		s := bytesutil.ToUnsafeString(buf[bufLen:])
+		m[s] = struct{}{}
+	}
+	fi.int64Values = m
+}
+
 func (fi *filterIn) getFloat64Values() map[string]struct{} {
 	fi.float64ValuesOnce.Do(fi.initFloat64Values)
 	return fi.float64Values
@@ -205,7 +237,7 @@ func (fi *filterIn) initFloat64Values() {
 	m := make(map[string]struct{}, len(values))
 	buf := make([]byte, 0, len(values)*8)
 	for _, v := range values {
-		f, ok := tryParseFloat64(v)
+		f, ok := tryParseFloat64Exact(v)
 		if !ok {
 			continue
 		}
@@ -313,6 +345,9 @@ func (fi *filterIn) applyToBlockResult(br *blockResult, bm *bitmap) {
 	case valueTypeUint64:
 		binValues := fi.getUint64Values()
 		matchColumnByBinValues(br, bm, c, binValues)
+	case valueTypeInt64:
+		binValues := fi.getInt64Values()
+		matchColumnByBinValues(br, bm, c, binValues)
 	case valueTypeFloat64:
 		binValues := fi.getFloat64Values()
 		matchColumnByBinValues(br, bm, c, binValues)
@@ -358,7 +393,7 @@ func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		return
 	}
 
-	v := bs.csh.getConstColumnValue(fieldName)
+	v := bs.getConstColumnValue(fieldName)
 	if v != "" {
 		stringValues := fi.getStringValues()
 		if _, ok := stringValues[v]; !ok {
@@ -368,7 +403,7 @@ func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 	}
 
 	// Verify whether filter matches other columns
-	ch := bs.csh.getColumnHeader(fieldName)
+	ch := bs.getColumnHeader(fieldName)
 	if ch == nil {
 		// Fast path - there are no matching columns.
 		// It matches anything only for empty phrase.
@@ -399,6 +434,9 @@ func (fi *filterIn) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 		matchAnyValue(bs, ch, bm, binValues, commonTokens, tokenSets)
 	case valueTypeUint64:
 		binValues := fi.getUint64Values()
+		matchAnyValue(bs, ch, bm, binValues, commonTokens, tokenSets)
+	case valueTypeInt64:
+		binValues := fi.getInt64Values()
 		matchAnyValue(bs, ch, bm, binValues, commonTokens, tokenSets)
 	case valueTypeFloat64:
 		binValues := fi.getFloat64Values()
@@ -469,9 +507,15 @@ func matchValuesDictByAnyValue(bs *blockSearch, ch *columnHeader, bm *bitmap, va
 }
 
 func getCommonTokensAndTokenSets(values []string) ([]string, [][]string) {
+	var tokensBuf []string
 	tokenSets := make([][]string, len(values))
 	for i, v := range values {
-		tokenSets[i] = tokenizeStrings(nil, []string{v})
+		if tokensBuf == nil || len(tokensBuf) > 60_000/int(unsafe.Sizeof(tokensBuf[0])) {
+			tokensBuf = make([]string, 0, 64*1024/int(unsafe.Sizeof(tokensBuf[0])))
+		}
+		tokensBufLen := len(tokensBuf)
+		tokensBuf = tokenizeStrings(tokensBuf, []string{v})
+		tokenSets[i] = tokensBuf[tokensBufLen:]
 	}
 
 	commonTokens := getCommonTokens(tokenSets)
@@ -496,33 +540,27 @@ func getCommonTokensAndTokenSets(values []string) ([]string, [][]string) {
 	return commonTokens, tokenSets
 }
 
+// getCommonTokens returns common tokens seen at every set of tokens inside tokenSets.
+//
+// The returned common tokens preserve the original order seen in tokenSets.
 func getCommonTokens(tokenSets [][]string) []string {
 	if len(tokenSets) == 0 {
 		return nil
 	}
 
-	m := make(map[string]struct{}, len(tokenSets[0]))
-	for _, token := range tokenSets[0] {
-		m[token] = struct{}{}
-	}
+	commonTokens := append([]string{}, tokenSets[0]...)
 
 	for _, tokens := range tokenSets[1:] {
-		if len(m) == 0 {
+		if len(commonTokens) == 0 {
 			return nil
 		}
-		for token := range m {
-			if !slices.Contains(tokens, token) {
-				delete(m, token)
+		dst := commonTokens[:0]
+		for _, token := range commonTokens {
+			if slices.Contains(tokens, token) {
+				dst = append(dst, token)
 			}
 		}
+		commonTokens = dst
 	}
-	if len(m) == 0 {
-		return nil
-	}
-
-	tokens := make([]string, 0, len(m))
-	for token := range m {
-		tokens = append(tokens, token)
-	}
-	return tokens
+	return commonTokens
 }

@@ -8,10 +8,14 @@ import "./style.scss";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import useBoolean from "../../../hooks/useBoolean";
 import LinesConfigurator from "./LinesConfigurator/LinesConfigurator";
+import GraphTypeSwitcher from "./GraphTypeSwitcher/GraphTypeSwitcher";
+import { MetricResult } from "../../../api/types";
+import { isHistogramData } from "../../../utils/metric";
 
 const title = "Graph settings";
 
 interface GraphSettingsProps {
+  data: MetricResult[],
   yaxis: YaxisState,
   setYaxisLimits: (limits: AxisRange) => void,
   toggleEnableLimits: () => void,
@@ -19,11 +23,13 @@ interface GraphSettingsProps {
     value: boolean,
     onChange: (value: boolean) => void,
   },
+  isHistogram?: boolean,
 }
 
-const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEnableLimits, spanGaps }) => {
+const GraphSettings: FC<GraphSettingsProps> = ({ data, yaxis, setYaxisLimits, toggleEnableLimits, spanGaps }) => {
   const popperRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLDivElement>(null);
+  const displayHistogramMode = isHistogramData(data);
 
   const {
     value: openPopper,
@@ -64,6 +70,7 @@ const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEn
               spanGaps={spanGaps.value}
               onChange={spanGaps.onChange}
             />
+            {displayHistogramMode && <GraphTypeSwitcher onChange={handleClose}/>}
           </div>
         </div>
       </Popper>

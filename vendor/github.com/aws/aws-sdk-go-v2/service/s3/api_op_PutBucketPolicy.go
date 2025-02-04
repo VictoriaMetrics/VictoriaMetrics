@@ -19,9 +19,10 @@ import (
 //
 // Directory buckets - For directory buckets, you must make requests for this API
 // operation to the Regional endpoint. These endpoints support path-style requests
-// in the format https://s3express-control.region_code.amazonaws.com/bucket-name .
-// Virtual-hosted-style requests aren't supported. For more information, see [Regional and Zonal endpoints]in
-// the Amazon S3 User Guide.
+// in the format https://s3express-control.region-code.amazonaws.com/bucket-name .
+// Virtual-hosted-style requests aren't supported. For more information about
+// endpoints in Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more
+// information about endpoints in Local Zones, see [Available Local Zone for directory buckets]in the Amazon S3 User Guide.
 //
 // Permissions If you are using an identity other than the root user of the Amazon
 // Web Services account that owns the bucket, the calling identity must both have
@@ -58,7 +59,7 @@ import (
 // Directory bucket example bucket policies - See [Example bucket policies for S3 Express One Zone] in the Amazon S3 User Guide.
 //
 // HTTP Host header syntax  Directory buckets - The HTTP Host header syntax is
-// s3express-control.region.amazonaws.com .
+// s3express-control.region-code.amazonaws.com .
 //
 // The following operations are related to PutBucketPolicy :
 //
@@ -68,10 +69,11 @@ import (
 //
 // [Bucket policy examples]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html
 // [Example bucket policies for S3 Express One Zone]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam-example-bucket-policies.html
-// [Regional and Zonal endpoints]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
 // [DeleteBucket]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html
 // [Using Bucket Policies and User Policies]: https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html
 // [CreateBucket]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [Available Local Zone for directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [Amazon Web Services Identity and Access Management (IAM) for S3 Express One Zone]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam.html
 func (c *Client) PutBucketPolicy(ctx context.Context, params *PutBucketPolicyInput, optFns ...func(*Options)) (*PutBucketPolicyOutput, error) {
 	if params == nil {
@@ -94,12 +96,12 @@ type PutBucketPolicyInput struct {
 	//
 	// Directory buckets - When you use this operation with a directory bucket, you
 	// must use path-style requests in the format
-	// https://s3express-control.region_code.amazonaws.com/bucket-name .
+	// https://s3express-control.region-code.amazonaws.com/bucket-name .
 	// Virtual-hosted-style requests aren't supported. Directory bucket names must be
-	// unique in the chosen Availability Zone. Bucket names must also follow the format
-	// bucket_base_name--az_id--x-s3 (for example,  DOC-EXAMPLE-BUCKET--usw2-az1--x-s3
-	// ). For information about bucket naming restrictions, see [Directory bucket naming rules]in the Amazon S3 User
-	// Guide
+	// unique in the chosen Zone (Availability Zone or Local Zone). Bucket names must
+	// also follow the format bucket-base-name--zone-id--x-s3 (for example,
+	// DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket naming
+	// restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide
 	//
 	// [Directory bucket naming rules]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html
 	//
@@ -123,21 +125,22 @@ type PutBucketPolicyInput struct {
 	// For the x-amz-checksum-algorithm  header, replace  algorithm  with the
 	// supported algorithm from the following list:
 	//
-	//   - CRC32
+	//   - CRC-32
 	//
-	//   - CRC32C
+	//   - CRC-32C
 	//
-	//   - SHA1
+	//   - CRC-64NVME
 	//
-	//   - SHA256
+	//   - SHA-1
+	//
+	//   - SHA-256
 	//
 	// For more information, see [Checking object integrity] in the Amazon S3 User Guide.
 	//
 	// If the individual checksum value you provide through x-amz-checksum-algorithm
 	// doesn't match the checksum algorithm you set through
-	// x-amz-sdk-checksum-algorithm , Amazon S3 ignores any provided ChecksumAlgorithm
-	// parameter and uses the checksum algorithm that matches the provided value in
-	// x-amz-checksum-algorithm .
+	// x-amz-sdk-checksum-algorithm , Amazon S3 fails the request with a BadDigest
+	// error.
 	//
 	// For directory buckets, when you use Amazon Web Services SDKs, CRC32 is the
 	// default checksum algorithm that's used for performance.
@@ -227,6 +230,9 @@ func (c *Client) addOperationPutBucketPolicyMiddlewares(stack *middleware.Stack,
 	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
+	if err = addSpanRetryLoop(stack, options); err != nil {
+		return err
+	}
 	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
@@ -249,6 +255,9 @@ func (c *Client) addOperationPutBucketPolicyMiddlewares(stack *middleware.Stack,
 		return err
 	}
 	if err = addIsExpressUserAgent(stack); err != nil {
+		return err
+	}
+	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
 		return err
 	}
 	if err = addOpPutBucketPolicyValidationMiddleware(stack); err != nil {
@@ -290,6 +299,18 @@ func (c *Client) addOperationPutBucketPolicyMiddlewares(stack *middleware.Stack,
 	if err = s3cust.AddExpressDefaultChecksumMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -319,9 +340,10 @@ func getPutBucketPolicyRequestAlgorithmMember(input interface{}) (string, bool) 
 }
 
 func addPutBucketPolicyInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
-	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+	return addInputChecksumMiddleware(stack, internalChecksum.InputMiddlewareOptions{
 		GetAlgorithm:                     getPutBucketPolicyRequestAlgorithmMember,
 		RequireChecksum:                  true,
+		RequestChecksumCalculation:       options.RequestChecksumCalculation,
 		EnableTrailingChecksum:           false,
 		EnableComputeSHA256PayloadHash:   true,
 		EnableDecodedContentLengthHeader: true,

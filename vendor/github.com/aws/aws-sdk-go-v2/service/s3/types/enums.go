@@ -212,10 +212,11 @@ type ChecksumAlgorithm string
 
 // Enum values for ChecksumAlgorithm
 const (
-	ChecksumAlgorithmCrc32  ChecksumAlgorithm = "CRC32"
-	ChecksumAlgorithmCrc32c ChecksumAlgorithm = "CRC32C"
-	ChecksumAlgorithmSha1   ChecksumAlgorithm = "SHA1"
-	ChecksumAlgorithmSha256 ChecksumAlgorithm = "SHA256"
+	ChecksumAlgorithmCrc32     ChecksumAlgorithm = "CRC32"
+	ChecksumAlgorithmCrc32c    ChecksumAlgorithm = "CRC32C"
+	ChecksumAlgorithmSha1      ChecksumAlgorithm = "SHA1"
+	ChecksumAlgorithmSha256    ChecksumAlgorithm = "SHA256"
+	ChecksumAlgorithmCrc64nvme ChecksumAlgorithm = "CRC64NVME"
 )
 
 // Values returns all known values for ChecksumAlgorithm. Note that this can be
@@ -228,6 +229,7 @@ func (ChecksumAlgorithm) Values() []ChecksumAlgorithm {
 		"CRC32C",
 		"SHA1",
 		"SHA256",
+		"CRC64NVME",
 	}
 }
 
@@ -245,6 +247,25 @@ const (
 func (ChecksumMode) Values() []ChecksumMode {
 	return []ChecksumMode{
 		"ENABLED",
+	}
+}
+
+type ChecksumType string
+
+// Enum values for ChecksumType
+const (
+	ChecksumTypeComposite  ChecksumType = "COMPOSITE"
+	ChecksumTypeFullObject ChecksumType = "FULL_OBJECT"
+)
+
+// Values returns all known values for ChecksumType. Note that this can be
+// expanded in the future, and so it is only as up to date as the client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (ChecksumType) Values() []ChecksumType {
+	return []ChecksumType{
+		"COMPOSITE",
+		"FULL_OBJECT",
 	}
 }
 
@@ -274,6 +295,7 @@ type DataRedundancy string
 // Enum values for DataRedundancy
 const (
 	DataRedundancySingleAvailabilityZone DataRedundancy = "SingleAvailabilityZone"
+	DataRedundancySingleLocalZone        DataRedundancy = "SingleLocalZone"
 )
 
 // Values returns all known values for DataRedundancy. Note that this can be
@@ -283,6 +305,7 @@ const (
 func (DataRedundancy) Values() []DataRedundancy {
 	return []DataRedundancy{
 		"SingleAvailabilityZone",
+		"SingleLocalZone",
 	}
 }
 
@@ -656,6 +679,7 @@ type LocationType string
 // Enum values for LocationType
 const (
 	LocationTypeAvailabilityZone LocationType = "AvailabilityZone"
+	LocationTypeLocalZone        LocationType = "LocalZone"
 )
 
 // Values returns all known values for LocationType. Note that this can be
@@ -665,6 +689,7 @@ const (
 func (LocationType) Values() []LocationType {
 	return []LocationType{
 		"AvailabilityZone",
+		"LocalZone",
 	}
 }
 
@@ -1367,6 +1392,26 @@ func (Tier) Values() []Tier {
 		"Standard",
 		"Bulk",
 		"Expedited",
+	}
+}
+
+type TransitionDefaultMinimumObjectSize string
+
+// Enum values for TransitionDefaultMinimumObjectSize
+const (
+	TransitionDefaultMinimumObjectSizeVariesByStorageClass  TransitionDefaultMinimumObjectSize = "varies_by_storage_class"
+	TransitionDefaultMinimumObjectSizeAllStorageClasses128k TransitionDefaultMinimumObjectSize = "all_storage_classes_128K"
+)
+
+// Values returns all known values for TransitionDefaultMinimumObjectSize. Note
+// that this can be expanded in the future, and so it is only as up to date as the
+// client.
+//
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (TransitionDefaultMinimumObjectSize) Values() []TransitionDefaultMinimumObjectSize {
+	return []TransitionDefaultMinimumObjectSize{
+		"varies_by_storage_class",
+		"all_storage_classes_128K",
 	}
 }
 

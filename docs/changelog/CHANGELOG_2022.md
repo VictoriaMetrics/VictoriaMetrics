@@ -1,11 +1,11 @@
 ---
-weight: 4
+weight: 5
 title: Year 2022
 menu:
   docs:
     identifier: vm-changelog-2022
     parent: vm-changelog
-    weight: 4
+    weight: 5
 aliases:
 - /CHANGELOG_2022.html
 - /changelog_2022
@@ -147,7 +147,7 @@ Released at 2022-11-25
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add compact table view. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3241).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to "stick" a tooltip on the chart by clicking on a data point. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3321) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3376)
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to set up series custom limits. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3297).
-* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): add default alert list for vmalert's metrics. See [alerts-vmalert.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmalert.yml).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): add default alert list for vmalert's metrics. See [alerts-vmalert.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmalert.yml).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/): expose `vmagent_relabel_config_*`, `vm_relabel_config_*` and `vm_promscrape_config_*` metrics for tracking relabel and scrape configuration hot-reloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3345).
 
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): properly return an empty result from [limit_offset](https://docs.victoriametrics.com/metricsql/#limit_offset) if the `offset` arg exceeds the number of inner time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3312).
@@ -262,7 +262,7 @@ See [these docs](https://docs.victoriametrics.com/cluster-victoriametrics/#multi
 * FEATURE: sanitize metric names for data ingested via [DataDog protocol](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent) according to [DataDog metric naming](https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics). The behaviour can be disabled by passing `-datadog.sanitizeMetricName=false` command-line flag. Thanks to @PerGon for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3105).
 * FEATURE: add `-usePromCompatibleNaming` command-line flag to [vmagent](https://docs.victoriametrics.com/vmagent/), to single-node VictoriaMetrics and to `vminsert` component of VictoriaMetrics cluster. This flag can be used for normalizing the ingested metric names and label names to [Prometheus-compatible form](https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels). If this flag is set, then all the chars unsupported by Prometheus are replaced with `_` chars in metric names and labels of the ingested samples. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3113).
 * FEATURE: accept whitespace in metric names and tags ingested via [Graphite plaintext protocol](https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) according to [the specs](https://graphite.readthedocs.io/en/latest/tags.html). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3102).
-* FEATURE: check the correctess of raw sample timestamps stored on disk when reading them. This reduces the probability of possible silent corruption of the data stored on disk. This should help [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2998) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3011).
+* FEATURE: check the correctness of raw sample timestamps stored on disk when reading them. This reduces the probability of possible silent corruption of the data stored on disk. This should help [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2998) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3011).
 * FEATURE: atomically delete directories with snapshots, parts and partitions at [storage level](https://docs.victoriametrics.com/#storage). Previously such directories can be left in partially deleted state when the deletion operation was interrupted by unclean shutdown. This may result in `cannot open file ...: no such file or directory` error on the next start. The probability of this error was quite high when NFS or EFS was used as persistent storage for VictoriaMetrics data. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3038).
 * FEATURE: set the `start` arg to `end - 5 minutes` if isn't passed explicitly to [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels) and [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3052).
 * FEATURE: allow to define the minimum TLS version to use when accepting https requests to VictoriaMetrics components if `-tls` command-line flag is set. The minimum TLS version can be set via `-tlsMinVersion` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3090).
@@ -502,7 +502,7 @@ The v1.79.x line will be supported for at least 12 months since [v1.79.0](https:
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): fix the `The request did not have a subscription or a valid tenant level resource provider` error when discovering Azure targets with [azure_sd_configs](https://docs.victoriametrics.com/sd_configs/#azure_sd_configs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3247).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly discover GCE zones when `filter` option is set at [gce_sd_configs](https://docs.victoriametrics.com/sd_configs/#gce_sd_configs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3202).
-* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly specify rule evaluation step during the [replay mode](https://docs.victoriametrics.com/vmalert/#rules-backfilling). The `step` value was previously overriden by `-datasource.queryStep` command-line flag.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly specify rule evaluation step during the [replay mode](https://docs.victoriametrics.com/vmalert/#rules-backfilling). The `step` value was previously overridden by `-datasource.queryStep` command-line flag.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): properly return the error message from remote-write failures. Before, error was ignored and only `vmalert_remotewrite_errors_total` was incremented.
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): properly return an empty result from [limit_offset](https://docs.victoriametrics.com/metricsql/#limit_offset) if the `offset` arg exceeds the number of inner time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3312).
 

@@ -33,15 +33,11 @@ func (pf *pipeFilter) updateNeededFields(neededFields, unneededFields fieldsSet)
 	}
 }
 
-func (pf *pipeFilter) optimize() {
-	optimizeFilterIn(pf.f)
-}
-
 func (pf *pipeFilter) hasFilterInWithQuery() bool {
 	return hasFilterInWithQueryForFilter(pf.f)
 }
 
-func (pf *pipeFilter) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pf *pipeFilter) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	fNew, err := initFilterInValuesForFilter(cache, pf.f, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
@@ -49,6 +45,10 @@ func (pf *pipeFilter) initFilterInValues(cache map[string][]string, getFieldValu
 	pfNew := *pf
 	pfNew.f = fNew
 	return &pfNew, nil
+}
+
+func (pf *pipeFilter) visitSubqueries(visitFunc func(q *Query)) {
+	visitSubqueriesInFilter(pf.f, visitFunc)
 }
 
 func (pf *pipeFilter) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
@@ -83,14 +83,14 @@ type pipeFilterProcessorShardNopad struct {
 }
 
 func (pfp *pipeFilterProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
 	shard := &pfp.shards[workerID]
 
 	bm := &shard.bm
-	bm.init(len(br.timestamps))
+	bm.init(br.rowsLen)
 	bm.setBits()
 	pfp.pf.f.applyToBlockResult(br, bm)
 	if bm.areAllBitsSet() {
@@ -112,7 +112,7 @@ func (pfp *pipeFilterProcessor) flush() error {
 	return nil
 }
 
-func parsePipeFilter(lex *lexer, needFilterKeyword bool) (*pipeFilter, error) {
+func parsePipeFilter(lex *lexer, needFilterKeyword bool) (pipe, error) {
 	if needFilterKeyword {
 		if !lex.isKeyword("filter", "where") {
 			return nil, fmt.Errorf("expecting 'filter' or 'where'; got %q", lex.token)

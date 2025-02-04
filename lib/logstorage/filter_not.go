@@ -11,9 +11,10 @@ func (fn *filterNot) String() string {
 	s := fn.f.String()
 	switch fn.f.(type) {
 	case *filterAnd, *filterOr:
-		s = "(" + s + ")"
+		return "!(" + s + ")"
+	default:
+		return "!" + s
 	}
-	return "!" + s
 }
 
 func (fn *filterNot) updateNeededFields(neededFields fieldsSet) {

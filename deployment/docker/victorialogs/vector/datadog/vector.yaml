@@ -1,0 +1,40 @@
+api:
+  enabled: true
+  address: 0.0.0.0:8686
+sources:
+  docker:
+    type: docker_logs
+  metrics:
+    type: internal_metrics
+transforms:
+  parser:
+    type: remap
+    inputs:
+      - docker
+    source: |
+      .ddsource = .source_type
+      ddtags = []
+      for_each(object!(.label)) -> |key, value| {
+        ddtags = append(ddtags, [to_string(key) + ":" + to_string!(value)])
+      }
+      .ddtags = join!(ddtags, ",")
+      del(.source_type)
+      del(.label)
+sinks:
+  datadog:
+    type: datadog_logs
+    inputs: [parser]
+    default_api_key: test
+    endpoint: http://dd-logs:8427
+    compression: gzip
+    request:
+      headers:
+        AccountID: "0"
+        ProjectID: "0"
+        VL-Stream-Fields: "ddsource"
+  victoriametrics:
+    type: prometheus_remote_write
+    endpoint: http://victoriametrics:8428/api/v1/write
+    inputs: [metrics]
+    healthcheck:
+      enabled: false

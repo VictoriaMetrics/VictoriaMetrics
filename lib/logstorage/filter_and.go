@@ -81,7 +81,7 @@ func (fa *filterAnd) matchBloomFilters(bs *blockSearch) bool {
 		fieldName := ft.field
 		tokens := ft.tokens
 
-		v := bs.csh.getConstColumnValue(fieldName)
+		v := bs.getConstColumnValue(fieldName)
 		if v != "" {
 			if matchStringByAllTokens(v, tokens) {
 				continue
@@ -89,7 +89,7 @@ func (fa *filterAnd) matchBloomFilters(bs *blockSearch) bool {
 			return false
 		}
 
-		ch := bs.csh.getColumnHeader(fieldName)
+		ch := bs.getColumnHeader(fieldName)
 		if ch == nil {
 			return false
 		}

@@ -5,6 +5,7 @@ menu:
   docs:
     parent: "cloud"
     weight: 1
+    name: Overview
 aliases:
   - /victoriametrics-cloud/overview/index.html
   - /managed-victoriametrics/overview/index.html
@@ -21,7 +22,7 @@ The most common use cases for VictoriaMetrics are:
 
 VictoriaMetrics Cloud allows users to run Enterprise version of VictoriaMetrics, hosted on AWS, without the need to perform typical 
 DevOps tasks such as proper configuration, monitoring, logs collection, access protection, software updates, 
-backups, etc. [Try it right now](https://cloud.victoriametrics.com/signUp?utm_source=website&utm_campaign=docs_overview)
+backups, etc. [Try it right now](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_overview)
 
 We run VictoriaMetrics Cloud deployments in our environment on AWS and provide easy-to-use endpoints 
 for data ingestion and querying. The VictoriaMetrics team takes care of optimal configuration and software 

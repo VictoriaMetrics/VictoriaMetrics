@@ -1,12 +1,14 @@
 # VictoriaMetrics
 
-[![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
-[![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-metrics.svg?maxAge=604800)](https://hub.docker.com/r/victoriametrics/victoria-metrics)
-[![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
-[![GitHub license](https://img.shields.io/github/license/VictoriaMetrics/VictoriaMetrics.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/LICENSE)
-[![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaMetrics)](https://goreportcard.com/report/github.com/VictoriaMetrics/VictoriaMetrics)
-[![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/workflows/main/badge.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/actions)
-[![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg)](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics)
+![Latest Release](https://img.shields.io/github/v/release/VictoriaMetrics/VictoriaMetrics?sort=semver&label=&filter=!*-victorialogs&logo=github&labelColor=gray&color=gray&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Freleases%2Flatest)
+![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-metrics?label=&logo=docker&logoColor=white&labelColor=2496ED&color=2496ED&link=https%3A%2F%2Fhub.docker.com%2Fr%2Fvictoriametrics%2Fvictoria-metrics)
+![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaMetrics?link=https%3A%2F%2Fgoreportcard.com%2Freport%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics)
+![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/workflows/main/badge.svg?link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Factions)
+![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg?link=https%3A%2F%2Fcodecov.io%2Fgh%2FVictoriaMetrics%2FVictoriaMetrics)
+![License](https://img.shields.io/github/license/VictoriaMetrics/VictoriaMetrics?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Fblob%2Fmaster%2FLICENSE)
+![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
+![X](https://img.shields.io/twitter/follow/VictoriaMetrics?style=flat&label=Follow&color=black&logo=x&labelColor=black&link=https%3A%2F%2Fx.com%2FVictoriaMetrics)
+![Reddit](https://img.shields.io/reddit/subreddit-subscribers/VictoriaMetrics?style=flat&label=Join&labelColor=red&logoColor=white&logo=reddit&link=https%3A%2F%2Fwww.reddit.com%2Fr%2FVictoriaMetrics)
 
 <picture>
   <source srcset="docs/logo_white.webp" media="(prefers-color-scheme: dark)">
@@ -22,8 +24,8 @@ Here are some resources and information about VictoriaMetrics:
 - Case studies: [Grammarly, Roblox, Wix,...](https://docs.victoriametrics.com/casestudies/).
 - Available: [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics)
 - Deployment types: [Single-node version](https://docs.victoriametrics.com/), [Cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/), and [Enterprise version](https://docs.victoriametrics.com/enterprise/)
-- Changelog: [CHANGELOG](https://docs.victoriametrics.com/changelog/), and [How to upgrade](#how-to-upgrade-victoriametrics)
-- Community: [Slack](https://slack.victoriametrics.com/), [Twitter](https://twitter.com/VictoriaMetrics), [LinkedIn](https://www.linkedin.com/company/victoriametrics/), [YouTube](https://www.youtube.com/@VictoriaMetrics)
+- Changelog: [CHANGELOG](https://docs.victoriametrics.com/changelog/), and [How to upgrade](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics)
+- Community: [Slack](https://slack.victoriametrics.com/), [X (Twitter)](https://x.com/VictoriaMetrics), [LinkedIn](https://www.linkedin.com/company/victoriametrics/), [YouTube](https://www.youtube.com/@VictoriaMetrics)
 
 Yes, we open-source both the single-node VictoriaMetrics and the cluster version.
 
@@ -38,17 +40,17 @@ VictoriaMetrics is optimized for timeseries data, even when old time series are 
 * **Easy to setup**: No dependencies, single [small binary](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d), configuration through command-line flags, but the default is also fine-tuned; backup and restore with [instant snapshots](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 * **Global query view**: Multiple Prometheus instances or any other data sources may ingest data into VictoriaMetrics and queried via a single query.
 * **Various Protocols**: Support metric scraping, ingestion and backfilling in various protocol.
-    * [Prometheus exporters](#how-to-scrape-prometheus-exporters-such-as-node-exporter), [Prometheus remote write API](#prometheus-setup), [Prometheus exposition format](#how-to-import-data-in-prometheus-exposition-format).
-    * [InfluxDB line protocol](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
-    * [Graphite plaintext protocol](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
-    * [OpenTSDB put message](#sending-data-via-telnet-put-protocol).
-    * [HTTP OpenTSDB /api/put requests](#sending-opentsdb-data-via-http-apiput-requests).
-    * [JSON line format](#how-to-import-data-in-json-line-format).
-    * [Arbitrary CSV data](#how-to-import-csv-data).
-    * [Native binary format](#how-to-import-data-in-native-format).
-    * [DataDog agent or DogStatsD](#how-to-send-data-from-datadog-agent).
-    * [NewRelic infrastructure agent](#how-to-send-data-from-newrelic-agent).
-    * [OpenTelemetry metrics format](#sending-data-via-opentelemetry).
+    * [Prometheus exporters](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter), [Prometheus remote write API](https://docs.victoriametrics.com/#prometheus-setup), [Prometheus exposition format](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format).
+    * [InfluxDB line protocol](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) over HTTP, TCP and UDP.
+    * [Graphite plaintext protocol](https://docs.victoriametrics.com/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) with [tags](https://graphite.readthedocs.io/en/latest/tags.html#carbon).
+    * [OpenTSDB put message](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol).
+    * [HTTP OpenTSDB /api/put requests](https://docs.victoriametrics.com/#sending-opentsdb-data-via-http-apiput-requests).
+    * [JSON line format](https://docs.victoriametrics.com/#how-to-import-data-in-json-line-format).
+    * [Arbitrary CSV data](https://docs.victoriametrics.com/#how-to-import-csv-data).
+    * [Native binary format](https://docs.victoriametrics.com/#how-to-import-data-in-native-format).
+    * [DataDog agent or DogStatsD](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent).
+    * [NewRelic infrastructure agent](https://docs.victoriametrics.com/#how-to-send-data-from-newrelic-agent).
+    * [OpenTelemetry metrics format](https://docs.victoriametrics.com/#sending-data-via-opentelemetry).
 * **NFS-based storages**: Supports storing data on NFS-based storages such as Amazon EFS, Google Filestore.
 * And many other features such as metrics relabeling, cardinality limiter, etc.
 
@@ -84,7 +86,7 @@ Some good benchmarks VictoriaMetrics achieved:
 Feel free asking any questions regarding VictoriaMetrics:
 
 * [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
-* [Twitter](https://twitter.com/VictoriaMetrics/)
+* [X (Twitter)](https://x.com/VictoriaMetrics/)
 * [Linkedin](https://www.linkedin.com/company/victoriametrics/)
 * [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
 * [Telegram-en](https://t.me/VictoriaMetrics_en)
@@ -95,30 +97,31 @@ If you like VictoriaMetrics and want to contribute, then please [read these docs
 
 ## VictoriaMetrics Logo
 
-[Zip](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/VM_logo.zip) contains three folders with different image orientations (main color and inverted version).
+The provided [ZIP file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/VM_logo.zip) contains three folders with different logo orientations. Each folder includes the following file types:
 
-Files included in each folder:
+* JPEG: Preview files
+* PNG: Preview files with transparent background
+* AI: Adobe Illustrator files
 
-* 2 JPEG Preview files
-* 2 PNG Preview files with transparent background
-* 2 EPS Adobe Illustrator EPS10 files
+### VictoriaMetrics Logo Usage Guidelines
 
-### Logo Usage Guidelines
+#### Font
 
-#### Font used
-
-* Lato Black
-* Lato Regular
+* Font Used: Lato Black
+* Download here: [Lato Font](https://fonts.google.com/specimen/Lato)
 
 #### Color Palette
 
-* HEX [#110f0f](https://www.color-hex.com/color/110f0f)
-* HEX [#ffffff](https://www.color-hex.com/color/ffffff)
+* Black [#000000](https://www.color-hex.com/color/000000)
+* Purple [#4d0e82](https://www.color-hex.com/color/4d0e82)
+* Orange [#ff2e00](https://www.color-hex.com/color/ff2e00)
+* White [#ffffff](https://www.color-hex.com/color/ffffff)
 
-### We kindly ask
+### Logo Usage Rules
 
-* Please don't use any other font instead of suggested.
-* To keep enough clear space around the logo.
-* Do not change spacing, alignment, or relative locations of the design elements.
-* Do not change the proportions for any of the design elements or the design itself.
-  You may resize as needed but must retain all proportions.
+* Only use the Lato Black font as specified.
+* Maintain sufficient clear space around the logo for visibility.
+* Do not modify the spacing, alignment, or positioning of design elements.
+* You may resize the logo as needed, but ensure all proportions remain intact.
+
+Thank you for your cooperation!

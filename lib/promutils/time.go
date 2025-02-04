@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // ParseTimeMsec parses time s in different formats.
@@ -33,6 +35,8 @@ const (
 //
 // See https://docs.victoriametrics.com/single-server-victoriametrics/#timestamp-formats
 //
+// If s doesn't contain timezone information, then the local timezone is used.
+//
 // It returns unix timestamp in nanoseconds.
 func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 	if s == "now" {
@@ -58,6 +62,12 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 				tzOffset = -tzOffset
 			}
 			s = sOrig[:len(sOrig)-6]
+		} else {
+			if !strings.HasSuffix(s, "Z") {
+				tzOffset = -timeutil.GetLocalTimezoneOffsetNsecs()
+			} else {
+				s = s[:len(s)-1]
+			}
 		}
 	}
 	s = strings.TrimSuffix(s, "Z")
@@ -86,16 +96,7 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 		return tzOffset + t.UnixNano(), nil
 	}
 	if !strings.Contains(sOrig, "-") {
-		// Parse the timestamp in seconds or in milliseconds
-		ts, err := strconv.ParseFloat(sOrig, 64)
-		if err != nil {
-			return 0, err
-		}
-		if ts >= (1 << 32) {
-			// The timestamp is in milliseconds. Convert it to seconds.
-			ts /= 1000
-		}
-		return int64(math.Round(ts*1e3)) * 1e6, nil
+		return parseNumericTimestamp(sOrig)
 	}
 	if len(s) == 7 {
 		// Parse YYYY-MM
@@ -143,4 +144,41 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 		return 0, err
 	}
 	return t.UnixNano(), nil
+}
+
+// parseNumericTimestamp parses timestamp at s in seconds, milliseconds, microseconds or nanoseconds.
+//
+// It returns nanoseconds for the parsed timestamp.
+func parseNumericTimestamp(s string) (int64, error) {
+	if strings.ContainsAny(s, ".eE") {
+		// The timestamp is a floating-point number
+		ts, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return 0, err
+		}
+		if ts >= (1 << 32) {
+			// The timestamp is in milliseconds
+			return int64(ts * 1_000_000), nil
+		}
+		return int64(math.Round(ts*1_000)) * 1_000_000, nil
+	}
+
+	// The timestamp is an integer number
+	ts, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	switch {
+	case ts >= (1<<32)*1e6:
+		// The timestamp is in nanoseconds
+		return ts, nil
+	case ts >= (1<<32)*1e3:
+		// The timestamp is in microseconds
+		return ts * 1_000, nil
+	case ts >= (1 << 32):
+		// The timestamp is in milliseconds
+		return ts * 1_000_000, nil
+	default:
+		return ts * 1_000_000_000, nil
+	}
 }

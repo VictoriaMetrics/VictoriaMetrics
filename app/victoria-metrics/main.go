@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -39,9 +40,24 @@ var (
 		"The saved data survives unclean shutdowns such as OOM crash, hardware reset, SIGKILL, etc. "+
 		"Bigger intervals may help increase the lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
 		"Smaller intervals increase disk IO load. Minimum supported value is 1s")
+	maxIngestionRate = flag.Int("maxIngestionRate", 0, "The maximum number of samples vmsingle can receive per second. Data ingestion is paused when the limit is exceeded. "+
+		"By default there are no limits on samples ingestion rate.")
+	finalDedupScheduleInterval = flag.Duration("storage.finalDedupScheduleCheckInterval", time.Hour, "The interval for checking when final deduplication process should be started."+
+		"Storage unconditionally adds 25% jitter to the interval value on each check evaluation."+
+		" Changing the interval to the bigger values may delay downsampling, deduplication for historical data."+
+		" See also https://docs.victoriametrics.com/#deduplication")
 )
 
 func main() {
+	// VictoriaMetrics is optimized for reduced memory allocations,
+	// so it can run with the reduced GOGC in order to reduce the used memory,
+	// while keeping CPU usage spent in GC at low levels.
+	//
+	// Some workloads may need increased GOGC values. Then such values can be set via GOGC environment variable.
+	// It is recommended increasing GOGC if go_memstats_gc_cpu_fraction metric exposed at /metrics page
+	// exceeds 0.05 for extended periods of time.
+	cgroup.SetGOGC(30)
+
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
@@ -74,8 +90,13 @@ func main() {
 	startTime := time.Now()
 	storage.SetDedupInterval(*minScrapeInterval)
 	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
+	if *finalDedupScheduleInterval < time.Hour {
+		logger.Fatalf("-dedup.finalDedupScheduleCheckInterval cannot be smaller than 1 hour; got %s", *finalDedupScheduleInterval)
+	}
+	storage.SetFinalDedupScheduleInterval(*finalDedupScheduleInterval)
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
+	vminsertcommon.StartIngestionRateLimiter(*maxIngestionRate)
 	vminsert.Init()
 
 	startSelfScraper()
@@ -97,6 +118,7 @@ func main() {
 	}
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 	vminsert.Stop()
+	vminsertcommon.StopIngestionRateLimiter()
 
 	vmstorage.Stop()
 	vmselect.Stop()

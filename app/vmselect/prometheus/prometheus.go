@@ -3,7 +3,6 @@ package prometheus
 import (
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/metricsql"
 	"math"
 	"net/http"
 	"runtime"
@@ -12,6 +11,10 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
+	"github.com/valyala/fastjson/fastfloat"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
@@ -24,10 +27,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/fastjson/fastfloat"
 )
 
 var (
@@ -47,11 +51,13 @@ var (
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
 
-	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage")
+	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 0, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage. "+
+		"When set to zero, the limit is automatically calculated based on -search.maxConcurrentRequests (inversely proportional) and memory available to the process (proportional).")
 	maxFederateSeries   = flag.Int("search.maxFederateSeries", 1e6, "The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage")
 	maxExportSeries     = flag.Int("search.maxExportSeries", 10e6, "The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage")
 	maxTSDBStatusSeries = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
 	maxSeriesLimit      = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
+	maxDeleteSeries     = flag.Int("search.maxDeleteSeries", 1e6, "The maximum number of time series, which can be deleted using /api/v1/admin/tsdb/delete_series. This option allows limiting memory usage")
 	maxLabelsAPISeries  = flag.Int("search.maxLabelsAPISeries", 1e6, "The maximum number of time series, which could be scanned when searching for the matching time series "+
 		"at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, "+
 		"-search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI")
@@ -137,10 +143,13 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 		WriteFederate(bb, rs)
 		return sw.maybeFlushBuffer(bb)
 	})
-	if err != nil {
+	if err == nil {
+		err = sw.flush()
+	}
+	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		return fmt.Errorf("error during sending data to remote client: %w", err)
 	}
-	return sw.flush()
+	return nil
 }
 
 var federateDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/federate"}`)
@@ -221,10 +230,13 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 		}()
 	}
 	err = <-doneCh
-	if err != nil {
+	if err == nil {
+		err = sw.flush()
+	}
+	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		return fmt.Errorf("error during sending the exported csv data to remote client: %w", err)
 	}
-	return sw.flush()
+	return nil
 }
 
 var exportCSVDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export/csv"}`)
@@ -276,10 +288,13 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 		bb.B = dst
 		return sw.maybeFlushBuffer(bb)
 	})
-	if err != nil {
+	if err == nil {
+		err = sw.flush()
+	}
+	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		return fmt.Errorf("error during sending native data to remote client: %w", err)
 	}
-	return sw.flush()
+	return nil
 }
 
 var exportNativeDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export/native"}`)
@@ -436,16 +451,19 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 		}()
 	}
 	err := <-doneCh
-	if err != nil {
+	if err == nil {
+		err = sw.flush()
+	}
+	if err == nil {
+		if format == "promapi" {
+			WriteExportPromAPIFooter(bw, qt)
+		}
+		err = bw.Flush()
+	}
+	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		return fmt.Errorf("cannot send data to remote client: %w", err)
 	}
-	if err := sw.flush(); err != nil {
-		return fmt.Errorf("cannot send data to remote client: %w", err)
-	}
-	if format == "promapi" {
-		WriteExportPromAPIFooter(bw, qt)
-	}
-	return bw.Flush()
+	return nil
 }
 
 type exportBlock struct {
@@ -476,10 +494,12 @@ func DeleteHandler(startTime time.Time, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	cp.deadline = searchutils.GetDeadlineForDelete(r, startTime)
+
 	if !cp.IsDefaultTimeRange() {
 		return fmt.Errorf("start=%d and end=%d args aren't supported. Remove these args from the query in order to delete all the matching metrics", cp.start, cp.end)
 	}
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, 0)
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxDeleteSeries)
 	deletedCount, err := netstorage.DeleteSeries(nil, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series: %w", err)
@@ -791,7 +811,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		End:                 start,
 		Step:                step,
 		MaxPointsPerSeries:  *maxPointsPerTimeseries,
-		MaxSeries:           *maxUniqueTimeseries,
+		MaxSeries:           GetMaxUniqueTimeSeries(),
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
 		MayCache:            mayCache,
@@ -899,7 +919,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		End:                 end,
 		Step:                step,
 		MaxPointsPerSeries:  *maxPointsPerTimeseries,
-		MaxSeries:           *maxUniqueTimeseries,
+		MaxSeries:           GetMaxUniqueTimeSeries(),
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
 		MayCache:            mayCache,
@@ -1244,4 +1264,41 @@ func (sw *scalableWriter) flush() error {
 		return err == nil
 	})
 	return sw.bw.Flush()
+}
+
+var (
+	maxUniqueTimeseriesValueOnce sync.Once
+	maxUniqueTimeseriesValue     int
+)
+
+// InitMaxUniqueTimeseries init the max metrics limit calculated by available resources.
+// The calculation is split into calculateMaxUniqueTimeSeriesForResource for unit testing.
+func InitMaxUniqueTimeseries(maxConcurrentRequests int) {
+	maxUniqueTimeseriesValueOnce.Do(func() {
+		maxUniqueTimeseriesValue = *maxUniqueTimeseries
+		if maxUniqueTimeseriesValue <= 0 {
+			maxUniqueTimeseriesValue = calculateMaxUniqueTimeSeriesForResource(maxConcurrentRequests, memory.Remaining())
+		}
+	})
+}
+
+// calculateMaxUniqueTimeSeriesForResource calculate the max metrics limit calculated by available resources.
+func calculateMaxUniqueTimeSeriesForResource(maxConcurrentRequests, remainingMemory int) int {
+	if maxConcurrentRequests <= 0 {
+		// This line should NOT be reached unless the user has set an incorrect `search.maxConcurrentRequests`.
+		// In such cases, fallback to unlimited.
+		logger.Warnf("limiting -search.maxUniqueTimeseries to %v because -search.maxConcurrentRequests=%d.", 2e9, maxConcurrentRequests)
+		return 2e9
+	}
+
+	// Calculate the max metrics limit for a single request in the worst-case concurrent scenario.
+	// The approximate size of 1 unique series that could occupy in the vmstorage is 200 bytes.
+	mts := remainingMemory / 200 / maxConcurrentRequests
+	logger.Infof("limiting -search.maxUniqueTimeseries to %d according to -search.maxConcurrentRequests=%d and remaining memory=%d bytes. To increase the limit, reduce -search.maxConcurrentRequests or increase memory available to the process.", mts, maxConcurrentRequests, remainingMemory)
+	return mts
+}
+
+// GetMaxUniqueTimeSeries returns the max metrics limit calculated by available resources.
+func GetMaxUniqueTimeSeries() int {
+	return maxUniqueTimeseriesValue
 }

@@ -58,15 +58,11 @@ func (pu *pipeUnpackLogfmt) updateNeededFields(neededFields, unneededFields fiel
 	updateNeededFieldsForUnpackPipe(pu.fromField, pu.fields, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff, neededFields, unneededFields)
 }
 
-func (pu *pipeUnpackLogfmt) optimize() {
-	pu.iff.optimizeFilterIn()
-}
-
 func (pu *pipeUnpackLogfmt) hasFilterInWithQuery() bool {
 	return pu.iff.hasFilterInWithQuery()
 }
 
-func (pu *pipeUnpackLogfmt) initFilterInValues(cache map[string][]string, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
+func (pu *pipeUnpackLogfmt) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error) {
 	iffNew, err := pu.iff.initFilterInValues(cache, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
@@ -74,6 +70,10 @@ func (pu *pipeUnpackLogfmt) initFilterInValues(cache map[string][]string, getFie
 	puNew := *pu
 	puNew.iff = iffNew
 	return &puNew, nil
+}
+
+func (pu *pipeUnpackLogfmt) visitSubqueries(visitFunc func(q *Query)) {
+	pu.iff.visitSubqueries(visitFunc)
 }
 
 func (pu *pipeUnpackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
@@ -107,7 +107,7 @@ func (pu *pipeUnpackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}
 	return newPipeUnpackProcessor(workersCount, unpackLogfmt, ppNext, pu.fromField, pu.resultPrefix, pu.keepOriginalFields, pu.skipEmptyResults, pu.iff)
 }
 
-func parsePipeUnpackLogfmt(lex *lexer) (*pipeUnpackLogfmt, error) {
+func parsePipeUnpackLogfmt(lex *lexer) (pipe, error) {
 	if !lex.isKeyword("unpack_logfmt") {
 		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "unpack_logfmt")
 	}

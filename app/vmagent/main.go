@@ -30,6 +30,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -45,6 +46,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/firehose"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeserieslimits"
 )
 
 var (
@@ -77,6 +79,9 @@ var (
 	dryRun        = flag.Bool("dryRun", false, "Whether to check config files without running vmagent. The following files are checked: "+
 		"-promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . "+
 		"Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag")
+	maxLabelsPerTimeseries = flag.Int("maxLabelsPerTimeseries", 0, "The maximum number of labels per time series to be accepted. Series with superfluous labels are ignored. In this case the vm_rows_ignored_total{reason=\"too_many_labels\"} metric at /metrics page is incremented")
+	maxLabelNameLen        = flag.Int("maxLabelNameLen", 0, "The maximum length of label names in the accepted time series. Series with longer label name are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_name\"} metric at /metrics page is incremented")
+	maxLabelValueLen       = flag.Int("maxLabelValueLen", 0, "The maximum length of label values in the accepted time series. Series with longer label value are ignored. In this case the vm_rows_ignored_total{reason=\"too_long_label_value\"} metric at /metrics page is incremented")
 )
 
 var (
@@ -93,6 +98,15 @@ var (
 )
 
 func main() {
+	// vmagent is optimized for reduced memory allocations,
+	// so it can run with the reduced GOGC in order to reduce the used memory,
+	// while keeping CPU usage spent in GC at low levels.
+	//
+	// Some workloads may need increased GOGC values. Then such values can be set via GOGC environment variable.
+	// It is recommended increasing GOGC if go_memstats_gc_cpu_fraction metric exposed at /metrics page
+	// exceeds 0.05 for extended periods of time.
+	cgroup.SetGOGC(30)
+
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
@@ -100,6 +114,7 @@ func main() {
 	remotewrite.InitSecretFlags()
 	buildinfo.Init()
 	logger.Init()
+	timeserieslimits.Init(*maxLabelsPerTimeseries, *maxLabelNameLen, *maxLabelValueLen)
 
 	if promscrape.IsDryRun() {
 		if err := promscrape.CheckConfig(); err != nil {
@@ -498,7 +513,7 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		httpserver.Errorf(w, r, `unsupported multitenant prefix: %q; expected "insert"`, p.Prefix)
 		return true
 	}
-	at, err := auth.NewToken(p.AuthToken)
+	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain auth token: %s", err)
 		return true
@@ -510,7 +525,13 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		w.WriteHeader(http.StatusNoContent)
+		statusCode := http.StatusNoContent
+		if strings.HasPrefix(p.Suffix, "prometheus/api/v1/import/prometheus/metrics/job/") {
+			// Return 200 status code for pushgateway requests.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636
+			statusCode = http.StatusOK
+		}
+		w.WriteHeader(statusCode)
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "datadog/") {

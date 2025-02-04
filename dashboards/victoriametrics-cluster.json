@@ -1659,7 +1659,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1667,8 +1668,7 @@
                   }
                 ]
               },
-              "unit": "percentunit",
-              "unitScale": true
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -1679,7 +1679,6 @@
             "y": 3
           },
           "id": 66,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -1934,7 +1933,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    vm_available_cpu_cores{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
+              "expr": "max(\n    rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])\n    /\n    process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}\n) by(job)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -2268,8 +2267,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": [
               {
@@ -2293,7 +2291,6 @@
             "y": 19
           },
           "id": 204,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2399,7 +2396,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2407,8 +2405,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2419,7 +2416,6 @@
             "y": 27
           },
           "id": 68,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2506,7 +2502,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2514,8 +2511,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2613,7 +2609,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2621,8 +2618,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2633,7 +2629,6 @@
             "y": 35
           },
           "id": 70,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2720,7 +2715,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2728,8 +2724,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "unitScale": true
+              "unit": "short"
             },
             "overrides": []
           },
@@ -2828,7 +2823,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2836,8 +2832,7 @@
                   }
                 ]
               },
-              "unit": "percentunit",
-              "unitScale": true
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -2848,7 +2843,6 @@
             "y": 43
           },
           "id": 210,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -2884,6 +2878,113 @@
           ],
           "title": "CPU spent on GC ($instance)",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the time goroutines have spent in runnable state before actually running. The lower is better.\n\nHigh values or values exceeding the threshold is usually a sign of            insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.1
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 43
+          },
+          "id": 213,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.2.6",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(histogram_quantile(0.99, sum(rate(go_sched_latencies_seconds_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job, instance, le))) by(job)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 2,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Go scheduling latency",
+          "type": "timeseries"
         }
       ],
       "title": "Resource usage ($job)",
@@ -2913,7 +3014,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 4
+            "y": 12
           },
           "id": 211,
           "links": [],
@@ -3011,7 +3112,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 23
+            "y": 31
           },
           "id": 102,
           "options": {
@@ -3066,7 +3167,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>10%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series). \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on many other factors such as the number of labels per time series and the length of label values. See also [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183) for details.",
+          "description": "The percentage of [slow inserts](https://docs.victoriametrics.com/faq/#what-is-a-slow-insert) compared to the total ingestion rate. \\n\\nThe lower the better. \\n\\nIn short, slow insert is a cache miss. There are following reasons for slow inserts to go up: \\n* Ingestion of completely new, not seen before time series;\\n* [Re-routing](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-availability) of series when one or more vmstorage nodes are unavailable;\\n* Not enough memory to maintain big enough caches for the current workload.\\n\\nIf percentage remains high (>10%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series). \\n\\nSee [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183) for details.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3125,7 +3226,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 23
+            "y": 31
           },
           "id": 108,
           "options": {
@@ -3226,7 +3327,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 31
+            "y": 39
           },
           "id": 142,
           "links": [
@@ -3338,7 +3439,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 31
+            "y": 39
           },
           "id": 107,
           "options": {
@@ -3439,7 +3540,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 47
           },
           "id": 170,
           "links": [],
@@ -3478,111 +3579,6 @@
             }
           ],
           "title": "Assisted merges ($instance)",
-          "type": "timeseries"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "description": "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n\nThis prevents from ingesting metrics with too many labels. The value of `maxLabelsPerTimeseries` must be adjusted for your workload.\n\nWhen limit is exceeded (graph is > 0) - extra labels are dropped, which could result in unexpected identical time series. See more details about dropped labels in vminsert logs.",
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "drawStyle": "line",
-                "fillOpacity": 10,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "never",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "decimals": 2,
-              "links": [],
-              "mappings": [],
-              "min": 0,
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 39
-          },
-          "id": 116,
-          "links": [],
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "lastNotNull",
-                "max"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true
-            },
-            "tooltip": {
-              "mode": "multi",
-              "sort": "none"
-            }
-          },
-          "pluginVersion": "9.1.0",
-          "targets": [
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "exemplar": true,
-              "expr": "sum(increase(vm_metrics_with_dropped_labels_total{job=~\"$job_insert\", instance=~\"$instance\"}[$__rate_interval]))",
-              "format": "time_series",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "metrics with dropped labels",
-              "refId": "A"
-            }
-          ],
-          "title": "Labels limit exceeded ($instance)",
           "type": "timeseries"
         },
         {
@@ -3647,7 +3643,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 55
           },
           "id": 144,
           "options": {
@@ -3750,7 +3746,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 47
+            "y": 55
           },
           "id": 58,
           "links": [],
@@ -3856,7 +3852,7 @@
             "h": 6,
             "w": 24,
             "x": 0,
-            "y": 56
+            "y": 64
           },
           "id": 183,
           "options": {
@@ -3927,7 +3923,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows how many rows were ignored on insertion due to corrupted or out of retention timestamps.",
+          "description": "Shows how many rows were ignored on insertion due to corrupted or out of retention timestamps or too long label names, values and excessive labels count",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3984,7 +3980,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 62
+            "y": 70
           },
           "id": 135,
           "options": {
@@ -4014,7 +4010,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "sum(increase(vm_rows_ignored_total{job=~\"$job_storage\", instance=~\"$instance\"}[1h])) by (reason)",
+              "expr": "sum(increase(vm_rows_ignored_total{job=~\"$job\", instance=~\"$instance\"}[1h])) by (reason)",
               "interval": "",
               "legendFormat": "__auto",
               "range": true,
@@ -4022,6 +4018,111 @@
             }
           ],
           "title": "Rows ignored for last 1h ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Shows the number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. Normally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. ",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "stepAfter",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 70
+          },
+          "id": 214,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "9.1.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]) > 0) by(job)",
+              "format": "time_series",
+              "instant": false,
+              "legendFormat": "{{job}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Restarts ($job)",
           "type": "timeseries"
         }
       ],
@@ -4106,7 +4207,7 @@
             "h": 9,
             "w": 12,
             "x": 0,
-            "y": 37
+            "y": 45
           },
           "id": 76,
           "links": [],
@@ -4222,7 +4323,7 @@
             "h": 9,
             "w": 12,
             "x": 12,
-            "y": 37
+            "y": 45
           },
           "id": 86,
           "links": [],
@@ -4347,7 +4448,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 46
+            "y": 54
           },
           "id": 80,
           "links": [],
@@ -4452,7 +4553,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 46
+            "y": 54
           },
           "id": 78,
           "links": [],
@@ -4568,7 +4669,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 54
+            "y": 62
           },
           "id": 82,
           "options": {
@@ -4675,7 +4776,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 54
+            "y": 62
           },
           "id": 74,
           "options": {
@@ -4779,8 +4880,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4796,7 +4896,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 6
+            "y": 14
           },
           "id": 100,
           "options": {
@@ -4841,7 +4941,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the approx time needed to reach 100% of disk capacity for at least one vmstorage node based on the following params:\n* free disk space;\n* row ingestion rate;\n* compression.\n\nNote: this panel doesn't account for deduplication process.",
+          "description": "Shows the approx time needed to reach 100% of disk capacity for at least one vmstorage node based on the following params:\n* free disk space (after -storage.minFreeDiskSpaceBytes);\n* row ingestion rate;\n* compression.\n\nNote: this panel doesn't account for deduplication process.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4892,8 +4992,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4909,7 +5008,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 6
+            "y": 14
           },
           "id": 113,
           "options": {
@@ -4938,7 +5037,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "min(vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"} \n/ \nignoring(path) (\n    rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n    * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n))",
+              "expr": "min((vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"} - vm_free_disk_space_limit_bytes{job=~\"$job_storage\", instance=~\"$instance\"}) \n/ \nignoring(path) (\n    rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n    * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n))",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -5006,8 +5105,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5023,7 +5121,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 14
+            "y": 22
           },
           "id": 151,
           "options": {
@@ -5153,8 +5251,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5170,7 +5267,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 14
+            "y": 22
           },
           "id": 167,
           "options": {
@@ -5292,8 +5389,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5325,7 +5421,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 21
+            "y": 29
           },
           "id": 212,
           "links": [
@@ -5434,8 +5530,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5467,7 +5562,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 21
+            "y": 29
           },
           "id": 133,
           "options": {
@@ -5572,8 +5667,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5589,7 +5683,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 29
+            "y": 37
           },
           "id": 54,
           "options": {
@@ -5678,8 +5772,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5695,7 +5788,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 29
+            "y": 37
           },
           "id": 55,
           "options": {
@@ -5789,8 +5882,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5806,7 +5898,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 37
+            "y": 45
           },
           "id": 20,
           "options": {
@@ -5835,7 +5927,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
+              "expr": "max(\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}-vm_free_disk_space_limit_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "max",
@@ -5848,7 +5940,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "min(\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
+              "expr": "min(\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}-vm_free_disk_space_limit_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -5862,7 +5954,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "quantile(0.5,\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
+              "expr": "quantile(0.5,\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) /\n    (\n        sum(vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}-vm_free_disk_space_limit_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance) +\n        sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\"}) by(job, instance)\n    ) \n)",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -5924,8 +6016,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5941,7 +6032,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 37
+            "y": 45
           },
           "id": 22,
           "options": {
@@ -6038,8 +6129,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   }
                 ]
               },
@@ -6051,7 +6141,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 45
+            "y": 53
           },
           "id": 202,
           "options": {
@@ -6110,7 +6200,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `2*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every second. The index datapoints value in general is much lower.",
+          "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `3*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every two seconds. The index datapoints value in general is much lower.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6155,8 +6245,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6189,7 +6278,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 45
+            "y": 53
           },
           "id": 14,
           "options": {
@@ -6293,8 +6382,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6323,7 +6411,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 53
+            "y": 61
           },
           "id": 206,
           "options": {
@@ -6424,8 +6512,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6441,7 +6528,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 53
+            "y": 61
           },
           "id": 141,
           "links": [
@@ -6564,7 +6651,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 50
+            "y": 58
           },
           "id": 92,
           "links": [],
@@ -6690,7 +6777,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 50
+            "y": 58
           },
           "id": 95,
           "links": [],
@@ -6812,7 +6899,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 58
+            "y": 66
           },
           "id": 163,
           "links": [],
@@ -6956,7 +7043,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 58
+            "y": 66
           },
           "id": 165,
           "links": [],
@@ -7096,7 +7183,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 66
+            "y": 74
           },
           "id": 178,
           "links": [],
@@ -7203,7 +7290,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 66
+            "y": 74
           },
           "id": 180,
           "links": [],
@@ -7310,7 +7397,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 74
+            "y": 82
           },
           "id": 179,
           "links": [],
@@ -7417,7 +7504,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 74
+            "y": 82
           },
           "id": 181,
           "links": [],
@@ -7535,7 +7622,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 82
+            "y": 90
           },
           "id": 93,
           "links": [],
@@ -7665,7 +7752,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 82
+            "y": 90
           },
           "id": 207,
           "links": [],
@@ -7801,7 +7888,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 59
           },
           "id": 97,
           "links": [],
@@ -7927,7 +8014,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 51
+            "y": 59
           },
           "id": 99,
           "links": [],
@@ -8051,7 +8138,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 59
+            "y": 67
           },
           "id": 185,
           "links": [],
@@ -8195,7 +8282,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 59
+            "y": 67
           },
           "id": 187,
           "links": [],
@@ -8335,7 +8422,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 67
+            "y": 75
           },
           "id": 139,
           "links": [],
@@ -8442,7 +8529,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 67
+            "y": 75
           },
           "id": 114,
           "links": [],
@@ -8557,7 +8644,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 75
+            "y": 83
           },
           "id": 208,
           "links": [],
@@ -8687,7 +8774,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 75
+            "y": 83
           },
           "id": 209,
           "links": [],
@@ -8806,7 +8893,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 83
+            "y": 91
           },
           "id": 88,
           "links": [],
@@ -8871,7 +8958,7 @@
             "h": 2,
             "w": 24,
             "x": 0,
-            "y": 100
+            "y": 108
           },
           "id": 198,
           "options": {
@@ -8947,7 +9034,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 102
+            "y": 110
           },
           "id": 189,
           "links": [],
@@ -9048,7 +9135,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 102
+            "y": 110
           },
           "id": 190,
           "links": [],
@@ -9149,7 +9236,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 110
+            "y": 118
           },
           "id": 192,
           "links": [],
@@ -9197,7 +9284,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the approx time needed to reach 100% of disk capacity based on the following params:\n* free disk space;\n* row ingestion rate;\n* compression.\n\nNote: this panel doesn't account for deduplication process.",
+          "description": "Shows the approx time needed to reach 100% of disk capacity based on the following params:\n* free disk space (after -storage.minFreeDiskSpaceBytes);\n* row ingestion rate;\n* compression.\n\nNote: this panel doesn't account for deduplication process.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -9256,7 +9343,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 110
+            "y": 118
           },
           "id": 196,
           "links": [],
@@ -9286,7 +9373,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"} \n/ \nignoring(path) (\n    rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n    * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n)",
+              "expr": "(vm_free_disk_space_bytes{job=~\"$job_storage\", instance=~\"$instance\"}-vm_free_disk_space_limit_bytes{job=~\"$job_storage\", instance=~\"$instance\"}) \n/ \nignoring(path) (\n    rate(vm_rows_added_to_storage_total{job=~\"$job_storage\", instance=~\"$instance\"}[1d])\n    * scalar(\n            sum(vm_data_size_bytes{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            / \n            sum(vm_rows{job=~\"$job_storage\", instance=~\"$instance\", type!~\"indexdb.*\"})\n            )\n)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -9358,7 +9445,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 117
+            "y": 125
           },
           "id": 200,
           "links": [],
@@ -9459,7 +9546,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 117
+            "y": 125
           },
           "id": 201,
           "links": [],
@@ -9578,7 +9665,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 125
+            "y": 133
           },
           "id": 203,
           "links": [],

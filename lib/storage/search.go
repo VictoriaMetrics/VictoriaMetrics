@@ -221,7 +221,7 @@ func (s *Search) NextMetricBlock() bool {
 				continue
 			}
 			var ok bool
-			s.MetricBlockRef.MetricName, ok = s.idb.searchMetricNameWithCache(s.MetricBlockRef.MetricName[:0], tsid.MetricID)
+			s.MetricBlockRef.MetricName, ok = s.idb.searchMetricName(s.MetricBlockRef.MetricName[:0], tsid.MetricID, false)
 			if !ok {
 				// Skip missing metricName for tsid.MetricID.
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.

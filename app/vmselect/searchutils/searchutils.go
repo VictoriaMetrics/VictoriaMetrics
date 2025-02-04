@@ -15,7 +15,8 @@ import (
 
 var (
 	maxExportDuration        = flag.Duration("search.maxExportDuration", time.Hour*24*30, "The maximum duration for /api/v1/export call")
-	maxQueryDuration         = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution. It can be overridden on a per-query basis via 'timeout' query arg")
+	maxDeleteDuration        = flag.Duration("search.maxDeleteDuration", time.Minute*5, "The maximum duration for /api/v1/admin/tsdb/delete_series call")
+	maxQueryDuration         = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution. It can be overridden to a smaller value on a per-query basis via 'timeout' query arg")
 	maxStatusRequestDuration = flag.Duration("search.maxStatusRequestDuration", time.Minute*5, "The maximum duration for /api/v1/status/* requests")
 	maxLabelsAPIDuration     = flag.Duration("search.maxLabelsAPIDuration", time.Second*5, "The maximum duration for /api/v1/labels, /api/v1/label/.../values and /api/v1/series requests. "+
 		"See also -search.maxLabelsAPISeries and -search.ignoreExtraFiltersAtLabelsAPI")
@@ -56,6 +57,12 @@ func GetDeadlineForExport(r *http.Request, startTime time.Time) Deadline {
 func GetDeadlineForLabelsAPI(r *http.Request, startTime time.Time) Deadline {
 	dMax := maxLabelsAPIDuration.Milliseconds()
 	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxLabelsAPIDuration")
+}
+
+// GetDeadlineForDelete returns deadline for the given request to /api/v1/admin/tsdb/delete_series.
+func GetDeadlineForDelete(r *http.Request, startTime time.Time) Deadline {
+	dMax := maxDeleteDuration.Milliseconds()
+	return getDeadlineWithMaxDuration(r, startTime, dMax, "-search.maxDeleteDuration")
 }
 
 func getDeadlineWithMaxDuration(r *http.Request, startTime time.Time, dMax int64, flagHint string) Deadline {

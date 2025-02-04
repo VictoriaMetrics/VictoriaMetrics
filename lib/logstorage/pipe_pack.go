@@ -64,7 +64,7 @@ type pipePackProcessorShardNopad struct {
 }
 
 func (ppp *pipePackProcessor) writeBlock(workerID uint, br *blockResult) {
-	if len(br.timestamps) == 0 {
+	if br.rowsLen == 0 {
 		return
 	}
 
@@ -86,7 +86,7 @@ func (ppp *pipePackProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	buf := shard.buf[:0]
 	fields := shard.fields
-	for rowIdx := range br.timestamps {
+	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 		fields = fields[:0]
 		for _, c := range cs {
 			v := c.getValueAtRow(br, rowIdx)
