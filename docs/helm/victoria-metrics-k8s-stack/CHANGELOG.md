@@ -2,6 +2,26 @@
 
 - TODO
 
+## 0.35.4
+
+**Release date:** 04 Feb 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.110.0](https://img.shields.io/badge/v1.110.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11100)
+
+- add `.Values.defaultDatasources.grafanaOperator` section to manage datasources using Grafana operator. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1964) for details.
+- grafana chart 8.6.x -> 8.9.x
+- prometheus CRDs chart 16.x -> 17.x
+- kube-state-metrics chart 5.27.x -> 5.29.x
+- prometheus-node-exporter chart 4.42.x -> 4.43.x
+
+## 0.35.3
+
+**Release date:** 04 Feb 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.110.0](https://img.shields.io/badge/v1.110.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11100)
+
+- Use .Values.global.clusterLabel in rules annotations instead of `.cluster`
+
 ## 0.35.2
 
 **Release date:** 31 Jan 2025

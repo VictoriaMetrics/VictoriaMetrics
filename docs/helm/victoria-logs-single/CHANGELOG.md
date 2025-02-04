@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- vector chart 0.37.x -> 0.40.x
 
 ## 0.8.14
 
