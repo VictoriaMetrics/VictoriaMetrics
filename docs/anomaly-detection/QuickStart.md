@@ -198,9 +198,9 @@ models:
       - name: 'dow'  # intra-week seasonality, time of the week
         fourier_order: 2  # keep it 2-4, as dependencies are learned separately for each weekday
     # inner model args (key-value pairs) accepted by
-    # https://facebook.github.io/prophet/docs/quick_start.html#python-api
+    # https://facebook.github.io/prophet/docs/quick_start#python-api
     args:
-      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals.html
+      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals
 
 reader:
   # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
