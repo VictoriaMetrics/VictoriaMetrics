@@ -1298,7 +1298,8 @@ See the docs at https://docs.victoriametrics.com/vmauth/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr array
-     TCP address to listen for incoming http requests. See also -tls and -httpListenAddr.useProxyProtocol
+     TCP address to listen for incoming http requests. By default, serves internal API and proxy requests.
+     See also -tls, -httpListenAddr.useProxyProtocol and -httpInternalListenAddr.
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr.useProxyProtocol array
