@@ -2594,7 +2594,7 @@ and vmstorage has enough free memory to accommodate new cache sizes.
 To override the default values see command-line flags with `-storage.cacheSize` prefix.
 See the full description of flags [here](#list-of-command-line-flags).
 
-## Index tuning
+## Index tuning for low churn rate
 
 By default, VictoriaMetrics uses the following indexes for data retrieval:
 `global` and `per-day`. Both store the same data, the only difference is that
