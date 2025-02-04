@@ -809,6 +809,9 @@ labels: {}
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
+fsGroup: 2000
+runAsNonRoot: true
+runAsUser: 1000
 </code>
 </pre>
 </td>
@@ -936,7 +939,12 @@ view:
       <td>securityContext</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
-<code class="language-yaml">enabled: true
+<code class="language-yaml">allowPrivilegeEscalation: false
+capabilities:
+    drop:
+        - ALL
+enabled: true
+readOnlyRootFilesystem: true
 </code>
 </pre>
 </td>

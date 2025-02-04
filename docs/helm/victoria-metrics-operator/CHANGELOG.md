@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- Added default values for securityContext and podSecurityContext
 
 ## 0.41.0
 
