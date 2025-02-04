@@ -5,12 +5,121 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
-func TestVMAuthRouting(t *testing.T) {
+func TestVMAuthRouterWithAuth(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	var authorizedRequestsCount, unauthorizedRequestsCount int
+	backendWithAuth := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		authorizedRequestsCount++
+	}))
+	defer backendWithAuth.Close()
+	backend := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		unauthorizedRequestsCount++
+	}))
+	defer backend.Close()
+
+	authConfig := fmt.Sprintf(`
+users:
+- name: user1
+  username: ba-username
+  password: ba-password
+  url_prefix: %s
+unauthorized_user:
+   url_map:
+   - src_paths:
+     - /backend/health
+     - /backend/ready
+     url_prefix: %s
+  `, backendWithAuth.URL, backend.URL)
+
+	vmauth := tc.MustStartVmauth("vmauth",
+		nil,
+		authConfig)
+
+	makeGetRequestExpectCode := func(prepareRequest func(*http.Request), expectCode int) {
+		t.Helper()
+		req, err := http.NewRequest("GET", fmt.Sprintf("http://%s", vmauth.GetHTTPListenAddr()), nil)
+		if err != nil {
+			t.Fatalf("cannot build http.Request: %s", err)
+		}
+		prepareRequest(req)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("cannot make http.Get request for target=%q: %s", req.URL, err)
+		}
+		responseText, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("cannot read response body: %s", err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != expectCode {
+			t.Fatalf("unexpected http response code: %d, want: %d, response text: %s", resp.StatusCode, expectCode, responseText)
+		}
+	}
+	assertBackendsRequestsCount := func(expectAuthorized, expectUnauthorized int) {
+		t.Helper()
+		if expectAuthorized != authorizedRequestsCount {
+			t.Fatalf("expected to have %d authorized proxied requests, got: %d", expectAuthorized, authorizedRequestsCount)
+		}
+
+		if expectUnauthorized != unauthorizedRequestsCount {
+			t.Fatalf("expected to have %d unauthorized proxied requests, got: %d", expectUnauthorized, unauthorizedRequestsCount)
+		}
+
+	}
+
+	makeGetRequestExpectCode(func(r *http.Request) {
+		r.URL.Path = "/backend/api"
+		r.URL.User = url.UserPassword("ba-username", "ba-password")
+	}, http.StatusOK)
+	assertBackendsRequestsCount(1, 0)
+
+	makeGetRequestExpectCode(func(r *http.Request) {
+		r.URL.Path = "/backend/health"
+	}, http.StatusOK)
+	assertBackendsRequestsCount(1, 1)
+
+	// remove unauthorized section and proxy only specified path for authorized
+	vmauth.UpdateConfiguration(t, fmt.Sprintf(`
+users:
+- name: user1
+  username: ba-username
+  password: ba-password
+  url_map:
+  - src_paths:
+    - /backend/health
+    url_prefix: %s
+`, backendWithAuth.URL))
+
+	// ensure unauthorized requests no longer served
+	makeGetRequestExpectCode(func(r *http.Request) {
+		r.URL.Path = "/backend/health"
+	}, http.StatusUnauthorized)
+	assertBackendsRequestsCount(1, 1)
+
+	makeGetRequestExpectCode(func(r *http.Request) {
+		r.URL.User = url.UserPassword("ba-username", "ba-password")
+		r.URL.Path = "/backend/health"
+	}, http.StatusOK)
+	assertBackendsRequestsCount(2, 1)
+
+	// url path is missing at proxy configuration
+	makeGetRequestExpectCode(func(r *http.Request) {
+		r.URL.User = url.UserPassword("ba-username", "ba-password")
+		r.URL.Path = "/backend"
+	}, http.StatusBadRequest)
+	assertBackendsRequestsCount(2, 1)
+
+}
+
+func TestVMAuthRouterWithInternalAddr(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
@@ -28,7 +137,7 @@ unauthorized_user:
 
 	const (
 		// it's not possible to use random ports
-		// it makes test flaky
+		// since it makes test flaky
 		listenPortPublic  = "50127"
 		listenPortPrivate = "50126"
 	)
@@ -42,36 +151,36 @@ unauthorized_user:
 		vmauthFlags,
 		authConfig)
 
-	var hc http.Client
 	makeGetRequestExpectCode := func(targetURL string, expectCode int) {
 		t.Helper()
-		req, err := http.NewRequest("GET", targetURL, nil)
+		resp, err := http.Get(targetURL)
 		if err != nil {
-			t.Fatalf("cannot build http.Request for target=%q: %s", targetURL, err)
+			t.Fatalf("cannot make http.Get request for target=%q: %s", targetURL, err)
 		}
-		resp, err := hc.Do(req)
+		responseText, err := io.ReadAll(resp.Body)
 		if err != nil {
-			t.Fatalf("unexpected http request error: %s", err)
+			t.Fatalf("cannot read response body: %s", err)
 		}
-		defer resp.Body.Close()
+		resp.Body.Close()
 		if resp.StatusCode != expectCode {
-			responseText, err := io.ReadAll(resp.Body)
-			if err != nil {
-				t.Errorf("cannot read response body: %s", err)
-			}
 			t.Fatalf("unexpected http response code: %d, want: %d, response text: %s", resp.StatusCode, expectCode, responseText)
+		}
+	}
+	assertBackendRequestsCount := func(expected int) {
+		t.Helper()
+		if proxiedRequestsCount != expected {
+			t.Fatalf("expected to have %d proxied requests, got: %d", expected, proxiedRequestsCount)
 		}
 	}
 	// built-in http server must reject request, since it protected with authKey
 	makeGetRequestExpectCode(fmt.Sprintf("http://127.0.0.1:%s/flags", listenPortPrivate), http.StatusUnauthorized)
+	assertBackendRequestsCount(0)
+
 	makeGetRequestExpectCode(fmt.Sprintf("http://127.0.0.1:%s/flags", listenPortPublic), http.StatusOK)
-	if proxiedRequestsCount != 1 {
-		t.Fatalf("expected to have 1 proxied request, got: %d", proxiedRequestsCount)
-	}
-	// reload config and ensure that it no longer proxy requests to the backend
+	assertBackendRequestsCount(1)
+
+	// reload config and ensure that vmauth no longer proxies requests to the backend
 	vmauth.UpdateConfiguration(t, "")
 	makeGetRequestExpectCode(fmt.Sprintf("http://127.0.0.1:%s/flags", listenPortPrivate), http.StatusUnauthorized)
-	if proxiedRequestsCount != 1 {
-		t.Fatalf("expected to have 1 proxied request, got: %d", proxiedRequestsCount)
-	}
+	assertBackendRequestsCount(1)
 }

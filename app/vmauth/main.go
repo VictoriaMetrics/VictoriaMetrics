@@ -100,7 +100,7 @@ func main() {
 		UseProxyProtocol:     useProxyProtocol,
 		DisableBuiltinRoutes: disableInternalRoutes,
 	}
-	rh := wrapRequstHandlerWithInternalRoutes
+	rh := requestHandlerWithInternalRoutes
 	if disableInternalRoutes {
 		rh = requestHandler
 	}
@@ -139,7 +139,7 @@ func internalRequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	return false
 }
 
-func wrapRequstHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bool {
+func requestHandlerWithInternalRoutes(w http.ResponseWriter, r *http.Request) bool {
 	if internalRequestHandler(w, r) {
 		return true
 	}

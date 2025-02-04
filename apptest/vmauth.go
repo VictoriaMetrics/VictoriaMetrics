@@ -75,3 +75,8 @@ func (app *Vmauth) UpdateConfiguration(t *testing.T, configFileYAML string) {
 	}
 	t.Fatalf("timeout waiting for config reload success")
 }
+
+// GetHTTPListenAddr returns listen http addr
+func (app *Vmauth) GetHTTPListenAddr() string {
+	return app.httpListenAddr
+}
