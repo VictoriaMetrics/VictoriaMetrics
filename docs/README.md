@@ -2597,8 +2597,9 @@ See the full description of flags [here](#list-of-command-line-flags).
 ## Index tuning for low churn rate
 
 By default, VictoriaMetrics uses the following indexes for data retrieval:
-`global` and `per-day`. Both store the same data and on query time VictoriaMetrics can choose between indexes for optimal performance. See [IndexDB](#indexdb) for
-details.
+`global` and `per-day`. Both store the same data and on query time
+VictoriaMetrics can choose between indexes for optimal performance. See
+[IndexDB](#indexdb) for details.
 
 If your use case involves
 [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
@@ -2606,8 +2607,9 @@ with
 [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
 then this default setting should be ideal for you.
 
-A prominent example is Kubernetes. Services in k8s expose big number of series with short life time,
-significantly increasing churn rate. The per-day index speeds up data retrieval in this case.
+A prominent example is Kubernetes. Services in k8s expose big number of series
+with short life time, significantly increasing churn rate. The per-day index
+speeds up data retrieval in this case.
 
 But if your use case assumes low or no churn rate, then you might benefit
 from disabling the per-day index by setting the flag `-disablePerDayIndex`. This
@@ -2634,18 +2636,14 @@ Example use cases:
 
 What to expect:
 
--   If the data was previously ingested with the per-day index enabled and then
-    a search operation is performed with the per-day index disabled, the search
-    result will still be correct, since both indexes (global and per-day)
-    were populated at the ingestion time.
-
--   However, if the data was previously ingested with the per-day index disabled
-    and then the search is performed with the per-day index enabled, the search
-    result will be incorrect. It will either be empty or contain partial data
-    (depending on whether data ingestion happened or not after the flag was set
-    to false). This is because at the time of initial ingestion nothing was
-    written	to the per-day index and at the search time the query is performed
-    on the per-day index.
+-   Disabling per-day index on data that has previously been ingested with
+    enabled per-day index will on affect search results because the global index
+    will be used for searching and it will contain all the necessary mappings to
+    data.
+-   However, enabling per-day index on data that has previously been ingested
+    with disabled per-day index will result in empty search results. In this
+    case the per-day will be used for searching and it will contain no mappings
+    to data.
 
 ## Data migration
 
