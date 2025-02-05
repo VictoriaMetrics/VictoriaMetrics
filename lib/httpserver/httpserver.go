@@ -117,7 +117,7 @@ func Serve(addrs []string, useProxyProtocol *flagutil.ArrayBool, rh RequestHandl
 		if addr == "" {
 			continue
 		}
-		go serve(addr, rh, idx, &opts)
+		go serve(addr, rh, idx, opts)
 	}
 }
 
@@ -126,7 +126,8 @@ func Serve(addrs []string, useProxyProtocol *flagutil.ArrayBool, rh RequestHandl
 // By default all the responses are transparently compressed, since egress traffic is usually expensive.
 //
 // The compression can be disabled by specifying -http.disableResponseCompression command-line flag.
-func ServeWithOpts(addrs []string, rh RequestHandler, opts *ServeOptions) {
+// TODO: rename to Serve and update Serve usage with new signature
+func ServeWithOpts(addrs []string, rh RequestHandler, opts ServeOptions) {
 	if rh == nil {
 		rh = func(_ http.ResponseWriter, _ *http.Request) bool {
 			return false
@@ -140,7 +141,7 @@ func ServeWithOpts(addrs []string, rh RequestHandler, opts *ServeOptions) {
 	}
 }
 
-func serve(addr string, rh RequestHandler, idx int, opts *ServeOptions) {
+func serve(addr string, rh RequestHandler, idx int, opts ServeOptions) {
 	scheme := "http"
 	if tlsEnable.GetOptionalArg(idx) {
 		scheme = "https"

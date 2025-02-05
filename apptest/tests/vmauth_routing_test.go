@@ -39,9 +39,7 @@ unauthorized_user:
      url_prefix: %s
   `, backendWithAuth.URL, backend.URL)
 
-	vmauth := tc.MustStartVmauth("vmauth",
-		nil,
-		authConfig)
+	vmauth := tc.MustStartVmauth("vmauth", nil, authConfig)
 
 	makeGetRequestExpectCode := func(prepareRequest func(*http.Request), expectCode int) {
 		t.Helper()
@@ -147,9 +145,7 @@ unauthorized_user:
 		fmt.Sprintf("-httpInternalListenAddr=127.0.0.1:%s", listenPortPrivate),
 		"-flagsAuthKey=protected",
 	}
-	vmauth := tc.MustStartVmauth("vmauth",
-		vmauthFlags,
-		authConfig)
+	vmauth := tc.MustStartVmauth("vmauth", vmauthFlags, authConfig)
 
 	makeGetRequestExpectCode := func(targetURL string, expectCode int) {
 		t.Helper()

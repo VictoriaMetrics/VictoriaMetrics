@@ -96,15 +96,17 @@ func main() {
 	startTime := time.Now()
 	initAuthConfig()
 	disableInternalRoutes := len(*httpInternalListenAddr) > 0
-	serveOpts := &httpserver.ServeOptions{
-		UseProxyProtocol:     useProxyProtocol,
-		DisableBuiltinRoutes: disableInternalRoutes,
-	}
 	rh := requestHandlerWithInternalRoutes
 	if disableInternalRoutes {
 		rh = requestHandler
 	}
+
+	serveOpts := httpserver.ServeOptions{
+		UseProxyProtocol:     useProxyProtocol,
+		DisableBuiltinRoutes: disableInternalRoutes,
+	}
 	go httpserver.ServeWithOpts(listenAddrs, rh, serveOpts)
+
 	if len(*httpInternalListenAddr) > 0 {
 		go httpserver.Serve(*httpInternalListenAddr, nil, internalRequestHandler)
 	}
