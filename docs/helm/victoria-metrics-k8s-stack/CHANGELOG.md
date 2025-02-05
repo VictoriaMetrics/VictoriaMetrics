@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- Use GrafanaDatasource name sanitizing to fix plugin import
 
 ## 0.35.5
 
