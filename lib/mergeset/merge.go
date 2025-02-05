@@ -101,66 +101,66 @@ func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, prepareBlock Prepa
 var errForciblyStopped = fmt.Errorf("forcibly stopped")
 
 func (bsm *blockStreamMerger) Merge(bsw *blockStreamWriter, ph *partHeader, stopCh <-chan struct{}, itemsMerged *atomic.Uint64) error {
-again:
-	if len(bsm.bsrHeap) == 0 {
-		// Write the last (maybe incomplete) inmemoryBlock to bsw.
-		bsm.flushIB(bsw, ph, itemsMerged)
-		return nil
-	}
-
-	select {
-	case <-stopCh:
-		return errForciblyStopped
-	default:
-	}
-
-	bsr := bsm.bsrHeap[0]
-
-	var nextItem string
-	hasNextItem := false
-	if len(bsm.bsrHeap) > 1 {
-		bsr := bsm.bsrHeap.getNextReader()
-		nextItem = bsr.CurrItem()
-		hasNextItem = true
-	}
-	items := bsr.Block.items
-	data := bsr.Block.data
-	compareEveryItem := true
-	if bsr.currItemIdx < len(items) {
-		// An optimization, which allows skipping costly comparison for every merged item in the loop below.
-		// Thanks to @ahfuzhang for the suggestion at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5651
-		lastItem := items[len(items)-1].String(data)
-		compareEveryItem = hasNextItem && lastItem > nextItem
-	}
-	for bsr.currItemIdx < len(items) {
-		item := items[bsr.currItemIdx].Bytes(data)
-		if compareEveryItem && string(item) > nextItem {
-			break
-		}
-		if !bsm.ib.Add(item) {
-			// The bsm.ib is full. Flush it to bsw and continue.
+	for {
+		if len(bsm.bsrHeap) == 0 {
+			// Write the last (maybe incomplete) inmemoryBlock to bsw.
 			bsm.flushIB(bsw, ph, itemsMerged)
+			return nil
+		}
+
+		select {
+		case <-stopCh:
+			return errForciblyStopped
+		default:
+		}
+
+		bsr := bsm.bsrHeap[0]
+
+		var nextItem string
+		hasNextItem := false
+		if len(bsm.bsrHeap) > 1 {
+			bsr := bsm.bsrHeap.getNextReader()
+			nextItem = bsr.CurrItem()
+			hasNextItem = true
+		}
+		items := bsr.Block.items
+		data := bsr.Block.data
+		compareEveryItem := true
+		if bsr.currItemIdx < len(items) {
+			// An optimization, which allows skipping costly comparison for every merged item in the loop below.
+			// Thanks to @ahfuzhang for the suggestion at https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5651
+			lastItem := items[len(items)-1].String(data)
+			compareEveryItem = hasNextItem && lastItem > nextItem
+		}
+		for bsr.currItemIdx < len(items) {
+			item := items[bsr.currItemIdx].Bytes(data)
+			if compareEveryItem && string(item) > nextItem {
+				break
+			}
+			if !bsm.ib.Add(item) {
+				// The bsm.ib is full. Flush it to bsw and continue.
+				bsm.flushIB(bsw, ph, itemsMerged)
+				continue
+			}
+			bsr.currItemIdx++
+		}
+		if bsr.currItemIdx == len(items) {
+			// bsr.Block is fully read. Proceed to the next block.
+			if bsr.Next() {
+				heap.Fix(&bsm.bsrHeap, 0)
+				continue
+			}
+			if err := bsr.Error(); err != nil {
+				return fmt.Errorf("cannot read storageBlock: %w", err)
+			}
+			heap.Pop(&bsm.bsrHeap)
 			continue
 		}
-		bsr.currItemIdx++
-	}
-	if bsr.currItemIdx == len(items) {
-		// bsr.Block is fully read. Proceed to the next block.
-		if bsr.Next() {
-			heap.Fix(&bsm.bsrHeap, 0)
-			goto again
-		}
-		if err := bsr.Error(); err != nil {
-			return fmt.Errorf("cannot read storageBlock: %w", err)
-		}
-		heap.Pop(&bsm.bsrHeap)
-		goto again
-	}
 
-	// The next item in the bsr.Block exceeds nextItem.
-	// Return bsr to heap.
-	heap.Fix(&bsm.bsrHeap, 0)
-	goto again
+		// The next item in the bsr.Block exceeds nextItem.
+		// Return bsr to heap.
+		heap.Fix(&bsm.bsrHeap, 0)
+	}
 }
 
 func (bsm *blockStreamMerger) flushIB(bsw *blockStreamWriter, ph *partHeader, itemsMerged *atomic.Uint64) {
