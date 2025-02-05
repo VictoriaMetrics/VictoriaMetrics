@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- added ability to override default headless service .Values.server.service.clusterIP with empty value
 
 ## 0.13.8
 

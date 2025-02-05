@@ -2,7 +2,7 @@
 
 ## Next release
 
-- TODO
+- Fix overwrite per service empty registry
 
 ## 0.0.38
 

@@ -1,6 +1,6 @@
 
 
-![Version](https://img.shields.io/badge/0.35.5-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-k8s-stack%2Fchangelog%2F%230355)
+![Version](https://img.shields.io/badge/0.35.6-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-k8s-stack%2Fchangelog%2F%230356)
 ![ArtifactHub](https://img.shields.io/badge/ArtifactHub-informational?logoColor=white&color=417598&logo=artifacthub&link=https%3A%2F%2Fartifacthub.io%2Fpackages%2Fhelm%2Fvictoriametrics%2Fvictoria-metrics-k8s-stack)
 ![License](https://img.shields.io/github/license/VictoriaMetrics/helm-charts?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2Fhelm-charts%2Fblob%2Fmaster%2FLICENSE)
 ![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
@@ -515,8 +515,6 @@ Change the values according to the need of the environment in ``victoria-metrics
     - name: blackhole
 route:
     receiver: blackhole
-templates:
-    - /etc/vm/configs/**/*.tmpl
 </code>
 </pre>
 </td>
@@ -613,6 +611,17 @@ selectAllByDefault: true
 </pre>
 </td>
       <td><p>Extra alert templates</p>
+</td>
+    </tr>
+    <tr>
+      <td>alertmanager.useManagedConfig</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>enable storing .Values.alertmanager.config in VMAlertmanagerConfig instead of k8s Secret</p>
 </td>
     </tr>
     <tr>

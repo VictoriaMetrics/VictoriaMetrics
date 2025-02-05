@@ -145,7 +145,19 @@ Change the values according to the need of the environment in ``victoria-metrics
 </code>
 </pre>
 </td>
-      <td></td>
+      <td><p>use SRV discovery for storageNode and selectNode flags for enterprise version</p>
+</td>
+    </tr>
+    <tr>
+      <td>common.image</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">tag: ""
+</code>
+</pre>
+</td>
+      <td><p>common for all components image configuration</p>
+</td>
     </tr>
     <tr>
       <td>extraObjects</td>
@@ -200,6 +212,17 @@ Change the values according to the need of the environment in ``victoria-metrics
 </pre>
 </td>
       <td><p>Image registry, that can be shared across multiple helm charts</p>
+</td>
+    </tr>
+    <tr>
+      <td>global.image.vm.tag</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Image tag for all vm charts</p>
 </td>
     </tr>
     <tr>
@@ -2632,7 +2655,7 @@ timeoutSeconds: 5
       <td>vmselect.service.clusterIP</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="">
-<code class="language-yaml">""
+<code class="language-yaml">None
 </code>
 </pre>
 </td>
