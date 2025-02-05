@@ -1987,7 +1987,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			// contain MetricName->TSID entries for deleted time series.
 			// See Storage.DeleteSeries code for details.
 
-			if !s.registerSeriesCardinality(r.TSID.MetricID, mr.MetricNameRaw) {
+			if !s.registerSeriesCardinality(genTSID.TSID.MetricID, mr.MetricNameRaw) {
 				// Skip row, since it exceeds cardinality limit
 				j--
 				continue

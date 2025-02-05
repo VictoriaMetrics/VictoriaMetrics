@@ -1696,50 +1696,79 @@ func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 
 	defer testRemoveAll(t)
 
-	f := func(name string, maxHourlySeries int, maxDailySeries int) {
+	f := func(t *testing.T, numRows uint64, maxHourlySeries, maxDailySeries int) {
 		t.Helper()
 
 		rng := rand.New(rand.NewSource(1))
-		numRows := uint64(1000)
 		minTimestamp := time.Now().UnixMilli()
 		maxTimestamp := minTimestamp + 1000
 		mrs := testGenerateMetricRowsForTenant(accountID, projectID, rng, numRows, minTimestamp, maxTimestamp)
 
-		var gotMetrics Metrics
-		path := fmt.Sprintf("%s/%s", t.Name(), name)
-		s := MustOpenStorage(path, 0, maxHourlySeries, maxDailySeries)
-		defer s.MustClose()
+		// Insert metrics into the empty storage. The insertion will take the slow path.
+		s := MustOpenStorage(t.Name(), 0, maxHourlySeries, maxDailySeries)
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
-		s.UpdateMetrics(&gotMetrics)
 
-		if got, want := gotMetrics.RowsReceivedTotal, numRows; got != want {
-			t.Fatalf("unexpected Metrics.RowsReceivedTotal: got %d, want %d", got, want)
-		}
-		if got := gotMetrics.HourlySeriesLimitRowsDropped; maxHourlySeries > 0 && got <= 0 {
-			t.Fatalf("unexpected Metrics.HourlySeriesLimitRowsDropped: got %d, want > 0", got)
-		}
-		if got := gotMetrics.DailySeriesLimitRowsDropped; maxDailySeries > 0 && got <= 0 {
-			t.Fatalf("unexpected Metrics.DailySeriesLimitRowsDropped: got %d, want > 0", got)
+		assertCounts := func(pathName string) {
+			var gotMetrics Metrics
+			s.UpdateMetrics(&gotMetrics)
+
+			if got, want := gotMetrics.RowsReceivedTotal, numRows; got != want {
+				t.Fatalf("[%s] unexpected Metrics.RowsReceivedTotal: got %d, want %d", pathName, got, want)
+			}
+			if got := gotMetrics.HourlySeriesLimitRowsDropped; maxHourlySeries > 0 && got <= 0 {
+				t.Fatalf("[%s] unexpected Metrics.HourlySeriesLimitRowsDropped: got %d, want > 0", pathName, got)
+			}
+			if got := gotMetrics.DailySeriesLimitRowsDropped; maxDailySeries > 0 && got <= 0 {
+				t.Fatalf("[%s] unexpected Metrics.DailySeriesLimitRowsDropped: got %d, want > 0", pathName, got)
+			}
+
+			want := numRows - (gotMetrics.HourlySeriesLimitRowsDropped + gotMetrics.DailySeriesLimitRowsDropped)
+			if got := testCountAllMetricNames(s, accountID, projectID, TimeRange{minTimestamp, maxTimestamp}); uint64(got) != want {
+				t.Fatalf("[%s] unexpected metric name count: %d, want %d", pathName, got, want)
+			}
+
+			if got := gotMetrics.RowsAddedTotal; got != want {
+				t.Fatalf("[%s] unexpected Metrics.RowsAddedTotal: got %d, want %d", pathName, got, want)
+			}
 		}
 
-		want := numRows - (gotMetrics.HourlySeriesLimitRowsDropped + gotMetrics.DailySeriesLimitRowsDropped)
-		if got := testCountAllMetricNames(s, accountID, projectID, TimeRange{minTimestamp, maxTimestamp}); uint64(got) != want {
-			t.Fatalf("unexpected metric name count: %d, want %d", got, want)
-		}
+		assertCounts("Slow Path")
+		s.MustClose()
 
-		if got := gotMetrics.RowsAddedTotal; got != want {
-			t.Fatalf("unexpected Metrics.RowsAddedTotal: got %d, want %d", got, want)
-		}
+		// Open the storage again and insert the same metrics again.
+		// This time tsidCache should have the metric names and the fast path
+		// branch will be executed.
+		s = MustOpenStorage(t.Name(), 0, maxHourlySeries, maxDailySeries)
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		assertCounts("Fast Path")
+		s.MustClose()
+
+		// Open the storage again, drop tsidCache, and insert the same metrics
+		// again. This time tsidCache should not have the metric names so they
+		// will be searched in index. Thus, the insertion takes the slower path.
+		s = MustOpenStorage(t.Name(), 0, maxHourlySeries, maxDailySeries)
+		s.resetAndSaveTSIDCache()
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		assertCounts("Slower Path")
+		s.MustClose()
 	}
 
-	maxHourlySeries := 1
-	maxDailySeries := 0 // No limit
-	f("HourlyLimitExceeded", maxHourlySeries, maxDailySeries)
+	const (
+		numRows         = 1000
+		maxHourlySeries = 500
+		maxDailySeries  = 500
+	)
 
-	maxHourlySeries = 0 // No limit
-	maxDailySeries = 1
-	f("DailyLimitExceeded", maxHourlySeries, maxDailySeries)
+	t.Run("HourlyLimitExceeded", func(t *testing.T) {
+		f(t, numRows, maxHourlySeries, 0)
+	})
+
+	t.Run("DailyLimitExceeded", func(t *testing.T) {
+		f(t, numRows, 0, maxDailySeries)
+	})
 }
 
 // testCountAllMetricNames is a test helper function that counts the names of
