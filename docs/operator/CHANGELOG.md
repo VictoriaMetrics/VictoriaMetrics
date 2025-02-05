@@ -13,11 +13,19 @@ aliases:
 
 ## tip
 
+## [v0.53.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.53.0)
+
+**Release date:** 05 Feb 2025
+
+![AppVersion: v1.110.0](https://img.shields.io/badge/v1.110.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11100)
+![AppVersion: v1.6.1](https://img.shields.io/badge/v1.6.1-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v161)
+
 * SECURITY: upgrade Go builder from Go1.23.4 to Go1.23.5. See the list of issues addressed in [Go1.23.5](https://github.com/golang/go/issues?q=milestone%3AGo1.23.5+label%3ACherryPickApproved).
 
 * Dependency: [vmoperator](https://docs.victoriametrics.com/operator/): Updated default versions for VM apps to v1.110.0 version
 
 * FEATURE: [vmalertmanagerconfig](https://docs.victoriametrics.com/operator/resources/vmalertmanagerconfig/): add `thread_message_id` to `telegram_configs` definition. It's supported by [alertmanager v0.28.0+](https://github.com/prometheus/alertmanager/releases/tag/v0.28.0). See [this issue](https://github.com/VictoriaMetrics/operator/issues/1229) for details.
+* FEATURE: [vlogs](https://docs.victoriametrics.com/operator/resources/vlogs): support VLogs in VMUser targetRefs.crd
 
 * BUGFIX: [vmoperator](https://docs.victoriametrics.com/operator/): properly check `Pod` state during `StatefulSet` rolling upgrade procedure. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1227) for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/operator/resources/vmagent/): properly upscale on `shardCount` change. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1224) for details.
