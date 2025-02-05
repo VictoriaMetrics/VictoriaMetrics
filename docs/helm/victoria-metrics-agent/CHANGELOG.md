@@ -1,6 +1,6 @@
 ## Next release
 
-- TODO
+- added `.Values.allowedMetricsEndpoints` to set allowed scrape endpoints. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1970) for details.
 
 ## 0.15.6
 
