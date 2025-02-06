@@ -1,6 +1,16 @@
 ## Next release
 
+- TODO
+
+## 0.8.15
+
+**Release date:** 06 Feb 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.6.1](https://img.shields.io/badge/v1.6.1-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v161)
+
+- added ability to override default headless service .Values.server.service.clusterIP with empty value
 - vector chart 0.37.x -> 0.40.x
+- updated common dependency 0.0.37 -> 0.0.39
 
 ## 0.8.14
 

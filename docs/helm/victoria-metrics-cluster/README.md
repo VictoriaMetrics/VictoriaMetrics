@@ -1,6 +1,6 @@
 
 
-![Version](https://img.shields.io/badge/0.17.4-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-cluster%2Fchangelog%2F%230174)
+![Version](https://img.shields.io/badge/0.17.6-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-cluster%2Fchangelog%2F%230176)
 ![ArtifactHub](https://img.shields.io/badge/ArtifactHub-informational?logoColor=white&color=417598&logo=artifacthub&link=https%3A%2F%2Fartifacthub.io%2Fpackages%2Fhelm%2Fvictoriametrics%2Fvictoria-metrics-cluster)
 ![License](https://img.shields.io/github/license/VictoriaMetrics/helm-charts?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2Fhelm-charts%2Fblob%2Fmaster%2FLICENSE)
 ![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
@@ -145,7 +145,19 @@ Change the values according to the need of the environment in ``victoria-metrics
 </code>
 </pre>
 </td>
-      <td></td>
+      <td><p>use SRV discovery for storageNode and selectNode flags for enterprise version</p>
+</td>
+    </tr>
+    <tr>
+      <td>common.image</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">tag: ""
+</code>
+</pre>
+</td>
+      <td><p>common for all components image configuration</p>
+</td>
     </tr>
     <tr>
       <td>extraObjects</td>
@@ -200,6 +212,17 @@ Change the values according to the need of the environment in ``victoria-metrics
 </pre>
 </td>
       <td><p>Image registry, that can be shared across multiple helm charts</p>
+</td>
+    </tr>
+    <tr>
+      <td>global.image.vm.tag</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Image tag for all vm charts</p>
 </td>
     </tr>
     <tr>
@@ -682,6 +705,17 @@ loggerFormat: json
 </pre>
 </td>
       <td><p>Init containers for vmauth</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmauth.lifecycle</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Specify pod lifecycle</p>
 </td>
     </tr>
     <tr>
@@ -1489,6 +1523,17 @@ loggerFormat: json
 </pre>
 </td>
       <td><p>Init containers for vminsert</p>
+</td>
+    </tr>
+    <tr>
+      <td>vminsert.lifecycle</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Specify pod lifecycle</p>
 </td>
     </tr>
     <tr>
@@ -2341,6 +2386,17 @@ loggerFormat: json
 </pre>
 </td>
       <td><p>Init containers for vmselect</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmselect.lifecycle</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Specify pod lifecycle</p>
 </td>
     </tr>
     <tr>
@@ -3213,6 +3269,17 @@ loggerFormat: json
 </pre>
 </td>
       <td><p>Init containers for vmstorage</p>
+</td>
+    </tr>
+    <tr>
+      <td>vmstorage.lifecycle</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Specify pod lifecycle</p>
 </td>
     </tr>
     <tr>
