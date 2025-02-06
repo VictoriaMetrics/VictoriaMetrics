@@ -10,7 +10,6 @@ import (
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -849,7 +848,10 @@ func (psw *pipeStatsWriter) writeShardData(psm *pipeStatsGroupMap) {
 func (psp *pipeStatsProcessor) mergeShardsParallel() ([]*pipeStatsGroupMap, error) {
 	shards := psp.shards
 	shardsLen := len(shards)
-	cpusCount := cgroup.AvailableCPUs()
+
+	// set cpusCount to the number of shards, since this is the concurrency limit set by the caller.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8201
+	cpusCount := len(shards)
 
 	if shardsLen == 1 {
 		var psms []*pipeStatsGroupMap
