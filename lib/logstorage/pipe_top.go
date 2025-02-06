@@ -94,7 +94,7 @@ func (pt *pipeTop) newPipeProcessor(workersCount int, stopCh <-chan struct{}, ca
 				pt: pt,
 			},
 		}
-		shards[i].m.init(&shards[i].stateSizeBudget)
+		shards[i].m.init(uint(workersCount), &shards[i].stateSizeBudget)
 	}
 
 	ptp := &pipeTopProcessor{
@@ -136,7 +136,7 @@ type pipeTopProcessorShardNopad struct {
 	pt *pipeTop
 
 	// m holds per-value hits.
-	m hitsMap
+	m hitsMapAdaptive
 
 	// keyBuf is a temporary buffer for building keys for m.
 	keyBuf []byte
@@ -389,21 +389,17 @@ func (ptp *pipeTopProcessor) mergeShardsParallel() []*pipeTopEntry {
 		return nil
 	}
 
-	hms := make([]*hitsMap, 0, len(ptp.shards))
+	hmas := make([]*hitsMapAdaptive, 0, len(ptp.shards))
 	for i := range ptp.shards {
-		hm := &ptp.shards[i].m
-		if hm.entriesCount() > 0 {
-			hms = append(hms, hm)
+		hma := &ptp.shards[i].m
+		if hma.entriesCount() > 0 {
+			hmas = append(hmas, hma)
 		}
 	}
 
-	// set cpusCount to the number of shards, since this is the concurrency limit set by the caller.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8201
-	cpusCount := len(ptp.shards)
-
 	var entries []*pipeTopEntry
 	var entriesLock sync.Mutex
-	hitsMapMergeParallel(hms, cpusCount, ptp.stopCh, func(hm *hitsMap) {
+	hitsMapMergeParallel(hmas, ptp.stopCh, func(hm *hitsMap) {
 		es := getTopEntries(hm, limit, ptp.stopCh)
 		entriesLock.Lock()
 		entries = append(entries, es...)
