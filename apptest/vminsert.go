@@ -2,7 +2,6 @@ package apptest
 
 import (
 	"fmt"
-	"net/http"
 	"regexp"
 	"strings"
 	"testing"
@@ -89,7 +88,7 @@ func (app *Vminsert) InfluxWrite(t *testing.T, records []string, opts QueryOpts)
 	url := fmt.Sprintf("http://%s/insert/%s/influx/write", app.httpListenAddr, opts.getTenant())
 	data := []byte(strings.Join(records, "\n"))
 	app.sendBlocking(t, len(records), func() {
-		app.cli.Post(t, url, "text/plain", data, http.StatusNoContent)
+		app.cli.Post(t, url, "text/plain", data)
 	})
 }
 
@@ -103,7 +102,7 @@ func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries,
 	wr := pb.WriteRequest{Timeseries: records}
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	app.sendBlocking(t, len(records), func() {
-		app.cli.Post(t, url, "application/x-protobuf", data, http.StatusNoContent)
+		app.cli.Post(t, url, "application/x-protobuf", data)
 	})
 }
 
@@ -124,7 +123,7 @@ func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 	}
 	data := []byte(strings.Join(records, "\n"))
 	app.sendBlocking(t, len(records), func() {
-		app.cli.Post(t, url, "text/plain", data, http.StatusNoContent)
+		app.cli.Post(t, url, "text/plain", data)
 	})
 }
 
