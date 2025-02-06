@@ -1,6 +1,14 @@
 ## Next release
 
-- TODO
+- updated common dependency 0.0.37 -> 0.0.39
+
+## 0.15.7
+
+**Release date:** 05 Feb 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.110.0](https://img.shields.io/badge/v1.110.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11100)
+
+- added `.Values.allowedMetricsEndpoints` to set allowed scrape endpoints. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1970) for details.
 
 ## 0.15.6
 
