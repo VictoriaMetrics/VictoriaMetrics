@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
@@ -39,12 +38,9 @@ func GetServerTLSConfig(tlsCertFile, tlsKeyFile, tlsMinVersion string, tlsCipher
 }
 
 func newGetCertificateFunc(tlsCertFile, tlsKeyFile string) func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	var certLock sync.Mutex
 	var certDeadline uint64
 	var cert *tls.Certificate
 	return func(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
-		certLock.Lock()
-		defer certLock.Unlock()
 		if fasttime.UnixTimestamp() > certDeadline {
 			c, err := tls.LoadX509KeyPair(tlsCertFile, tlsKeyFile)
 			if err != nil {
