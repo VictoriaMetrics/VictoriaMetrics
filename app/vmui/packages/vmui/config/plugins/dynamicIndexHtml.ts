@@ -15,10 +15,7 @@ export default function dynamicIndexHtmlPlugin({ mode }) {
         try {
           return await readFile(`./index.${mode}.html`, "utf8");
         } catch (error) {
-          if (error.code === "ENOENT") {
-            return await readFile("./index.html", "utf8");
-          }
-          throw error;
+          return await readFile("./index.html", "utf8");
         }
       }
     } as IndexHtmlTransform
