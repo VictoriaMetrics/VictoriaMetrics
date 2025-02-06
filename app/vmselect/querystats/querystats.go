@@ -144,8 +144,9 @@ func (r *queryStatRecord) key() queryStatKey {
 
 func (qst *queryStatsTracker) getTopByCount(topN int, maxLifetime time.Duration) []queryStatByCount {
 	currentTime := time.Now()
-	qst.mu.Lock()
 	m := make(map[queryStatKey]int)
+
+	qst.mu.Lock()
 	for _, r := range qst.a {
 		if r.matches(currentTime, maxLifetime) {
 			k := r.key()
@@ -179,12 +180,13 @@ type queryStatByCount struct {
 
 func (qst *queryStatsTracker) getTopByAvgDuration(topN int, maxLifetime time.Duration) []queryStatByDuration {
 	currentTime := time.Now()
-	qst.mu.Lock()
 	type countSum struct {
 		count int
 		sum   time.Duration
 	}
 	m := make(map[queryStatKey]countSum)
+
+	qst.mu.Lock()
 	for _, r := range qst.a {
 		if r.matches(currentTime, maxLifetime) {
 			k := r.key()
@@ -223,12 +225,13 @@ type queryStatByDuration struct {
 
 func (qst *queryStatsTracker) getTopBySumDuration(topN int, maxLifetime time.Duration) []queryStatByDuration {
 	currentTime := time.Now()
-	qst.mu.Lock()
 	type countDuration struct {
 		count int
 		sum   time.Duration
 	}
 	m := make(map[queryStatKey]countDuration)
+
+	qst.mu.Lock()
 	for _, r := range qst.a {
 		if r.matches(currentTime, maxLifetime) {
 			k := r.key()
