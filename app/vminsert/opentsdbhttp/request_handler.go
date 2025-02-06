@@ -34,7 +34,7 @@ func InsertHandler(req *http.Request) error {
 		// This is not our link.
 		return fmt.Errorf("unexpected path requested on HTTP OpenTSDB server: %q", path)
 	}
-	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
+	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken, req.Header)
 	if err != nil {
 		return fmt.Errorf("auth error: %w", err)
 	}
