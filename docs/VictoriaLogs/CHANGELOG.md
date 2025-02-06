@@ -16,6 +16,9 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): improve performance for [`stats by (...) ...`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) by up to 30% when it is applied to big number of `by (...)` groups.
+* FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): improve performance for [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe) by up to 30% when it is applied to big number of unique values.
+* FEATURE: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): improve performance for [`count_uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-stats) and [`count_uniq_hash`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq_hash-stats) functions by up to 30% when they are applied to big number of unique values.
 * FEATURE: [`block_stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#block_stats-pipe): return the path to the part where every data block is stored. The path to the part is returned in the `part_path` field. This allows investigating the distribution of data blocks among parts.
 * FEATURE: reduce VictoriaLogs startup time by multiple times when it opens a large datastore with big [retention](https://docs.victoriametrics.com/victorialogs/#retention).
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the `_msg` field to the list of fields for the group view, allowing users to select multiple fields, including `_msg`, for log display.
