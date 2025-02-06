@@ -56,8 +56,6 @@ type Server struct {
 	vmselectConns      *metrics.Counter
 	vmselectConnErrors *metrics.Counter
 
-	indexSearchDuration *metrics.Histogram
-
 	registerMetricNamesRequests *metrics.Counter
 	deleteSeriesRequests        *metrics.Counter
 	labelNamesRequests          *metrics.Counter
@@ -127,8 +125,6 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 
 		vmselectConns:      metrics.NewCounter(fmt.Sprintf(`vm_vmselect_conns{addr=%q}`, addr)),
 		vmselectConnErrors: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_conn_errors_total{addr=%q}`, addr)),
-
-		indexSearchDuration: metrics.NewHistogram(fmt.Sprintf(`vm_index_search_duration_seconds{addr=%q}`, addr)),
 
 		registerMetricNamesRequests: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="registerMetricNames",addr=%q}`, addr)),
 		deleteSeriesRequests:        metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="deleteSeries",addr=%q}`, addr)),
@@ -1030,12 +1026,10 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	defer s.endConcurrentRequest()
 
 	// Initiaialize the search.
-	startTime := time.Now()
 	bi, err := s.api.InitSearch(ctx.qt, &ctx.sq, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}
-	s.indexSearchDuration.UpdateDuration(startTime)
 	defer bi.MustClose()
 
 	// Send empty error message to vmselect.
