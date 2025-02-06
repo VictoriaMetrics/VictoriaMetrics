@@ -58,7 +58,7 @@ services:
       - ./vmsingle/promscrape.yml:/promscrape.yml
 
   grafana:
-    image: grafana/grafana:9.2.7
+    image: grafana/grafana:11.5.0
     depends_on: [vmsingle]
     ports:
       - 3000:3000
