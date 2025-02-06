@@ -1,4 +1,4 @@
-import { AppType } from "../types/appType";
+import { APP_TYPE_LOGS } from "../constants/appType";
 
 const router = {
   home: "/",
@@ -34,15 +34,12 @@ export interface RouterOptions {
   header: RouterOptionsHeader
 }
 
-const { REACT_APP_TYPE } = process.env;
-const isLogsApp = REACT_APP_TYPE === AppType.logs;
-
 const routerOptionsDefault = {
   header: {
     tenant: true,
-    stepControl: !isLogsApp,
-    timeSelector: !isLogsApp,
-    executionControls: !isLogsApp,
+    stepControl: !APP_TYPE_LOGS,
+    timeSelector: !APP_TYPE_LOGS,
+    executionControls: !APP_TYPE_LOGS,
   }
 };
 

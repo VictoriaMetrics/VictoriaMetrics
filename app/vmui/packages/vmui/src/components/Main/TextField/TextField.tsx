@@ -15,6 +15,8 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import TextFieldMessage from "./TextFieldMessage";
 import "./style.scss";
 
+export type TextFieldKeyboardEvent = KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>;
+
 interface TextFieldProps {
   label?: string,
   value?: string | number
@@ -31,7 +33,7 @@ interface TextFieldProps {
   caretPosition?: [number, number]
   onChange?: (value: string) => void
   onEnter?: () => void
-  onKeyDown?: (e: KeyboardEvent) => void
+  onKeyDown?: (e: TextFieldKeyboardEvent) => void
   onFocus?: () => void
   onBlur?: () => void
   onChangeCaret?: (position: [number, number]) => void
@@ -84,7 +86,7 @@ const TextField: FC<TextFieldProps> = ({
     updateCaretPosition(e.currentTarget);
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: TextFieldKeyboardEvent) => {
     onKeyDown && onKeyDown(e);
     const { key, ctrlKey, metaKey } = e;
     const isEnter = key === "Enter";
@@ -95,7 +97,7 @@ const TextField: FC<TextFieldProps> = ({
     }
   };
 
-  const handleKeyUp = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleKeyUp = (e: TextFieldKeyboardEvent) => {
     updateCaretPosition(e.currentTarget);
   };
 

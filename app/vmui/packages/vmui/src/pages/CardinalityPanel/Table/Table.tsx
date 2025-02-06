@@ -15,7 +15,7 @@ const EnhancedTable: FC<TableProps> = ({
   const [orderBy, setOrderBy] = useState<keyof Data>(defaultSortColumn);
 
   const handleRequestSort = (
-    event: MouseEvent<unknown>,
+    event: MouseEvent<HTMLTableCellElement>,
     property: keyof Data,
   ) => {
     const isAsc = orderBy === property && order === "asc";

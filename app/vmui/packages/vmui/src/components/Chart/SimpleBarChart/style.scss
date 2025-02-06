@@ -1,4 +1,5 @@
 @use "src/styles/variables" as *;
+@use 'sass:color';
 
 $color-bar: #33BB55;
 $color-bar-highest: #F79420;
@@ -7,7 +8,7 @@ $color-bar-highest: #F79420;
   display: grid;
   grid-template-columns: auto 1fr;
   height: 100%;
-  padding-bottom: calc($font-size-small/2);
+  padding-bottom: calc($font-size-small / 2);
   overflow: hidden;
 
   &-y-axis {
@@ -54,19 +55,19 @@ $color-bar-highest: #F79420;
       flex-grow: 1;
       width: 100%;
       min-width: 1px;
-      height: calc(100% - ($font-size-small*4));
+      height: calc(100% - ($font-size-small * 4));
       background-color: $color-bar;
       transition: background-color 200ms ease-in;
 
       &:hover {
-        background-color: lighten($color-bar, 10%);
+        background-color: color.scale($color-bar, $lightness: 40%);
       }
 
       &:first-child {
         background-color: $color-bar-highest;
 
         &:hover {
-          background-color: lighten($color-bar-highest, 10%);
+          background-color: color.scale($color-bar-highest, $lightness: 40%);
         }
       }
     }

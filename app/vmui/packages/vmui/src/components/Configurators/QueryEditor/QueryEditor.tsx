@@ -1,7 +1,6 @@
 import React, { FC, useEffect, useRef, useState } from "preact/compat";
-import { KeyboardEvent } from "react";
 import { ErrorTypes } from "../../../types";
-import TextField from "../../Main/TextField/TextField";
+import TextField, { TextFieldKeyboardEvent } from "../../Main/TextField/TextField";
 import "./style.scss";
 import { QueryStats } from "../../../api/types";
 import { partialWarning, seriesFetchedWarning } from "./warningText";
@@ -81,7 +80,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
     setCaretPositionInput([caretPosition, caretPosition]);
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = (e: TextFieldKeyboardEvent) => {
     const { key, ctrlKey, metaKey, shiftKey } = e;
 
     const value = (e.target as HTMLTextAreaElement).value || "";

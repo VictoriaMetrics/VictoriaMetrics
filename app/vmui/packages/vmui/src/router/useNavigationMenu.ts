@@ -2,11 +2,9 @@ import { getAppModeEnable } from "../utils/app-mode";
 import { useDashboardsState } from "../state/dashboards/DashboardsStateContext";
 import { useAppState } from "../state/common/StateContext";
 import { useMemo } from "preact/compat";
-import { AppType } from "../types/appType";
 import { processNavigationItems } from "./utils";
 import { getAnomalyNavigation, getDefaultNavigation, getLogsNavigation } from "./navigation";
-
-const appType = process.env.REACT_APP_TYPE;
+import { APP_TYPE, AppType } from "../constants/appType";
 
 const useNavigationMenu = () => {
   const appModeEnable = getAppModeEnable();
@@ -25,10 +23,10 @@ const useNavigationMenu = () => {
 
 
   const menu = useMemo(() => {
-    switch (appType) {
-      case AppType.logs:
+    switch (APP_TYPE) {
+      case AppType.victorialogs:
         return getLogsNavigation();
-      case AppType.anomaly:
+      case AppType.vmanomaly:
         return getAnomalyNavigation();
       default:
         return getDefaultNavigation(navigationConfig);

@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, KeyboardEvent } from "react";
+import React, { FC, useEffect, useMemo } from "react";
 import { useFetchTopQueries } from "./hooks/useFetchTopQueries";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import TopQueryPanel from "./TopQueryPanel/TopQueryPanel";
@@ -8,7 +8,7 @@ import dayjs from "dayjs";
 import { TopQueryStats } from "../../types";
 import Button from "../../components/Main/Button/Button";
 import { PlayIcon } from "../../components/Main/Icons";
-import TextField from "../../components/Main/TextField/TextField";
+import TextField, { TextFieldKeyboardEvent } from "../../components/Main/TextField/TextField";
 import Alert from "../../components/Main/Alert/Alert";
 import Tooltip from "../../components/Main/Tooltip/Tooltip";
 import "./style.scss";
@@ -55,7 +55,7 @@ const TopQueries: FC = () => {
     setMaxLifetime(value);
   };
 
-  const onKeyDown = (e: KeyboardEvent) => {
+  const onKeyDown = (e: TextFieldKeyboardEvent) => {
     if (e.key === "Enter") fetch();
   };
 

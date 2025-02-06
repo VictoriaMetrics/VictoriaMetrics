@@ -114,7 +114,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
     setStateQuery(prev => prev.filter((q, i) => i !== index));
   };
 
-  const handleToggleHideQuery = (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>, index: number) => {
+  const handleToggleHideQuery = (e: ReactMouseEvent<HTMLButtonElement>, index: number) => {
     const { ctrlKey, metaKey } = e;
     const ctrlMetaKey = ctrlKey || metaKey;
 
@@ -160,7 +160,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
     setHideQuery(prev => prev.includes(i) ? prev.filter(n => n !== i) : prev.map(n => n > i ? n - 1 : n));
   };
 
-  const createHandlerHideQuery = (i: number) => (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
+  const createHandlerHideQuery = (i: number) => (e: ReactMouseEvent<HTMLButtonElement>) => {
     handleToggleHideQuery(e, i);
   };
 

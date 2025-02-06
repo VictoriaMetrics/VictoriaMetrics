@@ -3,10 +3,11 @@ import { useCustomPanelDispatch, useCustomPanelState } from "../../state/customP
 import { ChartIcon, CodeIcon, TableIcon } from "../../components/Main/Icons";
 import Tabs from "../../components/Main/Tabs/Tabs";
 import { DisplayType } from "../../types";
+import { ReactNode } from "react";
 
 type DisplayTab = {
   value: DisplayType
-  icon: JSX.Element
+  icon: ReactNode
   label: string
   prometheusCode: number
 }

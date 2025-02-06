@@ -4,7 +4,7 @@ export const arrayEquals = (a: (string|number)[], b: (string|number)[]) => {
 
 export function groupByMultipleKeys<T>(items: T[], keys: (keyof T)[]): { keys: string[], values: T[] }[] {
   const groups = items.reduce((result, item) => {
-    const compositeKey = keys.map(key => `${key}: ${item[key] || "-"}`).join("|");
+    const compositeKey = keys.map(key => `${String(key)}: ${item[key] || "-"}`).join("|");
 
     (result[compositeKey] = result[compositeKey] || []).push(item);
 

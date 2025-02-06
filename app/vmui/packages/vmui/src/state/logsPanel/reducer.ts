@@ -28,7 +28,7 @@ export function reducer(state: LogsState, action: LogsAction): LogsState {
     case "SET_AUTOCOMPLETE_CACHE": {
       if (state.autocompleteCache.size >= AUTOCOMPLETE_LIMITS.cacheLimit) {
         const firstKey = state.autocompleteCache.keys().next().value;
-        state.autocompleteCache.delete(firstKey);
+        firstKey && state.autocompleteCache.delete(firstKey);
       }
       state.autocompleteCache.set(action.payload.key, action.payload.value);
 

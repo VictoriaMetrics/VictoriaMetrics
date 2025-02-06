@@ -12,13 +12,10 @@ import Timezones from "./Timezones/Timezones";
 import ThemeControl from "../ThemeControl/ThemeControl";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
-import { AppType } from "../../../types/appType";
 import SwitchMarkdownParsing from "../LogsSettings/MarkdownParsing/SwitchMarkdownParsing";
+import { APP_TYPE_LOGS } from "../../../constants/appType";
 
 const title = "Settings";
-
-const { REACT_APP_TYPE } = process.env;
-const isLogsApp = REACT_APP_TYPE === AppType.logs;
 
 export interface ChildComponentHandle {
   handleApply: () => void;
@@ -48,21 +45,21 @@ const GlobalSettings: FC = () => {
 
   const controls = [
     {
-      show: !appModeEnable && !isLogsApp,
+      show: !appModeEnable && !APP_TYPE_LOGS,
       component: <ServerConfigurator
         ref={serverSettingRef}
         onClose={handleClose}
       />
     },
     {
-      show: !isLogsApp,
+      show: !APP_TYPE_LOGS,
       component: <LimitsConfigurator
         ref={limitsSettingRef}
         onClose={handleClose}
       />
     },
     {
-      show: isLogsApp,
+      show: APP_TYPE_LOGS,
       component: <SwitchMarkdownParsing/>
     },
     {

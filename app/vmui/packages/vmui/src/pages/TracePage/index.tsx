@@ -56,10 +56,12 @@ const TracePage: FC = () => {
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (!e.target) return;
+    const target = e.target as HTMLInputElement;
     setErrors([]);
-    const files = Array.from(e.target.files || []);
+    const files = Array.from(target.files || []);
     handleReadFiles(files);
-    e.target.value = "";
+    target.value = "";
   };
 
   const handleTraceDelete = (trace: Trace) => {

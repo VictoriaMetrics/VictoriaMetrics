@@ -8,8 +8,8 @@ import Switch from "../../Main/Switch/Switch";
 import { arrayEquals } from "../../../utils/array";
 import classNames from "classnames";
 import useBoolean from "../../../hooks/useBoolean";
-import TextField from "../../Main/TextField/TextField";
-import { KeyboardEvent, useState } from "react";
+import TextField, { TextFieldKeyboardEvent } from "../../Main/TextField/TextField";
+import { useState } from "react";
 import Modal from "../../Main/Modal/Modal";
 import { useSearchParams } from "react-router-dom";
 
@@ -96,7 +96,7 @@ const TableSettings: FC<TableSettingsProps> = ({
     setIndexFocusItem(-1);
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = (e: TextFieldKeyboardEvent) => {
     const arrowUp = e.key === "ArrowUp";
     const arrowDown = e.key === "ArrowDown";
     const enter = e.key === "Enter";

@@ -14,8 +14,8 @@ interface ButtonProps {
   disabled?: boolean
   children?: ReactNode
   className?: string
-  onClick?: (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => void
-  onMouseDown?: (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => void
+  onClick?: (e: ReactMouseEvent<HTMLButtonElement>) => void
+  onMouseDown?: (e: ReactMouseEvent<HTMLButtonElement>) => void
 }
 
 const Button: FC<ButtonProps> = ({

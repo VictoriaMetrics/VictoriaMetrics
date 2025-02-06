@@ -7,7 +7,7 @@ import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 
 export function EnhancedTableHead(props: EnhancedHeaderTableProps) {
   const { order, orderBy, onRequestSort, headerCells } = props;
-  const createSortHandler = (property: keyof Data) => (event: MouseEvent<unknown>) => {
+  const createSortHandler = (property: keyof Data) => (event: MouseEvent<HTMLTableCellElement>) => {
     onRequestSort(event, property);
   };
 

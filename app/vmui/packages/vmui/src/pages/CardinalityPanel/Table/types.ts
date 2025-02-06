@@ -9,7 +9,7 @@ export interface HeadCell {
 }
 
 export interface EnhancedHeaderTableProps {
-  onRequestSort: (event: MouseEvent<unknown>, property: keyof Data) => void;
+  onRequestSort: (event: MouseEvent<HTMLTableCellElement>, property: keyof Data) => void;
   order: Order;
   orderBy: string;
   rowCount: number;

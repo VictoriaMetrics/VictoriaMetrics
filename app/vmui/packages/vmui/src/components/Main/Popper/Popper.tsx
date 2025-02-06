@@ -1,6 +1,15 @@
-import React, { FC, MouseEvent as ReactMouseEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  FC,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+  createPortal
+} from "react";
 import classNames from "classnames";
-import ReactDOM from "react-dom";
 import "./style.scss";
 import useClickOutside from "../../../hooks/useClickOutside";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
@@ -8,7 +17,6 @@ import Button from "../Button/Button";
 import { CloseIcon } from "../Icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import useEventListener from "../../../hooks/useEventListener";
-import { useCallback } from "preact/compat";
 
 interface PopperProps {
   children: ReactNode
@@ -119,7 +127,7 @@ const Popper: FC<PopperProps> = ({
     return position;
   }, [buttonRef, placement, isOpen, children, fullWidth]);
 
-  const handleClickClose = (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
+  const handleClickClose = (e: ReactMouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     onClose();
   };
@@ -156,7 +164,7 @@ const Popper: FC<PopperProps> = ({
 
   return (
     <>
-      {(isOpen || !popperSize.width) && ReactDOM.createPortal((
+      {(isOpen || !popperSize.width) && createPortal((
         <div
           className={classNames({
             "vm-popper": true,

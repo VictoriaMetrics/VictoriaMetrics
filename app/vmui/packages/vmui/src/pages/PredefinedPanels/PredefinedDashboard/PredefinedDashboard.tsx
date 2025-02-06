@@ -44,7 +44,7 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
     setPanelsWidth(width);
   }, [resize, sizeSection]);
 
-  const handleMouseDown = (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>, i: number) => {
+  const handleMouseDown = (e: ReactMouseEvent<HTMLButtonElement>, i: number) => {
     setResize({
       start: e.clientX,
       target: i,

@@ -6,8 +6,8 @@ const dateColumns = ["date", "timestamp", "time"];
 export function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   const valueA = a[orderBy];
   const valueB = b[orderBy];
-  const parsedValueA = dateColumns.includes(`${orderBy}`) ? dayjs(`${valueA}`).unix() : valueA;
-  const parsedValueB = dateColumns.includes(`${orderBy}`) ? dayjs(`${valueB}`).unix() : valueB;
+  const parsedValueA = dateColumns.includes(String(orderBy)) ? dayjs(`${valueA}`).unix() : valueA;
+  const parsedValueB = dateColumns.includes(String(orderBy)) ? dayjs(`${valueB}`).unix() : valueB;
   if (parsedValueB < parsedValueA) {
     return -1;
   }

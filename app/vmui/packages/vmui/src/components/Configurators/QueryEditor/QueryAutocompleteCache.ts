@@ -36,7 +36,7 @@ export class QueryAutocompleteCache {
   put(key: QueryAutocompleteCacheItem, value: string[]) {
     if (this.map.size >= this.maxSize) {
       const firstKey = this.map.keys().next().value;
-      this.map.delete(firstKey);
+      firstKey && this.map.delete(firstKey);
     }
     this.map.set(JSON.stringify(key), value);
   }

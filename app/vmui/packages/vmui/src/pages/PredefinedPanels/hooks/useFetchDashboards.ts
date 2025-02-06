@@ -3,6 +3,7 @@ import { DashboardSettings, ErrorTypes } from "../../../types";
 import { useAppState } from "../../../state/common/StateContext";
 import { useDashboardsDispatch } from "../../../state/dashboards/DashboardsStateContext";
 import { getAppModeEnable } from "../../../utils/app-mode";
+import { APP_TYPE_VM } from "../../../constants/appType";
 
 const importModule = async (filename: string) => {
   const data = await fetch(`./dashboards/${filename}`);
@@ -34,7 +35,7 @@ export const useFetchDashboards = (): {
   };
 
   const fetchRemoteDashboards = async () => {
-    if (!serverUrl || process.env.REACT_APP_TYPE) return;
+    if (!serverUrl || !APP_TYPE_VM) return;
     setError("");
     setIsLoading(true);
 

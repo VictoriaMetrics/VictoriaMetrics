@@ -1,5 +1,4 @@
-import React, { FC, useCallback, useEffect } from "preact/compat";
-import ReactDOM from "react-dom";
+import React, { FC, useCallback, useEffect, createPortal } from "preact/compat";
 import { CloseIcon } from "../Icons";
 import Button from "../Button/Button";
 import { ReactNode, MouseEvent } from "react";
@@ -58,7 +57,7 @@ const Modal: FC<ModalProps> = ({
   useEventListener("popstate", handlePopstate);
   useEventListener("keyup", handleKeyUp);
 
-  return ReactDOM.createPortal((
+  return createPortal((
     <div
       className={classNames({
         "vm-modal": true,

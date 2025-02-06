@@ -89,7 +89,8 @@ const TimePicker: FC<CalendarTimepickerProps>= ({ selectDate, onChangeTime, onCl
   };
 
   const handleFocusInput = (unit: TimeUnits, e: FocusEvent<HTMLInputElement>) => {
-    e.target.select();
+    const target = e.target as HTMLInputElement;
+    target && target.select();
     setActiveField(unit);
   };
 
