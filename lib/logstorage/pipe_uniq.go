@@ -8,7 +8,6 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -471,7 +470,10 @@ func (pup *pipeUniqProcessor) mergeShardsParallel() []*hitsMap {
 		}
 	}
 
-	cpusCount := cgroup.AvailableCPUs()
+	// set cpusCount to the number of shards, since this is the concurrency limit set by the caller.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8201
+	cpusCount := len(pup.shards)
+
 	hmsResult := make([]*hitsMap, 0, cpusCount)
 	var hmsLock sync.Mutex
 	hitsMapMergeParallel(hms, cpusCount, pup.stopCh, func(hm *hitsMap) {
