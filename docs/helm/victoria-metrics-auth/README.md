@@ -629,6 +629,17 @@ name: ""
 </td>
     </tr>
     <tr>
+      <td>lifecycle</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td><p>Specify pod lifecycle</p>
+</td>
+    </tr>
+    <tr>
       <td>nameOverride</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="">
