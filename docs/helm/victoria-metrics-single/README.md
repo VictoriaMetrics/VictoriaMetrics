@@ -1206,7 +1206,7 @@ scrape_configs:
       <td>server.service.clusterIP</td>
       <td>string</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="">
-<code class="language-yaml">""
+<code class="language-yaml">None
 </code>
 </pre>
 </td>

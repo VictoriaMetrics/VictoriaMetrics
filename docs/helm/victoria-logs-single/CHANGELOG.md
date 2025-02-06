@@ -1,5 +1,6 @@
 ## Next release
 
+- added ability to override default headless service .Values.server.service.clusterIP with empty value
 - vector chart 0.37.x -> 0.40.x
 
 ## 0.8.14

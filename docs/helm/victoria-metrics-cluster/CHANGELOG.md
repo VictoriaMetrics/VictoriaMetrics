@@ -1,6 +1,7 @@
 ## Next release
 
-- TODO
+- added ability to override default headless service `.Values.vmselect.service.clusterIP` with empty value
+- added `.Values.common.image.tag` to set the same tag for all cluster components.
 
 ## 0.17.4
 
