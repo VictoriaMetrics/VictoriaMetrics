@@ -240,11 +240,12 @@ func (cw *configWatcher) mustStop() {
 }
 
 func (cw *configWatcher) setTargets(key TargetType, targets []Target) {
-	cw.targetsMu.Lock()
 	newT := make(map[string]Target)
 	for _, t := range targets {
 		newT[t.Addr()] = t
 	}
+
+	cw.targetsMu.Lock()
 	oldT := cw.targets[key]
 
 	for _, ot := range oldT {
