@@ -1,7 +1,7 @@
 package log
 
 import (
-	"sync"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -9,23 +9,18 @@ import (
 // Logger is using lib/logger for logging
 // but can be suppressed via Suppress method
 type Logger struct {
-	mu       sync.RWMutex
-	disabled bool
+	disabled atomic.Bool
 }
 
 // Suppress whether to ignore message logging.
 // Once suppressed, logging continues to be ignored
 // until logger is un-suppressed.
 func (l *Logger) Suppress(v bool) {
-	l.mu.Lock()
-	l.disabled = v
-	l.mu.Unlock()
+	l.disabled.Store(v)
 }
 
 func (l *Logger) isDisabled() bool {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
-	return l.disabled
+	return l.disabled.Load()
 }
 
 // Errorf logs error message.
