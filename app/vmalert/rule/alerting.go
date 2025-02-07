@@ -9,11 +9,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -50,11 +51,26 @@ type AlertingRule struct {
 }
 
 type alertingRuleMetrics struct {
-	errors        *utils.Counter
-	pending       *utils.Gauge
-	active        *utils.Gauge
-	samples       *utils.Gauge
-	seriesFetched *utils.Gauge
+	set *metrics.Set
+
+	errors        *metrics.Counter
+	pending       *metrics.Gauge
+	active        *metrics.Gauge
+	samples       *metrics.Gauge
+	seriesFetched *metrics.Gauge
+}
+
+func newAlertingRuleMetrics() *alertingRuleMetrics {
+	set := metrics.NewSet()
+	metrics.RegisterSet(set)
+
+	return &alertingRuleMetrics{
+		set: set,
+	}
+}
+
+func (arm *alertingRuleMetrics) close() {
+	metrics.UnregisterSet(arm.set, true)
 }
 
 // NewAlertingRule creates a new AlertingRule
@@ -82,7 +98,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			Debug:                     cfg.Debug,
 		}),
 		alerts:  make(map[uint64]*notifier.Alert),
-		metrics: &alertingRuleMetrics{},
+		metrics: newAlertingRuleMetrics(),
 	}
 
 	entrySize := *ruleUpdateEntriesLimit
@@ -97,7 +113,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 	}
 
 	labels := fmt.Sprintf(`alertname=%q, group=%q, file=%q, id="%d"`, ar.Name, group.Name, group.File, ar.ID())
-	ar.metrics.pending = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
+	ar.metrics.pending = ar.metrics.set.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
 		func() float64 {
 			ar.alertsMu.RLock()
 			defer ar.alertsMu.RUnlock()
@@ -109,7 +125,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			}
 			return float64(num)
 		})
-	ar.metrics.active = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_firing{%s}`, labels),
+	ar.metrics.active = ar.metrics.set.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_firing{%s}`, labels),
 		func() float64 {
 			ar.alertsMu.RLock()
 			defer ar.alertsMu.RUnlock()
@@ -121,13 +137,13 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			}
 			return float64(num)
 		})
-	ar.metrics.errors = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_alerting_rules_errors_total{%s}`, labels))
-	ar.metrics.samples = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_samples{%s}`, labels),
+	ar.metrics.errors = ar.metrics.set.GetOrCreateCounter(fmt.Sprintf(`vmalert_alerting_rules_errors_total{%s}`, labels))
+	ar.metrics.samples = ar.metrics.set.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
 			e := ar.state.getLast()
 			return float64(e.Samples)
 		})
-	ar.metrics.seriesFetched = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_series_fetched{%s}`, labels),
+	ar.metrics.seriesFetched = ar.metrics.set.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_series_fetched{%s}`, labels),
 		func() float64 {
 			e := ar.state.getLast()
 			if e.SeriesFetched == nil {
@@ -147,11 +163,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 
 // close unregisters rule metrics
 func (ar *AlertingRule) close() {
-	ar.metrics.active.Unregister()
-	ar.metrics.pending.Unregister()
-	ar.metrics.errors.Unregister()
-	ar.metrics.samples.Unregister()
-	ar.metrics.seriesFetched.Unregister()
+	ar.metrics.close()
 }
 
 // String implements Stringer interface

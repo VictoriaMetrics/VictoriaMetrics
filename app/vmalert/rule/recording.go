@@ -6,9 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -41,8 +42,20 @@ type RecordingRule struct {
 }
 
 type recordingRuleMetrics struct {
-	errors  *utils.Counter
-	samples *utils.Gauge
+	set *metrics.Set
+
+	errors  *metrics.Counter
+	samples *metrics.Gauge
+}
+
+func newRecordingRuleMetrics() *recordingRuleMetrics {
+	return &recordingRuleMetrics{
+		set: metrics.NewSet(),
+	}
+}
+
+func (m *recordingRuleMetrics) close() {
+	metrics.UnregisterSet(m.set, true)
 }
 
 // String implements Stringer interface
@@ -67,7 +80,7 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		GroupID:   group.ID(),
 		GroupName: group.Name,
 		File:      group.File,
-		metrics:   &recordingRuleMetrics{},
+		metrics:   newRecordingRuleMetrics(),
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:            group.Type.String(),
 			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
@@ -89,8 +102,8 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 	}
 
 	labels := fmt.Sprintf(`recording=%q, group=%q, file=%q, id="%d"`, rr.Name, group.Name, group.File, rr.ID())
-	rr.metrics.errors = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_recording_rules_errors_total{%s}`, labels))
-	rr.metrics.samples = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
+	rr.metrics.errors = rr.metrics.set.GetOrCreateCounter(fmt.Sprintf(`vmalert_recording_rules_errors_total{%s}`, labels))
+	rr.metrics.samples = rr.metrics.set.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
 			e := rr.state.getLast()
 			return float64(e.Samples)
@@ -100,8 +113,7 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 
 // close unregisters rule metrics
 func (rr *RecordingRule) close() {
-	rr.metrics.errors.Unregister()
-	rr.metrics.samples.Unregister()
+	rr.metrics.close()
 }
 
 // execRange executes recording rule on the given time range similarly to Exec.

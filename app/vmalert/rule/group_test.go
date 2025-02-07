@@ -185,6 +185,7 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 		Labels: map[string]string{
 			"foo": "bar",
 		},
+		metrics: newAlertingRuleMetrics(),
 	}
 	g := &Group{
 		Name: "test",
@@ -195,6 +196,7 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 		Interval: 100 * time.Hour,
 		updateCh: make(chan *Group),
 	}
+	g.metrics = newGroupMetrics(g)
 	go g.Start(context.Background(), nil, nil, nil)
 
 	rule1 := AlertingRule{
@@ -203,12 +205,14 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 		Labels: map[string]string{
 			"foo": "bar",
 		},
+		metrics: newAlertingRuleMetrics(),
 	}
 	g1 := &Group{
 		Rules: []Rule{
 			&rule1,
 		},
 	}
+	g1.metrics = newGroupMetrics(g1)
 	g.updateCh <- g1
 	time.Sleep(10 * time.Millisecond)
 	g.mu.RLock()
@@ -224,12 +228,14 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 			"foo": "bar",
 			"baz": "qux",
 		},
+		metrics: newAlertingRuleMetrics(),
 	}
 	g2 := &Group{
 		Rules: []Rule{
 			&rule2,
 		},
 	}
+	g2.metrics = newGroupMetrics(g2)
 	g.updateCh <- g2
 	time.Sleep(10 * time.Millisecond)
 	g.mu.RLock()
