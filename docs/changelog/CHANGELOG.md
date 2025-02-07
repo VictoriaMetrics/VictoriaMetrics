@@ -18,6 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+## [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0)
+
+Released at 2025-02-07
+
 **Update note 1: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and  [vmstorage](https://docs.victoriametrics.com/victoriametrics/) stop exposing `vm_index_search_duration_seconds` histogram metric. This metric records time spent on search operations in the index. It was introduced in [v1.56.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.56.0). However, this metric was used neither in dashboards nor in alerting rules. It also has high cardinality because index search operations latency can differ by 3 orders of magnitude. Hence, dropping it as unused.**
 
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/): improve startup times when opening a storage with the [retention](https://docs.victoriametrics.com/#retention) exceeding a few months.
