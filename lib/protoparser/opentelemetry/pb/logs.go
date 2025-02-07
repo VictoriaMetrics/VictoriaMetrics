@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/easyproto"
 )
 
@@ -169,6 +170,8 @@ type LogRecord struct {
 	SeverityText   string
 	Body           AnyValue
 	Attributes     []*KeyValue
+	TraceID        string
+	SpanID         string
 }
 
 func (lr *LogRecord) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -190,6 +193,8 @@ func (lr *LogRecord) unmarshalProtobuf(src []byte) (err error) {
 	//   string severity_text = 3;
 	//   AnyValue body = 5;
 	//   repeated KeyValue attributes = 6;
+	//   bytes trace_id = 9;
+	//   bytes span_id = 10;
 	// }
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
@@ -240,6 +245,18 @@ func (lr *LogRecord) unmarshalProtobuf(src []byte) (err error) {
 			if err := a.unmarshalProtobuf(data); err != nil {
 				return fmt.Errorf("cannot unmarshal Attribute: %w", err)
 			}
+		case 9:
+			traceID, ok := fc.Bytes()
+			if !ok {
+				return fmt.Errorf("cannot read trace id")
+			}
+			lr.TraceID = bytesutil.ToUnsafeString(traceID)
+		case 10:
+			spanID, ok := fc.Bytes()
+			if !ok {
+				return fmt.Errorf("cannot read span id")
+			}
+			lr.SpanID = bytesutil.ToUnsafeString(spanID)
 		}
 	}
 	return nil
