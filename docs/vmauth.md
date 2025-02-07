@@ -1086,7 +1086,7 @@ It is recommended protecting the following endpoints with authKeys:
 * `/metrics` with `-metricsAuthKey` command-line flag, so unauthorized users couldn't access [vmauth metrics](#monitoring).
 * `/debug/pprof` with `-pprofAuthKey` command-line flag, so unauthorized users couldn't access [profiling information](#profiling).
 
-As an alternative, it's possible to serve internal API routes at the different listen address with command-line flag `-httpInternalListenAddr=127.0.0.1:8426`. {{% available_from "#" %}}
+As an alternative, it's possible to serve internal API routes at the different listen address with command-line flag `-httpInternalListenAddr=127.0.0.1:8426`. {{% available_from "v1.111.0" %}}
 
 `vmauth` also supports the ability to restrict access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
 

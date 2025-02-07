@@ -35,7 +35,7 @@ which means there is no need to define metric names or their labels in advance. 
 metrics anytime.
 
 Actually, the metric name is also a label with a special name `__name__`. 
-The `__name__` key could be omitted {{% available_from "#" %}} for simplicity. So the following series are identical:
+The `__name__` key could be omitted {{% available_from "v1.111.0" %}} for simplicity. So the following series are identical:
 
 ```
 requests_total{path="/", code="200"} 
