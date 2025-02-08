@@ -50,7 +50,7 @@ const LegendConfigs: FC<Props> = ({ data }) => {
         <span className="vm-legend-configs-item__label">Common Labels</span>
         <Switch
           label={hideDuplicates ? "Hide" : "Show"}
-          value={hideDuplicates}
+          value={!hideDuplicates}
           onChange={onChangeDuplicates}
         />
         <span className="vm-legend-configs-item__info">
@@ -78,7 +78,6 @@ const LegendConfigs: FC<Props> = ({ data }) => {
           onChange={onChangeFormat}
           onBlur={onApplyFormat}
           onEnter={onApplyFormat}
-          type="search"
         />
         <span className="vm-legend-configs-item__info vm-legend-configs-item__info_input">
           Customize legend labels with text and &#123;&#123;label_name&#125;&#125; placeholders.
