@@ -1,8 +1,15 @@
-import React, { FC, useMemo } from "preact/compat";
+import React, { FC } from "preact/compat";
 import { LegendItemType } from "../../../../types";
-import LegendItem from "./LegendItem/LegendItem";
 import Accordion from "../../../Main/Accordion/Accordion";
 import "./style.scss";
+import LegendGroup from "./LegendGroup";
+import { useLegendGroup } from "./hooks/useLegendGroup";
+import { useGroupSeries } from "./hooks/useGroupSeries";
+
+export type QueryGroup = {
+  group: number | string;
+  items: LegendItemType[]
+}
 
 interface LegendProps {
   labels: LegendItemType[];
@@ -12,42 +19,34 @@ interface LegendProps {
 }
 
 const Legend: FC<LegendProps> = ({ labels, query, isAnomalyView, onChange }) => {
-  const groups = useMemo(() => {
-    return Array.from(new Set(labels.map(l => l.group)));
-  }, [labels]);
-  const showQueryNum = groups.length > 1;
+  const { groupByLabel } = useLegendGroup();
+  const groupSeries = useGroupSeries({ labels, query, groupByLabel });
 
   return <>
     <div className="vm-legend">
-      {groups.map((group) => (
-        <div
-          className="vm-legend-group"
-          key={group}
-        >
-          <Accordion
-            defaultExpanded={true}
-            title={(
-              <div className="vm-legend-group-title">
-                {showQueryNum && (
-                  <span className="vm-legend-group-title__count">Query {group}: </span>
-                )}
-                <span className="vm-legend-group-title__query">{query[group - 1]}</span>
-              </div>
-            )}
+      <div>
+        {groupSeries.map(({ group, items }) => (
+          <div
+            className="vm-legend-group"
+            key={group}
           >
-            <div>
-              {labels.filter(l => l.group === group).sort((x, y) => (y.median || 0) - (x.median || 0)).map((legendItem: LegendItemType) =>
-                <LegendItem
-                  key={legendItem.label}
-                  legend={legendItem}
-                  isAnomalyView={isAnomalyView}
-                  onChange={onChange}
-                />
+            <Accordion
+              defaultExpanded={true}
+              title={(
+                <div className="vm-legend-group-title">
+                  Group by{groupByLabel ? "" : " query"}: <b>{group}</b>
+                </div>
               )}
-            </div>
-          </Accordion>
-        </div>
-      ))}
+            >
+              <LegendGroup
+                labels={items}
+                isAnomalyView={isAnomalyView}
+                onChange={onChange}
+              />
+            </Accordion>
+          </div>
+        ))}
+      </div>
     </div>
   </>;
 };
