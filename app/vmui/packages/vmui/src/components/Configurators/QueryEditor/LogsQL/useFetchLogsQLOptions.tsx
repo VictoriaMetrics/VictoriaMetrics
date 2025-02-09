@@ -9,6 +9,7 @@ import { useCallback } from "react";
 import { AUTOCOMPLETE_LIMITS } from "../../../../constants/queryAutocomplete";
 import { LogsFiledValues } from "../../../../api/types";
 import { useLogsDispatch, useLogsState } from "../../../../state/logsPanel/LogsStateContext";
+import { useSearchParams } from "react-router-dom";
 
 type FetchDataArgs = {
   urlSuffix: string;
@@ -27,6 +28,8 @@ const icons = {
 };
 
 export const useFetchLogsQLOptions = (contextData?: ContextData) => {
+  const [searchParams] = useSearchParams();
+
   const { serverUrl } = useAppState();
   const { period: { start, end } } = useTimeState();
   const { autocompleteCache } = useLogsState();
@@ -60,11 +63,18 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
   };
 
   const fetchData = async ({ urlSuffix, setter, type, params }: FetchDataArgs) => {
-    // if (!value && type === TypeData.metric) return;
     abortControllerRef.current.abort();
     abortControllerRef.current = new AbortController();
     const { signal } = abortControllerRef.current;
-    const key = `${urlSuffix}?${params?.toString()}`;
+
+    const tenant = {
+      AccountID: searchParams.get("accountID") || "0",
+      ProjectID: searchParams.get("projectID") || "0"
+    };
+    const tenantString = new URLSearchParams(tenant).toString();
+
+    const key = `${urlSuffix}?${params?.toString()}&${tenantString}`;
+
     setLoading(true);
     try {
       const cachedData = autocompleteCache.get(key);
@@ -73,7 +83,12 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
         setLoading(false);
         return;
       }
-      const response = await fetch(`${serverUrl}/select/logsql/${urlSuffix}?${params}`, { signal });
+
+      const response = await fetch(`${serverUrl}/select/logsql/${urlSuffix}?${params}`, {
+        signal,
+        headers: { ...tenant }
+      });
+
       if (response.ok) {
         const data = await response.json();
         const value = (data?.values || []) as LogsFiledValues[];
