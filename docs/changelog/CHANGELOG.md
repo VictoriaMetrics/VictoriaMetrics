@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
+
 ## [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0)
 
 Released at 2025-02-07
