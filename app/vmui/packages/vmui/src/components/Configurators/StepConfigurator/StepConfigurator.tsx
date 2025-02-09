@@ -14,6 +14,7 @@ import Popper from "../../Main/Popper/Popper";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
 import useBoolean from "../../../hooks/useBoolean";
+import { useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 
 const StepConfigurator: FC = () => {
   const appModeEnable = getAppModeEnable();
@@ -22,12 +23,13 @@ const StepConfigurator: FC = () => {
   const { customStep: value, isHistogram } = useGraphState();
   const { period: { step, end, start } } = useTimeState();
   const graphDispatch = useGraphDispatch();
+  const { displayType } = useCustomPanelState();
 
   const prevDuration = usePrevious(end - start);
 
   const defaultStep = useMemo(() => {
-    return getStepFromDuration(end - start, isHistogram);
-  }, [step, isHistogram]);
+    return getStepFromDuration(end - start, isHistogram, displayType);
+  }, [step, isHistogram, displayType]);
 
   const [customStep, setCustomStep] = useState(value || defaultStep);
   const [error, setError] = useState("");
@@ -109,7 +111,7 @@ const StepConfigurator: FC = () => {
 
   useEffect(() => {
     if (step === value || step === defaultStep) handleApply(defaultStep);
-  }, [isHistogram]);
+  }, [isHistogram, displayType]);
 
   return (
     <div

@@ -30,6 +30,7 @@ Released at 2025-02-10
 
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/): improve startup times when opening a storage with the [retention](https://docs.victoriametrics.com/#retention) exceeding a few months.
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to switch the heatmap to a line chart. Now, vmui would suggest to switch to line graph display if heatmap can't be properly rendered. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8057).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): automatically calculate `step` as `end - start` by default when switching to Table or JSON view in instant queries. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8240).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): add `-httpInternalListenAddr` cmd-line flag to serve internal HTTP routes `/metrics`, `/flags`, etc. It allows properly route requests to backends with the same service routes as vmauth. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6468) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7345) for details.
 * FEATURE: expose `/-/healthy` and `/-/ready` endpoints as Prometheus does on vmselect endpoints, thus achieving full Prometheus compatibility for external dependencies.
 
