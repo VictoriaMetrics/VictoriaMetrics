@@ -7,7 +7,7 @@
 ![X](https://img.shields.io/twitter/follow/VictoriaMetrics?style=flat&label=Follow&color=black&logo=x&labelColor=black&link=https%3A%2F%2Fx.com%2FVictoriaMetrics)
 ![Reddit](https://img.shields.io/reddit/subreddit-subscribers/VictoriaMetrics?style=flat&label=Join&labelColor=red&logoColor=white&logo=reddit&link=https%3A%2F%2Fwww.reddit.com%2Fr%2FVictoriaMetrics)
 
-Victoria Metrics Gateway - Auth & Rate-Limitting proxy for Victoria Metrics
+Victoria Metrics Gateway - Auth & Rate-Limiting proxy for Victoria Metrics
 
 # Table of Content
 
