@@ -18,15 +18,26 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
+
+## [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0)
+
+Released at 2025-02-07
+
+**Update note 1: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and  [vmstorage](https://docs.victoriametrics.com/victoriametrics/) stop exposing `vm_index_search_duration_seconds` histogram metric. This metric records time spent on search operations in the index. It was introduced in [v1.56.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.56.0). However, this metric was used neither in dashboards nor in alerting rules. It also has high cardinality because index search operations latency can differ by 3 orders of magnitude. Hence, dropping it as unused.**
+
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/): improve startup times when opening a storage with the [retention](https://docs.victoriametrics.com/#retention) exceeding a few months.
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to switch the heatmap to a line chart. Now, vmui would suggest to switch to line graph display if heatmap can't be properly rendered. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8057).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add legend customization options - table view, hiding common values, grouping by label, and custom label format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8031) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8263).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth/): add `-httpInternalListenAddr` cmd-line flag to serve internal HTTP routes `/metrics`, `/flags`, etc. It allows properly route requests to backends with the same service routes as vmauth. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6468) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7345) for details.
+* FEATURE: expose `/-/healthy` and `/-/ready` endpoints as Prometheus does on vmselect endpoints, thus achieving full Prometheus compatibility for external dependencies.
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly perform graceful shutdown for kafka client.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): properly add message metadata headers for kafka remoteWrite target.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): improve clipboard error handling in tables and code snippets by showing detailed messages with possible reasons. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7778).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui) for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html) components: properly display enterprise features when the enterprise version is used.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): fix discrepancies when using `or` binary operator. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7759) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7640) issues for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly update number of unique series for [cardinality limiter](https://docs.victoriametrics.com/#cardinality-limiter) on ingestion. Previously, limit could undercount the real number of the ingested unique series. 
 
 ## [v1.102.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.12)
 
@@ -155,7 +166,6 @@ Released at 2025-01-14
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth/): properly handle discovery for ipv6 addresses. Thanks to @badie for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7955).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): fix support for migrating influx series without any tag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7921). Thanks to @bitbidu for reporting.
 * BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): storage nodes defined in `-storageNode` are now sorted, ensuring that varying node orders across different vminsert instances do not result in inconsistent replication.
-
 
 ## [v1.97.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.97.15)
 

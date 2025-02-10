@@ -8,11 +8,6 @@
     text-transform: none;
   }
 
-  &__value {
-    display: inline;
-    margin-left: 3px;
-  }
-
   &-popper {
     display: grid;
     gap: $padding-small;

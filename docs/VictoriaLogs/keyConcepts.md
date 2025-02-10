@@ -146,7 +146,8 @@ The timestamp field must be in one of the following formats:
   If timezone information is missing (for example, `2023-06-20 15:32:10`),
   then the time is parsed in the local timezone of the host where VictoriaLogs runs.
 
-- Unix timestamp in seconds or in milliseconds. For example, `1686026893` (seconds) or `1686026893735` (milliseconds).
+- Unix timestamp in seconds, milliseconds, microseconds or nanoseconds. For example, `1686026893` (seconds), `1686026893735` (milliseconds),
+  `1686026893735321` (microseconds) or `1686026893735321098` (nanoseconds).
 
 For example, the following [log entry](#data-model) contains valid timestamp with millisecond precision in the `_time` field:
 

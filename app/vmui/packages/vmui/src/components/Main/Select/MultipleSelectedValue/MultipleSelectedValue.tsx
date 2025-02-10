@@ -11,7 +11,7 @@ interface MultipleSelectedValueProps {
 const MultipleSelectedValue: FC<MultipleSelectedValueProps> = ({ values, onRemoveItem }) => {
   const { isMobile } = useDeviceDetect();
 
-  const createHandleClick = (value: string) => (e: MouseEvent) => {
+  const createHandleClick = (value: string) => (e: MouseEvent<HTMLDivElement>) => {
     onRemoveItem(value);
     e.stopPropagation();
   };

@@ -43,10 +43,10 @@ Enhance your knowledge with our handbook on Anomaly Detection & Root Cause Analy
     - [Introduction to Time Series Anomaly Detection](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/)
     - [Types of Anomalies in Time Series Data](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/)
     - [Techniques and Models for Anomaly Detection](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-3/)
-* Follow the [`#anomaly-detection`](https://victoriametrics.com/blog/tags/anomaly-detection/) tag in our blog
+* Follow the [`#anomaly-detection`](https://victoriametrics.com/tags/anomaly-detection/) tag in our blog
 
 ## Product Updates
-Stay up-to-date with the latest improvements and features in VictoriaMetrics Anomaly Detection, and the rest of our products on our [blog](https://victoriametrics.com/blog/tags/product-updates/).
+Stay up-to-date with the latest improvements and features in VictoriaMetrics Anomaly Detection, and the rest of our products on our [blog](https://victoriametrics.com/tags/product-updates/).
 
 ## Frequently Asked Questions (FAQ)
 Got questions about VictoriaMetrics Anomaly Detection? Chances are, we've got the answers ready for you. 

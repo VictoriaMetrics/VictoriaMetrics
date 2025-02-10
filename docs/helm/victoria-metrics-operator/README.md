@@ -1,6 +1,6 @@
 
 
-![Version](https://img.shields.io/badge/0.41.0-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-operator%2Fchangelog%2F%230410)
+![Version](https://img.shields.io/badge/0.41.1-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-operator%2Fchangelog%2F%230411)
 ![ArtifactHub](https://img.shields.io/badge/ArtifactHub-informational?logoColor=white&color=417598&logo=artifacthub&link=https%3A%2F%2Fartifacthub.io%2Fpackages%2Fhelm%2Fvictoriametrics%2Fvictoria-metrics-operator)
 ![License](https://img.shields.io/github/license/VictoriaMetrics/helm-charts?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2Fhelm-charts%2Fblob%2Fmaster%2FLICENSE)
 ![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
@@ -809,6 +809,9 @@ labels: {}
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
+fsGroup: 2000
+runAsNonRoot: true
+runAsUser: 1000
 </code>
 </pre>
 </td>
@@ -936,7 +939,12 @@ view:
       <td>securityContext</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
-<code class="language-yaml">enabled: true
+<code class="language-yaml">allowPrivilegeEscalation: false
+capabilities:
+    drop:
+        - ALL
+enabled: true
+readOnlyRootFilesystem: true
 </code>
 </pre>
 </td>
