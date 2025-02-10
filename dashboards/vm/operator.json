@@ -33,7 +33,7 @@
     {
       "collapsed": false,
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -47,7 +47,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "refId": "A"
@@ -58,7 +58,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -81,7 +81,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "refId": "A"
@@ -92,7 +92,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Number of objects at kubernetes cluster per each controller",
@@ -147,7 +147,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -162,7 +162,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "fieldConfig": {
@@ -215,7 +215,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -234,7 +234,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": " Shows per namespace watchers for VictoriaMetrics Operator objects (ServiceMonitors, PodMonitors, etc) ",
@@ -288,11 +288,11 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(operator_victoriametrics-datasource_converter_active_watchers)",
+          "expr": "sum(operator_victoriametrics-metrics-datasource_converter_active_watchers)",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -304,7 +304,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": " Number of operator instances with obtained leader status. \n Value above 1 indicates that instances with the same job may behave incorrectly.\n It's recommend to check Operator logs. ",
@@ -358,7 +358,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -374,7 +374,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": " Shows number of active reconcile workers",
@@ -428,7 +428,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -444,7 +444,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": " Shows amount of VictoriaMetrics Operator objects processed by Operator.",
@@ -527,11 +527,11 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(operator_victoriametrics-datasource_converter_watch_events_total{job=~\"$job\"}[$__interval])) by (event_type,object_type_name)",
+          "expr": "sum(rate(operator_victoriametrics-metrics-datasource_converter_watch_events_total{job=~\"$job\"}[$__interval])) by (event_type,object_type_name)",
           "instant": false,
           "legendFormat": "{{object_type_name}} {{event_type}}",
           "range": true,
@@ -543,7 +543,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "fieldConfig": {
@@ -627,7 +627,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -642,7 +642,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
@@ -727,7 +727,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -743,7 +743,7 @@
     {
       "collapsed": false,
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -757,7 +757,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "refId": "A"
@@ -768,7 +768,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Non zero metrics indicates about error with CR object definition (typos or incorrect values) or errors with kubernetes API connection.",
@@ -852,7 +852,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -865,7 +865,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -881,7 +881,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Operator limits number of reconcile configuration events to 5 events per 2 seconds by default.",
@@ -965,7 +965,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -980,7 +980,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Number of objects waiting in the queue for reconciliation. Non-zero values indicate that operator cannot process CR objects changes with the given resources.",
@@ -1064,7 +1064,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1079,7 +1079,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": " For controllers with StatefulSet it's ok to see latency greater then 3 seconds. It could be vmalertmanager,vmcluster or vmagent in statefulMode.\n\n For other controllers, latency greater then 2 second may indicate issues with kubernetes cluster or operator's performance.\n ",
@@ -1165,7 +1165,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1180,7 +1180,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Number of HTTP requests to the Kubernetes API server break down by code and method",
@@ -1262,7 +1262,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1278,7 +1278,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Shows how many ongoing reconcile events are taking place, where:\n* `max` - equal to the value of flag`-controller.maxConcurrentReconciles`;\n* `current` - current number of reconcile workers processing CRD objects.\n\nWhen `current` hits `max` constantly, it means operator cannot process events in time. It should be either increased value for flag `-controller.maxConcurrentReconciles` or allocated  additional CPU resources to the operator.",
@@ -1377,7 +1377,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1389,7 +1389,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1406,7 +1406,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": "Shows the time goroutines have spent in runnable state before actually running. The lower is better.\n\nHigh values or values exceeding the threshold is usually a sign of insufficient CPU resources or CPU throttling. \n\nVerify that service has enough CPU resources. Otherwise, the service could work unreliably with delays in processing.",
@@ -1486,7 +1486,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1502,7 +1502,7 @@
     },
     {
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "description": " Requests latency to the Kubernetes API server.",
@@ -1585,7 +1585,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1602,7 +1602,7 @@
     {
       "collapsed": true,
       "datasource": {
-        "type": "victoriametrics-datasource",
+        "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -1615,7 +1615,7 @@
       "panels": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -1699,7 +1699,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -1710,7 +1710,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -1722,7 +1722,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -1734,7 +1734,7 @@
             },
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -1750,7 +1750,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -1830,7 +1830,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -1845,7 +1845,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -1925,7 +1925,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -1940,7 +1940,7 @@
         },
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -2023,7 +2023,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "victoriametrics-datasource",
+                "type": "victoriametrics-metrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -2040,7 +2040,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "victoriametrics-datasource",
+            "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
           "refId": "A"
@@ -2065,7 +2065,7 @@
         "multi": false,
         "name": "ds",
         "options": [],
-        "query": "victoriametrics-datasource",
+        "query": "victoriametrics-metrics-datasource",
         "queryValue": "te",
         "refresh": 1,
         "regex": "",
@@ -2075,7 +2075,7 @@
       {
         "current": {},
         "datasource": {
-          "type": "victoriametrics-datasource",
+          "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "definition": "label_values(operator_log_messages_total,job)",
@@ -2097,7 +2097,7 @@
       {
         "current": {},
         "datasource": {
-          "type": "victoriametrics-datasource",
+          "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "definition": "label_values(operator_log_messages_total{job=~\"$job\"},instance)",
@@ -2119,7 +2119,7 @@
       {
         "current": {},
         "datasource": {
-          "type": "victoriametrics-datasource",
+          "type": "victoriametrics-metrics-datasource",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=\"$job\", instance=\"$instance\"},  version)",

@@ -107,10 +107,8 @@ func mustOpenFilePart(pt *partition, path string) *part {
 	// Read columnNames
 	if p.ph.FormatVersion >= 1 {
 		columnNamesReader := filestream.MustOpen(columnNamesPath, true)
-		var crs readerWithStats
-		crs.init(columnNamesReader)
 		p.columnNames, p.columnNameIDs = mustReadColumnNames(columnNamesReader)
-		crs.MustClose()
+		columnNamesReader.MustClose()
 	}
 
 	// Read metaindex

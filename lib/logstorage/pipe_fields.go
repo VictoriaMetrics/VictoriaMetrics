@@ -62,6 +62,10 @@ func (pf *pipeFields) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc)
 	return pf, nil
 }
 
+func (pf *pipeFields) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pf *pipeFields) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeFieldsProcessor{
 		pf:     pf,

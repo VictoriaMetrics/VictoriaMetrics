@@ -88,6 +88,38 @@ func (t *Tracer) NewChild(format string, args ...any) *Tracer {
 	return child
 }
 
+// NewOrphan returns a new Tracer without registering it as t child.
+//
+// The returned Tracer should be added to the parent manually via AddChild() call.
+//
+// NewOrphan cannot be called from concurrent goroutines.
+// Create orphaned Tracers from a single goroutine and then pass them
+// to concurrent goroutines instead.
+func NewOrphan(t *Tracer, format string, args ...any) *Tracer {
+	if t == nil {
+		return nil
+	}
+	if t.isDone.Load() {
+		panic(fmt.Errorf("BUG: NewOrphan() cannot be called after Donef(%q) call", t.message))
+	}
+	child := &Tracer{
+		message:   fmt.Sprintf(format, args...),
+		startTime: time.Now(),
+	}
+	return child
+}
+
+// AddChild registers given child tracer at t.
+func (t *Tracer) AddChild(child *Tracer) {
+	if t == nil {
+		return
+	}
+	if t.isDone.Load() {
+		panic(fmt.Errorf("BUG: AddChild() cannot be called after Donef(%q) call", t.message))
+	}
+	t.children = append(t.children, child)
+}
+
 // Done finishes t.
 //
 // Done cannot be called multiple times.

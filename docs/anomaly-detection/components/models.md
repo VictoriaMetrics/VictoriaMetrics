@@ -389,7 +389,7 @@ Every other model that isn't [online](#online-models). Offline models are comple
 VictoriaMetrics Anomaly Detection models support 2 groups of parameters:
 
 - **`vmanomaly`-specific** arguments - please refer to *Parameters specific for vmanomaly* and *Default model parameters* subsections for each of the models below.
-- Arguments to **inner model** (say, [Facebook's Prophet](https://facebook.github.io/prophet/docs/quick_start.html#python-api)), passed in a `args` argument as key-value pairs, that will be directly given to the model during initialization to allow granular control. Optional.
+- Arguments to **inner model** (say, [Facebook's Prophet](https://facebook.github.io/prophet/docs/quick_start#python-api)), passed in a `args` argument as key-value pairs, that will be directly given to the model during initialization to allow granular control. Optional.
 
 > **Note**: For users who may not be familiar with Python data types such as `list[dict]`, a [dictionary](https://www.w3schools.com/python/python_dictionaries.asp) in Python is a data structure that stores data values in key-value pairs. This structure allows for efficient data retrieval and management.
 
@@ -418,7 +418,7 @@ Tuning hyperparameters of a model can be tricky and often requires in-depth know
 * `tuned_class_name` (string) - Built-in model class to tune, i.e. `model.zscore.ZscoreModel` (or `zscore`with class alias support{{% available_from "v1.13.0" anomaly %}}).
 * `optimization_params` (dict) - Optimization parameters for unsupervised model tuning. Control % of found anomalies, as well as a tradeoff between time spent and the accuracy. The more `timeout` and `n_trials` are, the better model configuration can be found for `tuned_class_name`, but the longer it takes and vice versa. Set `n_jobs` to `-1` to use all the CPUs available, it makes sense if only you have a big dataset to train on during `fit` calls, otherwise overhead isn't worth it.
   - `anomaly_percentage` (float) - Expected percentage of anomalies that can be seen in training data, from (0, 0.5) interval.
-  - `optimized_business_params` (list[string]) - Starting from [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/v1150) this argument allows particular business-specific parameters such as [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) or [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to remain **unchanged during optimizations, retaining their default values**. I.e. setting `optimized_business_params` to  `['detection_direction']` will allow to optimize only `detection_direction` business-specific arg, while `min_dev_from_expected` will retain its default value (0.0). By default and if not set, will be equal to `[]` (empty list), meaning no business params will be optimized. **A recommended option is to leave it empty** for more stable results and increased convergence (less iterations needed for a good result).
+  - `optimized_business_params` (list[string]) - Starting from [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1150) this argument allows particular business-specific parameters such as [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) or [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to remain **unchanged during optimizations, retaining their default values**. I.e. setting `optimized_business_params` to  `['detection_direction']` will allow to optimize only `detection_direction` business-specific arg, while `min_dev_from_expected` will retain its default value (0.0). By default and if not set, will be equal to `[]` (empty list), meaning no business params will be optimized. **A recommended option is to leave it empty** for more stable results and increased convergence (less iterations needed for a good result).
   - `seed` (int) - Random seed for reproducibility and deterministic nature of underlying optimizations.
   - `n_splits` (int) - How many folds to create for hyperparameter tuning out of your data. The higher, the longer it takes but the better the results can be. Defaults to 3.
   - `n_trials` (int) - How many trials to sample from hyperparameter search space. The higher, the longer it takes but the better the results can be. Defaults to 128.
@@ -451,7 +451,7 @@ models:
 
 
 ### [Prophet](https://facebook.github.io/prophet/)
-`vmanomaly` uses the Facebook Prophet implementation for time series forecasting, with detailed usage provided in the [Prophet library documentation](https://facebook.github.io/prophet/docs/quick_start.html#python-api). All original Prophet parameters are supported and can be directly passed to the model via `args` argument.
+`vmanomaly` uses the Facebook Prophet implementation for time series forecasting, with detailed usage provided in the [Prophet library documentation](https://facebook.github.io/prophet/docs/quick_start#python-api). All original Prophet parameters are supported and can be directly passed to the model via `args` argument.
 
 
 > **Note**: `ProphetModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
@@ -462,7 +462,7 @@ models:
 *Parameters specific for vmanomaly*:
 
 - `class` (string) - model class name `"model.prophet.ProphetModel"` (or `prophet` with class alias support{{% available_from "v1.13.0" anomaly %}})
-- `seasonalities` (list[dict], optional): Additional seasonal components to include in Prophet. See Prophet’s [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors.html#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) documentation for details.
+- `seasonalities` (list[dict], optional): Additional seasonal components to include in Prophet. See Prophet’s [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) documentation for details.
 - `scale`{{% available_from "v1.18.0" anomaly %}} (float): Is used to adjust the margin between `yhat` and [`yhat_lower`, `yhat_upper`]. New margin = `|yhat_* - yhat_lower| * scale`. Defaults to 1 (no scaling is applied).
 - `tz_aware`{{% available_from "v1.18.0" anomaly %}} (bool): Enables handling of timezone-aware timestamps. Default is `False`. Should be used with `tz_seasonalities` and `tz_use_cyclical_encoding` parameters.
 - `tz_seasonalities`{{% available_from "v1.18.0" anomaly %}} (list[dict]): Specifies timezone-aware seasonal components. Requires `tz_aware=True`. Supported options include `minute`, `hod` (hour of day), `dow` (day of week), and `month` (month of year). Starting with [v1.18.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1182), users can configure additional parameters for each seasonality, such as `fourier_order`, `prior_scale`, and `mode`. For more details, please refer to the **Timezone-unaware** configuration example below.
@@ -495,9 +495,9 @@ models:
         fourier_order: 30
         prior_scale: 20
     # inner model args (key-value pairs) accepted by
-    # https://facebook.github.io/prophet/docs/quick_start.html#python-api
+    # https://facebook.github.io/prophet/docs/quick_start#python-api
     args:
-      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals.html
+      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals
       country_holidays: 'US'
 ```
 
@@ -517,9 +517,9 @@ models:
       - name: 'dow'  # intra-week seasonality, time of the week
         fourier_order: 2  # keep it 2-4, as dependencies are learned separately for each weekday
     # inner model args (key-value pairs) accepted by
-    # https://facebook.github.io/prophet/docs/quick_start.html#python-api
+    # https://facebook.github.io/prophet/docs/quick_start#python-api
     args:
-      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals.html
+      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals
       country_holidays: 'US'
 ```
 
@@ -578,7 +578,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 > **Note**: `HoltWinters` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
 
-Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html). All parameters from this library can be passed to the model.
+Here we use Holt-Winters Exponential Smoothing implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing). All parameters from this library can be passed to the model.
 
 *Parameters specific for vmanomaly*:
 
@@ -596,11 +596,11 @@ Used to compute "seasonal_periods" param for the model (e.g. '1D' or '1W').
 
 *Default model parameters*:
 
-* If [parameter](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters) `seasonal` is not specified, default value will be `add`.
+* If [parameter](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters) `seasonal` is not specified, default value will be `add`.
 
-* If [parameter](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters) `initialization_method` is not specified, default value will be `estimated`.
+* If [parameter](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters) `initialization_method` is not specified, default value will be `estimated`.
 
-* `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters). Defaults to empty (not provided). Example:  {"seasonal": "add", "initialization_method": "estimated"}
+* `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing#statsmodels.tsa.holtwinters.ExponentialSmoothing-parameters). Defaults to empty (not provided). Example:  {"seasonal": "add", "initialization_method": "estimated"}
 
 *Config Example*
 
@@ -746,7 +746,7 @@ Resulting metrics of the model are described [here](#vmanomaly-output).
 
 > **Note**: `StdModel` is a [univariate](#univariate-models), [rolling](#rolling-models), [offline](#offline-models) model.
 
-Here we use Seasonal Decompose implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose.html). Parameters from this library can be passed to the model. Some parameters are specifically predefined in `vmanomaly` and can't be changed by user(`model`='additive', `two_sided`=False).
+Here we use Seasonal Decompose implementation from `statsmodels` [library](https://www.statsmodels.org/dev/generated/statsmodels.tsa.seasonal.seasonal_decompose). Parameters from this library can be passed to the model. Some parameters are specifically predefined in `vmanomaly` and can't be changed by user(`model`='additive', `two_sided`=False).
 
 *Parameters specific for vmanomaly*:
 
@@ -784,7 +784,7 @@ Detects anomalies using binary trees. The algorithm has a linear time complexity
 
 **Important**: Be aware of [the curse of dimensionality](https://en.wikipedia.org/wiki/Curse_of_dimensionality). Don't use single multivariate model if you expect your queries to return many time series of less datapoints that the number of metrics. In such case it is hard for a model to learn meaningful dependencies from too sparse data hypercube.
 
-Here we use Isolation Forest implementation from `scikit-learn` [library](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html). All parameters from this library can be passed to the model.
+Here we use Isolation Forest implementation from `scikit-learn` [library](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest). All parameters from this library can be passed to the model.
 
 *Parameters specific for vmanomaly*:
 
@@ -801,7 +801,7 @@ Here we use Isolation Forest implementation from `scikit-learn` [library](https:
     - "dow" - day of week (1-7)
     - "month" - month of year (1-12)
 
-* `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html). Defaults to empty (not provided). Example:  {"random_state": 42, "n_estimators": 100}
+* `args` (dict, optional) - Inner model args (key-value pairs). See accepted params in [model documentation](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest). Defaults to empty (not provided). Example:  {"random_state": 42, "n_estimators": 100}
 
 *Config Example*
 
@@ -994,7 +994,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.18.8
+docker pull victoriametrics/vmanomaly:v1.19.2
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1008,7 +1008,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.18.8 /config.yaml \
+victoriametrics/vmanomaly:v1.19.2 /config.yaml \
 --licenseFile=/license
 ```
 
@@ -1017,7 +1017,7 @@ Please find more detailed instructions (license, etc.) [here](https://docs.victo
 
 ### Output
 As the result, this model will return metric with labels, configured previously in `config.yaml`.
-In this particular example, 2 metrics will be produced. Also, there will be added other metrics from input query result.
+In this particular example, 2 metrics will be produced. Also, there will be added other labels from input query result.
 
 ```text
 {__name__="custom_anomaly_score", for="ingestion_rate", model_alias="custom_model", scheduler_alias="s1", run="test-format"},

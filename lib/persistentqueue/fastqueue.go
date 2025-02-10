@@ -162,7 +162,7 @@ func (fq *FastQueue) GetInmemoryQueueLen() int {
 // This method allows perisisting in-memory blocks during graceful shutdown, even if persistence is disabled.
 func (fq *FastQueue) MustWriteBlockIgnoreDisabledPQ(block []byte) {
 	if !fq.tryWriteBlock(block, true) {
-		logger.Fatalf("BUG: tryWriteBlock must always write data even if persistence is disabled")
+		logger.Panicf("BUG: tryWriteBlock must always write data even if persistence is disabled")
 	}
 }
 

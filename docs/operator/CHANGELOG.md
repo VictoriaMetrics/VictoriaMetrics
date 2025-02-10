@@ -13,6 +13,46 @@ aliases:
 
 ## tip
 
+## [v0.53.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.53.0)
+
+**Release date:** 05 Feb 2025
+
+![AppVersion: v1.110.0](https://img.shields.io/badge/v1.110.0-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11100)
+![AppVersion: v1.6.1](https://img.shields.io/badge/v1.6.1-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v161)
+
+* SECURITY: upgrade Go builder from Go1.23.4 to Go1.23.5. See the list of issues addressed in [Go1.23.5](https://github.com/golang/go/issues?q=milestone%3AGo1.23.5+label%3ACherryPickApproved).
+
+* Dependency: [vmoperator](https://docs.victoriametrics.com/operator/): Updated default versions for VM apps to v1.110.0 version
+
+* FEATURE: [vmalertmanagerconfig](https://docs.victoriametrics.com/operator/resources/vmalertmanagerconfig/): add `thread_message_id` to `telegram_configs` definition. It's supported by [alertmanager v0.28.0+](https://github.com/prometheus/alertmanager/releases/tag/v0.28.0). See [this issue](https://github.com/VictoriaMetrics/operator/issues/1229) for details.
+* FEATURE: [vlogs](https://docs.victoriametrics.com/operator/resources/vlogs): support VLogs in VMUser targetRefs.crd
+
+* BUGFIX: [vmoperator](https://docs.victoriametrics.com/operator/): properly check `Pod` state during `StatefulSet` rolling upgrade procedure. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1227) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/operator/resources/vmagent/): properly upscale on `shardCount` change. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1224) for details.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/operator/resources/vmauth/): properly apply `vmuser` changes. See [this PR](https://github.com/VictoriaMetrics/operator/pull/1231) for details.
+
+## [v0.52.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.52.0)
+
+**Release date:** 21 Jan 2025
+
+![AppVersion: v1.109.1](https://img.shields.io/badge/v1.109.1-success?label=Default%20VM%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11091)
+![AppVersion: v1.6.1](https://img.shields.io/badge/v1.6.1-success?label=Default%20VL%20version&logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fvictorialogs%2Fchangelog%23v161)
+
+* Dependency: [vmoperator](https://docs.victoriametrics.com/operator/): Updated default versions for VM apps to v1.109.1 version
+* Dependency: [vmoperator](https://docs.victoriametrics.com/operator/): Updated default version for VictoriaLogs app to v1.6.1 version
+
+* FEATURE: [vmscrapeconfig](https://docs.victoriametrics.com/operator/resources/vmscrapeconfig/): allow multiple values for `zone` at `gceSDConfigs`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1217) for details.
+* FEATURE: [vmoperator](https://docs.victoriametrics.com/operator/): decrease latency of generated configuration updates. Previously, configuration was update after status of child objects were changed. It could take significant time at large scale. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1220) for details.
+* FEATURE: [vmoperator](https://docs.victoriametrics.com/operator/): reduce load on Kubernetes API server at prometheus-converter client.
+* FEATURE: [vmoperator](https://docs.victoriametrics.com/operator/): change default value for `client.qps=50` and `client.burst=100` in order to improve operator performance on scale. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1220) for details.
+* FEATURE: [vmoperator](https://docs.victoriametrics.com/operator/): add new flag `controller.statusLastUpdateTimeTTL=1h` to control staleness detection at `status.conditions` field. If operator serves large amount of object ( > 5_000) value for it should be increased.
+* FEATURE: [vmoperator](https://docs.victoriametrics.com/operator/): add more context to the `failed` status with the reason and logs of crashed container. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1223) for details.
+* FEATURE: [vmoperator](https://docs.victoriametrics.com/operator/): Properly expose service ports for `VMServiceScrape` generated for CRD objects by operator. Add `-vmbackupmanager` suffix to the `VMServiceScrape` job name and expose only well-known `http` port. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1216) for details.
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/operator/resources/vmagent/): properly build `relabelConfigs` with empty string values for `separator` and `replacement` fields. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1214) for details.
+* BUGFIX: [converter]((https://docs.victoriametrics.com/operator/migration/#objects-conversion)): properly format `regex` single value expression at Prometheus Operator CRD `relabelings` and `metricsRelabelings`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1219) for details.
+* BUGFIX: [vmoperator](https://docs.victoriametrics.com/operator/): keep `spec.template.annotations` added by 3rd party tools, kike `kubectl rollout restart`. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1215) for details.
+
 ## [v0.51.3](https://github.com/VictoriaMetrics/operator/releases/tag/v0.51.3)
 
 **Release date:** 8 Jan 2025
@@ -172,8 +212,8 @@ Operator will preserve `annotations`, but any changes to it will be ignored. `la
 - [api](https://docs.victoriametrics.com/operator): deletes unused env variables: `VM_DEFAULTLABELS`, `VM_PODWAITREADYINITDELAY`. Adds new variable `VM_APPREADYTIMEOUT`.
 - [vmalert](https://docs.victoriametrics.com/operator/resources/vmalert/): adds missing `hostAliases` fields to spec. See [this](https://github.com/VictoriaMetrics/operator/issues/1099) issue for details.
 - [vmsingle/vlogs](https://docs.victoriametrics.com/operator/resources): makes better compatible with argo-cd by adding ownerReference to PersistentVolumeClaim. See this [issue](https://github.com/VictoriaMetrics/operator/issues/1091) for details.
-- [operator](https://docs.victoriametrics.com/operator/): reduces reconcile latency. See this [commit](2a9d09d0131cc10a0f9e32f0e2e054687ada78f7) for details.
-- [operator](https://docs.victoriametrics.com/operator/): reduces load on kubernetes api-server. See this commits: [commit-0](a0145b8a89dd5bb9051f8d4359b6a70c1d1a95ce), [commit-1](e2fbbd3e37146670f656d700ad0f64b2c299b0a0), [commit-2](184ba19a5f1d10dc2ac1bf018b2729f64e2a8c25).
+- [operator](https://docs.victoriametrics.com/operator/): reduces reconcile latency. See this [commit](https://github.com/VictoriaMetrics/operator/commit/2a9d09d0131cc10a0f9e32f0e2e054687ada78f7) for details.
+- [operator](https://docs.victoriametrics.com/operator/): reduces load on kubernetes api-server. See this commits: [commit-0](https://github.com/VictoriaMetrics/operator/commit/a0145b8a89dd5bb9051f8d4359b6a70c1d1a95ce), [commit-1](https://github.com/VictoriaMetrics/operator/commit/e2fbbd3e37146670f656d700ad0f64b2c299b0a0), [commit-2](https://github.com/VictoriaMetrics/operator/commit/184ba19a5f1d10dc2ac1bf018b2729f64e2a8c25).
 - [operator](https://docs.victoriametrics.com/operator/): enables client cache back for `secrets` and `configmaps`. Adds new flag `-controller.disableCacheFor=secret,configmap` to disable it if needed.
 - [operator](https://docs.victoriametrics.com/operator/): made webhook port configurable. See [this issue](https://github.com/VictoriaMetrics/operator/issues/1106) for details.
 - [operator](https://docs.victoriametrics.com/operator/): operator trims spaces from `Secret` and `Configmap` values by default. This behaviour could be changed with flag `disableSecretKeySpaceTrim`. Related [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6986).

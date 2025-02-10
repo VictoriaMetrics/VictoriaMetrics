@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/metrics"
@@ -18,8 +18,6 @@ import (
 var disableFadvise = flag.Bool("filestream.disableFadvise", false, "Whether to disable fadvise() syscall when reading large data files. "+
 	"The fadvise() syscall prevents from eviction of recently accessed data from OS page cache during background merges and backups. "+
 	"In some rare cases it is better to disable the syscall if it uses too much CPU")
-
-var disableFSyncForTesting = envutil.GetenvBool("DISABLE_FSYNC_FOR_TESTING")
 
 const dontNeedBlockSize = 16 * 1024 * 1024
 
@@ -244,9 +242,9 @@ func (w *Writer) MustClose() {
 	putBufioWriter(w.bw)
 	w.bw = nil
 
-	if !disableFSyncForTesting {
+	if !fsutil.IsFsyncDisabled() {
 		if err := w.f.Sync(); err != nil {
-			logger.Panicf("FATAL: cannot sync file %q: %d", w.f.Name(), err)
+			logger.Panicf("FATAL: cannot sync file %q: %s", w.f.Name(), err)
 		}
 	}
 	if err := w.st.close(); err != nil {

@@ -158,7 +158,7 @@ func NewDownloader(c DownloadAPIClient, options ...func(*Downloader)) *Downloade
 //	// pre-allocate in memory buffer, where headObject type is *s3.HeadObjectOutput
 //	buf := make([]byte, int(headObject.ContentLength))
 //	// wrap with aws.WriteAtBuffer
-//	w := s3manager.NewWriteAtBuffer(buf)
+//	w := manager.NewWriteAtBuffer(buf)
 //	// download file into the memory
 //	numBytesDownloaded, err := downloader.Download(ctx, w, &s3.GetObjectInput{
 //		Bucket: aws.String(bucket),

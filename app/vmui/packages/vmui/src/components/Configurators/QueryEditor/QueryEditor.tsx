@@ -124,7 +124,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   };
 
   useEffect(() => {
-    setOpenAutocomplete(!!AutocompleteEl);
+    setOpenAutocomplete(!!AutocompleteEl && autocompleteQuick);
   }, [autocompleteQuick]);
 
   useEffect(() => {

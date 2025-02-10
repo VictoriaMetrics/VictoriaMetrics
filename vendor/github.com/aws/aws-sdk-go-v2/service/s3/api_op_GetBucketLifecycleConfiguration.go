@@ -57,7 +57,7 @@ import (
 //	in the format https://s3express-control.region-code.amazonaws.com/bucket-name
 //	. Virtual-hosted-style requests aren't supported. For more information about
 //	endpoints in Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more
-//	information about endpoints in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
+//	information about endpoints in Local Zones, see [Available Local Zone for directory buckets]in the Amazon S3 User Guide.
 //
 // HTTP Host header syntax  Directory buckets - The HTTP Host header syntax is
 // s3express-control.region.amazonaws.com .
@@ -87,8 +87,8 @@ import (
 // [Managing Access Permissions to Your Amazon S3 Resources]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html
 // [DeleteBucketLifecycle]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketLifecycle.html
 //
-// [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
-// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [Available Local Zone for directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 func (c *Client) GetBucketLifecycleConfiguration(ctx context.Context, params *GetBucketLifecycleConfigurationInput, optFns ...func(*Options)) (*GetBucketLifecycleConfigurationOutput, error) {
 	if params == nil {
 		params = &GetBucketLifecycleConfigurationInput{}
@@ -136,7 +136,7 @@ type GetBucketLifecycleConfigurationOutput struct {
 	// Indicates which default minimum object size behavior is applied to the
 	// lifecycle configuration.
 	//
-	// This parameter applies to general purpose buckets only. It is not supported for
+	// This parameter applies to general purpose buckets only. It isn't supported for
 	// directory bucket lifecycle configurations.
 	//
 	//   - all_storage_classes_128K - Objects smaller than 128 KB will not transition

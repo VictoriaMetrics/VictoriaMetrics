@@ -122,6 +122,18 @@ again:
 		}
 		goto tokenFoundLabel
 	}
+	if strings.HasPrefix(s, "$__interval") {
+		// Automatically replace $__interval with 1i.
+		// This allows running copy-n-pasted queries from Grafana.
+		lex.sTail = s[len("$__interval"):]
+		return "1i", nil
+	}
+	if strings.HasPrefix(s, "$__rate_interval") {
+		// Automatically replace $__rate_interval with 1i.
+		// This allows running copy-n-pasted queries from Grafana.
+		lex.sTail = s[len("$__rate_interval"):]
+		return "1i", nil
+	}
 	return "", fmt.Errorf("cannot recognize %q", s)
 
 tokenFoundLabel:

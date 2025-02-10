@@ -33,6 +33,9 @@ type pipe interface {
 	//
 	// It is OK to return the pipe itself if it doesn't contain 'in(subquery)' filters.
 	initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (pipe, error)
+
+	// visitSubqueries must call visitFunc for all the subqueries, which exist at the pipe (recursively).
+	visitSubqueries(visitFunc func(q *Query))
 }
 
 // pipeProcessor must process a single pipe.
@@ -192,6 +195,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'join' pipe: %w", err)
 		}
 		return pj, nil
+	case lex.isKeyword("hash"):
+		ph, err := parsePipeHash(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'hash' pipe: %w", err)
+		}
+		return ph, nil
 	case lex.isKeyword("last"):
 		pl, err := parsePipeLast(lex)
 		if err != nil {
@@ -276,6 +285,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'top' pipe: %w", err)
 		}
 		return pt, nil
+	case lex.isKeyword("union"):
+		pu, err := parsePipeUnion(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'union' pipe: %w", err)
+		}
+		return pu, nil
 	case lex.isKeyword("uniq"):
 		pu, err := parsePipeUniq(lex)
 		if err != nil {
@@ -345,6 +360,7 @@ var pipeNames = func() map[string]struct{} {
 		"first",
 		"format",
 		"join",
+		"hash",
 		"last",
 		"len",
 		"limit", "head",
@@ -359,6 +375,7 @@ var pipeNames = func() map[string]struct{} {
 		"stats", "by",
 		"stream_context",
 		"top",
+		"union",
 		"uniq",
 		"unpack_json",
 		"unpack_logfmt",
