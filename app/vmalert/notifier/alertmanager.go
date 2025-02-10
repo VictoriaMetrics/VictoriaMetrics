@@ -70,7 +70,7 @@ func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[st
 
 func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[string]string) error {
 	b := &bytes.Buffer{}
-	alertsToSend := alerts[:0]
+	alertsToSend := make([]Alert, 0, len(alerts))
 	lblss := make([][]prompbmarshal.Label, 0, len(alerts))
 	for _, a := range alerts {
 		lbls := a.applyRelabelingIfNeeded(am.relabelConfigs)
