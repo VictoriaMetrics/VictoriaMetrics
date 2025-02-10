@@ -2,7 +2,7 @@ services:
   # Grafana instance configured with VictoriaLogs as datasource
   grafana:
     container_name: grafana
-    image: grafana/grafana:10.4.2
+    image: grafana/grafana:11.5.0
     depends_on:
       - "victoriametrics"
       - "victorialogs"
@@ -16,8 +16,7 @@ services:
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/victorialogs.json:/var/lib/grafana/dashboards/vl.json
     environment:
-      - "GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.13.4/victoriametrics-logs-datasource-v0.13.4.zip;victoriametrics-logs-datasource"
-      - "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-logs-datasource"
+      - "GF_INSTALL_PLUGINS=victoriametrics-logs-datasource"
     networks:
       - vm_net
     restart: always
@@ -45,7 +44,7 @@ services:
   #  storing logs and serving read queries.
   victorialogs:
     container_name: victorialogs
-    image: victoriametrics/victoria-logs:v1.8.0-victorialogs
+    image: victoriametrics/victoria-logs:v1.9.0-victorialogs
     command:
       - "--storageDataPath=/vlogs"
       - "--httpListenAddr=:9428"
@@ -127,7 +126,7 @@ services:
   # and distributes them according to --config.file.
   alertmanager:
     container_name: alertmanager
-    image: prom/alertmanager:v0.27.0
+    image: prom/alertmanager:v0.28.0
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
     command:

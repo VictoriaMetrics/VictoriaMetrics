@@ -34,11 +34,13 @@ the `request` was served. Label-value pairs are always of a `string` type. Victo
 which means there is no need to define metric names or their labels in advance. User is free to add or change ingested
 metrics anytime.
 
-Actually, the metric name is also a label with a special name `__name__`. So the following two series are identical:
+Actually, the metric name is also a label with a special name `__name__`. 
+The `__name__` key could be omitted {{% available_from "v1.111.0" %}} for simplicity. So the following series are identical:
 
 ```
 requests_total{path="/", code="200"} 
 {__name__="requests_total", path="/", code="200"} 
+{"requests_total", path="/", code="200"} 
 ```
 
 Labels can be automatically attached to the [time series](#time-series) 

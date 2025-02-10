@@ -121,7 +121,7 @@ Detailed parameters in each section:
 
 * `models`
   * `class` - Specifies the model to be used. Options include custom models ([guide here](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide)) or a selection from [built-in models](https://docs.victoriametrics.com/anomaly-detection/components/models/#built-in-models), such as the [Facebook Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) (`model.prophet.ProphetModel`).
-  * `args` - Model-specific parameters, formatted as a YAML dictionary in the `key: value` structure. Parameters available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start.html) can be used as an example.
+  * `args` - Model-specific parameters, formatted as a YAML dictionary in the `key: value` structure. Parameters available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start) can be used as an example.
 
 * `reader`
   * `datasource_url` - The URL for the data source, typically an HTTP endpoint serving `/api/v1/query_range`.

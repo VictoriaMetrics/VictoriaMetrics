@@ -6,11 +6,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
-func TestExtractTimestampRFC3339NanoFromFields_Success(t *testing.T) {
+func TestExtractTimestampFromFields_Success(t *testing.T) {
 	f := func(timeField string, fields []logstorage.Field, nsecsExpected int64) {
 		t.Helper()
 
-		nsecs, err := ExtractTimestampRFC3339NanoFromFields(timeField, fields)
+		nsecs, err := ExtractTimestampFromFields(timeField, fields)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -51,6 +51,18 @@ func TestExtractTimestampRFC3339NanoFromFields_Success(t *testing.T) {
 		{Name: "foo", Value: "bar"},
 	}, 1718773640123456789)
 
+	// Unix timestamp in nanoseconds
+	f("time", []logstorage.Field{
+		{Name: "foo", Value: "bar"},
+		{Name: "time", Value: "1718773640123456789"},
+	}, 1718773640123456789)
+
+	// Unix timestamp in microseconds
+	f("time", []logstorage.Field{
+		{Name: "foo", Value: "bar"},
+		{Name: "time", Value: "1718773640123456"},
+	}, 1718773640123456000)
+
 	// Unix timestamp in milliseconds
 	f("time", []logstorage.Field{
 		{Name: "foo", Value: "bar"},
@@ -64,14 +76,14 @@ func TestExtractTimestampRFC3339NanoFromFields_Success(t *testing.T) {
 	}, 1718773640000000000)
 }
 
-func TestExtractTimestampRFC3339NanoFromFields_Error(t *testing.T) {
+func TestExtractTimestampFromFields_Error(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 
 		fields := []logstorage.Field{
 			{Name: "time", Value: s},
 		}
-		nsecs, err := ExtractTimestampRFC3339NanoFromFields("time", fields)
+		nsecs, err := ExtractTimestampFromFields("time", fields)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -80,6 +92,7 @@ func TestExtractTimestampRFC3339NanoFromFields_Error(t *testing.T) {
 		}
 	}
 
+	// invalid time
 	f("foobar")
 
 	// incomplete time
