@@ -16,6 +16,12 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.9.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.1-victorialogs)
+
+Released at 2025-02-10
+
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): properly apply [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8152) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8153) bugfixes. They weren't applied to [`v1.9.0-victorialogs`](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.0-victorialogs) by an accident.
+
 ## [v1.9.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.0-victorialogs)
 
 Released at 2025-02-10
