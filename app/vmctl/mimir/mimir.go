@@ -185,6 +185,7 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 func (c *Client) Read(ctx context.Context, block tsdb.BlockReader) (storage.SeriesSet, error) {
 	meta := block.Meta()
 	if meta.ULID.String() == "" {
+		log.Printf("got block without the id. it is empty")
 		return nil, fmt.Errorf("block without id")
 	}
 

@@ -64,6 +64,7 @@ func (lbr *LazyBlockReader) initialize() error {
 	}
 	idx, err := lbr.fetchFile(indexFilename)
 	if err != nil {
+		log.Printf("failed to fetch index file %q: %s", indexFilename, err)
 		return err
 	}
 	if err := lbr.writeFile(temp, indexFilename, idx); err != nil {
@@ -77,9 +78,11 @@ func (lbr *LazyBlockReader) initialize() error {
 		blockChunkPath := filepath.Join("chunks", chunkName)
 		chunk, err := lbr.fetchFile(blockChunkPath)
 		if err != nil {
+			log.Printf("failed to fetch chunk file: %q: %s", chunkName, err)
 			return err
 		}
 		if err := lbr.writeFile(temp, blockChunkPath, chunk); err != nil {
+			log.Printf("failed to write chunk file: %q: %s", chunkName, err)
 			return err
 		}
 	}
@@ -91,7 +94,13 @@ func (lbr *LazyBlockReader) initialize() error {
 		return fmt.Errorf("failed to open block %q: %s", lbr.ID, err)
 	}
 	lbr.reader = pb
-	return os.Remove(temp)
+	blockID := lbr.ID.String()
+	blockPath := filepath.Join(temp, blockID)
+	if err := os.RemoveAll(blockPath); err != nil {
+		log.Printf("failed to remove temp dir: %s", err)
+		return fmt.Errorf("failed to remove temp dir: %s", err)
+	}
+	return nil
 }
 
 // Index returns an IndexReader over the block's data.
@@ -121,6 +130,7 @@ func (lbr *LazyBlockReader) Tombstones() (tombstones.Reader, error) {
 // Meta provides meta information about the block reader.
 func (lbr *LazyBlockReader) Meta() tsdb.BlockMeta {
 	if err := lbr.initialize(); err != nil {
+		log.Printf("error get Block Meta: %s; return empty block", err)
 		return tsdb.BlockMeta{}
 	}
 	return lbr.reader.Meta()
