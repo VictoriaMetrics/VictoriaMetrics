@@ -16,6 +16,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.9.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.0-victorialogs)
+
+Released at 2025-02-10
+
 * FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): improve performance for [`stats by (...) ...`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) by up to 30% when it is applied to big number of `by (...)` groups.
 * FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): improve performance for [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe) by up to 30% when it is applied to big number of unique values.
 * FEATURE: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): improve performance for [`count_uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-stats) and [`count_uniq_hash`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq_hash-stats) functions by up to 30% when they are applied to big number of unique values.
