@@ -68,6 +68,10 @@ func (pu *pipeUnpackSyslog) initFilterInValues(cache *inValuesCache, getFieldVal
 	return &puNew, nil
 }
 
+func (pu *pipeUnpackSyslog) visitSubqueries(visitFunc func(q *Query)) {
+	pu.iff.visitSubqueries(visitFunc)
+}
+
 func (pu *pipeUnpackSyslog) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	unpackSyslog := func(uctx *fieldsUnpackerContext, s string) {
 		year := currentYear.Load()

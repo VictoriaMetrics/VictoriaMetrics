@@ -101,13 +101,13 @@ Below are the steps to get `vmanomaly` up and running inside a Docker container:
 1. Pull Docker image:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.19.1
+docker pull victoriametrics/vmanomaly:v1.19.2
 ```
 
 2. (Optional step) tag the `vmanomaly` Docker image:
 
 ```sh
-docker image tag victoriametrics/vmanomaly:v1.19.1 vmanomaly
+docker image tag victoriametrics/vmanomaly:v1.19.2 vmanomaly
 ```
 
 3. Start the `vmanomaly` Docker container with a *license file*, use the command below.
@@ -141,7 +141,7 @@ docker run -it --user 1000:1000 \
 services:
   # ...
   vmanomaly:
-    image: victoriametrics/vmanomaly:v1.19.1
+    image: victoriametrics/vmanomaly:v1.19.2
     volumes:
         $YOUR_LICENSE_FILE_PATH:/license
         $YOUR_CONFIG_FILE_PATH:/config.yml
@@ -198,9 +198,9 @@ models:
       - name: 'dow'  # intra-week seasonality, time of the week
         fourier_order: 2  # keep it 2-4, as dependencies are learned separately for each weekday
     # inner model args (key-value pairs) accepted by
-    # https://facebook.github.io/prophet/docs/quick_start.html#python-api
+    # https://facebook.github.io/prophet/docs/quick_start#python-api
     args:
-      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals.html
+      interval_width: 0.98  # see https://facebook.github.io/prophet/docs/uncertainty_intervals
 
 reader:
   # https://docs.victoriametrics.com/anomaly-detection/components/reader/#vm-reader
@@ -232,4 +232,4 @@ Here are other materials that you might find useful:
 - [Guide: Anomaly Detection and Alerting Setup](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/)
 - [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/)
 - [Changelog](https://docs.victoriametrics.com/anomaly-detection/changelog/)
-- [Anomaly Detection Blog](https://victoriametrics.com/blog/tags/anomaly-detection/)
+- [Anomaly Detection Blog](https://victoriametrics.com/tags/anomaly-detection/)

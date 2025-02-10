@@ -297,12 +297,12 @@ metrics with different `vmrange` or `le` labels. As they're counters, the applic
 This config generates the following output metrics according to [output metric naming](#output-metric-names):
 
 ```text
-http_request_duration_seconds_bucket:1m_without_instance_total{le="0.1"} value1
-http_request_duration_seconds_bucket:1m_without_instance_total{le="0.2"} value2
-http_request_duration_seconds_bucket:1m_without_instance_total{le="0.4"} value3
-http_request_duration_seconds_bucket:1m_without_instance_total{le="1"}   value4
-http_request_duration_seconds_bucket:1m_without_instance_total{le="3"}   value5
-http_request_duration_seconds_bucket:1m_without_instance_total{le="+Inf" value6
+http_request_duration_seconds_bucket:1m_without_instance_total{le="0.1"}  value1
+http_request_duration_seconds_bucket:1m_without_instance_total{le="0.2"}  value2
+http_request_duration_seconds_bucket:1m_without_instance_total{le="0.4"}  value3
+http_request_duration_seconds_bucket:1m_without_instance_total{le="1"}    value4
+http_request_duration_seconds_bucket:1m_without_instance_total{le="3"}    value5
+http_request_duration_seconds_bucket:1m_without_instance_total{le="+Inf"} value6
 ```
 
 The resulting metrics can be passed to [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile)

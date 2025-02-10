@@ -75,7 +75,7 @@ func (d *droplet) getIPByNet(netVersion, netType string) string {
 	case "v6":
 		dropletNetworks = d.Networks.V6
 	default:
-		logger.Fatalf("BUG, unexpected network type: %s, want v4 or v6", netVersion)
+		logger.Panicf("BUG: unexpected network type: %s, want v4 or v6", netVersion)
 	}
 	for _, net := range dropletNetworks {
 		if net.Type == netType {

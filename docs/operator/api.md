@@ -2347,6 +2347,7 @@ _Appears in:_
 | `disable_notifications` | DisableNotifications | _boolean_ | false |
 | `http_config` | HTTP client configuration. | _[HTTPConfig](#httpconfig)_ | false |
 | `message` | Message is templated message | _string_ | false |
+| `message_thread_id` | MessageThreadID defines ID of the message thread where to send the messages. | _integer_ | false |
 | `parse_mode` | ParseMode for telegram message,<br />supported values are MarkdownV2, Markdown, Markdown and empty string for plain text. | _string_ | false |
 | `send_resolved` | SendResolved controls notify about resolved alerts. | _boolean_ | false |
 

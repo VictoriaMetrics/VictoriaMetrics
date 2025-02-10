@@ -1364,6 +1364,7 @@ LogsQL supports the following pipes:
 - `bloom_bytes` - on-disk size of bloom filter data for the given `field`
 - `dict_bytes` - on-disk size of the dictionary data for the given `field`
 - `dict_items` - the number of unique values in the dictionary for the given `field`
+- `part_path` - the path to the data part where the block is stored
 
 The `block_stats` pipe is needed mostly for debugging purposes.
 
@@ -3152,6 +3153,9 @@ For example, the following query unrolls `timestamp` and `value` [log fields](ht
 _time:5m | unroll (timestamp, value)
 ```
 
+If the unrolled JSON array contains JSON objects, then it may be handy using [`unpack_json`](#unpack_json-pipe) for unpacking
+the unrolled array items into separate fields for further processing.
+
 See also:
 
 - [`unpack_json` pipe](#unpack_json-pipe)
@@ -3341,9 +3345,31 @@ If the field contains [duration value](#duration-values), then `histogram` norma
 
 If the field contains [short numeric value](#short-numeric-values), then `histogram` normalizes it to numeric value without any suffixes. For example, `1KiB` is converted to `1024`.
 
+Histogram buckets are returned as the following JSON array:
+
+```json
+[{"vmrange":"...","hits":...},...,{"vmrange":"...","hits":...}]
+```
+
+Every `vmrange` value contains value range for the corresponding [VictoriaMetrics histogram bucket](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350),
+while `hits` contains the number of values, which hit the given bucket.
+
+It may be handy to unroll the returned histogram buckets for further processing during the query. For example, the following query
+calculates a histogram over the `response_size` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+and then unrolls it into distinct rows with `vmrange` and `hits` fields with the help of [`unroll`](#unroll-pipe) and [`unpack_json`](#unpack_json-pipe) pipes:
+
+```logsql
+_time:5m
+  | stats histogram(response_size) as buckets
+  | unroll (buckets)
+  | unpack_json from buckets
+```
+
 See also:
 
 - [`quantile`](#quantile-stats)
+- [`unroll` pipe](#unroll-pipe)
+- [`unpack_json` pipe](#unpack_json-pipe)
 
 ### max stats
 
@@ -3765,4 +3791,20 @@ VictoriaLogs supports the following options, which can be passed in the beginnin
 
   ```logsql
   options(concurrency=2) _time:1d | count_uniq(user_id)
+  ```
+
+- `ignore_global_time_filter` - allows ignoring time filter from `start` and `end` args of [HTTP querying API](https://docs.victoriametrics.com/victorialogs/querying/#http-api)
+  for the given (sub)query. For example, the following query returns the number of logs with `user_id` values seen in logs during December 2024, on the `[start...end]`
+  time range passed to [`/api/v1/query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs):
+
+  ```logsql
+  user_id:in(options(ignore_global_time_filter=true) _time:2024-12Z | keep user_id) | count()
+  ```
+
+  The [`in`](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter) query without `options(ignore_global_time_filter=true)`
+  takes into account only `user_id` values on the intersection of December 2024 and `[start...end]` time range pased
+  to [`/api/v1/query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs):
+
+  ```logsql
+  user_id:in(_time:2024-12Z | keep user_id) | count()
   ```

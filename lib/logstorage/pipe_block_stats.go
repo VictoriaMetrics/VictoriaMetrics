@@ -30,6 +30,10 @@ func (ps *pipeBlockStats) initFilterInValues(_ *inValuesCache, _ getFieldValuesF
 	return ps, nil
 }
 
+func (ps *pipeBlockStats) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (ps *pipeBlockStats) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	unneededFields.reset()
 	neededFields.add("*")
@@ -70,8 +74,13 @@ func (psp *pipeBlockStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 
 	cs := br.getColumns()
 	for _, c := range cs {
+		partPath := "inmemory"
+		if br.bs != nil {
+			partPath = br.bs.partPath()
+		}
+
 		if c.isConst {
-			shard.wctx.writeRow(c.name, "const", uint64(len(c.valuesEncoded[0])), 0, 0, 0)
+			shard.wctx.writeRow(c.name, "const", uint64(len(c.valuesEncoded[0])), 0, 0, 0, partPath)
 			continue
 		}
 		if c.isTime {
@@ -79,11 +88,11 @@ func (psp *pipeBlockStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 			if br.bs != nil {
 				blockSize = br.bs.bsw.bh.timestampsHeader.blockSize
 			}
-			shard.wctx.writeRow(c.name, "time", blockSize, 0, 0, 0)
+			shard.wctx.writeRow(c.name, "time", blockSize, 0, 0, 0, partPath)
 			continue
 		}
 		if br.bs == nil {
-			shard.wctx.writeRow(c.name, "inmemory", 0, 0, 0, 0)
+			shard.wctx.writeRow(c.name, "inmemory", 0, 0, 0, 0, partPath)
 			continue
 		}
 
@@ -96,7 +105,7 @@ func (psp *pipeBlockStatsProcessor) writeBlock(workerID uint, br *blockResult) {
 				dictSize += len(v)
 			}
 		}
-		shard.wctx.writeRow(c.name, typ, ch.valuesSize, ch.bloomFilterSize, uint64(dictItemsCount), uint64(dictSize))
+		shard.wctx.writeRow(c.name, typ, ch.valuesSize, ch.bloomFilterSize, uint64(dictItemsCount), uint64(dictSize), partPath)
 	}
 
 	shard.wctx.flush()
@@ -159,10 +168,10 @@ func (wctx *pipeBlockStatsWriteContext) init(workerID uint, ppNext pipeProcessor
 	wctx.rowsLen = rowsLen
 }
 
-func (wctx *pipeBlockStatsWriteContext) writeRow(columnName, columnType string, valuesSize, bloomSize, dictItems, dictSize uint64) {
+func (wctx *pipeBlockStatsWriteContext) writeRow(columnName, columnType string, valuesSize, bloomSize, dictItems, dictSize uint64, partPath string) {
 	rcs := wctx.rcs
 	if len(rcs) == 0 {
-		wctx.rcs = slicesutil.SetLength(wctx.rcs, 7)
+		wctx.rcs = slicesutil.SetLength(wctx.rcs, 8)
 		rcs = wctx.rcs
 
 		rcs[0].name = "field"
@@ -172,6 +181,7 @@ func (wctx *pipeBlockStatsWriteContext) writeRow(columnName, columnType string, 
 		rcs[4].name = "dict_items"
 		rcs[5].name = "dict_bytes"
 		rcs[6].name = "rows"
+		rcs[7].name = "part_path"
 	}
 
 	wctx.addValue(&rcs[0], columnName)
@@ -181,9 +191,12 @@ func (wctx *pipeBlockStatsWriteContext) writeRow(columnName, columnType string, 
 	wctx.addUint64Value(&rcs[4], dictItems)
 	wctx.addUint64Value(&rcs[5], dictSize)
 	wctx.addUint64Value(&rcs[6], uint64(wctx.rowsLen))
+	wctx.addValue(&rcs[7], partPath)
 
 	wctx.rowsCount++
-	if len(wctx.a.b) >= 1_000_000 {
+
+	// The 64_000 limit provides the best performance results.
+	if len(wctx.a.b) >= 64_000 {
 		wctx.flush()
 	}
 }

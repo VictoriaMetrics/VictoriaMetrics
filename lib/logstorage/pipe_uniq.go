@@ -8,7 +8,6 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -64,6 +63,10 @@ func (pu *pipeUniq) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (
 	return pu, nil
 }
 
+func (pu *pipeUniq) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pu *pipeUniq) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.4)
 
@@ -74,7 +77,7 @@ func (pu *pipeUniq) newPipeProcessor(workersCount int, stopCh <-chan struct{}, c
 				pu: pu,
 			},
 		}
-		shards[i].m.init(&shards[i].stateSizeBudget)
+		shards[i].m.init(uint(workersCount), &shards[i].stateSizeBudget)
 	}
 
 	pup := &pipeUniqProcessor{
@@ -116,7 +119,7 @@ type pipeUniqProcessorShardNopad struct {
 	pu *pipeUniq
 
 	// m holds per-row hits.
-	m hitsMap
+	m hitsMapAdaptive
 
 	// keyBuf is a temporary buffer for building keys for m.
 	keyBuf []byte
@@ -459,18 +462,17 @@ func (pup *pipeUniqProcessor) writeShardData(workerID uint, hm *hitsMap, resetHi
 }
 
 func (pup *pipeUniqProcessor) mergeShardsParallel() []*hitsMap {
-	hms := make([]*hitsMap, 0, len(pup.shards))
+	hmas := make([]*hitsMapAdaptive, 0, len(pup.shards))
 	for i := range pup.shards {
-		hm := &pup.shards[i].m
-		if hm.entriesCount() > 0 {
-			hms = append(hms, hm)
+		hma := &pup.shards[i].m
+		if hma.entriesCount() > 0 {
+			hmas = append(hmas, hma)
 		}
 	}
 
-	cpusCount := cgroup.AvailableCPUs()
-	hmsResult := make([]*hitsMap, 0, cpusCount)
+	var hmsResult []*hitsMap
 	var hmsLock sync.Mutex
-	hitsMapMergeParallel(hms, cpusCount, pup.stopCh, func(hm *hitsMap) {
+	hitsMapMergeParallel(hmas, pup.stopCh, func(hm *hitsMap) {
 		if hm.entriesCount() > 0 {
 			hmsLock.Lock()
 			hmsResult = append(hmsResult, hm)

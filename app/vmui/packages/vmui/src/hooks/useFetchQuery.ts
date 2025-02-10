@@ -13,6 +13,7 @@ import { isHistogramData } from "../utils/metric";
 import { useGraphState } from "../state/graph/GraphStateContext";
 import { getStepFromDuration } from "../utils/time";
 import { AppType } from "../types/appType";
+import { getQueryStringValue } from "../utils/query-string";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
@@ -132,7 +133,8 @@ export const useFetchQuery = ({
             tempTraces.push(trace);
           }
 
-          isHistogramResult = !isAnomalyUI && isDisplayChart && isHistogramData(resp.data.result);
+          const preventChangeType = !!getQueryStringValue("display_mode", null);
+          isHistogramResult = !isAnomalyUI && isDisplayChart && !preventChangeType && isHistogramData(resp.data.result);
           seriesLimit = isHistogramResult ? Infinity : defaultLimit;
           const freeTempSize = seriesLimit - tempData.length;
           resp.data.result.slice(0, freeTempSize).forEach((d: MetricBase) => {

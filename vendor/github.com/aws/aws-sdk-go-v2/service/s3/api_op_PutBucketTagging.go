@@ -90,9 +90,9 @@ type PutBucketTaggingInput struct {
 	// This member is required.
 	Tagging *types.Tagging
 
-	// Indicates the algorithm used to create the checksum for the object when you use
-	// the SDK. This header will not provide any additional functionality if you don't
-	// use the SDK. When you send this header, there must be a corresponding
+	// Indicates the algorithm used to create the checksum for the request when you
+	// use the SDK. This header will not provide any additional functionality if you
+	// don't use the SDK. When you send this header, there must be a corresponding
 	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
 	// request with the HTTP status code 400 Bad Request . For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.

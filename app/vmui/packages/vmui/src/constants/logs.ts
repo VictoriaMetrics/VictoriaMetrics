@@ -2,6 +2,7 @@ import { DATE_TIME_FORMAT } from "./date";
 
 export const LOGS_ENTRIES_LIMIT = 50;
 export const LOGS_BARS_VIEW = 100;
+export const LOGS_LIMIT_HITS = 5;
 
 // "Ungrouped" is a string that is used as a value for the "groupBy" parameter.
 export const WITHOUT_GROUPING = "Ungrouped";

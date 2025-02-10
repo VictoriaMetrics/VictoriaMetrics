@@ -39,7 +39,7 @@ FROM <table>
   <optional GROUP BY>
   <optional HAVING>
   <optional ORDER BY>
-  <optional LIMIT and OFFSET>
+  <optional LIMIT / OFFSET>
   <optional UNION>
 ```
 
@@ -69,7 +69,7 @@ The following rules must be used for converting SQL query into LogsQL query:
   Otherwise just start LogsQL query with [`*`](https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter).
   For example, `SELECT * FROM table WHERE field1=value1 AND field2<>value2` is converted into `field1:=value1 field2:!=value2`,
   while `SELECT * FROM table` is converted into `*`.
-* Subqueries inside `WHERE` must be converted into [`in` filters](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter).
+* `IN` subqueries inside `WHERE` must be converted into [`in` filters](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter).
   For example, `SELECT * FROM table WHERE id IN (SELECT id2 FROM table)` is converted into `id:in(* | fields id2)`.
 * If the `SELECT` part isn't equal to `*` and there are no `GROUP BY` / aggregate functions in the SQL query, then enumerate
   the selected columns at [`fields` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe).
@@ -77,7 +77,9 @@ The following rules must be used for converting SQL query into LogsQL query:
 * If the SQL query contains `JOIN`, then convert it into [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe).
 * If the SQL query contains `GROUP BY` / aggregate functions, then convert them to [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe).
   For example, `SELECT count(*) FROM table` is converted into `* | count()`, while `SELECT user_id, count(*) FROM table GROUP BY user_id`
-  is converted to `* | stats by (user_id) count()`.
+  is converted to `* | stats by (user_id) count()`. Note how the LogsQL query mentions the `GROUP BY` fields only once,
+  while SQL forces mentioning these fields twice - at the `SELECT` and at the `GROUP BY`. How many times did you hit the discrepancy
+  between `SELECT` and `GROUP BY` fields?
 * If the SQL query contains additional calculations and/or transformations at the `SELECT`, which aren't covered yet by `GROUP BY`,
   then convert them into the corresponding [LogsQL pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes).
   The most frequently used pipes are [`math`](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe)
@@ -89,6 +91,25 @@ The following rules must be used for converting SQL query into LogsQL query:
   For example, `SELECT * FROM table ORDER BY field1, field2 LIMIT 10 OFFSET 20` is converted into `* | sort by (field1, field2) limit 10 offset 20`.
 * If the SQL query contains `UNION`, then convert it into [`union` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#union-pipe).
   For example `SELECT * FROM table WHERE filters1 UNION ALL SELECT * FROM table WHERE filters2` is converted into `filters1 | union (filters2)`.
+
+SQL queries are frequently used for obtaining top N column values, which are the most frequently seen in the selected rows.
+For example, the query below returns top 5 `user_id` values, which present in the biggest number of rows:
+
+```sql
+SELECT user_id, count(*) hits FROM table GROUP BY user_id ORDER BY hits DESC LIMIT 5
+```
+
+LogsQL provides a shortcut syntax with [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe) for this case:
+
+```logsql
+* | top 5 (user_id)
+```
+
+It is equivalent to the longer LogsQL query:
+
+```logsql
+* | by (user_id) count() hits | sort by (hits desc) limit 5
+```
 
 [LogsQL pipes](https://docs.victoriametrics.com/victorialogs/logsql/#pipes) support much wider functionality comparing to SQL,
 so spend your spare time by reading [pipe docs](https://docs.victoriametrics.com/victorialogs/logsql/) and playing with them

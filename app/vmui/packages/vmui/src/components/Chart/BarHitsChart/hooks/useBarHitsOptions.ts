@@ -36,6 +36,14 @@ interface UseGetBarHitsOptionsArgs {
   graphOptions: GraphOptions;
 }
 
+export const OTHER_HITS_LABEL = "other";
+
+export const getLabelFromLogHit = (logHit: LogHits) => {
+  if (logHit?._isOther) return OTHER_HITS_LABEL;
+  const fields = Object.values(logHit?.fields || {});
+  return fields.map((value) => value || "\"\"").join(", ");
+};
+
 const useBarHitsOptions = ({
   data,
   logHits,
@@ -59,16 +67,16 @@ const useBarHitsOptions = ({
     let colorN = 0;
     return data.map((_d, i) => {
       if (i === 0) return {}; // 0 index is xAxis(timestamps)
-      const fields = Object.values(logHits?.[i - 1]?.fields || {});
-      const label = fields.map((value) => value || "\"\"").join(", ");
-      const color = getCssVariable(label ? seriesColors[colorN] : "color-log-hits-bar-0");
-      if (label) colorN++;
+      const target = logHits?.[i - 1];
+      const label = getLabelFromLogHit(target);
+      const color = getCssVariable(target?._isOther ? "color-log-hits-bar-0" : seriesColors[colorN]);
+      if (!target?._isOther) colorN++;
       return {
-        label: label || "other",
+        label,
         width: strokeWidth[graphOptions.graphStyle],
         spanGaps: true,
         stroke: color,
-        fill: graphOptions.fill ? color + "80" : "",
+        fill: graphOptions.fill ? color + (target?._isOther ? "" : "80") : "",
         paths: getSeriesPaths(graphOptions.graphStyle),
       };
     });

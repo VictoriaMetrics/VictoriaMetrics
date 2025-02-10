@@ -45,11 +45,17 @@ func (pj *pipeJoin) canLiveTail() bool {
 }
 
 func (pj *pipeJoin) hasFilterInWithQuery() bool {
+	// Do not check for in(...) filters at pj.q, since they are checked separately during pj.q execution.
 	return false
 }
 
 func (pj *pipeJoin) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+	// Do not init values for in(...) filters at pj.q, since they are initialized separately at initJoinMap.
 	return pj, nil
+}
+
+func (pj *pipeJoin) visitSubqueries(visitFunc func(q *Query)) {
+	pj.q.visitSubqueries(visitFunc)
 }
 
 func (pj *pipeJoin) initJoinMap(getJoinMapFunc getJoinMapFunc) (pipe, error) {

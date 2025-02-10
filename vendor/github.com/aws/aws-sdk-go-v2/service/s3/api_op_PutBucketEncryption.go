@@ -23,7 +23,7 @@ import (
 // in the format https://s3express-control.region-code.amazonaws.com/bucket-name .
 // Virtual-hosted-style requests aren't supported. For more information about
 // endpoints in Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more
-// information about endpoints in Local Zones, see [Available Local Zone for directory buckets]in the Amazon S3 User Guide.
+// information about endpoints in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
 //
 // By default, all buckets have a default encryption configuration that uses
 // server-side encryption with Amazon S3 managed keys (SSE-S3).
@@ -52,8 +52,8 @@ import (
 //     information about the encryption overriding behaviors in directory buckets, see [Specifying server-side encryption with KMS for new object uploads]
 //     .
 //
-//   - Your SSE-KMS configuration can only support 1 [customer managed key]per directory bucket for the
-//     lifetime of the bucket. The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
+//   - Your SSE-KMS configuration can only support 1 [customer managed key]per directory bucket's
+//     lifetime. The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
 //
 //   - S3 Bucket Keys are always enabled for GET and PUT operations in a directory
 //     bucket and can’t be disabled. S3 Bucket Keys aren't supported, when you copy
@@ -107,13 +107,13 @@ import (
 // [DeleteBucketEncryption]
 //
 // [Specifying server-side encryption with KMS for new object uploads]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-specifying-kms-encryption.html
+// [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [KMS customer managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk
 // [Amazon S3 Bucket Default Encryption]: https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html
 // [CopyObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html
 // [Managing Access Permissions to Your Amazon S3 Resources]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html
 // [Permissions Related to Bucket Operations]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources
 // [UploadPartCopy]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html
-// [Available Local Zone for directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [Amazon Web Services managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#aws-managed-cmk
 // [Authenticating Requests (Amazon Web Services Signature Version 4)]: https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
 // [Amazon Web Services Identity and Access Management (IAM) for S3 Express One Zone]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam.html
@@ -124,7 +124,7 @@ import (
 // [default bucket encryption]: https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html
 // [the import jobs]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/create-import-job
 // [the Copy operation in Batch Operations]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-buckets-objects-Batch-Ops
-// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
 func (c *Client) PutBucketEncryption(ctx context.Context, params *PutBucketEncryptionInput, optFns ...func(*Options)) (*PutBucketEncryptionOutput, error) {
 	if params == nil {
 		params = &PutBucketEncryptionInput{}
@@ -164,9 +164,9 @@ type PutBucketEncryptionInput struct {
 	// This member is required.
 	ServerSideEncryptionConfiguration *types.ServerSideEncryptionConfiguration
 
-	// Indicates the algorithm used to create the checksum for the object when you use
-	// the SDK. This header will not provide any additional functionality if you don't
-	// use the SDK. When you send this header, there must be a corresponding
+	// Indicates the algorithm used to create the checksum for the request when you
+	// use the SDK. This header will not provide any additional functionality if you
+	// don't use the SDK. When you send this header, there must be a corresponding
 	// x-amz-checksum or x-amz-trailer header sent. Otherwise, Amazon S3 fails the
 	// request with the HTTP status code 400 Bad Request . For more information, see [Checking object integrity]
 	// in the Amazon S3 User Guide.

@@ -40,7 +40,7 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"] }) => {
     return marked(log._msg.replace(/```/g, "\n```\n")) as string;
   }, [log._msg, markdownParsing]);
 
-  const fields = useMemo(() => Object.entries(log).filter(([key]) => key !== "_msg"), [log]);
+  const fields = useMemo(() => Object.entries(log), [log]);
   const hasFields = fields.length > 0;
 
   const displayMessage = useMemo(() => {

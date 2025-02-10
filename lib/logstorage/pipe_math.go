@@ -232,6 +232,10 @@ func (pm *pipeMath) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (
 	return pm, nil
 }
 
+func (pm *pipeMath) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pm *pipeMath) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	pmp := &pipeMathProcessor{
 		pm:     pm,

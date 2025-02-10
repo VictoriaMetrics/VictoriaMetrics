@@ -47,7 +47,9 @@ const GraphTab: FC<Props> = ({ isHistogram, graphData, controlsRef, isAnomalyVie
     <div className="vm-custom-panel-body-header__graph-controls">
       <GraphTips/>
       <GraphSettings
+        data={graphData}
         yaxis={yaxis}
+        isHistogram={isHistogram}
         setYaxisLimits={setYaxisLimits}
         toggleEnableLimits={toggleEnableLimits}
         spanGaps={{ value: spanGaps, onChange: setSpanGaps }}

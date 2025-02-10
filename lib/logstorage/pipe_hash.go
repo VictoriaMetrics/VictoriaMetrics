@@ -53,6 +53,10 @@ func (ph *pipeHash) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (
 	return ph, nil
 }
 
+func (ph *pipeHash) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (ph *pipeHash) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeHashProcessor{
 		ph:     ph,

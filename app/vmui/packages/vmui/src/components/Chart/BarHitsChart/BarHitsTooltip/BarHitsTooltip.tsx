@@ -5,6 +5,7 @@ import { DATE_TIME_FORMAT } from "../../../../constants/date";
 import classNames from "classnames";
 import "./style.scss";
 import "../../ChartTooltip/style.scss";
+import { sortLogHits } from "../../../../utils/logs";
 
 interface Props {
   data: AlignedData;
@@ -26,7 +27,7 @@ const BarHitsTooltip: FC<Props> = ({ data, focusDataIdx, uPlotInst }) => {
     const tooltipItems = values.map((value, i) => {
       const targetSeries = series[i + 1];
       const stroke = (targetSeries?.stroke as () => string)?.();
-      const label = targetSeries?.label || "other";
+      const label = targetSeries?.label;
       const show = targetSeries?.show;
       return {
         label,
@@ -34,7 +35,7 @@ const BarHitsTooltip: FC<Props> = ({ data, focusDataIdx, uPlotInst }) => {
         value,
         show
       };
-    }).filter(item => item.value > 0 && item.show).sort((a, b) => b.value - a.value);
+    }).filter(item => item.value > 0 && item.show).sort(sortLogHits("value"));
 
     const point = {
       top: tooltipItems[0] ? uPlotInst?.valToPos?.(tooltipItems[0].value, "y") || 0 : 0,
@@ -104,21 +105,24 @@ const BarHitsTooltip: FC<Props> = ({ data, focusDataIdx, uPlotInst }) => {
               className="vm-chart-tooltip-data__marker"
               style={{ background: item.stroke }}
             />
-            <p>
-              {item.label}: <b>{item.value}</b>
+            <p className="vm-bar-hits-tooltip-item">
+              <span className="vm-bar-hits-tooltip-item__label">{item.label}</span>
+              <span>{item.value.toLocaleString("en-US")}</span>
             </p>
           </div>
         ))}
       </div>
       {tooltipData.values.length > 1 && (
         <div className="vm-chart-tooltip-data">
-          <p>
-              Total records: <b>{tooltipData.total}</b>
+          <span/>
+          <p className="vm-bar-hits-tooltip-item">
+            <span className="vm-bar-hits-tooltip-item__label">Total</span>
+            <span>{tooltipData.total.toLocaleString("en-US")}</span>
           </p>
         </div>
       )}
       <div className="vm-chart-tooltip-header">
-        <div className="vm-chart-tooltip-header__title">
+        <div className="vm-chart-tooltip-header__title vm-bar-hits-tooltip__date">
           {tooltipData.timestamp}
         </div>
       </div>

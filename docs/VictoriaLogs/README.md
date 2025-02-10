@@ -4,27 +4,29 @@ from [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/).
 VictoriaLogs provides the following features:
 
 - It can accept logs from popular log collectors. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
-- It is much easier to set up and operate compared to Elasticsearch and Grafana Loki.
+- It is much easier to set up and operate compared to Elasticsearch and Grafana Loki, since it is basically zero-config.
   See [these docs](https://docs.victoriametrics.com/victorialogs/quickstart/).
-- It provides easy yet powerful query language with full-text search across
+- It provides easy yet powerful query language with full-text search capabilities across
   all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
   See [LogsQL docs](https://docs.victoriametrics.com/victorialogs/logsql/).
-- It provides interactive command-line tool for querying VictoriaLogs - [vlogscli](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/).
+- It provides [built-in web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) for logs' exploration.
+- Ir provides [Grafana plugin](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/) for building arbitrary dashboards in Grafana.
+- It provides [interactive command-line tool for querying VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/).
 - It can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
   See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line) for details.
 - VictoriaLogs' capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
   It runs smoothly on Raspberry PI and on servers with hundreds of CPU cores and terabytes of RAM.
 - It can handle up to 30x bigger data volumes than Elasticsearch and Grafana Loki when running on the same hardware.
   See [these docs](#benchmarks) and [this article](https://itnext.io/how-do-open-source-solutions-for-logs-work-elasticsearch-loki-and-victorialogs-9f7097ecbc2f) for details.
-- It provides fast full-text search out of the box for [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-  with high cardinality (e.g. high number of unique values) such as `trace_id`, `user_id` and `ip`.
+- It support [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) with high cardinality (e.g. high number of unique values) such as `trace_id`, `user_id` and `ip`.
+- It is optimized for logs with hundreds of fields (aka [`wide events`](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/)).
 - It supports multitenancy - see [these docs](#multitenancy).
 - It supports out-of-order logs' ingestion aka backfilling.
 - It supports live tailing for newly ingested logs. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing).
 - It supports selecting surrounding logs in front and after the selected logs. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#stream_context-pipe).
-- It provides web UI for querying logs - see [these docs](https://docs.victoriametrics.com/victorialogs/querying/#web-ui).
-- It provides [Grafana plugin for querying logs](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/).
 - It supports alerting - see [these docs](https://docs.victoriametrics.com/victorialogs/vmalert/).
+
+You can play with VictoriaLogs web UI at [this playground](https://play-vmlogs.victoriametrics.com/).
 
 If you have questions about VictoriaLogs, then read [this FAQ](https://docs.victoriametrics.com/victorialogs/faq/).
 Also feel free asking any questions at [VictoriaMetrics community Slack chat](https://victoriametrics.slack.com/), 
@@ -247,6 +249,37 @@ VictoriaLogs has very low overhead for per-tenant management, so it is OK to hav
 
 VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/vmauth/) or similar tools for per-tenant authorization.
 
+### Multitenancy access control
+
+Enforce access control for tenants by using [vmauth](https://docs.victoriametrics.com/vmauth/). Access control can be configured for each tenant by setting up the following rules:
+
+```yaml
+users:
+  - username: "foo"
+    password: "bar"
+    url_map:
+      - src_paths:
+        - "/select/.*"
+        - "/insert/.*"
+        headers:
+          - "AccountID: 1"
+          - "ProjectID: 0"
+        url_prefix:
+          - "http://localhost:9428/"
+
+  - username: "baz"
+    password: "bar"
+    url_map:
+      - src_paths: ["/select/.*"]
+        headers:
+          - "AccountID: 2"
+          - "ProjectID: 0"
+        url_prefix:
+          - "http://localhost:9428/"
+```
+
+This configuration allows `foo` to use the `/select/.*` and `/insert/.*` endpoints with `AccountID: 1` and `ProjectID: 0`, while `baz` can only use the `/select/.*` endpoint with `AccountID: 2` and `ProjectID: 0`.
+
 ## Security
 
 It is expected that VictoriaLogs runs in a protected environment, which is unreachable from the Internet without proper authorization.
@@ -255,6 +288,8 @@ and [querying APIs](https://docs.victoriametrics.com/victorialogs/querying/#http
 or similar authorization proxies.
 
 ## Benchmarks
+
+See [the comparison of VictoriaLogs with Elasticsearch, MongoDB, TimescaleDB, PostgreSQL, MySQL and SQLite](https://benchmark.clickhouse.com/#eyJzeXN0ZW0iOnsiQWxsb3lEQiI6ZmFsc2UsIkFsbG95REIgKHR1bmVkKSI6ZmFsc2UsIkF0aGVuYSAocGFydGl0aW9uZWQpIjpmYWxzZSwiQXRoZW5hIChzaW5nbGUpIjpmYWxzZSwiQXVyb3JhIGZvciBNeVNRTCI6ZmFsc2UsIkF1cm9yYSBmb3IgUG9zdGdyZVNRTCI6ZmFsc2UsIkJ5Q29uaXR5IjpmYWxzZSwiQnl0ZUhvdXNlIjpmYWxzZSwiY2hEQiAoRGF0YUZyYW1lKSI6ZmFsc2UsImNoREIgKFBhcnF1ZXQsIHBhcnRpdGlvbmVkKSI6ZmFsc2UsImNoREIiOmZhbHNlLCJDaXR1cyI6ZmFsc2UsIkNsaWNrSG91c2UgQ2xvdWQgKGF3cykiOmZhbHNlLCJDbGlja0hvdXNlIENsb3VkIChhenVyZSkiOmZhbHNlLCJDbGlja0hvdXNlIENsb3VkIChnY3ApIjpmYWxzZSwiQ2xpY2tIb3VzZSAoZGF0YSBsYWtlLCBwYXJ0aXRpb25lZCkiOmZhbHNlLCJDbGlja0hvdXNlIChkYXRhIGxha2UsIHNpbmdsZSkiOmZhbHNlLCJDbGlja0hvdXNlIChQYXJxdWV0LCBwYXJ0aXRpb25lZCkiOmZhbHNlLCJDbGlja0hvdXNlIChQYXJxdWV0LCBzaW5nbGUpIjpmYWxzZSwiQ2xpY2tIb3VzZSAod2ViKSI6ZmFsc2UsIkNsaWNrSG91c2UiOmZhbHNlLCJDbGlja0hvdXNlICh0dW5lZCkiOmZhbHNlLCJDbGlja0hvdXNlICh0dW5lZCwgbWVtb3J5KSI6ZmFsc2UsIkNsb3VkYmVycnkiOmZhbHNlLCJDcmF0ZURCIjpmYWxzZSwiQ3J1bmNoeSBCcmlkZ2UgZm9yIEFuYWx5dGljcyAoUGFycXVldCkiOmZhbHNlLCJEYXRhYmVuZCI6ZmFsc2UsIkRhdGFGdXNpb24gKFBhcnF1ZXQsIHBhcnRpdGlvbmVkKSI6ZmFsc2UsIkRhdGFGdXNpb24gKFBhcnF1ZXQsIHNpbmdsZSkiOmZhbHNlLCJBcGFjaGUgRG9yaXMiOmZhbHNlLCJEcmlsbCI6ZmFsc2UsIkRydWlkIjpmYWxzZSwiRHVja0RCIChEYXRhRnJhbWUpIjpmYWxzZSwiRHVja0RCIChtZW1vcnkpIjpmYWxzZSwiRHVja0RCIChQYXJxdWV0LCBwYXJ0aXRpb25lZCkiOmZhbHNlLCJEdWNrREIiOmZhbHNlLCJFbGFzdGljc2VhcmNoIjp0cnVlLCJFbGFzdGljc2VhcmNoICh0dW5lZCkiOmZhbHNlLCJHbGFyZURCIjpmYWxzZSwiR3JlZW5wbHVtIjpmYWxzZSwiSGVhdnlBSSI6ZmFsc2UsIkh5ZHJhIjpmYWxzZSwiSW5mb2JyaWdodCI6ZmFsc2UsIktpbmV0aWNhIjpmYWxzZSwiTWFyaWFEQiBDb2x1bW5TdG9yZSI6ZmFsc2UsIk1hcmlhREIiOmZhbHNlLCJNb25ldERCIjpmYWxzZSwiTW9uZ29EQiI6dHJ1ZSwiTW90aGVyRHVjayI6ZmFsc2UsIk15U1FMIChNeUlTQU0pIjpmYWxzZSwiTXlTUUwiOnRydWUsIk9jdG9TUUwiOmZhbHNlLCJPeGxhIjpmYWxzZSwiUGFuZGFzIChEYXRhRnJhbWUpIjpmYWxzZSwiUGFyYWRlREIgKFBhcnF1ZXQsIHBhcnRpdGlvbmVkKSI6ZmFsc2UsIlBhcmFkZURCIChQYXJxdWV0LCBzaW5nbGUpIjpmYWxzZSwicGdfZHVja2RiIChNb3RoZXJEdWNrIGVuYWJsZWQpIjpmYWxzZSwicGdfZHVja2RiIjpmYWxzZSwiUGlub3QiOmZhbHNlLCJQb2xhcnMgKERhdGFGcmFtZSkiOmZhbHNlLCJQb2xhcnMgKFBhcnF1ZXQpIjpmYWxzZSwiUG9zdGdyZVNRTCAodHVuZWQpIjpmYWxzZSwiUG9zdGdyZVNRTCI6dHJ1ZSwiUXVlc3REQiI6ZmFsc2UsIlJlZHNoaWZ0IjpmYWxzZSwiU2VsZWN0REIiOmZhbHNlLCJTaW5nbGVTdG9yZSI6ZmFsc2UsIlNub3dmbGFrZSI6ZmFsc2UsIlNwYXJrIjpmYWxzZSwiU1FMaXRlIjp0cnVlLCJTdGFyUm9ja3MiOmZhbHNlLCJUYWJsZXNwYWNlIjpmYWxzZSwiVGVtYm8gT0xBUCAoY29sdW1uYXIpIjpmYWxzZSwiVGltZXNjYWxlIENsb3VkIjpmYWxzZSwiVGltZXNjYWxlREIgKG5vIGNvbHVtbnN0b3JlKSI6ZmFsc2UsIlRpbWVzY2FsZURCIjp0cnVlLCJUaW55YmlyZCAoRnJlZSBUcmlhbCkiOmZhbHNlLCJVbWJyYSI6ZmFsc2UsIlZpY3RvcmlhTG9ncyI6dHJ1ZX0sInR5cGUiOnsiQyI6dHJ1ZSwiY29sdW1uLW9yaWVudGVkIjp0cnVlLCJQb3N0Z3JlU1FMIGNvbXBhdGlibGUiOnRydWUsIm1hbmFnZWQiOnRydWUsImdjcCI6dHJ1ZSwic3RhdGVsZXNzIjp0cnVlLCJKYXZhIjp0cnVlLCJDKysiOnRydWUsIk15U1FMIGNvbXBhdGlibGUiOnRydWUsInJvdy1vcmllbnRlZCI6dHJ1ZSwiQ2xpY2tIb3VzZSBkZXJpdmF0aXZlIjp0cnVlLCJlbWJlZGRlZCI6dHJ1ZSwic2VydmVybGVzcyI6dHJ1ZSwiZGF0YWZyYW1lIjp0cnVlLCJhd3MiOnRydWUsImF6dXJlIjp0cnVlLCJhbmFseXRpY2FsIjp0cnVlLCJSdXN0Ijp0cnVlLCJzZWFyY2giOnRydWUsImRvY3VtZW50Ijp0cnVlLCJHbyI6dHJ1ZSwic29tZXdoYXQgUG9zdGdyZVNRTCBjb21wYXRpYmxlIjp0cnVlLCJEYXRhRnJhbWUiOnRydWUsInBhcnF1ZXQiOnRydWUsInRpbWUtc2VyaWVzIjp0cnVlfSwibWFjaGluZSI6eyIxNiB2Q1BVIDEyOEdCIjpmYWxzZSwiOCB2Q1BVIDY0R0IiOmZhbHNlLCJzZXJ2ZXJsZXNzIjpmYWxzZSwiMTZhY3UiOmZhbHNlLCJjNmEuNHhsYXJnZSwgNTAwZ2IgZ3AyIjp0cnVlLCJMIjpmYWxzZSwiTSI6ZmFsc2UsIlMiOmZhbHNlLCJYUyI6ZmFsc2UsImM2YS5tZXRhbCwgNTAwZ2IgZ3AyIjpmYWxzZSwiMTkyR0IiOmZhbHNlLCIyNEdCIjpmYWxzZSwiMzYwR0IiOmZhbHNlLCI0OEdCIjpmYWxzZSwiNzIwR0IiOmZhbHNlLCI5NkdCIjpmYWxzZSwiZGV2IjpmYWxzZSwiNzA4R0IiOmZhbHNlLCJjNW4uNHhsYXJnZSwgNTAwZ2IgZ3AyIjpmYWxzZSwiQW5hbHl0aWNzLTI1NkdCICg2NCB2Q29yZXMsIDI1NiBHQikiOmZhbHNlLCJjNS40eGxhcmdlLCA1MDBnYiBncDIiOmZhbHNlLCJjNmEuNHhsYXJnZSwgMTUwMGdiIGdwMiI6dHJ1ZSwiY2xvdWQiOmZhbHNlLCJkYzIuOHhsYXJnZSI6ZmFsc2UsInJhMy4xNnhsYXJnZSI6ZmFsc2UsInJhMy40eGxhcmdlIjpmYWxzZSwicmEzLnhscGx1cyI6ZmFsc2UsIlMyIjpmYWxzZSwiUzI0IjpmYWxzZSwiMlhMIjpmYWxzZSwiM1hMIjpmYWxzZSwiNFhMIjpmYWxzZSwiWEwiOmZhbHNlLCJMMSAtIDE2Q1BVIDMyR0IiOmZhbHNlLCJjNmEuNHhsYXJnZSwgNTAwZ2IgZ3AzIjpmYWxzZSwiMTYgdkNQVSA2NEdCIjpmYWxzZSwiNCB2Q1BVIDE2R0IiOmZhbHNlLCI4IHZDUFUgMzJHQiI6ZmFsc2V9LCJjbHVzdGVyX3NpemUiOnsiMSI6dHJ1ZSwiMiI6ZmFsc2UsIjQiOmZhbHNlLCI4IjpmYWxzZSwiMTYiOmZhbHNlLCIzMiI6ZmFsc2UsIjY0IjpmYWxzZSwiMTI4IjpmYWxzZSwic2VydmVybGVzcyI6ZmFsc2UsInVuZGVmaW5lZCI6ZmFsc2V9LCJtZXRyaWMiOiJob3QiLCJxdWVyaWVzIjpbdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZSx0cnVlLHRydWUsdHJ1ZV19).
 
 Here is a [benchmark suite](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/logs-benchmark) for comparing data ingestion performance
 and resource usage between VictoriaLogs and Elasticsearch or Loki.
