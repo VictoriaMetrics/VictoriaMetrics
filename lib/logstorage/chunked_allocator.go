@@ -12,6 +12,7 @@ type chunkedAllocator struct {
 	countEmptyProcessors    []statsCountEmptyProcessor
 	countUniqProcessors     []statsCountUniqProcessor
 	countUniqHashProcessors []statsCountUniqHashProcessor
+	histogramProcessors     []statsHistogramProcessor
 	maxProcessors           []statsMaxProcessor
 	medianProcessors        []statsMedianProcessor
 	minProcessors           []statsMinProcessor
@@ -26,7 +27,15 @@ type chunkedAllocator struct {
 	uniqValuesProcessors    []statsUniqValuesProcessor
 	valuesProcessors        []statsValuesProcessor
 
-	pipeStatsGroups []pipeStatsGroup
+	pipeStatsGroups    []pipeStatsGroup
+	pipeStatsGroupMaps []pipeStatsGroupMap
+
+	statsProcessors []statsProcessor
+
+	statsCountUniqSets     []statsCountUniqSet
+	statsCountUniqHashSets []statsCountUniqHashSet
+
+	hitsMaps []hitsMap
 
 	u64Buf []uint64
 
@@ -36,103 +45,107 @@ type chunkedAllocator struct {
 }
 
 func (a *chunkedAllocator) newStatsAvgProcessor() (p *statsAvgProcessor) {
-	a.avgProcessors, p = addNewItem(a.avgProcessors, a)
-	return p
+	return addNewItem(&a.avgProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsCountProcessor() (p *statsCountProcessor) {
-	a.countProcessors, p = addNewItem(a.countProcessors, a)
-	return p
+	return addNewItem(&a.countProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsCountEmptyProcessor() (p *statsCountEmptyProcessor) {
-	a.countEmptyProcessors, p = addNewItem(a.countEmptyProcessors, a)
-	return p
+	return addNewItem(&a.countEmptyProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsCountUniqProcessor() (p *statsCountUniqProcessor) {
-	a.countUniqProcessors, p = addNewItem(a.countUniqProcessors, a)
-	return p
+	return addNewItem(&a.countUniqProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsCountUniqHashProcessor() (p *statsCountUniqHashProcessor) {
-	a.countUniqHashProcessors, p = addNewItem(a.countUniqHashProcessors, a)
-	return p
+	return addNewItem(&a.countUniqHashProcessors, a)
+}
+
+func (a *chunkedAllocator) newStatsHistogramProcessor() (p *statsHistogramProcessor) {
+	return addNewItem(&a.histogramProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsMaxProcessor() (p *statsMaxProcessor) {
-	a.maxProcessors, p = addNewItem(a.maxProcessors, a)
-	return p
+	return addNewItem(&a.maxProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsMedianProcessor() (p *statsMedianProcessor) {
-	a.medianProcessors, p = addNewItem(a.medianProcessors, a)
-	return p
+	return addNewItem(&a.medianProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsMinProcessor() (p *statsMinProcessor) {
-	a.minProcessors, p = addNewItem(a.minProcessors, a)
-	return p
+	return addNewItem(&a.minProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsQuantileProcessor() (p *statsQuantileProcessor) {
-	a.quantileProcessors, p = addNewItem(a.quantileProcessors, a)
-	return p
+	return addNewItem(&a.quantileProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsRateProcessor() (p *statsRateProcessor) {
-	a.rateProcessors, p = addNewItem(a.rateProcessors, a)
-	return p
+	return addNewItem(&a.rateProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsRateSumProcessor() (p *statsRateSumProcessor) {
-	a.rateSumProcessors, p = addNewItem(a.rateSumProcessors, a)
-	return p
+	return addNewItem(&a.rateSumProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsRowAnyProcessor() (p *statsRowAnyProcessor) {
-	a.rowAnyProcessors, p = addNewItem(a.rowAnyProcessors, a)
-	return p
+	return addNewItem(&a.rowAnyProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsRowMaxProcessor() (p *statsRowMaxProcessor) {
-	a.rowMaxProcessors, p = addNewItem(a.rowMaxProcessors, a)
-	return p
+	return addNewItem(&a.rowMaxProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsRowMinProcessor() (p *statsRowMinProcessor) {
-	a.rowMinProcessors, p = addNewItem(a.rowMinProcessors, a)
-	return p
+	return addNewItem(&a.rowMinProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsSumProcessor() (p *statsSumProcessor) {
-	a.sumProcessors, p = addNewItem(a.sumProcessors, a)
-	return p
+	return addNewItem(&a.sumProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsSumLenProcessor() (p *statsSumLenProcessor) {
-	a.sumLenProcessors, p = addNewItem(a.sumLenProcessors, a)
-	return p
+	return addNewItem(&a.sumLenProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsUniqValuesProcessor() (p *statsUniqValuesProcessor) {
-	a.uniqValuesProcessors, p = addNewItem(a.uniqValuesProcessors, a)
-	return p
+	return addNewItem(&a.uniqValuesProcessors, a)
 }
 
 func (a *chunkedAllocator) newStatsValuesProcessor() (p *statsValuesProcessor) {
-	a.valuesProcessors, p = addNewItem(a.valuesProcessors, a)
-	return p
+	return addNewItem(&a.valuesProcessors, a)
 }
 
 func (a *chunkedAllocator) newPipeStatsGroup() (p *pipeStatsGroup) {
-	a.pipeStatsGroups, p = addNewItem(a.pipeStatsGroups, a)
-	return p
+	return addNewItem(&a.pipeStatsGroups, a)
+}
+
+func (a *chunkedAllocator) newPipeStatsGroupMaps(itemsLen uint) []pipeStatsGroupMap {
+	return addNewItems(&a.pipeStatsGroupMaps, itemsLen, a)
+}
+
+func (a *chunkedAllocator) newStatsProcessors(itemsLen uint) []statsProcessor {
+	return addNewItems(&a.statsProcessors, itemsLen, a)
+}
+
+func (a *chunkedAllocator) newStatsCountUniqSets(itemsLen uint) []statsCountUniqSet {
+	return addNewItems(&a.statsCountUniqSets, itemsLen, a)
+}
+
+func (a *chunkedAllocator) newStatsCountUniqHashSets(itemsLen uint) []statsCountUniqHashSet {
+	return addNewItems(&a.statsCountUniqHashSets, itemsLen, a)
+}
+
+func (a *chunkedAllocator) newHitsMaps(itemsLen uint) []hitsMap {
+	return addNewItems(&a.hitsMaps, itemsLen, a)
 }
 
 func (a *chunkedAllocator) newUint64() (p *uint64) {
-	a.u64Buf, p = addNewItem(a.u64Buf, a)
-	return p
+	return addNewItem(&a.u64Buf, a)
 }
 
 func (a *chunkedAllocator) cloneBytesToString(b []byte) string {
@@ -140,30 +153,32 @@ func (a *chunkedAllocator) cloneBytesToString(b []byte) string {
 }
 
 func (a *chunkedAllocator) cloneString(s string) string {
-	const maxChunkLen = 64 * 1024
-	if a.stringsBuf != nil && len(a.stringsBuf)+len(s) > maxChunkLen {
-		a.stringsBuf = nil
-	}
-	if a.stringsBuf == nil {
-		a.stringsBuf = make([]byte, 0, maxChunkLen)
-		a.bytesAllocated += maxChunkLen
-	}
-
-	sbLen := len(a.stringsBuf)
-	a.stringsBuf = append(a.stringsBuf, s...)
-	return bytesutil.ToUnsafeString(a.stringsBuf[sbLen:])
+	xs := addNewItems(&a.stringsBuf, uint(len(s)), a)
+	copy(xs, s)
+	return bytesutil.ToUnsafeString(xs)
 }
 
-func addNewItem[T any](dst []T, a *chunkedAllocator) ([]T, *T) {
-	var maxItems = (64 * 1024) / int(unsafe.Sizeof(dst[0]))
-	if dst != nil && len(dst)+1 > maxItems {
+func addNewItem[T any](dstPtr *[]T, a *chunkedAllocator) *T {
+	xs := addNewItems(dstPtr, 1, a)
+	return &xs[0]
+}
+
+func addNewItems[T any](dstPtr *[]T, itemsLen uint, a *chunkedAllocator) []T {
+	dst := *dstPtr
+	var maxItems = (64 * 1024) / uint(unsafe.Sizeof(dst[0]))
+	if itemsLen > maxItems {
+		return make([]T, itemsLen)
+	}
+	if dst != nil && uint(len(dst))+itemsLen > maxItems {
 		dst = nil
 	}
 	if dst == nil {
 		dst = make([]T, 0, maxItems)
-		a.bytesAllocated += maxItems * int(unsafe.Sizeof(dst[0]))
+		a.bytesAllocated += int(maxItems * uint(unsafe.Sizeof(dst[0])))
 	}
-	var x T
-	dst = append(dst, x)
-	return dst, &dst[len(dst)-1]
+	dstLen := uint(len(dst))
+	dst = dst[:dstLen+itemsLen]
+	xs := dst[dstLen : dstLen+itemsLen : dstLen+itemsLen]
+	*dstPtr = dst
+	return xs
 }

@@ -32,6 +32,10 @@ func (po *pipeOffset) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc)
 	return po, nil
 }
 
+func (po *pipeOffset) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (po *pipeOffset) newPipeProcessor(_ int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeOffsetProcessor{
 		po:     po,

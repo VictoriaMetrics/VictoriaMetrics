@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
-	"unsafe"
 
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
@@ -39,13 +37,33 @@ func (su *statsCountUniqHash) newStatsProcessor(a *chunkedAllocator) statsProces
 type statsCountUniqHashProcessor struct {
 	a *chunkedAllocator
 
-	m  statsCountUniqHashSet
-	ms []*statsCountUniqHashSet
+	// concurrency is the number of parallel workers to use when merging shards.
+	//
+	// this field must be updated by the caller before using statsCountUniqHashProcessor.
+	concurrency uint
+
+	// uniqValues is used for tracking small number of unique values until it reaches statsCountUniqHashValuesMaxLen.
+	// After that the unique values are tracked by shards.
+	uniqValues statsCountUniqHashSet
+
+	// shards are used for tracking big number of unique values.
+	//
+	// Every shard contains a share of unique values, which are merged in parallel at finalizeStats().
+	shards []statsCountUniqHashSet
+
+	// shardss is used for collecting shards from other statsCountUniqProcessor instances at mergeState().
+	shardss [][]statsCountUniqHashSet
 
 	columnValues [][]string
 	keyBuf       []byte
 	tmpNum       int
 }
+
+// the maximum number of values to track in statsCountUniqHashProcessor.uniqValues before switching to statsCountUniqHashProcessor.shards
+//
+// Too big value may slow down mergeState() across big number of CPU cores.
+// Too small value may significantly increase RAM usage when coun_uniq_hash() is applied individually to big number of groups.
+const statsCountUniqHashValuesMaxLen = 4 << 10
 
 type statsCountUniqHashSet struct {
 	timestamps map[uint64]struct{}
@@ -55,17 +73,7 @@ type statsCountUniqHashSet struct {
 }
 
 func (sus *statsCountUniqHashSet) reset() {
-	sus.timestamps = nil
-	sus.u64 = nil
-	sus.negative64 = nil
-	sus.strings = nil
-}
-
-func (sus *statsCountUniqHashSet) init() {
-	sus.timestamps = make(map[uint64]struct{})
-	sus.u64 = make(map[uint64]struct{})
-	sus.negative64 = make(map[uint64]struct{})
-	sus.strings = make(map[uint64]struct{})
+	*sus = statsCountUniqHashSet{}
 }
 
 func (sus *statsCountUniqHashSet) entriesCount() uint64 {
@@ -74,71 +82,19 @@ func (sus *statsCountUniqHashSet) entriesCount() uint64 {
 }
 
 func (sus *statsCountUniqHashSet) updateStateTimestamp(ts int64) int {
-	if sus.timestamps == nil {
-		sus.timestamps = make(map[uint64]struct{})
-	}
-	_, ok := sus.timestamps[uint64(ts)]
-	if ok {
-		return 0
-	}
-	sus.timestamps[uint64(ts)] = struct{}{}
-	return 8
+	return updateUint64Set(&sus.timestamps, uint64(ts))
 }
 
 func (sus *statsCountUniqHashSet) updateStateUint64(n uint64) int {
-	if sus.u64 == nil {
-		sus.u64 = make(map[uint64]struct{})
-	}
-	_, ok := sus.u64[n]
-	if ok {
-		return 0
-	}
-	sus.u64[n] = struct{}{}
-	return 8
-}
-
-func (sus *statsCountUniqHashSet) updateStateInt64(n int64) int {
-	if n >= 0 {
-		return sus.updateStateUint64(uint64(n))
-	}
-	return sus.updateStateNegativeInt64(n)
+	return updateUint64Set(&sus.timestamps, n)
 }
 
 func (sus *statsCountUniqHashSet) updateStateNegativeInt64(n int64) int {
-	if sus.negative64 == nil {
-		sus.negative64 = make(map[uint64]struct{})
-	}
-	_, ok := sus.negative64[uint64(n)]
-	if ok {
-		return 0
-	}
-	sus.negative64[uint64(n)] = struct{}{}
-	return 8
+	return updateUint64Set(&sus.negative64, uint64(n))
 }
 
-func (sus *statsCountUniqHashSet) updateStateGeneric(v string) int {
-	if n, ok := tryParseUint64(v); ok {
-		return sus.updateStateUint64(n)
-	}
-	if len(v) > 0 && v[0] == '-' {
-		if n, ok := tryParseInt64(v); ok {
-			return sus.updateStateNegativeInt64(n)
-		}
-	}
-	return sus.updateStateString(bytesutil.ToUnsafeBytes(v))
-}
-
-func (sus *statsCountUniqHashSet) updateStateString(v []byte) int {
-	h := xxhash.Sum64(v)
-	if sus.strings == nil {
-		sus.strings = make(map[uint64]struct{})
-	}
-	_, ok := sus.strings[h]
-	if ok {
-		return 0
-	}
-	sus.strings[h] = struct{}{}
-	return 8
+func (sus *statsCountUniqHashSet) updateStateStringHash(h uint64) int {
+	return updateUint64Set(&sus.strings, h)
 }
 
 func (sus *statsCountUniqHashSet) mergeState(src *statsCountUniqHashSet, stopCh <-chan struct{}) {
@@ -197,7 +153,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(sf statsFunc, br *
 				// Do not count empty values
 				continue
 			}
-			stateSizeIncrease += sup.m.updateStateString(keyBuf)
+			stateSizeIncrease += sup.updateStateString(keyBuf)
 		}
 		sup.keyBuf = keyBuf
 		return stateSizeIncrease
@@ -244,7 +200,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRows(sf statsFunc, br *
 			// Do not count empty values
 			continue
 		}
-		stateSizeIncrease += sup.m.updateStateString(keyBuf)
+		stateSizeIncrease += sup.updateStateString(keyBuf)
 	}
 	sup.keyBuf = keyBuf
 	return stateSizeIncrease
@@ -277,7 +233,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForRow(sf statsFunc, br *bloc
 			// Do not count empty values
 			return 0
 		}
-		return sup.m.updateStateString(keyBuf)
+		return sup.updateStateString(keyBuf)
 	}
 	if len(fields) == 1 {
 		// Fast path for a single column.
@@ -301,7 +257,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForRow(sf statsFunc, br *bloc
 		// Do not count empty values
 		return 0
 	}
-	return sup.m.updateStateString(keyBuf)
+	return sup.updateStateString(keyBuf)
 }
 
 func (sup *statsCountUniqHashProcessor) updateStatsForAllRowsSingleColumn(br *blockResult, columnName string) int {
@@ -310,12 +266,12 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRowsSingleColumn(br *bl
 	if c.isTime {
 		// Count unique timestamps
 		timestamps := br.getTimestamps()
-		for i, timestamp := range timestamps {
+		for i := range timestamps {
 			if i > 0 && timestamps[i-1] == timestamps[i] {
 				// This timestamp has been already counted.
 				continue
 			}
-			stateSizeIncrease += sup.m.updateStateTimestamp(timestamp)
+			stateSizeIncrease += sup.updateStateTimestamp(timestamps[i])
 		}
 		return stateSizeIncrease
 	}
@@ -326,7 +282,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRowsSingleColumn(br *bl
 			// Do not count empty values
 			return 0
 		}
-		return sup.m.updateStateGeneric(v)
+		return sup.updateStateGeneric(v)
 	}
 
 	switch c.valueType {
@@ -338,7 +294,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRowsSingleColumn(br *bl
 				// Do not count empty values
 				return
 			}
-			sup.tmpNum += sup.m.updateStateGeneric(v)
+			sup.tmpNum += sup.updateStateGeneric(v)
 		})
 		return sup.tmpNum
 	case valueTypeUint8:
@@ -348,7 +304,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRowsSingleColumn(br *bl
 				continue
 			}
 			n := unmarshalUint8(v)
-			stateSizeIncrease += sup.m.updateStateUint64(uint64(n))
+			stateSizeIncrease += sup.updateStateUint64(uint64(n))
 		}
 		return stateSizeIncrease
 	case valueTypeUint16:
@@ -358,7 +314,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRowsSingleColumn(br *bl
 				continue
 			}
 			n := unmarshalUint16(v)
-			stateSizeIncrease += sup.m.updateStateUint64(uint64(n))
+			stateSizeIncrease += sup.updateStateUint64(uint64(n))
 		}
 		return stateSizeIncrease
 	case valueTypeUint32:
@@ -368,7 +324,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRowsSingleColumn(br *bl
 				continue
 			}
 			n := unmarshalUint32(v)
-			stateSizeIncrease += sup.m.updateStateUint64(uint64(n))
+			stateSizeIncrease += sup.updateStateUint64(uint64(n))
 		}
 		return stateSizeIncrease
 	case valueTypeUint64:
@@ -378,7 +334,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRowsSingleColumn(br *bl
 				continue
 			}
 			n := unmarshalUint64(v)
-			stateSizeIncrease += sup.m.updateStateUint64(n)
+			stateSizeIncrease += sup.updateStateUint64(n)
 		}
 		return stateSizeIncrease
 	case valueTypeInt64:
@@ -388,7 +344,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRowsSingleColumn(br *bl
 				continue
 			}
 			n := unmarshalInt64(v)
-			stateSizeIncrease += sup.m.updateStateInt64(n)
+			stateSizeIncrease += sup.updateStateInt64(n)
 		}
 		return stateSizeIncrease
 	default:
@@ -403,7 +359,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForAllRowsSingleColumn(br *bl
 				// This value has been already counted.
 				continue
 			}
-			stateSizeIncrease += sup.m.updateStateGeneric(v)
+			stateSizeIncrease += sup.updateStateGeneric(v)
 		}
 		return stateSizeIncrease
 	}
@@ -414,8 +370,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForRowSingleColumn(br *blockR
 	if c.isTime {
 		// Count unique timestamps
 		timestamps := br.getTimestamps()
-		timestamp := timestamps[rowIdx]
-		return sup.m.updateStateTimestamp(timestamp)
+		return sup.updateStateTimestamp(timestamps[rowIdx])
 	}
 	if c.isConst {
 		// count unique const values
@@ -424,7 +379,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForRowSingleColumn(br *blockR
 			// Do not count empty values
 			return 0
 		}
-		return sup.m.updateStateGeneric(v)
+		return sup.updateStateGeneric(v)
 	}
 
 	switch c.valueType {
@@ -437,32 +392,32 @@ func (sup *statsCountUniqHashProcessor) updateStatsForRowSingleColumn(br *blockR
 			// Do not count empty values
 			return 0
 		}
-		return sup.m.updateStateGeneric(v)
+		return sup.updateStateGeneric(v)
 	case valueTypeUint8:
 		values := c.getValuesEncoded(br)
 		v := values[rowIdx]
 		n := unmarshalUint8(v)
-		return sup.m.updateStateUint64(uint64(n))
+		return sup.updateStateUint64(uint64(n))
 	case valueTypeUint16:
 		values := c.getValuesEncoded(br)
 		v := values[rowIdx]
 		n := unmarshalUint16(v)
-		return sup.m.updateStateUint64(uint64(n))
+		return sup.updateStateUint64(uint64(n))
 	case valueTypeUint32:
 		values := c.getValuesEncoded(br)
 		v := values[rowIdx]
 		n := unmarshalUint32(v)
-		return sup.m.updateStateUint64(uint64(n))
+		return sup.updateStateUint64(uint64(n))
 	case valueTypeUint64:
 		values := c.getValuesEncoded(br)
 		v := values[rowIdx]
 		n := unmarshalUint64(v)
-		return sup.m.updateStateUint64(n)
+		return sup.updateStateUint64(n)
 	case valueTypeInt64:
 		values := c.getValuesEncoded(br)
 		v := values[rowIdx]
 		n := unmarshalInt64(v)
-		return sup.m.updateStateInt64(n)
+		return sup.updateStateInt64(n)
 	default:
 		// Count unique values for the given rowIdx
 		v := c.getValueAtRow(br, rowIdx)
@@ -470,7 +425,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForRowSingleColumn(br *blockR
 			// Do not count empty values
 			return 0
 		}
-		return sup.m.updateStateGeneric(v)
+		return sup.updateStateGeneric(v)
 	}
 }
 
@@ -481,100 +436,57 @@ func (sup *statsCountUniqHashProcessor) mergeState(sf statsFunc, sfp statsProces
 	}
 
 	src := sfp.(*statsCountUniqHashProcessor)
-	if src.m.entriesCount() > 100_000 {
-		// Postpone merging too big number of items in parallel
-		sup.ms = append(sup.ms, &src.m)
-		return
+
+	if sup.shards == nil {
+		if src.shards == nil {
+			sup.uniqValues.mergeState(&src.uniqValues, nil)
+			src.uniqValues.reset()
+			sup.probablyMoveUniqValuesToShards()
+			return
+		}
+		sup.moveUniqValuesToShards()
 	}
 
-	sup.m.mergeState(&src.m, nil)
+	if src.shards == nil {
+		src.moveUniqValuesToShards()
+	}
+	sup.shardss = append(sup.shardss, src.shards)
+	src.shards = nil
 }
 
 func (sup *statsCountUniqHashProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte {
-	su := sf.(*statsCountUniqHash)
-	n := sup.m.entriesCount()
-	if len(sup.ms) > 0 {
-		sup.ms = append(sup.ms, &sup.m)
-		n = countUniqHashParallel(sup.ms, stopCh)
+	n := sup.entriesCount()
+	if len(sup.shardss) > 0 {
+		if sup.shards != nil {
+			sup.shardss = append(sup.shardss, sup.shards)
+			sup.shards = nil
+		}
+		n = countUniqHashParallel(sup.shardss, stopCh)
 	}
 
+	su := sf.(*statsCountUniqHash)
 	if limit := su.limit; limit > 0 && n > limit {
 		n = limit
 	}
 	return strconv.AppendUint(dst, n, 10)
 }
 
-func countUniqHashParallel(ms []*statsCountUniqHashSet, stopCh <-chan struct{}) uint64 {
-	shardsLen := len(ms)
-	cpusCount := cgroup.AvailableCPUs()
-
-	var wg sync.WaitGroup
-	msShards := make([][]statsCountUniqHashSet, shardsLen)
-	for i := range msShards {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-
-			perCPU := make([]statsCountUniqHashSet, cpusCount)
-			for i := range perCPU {
-				perCPU[i].init()
-			}
-
-			sus := ms[idx]
-
-			for ts := range sus.timestamps {
-				if needStop(stopCh) {
-					return
-				}
-				k := unsafe.Slice((*byte)(unsafe.Pointer(&ts)), 8)
-				h := xxhash.Sum64(k)
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].timestamps[ts] = struct{}{}
-			}
-			for n := range sus.u64 {
-				if needStop(stopCh) {
-					return
-				}
-				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
-				h := xxhash.Sum64(k)
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].u64[n] = struct{}{}
-			}
-			for n := range sus.negative64 {
-				if needStop(stopCh) {
-					return
-				}
-				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
-				h := xxhash.Sum64(k)
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].negative64[n] = struct{}{}
-			}
-			for h := range sus.strings {
-				if needStop(stopCh) {
-					return
-				}
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].strings[h] = struct{}{}
-			}
-
-			msShards[idx] = perCPU
-			ms[idx].reset()
-		}(i)
-	}
-	wg.Wait()
-
+func countUniqHashParallel(shardss [][]statsCountUniqHashSet, stopCh <-chan struct{}) uint64 {
+	cpusCount := len(shardss[0])
 	perCPUCounts := make([]uint64, cpusCount)
+	var wg sync.WaitGroup
 	for i := range perCPUCounts {
 		wg.Add(1)
 		go func(cpuIdx int) {
 			defer wg.Done()
 
-			sus := &msShards[0][cpuIdx]
-			for _, perCPU := range msShards[1:] {
+			sus := &shardss[0][cpuIdx]
+			for _, perCPU := range shardss[1:] {
 				sus.mergeState(&perCPU[cpuIdx], stopCh)
 				perCPU[cpuIdx].reset()
 			}
 			perCPUCounts[cpuIdx] = sus.entriesCount()
+			sus.reset()
 		}(i)
 	}
 	wg.Wait()
@@ -586,12 +498,142 @@ func countUniqHashParallel(ms []*statsCountUniqHashSet, stopCh <-chan struct{}) 
 	return countTotal
 }
 
+func (sup *statsCountUniqHashProcessor) entriesCount() uint64 {
+	if sup.shards == nil {
+		return sup.uniqValues.entriesCount()
+	}
+	n := uint64(0)
+	shards := sup.shards
+	for i := range shards {
+		n += shards[i].entriesCount()
+	}
+	return n
+}
+
+func (sup *statsCountUniqHashProcessor) updateStateGeneric(v string) int {
+	if n, ok := tryParseUint64(v); ok {
+		return sup.updateStateUint64(n)
+	}
+	if len(v) > 0 && v[0] == '-' {
+		if n, ok := tryParseInt64(v); ok {
+			return sup.updateStateNegativeInt64(n)
+		}
+	}
+	return sup.updateStateString(bytesutil.ToUnsafeBytes(v))
+}
+
+func (sup *statsCountUniqHashProcessor) updateStateInt64(n int64) int {
+	if n >= 0 {
+		return sup.updateStateUint64(uint64(n))
+	}
+	return sup.updateStateNegativeInt64(n)
+}
+
+func (sup *statsCountUniqHashProcessor) updateStateString(v []byte) int {
+	h := xxhash.Sum64(v)
+	if sup.shards == nil {
+		stateSizeIncrease := sup.uniqValues.updateStateStringHash(h)
+		if stateSizeIncrease > 0 {
+			stateSizeIncrease += sup.probablyMoveUniqValuesToShards()
+		}
+		return stateSizeIncrease
+	}
+	return sup.updateStateStringHash(h)
+}
+
+func (sup *statsCountUniqHashProcessor) updateStateStringHash(h uint64) int {
+	sus := sup.getShardByStringHash(h)
+	return sus.updateStateStringHash(h)
+}
+
+func (sup *statsCountUniqHashProcessor) updateStateTimestamp(ts int64) int {
+	if sup.shards == nil {
+		stateSizeIncrease := sup.uniqValues.updateStateTimestamp(ts)
+		if stateSizeIncrease > 0 {
+			stateSizeIncrease += sup.probablyMoveUniqValuesToShards()
+		}
+		return stateSizeIncrease
+	}
+	sus := sup.getShardByUint64(uint64(ts))
+	return sus.updateStateTimestamp(ts)
+}
+
+func (sup *statsCountUniqHashProcessor) updateStateUint64(n uint64) int {
+	if sup.shards == nil {
+		stateSizeIncrease := sup.uniqValues.updateStateUint64(n)
+		if stateSizeIncrease > 0 {
+			stateSizeIncrease += sup.probablyMoveUniqValuesToShards()
+		}
+		return stateSizeIncrease
+	}
+	sus := sup.getShardByUint64(n)
+	return sus.updateStateUint64(n)
+}
+
+func (sup *statsCountUniqHashProcessor) updateStateNegativeInt64(n int64) int {
+	if sup.shards == nil {
+		stateSizeIncrease := sup.uniqValues.updateStateNegativeInt64(n)
+		if stateSizeIncrease > 0 {
+			stateSizeIncrease += sup.probablyMoveUniqValuesToShards()
+		}
+		return stateSizeIncrease
+	}
+	sus := sup.getShardByUint64(uint64(n))
+	return sus.updateStateNegativeInt64(n)
+}
+
+func (sup *statsCountUniqHashProcessor) probablyMoveUniqValuesToShards() int {
+	if sup.uniqValues.entriesCount() < statsCountUniqHashValuesMaxLen {
+		return 0
+	}
+	return sup.moveUniqValuesToShards()
+}
+
+func (sup *statsCountUniqHashProcessor) moveUniqValuesToShards() int {
+	cpusCount := sup.concurrency
+	bytesAllocatedPrev := sup.a.bytesAllocated
+	sup.shards = sup.a.newStatsCountUniqHashSets(cpusCount)
+	stateSizeIncrease := sup.a.bytesAllocated - bytesAllocatedPrev
+
+	for ts := range sup.uniqValues.timestamps {
+		sus := sup.getShardByUint64(ts)
+		setUint64Set(&sus.timestamps, ts)
+	}
+	for n := range sup.uniqValues.u64 {
+		sus := sup.getShardByUint64(n)
+		setUint64Set(&sus.u64, n)
+	}
+	for n := range sup.uniqValues.negative64 {
+		sus := sup.getShardByUint64(n)
+		setUint64Set(&sus.negative64, n)
+	}
+	for h := range sup.uniqValues.strings {
+		sus := sup.getShardByStringHash(h)
+		setUint64Set(&sus.strings, h)
+	}
+
+	sup.uniqValues.reset()
+
+	return stateSizeIncrease
+}
+
+func (sup *statsCountUniqHashProcessor) getShardByStringHash(h uint64) *statsCountUniqHashSet {
+	cpuIdx := h % uint64(len(sup.shards))
+	return &sup.shards[cpuIdx]
+}
+
+func (sup *statsCountUniqHashProcessor) getShardByUint64(n uint64) *statsCountUniqHashSet {
+	h := fastHashUint64(n)
+	cpuIdx := h % uint64(len(sup.shards))
+	return &sup.shards[cpuIdx]
+}
+
 func (sup *statsCountUniqHashProcessor) limitReached(su *statsCountUniqHash) bool {
 	limit := su.limit
 	if limit <= 0 {
 		return false
 	}
-	return sup.m.entriesCount() > limit
+	return sup.entriesCount() > limit
 }
 
 func parseStatsCountUniqHash(lex *lexer) (*statsCountUniqHash, error) {
@@ -612,4 +654,11 @@ func parseStatsCountUniqHash(lex *lexer) (*statsCountUniqHash, error) {
 		su.limit = n
 	}
 	return su, nil
+}
+
+func fastHashUint64(x uint64) uint64 {
+	x ^= x >> 12 // a
+	x ^= x << 25 // b
+	x ^= x >> 27 // c
+	return x * 2685821657736338717
 }

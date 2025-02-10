@@ -560,7 +560,7 @@ func processLine(line []byte, currentYear int, timezone *time.Location, useLocal
 	if useLocalTimestamp {
 		ts = time.Now().UnixNano()
 	} else {
-		nsecs, err := insertutils.ExtractTimestampRFC3339NanoFromFields("timestamp", p.Fields)
+		nsecs, err := insertutils.ExtractTimestampFromFields("timestamp", p.Fields)
 		if err != nil {
 			return fmt.Errorf("cannot get timestamp from syslog line %q: %w", line, err)
 		}

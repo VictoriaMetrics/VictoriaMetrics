@@ -1,7 +1,7 @@
 dashboard-copy:
 	echo "" > dashboards/vm/${SRC}
 	cat dashboards/${SRC} >> dashboards/vm/${SRC}
-	sed -i='.tmp' 's/prometheus/victoriametrics-datasource/g' dashboards/vm/${SRC}
+	sed -i='.tmp' 's/prometheus/victoriametrics-metrics-datasource/g' dashboards/vm/${SRC}
 	sed -i='.tmp' 's/Prometheus/VictoriaMetrics/g' dashboards/vm/${SRC}
 	sed -i='.tmp' 's/${D_UID}/${D_UID}_vm/g' dashboards/vm/${SRC}
 	sed -i='.tmp' 's/"title": "${TITLE}"/"title": "${TITLE} (VM)"/g' dashboards/vm/${SRC}

@@ -9,7 +9,6 @@ import (
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
@@ -39,13 +38,33 @@ func (su *statsCountUniq) newStatsProcessor(a *chunkedAllocator) statsProcessor 
 type statsCountUniqProcessor struct {
 	a *chunkedAllocator
 
-	m  statsCountUniqSet
-	ms []*statsCountUniqSet
+	// concurrency is the number of parallel workers to use when merging shards.
+	//
+	// this field must be updated by the caller before using statsCountUniqProcessor.
+	concurrency uint
+
+	// uniqValues is used for tracking small number of unique values until it reaches statsCountUniqValuesMaxLen.
+	// After that the unique values are tracked by shards.
+	uniqValues statsCountUniqSet
+
+	// shards are used for tracking big number of unique values.
+	//
+	// Every shard contains a share of unique values, which are merged in parallel at finalizeStats().
+	shards []statsCountUniqSet
+
+	// shardss is used for collecting shards from other statsCountUniqProcessor instances at mergeState().
+	shardss [][]statsCountUniqSet
 
 	columnValues [][]string
 	keyBuf       []byte
 	tmpNum       int
 }
+
+// the maximum number of values to track in statsCountUniqProcessor.uniqValues before switching to statsCountUniqProcessor.shards
+//
+// Too big value may slow down mergeState() across big number of CPU cores.
+// Too small value may significantly increase RAM usage when coun_uniq() is applied individually to big number of groups.
+const statsCountUniqValuesMaxLen = 4 << 10
 
 type statsCountUniqSet struct {
 	timestamps map[uint64]struct{}
@@ -55,17 +74,7 @@ type statsCountUniqSet struct {
 }
 
 func (sus *statsCountUniqSet) reset() {
-	sus.timestamps = nil
-	sus.u64 = nil
-	sus.negative64 = nil
-	sus.strings = nil
-}
-
-func (sus *statsCountUniqSet) init() {
-	sus.timestamps = make(map[uint64]struct{})
-	sus.u64 = make(map[uint64]struct{})
-	sus.negative64 = make(map[uint64]struct{})
-	sus.strings = make(map[string]struct{})
+	*sus = statsCountUniqSet{}
 }
 
 func (sus *statsCountUniqSet) entriesCount() uint64 {
@@ -74,71 +83,23 @@ func (sus *statsCountUniqSet) entriesCount() uint64 {
 }
 
 func (sus *statsCountUniqSet) updateStateTimestamp(ts int64) int {
-	if sus.timestamps == nil {
-		sus.timestamps = make(map[uint64]struct{})
-	}
-	_, ok := sus.timestamps[uint64(ts)]
-	if ok {
-		return 0
-	}
-	sus.timestamps[uint64(ts)] = struct{}{}
-	return 8
+	return updateUint64Set(&sus.timestamps, uint64(ts))
 }
 
 func (sus *statsCountUniqSet) updateStateUint64(n uint64) int {
-	if sus.u64 == nil {
-		sus.u64 = make(map[uint64]struct{})
-	}
-	_, ok := sus.u64[n]
-	if ok {
-		return 0
-	}
-	sus.u64[n] = struct{}{}
-	return 8
-}
-
-func (sus *statsCountUniqSet) updateStateInt64(n int64) int {
-	if n >= 0 {
-		return sus.updateStateUint64(uint64(n))
-	}
-	return sus.updateStateNegativeInt64(n)
+	return updateUint64Set(&sus.u64, n)
 }
 
 func (sus *statsCountUniqSet) updateStateNegativeInt64(n int64) int {
-	if sus.negative64 == nil {
-		sus.negative64 = make(map[uint64]struct{})
-	}
-	_, ok := sus.negative64[uint64(n)]
-	if ok {
-		return 0
-	}
-	sus.negative64[uint64(n)] = struct{}{}
-	return 8
+	return updateUint64Set(&sus.negative64, uint64(n))
 }
 
-func (sus *statsCountUniqSet) updateStateGeneric(a *chunkedAllocator, v string) int {
-	if n, ok := tryParseUint64(v); ok {
-		return sus.updateStateUint64(n)
-	}
-	if len(v) > 0 && v[0] == '-' {
-		if n, ok := tryParseInt64(v); ok {
-			return sus.updateStateNegativeInt64(n)
-		}
-	}
-	return sus.updateStateString(a, v)
-}
-
-func (sus *statsCountUniqSet) updateStateString(a *chunkedAllocator, v string) int {
-	if sus.strings == nil {
-		sus.strings = make(map[string]struct{})
-	}
-	_, ok := sus.strings[v]
-	if ok {
+func (sus *statsCountUniqSet) updateStateString(a *chunkedAllocator, v []byte) int {
+	if _, ok := sus.strings[string(v)]; ok {
 		return 0
 	}
-	vCopy := a.cloneString(v)
-	sus.strings[vCopy] = struct{}{}
-	return int(unsafe.Sizeof(v)) + len(v)
+	vCopy := a.cloneBytesToString(v)
+	return setStringSet(&sus.strings, vCopy) + len(vCopy)
 }
 
 func (sus *statsCountUniqSet) mergeState(src *statsCountUniqSet, stopCh <-chan struct{}) {
@@ -146,7 +107,7 @@ func (sus *statsCountUniqSet) mergeState(src *statsCountUniqSet, stopCh <-chan s
 	mergeUint64Set(&sus.u64, src.u64, stopCh)
 	mergeUint64Set(&sus.negative64, src.negative64, stopCh)
 
-	if src.strings != nil && sus.strings == nil {
+	if sus.strings == nil {
 		sus.strings = make(map[string]struct{})
 	}
 	for k := range src.strings {
@@ -159,11 +120,46 @@ func (sus *statsCountUniqSet) mergeState(src *statsCountUniqSet, stopCh <-chan s
 	}
 }
 
-func mergeUint64Set(pDst *map[uint64]struct{}, src map[uint64]struct{}, stopCh <-chan struct{}) {
-	if src != nil && *pDst == nil {
-		*pDst = make(map[uint64]struct{})
+func updateUint64Set(dstPtr *map[uint64]struct{}, n uint64) int {
+	dst := *dstPtr
+	if _, ok := dst[n]; ok {
+		return 0
 	}
-	dst := *pDst
+	return setUint64Set(dstPtr, n)
+}
+
+func setUint64Set(dstPtr *map[uint64]struct{}, n uint64) int {
+	dst := *dstPtr
+	if dst == nil {
+		dst = map[uint64]struct{}{
+			n: {},
+		}
+		*dstPtr = dst
+		return int(unsafe.Sizeof(dst) + unsafe.Sizeof(n))
+	}
+	dst[n] = struct{}{}
+	return int(unsafe.Sizeof(n))
+}
+
+func setStringSet(dstPtr *map[string]struct{}, v string) int {
+	dst := *dstPtr
+	if dst == nil {
+		dst = map[string]struct{}{
+			v: {},
+		}
+		*dstPtr = dst
+		return int(unsafe.Sizeof(dst) + unsafe.Sizeof(v))
+	}
+	dst[v] = struct{}{}
+	return int(unsafe.Sizeof(v))
+}
+
+func mergeUint64Set(dstPtr *map[uint64]struct{}, src map[uint64]struct{}, stopCh <-chan struct{}) {
+	dst := *dstPtr
+	if dst == nil {
+		dst = make(map[uint64]struct{})
+		*dstPtr = dst
+	}
 	for n := range src {
 		if needStop(stopCh) {
 			return
@@ -336,12 +332,12 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRowsSingleColumn(br *blockR
 	if c.isTime {
 		// Count unique timestamps
 		timestamps := br.getTimestamps()
-		for i, timestamp := range timestamps {
+		for i := range timestamps {
 			if i > 0 && timestamps[i-1] == timestamps[i] {
 				// This timestamp has been already counted.
 				continue
 			}
-			stateSizeIncrease += sup.m.updateStateTimestamp(timestamp)
+			stateSizeIncrease += sup.updateStateTimestamp(timestamps[i])
 		}
 		return stateSizeIncrease
 	}
@@ -374,7 +370,7 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRowsSingleColumn(br *blockR
 				continue
 			}
 			n := unmarshalUint8(v)
-			stateSizeIncrease += sup.m.updateStateUint64(uint64(n))
+			stateSizeIncrease += sup.updateStateUint64(uint64(n))
 		}
 		return stateSizeIncrease
 	case valueTypeUint16:
@@ -384,7 +380,7 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRowsSingleColumn(br *blockR
 				continue
 			}
 			n := unmarshalUint16(v)
-			stateSizeIncrease += sup.m.updateStateUint64(uint64(n))
+			stateSizeIncrease += sup.updateStateUint64(uint64(n))
 		}
 		return stateSizeIncrease
 	case valueTypeUint32:
@@ -394,7 +390,7 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRowsSingleColumn(br *blockR
 				continue
 			}
 			n := unmarshalUint32(v)
-			stateSizeIncrease += sup.m.updateStateUint64(uint64(n))
+			stateSizeIncrease += sup.updateStateUint64(uint64(n))
 		}
 		return stateSizeIncrease
 	case valueTypeUint64:
@@ -404,7 +400,7 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRowsSingleColumn(br *blockR
 				continue
 			}
 			n := unmarshalUint64(v)
-			stateSizeIncrease += sup.m.updateStateUint64(n)
+			stateSizeIncrease += sup.updateStateUint64(n)
 		}
 		return stateSizeIncrease
 	case valueTypeInt64:
@@ -414,7 +410,7 @@ func (sup *statsCountUniqProcessor) updateStatsForAllRowsSingleColumn(br *blockR
 				continue
 			}
 			n := unmarshalInt64(v)
-			stateSizeIncrease += sup.m.updateStateInt64(n)
+			stateSizeIncrease += sup.updateStateInt64(n)
 		}
 		return stateSizeIncrease
 	default:
@@ -439,8 +435,7 @@ func (sup *statsCountUniqProcessor) updateStatsForRowSingleColumn(br *blockResul
 	if c.isTime {
 		// Count unique timestamps
 		timestamps := br.getTimestamps()
-		timestamp := timestamps[rowIdx]
-		return sup.m.updateStateTimestamp(timestamp)
+		return sup.updateStateTimestamp(timestamps[rowIdx])
 	}
 	if c.isConst {
 		// count unique const values
@@ -467,27 +462,27 @@ func (sup *statsCountUniqProcessor) updateStatsForRowSingleColumn(br *blockResul
 		values := c.getValuesEncoded(br)
 		v := values[rowIdx]
 		n := unmarshalUint8(v)
-		return sup.m.updateStateUint64(uint64(n))
+		return sup.updateStateUint64(uint64(n))
 	case valueTypeUint16:
 		values := c.getValuesEncoded(br)
 		v := values[rowIdx]
 		n := unmarshalUint16(v)
-		return sup.m.updateStateUint64(uint64(n))
+		return sup.updateStateUint64(uint64(n))
 	case valueTypeUint32:
 		values := c.getValuesEncoded(br)
 		v := values[rowIdx]
 		n := unmarshalUint32(v)
-		return sup.m.updateStateUint64(uint64(n))
+		return sup.updateStateUint64(uint64(n))
 	case valueTypeUint64:
 		values := c.getValuesEncoded(br)
 		v := values[rowIdx]
 		n := unmarshalUint64(v)
-		return sup.m.updateStateUint64(n)
+		return sup.updateStateUint64(n)
 	case valueTypeInt64:
 		values := c.getValuesEncoded(br)
 		v := values[rowIdx]
 		n := unmarshalInt64(v)
-		return sup.m.updateStateInt64(n)
+		return sup.updateStateInt64(n)
 	default:
 		// Count unique values for the given rowIdx
 		v := c.getValueAtRow(br, rowIdx)
@@ -506,20 +501,32 @@ func (sup *statsCountUniqProcessor) mergeState(sf statsFunc, sfp statsProcessor)
 	}
 
 	src := sfp.(*statsCountUniqProcessor)
-	if src.m.entriesCount() > 100_000 {
-		// Postpone merging too big number of items in parallel
-		sup.ms = append(sup.ms, &src.m)
-		return
+
+	if sup.shards == nil {
+		if src.shards == nil {
+			sup.uniqValues.mergeState(&src.uniqValues, nil)
+			src.uniqValues.reset()
+			sup.probablyMoveUniqValuesToShards()
+			return
+		}
+		sup.moveUniqValuesToShards()
 	}
 
-	sup.m.mergeState(&src.m, nil)
+	if src.shards == nil {
+		src.moveUniqValuesToShards()
+	}
+	sup.shardss = append(sup.shardss, src.shards)
+	src.shards = nil
 }
 
 func (sup *statsCountUniqProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte {
-	n := sup.m.entriesCount()
-	if len(sup.ms) > 0 {
-		sup.ms = append(sup.ms, &sup.m)
-		n = countUniqParallel(sup.ms, stopCh)
+	n := sup.entriesCount()
+	if len(sup.shardss) > 0 {
+		if sup.shards != nil {
+			sup.shardss = append(sup.shardss, sup.shards)
+			sup.shards = nil
+		}
+		n = countUniqParallel(sup.shardss, stopCh)
 	}
 
 	su := sf.(*statsCountUniq)
@@ -529,78 +536,22 @@ func (sup *statsCountUniqProcessor) finalizeStats(sf statsFunc, dst []byte, stop
 	return strconv.AppendUint(dst, n, 10)
 }
 
-func countUniqParallel(ms []*statsCountUniqSet, stopCh <-chan struct{}) uint64 {
-	shardsLen := len(ms)
-	cpusCount := cgroup.AvailableCPUs()
-
-	var wg sync.WaitGroup
-	msShards := make([][]statsCountUniqSet, shardsLen)
-	for i := range msShards {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-
-			perCPU := make([]statsCountUniqSet, cpusCount)
-			for i := range perCPU {
-				perCPU[i].init()
-			}
-
-			sus := ms[idx]
-
-			for ts := range sus.timestamps {
-				if needStop(stopCh) {
-					return
-				}
-				k := unsafe.Slice((*byte)(unsafe.Pointer(&ts)), 8)
-				h := xxhash.Sum64(k)
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].timestamps[ts] = struct{}{}
-			}
-			for n := range sus.u64 {
-				if needStop(stopCh) {
-					return
-				}
-				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
-				h := xxhash.Sum64(k)
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].u64[n] = struct{}{}
-			}
-			for n := range sus.negative64 {
-				if needStop(stopCh) {
-					return
-				}
-				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
-				h := xxhash.Sum64(k)
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].negative64[n] = struct{}{}
-			}
-			for k := range sus.strings {
-				if needStop(stopCh) {
-					return
-				}
-				h := xxhash.Sum64(bytesutil.ToUnsafeBytes(k))
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].strings[k] = struct{}{}
-			}
-
-			msShards[idx] = perCPU
-			ms[idx].reset()
-		}(i)
-	}
-	wg.Wait()
-
+func countUniqParallel(shardss [][]statsCountUniqSet, stopCh <-chan struct{}) uint64 {
+	cpusCount := len(shardss[0])
 	perCPUCounts := make([]uint64, cpusCount)
+	var wg sync.WaitGroup
 	for i := range perCPUCounts {
 		wg.Add(1)
 		go func(cpuIdx int) {
 			defer wg.Done()
 
-			sus := &msShards[0][cpuIdx]
-			for _, perCPU := range msShards[1:] {
+			sus := &shardss[0][cpuIdx]
+			for _, perCPU := range shardss[1:] {
 				sus.mergeState(&perCPU[cpuIdx], stopCh)
 				perCPU[cpuIdx].reset()
 			}
 			perCPUCounts[cpuIdx] = sus.entriesCount()
+			sus.reset()
 		}(i)
 	}
 	wg.Wait()
@@ -612,12 +563,130 @@ func countUniqParallel(ms []*statsCountUniqSet, stopCh <-chan struct{}) uint64 {
 	return countTotal
 }
 
+func (sup *statsCountUniqProcessor) entriesCount() uint64 {
+	if sup.shards == nil {
+		return sup.uniqValues.entriesCount()
+	}
+	n := uint64(0)
+	shards := sup.shards
+	for i := range shards {
+		n += shards[i].entriesCount()
+	}
+	return n
+}
+
 func (sup *statsCountUniqProcessor) updateStateGeneric(v string) int {
-	return sup.m.updateStateGeneric(sup.a, v)
+	if n, ok := tryParseUint64(v); ok {
+		return sup.updateStateUint64(n)
+	}
+	if len(v) > 0 && v[0] == '-' {
+		if n, ok := tryParseInt64(v); ok {
+			return sup.updateStateNegativeInt64(n)
+		}
+	}
+	return sup.updateStateString(bytesutil.ToUnsafeBytes(v))
+}
+
+func (sup *statsCountUniqProcessor) updateStateInt64(n int64) int {
+	if n >= 0 {
+		return sup.updateStateUint64(uint64(n))
+	}
+	return sup.updateStateNegativeInt64(n)
 }
 
 func (sup *statsCountUniqProcessor) updateStateString(v []byte) int {
-	return sup.m.updateStateString(sup.a, bytesutil.ToUnsafeString(v))
+	if sup.shards == nil {
+		stateSizeIncrease := sup.uniqValues.updateStateString(sup.a, v)
+		if stateSizeIncrease > 0 {
+			stateSizeIncrease += sup.probablyMoveUniqValuesToShards()
+		}
+		return stateSizeIncrease
+	}
+	sus := sup.getShardByString(v)
+	return sus.updateStateString(sup.a, v)
+}
+
+func (sup *statsCountUniqProcessor) updateStateTimestamp(ts int64) int {
+	if sup.shards == nil {
+		stateSizeIncrease := sup.uniqValues.updateStateTimestamp(ts)
+		if stateSizeIncrease > 0 {
+			stateSizeIncrease += sup.probablyMoveUniqValuesToShards()
+		}
+		return stateSizeIncrease
+	}
+	sus := sup.getShardByUint64(uint64(ts))
+	return sus.updateStateTimestamp(ts)
+}
+
+func (sup *statsCountUniqProcessor) updateStateUint64(n uint64) int {
+	if sup.shards == nil {
+		stateSizeIncrease := sup.uniqValues.updateStateUint64(n)
+		if stateSizeIncrease > 0 {
+			stateSizeIncrease += sup.probablyMoveUniqValuesToShards()
+		}
+		return stateSizeIncrease
+	}
+	sus := sup.getShardByUint64(n)
+	return sus.updateStateUint64(n)
+}
+
+func (sup *statsCountUniqProcessor) updateStateNegativeInt64(n int64) int {
+	if sup.shards == nil {
+		stateSizeIncrease := sup.uniqValues.updateStateNegativeInt64(n)
+		if stateSizeIncrease > 0 {
+			stateSizeIncrease += sup.probablyMoveUniqValuesToShards()
+		}
+		return stateSizeIncrease
+	}
+	sus := sup.getShardByUint64(uint64(n))
+	return sus.updateStateNegativeInt64(n)
+}
+
+func (sup *statsCountUniqProcessor) probablyMoveUniqValuesToShards() int {
+	if sup.uniqValues.entriesCount() < statsCountUniqValuesMaxLen {
+		return 0
+	}
+	return sup.moveUniqValuesToShards()
+}
+
+func (sup *statsCountUniqProcessor) moveUniqValuesToShards() int {
+	cpusCount := sup.concurrency
+	bytesAllocatedPrev := sup.a.bytesAllocated
+	sup.shards = sup.a.newStatsCountUniqSets(cpusCount)
+	stateSizeIncrease := sup.a.bytesAllocated - bytesAllocatedPrev
+
+	for ts := range sup.uniqValues.timestamps {
+		sus := sup.getShardByUint64(ts)
+		setUint64Set(&sus.timestamps, ts)
+	}
+	for n := range sup.uniqValues.u64 {
+		sus := sup.getShardByUint64(n)
+		setUint64Set(&sus.u64, n)
+	}
+	for n := range sup.uniqValues.negative64 {
+		sus := sup.getShardByUint64(n)
+		setUint64Set(&sus.negative64, n)
+	}
+	for s := range sup.uniqValues.strings {
+		sus := sup.getShardByString(bytesutil.ToUnsafeBytes(s))
+		setStringSet(&sus.strings, s)
+	}
+
+	sup.uniqValues.reset()
+
+	return stateSizeIncrease
+}
+
+func (sup *statsCountUniqProcessor) getShardByString(v []byte) *statsCountUniqSet {
+	h := xxhash.Sum64(v)
+	cpuIdx := h % uint64(len(sup.shards))
+	return &sup.shards[cpuIdx]
+}
+
+func (sup *statsCountUniqProcessor) getShardByUint64(n uint64) *statsCountUniqSet {
+	h := fastHashUint64(n)
+	cpuIdx := h % uint64(len(sup.shards))
+	return &sup.shards[cpuIdx]
 }
 
 func (sup *statsCountUniqProcessor) limitReached(su *statsCountUniq) bool {
@@ -625,7 +694,7 @@ func (sup *statsCountUniqProcessor) limitReached(su *statsCountUniq) bool {
 	if limit <= 0 {
 		return false
 	}
-	return sup.m.entriesCount() > limit
+	return sup.entriesCount() > limit
 }
 
 func parseStatsCountUniq(lex *lexer) (*statsCountUniq, error) {

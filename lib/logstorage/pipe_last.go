@@ -56,6 +56,10 @@ func (pl *pipeLast) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (
 	return pl, nil
 }
 
+func (pl *pipeLast) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pl *pipeLast) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	return newPipeTopkProcessor(pl.ps, workersCount, stopCh, cancel, ppNext)
 }

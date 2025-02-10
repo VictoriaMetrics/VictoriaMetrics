@@ -50,6 +50,10 @@ func (pu *pipeUnroll) initFilterInValues(cache *inValuesCache, getFieldValuesFun
 	return &puNew, nil
 }
 
+func (pu *pipeUnroll) visitSubqueries(visitFunc func(q *Query)) {
+	pu.iff.visitSubqueries(visitFunc)
+}
+
 func (pu *pipeUnroll) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
 		if pu.iff != nil {

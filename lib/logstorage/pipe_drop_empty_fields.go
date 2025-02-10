@@ -29,6 +29,10 @@ func (pd *pipeDropEmptyFields) initFilterInValues(_ *inValuesCache, _ getFieldVa
 	return pd, nil
 }
 
+func (pd *pipeDropEmptyFields) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pd *pipeDropEmptyFields) updateNeededFields(_, _ fieldsSet) {
 	// nothing to do
 }

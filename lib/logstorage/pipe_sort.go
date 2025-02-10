@@ -115,6 +115,10 @@ func (ps *pipeSort) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (
 	return ps, nil
 }
 
+func (ps *pipeSort) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (ps *pipeSort) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	if ps.limit > 0 {
 		return newPipeTopkProcessor(ps, workersCount, stopCh, cancel, ppNext)

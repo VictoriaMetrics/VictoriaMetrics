@@ -25,23 +25,6 @@ The VictoriaLogs datasource plugin allows you to query and visualize
 
 ## Installation
 
-Installing VictoriaLogs datasource 
-[requires](https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/#allow_loading_unsigned_plugins) 
-the following changes to Grafana's `grafana.ini` config:
-
-``` ini
-[plugins]
-allow_loading_unsigned_plugins = victoriametrics-logs-datasource
-```
-
-If using `grafana-operator`, adjust `config` section in your `kind=Grafana` resource as below:
-
-```
-  config:
-    plugins:
-      allow_loading_unsigned_plugins: "victoriametrics-logs-datasource"
-```
-
 For detailed instructions on how to install the plugin in Grafana Cloud or locally,
 please checkout the [Plugin installation docs](https://grafana.com/docs/grafana/latest/plugins/installation/).
 
@@ -80,8 +63,7 @@ Please find the example of provisioning Grafana instance with VictoriaLogs datas
        grafana:
          image: grafana/grafana:11.0.0
          environment:
-         - GF_INSTALL_PLUGINS=https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.13.1/victoriametrics-logs-datasource-v0.13.1.zip;victoriametrics-logs-datasource
-         - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-logs-datasource
+         - GF_INSTALL_PLUGINS=victoriametrics-logs-datasource
          ports:
          - 3000:3000/tcp
          volumes:
@@ -108,15 +90,14 @@ Option 1. Using Grafana provisioning:
 
 ``` yaml
 env:
-  GF_INSTALL_PLUGINS: "https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.13.1/victoriametrics-logs-datasource-v0.13.1.zip;victoriametrics-logs-datasource"
-  GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: "victoriametrics-logs-datasource"
+  GF_INSTALL_PLUGINS: "victoriametrics-logs-datasource"
 ```
 
 Option 2. Using Grafana plugins section in `values.yaml`:
 
 ``` yaml
 plugins:
-  - https://github.com/VictoriaMetrics/victorialogs-datasource/releases/download/v0.13.1/victoriametrics-logs-datasource-v0.13.1.zip;victoriametrics-logs-datasource
+  - victoriametrics-logs-datasource
 ```
 
 Option 3. Using init container:
@@ -170,6 +151,8 @@ apiVersion: grafana.integreatly.org/v1beta1
 kind: Grafana
 metadata:
   name: grafana-vm
+  labels:
+     dashboards: grafana
 spec:
   persistentVolumeClaim:
     spec:
@@ -203,13 +186,84 @@ spec:
               volumeMounts:
                 - name: grafana-data
                   mountPath: /var/lib/grafana
-  config:
-    plugins:
-      allow_loading_unsigned_plugins: victoriametrics-logs-datasource
 ```
 
 See [Grafana operator reference](https://grafana-operator.github.io/grafana-operator/docs/grafana/) to find more about Grafana operator.
 This example uses init container to download and install plugin.
+
+It is also possible to request plugin at `GrafanaDatasource` or `GrafanaDashboard` CRDs.
+For example:
+```yaml
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: vl-datasource
+spec:
+  datasource:
+    access: proxy
+    type: victoriametrics-logs-datasource
+    name: VL
+    url: http://victoria-logs-single-server.monitoring.svc.cluster.local:9428
+  instanceSelector:
+    matchLabels:
+      dashboards: grafana
+  plugins:
+    - name: victoriametrics-logs-datasource
+      version: "0.14.3"
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: vl-dashboard
+spec:
+  resyncPeriod: 30s
+  plugins:
+    - name: victoriametrics-logs-datasource
+      version: "0.14.3"
+  instanceSelector:
+    matchLabels:
+      dashboards: "grafana"
+  json: |
+     {
+        "annotations": {
+           "list": [
+              {
+                 "builtIn": 1,
+                 "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                 },
+                 "enable": true,
+                 "hide": true,
+                 "iconColor": "rgba(0, 211, 255, 1)",
+                 "name": "Annotations & Alerts",
+                 "type": "dashboard"
+              }
+           ]
+        },
+        "editable": true,
+        "fiscalYearStartMonth": 0,
+        "graphTooltip": 0,
+        "links": [],
+        "panels": [],
+        "preload": false,
+        "refresh": "",
+        "schemaVersion": 40,
+        "tags": [],
+        "templating": {
+           "list": []
+        },
+        "time": {
+           "from": "now-6h",
+           "to": "now"
+        },
+        "timepicker": {},
+        "timezone": "browser",
+        "title": "Example",
+        "version": 0,
+        "weekStart": ""
+     }
+```
 
 ### Dev release installation
 

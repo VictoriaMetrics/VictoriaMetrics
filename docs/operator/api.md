@@ -1028,7 +1028,7 @@ _Appears in:_
 | `port` | The port to scrape metrics from. If using the public IP address, this must<br />instead be specified in the relabeling rule. | _integer_ | false |
 | `project` | The Google Cloud Project ID | _string_ | true |
 | `tagSeparator` | The tag separator is used to separate the tags on concatenation | _string_ | false |
-| `zone` | The zone of the scrape targets. If you need multiple zones use multiple GCESDConfigs. | _string_ | true |
+| `zone` | The zone of the scrape targets. If you need multiple zones use multiple GCESDConfigs. | _[StringOrArray](#stringorarray)_ | true |
 
 
 #### HTTPAuth
@@ -2135,6 +2135,7 @@ StringOrArray is a helper type for storing string or array of string.
 
 
 _Appears in:_
+- [GCESDConfig](#gcesdconfig)
 - [RelabelConfig](#relabelconfig)
 - [StreamAggrRule](#streamaggrrule)
 - [UnauthorizedAccessConfigURLMap](#unauthorizedaccessconfigurlmap)
@@ -2346,6 +2347,7 @@ _Appears in:_
 | `disable_notifications` | DisableNotifications | _boolean_ | false |
 | `http_config` | HTTP client configuration. | _[HTTPConfig](#httpconfig)_ | false |
 | `message` | Message is templated message | _string_ | false |
+| `message_thread_id` | MessageThreadID defines ID of the message thread where to send the messages. | _integer_ | false |
 | `parse_mode` | ParseMode for telegram message,<br />supported values are MarkdownV2, Markdown, Markdown and empty string for plain text. | _string_ | false |
 | `send_resolved` | SendResolved controls notify about resolved alerts. | _boolean_ | false |
 

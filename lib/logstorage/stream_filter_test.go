@@ -200,7 +200,7 @@ func mustNewTestStreamFilter(s string) *StreamFilter {
 }
 
 func newTestStreamFilter(s string) (*StreamFilter, error) {
-	lex := newLexer(s)
+	lex := newLexer(s, 0)
 	fs, err := parseFilterStream(lex)
 	if err != nil {
 		return nil, err

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"golang.org/x/sys/unix"
 )
@@ -30,7 +31,7 @@ func mustSyncPath(path string) {
 	if err != nil {
 		logger.Panicf("FATAL: cannot open file for fsync: %s", err)
 	}
-	if !disableFSyncForTesting {
+	if !fsutil.IsFsyncDisabled() {
 		if err := d.Sync(); err != nil {
 			_ = d.Close()
 			logger.Panicf("FATAL: cannot flush %q to storage: %s", path, err)

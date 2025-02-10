@@ -2,9 +2,11 @@ package logstorage
 
 import (
 	"fmt"
+	"math"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
 // pipeLen processes '| len ...' pipe.
@@ -49,6 +51,10 @@ func (pl *pipeLen) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (p
 	return pl, nil
 }
 
+func (pl *pipeLen) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pl *pipeLen) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return &pipeLenProcessor{
 		pl:     pl,
@@ -75,6 +81,9 @@ type pipeLenProcessorShard struct {
 type pipeLenProcessorShardNopad struct {
 	a  arena
 	rc resultColumn
+
+	minValue float64
+	maxValue float64
 }
 
 func (plp *pipeLenProcessor) writeBlock(workerID uint, br *blockResult) {
@@ -88,30 +97,47 @@ func (plp *pipeLenProcessor) writeBlock(workerID uint, br *blockResult) {
 	c := br.getColumnByName(plp.pl.fieldName)
 	if c.isConst {
 		// Fast path for const column
-		vLen := len(c.valuesEncoded[0])
-		shard.a.b = marshalUint64String(shard.a.b[:0], uint64(vLen))
-		vLenStr := bytesutil.ToUnsafeString(shard.a.b)
-		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
-			shard.rc.addValue(vLenStr)
-		}
+		v := c.valuesEncoded[0]
+		shard.a.b = marshalUint64String(shard.a.b[:0], uint64(len(v)))
+		shard.rc.addValue(bytesutil.ToUnsafeString(shard.a.b))
+		br.addResultColumnConst(&shard.rc)
 	} else {
 		// Slow path for other columns
 		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 			v := c.getValueAtRow(br, rowIdx)
-			vLen := len(v)
-			aLen := len(shard.a.b)
-			shard.a.b = marshalUint64String(shard.a.b, uint64(vLen))
-			vLenStr := bytesutil.ToUnsafeString(shard.a.b[aLen:])
-			shard.rc.addValue(vLenStr)
+			vEncoded := shard.getEncodedLen(v)
+			shard.rc.addValue(vEncoded)
 		}
+		br.addResultColumnFloat64(&shard.rc, shard.minValue, shard.maxValue)
 	}
 
 	// Write the result to ppNext
-	br.addResultColumn(&shard.rc)
 	plp.ppNext.writeBlock(workerID, br)
 
+	shard.reset()
+}
+
+func (shard *pipeLenProcessorShard) reset() {
 	shard.a.reset()
 	shard.rc.reset()
+	shard.minValue = nan
+	shard.maxValue = nan
+}
+
+func (shard *pipeLenProcessorShard) getEncodedLen(v string) string {
+	f := float64(len(v))
+	if math.IsNaN(shard.minValue) {
+		shard.minValue = f
+		shard.maxValue = f
+	} else if f < shard.minValue {
+		shard.minValue = f
+	} else if f > shard.maxValue {
+		shard.maxValue = f
+	}
+	n := math.Float64bits(f)
+	bLen := len(shard.a.b)
+	shard.a.b = encoding.MarshalUint64(shard.a.b, n)
+	return bytesutil.ToUnsafeString(shard.a.b[bLen:])
 }
 
 func (plp *pipeLenProcessor) flush() error {

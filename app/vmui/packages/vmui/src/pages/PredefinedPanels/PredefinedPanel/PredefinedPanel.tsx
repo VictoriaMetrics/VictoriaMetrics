@@ -119,6 +119,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
         {title || ""}
       </h3>
       <GraphSettings
+        data={graphData || []}
         yaxis={yaxis}
         setYaxisLimits={setYaxisLimits}
         toggleEnableLimits={toggleEnableLimits}

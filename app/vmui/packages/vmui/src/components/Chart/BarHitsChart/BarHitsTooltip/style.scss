@@ -9,4 +9,23 @@
     opacity: 1;
     pointer-events: auto;
   }
+
+  &-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: $padding-global;
+    max-width: 100%;
+
+    &__label {
+      display: inline-block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &__date {
+    white-space: nowrap;
+  }
 }

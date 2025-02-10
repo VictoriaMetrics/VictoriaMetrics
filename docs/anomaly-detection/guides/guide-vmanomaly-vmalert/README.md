@@ -2,9 +2,9 @@
 
 - To use *vmanomaly*, part of the enterprise package, a license key is required. Obtain your key [here](https://victoriametrics.com/products/enterprise/trial/) for this tutorial or for enterprise use.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
-  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics) (v1.108.1)
-  -  [vmalert](https://docs.victoriametrics.com/vmalert/) (v1.108.1)
-  -  [vmagent](https://docs.victoriametrics.com/vmagent/) (v1.108.1)
+  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics) (v1.110.0)
+  -  [vmalert](https://docs.victoriametrics.com/vmalert/) (v1.110.0)
+  -  [vmagent](https://docs.victoriametrics.com/vmagent/) (v1.110.0)
 - [Grafana](https://grafana.com/) (v.10.2.1)
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter) (v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) (v0.27.0)
@@ -121,7 +121,7 @@ Detailed parameters in each section:
 
 * `models`
   * `class` - Specifies the model to be used. Options include custom models ([guide here](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide)) or a selection from [built-in models](https://docs.victoriametrics.com/anomaly-detection/components/models/#built-in-models), such as the [Facebook Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) (`model.prophet.ProphetModel`).
-  * `args` - Model-specific parameters, formatted as a YAML dictionary in the `key: value` structure. Parameters available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start.html) can be used as an example.
+  * `args` - Model-specific parameters, formatted as a YAML dictionary in the `key: value` structure. Parameters available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start) can be used as an example.
 
 * `reader`
   * `datasource_url` - The URL for the data source, typically an HTTP endpoint serving `/api/v1/query_range`.
@@ -136,22 +136,24 @@ Below is an illustrative example of a `vmanomaly_config.yml` configuration file.
 ``` yaml
 schedulers:
   periodic:
-    # class: 'periodic'  # or "scheduler.periodic.PeriodicScheduler" until v1.13.0
     infer_every: "1m"
-    fit_every: "2m"
-    fit_window: "3h"
+    fit_every: "1h"
+    fit_window: "2d" # 2d-14d based on the presense of weekly seasonality in your data
 
 models:
   prophet:
-    class: "prophet"  # or "model.prophet.ProphetModel" until v1.13.0
+    class: "prophet" 
     args:
       interval_width: 0.98
+      weekly_seasonality: False  # comment it if your data has weekly seasonality
+      yearly_seasonality: False
 
 reader:
   datasource_url: "http://victoriametrics:8428/"
-  sampling_period: "60s" 
+  sampling_period: "60s"
   queries:
-    node_cpu_rate: "sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)"
+    node_cpu_rate: 
+      expr: "sum(rate(node_cpu_seconds_total[5m])) by (mode, instance, job)"
 
 writer:
   datasource_url: "http://victoriametrics:8428/"
@@ -313,7 +315,7 @@ Let's wrap it all up together into the `docker-compose.yml` file.
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.108.1
+    image: victoriametrics/vmagent:v1.110.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -330,7 +332,7 @@ services:
 
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.108.1
+    image: victoriametrics/victoria-metrics:v1.110.0
     ports:
       - 8428:8428
     volumes:
@@ -363,7 +365,7 @@ services:
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.108.1
+    image: victoriametrics/vmalert:v1.110.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -385,7 +387,7 @@ services:
     restart: always
   vmanomaly:
     container_name: vmanomaly
-    image: victoriametrics/vmanomaly:v1.18.8
+    image: victoriametrics/vmanomaly:v1.19.2
     depends_on:
       - "victoriametrics"
     ports:

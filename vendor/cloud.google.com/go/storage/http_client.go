@@ -22,7 +22,6 @@ import (
 	"hash/crc32"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -48,14 +47,13 @@ import (
 // httpStorageClient is the HTTP-JSON API implementation of the transport-agnostic
 // storageClient interface.
 type httpStorageClient struct {
-	creds                      *google.Credentials
-	hc                         *http.Client
-	xmlHost                    string
-	raw                        *raw.Service
-	scheme                     string
-	settings                   *settings
-	config                     *storageConfig
-	dynamicReadReqStallTimeout *bucketDelayManager
+	creds    *google.Credentials
+	hc       *http.Client
+	xmlHost  string
+	raw      *raw.Service
+	scheme   string
+	settings *settings
+	config   *storageConfig
 }
 
 // newHTTPStorageClient initializes a new storageClient that uses the HTTP-JSON
@@ -130,29 +128,14 @@ func newHTTPStorageClient(ctx context.Context, opts ...storageOption) (storageCl
 		return nil, fmt.Errorf("supplied endpoint %q is not valid: %w", ep, err)
 	}
 
-	var bd *bucketDelayManager
-	if config.readStallTimeoutConfig != nil {
-		drrstConfig := config.readStallTimeoutConfig
-		bd, err = newBucketDelayManager(
-			drrstConfig.TargetPercentile,
-			getDynamicReadReqIncreaseRateFromEnv(),
-			getDynamicReadReqInitialTimeoutSecFromEnv(drrstConfig.Min),
-			drrstConfig.Min,
-			defaultDynamicReqdReqMaxTimeout)
-		if err != nil {
-			return nil, fmt.Errorf("creating dynamic-delay: %w", err)
-		}
-	}
-
 	return &httpStorageClient{
-		creds:                      creds,
-		hc:                         hc,
-		xmlHost:                    u.Host,
-		raw:                        rawService,
-		scheme:                     u.Scheme,
-		settings:                   s,
-		config:                     &config,
-		dynamicReadReqStallTimeout: bd,
+		creds:    creds,
+		hc:       hc,
+		xmlHost:  u.Host,
+		raw:      rawService,
+		scheme:   u.Scheme,
+		settings: s,
+		config:   &config,
 	}, nil
 }
 
@@ -592,31 +575,6 @@ func (c *httpStorageClient) RestoreObject(ctx context.Context, params *restoreOb
 	return newObject(obj), err
 }
 
-func (c *httpStorageClient) MoveObject(ctx context.Context, params *moveObjectParams, opts ...storageOption) (*ObjectAttrs, error) {
-	s := callSettings(c.settings, opts...)
-	req := c.raw.Objects.Move(params.bucket, params.srcObject, params.dstObject).Context(ctx)
-	if err := applyConds("MoveObjectDestination", defaultGen, params.dstConds, req); err != nil {
-		return nil, err
-	}
-	if err := applySourceConds("MoveObjectSource", defaultGen, params.srcConds, req); err != nil {
-		return nil, err
-	}
-	if s.userProject != "" {
-		req.UserProject(s.userProject)
-	}
-	if err := setEncryptionHeaders(req.Header(), params.encryptionKey, false); err != nil {
-		return nil, err
-	}
-	var obj *raw.Object
-	var err error
-	err = run(ctx, func(ctx context.Context) error { obj, err = req.Context(ctx).Do(); return err }, s.retry, s.idempotent)
-	var e *googleapi.Error
-	if ok := errors.As(err, &e); ok && e.Code == http.StatusNotFound {
-		return nil, ErrObjectNotExist
-	}
-	return newObject(obj), err
-}
-
 // Default Object ACL methods.
 
 func (c *httpStorageClient) DeleteDefaultObjectACL(ctx context.Context, bucket string, entity ACLEntity, opts ...storageOption) error {
@@ -822,7 +780,7 @@ func (c *httpStorageClient) RewriteObject(ctx context.Context, req *rewriteObjec
 	if err := applyConds("Copy destination", defaultGen, req.dstObject.conds, call); err != nil {
 		return nil, err
 	}
-	if err := applySourceConds("Copy source", req.srcObject.gen, req.srcObject.conds, call); err != nil {
+	if err := applySourceConds(req.srcObject.gen, req.srcObject.conds, call); err != nil {
 		return nil, err
 	}
 	if s.userProject != "" {
@@ -859,11 +817,6 @@ func (c *httpStorageClient) RewriteObject(ctx context.Context, req *rewriteObjec
 	}
 
 	return r, nil
-}
-
-// NewMultiRangeDownloader is not supported by http client.
-func (c *httpStorageClient) NewMultiRangeDownloader(ctx context.Context, params *newMultiRangeDownloaderParams, opts ...storageOption) (mr *MultiRangeDownloader, err error) {
-	return nil, errMethodNotSupported
 }
 
 func (c *httpStorageClient) NewRangeReader(ctx context.Context, params *newRangeReaderParams, opts ...storageOption) (r *Reader, err error) {
@@ -904,48 +857,15 @@ func (c *httpStorageClient) newRangeReaderXML(ctx context.Context, params *newRa
 
 	reopen := readerReopen(ctx, req.Header, params, s,
 		func(ctx context.Context) (*http.Response, error) {
-			setHeadersFromCtx(ctx, req.Header)
-
-			if c.dynamicReadReqStallTimeout == nil {
-				return c.hc.Do(req.WithContext(ctx))
-			}
-
-			cancelCtx, cancel := context.WithCancel(ctx)
-			var (
-				res *http.Response
-				err error
-			)
-
-			done := make(chan bool)
-			go func() {
-				reqStartTime := time.Now()
-				res, err = c.hc.Do(req.WithContext(cancelCtx))
-				if err == nil {
-					reqLatency := time.Since(reqStartTime)
-					c.dynamicReadReqStallTimeout.update(params.bucket, reqLatency)
-				} else if errors.Is(err, context.Canceled) {
-					// context.Canceled means operation took more than current dynamicTimeout,
-					// hence should be increased.
-					c.dynamicReadReqStallTimeout.increase(params.bucket)
+			// Set custom headers passed in via the context. This is only required for XML;
+			// for gRPC & JSON this is handled in the GAPIC and Apiary layers respectively.
+			ctxHeaders := callctx.HeadersFromContext(ctx)
+			for k, vals := range ctxHeaders {
+				for _, v := range vals {
+					req.Header.Set(k, v)
 				}
-				done <- true
-			}()
-
-			// Wait until stall timeout or request is successful.
-			stallTimeout := c.dynamicReadReqStallTimeout.getValue(params.bucket)
-			timer := time.After(stallTimeout)
-			select {
-			case <-timer:
-				log.Printf("stalled read-req (%p) cancelled after %fs", req, stallTimeout.Seconds())
-				cancel()
-				err = context.DeadlineExceeded
-				if res != nil && res.Body != nil {
-					res.Body.Close()
-				}
-			case <-done:
-				cancel = nil
 			}
-			return res, err
+			return c.hc.Do(req.WithContext(ctx))
 		},
 		func() error { return setConditionsHeaders(req.Header, params.conds) },
 		func() { req.URL.RawQuery = fmt.Sprintf("generation=%d", params.gen) })
@@ -982,10 +902,6 @@ func (c *httpStorageClient) newRangeReaderJSON(ctx context.Context, params *newR
 }
 
 func (c *httpStorageClient) OpenWriter(params *openWriterParams, opts ...storageOption) (*io.PipeWriter, error) {
-	if params.append {
-		return nil, errors.New("storage: append not supported on HTTP Client; use gRPC")
-	}
-
 	s := callSettings(c.settings, opts...)
 	errorf := params.setError
 	setObj := params.setObj
@@ -1000,9 +916,6 @@ func (c *httpStorageClient) OpenWriter(params *openWriterParams, opts ...storage
 	}
 	if params.chunkRetryDeadline != 0 {
 		mediaOpts = append(mediaOpts, googleapi.ChunkRetryDeadline(params.chunkRetryDeadline))
-	}
-	if params.chunkTransferTimeout != 0 {
-		mediaOpts = append(mediaOpts, googleapi.ChunkTransferTimeout(params.chunkTransferTimeout))
 	}
 
 	pr, pw := io.Pipe()
@@ -1509,20 +1422,18 @@ func parseReadResponse(res *http.Response, params *newRangeReaderParams, reopen 
 		}
 	} else {
 		size = res.ContentLength
-	}
-
-	// Check the CRC iff all of the following hold:
-	// - We asked for content (length != 0).
-	// - We got all the content (status != PartialContent).
-	// - The server sent a CRC header.
-	// - The Go http stack did not uncompress the file.
-	// - We were not served compressed data that was uncompressed on download.
-	// The problem with the last two cases is that the CRC will not match -- GCS
-	// computes it on the compressed contents, but we compute it on the
-	// uncompressed contents.
-	crc, checkCRC = parseCRC32c(res)
-	if params.length == 0 || res.StatusCode == http.StatusPartialContent || res.Uncompressed || uncompressedByServer(res) {
-		checkCRC = false
+		// Check the CRC iff all of the following hold:
+		// - We asked for content (length != 0).
+		// - We got all the content (status != PartialContent).
+		// - The server sent a CRC header.
+		// - The Go http stack did not uncompress the file.
+		// - We were not served compressed data that was uncompressed on download.
+		// The problem with the last two cases is that the CRC will not match -- GCS
+		// computes it on the compressed contents, but we compute it on the
+		// uncompressed contents.
+		if params.length != 0 && !res.Uncompressed && !uncompressedByServer(res) {
+			crc, checkCRC = parseCRC32c(res)
+		}
 	}
 
 	remain := res.ContentLength
@@ -1550,14 +1461,6 @@ func parseReadResponse(res *http.Response, params *newRangeReaderParams, reopen 
 		}
 	}
 
-	metadata := map[string]string{}
-	for key, values := range res.Header {
-		if len(values) > 0 && strings.HasPrefix(key, "X-Goog-Meta-") {
-			key := key[len("X-Goog-Meta-"):]
-			metadata[key] = values[0]
-		}
-	}
-
 	attrs := ReaderObjectAttrs{
 		Size:            size,
 		ContentType:     res.Header.Get("Content-Type"),
@@ -1567,15 +1470,12 @@ func parseReadResponse(res *http.Response, params *newRangeReaderParams, reopen 
 		StartOffset:     startOffset,
 		Generation:      params.gen,
 		Metageneration:  metaGen,
-		CRC32C:          crc,
-		Decompressed:    res.Uncompressed || uncompressedByServer(res),
 	}
 	return &Reader{
-		Attrs:          attrs,
-		objectMetadata: &metadata,
-		size:           size,
-		remain:         remain,
-		checkCRC:       checkCRC,
+		Attrs:    attrs,
+		size:     size,
+		remain:   remain,
+		checkCRC: checkCRC,
 		reader: &httpReader{
 			reopen:   reopen,
 			body:     body,
@@ -1583,31 +1483,4 @@ func parseReadResponse(res *http.Response, params *newRangeReaderParams, reopen 
 			checkCRC: checkCRC,
 		},
 	}, nil
-}
-
-// setHeadersFromCtx sets custom headers passed in via the context on the header,
-// replacing any header with the same key (which avoids duplicating invocation headers).
-// This is only required for XML; for gRPC & JSON requests this is handled in
-// the GAPIC and Apiary layers respectively.
-func setHeadersFromCtx(ctx context.Context, header http.Header) {
-	ctxHeaders := callctx.HeadersFromContext(ctx)
-	for k, vals := range ctxHeaders {
-		// Merge x-goog-api-client values into a single space-separated value.
-		if strings.EqualFold(k, xGoogHeaderKey) {
-			alreadySetValues := header.Values(xGoogHeaderKey)
-			vals = append(vals, alreadySetValues...)
-
-			if len(vals) > 0 {
-				xGoogHeader := vals[0]
-				for _, v := range vals[1:] {
-					xGoogHeader = strings.Join([]string{xGoogHeader, v}, " ")
-				}
-				header.Set(k, xGoogHeader)
-			}
-		} else {
-			for _, v := range vals {
-				header.Set(k, v)
-			}
-		}
-	}
 }

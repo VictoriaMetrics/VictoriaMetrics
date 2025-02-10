@@ -1,6 +1,6 @@
 
 
-![Version](https://img.shields.io/badge/0.40.3-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-operator%2Fchangelog%2F%230403)
+![Version](https://img.shields.io/badge/0.41.1-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-operator%2Fchangelog%2F%230411)
 ![ArtifactHub](https://img.shields.io/badge/ArtifactHub-informational?logoColor=white&color=417598&logo=artifacthub&link=https%3A%2F%2Fartifacthub.io%2Fpackages%2Fhelm%2Fvictoriametrics%2Fvictoria-metrics-operator)
 ![License](https://img.shields.io/github/license/VictoriaMetrics/helm-charts?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2Fhelm-charts%2Fblob%2Fmaster%2FLICENSE)
 ![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
@@ -255,6 +255,12 @@ Change the values according to the need of the environment in ``victoria-metrics
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">certManager:
+    ca:
+        commonName: ca.validation.victoriametrics
+        duration: 63800h0m0s
+    cert:
+        commonName: ""
+        duration: 45800h0m0s
     enabled: false
     issuer: {}
 enabled: true
@@ -285,12 +291,42 @@ tls:
       <td>admissionWebhooks.certManager</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
-<code class="language-yaml">enabled: false
+<code class="language-yaml">ca:
+    commonName: ca.validation.victoriametrics
+    duration: 63800h0m0s
+cert:
+    commonName: ""
+    duration: 45800h0m0s
+enabled: false
 issuer: {}
 </code>
 </pre>
 </td>
       <td><p>Enables custom ca bundle, if you are not using cert-manager. In case of custom ca, you have to create secret - {chart-name}-validation with keys: tls.key, tls.crt, ca.crt</p>
+</td>
+    </tr>
+    <tr>
+      <td>admissionWebhooks.certManager.ca</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">commonName: ca.validation.victoriametrics
+duration: 63800h0m0s
+</code>
+</pre>
+</td>
+      <td><p>Certificate Authority parameters</p>
+</td>
+    </tr>
+    <tr>
+      <td>admissionWebhooks.certManager.cert</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">commonName: ""
+duration: 45800h0m0s
+</code>
+</pre>
+</td>
+      <td><p>Certificate parameters</p>
 </td>
     </tr>
     <tr>
@@ -773,10 +809,24 @@ labels: {}
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
 <code class="language-yaml">enabled: true
+fsGroup: 2000
+runAsNonRoot: true
+runAsUser: 1000
 </code>
 </pre>
 </td>
       <td><p>Pod&rsquo;s security context. Details are <a href="https://kubernetes.io/docs/tasks/configure-pod-container/security-context/" target="_blank">here</a></p>
+</td>
+    </tr>
+    <tr>
+      <td>priorityClassName</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
+<code class="language-yaml">""
+</code>
+</pre>
+</td>
+      <td><p>Name of Priority Class</p>
 </td>
     </tr>
     <tr>
@@ -889,7 +939,12 @@ view:
       <td>securityContext</td>
       <td>object</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
-<code class="language-yaml">enabled: true
+<code class="language-yaml">allowPrivilegeEscalation: false
+capabilities:
+    drop:
+        - ALL
+enabled: true
+readOnlyRootFilesystem: true
 </code>
 </pre>
 </td>

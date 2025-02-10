@@ -41,6 +41,10 @@ func (pp *pipePackLogfmt) initFilterInValues(_ *inValuesCache, _ getFieldValuesF
 	return pp, nil
 }
 
+func (pp *pipePackLogfmt) visitSubqueries(_ func(q *Query)) {
+	// nothing to do
+}
+
 func (pp *pipePackLogfmt) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
 	return newPipePackProcessor(workersCount, ppNext, pp.resultField, pp.fields, MarshalFieldsToLogfmt)
 }

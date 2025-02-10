@@ -86,6 +86,9 @@ type BlobName struct {
 type BlobPrefix struct {
 	// REQUIRED
 	Name *string `xml:"Name"`
+
+	// Properties of a blob
+	Properties *BlobProperties `xml:"Properties"`
 }
 
 // BlobProperties - Properties of a blob
