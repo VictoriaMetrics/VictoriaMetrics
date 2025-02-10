@@ -4,6 +4,14 @@
 
 - TODO
 
+## 0.0.39
+
+**Release date:** 05 Feb 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0)
+
+- Fix overwrite per service empty registry
+
 ## 0.0.38
 
 **Release date:** 04 Feb 2025
