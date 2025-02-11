@@ -31,16 +31,28 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 
 	var wg sync.WaitGroup
 	var (
-		callbackErrLock sync.Mutex
+		callbackErrLock sync.RWMutex
 		callbackErr     error
 	)
+	hasCallbackError := func() bool {
+		callbackErrLock.RLock()
+		ok := callbackErr != nil
+		callbackErrLock.RUnlock()
+		return ok
+	}
 	for {
+		if hasCallbackError() {
+			break
+		}
 		reqBuf, err := readBlock(nil, r, bc, isReadOnly)
 		if err != nil {
 			wg.Wait()
 			if err == io.EOF {
 				// Remote end gracefully closed the connection.
-				return nil
+				return callbackErr
+			}
+			if callbackErr != nil {
+				return callbackErr
 			}
 			return err
 		}
@@ -62,6 +74,8 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 		common.ScheduleUnmarshalWork(uw)
 		wcr.DecConcurrency()
 	}
+	wg.Wait()
+	return callbackErr
 }
 
 // readBlock reads the next data block from vminsert-initiated bc, appends it to dst and returns the result.
