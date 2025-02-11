@@ -853,13 +853,18 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		scrapeTimeout = scrapeInterval
 	}
 	mss := maxScrapeSize.N
+	logger.Infof("mss := maxScrapeSize.N set mss to %d", mss)
+	logger.Infof("sc.MaxScrapeSize: %s", sc.MaxScrapeSize)
 	if sc.MaxScrapeSize != "" {
+		logger.Infof("sc.MaxScrapeSize found: %s", sc.MaxScrapeSize)
 		n, err := flagutil.ParseBytes(sc.MaxScrapeSize)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse `max_scrape_size` value %q for `job_name` %q`: %w", sc.MaxScrapeSize, jobName, err)
 		}
+		logger.Infof("sc.MaxScrapeSize parsed as: %d", n)
 		if n > 0 {
 			mss = n
+			logger.Infof("mss set to: %d", n)
 		}
 	}
 	honorLabels := sc.HonorLabels
