@@ -145,11 +145,8 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	qt = qt.NewChild("init series search: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
-	indexTR := tr
+	indexTR := storage.adjustTimeRange(tr)
 	dataTR := tr
-	if storage.disablePerDayIndex {
-		indexTR = globalIndexTimeRange
-	}
 
 	if s.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
