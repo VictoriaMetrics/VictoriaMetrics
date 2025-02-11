@@ -1,6 +1,6 @@
 
 
-![Version](https://img.shields.io/badge/0.35.2-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-k8s-stack%2Fchangelog%2F%230352)
+![Version](https://img.shields.io/badge/0.36.0-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-k8s-stack%2Fchangelog%2F%230360)
 ![ArtifactHub](https://img.shields.io/badge/ArtifactHub-informational?logoColor=white&color=417598&logo=artifacthub&link=https%3A%2F%2Fartifacthub.io%2Fpackages%2Fhelm%2Fvictoriametrics%2Fvictoria-metrics-k8s-stack)
 ![License](https://img.shields.io/github/license/VictoriaMetrics/helm-charts?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2Fhelm-charts%2Fblob%2Fmaster%2FLICENSE)
 ![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
@@ -515,8 +515,6 @@ Change the values according to the need of the environment in ``victoria-metrics
     - name: blackhole
 route:
     receiver: blackhole
-templates:
-    - /etc/vm/configs/**/*.tmpl
 </code>
 </pre>
 </td>
@@ -613,6 +611,17 @@ selectAllByDefault: true
 </pre>
 </td>
       <td><p>Extra alert templates</p>
+</td>
+    </tr>
+    <tr>
+      <td>alertmanager.useManagedConfig</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>enable storing .Values.alertmanager.config in VMAlertmanagerConfig instead of k8s Secret</p>
 </td>
     </tr>
     <tr>
@@ -837,13 +846,56 @@ perReplica: false
 </td>
     </tr>
     <tr>
+      <td>defaultDatasources.grafanaOperator.annotations</td>
+      <td>object</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
+<code class="language-yaml">{}
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>defaultDatasources.grafanaOperator.enabled</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td><p>Create datasources as CRDs (requires grafana-operator to be installed)</p>
+</td>
+    </tr>
+    <tr>
+      <td>defaultDatasources.grafanaOperator.spec.allowCrossNamespaceImport</td>
+      <td>bool</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
+<code class="language-yaml">false
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>defaultDatasources.grafanaOperator.spec.instanceSelector.matchLabels.dashboards</td>
+      <td>string</td>
+      <td><pre class="helm-vars-default-value language-yaml" lang="">
+<code class="language-yaml">grafana
+</code>
+</pre>
+</td>
+      <td></td>
+    </tr>
+    <tr>
       <td>defaultDatasources.victoriametrics.datasources</td>
       <td>list</td>
       <td><pre class="helm-vars-default-value language-yaml" lang="plaintext">
-<code class="language-yaml">- isDefault: true
+<code class="language-yaml">- access: proxy
+  isDefault: true
   name: VictoriaMetrics
   type: prometheus
-- isDefault: false
+- access: proxy
+  isDefault: false
   name: VictoriaMetrics (DS)
   type: victoriametrics-metrics-datasource
 </code>

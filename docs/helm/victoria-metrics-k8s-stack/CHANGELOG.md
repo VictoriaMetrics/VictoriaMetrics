@@ -2,6 +2,59 @@
 
 - TODO
 
+## 0.36.0
+
+**Release date:** 07 Feb 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.110.0](https://img.shields.io/badge/v1.110.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11100)
+
+- updates operator to [v0.53.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.53.0) version
+
+## 0.35.7
+
+**Release date:** 06 Feb 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.110.0](https://img.shields.io/badge/v1.110.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11100)
+
+- Added .Values.alertmanager.useManagedConfig to switch storing Alertmanager config in VMAlertmanagerConfig CR instead of k8s Secret. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1968).
+- updated common dependency 0.0.37 -> 0.0.39
+
+## 0.35.6
+
+**Release date:** 05 Feb 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.110.0](https://img.shields.io/badge/v1.110.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11100)
+
+- Use GrafanaDatasource name sanitizing to fix plugin import
+
+## 0.35.5
+
+**Release date:** 04 Feb 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.110.0](https://img.shields.io/badge/v1.110.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11100)
+
+- added `access` property to all default datasources
+
+## 0.35.4
+
+**Release date:** 04 Feb 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.110.0](https://img.shields.io/badge/v1.110.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11100)
+
+- add `.Values.defaultDatasources.grafanaOperator` section to manage datasources using Grafana operator. See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/1964) for details.
+- grafana chart 8.6.x -> 8.9.x
+- prometheus CRDs chart 16.x -> 17.x
+- kube-state-metrics chart 5.27.x -> 5.29.x
+- prometheus-node-exporter chart 4.42.x -> 4.43.x
+
+## 0.35.3
+
+**Release date:** 04 Feb 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v1.110.0](https://img.shields.io/badge/v1.110.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fchangelog%23v11100)
+
+- Use .Values.global.clusterLabel in rules annotations instead of `.cluster`
+
 ## 0.35.2
 
 **Release date:** 31 Jan 2025

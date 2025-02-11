@@ -2,9 +2,9 @@
 
 - To use *vmanomaly*, part of the enterprise package, a license key is required. Obtain your key [here](https://victoriametrics.com/products/enterprise/trial/) for this tutorial or for enterprise use.
 - In the tutorial, we'll be using the following VictoriaMetrics components:
-  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics) (v1.110.0)
-  -  [vmalert](https://docs.victoriametrics.com/vmalert/) (v1.110.0)
-  -  [vmagent](https://docs.victoriametrics.com/vmagent/) (v1.110.0)
+  -  [VictoriaMetrics Single-Node](https://docs.victoriametrics.com/single-server-victoriametrics) (v1.111.0)
+  -  [vmalert](https://docs.victoriametrics.com/vmalert/) (v1.111.0)
+  -  [vmagent](https://docs.victoriametrics.com/vmagent/) (v1.111.0)
 - [Grafana](https://grafana.com/) (v.10.2.1)
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/)
 - [Node exporter](https://github.com/prometheus/node_exporter#node-exporter) (v1.7.0) and [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) (v0.27.0)
@@ -121,7 +121,7 @@ Detailed parameters in each section:
 
 * `models`
   * `class` - Specifies the model to be used. Options include custom models ([guide here](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide)) or a selection from [built-in models](https://docs.victoriametrics.com/anomaly-detection/components/models/#built-in-models), such as the [Facebook Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) (`model.prophet.ProphetModel`).
-  * `args` - Model-specific parameters, formatted as a YAML dictionary in the `key: value` structure. Parameters available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start.html) can be used as an example.
+  * `args` - Model-specific parameters, formatted as a YAML dictionary in the `key: value` structure. Parameters available in [FB Prophet](https://facebook.github.io/prophet/docs/quick_start) can be used as an example.
 
 * `reader`
   * `datasource_url` - The URL for the data source, typically an HTTP endpoint serving `/api/v1/query_range`.
@@ -315,7 +315,7 @@ Let's wrap it all up together into the `docker-compose.yml` file.
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.110.0
+    image: victoriametrics/vmagent:v1.111.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -332,7 +332,7 @@ services:
 
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.110.0
+    image: victoriametrics/victoria-metrics:v1.111.0
     ports:
       - 8428:8428
     volumes:
@@ -365,7 +365,7 @@ services:
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.110.0
+    image: victoriametrics/vmalert:v1.111.0
     depends_on:
       - "victoriametrics"
     ports:

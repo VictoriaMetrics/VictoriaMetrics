@@ -3,6 +3,7 @@ package logstorage
 import (
 	"fmt"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"unsafe"
 
@@ -78,25 +79,25 @@ func (pf *pipeFacets) visitSubqueries(_ func(q *Query)) {
 func (pf *pipeFacets) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
 
-	shards := make([]pipeFacetsProcessorShard, workersCount)
-	for i := range shards {
-		shards[i] = pipeFacetsProcessorShard{
-			pipeFacetsProcessorShardNopad: pipeFacetsProcessorShardNopad{
-				pf: pf,
-			},
-		}
-	}
-
 	pfp := &pipeFacetsProcessor{
 		pf:     pf,
 		stopCh: stopCh,
 		cancel: cancel,
 		ppNext: ppNext,
 
-		shards: shards,
-
 		maxStateSize: maxStateSize,
 	}
+
+	shards := make([]pipeFacetsProcessorShard, workersCount)
+	for i := range shards {
+		shards[i] = pipeFacetsProcessorShard{
+			pipeFacetsProcessorShardNopad: pipeFacetsProcessorShardNopad{
+				pfp: pfp,
+			},
+		}
+	}
+	pfp.shards = shards
+
 	pfp.stateSizeBudget.Store(maxStateSize)
 
 	return pfp
@@ -122,8 +123,8 @@ type pipeFacetsProcessorShard struct {
 }
 
 type pipeFacetsProcessorShardNopad struct {
-	// pf points to the parent pipeFacets.
-	pf *pipeFacets
+	// pfp points to the parent pipeFacetsProcessor.
+	pfp *pipeFacetsProcessor
 
 	// a is used for reducing memory allocations when counting facets over big number of unique fields
 	a chunkedAllocator
@@ -140,7 +141,7 @@ type pipeFacetsProcessorShardNopad struct {
 }
 
 type pipeFacetsFieldHits struct {
-	m          hitsMap
+	m          hitsMapAdaptive
 	mustIgnore bool
 }
 
@@ -163,7 +164,7 @@ func (shard *pipeFacetsProcessorShard) updateFacetsForColumn(br *blockResult, c 
 	if fhs.mustIgnore {
 		return
 	}
-	if fhs.m.entriesCount() >= shard.pf.maxValuesPerField {
+	if fhs.m.entriesCount() >= shard.pfp.pf.maxValuesPerField {
 		// Ignore fields with too many unique values
 		fhs.enableIgnoreField()
 		return
@@ -219,7 +220,7 @@ func (shard *pipeFacetsProcessorShard) updateFacetsForColumn(br *blockResult, c 
 }
 
 func (shard *pipeFacetsProcessorShard) updateStateInt64(fhs *pipeFacetsFieldHits, n int64) {
-	if maxValueLen := shard.pf.maxValueLen; maxValueLen <= 21 && uint64(int64StringLen(n)) > maxValueLen {
+	if maxValueLen := shard.pfp.pf.maxValueLen; maxValueLen <= 21 && uint64(int64StringLen(n)) > maxValueLen {
 		// Ignore fields with too long values, since they are hard to use in faceted search.
 		fhs.enableIgnoreField()
 		return
@@ -228,7 +229,7 @@ func (shard *pipeFacetsProcessorShard) updateStateInt64(fhs *pipeFacetsFieldHits
 }
 
 func (shard *pipeFacetsProcessorShard) updateStateUint64(fhs *pipeFacetsFieldHits, n uint64) {
-	if maxValueLen := shard.pf.maxValueLen; maxValueLen <= 20 && uint64(uint64StringLen(n)) > maxValueLen {
+	if maxValueLen := shard.pfp.pf.maxValueLen; maxValueLen <= 20 && uint64(uint64StringLen(n)) > maxValueLen {
 		// Ignore fields with too long values, since they are hard to use in faceted search.
 		fhs.enableIgnoreField()
 		return
@@ -288,7 +289,7 @@ func (shard *pipeFacetsProcessorShard) updateStateGeneric(fhs *pipeFacetsFieldHi
 		// So it is better ignoring empty values.
 		return
 	}
-	if uint64(len(v)) > shard.pf.maxValueLen {
+	if uint64(len(v)) > shard.pfp.pf.maxValueLen {
 		// Ignore fields with too long values, since they are hard to use in faceted search.
 		fhs.enableIgnoreField()
 		return
@@ -303,7 +304,7 @@ func (shard *pipeFacetsProcessorShard) getFieldHits(fieldName string) *pipeFacet
 	fhs, ok := shard.m[fieldName]
 	if !ok {
 		fhs = &pipeFacetsFieldHits{}
-		fhs.m.init(&shard.stateSizeBudget)
+		fhs.m.init(uint(len(shard.pfp.shards)), &shard.stateSizeBudget)
 		fieldNameCopy := shard.a.cloneString(fieldName)
 		shard.m[fieldNameCopy] = fhs
 		shard.stateSizeBudget -= len(fieldNameCopy) + int(unsafe.Sizeof(fhs)+unsafe.Sizeof(*fhs))
@@ -341,7 +342,7 @@ func (pfp *pipeFacetsProcessor) flush() error {
 	}
 
 	// merge state across shards
-	hms := make(map[string]*hitsMap)
+	hmasByFieldName := make(map[string][]*hitsMapAdaptive)
 	rowsTotal := uint64(0)
 	for _, shard := range pfp.shards {
 		if needStop(pfp.stopCh) {
@@ -351,19 +352,14 @@ func (pfp *pipeFacetsProcessor) flush() error {
 			if fhs.mustIgnore {
 				continue
 			}
-			hm, ok := hms[fieldName]
-			if !ok {
-				hms[fieldName] = &fhs.m
-				continue
-			}
-			hm.mergeState(&fhs.m, pfp.stopCh)
+			hmasByFieldName[fieldName] = append(hmasByFieldName[fieldName], &fhs.m)
 		}
 		rowsTotal += shard.rowsTotal
 	}
 
 	// sort fieldNames
-	fieldNames := make([]string, 0, len(hms))
-	for fieldName := range hms {
+	fieldNames := make([]string, 0, len(hmasByFieldName))
+	for fieldName := range hmasByFieldName {
 		fieldNames = append(fieldNames, fieldName)
 	}
 	sort.Strings(fieldNames)
@@ -377,31 +373,30 @@ func (pfp *pipeFacetsProcessor) flush() error {
 		if needStop(pfp.stopCh) {
 			return nil
 		}
-		hm := hms[fieldName]
-		if hm.entriesCount() > pfp.pf.maxValuesPerField {
+
+		hmas := hmasByFieldName[fieldName]
+		var hms []*hitsMap
+		var hmsLock sync.Mutex
+		hitsMapMergeParallel(hmas, pfp.stopCh, func(hm *hitsMap) {
+			hmsLock.Lock()
+			hms = append(hms, hm)
+			hmsLock.Unlock()
+		})
+
+		entriesCount := uint64(0)
+		for _, hm := range hms {
+			entriesCount += hm.entriesCount()
+		}
+		if entriesCount > pfp.pf.maxValuesPerField {
 			continue
 		}
 
-		vs := make([]pipeTopEntry, 0, hm.entriesCount())
-		for n, pHits := range hm.u64 {
-			vs = append(vs, pipeTopEntry{
-				k:    string(marshalUint64String(nil, n)),
-				hits: *pHits,
-			})
+		vs := make([]pipeTopEntry, 0, entriesCount)
+		for _, hm := range hms {
+			vs = appendTopEntryFacets(vs, hm)
 		}
-		for n, pHits := range hm.negative64 {
-			vs = append(vs, pipeTopEntry{
-				k:    string(marshalInt64String(nil, int64(n))),
-				hits: *pHits,
-			})
-		}
-		for k, pHits := range hm.strings {
-			vs = append(vs, pipeTopEntry{
-				k:    k,
-				hits: *pHits,
-			})
-		}
-		if len(vs) == 1 && vs[0].hits == rowsTotal && !pfp.pf.keepConstFields {
+
+		if len(vs) == 1 && vs[0].hits == rowsTotal && !wctx.pfp.pf.keepConstFields {
 			// Skip field with constant value.
 			continue
 		}
@@ -412,12 +407,37 @@ func (pfp *pipeFacetsProcessor) flush() error {
 			vs = vs[:limit]
 		}
 		for _, v := range vs {
+			if needStop(pfp.stopCh) {
+				return nil
+			}
 			wctx.writeRow(fieldName, v.k, v.hits)
 		}
 	}
 	wctx.flush()
 
 	return nil
+}
+
+func appendTopEntryFacets(dst []pipeTopEntry, hm *hitsMap) []pipeTopEntry {
+	for n, pHits := range hm.u64 {
+		dst = append(dst, pipeTopEntry{
+			k:    string(marshalUint64String(nil, n)),
+			hits: *pHits,
+		})
+	}
+	for n, pHits := range hm.negative64 {
+		dst = append(dst, pipeTopEntry{
+			k:    string(marshalInt64String(nil, int64(n))),
+			hits: *pHits,
+		})
+	}
+	for k, pHits := range hm.strings {
+		dst = append(dst, pipeTopEntry{
+			k:    k,
+			hits: *pHits,
+		})
+	}
+	return dst
 }
 
 type pipeFacetsWriteContext struct {

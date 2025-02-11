@@ -708,16 +708,28 @@ func lessString(a, b string) bool {
 		return false
 	}
 
-	nA, okA := tryParseUint64(a)
-	nB, okB := tryParseUint64(b)
-	if okA && okB {
-		return nA < nB
+	if iA, okA := tryParseInt64(a); okA {
+		if iB, okB := tryParseInt64(b); okB {
+			return iA < iB
+		}
 	}
 
-	fA, okA := tryParseNumber(a)
-	fB, okB := tryParseNumber(b)
-	if okA && okB {
-		return fA < fB
+	if uA, okA := tryParseUint64(a); okA {
+		if uB, okB := tryParseUint64(b); okB {
+			return uA < uB
+		}
+	}
+
+	if tsA, okA := TryParseTimestampRFC3339Nano(a); okA {
+		if tsB, okB := TryParseTimestampRFC3339Nano(b); okB {
+			return tsA < tsB
+		}
+	}
+
+	if fA, okA := tryParseNumber(a); okA {
+		if fB, okB := tryParseNumber(b); okB {
+			return fA < fB
+		}
 	}
 
 	return stringsutil.LessNatural(a, b)

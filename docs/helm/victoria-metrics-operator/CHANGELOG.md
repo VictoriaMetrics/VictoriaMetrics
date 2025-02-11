@@ -1,6 +1,30 @@
 ## Next release
 
-- TODO
+- updated common dependency 0.0.37 -> 0.0.39
+
+## 0.42.0
+
+**Release date:** 05 Feb 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v0.53.0](https://img.shields.io/badge/v0.53.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Foperator%2Fchangelog%23v0530)
+
+- updates operator to [v0.53.0](https://github.com/VictoriaMetrics/operator/releases/tag/v0.53.0) version
+
+## 0.41.2
+
+**Release date:** 05 Feb 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v0.52.0](https://img.shields.io/badge/v0.52.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Foperator%2Fchangelog%23v0520)
+
+- added `.Values.allowedMetricsEndpoints`
+
+## 0.41.1
+
+**Release date:** 04 Feb 2025
+
+![Helm: v3](https://img.shields.io/badge/Helm-v3.14%2B-informational?color=informational&logo=helm&link=https%3A%2F%2Fgithub.com%2Fhelm%2Fhelm%2Freleases%2Ftag%2Fv3.14.0) ![AppVersion: v0.52.0](https://img.shields.io/badge/v0.52.0-success?logo=VictoriaMetrics&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Foperator%2Fchangelog%23v0520)
+
+- Added default values for securityContext and podSecurityContext
 
 ## 0.41.0
 
