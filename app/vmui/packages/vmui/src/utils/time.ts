@@ -1,4 +1,4 @@
-import { RelativeTimeOption, TimeParams, TimePeriod, Timezone } from "../types";
+import { DisplayType, RelativeTimeOption, TimeParams, TimePeriod, Timezone } from "../types";
 import dayjs, { UnitTypeShort } from "dayjs";
 import { getQueryStringValue } from "./query-string";
 import { DATE_ISO_FORMAT } from "../constants/date";
@@ -88,7 +88,10 @@ export const getSecondsFromDuration = (dur: string) => {
   return dayjs.duration(durObject).asSeconds();
 };
 
-export const getStepFromDuration = (dur: number, histogram?: boolean): string => {
+const instantQueryViews = [DisplayType.table, DisplayType.code];
+export const getStepFromDuration = (dur: number, histogram?: boolean, displayType?: DisplayType): string => {
+  if (displayType && instantQueryViews.includes(displayType)) return roundStep(dur);
+
   const size = histogram ? MAX_ITEMS_PER_HISTOGRAM : MAX_ITEMS_PER_CHART;
   return roundStep(dur / size);
 };
