@@ -21,6 +21,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
 
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): automatically calculate `step` as `end - start` by default when switching to Table or JSON view in instant queries. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8240).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): preserve the user-defined `step` value when changing the time range. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8240#issuecomment-2647674065).
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix polluted alert messages when multiple Alertmanager instances are configured with `alert_relabel_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8040), and thanks to @evkuzin for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8258).
 
