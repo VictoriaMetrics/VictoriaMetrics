@@ -2634,16 +2634,12 @@ Example use cases:
     data ingestion and the global index will receive small updates when a sensor
     is added or removed.
 
+
 What to expect:
 
--   Disabling per-day index on data that has previously been ingested with
-    enabled per-day index will on affect search results because the global index
-    will be used for searching and it will contain all the necessary mappings to
-    data.
--   However, enabling per-day index on data that has previously been ingested
-    with disabled per-day index will result in empty search results. In this
-    case the per-day will be used for searching and it will contain no mappings
-    to data.
+-   Prefer setting this flag on fresh installations.
+-   Disabling per-day index with historical data is okay.
+-   Enabling per-day index with historical data will make it unsearcheable.
 
 ## Data migration
 
