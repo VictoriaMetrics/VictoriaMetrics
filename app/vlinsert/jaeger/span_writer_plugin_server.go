@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jaeger/proto"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jaeger/proto"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
@@ -57,6 +57,13 @@ func (s *SpanWriterPluginServer) WriteSpan(ctx context.Context, req *proto.Write
 			Value: value,
 		})
 	}
+	fields = append(fields, logstorage.Field{
+		Name:  "trace_id",
+		Value: span.TraceID.String(),
+	}, logstorage.Field{
+		Name:  "span_id",
+		Value: span.SpanID.String(),
+	})
 	processTags := span.GetProcess().GetTags()
 	streamFields := make([]logstorage.Field, 0, 2+len(processTags))
 	streamFields = append(streamFields,
@@ -78,7 +85,7 @@ func (s *SpanWriterPluginServer) WriteSpan(ctx context.Context, req *proto.Write
 		case proto.ValueType_BINARY:
 			value += string(processTags[i].GetVBinary())
 		}
-		streamFields = append(streamFields, logstorage.Field{
+		fields = append(fields, logstorage.Field{
 			Name:  processTags[i].GetKey(),
 			Value: value,
 		})

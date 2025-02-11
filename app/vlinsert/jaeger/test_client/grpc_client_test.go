@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jaeger/proto"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jaeger/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"testing"
