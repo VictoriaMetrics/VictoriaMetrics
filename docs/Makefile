@@ -19,7 +19,7 @@ docs-debug: docs docs-image
 		--rm \
 		--name vmdocs-docker-container \
 		-p 1313:1313 \
-		-v ./docs:/opt/docs/content vmdocs-docker-package
+		-v ./docs:/opt/docs/content/victoriametrics vmdocs-docker-package
 
 docs-update-version: docs-image
 	$(if $(filter v%,$(PKG_TAG)), \
@@ -27,7 +27,7 @@ docs-update-version: docs-image
 			--rm \
 			--entrypoint /usr/bin/find \
 			--name vmdocs-docker-container \
-			-v ./docs:/opt/docs/content vmdocs-docker-package \
+			-v ./docs:/opt/docs/content/victoriametrics vmdocs-docker-package \
 				content \
 					-regex ".*\.md" \
 					-exec sed -i 's/{{% available_from "#" %}}/{{% available_from "$(PKG_TAG)" %}}/g' {} \;, \
@@ -38,7 +38,7 @@ docs-images-to-webp: docs-image
 		--rm \
 		--entrypoint /usr/bin/find \
 		--name vmdocs-docker-container \
-		-v ./docs:/opt/docs/content vmdocs-docker-package \
+		-v ./docs:/opt/docs/content/victoriametrics vmdocs-docker-package \
 			content \
 				-regex ".*\.\(png\|jpg\|jpeg\)" \
 				-exec sh -c 'cwebp -preset drawing -m 6 -o $$(echo {} | cut -f-1 -d.).webp {} && rm -rf {}' {} \;

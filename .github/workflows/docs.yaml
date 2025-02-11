@@ -17,13 +17,15 @@ jobs:
       - name: Code checkout
         uses: actions/checkout@v4
         with:
-          path: main
+          path: __vm
+
       - name: Checkout private code
         uses: actions/checkout@v4
         with:
           repository: VictoriaMetrics/vmdocs
           token: ${{ secrets.VM_BOT_GH_TOKEN }}
-          path: docs
+          path: __vm-docs
+
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@v6
         with:
@@ -31,21 +33,22 @@ jobs:
           passphrase: ${{ secrets.VM_BOT_PASSPHRASE }}
           git_user_signingkey: true
           git_commit_gpgsign: true
-          workdir: docs
-      - name: Set short git commit SHA
-        id: vars
+          git_config_global: true
+
+      - name: Copy docs
+        id: update
         run: |
-          calculatedSha=$(git rev-parse --short ${{ github.sha }})
-          echo "short_sha=$calculatedSha" >> $GITHUB_OUTPUT
-        working-directory: main
-      - name: update code and commit
+          rsync -zarv \
+            --exclude="Makefile" \
+            docs/ ../__vm-docs/content/victoriametrics
+          echo "SHORT_SHA=$(git rev-parse --short $GITHUB_SHA)" >> $GITHUB_OUTPUT
+        working-directory: __vm
+
+      - name: Push to vmdocs
         run: |
-          rm -rf content
-          cp -r ../main/docs content
-          make clean-after-copy
           git config --global user.name "${{ steps.import-gpg.outputs.email }}"
           git config --global user.email "${{ steps.import-gpg.outputs.email }}"
           git add .
-          git commit -S -m "sync docs with VictoriaMetrics/VictoriaMetrics commit: ${{ steps.vars.outputs.short_sha }}"
+          git commit -S -m "sync docs with VictoriaMetrics/VictoriaMetrics commit: ${{ steps.update.outputs.SHORT_SHA }}
           git push
-        working-directory: docs
+        working-directory: __vm-docs
