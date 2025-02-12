@@ -208,8 +208,8 @@ func (im *Importer) Input(ts *TimeSeries) error {
 func (im *Importer) Close() {
 	im.once.Do(func() {
 		close(im.close)
-		close(im.input)
 		im.wg.Wait()
+		close(im.input)
 		close(im.errors)
 	})
 }

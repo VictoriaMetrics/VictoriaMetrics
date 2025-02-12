@@ -1,7 +1,6 @@
 package mimir
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -15,6 +14,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 )
 
+var _ tsdb.BlockReader = (*LazyBlockReader)(nil)
+
 // LazyBlockReader is stores block id and segment num information.
 // It is used to lazily fetch and parse block data.
 // It implements tsdb.BlockReader interface.
@@ -24,9 +25,10 @@ type LazyBlockReader struct {
 	// SegmentsNum stores the number of chunks segments in the block.
 	SegmentsNum int
 
-	mx     sync.Mutex
+	mu     sync.Mutex
 	reader tsdb.BlockReader
 	fs     common.RemoteFS
+	err    error
 }
 
 // NewLazyBlockReader returns a new LazyBlockReader for the given block.
@@ -43,8 +45,8 @@ func NewLazyBlockReader(block *Block, fs common.RemoteFS) (*LazyBlockReader, err
 }
 
 func (lbr *LazyBlockReader) initialize() error {
-	lbr.mx.Lock()
-	defer lbr.mx.Unlock()
+	lbr.mu.Lock()
+	defer lbr.mu.Unlock()
 	if lbr.reader != nil {
 		return nil
 	}
@@ -130,7 +132,7 @@ func (lbr *LazyBlockReader) Tombstones() (tombstones.Reader, error) {
 // Meta provides meta information about the block reader.
 func (lbr *LazyBlockReader) Meta() tsdb.BlockMeta {
 	if err := lbr.initialize(); err != nil {
-		log.Printf("error get Block Meta: %s; return empty block", err)
+		lbr.err = fmt.Errorf("error get Block Meta: %s; return empty block", err)
 		return tsdb.BlockMeta{}
 	}
 	return lbr.reader.Meta()
@@ -139,9 +141,15 @@ func (lbr *LazyBlockReader) Meta() tsdb.BlockMeta {
 // Size returns the number of bytes that the block takes up on disk.
 func (lbr *LazyBlockReader) Size() int64 {
 	if err := lbr.initialize(); err != nil {
+		lbr.err = fmt.Errorf("error get Size of the block: %s, return zero size", err)
 		return 0
 	}
 	return lbr.reader.Size()
+}
+
+// Err returns the last error that occurred on the block reader.
+func (lbr *LazyBlockReader) Err() error {
+	return lbr.err
 }
 
 func (lbr *LazyBlockReader) mkTempDir() (string, error) {
@@ -150,7 +158,7 @@ func (lbr *LazyBlockReader) mkTempDir() (string, error) {
 		return "", fmt.Errorf("failed to create temp dir: %s", err)
 	}
 	err = os.Mkdir(filepath.Join(temp, "chunks"), 0755)
-	if err != nil && !errors.Is(err, os.ErrExist) {
+	if err != nil {
 		return "", fmt.Errorf("failed to create temp dir: %s", err)
 	}
 	return temp, nil

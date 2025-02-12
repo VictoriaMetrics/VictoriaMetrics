@@ -25,6 +25,7 @@ const (
 )
 
 // BlockDeletionMark holds the information about a block's deletion mark in the index.
+// This type was copied from the mimir repository https://github.com/grafana/mimir/blob/main/pkg/storage/tsdb/bucketindex/index.go#L234.
 type BlockDeletionMark struct {
 	// Block ID.
 	ID ulid.ULID `json:"block_id"`
@@ -34,6 +35,7 @@ type BlockDeletionMark struct {
 }
 
 // Block holds the information about a block in the index.
+// This is a partial implementation of the https://github.com/grafana/mimir/blob/main/pkg/storage/tsdb/bucketindex/index.go#L73
 type Block struct {
 	// Block ID.
 	ID ulid.ULID `json:"block_id"`
@@ -49,6 +51,7 @@ type Block struct {
 }
 
 // Index contains all known blocks and markers of a tenant.
+// This is a partial implementation pof the https://github.com/grafana/mimir/blob/main/pkg/storage/tsdb/bucketindex/index.go#L36
 type Index struct {
 	// Version of the index format.
 	Version int `json:"version"`
@@ -96,15 +99,15 @@ type filter struct {
 	labelValue string
 }
 
-func (f filter) inRange(min, max int64) bool {
+func (f filter) inRange(minTime, maxTime int64) bool {
 	fmin, fmax := f.min, f.max
-	if min == 0 {
-		fmin = min
+	if minTime == 0 {
+		fmin = minTime
 	}
 	if fmax == 0 {
-		fmax = max
+		fmax = maxTime
 	}
-	return min <= fmax && fmin <= max
+	return minTime <= fmax && fmin <= maxTime
 }
 
 // NewClient creates and validates new Client
@@ -170,8 +173,7 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 
 		lazyBlockReader, err := NewLazyBlockReader(block, c.RemoteFS)
 		if err != nil {
-			log.Printf("failed to create lazy block reader: %s", err)
-			continue
+			return nil, fmt.Errorf("failed to create lazy block reader: %s", err)
 		}
 		blocksToImport = append(blocksToImport, lazyBlockReader)
 	}
@@ -184,6 +186,10 @@ func (c *Client) Explore() ([]tsdb.BlockReader, error) {
 // time and label filters.
 func (c *Client) Read(ctx context.Context, block tsdb.BlockReader) (storage.SeriesSet, error) {
 	meta := block.Meta()
+	if b, ok := block.(*LazyBlockReader); ok && b.Err() != nil {
+		return nil, fmt.Errorf("failed to read block: %s", b.Err())
+	}
+
 	if meta.ULID.String() == "" {
 		log.Printf("got block without the id. it is empty")
 		return nil, fmt.Errorf("block without id")
