@@ -2368,6 +2368,51 @@ func TestStorageQueryWithoutPerDayIndex(t *testing.T) {
 	testStorageSearchWithoutPerDayIndex(t, &opts)
 }
 
+func TestStorageAddRows_SamplesWithZeroDate(t *testing.T) {
+	defer testRemoveAll(t)
+
+	f := func(t *testing.T, disablePerDayIndex bool) {
+		t.Helper()
+
+		s := MustOpenStorage(t.Name(), 0, 0, 0, disablePerDayIndex)
+		defer s.MustClose()
+
+		mn := MetricName{MetricGroup: []byte("metric")}
+		mr := MetricRow{MetricNameRaw: mn.marshalRaw(nil)}
+		for range 10 {
+			mr.Timestamp = rand.Int63n(msecPerDay)
+			mr.Value = float64(rand.Intn(1000))
+			s.AddRows([]MetricRow{mr}, defaultPrecisionBits)
+			s.DebugFlush()
+			// Reset TSID cache so that insertion takes the path that involves
+			// checking whether the index contains metricName->TSID mapping.
+			s.resetAndSaveTSIDCache()
+		}
+
+		want := 1
+		firstUnixDay := TimeRange{
+			MinTimestamp: 0,
+			MaxTimestamp: msecPerDay - 1,
+		}
+		if got := s.newTimeseriesCreated.Load(); got != uint64(want) {
+			t.Errorf("unexpected new timeseries count: got %d, want %d", got, want)
+		}
+		if got := testCountAllMetricNames(s, firstUnixDay); got != want {
+			t.Errorf("unexpected metric name count: got %d, want %d", got, want)
+		}
+		if got := testCountAllMetricIDs(s, firstUnixDay); got != want {
+			t.Errorf("unexpected metric id count: got %d, want %d", got, want)
+		}
+	}
+
+	t.Run("disablePerDayIndex=false", func(t *testing.T) {
+		f(t, false)
+	})
+	t.Run("disablePerDayIndex=true", func(t *testing.T) {
+		f(t, true)
+	})
+}
+
 func TestStorageRegisterMetricNamesForVariousDataPatternsConcurrently(t *testing.T) {
 	testStorageVariousDataPatternsConcurrently(t, true, func(s *Storage, mrs []MetricRow) {
 		s.RegisterMetricNames(nil, mrs)

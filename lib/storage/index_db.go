@@ -1900,9 +1900,7 @@ func (is *indexSearch) getTSIDByMetricNameNoExtDB(dst *TSID, metricName []byte, 
 	ts := &is.ts
 	kb := &is.kb
 
-	// TODO(rtm0): Also check that the -disablePerDayIndex is set?
-	// (since nsPrefixMetricNameToTSID makes sense only in this case)
-	if date == globalIndexDate {
+	if is.db.s.disablePerDayIndex {
 		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixMetricNameToTSID)
 	} else {
 		kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateMetricNameToTSID)
