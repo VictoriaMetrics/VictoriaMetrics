@@ -17,7 +17,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * FEATURE: [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): support parsing of [`span_id`](https://github.com/open-telemetry/oteps/blob/main/text/logs/0097-log-data-model.md#field-spanid) and [`trace_id`](https://github.com/open-telemetry/oteps/blob/main/text/logs/0097-log-data-model.md#field-traceid) log fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8255) for details.
-* FEATURE: [vlinsert](https://docs.victoriametrics.com/victorialogs/): support journald content negotiation, which enables compression on a client side.
+* FEATURE: [Journald data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/): add support for data compression at journald side. See [this pull request](https://github.com/systemd/systemd/pull/34822).
 * FEATURE: [`stats` by time buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets), [`stats` by field buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-field-buckets), [`stats` by IPv4 buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-ipv4-buckets): improve performance for large buckets.
 
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): respect the selected tenant for autocomplete suggestions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8042).
