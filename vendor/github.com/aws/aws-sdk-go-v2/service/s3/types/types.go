@@ -589,29 +589,30 @@ type CreateBucketConfiguration struct {
 
 	// Specifies the location where the bucket will be created.
 	//
-	// Directory buckets - The location type is Availability Zone or Local Zone. When
-	// the location type is Local Zone, your Local Zone must be in opt-in status.
-	// Otherwise, you get an HTTP 400 Bad Request error with the error code Access
-	// denied . To learn more about opt-in Local Zones, see [Opt-in Dedicated Local Zones]in the Amazon S3 User
-	// Guide.
+	// Directory buckets - The location type is Availability Zone or Local Zone. To
+	// use the Local Zone location type, your account must be enabled for Dedicated
+	// Local Zones. Otherwise, you get an HTTP 403 Forbidden error with the error code
+	// AccessDenied . To learn more, see [Enable accounts for Dedicated Local Zones] in the Amazon S3 User Guide.
 	//
 	// This functionality is only supported by directory buckets.
 	//
-	// [Opt-in Dedicated Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/opt-in-directory-bucket-lz.html
+	// [Enable accounts for Dedicated Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/opt-in-directory-bucket-lz.html
 	Location *LocationInfo
 
 	// Specifies the Region where the bucket will be created. You might choose a
 	// Region to optimize latency, minimize costs, or address regulatory requirements.
 	// For example, if you reside in Europe, you will probably find it advantageous to
-	// create buckets in the Europe (Ireland) Region. For more information, see [Accessing a bucket]in the
-	// Amazon S3 User Guide.
+	// create buckets in the Europe (Ireland) Region.
 	//
 	// If you don't specify a Region, the bucket is created in the US East (N.
-	// Virginia) Region (us-east-1) by default.
+	// Virginia) Region (us-east-1) by default. Configurations using the value EU will
+	// create a bucket in eu-west-1 .
+	//
+	// For a list of the valid values for all of the Amazon Web Services Regions, see [Regions and Endpoints].
 	//
 	// This functionality is not supported for directory buckets.
 	//
-	// [Accessing a bucket]: https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro
+	// [Regions and Endpoints]: https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
 	LocationConstraint BucketLocationConstraint
 
 	noSmithyDocumentSerde
@@ -753,9 +754,11 @@ type DeletedObject struct {
 	// Indicates whether the specified object version that was permanently deleted was
 	// (true) or was not (false) a delete marker before deletion. In a simple DELETE,
 	// this header indicates whether (true) or not (false) the current version of the
-	// object is a delete marker.
+	// object is a delete marker. To learn more about delete markers, see [Working with delete markers].
 	//
 	// This functionality is not supported for directory buckets.
+	//
+	// [Working with delete markers]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/DeleteMarker.html
 	DeleteMarker *bool
 
 	// The version ID of the delete marker created as a result of the DELETE
@@ -789,7 +792,7 @@ type DeleteMarkerEntry struct {
 	// Date and time when the object was last modified.
 	LastModified *time.Time
 
-	// The account that created the delete marker.>
+	// The account that created the delete marker.
 	Owner *Owner
 
 	// Version ID of an object.
@@ -2457,11 +2460,11 @@ type LifecycleRuleFilter struct {
 // Specifies the location where the bucket will be created.
 //
 // For directory buckets, the location type is Availability Zone or Local Zone.
-// For more information about directory buckets, see [Directory buckets]in the Amazon S3 User Guide.
+// For more information about directory buckets, see [Working with directory buckets]in the Amazon S3 User Guide.
 //
 // This functionality is only supported by directory buckets.
 //
-// [Directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-buckets-overview.html
+// [Working with directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-buckets-overview.html
 type LocationInfo struct {
 
 	// The name of the location where the bucket will be created.
@@ -4001,8 +4004,7 @@ type SelectParameters struct {
 //     key for SSE-KMS.
 //
 //   - Directory buckets - Your SSE-KMS configuration can only support 1 [customer managed key]per
-//     directory bucket for the lifetime of the bucket. The [Amazon Web Services managed key]( aws/s3 ) isn't
-//     supported.
+//     directory bucket's lifetime. The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
 //
 //   - Directory buckets - For directory buckets, there are only two supported
 //     options for server-side encryption: SSE-S3 and SSE-KMS.
@@ -4405,7 +4407,15 @@ type Transition struct {
 	Date *time.Time
 
 	// Indicates the number of days after creation when objects are transitioned to
-	// the specified storage class. The value must be a positive integer.
+	// the specified storage class. If the specified storage class is
+	// INTELLIGENT_TIERING , GLACIER_IR , GLACIER , or DEEP_ARCHIVE , valid values are
+	// 0 or positive integers. If the specified storage class is STANDARD_IA or
+	// ONEZONE_IA , valid values are positive integers greater than 30 . Be aware that
+	// some storage classes have a minimum storage duration and that you're charged for
+	// transitioning objects before their minimum storage duration. For more
+	// information, see [Constraints and considerations for transitions]in the Amazon S3 User Guide.
+	//
+	// [Constraints and considerations for transitions]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/lifecycle-transition-general-considerations.html#lifecycle-configuration-constraints
 	Days *int32
 
 	// The storage class to which you want the object to transition.

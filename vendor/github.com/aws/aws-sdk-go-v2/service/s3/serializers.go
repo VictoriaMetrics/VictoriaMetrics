@@ -248,7 +248,7 @@ func awsRestxml_serializeOpHttpBindingsCompleteMultipartUploadInput(v *CompleteM
 
 	if v.MpuObjectSize != nil {
 		locationName := "X-Amz-Mp-Object-Size"
-		encoder.SetHeader(locationName).String(*v.MpuObjectSize)
+		encoder.SetHeader(locationName).Long(*v.MpuObjectSize)
 	}
 
 	if len(v.RequestPayer) > 0 {
