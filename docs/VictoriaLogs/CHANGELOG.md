@@ -19,6 +19,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 * FEATURE: [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): support parsing of [span_id](https://github.com/open-telemetry/oteps/blob/main/text/logs/0097-log-data-model.md#field-spanid) and [trace_id](https://github.com/open-telemetry/oteps/blob/main/text/logs/0097-log-data-model.md#field-traceid) log fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8255) for details.
 * FEATURE: [vlinsert](https://docs.victoriametrics.com/victorialogs/): support journald content negotiation, which enables compression on a client side.
 
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): respect the selected tenant for autocomplete suggestions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8042).
+
 ## [v1.9.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.1-victorialogs)
 
 Released at 2025-02-10
@@ -43,7 +45,6 @@ Released at 2025-02-10
 * BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): drop log entries with too long field names and log the dropped log entries with the `ignoring log entry with too long field name` message, so human operators could notice and fix the ingestion of incorrect logs ASAP. Previously too long field names were silently truncated to shorter values. This isn't what most users expect. See [why VictoriaLogs has a limit on the field name length](https://docs.victoriametrics.com/victorialogs/faq/#what-is-the-maximum-supported-field-name-length).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix transparency for bars in the hits bar chart to improve visibility. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8152).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix `Group by field` dropdown menu not displaying any options in Group View settings. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8153).
-* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix autocomplete ignoring selected tenant. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8042).
 
 ## [v1.8.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.8.0-victorialogs)
 
