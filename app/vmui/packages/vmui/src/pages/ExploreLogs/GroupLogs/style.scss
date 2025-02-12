@@ -1,4 +1,5 @@
 @use "src/styles/variables" as *;
+@use 'sass:color';
 
 $font-size-logs: var(--font-size-logs, $font-size-small);
 
@@ -79,8 +80,8 @@ $font-size-logs: var(--font-size-logs, $font-size-small);
       &__pair {
         order: 0;
         padding: calc($padding-global / 2) $padding-global;
-        background-color: lighten($color-tropical-blue, 6%);
-        color: darken($color-dodger-blue, 20%);
+        background-color: color.scale($color-tropical-blue, $lightness: 60%);
+        color: color.scale($color-tropical-blue, $lightness: -60%);
         border-radius: $border-radius-medium;
         transition: background-color 0.3s ease-in, transform 0.1s ease-in, opacity 0.3s ease-in;
         white-space: nowrap;
@@ -105,7 +106,7 @@ $font-size-logs: var(--font-size-logs, $font-size-small);
         }
 
         &_dark {
-          color: lighten($color-dodger-blue, 20%);
+          color: color.scale($color-dodger-blue, $lightness: 40%);
           background-color: $color-background-body;
           opacity: 0.8;
 
