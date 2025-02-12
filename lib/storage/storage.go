@@ -165,19 +165,26 @@ type Storage struct {
 	isReadOnly atomic.Bool
 }
 
+// OpenOptions optional args for MustOpenStorage
+type OpenOptions struct {
+	Retention       time.Duration
+	MaxHourlySeries int
+	MaxDailySeries  int
+}
+
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
-func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxDailySeries int) *Storage {
+func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		logger.Panicf("FATAL: cannot determine absolute path for %q: %s", path, err)
 	}
-	if retention <= 0 || retention > retentionMax {
-		retention = retentionMax
+	if opts.Retention <= 0 || opts.Retention > retentionMax {
+		opts.Retention = retentionMax
 	}
 	s := &Storage{
 		path:           path,
 		cachePath:      filepath.Join(path, cacheDirname),
-		retentionMsecs: retention.Milliseconds(),
+		retentionMsecs: opts.Retention.Milliseconds(),
 		stopCh:         make(chan struct{}),
 	}
 	fs.MustMkdirIfNotExist(path)
@@ -209,11 +216,11 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	fs.MustRemoveTemporaryDirs(snapshotsPath)
 
 	// Initialize series cardinality limiter.
-	if maxHourlySeries > 0 {
-		s.hourlySeriesLimiter = bloomfilter.NewLimiter(maxHourlySeries, time.Hour)
+	if opts.MaxHourlySeries > 0 {
+		s.hourlySeriesLimiter = bloomfilter.NewLimiter(opts.MaxHourlySeries, time.Hour)
 	}
-	if maxDailySeries > 0 {
-		s.dailySeriesLimiter = bloomfilter.NewLimiter(maxDailySeries, 24*time.Hour)
+	if opts.MaxDailySeries > 0 {
+		s.dailySeriesLimiter = bloomfilter.NewLimiter(opts.MaxDailySeries, 24*time.Hour)
 	}
 
 	// Load caches.
@@ -255,7 +262,7 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 
 	// Initialize nextRotationTimestamp
 	nowSecs := int64(fasttime.UnixTimestamp())
-	retentionSecs := retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
+	retentionSecs := opts.Retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
 	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retentionSecs, retentionTimezoneOffsetSecs)
 	s.nextRotationTimestamp.Store(nextRotationTimestamp)
 
