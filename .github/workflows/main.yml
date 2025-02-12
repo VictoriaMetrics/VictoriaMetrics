@@ -90,7 +90,7 @@ jobs:
       - name: Publish coverage
         uses: codecov/codecov-action@v5
         with:
-          file: ./coverage.txt
+          files: ./coverage.txt
 
   integration-test:
     name: integration-test
