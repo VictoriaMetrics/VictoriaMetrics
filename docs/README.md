@@ -2638,8 +2638,8 @@ Example use cases:
 What to expect:
 
 -   Prefer setting this flag on fresh installations.
--   Disabling per-day index with historical data is okay.
--   Enabling per-day index with historical data will make it unsearcheable.
+-   Disabling per-day index on installations with historical data is Ok.
+-   Re-enabling per-day index on installations with historical data will make it unsearchable.
 
 ## Data migration
 
