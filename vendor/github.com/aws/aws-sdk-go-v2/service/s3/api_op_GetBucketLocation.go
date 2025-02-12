@@ -98,8 +98,10 @@ func (in *GetBucketLocationInput) bindEndpointParams(p *EndpointParameters) {
 type GetBucketLocationOutput struct {
 
 	// Specifies the Region where the bucket resides. For a list of all the Amazon S3
-	// supported location constraints by Region, see [Regions and Endpoints]. Buckets in Region us-east-1
-	// have a LocationConstraint of null .
+	// supported location constraints by Region, see [Regions and Endpoints].
+	//
+	// Buckets in Region us-east-1 have a LocationConstraint of null . Buckets with a
+	// LocationConstraint of EU reside in eu-west-1 .
 	//
 	// [Regions and Endpoints]: https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
 	LocationConstraint types.BucketLocationConstraint

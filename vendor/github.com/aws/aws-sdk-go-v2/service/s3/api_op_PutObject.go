@@ -31,10 +31,10 @@ import (
 //   - Directory buckets - For directory buckets, you must make requests for this
 //     API operation to the Zonal endpoint. These endpoints support
 //     virtual-hosted-style requests in the format
-//     https://bucket-name.s3express-zone-id.region-code.amazonaws.com/key-name .
-//     Path-style requests are not supported. For more information about endpoints in
-//     Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information
-//     about endpoints in Local Zones, see [Available Local Zone for directory buckets]in the Amazon S3 User Guide.
+//     https://amzn-s3-demo-bucket.s3express-zone-id.region-code.amazonaws.com/key-name
+//     . Path-style requests are not supported. For more information about endpoints
+//     in Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information
+//     about endpoints in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
 //
 // Amazon S3 is a distributed system. If it receives multiple write requests for
 // the same object simultaneously, it overwrites all but the last object written.
@@ -44,6 +44,18 @@ import (
 //     can use [Amazon S3 Object Lock]in the Amazon S3 User Guide.
 //
 // This functionality is not supported for directory buckets.
+//
+//   - If-None-Match - Uploads the object only if the object key name does not
+//     already exist in the specified bucket. Otherwise, Amazon S3 returns a 412
+//     Precondition Failed error. If a conflicting operation occurs during the
+//     upload, S3 returns a 409 ConditionalRequestConflict response. On a 409
+//     failure, retry the upload.
+//
+// Expects the * character (asterisk).
+//
+// For more information, see [Add preconditions to S3 operations with conditional requests]in the Amazon S3 User Guide or [RFC 7232].
+//
+// This functionality is not supported for S3 on Outposts.
 //
 //   - S3 Versioning - When you enable versioning for a bucket, if Amazon S3
 //     receives multiple write requests for the same object simultaneously, it stores
@@ -108,13 +120,15 @@ import (
 //
 // [DeleteObject]
 //
+// [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [Amazon S3 Object Lock]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html
 // [DeleteObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html
 // [Adding Objects to Versioning-Enabled Buckets]: https://docs.aws.amazon.com/AmazonS3/latest/dev/AddingObjectstoVersioningEnabledBuckets.html
+// [Add preconditions to S3 operations with conditional requests]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-requests.html
 // [CopyObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html
 // [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
-// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
-// [Available Local Zone for directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
+// [RFC 7232]: https://datatracker.ietf.org/doc/rfc7232/
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
 // [GetBucketVersioning]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketVersioning.html
 func (c *Client) PutObject(ctx context.Context, params *PutObjectInput, optFns ...func(*Options)) (*PutObjectOutput, error) {
 	if params == nil {
@@ -141,7 +155,7 @@ type PutObjectInput struct {
 	// are not supported. Directory bucket names must be unique in the chosen Zone
 	// (Availability Zone or Local Zone). Bucket names must follow the format
 	// bucket-base-name--zone-id--x-s3 (for example,
-	// DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket naming
+	// amzn-s3-demo-bucket--usw2-az1--x-s3 ). For information about bucket naming
 	// restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
 	//
 	// Access points - When you use this action with an access point, you must provide
@@ -156,13 +170,12 @@ type PutObjectInput struct {
 	// Access points and Object Lambda access points are not supported by directory
 	// buckets.
 	//
-	// S3 on Outposts - When you use this action with Amazon S3 on Outposts, you must
-	// direct requests to the S3 on Outposts hostname. The S3 on Outposts hostname
-	// takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
-	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
+	// S3 on Outposts - When you use this action with S3 on Outposts, you must direct
+	// requests to the S3 on Outposts hostname. The S3 on Outposts hostname takes the
+	// form AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When
+	// you use this action with S3 on Outposts, the destination bucket must be the
+	// Outposts access point ARN or the access point alias. For more information about
+	// S3 on Outposts, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
 	//
 	// [Directory bucket naming rules]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html
 	// [What is S3 on Outposts?]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html
@@ -511,17 +524,16 @@ type PutObjectInput struct {
 	// x-amz-server-side-encryption-aws-kms-key-id , Amazon S3 uses the Amazon Web
 	// Services managed key ( aws/s3 ) to protect the data.
 	//
-	// Directory buckets - If you specify x-amz-server-side-encryption with aws:kms ,
-	// the x-amz-server-side-encryption-aws-kms-key-id header is implicitly assigned
-	// the ID of the KMS symmetric encryption customer managed key that's configured
-	// for your directory bucket's default encryption setting. If you want to specify
-	// the x-amz-server-side-encryption-aws-kms-key-id header explicitly, you can only
-	// specify it with the ID (Key ID or Key ARN) of the KMS customer managed key
-	// that's configured for your directory bucket's default encryption setting.
-	// Otherwise, you get an HTTP 400 Bad Request error. Only use the key ID or key
-	// ARN. The key alias format of the KMS key isn't supported. Your SSE-KMS
-	// configuration can only support 1 [customer managed key]per directory bucket for the lifetime of the
-	// bucket. The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
+	// Directory buckets - To encrypt data using SSE-KMS, it's recommended to specify
+	// the x-amz-server-side-encryption header to aws:kms . Then, the
+	// x-amz-server-side-encryption-aws-kms-key-id header implicitly uses the bucket's
+	// default KMS customer managed key ID. If you want to explicitly set the
+	// x-amz-server-side-encryption-aws-kms-key-id header, it must match the bucket's
+	// default customer managed key (using key ID or ARN, not alias). Your SSE-KMS
+	// configuration can only support 1 [customer managed key]per directory bucket's lifetime. The [Amazon Web Services managed key] ( aws/s3
+	// ) isn't supported.
+	//
+	// Incorrect key specification results in an HTTP 400 Bad Request error.
 	//
 	// [customer managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk
 	// [Amazon Web Services managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#aws-managed-cmk
