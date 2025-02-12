@@ -126,6 +126,18 @@ func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, 
 				Value: attr.Value.FormatString(),
 			})
 		}
+		if len(lr.TraceID) > 0 {
+			fields = append(fields, logstorage.Field{
+				Name:  "trace_id",
+				Value: lr.TraceID,
+			})
+		}
+		if len(lr.SpanID) > 0 {
+			fields = append(fields, logstorage.Field{
+				Name:  "span_id",
+				Value: lr.SpanID,
+			})
+		}
 		fields = append(fields, logstorage.Field{
 			Name:  "severity",
 			Value: lr.FormatSeverity(),

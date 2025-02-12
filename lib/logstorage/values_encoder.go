@@ -349,31 +349,12 @@ func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	nsecs := secs * 1e9
 
 	// Parse timezone offset
-	n := strings.IndexAny(s, "Z+-")
-	if n < 0 {
-		nsecs -= timeutil.GetLocalTimezoneOffsetNsecs()
-	} else {
-		offsetStr := s[n+1:]
-		if s[n] != 'Z' {
-			isMinus := s[n] == '-'
-			if len(offsetStr) == 0 {
-				return 0, false
-			}
-			offsetNsecs, ok := tryParseTimezoneOffset(offsetStr)
-			if !ok {
-				return 0, false
-			}
-			if isMinus {
-				offsetNsecs = -offsetNsecs
-			}
-			nsecs -= offsetNsecs
-		} else {
-			if len(offsetStr) != 0 {
-				return 0, false
-			}
-		}
-		s = s[:n]
+	offsetNsecs, prefix, ok := parseTimezoneOffset(s)
+	if !ok {
+		return 0, false
 	}
+	nsecs -= offsetNsecs
+	s = prefix
 
 	// Parse optional fractional part of seconds.
 	if len(s) == 0 {
@@ -396,6 +377,31 @@ func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	}
 	nsecs += int64(n64)
 	return nsecs, true
+}
+
+func parseTimezoneOffset(s string) (int64, string, bool) {
+	if strings.HasSuffix(s, "Z") {
+		return 0, s[:len(s)-1], true
+	}
+
+	n := strings.LastIndexAny(s, "+-")
+	if n < 0 {
+		offsetNsecs := timeutil.GetLocalTimezoneOffsetNsecs()
+		return offsetNsecs, s, true
+	}
+	offsetStr := s[n+1:]
+	isMinus := s[n] == '-'
+	if len(offsetStr) == 0 {
+		return 0, s, false
+	}
+	offsetNsecs, ok := tryParseTimezoneOffset(offsetStr)
+	if !ok {
+		return 0, s, false
+	}
+	if isMinus {
+		offsetNsecs = -offsetNsecs
+	}
+	return offsetNsecs, s[:n], true
 }
 
 func tryParseTimezoneOffset(offsetStr string) (int64, bool) {

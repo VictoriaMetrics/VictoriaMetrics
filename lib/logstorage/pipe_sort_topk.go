@@ -3,6 +3,7 @@ package logstorage
 import (
 	"container/heap"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -12,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -136,6 +138,13 @@ type pipeTopkRow struct {
 	timestamp       int64
 }
 
+func (r *pipeTopkRow) init(byColumns []string, byColumnsIsTime []bool, timestamp int64) {
+	r.byColumns = byColumns
+	r.byColumnsIsTime = byColumnsIsTime
+	r.otherColumns = nil
+	r.timestamp = timestamp
+}
+
 func (r *pipeTopkRow) clone() *pipeTopkRow {
 	byColumnsCopy := make([]string, len(r.byColumns))
 	for i := range byColumnsCopy {
@@ -201,22 +210,20 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 		}
 		shard.byColumnValues = byColumnValues
 
-		byColumns := shard.byColumns[:0]
-		byColumnsIsTime := shard.byColumnsIsTime[:0]
+		byColumns := slicesutil.SetLength(shard.byColumns, 1)
+		byColumnsIsTime := slicesutil.SetLength(shard.byColumnsIsTime, 1)
 		bb := bbPool.Get()
-		timestamps := br.getTimestamps()
-		for rowIdx, timestamp := range timestamps {
-			byColumns = byColumns[:0]
+		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 			bb.B = bb.B[:0]
 			for i, values := range byColumnValues {
 				v := values[rowIdx]
 				bb.B = marshalJSONKeyValue(bb.B, cs[i].name, v)
 				bb.B = append(bb.B, ',')
 			}
-			byColumns = append(byColumns, bytesutil.ToUnsafeString(bb.B))
-			byColumnsIsTime = append(byColumnsIsTime, false)
+			byColumns[0] = bytesutil.ToUnsafeString(bb.B)
+			byColumnsIsTime[0] = false
 
-			shard.addRow(br, byColumns, byColumnsIsTime, cs, rowIdx, timestamp)
+			shard.addRow(br, byColumns, byColumnsIsTime, cs, rowIdx, 0)
 		}
 		bbPool.Put(bb)
 		shard.byColumns = byColumns
@@ -224,18 +231,18 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 	} else {
 		// Sort by byFields
 
-		byColumnValues := shard.byColumnValues[:0]
-		byColumnsIsTime := shard.byColumnsIsTime[:0]
-		for _, bf := range byFields {
+		byColumnValues := slicesutil.SetLength(shard.byColumnValues, len(byFields))
+		byColumnsIsTime := slicesutil.SetLength(shard.byColumnsIsTime, len(byFields))
+		for i, bf := range byFields {
 			c := br.getColumnByName(bf.name)
 
-			byColumnsIsTime = append(byColumnsIsTime, c.isTime)
+			byColumnsIsTime[i] = c.isTime
 
 			var values []string
 			if !c.isTime {
 				values = c.getValues(br)
 			}
-			byColumnValues = append(byColumnValues, values)
+			byColumnValues[i] = values
 		}
 		shard.byColumnValues = byColumnValues
 		shard.byColumnsIsTime = byColumnsIsTime
@@ -256,17 +263,23 @@ func (shard *pipeTopkProcessorShard) writeBlock(br *blockResult) {
 		shard.csOther = csOther
 
 		// add rows to shard
-		byColumns := shard.byColumns[:0]
-		timestamps := br.getTimestamps()
-		for rowIdx, timestamp := range timestamps {
-			byColumns = byColumns[:0]
-
+		byColumns := slicesutil.SetLength(shard.byColumns, len(byFields))
+		var timestamps []int64
+		if slices.Contains(byColumnsIsTime, true) {
+			timestamps = br.getTimestamps()
+		}
+		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
 			for i, values := range byColumnValues {
 				v := ""
 				if !byColumnsIsTime[i] {
 					v = values[rowIdx]
 				}
-				byColumns = append(byColumns, v)
+				byColumns[i] = v
+			}
+
+			timestamp := int64(0)
+			if timestamps != nil {
+				timestamp = timestamps[rowIdx]
 			}
 
 			shard.addRow(br, byColumns, byColumnsIsTime, csOther, rowIdx, timestamp)
@@ -286,9 +299,7 @@ func (shard *pipeTopkProcessorShard) addRow(br *blockResult, byColumns []string,
 
 	// Construct a temporary row
 	r := &shard.tmpRow
-	r.byColumns = byColumns
-	r.byColumnsIsTime = byColumnsIsTime
-	r.timestamp = timestamp
+	r.init(byColumns, byColumnsIsTime, timestamp)
 
 	rs := shard.getRowsByPartition(bytesutil.ToUnsafeString(shard.partitionKey))
 	maxRows := shard.ps.offset + shard.ps.limit
@@ -300,13 +311,13 @@ func (shard *pipeTopkProcessorShard) addRow(br *blockResult, byColumns []string,
 	// Slow path - add r to rs.
 
 	// Populate r.otherColumns
-	otherColumns := shard.otherColumns[:0]
-	for _, c := range csOther {
+	otherColumns := slicesutil.SetLength(shard.otherColumns, len(csOther))
+	for i, c := range csOther {
 		v := c.getValueAtRow(br, rowIdx)
-		otherColumns = append(otherColumns, Field{
+		otherColumns[i] = Field{
 			Name:  c.name,
 			Value: v,
-		})
+		}
 	}
 	shard.otherColumns = otherColumns
 	r.otherColumns = otherColumns
