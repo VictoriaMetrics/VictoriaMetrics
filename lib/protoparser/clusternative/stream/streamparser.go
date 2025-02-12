@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -40,9 +41,9 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 			wg.Wait()
 			if err == io.EOF {
 				// Remote end gracefully closed the connection.
-				return nil
+				return callbackErr
 			}
-			return err
+			return errors.Join(err, callbackErr)
 		}
 		blocksRead.Inc()
 		uw := getUnmarshalWork()
