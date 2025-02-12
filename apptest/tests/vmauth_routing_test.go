@@ -11,7 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/apptest"
 )
 
-func TestVMAuthRouterWithAuth(t *testing.T) {
+func TestSingleVMAuthRouterWithAuth(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
@@ -117,7 +117,7 @@ users:
 
 }
 
-func TestVMAuthRouterWithInternalAddr(t *testing.T) {
+func TestSingleVMAuthRouterWithInternalAddr(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 

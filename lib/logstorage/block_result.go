@@ -292,8 +292,6 @@ func (br *blockResult) addResultColumn(rc *resultColumn) {
 		logger.Panicf("BUG: column %q must contain %d rows, but it contains %d rows", rc.name, br.rowsLen, len(rc.values))
 	}
 	if areConstValues(rc.values) {
-		// Clone the constant value into rc, so it doesn't hold the external memory.
-		// This optimization allows reducing memory usage after br cloning.
 		br.addResultColumnConst(rc)
 	} else {
 		br.csAdd(blockResultColumn{
@@ -692,602 +690,727 @@ func (br *blockResult) getBucketedConstValues(v string, bf *byStatsField) []stri
 
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+br.rowsLen)
+	values := valuesBuf[valuesBufLen:]
 
 	v = br.getBucketedValue(v, bf)
-	for i := 0; i < br.rowsLen; i++ {
-		valuesBuf = append(valuesBuf, v)
+	for i := range values {
+		values[i] = v
 	}
 
 	br.valuesBuf = valuesBuf
 
-	return valuesBuf[valuesBufLen:]
+	return values
 }
 
 func (br *blockResult) getBucketedTimestampValues(bf *byStatsField) []string {
+	if !bf.hasBucketConfig() {
+		return br.getTimestampValues()
+	}
+
+	bucketSizeInt := int64(bf.bucketSize)
+	if bucketSizeInt <= 0 {
+		bucketSizeInt = 1
+	}
+	bucketOffsetInt := int64(bf.bucketOffset)
+
+	if br.bs != nil {
+		th := &br.bs.bsw.bh.timestampsHeader
+		tsMin := truncateTimestamp(th.minTimestamp, bucketSizeInt, bucketOffsetInt, bf.bucketSizeStr)
+		tsMax := truncateTimestamp(th.maxTimestamp, bucketSizeInt, bucketOffsetInt, bf.bucketSizeStr)
+		if tsMin == tsMax {
+			// Fast path - all the timestamps in the block belong to the same bucket.
+			buf := br.a.b
+			valuesBuf := br.valuesBuf
+			valuesBufLen := len(valuesBuf)
+			valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+br.rowsLen)
+			values := valuesBuf[valuesBufLen:]
+
+			bufLen := len(buf)
+			buf = marshalTimestampRFC3339NanoString(buf, tsMin)
+			s := bytesutil.ToUnsafeString(buf[bufLen:])
+
+			for i := range values {
+				values[i] = s
+			}
+
+			br.a.b = buf
+			br.valuesBuf = valuesBuf
+
+			return values
+		}
+	}
+
+	// Slow path - individually bucketize every timestamp in the block.
 	buf := br.a.b
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+br.rowsLen)
+	values := valuesBuf[valuesBufLen:]
 
-	timestamps := br.getTimestamps()
 	var s string
+	timestampTruncatedPrev := int64(0)
+	timestamps := br.getTimestamps()
+	for i := range timestamps {
+		if i > 0 && timestamps[i-1] == timestamps[i] {
+			values[i] = s
+			continue
+		}
 
-	if !bf.hasBucketConfig() {
-		for i := range timestamps {
-			if i > 0 && timestamps[i-1] == timestamps[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
+		timestampTruncated := truncateTimestamp(timestamps[i], bucketSizeInt, bucketOffsetInt, bf.bucketSizeStr)
 
+		if i == 0 || timestampTruncatedPrev != timestampTruncated {
 			bufLen := len(buf)
-			buf = marshalTimestampRFC3339NanoString(buf, timestamps[i])
+			buf = marshalTimestampRFC3339NanoString(buf, timestampTruncated)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
+			timestampTruncatedPrev = timestampTruncated
 		}
-	} else {
-		bucketSizeInt := int64(bf.bucketSize)
-		if bucketSizeInt <= 0 {
-			bucketSizeInt = 1
-		}
-		bucketOffsetInt := int64(bf.bucketOffset)
-
-		timestampPrev := int64(0)
-		for i := range timestamps {
-			if i > 0 && timestamps[i-1] == timestamps[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-
-			timestamp := timestamps[i]
-			timestamp -= bucketOffsetInt
-			if bf.bucketSizeStr == "month" {
-				timestamp = truncateTimestampToMonth(timestamp)
-			} else if bf.bucketSizeStr == "year" {
-				timestamp = truncateTimestampToYear(timestamp)
-			} else {
-				timestamp -= timestamp % bucketSizeInt
-			}
-			timestamp += bucketOffsetInt
-
-			if i > 0 && timestampPrev == timestamp {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-			timestampPrev = timestamp
-
-			bufLen := len(buf)
-			buf = marshalTimestampRFC3339NanoString(buf, timestamp)
-			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
-		}
+		values[i] = s
 	}
 
 	br.a.b = buf
 	br.valuesBuf = valuesBuf
 
-	return valuesBuf[valuesBufLen:]
+	return values
 }
 
-func (br *blockResult) getBucketedStringValues(values []string, bf *byStatsField) []string {
+func truncateTimestamp(ts, bucketSizeInt, bucketOffsetInt int64, bucketSizeStr string) int64 {
+	ts -= bucketOffsetInt
+	if bucketSizeStr == "month" {
+		ts = truncateTimestampToMonth(ts)
+	} else if bucketSizeStr == "year" {
+		ts = truncateTimestampToYear(ts)
+	} else {
+		ts -= ts % bucketSizeInt
+	}
+	ts += bucketOffsetInt
+
+	return ts
+}
+
+func (br *blockResult) getTimestampValues() []string {
+	buf := br.a.b
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+br.rowsLen)
+	values := valuesBuf[valuesBufLen:]
+
+	var s string
+	timestamps := br.getTimestamps()
+	for i := range timestamps {
+		if i == 0 || timestamps[i-1] != timestamps[i] {
+			bufLen := len(buf)
+			buf = marshalTimestampRFC3339NanoString(buf, timestamps[i])
+			s = bytesutil.ToUnsafeString(buf[bufLen:])
+		}
+		values[i] = s
+	}
+
+	br.a.b = buf
+	br.valuesBuf = valuesBuf
+
+	return values
+}
+
+func (br *blockResult) getBucketedStringValues(valuesOrig []string, bf *byStatsField) []string {
 	if !bf.hasBucketConfig() {
-		return values
+		return valuesOrig
 	}
 
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesOrig))
+	values := valuesBuf[valuesBufLen:]
 
 	var s string
 	for i := range values {
-		if i > 0 && values[i-1] == values[i] {
-			valuesBuf = append(valuesBuf, s)
-			continue
+		if i == 0 || valuesOrig[i-1] != valuesOrig[i] {
+			s = br.getBucketedValue(valuesOrig[i], bf)
 		}
-
-		s = br.getBucketedValue(values[i], bf)
-		valuesBuf = append(valuesBuf, s)
+		values[i] = s
 	}
 
 	br.valuesBuf = valuesBuf
 
-	return valuesBuf[valuesBufLen:]
+	return values
 }
 
 func (br *blockResult) getBucketedDictValues(valuesEncoded, dictValues []string, bf *byStatsField) []string {
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
 
 	dictValues = br.getBucketedStringValues(dictValues, bf)
-	for _, v := range valuesEncoded {
+	for i, v := range valuesEncoded {
 		dictIdx := v[0]
-		valuesBuf = append(valuesBuf, dictValues[dictIdx])
+		values[i] = dictValues[dictIdx]
 	}
 
 	br.valuesBuf = valuesBuf
 
-	return valuesBuf[valuesBufLen:]
+	return values
 }
 
 func (br *blockResult) getBucketedUint8Values(valuesEncoded []string, bf *byStatsField) []string {
+	if !bf.hasBucketConfig() {
+		return br.getUint8Values(valuesEncoded)
+	}
+
+	bucketSizeInt := uint64(bf.bucketSize)
+	if bucketSizeInt <= 0 {
+		bucketSizeInt = 1
+	}
+	bucketOffsetInt := uint64(int64(bf.bucketOffset))
+
 	buf := br.a.b
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
 
 	var s string
+	nPrev := uint64(0)
+	for i, v := range valuesEncoded {
+		if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
+			values[i] = s
+			continue
+		}
 
-	if !bf.hasBucketConfig() {
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
+		n := uint64(unmarshalUint8(v))
+		n -= bucketOffsetInt
+		n -= n % bucketSizeInt
+		n += bucketOffsetInt
 
+		if i == 0 || nPrev != n {
+			bufLen := len(buf)
+			buf = marshalUint64String(buf, n)
+			s = bytesutil.ToUnsafeString(buf[bufLen:])
+			nPrev = n
+		}
+		values[i] = s
+	}
+
+	br.valuesBuf = valuesBuf
+	br.a.b = buf
+
+	return values
+}
+
+func (br *blockResult) getUint8Values(valuesEncoded []string) []string {
+	buf := br.a.b
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
+
+	var s string
+	for i, v := range valuesEncoded {
+		if i == 0 || valuesEncoded[i-1] != valuesEncoded[i] {
 			n := unmarshalUint8(v)
 			bufLen := len(buf)
 			buf = marshalUint8String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
 		}
-	} else {
-		bucketSizeInt := uint64(bf.bucketSize)
-		if bucketSizeInt <= 0 {
-			bucketSizeInt = 1
-		}
-		bucketOffsetInt := uint64(int64(bf.bucketOffset))
-
-		nPrev := uint64(0)
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-
-			n := uint64(unmarshalUint8(v))
-			n -= bucketOffsetInt
-			n -= n % bucketSizeInt
-			n += bucketOffsetInt
-
-			if i > 0 && nPrev == n {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-			nPrev = n
-
-			bufLen := len(buf)
-			buf = marshalUint64String(buf, n)
-			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
-		}
+		values[i] = s
 	}
 
 	br.valuesBuf = valuesBuf
 	br.a.b = buf
 
-	return br.valuesBuf[valuesBufLen:]
+	return values
 }
 
 func (br *blockResult) getBucketedUint16Values(valuesEncoded []string, bf *byStatsField) []string {
+	if !bf.hasBucketConfig() {
+		return br.getUint16Values(valuesEncoded)
+	}
+
+	bucketSizeInt := uint64(bf.bucketSize)
+	if bucketSizeInt <= 0 {
+		bucketSizeInt = 1
+	}
+	bucketOffsetInt := uint64(int64(bf.bucketOffset))
+
 	buf := br.a.b
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
 
 	var s string
+	nPrev := uint64(0)
+	for i, v := range valuesEncoded {
+		if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
+			values[i] = s
+			continue
+		}
 
-	if !bf.hasBucketConfig() {
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
+		n := uint64(unmarshalUint16(v))
+		n -= bucketOffsetInt
+		n -= n % bucketSizeInt
+		n += bucketOffsetInt
 
+		if i == 0 || nPrev != n {
+			bufLen := len(buf)
+			buf = marshalUint64String(buf, n)
+			s = bytesutil.ToUnsafeString(buf[bufLen:])
+			nPrev = n
+		}
+		values[i] = s
+	}
+
+	br.valuesBuf = valuesBuf
+	br.a.b = buf
+
+	return values
+}
+
+func (br *blockResult) getUint16Values(valuesEncoded []string) []string {
+	buf := br.a.b
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
+
+	var s string
+	for i, v := range valuesEncoded {
+		if i == 0 || valuesEncoded[i-1] != valuesEncoded[i] {
 			n := unmarshalUint16(v)
 			bufLen := len(buf)
 			buf = marshalUint16String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
 		}
-	} else {
-		bucketSizeInt := uint64(bf.bucketSize)
-		if bucketSizeInt <= 0 {
-			bucketSizeInt = 1
-		}
-		bucketOffsetInt := uint64(int64(bf.bucketOffset))
-
-		nPrev := uint64(0)
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-
-			n := uint64(unmarshalUint16(v))
-			n -= bucketOffsetInt
-			n -= n % bucketSizeInt
-			n += bucketOffsetInt
-
-			if i > 0 && nPrev == n {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-			nPrev = n
-
-			bufLen := len(buf)
-			buf = marshalUint64String(buf, n)
-			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
-		}
+		values[i] = s
 	}
 
 	br.valuesBuf = valuesBuf
 	br.a.b = buf
 
-	return br.valuesBuf[valuesBufLen:]
+	return values
 }
 
 func (br *blockResult) getBucketedUint32Values(valuesEncoded []string, bf *byStatsField) []string {
+	if !bf.hasBucketConfig() {
+		return br.getUint32Values(valuesEncoded)
+	}
+
+	bucketSizeInt := uint64(bf.bucketSize)
+	if bucketSizeInt <= 0 {
+		bucketSizeInt = 1
+	}
+	bucketOffsetInt := uint64(int64(bf.bucketOffset))
+
 	buf := br.a.b
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
 
 	var s string
+	nPrev := uint64(0)
+	for i, v := range valuesEncoded {
+		if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
+			values[i] = s
+			continue
+		}
 
-	if !bf.hasBucketConfig() {
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
+		n := uint64(unmarshalUint32(v))
+		n -= bucketOffsetInt
+		n -= n % bucketSizeInt
+		n += bucketOffsetInt
 
+		if i == 0 || nPrev != n {
+			bufLen := len(buf)
+			buf = marshalUint64String(buf, n)
+			s = bytesutil.ToUnsafeString(buf[bufLen:])
+			nPrev = n
+		}
+		values[i] = s
+	}
+
+	br.valuesBuf = valuesBuf
+	br.a.b = buf
+
+	return values
+}
+
+func (br *blockResult) getUint32Values(valuesEncoded []string) []string {
+	buf := br.a.b
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
+
+	var s string
+	for i, v := range valuesEncoded {
+		if i == 0 || valuesEncoded[i-1] != valuesEncoded[i] {
 			n := unmarshalUint32(v)
 			bufLen := len(buf)
 			buf = marshalUint32String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
 		}
-	} else {
-		bucketSizeInt := uint64(bf.bucketSize)
-		if bucketSizeInt <= 0 {
-			bucketSizeInt = 1
-		}
-		bucketOffsetInt := uint64(int64(bf.bucketOffset))
-
-		nPrev := uint64(0)
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-
-			n := uint64(unmarshalUint32(v))
-			n -= bucketOffsetInt
-			n -= n % bucketSizeInt
-			n += bucketOffsetInt
-
-			if i > 0 && nPrev == n {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-			nPrev = n
-
-			bufLen := len(buf)
-			buf = marshalUint64String(buf, n)
-			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
-		}
+		values[i] = s
 	}
 
 	br.valuesBuf = valuesBuf
 	br.a.b = buf
 
-	return br.valuesBuf[valuesBufLen:]
+	return values
 }
 
 func (br *blockResult) getBucketedUint64Values(valuesEncoded []string, bf *byStatsField) []string {
+	if !bf.hasBucketConfig() {
+		return br.getUint64Values(valuesEncoded)
+	}
+
+	bucketSizeInt := uint64(bf.bucketSize)
+	if bucketSizeInt <= 0 {
+		bucketSizeInt = 1
+	}
+	bucketOffsetInt := uint64(int64(bf.bucketOffset))
+
 	buf := br.a.b
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
 
 	var s string
+	nPrev := uint64(0)
+	for i, v := range valuesEncoded {
+		if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
+			values[i] = s
+			continue
+		}
 
-	if !bf.hasBucketConfig() {
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
+		n := unmarshalUint64(v)
+		n -= bucketOffsetInt
+		n -= n % bucketSizeInt
+		n += bucketOffsetInt
 
-			n := unmarshalUint64(v)
+		if i == 0 || nPrev != n {
 			bufLen := len(buf)
 			buf = marshalUint64String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
-		}
-	} else {
-		bucketSizeInt := uint64(bf.bucketSize)
-		if bucketSizeInt <= 0 {
-			bucketSizeInt = 1
-		}
-		bucketOffsetInt := uint64(int64(bf.bucketOffset))
-
-		nPrev := uint64(0)
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-
-			n := unmarshalUint64(v)
-			n -= bucketOffsetInt
-			n -= n % bucketSizeInt
-			n += bucketOffsetInt
-
-			if i > 0 && nPrev == n {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
 			nPrev = n
-
-			bufLen := len(buf)
-			buf = marshalUint64String(buf, n)
-			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
 		}
+		values[i] = s
 	}
 
 	br.valuesBuf = valuesBuf
 	br.a.b = buf
 
-	return br.valuesBuf[valuesBufLen:]
+	return values
+}
+
+func (br *blockResult) getUint64Values(valuesEncoded []string) []string {
+	buf := br.a.b
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
+
+	var s string
+	for i, v := range valuesEncoded {
+		if i == 0 || valuesEncoded[i-1] != valuesEncoded[i] {
+			n := unmarshalUint64(v)
+			bufLen := len(buf)
+			buf = marshalUint64String(buf, n)
+			s = bytesutil.ToUnsafeString(buf[bufLen:])
+		}
+		values[i] = s
+	}
+
+	br.valuesBuf = valuesBuf
+	br.a.b = buf
+
+	return values
 }
 
 func (br *blockResult) getBucketedInt64Values(valuesEncoded []string, bf *byStatsField) []string {
+	if !bf.hasBucketConfig() {
+		return br.getInt64Values(valuesEncoded)
+	}
+
+	bucketSizeInt := int64(bf.bucketSize)
+	if bucketSizeInt == 0 {
+		bucketSizeInt = 1
+	}
+	bucketOffsetInt := int64(bf.bucketOffset)
+
 	buf := br.a.b
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
 
 	var s string
+	nPrev := int64(0)
+	for i, v := range valuesEncoded {
+		if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
+			values[i] = s
+			continue
+		}
 
-	if !bf.hasBucketConfig() {
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
+		n := unmarshalInt64(v)
+		n -= bucketOffsetInt
+		n -= n % bucketSizeInt
+		n += bucketOffsetInt
 
-			n := unmarshalInt64(v)
+		if i == 0 || nPrev != n {
 			bufLen := len(buf)
 			buf = marshalInt64String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
-		}
-	} else {
-		bucketSizeInt := int64(bf.bucketSize)
-		if bucketSizeInt == 0 {
-			bucketSizeInt = 1
-		}
-		bucketOffsetInt := int64(bf.bucketOffset)
-
-		nPrev := int64(0)
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-
-			n := unmarshalInt64(v)
-			n -= bucketOffsetInt
-			n -= n % bucketSizeInt
-			n += bucketOffsetInt
-
-			if i > 0 && nPrev == n {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
 			nPrev = n
-
-			bufLen := len(buf)
-			buf = marshalInt64String(buf, n)
-			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
 		}
+		values[i] = s
 	}
 
 	br.valuesBuf = valuesBuf
 	br.a.b = buf
 
-	return br.valuesBuf[valuesBufLen:]
+	return values
+}
+
+func (br *blockResult) getInt64Values(valuesEncoded []string) []string {
+	buf := br.a.b
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
+
+	var s string
+	for i, v := range valuesEncoded {
+		if i == 0 || valuesEncoded[i-1] != valuesEncoded[i] {
+			n := unmarshalInt64(v)
+			bufLen := len(buf)
+			buf = marshalInt64String(buf, n)
+			s = bytesutil.ToUnsafeString(buf[bufLen:])
+		}
+		values[i] = s
+	}
+
+	br.valuesBuf = valuesBuf
+	br.a.b = buf
+
+	return values
 }
 
 func (br *blockResult) getBucketedFloat64Values(valuesEncoded []string, bf *byStatsField) []string {
+	if !bf.hasBucketConfig() {
+		return br.getFloat64Values(valuesEncoded)
+	}
+
+	bucketSize := bf.bucketSize
+	if bucketSize <= 0 {
+		bucketSize = 1
+	}
+
+	_, e := decimal.FromFloat(bucketSize)
+	p10 := math.Pow10(int(-e))
+	bucketSizeP10 := int64(bucketSize * p10)
+
 	buf := br.a.b
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
 
 	var s string
+	fPrev := float64(0)
+	for i, v := range valuesEncoded {
+		if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
+			values[i] = s
+			continue
+		}
 
-	if !bf.hasBucketConfig() {
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
+		f := unmarshalFloat64(v)
 
-			f := unmarshalFloat64(v)
+		f -= bf.bucketOffset
 
+		// emulate f % bucketSize for float64 values
+		fP10 := int64(f * p10)
+		fP10 -= fP10 % bucketSizeP10
+		f = float64(fP10) / p10
+
+		f += bf.bucketOffset
+
+		if i == 0 || fPrev != f {
 			bufLen := len(buf)
 			buf = marshalFloat64String(buf, f)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
-		}
-	} else {
-		bucketSize := bf.bucketSize
-		if bucketSize <= 0 {
-			bucketSize = 1
-		}
-
-		_, e := decimal.FromFloat(bucketSize)
-		p10 := math.Pow10(int(-e))
-		bucketSizeP10 := int64(bucketSize * p10)
-
-		fPrev := float64(0)
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-
-			f := unmarshalFloat64(v)
-
-			f -= bf.bucketOffset
-
-			// emulate f % bucketSize for float64 values
-			fP10 := int64(f * p10)
-			fP10 -= fP10 % bucketSizeP10
-			f = float64(fP10) / p10
-
-			f += bf.bucketOffset
-
-			if fPrev == f {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
 			fPrev = f
-
-			bufLen := len(buf)
-			buf = marshalFloat64String(buf, f)
-			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
 		}
+		values[i] = s
 	}
 
 	br.valuesBuf = valuesBuf
 	br.a.b = buf
 
-	return br.valuesBuf[valuesBufLen:]
+	return values
 }
 
-func (br *blockResult) getBucketedIPv4Values(valuesEncoded []string, bf *byStatsField) []string {
+func (br *blockResult) getFloat64Values(valuesEncoded []string) []string {
 	buf := br.a.b
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
 
 	var s string
+	for i, v := range valuesEncoded {
+		if i == 0 || valuesEncoded[i-1] != valuesEncoded[i] {
+			f := unmarshalFloat64(v)
+			bufLen := len(buf)
+			buf = marshalFloat64String(buf, f)
+			s = bytesutil.ToUnsafeString(buf[bufLen:])
+		}
+		values[i] = s
+	}
 
+	br.valuesBuf = valuesBuf
+	br.a.b = buf
+
+	return values
+}
+
+func (br *blockResult) getBucketedIPv4Values(valuesEncoded []string, bf *byStatsField) []string {
 	if !bf.hasBucketConfig() {
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
+		return br.getIPv4Values(valuesEncoded)
+	}
 
+	bucketSizeInt := uint32(bf.bucketSize)
+	if bucketSizeInt <= 0 {
+		bucketSizeInt = 1
+	}
+	bucketOffsetInt := uint32(int32(bf.bucketOffset))
+
+	buf := br.a.b
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
+
+	var s string
+	nPrev := uint32(0)
+	for i, v := range valuesEncoded {
+		if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
+			values[i] = s
+			continue
+		}
+
+		n := unmarshalIPv4(v)
+		n -= bucketOffsetInt
+		n -= n % bucketSizeInt
+		n += bucketOffsetInt
+
+		if i == 0 || nPrev != n {
+			bufLen := len(buf)
+			buf = marshalIPv4String(buf, n)
+			s = bytesutil.ToUnsafeString(buf[bufLen:])
+			nPrev = n
+		}
+		values[i] = s
+	}
+
+	br.valuesBuf = valuesBuf
+	br.a.b = buf
+
+	return values
+}
+
+func (br *blockResult) getIPv4Values(valuesEncoded []string) []string {
+	buf := br.a.b
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
+
+	var s string
+	for i, v := range valuesEncoded {
+		if i == 0 || valuesEncoded[i-1] != valuesEncoded[i] {
 			ip := unmarshalIPv4(v)
 			bufLen := len(buf)
 			buf = marshalIPv4String(buf, ip)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
 		}
-	} else {
-		bucketSizeInt := uint32(bf.bucketSize)
-		if bucketSizeInt <= 0 {
-			bucketSizeInt = 1
-		}
-		bucketOffsetInt := uint32(int32(bf.bucketOffset))
-
-		nPrev := uint32(0)
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-
-			n := unmarshalIPv4(v)
-			n -= bucketOffsetInt
-			n -= n % bucketSizeInt
-			n += bucketOffsetInt
-
-			if i > 0 && nPrev == n {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-			nPrev = n
-
-			bufLen := len(buf)
-			buf = marshalIPv4String(buf, n)
-			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
-		}
+		values[i] = s
 	}
 
 	br.valuesBuf = valuesBuf
 	br.a.b = buf
 
-	return valuesBuf[valuesBufLen:]
+	return values
 }
 
 func (br *blockResult) getBucketedTimestampISO8601Values(valuesEncoded []string, bf *byStatsField) []string {
+	if !bf.hasBucketConfig() {
+		return br.getTimestampISO8601Values(valuesEncoded)
+	}
+
+	bucketSizeInt := int64(bf.bucketSize)
+	if bucketSizeInt <= 0 {
+		bucketSizeInt = 1
+	}
+	bucketOffsetInt := int64(bf.bucketOffset)
+
 	buf := br.a.b
 	valuesBuf := br.valuesBuf
 	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
 
 	var s string
+	timestampTruncatedPrev := int64(0)
+	bb := bbPool.Get()
+	for i, v := range valuesEncoded {
+		if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
+			values[i] = s
+			continue
+		}
 
-	if !bf.hasBucketConfig() {
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
+		timestamp := unmarshalTimestampISO8601(v)
+		timestampTruncated := truncateTimestamp(timestamp, bucketSizeInt, bucketOffsetInt, bf.bucketSizeStr)
 
+		if i == 0 || timestampTruncatedPrev != timestampTruncated {
+			bufLen := len(buf)
+			buf = marshalTimestampISO8601String(buf, timestampTruncated)
+			s = bytesutil.ToUnsafeString(buf[bufLen:])
+			timestampTruncatedPrev = timestampTruncated
+		}
+		values[i] = s
+	}
+	bbPool.Put(bb)
+
+	br.valuesBuf = valuesBuf
+	br.a.b = buf
+
+	return values
+}
+
+func (br *blockResult) getTimestampISO8601Values(valuesEncoded []string) []string {
+	buf := br.a.b
+	valuesBuf := br.valuesBuf
+	valuesBufLen := len(valuesBuf)
+	valuesBuf = slicesutil.SetLength(valuesBuf, valuesBufLen+len(valuesEncoded))
+	values := valuesBuf[valuesBufLen:]
+
+	var s string
+	for i, v := range valuesEncoded {
+		if i == 0 || valuesEncoded[i-1] != valuesEncoded[i] {
 			n := unmarshalTimestampISO8601(v)
-
 			bufLen := len(buf)
 			buf = marshalTimestampISO8601String(buf, n)
 			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
 		}
-	} else {
-		bucketSizeInt := int64(bf.bucketSize)
-		if bucketSizeInt <= 0 {
-			bucketSizeInt = 1
-		}
-		bucketOffsetInt := int64(bf.bucketOffset)
-
-		timestampPrev := int64(0)
-		bb := bbPool.Get()
-		for i, v := range valuesEncoded {
-			if i > 0 && valuesEncoded[i-1] == valuesEncoded[i] {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-
-			timestamp := unmarshalTimestampISO8601(v)
-			timestamp -= bucketOffsetInt
-			if bf.bucketSizeStr == "month" {
-				timestamp = truncateTimestampToMonth(timestamp)
-			} else if bf.bucketSizeStr == "year" {
-				timestamp = truncateTimestampToYear(timestamp)
-			} else {
-				timestamp -= timestamp % bucketSizeInt
-			}
-			timestamp -= timestamp % bucketSizeInt
-			timestamp += bucketOffsetInt
-
-			if timestampPrev == timestamp {
-				valuesBuf = append(valuesBuf, s)
-				continue
-			}
-			timestampPrev = timestamp
-
-			bufLen := len(buf)
-			buf = marshalTimestampISO8601String(buf, timestamp)
-			s = bytesutil.ToUnsafeString(buf[bufLen:])
-			valuesBuf = append(valuesBuf, s)
-		}
-		bbPool.Put(bb)
+		values[i] = s
 	}
 
 	br.valuesBuf = valuesBuf
 	br.a.b = buf
 
-	return valuesBuf[valuesBufLen:]
+	return values
 }
 
 // getBucketedValue returns bucketed s according to the given bf
@@ -1338,19 +1461,11 @@ func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
 		}
 		bucketOffset := int64(bf.bucketOffset)
 
-		timestamp -= bucketOffset
-		if bf.bucketSizeStr == "month" {
-			timestamp = truncateTimestampToMonth(timestamp)
-		} else if bf.bucketSizeStr == "year" {
-			timestamp = truncateTimestampToYear(timestamp)
-		} else {
-			timestamp -= timestamp % bucketSizeInt
-		}
-		timestamp += bucketOffset
+		timestampTruncated := truncateTimestamp(timestamp, bucketSizeInt, bucketOffset, bf.bucketSizeStr)
 
 		buf := br.a.b
 		bufLen := len(buf)
-		buf = marshalTimestampRFC3339NanoString(buf, timestamp)
+		buf = marshalTimestampRFC3339NanoString(buf, timestampTruncated)
 		br.a.b = buf
 		return bytesutil.ToUnsafeString(buf[bufLen:])
 	}

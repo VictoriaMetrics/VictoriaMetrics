@@ -55,8 +55,8 @@ under the current directory:
 
 
 ```sh
-docker pull victoriametrics/victoria-metrics:v1.110.0
-docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 victoriametrics/victoria-metrics:v1.110.0
+docker pull victoriametrics/victoria-metrics:v1.111.0
+docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 victoriametrics/victoria-metrics:v1.111.0
 ```
 
 
