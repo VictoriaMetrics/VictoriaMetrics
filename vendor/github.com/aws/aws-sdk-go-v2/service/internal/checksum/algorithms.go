@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"hash"
 	"hash/crc32"
+	"hash/crc64"
 	"io"
 	"strings"
 	"sync"
@@ -35,11 +36,15 @@ const (
 	AlgorithmCRC64NVME Algorithm = "CRC64NVME"
 )
 
+// inverted NVME polynomial as required by crc64.MakeTable
+const crc64NVME = 0x9a6c_9329_ac4b_c9b5
+
 var supportedAlgorithms = []Algorithm{
 	AlgorithmCRC32C,
 	AlgorithmCRC32,
 	AlgorithmSHA1,
 	AlgorithmSHA256,
+	AlgorithmCRC64NVME,
 }
 
 func (a Algorithm) String() string { return string(a) }
@@ -92,6 +97,8 @@ func NewAlgorithmHash(v Algorithm) (hash.Hash, error) {
 		return crc32.NewIEEE(), nil
 	case AlgorithmCRC32C:
 		return crc32.New(crc32.MakeTable(crc32.Castagnoli)), nil
+	case AlgorithmCRC64NVME:
+		return crc64.New(crc64.MakeTable(crc64NVME)), nil
 	default:
 		return nil, fmt.Errorf("unknown checksum algorithm, %v", v)
 	}
@@ -109,6 +116,8 @@ func AlgorithmChecksumLength(v Algorithm) (int, error) {
 		return crc32.Size, nil
 	case AlgorithmCRC32C:
 		return crc32.Size, nil
+	case AlgorithmCRC64NVME:
+		return crc64.Size, nil
 	default:
 		return 0, fmt.Errorf("unknown checksum algorithm, %v", v)
 	}
