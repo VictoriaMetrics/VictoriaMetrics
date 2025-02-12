@@ -98,7 +98,7 @@ func main() {
 					}
 
 					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), c.Bool(globalVerbose))
-					return otsdbProcessor.run()
+					return otsdbProcessor.run(ctx)
 				},
 			},
 			{
@@ -159,7 +159,7 @@ func main() {
 						c.Bool(influxSkipDatabaseLabel),
 						c.Bool(influxPrometheusMode),
 						c.Bool(globalVerbose))
-					return processor.run()
+					return processor.run(ctx)
 				},
 			},
 			{
@@ -461,9 +461,6 @@ func main() {
 	go func() {
 		<-c
 		fmt.Println("\r- Execution cancelled")
-		if importer != nil {
-			importer.Close()
-		}
 		cancelCtx()
 	}()
 

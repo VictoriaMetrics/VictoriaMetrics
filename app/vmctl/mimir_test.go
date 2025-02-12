@@ -57,6 +57,7 @@ func TestMimirProcessorRun(t *testing.T) {
 			Transport:   nil,
 			Concurrency: 1,
 			Backoff:     bf,
+			BatchSize:   100,
 		}
 
 		ctx := context.Background()
@@ -64,6 +65,7 @@ func TestMimirProcessorRun(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot create importer: %s", err)
 		}
+		defer importer.Close()
 
 		matchName := "__name__"
 		matchValue := ".*"
@@ -96,6 +98,12 @@ func TestMimirProcessorRun(t *testing.T) {
 
 		if err := p.run(ctx); err != nil {
 			t.Fatalf("run() error: %s", err)
+		}
+
+		collectedTs := dst.GetCollectedTimeSeries()
+		t.Logf("collected timeseries: %d; expected timeseries: %d", len(collectedTs), len(resultExpected))
+		if len(collectedTs) != len(resultExpected) {
+			t.Fatalf("unexpected number of collected time series; got %d; want %d", len(collectedTs), numOfSeries)
 		}
 
 		deleted, err := deleteSeries(matchName, matchValue)

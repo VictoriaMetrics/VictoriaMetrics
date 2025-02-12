@@ -150,7 +150,7 @@ func TestRemoteRead(t *testing.T) {
 
 			tt.vmCfg.Addr = remoteWriteServer.URL()
 
-			b, err := backoff.New(10, 1.8, time.Second*2)
+			b, err := backoff.New(1, 1.1, time.Second*1)
 			if err != nil {
 				t.Fatalf("failed to create backoff: %s", err)
 			}
@@ -175,6 +175,13 @@ func TestRemoteRead(t *testing.T) {
 			}
 
 			err = rmp.run(ctx)
+
+			collectedTs := remoteWriteServer.GetCollectedTimeSeries()
+			t.Logf("collected timeseries: %d; expected timeseries: %d", len(collectedTs), len(tt.expectedSeries))
+			if len(collectedTs) != len(tt.expectedSeries) {
+				t.Fatalf("unexpected number of collected time series; got %d; want %d", len(collectedTs), len(tt.expectedSeries))
+			}
+
 			if err != nil {
 				t.Fatalf("failed to run remote read processor: %s", err)
 			}
