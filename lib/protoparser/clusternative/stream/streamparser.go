@@ -32,7 +32,7 @@ func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) e
 
 	var wg sync.WaitGroup
 	var (
-		callbackErrLock sync.RWMutex
+		callbackErrLock sync.Mutex
 		callbackErr     error
 	)
 	for {
