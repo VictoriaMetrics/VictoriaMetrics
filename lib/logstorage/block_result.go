@@ -1641,17 +1641,30 @@ func (br *blockResult) getTimestampISO8601Values(c *blockResultColumn) []string 
 
 // getBucketedValue returns bucketed s according to the given bf
 func (br *blockResult) getBucketedValue(s string, bf *byStatsField) string {
-	if !bf.hasBucketConfig() {
-		return s
-	}
 	if len(s) == 0 {
-		return s
+		return ""
 	}
 
 	c := s[0]
 	if (c < '0' || c > '9') && c != '-' {
 		// Fast path - the value cannot be bucketed, since it starts with unexpected chars.
 		return s
+	}
+
+	if n, ok := tryParseInt64(s); ok {
+		bucketSizeInt := int64(bf.bucketSize)
+		if bucketSizeInt <= 0 {
+			bucketSizeInt = 1
+		}
+		bucketOffsetInt := int64(bf.bucketOffset)
+
+		nTruncated := truncateInt64(n, bucketSizeInt, bucketOffsetInt)
+
+		buf := br.a.b
+		bufLen := len(buf)
+		buf = marshalInt64String(buf, nTruncated)
+		br.a.b = buf
+		return bytesutil.ToUnsafeString(buf[bufLen:])
 	}
 
 	if f, ok := tryParseFloat64(s); ok {
