@@ -130,7 +130,24 @@ func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, 
 			Name:  "severity",
 			Value: lr.FormatSeverity(),
 		})
-
+		if lr.Flags > 0 {
+			fields = append(fields, logstorage.Field{
+				Name:  "flags",
+				Value: lr.FormatFlags(),
+			})
+		}
+		if len(lr.TraceId) > 0 {
+			fields = append(fields, logstorage.Field{
+				Name:  "trace_id",
+				Value: lr.FormatTraceId(),
+			})
+		}
+		if len(lr.SpanId) > 0 {
+			fields = append(fields, logstorage.Field{
+				Name:  "span_id",
+				Value: lr.FormatSpanId(),
+			})
+		}
 		var streamFields []logstorage.Field
 		if useDefaultStreamFields {
 			streamFields = commonFields
