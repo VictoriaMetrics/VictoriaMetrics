@@ -594,8 +594,15 @@ func (shard *pipeStatsProcessorShard) updateStatsSingleColumn(br *blockResult, b
 	}
 
 	// Slower generic path for a column with different values.
-	var psg *pipeStatsGroup
 	values := c.getValuesBucketed(br, bf)
+	if areConstValues(values) {
+		// Fast path - values are constant after bucketing.
+		psg := shard.getPipeStatsGroupGeneric(values[0])
+		shard.stateSizeBudget -= psg.updateStatsForAllRows(shard.bms, br, &shard.brTmp)
+		return
+	}
+
+	var psg *pipeStatsGroup
 	for i := 0; i < br.rowsLen; i++ {
 		if i <= 0 || values[i-1] != values[i] {
 			psg = shard.getPipeStatsGroupGeneric(values[i])
