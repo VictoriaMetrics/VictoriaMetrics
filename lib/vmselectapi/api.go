@@ -38,6 +38,12 @@ type API interface {
 
 	// Tenants returns list of tenants in the storage on the given tr.
 	Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error)
+
+	// GetMetricNamesUsageStats returns statistic for metric names usage
+	GetMetricNamesUsageStats(qt *querytracer.Tracer, at *storage.TenantToken, limit, le int, matchPattern string, deadline uint64) (storage.MetricNamesStatsResponse, error)
+
+	// ResetMetricNamesUsageStats reset internal state of metric names usage tracker
+	ResetMetricNamesUsageStats(qt *querytracer.Tracer, deadline uint64) error
 }
 
 // BlockIterator must iterate through series blocks found by VMSelect.InitSearch.

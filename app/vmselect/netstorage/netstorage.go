@@ -1676,6 +1676,54 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	return nil
 }
 
+// GetMetricNamesStats returns metric names usage statistics for the given params
+func GetMetricNamesStats(qt *querytracer.Tracer, at *storage.TenantToken, limit, le int, matchPattern string, deadline searchutils.Deadline) (storage.MetricNamesStatsResponse, error) {
+	type nodeResult struct {
+		resp storage.MetricNamesStatsResponse
+		err  error
+	}
+	sns := getStorageNodes()
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
+		resp, err := sn.processGetMetricNamesStats(qt, at, limit, le, matchPattern, deadline)
+		return nodeResult{resp: resp, err: err}
+	})
+	var mu sync.Mutex
+	var mnuss storage.MetricNamesStatsResponse
+	if err := snr.collectAllResults(func(result any) error {
+		r := result.(nodeResult)
+		if r.err != nil {
+			return r.err
+		}
+		mu.Lock()
+		mnuss.Merge(&r.resp)
+		mu.Unlock()
+		return nil
+	}); err != nil {
+		return mnuss, err
+	}
+	mnuss.Sort()
+	return mnuss, nil
+}
+
+// ResetMetricNamesStats forwards reset tracker state request to the storage nodes
+//
+// In case of error request must be retried by the client in order to consistently reset state at all nodes
+func ResetMetricNamesStats(qt *querytracer.Tracer, deadline searchutils.Deadline) error {
+	sns := getStorageNodes()
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
+		return sn.processResetMetricNamesUsageStats(qt, deadline)
+	})
+	if err := snr.collectAllResults(func(result any) error {
+		if result != nil {
+			return result.(error)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
 // SearchMetricNames returns all the metric names matching sq until the given deadline.
 //
 // The returned metric names must be unmarshaled via storage.MetricName.UnmarshalString().
@@ -2419,6 +2467,102 @@ func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []
 	return sn.execOnConnWithPossibleRetry(qt, "search_v7", f, deadline)
 }
 
+func processGetMetricNamesUsageStatsOnConn(bc *handshake.BufferedConn, at *storage.TenantToken, limit, le int, matchPattern string) (storage.MetricNamesStatsResponse, error) {
+	var result storage.MetricNamesStatsResponse
+	hasAt := at != nil
+	if err := writeBool(bc, hasAt); err != nil {
+		return result, fmt.Errorf("cannot write hasAt: %w", err)
+	}
+	// conditionally write tenant token
+	if hasAt {
+		if err := writeUint32(bc, at.AccountID); err != nil {
+			return result, fmt.Errorf("cannot write AccountID: %w", err)
+		}
+		if err := writeUint32(bc, at.ProjectID); err != nil {
+			return result, fmt.Errorf("cannot write ProjectID: %w", err)
+		}
+	}
+	if err := writeLimit(bc, limit); err != nil {
+		return result, fmt.Errorf("cannot write limit: %w", err)
+	}
+	if err := writeInt64(bc, int64(le)); err != nil {
+		return result, fmt.Errorf("cannot write le: %w", err)
+	}
+	if err := writeBytes(bc, []byte(matchPattern)); err != nil {
+		return result, fmt.Errorf("cannot write matchPattern: %w", err)
+	}
+	if err := bc.Flush(); err != nil {
+		return result, fmt.Errorf("cannot flush write: %w", err)
+	}
+	// start read response
+	var err error
+	result.CollectedSinceTs, err = readUint64(bc)
+	if err != nil {
+		return result, fmt.Errorf("cannot read collected: %w", err)
+	}
+	result.TotalRecords, err = readUint64(bc)
+	if err != nil {
+		return result, fmt.Errorf("cannot read TotalRecords: %w", err)
+	}
+	result.CurrentSizeBytes, err = readUint64(bc)
+	if err != nil {
+		return result, fmt.Errorf("cannot read CurrentSizeBytes: %w", err)
+	}
+	result.MaxSizeBytes, err = readUint64(bc)
+	if err != nil {
+		return result, fmt.Errorf("cannot read MaxSizeBytes: %w", err)
+	}
+	n, err := readUint64(bc)
+	if err != nil {
+		return result, fmt.Errorf("cannot read records count: %w", err)
+	}
+	result.Records = make([]storage.MetricNamesStatsRecord, n)
+	var mnBuff []byte
+	for i := range n {
+		mnBuff, err = readBytes(mnBuff[:0], bc, 1024)
+		if err != nil {
+			return result, fmt.Errorf("cannot read record metricName: %w", err)
+		}
+		record := &result.Records[i]
+		record.MetricName = string(mnBuff)
+		record.LastRequestTs, err = readUint64(bc)
+		if err != nil {
+			return result, fmt.Errorf("cannot read record LastRequestTs: %w", err)
+		}
+		record.RequestsCount, err = readUint64(bc)
+		if err != nil {
+			return result, fmt.Errorf("cannot read record RequestCount: %w", err)
+		}
+	}
+	return result, nil
+}
+
+func (sn *storageNode) processGetMetricNamesStats(qt *querytracer.Tracer, at *storage.TenantToken, limit, le int, matchPattern string, deadline searchutils.Deadline) (storage.MetricNamesStatsResponse, error) {
+	var result storage.MetricNamesStatsResponse
+	f := func(bc *handshake.BufferedConn) error {
+		bcResult, err := processGetMetricNamesUsageStatsOnConn(bc, at, limit, le, matchPattern)
+		if err != nil {
+			return err
+		}
+		result = bcResult
+		return nil
+	}
+	if err := sn.execOnConnWithPossibleRetry(qt, "metricNamesUsageStats_v1", f, deadline); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+func (sn *storageNode) processResetMetricNamesUsageStats(qt *querytracer.Tracer, deadline searchutils.Deadline) error {
+	f := func(bc *handshake.BufferedConn) error {
+		if err := bc.Flush(); err != nil {
+			return fmt.Errorf("cannot flush buffer: %w", err)
+		}
+		return nil
+	}
+	return sn.execOnConnWithPossibleRetry(qt, "resetMetricNamesStats_v1", f, deadline)
+}
+
 func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutils.Deadline) error {
 	qtChild := qt.NewChild("rpc call %s()", funcName)
 	err := sn.execOnConn(qtChild, funcName, f, deadline)
@@ -3010,6 +3154,12 @@ func writeTimeRange(bc *handshake.BufferedConn, tr storage.TimeRange) error {
 		return fmt.Errorf("cannot send maxTimestamp=%d to conn: %w", tr.MaxTimestamp, err)
 	}
 	return nil
+}
+
+func writeInt64(bc *handshake.BufferedConn, n int64) error {
+	sizeBuf := encoding.MarshalInt64(nil, n)
+	_, err := bc.Write(sizeBuf)
+	return err
 }
 
 func writeLimit(bc *handshake.BufferedConn, limit int) error {
