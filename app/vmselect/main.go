@@ -269,7 +269,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.Errorf(w, r, "cannot parse path %q: %s", path, err)
 		return true
 	}
-	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
+	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken, nil)
 	if err != nil {
 		httpserver.Errorf(w, r, "auth error: %s", err)
 		return true
@@ -666,7 +666,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 	}
 	switch p.Suffix {
 	case "prometheus/api/v1/status/active_queries":
-		at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
+		at, err := auth.NewTokenPossibleMultitenant(p.AuthToken, nil)
 		if err != nil {
 			return false
 		}
@@ -675,7 +675,7 @@ func handleStaticAndSimpleRequests(w http.ResponseWriter, r *http.Request, path 
 		promql.ActiveQueriesHandler(at, w, r)
 		return true
 	case "prometheus/api/v1/status/top_queries":
-		at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
+		at, err := auth.NewTokenPossibleMultitenant(p.AuthToken, nil)
 		if err != nil {
 			return false
 		}
