@@ -110,7 +110,13 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)
 	startTime := time.Now()
 	WG = syncwg.WaitGroup{}
-	strg := storage.MustOpenStorage(*DataPath, retentionPeriod.Duration(), *maxHourlySeries, *maxDailySeries)
+
+	opts := storage.OpenOptions{
+		Retention:       retentionPeriod.Duration(),
+		MaxHourlySeries: *maxHourlySeries,
+		MaxDailySeries:  *maxDailySeries,
+	}
+	strg := storage.MustOpenStorage(*DataPath, opts)
 	Storage = strg
 	initStaleSnapshotsRemover(strg)
 
