@@ -185,7 +185,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s := &Storage{
 		path:           path,
 		cachePath:      filepath.Join(path, cacheDirname),
-		retentionMsecs: opts.Retention.Milliseconds(),
+		retentionMsecs: retention.Milliseconds(),
 		stopCh:         make(chan struct{}),
 	}
 	fs.MustMkdirIfNotExist(path)
@@ -263,7 +263,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 
 	// Initialize nextRotationTimestamp
 	nowSecs := int64(fasttime.UnixTimestamp())
-	retentionSecs := opts.Retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
+	retentionSecs := retention.Milliseconds() / 1000 // not .Seconds() because unnecessary float64 conversion
 	nextRotationTimestamp := nextRetentionDeadlineSeconds(nowSecs, retentionSecs, retentionTimezoneOffsetSecs)
 	s.nextRotationTimestamp.Store(nextRotationTimestamp)
 
