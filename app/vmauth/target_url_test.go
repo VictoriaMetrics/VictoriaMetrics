@@ -98,6 +98,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		up, hc := ui.getURLPrefixAndHeaders(u, u.Host, nil)
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
+			return
 		}
 		bu := up.getBackendURL()
 		target := mergeURLs(bu.url, u, up.dropSrcPathPrefixParts)
@@ -309,6 +310,7 @@ func TestUserInfoGetBackendURL_SRV(t *testing.T) {
 		up, _ := ui.getURLPrefixAndHeaders(u, u.Host, nil)
 		if up == nil {
 			t.Fatalf("cannot match available backend: %s", err)
+			return
 		}
 		bu := up.getBackendURL()
 		target := mergeURLs(bu.url, u, up.dropSrcPathPrefixParts)
