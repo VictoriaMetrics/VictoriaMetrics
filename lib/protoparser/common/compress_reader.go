@@ -1,11 +1,12 @@
 package common
 
 import (
-	"io"
-	"sync"
-
+	"errors"
 	"github.com/klauspost/compress/gzip"
 	"github.com/klauspost/compress/zlib"
+	"github.com/klauspost/compress/zstd"
+	"io"
+	"sync"
 )
 
 // GetGzipReader returns new gzip reader from the pool.
@@ -51,3 +52,48 @@ func PutZlibReader(zr io.ReadCloser) {
 }
 
 var zlibReaderPool sync.Pool
+
+// GetZstdReader returns zstd reader.
+func GetZstdReader(r io.Reader) (*zstd.Decoder, error) {
+	v := zstdReaderPool.Get()
+	if v == nil {
+		return zstd.NewReader(r)
+
+	}
+	zr := v.(*zstd.Decoder)
+	if err := zr.Reset(r); err != nil {
+		return nil, err
+	}
+	return zr, nil
+}
+
+// PutZstdReader returns back zstd reader obtained via GetZstdReader.
+func PutZstdReader(zd *zstd.Decoder) {
+	_ = zd.Reset(nil)
+	zstdReaderPool.Put(zd)
+}
+
+var zstdReaderPool sync.Pool
+
+func GetCompressReader(contentEncoding string, r io.Reader) (io.Reader, error) {
+	switch contentEncoding {
+	case "gzip":
+		return GetGzipReader(r)
+	case "zlib":
+		return GetZlibReader(r)
+	case "zstd":
+		return GetZstdReader(r)
+	default:
+		return nil, errors.New("unsupported compression type")
+	}
+}
+func PutCompressReader(contentEncoding string, r io.Reader) {
+	switch contentEncoding {
+	case "gzip":
+		PutGzipReader(r.(*gzip.Reader))
+	case "zlib":
+		PutZlibReader(r.(io.ReadCloser))
+	case "zstd":
+		PutZstdReader(r.(*zstd.Decoder))
+	}
+}
