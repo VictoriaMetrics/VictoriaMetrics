@@ -608,8 +608,13 @@ func TestNextRetentionDeadlineSeconds(t *testing.T) {
 
 func TestStorageOpenClose(t *testing.T) {
 	path := "TestStorageOpenClose"
+	opts := OpenOptions{
+		Retention:       -1,
+		MaxHourlySeries: 1e5,
+		MaxDailySeries:  1e6,
+	}
 	for i := 0; i < 10; i++ {
-		s := MustOpenStorage(path, -1, 1e5, 1e6)
+		s := MustOpenStorage(path, opts)
 		s.MustClose()
 	}
 	if err := os.RemoveAll(path); err != nil {
@@ -619,15 +624,17 @@ func TestStorageOpenClose(t *testing.T) {
 
 func TestStorageRandTimestamps(t *testing.T) {
 	path := "TestStorageRandTimestamps"
-	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 0, 0)
+	opts := OpenOptions{
+		Retention: 10 * retention31Days,
+	}
+	s := MustOpenStorage(path, opts)
 	t.Run("serial", func(t *testing.T) {
 		for i := 0; i < 3; i++ {
 			if err := testStorageRandTimestamps(s); err != nil {
 				t.Fatalf("error on iteration %d: %s", i, err)
 			}
 			s.MustClose()
-			s = MustOpenStorage(path, retention, 0, 0)
+			s = MustOpenStorage(path, opts)
 		}
 	})
 	t.Run("concurrent", func(t *testing.T) {
@@ -699,7 +706,7 @@ func testStorageRandTimestamps(s *Storage) error {
 
 func TestStorageDeleteSeries(t *testing.T) {
 	path := "TestStorageDeleteSeries"
-	s := MustOpenStorage(path, 0, 0, 0)
+	s := MustOpenStorage(path, OpenOptions{})
 
 	// Verify no label names exist
 	lns, err := s.SearchLabelNamesWithFiltersOnTimeRange(nil, 0, 0, nil, TimeRange{}, 1e5, 1e9, noDeadline)
@@ -719,7 +726,7 @@ func TestStorageDeleteSeries(t *testing.T) {
 			// Re-open the storage in order to check how deleted metricIDs
 			// are persisted.
 			s.MustClose()
-			s = MustOpenStorage(path, 0, 0, 0)
+			s = MustOpenStorage(path, OpenOptions{})
 		}
 	})
 
@@ -926,7 +933,7 @@ func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 		MaxTimestamp: time.Now().UnixMilli(),
 	})
 
-	s := MustOpenStorage(t.Name(), 0, 0, 0)
+	s := MustOpenStorage(t.Name(), OpenOptions{})
 	defer s.MustClose()
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
@@ -967,7 +974,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 	}
 	tfss := []*TagFilters{tfs}
-	s := MustOpenStorage(t.Name(), 0, 0, 0)
+	s := MustOpenStorage(t.Name(), OpenOptions{})
 	defer s.MustClose()
 
 	// Ensure caches are empty.
@@ -1032,7 +1039,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesSerial"
-	s := MustOpenStorage(path, 0, 0, 0)
+	s := MustOpenStorage(path, OpenOptions{})
 	if err := testStorageRegisterMetricNames(s); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -1044,7 +1051,7 @@ func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 
 func TestStorageRegisterMetricNamesConcurrent(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesConcurrent"
-	s := MustOpenStorage(path, 0, 0, 0)
+	s := MustOpenStorage(path, OpenOptions{})
 	ch := make(chan error, 3)
 	for i := 0; i < cap(ch); i++ {
 		go func() {
@@ -1243,8 +1250,12 @@ func testStorageRegisterMetricNames(s *Storage) error {
 func TestStorageAddRowsSerial(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageAddRowsSerial"
-	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 1e5, 1e5)
+	opts := OpenOptions{
+		Retention:       10 * retention31Days,
+		MaxHourlySeries: 1e5,
+		MaxDailySeries:  1e5,
+	}
+	s := MustOpenStorage(path, opts)
 	if err := testStorageAddRows(rng, s); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -1256,8 +1267,12 @@ func TestStorageAddRowsSerial(t *testing.T) {
 
 func TestStorageAddRowsConcurrent(t *testing.T) {
 	path := "TestStorageAddRowsConcurrent"
-	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 1e5, 1e5)
+	opts := OpenOptions{
+		Retention:       10 * retention31Days,
+		MaxHourlySeries: 1e5,
+		MaxDailySeries:  1e5,
+	}
+	s := MustOpenStorage(path, opts)
 	ch := make(chan error, 3)
 	for i := 0; i < cap(ch); i++ {
 		go func(n int) {
@@ -1396,7 +1411,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 
 	// Try opening the storage from snapshot.
 	snapshotPath := filepath.Join(s.path, snapshotsDirname, snapshotName)
-	s1 := MustOpenStorage(snapshotPath, 0, 0, 0)
+	s1 := MustOpenStorage(snapshotPath, OpenOptions{})
 
 	// Verify the snapshot contains rows
 	var m1 Metrics
@@ -1454,7 +1469,7 @@ func TestStorageRotateIndexDB(t *testing.T) {
 		MinTimestamp: time.Now().UTC().Add(-numRows * time.Hour).UnixMilli(),
 		MaxTimestamp: time.Now().UTC().UnixMilli(),
 	}
-	s := MustOpenStorage(t.Name(), 0, 0, 0)
+	s := MustOpenStorage(t.Name(), OpenOptions{})
 	defer s.MustClose()
 
 	insertAndRotateConcurrently := func(i int) (int, int) {
@@ -1522,8 +1537,12 @@ func testCountAllMetricNamesNoExtDB(tfss *TagFilters, is *indexSearch, tr TimeRa
 func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageDeleteStaleSnapshots"
-	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 1e5, 1e5)
+	opts := OpenOptions{
+		Retention:       10 * retention31Days,
+		MaxHourlySeries: 1e5,
+		MaxDailySeries:  1e5,
+	}
+	s := MustOpenStorage(path, opts)
 	const rowsPerAdd = 1e3
 	const addsCount = 10
 	maxTimestamp := timestampFromTime(time.Now())
@@ -1601,7 +1620,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 
 		var gotMetrics Metrics
 		path := fmt.Sprintf("%s/%s", t.Name(), opts.name)
-		s := MustOpenStorage(path, opts.retention, 0, 0)
+		s := MustOpenStorage(path, OpenOptions{Retention: opts.retention})
 		defer s.MustClose()
 		s.AddRows(opts.mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -1705,7 +1724,11 @@ func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 		mrs := testGenerateMetricRowsForTenant(accountID, projectID, rng, numRows, minTimestamp, maxTimestamp)
 
 		// Insert metrics into the empty storage. The insertion will take the slow path.
-		s := MustOpenStorage(t.Name(), 0, maxHourlySeries, maxDailySeries)
+		opts := OpenOptions{
+			MaxHourlySeries: maxHourlySeries,
+			MaxDailySeries:  maxDailySeries,
+		}
+		s := MustOpenStorage(t.Name(), opts)
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
@@ -1739,7 +1762,7 @@ func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 		// Open the storage again and insert the same metrics again.
 		// This time tsidCache should have the metric names and the fast path
 		// branch will be executed.
-		s = MustOpenStorage(t.Name(), 0, maxHourlySeries, maxDailySeries)
+		s = MustOpenStorage(t.Name(), opts)
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 		assertCounts("Fast Path")
@@ -1748,7 +1771,7 @@ func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 		// Open the storage again, drop tsidCache, and insert the same metrics
 		// again. This time tsidCache should not have the metric names so they
 		// will be searched in index. Thus, the insertion takes the slower path.
-		s = MustOpenStorage(t.Name(), 0, maxHourlySeries, maxDailySeries)
+		s = MustOpenStorage(t.Name(), opts)
 		s.resetAndSaveTSIDCache()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -1820,7 +1843,7 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 	f := func(opts *options) {
 		t.Helper()
 
-		s := MustOpenStorage(t.Name()+"/"+opts.path, 0, 0, 0)
+		s := MustOpenStorage(t.Name()+"/"+opts.path, OpenOptions{})
 		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -2068,7 +2091,7 @@ func testStorageVariousDataPatterns(t *testing.T, registerOnly bool, op func(s *
 		strict := concurrency == 1
 		rowsAddedTotal := wantCounts.metrics.RowsAddedTotal
 
-		s := MustOpenStorage(t.Name(), 0, 0, 0)
+		s := MustOpenStorage(t.Name(), OpenOptions{})
 
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()

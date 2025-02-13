@@ -83,7 +83,7 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 
 func TestSearch(t *testing.T) {
 	path := "TestSearch"
-	st := MustOpenStorage(path, 0, 0, 0)
+	st := MustOpenStorage(path, OpenOptions{})
 	defer func() {
 		st.MustClose()
 		if err := os.RemoveAll(path); err != nil {
@@ -126,7 +126,7 @@ func TestSearch(t *testing.T) {
 
 	// Re-open the storage in order to flush all the pending cached data.
 	st.MustClose()
-	st = MustOpenStorage(path, 0, 0, 0)
+	st = MustOpenStorage(path, OpenOptions{})
 
 	// Run search.
 	tr := TimeRange{

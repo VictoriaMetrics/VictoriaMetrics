@@ -123,7 +123,13 @@ func main() {
 	}
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
 	startTime := time.Now()
-	strg := storage.MustOpenStorage(*storageDataPath, retentionPeriod.Duration(), *maxHourlySeries, *maxDailySeries)
+
+	opts := storage.OpenOptions{
+		Retention:       retentionPeriod.Duration(),
+		MaxHourlySeries: *maxHourlySeries,
+		MaxDailySeries:  *maxDailySeries,
+	}
+	strg := storage.MustOpenStorage(*storageDataPath, opts)
 	initStaleSnapshotsRemover(strg)
 
 	var m storage.Metrics

@@ -17,7 +17,7 @@ func BenchmarkStorageAddRows(b *testing.B) {
 
 func benchmarkStorageAddRows(b *testing.B, rowsPerBatch int) {
 	path := fmt.Sprintf("BenchmarkStorageAddRows_%d", rowsPerBatch)
-	s := MustOpenStorage(path, 0, 0, 0)
+	s := MustOpenStorage(path, OpenOptions{})
 	defer func() {
 		s.MustClose()
 		if err := os.RemoveAll(path); err != nil {
