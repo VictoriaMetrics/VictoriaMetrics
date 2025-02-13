@@ -1,6 +1,7 @@
 package apptest
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -174,6 +175,39 @@ func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 
 	res := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values, http.StatusOK)
 	return NewPrometheusAPIV1SeriesResponse(t, res)
+}
+
+// TSDBAPIV1MetricNamesStats sends a query to a /tsdb/api/v1/status/metric_names_usage_stats endpoint
+// and returns the statistics response for given params.
+//
+// See https://docs.victoriametrics.com/#Trackingestedmetricsusage
+func (app *Vmsingle) TSDBAPIV1MetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse {
+	t.Helper()
+
+	values := opts.asURLValues()
+	values.Add("limit", limit)
+	values.Add("le", le)
+	values.Add("match_pattern", matchPattern)
+	queryURL := fmt.Sprintf("http://%s/api/v1/status/metric_names_stats", app.httpListenAddr)
+
+	res := app.cli.PostForm(t, queryURL, values, http.StatusOK)
+	var resp MetricNamesStatsResponse
+	if err := json.Unmarshal([]byte(res), &resp); err != nil {
+		t.Fatalf("could not unmarshal series response data:\n%s\n err: %v", res, err)
+	}
+	return resp
+}
+
+// AdminResetMetricNamesStats sends a query to a /admin/tsdb/reset_metric_names_usage endpoint
+//
+// See https://docs.victoriametrics.com/#Trackingestedmetricsusage
+func (app *Vmsingle) AdminResetMetricNamesStats(t *testing.T, opts QueryOpts) {
+	t.Helper()
+
+	values := opts.asURLValues()
+	queryURL := fmt.Sprintf("http://%s/admin/api/v1/status/metric_names_stats/reset", app.httpListenAddr)
+
+	app.cli.PostForm(t, queryURL, values, http.StatusNoContent)
 }
 
 // String returns the string representation of the vmsingle app state.
