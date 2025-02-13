@@ -178,8 +178,9 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	if err != nil {
 		logger.Panicf("FATAL: cannot determine absolute path for %q: %s", path, err)
 	}
-	if opts.Retention <= 0 || opts.Retention > retentionMax {
-		opts.Retention = retentionMax
+	retention := opts.Retention
+	if retention <= 0 || retention > retentionMax {
+		retention = retentionMax
 	}
 	s := &Storage{
 		path:           path,
