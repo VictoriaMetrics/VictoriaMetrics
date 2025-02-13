@@ -813,9 +813,8 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 			// Assume that `| format ...` pipe generates an additional by(...) label
 			if slices.Contains(byFields, t.resultField) {
 				return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", t.resultField, t, q)
-			} else {
-				byFields = append(byFields, t.resultField)
 			}
+			byFields = append(byFields, t.resultField)
 			delete(metricFields, t.resultField)
 		default:
 			return nil, fmt.Errorf("the %q pipe cannot be put after %q pipe in the query [%s]", p, ps, q)
