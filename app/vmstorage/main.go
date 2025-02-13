@@ -84,6 +84,11 @@ var (
 		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
 		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
+
+	trackMetricNamesStats = flag.Bool("storage.trackMetricNamesStats", false, "Whether to track ingest and query requests for timeseries metric names. "+
+		"This feature allows to track metric names unused at query requests. ")
+	cacheSizeMetricNamesStats = flagutil.NewBytes("storage.cacheSizeMetricNamesStats", 0, "Overrides max size for storage/metricNamesStatsTracker cache. "+
+		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
 )
 
 func main() {
@@ -114,6 +119,7 @@ func main() {
 		logger.Fatalf("-storage.finalDedupScheduleCheckInterval cannot be smaller than 1 hour; got %s", *finalDedupScheduleInterval)
 	}
 	storage.SetFinalDedupScheduleInterval(*finalDedupScheduleInterval)
+	storage.SetMetricNamesStatsCacheSize(cacheSizeMetricNamesStats.IntN())
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 	mergeset.SetDataBlocksSparseCacheSize(cacheSizeIndexDBDataBlocksSparse.IntN())
@@ -123,11 +129,11 @@ func main() {
 	}
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
 	startTime := time.Now()
-
 	opts := storage.OpenOptions{
-		Retention:       retentionPeriod.Duration(),
-		MaxHourlySeries: *maxHourlySeries,
-		MaxDailySeries:  *maxDailySeries,
+		Retention:             retentionPeriod.Duration(),
+		MaxHourlySeries:       *maxHourlySeries,
+		MaxDailySeries:        *maxDailySeries,
+		TrackMetricNamesStats: *trackMetricNamesStats,
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
 	initStaleSnapshotsRemover(strg)
@@ -597,6 +603,12 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteCounterUint64(w, `vm_cache_collisions_total{type="storage/metricName"}`, m.MetricNameCacheCollisions)
 
 	metrics.WriteGaugeUint64(w, `vm_next_retention_seconds`, m.NextRetentionSeconds)
+
+	if *trackMetricNamesStats {
+		metrics.WriteCounterUint64(w, `vm_cache_size_bytes{type="storage/metricNamesStatsTracker"}`, m.MetricNamesUsageTrackerSizeBytes)
+		metrics.WriteCounterUint64(w, `vm_cache_size{type="storage/metricNamesStatsTracker"}`, m.MetricNamesUsageTrackerSize)
+		metrics.WriteCounterUint64(w, `vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"}`, m.MetricNamesUsageTrackerSizeMaxBytes)
+	}
 
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled`, tm.ScheduledDownsamplingPartitions)
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled_size_bytes`, tm.ScheduledDownsamplingPartitionsSize)
