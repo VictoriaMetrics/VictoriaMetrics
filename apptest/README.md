@@ -8,7 +8,7 @@ as apposed to a unit test that verifies the behavior of a building block of an
 application.
 
 To achieve that an integration test starts an application in a separate process
-and then issues HTTP requets to it and verifies the responses, examines the
+and then issues HTTP request to it and verifies the responses, examines the
 metrics the app exposes and/or files it creates, etc.
 
 Note that an object of testing may be not just a single app, but several apps
