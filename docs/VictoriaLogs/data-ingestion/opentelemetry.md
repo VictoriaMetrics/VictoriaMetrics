@@ -45,7 +45,6 @@ The ingested log entries can be queried according to [these docs](https://docs.v
 VictoriaLogs supports receiving logs from the following OpenTelemetry collectors:
 
 * [Elasticsearch](#elasticsearch)
-* [Loki](#loki)
 * [OpenTelemetry](#opentelemetry)
 
 ### Elasticsearch
@@ -81,24 +80,6 @@ exporters:
 ```
 
 VictoriaLogs supports other HTTP headers - see the list [here](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-headers).
-
-### Loki
-
-```yaml
-exporters:
-  loki:
-    endpoint: http://victorialogs:9428/insert/loki/api/v1/push
-receivers:
-  filelog:
-    include: [/tmp/logs/*.log]
-    resource:
-      region: us-east-1
-service:
-  pipelines:
-    logs:
-      receivers: [filelog]
-      exporters: [loki]
-```
 
 ### OpenTelemetry
 
