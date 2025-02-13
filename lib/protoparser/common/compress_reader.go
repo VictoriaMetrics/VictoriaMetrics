@@ -75,6 +75,7 @@ func PutZstdReader(zd *zstd.Decoder) {
 
 var zstdReaderPool sync.Pool
 
+// GetCompressReader returns specific compression reader
 func GetCompressReader(contentEncoding string, r io.Reader) (io.Reader, error) {
 	switch contentEncoding {
 	case "gzip":
@@ -87,6 +88,8 @@ func GetCompressReader(contentEncoding string, r io.Reader) (io.Reader, error) {
 		return nil, errors.New("unsupported compression type")
 	}
 }
+
+// PutCompressReader returns specific compression reader to pool
 func PutCompressReader(contentEncoding string, r io.Reader) {
 	switch contentEncoding {
 	case "gzip":
