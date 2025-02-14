@@ -164,8 +164,7 @@ func TestSearch(t *testing.T) {
 	})
 }
 
-func testSearchInternal(st *Storage, tr TimeRange, mrs []MetricRow, accountsCount int) error {
-	var s Search
+func testSearchInternal(s *Storage, tr TimeRange, mrs []MetricRow, accountsCount int) error {
 	for i := 0; i < 10; i++ {
 		// Prepare TagFilters for search.
 		tfs := NewTagFilters(uint32(i%accountsCount), 0)
@@ -198,74 +197,75 @@ func testSearchInternal(st *Storage, tr TimeRange, mrs []MetricRow, accountsCoun
 			expectedMrs = append(expectedMrs, *mr)
 		}
 
-		type metricBlock struct {
-			MetricName []byte
-			Block      *Block
-		}
-
-		// Search
-		s.Init(nil, st, []*TagFilters{tfs}, tr, 1e5, noDeadline)
-		var mbs []metricBlock
-		for s.NextMetricBlock() {
-			var b Block
-			s.MetricBlockRef.BlockRef.MustReadBlock(&b)
-
-			var mb metricBlock
-			mb.MetricName = append(mb.MetricName, s.MetricBlockRef.MetricName...)
-			mb.Block = &b
-			mbs = append(mbs, mb)
-		}
-		if err := s.Error(); err != nil {
-			return fmt.Errorf("search error: %w", err)
-		}
-		s.MustClose()
-
-		// Build foundMrs.
-		var foundMrs []MetricRow
-		for _, mb := range mbs {
-			rb := newTestRawBlock(mb.Block, tr)
-			if err := mn.Unmarshal(mb.MetricName); err != nil {
-				return fmt.Errorf("cannot unmarshal MetricName: %w", err)
-			}
-			metricNameRaw := mn.marshalRaw(nil)
-			for i, timestamp := range rb.Timestamps {
-				mr := MetricRow{
-					MetricNameRaw: metricNameRaw,
-					Timestamp:     timestamp,
-					Value:         rb.Values[i],
-				}
-				foundMrs = append(foundMrs, mr)
-			}
-		}
-
-		// Compare expectedMrs to foundMrs.
-		sort.Slice(expectedMrs, func(i, j int) bool {
-			a, b := &expectedMrs[i], &expectedMrs[j]
-			cmp := bytes.Compare(a.MetricNameRaw, b.MetricNameRaw)
-			if cmp < 0 {
-				return true
-			}
-			if cmp > 0 {
-				return false
-			}
-			return a.Timestamp < b.Timestamp
-		})
-		sort.Slice(foundMrs, func(i, j int) bool {
-			a, b := &foundMrs[i], &foundMrs[j]
-			cmp := bytes.Compare(a.MetricNameRaw, b.MetricNameRaw)
-			if cmp < 0 {
-				return true
-			}
-			if cmp > 0 {
-				return false
-			}
-			return a.Timestamp < b.Timestamp
-		})
-		if !reflect.DeepEqual(expectedMrs, foundMrs) {
-			return fmt.Errorf("unexpected rows found;\ngot\n%s\nwant\n%s", mrsToString(foundMrs), mrsToString(expectedMrs))
+		if err := testAssertSearchResult(s, tr, tfs, expectedMrs); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func testAssertSearchResult(st *Storage, tr TimeRange, tfs *TagFilters, want []MetricRow) error {
+	type metricBlock struct {
+		MetricName []byte
+		Block      *Block
+	}
+
+	var s Search
+	s.Init(nil, st, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+	var mbs []metricBlock
+	for s.NextMetricBlock() {
+		var b Block
+		s.MetricBlockRef.BlockRef.MustReadBlock(&b)
+
+		var mb metricBlock
+		mb.MetricName = append(mb.MetricName, s.MetricBlockRef.MetricName...)
+		mb.Block = &b
+		mbs = append(mbs, mb)
+	}
+	if err := s.Error(); err != nil {
+		return fmt.Errorf("search error: %w", err)
+	}
+	s.MustClose()
+
+	var got []MetricRow
+	var mn MetricName
+	for _, mb := range mbs {
+		rb := newTestRawBlock(mb.Block, tr)
+		if err := mn.Unmarshal(mb.MetricName); err != nil {
+			return fmt.Errorf("cannot unmarshal MetricName: %w", err)
+		}
+		metricNameRaw := mn.marshalRaw(nil)
+		for i, timestamp := range rb.Timestamps {
+			mr := MetricRow{
+				MetricNameRaw: metricNameRaw,
+				Timestamp:     timestamp,
+				Value:         rb.Values[i],
+			}
+			got = append(got, mr)
+		}
+	}
+
+	testSortMetricRows(got)
+	testSortMetricRows(want)
+	if !reflect.DeepEqual(got, want) {
+		return fmt.Errorf("unexpected rows found;\ngot\n%s\nwant\n%s", mrsToString(got), mrsToString(want))
+	}
+
+	return nil
+}
+
+func testSortMetricRows(mrs []MetricRow) {
+	sort.Slice(mrs, func(i, j int) bool {
+		a, b := &mrs[i], &mrs[j]
+		cmp := bytes.Compare(a.MetricNameRaw, b.MetricNameRaw)
+		if cmp < 0 {
+			return true
+		}
+		if cmp > 0 {
+			return false
+		}
+		return a.Timestamp < b.Timestamp
+	})
 }
 
 func mrsToString(mrs []MetricRow) string {
