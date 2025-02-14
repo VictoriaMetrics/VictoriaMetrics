@@ -31,7 +31,7 @@ requests_total{path="/", code="403"}
 
 The meta-information - a set of `labels` in curly braces - gives us a context for which `path` and with what `code`
 the `request` was served. Label-value pairs are always of a `string` type. VictoriaMetrics data model is schemaless,
-which means there is no need to define metric names or their labels in advance. User is free to add or change ingested
+which means there is no need to define metric names or their labels in advance. The user is free to add or change ingested
 metrics anytime.
 
 Actually, the metric name is also a label with a special name `__name__`. 
