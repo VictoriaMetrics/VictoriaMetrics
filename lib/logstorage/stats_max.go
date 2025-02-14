@@ -79,10 +79,6 @@ func (smp *statsMaxProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 }
 
 func (smp *statsMaxProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) {
-	if br.rowsLen == 0 {
-		return
-	}
-
 	if c.isTime {
 		timestamp, ok := TryParseTimestampRFC3339Nano(smp.max)
 		if !ok {

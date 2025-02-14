@@ -62,6 +62,8 @@ type statsProcessor interface {
 	// updateStatsForAllRows must update statsProcessor stats for all the rows in br.
 	//
 	// It must return the change of internal state size in bytes for the statsProcessor.
+	//
+	// It is guaranteed that br contains at least a single row.
 	updateStatsForAllRows(sf statsFunc, br *blockResult) int
 
 	// updateStatsForRow must update statsProcessor stats for the row at rowIndex in br.
@@ -770,7 +772,9 @@ func (psg *pipeStatsGroup) updateStatsForAllRows(bms []bitmap, br, brTmp *blockR
 			n += sfp.updateStatsForAllRows(f.f, br)
 		} else {
 			brTmp.initFromFilterAllColumns(br, &bms[i])
-			n += sfp.updateStatsForAllRows(f.f, brTmp)
+			if brTmp.rowsLen > 0 {
+				n += sfp.updateStatsForAllRows(f.f, brTmp)
+			}
 		}
 	}
 	return n

@@ -81,10 +81,6 @@ func (smp *statsMinProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 }
 
 func (smp *statsMinProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) {
-	if br.rowsLen == 0 {
-		return
-	}
-
 	if c.isTime {
 		timestamp, ok := TryParseTimestampRFC3339Nano(smp.min)
 		if !ok {
