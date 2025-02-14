@@ -84,7 +84,7 @@ func (ssp *statsSumProcessor) updateState(f float64) {
 	}
 }
 
-func (ssp *statsSumProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (ssp *statsSumProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsSumProcessor)
 	if !math.IsNaN(src.sum) {
 		ssp.updateState(src.sum)

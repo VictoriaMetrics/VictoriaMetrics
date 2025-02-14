@@ -71,7 +71,7 @@ func (smp *statsMaxProcessor) updateStatsForRow(sf statsFunc, br *blockResult, r
 	return maxLen - len(smp.max)
 }
 
-func (smp *statsMaxProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (smp *statsMaxProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsMaxProcessor)
 	if src.hasItems {
 		smp.updateStateString(src.max)

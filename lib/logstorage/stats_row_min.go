@@ -148,7 +148,7 @@ func (smp *statsRowMinProcessor) updateStatsForRow(sf statsFunc, br *blockResult
 	return stateSizeIncrease
 }
 
-func (smp *statsRowMinProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (smp *statsRowMinProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsRowMinProcessor)
 	if smp.needUpdateStateString(src.min) {
 		smp.min = src.min

@@ -158,7 +158,7 @@ func (svp *statsValuesProcessor) updateStatsForRowColumn(c *blockResultColumn, b
 	return stateSizeIncrease
 }
 
-func (svp *statsValuesProcessor) mergeState(sf statsFunc, sfp statsProcessor) {
+func (svp *statsValuesProcessor) mergeState(_ *chunkedAllocator, sf statsFunc, sfp statsProcessor) {
 	sv := sf.(*statsValues)
 	if svp.limitReached(sv) {
 		return
