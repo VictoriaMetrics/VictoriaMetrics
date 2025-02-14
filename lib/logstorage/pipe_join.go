@@ -186,20 +186,10 @@ func parsePipeJoin(lex *lexer) (pipe, error) {
 	}
 
 	// Parse join query
-	if !lex.isKeyword("(") {
-		return nil, fmt.Errorf("missing '(' in front of join query")
-	}
-	lex.nextToken()
-
-	q, err := parseQuery(lex)
+	q, err := parseQueryInParens(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse join query: %w", err)
+		return nil, fmt.Errorf("Cannot parse join(...) query: %w", err)
 	}
-
-	if !lex.isKeyword(")") {
-		return nil, fmt.Errorf("missing ')' after the join query [%s]", q)
-	}
-	lex.nextToken()
 
 	pj := &pipeJoin{
 		byFields: byFields,

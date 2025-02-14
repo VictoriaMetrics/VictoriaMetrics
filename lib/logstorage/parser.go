@@ -1166,6 +1166,25 @@ func (q *Query) GetTimestamp() int64 {
 	return q.timestamp
 }
 
+func parseQueryInParens(lex *lexer) (*Query, error) {
+	if !lex.isKeyword("(") {
+		return nil, fmt.Errorf("missing '('")
+	}
+	lex.nextToken()
+
+	q, err := parseQuery(lex)
+	if err != nil {
+		return nil, err
+	}
+
+	if !lex.isKeyword(")") {
+		return nil, fmt.Errorf("missing ')' after '(%s'", q)
+	}
+	lex.nextToken()
+
+	return q, nil
+}
+
 func parseQuery(lex *lexer) (*Query, error) {
 	opts, err := parseQueryOptions(lex)
 	if err != nil {
@@ -1767,21 +1786,11 @@ func parseFilterIn(lex *lexer, fieldName string) (filter, error) {
 	// Parse in(query | fields someField) then
 	lex.restoreState(lexState)
 	lex.nextToken()
-	if !lex.isKeyword("(") {
-		return nil, fmt.Errorf("missing '(' after 'in'")
-	}
-	lex.nextToken()
 
-	q, err := parseQuery(lex)
+	q, err := parseQueryInParens(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse query inside 'in(...)': %w", err)
+		return nil, fmt.Errorf("cannot parse query inside in(...): %w", err)
 	}
-
-	if !lex.isKeyword(")") {
-		return nil, fmt.Errorf("missing ')' after 'in(%s)'", q)
-	}
-	lex.nextToken()
-
 	qFieldName, err := getFieldNameFromPipes(q.pipes)
 	if err != nil {
 		return nil, fmt.Errorf("cannot determine field name for values in 'in(%s)': %w", q, err)
@@ -2635,20 +2644,11 @@ func parseFilterStreamIDIn(lex *lexer) (filter, error) {
 	// Try parsing in(query)
 	lex.restoreState(lexState)
 	lex.nextToken()
-	if !lex.isKeyword("(") {
-		return nil, fmt.Errorf("missing '(' after 'in'")
-	}
-	lex.nextToken()
 
-	q, err := parseQuery(lex)
+	q, err := parseQueryInParens(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse query inside 'in(...)': %w", err)
+		return nil, fmt.Errorf("cannot parse in(...) query: %w", err)
 	}
-
-	if !lex.isKeyword(")") {
-		return nil, fmt.Errorf("missing ')' after 'in(%s)'", q)
-	}
-	lex.nextToken()
 
 	qFieldName, err := getFieldNameFromPipes(q.pipes)
 	if err != nil {
