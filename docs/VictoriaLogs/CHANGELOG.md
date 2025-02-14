@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): properly calculate `<q> | len(f) f_len | min(f_len)`. Previously it incorrectly return `0` if the minumum value length for `f` field is bigger than `0`.
+
 ## [v1.10.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.10.0-victorialogs)
 
 Released at 2025-02-12
