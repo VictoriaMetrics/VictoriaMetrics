@@ -72,6 +72,11 @@ var (
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
 		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
 
+	cacheShardsCountIndexDBIndexBlocks = flag.Int("storage.cacheShardsCountIndexDBIndexBlocks", 0, "Overrides shards count for indexdb/indexBlocks cache. "+
+		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
+	cacheShardsCountSizeIndexDBDataBlocks = flag.Int("storage.cacheShardsCountIndexDBDataBlocks", 0, "Overrides shards count for indexdb/dataBlocks cache. "+
+		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
+
 	disablePerDayIndex = flag.Bool("disablePerDayIndex", false, "Disable per-day index and use global index for all searches. "+
 		"This may improve performance and decrease disk space usage for the use cases with fixed set of timeseries scattered across a "+
 		"big time range (for example, when loading years of historical data). "+
@@ -108,6 +113,9 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 	mergeset.SetDataBlocksSparseCacheSize(cacheSizeIndexDBDataBlocksSparse.IntN())
+
+	mergeset.SetIndexBlocksCacheShardsCount(*cacheShardsCountIndexDBIndexBlocks)
+	mergeset.SetDataBlocksCacheShardsCount(*cacheShardsCountSizeIndexDBDataBlocks)
 
 	if retentionPeriod.Duration() < 24*time.Hour {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
