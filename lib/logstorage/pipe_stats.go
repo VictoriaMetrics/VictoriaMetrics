@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // pipeStats processes '| stats ...' queries.
@@ -470,11 +471,14 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 	}
 
 	// Obtain columns for byFields
-	columnValues := shard.columnValues[:0]
-	for _, bf := range byFields {
+	columnValues := slicesutil.SetLength(shard.columnValues, len(byFields))
+	for i, bf := range byFields {
 		c := br.getColumnByName(bf.name)
-		values := c.getValuesBucketed(br, bf)
-		columnValues = append(columnValues, values)
+		if bf.hasBucketConfig() {
+			columnValues[i] = c.getValuesBucketed(br, bf)
+		} else {
+			columnValues[i] = c.getValues(br)
+		}
 	}
 	shard.columnValues = columnValues
 
@@ -527,75 +531,96 @@ func (shard *pipeStatsProcessorShard) updateStatsSingleColumn(br *blockResult, b
 	c := br.getColumnByName(bf.name)
 	if c.isConst {
 		// Fast path for column with a constant value.
-		v := br.getBucketedValue(c.valuesEncoded[0], bf)
+		v := c.valuesEncoded[0]
+		if bf.hasBucketConfig() {
+			v = br.getBucketedValue(c.valuesEncoded[0], bf)
+		}
 		psg := shard.getPipeStatsGroupGeneric(v)
 		shard.stateSizeBudget -= psg.updateStatsForAllRows(shard.bms, br, &shard.brTmp)
 		return
 	}
 
-	if !bf.hasBucketConfig() {
-		switch c.valueType {
-		case valueTypeUint8:
-			var psg *pipeStatsGroup
-			values := c.getValuesEncoded(br)
-			for i, v := range values {
-				if i <= 0 || values[i-1] != v {
-					n := unmarshalUint8(v)
-					psg = shard.getPipeStatsGroupUint64(uint64(n))
-				}
-				shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
-			}
-			return
-		case valueTypeUint16:
-			var psg *pipeStatsGroup
-			values := c.getValuesEncoded(br)
-			for i, v := range values {
-				if i <= 0 || values[i-1] != v {
-					n := unmarshalUint16(v)
-					psg = shard.getPipeStatsGroupUint64(uint64(n))
-				}
-				shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
-			}
-			return
-		case valueTypeUint32:
-			var psg *pipeStatsGroup
-			values := c.getValuesEncoded(br)
-			for i, v := range values {
-				if i <= 0 || values[i-1] != v {
-					n := unmarshalUint32(v)
-					psg = shard.getPipeStatsGroupUint64(uint64(n))
-				}
-				shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
-			}
-			return
-		case valueTypeUint64:
-			var psg *pipeStatsGroup
-			values := c.getValuesEncoded(br)
-			for i, v := range values {
-				if i <= 0 || values[i-1] != v {
-					n := unmarshalUint64(v)
-					psg = shard.getPipeStatsGroupUint64(n)
-				}
-				shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
-			}
-			return
-		case valueTypeInt64:
-			var psg *pipeStatsGroup
-			values := c.getValuesEncoded(br)
-			for i, v := range values {
-				if i <= 0 || values[i-1] != v {
-					n := unmarshalInt64(v)
-					psg = shard.getPipeStatsGroupInt64(n)
-				}
-				shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
-			}
+	if bf.hasBucketConfig() {
+		values := c.getValuesBucketed(br, bf)
+		if areConstValues(values) {
+			// Fast path - values are constant after bucketing.
+			psg := shard.getPipeStatsGroupGeneric(values[0])
+			shard.stateSizeBudget -= psg.updateStatsForAllRows(shard.bms, br, &shard.brTmp)
 			return
 		}
+
+		var psg *pipeStatsGroup
+		for i := 0; i < br.rowsLen; i++ {
+			if i <= 0 || values[i-1] != values[i] {
+				psg = shard.getPipeStatsGroupGeneric(values[i])
+			}
+			shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
+		}
+		return
 	}
 
-	// Slower generic path for a column with different values.
+	switch c.valueType {
+	case valueTypeUint8:
+		var psg *pipeStatsGroup
+		values := c.getValuesEncoded(br)
+		for i, v := range values {
+			if i <= 0 || values[i-1] != v {
+				n := unmarshalUint8(v)
+				psg = shard.getPipeStatsGroupUint64(uint64(n))
+			}
+			shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
+		}
+		return
+	case valueTypeUint16:
+		var psg *pipeStatsGroup
+		values := c.getValuesEncoded(br)
+		for i, v := range values {
+			if i <= 0 || values[i-1] != v {
+				n := unmarshalUint16(v)
+				psg = shard.getPipeStatsGroupUint64(uint64(n))
+			}
+			shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
+		}
+		return
+	case valueTypeUint32:
+		var psg *pipeStatsGroup
+		values := c.getValuesEncoded(br)
+		for i, v := range values {
+			if i <= 0 || values[i-1] != v {
+				n := unmarshalUint32(v)
+				psg = shard.getPipeStatsGroupUint64(uint64(n))
+			}
+			shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
+		}
+		return
+	case valueTypeUint64:
+		var psg *pipeStatsGroup
+		values := c.getValuesEncoded(br)
+		for i, v := range values {
+			if i <= 0 || values[i-1] != v {
+				n := unmarshalUint64(v)
+				psg = shard.getPipeStatsGroupUint64(n)
+			}
+			shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
+		}
+		return
+	case valueTypeInt64:
+		var psg *pipeStatsGroup
+		values := c.getValuesEncoded(br)
+		for i, v := range values {
+			if i <= 0 || values[i-1] != v {
+				n := unmarshalInt64(v)
+				psg = shard.getPipeStatsGroupInt64(n)
+			}
+			shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
+		}
+		return
+	}
+
+	// Generic path for a column with different values.
+	values := c.getValues(br)
+
 	var psg *pipeStatsGroup
-	values := c.getValuesBucketed(br, bf)
 	for i := 0; i < br.rowsLen; i++ {
 		if i <= 0 || values[i-1] != values[i] {
 			psg = shard.getPipeStatsGroupGeneric(values[i])
@@ -1235,8 +1260,6 @@ var statsNames = []string{
 	"uniq_values",
 	"values",
 }
-
-var zeroByStatsField = &byStatsField{}
 
 // byStatsField represents 'by (...)' part of the pipeStats.
 //

@@ -192,7 +192,9 @@ type WriteGetObjectResponseInput struct {
 	ContentType *string
 
 	// Specifies whether an object stored in Amazon S3 is ( true ) or is not ( false )
-	// a delete marker.
+	// a delete marker. To learn more about delete markers, see [Working with delete markers].
+	//
+	// [Working with delete markers]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/DeleteMarker.html
 	DeleteMarker *bool
 
 	// An opaque identifier assigned by a web server to a specific version of a

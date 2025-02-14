@@ -167,12 +167,21 @@ type Storage struct {
 	isReadOnly atomic.Bool
 }
 
+// OpenOptions optional args for MustOpenStorage
+type OpenOptions struct {
+	Retention          time.Duration
+	MaxHourlySeries    int
+	MaxDailySeries     int
+	DisablePerDayIndex bool
+}
+
 // MustOpenStorage opens storage on the given path with the given retentionMsecs.
-func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxDailySeries int, disablePerDayIndex bool) *Storage {
+func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		logger.Panicf("FATAL: cannot determine absolute path for %q: %s", path, err)
 	}
+	retention := opts.Retention
 	if retention <= 0 || retention > retentionMax {
 		retention = retentionMax
 	}
@@ -211,11 +220,11 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	fs.MustRemoveTemporaryDirs(snapshotsPath)
 
 	// Initialize series cardinality limiter.
-	if maxHourlySeries > 0 {
-		s.hourlySeriesLimiter = bloomfilter.NewLimiter(maxHourlySeries, time.Hour)
+	if opts.MaxHourlySeries > 0 {
+		s.hourlySeriesLimiter = bloomfilter.NewLimiter(opts.MaxHourlySeries, time.Hour)
 	}
-	if maxDailySeries > 0 {
-		s.dailySeriesLimiter = bloomfilter.NewLimiter(maxDailySeries, 24*time.Hour)
+	if opts.MaxDailySeries > 0 {
+		s.dailySeriesLimiter = bloomfilter.NewLimiter(opts.MaxDailySeries, 24*time.Hour)
 	}
 
 	// Load caches.
@@ -242,6 +251,8 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 	fs.MustMkdirIfNotExist(metadataDir)
 	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
 
+	s.disablePerDayIndex = opts.DisablePerDayIndex
+
 	// Load indexdb
 	idbPath := filepath.Join(path, indexdbDirname)
 	idbSnapshotsPath := filepath.Join(idbPath, snapshotsDirname)
@@ -254,8 +265,6 @@ func MustOpenStorage(path string, retention time.Duration, maxHourlySeries, maxD
 
 	s.idbCurr.Store(idbCurr)
 	s.idbNext.Store(idbNext)
-
-	s.disablePerDayIndex = disablePerDayIndex
 
 	// Initialize nextRotationTimestamp
 	nowSecs := int64(fasttime.UnixTimestamp())

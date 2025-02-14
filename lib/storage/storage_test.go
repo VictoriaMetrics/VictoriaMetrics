@@ -524,8 +524,13 @@ func TestNextRetentionDeadlineSeconds(t *testing.T) {
 
 func TestStorageOpenClose(t *testing.T) {
 	path := "TestStorageOpenClose"
+	opts := OpenOptions{
+		Retention:       -1,
+		MaxHourlySeries: 1e5,
+		MaxDailySeries:  1e6,
+	}
 	for i := 0; i < 10; i++ {
-		s := MustOpenStorage(path, -1, 1e5, 1e6, false)
+		s := MustOpenStorage(path, opts)
 		s.MustClose()
 	}
 	if err := os.RemoveAll(path); err != nil {
@@ -535,15 +540,17 @@ func TestStorageOpenClose(t *testing.T) {
 
 func TestStorageRandTimestamps(t *testing.T) {
 	path := "TestStorageRandTimestamps"
-	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 0, 0, false)
+	opts := OpenOptions{
+		Retention: 10 * retention31Days,
+	}
+	s := MustOpenStorage(path, opts)
 	t.Run("serial", func(t *testing.T) {
 		for i := 0; i < 3; i++ {
 			if err := testStorageRandTimestamps(s); err != nil {
 				t.Fatalf("error on iteration %d: %s", i, err)
 			}
 			s.MustClose()
-			s = MustOpenStorage(path, retention, 0, 0, false)
+			s = MustOpenStorage(path, opts)
 		}
 	})
 	t.Run("concurrent", func(t *testing.T) {
@@ -615,7 +622,7 @@ func testStorageRandTimestamps(s *Storage) error {
 
 func TestStorageDeleteSeries(t *testing.T) {
 	path := "TestStorageDeleteSeries"
-	s := MustOpenStorage(path, 0, 0, 0, false)
+	s := MustOpenStorage(path, OpenOptions{})
 
 	// Verify no label names exist
 	lns, err := s.SearchLabelNames(nil, nil, TimeRange{}, 1e5, 1e9, noDeadline)
@@ -635,7 +642,7 @@ func TestStorageDeleteSeries(t *testing.T) {
 			// Re-open the storage in order to check how deleted metricIDs
 			// are persisted.
 			s.MustClose()
-			s = MustOpenStorage(path, 0, 0, 0, false)
+			s = MustOpenStorage(path, OpenOptions{})
 		}
 	})
 
@@ -836,7 +843,7 @@ func TestStorageDeleteSeries_TooManyTimeseries(t *testing.T) {
 		MaxTimestamp: time.Now().UnixMilli(),
 	})
 
-	s := MustOpenStorage(t.Name(), 0, 0, 0, false)
+	s := MustOpenStorage(t.Name(), OpenOptions{})
 	defer s.MustClose()
 	s.AddRows(mrs, defaultPrecisionBits)
 	s.DebugFlush()
@@ -880,7 +887,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
 	}
 	tfss := []*TagFilters{tfs}
-	s := MustOpenStorage(t.Name(), 0, 0, 0, false)
+	s := MustOpenStorage(t.Name(), OpenOptions{})
 	defer s.MustClose()
 
 	// Ensure caches are empty.
@@ -945,7 +952,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesSerial"
-	s := MustOpenStorage(path, 0, 0, 0, false)
+	s := MustOpenStorage(path, OpenOptions{})
 	if err := testStorageRegisterMetricNames(s); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -957,7 +964,7 @@ func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 
 func TestStorageRegisterMetricNamesConcurrent(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesConcurrent"
-	s := MustOpenStorage(path, 0, 0, 0, false)
+	s := MustOpenStorage(path, OpenOptions{})
 	ch := make(chan error, 3)
 	for i := 0; i < cap(ch); i++ {
 		go func() {
@@ -1103,8 +1110,12 @@ func testStorageRegisterMetricNames(s *Storage) error {
 func TestStorageAddRowsSerial(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageAddRowsSerial"
-	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 1e5, 1e5, false)
+	opts := OpenOptions{
+		Retention:       10 * retention31Days,
+		MaxHourlySeries: 1e5,
+		MaxDailySeries:  1e5,
+	}
+	s := MustOpenStorage(path, opts)
 	if err := testStorageAddRows(rng, s); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -1116,8 +1127,12 @@ func TestStorageAddRowsSerial(t *testing.T) {
 
 func TestStorageAddRowsConcurrent(t *testing.T) {
 	path := "TestStorageAddRowsConcurrent"
-	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 1e5, 1e5, false)
+	opts := OpenOptions{
+		Retention:       10 * retention31Days,
+		MaxHourlySeries: 1e5,
+		MaxDailySeries:  1e5,
+	}
+	s := MustOpenStorage(path, opts)
 	ch := make(chan error, 3)
 	for i := 0; i < cap(ch); i++ {
 		go func(n int) {
@@ -1204,7 +1219,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 
 	// Try opening the storage from snapshot.
 	snapshotPath := filepath.Join(s.path, snapshotsDirname, snapshotName)
-	s1 := MustOpenStorage(snapshotPath, 0, 0, 0, false)
+	s1 := MustOpenStorage(snapshotPath, OpenOptions{})
 
 	// Verify the snapshot contains rows
 	var m1 Metrics
@@ -1260,7 +1275,7 @@ func TestStorageRotateIndexDB(t *testing.T) {
 		MinTimestamp: time.Now().UTC().Add(-numRows * time.Hour).UnixMilli(),
 		MaxTimestamp: time.Now().UTC().UnixMilli(),
 	}
-	s := MustOpenStorage(t.Name(), 0, 0, 0, false)
+	s := MustOpenStorage(t.Name(), OpenOptions{})
 	defer s.MustClose()
 
 	insertAndRotateConcurrently := func(i int) (int, int) {
@@ -1328,8 +1343,12 @@ func testCountAllMetricNamesNoExtDB(is *indexSearch, tr TimeRange) int {
 func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageDeleteStaleSnapshots"
-	retention := 10 * retention31Days
-	s := MustOpenStorage(path, retention, 1e5, 1e5, false)
+	opts := OpenOptions{
+		Retention:       10 * retention31Days,
+		MaxHourlySeries: 1e5,
+		MaxDailySeries:  1e5,
+	}
+	s := MustOpenStorage(path, opts)
 	const rowsPerAdd = 1e3
 	const addsCount = 10
 	maxTimestamp := timestampFromTime(time.Now())
@@ -1404,7 +1423,7 @@ func TestStorageRowsNotAdded(t *testing.T) {
 
 		var gotMetrics Metrics
 		path := fmt.Sprintf("%s/%s", t.Name(), opts.name)
-		s := MustOpenStorage(path, opts.retention, 0, 0, false)
+		s := MustOpenStorage(path, OpenOptions{Retention: opts.retention})
 		defer s.MustClose()
 		s.AddRows(opts.mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -1505,7 +1524,11 @@ func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 		mrs := testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
 
 		// Insert metrics into the empty storage. The insertion will take the slow path.
-		s := MustOpenStorage(t.Name(), 0, maxHourlySeries, maxDailySeries, false)
+		opts := OpenOptions{
+			MaxHourlySeries: maxHourlySeries,
+			MaxDailySeries:  maxDailySeries,
+		}
+		s := MustOpenStorage(t.Name(), opts)
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 
@@ -1539,7 +1562,7 @@ func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 		// Open the storage again and insert the same metrics again.
 		// This time tsidCache should have the metric names and the fast path
 		// branch will be executed.
-		s = MustOpenStorage(t.Name(), 0, maxHourlySeries, maxDailySeries, false)
+		s = MustOpenStorage(t.Name(), opts)
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
 		assertCounts("Fast Path")
@@ -1548,7 +1571,7 @@ func TestStorageRowsNotAdded_SeriesLimitExceeded(t *testing.T) {
 		// Open the storage again, drop tsidCache, and insert the same metrics
 		// again. This time tsidCache should not have the metric names so they
 		// will be searched in index. Thus, the insertion takes the slower path.
-		s = MustOpenStorage(t.Name(), 0, maxHourlySeries, maxDailySeries, false)
+		s = MustOpenStorage(t.Name(), opts)
 		s.resetAndSaveTSIDCache()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -1637,7 +1660,7 @@ func TestStorageSearchMetricNames_TooManyTimeseries(t *testing.T) {
 	f := func(opts *options) {
 		t.Helper()
 
-		s := MustOpenStorage(t.Name()+"/"+opts.path, 0, 0, 0, false)
+		s := MustOpenStorage(t.Name()+"/"+opts.path, OpenOptions{})
 		defer s.MustClose()
 		s.AddRows(mrs, defaultPrecisionBits)
 		s.DebugFlush()
@@ -1822,7 +1845,9 @@ func TestStorageDate(t *testing.T) {
 
 	f := func(disablePerDayIndex bool, millis int64, want uint64) {
 		t.Helper()
-		s := MustOpenStorage(t.Name(), 0, 0, 0, disablePerDayIndex)
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: disablePerDayIndex,
+		})
 		defer s.MustClose()
 		if got := s.date(millis); got != want {
 			t.Errorf("unexpected date: got %d, want %d", got, want)
@@ -1850,7 +1875,9 @@ func TestStorageDate_negativeMillis(t *testing.T) {
 	// always positive. As a result, dates earlier than 1970-01-01 are not
 	// supported. However, when the -disablePerDayIndex flag is set, negative
 	// millis must be converted to globalIndexDate.
-	s := MustOpenStorage(t.Name(), 0, 0, 0, true)
+	s := MustOpenStorage(t.Name(), OpenOptions{
+		DisablePerDayIndex: true,
+	})
 	millis := int64(-10 * msecPerDay)
 	want := globalIndexDate
 	if got := s.date(millis); got != want {
@@ -1865,7 +1892,9 @@ func TestStorageAdjustTimeRange(t *testing.T) {
 	f := func(disablePerDayIndex bool, tr TimeRange, want TimeRange) {
 		t.Helper()
 
-		s := MustOpenStorage(t.Name(), 0, 0, 0, disablePerDayIndex)
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: disablePerDayIndex,
+		})
 		defer s.MustClose()
 		if got := s.adjustTimeRange(tr); got != want {
 			t.Errorf("unexpected time range: got %v, want %v", &got, &want)
@@ -1934,7 +1963,9 @@ func testStorageSearchWithoutPerDayIndex(t *testing.T, opts *testStorageSearchWi
 	// The data is inserted and the search is performed when the per-day index
 	// is enabled.
 	t.Run("InsertAndSearchWithPerDayIndex", func(t *testing.T) {
-		s := MustOpenStorage(t.Name(), 0, 0, 0, false)
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: false,
+		})
 		s.AddRows(opts.mrs, defaultPrecisionBits)
 		s.DebugFlush()
 		for tr, want := range opts.wantPerTimeRange {
@@ -1946,7 +1977,9 @@ func testStorageSearchWithoutPerDayIndex(t *testing.T, opts *testStorageSearchWi
 	//  The data is inserted and the search is performed when the per-day index
 	//  is disabled.
 	t.Run("InsertAndSearchWithoutPerDayIndex", func(t *testing.T) {
-		s := MustOpenStorage(t.Name(), 0, 0, 0, true)
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: true,
+		})
 		s.AddRows(opts.mrs, defaultPrecisionBits)
 		s.DebugFlush()
 		for tr, want := range opts.wantPerTimeRange {
@@ -1961,12 +1994,16 @@ func testStorageSearchWithoutPerDayIndex(t *testing.T, opts *testStorageSearchWi
 	// The data is inserted when the per-day index is enabled but the search is
 	// performed when the per-day index is disabled.
 	t.Run("InsertWithPerDayIndexSearchWithout", func(t *testing.T) {
-		s := MustOpenStorage(t.Name(), 0, 0, 0, false)
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: false,
+		})
 		s.AddRows(opts.mrs, defaultPrecisionBits)
 		s.DebugFlush()
 		s.MustClose()
 
-		s = MustOpenStorage(t.Name(), 0, 0, 0, true)
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: true,
+		})
 		for tr, want := range opts.wantPerTimeRange {
 			if !opts.alwaysPerTimeRange {
 				want = opts.wantAll
@@ -1976,16 +2013,20 @@ func testStorageSearchWithoutPerDayIndex(t *testing.T, opts *testStorageSearchWi
 		s.MustClose()
 	})
 
-	// The data is inserted when the per-day index is disable but the search is
+	// The data is inserted when the per-day index is disabled but the search is
 	// performed when the per-day index is enabled. This case also shows that
 	// registering metric names recovers the per-day index.
 	t.Run("InsertWithoutPerDayIndexSearchWith", func(t *testing.T) {
-		s := MustOpenStorage(t.Name(), 0, 0, 0, true)
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: true,
+		})
 		s.AddRows(opts.mrs, defaultPrecisionBits)
 		s.DebugFlush()
 		s.MustClose()
 
-		s = MustOpenStorage(t.Name(), 0, 0, 0, false)
+		s = MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: false,
+		})
 		for tr := range opts.wantPerTimeRange {
 			opts.assertSearchResult(t, s, tr, opts.wantEmpty)
 		}
@@ -2374,7 +2415,9 @@ func TestStorageAddRows_SamplesWithZeroDate(t *testing.T) {
 	f := func(t *testing.T, disablePerDayIndex bool) {
 		t.Helper()
 
-		s := MustOpenStorage(t.Name(), 0, 0, 0, disablePerDayIndex)
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: disablePerDayIndex,
+		})
 		defer s.MustClose()
 
 		mn := MetricName{MetricGroup: []byte("metric")}
@@ -2480,7 +2523,9 @@ func testStorageVariousDataPatterns(t *testing.T, disablePerDayIndex, registerOn
 		strict := concurrency == 1
 		rowsAddedTotal := wantCounts.metrics.RowsAddedTotal
 
-		s := MustOpenStorage(t.Name(), 0, 0, 0, disablePerDayIndex)
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: disablePerDayIndex,
+		})
 
 		testDoConcurrently(s, op, concurrency, splitBatches, batches)
 		s.DebugFlush()

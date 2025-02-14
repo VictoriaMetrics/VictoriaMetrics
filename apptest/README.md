@@ -44,4 +44,4 @@ only from `cluster` branch. Hence, not all test cases suitable to run in both br
 - If test is using binaries from `cluster` branch, then test name should be prefixed 
   with `TestCluster` word
 - If test is using binaries from `master` branch, then test name should be prefixed
-  with `TestVmsingle` word.
+  with `TestSingle` word.

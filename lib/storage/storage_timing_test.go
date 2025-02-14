@@ -21,7 +21,7 @@ func BenchmarkStorageAddRows(b *testing.B) {
 
 func benchmarkStorageAddRows(b *testing.B, rowsPerBatch int) {
 	path := fmt.Sprintf("BenchmarkStorageAddRows_%d", rowsPerBatch)
-	s := MustOpenStorage(path, 0, 0, 0, false)
+	s := MustOpenStorage(path, OpenOptions{})
 	defer func() {
 		s.MustClose()
 		if err := os.RemoveAll(path); err != nil {
@@ -97,7 +97,9 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 
 		path := b.Name()
 		for range b.N {
-			s := MustOpenStorage(path, 0, 0, 0, disablePerDayIndex)
+			s := MustOpenStorage(path, OpenOptions{
+				DisablePerDayIndex: disablePerDayIndex,
+			})
 			s.AddRows(slices.Concat(batches...), defaultPrecisionBits)
 			s.DebugFlush()
 			if err := s.ForceMergePartitions(""); err != nil {
@@ -106,7 +108,9 @@ func BenchmarkStorageInsertWithAndWithoutPerDayIndex(b *testing.B) {
 
 			// Reopen storage to ensure that index has been written to disk.
 			s.MustClose()
-			s = MustOpenStorage(path, 0, 0, 0, disablePerDayIndex)
+			s = MustOpenStorage(path, OpenOptions{
+				DisablePerDayIndex: disablePerDayIndex,
+			})
 
 			rowsAddedTotal = numBatches * numRowsPerBatch
 			dataSize = benchmarkDirSize(path + "/data")

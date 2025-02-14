@@ -41,7 +41,7 @@ func BenchmarkRegexpFilterMismatch(b *testing.B) {
 
 func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	const path = "BenchmarkIndexDBAddTSIDs"
-	s := MustOpenStorage(path, retentionMax, 0, 0, false)
+	s := MustOpenStorage(path, OpenOptions{})
 	db := s.idb()
 
 	const recordsPerLoop = 1e3
@@ -95,7 +95,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	// This benchmark is equivalent to https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L52
 	// See https://www.robustperception.io/evaluating-performance-and-correctness for more details.
 	const path = "BenchmarkHeadPostingForMatchers"
-	s := MustOpenStorage(path, retentionMax, 0, 0, false)
+	s := MustOpenStorage(path, OpenOptions{})
 	db := s.idb()
 
 	// Fill the db with data as in https://github.com/prometheus/prometheus/blob/23c0299d85bfeb5d9b59e994861553a25ca578e5/tsdb/head_bench_test.go#L66
@@ -262,7 +262,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 
 func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	const path = "BenchmarkIndexDBGetTSIDs"
-	s := MustOpenStorage(path, retentionMax, 0, 0, false)
+	s := MustOpenStorage(path, OpenOptions{})
 	db := s.idb()
 
 	const recordsPerLoop = 1000

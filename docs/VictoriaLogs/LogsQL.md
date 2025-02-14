@@ -262,9 +262,10 @@ The list of LogsQL filters:
 - [Range comparison filter](#range-comparison-filter) - matches logs with field values in the provided range
 - [Empty value filter](#empty-value-filter) - matches logs without the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 - [Any value filter](#any-value-filter) - matches logs with the given non-empty [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-- [Exact filter](#exact-filter) - matches logs with the exact value
-- [Exact prefix filter](#exact-prefix-filter) - matches logs starting with the given prefix
-- [Multi-exact filter](#multi-exact-filter) - matches logs with one of the specified exact values
+- [Exact filter](#exact-filter) - matches logs with the exact value for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+- [Exact prefix filter](#exact-prefix-filter) - matches logs starting with the given prefix for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+- [Multi-exact filter](#multi-exact-filter) - matches logs with one of the specified exact values for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+- [Subquery filter](#subquery-filter) - matches logs with [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values matching the results of another query
 - [Case-insensitive filter](#case-insensitive-filter) - matches logs with the given case-insensitive word, phrase or prefix
 - [Sequence filter](#sequence-filter) - matches logs with the given sequence of words or phrases
 - [Regexp filter](#regexp-filter) - matches logs for the given regexp
@@ -504,8 +505,8 @@ _stream_id:in(_time:5m error | fields _stream_id)
 
 See also:
 
+- [subquery filter](#subquery-filter)
 - [stream filter](#stream-filter)
-
 
 ### Word filter
 
@@ -893,14 +894,7 @@ log.level:in("error", "fatal")
 It works very fast for long lists passed to `in()`.
 
 It is possible to pass arbitrary [query](#query-syntax) inside `in(...)` filter in order to match against the results of this query.
-The query inside `in(...)` must end with [`fields`](#fields-pipe) pipe containing a single field name, so VictoriaLogs could
-fetch results from this field. For example, the following query selects all the logs for the last 5 minutes for users,
-who visited pages with `admin` [word](#word) in the `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-during the last day:
-
-```logsql
-_time:5m AND user_id:in(_time:1d AND path:admin | fields user_id)
-```
+See [these docs](#subquery-filter) for details.
 
 See also:
 
@@ -910,6 +904,27 @@ See also:
 - [Prefix filter](#prefix-filter)
 - [Logical filter](#logical-filter)
 
+
+### Subquery filter
+
+Sometimes it is needed to select logs with [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) containing values
+selected by another query (aka subquery). LogsQL provides such an ability with the `in(<subquery>)` filter.
+For example, the following query selects all the logs for the last 5 minutes for users,
+who visited pages with `admin` [word](#word) in the `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+during the last day:
+
+```logsql
+_time:5m AND user_id:in(_time:1d AND path:admin | fields user_id)
+```
+
+The subquery inside `in(...)` must end with either [`fields` pipe](#fields-pipe) or [`uniq` pipe](#uniq-pipe) containing a single field name,
+so VictoriaLogs could use values of this field for matching the `in(...)` filter.
+
+See also:
+
+- [multi-exact filter](#multi-exact-filter)
+- [`join` pipe](#join-pipe)
+- [`union` pipe](#union-pipe)
 
 ### Case-insensitive filter
 
@@ -2035,7 +2050,7 @@ _time:1d {app="app1"} | stats by (user) count() app1_hits
 
 See also:
 
-- [`in` filter](#multi-exact-filter)
+- [subquery filter](#subquery-filter)
 - [`stats` pipe](#stats-pipe)
 - [conditional `stats`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters)
 - [`filter` pipe](#filter-pipe)
@@ -2831,7 +2846,7 @@ _time:5m error | union (_time:1h panic)
 See also:
 
 - [`join` pipe](#join-pipe)
-- [`in` filter](#multi-exact-filter)
+- [subquery filter](#subquery-filter)
 
 ### uniq pipe
 
@@ -3801,7 +3816,7 @@ VictoriaLogs supports the following options, which can be passed in the beginnin
   user_id:in(options(ignore_global_time_filter=true) _time:2024-12Z | keep user_id) | count()
   ```
 
-  The [`in`](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter) query without `options(ignore_global_time_filter=true)`
+  The `in(...)` [subquery](#subquery-filter) without `options(ignore_global_time_filter=true)`
   takes into account only `user_id` values on the intersection of December 2024 and `[start...end]` time range pased
   to [`/api/v1/query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs):
 

@@ -208,7 +208,15 @@ func addTag(name, tag string) string {
 	if len(name) == 0 || name[len(name)-1] != '}' {
 		return fmt.Sprintf("%s{%s}", name, tag)
 	}
-	return fmt.Sprintf("%s,%s}", name[:len(name)-1], tag)
+	name = name[:len(name)-1]
+	if len(name) == 0 {
+		panic(fmt.Errorf("BUG: metric name cannot be empty"))
+	}
+	if name[len(name)-1] == '{' {
+		// case for empty labels set metric_name{}
+		return fmt.Sprintf("%s%s}", name, tag)
+	}
+	return fmt.Sprintf("%s,%s}", name, tag)
 }
 
 func registerSummaryLocked(sm *Summary) {

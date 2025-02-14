@@ -304,3 +304,25 @@ across all the logs over the last day:
 ```logsql
 _time:1d | count_uniq(_stream)
 ```
+
+## Does LogsQL support subqueries?
+
+LogsQL supports subqieries via [`in(<subquery>)` filter](https://docs.victoriametrics.com/victorialogs/logsql/#multi-exact-filter).
+For example, the following query returns the total number of unique values for the `user_id` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+across top 3 [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with the biggest number of logs during the last hour:
+
+```logsql
+_time:1h _stream_id:in(_time:1h | top 3 (_stream_id) | keep _stream_id) | count_uniq(user_id)
+```
+
+The query works in the following way:
+
+- It selects top 3 log streams with the biggest number of logs during the last hour with the following subquery:
+  ```logsql
+  _time:1h | top 3 (_stream_id) | keep _stream_id
+  ```
+  This subquery uses [`top`](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe) and [`keep`](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) pipes.
+
+- Then it selects all the logs across the selected log streams over the last hour with the help of [`_stream_id:...` filter](https://docs.victoriametrics.com/victorialogs/logsql/#_stream_id-filter).
+
+See also [`subquery filters`](https://docs.victoriametrics.com/victorialogs/logsql/#subquery-filter).
