@@ -41,6 +41,19 @@ func NewCache(getMaxSizeBytes func() int) *Cache {
 		multiplier = 16
 	}
 	shardsCount *= multiplier
+
+	return newCacheInternal(getMaxSizeBytes, shardsCount)
+}
+
+// NewCacheWithShardsCount creates new cache with provided shardsCount
+//
+// Cache size in bytes is limited by the value returned by getMaxSizeBytes() callback.
+// Call MustStop() in order to free up resources occupied by Cache.
+func NewCacheWithShardsCount(getMaxSizeBytes func() int, shardsCount int) *Cache {
+	return newCacheInternal(getMaxSizeBytes, shardsCount)
+}
+
+func newCacheInternal(getMaxSizeBytes func() int, shardsCount int) *Cache {
 	shards := make([]*cache, shardsCount)
 	getMaxShardBytes := func() int {
 		n := getMaxSizeBytes()
