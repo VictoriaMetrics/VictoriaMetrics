@@ -16,6 +16,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): fix possible `concurrent map writes` panic when using [`count_uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-stats) and [`count_uniq_hash`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq_hash-stats) functions over big number of unique `stats by (...)` groups. The bug has been introduced in [v1.9.0-victorialogs](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.0-victorialogs).
 * BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): properly calculate `<q> | len(f) f_len | min(f_len)`. Previously it incorrectly return `0` if the minumum value length for `f` field is bigger than `0`.
 * BUGFIX: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): properly calculate [stats functions with additional filters](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters). Previously some [stats functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions) could return incorrect results if the additional filter filters out all the values in the processed data block.
 

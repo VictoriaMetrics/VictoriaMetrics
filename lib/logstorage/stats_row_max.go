@@ -148,7 +148,7 @@ func (smp *statsRowMaxProcessor) updateStatsForRow(sf statsFunc, br *blockResult
 	return stateSizeIncrease
 }
 
-func (smp *statsRowMaxProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (smp *statsRowMaxProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsRowMaxProcessor)
 	if smp.needUpdateStateString(src.max) {
 		smp.max = src.max

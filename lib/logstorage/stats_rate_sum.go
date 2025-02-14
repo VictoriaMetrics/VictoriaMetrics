@@ -39,10 +39,10 @@ func (srp *statsRateSumProcessor) updateStatsForRow(sf statsFunc, br *blockResul
 	return srp.ssp.updateStatsForRow(ss.ss, br, rowIdx)
 }
 
-func (srp *statsRateSumProcessor) mergeState(sf statsFunc, sfp statsProcessor) {
+func (srp *statsRateSumProcessor) mergeState(a *chunkedAllocator, sf statsFunc, sfp statsProcessor) {
 	ss := sf.(*statsRateSum)
 	src := sfp.(*statsRateSumProcessor)
-	srp.ssp.mergeState(ss.ss, &src.ssp)
+	srp.ssp.mergeState(a, ss.ss, &src.ssp)
 }
 
 func (srp *statsRateSumProcessor) finalizeStats(sf statsFunc, dst []byte, _ <-chan struct{}) []byte {

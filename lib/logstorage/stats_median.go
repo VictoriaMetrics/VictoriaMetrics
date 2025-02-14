@@ -30,10 +30,10 @@ func (smp *statsMedianProcessor) updateStatsForRow(sf statsFunc, br *blockResult
 	return smp.sqp.updateStatsForRow(sm.sq, br, rowIdx)
 }
 
-func (smp *statsMedianProcessor) mergeState(sf statsFunc, sfp statsProcessor) {
+func (smp *statsMedianProcessor) mergeState(a *chunkedAllocator, sf statsFunc, sfp statsProcessor) {
 	sm := sf.(*statsMedian)
 	src := sfp.(*statsMedianProcessor)
-	smp.sqp.mergeState(sm.sq, &src.sqp)
+	smp.sqp.mergeState(a, sm.sq, &src.sqp)
 }
 
 func (smp *statsMedianProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte {

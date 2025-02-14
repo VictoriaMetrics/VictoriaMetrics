@@ -6,6 +6,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
+// chunkedAllocator reduces memory fragmentation when allocating pre-defined structs in a scoped fashion.
+//
+// It also reduces the number of memory allocations by amortizing them into 64Kb slice allocations.
+//
+// chunkedAllocator cannot be used from concurrently running goroutines.
 type chunkedAllocator struct {
 	avgProcessors           []statsAvgProcessor
 	countProcessors         []statsCountProcessor

@@ -429,7 +429,7 @@ func (sup *statsCountUniqHashProcessor) updateStatsForRowSingleColumn(br *blockR
 	}
 }
 
-func (sup *statsCountUniqHashProcessor) mergeState(sf statsFunc, sfp statsProcessor) {
+func (sup *statsCountUniqHashProcessor) mergeState(a *chunkedAllocator, sf statsFunc, sfp statsProcessor) {
 	su := sf.(*statsCountUniqHash)
 	if sup.limitReached(su) {
 		return
@@ -441,14 +441,14 @@ func (sup *statsCountUniqHashProcessor) mergeState(sf statsFunc, sfp statsProces
 		if src.shards == nil {
 			sup.uniqValues.mergeState(&src.uniqValues, nil)
 			src.uniqValues.reset()
-			sup.probablyMoveUniqValuesToShards()
+			sup.probablyMoveUniqValuesToShards(a)
 			return
 		}
-		sup.moveUniqValuesToShards()
+		sup.moveUniqValuesToShards(a)
 	}
 
 	if src.shards == nil {
-		src.moveUniqValuesToShards()
+		src.moveUniqValuesToShards(a)
 	}
 	sup.shardss = append(sup.shardss, src.shards)
 	src.shards = nil
@@ -534,7 +534,7 @@ func (sup *statsCountUniqHashProcessor) updateStateString(v []byte) int {
 	if sup.shards == nil {
 		stateSizeIncrease := sup.uniqValues.updateStateStringHash(h)
 		if stateSizeIncrease > 0 {
-			stateSizeIncrease += sup.probablyMoveUniqValuesToShards()
+			stateSizeIncrease += sup.probablyMoveUniqValuesToShards(sup.a)
 		}
 		return stateSizeIncrease
 	}
@@ -550,7 +550,7 @@ func (sup *statsCountUniqHashProcessor) updateStateTimestamp(ts int64) int {
 	if sup.shards == nil {
 		stateSizeIncrease := sup.uniqValues.updateStateTimestamp(ts)
 		if stateSizeIncrease > 0 {
-			stateSizeIncrease += sup.probablyMoveUniqValuesToShards()
+			stateSizeIncrease += sup.probablyMoveUniqValuesToShards(sup.a)
 		}
 		return stateSizeIncrease
 	}
@@ -562,7 +562,7 @@ func (sup *statsCountUniqHashProcessor) updateStateUint64(n uint64) int {
 	if sup.shards == nil {
 		stateSizeIncrease := sup.uniqValues.updateStateUint64(n)
 		if stateSizeIncrease > 0 {
-			stateSizeIncrease += sup.probablyMoveUniqValuesToShards()
+			stateSizeIncrease += sup.probablyMoveUniqValuesToShards(sup.a)
 		}
 		return stateSizeIncrease
 	}
@@ -574,7 +574,7 @@ func (sup *statsCountUniqHashProcessor) updateStateNegativeInt64(n int64) int {
 	if sup.shards == nil {
 		stateSizeIncrease := sup.uniqValues.updateStateNegativeInt64(n)
 		if stateSizeIncrease > 0 {
-			stateSizeIncrease += sup.probablyMoveUniqValuesToShards()
+			stateSizeIncrease += sup.probablyMoveUniqValuesToShards(sup.a)
 		}
 		return stateSizeIncrease
 	}
@@ -582,18 +582,18 @@ func (sup *statsCountUniqHashProcessor) updateStateNegativeInt64(n int64) int {
 	return sus.updateStateNegativeInt64(n)
 }
 
-func (sup *statsCountUniqHashProcessor) probablyMoveUniqValuesToShards() int {
+func (sup *statsCountUniqHashProcessor) probablyMoveUniqValuesToShards(a *chunkedAllocator) int {
 	if sup.uniqValues.entriesCount() < statsCountUniqHashValuesMaxLen {
 		return 0
 	}
-	return sup.moveUniqValuesToShards()
+	return sup.moveUniqValuesToShards(a)
 }
 
-func (sup *statsCountUniqHashProcessor) moveUniqValuesToShards() int {
+func (sup *statsCountUniqHashProcessor) moveUniqValuesToShards(a *chunkedAllocator) int {
 	cpusCount := sup.concurrency
-	bytesAllocatedPrev := sup.a.bytesAllocated
-	sup.shards = sup.a.newStatsCountUniqHashSets(cpusCount)
-	stateSizeIncrease := sup.a.bytesAllocated - bytesAllocatedPrev
+	bytesAllocatedPrev := a.bytesAllocated
+	sup.shards = a.newStatsCountUniqHashSets(cpusCount)
+	stateSizeIncrease := a.bytesAllocated - bytesAllocatedPrev
 
 	for ts := range sup.uniqValues.timestamps {
 		sus := sup.getShardByUint64(ts)

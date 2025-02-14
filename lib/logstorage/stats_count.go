@@ -188,7 +188,7 @@ func (scp *statsCountProcessor) updateStatsForRow(sf statsFunc, br *blockResult,
 	return 0
 }
 
-func (scp *statsCountProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (scp *statsCountProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsCountProcessor)
 	scp.rowsCount += src.rowsCount
 }

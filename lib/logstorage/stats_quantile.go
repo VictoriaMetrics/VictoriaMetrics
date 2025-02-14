@@ -187,7 +187,7 @@ func (sqp *statsQuantileProcessor) updateStateForColumn(br *blockResult, c *bloc
 	return stateSizeIncrease
 }
 
-func (sqp *statsQuantileProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (sqp *statsQuantileProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsQuantileProcessor)
 	sqp.h.mergeState(&src.h)
 }

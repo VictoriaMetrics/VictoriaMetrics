@@ -141,7 +141,7 @@ func (sup *statsUniqValuesProcessor) updateStatsForRowColumn(c *blockResultColum
 	return sup.updateState(v)
 }
 
-func (sup *statsUniqValuesProcessor) mergeState(sf statsFunc, sfp statsProcessor) {
+func (sup *statsUniqValuesProcessor) mergeState(_ *chunkedAllocator, sf statsFunc, sfp statsProcessor) {
 	su := sf.(*statsUniqValues)
 	if sup.limitReached(su) {
 		return
