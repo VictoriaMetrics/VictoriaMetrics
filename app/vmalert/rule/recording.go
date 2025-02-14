@@ -49,8 +49,11 @@ type recordingRuleMetrics struct {
 }
 
 func newRecordingRuleMetrics() *recordingRuleMetrics {
+	set := metrics.NewSet()
+	metrics.RegisterSet(set)
+
 	return &recordingRuleMetrics{
-		set: metrics.NewSet(),
+		set: set,
 	}
 }
 
