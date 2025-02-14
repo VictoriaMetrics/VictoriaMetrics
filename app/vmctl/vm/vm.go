@@ -211,10 +211,9 @@ func (im *Importer) Close() {
 	})
 }
 
-func (im *Importer) startWorker(ctx context.Context, bar barpool.Bar, _, significantFigures, roundDigits int) {
+func (im *Importer) startWorker(ctx context.Context, bar barpool.Bar, batchSize, significantFigures, roundDigits int) {
 	var batch []*TimeSeries
-	// TODO uncomment datapoints when batching will be fixed
-	// var dataPoints int
+	var dataPoints int
 	var waitForBatch time.Time
 	for {
 		select {
@@ -235,6 +234,16 @@ func (im *Importer) startWorker(ctx context.Context, bar barpool.Bar, _, signifi
 			return
 		case ts, ok := <-im.input:
 			if !ok {
+				// drain all batches before exit
+				exitErr := &ImportError{
+					Batch: batch,
+				}
+				retryableFunc := func() error { return im.Import(batch) }
+				_, err := im.backoff.Retry(ctx, retryableFunc)
+				if err != nil {
+					exitErr.Err = err
+				}
+				im.errors <- exitErr
 				return
 			}
 			// init waitForBatch when first
@@ -245,16 +254,14 @@ func (im *Importer) startWorker(ctx context.Context, bar barpool.Bar, _, signifi
 
 			ts = roundTimeseriesValue(ts, significantFigures, roundDigits)
 			batch = append(batch, ts)
-			// dataPoints = dataPoints + len(ts.Values)
+			dataPoints = dataPoints + len(ts.Values)
 
 			bar.Add(len(ts.Values))
 
-			// TODO check how to better work with batching because it
-			// miss some datapoints at the end of the process
+			if dataPoints < batchSize {
+				continue
+			}
 
-			// if dataPoints < batchSize {
-			// 	continue
-			// }
 			im.s.Lock()
 			im.s.idleDuration += time.Since(waitForBatch)
 			im.s.Unlock()
@@ -267,7 +274,7 @@ func (im *Importer) startWorker(ctx context.Context, bar barpool.Bar, _, signifi
 				// make a new batch, since old one was referenced as err
 				batch = make([]*TimeSeries, len(batch))
 			}
-			// dataPoints = 0
+			dataPoints = 0
 			batch = batch[:0]
 			waitForBatch = time.Now()
 		}

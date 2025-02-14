@@ -57,7 +57,6 @@ func TestMimirProcessorRun(t *testing.T) {
 			Transport:   nil,
 			Concurrency: 1,
 			Backoff:     bf,
-			BatchSize:   100,
 		}
 
 		ctx := context.Background()
