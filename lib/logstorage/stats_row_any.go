@@ -34,9 +34,6 @@ type statsRowAnyProcessor struct {
 
 func (sap *statsRowAnyProcessor) updateStatsForAllRows(sf statsFunc, br *blockResult) int {
 	sa := sf.(*statsRowAny)
-	if br.rowsLen == 0 {
-		return 0
-	}
 	if sap.captured {
 		return 0
 	}
