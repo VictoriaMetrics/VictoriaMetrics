@@ -5,7 +5,7 @@ export const getNameForMetric = (result: MetricBase, alias?: string, showQueryNu
   const queryPrefix = showQueryNum ? `[Query ${result.group}] ` : "";
 
   if (alias) {
-    return alias.replace(/\{\{(\w+)}}/g, (_, key) => result.metric[key] || "");
+    return getLabelAlias(result.metric, alias);
   }
 
   const name = `${queryPrefix}${__name__ || ""}`;
@@ -19,6 +19,10 @@ export const getNameForMetric = (result: MetricBase, alias?: string, showQueryNu
     .join(", ");
 
   return `${name}{${fieldsString}}`;
+};
+
+export const getLabelAlias = (fields: { [p: string]: string }, alias: string) => {
+  return alias.replace(/\{\{(\w+)}}/g, (_, key) => fields[key] || "");
 };
 
 export const promValueToNumber = (s: string): number => {

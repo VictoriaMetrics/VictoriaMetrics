@@ -3,8 +3,6 @@
 .vm-axes-limits {
   display: grid;
   align-items: center;
-  gap: $padding-global;
-  max-width: 300px;
 
   &_mobile {
     width: 100%;
@@ -23,8 +21,9 @@
 
     &__inputs {
       display: grid;
-      grid-template-columns: repeat(2, 120px);
+      grid-template-columns: repeat(2, auto);
       gap: $padding-small;
+      margin-top: $padding-global;
     }
   }
 }
