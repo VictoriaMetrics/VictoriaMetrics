@@ -233,6 +233,23 @@ func (tc *TestCase) StopApp(instance string) {
 	}
 }
 
+// StopPrometheusWriteQuerier stop all apps that are a part of the pwq.
+func (tc *TestCase) StopPrometheusWriteQuerier(pwq PrometheusWriteQuerier) {
+	tc.t.Helper()
+	switch t := pwq.(type) {
+	case *Vmsingle:
+		tc.StopApp(t.Name())
+	case *vmcluster:
+		tc.StopApp(t.Vminsert.Name())
+		tc.StopApp(t.Vmselect.Name())
+		for _, vmstorage := range t.vmstorages {
+			tc.StopApp(vmstorage.Name())
+		}
+	default:
+		tc.t.Fatalf("Unsupported type: %v", t)
+	}
+}
+
 // ForceFlush flushes zero or more storages.
 func (tc *TestCase) ForceFlush(apps ...*Vmstorage) {
 	tc.t.Helper()
