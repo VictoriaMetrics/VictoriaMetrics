@@ -6,6 +6,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/golang/snappy"
 	"github.com/klauspost/compress/gzip"
+	"github.com/klauspost/compress/zlib"
 	"github.com/klauspost/compress/zstd"
 	"reflect"
 	"sort"
@@ -238,29 +239,42 @@ func checkParseStream(data []byte, checkSeries func(tss []prompbmarshal.TimeSeri
 		return fmt.Errorf("error when parsing compressed data: %w", err)
 	}
 
+	// Verify parsing with zlib-compression
+	bb.Reset()
+	zlibWriter := zlib.NewWriter(&bb)
+	if _, err := zlibWriter.Write(data); err != nil {
+		return fmt.Errorf("cannot compress data: %w", err)
+	}
+	if err := zlibWriter.Close(); err != nil {
+		return fmt.Errorf("cannot close zlib writer: %w", err)
+	}
+	if err := ParseStream(&bb, common.Deflate, nil, checkSeries); err != nil {
+		return fmt.Errorf("error when parsing compressed data: %w", err)
+	}
+
 	// Verify parsing with zstd-compression
-	var zb bytes.Buffer
-	zw, _ := zstd.NewWriter(&zb)
+	bb.Reset()
+	zw, _ := zstd.NewWriter(&bb)
 	if _, err := zw.Write(data); err != nil {
 		return fmt.Errorf("cannot compress data: %w", err)
 	}
 	if err := zw.Close(); err != nil {
 		return fmt.Errorf("cannot close zstd writer: %w", err)
 	}
-	if err := ParseStream(&zb, common.Zstd, nil, checkSeries); err != nil {
+	if err := ParseStream(&bb, common.Zstd, nil, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing compressed data: %w", err)
 	}
 
 	// Verify parsing with snappy-compression
-	var sb bytes.Buffer
-	sw := snappy.NewBufferedWriter(&sb)
+	bb.Reset()
+	sw := snappy.NewBufferedWriter(&bb)
 	if _, err := sw.Write(data); err != nil {
 		return fmt.Errorf("cannot compress data: %w", err)
 	}
 	if err := sw.Close(); err != nil {
 		return fmt.Errorf("cannot close snappy writer: %w", err)
 	}
-	if err := ParseStream(&sb, common.Snappy, nil, checkSeries); err != nil {
+	if err := ParseStream(&bb, common.Snappy, nil, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing compressed data: %w", err)
 	}
 

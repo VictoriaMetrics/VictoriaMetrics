@@ -19,10 +19,10 @@ func TestGetAndPutCompressReader(t *testing.T) {
 	snappyWriter := snappy.NewBufferedWriter(&bb)
 
 	compressionWriter := map[string]io.WriteCloser{
-		Gzip:   gzipWriter,
-		Zlib:   zlibWriter,
-		Zstd:   zstdWriter,
-		Snappy: snappyWriter,
+		Gzip:    gzipWriter,
+		Deflate: zlibWriter,
+		Zstd:    zstdWriter,
+		Snappy:  snappyWriter,
 	}
 
 	for compressionType, writer := range compressionWriter {

@@ -12,10 +12,10 @@ import (
 
 // supported compression
 var (
-	Gzip   = "gzip"
-	Zlib   = "zlib"
-	Zstd   = "zstd"
-	Snappy = "snappy"
+	Gzip    = "gzip"
+	Deflate = "deflate"
+	Zstd    = "zstd"
+	Snappy  = "snappy"
 )
 
 // GetGzipReader returns new gzip reader from the pool.
@@ -109,7 +109,7 @@ func GetCompressReader(contentEncoding string, r io.Reader) (io.Reader, error) {
 	switch contentEncoding {
 	case Gzip:
 		return GetGzipReader(r)
-	case Zlib:
+	case Deflate:
 		return GetZlibReader(r)
 	case Zstd:
 		return GetZstdReader(r)
@@ -125,7 +125,7 @@ func PutCompressReader(contentEncoding string, r io.Reader) error {
 	switch contentEncoding {
 	case Gzip:
 		PutGzipReader(r.(*gzip.Reader))
-	case Zlib:
+	case Deflate:
 		PutZlibReader(r.(io.ReadCloser))
 	case Zstd:
 		PutZstdReader(r.(*zstd.Decoder))
