@@ -11,8 +11,7 @@ import (
 )
 
 func TestGetAndPutCompressReader(t *testing.T) {
-	str := "hello world"
-	var data []byte = []byte(str)
+	data := []byte("hello world")
 	var bb bytes.Buffer
 	gzipWriter := gzip.NewWriter(&bb)
 	zlibWriter := zlib.NewWriter(&bb)
