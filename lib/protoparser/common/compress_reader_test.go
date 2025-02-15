@@ -2,8 +2,8 @@ package common
 
 import (
 	"bytes"
+	"github.com/golang/snappy"
 	"github.com/klauspost/compress/gzip"
-	"github.com/klauspost/compress/snappy"
 	"github.com/klauspost/compress/zlib"
 	"github.com/klauspost/compress/zstd"
 	"io"
