@@ -3,6 +3,8 @@ package stream
 import (
 	"bytes"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/golang/snappy"
 	"github.com/klauspost/compress/gzip"
 	"github.com/klauspost/compress/zstd"
 	"reflect"
@@ -232,7 +234,7 @@ func checkParseStream(data []byte, checkSeries func(tss []prompbmarshal.TimeSeri
 	if err := gw.Close(); err != nil {
 		return fmt.Errorf("cannot close gzip writer: %w", err)
 	}
-	if err := ParseStream(&bb, "gzip", nil, checkSeries); err != nil {
+	if err := ParseStream(&bb, common.Gzip, nil, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing compressed data: %w", err)
 	}
 
@@ -245,7 +247,20 @@ func checkParseStream(data []byte, checkSeries func(tss []prompbmarshal.TimeSeri
 	if err := zw.Close(); err != nil {
 		return fmt.Errorf("cannot close zstd writer: %w", err)
 	}
-	if err := ParseStream(&zb, "zstd", nil, checkSeries); err != nil {
+	if err := ParseStream(&zb, common.Zstd, nil, checkSeries); err != nil {
+		return fmt.Errorf("error when parsing compressed data: %w", err)
+	}
+
+	// Verify parsing with snappy-compression
+	var sb bytes.Buffer
+	sw := snappy.NewBufferedWriter(&sb)
+	if _, err := sw.Write(data); err != nil {
+		return fmt.Errorf("cannot compress data: %w", err)
+	}
+	if err := sw.Close(); err != nil {
+		return fmt.Errorf("cannot close snappy writer: %w", err)
+	}
+	if err := ParseStream(&sb, common.Snappy, nil, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing compressed data: %w", err)
 	}
 

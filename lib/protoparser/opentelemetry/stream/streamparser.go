@@ -35,7 +35,9 @@ func ParseStream(r io.Reader, contentEncoding string, processBody func([]byte) (
 		if err != nil {
 			return fmt.Errorf("cannot read %s-compressed OpenTelemetry protocol data: %w", contentEncoding, err)
 		}
-		defer common.PutCompressReader(contentEncoding, zr)
+		defer func() {
+			_ = common.PutCompressReader(contentEncoding, zr)
+		}()
 		r = zr
 	}
 

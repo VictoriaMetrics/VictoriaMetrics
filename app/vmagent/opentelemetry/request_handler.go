@@ -28,7 +28,7 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	contentEncoding := req.Header.Get("Content-Encoding")
-	isSupportedCompression := contentEncoding == "gzip" || contentEncoding == "zstd"
+	isSupportedCompression := contentEncoding == "gzip" || contentEncoding == "zstd" || contentEncoding == "snappy"
 	if !isSupportedCompression {
 		contentEncoding = ""
 	}
