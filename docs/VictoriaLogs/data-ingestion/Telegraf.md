@@ -11,7 +11,6 @@ aliases:
 ---
 VictoriaLogs supports given below Telegraf outputs:
 - [Elasticsearch](#elasticsearch)
-- [Loki](#loki)
 - [HTTP JSON](#http)
 
 ## Elasticsearch
@@ -35,34 +34,6 @@ for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.co
     "VL-Msg-Field" = "tail.value"
     "VL-Time-Field" = "@timestamp"
     "VL-Stream-Fields" = "tag.log_source,tag.metric_type"
-
-[[inputs.tail]]
-  files = ["/tmp/telegraf.log"]
-  from_beginning = false
-  interval = "10s"
-  pipe = false
-  watch_method = "inotify"
-  data_format = "value"
-  data_type = "string"
-  character_encoding = "utf-8"
-  [inputs.tail.tags]
-     metric_type = "logs"
-     log_source = "telegraf"
-```
-
-
-## Loki
-
-Specify [Loki output](https://github.com/influxdata/telegraf/tree/master/plugins/outputs/loki) in the `telegraf.toml`
-for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
-
-```toml
-[[outputs.loki]]
-  domain = "http://localhost:9428"
-  endpoint = "/insert/loki/api/v1/push&_msg_field=tail.value&_time_field=@timefield&_stream_fields=log_source,metric_type"
-  namepass = ["tail"]
-  gzip_request = true
-  sanitize_label_names = true
 
 [[inputs.tail]]
   files = ["/tmp/telegraf.log"]
