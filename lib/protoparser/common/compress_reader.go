@@ -1,12 +1,21 @@
 package common
 
 import (
-	"errors"
+	"fmt"
 	"github.com/klauspost/compress/gzip"
+	"github.com/klauspost/compress/snappy"
 	"github.com/klauspost/compress/zlib"
 	"github.com/klauspost/compress/zstd"
 	"io"
 	"sync"
+)
+
+// supported compression
+var (
+	Gzip   = "gzip"
+	Zlib   = "zlib"
+	Zstd   = "zstd"
+	Snappy = "snappy"
 )
 
 // GetGzipReader returns new gzip reader from the pool.
@@ -60,11 +69,11 @@ func GetZstdReader(r io.Reader) (*zstd.Decoder, error) {
 		return zstd.NewReader(r)
 
 	}
-	zr := v.(*zstd.Decoder)
-	if err := zr.Reset(r); err != nil {
+	zd := v.(*zstd.Decoder)
+	if err := zd.Reset(r); err != nil {
 		return nil, err
 	}
-	return zr, nil
+	return zd, nil
 }
 
 // PutZstdReader returns back zstd reader obtained via GetZstdReader.
@@ -75,28 +84,55 @@ func PutZstdReader(zd *zstd.Decoder) {
 
 var zstdReaderPool sync.Pool
 
+// GetSnappyReader returns snappy reader.
+func GetSnappyReader(r io.Reader) (*snappy.Reader, error) {
+	v := snappyReaderPool.Get()
+	if v == nil {
+		return snappy.NewReader(r), nil
+
+	}
+	zr := v.(*snappy.Reader)
+	zr.Reset(r)
+	return zr, nil
+}
+
+// PutSnappyReader returns back zstd reader obtained via GetZstdReader.
+func PutSnappyReader(sr *snappy.Reader) {
+	sr.Reset(nil)
+	snappyReaderPool.Put(sr)
+}
+
+var snappyReaderPool sync.Pool
+
 // GetCompressReader returns specific compression reader
 func GetCompressReader(contentEncoding string, r io.Reader) (io.Reader, error) {
 	switch contentEncoding {
-	case "gzip":
+	case Gzip:
 		return GetGzipReader(r)
-	case "zlib":
+	case Zlib:
 		return GetZlibReader(r)
-	case "zstd":
+	case Zstd:
 		return GetZstdReader(r)
+	case Snappy:
+		return GetSnappyReader(r)
 	default:
-		return nil, errors.New("unsupported compression type")
+		return nil, fmt.Errorf("unsupported compression type: %s", contentEncoding)
 	}
 }
 
 // PutCompressReader returns specific compression reader to pool
-func PutCompressReader(contentEncoding string, r io.Reader) {
+func PutCompressReader(contentEncoding string, r io.Reader) error {
 	switch contentEncoding {
-	case "gzip":
+	case Gzip:
 		PutGzipReader(r.(*gzip.Reader))
-	case "zlib":
+	case Zlib:
 		PutZlibReader(r.(io.ReadCloser))
-	case "zstd":
+	case Zstd:
 		PutZstdReader(r.(*zstd.Decoder))
+	case Snappy:
+		PutSnappyReader(r.(*snappy.Reader))
+	default:
+		return fmt.Errorf("unsupported compression type: %s", contentEncoding)
 	}
+	return nil
 }

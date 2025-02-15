@@ -24,10 +24,10 @@ func InsertHandler(req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-	contentEncoding := ""
-	if isGzipped {
-		contentEncoding = "gzip"
+	contentEncoding := req.Header.Get("Content-Encoding")
+	isSupportedCompression := contentEncoding == "gzip" || contentEncoding == "zstd" || contentEncoding == "snappy"
+	if !isSupportedCompression {
+		contentEncoding = ""
 	}
 	var processBody func([]byte) ([]byte, error)
 	if req.Header.Get("Content-Type") == "application/json" {
