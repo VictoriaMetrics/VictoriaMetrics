@@ -875,7 +875,13 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 
 	if limit > 0 {
 		if q.CanReturnLastNResults() {
-			rows, err := getLastNQueryResults(ctx, tenantIDs, q, limit)
+			var rows []row
+			var err error
+			if httputils.GetBool(r, "firstmatches") {
+				rows, err = getFirstNQueryResults(ctx, tenantIDs, q, limit)
+			} else {
+				rows, err = getLastNQueryResults(ctx, tenantIDs, q, limit)
+			}
 			if err != nil {
 				httpserver.Errorf(w, r, "%s", err)
 				return
@@ -919,6 +925,74 @@ var blockResultPool bytesutil.ByteBufferPool
 type row struct {
 	timestamp int64
 	fields    []logstorage.Field
+}
+
+func getFirstNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit int) ([]row, error) {
+	limitUpper := 2 * limit
+	q.AddPipeLimit(uint64(limitUpper))
+
+	rows, err := getQueryResultsWithLimit(ctx, tenantIDs, q, limitUpper)
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) < limitUpper {
+		// Fast path - the requested time range contains up to limitUpper rows.
+		rows = getFirstNRows(rows, limit)
+		return rows, nil
+	}
+
+	start, end := q.GetFilterTimeRange()
+	d := end/2 - start/2
+	end -= d
+
+	qOrig := q
+	for {
+		timestamp := qOrig.GetTimestamp()
+		q = qOrig.CloneWithTimeFilter(timestamp, start, end)
+		rows, err := getQueryResultsWithLimit(ctx, tenantIDs, q, limitUpper)
+		if err != nil {
+			return nil, err
+		}
+
+		if d == 0 || start >= end {
+			// The [start ... end] time range equals one nanosecond.
+			// Just return up to limit rows.
+			if len(rows) > limit {
+				rows = rows[:limit]
+			}
+			return rows, nil
+		}
+
+		dLastBit := d & 1
+		d /= 2
+
+		if len(rows) >= limitUpper {
+			// The number of found rows on the [start ... end] time range exceeds limitUpper,
+			// so reduce the time range to [start ... end-d].
+			end -= d
+			continue
+		}
+		if len(rows) >= limit {
+			// The number of found rows is in the range [limit ... limitUpper).
+			// This means that found rows contains the needed limit rows with the biggest timestamps.
+			rows = getFirstNRows(rows, limit)
+			return rows, nil
+		}
+
+		// The number of found rows on [start ... end] time range is below the limit.
+		// This means the time range doesn't cover the needed logs, so it must be extended.
+
+		if len(rows) == 0 {
+			// The [start ... end] time range doesn't contain any rows, so change it to [end ... end+d).
+			start = end + 1
+			end += d + dLastBit
+			continue
+		}
+
+		// The number of found rows on [start ... end] time range is bigger than 0 but smaller than limit.
+		// Increase the time range to [start ... end+n].
+		end += d + dLastBit
+	}
 }
 
 func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, limit int) ([]row, error) {
@@ -988,6 +1062,16 @@ func getLastNQueryResults(ctx context.Context, tenantIDs []logstorage.TenantID, 
 		// Increase the time range to [start-d ... end].
 		start -= d + dLastBit
 	}
+}
+
+func getFirstNRows(rows []row, limit int) []row {
+	sort.Slice(rows, func(i, j int) bool {
+		return rows[i].timestamp < rows[j].timestamp
+	})
+	if len(rows) > limit {
+		rows = rows[:limit]
+	}
+	return rows
 }
 
 func getLastNRows(rows []row, limit int) []row {
