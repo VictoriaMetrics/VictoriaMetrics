@@ -266,7 +266,6 @@ const GraphView: FC<GraphViewProps> = ({
       )}
       {isHistogram && showLegend && (
         <LegendHeatmap
-          series={series as SeriesItem[]}
           min={yaxis.limits.range[1][0] || 0}
           max={yaxis.limits.range[1][1] || 0}
           legendValue={legendValue}

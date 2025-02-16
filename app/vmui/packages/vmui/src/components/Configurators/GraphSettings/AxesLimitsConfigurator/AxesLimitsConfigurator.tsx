@@ -41,10 +41,13 @@ const AxesLimitsConfigurator: FC<AxesLimitsConfiguratorProps> = ({ yaxis, setYax
       <Switch
         value={yaxis.limits.enable}
         onChange={toggleEnableLimits}
-        label={`${yaxis.limits.enable ? "Fixed" : "Auto"} limits`}
+        label={yaxis.limits.enable ? "Enabled" : "Disabled"}
         fullWidth={isMobile}
       />
     </div>
+    <span className="vm-legend-configs-item__info">
+      Enables manual setting of min and max values for the y-axis.
+    </span>
     {yaxis.limits.enable && (
       <div className="vm-axes-limits-list">
         {axes.map(axis => (
