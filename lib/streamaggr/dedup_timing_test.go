@@ -27,7 +27,7 @@ func benchmarkDedupAggr(b *testing.B, samplesPerPush int) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			for i := 0; i < loops; i++ {
-				da.pushSamples(benchSamples)
+				da.pushSamples(benchSamples, 0, false)
 			}
 		}
 	})
