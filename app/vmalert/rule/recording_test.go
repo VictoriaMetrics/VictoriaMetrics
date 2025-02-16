@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
@@ -306,15 +305,12 @@ func TestRecordingRuleLimit_Failure(t *testing.T) {
 
 		fq := &datasource.FakeQuerier{}
 		fq.Add(testMetrics...)
-
 		rule := &RecordingRule{Name: "job:foo",
 			state: &ruleState{entries: make([]StateEntry, 10)},
 			Labels: map[string]string{
 				"source": "test_limit",
 			},
-			metrics: &recordingRuleMetrics{
-				errors: utils.GetOrCreateCounter(`vmalert_recording_rules_errors_total{alertname="job:foo"}`),
-			},
+			metrics: getTestRecordingRuleMetrics(),
 		}
 		rule.q = fq
 
@@ -344,15 +340,12 @@ func TestRecordingRuleLimit_Success(t *testing.T) {
 
 		fq := &datasource.FakeQuerier{}
 		fq.Add(testMetrics...)
-
 		rule := &RecordingRule{Name: "job:foo",
 			state: &ruleState{entries: make([]StateEntry, 10)},
 			Labels: map[string]string{
 				"source": "test_limit",
 			},
-			metrics: &recordingRuleMetrics{
-				errors: utils.GetOrCreateCounter(`vmalert_recording_rules_errors_total{alertname="job:foo"}`),
-			},
+			metrics: getTestRecordingRuleMetrics(),
 		}
 		rule.q = fq
 
@@ -366,16 +359,20 @@ func TestRecordingRuleLimit_Success(t *testing.T) {
 	f(-1)
 }
 
+func getTestRecordingRuleMetrics() *recordingRuleMetrics {
+	m := newRecordingRuleMetrics()
+	m.errors = m.set.GetOrCreateCounter(`vmalert_recording_rules_errors_total{alertname="job:foo"}`)
+	return m
+}
+
 func TestRecordingRuleExec_Negative(t *testing.T) {
 	rr := &RecordingRule{
 		Name: "job:foo",
 		Labels: map[string]string{
 			"job": "test",
 		},
-		state: &ruleState{entries: make([]StateEntry, 10)},
-		metrics: &recordingRuleMetrics{
-			errors: utils.GetOrCreateCounter(`vmalert_recording_rules_errors_total{alertname="job:foo"}`),
-		},
+		state:   &ruleState{entries: make([]StateEntry, 10)},
+		metrics: getTestRecordingRuleMetrics(),
 	}
 	fq := &datasource.FakeQuerier{}
 	expErr := "connection reset by peer"
