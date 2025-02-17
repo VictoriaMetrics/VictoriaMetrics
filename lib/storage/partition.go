@@ -927,9 +927,15 @@ func (pt *partition) MustClose() {
 	pt.partsLock.Unlock()
 
 	for _, pw := range smallParts {
+		if n := pw.refCount.Load(); n != 1 {
+			logger.Panicf("BUG: unexpected refCount=%d when closing the small part %q; probably there are pending searches", n, pw.p.path)
+		}
 		pw.decRef()
 	}
 	for _, pw := range bigParts {
+		if n := pw.refCount.Load(); n != 1 {
+			logger.Panicf("BUG: unexpected refCount=%d when closing the big part %q; probably there are pending searches", n, pw.p.path)
+		}
 		pw.decRef()
 	}
 }

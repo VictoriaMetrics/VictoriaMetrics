@@ -529,6 +529,9 @@ func (tb *Table) MustClose() {
 	tb.partsLock.Unlock()
 
 	for _, pw := range fileParts {
+		if n := pw.refCount.Load(); n != 1 {
+			logger.Panicf("BUG: unexpected refCount=%d when closing the indexdb part %q; probably there are pending searches", n, pw.p.path)
+		}
 		pw.decRef()
 	}
 }
