@@ -185,9 +185,9 @@ func TestSingleVMAuthHTTPServerAuthKeys(t *testing.T) {
 	tc := apptest.NewTestCase(t)
 	defer tc.Stop()
 
-	var unauthorizedRequestsCount int
+	var authorizedRequestsCount int
 	backend := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
-		unauthorizedRequestsCount++
+		authorizedRequestsCount++
 	}))
 	defer backend.Close()
 
@@ -233,10 +233,10 @@ unauthorized_user:
 			t.Fatalf("unexpected http response code: %d, want: %d, response text: %s", resp.StatusCode, expectCode, responseText)
 		}
 	}
-	assertBackendsRequestsCount := func(expectUnauthorized int) {
+	assertBackendsRequestsCount := func(expectAuthorized int) {
 		t.Helper()
-		if expectUnauthorized != unauthorizedRequestsCount {
-			t.Fatalf("expected to have %d unauthorized proxied requests, got: %d", expectUnauthorized, unauthorizedRequestsCount)
+		if expectAuthorized != authorizedRequestsCount {
+			t.Fatalf("expected to have %d authorized proxied requests, got: %d", expectAuthorized, authorizedRequestsCount)
 		}
 	}
 
