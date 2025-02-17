@@ -56,6 +56,14 @@ func (lbr *LazyBlockReader) initialize() error {
 		return fmt.Errorf("failed to create temp dir: %s", err)
 	}
 
+	defer func() {
+		blockID := lbr.ID.String()
+		blockPath := filepath.Join(temp, blockID)
+		if err := os.RemoveAll(blockPath); err != nil {
+			log.Printf("failed to remove temp dir: %s", err)
+		}
+	}()
+
 	meta, err := lbr.fetchFile(metaFilename)
 	if err != nil {
 		return err
@@ -96,12 +104,6 @@ func (lbr *LazyBlockReader) initialize() error {
 		return fmt.Errorf("failed to open block %q: %s", lbr.ID, err)
 	}
 	lbr.reader = pb
-	blockID := lbr.ID.String()
-	blockPath := filepath.Join(temp, blockID)
-	if err := os.RemoveAll(blockPath); err != nil {
-		log.Printf("failed to remove temp dir: %s", err)
-		return fmt.Errorf("failed to remove temp dir: %s", err)
-	}
 	return nil
 }
 
