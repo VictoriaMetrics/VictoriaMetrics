@@ -1,6 +1,6 @@
 
 
-![Version](https://img.shields.io/badge/0.36.1-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-k8s-stack%2Fchangelog%2F%230361)
+![Version](https://img.shields.io/badge/0.36.2-gray?logo=Helm&labelColor=gray&link=https%3A%2F%2Fdocs.victoriametrics.com%2Fhelm%2Fvictoria-metrics-k8s-stack%2Fchangelog%2F%230362)
 ![ArtifactHub](https://img.shields.io/badge/ArtifactHub-informational?logoColor=white&color=417598&logo=artifacthub&link=https%3A%2F%2Fartifacthub.io%2Fpackages%2Fhelm%2Fvictoriametrics%2Fvictoria-metrics-k8s-stack)
 ![License](https://img.shields.io/github/license/VictoriaMetrics/helm-charts?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2Fhelm-charts%2Fblob%2Fmaster%2FLICENSE)
 ![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
@@ -621,7 +621,7 @@ selectAllByDefault: true
 </code>
 </pre>
 </td>
-      <td><p>enable storing .Values.alertmanager.config in VMAlertmanagerConfig instead of k8s Secret</p>
+      <td><p>enable storing .Values.alertmanager.config in VMAlertmanagerConfig instead of k8s Secret. Note: VMAlertmanagerConfig and plain Alertmanager config structures are not equal. If you&rsquo;re migrating existing config, please make sure that <code>.Values.alertmanager.config</code>: - with <code>useManagedConfig: false</code> has structure described <a href="https://prometheus.io/docs/alerting/latest/configuration/" target="_blank">here</a>. - with <code>useManagedConfig: true</code> has structure described <a href="https://docs.victoriametrics.com/operator/api/#vmalertmanagerconfig" target="_blank">here</a>.</p>
 </td>
     </tr>
     <tr>
