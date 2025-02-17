@@ -386,9 +386,6 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 }
 
 func builtinRoutesHandler(s *server, r *http.Request, w http.ResponseWriter, rh RequestHandler) bool {
-	if !isProtectedByAuthFlag(r.URL.Path) && !CheckBasicAuth(w, r) {
-		return true
-	}
 
 	h := w.Header()
 
