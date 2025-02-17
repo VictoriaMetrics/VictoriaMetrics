@@ -1161,7 +1161,7 @@ If you have suggestions for improvements or have found a bug - please open an is
 
 ## Troubleshooting
 
-* It is recommended [setting up the official Grafana dashboard](#monitoring) in order to monitor the state of `vmagent'.
+* It is recommended [setting up the official Grafana dashboard](#monitoring) in order to monitor the state of `vmagent`.
 
 * It is recommended increasing the maximum number of open files in the system (`ulimit -n`) when scraping a big number of targets,
   as `vmagent` establishes at least a single TCP connection per target.
