@@ -596,6 +596,10 @@ func (q *Query) optimizeNoSubqueries() {
 }
 
 func (q *Query) visitSubqueries(visitFunc func(q *Query)) {
+	if q == nil {
+		return
+	}
+
 	// call f for the query itself.
 	visitFunc(q)
 
@@ -615,13 +619,9 @@ func visitSubqueriesInFilter(f filter, visitFunc func(q *Query)) {
 	callback := func(f filter) bool {
 		switch t := f.(type) {
 		case *filterIn:
-			if t.q != nil {
-				t.q.visitSubqueries(visitFunc)
-			}
+			t.q.visitSubqueries(visitFunc)
 		case *filterStreamID:
-			if t.q != nil {
-				t.q.visitSubqueries(visitFunc)
-			}
+			t.q.visitSubqueries(visitFunc)
 		}
 		return false
 	}
