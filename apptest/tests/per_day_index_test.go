@@ -26,18 +26,36 @@ func TestClusterSearchWithDisabledPerDayIndex(t *testing.T) {
 	defer tc.Stop()
 
 	testSearchWithDisabledPerDayIndex(tc, func(name string, disablePerDayIndex bool) at.PrometheusWriteQuerier {
-		return tc.MustStartCluster(&at.ClusterOptions{
-			Vmstorage1Instance: "vmstorage1-" + name,
-			Vmstorage1Flags: []string{
-				fmt.Sprintf("-disablePerDayIndex=%t", disablePerDayIndex),
-			},
-			Vmstorage2Instance: "vmstorage2-" + name,
-			Vmstorage2Flags: []string{
-				fmt.Sprintf("-disablePerDayIndex=%t", disablePerDayIndex),
-			},
-			VminsertInstance: "vminsert",
-			VmselectInstance: "vmselect",
+		// Using static ports for vmstorage because random ports may cause
+		// changes in how data is sharded.
+		vmstorage1 := tc.MustStartVmstorage("vmstorage1-"+name, []string{
+			"-storageDataPath=" + tc.Dir() + "/vmstorage1",
+			"-retentionPeriod=100y",
+			"-httpListenAddr=127.0.0.1:61001",
+			"-vminsertAddr=127.0.0.1:61002",
+			"-vmselectAddr=127.0.0.1:61003",
+			fmt.Sprintf("-disablePerDayIndex=%t", disablePerDayIndex),
 		})
+		vmstorage2 := tc.MustStartVmstorage("vmstorage2-"+name, []string{
+			"-storageDataPath=" + tc.Dir() + "/vmstorage2",
+			"-retentionPeriod=100y",
+			"-httpListenAddr=127.0.0.1:62001",
+			"-vminsertAddr=127.0.0.1:62002",
+			"-vmselectAddr=127.0.0.1:62003",
+			fmt.Sprintf("-disablePerDayIndex=%t", disablePerDayIndex),
+		})
+		vminsert := tc.MustStartVminsert("vminsert-"+name, []string{
+			"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
+		})
+		vmselect := tc.MustStartVmselect("vmselect"+name, []string{
+			"-storageNode=" + vmstorage1.VmselectAddr() + "," + vmstorage2.VmselectAddr(),
+			"-search.maxStalenessInterval=1m",
+		})
+		return &at.Vmcluster{
+			Vmstorages: []*at.Vmstorage{vmstorage1, vmstorage2},
+			Vminsert:   vminsert,
+			Vmselect:   vmselect,
+		}
 	})
 }
 
