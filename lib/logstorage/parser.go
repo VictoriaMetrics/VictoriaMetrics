@@ -1798,10 +1798,9 @@ func parseFilterIn(lex *lexer, fieldName string) (filter, error) {
 	}
 
 	fi = &filterIn{
-		fieldName:        fieldName,
-		needExecuteQuery: true,
-		q:                q,
-		qFieldName:       qFieldName,
+		fieldName:  fieldName,
+		q:          q,
+		qFieldName: qFieldName,
 	}
 	return fi, nil
 }
@@ -2633,9 +2632,8 @@ func parseFilterStreamIDIn(lex *lexer) (filter, error) {
 	}
 
 	fs = &filterStreamID{
-		needExecuteQuery: true,
-		q:                q,
-		qFieldName:       qFieldName,
+		q:          q,
+		qFieldName: qFieldName,
 	}
 	return fs, nil
 }

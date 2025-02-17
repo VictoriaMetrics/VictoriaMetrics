@@ -20,9 +20,6 @@ type filterIn struct {
 	fieldName string
 	values    []string
 
-	// needeExecuteQuery is set to true if q must be executed for populating values before filter execution.
-	needExecuteQuery bool
-
 	// If q is non-nil, then values must be populated from q before filter execution.
 	q *Query
 
