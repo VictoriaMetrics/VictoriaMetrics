@@ -30,7 +30,7 @@ const (
 
 var (
 	bodyBufferPool                bytesutil.ByteBufferPool
-	allowedJournaldEntryNameChars = regexp.MustCompile(`^[A-Z_][A-Z0-9_]+`)
+	allowedJournaldEntryNameChars = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*`)
 )
 
 var (
