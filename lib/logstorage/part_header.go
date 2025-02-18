@@ -77,10 +77,10 @@ func (ph *partHeader) mustReadMetadata(partPath string) {
 
 	if ph.FormatVersion <= 1 {
 		if ph.BloomValuesShardsCount != 0 {
-			logger.Panicf("FATAL: unexpected BloomValuesShardsCount for FormatVersion<=1; got %d; want 0", ph.BloomValuesShardsCount)
+			logger.Panicf("FATAL: %s: unexpected BloomValuesShardsCount for FormatVersion<=1; got %d; want 0", metadataPath, ph.BloomValuesShardsCount)
 		}
 		if ph.BloomValuesFieldsCount != 0 {
-			logger.Panicf("FATAL: unexpected BloomValuesFieldsCount for FormatVersion<=1; got %d; want 0", ph.BloomValuesFieldsCount)
+			logger.Panicf("FATAL: %s: unexpected BloomValuesFieldsCount for FormatVersion<=1; got %d; want 0", metadataPath, ph.BloomValuesFieldsCount)
 		}
 		if ph.FormatVersion == 1 {
 			ph.BloomValuesShardsCount = 8
@@ -90,13 +90,13 @@ func (ph *partHeader) mustReadMetadata(partPath string) {
 
 	// Perform various checks
 	if ph.FormatVersion > partFormatLatestVersion {
-		logger.Panicf("FATAL: unsupported part format version; got %d; mustn't exceed %d", partFormatLatestVersion)
+		logger.Panicf("FATAL: %s: unsupported part format version; got %d; mustn't exceed %d", metadataPath, ph.FormatVersion, partFormatLatestVersion)
 	}
 	if ph.MinTimestamp > ph.MaxTimestamp {
-		logger.Panicf("FATAL: MinTimestamp cannot exceed MaxTimestamp; got %d vs %d", ph.MinTimestamp, ph.MaxTimestamp)
+		logger.Panicf("FATAL: %s: MinTimestamp cannot exceed MaxTimestamp; got %d vs %d", metadataPath, ph.MinTimestamp, ph.MaxTimestamp)
 	}
 	if ph.BlocksCount > ph.RowsCount {
-		logger.Panicf("FATAL: BlocksCount=%d cannot exceed RowsCount=%d", ph.BlocksCount, ph.RowsCount)
+		logger.Panicf("FATAL: %s: BlocksCount=%d cannot exceed RowsCount=%d", metadataPath, ph.BlocksCount, ph.RowsCount)
 	}
 }
 
