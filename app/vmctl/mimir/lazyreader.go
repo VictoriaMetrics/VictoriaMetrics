@@ -57,11 +57,10 @@ func (lbr *LazyBlockReader) initialize() error {
 	}
 
 	defer func() {
-		blockID := lbr.ID.String()
-		blockPath := filepath.Join(temp, blockID)
-		if err := os.RemoveAll(blockPath); err != nil {
+		if err := os.RemoveAll(temp); err != nil {
 			log.Printf("failed to remove temp dir: %s", err)
 		}
+		log.Printf("removed temp dir: %s", temp)
 	}()
 
 	meta, err := lbr.fetchFile(metaFilename)
