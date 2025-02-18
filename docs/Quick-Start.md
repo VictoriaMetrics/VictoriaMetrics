@@ -106,13 +106,13 @@ sudo useradd -s /usr/sbin/nologin victoriametrics
 4. Create a folder for storing VictoriaMetrics data:
 
 ```sh
-mkdir -p /var/lib/victoria-metrics && chown -R victoriametrics:victoriametrics /var/lib/victoria-metrics
+sudo mkdir -p /var/lib/victoria-metrics && sudo chown -R victoriametrics:victoriametrics /var/lib/victoria-metrics
 ```
 
 5. Create a Linux Service by running the following:
 
 ```sh
-cat <<END >/etc/systemd/system/victoriametrics.service
+sudo bash -c 'cat <<END >/etc/systemd/system/victoriametrics.service
 [Unit]
 Description=VictoriaMetrics service
 After=network.target
@@ -133,7 +133,7 @@ ProtectSystem=full
 
 [Install]
 WantedBy=multi-user.target
-END
+END'
 ```
 
 Extra [command-line flags](https://docs.victoriametrics.com/#list-of-command-line-flags) can be added to `ExecStart` line.
@@ -189,12 +189,12 @@ See recommendations for installing each type of [cluster component](https://docs
 
 1. Create a folder for storing `vmstorage` data:
 
-`mkdir -p /var/lib/vmstorage && chown -R victoriametrics:victoriametrics /var/lib/vmstorage`
+`sudo mkdir -p /var/lib/vmstorage && sudo chown -R victoriametrics:victoriametrics /var/lib/vmstorage`
 
 2. Create a Linux Service for `vmstorage` service by running the following command:
 
 ```sh
-cat <<END >/etc/systemd/system/vmstorage.service
+sudo bash -c 'cat <<END >/etc/systemd/system/vmstorage.service
 [Unit]
 Description=VictoriaMetrics vmstorage service
 After=network.target
@@ -212,7 +212,7 @@ ProtectSystem=full
 
 [Install]
 WantedBy=multi-user.target
-END
+END'
 ```
 
 Extra [command-line flags](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vmstorage)
@@ -224,7 +224,7 @@ for vmstorage can be added to `ExecStart` line.
 3. Start and Enable `vmstorage`:
 
 ```sh
-sudo systemctl daemon-reload && systemctl enable --now vmstorage
+sudo systemctl daemon-reload && sudo systemctl enable --now vmstorage
 ```
 
 4. Check that service started successfully:
@@ -241,7 +241,7 @@ It should say "VictoriaMetrics is Healthy".
 1. Create a Linux Service for `vminsert` by running the following command:
 
 ```sh
-cat << END >/etc/systemd/system/vminsert.service
+sudo bash -c 'cat <<END >/etc/systemd/system/vminsert.service
 [Unit]
 Description=VictoriaMetrics vminsert service
 After=network.target
@@ -259,7 +259,7 @@ ProtectSystem=full
 
 [Install]
 WantedBy=multi-user.target
-END
+END'
 ```
 
 Replace `<list of vmstorages>` with addresses of previously configured `vmstorage` services. 
@@ -294,7 +294,7 @@ sudo mkdir -p /var/lib/vmselect-cache && sudo chown -R victoriametrics:victoriam
 2. Add a Linux Service for `vmselect` by running
 
 ```bash
-cat << END >/etc/systemd/system/vmselect.service
+sudo bash -c 'cat <<END >/etc/systemd/system/vmselect.service
 [Unit]
 Description=VictoriaMetrics vmselect service
 After=network.target
@@ -313,7 +313,7 @@ ProtectSystem=full
 
 [Install]
 WantedBy=multi-user.target
-END
+END'
 ```
 
 Replace `<list of vmstorages>` with addresses of previously configured `vmstorage` services.
