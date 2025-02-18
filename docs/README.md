@@ -2596,50 +2596,39 @@ See the full description of flags [here](#list-of-command-line-flags).
 
 ## Index tuning for low churn rate
 
-By default, VictoriaMetrics uses the following indexes for data retrieval:
-`global` and `per-day`. Both store the same data and on query time
-VictoriaMetrics can choose between indexes for optimal performance. See
-[IndexDB](#indexdb) for details.
+By default, VictoriaMetrics uses the following indexes for data retrieval: `global` and `per-day`.
+Both store the same data and on query time VictoriaMetrics can choose between indexes for optimal performance. 
+See [IndexDB](#indexdb) for details.
 
-If your use case involves
-[high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
-with
-[high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
+If your use case involves [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
+with [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
 then this default setting should be ideal for you.
 
-A prominent example is Kubernetes. Services in k8s expose big number of series
-with short life time, significantly increasing churn rate. The per-day index
-speeds up data retrieval in this case.
+A prominent example is Kubernetes. Services in k8s expose big number of series with short lifetime, significantly 
+increasing churn rate. The per-day index speeds up data retrieval in this case.
 
-But if your use case assumes low or no churn rate, then you might benefit
-from disabling the per-day index by setting the flag `-disablePerDayIndex`. This
-will improve the time series ingestion speed and decrease disk space usage,
+But if your use case assumes low or no churn rate, then you might benefit from disabling the per-day index by setting 
+the flag `-disablePerDayIndex`{{% available_from "#tip" %}}. This will improve the time series ingestion speed and decrease disk space usage,
 since no time or disk space is spent maintaining the per-day index.
 
 Example use cases:
 
--   Historical weather data, such as
-    [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels).
-    It consists of millions time series whose hourly values span tens of years.
-    The time series set never changes. If the per-day index is disabled, once
-    the first hour of data is ingested the entire time series set will be
-    written into the global index and subsequent portions of data will not
-    result in index update. But if the per-day index is enabled, the same set of
-    time-series will be written to the per-day index for every day of data.
+* Historical weather data, such as [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels).
+  It consists of millions time series whose hourly values span tens of years. The time series set never changes.
+  If the per-day index is disabled, once the first hour of data is ingested the entire time series set will be written
+  into the global index and subsequent portions of data will not result in index update. But if the per-day index 
+  is enabled, the same set of time-series will be written to the per-day index for every day of data.
 
--   IoT: a huge set of sensors exports time series with the sensor ID used as a
-    metric label value. Since sensor additions or removals happen infrequently,
-    the time series churn rate will be low. With the per-day index disabled, the
-    entire time series set will be registered in global index during the initial
-    data ingestion and the global index will receive small updates when a sensor
-    is added or removed.
-
+* IoT: a huge set of sensors exports time series with the sensor ID used as a metric label value. Since sensor additions
+  or removals happen infrequently, the time series churn rate will be low. With the per-day index disabled, the entire
+  time series set will be registered in global index during the initial data ingestion and the global index will receive
+  small updates when a sensor is added or removed.
 
 What to expect:
 
--   Prefer setting this flag on fresh installations.
--   Disabling per-day index on installations with historical data is Ok.
--   Re-enabling per-day index on installations with historical data will make it unsearchable.
+* Prefer setting this flag on fresh installations.
+* Disabling per-day index on installations with historical data is Ok.
+* Re-enabling per-day index on installations with historical data will make it unsearchable.
 
 ## Data migration
 

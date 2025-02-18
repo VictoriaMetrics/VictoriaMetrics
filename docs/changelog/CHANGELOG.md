@@ -20,6 +20,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
 
+* FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/victoriametrics/): allow disabling per-day indexes for workloads with [low or zero churn rates](https://docs.victoriametrics.com/#index-tuning-for-low-churn-rate) via `-disablePerDayIndex` cmd-line flag. This option works the best for IoT cases and significantly loads resource and disk usage. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6976).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): look back for recent data for longer time intervals when switching to Table or JSON view. The look back window depends on the `step` setting, which is now set as `end - start` (30m) by default. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8240).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): preserve user-defined `step` setting when changing the time interval of displayed query. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8240#issuecomment-2647674065).
 
@@ -31,7 +32,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 Released at 2025-02-10
 
-**Update note 1: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and  [vmstorage](https://docs.victoriametrics.com/victoriametrics/) stop exposing `vm_index_search_duration_seconds` histogram metric. This metric records time spent on search operations in the index. It was introduced in [v1.56.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.56.0). However, this metric was used neither in dashboards nor in alerting rules. It also has high cardinality because index search operations latency can differ by 3 orders of magnitude. Hence, dropping it as unused.**
+**Update note 1: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/victoriametrics/) stop exposing `vm_index_search_duration_seconds` histogram metric. This metric records time spent on search operations in the index. It was introduced in [v1.56.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.56.0). However, this metric was used neither in dashboards nor in alerting rules. It also has high cardinality because index search operations latency can differ by 3 orders of magnitude. Hence, dropping it as unused.**
 
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/): improve startup times when opening a storage with the [retention](https://docs.victoriametrics.com/#retention) exceeding a few months.
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to switch the heatmap to a line chart. Now, vmui would suggest to switch to line graph display if heatmap can't be properly rendered. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8057).
