@@ -19,6 +19,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 ## tip
 
 * SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.21.2 to 3.21.3. See [Alpine 3.21.3 release notes](https://alpinelinux.org/posts/Alpine-3.18.12-3.19.7-3.20.6-3.21.3-released.html).
 
 * FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/victoriametrics/): allow disabling per-day indexes for workloads with [low or zero churn rates](https://docs.victoriametrics.com/#index-tuning-for-low-churn-rate) via `-disablePerDayIndex` cmd-line flag. This option works the best for IoT cases and significantly loads resource and disk usage. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6976).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): look back for recent data for longer time intervals when switching to Table or JSON view. The look back window depends on the `step` setting, which is now set as `end - start` (30m) by default. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8240).
