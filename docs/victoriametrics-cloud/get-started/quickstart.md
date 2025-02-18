@@ -1,11 +1,12 @@
 ---
-weight: 2
+weight: 3
 title: Quick Start
 menu:
   docs:
-    parent: "cloud"
-    weight: 2
+    parent: "get-started"
+    weight: 3
 aliases:
+  - /victoriametrics-cloud/get-started/index.html
   - /victoriametrics-cloud/quickstart/index.html
   - /managed-victoriametrics/quickstart/index.html
 ---
@@ -14,12 +15,17 @@ that they know and love on AWS without the need to perform typical DevOps tasks 
 monitoring, logs collection, access protection, software updates, backups, etc.
 
 The document covers the following topics:
-1. [Registration](#registration)
-1. [Adding a payment method](#adding-a-payment-method)
-1. [Restoring a password](#restoring-a-password)
-1. [Creating deployments](#creating-deployments)
-1. [Start writing and reading data](#start-writing-and-reading-data)
-1. [Modifying an existing deployment](#modifying-an-existing-deployment)
+- [Registration](#registration)
+  - [Create an account via Google Auth service:](#create-an-account-via-google-auth-service)
+  - [Create an account by filling in a registration form:](#create-an-account-by-filling-in-a-registration-form)
+- [Adding a payment method](#adding-a-payment-method)
+  - [Pay with a card](#pay-with-a-card)
+  - [Link your AWS billing account via AWS Marketplace](#link-your-aws-billing-account-via-aws-marketplace)
+  - [Switching between payment methods](#switching-between-payment-methods)
+- [Password restoration](#password-restoration)
+- [Creating deployments](#creating-deployments)
+- [Start writing and reading data](#start-writing-and-reading-data)
+- [Modifying an existing deployment](#modifying-an-existing-deployment)
 
 ## Registration
 
