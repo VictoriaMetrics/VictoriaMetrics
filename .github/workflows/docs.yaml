@@ -5,6 +5,7 @@ on:
       - 'master'
     paths:
       - 'docs/**'
+      - '.github/workflows/docs.yaml'
   workflow_dispatch: {}
 permissions:
   contents: read  # This is required for actions/checkout and to commit back image update
@@ -48,7 +49,9 @@ jobs:
         run: |
           git config --global user.name "${{ steps.import-gpg.outputs.email }}"
           git config --global user.email "${{ steps.import-gpg.outputs.email }}"
-          git add .
-          git commit -S -m "sync docs with VictoriaMetrics/VictoriaMetrics commit: ${{ steps.update.outputs.SHORT_SHA }}"
-          git push
+          if [[ -n $(git status --porcelain) ]]; then
+            git add .
+            git commit -S -m "sync docs with VictoriaMetrics/VictoriaMetrics commit: ${{ steps.update.outputs.SHORT_SHA }}"
+            git push
+          fi
         working-directory: __vm-docs
