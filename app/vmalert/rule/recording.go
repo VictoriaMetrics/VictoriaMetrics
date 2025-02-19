@@ -10,6 +10,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -42,23 +43,30 @@ type RecordingRule struct {
 }
 
 type recordingRuleMetrics struct {
-	set *metrics.Set
-
-	errors  *metrics.Counter
-	samples *metrics.Gauge
+	errors  *utils.Counter
+	samples *utils.Gauge
 }
 
-func newRecordingRuleMetrics() *recordingRuleMetrics {
-	set := metrics.NewSet()
-	metrics.RegisterSet(set)
+func newRecordingRuleMetrics(set *metrics.Set, rr *RecordingRule) *recordingRuleMetrics {
+	rmr := &recordingRuleMetrics{}
 
-	return &recordingRuleMetrics{
-		set: set,
-	}
+	labels := fmt.Sprintf(`recording=%q, group=%q, file=%q, id="%d"`, rr.Name, rr.GroupName, rr.File, rr.ID())
+	rmr.errors = utils.GetOrCreateCounter(set, fmt.Sprintf(`vmalert_recording_rules_errors_total{%s}`, labels))
+	rmr.samples = utils.GetOrCreateGauge(set, fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
+		func() float64 {
+			e := rr.state.getLast()
+			return float64(e.Samples)
+		})
+
+	return rmr
 }
 
 func (m *recordingRuleMetrics) close() {
-	metrics.UnregisterSet(m.set, true)
+	if m == nil {
+		return
+	}
+	m.errors.Unregister()
+	m.samples.Unregister()
 }
 
 // String implements Stringer interface
@@ -83,7 +91,6 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		GroupID:   group.ID(),
 		GroupName: group.Name,
 		File:      group.File,
-		metrics:   newRecordingRuleMetrics(),
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:            group.Type.String(),
 			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
@@ -104,14 +111,11 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		entries: make([]StateEntry, entrySize),
 	}
 
-	labels := fmt.Sprintf(`recording=%q, group=%q, file=%q, id="%d"`, rr.Name, group.Name, group.File, rr.ID())
-	rr.metrics.errors = rr.metrics.set.GetOrCreateCounter(fmt.Sprintf(`vmalert_recording_rules_errors_total{%s}`, labels))
-	rr.metrics.samples = rr.metrics.set.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
-		func() float64 {
-			e := rr.state.getLast()
-			return float64(e.Samples)
-		})
 	return rr
+}
+
+func (rr *RecordingRule) start(g *Group) {
+	rr.metrics = newRecordingRuleMetrics(g.metrics.set, rr)
 }
 
 // close unregisters rule metrics

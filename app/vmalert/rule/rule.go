@@ -30,6 +30,9 @@ type Rule interface {
 	// close performs the shutdown procedures for rule
 	// such as metrics unregister
 	close()
+	// start performs the initialization procedures for rule
+	// such as metrics registration
+	start(g *Group)
 }
 
 var errDuplicate = errors.New("result contains metrics with the same labelset during evaluation. See https://docs.victoriametrics.com/vmalert/#series-with-the-same-labelset for details")

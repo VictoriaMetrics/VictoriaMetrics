@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -360,8 +362,7 @@ func TestRecordingRuleLimit_Success(t *testing.T) {
 }
 
 func getTestRecordingRuleMetrics() *recordingRuleMetrics {
-	m := newRecordingRuleMetrics()
-	m.errors = m.set.GetOrCreateCounter(`vmalert_recording_rules_errors_total{alertname="job:foo"}`)
+	m := newRecordingRuleMetrics(metrics.NewSet(), &RecordingRule{})
 	return m
 }
 

@@ -11,9 +11,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -1253,8 +1256,8 @@ func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
 }
 
 func getTestAlertingRuleMetrics(name string) *alertingRuleMetrics {
-	m := newAlertingRuleMetrics()
-	m.errors = m.set.GetOrCreateCounter(fmt.Sprintf(`vmalert_alerting_rules_errors_total{alertname=%q}`, name))
+	m := &alertingRuleMetrics{}
+	m.errors = utils.GetOrCreateCounter(metrics.GetDefaultSet(), fmt.Sprintf(`vmalert_alerting_rules_errors_total{alertname=%q}`, name))
 	return m
 }
 

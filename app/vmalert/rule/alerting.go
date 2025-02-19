@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/templates"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -51,26 +52,74 @@ type AlertingRule struct {
 }
 
 type alertingRuleMetrics struct {
-	set *metrics.Set
-
-	errors        *metrics.Counter
-	pending       *metrics.Gauge
-	active        *metrics.Gauge
-	samples       *metrics.Gauge
-	seriesFetched *metrics.Gauge
+	errors        *utils.Counter
+	pending       *utils.Gauge
+	active        *utils.Gauge
+	samples       *utils.Gauge
+	seriesFetched *utils.Gauge
 }
 
-func newAlertingRuleMetrics() *alertingRuleMetrics {
-	set := metrics.NewSet()
-	metrics.RegisterSet(set)
+func newAlertingRuleMetrics(set *metrics.Set, ar *AlertingRule) *alertingRuleMetrics {
+	labels := fmt.Sprintf(`alertname=%q, group=%q, file=%q, id="%d"`, ar.Name, ar.GroupName, ar.File, ar.ID())
+	arm := &alertingRuleMetrics{}
 
-	return &alertingRuleMetrics{
-		set: set,
-	}
+	arm.pending = utils.GetOrCreateGauge(set, fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
+		func() float64 {
+			ar.alertsMu.RLock()
+			defer ar.alertsMu.RUnlock()
+			var num int
+			for _, a := range ar.alerts {
+				if a.State == notifier.StatePending {
+					num++
+				}
+			}
+			return float64(num)
+		})
+	arm.active = utils.GetOrCreateGauge(set, fmt.Sprintf(`vmalert_alerts_firing{%s}`, labels),
+		func() float64 {
+			ar.alertsMu.RLock()
+			defer ar.alertsMu.RUnlock()
+			var num int
+			for _, a := range ar.alerts {
+				if a.State == notifier.StateFiring {
+					num++
+				}
+			}
+			return float64(num)
+		})
+	arm.errors = utils.GetOrCreateCounter(set, fmt.Sprintf(`vmalert_alerting_rules_errors_total{%s}`, labels))
+	arm.samples = utils.GetOrCreateGauge(set, fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_samples{%s}`, labels),
+		func() float64 {
+			e := ar.state.getLast()
+			return float64(e.Samples)
+		})
+	arm.seriesFetched = utils.GetOrCreateGauge(set, fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_series_fetched{%s}`, labels),
+		func() float64 {
+			e := ar.state.getLast()
+			if e.SeriesFetched == nil {
+				// means seriesFetched is unsupported
+				return -1
+			}
+			seriesFetched := float64(*e.SeriesFetched)
+			if seriesFetched == 0 && e.Samples > 0 {
+				// `alert: 0.95` will fetch no series
+				// but will get one time series in response.
+				seriesFetched = float64(e.Samples)
+			}
+			return seriesFetched
+		})
+	return arm
 }
 
 func (arm *alertingRuleMetrics) close() {
-	metrics.UnregisterSet(arm.set, true)
+	if arm == nil {
+		return
+	}
+	arm.errors.Unregister()
+	arm.active.Unregister()
+	arm.pending.Unregister()
+	arm.samples.Unregister()
+	arm.seriesFetched.Unregister()
 }
 
 // NewAlertingRule creates a new AlertingRule
@@ -97,8 +146,7 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			Headers:                   group.Headers,
 			Debug:                     cfg.Debug,
 		}),
-		alerts:  make(map[uint64]*notifier.Alert),
-		metrics: newAlertingRuleMetrics(),
+		alerts: make(map[uint64]*notifier.Alert),
 	}
 
 	entrySize := *ruleUpdateEntriesLimit
@@ -111,54 +159,11 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 	ar.state = &ruleState{
 		entries: make([]StateEntry, entrySize),
 	}
-
-	labels := fmt.Sprintf(`alertname=%q, group=%q, file=%q, id="%d"`, ar.Name, group.Name, group.File, ar.ID())
-	ar.metrics.pending = ar.metrics.set.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
-		func() float64 {
-			ar.alertsMu.RLock()
-			defer ar.alertsMu.RUnlock()
-			var num int
-			for _, a := range ar.alerts {
-				if a.State == notifier.StatePending {
-					num++
-				}
-			}
-			return float64(num)
-		})
-	ar.metrics.active = ar.metrics.set.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerts_firing{%s}`, labels),
-		func() float64 {
-			ar.alertsMu.RLock()
-			defer ar.alertsMu.RUnlock()
-			var num int
-			for _, a := range ar.alerts {
-				if a.State == notifier.StateFiring {
-					num++
-				}
-			}
-			return float64(num)
-		})
-	ar.metrics.errors = ar.metrics.set.GetOrCreateCounter(fmt.Sprintf(`vmalert_alerting_rules_errors_total{%s}`, labels))
-	ar.metrics.samples = ar.metrics.set.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_samples{%s}`, labels),
-		func() float64 {
-			e := ar.state.getLast()
-			return float64(e.Samples)
-		})
-	ar.metrics.seriesFetched = ar.metrics.set.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_series_fetched{%s}`, labels),
-		func() float64 {
-			e := ar.state.getLast()
-			if e.SeriesFetched == nil {
-				// means seriesFetched is unsupported
-				return -1
-			}
-			seriesFetched := float64(*e.SeriesFetched)
-			if seriesFetched == 0 && e.Samples > 0 {
-				// `alert: 0.95` will fetch no series
-				// but will get one time series in response.
-				seriesFetched = float64(e.Samples)
-			}
-			return seriesFetched
-		})
 	return ar
+}
+
+func (ar *AlertingRule) start(g *Group) {
+	ar.metrics = newAlertingRuleMetrics(g.metrics.set, ar)
 }
 
 // close unregisters rule metrics

@@ -42,6 +42,7 @@ func TestUpdateWith(t *testing.T) {
 		g := &Group{
 			Name: "test",
 		}
+		g.metrics = newGroupMetrics(g)
 		qb := &datasource.FakeQuerier{}
 		for _, r := range currentRules {
 			r.ID = config.HashRule(r)
@@ -186,7 +187,6 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 		Labels: map[string]string{
 			"foo": "bar",
 		},
-		metrics: newAlertingRuleMetrics(),
 	}
 	g := &Group{
 		Name: "test",
@@ -206,7 +206,6 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 		Labels: map[string]string{
 			"foo": "bar",
 		},
-		metrics: newAlertingRuleMetrics(),
 	}
 	g1 := &Group{
 		Rules: []Rule{
@@ -230,7 +229,6 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 			"foo": "bar",
 			"baz": "qux",
 		},
-		metrics: newAlertingRuleMetrics(),
 	}
 	g2 := &Group{
 		Rules: []Rule{

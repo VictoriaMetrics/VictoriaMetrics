@@ -13,6 +13,8 @@ import (
 
 	"github.com/cheggaaa/pb/v3"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -20,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -256,7 +257,6 @@ func (g *Group) updateWith(newGroup *Group) error {
 		if err := or.updateWith(nr); err != nil {
 			return err
 		}
-		nr.close()
 		delete(rulesRegistry, nr.ID())
 	}
 
@@ -270,6 +270,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	}
 	// add the rest of rules from registry
 	for _, nr := range rulesRegistry {
+		nr.start(g)
 		newRules = append(newRules, nr)
 	}
 	// note that g.Interval is not updated here
@@ -322,6 +323,9 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 	defer func() { close(g.finishedCh) }()
 
 	g.metrics.start()
+	for _, rule := range g.Rules {
+		rule.start(g)
+	}
 
 	evalTS := time.Now()
 	// sleep random duration to spread group rules evaluation
