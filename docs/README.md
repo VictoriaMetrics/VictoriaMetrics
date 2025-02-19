@@ -607,8 +607,9 @@ Or in case of [`http`](https://github.com/influxdata/telegraf/blob/master/plugin
 ```
 
 The size of the request sent to VictoriaMetrics's Influx HTTP endpoints is limited by `-influx.maxRequestSize` (default: 64Mb).
-For better ingestion speed and lower memory usage, VM can be switched to stream processing mode by setting `Stream-Mode: "1"`
-HTTP header with each request. Please note, in streaming mode VictoriaMetrics processes workload line-by-line (see `-influx.maxLineSize`),
+For better ingestion speed and lower memory usage, VM can be switched to stream processing mode by setting `Stream-Mode: 1`
+HTTP header with each request or by setting `-influx.forceStreamMode` command-line flag to enable stream processing for all requests.
+Please note, in streaming mode VictoriaMetrics processes workload line-by-line (see `-influx.maxLineSize`),
 it ignores invalid rows (only logs them) and ingests successfully parsed rows. If client cancels the ingestion request
 due to timeout or other reasons, it could happen that some lines from the workload were already parsed and ingested.
 
@@ -2968,6 +2969,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -influx.forceStreamMode bool
+     Force stream mode parsing for ingested data. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf.
   -influx.maxLineSize size
      The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
