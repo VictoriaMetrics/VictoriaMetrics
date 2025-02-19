@@ -596,6 +596,10 @@ func (q *Query) optimizeNoSubqueries() {
 }
 
 func (q *Query) visitSubqueries(visitFunc func(q *Query)) {
+	if q == nil {
+		return
+	}
+
 	// call f for the query itself.
 	visitFunc(q)
 
@@ -615,13 +619,9 @@ func visitSubqueriesInFilter(f filter, visitFunc func(q *Query)) {
 	callback := func(f filter) bool {
 		switch t := f.(type) {
 		case *filterIn:
-			if t.q != nil {
-				t.q.visitSubqueries(visitFunc)
-			}
+			t.q.visitSubqueries(visitFunc)
 		case *filterStreamID:
-			if t.q != nil {
-				t.q.visitSubqueries(visitFunc)
-			}
+			t.q.visitSubqueries(visitFunc)
 		}
 		return false
 	}
@@ -1798,10 +1798,9 @@ func parseFilterIn(lex *lexer, fieldName string) (filter, error) {
 	}
 
 	fi = &filterIn{
-		fieldName:        fieldName,
-		needExecuteQuery: true,
-		q:                q,
-		qFieldName:       qFieldName,
+		fieldName:  fieldName,
+		q:          q,
+		qFieldName: qFieldName,
 	}
 	return fi, nil
 }
@@ -2633,9 +2632,8 @@ func parseFilterStreamIDIn(lex *lexer) (filter, error) {
 	}
 
 	fs = &filterStreamID{
-		needExecuteQuery: true,
-		q:                q,
-		qFieldName:       qFieldName,
+		q:          q,
+		qFieldName: qFieldName,
 	}
 	return fs, nil
 }

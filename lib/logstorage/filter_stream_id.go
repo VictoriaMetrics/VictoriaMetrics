@@ -11,9 +11,6 @@ import (
 type filterStreamID struct {
 	streamIDs []streamID
 
-	// needeExecuteQuery is set to true if q must be executed for populating streamIDs before filter execution.
-	needExecuteQuery bool
-
 	// If q is non-nil, then streamIDs must be populated from q before filter execution.
 	q *Query
 
