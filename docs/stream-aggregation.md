@@ -284,33 +284,34 @@ See also [quantiles over input metrics](#quantiles-over-input-metrics) and [aggr
 ## Aggregating histograms
 
 [Histogram](https://docs.victoriametrics.com/keyconcepts/#histogram) is a set of [counter](https://docs.victoriametrics.com/keyconcepts/#counter)
-metrics with different `vmrange` or `le` labels. As they're counters, the applicable aggregation output is
-[total](https://docs.victoriametrics.com/stream-aggregation/#total):
+metrics with different `vmrange` or `le` labels. Since typical usage of histograms is to calculate quantiles over the
+buckets change via [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile) function the
+appropriate aggregation output for this is [total](https://docs.victoriametrics.com/stream-aggregation/#rate_sum):
 
 ```yaml
 - match: 'http_request_duration_seconds_bucket'
-  interval: 1m
+  interval: 5m
   without: [instance]
   enable_windows: true
-  outputs: [total]
+  outputs: [rate_sum]
 ```
 
 This config generates the following output metrics according to [output metric naming](#output-metric-names):
 
 ```text
-http_request_duration_seconds_bucket:1m_without_instance_total{le="0.1"}  value1
-http_request_duration_seconds_bucket:1m_without_instance_total{le="0.2"}  value2
-http_request_duration_seconds_bucket:1m_without_instance_total{le="0.4"}  value3
-http_request_duration_seconds_bucket:1m_without_instance_total{le="1"}    value4
-http_request_duration_seconds_bucket:1m_without_instance_total{le="3"}    value5
-http_request_duration_seconds_bucket:1m_without_instance_total{le="+Inf"} value6
+http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="0.1"}  value1
+http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="0.2"}  value2
+http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="0.4"}  value3
+http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="1"}    value4
+http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="3"}    value5
+http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="+Inf"} value6
 ```
 
 The resulting metrics can be passed to [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile)
 function:
 
 ```metricsql
-histogram_quantile(0.9, sum(rate(http_request_duration_seconds_bucket:1m_without_instance_total[5m])) by(le))
+histogram_quantile(0.9, sum(http_request_duration_seconds_bucket:5m_without_instance_rate_sum) by(le))
 ```
 
 Please note, histograms can be aggregated if their `le` labels are configured identically.
