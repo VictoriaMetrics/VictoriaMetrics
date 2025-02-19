@@ -1872,6 +1872,9 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	metricIDs, ok := db.getMetricIDsFromTagFiltersCache(qtChild, tfKeyBuf.B)
 	if ok {
 		// Fast path - metricIDs found in the cache
+		if len(metricIDs) > maxMetrics {
+			return nil, errTooManyTimeseries(maxMetrics)
+		}
 		qtChild.Done()
 		return metricIDs, nil
 	}
