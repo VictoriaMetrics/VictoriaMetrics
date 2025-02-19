@@ -93,12 +93,11 @@ securityContext:
 
 podSecurityContext:
   enabled: true
-  fsGroup: 1000660000
   runAsNonRoot: true
-  runAsUser: 1000660000
 ```
 Save the configuration to `vl.yaml`.
 
+> Note, that depending on the OpenShift cluster configuration, additional security settings might be required.
 
 Create namespace for VictoriaLogs:
 ```bash
