@@ -41,8 +41,8 @@ func getBufferSize() int {
 		if n < 4*1024 {
 			n = 4 * 1024
 		}
-		if n > 512*1024 {
-			n = 512 * 1024
+		if n > 256*1024 {
+			n = 256 * 1024
 		}
 		bufferSize = n
 	})
