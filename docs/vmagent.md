@@ -2270,6 +2270,10 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      An optional list of labels to drop from samples before stream de-duplication and aggregation with -remoteWrite.streamAggr.config and -remoteWrite.streamAggr.dedupInterval at the corresponding -remoteWrite.url. Multiple labels per remoteWrite.url must be delimited by '^^': -remoteWrite.streamAggr.dropInputLabels='replica^^az,replica'. See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -remoteWrite.streamAggr.enableWindows array
+     Enables aggregation within fixed windows for all remote write's aggregators. This allows to get more precise results, but impacts resource usage as it requires twice more memory to store two states. See https://docs.victoriametrics.com/stream-aggregation/#aggregation-windows.
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to false
   -remoteWrite.streamAggr.ignoreFirstIntervals array
      Number of aggregation intervals to skip after the start for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. Increase this value if you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving buffered delayed data from clients pushing data into the vmagent. See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start
   -remoteWrite.streamAggr.ignoreOldSamples array
@@ -2329,6 +2333,8 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
     An optional list of labels to drop from samples for aggregator before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels
     Supports an array of values separated by comma or specified via multiple flags.
     Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -streamAggr.enableWindows
+     Enables aggregation within fixed windows for all global aggregators. This allows to get more precise results, but impacts resource usage as it requires twice more memory to store two states. See https://docs.victoriametrics.com/stream-aggregation/#aggregation-windows.
   -streamAggr.ignoreFirstIntervals int
     Number of aggregation intervals to skip after the start for aggregator. Increase this value if you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving unordered delayed data from clients pushing data into the vmagent. See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start
   -streamAggr.ignoreOldSamples
