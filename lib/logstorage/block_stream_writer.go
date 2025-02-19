@@ -54,9 +54,9 @@ type streamWriters struct {
 
 	messageBloomValuesWriter bloomValuesWriter
 
+	bloomValuesShards       []bloomValuesWriter
 	createBloomValuesWriter func(shardIdx uint64) bloomValuesStreamWriter
 	maxShards               uint64
-	bloomValuesShards       []bloomValuesWriter
 
 	// columnNameIDGenerator is used for generating columnName->id mapping for all the columns seen in bsw
 	columnNameIDGenerator columnNameIDGenerator
@@ -107,10 +107,10 @@ func (sw *streamWriters) reset() {
 	for i := range sw.bloomValuesShards {
 		sw.bloomValuesShards[i].reset()
 	}
+	sw.bloomValuesShards = sw.bloomValuesShards[:0]
 
 	sw.createBloomValuesWriter = nil
 	sw.maxShards = 0
-	sw.bloomValuesShards = sw.bloomValuesShards[:0]
 
 	sw.columnNameIDGenerator.reset()
 	sw.columnIdxs = nil
