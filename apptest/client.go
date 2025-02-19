@@ -159,3 +159,11 @@ func (app *ServesMetrics) GetMetricsByPrefix(t *testing.T, prefix string) []floa
 	}
 	return values
 }
+
+func getExpectedResponse(opts, def int) int {
+	if opts == 0 {
+		return def
+	}
+
+	return opts
+}

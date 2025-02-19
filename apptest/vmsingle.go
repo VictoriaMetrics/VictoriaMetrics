@@ -9,8 +9,9 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/golang/snappy"
+
+	pb "github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 // Vmsingle holds the state of a vmsingle app and provides vmsingle-specific
@@ -31,10 +32,12 @@ type Vmsingle struct {
 	prometheusAPIV1WriteURL            string
 
 	// vmselect URLs.
-	prometheusAPIV1ExportURL     string
-	prometheusAPIV1QueryURL      string
-	prometheusAPIV1QueryRangeURL string
-	prometheusAPIV1SeriesURL     string
+	prometheusAPIV1ExportURL      string
+	prometheusAPIV1QueryURL       string
+	prometheusAPIV1QueryRangeURL  string
+	prometheusAPIV1SeriesURL      string
+	prometheusAPIV1LabelsURL      string
+	prometheusAPIV1LabelValuesURL string
 }
 
 // StartVmsingle starts an instance of vmsingle with the given flags. It also
@@ -72,6 +75,8 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 		prometheusAPIV1QueryURL:            fmt.Sprintf("http://%s/prometheus/api/v1/query", stderrExtracts[1]),
 		prometheusAPIV1QueryRangeURL:       fmt.Sprintf("http://%s/prometheus/api/v1/query_range", stderrExtracts[1]),
 		prometheusAPIV1SeriesURL:           fmt.Sprintf("http://%s/prometheus/api/v1/series", stderrExtracts[1]),
+		prometheusAPIV1LabelsURL:           fmt.Sprintf("http://%s/prometheus/api/v1/labels", stderrExtracts[1]),
+		prometheusAPIV1LabelValuesURL:      fmt.Sprintf("http://%s/prometheus/api/v1/label/{}/values", stderrExtracts[1]),
 	}, nil
 }
 
@@ -98,12 +103,12 @@ func (app *Vmsingle) InfluxWrite(t *testing.T, records []string, _ QueryOpts) {
 // PrometheusAPIV1Write is a test helper function that inserts a
 // collection of records in Prometheus remote-write format by sending a HTTP
 // POST request to /prometheus/api/v1/write vmsingle endpoint.
-func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, _ QueryOpts) {
+func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries, opts QueryOpts) {
 	t.Helper()
 
 	wr := pb.WriteRequest{Timeseries: records}
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
-	app.cli.Post(t, app.prometheusAPIV1WriteURL, "application/x-protobuf", data, http.StatusNoContent)
+	app.cli.Post(t, app.prometheusAPIV1WriteURL, "application/x-protobuf", data, getExpectedResponse(opts.ExpectedResponseCode, http.StatusNoContent))
 }
 
 // PrometheusAPIV1ImportPrometheus is a test helper function that inserts a
@@ -111,11 +116,11 @@ func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries,
 // POST request to /prometheus/api/v1/import/prometheus vmsingle endpoint.
 //
 // See https://docs.victoriametrics.com/url-examples/#apiv1importprometheus
-func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, _ QueryOpts) {
+func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []string, opts QueryOpts) {
 	t.Helper()
 
 	data := []byte(strings.Join(records, "\n"))
-	app.cli.Post(t, app.prometheusAPIV1ImportPrometheusURL, "text/plain", data, http.StatusNoContent)
+	app.cli.Post(t, app.prometheusAPIV1ImportPrometheusURL, "text/plain", data, getExpectedResponse(opts.ExpectedResponseCode, http.StatusNoContent))
 }
 
 // PrometheusAPIV1Export is a test helper function that performs the export of
@@ -129,7 +134,7 @@ func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
 
-	res := app.cli.PostForm(t, app.prometheusAPIV1ExportURL, values, http.StatusOK)
+	res := app.cli.PostForm(t, app.prometheusAPIV1ExportURL, values, getExpectedResponse(opts.ExpectedResponseCode, http.StatusOK))
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -143,7 +148,7 @@ func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query string, opts Query
 
 	values := opts.asURLValues()
 	values.Add("query", query)
-	res := app.cli.PostForm(t, app.prometheusAPIV1QueryURL, values, http.StatusOK)
+	res := app.cli.PostForm(t, app.prometheusAPIV1QueryURL, values, getExpectedResponse(opts.ExpectedResponseCode, http.StatusOK))
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -158,8 +163,33 @@ func (app *Vmsingle) PrometheusAPIV1QueryRange(t *testing.T, query string, opts 
 	values := opts.asURLValues()
 	values.Add("query", query)
 
-	res := app.cli.PostForm(t, app.prometheusAPIV1QueryRangeURL, values, http.StatusOK)
+	res := app.cli.PostForm(t, app.prometheusAPIV1QueryRangeURL, values, getExpectedResponse(opts.ExpectedResponseCode, http.StatusOK))
 	return NewPrometheusAPIV1QueryResponse(t, res)
+}
+
+// PrometheusAPIV1Labels sends a query to a /prometheus/api/v1/labels endpoint
+// and returns the list of label names.
+//
+// See https://docs.victoriametrics.com/url-examples/#apiv1labels
+func (app *Vmsingle) PrometheusAPIV1Labels(t *testing.T, opts QueryOpts) *PrometheusAPIV1LabelsResponse {
+	t.Helper()
+
+	values := opts.asURLValues()
+	res := app.cli.PostForm(t, app.prometheusAPIV1LabelsURL, values, getExpectedResponse(opts.ExpectedResponseCode, http.StatusOK))
+	return NewPrometheusAPIV1LabelsResponse(t, res)
+}
+
+// PrometheusAPIV1LabelValues sends a query to a /prometheus/api/v1/label/{label}/values endpoint
+// and returns the list of label values for the specified label name.
+//
+// See https://docs.victoriametrics.com/url-examples/#apiv1labellabelvalues
+func (app *Vmsingle) PrometheusAPIV1LabelValues(t *testing.T, labelName string, opts QueryOpts) *PrometheusAPIV1LabelValuesResponse {
+	t.Helper()
+
+	values := opts.asURLValues()
+	url := strings.Replace(app.prometheusAPIV1LabelValuesURL, "{}", labelName, 1)
+	res := app.cli.PostForm(t, url, values, getExpectedResponse(opts.ExpectedResponseCode, http.StatusOK))
+	return NewPrometheusAPIV1LabelValuesResponse(t, res)
 }
 
 // PrometheusAPIV1Series sends a query to a /prometheus/api/v1/series endpoint
@@ -172,7 +202,7 @@ func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
-	res := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values, http.StatusOK)
+	res := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values, getExpectedResponse(opts.ExpectedResponseCode, http.StatusOK))
 	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
