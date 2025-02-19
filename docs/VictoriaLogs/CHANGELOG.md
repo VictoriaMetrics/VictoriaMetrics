@@ -16,6 +16,11 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+**Update note: this release changes data storage format in backwards-incompatible way, so it is impossible to downgrade to the previous releases after upgrading to this release.
+It is safe upgrading to this release from older releases.**
+
+* FEATURE: improve per-field data locality on disk. This reduces overhead related to reading data from unrelated fields during queries. This improves query performance over structured logs with big number of fields (aka [wide events](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/)) when only a small portion of fields are used in the query.
+
 ## [v1.10.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.10.1-victorialogs)
 
 Released at 2025-02-14
