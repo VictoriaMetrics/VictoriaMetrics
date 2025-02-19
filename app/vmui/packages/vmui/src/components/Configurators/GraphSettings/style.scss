@@ -5,27 +5,46 @@
   align-items: center;
   gap: $padding-small;
 
-  &-popper {
+  &-modal {
+    .vm-modal-content-body {
+      padding: 0;
+    }
+
+    .vm-modal-content-header {
+      margin-bottom: 0;
+    }
+  }
+
+  &-body {
     display: grid;
-    gap: $padding-global;
-    padding: $padding-small $padding-large $padding-large;
     min-width: 300px;
 
-    &__body {
-      display: grid;
-      gap: $padding-large;
+    &-section {
+      border-bottom: $border-divider;
+
+      &:last-child {
+        border-bottom: none;
+        padding-bottom: $padding-large;
+      }
+
+      &__title {
+        padding: $padding-global;
+        font-weight: bold;
+        background: $color-hover-black;
+      }
+
+      &-content {
+        display: grid;
+        gap: $padding-large;
+        padding: $padding-large;
+      }
     }
   }
 
   &-row {
     display: grid;
-    gap: $padding-small;
-    grid-template-columns: minmax(150px, max-content) 1fr;
-
-    &__label {
-      &:after{
-        content: ":";
-      }
-    }
+    align-items: center;
+    justify-content: stretch;
+    grid-template-columns: 1fr 100px;
   }
 }
