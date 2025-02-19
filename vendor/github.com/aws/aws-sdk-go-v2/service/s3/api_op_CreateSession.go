@@ -50,7 +50,7 @@ import (
 //     https://bucket-name.s3express-zone-id.region-code.amazonaws.com . Path-style
 //     requests are not supported. For more information about endpoints in Availability
 //     Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information about endpoints
-//     in Local Zones, see [Available Local Zone for directory buckets]in the Amazon S3 User Guide.
+//     in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
 //
 //   - CopyObject API operation - Unlike other Zonal endpoint API operations, the
 //     CopyObject API operation doesn't use the temporary security credentials
@@ -124,13 +124,13 @@ import (
 // Bucket-name.s3express-zone-id.region-code.amazonaws.com .
 //
 // [Specifying server-side encryption with KMS for new object uploads]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-specifying-kms-encryption.html
+// [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [Performance guidelines and design patterns]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-optimizing-performance-guidelines-design-patterns.html#s3-express-optimizing-performance-session-authentication
 // [CopyObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html
 // [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 // [S3 Express One Zone APIs]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-APIs.html
 // [HeadBucket]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadBucket.html
 // [UploadPartCopy]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html
-// [Available Local Zone for directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [Amazon Web Services managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#aws-managed-cmk
 // [Amazon Web Services Identity and Access Management (IAM) identity-based policies for S3 Express One Zone]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam-identity-policies.html
 // [Example bucket policies for S3 Express One Zone]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam-example-bucket-policies.html
@@ -138,7 +138,7 @@ import (
 // [Protecting data with server-side encryption]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-serv-side-encryption.html
 // [x-amz-create-session-mode]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html#API_CreateSession_RequestParameters
 // [Zonal endpoint (object-level) API operations]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-differences.html#s3-express-differences-api-operations
-// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
 func (c *Client) CreateSession(ctx context.Context, params *CreateSessionInput, optFns ...func(*Options)) (*CreateSessionOutput, error) {
 	if params == nil {
 		params = &CreateSessionInput{}
@@ -203,8 +203,8 @@ type CreateSessionInput struct {
 	// in the same account that't issuing the command, you must use the full Key ARN
 	// not the Key ID.
 	//
-	// Your SSE-KMS configuration can only support 1 [customer managed key] per directory bucket for the
-	// lifetime of the bucket. The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
+	// Your SSE-KMS configuration can only support 1 [customer managed key] per directory bucket's lifetime.
+	// The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
 	//
 	// [customer managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk
 	// [Amazon Web Services managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#aws-managed-cmk
@@ -219,7 +219,7 @@ type CreateSessionInput struct {
 	// Amazon S3 encrypts data with SSE-S3. For more information, see [Protecting data with server-side encryption]in the Amazon S3
 	// User Guide.
 	//
-	// [Protecting data with server-side encryption]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-serv-side-encryption.html
+	// [Protecting data with server-side encryption]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/serv-side-encryption.html
 	ServerSideEncryption types.ServerSideEncryption
 
 	// Specifies the mode of the session that will be created, either ReadWrite or

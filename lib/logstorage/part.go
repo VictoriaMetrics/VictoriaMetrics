@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type part struct {
@@ -30,6 +31,9 @@ type part struct {
 	// columnNames is a mapping from internal IDs to column names.
 	// The internal IDs are used in columnHeaderRef.
 	columnNames []string
+
+	// columnIdxs is a mapping from column name to the corresponding item at bloomValuesShards
+	columnIdxs map[string]uint64
 
 	// indexBlockHeaders contains a list of indexBlockHeader entries for the given part.
 	indexBlockHeaders []indexBlockHeader
@@ -64,12 +68,19 @@ func mustOpenInmemoryPart(pt *partition, mp *inmemoryPart) *part {
 	// Read columnNames
 	columnNamesReader := mp.columnNames.NewReader()
 	p.columnNames, p.columnNameIDs = mustReadColumnNames(columnNamesReader)
+	columnNamesReader.MustClose()
+
+	// Read columnIdxs
+	columnIdxsReader := mp.columnIdxs.NewReader()
+	p.columnIdxs = mustReadColumnIdxs(columnIdxsReader, p.columnNames, p.ph.BloomValuesShardsCount)
+	columnIdxsReader.MustClose()
 
 	// Read metaindex
 	metaindexReader := mp.metaindex.NewReader()
 	var mrs readerWithStats
 	mrs.init(metaindexReader)
 	p.indexBlockHeaders = mustReadIndexBlockHeaders(p.indexBlockHeaders[:0], &mrs)
+	metaindexReader.MustClose()
 
 	// Open data files
 	p.indexFile = &mp.index
@@ -98,6 +109,7 @@ func mustOpenFilePart(pt *partition, path string) *part {
 	p.ph.mustReadMetadata(path)
 
 	columnNamesPath := filepath.Join(path, columnNamesFilename)
+	columnIdxsPath := filepath.Join(path, columnIdxsFilename)
 	metaindexPath := filepath.Join(path, metaindexFilename)
 	indexPath := filepath.Join(path, indexFilename)
 	columnsHeaderIndexPath := filepath.Join(path, columnsHeaderIndexFilename)
@@ -109,6 +121,11 @@ func mustOpenFilePart(pt *partition, path string) *part {
 		columnNamesReader := filestream.MustOpen(columnNamesPath, true)
 		p.columnNames, p.columnNameIDs = mustReadColumnNames(columnNamesReader)
 		columnNamesReader.MustClose()
+	}
+	if p.ph.FormatVersion >= 3 {
+		columnIdxsReader := filestream.MustOpen(columnIdxsPath, true)
+		p.columnIdxs = mustReadColumnIdxs(columnIdxsReader, p.columnNames, p.ph.BloomValuesShardsCount)
+		columnIdxsReader.MustClose()
 	}
 
 	// Read metaindex
@@ -183,20 +200,27 @@ func (p *part) getBloomValuesFileForColumnName(name string) *bloomValuesReaderAt
 	if p.ph.FormatVersion < 1 {
 		return &p.oldBloomValues
 	}
-
-	n := len(p.bloomValuesShards)
-	idx := uint64(0)
-	if n > 1 {
-		h := xxhash.Sum64(bytesutil.ToUnsafeBytes(name))
-		idx = h % uint64(n)
+	if p.ph.FormatVersion < 3 {
+		n := len(p.bloomValuesShards)
+		shardIdx := uint64(0)
+		if n > 1 {
+			h := xxhash.Sum64(bytesutil.ToUnsafeBytes(name))
+			shardIdx = h % uint64(n)
+		}
+		return &p.bloomValuesShards[shardIdx]
 	}
-	return &p.bloomValuesShards[idx]
+
+	shardIdx, ok := p.columnIdxs[name]
+	if !ok {
+		logger.Panicf("BUG: unknown shard index for column %q; columnIdxs=%v", name, p.columnIdxs)
+	}
+	return &p.bloomValuesShards[shardIdx]
 }
 
-func getBloomFilePath(partPath string, shardNum uint64) string {
-	return filepath.Join(partPath, bloomFilename) + fmt.Sprintf("%d", shardNum)
+func getBloomFilePath(partPath string, shardIdx uint64) string {
+	return filepath.Join(partPath, bloomFilename) + fmt.Sprintf("%d", shardIdx)
 }
 
-func getValuesFilePath(partPath string, shardNum uint64) string {
-	return filepath.Join(partPath, valuesFilename) + fmt.Sprintf("%d", shardNum)
+func getValuesFilePath(partPath string, shardIdx uint64) string {
+	return filepath.Join(partPath, valuesFilename) + fmt.Sprintf("%d", shardIdx)
 }

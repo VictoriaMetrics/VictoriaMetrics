@@ -19,9 +19,9 @@
     &__log-info {
       flex-grow: 1;
       text-align: right;
-      padding-right: $padding-global;
+      padding-right: $padding-large;
       color: $color-text-secondary;
-
+      font-size: $font-size-small;
     }
   }
 

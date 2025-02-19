@@ -5,7 +5,7 @@ menu:
   docs:
     parent: 'victoriametrics'
     identifier: 'data-ingestion'
-    weight: 7
+    weight: 26
 aliases:
 - /data-ingestion.html
 - /data-ingestion.html

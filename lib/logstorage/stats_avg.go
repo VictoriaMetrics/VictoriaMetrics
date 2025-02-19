@@ -76,7 +76,7 @@ func (sap *statsAvgProcessor) updateStatsForRow(sf statsFunc, br *blockResult, r
 	return 0
 }
 
-func (sap *statsAvgProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (sap *statsAvgProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsAvgProcessor)
 	sap.sum += src.sum
 	sap.count += src.count

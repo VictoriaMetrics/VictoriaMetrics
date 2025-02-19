@@ -11,27 +11,6 @@ aliases:
   - /victorialogs/data-ingestion/fluentbit.html
   - /victorialogs/data-ingestion/Fluentbit.html
 ---
-VictoriaLogs supports given below Fluentbit outputs:
-- [Loki](#loki)
-- [HTTP JSON](#http)
-
-## Loki
-
-Specify [loki output](https://docs.fluentbit.io/manual/pipeline/outputs/loki) section in the `fluentbit.conf`
-for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
-
-```conf
-[OUTPUT]
-    name       loki
-    match      *
-    host       victorialogs
-    uri        /insert/loki/api/v1/push
-    port       9428
-    label_keys $path,$log,$time
-    header     VL-Msg-Field log
-    header     VL-Time-Field time
-    header     VL-Stream-Fields path
-```
 
 ## HTTP
 

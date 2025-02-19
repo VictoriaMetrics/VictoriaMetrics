@@ -199,37 +199,44 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields, streamFie
 }
 
 func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field, streamTagsCanonical []byte) {
-	streamTagsCanonicalCopy := lr.a.copyBytes(streamTagsCanonical)
-	lr.streamTagsCanonicals = append(lr.streamTagsCanonicals, streamTagsCanonicalCopy)
+	stcs := lr.streamTagsCanonicals
+	if len(stcs) > 0 && string(stcs[len(stcs)-1]) == string(streamTagsCanonical) {
+		stcs = append(stcs, stcs[len(stcs)-1])
+	} else {
+		streamTagsCanonicalCopy := lr.a.copyBytes(streamTagsCanonical)
+		stcs = append(stcs, streamTagsCanonicalCopy)
+	}
+	lr.streamTagsCanonicals = stcs
 
 	lr.streamIDs = append(lr.streamIDs, sid)
 	lr.timestamps = append(lr.timestamps, timestamp)
 
 	fieldsLen := len(lr.fieldsBuf)
-	hasMsgField := lr.addFieldsInternal(fields, lr.ignoreFields)
-	if lr.addFieldsInternal(lr.extraFields, nil) {
+	hasMsgField := lr.addFieldsInternal(fields, lr.ignoreFields, true)
+	if lr.addFieldsInternal(lr.extraFields, nil, false) {
 		hasMsgField = true
 	}
 
 	// Add optional default _msg field
 	if !hasMsgField && lr.defaultMsgValue != "" {
-		value := lr.a.copyString(lr.defaultMsgValue)
 		lr.fieldsBuf = append(lr.fieldsBuf, Field{
-			Value: value,
+			Value: lr.defaultMsgValue,
 		})
 	}
 
-	// Sort fields by name
-	lr.sf = lr.fieldsBuf[fieldsLen:]
-	sort.Sort(&lr.sf)
-
-	// Add log row with sorted fields to lr.rows
-	lr.rows = append(lr.rows, lr.sf)
+	// Add log row fields to lr.rows
+	row := lr.fieldsBuf[fieldsLen:]
+	lr.rows = append(lr.rows, row)
 }
 
-func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields map[string]struct{}) bool {
+func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields map[string]struct{}, mustCopyFields bool) bool {
 	if len(fields) == 0 {
 		return false
+	}
+
+	var prevRow []Field
+	if len(lr.rows) > 0 {
+		prevRow = lr.rows[len(lr.rows)-1]
 	}
 
 	fb := lr.fieldsBuf
@@ -245,6 +252,11 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields map[string]str
 			continue
 		}
 
+		var prevField *Field
+		if prevRow != nil && i < len(prevRow) {
+			prevField = &prevRow[i]
+		}
+
 		fb = append(fb, Field{})
 		dstField := &fb[len(fb)-1]
 
@@ -253,12 +265,37 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields map[string]str
 			fieldName = ""
 			hasMsgField = true
 		}
-		dstField.Name = lr.a.copyString(fieldName)
-		dstField.Value = lr.a.copyString(f.Value)
+
+		if prevField != nil && prevField.Name == fieldName {
+			dstField.Name = prevField.Name
+		} else {
+			if mustCopyFields {
+				dstField.Name = lr.a.copyString(fieldName)
+			} else {
+				dstField.Name = fieldName
+			}
+			prevRow = nil
+		}
+		if prevField != nil && prevField.Value == f.Value {
+			dstField.Value = prevField.Value
+		} else {
+			if mustCopyFields {
+				dstField.Value = lr.a.copyString(f.Value)
+			} else {
+				dstField.Value = f.Value
+			}
+		}
 	}
 	lr.fieldsBuf = fb
 
 	return hasMsgField
+}
+
+func (lr *LogRows) sortFieldsInRows() {
+	for _, row := range lr.rows {
+		lr.sf = row
+		sort.Sort(&lr.sf)
+	}
 }
 
 // GetRowString returns string representation of the row with the given idx.

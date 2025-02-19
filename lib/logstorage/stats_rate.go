@@ -36,7 +36,7 @@ func (srp *statsRateProcessor) updateStatsForRow(_ statsFunc, _ *blockResult, _ 
 	return 0
 }
 
-func (srp *statsRateProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (srp *statsRateProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsRateProcessor)
 	srp.rowsCount += src.rowsCount
 }

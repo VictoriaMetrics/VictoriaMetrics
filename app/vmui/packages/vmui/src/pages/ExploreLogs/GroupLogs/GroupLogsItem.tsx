@@ -1,4 +1,4 @@
-import React, { FC, memo, useMemo } from "preact/compat";
+import React, { FC, memo, useMemo, useState } from "preact/compat";
 import { Logs } from "../../../api/types";
 import "./style.scss";
 import useBoolean from "../../../hooks/useBoolean";
@@ -11,6 +11,8 @@ import GroupLogsFieldRow from "./GroupLogsFieldRow";
 import { marked } from "marked";
 import { useSearchParams } from "react-router-dom";
 import { LOGS_DATE_FORMAT, LOGS_URL_PARAMS } from "../../../constants/logs";
+import useEventListener from "../../../hooks/useEventListener";
+import { getFromStorage } from "../../../utils/storage";
 
 interface Props {
   log: Logs;
@@ -61,12 +63,25 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"] }) => {
     return JSON.stringify(dataObject);
   }, [log, fields, hasFields, displayFields]);
 
+  const [disabledHovers, setDisabledHovers] = useState(!!getFromStorage("LOGS_DISABLED_HOVERS"));
+
+  const handleUpdateStage = () => {
+    const newValDisabledHovers = !!getFromStorage("LOGS_DISABLED_HOVERS");
+    if (newValDisabledHovers !== disabledHovers) {
+      setDisabledHovers(newValDisabledHovers);
+    }
+  };
+
+  useEventListener("storage", handleUpdateStage);
+
   return (
     <div className="vm-group-logs-row">
       <div
-        className="vm-group-logs-row-content"
+        className={classNames({
+          "vm-group-logs-row-content": true,
+          "vm-group-logs-row-content_interactive": !disabledHovers,
+        })}
         onClick={toggleOpenFields}
-        key={`${log._msg}${log._time}`}
       >
         {hasFields && (
           <div
@@ -99,7 +114,12 @@ const GroupLogsItem: FC<Props> = ({ log, displayFields = ["_msg"] }) => {
         </div>
       </div>
       {hasFields && isOpenFields && (
-        <div className="vm-group-logs-row-fields">
+        <div
+          className={classNames({
+            "vm-group-logs-row-fields": true,
+            "vm-group-logs-row-fields_interactive": !disabledHovers
+          })}
+        >
           <table>
             <tbody>
               {fields.map(([key, value]) => (

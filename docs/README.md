@@ -607,8 +607,9 @@ Or in case of [`http`](https://github.com/influxdata/telegraf/blob/master/plugin
 ```
 
 The size of the request sent to VictoriaMetrics's Influx HTTP endpoints is limited by `-influx.maxRequestSize` (default: 64Mb).
-For better ingestion speed and lower memory usage, VM can be switched to stream processing mode by setting `Stream-Mode: "1"`
-HTTP header with each request. Please note, in streaming mode VictoriaMetrics processes workload line-by-line (see `-influx.maxLineSize`),
+For better ingestion speed and lower memory usage, VM can be switched to stream processing mode by setting `Stream-Mode: 1`
+HTTP header with each request or by setting `-influx.forceStreamMode` command-line flag to enable stream processing for all requests.
+Please note, in streaming mode VictoriaMetrics processes workload line-by-line (see `-influx.maxLineSize`),
 it ignores invalid rows (only logs them) and ingests successfully parsed rows. If client cancels the ingestion request
 due to timeout or other reasons, it could happen that some lines from the workload were already parsed and ingested.
 
@@ -2005,6 +2006,8 @@ IndexDB respects [retention period](#retention) and once it is over, the indexes
 are dropped. For the new retention period, the indexes are gradually populated
 again as the new samples arrive.
 
+Also see how IndexDB can be [tuned](#index-tuning).
+
 ## Retention
 
 Retention is configured with the `-retentionPeriod` command-line flag, which takes a number followed by a time unit 
@@ -2592,6 +2595,42 @@ and vmstorage has enough free memory to accommodate new cache sizes.
 To override the default values see command-line flags with `-storage.cacheSize` prefix.
 See the full description of flags [here](#list-of-command-line-flags).
 
+## Index tuning for low churn rate
+
+By default, VictoriaMetrics uses the following indexes for data retrieval: `global` and `per-day`.
+Both store the same data and on query time VictoriaMetrics can choose between indexes for optimal performance. 
+See [IndexDB](#indexdb) for details.
+
+If your use case involves [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
+with [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
+then this default setting should be ideal for you.
+
+A prominent example is Kubernetes. Services in k8s expose big number of series with short lifetime, significantly 
+increasing churn rate. The per-day index speeds up data retrieval in this case.
+
+But if your use case assumes low or no churn rate, then you might benefit from disabling the per-day index by setting 
+the flag `-disablePerDayIndex`{{% available_from "#tip" %}}. This will improve the time series ingestion speed and decrease disk space usage,
+since no time or disk space is spent maintaining the per-day index.
+
+Example use cases:
+
+* Historical weather data, such as [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels).
+  It consists of millions time series whose hourly values span tens of years. The time series set never changes.
+  If the per-day index is disabled, once the first hour of data is ingested the entire time series set will be written
+  into the global index and subsequent portions of data will not result in index update. But if the per-day index 
+  is enabled, the same set of time-series will be written to the per-day index for every day of data.
+
+* IoT: a huge set of sensors exports time series with the sensor ID used as a metric label value. Since sensor additions
+  or removals happen infrequently, the time series churn rate will be low. With the per-day index disabled, the entire
+  time series set will be registered in global index during the initial data ingestion and the global index will receive
+  small updates when a sensor is added or removed.
+
+What to expect:
+
+* Prefer setting this flag on fresh installations.
+* Disabling per-day index on installations with historical data is Ok.
+* Re-enabling per-day index on installations with historical data will make it unsearchable.
+
 ## Data migration
 
 ### From VictoriaMetrics
@@ -2930,6 +2969,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -influx.forceStreamMode bool
+     Force stream mode parsing for ingested data. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf.
   -influx.maxLineSize size
      The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
@@ -3224,7 +3265,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxLabelsAPISeries int
      The maximum number of time series, which could be scanned when searching for the matching time series at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, -search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI (default 1000000)
   -search.maxLookback duration
-     Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
+     Synonym to -query.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
   -search.maxMemoryPerQuery size
      The maximum amounts of memory a single query may consume. Queries requiring more memory are rejected. The total memory limit for concurrently executed queries can be estimated as -search.maxMemoryPerQuery multiplied by -search.maxConcurrentRequests . See also -search.logQueryMemoryUsage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -3343,6 +3384,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      An optional list of labels to drop from samples before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -streamAggr.enableWindows
+      Enables aggregation within fixed windows for all aggregators. This allows to get more precise results, but impacts resource usage as it requires twice more memory to store two states. See https://docs.victoriametrics.com/stream-aggregation/#aggregation-windows.  
   -streamAggr.ignoreFirstIntervals int
      Number of aggregation intervals to skip after the start. Increase this value if you observe incorrect aggregation results after restarts. It could be caused by receiving unordered delayed data from clients pushing data into the database. See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start
   -streamAggr.ignoreOldSamples

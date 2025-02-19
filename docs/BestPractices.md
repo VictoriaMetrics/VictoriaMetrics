@@ -1,11 +1,11 @@
 ---
-weight: 32
+weight: 22
 title: Best practices
 menu:
   docs:
     identifier: vm-best-practices
     parent: 'victoriametrics'
-    weight: 32
+    weight: 22
 aliases:
 - /BestPractices.html
 ---

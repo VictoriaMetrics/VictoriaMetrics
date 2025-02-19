@@ -426,6 +426,11 @@ func (q *Query) Clone(timestamp int64) *Query {
 	return qCopy
 }
 
+func (q *Query) cloneShallow() *Query {
+	qCopy := *q
+	return &qCopy
+}
+
 // CloneWithTimeFilter clones q at the given timestamp and adds _time:[start, end] filter to the cloned q.
 func (q *Query) CloneWithTimeFilter(timestamp, start, end int64) *Query {
 	q = q.Clone(timestamp)
@@ -591,6 +596,10 @@ func (q *Query) optimizeNoSubqueries() {
 }
 
 func (q *Query) visitSubqueries(visitFunc func(q *Query)) {
+	if q == nil {
+		return
+	}
+
 	// call f for the query itself.
 	visitFunc(q)
 
@@ -610,13 +619,9 @@ func visitSubqueriesInFilter(f filter, visitFunc func(q *Query)) {
 	callback := func(f filter) bool {
 		switch t := f.(type) {
 		case *filterIn:
-			if t.q != nil {
-				t.q.visitSubqueries(visitFunc)
-			}
+			t.q.visitSubqueries(visitFunc)
 		case *filterStreamID:
-			if t.q != nil {
-				t.q.visitSubqueries(visitFunc)
-			}
+			t.q.visitSubqueries(visitFunc)
 		}
 		return false
 	}
@@ -813,9 +818,8 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 			// Assume that `| format ...` pipe generates an additional by(...) label
 			if slices.Contains(byFields, t.resultField) {
 				return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", t.resultField, t, q)
-			} else {
-				byFields = append(byFields, t.resultField)
 			}
+			byFields = append(byFields, t.resultField)
 			delete(metricFields, t.resultField)
 		default:
 			return nil, fmt.Errorf("the %q pipe cannot be put after %q pipe in the query [%s]", p, ps, q)
@@ -1165,6 +1169,25 @@ func (q *Query) addPartitionByTime(step int64) {
 // GetTimestamp returns timestamp context for the given q, which was passed to ParseQueryAtTimestamp().
 func (q *Query) GetTimestamp() int64 {
 	return q.timestamp
+}
+
+func parseQueryInParens(lex *lexer) (*Query, error) {
+	if !lex.isKeyword("(") {
+		return nil, fmt.Errorf("missing '('")
+	}
+	lex.nextToken()
+
+	q, err := parseQuery(lex)
+	if err != nil {
+		return nil, err
+	}
+
+	if !lex.isKeyword(")") {
+		return nil, fmt.Errorf("missing ')' after '(%s'", q)
+	}
+	lex.nextToken()
+
+	return q, nil
 }
 
 func parseQuery(lex *lexer) (*Query, error) {
@@ -1768,52 +1791,18 @@ func parseFilterIn(lex *lexer, fieldName string) (filter, error) {
 	// Parse in(query | fields someField) then
 	lex.restoreState(lexState)
 	lex.nextToken()
-	if !lex.isKeyword("(") {
-		return nil, fmt.Errorf("missing '(' after 'in'")
-	}
-	lex.nextToken()
 
-	q, err := parseQuery(lex)
+	q, qFieldName, err := parseInQuery(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse query inside 'in(...)': %w", err)
+		return nil, err
 	}
 
-	if !lex.isKeyword(")") {
-		return nil, fmt.Errorf("missing ')' after 'in(%s)'", q)
-	}
-	lex.nextToken()
-
-	qFieldName, err := getFieldNameFromPipes(q.pipes)
-	if err != nil {
-		return nil, fmt.Errorf("cannot determine field name for values in 'in(%s)': %w", q, err)
-	}
 	fi = &filterIn{
-		fieldName:        fieldName,
-		needExecuteQuery: true,
-		q:                q,
-		qFieldName:       qFieldName,
+		fieldName:  fieldName,
+		q:          q,
+		qFieldName: qFieldName,
 	}
 	return fi, nil
-}
-
-func getFieldNameFromPipes(pipes []pipe) (string, error) {
-	if len(pipes) == 0 {
-		return "", fmt.Errorf("missing 'fields' or 'uniq' pipes at the end of query")
-	}
-	switch t := pipes[len(pipes)-1].(type) {
-	case *pipeFields:
-		if t.containsStar || len(t.fields) != 1 {
-			return "", fmt.Errorf("'%s' pipe must contain only a single non-star field name", t)
-		}
-		return t.fields[0], nil
-	case *pipeUniq:
-		if len(t.byFields) != 1 {
-			return "", fmt.Errorf("'%s' pipe must contain only a single non-star field name", t)
-		}
-		return t.byFields[0], nil
-	default:
-		return "", fmt.Errorf("missing 'fields' or 'uniq' pipe at the end of query")
-	}
 }
 
 func parseFilterSequence(lex *lexer, fieldName string) (filter, error) {
@@ -2636,32 +2625,50 @@ func parseFilterStreamIDIn(lex *lexer) (filter, error) {
 	// Try parsing in(query)
 	lex.restoreState(lexState)
 	lex.nextToken()
-	if !lex.isKeyword("(") {
-		return nil, fmt.Errorf("missing '(' after 'in'")
-	}
-	lex.nextToken()
 
-	q, err := parseQuery(lex)
+	q, qFieldName, err := parseInQuery(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse query inside 'in(...)': %w", err)
-	}
-
-	if !lex.isKeyword(")") {
-		return nil, fmt.Errorf("missing ')' after 'in(%s)'", q)
-	}
-	lex.nextToken()
-
-	qFieldName, err := getFieldNameFromPipes(q.pipes)
-	if err != nil {
-		return nil, fmt.Errorf("cannot determine field name for values in 'in(%s)': %w", q, err)
+		return nil, err
 	}
 
 	fs = &filterStreamID{
-		needExecuteQuery: true,
-		q:                q,
-		qFieldName:       qFieldName,
+		q:          q,
+		qFieldName: qFieldName,
 	}
 	return fs, nil
+}
+
+func parseInQuery(lex *lexer) (*Query, string, error) {
+	q, err := parseQueryInParens(lex)
+	if err != nil {
+		return nil, "", fmt.Errorf("cannot parse in(...) query: %w", err)
+	}
+
+	qFieldName, err := getFieldNameFromPipes(q.pipes)
+	if err != nil {
+		return nil, "", fmt.Errorf("cannot determine field name for values in 'in(%s)': %w", q, err)
+	}
+	return q, qFieldName, nil
+}
+
+func getFieldNameFromPipes(pipes []pipe) (string, error) {
+	if len(pipes) == 0 {
+		return "", fmt.Errorf("missing 'fields' or 'uniq' pipes at the end of query")
+	}
+	switch t := pipes[len(pipes)-1].(type) {
+	case *pipeFields:
+		if t.containsStar || len(t.fields) != 1 {
+			return "", fmt.Errorf("'%s' pipe must contain only a single non-star field name", t)
+		}
+		return t.fields[0], nil
+	case *pipeUniq:
+		if len(t.byFields) != 1 {
+			return "", fmt.Errorf("'%s' pipe must contain only a single non-star field name", t)
+		}
+		return t.byFields[0], nil
+	default:
+		return "", fmt.Errorf("missing 'fields' or 'uniq' pipe at the end of query")
+	}
 }
 
 func parseStreamID(lex *lexer) (streamID, error) {

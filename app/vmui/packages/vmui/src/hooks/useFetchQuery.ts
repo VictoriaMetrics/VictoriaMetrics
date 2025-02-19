@@ -76,8 +76,8 @@ export const useFetchQuery = ({
 
   const defaultStep = useMemo(() => {
     const { end, start } = period;
-    return getStepFromDuration(end - start, isHistogramState);
-  }, [period, isHistogramState]);
+    return getStepFromDuration(end - start, isHistogramState, displayType);
+  }, [period, isHistogramState, displayType]);
 
   const fetchData = async ({
     fetchUrl,
