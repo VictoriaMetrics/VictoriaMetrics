@@ -419,13 +419,13 @@ func (csh *columnsHeader) setColumnNames(cshIndex *columnsHeaderIndex, columnNam
 	return nil
 }
 
-func (csh *columnsHeader) mustWriteTo(bh *blockHeader, sw *streamWriters, g *columnNameIDGenerator) {
+func (csh *columnsHeader) mustWriteTo(bh *blockHeader, sw *streamWriters) {
 	bb := longTermBufPool.Get()
 	defer longTermBufPool.Put(bb)
 
 	cshIndex := getColumnsHeaderIndex()
 
-	bb.B = csh.marshal(bb.B, cshIndex, g)
+	bb.B = csh.marshal(bb.B, cshIndex, &sw.columnNameIDGenerator)
 	columnsHeaderData := bb.B
 
 	bb.B = cshIndex.marshal(bb.B)

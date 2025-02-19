@@ -473,7 +473,7 @@ func (b *block) InitFromBlockData(bd *blockData, sbu *stringsBlockUnmarshaler, v
 }
 
 // mustWriteTo writes b with the given sid to sw and updates bh accordingly.
-func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters, g *columnNameIDGenerator) {
+func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters) {
 	b.assertValid()
 	bh.reset()
 
@@ -485,17 +485,18 @@ func (b *block) mustWriteTo(sid *streamID, bh *blockHeader, sw *streamWriters, g
 	mustWriteTimestampsTo(&bh.timestampsHeader, b.timestamps, sw)
 
 	// Marshal columns
-	cs := b.columns
 
 	csh := getColumnsHeader()
 
+	cs := b.columns
 	chs := csh.resizeColumnHeaders(len(cs))
 	for i := range cs {
 		cs[i].mustWriteTo(&chs[i], sw)
 	}
+
 	csh.constColumns = append(csh.constColumns[:0], b.constColumns...)
 
-	csh.mustWriteTo(bh, sw, g)
+	csh.mustWriteTo(bh, sw)
 
 	putColumnsHeader(csh)
 }
