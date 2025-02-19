@@ -29,6 +29,7 @@
     &_active {
       background-color: $color-primary;
       color: $color-primary-text;
+      pointer-events: none;
     }
 
     &_disabled {

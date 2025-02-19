@@ -47,7 +47,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
   const { value: tableCompact, toggle: toggleTableCompact } = useBoolean(false);
 
   const columns = useMemo(() => {
-    if (!data?.length) return [];
+    if (!data?.length || activeTab !== DisplayType.table) return [];
     const keys = new Set<string>();
     for (const item of data) {
       for (const key in item) {
@@ -55,7 +55,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data, isLoading }) => {
       }
     }
     return Array.from(keys);
-  }, [data]);
+  }, [data, activeTab]);
 
   const handleChangeTab = (view: string) => {
     setActiveTab(view as DisplayType);
