@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.11.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.11.0-victorialogs)
+
 **Update note: this release changes data storage format in backwards-incompatible way, so it is impossible to downgrade to the previous releases after upgrading to this release.
 It is safe upgrading to this release from older releases.**
 
