@@ -187,7 +187,7 @@ func (tb *table) MustClose() {
 
 	for _, ptw := range ptws {
 		if n := ptw.refCount.Load(); n != 1 {
-			logger.Panicf("BUG: unexpected refCount=%d when closing the partition %q; probably there are pending searches", n, ptw.pt.name)
+			logger.Panicf("BUG: unexpected refCount=%d when closing the partition; probably there are pending searches", n)
 		}
 		ptw.decRef()
 	}
@@ -436,8 +436,6 @@ func (tb *table) dropPartitionsOutsideRetentionPeriod(currentMillis int64) {
 	for _, ptw := range ptwsDrop {
 		ptw.scheduleToDrop()
 		ptw.decRef()
-		_ = ptw.pt.name
-		fmt.Printf("sheduled a partition %q to drop\n", "asd")
 	}
 }
 

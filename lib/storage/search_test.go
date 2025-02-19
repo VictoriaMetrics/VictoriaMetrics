@@ -162,9 +162,8 @@ func TestSearch_PartitionsDroppedConcurrently(t *testing.T) {
 		days = 1000
 	)
 	mrs := make([]MetricRow, days)
-	name := fmt.Sprintf("metric")
 	mn := &MetricName{
-		MetricGroup: []byte(name),
+		MetricGroup: []byte("metric"),
 	}
 	metricNameRaw := mn.marshalRaw(nil)
 	for day := 1; day <= days; day++ {
