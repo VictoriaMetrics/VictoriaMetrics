@@ -1,10 +1,10 @@
 ---
-weight: 30
+weight: 501
 title: Release process guidance
 menu:
   docs:
     parent: 'victoriametrics'
-    weight: 30
+    weight: 501
 aliases:
 - /Release-Guide.html
 ---

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "preact/compat";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { getLogsUrl } from "../../../api/logs";
 import { ErrorTypes, TimeParams } from "../../../types";
 import { Logs } from "../../../api/types";
@@ -15,13 +15,17 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
 
   const url = useMemo(() => getLogsUrl(server), [server]);
 
+  const tenant = useMemo(() => ({
+    AccountID: searchParams.get("accountID") || "0",
+    ProjectID: searchParams.get("projectID") || "0",
+  }), [searchParams]);
+
   const getOptions = (query: string, period: TimeParams, limit: number, signal: AbortSignal) => ({
     signal,
     method: "POST",
     headers: {
+      ...tenant,
       Accept: "application/stream+json",
-      AccountID: searchParams.get("accountID") || "0",
-      ProjectID: searchParams.get("projectID") || "0",
     },
     body: new URLSearchParams({
       query: query.trim(),
@@ -30,15 +34,6 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
       end: dayjs(period.end * 1000).tz().toISOString()
     })
   });
-
-  const parseLineToJSON = (line: string): Logs | null => {
-    try {
-      return line && JSON.parse(line);
-    } catch (e) {
-      console.error(`Failed to parse "${line}" to JSON\n`, e);
-      return null;
-    }
-  };
 
   const fetchLogs = useCallback(async (period: TimeParams) => {
     abortControllerRef.current.abort();
@@ -77,7 +72,13 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
         return rest;
       });
     }
-  }, [url, query, limit, searchParams]);
+  }, [url, query, limit, tenant]);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current.abort();
+    };
+  }, []);
 
   return {
     logs,
@@ -86,4 +87,13 @@ export const useFetchLogs = (server: string, query: string, limit: number) => {
     fetchLogs,
     abortController: abortControllerRef.current
   };
+};
+
+const parseLineToJSON = (line: string): Logs | null => {
+  try {
+    return line && JSON.parse(line);
+  } catch (e) {
+    console.error(`Failed to parse "${line}" to JSON\n`, e);
+    return null;
+  }
 };

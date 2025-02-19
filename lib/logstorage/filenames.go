@@ -2,6 +2,7 @@ package logstorage
 
 const (
 	columnNamesFilename        = "column_names.bin"
+	columnIdxsFilename         = "column_idxs.bin"
 	metaindexFilename          = "metaindex.bin"
 	indexFilename              = "index.bin"
 	columnsHeaderIndexFilename = "columns_header_index.bin"

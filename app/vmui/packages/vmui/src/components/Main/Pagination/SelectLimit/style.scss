@@ -1,5 +1,19 @@
 @use "src/styles/variables" as *;
 
+.vm-select-limits-button {
+  display: grid;
+  grid-template-columns: auto 18px;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-small;
+  color: $color-text-secondary;
+  cursor: pointer;
+
+  &:hover {
+    color: $color-primary;
+  }
+}
+
 .vm-select-limits {
   display: grid;
   padding: $padding-small 0;

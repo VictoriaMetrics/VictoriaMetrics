@@ -653,9 +653,9 @@ func hasFilterInWithQueryForFilter(f filter) bool {
 	visitFunc := func(f filter) bool {
 		switch t := f.(type) {
 		case *filterIn:
-			return t.needExecuteQuery
+			return t.q != nil
 		case *filterStreamID:
-			return t.needExecuteQuery
+			return t.q != nil
 		default:
 			return false
 		}
@@ -697,9 +697,9 @@ func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesF
 	visitFunc := func(f filter) bool {
 		switch t := f.(type) {
 		case *filterIn:
-			return t.needExecuteQuery
+			return t.q != nil
 		case *filterStreamID:
-			return t.needExecuteQuery
+			return t.q != nil
 		default:
 			return false
 		}
