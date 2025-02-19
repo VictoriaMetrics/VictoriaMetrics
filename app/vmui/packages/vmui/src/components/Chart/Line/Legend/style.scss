@@ -3,8 +3,9 @@
 .vm-legend {
   position: relative;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   cursor: default;
+  width: 100%;
 
   &-group {
     min-width: 23%;
@@ -17,13 +18,12 @@
       padding: $padding-small;
       margin-bottom: 1px;
       border-bottom: $border-divider;
+      font-size: $font-size-small;
+      color: $color-text-secondary;
 
-      &__count {
-        font-weight: bold;
-        margin-right: $padding-small;
-      }
-
-      &__query {
+      b {
+        margin-left: $padding-small;
+        color: $color-text;
       }
     }
   }
