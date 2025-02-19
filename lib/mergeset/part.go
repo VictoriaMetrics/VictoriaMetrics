@@ -21,6 +21,17 @@ func SetIndexBlocksCacheSize(size int) {
 	maxIndexBlockCacheSize = size
 }
 
+// SetIndexBlocksCacheShardsCount overrides the default shardsCount for indexdb/indexBlocks cache
+func SetIndexBlocksCacheShardsCount(shardsCount int) {
+	if shardsCount <= 0 {
+		return
+	}
+	def := idxbCache
+	upd := blockcache.NewCacheWithShardsCount(getMaxIndexBlocksCacheSize, shardsCount)
+	idxbCache = upd
+	def.MustStop()
+}
+
 func getMaxIndexBlocksCacheSize() int {
 	maxIndexBlockCacheSizeOnce.Do(func() {
 		if maxIndexBlockCacheSize <= 0 {
@@ -38,6 +49,17 @@ var (
 // SetDataBlocksCacheSize overrides the default size of indexdb/dataBlocks cache
 func SetDataBlocksCacheSize(size int) {
 	maxInmemoryBlockCacheSize = size
+}
+
+// SetDataBlocksCacheShardsCount overrides the default shardsCount for indexdb/dataBlocks cache
+func SetDataBlocksCacheShardsCount(shardsCount int) {
+	if shardsCount <= 0 {
+		return
+	}
+	prevCache := ibCache
+	newCache := blockcache.NewCacheWithShardsCount(getMaxInmemoryBlocksCacheSize, shardsCount)
+	ibCache = newCache
+	prevCache.MustStop()
 }
 
 func getMaxInmemoryBlocksCacheSize() int {
