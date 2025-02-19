@@ -140,6 +140,11 @@ func TestClusterMaxSeries(t *testing.T) {
 		"-search.tenantCacheExpireDuration=0",
 		"-search.maxSeries=3",
 	})
+	vmselectSmallLimit := tc.MustStartVmselect("vmselect1", []string{
+		"-storageNode=" + vmstorage.VmselectAddr(),
+		"-search.tenantCacheExpireDuration=0",
+		"-search.maxSeries=1",
+	})
 
 	var commonSamples = []string{
 		`foo_bar3{instance="a"} 1.00 1652169660000`,
@@ -166,17 +171,6 @@ func TestClusterMaxSeries(t *testing.T) {
 		t.Fatalf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	tc.StopApp("vmstorage")
-	vmstorage = tc.MustStartVmstorage("vmstorage", []string{
-		"-storageDataPath=" + tc.Dir() + "/vmstorage",
-		"-retentionPeriod=100y",
-		"-search.maxUniqueTimeseries=2",
-	})
-	vmselectSmallLimit := tc.MustStartVmselect("vmselect1", []string{
-		"-storageNode=" + vmstorage.VmselectAddr(),
-		"-search.tenantCacheExpireDuration=0",
-		"-search.maxSeries=1",
-	})
 	// fail - `/api/v1/series`, exceed vmselect `maxSeries`
 	seriesRes1 := vmselectSmallLimit.PrometheusAPIV1Series(t, "foo_bar3", apptest.QueryOpts{
 		Start: "2022-05-10T08:03:00.000Z",
