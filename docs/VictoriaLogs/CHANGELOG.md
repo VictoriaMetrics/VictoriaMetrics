@@ -21,6 +21,8 @@ It is safe upgrading to this release from older releases.**
 
 * FEATURE: improve per-field data locality on disk. This reduces overhead related to reading data from unrelated fields during queries. This improves query performance over structured logs with big number of fields (aka [wide events](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/)) when only a small portion of fields are used in the query.
 * FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): reduce memory usage by up to 4x when ingesting [wide events](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/) at high rate into VictoriaLogs.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add ability to limit the number of logs per page in the Group view (client-side). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8334).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add ability to disable the hover effect in the Group view to reduce load when viewing many records. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8135).
 
 ## [v1.10.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.10.1-victorialogs)
 

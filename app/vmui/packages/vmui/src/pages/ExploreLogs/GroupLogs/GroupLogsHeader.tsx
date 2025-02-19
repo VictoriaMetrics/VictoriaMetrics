@@ -3,23 +3,19 @@ import classNames from "classnames";
 import { useSearchParams } from "react-router-dom";
 import { MouseEvent, useState } from "react";
 import { useAppState } from "../../../state/common/StateContext";
-import { Logs } from "../../../api/types";
 import useEventListener from "../../../hooks/useEventListener";
 import Popper from "../../../components/Main/Popper/Popper";
 import useBoolean from "../../../hooks/useBoolean";
 import GroupLogsHeaderItem from "./GroupLogsHeaderItem";
-import { LOGS_GROUP_BY, LOGS_URL_PARAMS } from "../../../constants/logs";
+import { LOGS_GROUP_BY, LOGS_URL_PARAMS, WITHOUT_GROUPING } from "../../../constants/logs";
+import { GroupLogsType } from "../../../types";
 
 interface Props {
-  group: {
-    keys: string[]
-    keysString: string
-    values: Logs[]
-    pairs: string[]
-  };
+  group: GroupLogsType;
+  index: number;
 }
 
-const GroupLogsHeader: FC<Props> = ({ group }) => {
+const GroupLogsHeader: FC<Props> = ({ group, index }) => {
   const { isDarkTheme } = useAppState();
   const [searchParams] = useSearchParams();
 
@@ -80,7 +76,9 @@ const GroupLogsHeader: FC<Props> = ({ group }) => {
       })}
       ref={containerRef}
     >
-      <span className="vm-group-logs-section-keys__title">Group by <code>{groupBy}</code>:</span>
+      <span className="vm-group-logs-section-keys__title">
+        {groupBy === WITHOUT_GROUPING ? WITHOUT_GROUPING : <>{index + 1}. Group by <code>{groupBy}</code>:</>}
+      </span>
       {pairs.map((pair, i) => (
         <GroupLogsHeaderItem
           key={`${group.keysString}_${pair}`}
@@ -118,7 +116,7 @@ const GroupLogsHeader: FC<Props> = ({ group }) => {
           </Popper>
         </>
       )}
-      <span className="vm-group-logs-section-keys__count">{group.values.length} entries</span>
+      <span className="vm-group-logs-section-keys__count">{group.total} entries</span>
     </div>
   )
   ;
