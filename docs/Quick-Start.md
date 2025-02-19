@@ -1,11 +1,11 @@
 ---
-weight: 22
+weight: 1
 title: Quick start
 menu:
   docs:
     identifier: vm-quick-start
     parent: victoriametrics
-    weight: 22
+    weight: 1
 aliases:
 - /Quick-Start.html
 ---
@@ -345,6 +345,7 @@ and [pull](https://docs.victoriametrics.com/keyconcepts/#pull-model).
 Both are used in modern monitoring and both are supported by VictoriaMetrics.
 
 See more details on [writing data here](https://docs.victoriametrics.com/keyconcepts/#write-data).
+See documentation for configuring [metrics collectors](https://docs.victoriametrics.com/data-ingestion/).
 
 
 ## Query data
@@ -361,7 +362,7 @@ for querying and visualizing metrics.
 in VictoriaMetrics. MetricsQL is a [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics) 
 -like query language with a powerful set of functions and features for working specifically with time series data.
 
-See more details on [querying data here](https://docs.victoriametrics.com/keyconcepts/#query-data)
+See more details on [querying data here](https://docs.victoriametrics.com/keyconcepts/#query-data).
 
 
 ## Alerting

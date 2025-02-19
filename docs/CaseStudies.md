@@ -1,10 +1,10 @@
 ---
-weight: 21
+weight: 25
 title: Case studies and talks
 menu:
   docs:
     parent: "victoriametrics"
-    weight: 21
+    weight: 25
 aliases:
   - /CaseStudies.html
 ---
