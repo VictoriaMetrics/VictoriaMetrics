@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // LogRows holds a set of rows needed for Storage.MustAddRows
@@ -30,10 +29,6 @@ type LogRows struct {
 
 	// rows holds fields for rows added to LogRows.
 	rows [][]Field
-
-	// tmpRow and placementMap is used for speeding up sortFieldsInRows
-	tmpRow       []Field
-	placementMap []int
 
 	// sf is a helper for sorting fields in every added row
 	sf sortedFields
@@ -297,43 +292,10 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields map[string]str
 }
 
 func (lr *LogRows) sortFieldsInRows() {
-	tmpRow := lr.tmpRow
-	placementMap := lr.placementMap[:0]
-
 	for _, row := range lr.rows {
-		tmpRow = slicesutil.SetLength(tmpRow, len(row))
-		copy(tmpRow, row)
-		if len(placementMap) == len(row) {
-			for i, dstIdx := range placementMap {
-				row[dstIdx] = tmpRow[i]
-			}
-		}
-
 		lr.sf = row
-		if sort.IsSorted(&lr.sf) {
-			// Fast path - the row has the same fields with the same order.
-			continue
-		}
-
-		// Slow path - sort the row and build placementMap
 		sort.Sort(&lr.sf)
-
-		placementMap = slicesutil.SetLength(placementMap, len(tmpRow))
-		for i := range tmpRow {
-			name := tmpRow[i].Name
-			dstIdx := -1
-			for j := range row {
-				if row[j].Name == name {
-					dstIdx = j
-					break
-				}
-			}
-			placementMap[i] = dstIdx
-		}
 	}
-
-	lr.placementMap = placementMap
-	lr.tmpRow = tmpRow
 }
 
 // GetRowString returns string representation of the row with the given idx.
