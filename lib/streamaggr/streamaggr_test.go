@@ -249,6 +249,26 @@ func TestAggregatorsEqual(t *testing.T) {
 - outputs: [total]
   interval: 5m
   ignore_first_intervals: 4`, false)
+	f(`
+- outputs: [total]
+  interval: 5m
+  ignore_first_intervals: 2
+  threshold: 0.1
+`, `
+- outputs: [total]
+  interval: 5m
+  ignore_first_intervals: 2
+  threshold: 0.1`, true)
+	f(`
+- outputs: [total]
+  interval: 5m
+  ignore_first_intervals: 2
+  threshold: 0.1
+`, `
+- outputs: [total]
+  interval: 5m
+  ignore_first_intervals: 2
+  threshold: 0.2`, false)
 }
 
 func TestAggregatorsSuccess(t *testing.T) {
@@ -973,6 +993,24 @@ foo{abc="456",de="fg"} 8
 foo 2
 foo{de="fg"} 1
 `, "11111")
+	// filter with threshold
+	f(`
+- interval: 1m
+  by: [__name__]
+  outputs: [count_samples]
+  threshold: 0.1
+`, `
+foo 123
+bar{baz="qwe"} 1.32
+bar{baz="qwe"} 4.34
+bar{baz="qwe"} 2
+foo{baz="qwe"} -5
+bar{baz="qwer"} 343
+bar{baz="qwer"} 344
+foo{baz="qwe"} 10
+`, `bar:1m_count_samples 5
+foo:1m_count_samples 2
+`, "11111111")
 }
 
 func TestAggregatorsWithDedupInterval(t *testing.T) {

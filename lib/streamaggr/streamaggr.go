@@ -247,6 +247,9 @@ type Config struct {
 	// OutputRelabelConfigs is an optional relabeling rules, which are applied
 	// on the aggregated output before being sent to remote storage.
 	OutputRelabelConfigs []promrelabel.RelabelConfig `yaml:"output_relabel_configs,omitempty"`
+
+	// samples that have `value<=threshold` are ignored.
+	Threshold *float64 `yaml:"threshold,omitempty"`
 }
 
 // Aggregators aggregates metrics passed to Push and calls pushFunc for aggregated data.
@@ -383,6 +386,9 @@ type aggregator struct {
 	without             []string
 	aggregateOnlyByTime bool
 
+	// samples that have `value<=threshold` are ignored.
+	threshold *float64
+
 	// interval is the interval between flushes
 	interval time.Duration
 
@@ -412,11 +418,12 @@ type aggregator struct {
 	dedupFlushDuration *metrics.Histogram
 	samplesLag         *metrics.Histogram
 
-	flushTimeouts      *metrics.Counter
-	dedupFlushTimeouts *metrics.Counter
-	ignoredOldSamples  *metrics.Counter
-	ignoredNaNSamples  *metrics.Counter
-	matchedSamples     *metrics.Counter
+	flushTimeouts                *metrics.Counter
+	dedupFlushTimeouts           *metrics.Counter
+	ignoredOldSamples            *metrics.Counter
+	ignoredNaNSamples            *metrics.Counter
+	matchedSamples               *metrics.Counter
+	ignoredUnderThresholdSamples *metrics.Counter
 }
 
 type aggrOutput struct {
@@ -617,15 +624,18 @@ func newAggregator(cfg *Config, path string, pushFunc PushFunc, ms *metrics.Set,
 
 		stopCh: make(chan struct{}),
 
+		threshold: cfg.Threshold,
+
 		flushDuration:      ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_flush_duration_seconds{%s}`, metricLabels)),
 		dedupFlushDuration: ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_dedup_flush_duration_seconds{%s}`, metricLabels)),
 		samplesLag:         ms.NewHistogram(fmt.Sprintf(`vm_streamaggr_samples_lag_seconds{%s}`, metricLabels)),
 
-		matchedSamples:     ms.NewCounter(fmt.Sprintf(`vm_streamaggr_matched_samples_total{%s}`, metricLabels)),
-		flushTimeouts:      ms.NewCounter(fmt.Sprintf(`vm_streamaggr_flush_timeouts_total{%s}`, metricLabels)),
-		dedupFlushTimeouts: ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels)),
-		ignoredNaNSamples:  ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="nan",%s}`, metricLabels)),
-		ignoredOldSamples:  ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="too_old",%s}`, metricLabels)),
+		matchedSamples:               ms.NewCounter(fmt.Sprintf(`vm_streamaggr_matched_samples_total{%s}`, metricLabels)),
+		flushTimeouts:                ms.NewCounter(fmt.Sprintf(`vm_streamaggr_flush_timeouts_total{%s}`, metricLabels)),
+		dedupFlushTimeouts:           ms.NewCounter(fmt.Sprintf(`vm_streamaggr_dedup_flush_timeouts_total{%s}`, metricLabels)),
+		ignoredNaNSamples:            ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="nan",%s}`, metricLabels)),
+		ignoredOldSamples:            ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="too_old",%s}`, metricLabels)),
+		ignoredUnderThresholdSamples: ms.NewCounter(fmt.Sprintf(`vm_streamaggr_ignored_samples_total{reason="underThresholdfa",%s}`, metricLabels)),
 	}
 
 	if dedupInterval > 0 {
@@ -953,6 +963,11 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) {
 			if math.IsNaN(s.Value) {
 				a.ignoredNaNSamples.Inc()
 				// Skip NaN values
+				continue
+			}
+			if a.threshold != nil && !math.IsNaN(*a.threshold) && s.Value < *a.threshold {
+				// Skip value < threshold
+				a.ignoredUnderThresholdSamples.Inc()
 				continue
 			}
 			if ignoreOldSamples && s.Timestamp < minTimestamp {
