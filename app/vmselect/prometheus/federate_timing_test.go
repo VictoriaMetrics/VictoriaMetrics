@@ -6,6 +6,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/prometheus/common/model"
 )
 
 func BenchmarkFederate(b *testing.B) {
@@ -32,7 +33,7 @@ func BenchmarkFederate(b *testing.B) {
 		var bb bytes.Buffer
 		for pb.Next() {
 			bb.Reset()
-			WriteFederate(&bb, rs)
+			WriteFederate(&bb, rs, model.NoEscaping)
 		}
 	})
 }

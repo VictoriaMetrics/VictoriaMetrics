@@ -1,14 +1,17 @@
 {% import (
 	"math"
+	"unsafe"
 
+    "github.com/prometheus/common/model"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 ) %}
 
 {% stripspace %}
 
 // Federate writes rs in /federate format.
 // See https://prometheus.io/docs/prometheus/latest/federation/
-{% func Federate(rs *netstorage.Result) %}
+{% func Federate(rs *netstorage.Result, escapingScheme model.EscapingScheme) %}
 	{% code
 		values := rs.Values
 		timestamps := rs.Timestamps
@@ -25,9 +28,47 @@
 		{% endcomment %}
 		{% return %}
 	{% endif %}
-	{%= prometheusMetricName(&rs.MetricName) %}{% space %}
+	{%= prometheusFederateMetricName(&rs.MetricName, escapingScheme) %}{% space %}
 	{%f= lastValue %}{% space %}
 	{%dl= timestamps[len(timestamps)-1] %}{% newline %}
+{% endfunc %}
+
+{% func prometheusFederateMetricName(mn *storage.MetricName, escapingScheme model.EscapingScheme)  %}
+    {% if escapingScheme == model.NoEscaping %}
+        {% if len(mn.Tags) > 0 %}
+            {
+                {% code tags := mn.Tags %}
+                {%= escapePrometheusKey(mn.MetricGroup, escapingScheme) %}
+                {%s= fillTags(tags, escapingScheme) %}
+            }
+	    {% endif %}
+    {% else %}
+        {%= escapePrometheusKey(mn.MetricGroup, escapingScheme) %}
+        {% if len(mn.Tags) > 0 %}
+            {
+                {% code tags := mn.Tags %}
+                {%= escapePrometheusKey(tags[0].Key, escapingScheme) %}={%= escapePrometheusLabel(tags[0].Value) %}
+                {%s= fillTags(tags[1:], escapingScheme) %}
+            }
+        {% endif %}
+    {% endif %}
+{% endfunc %}
+
+{% func escapePrometheusKey(name []byte, escapingScheme model.EscapingScheme) %}
+    {% code str := unsafe.String(unsafe.SliceData(name), len(name)) %}
+    {% code escapedStr := model.EscapeName(str, escapingScheme) %}
+    {% if !model.IsValidLegacyMetricName(escapedStr) %}
+        "{%s= escapedStr %}"
+    {% else %}
+        {%s= escapedStr %}
+    {% endif %}
+{% endfunc %}
+
+{% func fillTags(tags []storage.Tag, escapingScheme model.EscapingScheme) %}
+    {% for i := range tags %}
+        {% code tag := &tags[i] %}
+        ,{%= escapePrometheusKey(tag.Key, escapingScheme) %}={%= escapePrometheusLabel(tag.Value) %}
+    {% endfor %}
 {% endfunc %}
 
 {% endstripspace %}
