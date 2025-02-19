@@ -21,7 +21,7 @@ var (
 	maxRequestSize = flagutil.NewBytes("influx.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single InfluxDB request. Applicable for batch mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf")
 	trimTimestamp  = flag.Duration("influxTrimTimestamp", time.Millisecond, "Trim timestamps for InfluxDB line protocol data to this duration. "+
 		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
-	forceStreamMode = flag.Bool("influx.forceStreamMode", false, "Force parsing accepted data in a stream mode. "+
+	forceStreamMode = flag.Bool("influx.forceStreamMode", false, "Force stream mode parsing for ingested data. "+
 		"See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf")
 )
 
@@ -60,9 +60,10 @@ func Parse(r io.Reader, isStreamMode, isGzipped bool, precision, db string, call
 		tsMultiplier = -1e3 * 3600
 	}
 
-	// processing payload altogether
-	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7090
-	if !*forceStreamMode && !isStreamMode {
+	isStreamMode = *forceStreamMode || isStreamMode
+	if !isStreamMode {
+		// processing payload altogether
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7090
 		ctx := getBatchContext(r)
 		defer putBatchContext(ctx)
 		err := ctx.Read()
