@@ -100,7 +100,7 @@ func TestClusterMaxUniqueTimeseries(t *testing.T) {
 		Time: instantCT,
 	})
 	if queryRes.ErrorType != "422" {
-		t.Fatalf("unexpected status code, want %d, got %s, error message is: %v", 422, queryRes.ErrorType, queryRes.Error)
+		t.Fatalf("unexpected status code, got %s, want %d, error message is: %v", queryRes.ErrorType, 422, queryRes.Error)
 	}
 
 	// fail - `/api/v1/query`, exceed vmstorage `maxUniqueTimeseries`
@@ -108,7 +108,7 @@ func TestClusterMaxUniqueTimeseries(t *testing.T) {
 		Time: instantCT,
 	})
 	if queryRes.ErrorType != "422" {
-		t.Fatalf("unexpected status code, want %d, got %s, error message is: %v", 422, queryRes.ErrorType, queryRes.Error)
+		t.Fatalf("unexpected status code, got %s, want %d, error message is: %v", queryRes.ErrorType, 422, queryRes.Error)
 	}
 
 	// fail - `/api/v1/query`, vmselect `maxUniqueTimeseries` cannot exceed vmstorage `maxUniqueTimeseries`
@@ -116,7 +116,7 @@ func TestClusterMaxUniqueTimeseries(t *testing.T) {
 		Time: instantCT,
 	})
 	if queryRes.ErrorType != "422" {
-		t.Fatalf("unexpected status code, want %d, got %s, error message is: %v", 422, queryRes.ErrorType, queryRes.Error)
+		t.Fatalf("unexpected status code, got %s, want %d, error message is: %v", queryRes.ErrorType, 422, queryRes.Error)
 	}
 }
 
@@ -157,8 +157,7 @@ func TestClusterMaxSeries(t *testing.T) {
 			{"__name__":"foo_bar3","instance":"a"},
 			{"__name__":"foo_bar3","instance":"b"},
 			{"__name__":"foo_bar3","instance":"c"}
-	
-				  ]
+			]
 		 }`)
 	seriesRes := vmselectBigLimit.PrometheusAPIV1Series(t, "foo_bar3", apptest.QueryOpts{
 		Start: "2022-05-10T08:03:00.000Z",
@@ -183,7 +182,7 @@ func TestClusterMaxSeries(t *testing.T) {
 		Start: "2022-05-10T08:03:00.000Z",
 	})
 	if seriesRes1.ErrorType != "422" {
-		t.Fatalf("unexpected status code, want %d, got %s", 422, seriesRes.ErrorType)
+		t.Fatalf("unexpected status code, got %s, want %d, error message is: %v", seriesRes.ErrorType, 422, seriesRes1.Error)
 	}
 
 }

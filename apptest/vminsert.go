@@ -2,6 +2,7 @@ package apptest
 
 import (
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"testing"
@@ -88,7 +89,10 @@ func (app *Vminsert) InfluxWrite(t *testing.T, records []string, opts QueryOpts)
 	url := fmt.Sprintf("http://%s/insert/%s/influx/write", app.httpListenAddr, opts.getTenant())
 	data := []byte(strings.Join(records, "\n"))
 	app.sendBlocking(t, len(records), func() {
-		app.cli.Post(t, url, "text/plain", data)
+		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
 	})
 }
 
@@ -102,7 +106,10 @@ func (app *Vminsert) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries,
 	wr := pb.WriteRequest{Timeseries: records}
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	app.sendBlocking(t, len(records), func() {
-		app.cli.Post(t, url, "application/x-protobuf", data)
+		_, statusCode := app.cli.Post(t, url, "application/x-protobuf", data)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
 	})
 }
 
@@ -123,7 +130,10 @@ func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 	}
 	data := []byte(strings.Join(records, "\n"))
 	app.sendBlocking(t, len(records), func() {
-		app.cli.Post(t, url, "text/plain", data)
+		_, statusCode := app.cli.Post(t, url, "text/plain", data)
+		if statusCode != http.StatusNoContent {
+			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
+		}
 	})
 }
 

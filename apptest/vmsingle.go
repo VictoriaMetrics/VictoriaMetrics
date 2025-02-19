@@ -2,6 +2,7 @@ package apptest
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -79,7 +80,10 @@ func StartVmsingle(instance string, flags []string, cli *Client) (*Vmsingle, err
 func (app *Vmsingle) ForceFlush(t *testing.T) {
 	t.Helper()
 
-	app.cli.Get(t, app.forceFlushURL)
+	_, statusCode := app.cli.Get(t, app.forceFlushURL)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
 }
 
 // InfluxWrite is a test helper function that inserts a
@@ -91,7 +95,10 @@ func (app *Vmsingle) InfluxWrite(t *testing.T, records []string, _ QueryOpts) {
 	t.Helper()
 
 	data := []byte(strings.Join(records, "\n"))
-	app.cli.Post(t, app.influxLineWriteURL, "text/plain", data)
+	_, statusCode := app.cli.Post(t, app.influxLineWriteURL, "text/plain", data)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
 }
 
 // PrometheusAPIV1Write is a test helper function that inserts a
@@ -102,7 +109,10 @@ func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries,
 
 	wr := pb.WriteRequest{Timeseries: records}
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
-	app.cli.Post(t, app.prometheusAPIV1WriteURL, "application/x-protobuf", data)
+	_, statusCode := app.cli.Post(t, app.prometheusAPIV1WriteURL, "application/x-protobuf", data)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
 }
 
 // PrometheusAPIV1ImportPrometheus is a test helper function that inserts a
@@ -114,7 +124,10 @@ func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 	t.Helper()
 
 	data := []byte(strings.Join(records, "\n"))
-	app.cli.Post(t, app.prometheusAPIV1ImportPrometheusURL, "text/plain", data)
+	_, statusCode := app.cli.Post(t, app.prometheusAPIV1ImportPrometheusURL, "text/plain", data)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	}
 }
 
 // PrometheusAPIV1Export is a test helper function that performs the export of
@@ -128,7 +141,7 @@ func (app *Vmsingle) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
 
-	res := app.cli.PostForm(t, app.prometheusAPIV1ExportURL, values)
+	res, _ := app.cli.PostForm(t, app.prometheusAPIV1ExportURL, values)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -142,7 +155,7 @@ func (app *Vmsingle) PrometheusAPIV1Query(t *testing.T, query string, opts Query
 
 	values := opts.asURLValues()
 	values.Add("query", query)
-	res := app.cli.PostForm(t, app.prometheusAPIV1QueryURL, values)
+	res, _ := app.cli.PostForm(t, app.prometheusAPIV1QueryURL, values)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -157,7 +170,7 @@ func (app *Vmsingle) PrometheusAPIV1QueryRange(t *testing.T, query string, opts 
 	values := opts.asURLValues()
 	values.Add("query", query)
 
-	res := app.cli.PostForm(t, app.prometheusAPIV1QueryRangeURL, values)
+	res, _ := app.cli.PostForm(t, app.prometheusAPIV1QueryRangeURL, values)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -171,7 +184,7 @@ func (app *Vmsingle) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
-	res := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values)
+	res, _ := app.cli.PostForm(t, app.prometheusAPIV1SeriesURL, values)
 	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
