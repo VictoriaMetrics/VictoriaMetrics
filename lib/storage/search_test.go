@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"sync"
 	"testing"
 	"testing/quick"
 	"time"
@@ -149,6 +150,84 @@ func TestSearch(t *testing.T) {
 			t.Fatalf("unexpected error: %s", firstError)
 		}
 	})
+}
+
+// The test ensures that dropping partitions outside the retention period
+// concurrently with search requests happens gracefully. I.e. there are no
+// panics that cause the process to exit.
+func TestSearch_PartitionsDroppedConcurrently(t *testing.T) {
+	defer testRemoveAll(t)
+
+	const (
+		days = 1000
+	)
+	mrs := make([]MetricRow, days)
+	name := fmt.Sprintf("metric")
+	mn := &MetricName{
+		MetricGroup: []byte(name),
+	}
+	metricNameRaw := mn.marshalRaw(nil)
+	for day := 1; day <= days; day++ {
+		mr := &mrs[day-1]
+		mr.MetricNameRaw = metricNameRaw
+		mr.Timestamp = time.Now().Add(-time.Duration(day) * 24 * time.Hour).UnixMilli()
+		mr.Value = float64(rand.Intn(1000))
+	}
+
+	s := MustOpenStorage(t.Name(), OpenOptions{
+		Retention: days * 24 * time.Hour,
+	})
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	defer s.MustClose()
+
+	tfs := NewTagFilters()
+	if err := tfs.Add(nil, []byte("metric"), false, false); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	tr := TimeRange{
+		MinTimestamp: time.Now().Add(-days * 24 * time.Hour).UnixMilli(),
+		MaxTimestamp: time.Now().UnixMilli(),
+	}
+
+	// Start several readers that query and read the data over entire time
+	// range.
+	var wg sync.WaitGroup
+	stop := make(chan bool)
+	for range 100 {
+		wg.Add(1)
+		go func() {
+			for {
+				select {
+				case <-stop:
+					wg.Done()
+					return
+				default:
+				}
+
+				var search Search
+				search.Init(nil, s, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+				for search.NextMetricBlock() {
+					var b Block
+					search.MetricBlockRef.BlockRef.MustReadBlock(&b)
+				}
+				if err := search.Error(); err != nil {
+					panic(fmt.Sprintf("search error: %v", err))
+				}
+				search.MustClose()
+			}
+		}()
+	}
+
+	// Drop partitions one by one concurrently with readers.
+	for month := range int(days / 31) {
+		d := time.Duration(month) * 30 * 24 * time.Hour
+		currentMillis := time.Now().Add(d).UnixMilli()
+		s.tb.dropPartitionsOutsideRetentionPeriod(currentMillis)
+	}
+
+	close(stop)
+	wg.Wait()
 }
 
 func testSearchInternal(s *Storage, tr TimeRange, mrs []MetricRow) error {

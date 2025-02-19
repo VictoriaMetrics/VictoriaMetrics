@@ -187,7 +187,7 @@ func (tb *table) MustClose() {
 
 	for _, ptw := range ptws {
 		if n := ptw.refCount.Load(); n != 1 {
-			logger.Panicf("BUG: unexpected refCount=%d when closing the partition; probably there are pending searches", n)
+			logger.Panicf("BUG: unexpected refCount=%d when closing the partition %q; probably there are pending searches", n, ptw.pt.name)
 		}
 		ptw.decRef()
 	}
@@ -405,33 +405,39 @@ func (tb *table) retentionWatcher() {
 			return
 		case <-ticker.C:
 		}
+		currentMillis := int64(fasttime.UnixTimestamp() * 1000)
+		tb.dropPartitionsOutsideRetentionPeriod(currentMillis)
+	}
+}
 
-		minTimestamp := int64(fasttime.UnixTimestamp()*1000) - tb.s.retentionMsecs
-		var ptwsDrop []*partitionWrapper
-		tb.ptwsLock.Lock()
-		dst := tb.ptws[:0]
-		for _, ptw := range tb.ptws {
-			if ptw.pt.tr.MaxTimestamp < minTimestamp {
-				ptwsDrop = append(ptwsDrop, ptw)
-			} else {
-				dst = append(dst, ptw)
-			}
+func (tb *table) dropPartitionsOutsideRetentionPeriod(currentMillis int64) {
+	minTimestamp := currentMillis - tb.s.retentionMsecs
+	var ptwsDrop []*partitionWrapper
+	tb.ptwsLock.Lock()
+	dst := tb.ptws[:0]
+	for _, ptw := range tb.ptws {
+		if ptw.pt.tr.MaxTimestamp < minTimestamp {
+			ptwsDrop = append(ptwsDrop, ptw)
+		} else {
+			dst = append(dst, ptw)
 		}
-		tb.ptws = dst
-		tb.ptwsLock.Unlock()
+	}
+	tb.ptws = dst
+	tb.ptwsLock.Unlock()
 
-		if len(ptwsDrop) == 0 {
-			continue
-		}
+	if len(ptwsDrop) == 0 {
+		return
+	}
 
-		// There are partitions to drop. Drop them.
+	// There are partitions to drop. Drop them.
 
-		// Remove table references from partitions, so they will be eventually
-		// closed and dropped after all the pending searches are done.
-		for _, ptw := range ptwsDrop {
-			ptw.scheduleToDrop()
-			ptw.decRef()
-		}
+	// Remove table references from partitions, so they will be eventually
+	// closed and dropped after all the pending searches are done.
+	for _, ptw := range ptwsDrop {
+		ptw.scheduleToDrop()
+		ptw.decRef()
+		_ = ptw.pt.name
+		fmt.Printf("sheduled a partition %q to drop\n", "asd")
 	}
 }
 
