@@ -45,6 +45,7 @@ Released at 2025-02-12
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): respect the selected tenant for autocomplete suggestions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8042).
 * BUGFIX: [`stats` by time buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets): properly align start of the week to Monday at `stats by (_time:week) ...`. Previously the week was started on Wednesday. The start of the week can be adjusted with [offset](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets-with-timezone-offset). For example, the following query alings the start of the week to Sunday: `_time:30d | stats by (_time:week offset -1d) count() | sort by (_time)`.
 * BUGFIX: [`stats` by field value buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-field-buckets): properly calculate buckets for negative values.
+* BUGFIX: [syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): correctly parse rows with allowed in rfc5424 `\]` character. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8282).
 
 ## [v1.9.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.1-victorialogs)
 
