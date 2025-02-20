@@ -16,9 +16,15 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.12.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.12.0-victorialogs)
+
+Released at 2025-02-20
+
 * FEATURE: [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter): allow using `>`, `>=`, `<` and `<=`. For example, `_time:<2025-02-24Z` selects all the logs with [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) less than `2025-02-24` by UTC. Another example: `_time:>1d` selects all the logs with `_time` field older than one day from the current time. This simplifies querying VictoriaLogs.
 
 ## [v1.11.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.11.0-victorialogs)
+
+Released at 2025-02-19
 
 **Update note: this release changes data storage format in backwards-incompatible way, so it is impossible to downgrade to the previous releases after upgrading to this release.
 It is safe upgrading to this release from older releases.**
