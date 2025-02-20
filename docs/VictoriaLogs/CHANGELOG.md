@@ -21,6 +21,9 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 Released at 2025-02-20
 
 * FEATURE: [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter): allow using `>`, `>=`, `<` and `<=`. For example, `_time:<2025-02-24Z` selects all the logs with [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) less than `2025-02-24` by UTC. Another example: `_time:>1d` selects all the logs with `_time` field older than one day from the current time. This simplifies querying VictoriaLogs.
+* FEATURE: [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe): allow specifying the list of log fields without parens. For example, `top 5 foo` is equivalent to `top 5 by (foo)`.
+* FEATURE: [`uniq` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe): allow specifying the list of log fields without parens. For example, `uniq foo` is equivalent to `uniq (foo)`.
+* FEATURE: [`unroll` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unroll-pipe): allow specifying the list of log fields without parens. For example, `unroll foo` is equivalent to `unroll (foo)`.
 
 ## [v1.11.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.11.0-victorialogs)
 

@@ -641,19 +641,30 @@ func parsePipeTop(lex *lexer) (pipe, error) {
 		limitStr = s
 	}
 
+	needFields := false
+	if lex.isKeyword("by") {
+		lex.nextToken()
+		needFields = true
+	}
+
 	var byFields []string
-	if lex.isKeyword("by", "(") {
-		if lex.isKeyword("by") {
-			lex.nextToken()
-		}
+	if lex.isKeyword("(") {
 		bfs, err := parseFieldNamesInParens(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'by' clause in 'top': %w", err)
-		}
-		if slices.Contains(bfs, "*") {
-			bfs = nil
+			return nil, fmt.Errorf("cannot parse 'by(...)': %w", err)
 		}
 		byFields = bfs
+	} else if !lex.isKeyword("hits", "rank", ")", "|", "") {
+		bfs, err := parseCommaSeparatedFields(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'by ...': %w", err)
+		}
+		byFields = bfs
+	} else if needFields {
+		return nil, fmt.Errorf("missing fields after 'by'")
+	}
+	if slices.Contains(byFields, "*") {
+		byFields = nil
 	}
 
 	pt := &pipeTop{

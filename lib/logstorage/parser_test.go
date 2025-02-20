@@ -1962,7 +1962,7 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`foo | sort by(bar) offset 10 offset 20`)
 
 	// invalid uniq pipe
-	f(`foo | uniq bar`)
+	f(`foo | uniq bar,`)
 	f(`foo | uniq limit`)
 	f(`foo | uniq by(`)
 	f(`foo | uniq by(a`)

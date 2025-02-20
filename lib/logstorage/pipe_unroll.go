@@ -228,9 +228,19 @@ func parsePipeUnroll(lex *lexer) (pipe, error) {
 		lex.nextToken()
 	}
 
-	fields, err := parseFieldNamesInParens(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse 'by(...)' at 'unroll': %w", err)
+	var fields []string
+	if lex.isKeyword("(") {
+		fs, err := parseFieldNamesInParens(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'by(...)': %w", err)
+		}
+		fields = fs
+	} else {
+		fs, err := parseCommaSeparatedFields(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'by ...': %w", err)
+		}
+		fields = fs
 	}
 	if len(fields) == 0 {
 		return nil, fmt.Errorf("'by(...)' at 'unroll' must contain at least a single field")
