@@ -19,6 +19,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 ## tip
 
 * FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmalert.yml): add alerting rule `TooHighQueryLoad` to notify user when VictoriaMetrics or vmselect weren't able to serve requests in timely manner during last 15min.
+* FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards): add panel `Deduplication rate` that shows how many samples are [deduplicated](https://docs.victoriametrics.com/#deduplication) during merges or read queries by VictoriaMetrics components.
+* FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/dashboards): account for samples dropped according to [relabeling config](https://docs.victoriametrics.com/#relabeling) in `Samples dropped for last 1h` panel.
 
 ## [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0)
 
