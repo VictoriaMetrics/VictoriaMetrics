@@ -32,6 +32,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): improve numbers formatting for better readability on the `Explore Cardinality` page. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8318).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): print full error messages for failed queries on the `Explore Cardinality` page. Before, only response status code was printed. 
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): move values representing changes relative to the previous day to a separate column for easier sorting on the `Explore Cardinality` page.
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/metricsql/): support auto-format (prettify) for expressions that use quoted metric or label names. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7703) for details.
 
 * BUGFIX: all the VictoriaMetrics components: properly override basic authorization for API endpoints protected with `authKey`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7345#issuecomment-2662595807) for details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix polluted alert messages when multiple Alertmanager instances are configured with `alert_relabel_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8040), and thanks to @evkuzin for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8258).

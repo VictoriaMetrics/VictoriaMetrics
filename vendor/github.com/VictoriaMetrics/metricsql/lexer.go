@@ -399,6 +399,29 @@ func unescapeIdent(s string) string {
 	}
 }
 
+func hasEscapedChars(s string) bool {
+	i := 0
+	for i < len(s) {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if i == 0 && !isFirstIdentChar(r) || i > 0 && !isIdentChar(r) {
+			return true
+		}
+		i += size
+	}
+	return false
+}
+
+func appendQuotedIdent(dst []byte, s string) []byte {
+	dst = utf8.AppendRune(dst, '"')
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		dst = utf8.AppendRune(dst, r)
+		i += size
+	}
+	dst = utf8.AppendRune(dst, '"')
+	return dst
+}
+
 func appendEscapedIdent(dst []byte, s string) []byte {
 	i := 0
 	for i < len(s) {
@@ -411,6 +434,13 @@ func appendEscapedIdent(dst []byte, s string) []byte {
 		i += size
 	}
 	return dst
+}
+
+func ifEscapedCharsAppendQuotedIdent(dst []byte, s string) []byte {
+	if hasEscapedChars(s) {
+		return appendQuotedIdent(dst, s)
+	}
+	return appendEscapedIdent(dst, s)
 }
 
 func (lex *lexer) Prev() {
