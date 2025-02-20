@@ -210,8 +210,8 @@ func (mt *Tracker) saveLocked() error {
 			return fmt.Errorf("cannot create dir %q: %s", dir, err)
 		}
 	}
-	tmpFilePath := filepath.Join(os.TempDir(), fileName)
-	f, err := os.OpenFile(tmpFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+
+	f, err := os.CreateTemp(os.TempDir(), fileName)
 	if err != nil {
 		return fmt.Errorf("cannot open file for state save: %w", err)
 	}
@@ -240,8 +240,8 @@ func (mt *Tracker) saveLocked() error {
 		return fmt.Errorf("cannot flush writer state: %w", err)
 	}
 	// atomically save result
-	if err := os.Rename(tmpFilePath, mt.cachePath); err != nil {
-		return fmt.Errorf("cannot move temporary file %q to %q: %s", tmpFilePath, mt.cachePath, err)
+	if err := os.Rename(f.Name(), mt.cachePath); err != nil {
+		return fmt.Errorf("cannot move temporary file %q to %q: %s", f.Name(), mt.cachePath, err)
 	}
 	return nil
 }

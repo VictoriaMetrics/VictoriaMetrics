@@ -267,6 +267,19 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	}
+	if path == "/admin/api/v1/admin/status/metric_names_stats/reset" {
+		metricNamesStatsResetRequests.Inc()
+		if !httpserver.CheckAuthFlag(w, r, metricNamesStatsResetAuthKey) {
+			return true
+		}
+		if err := stats.ResetMetricNamesStatsHandler(startTime, qt, r); err != nil {
+			metricNamesStatsResetErrors.Inc()
+			httpserver.Errorf(w, r, "error reseting metric names stats: %s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	}
 	p, err := httpserver.ParsePath(path)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse path %q: %s", path, err)
@@ -519,6 +532,14 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			graphiteRenderErrors.Inc()
 			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
+		}
+		return true
+
+	case "prometheus/api/v1/status/metric_names_stats":
+		metricNamesStatsRequests.Inc()
+		if err := stats.MetricNamesStatsHandler(startTime, at, qt, w, r); err != nil {
+			metricNamesStatsErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 		}
 		return true
 	default:

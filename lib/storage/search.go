@@ -270,12 +270,16 @@ func (s *Search) NextMetricBlock() bool {
 				var err error
 				// MetricName must be sorted and marshalled with MetricName.Marshal()
 				// it guarantees that first tag is metricGroup
-				_, s.metrigGroup, err = unmarshalTagValue(s.metrigGroup[:0], s.MetricBlockRef.MetricName)
+				if len(s.MetricBlockRef.MetricName) < 8 {
+					s.err = fmt.Errorf("BUG: unexpected MetricBlockRef.MetricName len: %d, want at least 8", len(s.MetricBlockRef.MetricName))
+					return false
+				}
+				_, s.metrigGroup, err = unmarshalTagValue(s.metrigGroup[:0], s.MetricBlockRef.MetricName[8:])
 				if err != nil {
 					s.err = fmt.Errorf("cannot unmarshal metricGroup from MetricBlockRef.MetricName: %w", err)
 					return false
 				}
-				s.idb.s.metricsTracker.RegisterQueryRequest(0, 0, s.metrigGroup)
+				s.idb.s.metricsTracker.RegisterQueryRequest(tsid.AccountID, tsid.ProjectID, s.metrigGroup)
 			}
 			s.prevMetricID = tsid.MetricID
 		}

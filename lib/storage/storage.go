@@ -2177,7 +2177,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		// register metric name on tsid cache miss
 		// it allows to track metric names since last tsid cache reset
 		// and skip index scan to fill metrics tracker
-		s.metricsTracker.RegisterIngestRequest(0, 0, mn.MetricGroup)
+		s.metricsTracker.RegisterIngestRequest(mn.AccountID, mn.ProjectID, mn.MetricGroup)
 
 		// Search for TSID for the given mr.MetricNameRaw in the indexdb.
 		if is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
@@ -3044,9 +3044,17 @@ func (s *Storage) wasMetricIDMissingBefore(metricID uint64) bool {
 // MetricNamesStatsResponse contains metric names usage stats API response
 type MetricNamesStatsResponse = metricnamestats.StatsResult
 
+// MetricNamesStatsRecord represents record at MetricNamesStatsResponse
+type MetricNamesStatsRecord = metricnamestats.StatRecord
+
 // GetMetricNamesStats returns metric names usage stats with give limit and lte predicate
-func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, limit, le int, matchPattern string) MetricNamesStatsResponse {
-	return s.metricsTracker.GetStats(limit, le, matchPattern)
+func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, tt *TenantToken, limit, le int, matchPattern string) MetricNamesStatsResponse {
+	if tt != nil {
+		return s.metricsTracker.GetStatsForTenant(tt.AccountID, tt.ProjectID, limit, le, matchPattern)
+	}
+	res := s.metricsTracker.GetStats(limit, le, matchPattern)
+	res.DeduplicateMergeRecords()
+	return res
 }
 
 // ResetMetricNamesStats resets state for metric names usage tracker
