@@ -46,7 +46,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	switch {
-	case strings.HasPrefix(path, "/elasticsearch/"):
+	case strings.HasPrefix(path, "/elasticsearch"):
 		path = strings.TrimPrefix(path, "/elasticsearch")
 		return elasticsearch.RequestHandler(path, w, r)
 	case strings.HasPrefix(path, "/loki/"):
