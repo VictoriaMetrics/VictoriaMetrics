@@ -270,7 +270,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	}
 	// add the rest of rules from registry
 	for _, nr := range rulesRegistry {
-		nr.start(g)
+		nr.updateWithGroup(g)
 		newRules = append(newRules, nr)
 	}
 	// note that g.Interval is not updated here
@@ -323,9 +323,6 @@ func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw re
 	defer func() { close(g.finishedCh) }()
 
 	g.metrics.start()
-	for _, rule := range g.Rules {
-		rule.start(g)
-	}
 
 	evalTS := time.Now()
 	// sleep random duration to spread group rules evaluation

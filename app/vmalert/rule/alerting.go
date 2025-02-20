@@ -159,10 +159,12 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 	ar.state = &ruleState{
 		entries: make([]StateEntry, entrySize),
 	}
+	ar.metrics = newAlertingRuleMetrics(group.metrics.set, ar)
 	return ar
 }
 
-func (ar *AlertingRule) start(g *Group) {
+func (ar *AlertingRule) updateWithGroup(g *Group) {
+	ar.metrics.close()
 	ar.metrics = newAlertingRuleMetrics(g.metrics.set, ar)
 }
 

@@ -52,6 +52,7 @@ func TestUpdateWith(t *testing.T) {
 		ng := &Group{
 			Name: "test",
 		}
+		ng.metrics = newGroupMetrics(ng)
 		for _, r := range newRules {
 			r.ID = config.HashRule(r)
 			ng.Rules = append(ng.Rules, ng.newRule(qb, r))
