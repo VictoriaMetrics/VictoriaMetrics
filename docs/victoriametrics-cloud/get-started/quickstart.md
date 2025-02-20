@@ -124,7 +124,7 @@ remote_write:
 * `Custom HTTP Header`: Authorization
 * `Header value`: **********
 
-![Deployment access write example](/victoriametrics-cloud/get-started/deployment_access_write_example.webp)
+![Deployment access write example](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/deployment_access_write_example.webp)
 <figcaption style="text-align: center; font-style: italic;">Write configuration examples</figcaption>
 
 
