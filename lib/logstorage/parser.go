@@ -2139,7 +2139,7 @@ func parseFuncArgs(lex *lexer, fieldName string, callback func(args []string) (f
 	return callback(args)
 }
 
-// startsWithYear returns true if s starts from YYYY
+// startsWithYear returns true if s starts with YYYY
 func startsWithYear(s string) bool {
 	if len(s) < 4 {
 		return false
@@ -2216,15 +2216,11 @@ func parseFilterDayRange(lex *lexer) (*filterDayRange, error) {
 	offsetStr := ""
 	if lex.isKeyword("offset") {
 		lex.nextToken()
-		s, err := getCompoundToken(lex)
+		d, s, err := parseDuration(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse offset in day_range filter: %w", err)
 		}
-		d, ok := tryParseDuration(s)
-		if !ok {
-			return nil, fmt.Errorf("cannot parse offset %q for day_range filter", s)
-		}
-		offset = int64(d)
+		offset = d
 		offsetStr = " offset " + s
 	}
 
@@ -2292,15 +2288,11 @@ func parseFilterWeekRange(lex *lexer) (*filterWeekRange, error) {
 	offsetStr := ""
 	if lex.isKeyword("offset") {
 		lex.nextToken()
-		s, err := getCompoundToken(lex)
+		d, s, err := parseDuration(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse offset in week_range filter: %w", err)
 		}
-		d, ok := tryParseDuration(s)
-		if !ok {
-			return nil, fmt.Errorf("cannot parse offset %q for week_range filter", s)
-		}
-		offset = int64(d)
+		offset = d
 		offsetStr = " offset " + s
 	}
 
@@ -2418,66 +2410,29 @@ func parseTimeOffset(lex *lexer) (int64, string, error) {
 	}
 	lex.nextToken()
 
-	s, err := getCompoundToken(lex)
+	d, s, err := parseDuration(lex)
 	if err != nil {
-		return 0, "", err
+		return 0, "", fmt.Errorf("cannot parse duration: %w", err)
 	}
-	d, ok := tryParseDuration(s)
-	if !ok {
-		return 0, "", fmt.Errorf("cannot parse duration [%s]", s)
-	}
-	offset := int64(d)
+	offset := d
 	return offset, "offset " + s, nil
 }
 
 func parseFilterTime(lex *lexer) (*filterTime, error) {
 	startTimeInclude := false
 	switch {
+	case lex.isKeyword(">"):
+		return parseFilterTimeGt(lex)
+	case lex.isKeyword("<"):
+		return parseFilterTimeLt(lex)
 	case lex.isKeyword("["):
+		lex.nextToken()
 		startTimeInclude = true
 	case lex.isKeyword("("):
+		lex.nextToken()
 		startTimeInclude = false
 	default:
-		s, err := getCompoundToken(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse _time filter: %w", err)
-		}
-		sLower := strings.ToLower(s)
-		if sLower == "now" || startsWithYear(s) {
-			// Parse '_time:YYYY-MM-DD', which transforms to '_time:[YYYY-MM-DD, YYYY-MM-DD+1)'
-			nsecs, err := promutils.ParseTimeAt(s, lex.currentTimestamp)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse _time filter: %w", err)
-			}
-			// Round to milliseconds
-			startTime := nsecs
-			endTime := getMatchingEndTime(startTime, s)
-			ft := &filterTime{
-				minTimestamp: startTime,
-				maxTimestamp: endTime,
-
-				stringRepr: s,
-			}
-			return ft, nil
-		}
-		// Parse _time:duration, which transforms to '_time:(now-duration, now]'
-		d, ok := tryParseDuration(s)
-		if !ok {
-			return nil, fmt.Errorf("cannot parse duration %q in _time filter", s)
-		}
-		if d < 0 {
-			d = -d
-		}
-		ft := &filterTime{
-			minTimestamp: lex.currentTimestamp - int64(d),
-			maxTimestamp: lex.currentTimestamp,
-
-			stringRepr: s,
-		}
-		return ft, nil
-	}
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing start time in _time filter")
+		return parseFilterTimeEqual(lex)
 	}
 
 	// Parse start time
@@ -2532,6 +2487,149 @@ func parseFilterTime(lex *lexer) (*filterTime, error) {
 		stringRepr: stringRepr,
 	}
 	return ft, nil
+}
+
+func parseFilterTimeGt(lex *lexer) (*filterTime, error) {
+	if !lex.isKeyword(">") {
+		return nil, fmt.Errorf("missing '>' in _time filter; got %q instead", lex.token)
+	}
+	lex.nextToken()
+
+	prefix := ">"
+	if lex.isKeyword("=") {
+		lex.nextToken()
+		prefix = ">="
+	}
+
+	if isLikelyTimestamp(lex) {
+		startTime, startTimeString, err := parseTime(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse start time in _time filter: %w", err)
+		}
+
+		if prefix == ">" {
+			startTime++
+		}
+		ft := &filterTime{
+			minTimestamp: startTime,
+			maxTimestamp: math.MaxInt64,
+
+			stringRepr: prefix + startTimeString,
+		}
+		return ft, nil
+	}
+
+	d, s, err := parseDuration(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse duration at _time filter: %w", err)
+	}
+	if d < 0 {
+		d = -d
+	}
+	if prefix == ">" {
+		d++
+	}
+	ft := &filterTime{
+		minTimestamp: math.MinInt64,
+		maxTimestamp: lex.currentTimestamp - d,
+
+		stringRepr: prefix + s,
+	}
+	return ft, nil
+}
+
+func parseFilterTimeLt(lex *lexer) (*filterTime, error) {
+	if !lex.isKeyword("<") {
+		return nil, fmt.Errorf("missing '<' in _time filter; got %q instead", lex.token)
+	}
+	lex.nextToken()
+
+	prefix := "<"
+	if lex.isKeyword("=") {
+		lex.nextToken()
+		prefix = "<="
+	}
+
+	if isLikelyTimestamp(lex) {
+		endTime, endTimeString, err := parseTime(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse end time in _time filter: %w", err)
+		}
+		if prefix == "<" {
+			endTime--
+		}
+		ft := &filterTime{
+			minTimestamp: math.MinInt64,
+			maxTimestamp: endTime,
+
+			stringRepr: prefix + endTimeString,
+		}
+		return ft, nil
+	}
+
+	d, s, err := parseDuration(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse duration at _time filter: %w", err)
+	}
+	if d < 0 {
+		d = -d
+	}
+	if prefix == "<" {
+		d--
+	}
+	ft := &filterTime{
+		minTimestamp: lex.currentTimestamp - d,
+		maxTimestamp: lex.currentTimestamp,
+
+		stringRepr: prefix + s,
+	}
+	return ft, nil
+}
+
+func parseFilterTimeEqual(lex *lexer) (*filterTime, error) {
+	prefix := ""
+	if lex.isKeyword("=") {
+		lex.nextToken()
+		prefix = "="
+	}
+
+	if isLikelyTimestamp(lex) {
+		// Parse '_time:YYYY-MM-DD', which transforms to '_time:[YYYY-MM-DD, YYYY-MM-DD+1)'
+		nsecs, s, err := parseTime(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse _time filter: %w", err)
+		}
+		// Round to milliseconds
+		startTime := nsecs
+		endTime := getMatchingEndTime(startTime, s)
+		ft := &filterTime{
+			minTimestamp: startTime,
+			maxTimestamp: endTime,
+
+			stringRepr: prefix + s,
+		}
+		return ft, nil
+	}
+
+	// Parse _time:duration, which transforms to '_time:(now-duration, now]'
+	d, s, err := parseDuration(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse duration at _time filter: %w", err)
+	}
+	if d < 0 {
+		d = -d
+	}
+	ft := &filterTime{
+		minTimestamp: lex.currentTimestamp - d,
+		maxTimestamp: lex.currentTimestamp,
+
+		stringRepr: prefix + s,
+	}
+	return ft, nil
+}
+
+func isLikelyTimestamp(lex *lexer) bool {
+	return lex.isKeyword("now") || startsWithYear(lex.token)
 }
 
 func getMatchingEndTime(startTime int64, stringRepr string) int64 {
@@ -2706,6 +2804,18 @@ func parseTime(lex *lexer) (int64, string, error) {
 		return 0, "", err
 	}
 	return nsecs, s, nil
+}
+
+func parseDuration(lex *lexer) (int64, string, error) {
+	s, err := getCompoundToken(lex)
+	if err != nil {
+		return 0, "", err
+	}
+	d, ok := tryParseDuration(s)
+	if !ok {
+		return 0, s, fmt.Errorf("cannot parse duration %q", s)
+	}
+	return d, s, nil
 }
 
 func quoteStringTokenIfNeeded(s string) string {
