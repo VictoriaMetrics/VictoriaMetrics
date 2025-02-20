@@ -573,19 +573,34 @@ func parsePipeUniq(lex *lexer) (pipe, error) {
 	}
 	lex.nextToken()
 
-	var pu pipeUniq
-	if lex.isKeyword("by", "(") {
-		if lex.isKeyword("by") {
-			lex.nextToken()
-		}
+	needFields := false
+	if lex.isKeyword("by") {
+		lex.nextToken()
+		needFields = true
+	}
+
+	var byFields []string
+	if lex.isKeyword("(") {
 		bfs, err := parseFieldNamesInParens(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'by' clause: %w", err)
+			return nil, fmt.Errorf("cannot parse 'by(...)': %w", err)
 		}
-		if slices.Contains(bfs, "*") {
-			bfs = nil
+		byFields = bfs
+	} else if !lex.isKeyword("with", "hits", "limit", ")", "|", "") {
+		bfs, err := parseCommaSeparatedFields(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'by ...': %w", err)
 		}
-		pu.byFields = bfs
+		byFields = bfs
+	} else if needFields {
+		return nil, fmt.Errorf("missing fields after 'by'")
+	}
+	if slices.Contains(byFields, "*") {
+		byFields = nil
+	}
+
+	pu := &pipeUniq{
+		byFields: byFields,
 	}
 
 	if lex.isKeyword("with") {
@@ -614,5 +629,5 @@ func parsePipeUniq(lex *lexer) (pipe, error) {
 		pu.limit = n
 	}
 
-	return &pu, nil
+	return pu, nil
 }
