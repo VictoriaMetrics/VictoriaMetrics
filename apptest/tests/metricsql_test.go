@@ -44,8 +44,8 @@ func testInstantQueryWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQueri
 	data := []pb.TimeSeries{
 		{
 			Labels: []pb.Label{
-				{Name: "__name__", Value: "3foo"},
-				{Name: "3utf", Value: "bar"},
+				{Name: "__name__", Value: "3fooµ¥"},
+				{Name: "3👋tfにちは", Value: "漢©®€£"},
 			},
 			Samples: []pb.Sample{
 				{Value: 1, Timestamp: millis("2024-01-01T00:01:00Z")},
@@ -62,7 +62,7 @@ func testInstantQueryWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQueri
 		cmpopts.EquateNaNs(),
 	}
 
-	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "3foo", "3utf": "bar"}}]}}`)
+	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "3fooµ¥", "3👋tfにちは": "漢©®€£"}}]}}`)
 	fn := func(query string) {
 		got = sut.PrometheusAPIV1Query(t, query, apptest.QueryOpts{
 			Step: "5m",
@@ -74,10 +74,13 @@ func testInstantQueryWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQueri
 		}
 	}
 
-	fn(`{"3foo"}`)
-	fn(`{__name__="3foo"}`)
-	fn(`{"3foo", "3utf"="bar"}`)
-	fn(`{"3utf"="bar"}`)
+	fn(`{"3fooµ¥"}`)
+	fn(`{__name__="3fooµ¥"}`)
+	fn(`{__name__=~"3fo.*"}`)
+	fn(`{__name__=~".*µ¥"}`)
+	fn(`{"3fooµ¥", "3👋tfにちは"="漢©®€£"}`)
+	fn(`{"3fooµ¥", "3👋tfにちは"=~"漢.*"}`)
+	fn(`{"3👋tfにちは"="漢©®€£"}`)
 }
 
 var staleNaNsData = func() []pb.TimeSeries {
