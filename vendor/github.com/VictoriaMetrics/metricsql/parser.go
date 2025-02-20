@@ -1462,7 +1462,7 @@ type labelFilterExpr struct {
 }
 
 func (lfe *labelFilterExpr) AppendString(dst []byte) []byte {
-	dst = appendEscapedIdent(dst, lfe.Label)
+	dst = ifEscapedCharsAppendQuotedIdent(dst, lfe.Label)
 	if lfe.Value == nil {
 		return dst
 	}
@@ -2267,15 +2267,28 @@ type MetricExpr struct {
 func appendLabelFilterss(dst []byte, lfss [][]*labelFilterExpr) []byte {
 	offset := 0
 	metricName := getMetricNameFromLabelFilterss(lfss)
+	metricNameHasEscapedChars := hasEscapedChars(metricName)
+
 	if metricName != "" {
 		offset = 1
-		dst = appendEscapedIdent(dst, metricName)
+		if !metricNameHasEscapedChars {
+			dst = appendEscapedIdent(dst, metricName)
+		} else {
+			dst = append(dst, '{')
+			dst = appendQuotedIdent(dst, metricName)
+		}
 	}
 	if isOnlyMetricNameInLabelFilterss(lfss) {
+		if metricNameHasEscapedChars {
+			dst = append(dst, '}')
+		}
 		return dst
 	}
-
-	dst = append(dst, '{')
+	if !metricNameHasEscapedChars {
+		dst = append(dst, '{')
+	} else {
+		dst = append(dst, ',', ' ')
+	}
 	for i, lfs := range lfss {
 		lfs = lfs[offset:]
 		if len(lfs) == 0 {
@@ -2335,6 +2348,9 @@ func mustGetMetricName(lfss []*labelFilterExpr) string {
 	}
 	lfs := lfss[0]
 	if lfs.Label != "__name__" || lfs.Value == nil || len(lfs.Value.tokens) != 1 {
+		if lfs.IsPossibleMetricName {
+			return lfs.Label
+		}
 		return ""
 	}
 	metricName, err := extractStringValue(lfs.Value.tokens[0])
