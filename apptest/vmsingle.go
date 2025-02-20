@@ -96,8 +96,8 @@ func (app *Vmsingle) InfluxWrite(t *testing.T, records []string, _ QueryOpts) {
 
 	data := []byte(strings.Join(records, "\n"))
 	_, statusCode := app.cli.Post(t, app.influxLineWriteURL, "text/plain", data)
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
 }
 
@@ -110,8 +110,8 @@ func (app *Vmsingle) PrometheusAPIV1Write(t *testing.T, records []pb.TimeSeries,
 	wr := pb.WriteRequest{Timeseries: records}
 	data := snappy.Encode(nil, wr.MarshalProtobuf(nil))
 	_, statusCode := app.cli.Post(t, app.prometheusAPIV1WriteURL, "application/x-protobuf", data)
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
 }
 
@@ -125,8 +125,8 @@ func (app *Vmsingle) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 
 	data := []byte(strings.Join(records, "\n"))
 	_, statusCode := app.cli.Post(t, app.prometheusAPIV1ImportPrometheusURL, "text/plain", data)
-	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusNoContent)
 	}
 }
 
