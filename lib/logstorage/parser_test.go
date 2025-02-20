@@ -1,6 +1,7 @@
 package logstorage
 
 import (
+	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -374,6 +375,11 @@ func TestParseTimeRange(t *testing.T) {
 	maxTimestamp = time.Date(2023, time.March, 1, 0, 0, 0, 0, time.UTC).UnixNano() - 1
 	f("2023-03-01T00:59:59+01:00", minTimestamp, maxTimestamp)
 
+	// _time:=YYYY-MM-DDTHH:MM:SS+hh:mm
+	minTimestamp = time.Date(2023, time.February, 28, 23, 59, 59, 0, time.UTC).UnixNano()
+	maxTimestamp = time.Date(2023, time.March, 1, 0, 0, 0, 0, time.UTC).UnixNano() - 1
+	f("=2023-03-01T00:59:59+01:00", minTimestamp, maxTimestamp)
+
 	// _time:(start, end)
 	minTimestamp = time.Date(2023, time.March, 1, 0, 0, 0, 0, time.UTC).UnixNano() + 1
 	maxTimestamp = time.Date(2023, time.April, 6, 0, 0, 0, 0, time.UTC).UnixNano() - 1
@@ -424,6 +430,25 @@ func TestParseTimeRange(t *testing.T) {
 	minTimestamp = 1562529662678901234
 	maxTimestamp = 1562529662678901235
 	f(`[1562529662678901234,1562529662678901235]`, minTimestamp, maxTimestamp)
+
+	// time range in half-open form
+	minTimestamp = time.Date(2023, time.February, 28, 21, 40, 0, 0, time.UTC).UnixNano()
+	maxTimestamp = math.MaxInt64
+	f(`>=2023-03-01+02:20`, minTimestamp, maxTimestamp)
+
+	offset = int64(30*time.Minute + 5*time.Second)
+	minTimestamp = time.Date(2023, time.February, 28, 21, 40, 0, 0, time.UTC).UnixNano() - offset + 1
+	maxTimestamp = math.MaxInt64 - offset
+	f(`>2023-03-01+02:20 offset 30m5s`, minTimestamp, maxTimestamp)
+
+	minTimestamp = math.MinInt64
+	maxTimestamp = time.Date(2023, time.February, 28, 21, 40, 0, 0, time.UTC).UnixNano()
+	f(`<=2023-03-01+02:20`, minTimestamp, maxTimestamp)
+
+	offset = int64(30*time.Minute + 5*time.Second)
+	minTimestamp = math.MinInt64 - offset
+	maxTimestamp = time.Date(2023, time.February, 28, 21, 40, 0, 0, time.UTC).UnixNano() - offset - 1
+	f(`<2023-03-01+02:20 offset 30m5s`, minTimestamp, maxTimestamp)
 }
 
 func TestParseFilterSequence(t *testing.T) {
@@ -889,8 +914,14 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`_time:[2023-06-07T23:56:34.3456-02:30, now)`, `_time:[2023-06-07T23:56:34.3456-02:30,now)`)
 	f(`_time:("2024-01-02+02:00", now)`, `_time:(2024-01-02+02:00,now)`)
 	f(`_time:now`, `_time:now`)
-	f(`_time:"now"`, `_time:now`)
+	f(`_time:>now`, `_time:>now`)
+	f(`_time:>=now`, `_time:>=now`)
+	f(`_time:<=now`, `_time:<=now`)
+	f(`_time:<now`, `_time:<now`)
+	f(`_time:2024`, `_time:2024`)
 	f(`_time:2024Z`, `_time:2024Z`)
+	f(`_time:"2024Z"`, `_time:2024Z`)
+	f(`_time:=2024Z`, `_time:=2024Z`)
 	f(`_time:2024-02:30`, `_time:2024-02:30`)
 	f(`_time:2024-01-02:30`, `_time:2024-01-02:30`)
 	f(`_time:2024-01-02:30`, `_time:2024-01-02:30`)
@@ -903,14 +934,25 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`_time:2023-01-02T04:05:06.789Z`, `_time:2023-01-02T04:05:06.789Z`)
 	f(`_time:2023-01-02T04:05:06.789-02:30`, `_time:2023-01-02T04:05:06.789-02:30`)
 	f(`_time:2023-01-02T04:05:06.789+02:30`, `_time:2023-01-02T04:05:06.789+02:30`)
+	f(`_time:=2023-01-02T04:05:06.789+02:30`, `_time:=2023-01-02T04:05:06.789+02:30`)
+	f(`_time:<2023-01-02T04:05:06.789+02:30`, `_time:<2023-01-02T04:05:06.789+02:30`)
+	f(`_time:>2023-01-02T04:05:06.789+02:30`, `_time:>2023-01-02T04:05:06.789+02:30`)
+	f(`_time:<=2023-01-02T04:05:06.789+02:30`, `_time:<=2023-01-02T04:05:06.789+02:30`)
+	f(`_time:>=2023-01-02T04:05:06.789+02:30`, `_time:>=2023-01-02T04:05:06.789+02:30`)
 	f(`_time:[1234567890, 1400000000]`, `_time:[1234567890,1400000000]`)
 	f(`_time:2d3h5.5m3s45ms`, `_time:2d3h5.5m3s45ms`)
+	f(`_time:=2d`, `_time:=2d`)
+	f(`_time:<2d`, `_time:<2d`)
+	f(`_time:<=2d`, `_time:<=2d`)
+	f(`_time:>=2d`, `_time:>=2d`)
+	f(`_time:>2d`, `_time:>2d`)
 	f(`_time:2023-01-05 OFFSET 5m`, `_time:2023-01-05 offset 5m`)
 	f(`_time:[2023-01-05, 2023-01-06] OFFset 5m`, `_time:[2023-01-05,2023-01-06] offset 5m`)
 	f(`_time:[2023-01-05, 2023-01-06) OFFset 5m`, `_time:[2023-01-05,2023-01-06) offset 5m`)
 	f(`_time:(2023-01-05, 2023-01-06] OFFset 5m`, `_time:(2023-01-05,2023-01-06] offset 5m`)
 	f(`_time:(2023-01-05, 2023-01-06) OFFset 5m`, `_time:(2023-01-05,2023-01-06) offset 5m`)
 	f(`_time:1h offset 5.3m`, `_time:1h offset 5.3m`)
+	f(`_time:=1h offset 5.3m`, `_time:=1h offset 5.3m`)
 	f(`_time:offset 1d`, `_time:offset 1d`)
 	f(`_time:offset -1.5d`, `_time:offset -1.5d`)
 	f(`_time:1h "offSet"`, `_time:1h "offSet"`) // "offset" is a search word, since it is quoted
