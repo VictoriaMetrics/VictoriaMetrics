@@ -2432,7 +2432,7 @@ func parseFilterTime(lex *lexer) (*filterTime, error) {
 		lex.nextToken()
 		startTimeInclude = false
 	default:
-		return parseFilterTimeEqual(lex)
+		return parseFilterTimeEq(lex)
 	}
 
 	// Parse start time
@@ -2557,6 +2557,8 @@ func parseFilterTimeLt(lex *lexer) (*filterTime, error) {
 		}
 		if prefix == "<" {
 			endTime--
+		} else {
+			endTime = getMatchingEndTime(endTime, endTimeString)
 		}
 		ft := &filterTime{
 			minTimestamp: math.MinInt64,
@@ -2586,7 +2588,7 @@ func parseFilterTimeLt(lex *lexer) (*filterTime, error) {
 	return ft, nil
 }
 
-func parseFilterTimeEqual(lex *lexer) (*filterTime, error) {
+func parseFilterTimeEq(lex *lexer) (*filterTime, error) {
 	prefix := ""
 	if lex.isKeyword("=") {
 		lex.nextToken()

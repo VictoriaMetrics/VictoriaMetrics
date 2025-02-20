@@ -442,7 +442,7 @@ func TestParseTimeRange(t *testing.T) {
 	f(`>2023-03-01+02:20 offset 30m5s`, minTimestamp, maxTimestamp)
 
 	minTimestamp = math.MinInt64
-	maxTimestamp = time.Date(2023, time.February, 28, 21, 40, 0, 0, time.UTC).UnixNano()
+	maxTimestamp = time.Date(2023, time.March, 1, 21, 40, 0, 0, time.UTC).UnixNano() - 1
 	f(`<=2023-03-01+02:20`, minTimestamp, maxTimestamp)
 
 	offset = int64(30*time.Minute + 5*time.Second)
