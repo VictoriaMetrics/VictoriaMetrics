@@ -45,6 +45,8 @@ github.com/VictoriaMetrics/metrics v1.35.2 h1:Bj6L6ExfnakZKYPpi7mGUnkJP4NGQz2v5w
 github.com/VictoriaMetrics/metrics v1.35.2/go.mod h1:r7hveu6xMdUACXvB8TYdAj8WEsKzWB0EkpJN+RDtOf8=
 github.com/VictoriaMetrics/metricsql v0.83.0 h1:3460jZ97XWD+595jpPdtVTVoKJflbxqBgeCbzPCiSgU=
 github.com/VictoriaMetrics/metricsql v0.83.0/go.mod h1:1g4hdCwlbJZ851PU9VN65xy9Rdlzupo6fx3SNZ8Z64U=
+github.com/VictoriaMetrics/metricsql v0.83.1 h1:+eHBVsYJvOPw8oy25gh1VT7OnT+jtfHb31eGvfYNEkY=
+github.com/VictoriaMetrics/metricsql v0.83.1/go.mod h1:1g4hdCwlbJZ851PU9VN65xy9Rdlzupo6fx3SNZ8Z64U=
 github.com/VividCortex/ewma v1.2.0 h1:f58SaIzcDXrSy3kWaHNvuJgJ3Nmz59Zji6XoJR/q1ow=
 github.com/VividCortex/ewma v1.2.0/go.mod h1:nz4BbCtbLyFDeC9SUHbtcT5644juEuWfUAUnGx7j5l4=
 github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b h1:mimo19zliBX/vSQ6PWWSL9lK8qwHozUj03+zLoEB8O0=
