@@ -5,7 +5,7 @@ import { Data, HeadCell } from "../Table/types";
 import { MutableRef } from "preact/hooks";
 import Tabs from "../../../components/Main/Tabs/Tabs";
 import { useMemo, useState } from "preact/compat";
-import { ChartIcon, InfoIcon, TableIcon } from "../../../components/Main/Icons";
+import { ChartIcon, InfoIcon, InfoOutlinedIcon, TableIcon } from "../../../components/Main/Icons";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
@@ -81,7 +81,9 @@ const MetricsContent: FC<MetricsProperties> = ({
                 className="vm-metrics-content-header__tip"
               />}
             >
-              <div className="vm-metrics-content-header__tip-icon"><InfoIcon/></div>
+              <div className="vm-metrics-content-header__tip-icon">
+                <InfoOutlinedIcon/>
+              </div>
             </Tooltip>
           )}
           {sectionTitle}

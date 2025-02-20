@@ -1,8 +1,17 @@
 @use "src/styles/variables" as *;
 
 .vm-dynamic-number {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding-left: 1em;
   font-size: $font-size-small;
   color: $color-text-disabled;
+
+  &_static {
+    color: $color-text-secondary;
+    padding-left: 0;
+  }
 
   &_positive {
     color: $color-success;
@@ -12,15 +21,22 @@
     color: $color-error;
   }
 
+  &:before {
+    position: absolute;
+    top: auto;
+    left: 0;
+    width: 1em;
+  }
+
   &_down {
     &:before {
-      content: "↓";
+      content: "↓ ";
     }
   }
 
   &_up {
     &:before {
-      content: "↑";
+      content: "↑ ";
     }
   }
 }

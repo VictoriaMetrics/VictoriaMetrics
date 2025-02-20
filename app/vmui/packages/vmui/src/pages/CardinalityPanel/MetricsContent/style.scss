@@ -1,8 +1,11 @@
 @use "src/styles/variables" as *;
 
 .vm-metrics-content {
+  border: $border-divider;
+
   &-header {
     margin: -$padding-medium 0-$padding-medium 0;
+    background-color: $color-hover-black;
 
     &__title {
       display: flex;
@@ -21,7 +24,7 @@
     }
 
     &__tip-icon {
-      width: 12px;
+      width: 15px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -36,7 +39,7 @@
 
   &__table {
     padding-top: $padding-medium;
-    width: calc(100vw - ($padding-medium * 4) - var(--scrollbar-width));
+    width: calc(100vw - ($padding-large * 4) - var(--scrollbar-width));
     overflow: auto;
 
     @media (max-width: 768px) {
@@ -49,6 +52,12 @@
 
     .vm-table-cell_header {
       white-space: nowrap;
+    }
+
+    th,
+    td {
+      vertical-align: middle;
+      height: 33px;
     }
   }
 

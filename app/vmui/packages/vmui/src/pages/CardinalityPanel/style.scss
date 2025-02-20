@@ -3,7 +3,7 @@
 .vm-cardinality-panel {
   display: grid;
   align-items: flex-start;
-  gap: $padding-medium;
+  gap: $padding-large;
 
   &_mobile, &_mobile &-tips {
     gap: $padding-small;
@@ -24,19 +24,16 @@
       th:first-child {
         width: 60%;
       }
-
-      th:not(:first-child) {
-        width: auto;
-      }
     }
-
 
     &__progress {
       display: grid;
-      grid-template-columns: minmax(200px, 1fr) 70px;
+      grid-template-columns: minmax(160px, 1fr) repeat(2, auto);
+      white-space: nowrap;
       align-items: center;
       justify-content: flex-start;
       gap: $padding-small;
+      font-size: $font-size-small;
     }
   }
 }
