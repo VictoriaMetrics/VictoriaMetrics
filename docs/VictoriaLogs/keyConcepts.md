@@ -13,7 +13,7 @@ aliases:
 ## Data model
 
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) works with both structured and unstructured logs.
-Every log entry must contain at least [log message field](#message-field) plus arbitrary number of additional `key=value` fields.
+Every log entry must contain at least [log message field](#message-field). Arbitrary number of additional `key=value` fields can be added to the log entry.
 A single log entry can be expressed as a single-level [JSON](https://www.json.org/json-en.html) object with string keys and string values.
 For example:
 
@@ -114,12 +114,12 @@ VictoriaLogs supports the following special fields additionally to arbitrary [ot
 
 * [`_msg` field](#message-field)
 * [`_time` field](#time-field)
-* [`_stream` fields](#stream-fields)
+* [`_stream` and `_stream_id` fields](#stream-fields)
 
 ### Message field
 
 Every ingested [log entry](#data-model) must contain at least a `_msg` field with the actual log message. For example, this is the minimal
-log entry, which can be ingested into VictoriaLogs:
+log entry for VictoriaLogs:
 
 ```json
 {
@@ -128,10 +128,9 @@ log entry, which can be ingested into VictoriaLogs:
 ```
 
 If the actual log message has other than `_msg` field name, then it can be specified via `_msg_field` HTTP query arg or via `VL-Msg-Field` HTTP header
-during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/)
-according to [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters).
-For example, if log message is located in the `event.original` field, then specify `_msg_field=event.original` query arg
 during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+For example, if log message is located in the `event.original` field, then specify `_msg_field=event.original` query arg.
+See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
 
 If the `_msg` field remains empty after an attempt to get it from `_msg_field`, then VictoriaLogs automatically sets it to the value specified
 via `-defaultMsgValue` command-line flag.
@@ -139,7 +138,7 @@ via `-defaultMsgValue` command-line flag.
 ### Time field
 
 The ingested [log entries](#data-model) may contain `_time` field with the timestamp of the ingested log entry.
-The timestamp field must be in one of the following formats:
+This field must be in one of the following formats:
 
 - [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) or [RFC3339](https://www.rfc-editor.org/rfc/rfc3339).
   For example, `2023-06-20T15:32:10Z` or `2023-06-20 15:32:10.123456789+02:00`.
@@ -159,14 +158,14 @@ For example, the following [log entry](#data-model) contains valid timestamp wit
 ```
 
 If the actual timestamp has other than `_time` field name, then it is possible to specify the real timestamp
-field via `_time_field` query arg during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
-For example, if timestamp is located in the `event.created` field, then specify `_time_field=event.created` query arg
-during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+field via `_time_field` HTTP query arg or via `VL-Time-Field` HTTP header during [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
+For example, if timestamp is located in the `event.created` field, then specify `_time_field=event.created` query arg.
+See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
 
 If `_time` field is missing or if it equals `0`, then the data ingestion time is used as log entry timestamp.
 
-The `_time` field is used in [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) for quickly narrowing down
-the search to a particular time range.
+The `_time` field is used by [time filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter) for quickly narrowing down
+the search to the selected time range.
 
 ### Stream fields
 
@@ -185,7 +184,7 @@ This provides the following benefits:
 - Increased query performance, since VictoriaLogs needs to scan lower amounts of data
   when [searching by stream fields](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter).
 
-Every ingested log entry is associated with a log stream. Every log stream consists of two fields:
+Every ingested log entry is associated with a log stream. Every log stream consists of the following special fields:
 
 - `_stream_id` - this is an unique identifier for the log stream. All the logs for the particular stream can be selected
   via [`_stream_id:...` filter](https://docs.victoriametrics.com/victorialogs/logsql/#_stream_id-filter).
