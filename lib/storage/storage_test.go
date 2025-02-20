@@ -3100,3 +3100,51 @@ func testGenerateMetricRowBatches(opts *batchOptions) ([][]MetricRow, *counts) {
 	}
 	return batches, &want
 }
+
+func TestStorageMetricTracker(t *testing.T) {
+	defer testRemoveAll(t)
+	rng := rand.New(rand.NewSource(1))
+	numRows := uint64(1000)
+	minTimestamp := time.Now().UnixMilli()
+	maxTimestamp := minTimestamp + 1000
+	mrs := testGenerateMetricRows(rng, numRows, minTimestamp, maxTimestamp)
+
+	var gotMetrics Metrics
+	s := MustOpenStorage(t.Name(), OpenOptions{TrackMetricNamesStats: true})
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+	s.UpdateMetrics(&gotMetrics)
+
+	var sr Search
+	tr := TimeRange{
+		MinTimestamp: minTimestamp,
+		MaxTimestamp: maxTimestamp,
+	}
+
+	// check stats for metrics with 0 requests count
+	mus := s.GetMetricNamesStats(nil, 10_000, 0, "")
+	if len(mus.Records) != int(numRows) {
+		t.Fatalf("unexpected Stats records count=%d, want %d records", len(mus.Records), numRows)
+	}
+
+	// search query for all ingested metrics
+	tfs := NewTagFilters()
+	if err := tfs.Add(nil, []byte("metric_.+"), false, true); err != nil {
+		t.Fatalf("unexpected error at tfs add: %s", err)
+	}
+
+	sr.Init(nil, s, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+	for sr.NextMetricBlock() {
+	}
+	sr.MustClose()
+
+	mus = s.GetMetricNamesStats(nil, 10_000, 0, "")
+	if len(mus.Records) != 0 {
+		t.Fatalf("unexpected Stats records count=%d; want 0 records", len(mus.Records))
+	}
+	mus = s.GetMetricNamesStats(nil, 10_000, 1, "")
+	if len(mus.Records) != int(numRows) {
+		t.Fatalf("unexpected Stats records count=%d, want %d records", len(mus.Records), numRows)
+	}
+}
