@@ -59,7 +59,7 @@ When creating a deployment, the following options are available:
 | **`Deduplication`** | Deduplication handles redundant data in high-availability (HA) setups to retain only one sample per interval. For best results, set deduplication to match the collect metrics interval. If you have multiple intervals, set it to the shortest one. |
 | <nobr>**`Maintenance Window`**</nobr> | We use this value as the preferred window for us to perform maintenance operations, such as upgrades, when needed. |
 
-![Selecting a tier](create_deployment_form_down.webp "Selecting a tier")
+![Selecting a tier](/victoriametrics-cloud/get-started/create_deployment_form_down.webp "Selecting a tier")
 <figcaption style="text-align: center; font-style: italic;">Selecting a tier</figcaption>
 
 After selecting your desired configuration, you are set to `Create` your deployment. Once created, it will remain for a few seconds in `Provisioning` status while spinning-up. 
@@ -124,7 +124,7 @@ remote_write:
 * `Custom HTTP Header`: Authorization
 * `Header value`: **********
 
-![Deployment access write example](deployment_access_write_example.webp)
+![Deployment access write example](/victoriametrics-cloud/get-started/deployment_access_write_example.webp)
 <figcaption style="text-align: center; font-style: italic;">Write configuration examples</figcaption>
 
 
