@@ -20,6 +20,69 @@ func millis(s string) int64 {
 	return t.UnixMilli()
 }
 
+func TestSingleInstantQuery(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	sut := tc.MustStartDefaultVmsingle()
+
+	testInstantQueryWithUTFNames(t, sut)
+	testInstantQueryDoesNotReturnStaleNaNs(t, sut)
+}
+
+func TestClusterInstantQuery(t *testing.T) {
+	tc := apptest.NewTestCase(t)
+	defer tc.Stop()
+
+	sut := tc.MustStartDefaultCluster()
+
+	testInstantQueryWithUTFNames(t, sut)
+	testInstantQueryDoesNotReturnStaleNaNs(t, sut)
+}
+
+func testInstantQueryWithUTFNames(t *testing.T, sut apptest.PrometheusWriteQuerier) {
+	data := []pb.TimeSeries{
+		{
+			Labels: []pb.Label{
+				{Name: "__name__", Value: "3fooµ¥"},
+				{Name: "3👋tfにちは", Value: "漢©®€£"},
+			},
+			Samples: []pb.Sample{
+				{Value: 1, Timestamp: millis("2024-01-01T00:01:00Z")},
+			},
+		},
+	}
+
+	sut.PrometheusAPIV1Write(t, data, apptest.QueryOpts{})
+	sut.ForceFlush(t)
+
+	var got, want *apptest.PrometheusAPIV1QueryResponse
+	cmpOptions := []cmp.Option{
+		cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Status", "Data.ResultType"),
+		cmpopts.EquateNaNs(),
+	}
+
+	want = apptest.NewPrometheusAPIV1QueryResponse(t, `{"data": {"result": [{"metric": {"__name__": "3fooµ¥", "3👋tfにちは": "漢©®€£"}}]}}`)
+	fn := func(query string) {
+		got = sut.PrometheusAPIV1Query(t, query, apptest.QueryOpts{
+			Step: "5m",
+			Time: "2024-01-01T00:01:00.000Z",
+		})
+		want.Data.Result[0].Sample = apptest.NewSample(t, "2024-01-01T00:01:00Z", 1)
+		if diff := cmp.Diff(want, got, cmpOptions...); diff != "" {
+			t.Errorf("unexpected response (-want, +got):\n%s", diff)
+		}
+	}
+
+	fn(`{"3fooµ¥"}`)
+	fn(`{__name__="3fooµ¥"}`)
+	fn(`{__name__=~"3fo.*"}`)
+	fn(`{__name__=~".*µ¥"}`)
+	fn(`{"3fooµ¥", "3👋tfにちは"="漢©®€£"}`)
+	fn(`{"3fooµ¥", "3👋tfにちは"=~"漢.*"}`)
+	fn(`{"3👋tfにちは"="漢©®€£"}`)
+}
+
 var staleNaNsData = func() []pb.TimeSeries {
 	return []pb.TimeSeries{
 		{
@@ -42,24 +105,6 @@ var staleNaNsData = func() []pb.TimeSeries {
 		},
 	}
 }()
-
-func TestSingleInstantQueryDoesNotReturnStaleNaNs(t *testing.T) {
-	tc := apptest.NewTestCase(t)
-	defer tc.Stop()
-
-	sut := tc.MustStartDefaultVmsingle()
-
-	testInstantQueryDoesNotReturnStaleNaNs(t, sut)
-}
-
-func TestClusterInstantQueryDoesNotReturnStaleNaNs(t *testing.T) {
-	tc := apptest.NewTestCase(t)
-	defer tc.Stop()
-
-	sut := tc.MustStartDefaultCluster()
-
-	testInstantQueryDoesNotReturnStaleNaNs(t, sut)
-}
 
 func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.PrometheusWriteQuerier) {
 
