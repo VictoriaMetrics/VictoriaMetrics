@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmalert.yml): add alerting rule `TooHighQueryLoad` to notify user when VictoriaMetrics or vmselect weren't able to serve requests in timely manner during last 15min.
+
 ## [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0)
 
 Released at 2025-02-21
