@@ -1,6 +1,6 @@
 module github.com/VictoriaMetrics/VictoriaMetrics
 
-go 1.23.6
+go 1.24
 
 // This is needed in order to avoid vmbackup and vmrestore binary size increase by 20MB
 // See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8008
