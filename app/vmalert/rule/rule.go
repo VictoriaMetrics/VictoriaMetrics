@@ -29,10 +29,10 @@ type Rule interface {
 	updateWith(Rule) error
 	// close performs the shutdown procedures for rule
 	// such as metrics unregister
-	close()
+	unregisterMetrics()
 	// update rules config related to the group
 	// such as metrics registration
-	updateWithGroup(g *Group)
+	registerMetrics(g *Group)
 }
 
 var errDuplicate = errors.New("result contains metrics with the same labelset during evaluation. See https://docs.victoriametrics.com/vmalert/#series-with-the-same-labelset for details")

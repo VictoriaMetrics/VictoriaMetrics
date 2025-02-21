@@ -163,13 +163,12 @@ func NewAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 	return ar
 }
 
-func (ar *AlertingRule) updateWithGroup(g *Group) {
-	ar.metrics.close()
+func (ar *AlertingRule) registerMetrics(g *Group) {
 	ar.metrics = newAlertingRuleMetrics(g.metrics.set, ar)
 }
 
 // close unregisters rule metrics
-func (ar *AlertingRule) close() {
+func (ar *AlertingRule) unregisterMetrics() {
 	ar.metrics.close()
 }
 

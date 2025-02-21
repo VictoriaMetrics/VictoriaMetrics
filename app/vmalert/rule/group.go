@@ -250,7 +250,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 		if !ok {
 			// old rule is not present in the new list
 			// so we mark it for removing
-			g.Rules[i].close()
+			g.Rules[i].unregisterMetrics()
 			g.Rules[i] = nil
 			continue
 		}
@@ -270,7 +270,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	}
 	// add the rest of rules from registry
 	for _, nr := range rulesRegistry {
-		nr.updateWithGroup(g)
+		nr.registerMetrics(g)
 		newRules = append(newRules, nr)
 	}
 	// note that g.Interval is not updated here
@@ -310,9 +310,6 @@ func (g *Group) Close() {
 	<-g.finishedCh
 
 	g.metrics.close()
-	for _, rule := range g.Rules {
-		rule.close()
-	}
 }
 
 // SkipRandSleepOnGroupStart will skip random sleep delay in group first evaluation
