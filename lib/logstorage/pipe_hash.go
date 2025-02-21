@@ -111,9 +111,12 @@ func (php *pipeHashProcessor) writeBlock(workerID uint, br *blockResult) {
 		br.addResultColumnConst(&shard.rc)
 	} else {
 		// Slow path for other columns
-		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
-			v := c.getValueAtRow(br, rowIdx)
-			vEncoded := shard.getEncodedHash(v)
+		values := c.getValues(br)
+		vEncoded := ""
+		for rowIdx := range values {
+			if rowIdx == 0 || values[rowIdx] != values[rowIdx-1] {
+				vEncoded = shard.getEncodedHash(values[rowIdx])
+			}
 			shard.rc.addValue(vEncoded)
 		}
 		br.addResultColumnFloat64(&shard.rc, shard.minValue, shard.maxValue)
