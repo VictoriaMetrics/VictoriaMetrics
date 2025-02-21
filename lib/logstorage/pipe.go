@@ -321,6 +321,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'unroll' pipe: %w", err)
 		}
 		return pu, nil
+	case lex.isKeyword("unroll_tokens"):
+		pu, err := parsePipeUnrollTokens(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'unroll_token' pipe: %w", err)
+		}
+		return pu, nil
 	default:
 		lexState := lex.backupState()
 
@@ -381,6 +387,7 @@ var pipeNames = func() map[string]struct{} {
 		"unpack_logfmt",
 		"unpack_syslog",
 		"unroll",
+		"unroll_tokens",
 	}
 
 	m := make(map[string]struct{}, len(a))

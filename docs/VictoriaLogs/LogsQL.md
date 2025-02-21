@@ -1371,7 +1371,8 @@ LogsQL supports the following pipes:
 - [`unpack_json`](#unpack_json-pipe) unpacks JSON messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_syslog`](#unpack_syslog-pipe) unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`unroll`](#unroll-pipe) unrolls JSON arrays from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`unroll`](#unroll-pipe) unrolls JSON arrays from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into separate rows.
+- [`unroll_tokens`](#unroll_tokens-pipe) unrolls [word tokens](#word) from the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into separate rows.
 
 ### block_stats pipe
 
@@ -3179,6 +3180,7 @@ the unrolled array items into separate fields for further processing.
 See also:
 
 - [`unpack_json` pipe](#unpack_json-pipe)
+- [`unroll_tokens` pipe](#unroll_tokens-pipe)
 - [`extract` pipe](#extract-pipe)
 - [`uniq_values` stats function](#uniq_values-stats)
 - [`values` stats function](#values-stats)
@@ -3192,6 +3194,21 @@ The `<filters>` can contain arbitrary [filters](#filters). For example, the foll
 ```logsql
 _time:5m | unroll if (value_type:="json_array") (value)
 ```
+
+### unroll_tokens
+
+`<q> | unroll_tokens <src_field> as <dst_field>` [pipe](#pipes) unrolls [word tokens](#word) from the given `<src_field>` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+of `<q>` [query](#query-syntax) results into separate rows and stores the unrolled tokens into `<dst_field>`.
+
+For example, the following query returns top 5 most frequently seen tokens across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for the last 5 minutes:
+
+```logsql
+_time:5m | unroll_tokens _msg as token | top 5 (token)
+```
+
+See also:
+
+- [`unroll` pipe](#unroll-pipe)
 
 ## stats pipe functions
 

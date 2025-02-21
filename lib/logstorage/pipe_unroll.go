@@ -151,6 +151,7 @@ func (pup *pipeUnrollProcessor) writeBlock(workerID uint, br *blockResult) {
 			shard.wctx.writeRow(rowIdx, fields)
 		}
 	}
+	shard.fields = fields
 
 	shard.wctx.flush()
 	shard.wctx.reset()
