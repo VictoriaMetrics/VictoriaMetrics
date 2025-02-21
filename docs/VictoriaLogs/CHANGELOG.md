@@ -16,7 +16,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
-* FEATURE: add [`unroll_tokens` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unroll_tokens-pipe) for unrolling individual [word tokens](https://docs.victoriametrics.com/victorialogs/logsql/#word) from the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+* FEATURE: add [`unpack_tokens` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_tokens-pipe) for unpacking individual [word tokens](https://docs.victoriametrics.com/victorialogs/logsql/#word) from the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into the given destination field as JSON array.
 
 ## [v1.12.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.12.0-victorialogs)
 
