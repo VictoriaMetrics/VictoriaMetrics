@@ -312,10 +312,8 @@ func (br *blockResult) addResultColumnConst(rc *resultColumn) {
 	})
 }
 
-// initAllColumns initializes all the columns in br.
-func (br *blockResult) initAllColumns() {
-	unneededColumnNames := br.bs.bsw.so.unneededColumnNames
-
+// initAllColumns initializes all the columns in br except of unneededColumnNames.
+func (br *blockResult) initAllColumns(unneededColumnNames []string) {
 	if !slices.Contains(unneededColumnNames, "_time") {
 		// Add _time column
 		br.addTimeColumn()
@@ -373,9 +371,9 @@ func (br *blockResult) initAllColumns() {
 	br.csInitFast()
 }
 
-// initRequestedColumns initialized only requested columns in br.
-func (br *blockResult) initRequestedColumns() {
-	for _, columnName := range br.bs.bsw.so.neededColumnNames {
+// initRequestedColumns initializes neededColumnNames at br.
+func (br *blockResult) initRequestedColumns(neededColumnNames []string) {
+	for _, columnName := range neededColumnNames {
 		switch columnName {
 		case "_stream_id":
 			br.addStreamIDColumn()

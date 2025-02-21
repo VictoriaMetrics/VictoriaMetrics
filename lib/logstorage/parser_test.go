@@ -987,6 +987,9 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`''`, `""`)
 
 	// reserved functions
+	f("eq_field", `"eq_field"`)
+	f("eq_field:a", `"eq_field":a`)
+	f("a:eq_field", `a:"eq_field"`)
 	f("exact", `"exact"`)
 	f("exact:a", `"exact":a`)
 	f("exact-foo", `"exact-foo"`)
@@ -1038,6 +1041,14 @@ func TestParseQuery_Success(t *testing.T) {
 	f("'options'", `"options"`)
 	f(`"options" foo`, `"options" foo`)
 	f("`options(x)`", `"options(x)"`)
+
+	// eq_field filter
+	f("eq_field(foo)", "eq_field(foo)")
+	f(`"a":eq_field('b')`, "a:eq_field(b)")
+	f("-eq_field(a)", `!eq_field(a)`)
+	f(`-a:eq_field(b)`, `!a:eq_field(b)`)
+	f(`a:!eq_field(b)`, `!a:eq_field(b)`)
+	f(`a:-eq_field(b)`, `!a:eq_field(b)`)
 
 	// exact filter
 	f("exact(foo)", `=foo`)
@@ -1668,6 +1679,13 @@ func TestParseQuery_Failure(t *testing.T) {
 
 	// unknown function
 	f(`unknown_function(foo)`)
+
+	// invalid eq_field
+	f(`eq_field(`)
+	f(`eq_field(foo bar)`)
+	f(`eq_field(foo, bar)`)
+	f(`eq_field(foo`)
+	f(`eq_field(foo,`)
 
 	// invalid exact
 	f(`exact(`)

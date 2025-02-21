@@ -274,6 +274,7 @@ The list of LogsQL filters:
 - [String range filter](#string-range-filter) - matches logs with [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in the given string range
 - [Length range filter](#length-range-filter) - matches logs with [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) of the given length range
 - [Value type filter](#value_type-filter) - matches logs with [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) stored under the given value type
+- [Fields' equality filter](#eq_field-filter) - matches logs, which contain identical values in the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [Logical filter](#logical-filter) - allows combining other filters
 
 
@@ -821,6 +822,7 @@ For example, the following query matches the `error` value in the field `log:lev
 
 See also:
 
+- [Fields' equality filter](#eq_field-filter)
 - [Exact prefix filter](#exact-prefix-filter)
 - [Multi-exact filter](#multi-exact-filter)
 - [Word filter](#word-filter)
@@ -1263,6 +1265,20 @@ See also:
 - [`block_stats` pipe](#block_stats-pipe)
 - [Logical filter](#logical-filter)
 
+### eq_field filter
+
+Sometimes it is needed to find logs, which contain identical values in the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+This can be done with `field1:eq_field(field2)` filter.
+
+For example, the following query matches logs with identical values at `user_id` and `customer_id` fields:
+
+```logsql
+user_id:eq_field(customer_id)
+```
+
+See also:
+
+- [`exact` filter](#exact-filter)
 
 ### Logical filter
 

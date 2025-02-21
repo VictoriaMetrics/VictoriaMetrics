@@ -1443,6 +1443,8 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterNotTilda(lex, fieldName)
 	case lex.isKeyword("not", "!", "-"):
 		return parseFilterNot(lex, fieldName)
+	case lex.isKeyword("eq_field"):
+		return parseFilterEqField(lex, fieldName)
 	case lex.isKeyword("exact"):
 		return parseFilterExact(lex, fieldName)
 	case lex.isKeyword("i"):
@@ -1812,6 +1814,16 @@ func parseFilterSequence(lex *lexer, fieldName string) (filter, error) {
 			phrases:   args,
 		}
 		return fs, nil
+	})
+}
+
+func parseFilterEqField(lex *lexer, fieldName string) (filter, error) {
+	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
+		fe := &filterEqField{
+			fieldName:      fieldName,
+			otherFieldName: arg,
+		}
+		return fe, nil
 	})
 }
 
@@ -2918,6 +2930,7 @@ var reservedKeywords = func() map[string]struct{} {
 		"-",
 
 		// functions
+		"eq_field",
 		"exact",
 		"i",
 		"in",
