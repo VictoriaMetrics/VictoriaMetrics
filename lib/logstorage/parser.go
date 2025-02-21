@@ -1478,6 +1478,10 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 }
 
 func getCompoundPhrase(lex *lexer, allowColon bool) (string, error) {
+	if err := lex.isInvalidQuotedString(); err != nil {
+		return "", err
+	}
+
 	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", ""}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound phrase cannot start with '%s'", lex.token)
@@ -1511,7 +1515,33 @@ func getCompoundToken(lex *lexer) (string, error) {
 	return getCompoundTokenExt(lex, stopTokens)
 }
 
+func (lex *lexer) isInvalidQuotedString() error {
+	if lex.token != `"` && lex.token != "`" && lex.token != `'` {
+		return nil
+	}
+
+	n := strings.Index(lex.s, lex.token)
+	if n < 0 {
+		return fmt.Errorf("missing closing quote for [%s]", lex.token+lex.s)
+	}
+
+	quotedStr := lex.token + lex.s[:n+1]
+	if _, err := strconv.Unquote(quotedStr); err != nil {
+		err = fmt.Errorf("cannot parse %s: %w", quotedStr, err)
+		if !strings.HasPrefix(quotedStr, "`") && strings.Contains(quotedStr, `\`) {
+			err = fmt.Errorf(`%w; make sure that '\' chars are properly escaped (e.g. use '\\' instead of '\'); alternatively put the string in backquotes `+"`...`", err)
+		}
+		return err
+	}
+
+	logger.Panicf("BUG: unexpected successful parsing of %s", quotedStr)
+	return nil
+}
+
 func getCompoundTokenExt(lex *lexer, stopTokens []string) (string, error) {
+	if err := lex.isInvalidQuotedString(); err != nil {
+		return "", err
+	}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
 	}
