@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: add [`unroll_tokens` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unroll_tokens-pipe) for unrolling individual [word tokens](https://docs.victoriametrics.com/victorialogs/logsql/#word) from the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
 ## [v1.12.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.12.0-victorialogs)
 
 Released at 2025-02-20
