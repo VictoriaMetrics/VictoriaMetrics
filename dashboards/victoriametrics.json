@@ -1,44 +1,4 @@
 {
-  "__inputs": [],
-  "__elements": {},
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "10.4.2"
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "stat",
-      "name": "Stat",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "table",
-      "name": "Table",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "text",
-      "name": "Text",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "timeseries",
-      "name": "Time series",
-      "version": ""
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -66,6 +26,7 @@
         },
         "enable": true,
         "expr": "sum(ALERTS{job=~\"$job\", instance=~\"$instance\", alertgroup=\"vmsingle\",alertstate=\"firing\",show_at=\"dashboard\"}) by(alertname)",
+        "hide": false,
         "iconColor": "red",
         "name": "alerts",
         "titleFormat": "{{alertname}}"
@@ -85,12 +46,11 @@
       }
     ]
   },
-  "description": "Overview for single-node VictoriaMetrics v1.83.0 or higher",
+  "description": "Overview for single-node VictoriaMetrics v1.102.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "gnetId": 10229,
   "graphTooltip": 1,
-  "id": null,
+  "id": 1,
   "links": [
     {
       "icon": "doc",
@@ -118,14 +78,9 @@
       "url": "https://github.com/VictoriaMetrics/VictoriaMetrics/releases"
     }
   ],
-  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$ds"
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -134,24 +89,15 @@
       },
       "id": 6,
       "panels": [],
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "refId": "A"
-        }
-      ],
       "title": "Stats",
       "type": "row"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$ds"
-      },
       "description": "",
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "gridPos": {
         "h": 2,
         "w": 4,
@@ -168,16 +114,7 @@
         "content": "<div style=\"text-align: center;\">$version</div>",
         "mode": "markdown"
       },
-      "pluginVersion": "10.4.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "refId": "A"
-        }
-      ],
+      "pluginVersion": "11.5.0",
       "title": "Version",
       "type": "text"
     },
@@ -219,6 +156,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -231,7 +169,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -290,6 +228,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -302,7 +241,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -361,6 +300,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -373,7 +313,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -436,6 +376,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -448,7 +389,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -508,6 +449,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -520,7 +462,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -577,6 +519,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -589,7 +532,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -648,6 +591,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -660,7 +604,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -719,6 +663,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -731,7 +676,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -790,6 +735,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -802,7 +748,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -823,10 +769,6 @@
     },
     {
       "collapsed": false,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$ds"
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -835,15 +777,6 @@
       },
       "id": 24,
       "panels": [],
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "refId": "A"
-        }
-      ],
       "title": "Overview",
       "type": "row"
     },
@@ -865,6 +798,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -930,11 +864,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.1.0",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -971,6 +906,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -1037,11 +973,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.1.0",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -1079,6 +1016,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -1150,11 +1088,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "9.1.0",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -1191,6 +1130,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -1257,11 +1197,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.1.0",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -1298,6 +1239,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -1361,11 +1303,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "9.1.0",
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -1404,6 +1347,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "bars",
             "fillOpacity": 100,
             "gradientMode": "none",
@@ -1467,10 +1411,12 @@
           "sortDesc": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "11.5.0",
       "targets": [
         {
           "datasource": {
@@ -1490,10 +1436,6 @@
     },
     {
       "collapsed": true,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$ds"
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1572,7 +1514,6 @@
             "y": 11
           },
           "id": 112,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -1847,7 +1788,6 @@
             "y": 19
           },
           "id": 123,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -3299,24 +3239,11 @@
           "type": "timeseries"
         }
       ],
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "refId": "A"
-        }
-      ],
       "title": "Resource usage",
       "type": "row"
     },
     {
       "collapsed": true,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$ds"
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3375,8 +3302,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3494,8 +3420,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "transparent",
-                    "value": null
+                    "color": "transparent"
                   },
                   {
                     "color": "red",
@@ -3603,8 +3528,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3710,8 +3634,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3816,8 +3739,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3924,8 +3846,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4007,8 +3928,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4146,8 +4066,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4201,24 +4120,11 @@
           "type": "timeseries"
         }
       ],
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "refId": "A"
-        }
-      ],
       "title": "Troubleshooting",
       "type": "row"
     },
     {
       "collapsed": true,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$ds"
-      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -4297,7 +4203,6 @@
             "y": 13
           },
           "id": 10,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -4406,7 +4311,6 @@
             "y": 13
           },
           "id": 73,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -4516,7 +4420,6 @@
             "y": 21
           },
           "id": 53,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -4670,7 +4573,6 @@
             "y": 21
           },
           "id": 34,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -4808,7 +4710,6 @@
             "y": 29
           },
           "id": 30,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -4930,7 +4831,6 @@
             "y": 29
           },
           "id": 36,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -5038,7 +4938,6 @@
             "y": 37
           },
           "id": 58,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -5268,7 +5167,6 @@
             "y": 45
           },
           "id": 59,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -5494,7 +5392,6 @@
             "y": 53
           },
           "id": 99,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -5604,7 +5501,6 @@
             "y": 53
           },
           "id": 103,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -5714,7 +5610,6 @@
             "y": 61
           },
           "id": 122,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -5824,7 +5719,6 @@
             "y": 61
           },
           "id": 105,
-          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -5864,21 +5758,13 @@
           "type": "timeseries"
         }
       ],
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "refId": "A"
-        }
-      ],
       "title": "Storage",
       "type": "row"
     }
   ],
+  "preload": false,
   "refresh": "",
-  "schemaVersion": 39,
+  "schemaVersion": 40,
   "tags": [
     "victoriametrics",
     "vmsingle"
@@ -5887,20 +5773,15 @@
     "list": [
       {
         "current": {
-          "selected": false,
           "text": "VictoriaMetrics",
           "value": "P4169E866C3094E38"
         },
-        "hide": 0,
         "includeAll": false,
-        "multi": false,
         "name": "ds",
         "options": [],
         "query": "prometheus",
-        "queryValue": "",
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
         "type": "datasource"
       },
       {
@@ -5910,9 +5791,7 @@
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"victoria-metrics-.*\"}, job)",
-        "hide": 0,
         "includeAll": false,
-        "multi": false,
         "name": "job",
         "options": [],
         "query": {
@@ -5921,12 +5800,7 @@
         },
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
+        "type": "query"
       },
       {
         "current": {},
@@ -5937,7 +5811,6 @@
         "definition": "label_values(vm_app_version{job=~\"$job\", instance=~\"$instance\"},  version)",
         "hide": 2,
         "includeAll": false,
-        "multi": false,
         "name": "version",
         "options": [],
         "query": {
@@ -5946,12 +5819,8 @@
         },
         "refresh": 1,
         "regex": "/.*-(?:tags|heads)-(.*)-(?:0|dirty)-.*/",
-        "skipUrlSync": false,
         "sort": 2,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
+        "type": "query"
       },
       {
         "allValue": ".*",
@@ -5961,7 +5830,6 @@
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
-        "hide": 0,
         "includeAll": true,
         "multi": true,
         "name": "instance",
@@ -5972,22 +5840,16 @@
         },
         "refresh": 1,
         "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
+        "type": "query"
       },
       {
+        "baseFilters": [],
         "datasource": {
           "type": "prometheus",
           "uid": "$ds"
         },
         "filters": [],
-        "hide": 0,
         "name": "adhoc",
-        "skipUrlSync": false,
         "type": "adhoc"
       }
     ]
@@ -6007,17 +5869,6 @@
       "1h",
       "2h",
       "1d"
-    ],
-    "time_options": [
-      "5m",
-      "15m",
-      "1h",
-      "6h",
-      "12h",
-      "24h",
-      "2d",
-      "7d",
-      "30d"
     ]
   },
   "timezone": "",
