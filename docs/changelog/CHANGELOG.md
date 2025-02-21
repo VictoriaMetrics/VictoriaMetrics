@@ -51,6 +51,7 @@ Released at 2025-02-21
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix the auto-generated metrics for alerts and groups. Previously, metrics might be missing after reload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8229) for the details.
 * BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return parsing errors during data ingestion in [multi-level cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup). Before, some of the errors could have been silently ignored.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): properly enforce presence of default `-retentionPeriod` configuration for [retention filters](https://docs.victoriametrics.com/#retention-filters) debug interface. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8343).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): respect time filter when exploring time series for [influxdb mode](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8259) for details.
 
 ## [v1.110.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.2)
 
