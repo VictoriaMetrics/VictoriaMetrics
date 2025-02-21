@@ -3799,7 +3799,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows rate of samples [deduplication](https://docs.victoriametrics.com/#deduplication)  according to the configured `-dedup.minScrapeInterval`.\n\nShould be empty if `-dedup.minScrapeInterval` isn't set.\n\nDeduplication happens in two places:\n* `type=\"merge\"` - during [background merges](https://docs.victoriametrics.com/#storage) by vmstorages. Deduplication during merges is permanent.\n* `type=\"select\"` - during [read queries](https://docs.victoriametrics.com/keyconcepts/#query-data) by vmselects. Deduplication happens in-flight and has no permanent effect.\n\nThe more samples need to be deduplicated, the higher will be resource usage on vmselects or vmstorages.",
+          "description": "Shows rate of deduplicated samples during [deduplication](https://docs.victoriametrics.com/#deduplication) or [downsampling](https://docs.victoriametrics.com/#downsampling), according to the configured `-dedup.minScrapeInterval` or `-downsampling.period`.\n\nShould be empty if `-dedup.minScrapeInterval` and `-downsampling.period` isn't set.\n\nDeduplication happens in two places:\n* `type=\"merge\"` - during [background merges](https://docs.victoriametrics.com/#storage) by vmstorages. Deduplication during merges is permanent.\n* `type=\"select\"` - during [read queries](https://docs.victoriametrics.com/keyconcepts/#query-data) by vmselects. Deduplication happens in-flight and has no permanent effect.\n\nThe more samples need to be deduplicated, the higher will be resource usage on vmselects or vmstorages.",
           "fieldConfig": {
             "defaults": {
               "color": {
