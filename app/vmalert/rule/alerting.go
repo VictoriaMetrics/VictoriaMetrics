@@ -63,7 +63,7 @@ func newAlertingRuleMetrics(set *metrics.Set, ar *AlertingRule) *alertingRuleMet
 	labels := fmt.Sprintf(`alertname=%q, group=%q, file=%q, id="%d"`, ar.Name, ar.GroupName, ar.File, ar.ID())
 	arm := &alertingRuleMetrics{}
 
-	arm.pending = utils.GetOrCreateGauge(set, fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
+	arm.pending = utils.NewGauge(set, fmt.Sprintf(`vmalert_alerts_pending{%s}`, labels),
 		func() float64 {
 			ar.alertsMu.RLock()
 			defer ar.alertsMu.RUnlock()
@@ -75,7 +75,7 @@ func newAlertingRuleMetrics(set *metrics.Set, ar *AlertingRule) *alertingRuleMet
 			}
 			return float64(num)
 		})
-	arm.active = utils.GetOrCreateGauge(set, fmt.Sprintf(`vmalert_alerts_firing{%s}`, labels),
+	arm.active = utils.NewGauge(set, fmt.Sprintf(`vmalert_alerts_firing{%s}`, labels),
 		func() float64 {
 			ar.alertsMu.RLock()
 			defer ar.alertsMu.RUnlock()
@@ -87,13 +87,13 @@ func newAlertingRuleMetrics(set *metrics.Set, ar *AlertingRule) *alertingRuleMet
 			}
 			return float64(num)
 		})
-	arm.errors = utils.GetOrCreateCounter(set, fmt.Sprintf(`vmalert_alerting_rules_errors_total{%s}`, labels))
-	arm.samples = utils.GetOrCreateGauge(set, fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_samples{%s}`, labels),
+	arm.errors = utils.NewCounter(set, fmt.Sprintf(`vmalert_alerting_rules_errors_total{%s}`, labels))
+	arm.samples = utils.NewGauge(set, fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
 			e := ar.state.getLast()
 			return float64(e.Samples)
 		})
-	arm.seriesFetched = utils.GetOrCreateGauge(set, fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_series_fetched{%s}`, labels),
+	arm.seriesFetched = utils.NewGauge(set, fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_series_fetched{%s}`, labels),
 		func() float64 {
 			e := ar.state.getLast()
 			if e.SeriesFetched == nil {

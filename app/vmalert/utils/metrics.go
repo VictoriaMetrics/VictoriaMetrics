@@ -19,11 +19,11 @@ type Gauge struct {
 	*metrics.Gauge
 }
 
-// GetOrCreateGauge creates a new Gauge with the given name
-func GetOrCreateGauge(set *metrics.Set, name string, f func() float64) *Gauge {
+// NewGauge creates a new Gauge with the given name
+func NewGauge(set *metrics.Set, name string, f func() float64) *Gauge {
 	return &Gauge{
 		namedMetric: namedMetric{Name: name, set: set},
-		Gauge:       set.GetOrCreateGauge(name, f),
+		Gauge:       set.NewGauge(name, f),
 	}
 }
 
@@ -33,11 +33,11 @@ type Counter struct {
 	*metrics.Counter
 }
 
-// GetOrCreateCounter creates a new Counter with the given name
-func GetOrCreateCounter(set *metrics.Set, name string) *Counter {
+// NewCounter creates a new Counter with the given name
+func NewCounter(set *metrics.Set, name string) *Counter {
 	return &Counter{
 		namedMetric: namedMetric{Name: name, set: set},
-		Counter:     set.GetOrCreateCounter(name),
+		Counter:     set.NewCounter(name),
 	}
 }
 
@@ -47,10 +47,10 @@ type Summary struct {
 	*metrics.Summary
 }
 
-// GetOrCreateSummary creates a new Summary with the given name
-func GetOrCreateSummary(set *metrics.Set, name string) *Summary {
+// NewSummary creates a new Summary with the given name
+func NewSummary(set *metrics.Set, name string) *Summary {
 	return &Summary{
 		namedMetric: namedMetric{Name: name, set: set},
-		Summary:     set.GetOrCreateSummary(name),
+		Summary:     set.NewSummary(name),
 	}
 }

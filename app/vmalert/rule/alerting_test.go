@@ -1257,7 +1257,7 @@ func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
 
 func getTestAlertingRuleMetrics(name string) *alertingRuleMetrics {
 	m := &alertingRuleMetrics{}
-	m.errors = utils.GetOrCreateCounter(metrics.GetDefaultSet(), fmt.Sprintf(`vmalert_alerting_rules_errors_total{alertname=%q}`, name))
+	m.errors = utils.NewCounter(metrics.NewSet(), fmt.Sprintf(`vmalert_alerting_rules_errors_total{alertname=%q}`, name))
 	return m
 }
 

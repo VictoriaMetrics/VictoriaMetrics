@@ -51,8 +51,8 @@ func newRecordingRuleMetrics(set *metrics.Set, rr *RecordingRule) *recordingRule
 	rmr := &recordingRuleMetrics{}
 
 	labels := fmt.Sprintf(`recording=%q, group=%q, file=%q, id="%d"`, rr.Name, rr.GroupName, rr.File, rr.ID())
-	rmr.errors = utils.GetOrCreateCounter(set, fmt.Sprintf(`vmalert_recording_rules_errors_total{%s}`, labels))
-	rmr.samples = utils.GetOrCreateGauge(set, fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
+	rmr.errors = utils.NewCounter(set, fmt.Sprintf(`vmalert_recording_rules_errors_total{%s}`, labels))
+	rmr.samples = utils.NewGauge(set, fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
 			e := rr.state.getLast()
 			return float64(e.Samples)
