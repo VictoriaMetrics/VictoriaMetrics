@@ -1350,6 +1350,7 @@ LogsQL supports the following pipes:
 - [`first`](#first-pipe) returns the first N logs after sorting them by the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`format`](#format-pipe) formats output field from input [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`join`](#join-pipe) joins query results by the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`json_array_len`](#json_array_len-pipe) returns the length of JSON array stored at the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`hash`](#hash-pipe) returns the hash over the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
 - [`last`](#last-pipe) returns the last N logs after sorting them by the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`len`](#len-pipe) returns byte length of the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
@@ -2061,6 +2062,24 @@ See also:
 - [conditional `stats`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters)
 - [`filter` pipe](#filter-pipe)
 
+### json_array_len pipe
+
+`<q> | json_array_len(field) as result_field` calculates the length of JSON array at the given [`field`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+and stores it into the `result_field`, for every log entry returned by `<q>` [query](#query-syntax).
+
+For example, the following query returns top 5 [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+with the biggest number of [token words](#word) across all the logs for the last 5 minutes:
+
+```logsql
+_time:5m | unpack_tokens _msg as tokens | json_array_len (tokens) as tokens_len | first 5 (tokens_len desc)
+```
+
+See also:
+
+- [`len` pipe](#len-pipe)
+- [`unpack_tokens` pipe](#unpack_tokens-pipe)
+- [`first` pipe](#first-pipe)
+
 ### hash pipe
 
 `<q> | hash(field) as result_field` calculates hash value for the given [`field`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
@@ -2116,6 +2135,7 @@ _time:5m | len(_msg) as msg_len | sort by (msg_len desc) | limit 5
 
 See also:
 
+- [`json_array_len` pipe](#json_array_len-pipe)
 - [`sum_len` stats function](#sum_len-stats)
 - [`sort` pipe](#sort-pipe)
 - [`limit` pipe](#limit-pipe)
@@ -3165,20 +3185,20 @@ _time:5m | unpack_syslog if (hostname:"") from foo
 
 ### unpack_tokens
 
-`<q> | unpack_tokens <src_field> as <dst_field>` [pipe](#pipes) unpacks [word tokens](#word) from the given `<src_field>` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+`<q> | unpack_tokens from <src_field> as <dst_field>` [pipe](#pipes) unpacks [word tokens](#word) from the given `<src_field>` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 of `<q>` [query](#query-syntax) results into `<dst_field>` as a JSON array.
 
 For example, the following query unpacks tokens from [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) into `token` field:
 
 ```logsql
-_time:5m | unpack_tokens _msg as token
+_time:5m | unpack_tokens from _msg as tokens
 ```
 
 It may be convenient to use [`unroll` pipe](#unroll-pipe) for unrolling the unpacked tokens from the destination field.
 For example, the following query returns top 5 most frequently seen tokens across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for the last 5 minutes:
 
 ```logsql
-_time:5m | unpack_tokens _msg as token | unroll token | top 5 (token)
+_time:5m | unpack_tokens from _msg as tokens | unroll tokens | top 5 (tokens)
 ```
 
 See also:

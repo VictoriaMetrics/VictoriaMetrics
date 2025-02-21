@@ -43,11 +43,11 @@ func TestParsePipeUnpackJSONFailure(t *testing.T) {
 		expectParsePipeFailure(t, pipeStr)
 	}
 
-	f(`unpack_json foo`)
+	f(`unpack_json foo,`)
 	f(`unpack_json if`)
 	f(`unpack_json fields`)
 	f(`unpack_json fields x`)
-	f(`unpack_json if (x:y) foobar`)
+	f(`unpack_json if (x:y) foobar,`)
 	f(`unpack_json from`)
 	f(`unpack_json from x y`)
 	f(`unpack_json from x if`)
@@ -220,7 +220,7 @@ func TestPipeUnpackJSON(t *testing.T) {
 			{"x", `["foobar"]`},
 		},
 	})
-	f("unpack_json from x", [][]Field{
+	f("unpack_json x", [][]Field{
 		{
 			{"x", `1234`},
 		},
@@ -256,7 +256,7 @@ func TestPipeUnpackJSON(t *testing.T) {
 	})
 
 	// multiple rows with distinct number of fields
-	f("unpack_json from x", [][]Field{
+	f("unpack_json x", [][]Field{
 		{
 			{"x", `{"foo":"bar","baz":"xyz"}`},
 			{"y", `abc`},

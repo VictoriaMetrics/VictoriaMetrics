@@ -21,7 +21,7 @@ type pipeUnpackTokens struct {
 func (pu *pipeUnpackTokens) String() string {
 	s := "unpack_tokens"
 	if pu.srcField != "_msg" {
-		s += " " + quoteTokenIfNeeded(pu.srcField)
+		s += " from " + quoteTokenIfNeeded(pu.srcField)
 	}
 	if pu.dstField != pu.srcField {
 		s += " as " + quoteTokenIfNeeded(pu.dstField)
@@ -47,11 +47,15 @@ func (pu *pipeUnpackTokens) visitSubqueries(_ func(q *Query)) {
 
 func (pu *pipeUnpackTokens) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
-		unneededFields.add(pu.dstField)
-		unneededFields.remove(pu.srcField)
+		if !unneededFields.contains(pu.dstField) {
+			unneededFields.add(pu.dstField)
+			unneededFields.remove(pu.srcField)
+		}
 	} else {
-		neededFields.remove(pu.dstField)
-		neededFields.add(pu.srcField)
+		if neededFields.contains(pu.dstField) {
+			neededFields.remove(pu.dstField)
+			neededFields.add(pu.srcField)
+		}
 	}
 }
 
@@ -101,18 +105,20 @@ func (pup *pipeUnpackTokensProcessor) writeBlock(workerID uint, br *blockResult)
 	values := c.getValues(br)
 
 	t := getTokenizer()
-	for rowIdx, v := range values {
+	for rowIdx := range values {
 		if needStop(pup.stopCh) {
 			return
 		}
 
-		t.reset()
-		shard.tokens = t.tokenizeString(shard.tokens[:0], v, true)
-		bufLen := len(shard.a.b)
-		shard.a.b = marshalJSONArray(shard.a.b, shard.tokens)
-		shard.fields[0] = Field{
-			Name:  pu.dstField,
-			Value: bytesutil.ToUnsafeString(shard.a.b[bufLen:]),
+		if rowIdx == 0 || values[rowIdx] != values[rowIdx-1] {
+			t.reset()
+			shard.tokens = t.tokenizeString(shard.tokens[:0], values[rowIdx], true)
+			bufLen := len(shard.a.b)
+			shard.a.b = marshalJSONArray(shard.a.b, shard.tokens)
+			shard.fields[0] = Field{
+				Name:  pu.dstField,
+				Value: bytesutil.ToUnsafeString(shard.a.b[bufLen:]),
+			}
 		}
 		shard.wctx.writeRow(rowIdx, shard.fields[:])
 	}
@@ -135,6 +141,9 @@ func parsePipeUnpackTokens(lex *lexer) (pipe, error) {
 
 	srcField := "_msg"
 	if !lex.isKeyword("as", ")", "|", "") {
+		if lex.isKeyword("from") {
+			lex.nextToken()
+		}
 		field, err := parseFieldName(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse srcField name: %w", err)

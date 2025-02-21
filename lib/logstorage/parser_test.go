@@ -1479,6 +1479,16 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`* | join on (x, y) (foo:bar)`, `* | join by (x, y) (foo:bar)`)
 	f(`* | join (x, y) (foo:bar)`, `* | join by (x, y) (foo:bar)`)
 
+	// json_array_len pipe
+	f(`* | json_array_len x`, `* | json_array_len(x)`)
+	f(`* | json_array_len x y`, `* | json_array_len(x) as y`)
+	f(`* | json_array_len (x) as y`, `* | json_array_len(x) as y`)
+
+	// unpack_tokens pipe
+	f(`* | unpack_tokens`, `* | unpack_tokens`)
+	f(`* | unpack_tokens x`, `* | unpack_tokens from x`)
+	f(`* | unpack_tokens x y`, `* | unpack_tokens from x as y`)
+
 	// hash pipe
 	f(`* | hash(x)`, `* | hash(x)`)
 	f(`* | hash(x) y`, `* | hash(x) as y`)
@@ -2005,14 +2015,14 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`foo | union (bar | count)`)
 
 	// invalid unpack_json pipe
-	f(`foo | unpack_json bar`)
+	f(`foo | unpack_json bar,`)
 	f(`foo | unpack_json from`)
 	f(`foo | unpack_json result_prefix`)
 	f(`foo | unpack_json result_prefix x from y`)
 	f(`foo | unpack_json from x result_prefix`)
 
 	// invalid unpack_logfmt pipe
-	f(`foo | unpack_logfmt bar`)
+	f(`foo | unpack_logfmt bar,`)
 	f(`foo | unpack_logfmt from`)
 	f(`foo | unpack_logfmt result_prefix`)
 	f(`foo | unpack_logfmt result_prefix x from y`)
@@ -2383,10 +2393,13 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | unpack_logfmt from x fields (a,b) | count() r1`, ``, ``)
 	f(`* | unpack_logfmt if (q:w p:a) from x | count() r1`, `p,q`, ``)
 	f(`* | unpack_logfmt if (q:w p:a) from x fields(a,b) | count() r1`, `p,q`, ``)
-	f(`* | unpack_tokens a | count() r1`, `a`, ``)
+	f(`* | unpack_tokens a | count() r1`, ``, ``)
+	f(`* | unpack_tokens a b | count() r1`, ``, ``)
 	f(`* | unroll (a, b) | count() r1`, `a,b`, ``)
 	f(`* | unroll if (q:w p:a) (a, b) | count() r1`, `a,b,p,q`, ``)
 	f(`* | join on (a, b) (xxx) | count() r1`, `a,b`, ``)
+	f(`* | json_array_len (x) | count() r1`, ``, ``)
+	f(`* | json_array_len (x) y | count() r1`, ``, ``)
 	f(`* | len(a) as b | count() r1`, ``, ``)
 	f(`* | hash(a) as b | count() r1`, ``, ``)
 }
@@ -2468,6 +2481,11 @@ func TestQueryCanReturnLastNResults(t *testing.T) {
 	f("* | field_values x", false)
 	f("* | top 5 by (x)", false)
 	f("* | join by (x) (foo)", false)
+	f("* | json_array_len (x)", true)
+	f("* | unpack_fields x", true)
+	f("* | unpack_json x", true)
+	f("* | unpack_logfmt x", true)
+	f("* | unpack_syslog x", true)
 	f("* | hash(a)", true)
 
 }
@@ -2524,6 +2542,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | unpack_tokens a", true)
 	f("* | unroll by (a)", true)
 	f("* | join by (a) (b)", true)
+	f("* | json_array_len (a)", true)
 	f("* | hash(a)", true)
 }
 
@@ -2733,6 +2752,7 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | unpack_tokens x`)
 	f(`foo | count() | unroll by (x)`)
 	f(`foo | count() | join by (x) (y)`)
+	f(`foo | count() | json_array_len(a)`)
 	f(`foo | count() | len(a)`)
 	f(`foo | count() | hash(a)`)
 

@@ -121,8 +121,10 @@ func parsePipeUnpackSyslog(lex *lexer) (pipe, error) {
 	}
 
 	fromField := "_msg"
-	if lex.isKeyword("from") {
-		lex.nextToken()
+	if !lex.isKeyword("offset", "result_prefix", "keep_original_fields", ")", "|", "") {
+		if lex.isKeyword("from") {
+			lex.nextToken()
+		}
 		f, err := parseFieldName(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse 'from' field name: %w", err)
