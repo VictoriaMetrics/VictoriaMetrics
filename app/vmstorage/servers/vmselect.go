@@ -195,6 +195,15 @@ func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []stora
 	return nil
 }
 
+func (api *vmstorageAPI) GetMetricNamesUsageStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, _ uint64) (storage.MetricNamesStatsResponse, error) {
+	return api.s.GetMetricNamesStats(qt, tt, limit, le, matchPattern), nil
+}
+
+func (api *vmstorageAPI) ResetMetricNamesUsageStats(qt *querytracer.Tracer, _ uint64) error {
+	api.s.ResetMetricNamesStats(qt)
+	return nil
+}
+
 func (api *vmstorageAPI) setupTfss(qt *querytracer.Tracer, sq *storage.SearchQuery, tr storage.TimeRange, maxMetrics int, deadline uint64) ([]*storage.TagFilters, error) {
 	tfss := make([]*storage.TagFilters, 0, len(sq.TagFilterss))
 	accountID := sq.AccountID

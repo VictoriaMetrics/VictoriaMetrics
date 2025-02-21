@@ -258,3 +258,15 @@ func (t *Trace) Contains(s string) int {
 	}
 	return times
 }
+
+// MetricNamesStatsResponse is an inmemory representation of the
+// /api/v1/status/metric_names_stats API response
+type MetricNamesStatsResponse struct {
+	Records []MetricNamesStatsRecord
+}
+
+// MetricNamesStatsRecord is a record item for MetricNamesStatsResponse
+type MetricNamesStatsRecord struct {
+	MetricName         string
+	QueryRequestsCount uint64
+}

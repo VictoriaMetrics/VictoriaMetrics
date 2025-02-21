@@ -89,6 +89,11 @@ var (
 		"This may improve performance and decrease disk space usage for the use cases with fixed set of timeseries scattered across a "+
 		"big time range (for example, when loading years of historical data). "+
 		"See https://docs.victoriametrics.com/single-server-victoriametrics/#index-tuning")
+	trackMetricNamesStats = flag.Bool("storage.trackMetricNamesStats", false, "Whether to track ingest and query requests for timeseries metric names. "+
+		"This feature allows to track metric names unused at query requests. "+
+		"See https://docs.victoriametrics.com/#track-ingested-metrics-usage")
+	cacheSizeMetricNamesStats = flagutil.NewBytes("storage.cacheSizeMetricNamesStats", 0, "Overrides max size for storage/metricNamesStatsTracker cache. "+
+		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
 )
 
 func main() {
@@ -119,6 +124,7 @@ func main() {
 		logger.Fatalf("-storage.finalDedupScheduleCheckInterval cannot be smaller than 1 hour; got %s", *finalDedupScheduleInterval)
 	}
 	storage.SetFinalDedupScheduleInterval(*finalDedupScheduleInterval)
+	storage.SetMetricNamesStatsCacheSize(cacheSizeMetricNamesStats.IntN())
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 	mergeset.SetDataBlocksSparseCacheSize(cacheSizeIndexDBDataBlocksSparse.IntN())
@@ -128,12 +134,12 @@ func main() {
 	}
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
 	startTime := time.Now()
-
 	opts := storage.OpenOptions{
-		Retention:          retentionPeriod.Duration(),
-		MaxHourlySeries:    *maxHourlySeries,
-		MaxDailySeries:     *maxDailySeries,
-		DisablePerDayIndex: *disablePerDayIndex,
+		Retention:             retentionPeriod.Duration(),
+		MaxHourlySeries:       *maxHourlySeries,
+		MaxDailySeries:        *maxDailySeries,
+		DisablePerDayIndex:    *disablePerDayIndex,
+		TrackMetricNamesStats: *trackMetricNamesStats,
 	}
 	strg := storage.MustOpenStorage(*storageDataPath, opts)
 	initStaleSnapshotsRemover(strg)
@@ -188,7 +194,6 @@ func main() {
 
 	logger.Infof("gracefully shutting down the service")
 	startTime = time.Now()
-
 	// deregister storage metrics
 	metrics.UnregisterSet(storageMetrics, true)
 	storageMetrics = nil
@@ -603,6 +608,12 @@ func writeStorageMetrics(w io.Writer, strg *storage.Storage) {
 	metrics.WriteCounterUint64(w, `vm_cache_collisions_total{type="storage/metricName"}`, m.MetricNameCacheCollisions)
 
 	metrics.WriteGaugeUint64(w, `vm_next_retention_seconds`, m.NextRetentionSeconds)
+
+	if *trackMetricNamesStats {
+		metrics.WriteCounterUint64(w, `vm_cache_size_bytes{type="storage/metricNamesStatsTracker"}`, m.MetricNamesUsageTrackerSizeBytes)
+		metrics.WriteCounterUint64(w, `vm_cache_size{type="storage/metricNamesStatsTracker"}`, m.MetricNamesUsageTrackerSize)
+		metrics.WriteCounterUint64(w, `vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"}`, m.MetricNamesUsageTrackerSizeMaxBytes)
+	}
 
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled`, tm.ScheduledDownsamplingPartitions)
 	metrics.WriteGaugeUint64(w, `vm_downsampling_partitions_scheduled_size_bytes`, tm.ScheduledDownsamplingPartitionsSize)
