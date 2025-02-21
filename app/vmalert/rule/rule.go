@@ -27,11 +27,9 @@ type Rule interface {
 	// updateWith performs modification of current Rule
 	// with fields of the given Rule.
 	updateWith(Rule) error
-	// close performs the shutdown procedures for rule
-	// such as metrics unregister
+	// unregister Rule metrics
 	unregisterMetrics()
-	// update rules config related to the group
-	// such as metrics registration
+	// register Rule metrics with the given group
 	registerMetrics(g *Group)
 }
 
