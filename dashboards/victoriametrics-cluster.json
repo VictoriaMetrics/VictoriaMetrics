@@ -3865,13 +3865,7 @@
             "y": 129
           },
           "id": 215,
-          "links": [
-            {
-              "targetBlank": true,
-              "title": "Readonly mode",
-              "url": "https://docs.victoriametrics.com/cluster-victoriametrics/#readonly-mode"
-            }
-          ],
+          "links": [],
           "options": {
             "legend": {
               "calcs": [
@@ -6934,13 +6928,7 @@
             "y": 96
           },
           "id": 216,
-          "links": [
-            {
-              "targetBlank": true,
-              "title": "Readonly mode",
-              "url": "https://docs.victoriametrics.com/cluster-victoriametrics/#readonly-mode"
-            }
-          ],
+          "links": [],
           "options": {
             "legend": {
               "calcs": [],
