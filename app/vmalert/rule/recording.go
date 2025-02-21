@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
@@ -45,6 +47,28 @@ type recordingRuleMetrics struct {
 	samples *utils.Gauge
 }
 
+func newRecordingRuleMetrics(set *metrics.Set, rr *RecordingRule) *recordingRuleMetrics {
+	rmr := &recordingRuleMetrics{}
+
+	labels := fmt.Sprintf(`recording=%q, group=%q, file=%q, id="%d"`, rr.Name, rr.GroupName, rr.File, rr.ID())
+	rmr.errors = utils.NewCounter(set, fmt.Sprintf(`vmalert_recording_rules_errors_total{%s}`, labels))
+	rmr.samples = utils.NewGauge(set, fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
+		func() float64 {
+			e := rr.state.getLast()
+			return float64(e.Samples)
+		})
+
+	return rmr
+}
+
+func (m *recordingRuleMetrics) close() {
+	if m == nil {
+		return
+	}
+	m.errors.Unregister()
+	m.samples.Unregister()
+}
+
 // String implements Stringer interface
 func (rr *RecordingRule) String() string {
 	return rr.Name
@@ -67,7 +91,6 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		GroupID:   group.ID(),
 		GroupName: group.Name,
 		File:      group.File,
-		metrics:   &recordingRuleMetrics{},
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:            group.Type.String(),
 			ApplyIntervalAsTimeFilter: setIntervalAsTimeFilter(group.Type.String(), cfg.Expr),
@@ -87,21 +110,18 @@ func NewRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 	rr.state = &ruleState{
 		entries: make([]StateEntry, entrySize),
 	}
+	rr.metrics = newRecordingRuleMetrics(group.metrics.set, rr)
 
-	labels := fmt.Sprintf(`recording=%q, group=%q, file=%q, id="%d"`, rr.Name, group.Name, group.File, rr.ID())
-	rr.metrics.errors = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_recording_rules_errors_total{%s}`, labels))
-	rr.metrics.samples = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
-		func() float64 {
-			e := rr.state.getLast()
-			return float64(e.Samples)
-		})
 	return rr
 }
 
+func (rr *RecordingRule) registerMetrics(g *Group) {
+	rr.metrics = newRecordingRuleMetrics(g.metrics.set, rr)
+}
+
 // close unregisters rule metrics
-func (rr *RecordingRule) close() {
-	rr.metrics.errors.Unregister()
-	rr.metrics.samples.Unregister()
+func (rr *RecordingRule) unregisterMetrics() {
+	rr.metrics.close()
 }
 
 // execRange executes recording rule on the given time range similarly to Exec.
