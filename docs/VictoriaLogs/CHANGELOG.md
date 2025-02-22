@@ -16,6 +16,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.13.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.13.0-victorialogs)
+
+Released at 2025-02-22
+
 * FEATURE: add [`contains_all` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_all-filter), which matches logs containing all the given words / phrases in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 * FEATURE: add [`contains_any` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_any-filter), which matches logs containing at least one of the given words / phrases in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 * FEATURE: add [`eq_field` filter](https://docs.victoriametrics.com/victorialogs/logsql/#eq_field-filter), which can be used for obtaining logs with identical values at the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
