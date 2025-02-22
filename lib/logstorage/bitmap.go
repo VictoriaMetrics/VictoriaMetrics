@@ -56,10 +56,7 @@ func (bm *bitmap) resizeNoInit(bitsLen int) {
 }
 
 func (bm *bitmap) resetBits() {
-	a := bm.a
-	for i := range a {
-		a[i] = 0
-	}
+	clear(bm.a)
 }
 
 func (bm *bitmap) setBits() {
