@@ -16,6 +16,9 @@ type pipeUnpackWords struct {
 
 	// field to put the unpack words to
 	dstField string
+
+	// whether to drop duplicate words
+	dropDuplicates bool
 }
 
 func (pu *pipeUnpackWords) String() string {
@@ -25,6 +28,9 @@ func (pu *pipeUnpackWords) String() string {
 	}
 	if pu.dstField != pu.srcField {
 		s += " as " + quoteTokenIfNeeded(pu.dstField)
+	}
+	if pu.dropDuplicates {
+		s += " drop_duplicates"
 	}
 	return s
 }
@@ -105,6 +111,7 @@ func (pup *pipeUnpackWordsProcessor) writeBlock(workerID uint, br *blockResult) 
 	values := c.getValues(br)
 
 	t := getTokenizer()
+	keepDuplicateTokens := !pu.dropDuplicates
 	for rowIdx := range values {
 		if needStop(pup.stopCh) {
 			return
@@ -112,7 +119,7 @@ func (pup *pipeUnpackWordsProcessor) writeBlock(workerID uint, br *blockResult) 
 
 		if rowIdx == 0 || values[rowIdx] != values[rowIdx-1] {
 			t.reset()
-			shard.words = t.tokenizeString(shard.words[:0], values[rowIdx], true)
+			shard.words = t.tokenizeString(shard.words[:0], values[rowIdx], keepDuplicateTokens)
 			bufLen := len(shard.a.b)
 			shard.a.b = marshalJSONArray(shard.a.b, shard.words)
 			shard.fields[0] = Field{
@@ -140,7 +147,7 @@ func parsePipeUnpackWords(lex *lexer) (pipe, error) {
 	lex.nextToken()
 
 	srcField := "_msg"
-	if !lex.isKeyword("as", ")", "|", "") {
+	if !lex.isKeyword("drop_duplicates", "as", ")", "|", "") {
 		if lex.isKeyword("from") {
 			lex.nextToken()
 		}
@@ -152,7 +159,7 @@ func parsePipeUnpackWords(lex *lexer) (pipe, error) {
 	}
 
 	dstField := srcField
-	if !lex.isKeyword(")", "|", "") {
+	if !lex.isKeyword("drop_duplicates", ")", "|", "") {
 		if lex.isKeyword("as") {
 			lex.nextToken()
 		}
@@ -163,9 +170,17 @@ func parsePipeUnpackWords(lex *lexer) (pipe, error) {
 		dstField = field
 	}
 
+	dropDuplicates := false
+	if lex.isKeyword("drop_duplicates") {
+		lex.nextToken()
+		dropDuplicates = true
+	}
+
 	pu := &pipeUnpackWords{
 		srcField: srcField,
 		dstField: dstField,
+
+		dropDuplicates: dropDuplicates,
 	}
 
 	return pu, nil

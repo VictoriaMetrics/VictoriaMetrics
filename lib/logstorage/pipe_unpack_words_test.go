@@ -11,9 +11,13 @@ func TestParsePipeUnpackWordsSuccess(t *testing.T) {
 	}
 
 	f(`unpack_words`)
+	f(`unpack_words drop_duplicates`)
 	f(`unpack_words as bar`)
+	f(`unpack_words as bar drop_duplicates`)
 	f(`unpack_words from foo`)
+	f(`unpack_words from foo drop_duplicates`)
 	f(`unpack_words from foo as bar`)
+	f(`unpack_words from foo as bar drop_duplicates`)
 }
 
 func TestParsePipeUnpackWordsFailure(t *testing.T) {
@@ -23,6 +27,7 @@ func TestParsePipeUnpackWordsFailure(t *testing.T) {
 	}
 
 	f(`unpack_words as`)
+	f(`unpack_words drop_duplicates x`)
 	f(`unpack_words from`)
 	f(`unpack_words foo bar baz`)
 	f(`unpack_words foo, bar`)
@@ -140,6 +145,29 @@ func TestPipeUnpackWords(t *testing.T) {
 		{
 			{"_msg", `foo,bar foo`},
 			{"b", `["foo","bar","foo"]`},
+			{"q", "w"},
+		},
+		{
+			{"_msg", "b"},
+			{"b", `["b"]`},
+			{"c", "d"},
+		},
+	})
+
+	// unpack_words from _msg into other field with dropping duplicate words
+	f("unpack_words as b drop_duplicates", [][]Field{
+		{
+			{"_msg", `foo,bar foo`},
+			{"q", "w"},
+		},
+		{
+			{"_msg", "b"},
+			{"c", "d"},
+		},
+	}, [][]Field{
+		{
+			{"_msg", `foo,bar foo`},
+			{"b", `["foo","bar"]`},
 			{"q", "w"},
 		},
 		{
