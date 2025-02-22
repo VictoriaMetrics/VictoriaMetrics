@@ -2487,7 +2487,13 @@ func getEmptyStrings(rowsLen int) []string {
 		return values
 	}
 	values := *p
-	return slicesutil.SetLength(values, rowsLen)
+	needStore := cap(values) < rowsLen
+	values = slicesutil.SetLength(values, rowsLen)
+	if needStore {
+		valuesLocal := values
+		emptyStrings.Store(&valuesLocal)
+	}
+	return values
 }
 
 var emptyStrings atomic.Pointer[[]string]
