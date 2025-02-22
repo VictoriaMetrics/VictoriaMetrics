@@ -4,38 +4,38 @@ import (
 	"testing"
 )
 
-func TestParsePipeUnpackTokensSuccess(t *testing.T) {
+func TestParsePipeUnpackWordsSuccess(t *testing.T) {
 	f := func(pipeStr string) {
 		t.Helper()
 		expectParsePipeSuccess(t, pipeStr)
 	}
 
-	f(`unpack_tokens`)
-	f(`unpack_tokens as bar`)
-	f(`unpack_tokens from foo`)
-	f(`unpack_tokens from foo as bar`)
+	f(`unpack_words`)
+	f(`unpack_words as bar`)
+	f(`unpack_words from foo`)
+	f(`unpack_words from foo as bar`)
 }
 
-func TestParsePipeUrollTokensFailure(t *testing.T) {
+func TestParsePipeUnpackWordsFailure(t *testing.T) {
 	f := func(pipeStr string) {
 		t.Helper()
 		expectParsePipeFailure(t, pipeStr)
 	}
 
-	f(`unpack_tokens as`)
-	f(`unpack_tokens from`)
-	f(`unpack_tokens foo bar baz`)
-	f(`unpack_tokens foo, bar`)
+	f(`unpack_words as`)
+	f(`unpack_words from`)
+	f(`unpack_words foo bar baz`)
+	f(`unpack_words foo, bar`)
 }
 
-func TestPipeUnpackTokens(t *testing.T) {
+func TestPipeUnpackWords(t *testing.T) {
 	f := func(pipeStr string, rows, rowsExpected [][]Field) {
 		t.Helper()
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
-	// unpack_tokens by missing field
-	f("unpack_tokens x", [][]Field{
+	// unpack_words by missing field
+	f("unpack_words x", [][]Field{
 		{
 			{"a", `["foo",1,{"baz":"x"},[1,2],null,NaN]`},
 			{"q", "w"},
@@ -48,8 +48,8 @@ func TestPipeUnpackTokens(t *testing.T) {
 		},
 	})
 
-	// unpack_tokens by a field without tokens
-	f("unpack_tokens q", [][]Field{
+	// unpack_words by a field without words
+	f("unpack_words q", [][]Field{
 		{
 			{"a", `["foo",1,{"baz":"x"},[1,2],null,NaN]`},
 			{"q", "!#$%,"},
@@ -61,8 +61,8 @@ func TestPipeUnpackTokens(t *testing.T) {
 		},
 	})
 
-	// unpack_tokens by a field with tokens
-	f("unpack_tokens a", [][]Field{
+	// unpack_words by a field with words
+	f("unpack_words a", [][]Field{
 		{
 			{"a", `foo,bar baz`},
 			{"q", "w"},
@@ -82,8 +82,8 @@ func TestPipeUnpackTokens(t *testing.T) {
 		},
 	})
 
-	// unpack_tokens by a field with tokens into another field
-	f("unpack_tokens from a as b", [][]Field{
+	// unpack_words by a field with words into another field
+	f("unpack_words from a as b", [][]Field{
 		{
 			{"a", `foo,bar baz`},
 			{"q", "w"},
@@ -105,8 +105,8 @@ func TestPipeUnpackTokens(t *testing.T) {
 		},
 	})
 
-	// unpack_tokens from _msg inplace
-	f("unpack_tokens", [][]Field{
+	// unpack_words from _msg inplace
+	f("unpack_words", [][]Field{
 		{
 			{"_msg", `foo,bar baz`},
 			{"q", "w"},
@@ -126,8 +126,8 @@ func TestPipeUnpackTokens(t *testing.T) {
 		},
 	})
 
-	// unpack_tokens from _msg into other field
-	f("unpack_tokens as b", [][]Field{
+	// unpack_words from _msg into other field
+	f("unpack_words as b", [][]Field{
 		{
 			{"_msg", `foo,bar foo`},
 			{"q", "w"},
@@ -150,31 +150,31 @@ func TestPipeUnpackTokens(t *testing.T) {
 	})
 }
 
-func TestPipeUnpackTokensUpdateNeededFields(t *testing.T) {
+func TestPipeUnpackWordsUpdateNeededFields(t *testing.T) {
 	f := func(s string, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected string) {
 		t.Helper()
 		expectPipeNeededFields(t, s, neededFields, unneededFields, neededFieldsExpected, unneededFieldsExpected)
 	}
 
 	// all the needed fields
-	f("unpack_tokens x", "*", "", "*", "")
-	f("unpack_tokens x y", "*", "", "*", "y")
+	f("unpack_words x", "*", "", "*", "")
+	f("unpack_words x y", "*", "", "*", "y")
 
 	// all the needed fields, unneeded fields do not intersect with src
-	f("unpack_tokens x", "*", "f1,f2", "*", "f1,f2")
-	f("unpack_tokens x as y", "*", "f1,f2", "*", "f1,f2,y")
+	f("unpack_words x", "*", "f1,f2", "*", "f1,f2")
+	f("unpack_words x as y", "*", "f1,f2", "*", "f1,f2,y")
 
 	// all the needed fields, unneeded fields intersect with src
-	f("unpack_tokens x", "*", "f2,x", "*", "f2,x")
-	f("unpack_tokens x y", "*", "f2,x", "*", "f2,y")
-	f("unpack_tokens x y", "*", "f2,y", "*", "f2,y")
+	f("unpack_words x", "*", "f2,x", "*", "f2,x")
+	f("unpack_words x y", "*", "f2,x", "*", "f2,y")
+	f("unpack_words x y", "*", "f2,y", "*", "f2,y")
 
 	// needed fields do not intersect with src
-	f("unpack_tokens x", "f1,f2", "", "f1,f2", "")
-	f("unpack_tokens x y", "f1,f2", "", "f1,f2", "")
+	f("unpack_words x", "f1,f2", "", "f1,f2", "")
+	f("unpack_words x y", "f1,f2", "", "f1,f2", "")
 
 	// needed fields intersect with src
-	f("unpack_tokens x", "f2,x", "", "f2,x", "")
-	f("unpack_tokens x y", "f2,x", "", "f2,x", "")
-	f("unpack_tokens x y", "f2,y", "", "f2,x", "")
+	f("unpack_words x", "f2,x", "", "f2,x", "")
+	f("unpack_words x y", "f2,x", "", "f2,x", "")
+	f("unpack_words x y", "f2,y", "", "f2,x", "")
 }
