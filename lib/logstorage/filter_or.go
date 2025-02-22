@@ -34,23 +34,19 @@ func (fo *filterOr) updateNeededFields(neededFields fieldsSet) {
 func (fo *filterOr) applyToBlockResult(br *blockResult, bm *bitmap) {
 	bmResult := getBitmap(bm.bitsLen)
 	bmTmp := getBitmap(bm.bitsLen)
+	bmResult.copyFrom(bm)
 	for _, f := range fo.filters {
-		// Minimize the number of rows to check by the filter by checking only
-		// the rows, which may change the output bm:
-		// - bm matches them, e.g. the caller wants to get them
-		// - bmResult doesn't match them, e.g. all the previous OR filters didn't match them
-		bmTmp.copyFrom(bm)
-		bmTmp.andNot(bmResult)
-		if bmTmp.isZero() {
-			// Shortcut - there is no need in applying the remaining filters,
-			// since the result already matches all the values from the block.
-			break
-		}
+		bmTmp.copyFrom(bmResult)
 		f.applyToBlockResult(br, bmTmp)
-		bmResult.or(bmTmp)
+		bmResult.andNot(bmTmp)
+		if bmResult.isZero() {
+			putBitmap(bmTmp)
+			putBitmap(bmResult)
+			return
+		}
 	}
+	bm.andNot(bmResult)
 	putBitmap(bmTmp)
-	bm.copyFrom(bmResult)
 	putBitmap(bmResult)
 }
 
@@ -63,23 +59,19 @@ func (fo *filterOr) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
 
 	bmResult := getBitmap(bm.bitsLen)
 	bmTmp := getBitmap(bm.bitsLen)
+	bmResult.copyFrom(bm)
 	for _, f := range fo.filters {
-		// Minimize the number of rows to check by the filter by checking only
-		// the rows, which may change the output bm:
-		// - bm matches them, e.g. the caller wants to get them
-		// - bmResult doesn't match them, e.g. all the previous OR filters didn't match them
-		bmTmp.copyFrom(bm)
-		bmTmp.andNot(bmResult)
-		if bmTmp.isZero() {
-			// Shortcut - there is no need in applying the remaining filters,
-			// since the result already matches all the values from the block.
-			break
-		}
+		bmTmp.copyFrom(bmResult)
 		f.applyToBlockSearch(bs, bmTmp)
-		bmResult.or(bmTmp)
+		bmResult.andNot(bmTmp)
+		if bmResult.isZero() {
+			putBitmap(bmTmp)
+			putBitmap(bmResult)
+			return
+		}
 	}
+	bm.andNot(bmResult)
 	putBitmap(bmTmp)
-	bm.copyFrom(bmResult)
 	putBitmap(bmResult)
 }
 
