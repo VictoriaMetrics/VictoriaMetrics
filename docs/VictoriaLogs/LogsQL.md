@@ -3210,6 +3210,13 @@ For example, the following query unpacks words from [log messages](https://docs.
 _time:5m | unpack_words from _msg as words
 ```
 
+By default `unpack_words` pipe unpacks all the words, including duplicates, from the `<src_field>`. It is possible to drop duplicate words by adding `drop_duplicates` suffix to the pipe.
+For example, the following query extracts only unique words from every `text` field:
+
+```logsql
+_time:5m | unpack_words from text as words drop_duplicates
+```
+
 It may be convenient to use [`unroll` pipe](#unroll-pipe) for unrolling the JSON array with unpacked words from the destination field.
 For example, the following query returns top 5 most frequently seen words across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for the last 5 minutes:
 
