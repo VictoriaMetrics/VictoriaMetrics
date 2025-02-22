@@ -987,7 +987,7 @@ selected by another [query](#query-syntax) (aka subquery). LogsQL provides such 
   _time:5m AND user_id:in(_time:1d AND path:admin | fields user_id)
   ```
 
-- `field:contains_all(<subquery>)` - it returns logs with `field` values containing at all the [words](#word) and phrases returned by the `<subquery>`.
+- `field:contains_all(<subquery>)` - it returns logs with `field` values containing all the [words](#word) and phrases returned by the `<subquery>`.
   For example, the following query selects all the logs for the last 5 minutes, which contain all the `user_id` values from admin logs over the last day
   in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
@@ -1008,7 +1008,9 @@ so VictoriaLogs could use values of this field for matching the given filter.
 
 See also:
 
-- [multi-exact filter](#multi-exact-filter)
+- [`in` filter](#multi-exact-filter)
+- [`contains_all` filter](#contains_all-filter)
+- [`contains_any` filter](#contains_any-filter)
 - [`join` pipe](#join-pipe)
 - [`union` pipe](#union-pipe)
 
@@ -2168,7 +2170,7 @@ See also:
 `<q> | json_array_len(field) as result_field` calculates the length of JSON array at the given [`field`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 and stores it into the `result_field`, for every log entry returned by `<q>` [query](#query-syntax).
 
-For example, the following query returns top 5 [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+For example, the following query returns top 5 logs with contain [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
 with the biggest number of [words](#word) across all the logs for the last 5 minutes:
 
 ```logsql
@@ -3284,12 +3286,12 @@ only if `hostname` field in the current log entry isn't set or empty:
 _time:5m | unpack_syslog if (hostname:"") from foo
 ```
 
-### unpack_words
+### unpack_words pipe
 
 `<q> | unpack_words from <src_field> as <dst_field>` [pipe](#pipes) unpacks [words](#word) from the given `<src_field>` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 of `<q>` [query](#query-syntax) results into `<dst_field>` as a JSON array.
 
-For example, the following query unpacks words from [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) into `token` field:
+For example, the following query unpacks words from [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) into `words` field:
 
 ```logsql
 _time:5m | unpack_words from _msg as words
