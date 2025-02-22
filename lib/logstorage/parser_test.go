@@ -1495,10 +1495,10 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`* | json_array_len x y`, `* | json_array_len(x) as y`)
 	f(`* | json_array_len (x) as y`, `* | json_array_len(x) as y`)
 
-	// unpack_tokens pipe
-	f(`* | unpack_tokens`, `* | unpack_tokens`)
-	f(`* | unpack_tokens x`, `* | unpack_tokens from x`)
-	f(`* | unpack_tokens x y`, `* | unpack_tokens from x as y`)
+	// unpack_words pipe
+	f(`* | unpack_words`, `* | unpack_words`)
+	f(`* | unpack_words x`, `* | unpack_words from x`)
+	f(`* | unpack_words x y`, `* | unpack_words from x as y`)
 
 	// hash pipe
 	f(`* | hash(x)`, `* | hash(x)`)
@@ -2411,8 +2411,8 @@ func TestQueryGetNeededColumns(t *testing.T) {
 	f(`* | unpack_logfmt from x fields (a,b) | count() r1`, ``, ``)
 	f(`* | unpack_logfmt if (q:w p:a) from x | count() r1`, `p,q`, ``)
 	f(`* | unpack_logfmt if (q:w p:a) from x fields(a,b) | count() r1`, `p,q`, ``)
-	f(`* | unpack_tokens a | count() r1`, ``, ``)
-	f(`* | unpack_tokens a b | count() r1`, ``, ``)
+	f(`* | unpack_words a | count() r1`, ``, ``)
+	f(`* | unpack_words a b | count() r1`, ``, ``)
 	f(`* | unroll (a, b) | count() r1`, `a,b`, ``)
 	f(`* | unroll if (q:w p:a) (a, b) | count() r1`, `a,b,p,q`, ``)
 	f(`* | join on (a, b) (xxx) | count() r1`, `a,b`, ``)
@@ -2557,7 +2557,7 @@ func TestQueryCanLiveTail(t *testing.T) {
 	f("* | unpack_json", true)
 	f("* | unpack_logfmt", true)
 	f("* | unpack_syslog", true)
-	f("* | unpack_tokens a", true)
+	f("* | unpack_words a", true)
 	f("* | unroll by (a)", true)
 	f("* | join by (a) (b)", true)
 	f("* | json_array_len (a)", true)
@@ -2767,7 +2767,7 @@ func TestQueryGetStatsByFields_Failure(t *testing.T) {
 	f(`foo | count() | unpack_json`)
 	f(`foo | count() | unpack_logfmt`)
 	f(`foo | count() | unpack_syslog`)
-	f(`foo | count() | unpack_tokens x`)
+	f(`foo | count() | unpack_words x`)
 	f(`foo | count() | unroll by (x)`)
 	f(`foo | count() | join by (x) (y)`)
 	f(`foo | count() | json_array_len(a)`)

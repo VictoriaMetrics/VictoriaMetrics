@@ -321,10 +321,10 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'unpack_syslog' pipe: %w", err)
 		}
 		return pu, nil
-	case lex.isKeyword("unpack_tokens"):
-		pu, err := parsePipeUnpackTokens(lex)
+	case lex.isKeyword("unpack_words"):
+		pu, err := parsePipeUnpackWords(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'unpack_tokens' pipe: %w", err)
+			return nil, fmt.Errorf("cannot parse 'unpack_words' pipe: %w", err)
 		}
 		return pu, nil
 	case lex.isKeyword("unroll"):
@@ -393,7 +393,7 @@ var pipeNames = func() map[string]struct{} {
 		"unpack_json",
 		"unpack_logfmt",
 		"unpack_syslog",
-		"unpack_tokens",
+		"unpack_words",
 		"unroll",
 	}
 

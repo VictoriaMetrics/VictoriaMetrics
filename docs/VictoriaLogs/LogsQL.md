@@ -1388,7 +1388,7 @@ LogsQL supports the following pipes:
 - [`unpack_json`](#unpack_json-pipe) unpacks JSON messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_syslog`](#unpack_syslog-pipe) unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`unpack_tokens`](#unpack_tokens-pipe) unpacks [word tokens](#word) from the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`unpack_words`](#unpack_words-pipe) unpacks [words](#word) from the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unroll`](#unroll-pipe) unrolls JSON arrays from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into separate rows.
 
 ### block_stats pipe
@@ -2084,16 +2084,16 @@ See also:
 and stores it into the `result_field`, for every log entry returned by `<q>` [query](#query-syntax).
 
 For example, the following query returns top 5 [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
-with the biggest number of [token words](#word) across all the logs for the last 5 minutes:
+with the biggest number of [words](#word) across all the logs for the last 5 minutes:
 
 ```logsql
-_time:5m | unpack_tokens _msg as tokens | json_array_len (tokens) as tokens_len | first 5 (tokens_len desc)
+_time:5m | unpack_words _msg as words | json_array_len (words) as words_count | first 5 (words_count desc)
 ```
 
 See also:
 
 - [`len` pipe](#len-pipe)
-- [`unpack_tokens` pipe](#unpack_tokens-pipe)
+- [`unpack_words` pipe](#unpack_words-pipe)
 - [`first` pipe](#first-pipe)
 
 ### hash pipe
@@ -3199,22 +3199,22 @@ only if `hostname` field in the current log entry isn't set or empty:
 _time:5m | unpack_syslog if (hostname:"") from foo
 ```
 
-### unpack_tokens
+### unpack_words
 
-`<q> | unpack_tokens from <src_field> as <dst_field>` [pipe](#pipes) unpacks [word tokens](#word) from the given `<src_field>` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+`<q> | unpack_words from <src_field> as <dst_field>` [pipe](#pipes) unpacks [words](#word) from the given `<src_field>` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 of `<q>` [query](#query-syntax) results into `<dst_field>` as a JSON array.
 
-For example, the following query unpacks tokens from [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) into `token` field:
+For example, the following query unpacks words from [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) into `token` field:
 
 ```logsql
-_time:5m | unpack_tokens from _msg as tokens
+_time:5m | unpack_words from _msg as words
 ```
 
-It may be convenient to use [`unroll` pipe](#unroll-pipe) for unrolling the unpacked tokens from the destination field.
-For example, the following query returns top 5 most frequently seen tokens across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for the last 5 minutes:
+It may be convenient to use [`unroll` pipe](#unroll-pipe) for unrolling the JSON array with unpacked words from the destination field.
+For example, the following query returns top 5 most frequently seen words across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for the last 5 minutes:
 
 ```logsql
-_time:5m | unpack_tokens from _msg as tokens | unroll tokens | top 5 (tokens)
+_time:5m | unpack_words from _msg as words | unroll words | top 5 (words)
 ```
 
 See also:
@@ -3238,7 +3238,7 @@ the unrolled array items into separate fields for further processing.
 See also:
 
 - [`unpack_json` pipe](#unpack_json-pipe)
-- [`unpack_tokens` pipe](#unpack_tokens-pipe)
+- [`unpack_words` pipe](#unpack_words-pipe)
 - [`extract` pipe](#extract-pipe)
 - [`uniq_values` stats function](#uniq_values-stats)
 - [`values` stats function](#values-stats)
