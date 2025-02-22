@@ -84,6 +84,14 @@ models:
 ## Output produced by vmanomaly
 `vmanomaly` models generate [metrics](https://docs.victoriametrics.com/anomaly-detection/components/models#vmanomaly-output) like `anomaly_score`, `yhat`, `yhat_lower`, `yhat_upper`, and `y`. These metrics provide a comprehensive view of the detected anomalies. The service also produces [health check metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring#metrics-generated-by-vmanomaly) for monitoring its performance.
 
+## Visualizations  
+
+To visualize and interact with both [self-monitoring metrics](https://docs.victoriametrics.com/anomaly-detection/components/monitoring/) and [produced anomaly scores](#what-is-anomaly-score), `vmanomaly` provides respective Grafana dashboards:
+
+- For guidance on using the `vmanomaly` Grafana dashboard and drilling down into anomaly score visualizations, refer to the [default preset section](https://docs.victoriametrics.com/anomaly-detection/presets/#default).  
+- To monitor `vmanomaly` health, operational performance, and potential issues in real time, visit the [self-monitoring section](https://docs.victoriametrics.com/anomaly-detection/self-monitoring/).
+
+
 ## Choosing the right model for vmanomaly
 Selecting the best model for `vmanomaly` depends on the data's nature and the [types of anomalies](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#categories-of-anomalies) to detect. For instance, [Z-score](https://docs.victoriametrics.com/anomaly-detection/components/models#z-score) is suitable for data without trends or seasonality, while more complex patterns might require models like [Prophet](https://docs.victoriametrics.com/anomaly-detection/components/models#prophet).
 
