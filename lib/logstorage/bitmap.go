@@ -14,7 +14,7 @@ func getBitmap(bitsLen int) *bitmap {
 		v = &bitmap{}
 	}
 	bm := v.(*bitmap)
-	bm.init(bitsLen)
+	bm.resizeNoInit(bitsLen)
 	return bm
 }
 
@@ -46,11 +46,12 @@ func (bm *bitmap) copyFrom(src *bitmap) {
 
 func (bm *bitmap) init(bitsLen int) {
 	bm.reset()
+	bm.resizeNoInit(bitsLen)
+}
 
-	a := bm.a
+func (bm *bitmap) resizeNoInit(bitsLen int) {
 	wordsLen := (bitsLen + 63) / 64
-	a = slicesutil.SetLength(a, wordsLen)
-	bm.a = a
+	bm.a = slicesutil.SetLength(bm.a, wordsLen)
 	bm.bitsLen = bitsLen
 }
 
