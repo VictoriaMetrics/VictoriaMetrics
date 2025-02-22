@@ -266,6 +266,8 @@ The list of LogsQL filters:
 - [Exact prefix filter](#exact-prefix-filter) - matches logs starting with the given prefix for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 - [Multi-exact filter](#multi-exact-filter) - matches logs with one of the specified exact values for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 - [Subquery filter](#subquery-filter) - matches logs with [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values matching the results of another query
+- [`contains_all` filter](#contains_any-filter) - matches logs with [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) containing all the provided [words](#word) / phrases
+- [`contains_any` filter](#contains_any-filter) - matches logs with [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) containing at least one of the provided [words](#word) / phrases
 - [Case-insensitive filter](#case-insensitive-filter) - matches logs with the given case-insensitive word, phrase or prefix
 - [Sequence filter](#sequence-filter) - matches logs with the given sequence of words or phrases
 - [Regexp filter](#regexp-filter) - matches logs for the given regexp
@@ -274,7 +276,7 @@ The list of LogsQL filters:
 - [String range filter](#string-range-filter) - matches logs with [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in the given string range
 - [Length range filter](#length-range-filter) - matches logs with [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) of the given length range
 - [Value type filter](#value_type-filter) - matches logs with [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) stored under the given value type
-- [Fields' equality filter](#eq_field-filter) - matches logs, which contain identical values in the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [Fields' equality filter](#eq_field-filter) - matches logs, which contain identical values in the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 - [Logical filter](#logical-filter) - allows combining other filters
 
 
@@ -905,6 +907,8 @@ See [these docs](#subquery-filter) for details.
 
 See also:
 
+- [`contains_any` filter](#contains_any-filter)
+- [`contains_all` filter](#contains_all-filter)
 - [Exact filter](#exact-filter)
 - [Word filter](#word-filter)
 - [Phrase filter](#phrase-filter)
@@ -912,26 +916,102 @@ See also:
 - [Logical filter](#logical-filter)
 
 
-### Subquery filter
+### contains_all filter
 
-Sometimes it is needed to select logs with [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) containing values
-selected by another query (aka subquery). LogsQL provides such an ability with the `in(<subquery>)` filter.
-For example, the following query selects all the logs for the last 5 minutes for users,
-who visited pages with `admin` [word](#word) in the `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-during the last day:
+If it is needed to find logs, which contain all the given [words](#word) / phrases, then `v1 AND v2 ... AND vN` [logical filter](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter)
+can be used. VictoriaLogs provides an alternative approach with the `contains_all(v1, v2, ..., vN)` filter. For example, the following query matches logs,
+which contain both `foo` [word](#word) and `"bar baz"` phrase in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 ```logsql
-_time:5m AND user_id:in(_time:1d AND path:admin | fields user_id)
+contains_all(foo, "bar baz")
 ```
 
-The subquery inside `in(...)` must end with either [`fields` pipe](#fields-pipe) or [`uniq` pipe](#uniq-pipe) containing a single field name,
-so VictoriaLogs could use values of this field for matching the `in(...)` filter.
+This is equivalent to the following query:
+
+```logsql
+foo AND "bar baz"
+```
+
+It is possible to pass arbitrary [query](#query-syntax) inside `contains_all(...)` filter in order to match against the results of this query.
+See [these docs](#subquery-filter) for details.
+
+See also:
+
+- [`seq` filter](#sequence-filter)
+- [word filter](#word-filter)
+- [phrase filter](#phrase-filter)
+- [`in` filter](#multi-exact-filter)
+- [`contains_any` filter](#contains_any-filter)
+
+
+### contains_any filter
+
+Sometimes it is needed to find logs, which contain at least one [word](#word) or phrase out of many words / phrases.
+This can be done with `v1 OR v2 OR ... OR vN` [logical filter](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter).
+VictoriaLogs provides an alternative approach with the `contains_any(v1, v2, ..., vN)` filter. For example, the following query matches logs,
+which contain `foo` [word](#word) or `"bar baz"` phrase in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+```logsql
+contains_any(foo, "bar baz")
+```
+
+This is equivalent to the following query:
+
+```logsql
+foo OR "bar baz"
+```
+
+It is possible to pass arbitrary [query](#query-syntax) inside `contains_any(...)` filter in order to match against the results of this query.
+See [these docs](#subquery-filter) for details.
+
+
+See also:
+
+- [word filter](#word-filter)
+- [phrase filter](#phrase-filter)
+- [`in` filter](#multi-exact-filter)
+- [`contains_all` filter](#contains_all-filter)
+
+
+### Subquery filter
+
+Sometimes it is needed to select logs with [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) matching values
+selected by another [query](#query-syntax) (aka subquery). LogsQL provides such an ability with the following filters:
+
+- `field:in(<subquery>)` - it returns logs with `field` values matching the values returned by the `<subquery>`.
+  For example, the following query selects all the logs for the last 5 minutes for users,
+  who visited pages with `admin` [word](#word) in the `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  during the last day:
+
+  ```logsql
+  _time:5m AND user_id:in(_time:1d AND path:admin | fields user_id)
+  ```
+
+- `field:contains_all(<subquery>)` - it returns logs with `field` values containing at all the [words](#word) and phrases returned by the `<subquery>`.
+  For example, the following query selects all the logs for the last 5 minutes, which contain all the `user_id` values from admin logs over the last day
+  in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+  ```logsql
+  _time:5m _msg:contains_all(_time:1d is_admin:true | fields user_id)
+  ```
+
+- `field:contains_any(<subquery>)` - it returns logs with the `field` values containing at least one [word](#word) or phrase returned by the `<subquery>`.
+  For example, the following query selects all the logs for the last 5 minutes, which contain at least one `user_id` value from admin logs over the last day
+  in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+  ```logsql
+  _time:5m _msg:contains_any(_time:1d is_admin:true | fields user_id)
+  ```
+
+The `<subquery>` must end with either [`fields` pipe](#fields-pipe) or [`uniq` pipe](#uniq-pipe) containing a single field name,
+so VictoriaLogs could use values of this field for matching the given filter.
 
 See also:
 
 - [multi-exact filter](#multi-exact-filter)
 - [`join` pipe](#join-pipe)
 - [`union` pipe](#union-pipe)
+
 
 ### Case-insensitive filter
 
@@ -1018,6 +1098,7 @@ For example, the following query matches `event:original` field containing `(err
 
 See also:
 
+- [`contains_all` filter](#contains_all-filter)
 - [Word filter](#word-filter)
 - [Phrase filter](#phrase-filter)
 - [Exact-filter](#exact-filter)
@@ -1265,6 +1346,7 @@ See also:
 - [`block_stats` pipe](#block_stats-pipe)
 - [Logical filter](#logical-filter)
 
+
 ### eq_field filter
 
 Sometimes it is needed to find logs, which contain identical values in the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
@@ -1276,9 +1358,12 @@ For example, the following query matches logs with identical values at `user_id`
 user_id:eq_field(customer_id)
 ```
 
+Quick tip: use `NOT user_id:eq_field(customer_id)` for finding logs where `user_id` isn't equal to `customer_id`. It uses [`NOT` logical operator](#logical-filter).
+
 See also:
 
 - [`exact` filter](#exact-filter)
+
 
 ### Logical filter
 
@@ -1288,11 +1373,11 @@ Basic LogsQL [filters](#filters) can be combined into more complex filters with 
   For example, `error AND file AND app` matches [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
   which simultaneously contain `error`, `file` and `app` [words](#word).
   The `AND` operation is frequently used in LogsQL queries, so it is allowed to skip the `AND` word.
-  For example, `error file app` is equivalent to `error AND file AND app`.
+  For example, `error file app` is equivalent to `error AND file AND app`. See also [`contains_all` filter](#contains_all-filter).
 
 - `q1 OR q2` - merges log entries returned by both `q1` and `q2`. Arbitrary number of [filters](#filters) can be combined with `OR` operation.
   For example, `error OR warning OR info` matches [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
-  which contain at least one of `error`, `warning` or `info` [words](#word).
+  which contain at least one of `error`, `warning` or `info` [words](#word). See also [`contains_any` filter](#contains_any-filter).
 
 - `NOT q` - returns all the log entries except of those which match `q`. For example, `NOT info` returns all the
   [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
