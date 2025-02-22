@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: add [`contains_all` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_all-filter), which matches logs containing all the given words / phrases in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+* FEATURE: add [`contains_any` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_any-filter), which matches logs containing at least one of the given words / phrases in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 * FEATURE: add [`eq_field` filter](https://docs.victoriametrics.com/victorialogs/logsql/#eq_field-filter), which can be used for obtaining logs with identical values at the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 * FEATURE: add [`unpack_words` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_words-pipe) for unpacking individual [words](https://docs.victoriametrics.com/victorialogs/logsql/#word) from the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into the given destination field as JSON array.
 * FEATURE: add [`json_array_len` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#json_array_len-pipe) for calculating the length of JSON array stored in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).

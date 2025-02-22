@@ -100,21 +100,13 @@ func (bm *bitmap) andNot(x *bitmap) {
 	if bm.bitsLen != x.bitsLen {
 		logger.Panicf("BUG: cannot merge bitmaps with distinct lengths; %d vs %d", bm.bitsLen, x.bitsLen)
 	}
+	if x.isZero() {
+		return
+	}
 	a := bm.a
 	b := x.a
 	for i := range a {
 		a[i] &= ^b[i]
-	}
-}
-
-func (bm *bitmap) or(x *bitmap) {
-	if bm.bitsLen != x.bitsLen {
-		logger.Panicf("BUG: cannot merge bitmaps with distinct lengths; %d vs %d", bm.bitsLen, x.bitsLen)
-	}
-	a := bm.a
-	b := x.a
-	for i := range a {
-		a[i] |= b[i]
 	}
 }
 
