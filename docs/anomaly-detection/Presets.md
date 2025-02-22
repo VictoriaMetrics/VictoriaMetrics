@@ -46,13 +46,13 @@ Since this mode is designed to support **any** configuration, it requires the us
 - [Models](https://docs.victoriametrics.com/anomaly-detection/components/models)  
 - [Schedulers](https://docs.victoriametrics.com/anomaly-detection/components/scheduler)
 
-Although this mode is designed to be as flexible as possible, it includes a pre-built [Grafana dashboard](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-default-preset/dashboard.json). This dashboard is based on the [service output](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output), specifically [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score), and helps streamline the anomaly drill-down process.  
+Although this mode is designed to be as flexible as possible, it includes a pre-built [Grafana dashboard](https://grafana.com/grafana/dashboards/22922). This dashboard is based on the [service output](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output), specifically [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score), and helps streamline the anomaly drill-down process.  
 
 ### Grafana Dashboard
 
 > Note: [For additional benefits](https://docs.victoriametrics.com/victoriametrics-datasource/#motivation), this dashboard is based on [VictoriaMetrics datasource](https://docs.victoriametrics.com/victoriametrics-datasource/) rather than on `Prometheus` datasource. Please follow [these instructions](https://docs.victoriametrics.com/victoriametrics-datasource/#installation) to enable datasource in Grafana.
 
-You can find the Grafana dashboard `.json` file either [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-default-preset/dashboard.json) or, for already running `vmanomaly` instance: `http://localhost:8490/presets/dashboard.json`. 
+You can find the Grafana dashboard `.json` file either [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/vmanomaly/vmanomaly-default/dashboard.json) or, for already running `vmanomaly` instance: `http://localhost:8490/presets/dashboard.json`. 
 
 Alternatively, you can [download it from Grafana cloud](https://grafana.com/grafana/dashboards/22922) or import directly in Grafana by ID `22922`. Below is the navigation guide.
 
