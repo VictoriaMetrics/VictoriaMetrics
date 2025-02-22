@@ -2,7 +2,7 @@
 	"math"
 	"unsafe"
 
-    "github.com/prometheus/common/model"
+	"github.com/prometheus/common/model"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 ) %}
