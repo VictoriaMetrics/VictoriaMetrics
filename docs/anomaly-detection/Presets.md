@@ -73,7 +73,8 @@ You can find the Grafana dashboard `.json` file either [here](https://github.com
   - **Non-anomalous** data points: `anomaly_score` ≤ `Threshold`
   - **Anomalous** data points: `anomaly_score` > `Threshold`
   - Set the threshold value consistently with your **alerting rules** for accurate anomaly detection visualizations.
-- The **`Min. Anomaly%`** dashboard constant (from `[0,1]` range) helps to filter the visualizations in **Local Anomaly Score Statistics** dashboard section, leaving only timeseries with **% of anomalies over time > selected threshold**. <br>Set it to 0 to disable filtering on anomaly percentage.
+- The **`Min. Anomaly%`** dashboard constant (from `[0,1]` range) helps to filter the visualizations in [Local Anomaly Score Statistics](#local-anomaly-score-statistics) dashboard section, leaving only timeseries with **% of anomalies over time > selected threshold**. <br>Set it to 0 to disable filtering on anomaly percentage.
+- The **`Show series`** dashboard custom multi-valued list allows to specify what [vmanomaly output](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) series to plot on [Local Anomaly Score Statistics](#local-anomaly-score-statistics) dashboard section. Defaults to `y` - raw metric values model saw during prediction phase. Setting it to (`y`, `yhat`, `yhat_lower`, `yhat_upper`) may ease the debugging of produced anomaly scores.
 
 #### Global Anomaly Score Statistics
 
@@ -111,6 +112,8 @@ This section provides anomaly score statistics at the individual time series lev
   - [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) were used under respective `model_alias` label
   - The `provide_series` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series) explicitly or implicitly included `y` <br>(input data of original timeseries, observed by the model at prediction time).
   - In `writer.metric_format` special label `for` was configured to point out to query alias used in `reader.queries` section. <br>See `metric_format` argument description on [writer page](https://docs.victoriametrics.com/anomaly-detection/components/writer/?highlight=metric_format#config-parameters) for the details.
+
+Use **`Show series`** dashboard variable to specify what [vmanomaly output](https://docs.victoriametrics.com/anomaly-detection/components/models/#vmanomaly-output) series to plot on [Local Anomaly Score Statistics](#local-anomaly-score-statistics) dashboard section corresponding to raw metrics scale. Defaults to `y` - raw metric values model saw during prediction phase. Setting it to (`y`, `yhat`, `yhat_lower`, `yhat_upper`) may ease the debugging of produced anomaly scores.
 
 ### Example
 
@@ -162,7 +165,7 @@ To further refine the results, you can:
 
 For 1 or more filtered timeseries, explore the label set directly in the table or via the popup.<br>
 To determine whether the anomaly is a true or [false positive](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#false-positive), check the raw metric values:  
-- **(Preferred method)** Directly within the dashboard, if [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) were used and the `provide_series` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series) explicitly or implicitly included `y` (i.e., the original values observed by the model at prediction time).
+- **(Preferred method)** Directly within the dashboard, if [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) were used and the `provide_series` [argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#provide-series) explicitly or implicitly included `y` (i.e., the original values observed by the model at prediction time). Also, using **Show series** filter to add `yhat`, `yhat_lower`, `yhat_upper` to the visualizations (if respective columns were defined in `provide_series`) might help to understand model behavior and the magnitude of produced anomaly scores.
 ![dashboard-as-example-step-4a](vmanomaly-default-dashboard-example-step-4a.webp) 
 
 - **(Alternative method)** Use the `Explore` tab in Grafana:
