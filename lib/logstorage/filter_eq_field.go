@@ -43,18 +43,24 @@ func (fe *filterEqField) applyToBlockResult(br *blockResult, bm *bitmap) {
 }
 
 func (fe *filterEqField) applyToBlockSearch(bs *blockSearch, bm *bitmap) {
-	bmTmp := getBitmap(bm.bitsLen)
-	bmTmp.setBits()
-
 	br := getBlockResult()
-	br.mustInit(bs, bmTmp)
+	br.mustInit(bs, bm)
 	br.initRequestedColumns([]string{fe.fieldName, fe.otherFieldName})
 
-	fe.applyToBlockResult(br, bm)
+	c := br.getColumnByName(fe.fieldName)
+	cOther := br.getColumnByName(fe.otherFieldName)
+
+	values := c.getValues(br)
+	valuesOther := cOther.getValues(br)
+
+	srcIdx := 0
+	bm.forEachSetBit(func(_ int) bool {
+		ok := values[srcIdx] == valuesOther[srcIdx]
+		srcIdx++
+		return ok
+	})
 
 	putBlockResult(br)
-
-	putBitmap(bmTmp)
 }
 
 func getBlockResult() *blockResult {
