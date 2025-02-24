@@ -45,6 +45,36 @@ Released at 2025-02-21
 * BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return parsing errors during data ingestion in [multi-level cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup). Before, some of the errors could have been silently ignored.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): properly enforce presence of default `-retentionPeriod` configuration for [retention filters](https://docs.victoriametrics.com/#retention-filters) debug interface. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8343).
 
+## [v1.110.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.2)
+
+Released at 2025-02-21
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.21.2 to 3.21.3. See [Alpine 3.21.3 release notes](https://alpinelinux.org/posts/Alpine-3.18.12-3.19.7-3.20.6-3.21.3-released.html).
+
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix polluted alert messages when multiple Alertmanager instances are configured with `alert_relabel_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8040), and thanks to @evkuzin for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8258).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix the auto-generated metrics for alerts and groups. Previously, metrics might be missing after reload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8229) for the details.
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return parsing errors during data ingestion in [multi-level cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup). Before, some of the errors could have been silently ignored.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): properly enforce presence of default `-retentionPeriod` configuration for [retention filters](https://docs.victoriametrics.com/#retention-filters) debug interface. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8343).
+
+## [v1.102.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.14)
+
+Released at 2025-02-21
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.21.2 to 3.21.3. See [Alpine 3.21.3 release notes](https://alpinelinux.org/posts/Alpine-3.18.12-3.19.7-3.20.6-3.21.3-released.html).
+
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return parsing error for data ingestion.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix the auto-generated metrics for alerts and groups. Previously, metrics might be missing after reload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8229) for the details.
+
 ## [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0)
 
 Released at 2025-02-10
