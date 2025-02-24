@@ -377,7 +377,7 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 	// window > lookbackDelta could result in negative delta.
 	// See issue: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8342
 	stalenessInterval := lookbackDelta
-	if stalenessInterval < window {
+	if stalenessInterval != 0 && stalenessInterval < window {
 		stalenessInterval = window
 	}
 
