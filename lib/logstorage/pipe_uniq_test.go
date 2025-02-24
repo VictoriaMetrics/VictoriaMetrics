@@ -28,9 +28,10 @@ func TestParsePipeUniqFailure(t *testing.T) {
 		expectParsePipeFailure(t, pipeStr)
 	}
 
-	f(`uniq foo`)
 	f(`uniq by`)
 	f(`uniq by hits`)
+	f(`uniq by foo bar`)
+	f(`uniq foo bar`)
 	f(`uniq by(x) limit`)
 	f(`uniq by(x) limit foo`)
 	f(`uniq by (x) with`)
@@ -172,7 +173,7 @@ func TestPipeUniq(t *testing.T) {
 		},
 	})
 
-	f("uniq by (a) hits", [][]Field{
+	f("uniq by a hits", [][]Field{
 		{
 			{"a", `2`},
 			{"b", `3`},
@@ -193,7 +194,7 @@ func TestPipeUniq(t *testing.T) {
 		},
 	})
 
-	f("uniq by (b)", [][]Field{
+	f("uniq b", [][]Field{
 		{
 			{"a", `2`},
 			{"b", `3`},
@@ -355,7 +356,7 @@ func TestPipeUniq(t *testing.T) {
 		},
 	})
 
-	f("uniq by (a, b) hits", [][]Field{
+	f("uniq a, b hits", [][]Field{
 		{
 			{"a", `2`},
 			{"b", `3`},

@@ -426,6 +426,11 @@ func (q *Query) Clone(timestamp int64) *Query {
 	return qCopy
 }
 
+func (q *Query) cloneShallow() *Query {
+	qCopy := *q
+	return &qCopy
+}
+
 // CloneWithTimeFilter clones q at the given timestamp and adds _time:[start, end] filter to the cloned q.
 func (q *Query) CloneWithTimeFilter(timestamp, start, end int64) *Query {
 	q = q.Clone(timestamp)
@@ -591,6 +596,10 @@ func (q *Query) optimizeNoSubqueries() {
 }
 
 func (q *Query) visitSubqueries(visitFunc func(q *Query)) {
+	if q == nil {
+		return
+	}
+
 	// call f for the query itself.
 	visitFunc(q)
 
@@ -610,13 +619,9 @@ func visitSubqueriesInFilter(f filter, visitFunc func(q *Query)) {
 	callback := func(f filter) bool {
 		switch t := f.(type) {
 		case *filterIn:
-			if t.q != nil {
-				t.q.visitSubqueries(visitFunc)
-			}
+			t.q.visitSubqueries(visitFunc)
 		case *filterStreamID:
-			if t.q != nil {
-				t.q.visitSubqueries(visitFunc)
-			}
+			t.q.visitSubqueries(visitFunc)
 		}
 		return false
 	}
@@ -813,9 +818,8 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 			// Assume that `| format ...` pipe generates an additional by(...) label
 			if slices.Contains(byFields, t.resultField) {
 				return nil, fmt.Errorf("the %q field cannot be overridden at %q in the query [%s]", t.resultField, t, q)
-			} else {
-				byFields = append(byFields, t.resultField)
 			}
+			byFields = append(byFields, t.resultField)
 			delete(metricFields, t.resultField)
 		default:
 			return nil, fmt.Errorf("the %q pipe cannot be put after %q pipe in the query [%s]", p, ps, q)
@@ -1165,6 +1169,25 @@ func (q *Query) addPartitionByTime(step int64) {
 // GetTimestamp returns timestamp context for the given q, which was passed to ParseQueryAtTimestamp().
 func (q *Query) GetTimestamp() int64 {
 	return q.timestamp
+}
+
+func parseQueryInParens(lex *lexer) (*Query, error) {
+	if !lex.isKeyword("(") {
+		return nil, fmt.Errorf("missing '('")
+	}
+	lex.nextToken()
+
+	q, err := parseQuery(lex)
+	if err != nil {
+		return nil, err
+	}
+
+	if !lex.isKeyword(")") {
+		return nil, fmt.Errorf("missing ')' after '(%s'", q)
+	}
+	lex.nextToken()
+
+	return q, nil
 }
 
 func parseQuery(lex *lexer) (*Query, error) {
@@ -1768,52 +1791,18 @@ func parseFilterIn(lex *lexer, fieldName string) (filter, error) {
 	// Parse in(query | fields someField) then
 	lex.restoreState(lexState)
 	lex.nextToken()
-	if !lex.isKeyword("(") {
-		return nil, fmt.Errorf("missing '(' after 'in'")
-	}
-	lex.nextToken()
 
-	q, err := parseQuery(lex)
+	q, qFieldName, err := parseInQuery(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse query inside 'in(...)': %w", err)
+		return nil, err
 	}
 
-	if !lex.isKeyword(")") {
-		return nil, fmt.Errorf("missing ')' after 'in(%s)'", q)
-	}
-	lex.nextToken()
-
-	qFieldName, err := getFieldNameFromPipes(q.pipes)
-	if err != nil {
-		return nil, fmt.Errorf("cannot determine field name for values in 'in(%s)': %w", q, err)
-	}
 	fi = &filterIn{
-		fieldName:        fieldName,
-		needExecuteQuery: true,
-		q:                q,
-		qFieldName:       qFieldName,
+		fieldName:  fieldName,
+		q:          q,
+		qFieldName: qFieldName,
 	}
 	return fi, nil
-}
-
-func getFieldNameFromPipes(pipes []pipe) (string, error) {
-	if len(pipes) == 0 {
-		return "", fmt.Errorf("missing 'fields' or 'uniq' pipes at the end of query")
-	}
-	switch t := pipes[len(pipes)-1].(type) {
-	case *pipeFields:
-		if t.containsStar || len(t.fields) != 1 {
-			return "", fmt.Errorf("'%s' pipe must contain only a single non-star field name", t)
-		}
-		return t.fields[0], nil
-	case *pipeUniq:
-		if len(t.byFields) != 1 {
-			return "", fmt.Errorf("'%s' pipe must contain only a single non-star field name", t)
-		}
-		return t.byFields[0], nil
-	default:
-		return "", fmt.Errorf("missing 'fields' or 'uniq' pipe at the end of query")
-	}
 }
 
 func parseFilterSequence(lex *lexer, fieldName string) (filter, error) {
@@ -2150,7 +2139,7 @@ func parseFuncArgs(lex *lexer, fieldName string, callback func(args []string) (f
 	return callback(args)
 }
 
-// startsWithYear returns true if s starts from YYYY
+// startsWithYear returns true if s starts with YYYY
 func startsWithYear(s string) bool {
 	if len(s) < 4 {
 		return false
@@ -2227,15 +2216,11 @@ func parseFilterDayRange(lex *lexer) (*filterDayRange, error) {
 	offsetStr := ""
 	if lex.isKeyword("offset") {
 		lex.nextToken()
-		s, err := getCompoundToken(lex)
+		d, s, err := parseDuration(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse offset in day_range filter: %w", err)
 		}
-		d, ok := tryParseDuration(s)
-		if !ok {
-			return nil, fmt.Errorf("cannot parse offset %q for day_range filter", s)
-		}
-		offset = int64(d)
+		offset = d
 		offsetStr = " offset " + s
 	}
 
@@ -2303,15 +2288,11 @@ func parseFilterWeekRange(lex *lexer) (*filterWeekRange, error) {
 	offsetStr := ""
 	if lex.isKeyword("offset") {
 		lex.nextToken()
-		s, err := getCompoundToken(lex)
+		d, s, err := parseDuration(lex)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse offset in week_range filter: %w", err)
 		}
-		d, ok := tryParseDuration(s)
-		if !ok {
-			return nil, fmt.Errorf("cannot parse offset %q for week_range filter", s)
-		}
-		offset = int64(d)
+		offset = d
 		offsetStr = " offset " + s
 	}
 
@@ -2429,66 +2410,29 @@ func parseTimeOffset(lex *lexer) (int64, string, error) {
 	}
 	lex.nextToken()
 
-	s, err := getCompoundToken(lex)
+	d, s, err := parseDuration(lex)
 	if err != nil {
-		return 0, "", err
+		return 0, "", fmt.Errorf("cannot parse duration: %w", err)
 	}
-	d, ok := tryParseDuration(s)
-	if !ok {
-		return 0, "", fmt.Errorf("cannot parse duration [%s]", s)
-	}
-	offset := int64(d)
+	offset := d
 	return offset, "offset " + s, nil
 }
 
 func parseFilterTime(lex *lexer) (*filterTime, error) {
 	startTimeInclude := false
 	switch {
+	case lex.isKeyword(">"):
+		return parseFilterTimeGt(lex)
+	case lex.isKeyword("<"):
+		return parseFilterTimeLt(lex)
 	case lex.isKeyword("["):
+		lex.nextToken()
 		startTimeInclude = true
 	case lex.isKeyword("("):
+		lex.nextToken()
 		startTimeInclude = false
 	default:
-		s, err := getCompoundToken(lex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse _time filter: %w", err)
-		}
-		sLower := strings.ToLower(s)
-		if sLower == "now" || startsWithYear(s) {
-			// Parse '_time:YYYY-MM-DD', which transforms to '_time:[YYYY-MM-DD, YYYY-MM-DD+1)'
-			nsecs, err := promutils.ParseTimeAt(s, lex.currentTimestamp)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse _time filter: %w", err)
-			}
-			// Round to milliseconds
-			startTime := nsecs
-			endTime := getMatchingEndTime(startTime, s)
-			ft := &filterTime{
-				minTimestamp: startTime,
-				maxTimestamp: endTime,
-
-				stringRepr: s,
-			}
-			return ft, nil
-		}
-		// Parse _time:duration, which transforms to '_time:(now-duration, now]'
-		d, ok := tryParseDuration(s)
-		if !ok {
-			return nil, fmt.Errorf("cannot parse duration %q in _time filter", s)
-		}
-		if d < 0 {
-			d = -d
-		}
-		ft := &filterTime{
-			minTimestamp: lex.currentTimestamp - int64(d),
-			maxTimestamp: lex.currentTimestamp,
-
-			stringRepr: s,
-		}
-		return ft, nil
-	}
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing start time in _time filter")
+		return parseFilterTimeEq(lex)
 	}
 
 	// Parse start time
@@ -2543,6 +2487,151 @@ func parseFilterTime(lex *lexer) (*filterTime, error) {
 		stringRepr: stringRepr,
 	}
 	return ft, nil
+}
+
+func parseFilterTimeGt(lex *lexer) (*filterTime, error) {
+	if !lex.isKeyword(">") {
+		return nil, fmt.Errorf("missing '>' in _time filter; got %q instead", lex.token)
+	}
+	lex.nextToken()
+
+	prefix := ">"
+	if lex.isKeyword("=") {
+		lex.nextToken()
+		prefix = ">="
+	}
+
+	if isLikelyTimestamp(lex) {
+		startTime, startTimeString, err := parseTime(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse start time in _time filter: %w", err)
+		}
+
+		if prefix == ">" {
+			startTime++
+		}
+		ft := &filterTime{
+			minTimestamp: startTime,
+			maxTimestamp: math.MaxInt64,
+
+			stringRepr: prefix + startTimeString,
+		}
+		return ft, nil
+	}
+
+	d, s, err := parseDuration(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse duration at _time filter: %w", err)
+	}
+	if d < 0 {
+		d = -d
+	}
+	if prefix == ">" {
+		d++
+	}
+	ft := &filterTime{
+		minTimestamp: math.MinInt64,
+		maxTimestamp: lex.currentTimestamp - d,
+
+		stringRepr: prefix + s,
+	}
+	return ft, nil
+}
+
+func parseFilterTimeLt(lex *lexer) (*filterTime, error) {
+	if !lex.isKeyword("<") {
+		return nil, fmt.Errorf("missing '<' in _time filter; got %q instead", lex.token)
+	}
+	lex.nextToken()
+
+	prefix := "<"
+	if lex.isKeyword("=") {
+		lex.nextToken()
+		prefix = "<="
+	}
+
+	if isLikelyTimestamp(lex) {
+		endTime, endTimeString, err := parseTime(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse end time in _time filter: %w", err)
+		}
+		if prefix == "<" {
+			endTime--
+		} else {
+			endTime = getMatchingEndTime(endTime, endTimeString)
+		}
+		ft := &filterTime{
+			minTimestamp: math.MinInt64,
+			maxTimestamp: endTime,
+
+			stringRepr: prefix + endTimeString,
+		}
+		return ft, nil
+	}
+
+	d, s, err := parseDuration(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse duration at _time filter: %w", err)
+	}
+	if d < 0 {
+		d = -d
+	}
+	if prefix == "<" {
+		d--
+	}
+	ft := &filterTime{
+		minTimestamp: lex.currentTimestamp - d,
+		maxTimestamp: lex.currentTimestamp,
+
+		stringRepr: prefix + s,
+	}
+	return ft, nil
+}
+
+func parseFilterTimeEq(lex *lexer) (*filterTime, error) {
+	prefix := ""
+	if lex.isKeyword("=") {
+		lex.nextToken()
+		prefix = "="
+	}
+
+	if isLikelyTimestamp(lex) {
+		// Parse '_time:YYYY-MM-DD', which transforms to '_time:[YYYY-MM-DD, YYYY-MM-DD+1)'
+		nsecs, s, err := parseTime(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse _time filter: %w", err)
+		}
+		// Round to milliseconds
+		startTime := nsecs
+		endTime := getMatchingEndTime(startTime, s)
+		ft := &filterTime{
+			minTimestamp: startTime,
+			maxTimestamp: endTime,
+
+			stringRepr: prefix + s,
+		}
+		return ft, nil
+	}
+
+	// Parse _time:duration, which transforms to '_time:(now-duration, now]'
+	d, s, err := parseDuration(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse duration at _time filter: %w", err)
+	}
+	if d < 0 {
+		d = -d
+	}
+	ft := &filterTime{
+		minTimestamp: lex.currentTimestamp - d,
+		maxTimestamp: lex.currentTimestamp,
+
+		stringRepr: prefix + s,
+	}
+	return ft, nil
+}
+
+func isLikelyTimestamp(lex *lexer) bool {
+	return lex.isKeyword("now") || startsWithYear(lex.token)
 }
 
 func getMatchingEndTime(startTime int64, stringRepr string) int64 {
@@ -2636,32 +2725,50 @@ func parseFilterStreamIDIn(lex *lexer) (filter, error) {
 	// Try parsing in(query)
 	lex.restoreState(lexState)
 	lex.nextToken()
-	if !lex.isKeyword("(") {
-		return nil, fmt.Errorf("missing '(' after 'in'")
-	}
-	lex.nextToken()
 
-	q, err := parseQuery(lex)
+	q, qFieldName, err := parseInQuery(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse query inside 'in(...)': %w", err)
-	}
-
-	if !lex.isKeyword(")") {
-		return nil, fmt.Errorf("missing ')' after 'in(%s)'", q)
-	}
-	lex.nextToken()
-
-	qFieldName, err := getFieldNameFromPipes(q.pipes)
-	if err != nil {
-		return nil, fmt.Errorf("cannot determine field name for values in 'in(%s)': %w", q, err)
+		return nil, err
 	}
 
 	fs = &filterStreamID{
-		needExecuteQuery: true,
-		q:                q,
-		qFieldName:       qFieldName,
+		q:          q,
+		qFieldName: qFieldName,
 	}
 	return fs, nil
+}
+
+func parseInQuery(lex *lexer) (*Query, string, error) {
+	q, err := parseQueryInParens(lex)
+	if err != nil {
+		return nil, "", fmt.Errorf("cannot parse in(...) query: %w", err)
+	}
+
+	qFieldName, err := getFieldNameFromPipes(q.pipes)
+	if err != nil {
+		return nil, "", fmt.Errorf("cannot determine field name for values in 'in(%s)': %w", q, err)
+	}
+	return q, qFieldName, nil
+}
+
+func getFieldNameFromPipes(pipes []pipe) (string, error) {
+	if len(pipes) == 0 {
+		return "", fmt.Errorf("missing 'fields' or 'uniq' pipes at the end of query")
+	}
+	switch t := pipes[len(pipes)-1].(type) {
+	case *pipeFields:
+		if t.containsStar || len(t.fields) != 1 {
+			return "", fmt.Errorf("'%s' pipe must contain only a single non-star field name", t)
+		}
+		return t.fields[0], nil
+	case *pipeUniq:
+		if len(t.byFields) != 1 {
+			return "", fmt.Errorf("'%s' pipe must contain only a single non-star field name", t)
+		}
+		return t.byFields[0], nil
+	default:
+		return "", fmt.Errorf("missing 'fields' or 'uniq' pipe at the end of query")
+	}
 }
 
 func parseStreamID(lex *lexer) (streamID, error) {
@@ -2699,6 +2806,18 @@ func parseTime(lex *lexer) (int64, string, error) {
 		return 0, "", err
 	}
 	return nsecs, s, nil
+}
+
+func parseDuration(lex *lexer) (int64, string, error) {
+	s, err := getCompoundToken(lex)
+	if err != nil {
+		return 0, "", err
+	}
+	d, ok := tryParseDuration(s)
+	if !ok {
+		return 0, s, fmt.Errorf("cannot parse duration %q", s)
+	}
+	return d, s, nil
 }
 
 func quoteStringTokenIfNeeded(s string) string {

@@ -62,7 +62,7 @@ func (ssp *statsSumLenProcessor) updateStatsForRow(sf statsFunc, br *blockResult
 	return 0
 }
 
-func (ssp *statsSumLenProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (ssp *statsSumLenProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsSumLenProcessor)
 	ssp.sumLen += src.sumLen
 }

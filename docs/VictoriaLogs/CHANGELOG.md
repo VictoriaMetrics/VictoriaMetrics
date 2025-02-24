@@ -16,14 +16,71 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.12.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.12.0-victorialogs)
+
+Released at 2025-02-20
+
+* FEATURE: [`_time` filter](https://docs.victoriametrics.com/victorialogs/logsql/#time-filter): allow using `>`, `>=`, `<` and `<=`. For example, `_time:<2025-02-24Z` selects all the logs with [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field) less than `2025-02-24` by UTC. Another example: `_time:>1d` selects all the logs with `_time` field older than one day from the current time. This simplifies querying VictoriaLogs.
+* FEATURE: [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe): allow specifying the list of log fields without parens. For example, `top 5 foo` is equivalent to `top 5 by (foo)`.
+* FEATURE: [`uniq` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe): allow specifying the list of log fields without parens. For example, `uniq foo` is equivalent to `uniq (foo)`.
+* FEATURE: [`unroll` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unroll-pipe): allow specifying the list of log fields without parens. For example, `unroll foo` is equivalent to `unroll (foo)`.
+
+## [v1.11.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.11.0-victorialogs)
+
+Released at 2025-02-19
+
+**Update note: this release changes data storage format in backwards-incompatible way, so it is impossible to downgrade to the previous releases after upgrading to this release.
+It is safe upgrading to this release from older releases.**
+
+* FEATURE: improve per-field data locality on disk. This reduces overhead related to reading data from unrelated fields during queries. This improves query performance over structured logs with big number of fields (aka [wide events](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/)) when only a small portion of fields are used in the query.
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): reduce memory usage by up to 4x when ingesting [wide events](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/) at high rate into VictoriaLogs.
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add ability to limit the number of logs per page in the Group view (client-side). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8334).
+* FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add ability to disable the hover effect in the Group view to reduce load when viewing many records. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8135).
+
+* BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): Fixed journald ingestion to support entities with single-character names. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8314).
+
+## [v1.10.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.10.1-victorialogs)
+
+Released at 2025-02-14
+
+* BUGFIX: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): fix possible `concurrent map writes` panic when using [`count_uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-stats) and [`count_uniq_hash`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq_hash-stats) functions over big number of unique `stats by (...)` groups. The bug has been introduced in [v1.9.0-victorialogs](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.0-victorialogs).
+* BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): properly calculate `<q> | len(f) f_len | min(f_len)`. Previously it incorrectly returned `0` if the minimum value length for `f` field is bigger than `0`.
+* BUGFIX: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): properly calculate [stats functions with additional filters](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters). Previously some [stats functions](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe-functions) could return incorrect results if the additional filter filters out all the values in the processed data block.
+
+## [v1.10.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.10.0-victorialogs)
+
+Released at 2025-02-12
+
+* FEATURE: [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): support parsing of [`span_id`](https://github.com/open-telemetry/oteps/blob/main/text/logs/0097-log-data-model.md#field-spanid) and [`trace_id`](https://github.com/open-telemetry/oteps/blob/main/text/logs/0097-log-data-model.md#field-traceid) log fields. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8255) for details.
+* FEATURE: [Journald data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/): add support for data compression at journald side. See [this pull request](https://github.com/systemd/systemd/pull/34822).
+* FEATURE: [`stats` by time buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets), [`stats` by field buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-field-buckets), [`stats` by IPv4 buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-ipv4-buckets): improve performance for large buckets.
+
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): respect the selected tenant for autocomplete suggestions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8042).
+* BUGFIX: [`stats` by time buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets): properly align start of the week to Monday at `stats by (_time:week) ...`. Previously the week was started on Wednesday. The start of the week can be adjusted with [offset](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets-with-timezone-offset). For example, the following query alings the start of the week to Sunday: `_time:30d | stats by (_time:week offset -1d) count() | sort by (_time)`.
+* BUGFIX: [`stats` by field value buckets](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-field-buckets): properly calculate buckets for negative values.
+* BUGFIX: [syslog data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/syslog/): correctly parse rows with allowed in rfc5424 `\]` character. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8282).
+
+## [v1.9.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.1-victorialogs)
+
+Released at 2025-02-10
+
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): properly apply [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8152) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8153) bugfixes. They weren't applied to [`v1.9.0-victorialogs`](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.0-victorialogs) by an accident.
+
+## [v1.9.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.9.0-victorialogs)
+
+Released at 2025-02-10
+
 * FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): improve performance for [`stats by (...) ...`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) by up to 30% when it is applied to big number of `by (...)` groups.
 * FEATURE: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): improve performance for [`top` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe) by up to 30% when it is applied to big number of unique values.
 * FEATURE: [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe): improve performance for [`count_uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq-stats) and [`count_uniq_hash`](https://docs.victoriametrics.com/victorialogs/logsql/#count_uniq_hash-stats) functions by up to 30% when they are applied to big number of unique values.
 * FEATURE: [`block_stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#block_stats-pipe): return the path to the part where every data block is stored. The path to the part is returned in the `part_path` field. This allows investigating the distribution of data blocks among parts.
 * FEATURE: reduce VictoriaLogs startup time by multiple times when it opens a large datastore with big [retention](https://docs.victoriametrics.com/victorialogs/#retention).
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): accept timestamps with microsecond and nanosecond precision at [`_time` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#time-field).
+* FEATURE: [JSON lines data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api): continue parsing lines after encountering parse errors for some lines. Previously the input JSON lines' stream was closed after the first parse error.
 * FEATURE: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): add the `_msg` field to the list of fields for the group view, allowing users to select multiple fields, including `_msg`, for log display.
 
 * BUGFIX: [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/): properly limit [`concurrency` query option](https://docs.victoriametrics.com/victorialogs/logsql/#query-options) for [`stats`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe), [`uniq`](https://docs.victoriametrics.com/victorialogs/logsql/#uniq-pipe) and [`top`](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe). This prevents from `runtime error: index out of range` panic. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8201).
+* BUGFIX: [`sort` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe): properly sort [RFC3339 timestamps](https://www.rfc-editor.org/rfc/rfc3339) with variable sub-second precision. Previosuly such timestamps were sorted using [natural sorting](https://en.wikipedia.org/wiki/Natural_sort_order), and this could lead to unexpected results. For example, `2025-02-21T10:20:30.9Z` was incorrectly considered smaller than `2025-02-21T10:20:30.012Z`, since the last one had higher decimal value after the last dot.
 * BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): drop log entries with too long field names and log the dropped log entries with the `ignoring log entry with too long field name` message, so human operators could notice and fix the ingestion of incorrect logs ASAP. Previously too long field names were silently truncated to shorter values. This isn't what most users expect. See [why VictoriaLogs has a limit on the field name length](https://docs.victoriametrics.com/victorialogs/faq/#what-is-the-maximum-supported-field-name-length).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix transparency for bars in the hits bar chart to improve visibility. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8152).
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix `Group by field` dropdown menu not displaying any options in Group View settings. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8153).

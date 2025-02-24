@@ -77,7 +77,7 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 
 	// Check how inmemoryPart works with a single stream
 	f(newTestLogRows(1, 1, 0), 1, 0.7)
-	f(newTestLogRows(1, 2, 0), 1, 0.9)
+	f(newTestLogRows(1, 2, 0), 1, 0.8)
 	f(newTestLogRows(1, 10, 0), 1, 2.0)
 	f(newTestLogRows(1, 1000, 0), 1, 7.1)
 	f(newTestLogRows(1, 20000, 0), 2, 7.2)

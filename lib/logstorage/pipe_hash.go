@@ -58,11 +58,16 @@ func (ph *pipeHash) visitSubqueries(_ func(q *Query)) {
 }
 
 func (ph *pipeHash) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+	shards := make([]pipeHashProcessorShard, workersCount)
+	for i := range shards {
+		shards[i].reset()
+	}
+
 	return &pipeHashProcessor{
 		ph:     ph,
 		ppNext: ppNext,
 
-		shards: make([]pipeHashProcessorShard, workersCount),
+		shards: shards,
 	}
 }
 

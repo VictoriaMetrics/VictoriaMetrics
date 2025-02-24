@@ -11,27 +11,6 @@ aliases:
   - /victorialogs/data-ingestion/fluentd.html
   - /victorialogs/data-ingestion/Fluentd.html
 ---
-VictoriaLogs supports given below Fluentd outputs:
-- [Loki](#loki)
-- [HTTP JSON](#http)
-
-## Loki
-
-Specify [loki output](https://docs.fluentd.io/manual/pipeline/outputs/loki) section in the `fluentd.conf`
-for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/):
-
-```conf
-<match **>
-  @type loki
-  url "http://localhost:9428/insert"
-  <buffer>
-    flush_interval 10s
-    flush_at_shutdown true
-  </buffer>
-  custom_headers {"VL-Msg-Field": "log", "VL-Time-Field": "time", "VL-Stream-Fields": "path"}
-  buffer_chunk_limit 1m
-</match>
-```
 
 ## HTTP
 

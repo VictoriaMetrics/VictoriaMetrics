@@ -5,7 +5,7 @@
   flex-wrap: wrap;
   align-content: flex-start;
   justify-content: flex-start;
-  gap: $padding-medium;
+  gap: $padding-large;
   flex-grow: 1;
 
   &_mobile {
@@ -16,12 +16,12 @@
   &-card {
     display: grid;
     grid-template-columns: auto 1fr;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
     gap: $padding-small 4px;
 
     &__info-icon {
-      width: 12px;
+      width: 15px;
       display: flex;
       align-items: center;
       justify-content: center;

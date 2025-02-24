@@ -184,14 +184,37 @@ func (shard *pipeTopProcessorShard) writeBlock(br *blockResult) {
 	shard.columnValues = columnValues
 
 	keyBuf := shard.keyBuf
-	for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
+	hits := uint64(1)
+	for rowIdx := 1; rowIdx < br.rowsLen; rowIdx++ {
+		if isEqualPrevRow(columnValues, rowIdx) {
+			hits++
+			continue
+		}
 		keyBuf = keyBuf[:0]
 		for _, values := range columnValues {
-			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[rowIdx]))
+			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[rowIdx-1]))
 		}
-		shard.m.updateStateString(keyBuf, 1)
+		shard.m.updateStateString(keyBuf, hits)
+		hits = 1
 	}
+	keyBuf = keyBuf[:0]
+	for _, values := range columnValues {
+		keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[len(values)-1]))
+	}
+	shard.m.updateStateString(keyBuf, hits)
 	shard.keyBuf = keyBuf
+}
+
+func isEqualPrevRow(columnValues [][]string, rowIdx int) bool {
+	if rowIdx == 0 {
+		return false
+	}
+	for _, values := range columnValues {
+		if values[rowIdx-1] != values[rowIdx] {
+			return false
+		}
+	}
+	return true
 }
 
 func (shard *pipeTopProcessorShard) updateStatsSingleColumn(br *blockResult, fieldName string) {
@@ -206,21 +229,29 @@ func (shard *pipeTopProcessorShard) updateStatsSingleColumn(br *blockResult, fie
 		c.forEachDictValueWithHits(br, shard.m.updateStateGeneric)
 	case valueTypeUint8:
 		values := c.getValuesEncoded(br)
-		for _, v := range values {
-			n := unmarshalUint8(v)
-			shard.m.updateStateUint64(uint64(n), 1)
+		hits := uint64(1)
+		for rowIdx := 1; rowIdx < len(values); rowIdx++ {
+			if values[rowIdx-1] == values[rowIdx] {
+				hits++
+			} else {
+				n := uint64(unmarshalUint8(values[rowIdx-1]))
+				shard.m.updateStateUint64(n, hits)
+				hits = 1
+			}
 		}
+		n := uint64(unmarshalUint8(values[len(values)-1]))
+		shard.m.updateStateUint64(n, hits)
 	case valueTypeUint16:
 		values := c.getValuesEncoded(br)
 		for _, v := range values {
-			n := unmarshalUint16(v)
-			shard.m.updateStateUint64(uint64(n), 1)
+			n := uint64(unmarshalUint16(v))
+			shard.m.updateStateUint64(n, 1)
 		}
 	case valueTypeUint32:
 		values := c.getValuesEncoded(br)
 		for _, v := range values {
-			n := unmarshalUint32(v)
-			shard.m.updateStateUint64(uint64(n), 1)
+			n := uint64(unmarshalUint32(v))
+			shard.m.updateStateUint64(n, 1)
 		}
 	case valueTypeUint64:
 		values := c.getValuesEncoded(br)
@@ -236,9 +267,16 @@ func (shard *pipeTopProcessorShard) updateStatsSingleColumn(br *blockResult, fie
 		}
 	default:
 		values := c.getValues(br)
-		for _, v := range values {
-			shard.m.updateStateGeneric(v, 1)
+		hits := uint64(1)
+		for rowIdx := 1; rowIdx < len(values); rowIdx++ {
+			if values[rowIdx-1] == values[rowIdx] {
+				hits++
+			} else {
+				shard.m.updateStateGeneric(values[rowIdx-1], hits)
+				hits = 1
+			}
 		}
+		shard.m.updateStateGeneric(values[len(values)-1], hits)
 	}
 }
 
@@ -603,19 +641,30 @@ func parsePipeTop(lex *lexer) (pipe, error) {
 		limitStr = s
 	}
 
+	needFields := false
+	if lex.isKeyword("by") {
+		lex.nextToken()
+		needFields = true
+	}
+
 	var byFields []string
-	if lex.isKeyword("by", "(") {
-		if lex.isKeyword("by") {
-			lex.nextToken()
-		}
+	if lex.isKeyword("(") {
 		bfs, err := parseFieldNamesInParens(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse 'by' clause in 'top': %w", err)
-		}
-		if slices.Contains(bfs, "*") {
-			bfs = nil
+			return nil, fmt.Errorf("cannot parse 'by(...)': %w", err)
 		}
 		byFields = bfs
+	} else if !lex.isKeyword("hits", "rank", ")", "|", "") {
+		bfs, err := parseCommaSeparatedFields(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'by ...': %w", err)
+		}
+		byFields = bfs
+	} else if needFields {
+		return nil, fmt.Errorf("missing fields after 'by'")
+	}
+	if slices.Contains(byFields, "*") {
+		byFields = nil
 	}
 
 	pt := &pipeTop{

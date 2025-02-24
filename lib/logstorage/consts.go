@@ -3,7 +3,7 @@ package logstorage
 // partFormatLatestVersion is the latest format version for parts.
 //
 // See partHeader.FormatVersion for details.
-const partFormatLatestVersion = 2
+const partFormatLatestVersion = 3
 
 // bloomValuesMaxShardsCount is the number of shards for bloomFilename and valuesFilename files.
 //

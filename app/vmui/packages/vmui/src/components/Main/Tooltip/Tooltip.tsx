@@ -1,8 +1,6 @@
-import React, { FC, useEffect, useMemo, useRef, useState, Fragment } from "preact/compat";
-import ReactDOM from "react-dom";
+import React, { FC, useEffect, useMemo, useRef, useState, Fragment, createPortal } from "preact/compat";
 import "./style.scss";
 import { ReactNode } from "react";
-import { ExoticComponent } from "react";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 interface TooltipProps {
@@ -25,7 +23,7 @@ const Tooltip: FC<TooltipProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [popperSize, setPopperSize] = useState({ width: 0, height: 0 });
 
-  const buttonRef = useRef<ExoticComponent>(null);
+  const buttonRef = useRef<ReactNode>(null);
   const popperRef = useRef<HTMLDivElement>(null);
 
   const onScrollWindow = () => setIsOpen(false);
@@ -120,7 +118,7 @@ const Tooltip: FC<TooltipProps> = ({
         {children}
       </Fragment>
 
-      {!isMobile && isOpen && ReactDOM.createPortal((
+      {!isMobile && isOpen && createPortal((
         <div
           className="vm-tooltip"
           ref={popperRef}

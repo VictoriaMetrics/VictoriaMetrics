@@ -15,6 +15,7 @@ type inmemoryPart struct {
 	ph partHeader
 
 	columnNames        bytesutil.ByteBuffer
+	columnIdxs         bytesutil.ByteBuffer
 	metaindex          bytesutil.ByteBuffer
 	index              bytesutil.ByteBuffer
 	columnsHeaderIndex bytesutil.ByteBuffer
@@ -54,6 +55,7 @@ func (mp *inmemoryPart) reset() {
 	mp.ph.reset()
 
 	mp.columnNames.Reset()
+	mp.columnIdxs.Reset()
 	mp.metaindex.Reset()
 	mp.index.Reset()
 	mp.columnsHeaderIndex.Reset()
@@ -69,6 +71,7 @@ func (mp *inmemoryPart) mustInitFromRows(lr *LogRows) {
 	mp.reset()
 
 	sort.Sort(lr)
+	lr.sortFieldsInRows()
 
 	bsw := getBlockStreamWriter()
 	bsw.MustInitForInmemoryPart(mp)
@@ -107,6 +110,7 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	fs.MustMkdirFailIfExist(path)
 
 	columnNamesPath := filepath.Join(path, columnNamesFilename)
+	columnIdxsPath := filepath.Join(path, columnIdxsFilename)
 	metaindexPath := filepath.Join(path, metaindexFilename)
 	indexPath := filepath.Join(path, indexFilename)
 	columnsHeaderIndexPath := filepath.Join(path, columnsHeaderIndexFilename)
@@ -116,6 +120,7 @@ func (mp *inmemoryPart) MustStoreToDisk(path string) {
 	messageBloomFilterPath := filepath.Join(path, messageBloomFilename)
 
 	fs.MustWriteSync(columnNamesPath, mp.columnNames.B)
+	fs.MustWriteSync(columnIdxsPath, mp.columnIdxs.B)
 	fs.MustWriteSync(metaindexPath, mp.metaindex.B)
 	fs.MustWriteSync(indexPath, mp.index.B)
 	fs.MustWriteSync(columnsHeaderIndexPath, mp.columnsHeaderIndex.B)

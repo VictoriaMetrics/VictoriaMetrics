@@ -13,6 +13,8 @@ import (
 
 	"github.com/cheggaaa/pb/v3"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -20,7 +22,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -74,25 +75,37 @@ type Group struct {
 }
 
 type groupMetrics struct {
-	iterationTotal    *utils.Counter
-	iterationDuration *utils.Summary
-	iterationMissed   *utils.Counter
-	iterationInterval *utils.Gauge
+	set *metrics.Set
+
+	iterationTotal    *metrics.Counter
+	iterationDuration *metrics.Summary
+	iterationMissed   *metrics.Counter
+	iterationInterval *metrics.Gauge
 }
 
 func newGroupMetrics(g *Group) *groupMetrics {
 	m := &groupMetrics{}
+	m.set = metrics.NewSet()
+
 	labels := fmt.Sprintf(`group=%q, file=%q`, g.Name, g.File)
-	m.iterationTotal = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
-	m.iterationDuration = utils.GetOrCreateSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
-	m.iterationMissed = utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
-	m.iterationInterval = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
+	m.iterationTotal = m.set.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
+	m.iterationDuration = m.set.GetOrCreateSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
+	m.iterationMissed = m.set.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
+	m.iterationInterval = m.set.GetOrCreateGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
 		g.mu.RLock()
 		i := g.Interval.Seconds()
 		g.mu.RUnlock()
 		return i
 	})
 	return m
+}
+
+func (m *groupMetrics) start() {
+	metrics.RegisterSet(m.set)
+}
+
+func (m *groupMetrics) close() {
+	metrics.UnregisterSet(m.set, true)
 }
 
 // merges group rule labels into result map
@@ -237,7 +250,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 		if !ok {
 			// old rule is not present in the new list
 			// so we mark it for removing
-			g.Rules[i].close()
+			g.Rules[i].unregisterMetrics()
 			g.Rules[i] = nil
 			continue
 		}
@@ -257,6 +270,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	}
 	// add the rest of rules from registry
 	for _, nr := range rulesRegistry {
+		nr.registerMetrics(g)
 		newRules = append(newRules, nr)
 	}
 	// note that g.Interval is not updated here
@@ -295,13 +309,7 @@ func (g *Group) Close() {
 	g.InterruptEval()
 	<-g.finishedCh
 
-	g.metrics.iterationDuration.Unregister()
-	g.metrics.iterationTotal.Unregister()
-	g.metrics.iterationMissed.Unregister()
-	g.metrics.iterationInterval.Unregister()
-	for _, rule := range g.Rules {
-		rule.close()
-	}
+	g.metrics.close()
 }
 
 // SkipRandSleepOnGroupStart will skip random sleep delay in group first evaluation
@@ -310,6 +318,8 @@ var SkipRandSleepOnGroupStart bool
 // Start starts group's evaluation
 func (g *Group) Start(ctx context.Context, nts func() []notifier.Notifier, rw remotewrite.RWClient, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
+
+	g.metrics.start()
 
 	evalTS := time.Now()
 	// sleep random duration to spread group rules evaluation

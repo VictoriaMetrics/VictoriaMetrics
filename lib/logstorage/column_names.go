@@ -12,6 +12,74 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+func mustWriteColumnIdxs(w *writerWithStats, columnIdxs map[uint64]uint64) {
+	data := marshalColumnIdxs(nil, columnIdxs)
+	w.MustWrite(data)
+}
+
+func mustReadColumnIdxs(r filestream.ReadCloser, columnNames []string, shardsCount uint64) map[string]uint64 {
+	src, err := io.ReadAll(r)
+	if err != nil {
+		logger.Panicf("FATAL: %s: cannot read column indexes: %s", r.Path(), err)
+	}
+
+	columnIdxs, err := unmarshalColumnIdxs(src, columnNames, shardsCount)
+	if err != nil {
+		logger.Panicf("FATAL: %s: cannot parse column indexes: %s", r.Path(), err)
+	}
+
+	return columnIdxs
+}
+
+func marshalColumnIdxs(dst []byte, columnIdxs map[uint64]uint64) []byte {
+	dst = encoding.MarshalVarUint64(dst, uint64(len(columnIdxs)))
+	for columnID, shardIdx := range columnIdxs {
+		dst = encoding.MarshalVarUint64(dst, columnID)
+		dst = encoding.MarshalVarUint64(dst, shardIdx)
+	}
+	return dst
+}
+
+func unmarshalColumnIdxs(src []byte, columnNames []string, shardsCount uint64) (map[string]uint64, error) {
+	n, nBytes := encoding.UnmarshalVarUint64(src)
+	if nBytes <= 0 {
+		return nil, fmt.Errorf("cannot parse the number of entries from len(src)=%d", len(src))
+	}
+	src = src[nBytes:]
+	if n > math.MaxInt {
+		return nil, fmt.Errorf("too many entries: %d; musn't exceed %d", n, math.MaxInt)
+	}
+
+	shardIdxs := make(map[string]uint64, n)
+	for i := uint64(0); i < n; i++ {
+		columnID, nBytes := encoding.UnmarshalVarUint64(src)
+		if nBytes <= 0 {
+			return nil, fmt.Errorf("cannot parse columnID #%d", i)
+		}
+		src = src[nBytes:]
+
+		shardIdx, nBytes := encoding.UnmarshalVarUint64(src)
+		if nBytes <= 0 {
+			return nil, fmt.Errorf("cannot parse shardIdx #%d", i)
+		}
+		if shardIdx >= shardsCount {
+			return nil, fmt.Errorf("too big shardIdx=%d; must be smaller than %d", shardIdx, shardsCount)
+		}
+		src = src[nBytes:]
+
+		if columnID >= uint64(len(columnNames)) {
+			return nil, fmt.Errorf("too big columnID; got %d; must be smaller than %d", columnID, len(columnNames))
+		}
+		columnName := columnNames[columnID]
+		shardIdxs[columnName] = shardIdx
+	}
+	if len(src) > 0 {
+		return nil, fmt.Errorf("unexpected tail left after reading column indexes; len(tail)=%d", len(src))
+	}
+
+	return shardIdxs, nil
+}
+
 func mustWriteColumnNames(w *writerWithStats, columnNames []string) {
 	data := marshalColumnNames(nil, columnNames)
 	w.MustWrite(data)
@@ -101,14 +169,15 @@ func (g *columnNameIDGenerator) reset() {
 
 func (g *columnNameIDGenerator) getColumnNameID(name string) uint64 {
 	id, ok := g.columnNameIDs[name]
-	if !ok {
-		if g.columnNameIDs == nil {
-			g.columnNameIDs = make(map[string]uint64)
-		}
-		id = uint64(len(g.columnNames))
-		nameCopy := strings.Clone(name)
-		g.columnNameIDs[nameCopy] = id
-		g.columnNames = append(g.columnNames, nameCopy)
+	if ok {
+		return id
 	}
+	if g.columnNameIDs == nil {
+		g.columnNameIDs = make(map[string]uint64)
+	}
+	id = uint64(len(g.columnNames))
+	nameCopy := strings.Clone(name)
+	g.columnNameIDs[nameCopy] = id
+	g.columnNames = append(g.columnNames, nameCopy)
 	return id
 }

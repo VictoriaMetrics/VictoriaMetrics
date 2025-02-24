@@ -102,7 +102,7 @@ In this case the account ID and project ID are obtained from optional `vm_accoun
 If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding account ID and project ID are set to 0.
 These labels are automatically removed from samples before forwarding them to `vmstorage`.
 For example, if the following samples are written into `http://vminsert:8480/insert/multitenant/prometheus/api/v1/write`:
-```
+```promtextmetric
 http_requests_total{path="/foo",vm_account_id="42"} 12
 http_requests_total{path="/bar",vm_account_id="7",vm_project_id="9"} 34
 ```
@@ -138,19 +138,19 @@ Currently supported endpoints for `<suffix>` are:
 
 It is allowed to explicitly specify tenant IDs via `vm_account_id` and `vm_project_id` labels in the query.
 For example, the following query fetches metric `up` for the tenants `accountID=42` and `accountID=7, projectID=9`:
-```
+```promtextmetric
 up{vm_account_id="7", vm_project_id="9" or vm_account_id="42"}
 ```
 
 `vm_account_id` and `vm_project_id` labels support all operators for label matching. For example:
-```
+```promtextmetric
 up{vm_account_id!="42"} # selects all the time series except those belonging to accountID=42
 up{vm_account_id=~"4.*"} # selects all the time series belonging to accountIDs starting with 4
 ```
 
 Alternatively, it is possible to use [`extra_filters[]` and `extra_label`](https://docs.victoriametrics.com/#prometheus-querying-api-enhancements)
 query args to apply additional filters for the query:
-```
+```bash
 curl 'http://vmselect:8481/select/multitenant/prometheus/api/v1/query' \
   -d 'query=up' \
   -d 'extra_filters[]={vm_account_id="7",vm_project_id="9"}' \
@@ -189,13 +189,13 @@ inside [the official docker container for Go](https://hub.docker.com/_/golang).
 This allows reproducible builds.
 So [install docker](https://docs.docker.com/install/) and run the following command:
 
-```
+```bash
 make vminsert-prod vmselect-prod vmstorage-prod
 ```
 
 Production binaries are built into statically linked binaries. They are put into the `bin` folder with `-prod` suffixes:
 
-```
+```bash
 $ make vminsert-prod vmselect-prod vmstorage-prod
 $ ls -1 bin
 vminsert-prod
@@ -224,7 +224,7 @@ By default, images are built on top of [alpine](https://hub.docker.com/_/scratch
 It is possible to build an image on top of any other base image by setting it via `<ROOT_IMAGE>` environment variable.
 For example, the following command builds images on top of [scratch](https://hub.docker.com/_/scratch) image:
 
-```sh
+```bash
 ROOT_IMAGE=scratch make package
 ```
 
@@ -338,7 +338,7 @@ in front of `vminsert` and `vmselect`.
 requests at `8480` and `8481` ports for `vminsert` and `vmselect` nodes, by specifying `-tls` and `-mtls` command-line flags.
 For example, the following command runs `vmselect`, which accepts only mTLS requests at port `8481`:
 
-```
+```bash
 ./vmselect -tls -mtls
 ```
 
@@ -778,9 +778,8 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   In this case it might be useful to set the `-search.maxTagValues` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPIDuration` and `-search.maxLabelsAPISeries`.
 - `-search.maxLabelsAPISeries` at `vmselect` limits the number of time series, which can be scanned
-  when performing [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels),
-  [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
-  or [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series) requests.
+  when performing [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels) or
+  [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) requests.
   These endpoints are used mostly by Grafana for auto-completion of label names and label values. Queries to these endpoints may take big amounts of CPU time and memory
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPISeries` to quite low value in order to limit CPU and memory usage.
@@ -853,7 +852,7 @@ The following format for `-storageNode` command-line flag value should be used f
 For example, the following command runs `vmselect`, which continues returning full responses if up to one node per each group is temporarily unavailable
 because the given `-replicationFactor=2` is applied individually per each group:
 
-```
+```bash
 /path/to/vmselect \
  -replicationFactor=2 \
  -storageNode=g1/host1,g1/host2,g1/host3 \
@@ -865,7 +864,7 @@ It is possible specifying distinct `-replicationFactor` per each group via the f
 For example, the following command runs `vmselect`, which uses `-replicationFactor=3` for the group `g1`, `-replicationFactor=2` for the group `g2`
 and `-replicationFactor=1` for the group `g3`:
 
-```
+```bash
 /path/to/vmselect \
  -replicationFactor=g1:3 \
  -storageNode=g1/host1,g1/host2,g1/host3 \
@@ -880,7 +879,7 @@ so it could continue returning full responses if up to `N-1` `vmstorage` groups 
 For example, the following command runs `vmselect`, which continues returning full responses if any number of `vmstorage` nodes
 in a single `vmstorage` group are temporarily unavailable:
 
-```
+```bash
 /path/to/vmselect \
  -globalReplicationFactor=2 \
  -storageNode=g1/host1,g1/host2,g1/host3 \
@@ -891,7 +890,7 @@ in a single `vmstorage` group are temporarily unavailable:
 It is OK to mix `-replicationFactor` and `-globalReplicationFactor`. For example, the following command runs `vmselect`, which continues returning full responses
 if any number of `vmstorage` nodes in a single `vmstorage` group are temporarily unavailable and the remaining groups contain up to two unavailable `vmstorage` node:
 
-```
+```bash
 /path/to/vmselect \
  -globalReplicationFactor=2 \
  -replicationFactor=3 \
@@ -987,14 +986,14 @@ For example, the following config sets retention to 1 day for [tenants](#multite
 then sets retention to 3 days for time series with label `env="dev"` or `env="prod"` from any tenant,
 while the rest of tenants will have 4 weeks retention:
 
-```
+```bash
 -retentionFilter='{vm_account_id=~"42.*"}:1d' -retentionFilter='{env=~"dev|staging"}:3d' -retentionPeriod=4w
 ```
 
 It is OK to mix filters on real labels with filters on `vm_account_id` and `vm_project_id` pseudo-labels.
 For example, the following config sets retention to 5 days for time series with `env="dev"` label from [tenant](#multitenancy) `accountID=5`:
 
-```
+```bash
 -retentionFilter='{vm_account_id="5",env="dev"}:5d'
 ```
 
@@ -1013,14 +1012,14 @@ It is possible to downsample series, which belong to a particular [tenant](#mult
 on `vm_account_id` or `vm_project_id` pseudo-labels in `-downsampling.period` command-line flag. For example, the following config leaves the last sample per each minute for samples
 older than one hour only for [tenants](#multitenancy) with accountID equal to 12 and 42, while series for other tenants are dropped:
 
-```
+```bash
 -downsampling.period='{vm_account_id=~"12|42"}:1h:1m'
 ```
 
 It is OK to mix filters on real labels with filters on `vm_account_id` and `vm_project_id` pseudo-labels.
 For example, the following config instructs leaving the last sample per hour after 30 days for time series with `env="dev"` label from [tenant](#multitenancy) `accountID=5`:
 
-```
+```bash
 -downsampling.period='{vm_account_id="5",env="dev"}:30d:1h'
 ```
 
@@ -1048,7 +1047,7 @@ All the cluster components provide the following handlers for [profiling](https:
 Example command for collecting cpu profile from `vmstorage` (replace `0.0.0.0` with `vmstorage` hostname if needed):
 
 
-```sh
+```bash
 curl http://0.0.0.0:8482/debug/pprof/profile > cpu.pprof
 ```
 
@@ -1056,7 +1055,7 @@ curl http://0.0.0.0:8482/debug/pprof/profile > cpu.pprof
 Example command for collecting memory profile from `vminsert` (replace `0.0.0.0` with `vminsert` hostname if needed):
 
 
-```sh
+```bash
 curl http://0.0.0.0:8480/debug/pprof/heap > mem.pprof
 ```
 
@@ -1197,6 +1196,8 @@ Below is the output for `/path/to/vminsert -help`:
      Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -influx.forceStreamMode bool
+     Force stream mode parsing for ingested data. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf.
   -influx.maxLineSize size
      The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
@@ -1377,7 +1378,7 @@ Below is the output for `/path/to/vminsert -help`:
 
 Below is the output for `/path/to/vmselect -help`:
 
-```
+```shellhelp
   -blockcache.missesBeforeCaching int
      The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -cacheDataPath string
@@ -1602,7 +1603,7 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxLabelsAPISeries int
      The maximum number of time series, which could be scanned when searching for the matching time series at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, -search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI (default 1000000)
   -search.maxLookback duration
-     Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
+     Synonym to -query.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
   -search.maxMemoryPerQuery size
      The maximum amounts of memory a single query may consume. Queries requiring more memory are rejected. The total memory limit for concurrently executed queries can be estimated as -search.maxMemoryPerQuery multiplied by -search.maxConcurrentRequests . See also -search.logQueryMemoryUsage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -1726,7 +1727,7 @@ Below is the output for `/path/to/vmselect -help`:
 
 Below is the output for `/path/to/vmstorage -help`:
 
-```
+```shellhelp
   -bigMergeConcurrency int
      Deprecated: this flag does nothing
   -blockcache.missesBeforeCaching int

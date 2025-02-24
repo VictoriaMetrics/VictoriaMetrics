@@ -72,6 +72,11 @@ var (
 		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
 	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
 		"See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning")
+
+	disablePerDayIndex = flag.Bool("disablePerDayIndex", false, "Disable per-day index and use global index for all searches. "+
+		"This may improve performance and decrease disk space usage for the use cases with fixed set of timeseries scattered across a "+
+		"big time range (for example, when loading years of historical data). "+
+		"See https://docs.victoriametrics.com/single-server-victoriametrics/#index-tuning")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -111,7 +116,14 @@ func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *DataPath, retentionPeriod)
 	startTime := time.Now()
 	WG = syncwg.WaitGroup{}
-	strg := storage.MustOpenStorage(*DataPath, retentionPeriod.Duration(), *maxHourlySeries, *maxDailySeries)
+
+	opts := storage.OpenOptions{
+		Retention:          retentionPeriod.Duration(),
+		MaxHourlySeries:    *maxHourlySeries,
+		MaxDailySeries:     *maxDailySeries,
+		DisablePerDayIndex: *disablePerDayIndex,
+	}
+	strg := storage.MustOpenStorage(*DataPath, opts)
 	Storage = strg
 	initStaleSnapshotsRemover(strg)
 
@@ -192,20 +204,19 @@ func SearchMetricNames(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr st
 	return metricNames, err
 }
 
-// SearchLabelNamesWithFiltersOnTimeRange searches for tag keys matching the given tfss on tr.
-func SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr storage.TimeRange, maxTagKeys, maxMetrics int, deadline uint64) ([]string, error) {
+// SearchLabelNames searches for tag keys matching the given tfss on tr.
+func SearchLabelNames(qt *querytracer.Tracer, tfss []*storage.TagFilters, tr storage.TimeRange, maxTagKeys, maxMetrics int, deadline uint64) ([]string, error) {
 	WG.Add(1)
-	labelNames, err := Storage.SearchLabelNamesWithFiltersOnTimeRange(qt, tfss, tr, maxTagKeys, maxMetrics, deadline)
+	labelNames, err := Storage.SearchLabelNames(qt, tfss, tr, maxTagKeys, maxMetrics, deadline)
 	WG.Done()
 	return labelNames, err
 }
 
-// SearchLabelValuesWithFiltersOnTimeRange searches for label values for the given labelName, tfss and tr.
-func SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, labelName string, tfss []*storage.TagFilters,
-	tr storage.TimeRange, maxLabelValues, maxMetrics int, deadline uint64,
-) ([]string, error) {
+// SearchLabelValues searches for label values for the given labelName, tfss and
+// tr.
+func SearchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*storage.TagFilters, tr storage.TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
 	WG.Add(1)
-	labelValues, err := Storage.SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
+	labelValues, err := Storage.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 	WG.Done()
 	return labelValues, err
 }

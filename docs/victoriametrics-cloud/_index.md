@@ -1,5 +1,5 @@
 ---
-title: VictoriaMetrics Cloud
+title: VictoriaMetrics Cloud Overview
 weight: 40
 disableToc: true
 menu:

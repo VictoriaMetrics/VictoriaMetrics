@@ -1,3 +1,7 @@
+# v1.6.0 (2025-02-10)
+
+* **Feature**: Support CRC64NVME flex checksums.
+
 # v1.5.6 (2025-02-05)
 
 * **Dependency Update**: Updated to the latest SDK module versions

@@ -6,10 +6,11 @@ export interface HeadCell {
   id: string;
   label: string | ReactNode;
   info?: string;
+  sortable?: boolean;
 }
 
 export interface EnhancedHeaderTableProps {
-  onRequestSort: (event: MouseEvent<unknown>, property: keyof Data) => void;
+  onRequestSort: (event: MouseEvent<HTMLTableCellElement>, property: keyof Data) => void;
   order: Order;
   orderBy: string;
   rowCount: number;
@@ -29,6 +30,7 @@ export interface Data {
   name: string;
   value: number;
   diff: number;
+  diffPercent: number;
   valuePrev: number;
   progressValue: number;
   actions: string;

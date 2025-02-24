@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -1248,11 +1250,15 @@ func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
 		EvalInterval: waitFor,
 		alerts:       make(map[uint64]*notifier.Alert),
 		state:        &ruleState{entries: make([]StateEntry, 10)},
-		metrics: &alertingRuleMetrics{
-			errors: utils.GetOrCreateCounter(fmt.Sprintf(`vmalert_alerting_rules_errors_total{alertname=%q}`, name)),
-		},
+		metrics:      getTestAlertingRuleMetrics(name),
 	}
 	return &rule
+}
+
+func getTestAlertingRuleMetrics(name string) *alertingRuleMetrics {
+	m := &alertingRuleMetrics{}
+	m.errors = utils.NewCounter(metrics.NewSet(), fmt.Sprintf(`vmalert_alerting_rules_errors_total{alertname=%q}`, name))
+	return m
 }
 
 func newTestAlertingRuleWithCustomFields(name string, waitFor, evalInterval, keepFiringFor time.Duration, annotation map[string]string) *AlertingRule {

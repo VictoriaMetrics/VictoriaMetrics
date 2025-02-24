@@ -160,13 +160,21 @@ func appendPrettifiedExpr(dst []byte, e Expr, indent int, needParens bool) []byt
 		lfss := t.labelFilterss
 		offset := 0
 		metricName := getMetricNameFromLabelFilterss(lfss)
+		metricNamehasEscapedChars := hasEscapedChars(metricName)
+
 		if metricName != "" {
 			offset = 1
 		}
 		dst = appendIndent(dst, indent)
-		dst = appendEscapedIdent(dst, metricName)
+		if !metricNamehasEscapedChars {
+			dst = appendEscapedIdent(dst, metricName)
+		}
 		if !isOnlyMetricNameInLabelFilterss(lfss) {
 			dst = append(dst, "{\n"...)
+			if metricNamehasEscapedChars {
+				dst = ifEscapedCharsAppendQuotedIdent(dst, metricName)
+				dst = append(dst, ',', ' ', '\n')
+			}
 			for i, lfs := range lfss {
 				lfs = lfs[offset:]
 				if len(lfs) == 0 {
