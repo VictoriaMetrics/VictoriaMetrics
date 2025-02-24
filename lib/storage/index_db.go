@@ -159,7 +159,7 @@ func mustOpenIndexDB(path string, s *Storage, isReadOnly *atomic.Bool) *indexDB 
 		logger.Panicf("FATAL: cannot parse indexdb path %q: %s", path, err)
 	}
 
-	tb := mergeset.MustOpenTable(path, invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
+	tb := mergeset.MustOpenTable(path, dataFlushInterval, invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
 
 	// Do not persist tagFiltersToMetricIDsCache in files, since it is very volatile because of tagFiltersKeyGen.
 	mem := memory.Allowed()
