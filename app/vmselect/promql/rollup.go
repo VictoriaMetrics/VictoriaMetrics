@@ -376,14 +376,14 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 
 	// window > lookbackDelta could result in negative delta.
 	// See issue: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8342
-	maxStalenessInterval := lookbackDelta
-	if maxStalenessInterval < window {
-		maxStalenessInterval = window
+	stalenessInterval := lookbackDelta
+	if stalenessInterval < window {
+		stalenessInterval = window
 	}
 
 	if rollupFuncsRemoveCounterResets[funcName] {
 		preFunc = func(values []float64, timestamps []int64) {
-			removeCounterResets(values, timestamps, maxStalenessInterval)
+			removeCounterResets(values, timestamps, stalenessInterval)
 		}
 	}
 	samplesScannedPerCall := rollupFuncsSamplesScannedPerCall[funcName]
@@ -495,7 +495,7 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 			if rollupFuncsRemoveCounterResets[aggrFuncName] {
 				// There is no need to save the previous preFunc, since it is either empty or the same.
 				preFunc = func(values []float64, timestamps []int64) {
-					removeCounterResets(values, timestamps, maxStalenessInterval)
+					removeCounterResets(values, timestamps, stalenessInterval)
 				}
 			}
 			rf := rollupAggrFuncs[aggrFuncName]
