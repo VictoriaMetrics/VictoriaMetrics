@@ -1556,6 +1556,8 @@ Below is the output for `/path/to/vmselect -help`:
      Supports an array of `key:value` entries separated by comma or specified via multiple flags.
   -search.cacheTimestampOffset duration
      The maximum duration since the current time for response data, which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses due to time synchronization issues between VictoriaMetrics and data sources (default 5m0s)
+  -search.deltaTolerationFactor int
+    	The factor between the first value and the first delta used to infer the previous missing value. This flag could be useful for adjusting the calculation of the missing previous value in delta() and increase() functions . A negative value forces the assumption of a missing value of zero. A value of zero assumes the missing value is equal to the first recorded value. Higher values allow for greater toleration in assuming the counter starts at 0. (default 10)
   -search.denyPartialResponse
      Whether to deny partial responses if a part of -storageNode instances fail to perform queries; this trades availability over consistency; see also -search.maxQueryDuration
   -search.disableCache
