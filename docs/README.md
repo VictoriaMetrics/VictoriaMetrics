@@ -1770,7 +1770,7 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
 - `-search.maxDeleteSeries` limits the number of unique time series that can be
   deleted by a single
   [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series)
-  call. The duration is limited via `-search.maxDeleteDuration` flag{{% available_from "#tip" %}}. Deleting too many time series may require big
+  call. The duration is limited via `-search.maxDeleteDuration` flag{{% available_from "v1.110.0" %}}. Deleting too many time series may require big
   amount of CPU and memory and this limit guards against unplanned resource usage spikes. Also see
   [How to delete time series](#how-to-delete-time-series) section to learn about
   different ways of deleting series.
@@ -2608,7 +2608,7 @@ A prominent example is Kubernetes. Services in k8s expose big number of series w
 increasing churn rate. The per-day index speeds up data retrieval in this case.
 
 But if your use case assumes low or no churn rate, then you might benefit from disabling the per-day index by setting 
-the flag `-disablePerDayIndex`{{% available_from "#tip" %}}. This will improve the time series ingestion speed and decrease disk space usage,
+the flag `-disablePerDayIndex`{{% available_from "v1.112.0" %}}. This will improve the time series ingestion speed and decrease disk space usage,
 since no time or disk space is spent maintaining the per-day index.
 
 Example use cases:

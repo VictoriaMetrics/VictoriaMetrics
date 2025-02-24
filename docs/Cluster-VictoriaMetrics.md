@@ -761,7 +761,7 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
 - `-search.maxDeleteSeries` at `vmselect` limits the number of unique time
   series that can be deleted by a single
   [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series)
-  call. The duration is limited via `-search.maxDeleteDuration` flag{{% available_from "#tip" %}}. Deleting too many time series may require big
+  call. The duration is limited via `-search.maxDeleteDuration` flag{{% available_from "v1.110.0" %}}. Deleting too many time series may require big
   amount of CPU and memory at `vmstorage` and this limit guards against unplanned resource usage spikes.
   Also see [How to delete time series](#how-to-delete-time-series) section to
   learn about different ways of deleting series.
