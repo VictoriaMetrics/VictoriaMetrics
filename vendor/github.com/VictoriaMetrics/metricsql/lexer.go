@@ -123,16 +123,12 @@ again:
 		goto tokenFoundLabel
 	}
 	if strings.HasPrefix(s, "$__interval") {
-		// Automatically replace $__interval with 1i.
-		// This allows running copy-n-pasted queries from Grafana.
 		lex.sTail = s[len("$__interval"):]
-		return "1i", nil
+		return "$__interval", nil
 	}
 	if strings.HasPrefix(s, "$__rate_interval") {
-		// Automatically replace $__rate_interval with 1i.
-		// This allows running copy-n-pasted queries from Grafana.
 		lex.sTail = s[len("$__rate_interval"):]
-		return "1i", nil
+		return "$__interval", nil
 	}
 	return "", fmt.Errorf("cannot recognize %q", s)
 
@@ -538,6 +534,9 @@ func scanSpecialIntegerPrefix(s string) (skipChars int, isHex bool) {
 }
 
 func isPositiveDuration(s string) bool {
+	if s == "$__interval" {
+		return true
+	}
 	n := scanDuration(s)
 	return n == len(s)
 }
@@ -606,6 +605,10 @@ func DurationValue(s string, step int64) (int64, error) {
 }
 
 func parseSingleDuration(s string, step int64) (float64, error) {
+	if s == "$__interval" {
+		return float64(step), nil
+	}
+
 	s = strings.ToLower(s)
 	numPart := s[:len(s)-1]
 	// Strip trailing m if the duration is in ms
@@ -667,6 +670,9 @@ func scanSingleDuration(s string, canBeNegative bool) int {
 	i := 0
 	if s[0] == '-' && canBeNegative {
 		i++
+	}
+	if s[i:] == "$__interval" {
+		return i + len("$__interval")
 	}
 	for i < len(s) && isDecimalChar(s[i]) {
 		i++
