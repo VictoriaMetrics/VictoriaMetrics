@@ -4,15 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jaeger/proto"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"strings"
-	"sync"
-	"time"
 )
 
+// A SpanReaderPluginServer represents a Jaeger interface to read from gRPC storage backend
 type SpanReaderPluginServer struct{}
 
 type span struct {
@@ -46,12 +48,12 @@ func (s *SpanReaderPluginServer) GetTrace(req *proto.GetTraceRequest, svc proto.
 						msg:       columns[j].Values[i],
 					})
 				}
+				spansLock.Unlock()
 			}
 
-			spansLock.Unlock()
 		}
 	}
-	if err = vlstorage.RunQuery(context.TODO(), []logstorage.TenantID{{0, 0}}, q, writeBlock); err != nil {
+	if err = vlstorage.RunQuery(context.TODO(), []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, writeBlock); err != nil {
 		return err
 	}
 
@@ -67,14 +69,14 @@ func (s *SpanReaderPluginServer) GetTrace(req *proto.GetTraceRequest, svc proto.
 	return svc.Send(&proto.SpansResponseChunk{Spans: spans})
 }
 
-func (s *SpanReaderPluginServer) GetServices(ctx context.Context, req *proto.GetServicesRequest) (*proto.GetServicesResponse, error) {
+func (s *SpanReaderPluginServer) GetServices(ctx context.Context, _ *proto.GetServicesRequest) (*proto.GetServicesResponse, error) {
 	qStr := "*"
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, time.Now().UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
 	q.AddTimeFilter(0, time.Now().UnixNano())
-	serviceHits, err := vlstorage.GetStreamFieldValues(ctx, []logstorage.TenantID{{0, 0}}, q, "service_name", uint64(1000))
+	serviceHits, err := vlstorage.GetStreamFieldValues(ctx, []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, "service_name", uint64(1000))
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +97,7 @@ func (s *SpanReaderPluginServer) GetOperations(ctx context.Context, req *proto.G
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
-	operationHits, err := vlstorage.GetStreamFieldValues(ctx, []logstorage.TenantID{{0, 0}}, q, "operation_name", uint64(1000))
+	operationHits, err := vlstorage.GetStreamFieldValues(ctx, []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, "operation_name", uint64(1000))
 	if err != nil {
 		return nil, err
 	}
@@ -151,21 +153,22 @@ func (s *SpanReaderPluginServer) FindTraces(req *proto.FindTracesRequest, svc pr
 		for i, timestamp := range timestamps {
 			for j := range columns {
 				if columns[j].Name == "_msg" {
-					spansLock.Lock()
-					spanRows = append(spanRows, span{
+					s := span{
 						timestamp: timestamp,
-						msg:       columns[j].Values[i],
-					})
+						msg:       strings.Clone(columns[j].Values[i]),
+					}
+					spansLock.Lock()
+					spanRows = append(spanRows, s)
 				}
 			}
 
 			spansLock.Unlock()
 		}
 	}
-	if err = vlstorage.RunQuery(context.TODO(), []logstorage.TenantID{{0, 0}}, q, writeBlock); err != nil {
+
+	if err = vlstorage.RunQuery(context.TODO(), []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, writeBlock); err != nil {
 		return err
 	}
-
 	spans := make([]proto.Span, 0, len(spanRows))
 	for i := range spanRows {
 		var sp *proto.Span
@@ -179,7 +182,7 @@ func (s *SpanReaderPluginServer) FindTraces(req *proto.FindTracesRequest, svc pr
 	return svc.Send(&proto.SpansResponseChunk{Spans: spans})
 }
 
-func (s *SpanReaderPluginServer) FindTraceIDs(ctx context.Context, req *proto.FindTraceIDsRequest) (*proto.FindTraceIDsResponse, error) {
+func (s *SpanReaderPluginServer) FindTraceIDs(_ context.Context, req *proto.FindTraceIDsRequest) (*proto.FindTraceIDsResponse, error) {
 	query := req.GetQuery()
 	qStr := ""
 	if svcName := query.GetServiceName(); svcName != "" {
@@ -210,7 +213,7 @@ func (s *SpanReaderPluginServer) FindTraceIDs(ctx context.Context, req *proto.Fi
 
 	traceIDSet := make(map[string]struct{})
 	var traceIDLock sync.Mutex
-	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
+	writeBlock := func(_ uint, _ []int64, columns []logstorage.BlockColumn) {
 		for i := range columns {
 			if columns[i].Name == "trace_id" {
 				traceIDLock.Lock() //todo looks unnecessary
@@ -221,7 +224,7 @@ func (s *SpanReaderPluginServer) FindTraceIDs(ctx context.Context, req *proto.Fi
 			}
 		}
 	}
-	if err = vlstorage.RunQuery(context.TODO(), []logstorage.TenantID{{0, 0}}, q, writeBlock); err != nil {
+	if err = vlstorage.RunQuery(context.TODO(), []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, writeBlock); err != nil {
 		return nil, err
 	}
 

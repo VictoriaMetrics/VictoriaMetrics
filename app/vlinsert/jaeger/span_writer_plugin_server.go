@@ -11,10 +11,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
+// A SpanWriterPluginServer represents plugin Jaeger interface to write gRPC storage backend
 type SpanWriterPluginServer struct {
 }
 
-func (s *SpanWriterPluginServer) WriteSpan(ctx context.Context, req *proto.WriteSpanRequest) (*proto.WriteSpanResponse, error) {
+// WriteSpan writes spans
+func (s *SpanWriterPluginServer) WriteSpan(_ context.Context, req *proto.WriteSpanRequest) (*proto.WriteSpanResponse, error) {
 	span := req.GetSpan()
 	if span == nil {
 		return &proto.WriteSpanResponse{}, fmt.Errorf("span not found")
@@ -25,6 +27,9 @@ func (s *SpanWriterPluginServer) WriteSpan(ctx context.Context, req *proto.Write
 		return nil, err
 	}
 	cp, err := insertutils.GetJaegerCommonParams()
+	if err != nil {
+		return nil, err
+	}
 	lmp := cp.NewLogMessageProcessor("jaeger")
 	defer lmp.MustClose()
 
@@ -94,7 +99,7 @@ func (s *SpanWriterPluginServer) WriteSpan(ctx context.Context, req *proto.Write
 	resp := &proto.WriteSpanResponse{}
 	return resp, nil
 }
-func (s *SpanWriterPluginServer) Close(ctx context.Context, req *proto.CloseWriterRequest) (*proto.CloseWriterResponse, error) {
+func (s *SpanWriterPluginServer) Close(_ context.Context, req *proto.CloseWriterRequest) (*proto.CloseWriterResponse, error) {
 	resp := &proto.CloseWriterResponse{}
 	return resp, nil
 }

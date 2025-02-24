@@ -43,8 +43,7 @@ type CommonParams struct {
 // GetJaegerCommonParams returns CommonParams for Jaeger.
 func GetJaegerCommonParams() (*CommonParams, error) {
 	// Extract tenantID
-	var tenantID logstorage.TenantID
-	tenantID = logstorage.TenantID{
+	var tenantID = logstorage.TenantID{
 		AccountID: 0,
 		ProjectID: 0,
 	}
