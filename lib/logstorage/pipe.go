@@ -195,6 +195,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'join' pipe: %w", err)
 		}
 		return pj, nil
+	case lex.isKeyword("json_array_len"):
+		pl, err := parsePipeJSONArrayLen(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'json_array_len' pipe: %w", err)
+		}
+		return pl, nil
 	case lex.isKeyword("hash"):
 		ph, err := parsePipeHash(lex)
 		if err != nil {
@@ -315,6 +321,12 @@ func parsePipe(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot parse 'unpack_syslog' pipe: %w", err)
 		}
 		return pu, nil
+	case lex.isKeyword("unpack_words"):
+		pu, err := parsePipeUnpackWords(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse 'unpack_words' pipe: %w", err)
+		}
+		return pu, nil
 	case lex.isKeyword("unroll"):
 		pu, err := parsePipeUnroll(lex)
 		if err != nil {
@@ -360,6 +372,7 @@ var pipeNames = func() map[string]struct{} {
 		"first",
 		"format",
 		"join",
+		"json_array_len",
 		"hash",
 		"last",
 		"len",
@@ -380,6 +393,7 @@ var pipeNames = func() map[string]struct{} {
 		"unpack_json",
 		"unpack_logfmt",
 		"unpack_syslog",
+		"unpack_words",
 		"unroll",
 	}
 

@@ -14,7 +14,7 @@ func getBitmap(bitsLen int) *bitmap {
 		v = &bitmap{}
 	}
 	bm := v.(*bitmap)
-	bm.init(bitsLen)
+	bm.resizeNoInit(bitsLen)
 	return bm
 }
 
@@ -46,19 +46,17 @@ func (bm *bitmap) copyFrom(src *bitmap) {
 
 func (bm *bitmap) init(bitsLen int) {
 	bm.reset()
+	bm.resizeNoInit(bitsLen)
+}
 
-	a := bm.a
+func (bm *bitmap) resizeNoInit(bitsLen int) {
 	wordsLen := (bitsLen + 63) / 64
-	a = slicesutil.SetLength(a, wordsLen)
-	bm.a = a
+	bm.a = slicesutil.SetLength(bm.a, wordsLen)
 	bm.bitsLen = bitsLen
 }
 
 func (bm *bitmap) resetBits() {
-	a := bm.a
-	for i := range a {
-		a[i] = 0
-	}
+	clear(bm.a)
 }
 
 func (bm *bitmap) setBits() {
@@ -102,21 +100,13 @@ func (bm *bitmap) andNot(x *bitmap) {
 	if bm.bitsLen != x.bitsLen {
 		logger.Panicf("BUG: cannot merge bitmaps with distinct lengths; %d vs %d", bm.bitsLen, x.bitsLen)
 	}
+	if x.isZero() {
+		return
+	}
 	a := bm.a
 	b := x.a
 	for i := range a {
 		a[i] &= ^b[i]
-	}
-}
-
-func (bm *bitmap) or(x *bitmap) {
-	if bm.bitsLen != x.bitsLen {
-		logger.Panicf("BUG: cannot merge bitmaps with distinct lengths; %d vs %d", bm.bitsLen, x.bitsLen)
-	}
-	a := bm.a
-	b := x.a
-	for i := range a {
-		a[i] |= b[i]
 	}
 }
 

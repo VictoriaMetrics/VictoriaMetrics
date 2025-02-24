@@ -619,7 +619,11 @@ func visitSubqueriesInFilter(f filter, visitFunc func(q *Query)) {
 	callback := func(f filter) bool {
 		switch t := f.(type) {
 		case *filterIn:
-			t.q.visitSubqueries(visitFunc)
+			t.values.q.visitSubqueries(visitFunc)
+		case *filterContainsAll:
+			t.values.q.visitSubqueries(visitFunc)
+		case *filterContainsAny:
+			t.values.q.visitSubqueries(visitFunc)
 		case *filterStreamID:
 			t.q.visitSubqueries(visitFunc)
 		}
@@ -1443,6 +1447,12 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterNotTilda(lex, fieldName)
 	case lex.isKeyword("not", "!", "-"):
 		return parseFilterNot(lex, fieldName)
+	case lex.isKeyword("contains_all"):
+		return parseFilterContainsAll(lex, fieldName)
+	case lex.isKeyword("contains_any"):
+		return parseFilterContainsAny(lex, fieldName)
+	case lex.isKeyword("eq_field"):
+		return parseFilterEqField(lex, fieldName)
 	case lex.isKeyword("exact"):
 		return parseFilterExact(lex, fieldName)
 	case lex.isKeyword("i"):
@@ -1476,6 +1486,10 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 }
 
 func getCompoundPhrase(lex *lexer, allowColon bool) (string, error) {
+	if err := lex.isInvalidQuotedString(); err != nil {
+		return "", err
+	}
+
 	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", ""}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound phrase cannot start with '%s'", lex.token)
@@ -1509,7 +1523,33 @@ func getCompoundToken(lex *lexer) (string, error) {
 	return getCompoundTokenExt(lex, stopTokens)
 }
 
+func (lex *lexer) isInvalidQuotedString() error {
+	if lex.token != `"` && lex.token != "`" && lex.token != `'` {
+		return nil
+	}
+
+	n := strings.Index(lex.s, lex.token)
+	if n < 0 {
+		return fmt.Errorf("missing closing quote for [%s]", lex.token+lex.s)
+	}
+
+	quotedStr := lex.token + lex.s[:n+1]
+	if _, err := strconv.Unquote(quotedStr); err != nil {
+		err = fmt.Errorf("cannot parse %s: %w", quotedStr, err)
+		if !strings.HasPrefix(quotedStr, "`") && strings.Contains(quotedStr, `\`) {
+			err = fmt.Errorf(`%w; make sure that '\' chars are properly escaped (e.g. use '\\' instead of '\'); alternatively put the string in backquotes `+"`...`", err)
+		}
+		return err
+	}
+
+	logger.Panicf("BUG: unexpected successful parsing of %s", quotedStr)
+	return nil
+}
+
 func getCompoundTokenExt(lex *lexer, stopTokens []string) (string, error) {
+	if err := lex.isInvalidQuotedString(); err != nil {
+		return "", err
+	}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
 	}
@@ -1770,19 +1810,45 @@ func tryParseIPv4CIDR(s string) (uint32, uint32, bool) {
 	return minValue, maxValue, true
 }
 
+func parseFilterContainsAll(lex *lexer, fieldName string) (filter, error) {
+	if !lex.isKeyword("contains_all") {
+		return nil, fmt.Errorf("expecting 'contains_all' keyword")
+	}
+
+	fi := &filterContainsAll{
+		fieldName: fieldName,
+	}
+	return parseInValues(lex, fieldName, fi, &fi.values)
+}
+
+func parseFilterContainsAny(lex *lexer, fieldName string) (filter, error) {
+	if !lex.isKeyword("contains_any") {
+		return nil, fmt.Errorf("expecting 'contains_any' keyword")
+	}
+
+	fi := &filterContainsAny{
+		fieldName: fieldName,
+	}
+	return parseInValues(lex, fieldName, fi, &fi.values)
+}
+
 func parseFilterIn(lex *lexer, fieldName string) (filter, error) {
 	if !lex.isKeyword("in") {
 		return nil, fmt.Errorf("expecting 'in' keyword")
 	}
 
-	// Try parsing in(arg1, ..., argN) at first
+	fi := &filterIn{
+		fieldName: fieldName,
+	}
+	return parseInValues(lex, fieldName, fi, &fi.values)
+}
+
+func parseInValues(lex *lexer, fieldName string, f filter, iv *inValues) (filter, error) {
+	// Try parsing (arg1, ..., argN) at first
 	lexState := lex.backupState()
 	fi, err := parseFuncArgs(lex, fieldName, func(args []string) (filter, error) {
-		fi := &filterIn{
-			fieldName: fieldName,
-			values:    args,
-		}
-		return fi, nil
+		iv.values = args
+		return f, nil
 	})
 	if err == nil {
 		return fi, nil
@@ -1797,12 +1863,9 @@ func parseFilterIn(lex *lexer, fieldName string) (filter, error) {
 		return nil, err
 	}
 
-	fi = &filterIn{
-		fieldName:  fieldName,
-		q:          q,
-		qFieldName: qFieldName,
-	}
-	return fi, nil
+	iv.q = q
+	iv.qFieldName = qFieldName
+	return f, nil
 }
 
 func parseFilterSequence(lex *lexer, fieldName string) (filter, error) {
@@ -1812,6 +1875,16 @@ func parseFilterSequence(lex *lexer, fieldName string) (filter, error) {
 			phrases:   args,
 		}
 		return fs, nil
+	})
+}
+
+func parseFilterEqField(lex *lexer, fieldName string) (filter, error) {
+	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
+		fe := &filterEqField{
+			fieldName:      fieldName,
+			otherFieldName: arg,
+		}
+		return fe, nil
 	})
 }
 
@@ -2918,6 +2991,9 @@ var reservedKeywords = func() map[string]struct{} {
 		"-",
 
 		// functions
+		"contains_all",
+		"contains_any",
+		"eq_field",
 		"exact",
 		"i",
 		"in",

@@ -9,27 +9,27 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 )
 
-// pipeLen processes '| len ...' pipe.
+// pipeJSONArrayLen processes '| json_array_len ...' pipe.
 //
-// See https://docs.victoriametrics.com/victorialogs/logsql/#len-pipe
-type pipeLen struct {
+// See https://docs.victoriametrics.com/victorialogs/logsql/#json_array_len-pipe
+type pipeJSONArrayLen struct {
 	fieldName   string
 	resultField string
 }
 
-func (pl *pipeLen) String() string {
-	s := "len(" + quoteTokenIfNeeded(pl.fieldName) + ")"
+func (pl *pipeJSONArrayLen) String() string {
+	s := "json_array_len(" + quoteTokenIfNeeded(pl.fieldName) + ")"
 	if !isMsgFieldName(pl.resultField) {
 		s += " as " + quoteTokenIfNeeded(pl.resultField)
 	}
 	return s
 }
 
-func (pl *pipeLen) canLiveTail() bool {
+func (pl *pipeJSONArrayLen) canLiveTail() bool {
 	return true
 }
 
-func (pl *pipeLen) updateNeededFields(neededFields, unneededFields fieldsSet) {
+func (pl *pipeJSONArrayLen) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	if neededFields.contains("*") {
 		if !unneededFields.contains(pl.resultField) {
 			unneededFields.add(pl.resultField)
@@ -43,25 +43,25 @@ func (pl *pipeLen) updateNeededFields(neededFields, unneededFields fieldsSet) {
 	}
 }
 
-func (pl *pipeLen) hasFilterInWithQuery() bool {
+func (pl *pipeJSONArrayLen) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pl *pipeLen) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
+func (pl *pipeJSONArrayLen) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	return pl, nil
 }
 
-func (pl *pipeLen) visitSubqueries(_ func(q *Query)) {
+func (pl *pipeJSONArrayLen) visitSubqueries(_ func(q *Query)) {
 	// nothing to do
 }
 
-func (pl *pipeLen) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
-	shards := make([]pipeLenProcessorShard, workersCount)
+func (pl *pipeJSONArrayLen) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+	shards := make([]pipeJSONArrayLenProcessorShard, workersCount)
 	for i := range shards {
 		shards[i].reset()
 	}
 
-	return &pipeLenProcessor{
+	return &pipeJSONArrayLenProcessor{
 		pl:     pl,
 		ppNext: ppNext,
 
@@ -69,29 +69,32 @@ func (pl *pipeLen) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(
 	}
 }
 
-type pipeLenProcessor struct {
-	pl     *pipeLen
+type pipeJSONArrayLenProcessor struct {
+	pl     *pipeJSONArrayLen
 	ppNext pipeProcessor
 
-	shards []pipeLenProcessorShard
+	shards []pipeJSONArrayLenProcessorShard
 }
 
-type pipeLenProcessorShard struct {
-	pipeLenProcessorShardNopad
+type pipeJSONArrayLenProcessorShard struct {
+	pipeJSONArrayLenProcessorShardNopad
 
 	// The padding prevents false sharing on widespread platforms with 128 mod (cache line size) = 0 .
-	_ [128 - unsafe.Sizeof(pipeLenProcessorShardNopad{})%128]byte
+	_ [128 - unsafe.Sizeof(pipeJSONArrayLenProcessorShardNopad{})%128]byte
 }
 
-type pipeLenProcessorShardNopad struct {
+type pipeJSONArrayLenProcessorShardNopad struct {
 	a  arena
 	rc resultColumn
+
+	tmpValues  []string
+	tmpValuesA arena
 
 	minValue float64
 	maxValue float64
 }
 
-func (plp *pipeLenProcessor) writeBlock(workerID uint, br *blockResult) {
+func (plp *pipeJSONArrayLenProcessor) writeBlock(workerID uint, br *blockResult) {
 	if br.rowsLen == 0 {
 		return
 	}
@@ -103,8 +106,11 @@ func (plp *pipeLenProcessor) writeBlock(workerID uint, br *blockResult) {
 	if c.isConst {
 		// Fast path for const column
 		v := c.valuesEncoded[0]
-		shard.a.b = marshalUint64String(shard.a.b[:0], uint64(len(v)))
-		shard.rc.addValue(bytesutil.ToUnsafeString(shard.a.b))
+		aLen := shard.getJSONArrayLen(v)
+		bLen := len(shard.a.b)
+		shard.a.b = marshalUint64String(shard.a.b, uint64(aLen))
+		vEncoded := bytesutil.ToUnsafeString(shard.a.b[bLen:])
+		shard.rc.addValue(vEncoded)
 		br.addResultColumnConst(&shard.rc)
 	} else {
 		// Slow path for other columns
@@ -125,15 +131,21 @@ func (plp *pipeLenProcessor) writeBlock(workerID uint, br *blockResult) {
 	shard.reset()
 }
 
-func (shard *pipeLenProcessorShard) reset() {
+func (shard *pipeJSONArrayLenProcessorShard) reset() {
 	shard.a.reset()
 	shard.rc.reset()
+
+	shard.tmpValuesA.reset()
+	shard.tmpValues = shard.tmpValues[:0]
+
 	shard.minValue = nan
 	shard.maxValue = nan
 }
 
-func (shard *pipeLenProcessorShard) getEncodedLen(v string) string {
-	f := float64(len(v))
+func (shard *pipeJSONArrayLenProcessorShard) getEncodedLen(v string) string {
+	aLen := shard.getJSONArrayLen(v)
+	f := float64(aLen)
+
 	if math.IsNaN(shard.minValue) {
 		shard.minValue = f
 		shard.maxValue = f
@@ -142,19 +154,26 @@ func (shard *pipeLenProcessorShard) getEncodedLen(v string) string {
 	} else if f > shard.maxValue {
 		shard.maxValue = f
 	}
+
 	n := math.Float64bits(f)
 	bLen := len(shard.a.b)
 	shard.a.b = encoding.MarshalUint64(shard.a.b, n)
 	return bytesutil.ToUnsafeString(shard.a.b[bLen:])
 }
 
-func (plp *pipeLenProcessor) flush() error {
+func (shard *pipeJSONArrayLenProcessorShard) getJSONArrayLen(v string) int {
+	shard.tmpValuesA.reset()
+	shard.tmpValues = unpackJSONArray(shard.tmpValues[:0], &shard.tmpValuesA, v)
+	return len(shard.tmpValues)
+}
+
+func (plp *pipeJSONArrayLenProcessor) flush() error {
 	return nil
 }
 
-func parsePipeLen(lex *lexer) (pipe, error) {
-	if !lex.isKeyword("len") {
-		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "len")
+func parsePipeJSONArrayLen(lex *lexer) (pipe, error) {
+	if !lex.isKeyword("json_array_len") {
+		return nil, fmt.Errorf("unexpected token: %q; want %q", lex.token, "json_array_len")
 	}
 	lex.nextToken()
 
@@ -176,29 +195,10 @@ func parsePipeLen(lex *lexer) (pipe, error) {
 		resultField = field
 	}
 
-	pl := &pipeLen{
+	pl := &pipeJSONArrayLen{
 		fieldName:   fieldName,
 		resultField: resultField,
 	}
 
 	return pl, nil
-}
-
-func parseFieldNameWithOptionalParens(lex *lexer) (string, error) {
-	hasParens := false
-	if lex.isKeyword("(") {
-		lex.nextToken()
-		hasParens = true
-	}
-	fieldName, err := parseFieldName(lex)
-	if err != nil {
-		return "", err
-	}
-	if hasParens {
-		if !lex.isKeyword(")") {
-			return "", fmt.Errorf("missing ')' after '%s'", quoteTokenIfNeeded(fieldName))
-		}
-		lex.nextToken()
-	}
-	return fieldName, nil
 }
