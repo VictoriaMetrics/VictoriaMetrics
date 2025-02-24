@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"math"
 	"slices"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -85,7 +86,7 @@ func (pu *pipeUnpackJSON) newPipeProcessor(workersCount int, _ <-chan struct{}, 
 			return
 		}
 		p := GetJSONParser()
-		err := p.ParseLogMessage(bytesutil.ToUnsafeBytes(s))
+		err := p.parseLogMessage(bytesutil.ToUnsafeBytes(s), math.MaxInt)
 		if err != nil {
 			for _, fieldName := range pu.fields {
 				uctx.addField(fieldName, "")
