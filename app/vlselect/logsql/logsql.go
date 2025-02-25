@@ -688,8 +688,9 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 	m := make(map[string]*statsSeries)
 	var mLock sync.Mutex
 
-	timestamp := q.GetTimestamp()
+	timestamp := q.GetTimestamp() // do not modify `timestamp` in worker writeBlock
 	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
+		ts := timestamp
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
@@ -700,7 +701,7 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 				if c.Name == "_time" {
 					nsec, ok := logstorage.TryParseTimestampRFC3339Nano(c.Values[i])
 					if ok {
-						timestamp = nsec
+						ts = nsec
 						continue
 					}
 				}
@@ -721,7 +722,7 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 					dst = logstorage.MarshalFieldsToJSON(dst, labels)
 					key := string(dst)
 					p := statsPoint{
-						Timestamp: timestamp,
+						Timestamp: ts,
 						Value:     strings.Clone(c.Values[i]),
 					}
 
