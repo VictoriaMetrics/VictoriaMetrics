@@ -1,0 +1,17 @@
+{
+	"ulid": "01JHWQ445Y2P1TDYB05AEKD6MC",
+	"minTime": 1737204082361,
+	"maxTime": 1737204302539,
+	"stats": {
+		"numSamples": 60275,
+		"numSeries": 2792,
+		"numChunks": 2792
+	},
+	"compaction": {
+		"level": 1,
+		"sources": [
+			"01JHWQ445Y2P1TDYB05AEKD6MC"
+		]
+	},
+	"version": 1
+}
