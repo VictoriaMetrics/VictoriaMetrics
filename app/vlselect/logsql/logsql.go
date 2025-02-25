@@ -688,14 +688,16 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 	m := make(map[string]*statsSeries)
 	var mLock sync.Mutex
 
-	timestamp := q.GetTimestamp() // do not modify `timestamp` in worker writeBlock
 	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
-		ts := timestamp
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
 		}
 		for i := range timestamps {
+			// Do not move q.GetTimestamp() outside writeBlock, since ts
+			// must be initialized to query timestamp for every processed log row.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8312
+			ts := q.GetTimestamp()
 			labels := make([]logstorage.Field, 0, len(byFields))
 			for j, c := range columns {
 				if c.Name == "_time" {
