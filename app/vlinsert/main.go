@@ -47,6 +47,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	switch {
 	case strings.HasPrefix(path, "/elasticsearch"):
+		// some clients may omit trailing slash
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353
 		path = strings.TrimPrefix(path, "/elasticsearch")
 		return elasticsearch.RequestHandler(path, w, r)
 	case strings.HasPrefix(path, "/loki/"):
