@@ -91,9 +91,9 @@ func applyFilterEqDict(br *blockResult, bm *bitmap, c, cOther *blockResultColumn
 	bm.forEachSetBit(func(idx int) bool {
 		dictIdx := valuesEncoded[idx][0]
 		dictIdxOther := valuesEncodedOther[idx][0]
-		s := c.dictValues[dictIdx]
-		sOther := cOther.dictValues[dictIdxOther]
-		return s == sOther
+		v := c.dictValues[dictIdx]
+		vOther := cOther.dictValues[dictIdxOther]
+		return v == vOther
 	})
 }
 
