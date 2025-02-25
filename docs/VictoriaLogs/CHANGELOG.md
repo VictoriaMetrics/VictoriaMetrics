@@ -16,6 +16,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.14.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.14.0-victorialogs)
+
+Released at 2025-02-25
+
 * FEATURE: add [`lt_field` filter](https://docs.victoriametrics.com/victorialogs/logsql/#lt_field-filter), which can be used for obtaining logs where the given [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value doesn't exceed the other field value.
 * FEATURE: add [`le_field` filter](https://docs.victoriametrics.com/victorialogs/logsql/#le_field-filter), which can be used for obtaining logs where the given [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value is smaller or equal to the other field value.
 
