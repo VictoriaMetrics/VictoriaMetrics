@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* BUGFIX: [elasticsearch data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/elasticsearch/): support health-check endpoint requested by Jaeger v2. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353).
+
 ## [v1.13.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.13.0-victorialogs)
 
 Released at 2025-02-22
