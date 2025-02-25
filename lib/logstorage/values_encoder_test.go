@@ -583,6 +583,9 @@ func TestTryParseFloat64_Failure(t *testing.T) {
 
 	// Minus in the middle of string isn't allowed
 	f("12-5")
+
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361
+	f("01")
 }
 
 func TestTryParseFloat64Exact_Success(t *testing.T) {
@@ -716,6 +719,10 @@ func TestTryParseUint64_Failure(t *testing.T) {
 	f("foo")
 	f("1.2")
 	f("1e3")
+
+	// uint with leading zeros shouldn't be parsed as uint
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361
+	f("0123")
 }
 
 func TestTryParseInt64_Success(t *testing.T) {
@@ -768,6 +775,10 @@ func TestTryParseInt64_Failure(t *testing.T) {
 	f("foo")
 	f("1.2")
 	f("1e3")
+
+	// int with leading zeros shouldn't be parsed as uint
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361
+	f("-0123")
 }
 
 func TestMarshalUint8String(t *testing.T) {

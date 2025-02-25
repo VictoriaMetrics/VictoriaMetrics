@@ -2423,25 +2423,9 @@ func getDayRangeArg(lex *lexer) (int64, string, error) {
 	if err != nil {
 		return 0, "", err
 	}
-	n := strings.IndexByte(argStr, ':')
-	if n < 0 {
-		return 0, "", fmt.Errorf("invalid format for day_range arg; want 'hh:mm'; got %q", argStr)
-	}
-	hoursStr := argStr[:n]
-	minutesStr := argStr[n+1:]
-
-	hours, ok := tryParseUint64(hoursStr)
+	offset, ok := tryParseHHMM(argStr)
 	if !ok {
-		return 0, "", fmt.Errorf("cannot parse hh from %q; expected format: 'hh:mm'", hoursStr)
-	}
-	minutes, ok := tryParseUint64(minutesStr)
-	if !ok {
-		return 0, "", fmt.Errorf("cannot parse mm from %q; expected format: 'hh:mm'", minutesStr)
-	}
-
-	offset := int64(hours*nsecsPerHour + minutes*nsecsPerMinute)
-	if offset < 0 {
-		offset = 0
+		return 0, "", fmt.Errorf("cannot parse %q as 'hh:mm'", argStr)
 	}
 	if offset >= nsecsPerDay {
 		offset = nsecsPerDay - 1

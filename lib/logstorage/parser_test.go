@@ -169,7 +169,7 @@ func TestParseDayRange(t *testing.T) {
 	}
 
 	f("[00:00, 24:00]", 0, nsecsPerDay-1, 0)
-	f("[10:20, 125:00]", 10*nsecsPerHour+20*nsecsPerMinute, nsecsPerDay-1, 0)
+	f("[10:20, 24:00]", 10*nsecsPerHour+20*nsecsPerMinute, nsecsPerDay-1, 0)
 	f("(00:00, 24:00)", 1, nsecsPerDay-2, 0)
 	f("[08:00, 18:00)", 8*nsecsPerHour, 18*nsecsPerHour-1, 0)
 	f("[08:00, 18:00) offset 2h", 8*nsecsPerHour, 18*nsecsPerHour-1, 2*nsecsPerHour)
