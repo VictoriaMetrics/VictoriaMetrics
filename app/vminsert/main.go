@@ -217,7 +217,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// This is not our link.
 		return false
 	}
-	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken)
+	at, err := auth.NewTokenPossibleMultitenant(p.AuthToken, r.Header)
 	if err != nil {
 		httpserver.Errorf(w, r, "auth error: %s", err)
 		return true
