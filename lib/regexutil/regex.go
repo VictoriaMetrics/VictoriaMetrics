@@ -85,6 +85,9 @@ func NewRegex(expr string) (*Regex, error) {
 // MatchString returns true if s matches r.
 func (r *Regex) MatchString(s string) bool {
 	if r.isOnlyPrefix {
+		if len(r.prefix) == 0 {
+			return true
+		}
 		return strings.Contains(s, r.prefix)
 	}
 
