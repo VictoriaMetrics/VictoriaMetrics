@@ -1461,8 +1461,12 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterIn(lex, fieldName)
 	case lex.isKeyword("ipv4_range"):
 		return parseFilterIPv4Range(lex, fieldName)
+	case lex.isKeyword("le_field"):
+		return parseFilterLeField(lex, fieldName)
 	case lex.isKeyword("len_range"):
 		return parseFilterLenRange(lex, fieldName)
+	case lex.isKeyword("lt_field"):
+		return parseFilterLtField(lex, fieldName)
 	case lex.isKeyword("range"):
 		return parseFilterRange(lex, fieldName)
 	case lex.isKeyword("re"):
@@ -1883,6 +1887,28 @@ func parseFilterEqField(lex *lexer, fieldName string) (filter, error) {
 		fe := &filterEqField{
 			fieldName:      fieldName,
 			otherFieldName: arg,
+		}
+		return fe, nil
+	})
+}
+
+func parseFilterLeField(lex *lexer, fieldName string) (filter, error) {
+	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
+		fe := &filterLeField{
+			fieldName:      fieldName,
+			otherFieldName: arg,
+		}
+		return fe, nil
+	})
+}
+
+func parseFilterLtField(lex *lexer, fieldName string) (filter, error) {
+	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
+		fe := &filterLeField{
+			fieldName:      fieldName,
+			otherFieldName: arg,
+
+			excludeEqualValues: true,
 		}
 		return fe, nil
 	})
@@ -2998,7 +3024,9 @@ var reservedKeywords = func() map[string]struct{} {
 		"i",
 		"in",
 		"ipv4_range",
+		"le_field",
 		"len_range",
+		"lt_field",
 		"range",
 		"re",
 		"seq",

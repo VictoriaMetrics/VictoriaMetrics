@@ -16,6 +16,9 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: add [`lt_field` filter](https://docs.victoriametrics.com/victorialogs/logsql/#lt_field-filter), which can be used for obtaining logs where the given [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value doesn't exceed the other field value.
+* FEATURE: add [`le_field` filter](https://docs.victoriametrics.com/victorialogs/logsql/#le_field-filter), which can be used for obtaining logs where the given [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value is smaller or equal to the other field value.
+
 * BUGFIX: [elasticsearch data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/elasticsearch/): support health-check endpoint requested by Jaeger v2. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353).
 
 ## [v1.13.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.13.0-victorialogs)
