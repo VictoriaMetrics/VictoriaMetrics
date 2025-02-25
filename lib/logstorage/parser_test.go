@@ -684,7 +684,7 @@ func TestParseFilterRegexp(t *testing.T) {
 		}
 	}
 
-	f(`""`, ``)
+	f(`"."`, `.`)
 	f(`foo`, `foo`)
 	f(`"foo.+|bar.*"`, `foo.+|bar.*`)
 	f(`"foo(bar|baz),x[y]"`, `foo(bar|baz),x[y]`)
@@ -1259,7 +1259,13 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`foo:re(foo-bar/baz.)`, `foo:~"foo-bar/baz."`)
 	f(`~foo.bar.baz !~bar`, `~foo.bar.baz !~bar`)
 	f(`foo:~~foo~ba/ba>z`, `foo:~"~foo~ba/ba>z"`)
-	f(`foo:~'.*'`, `foo:~".*"`)
+	f(`foo:~'.*'`, `*`)
+	f(`foo:~'.+'`, `foo:*`)
+	f(`~".*"`, `*`)
+	f(`~".+"`, `*`)
+	f(`foo bar:~".*"`, `foo`)
+	f(`foo bar:~""`, `foo`)
+	f(`foo bar:~".+"`, `foo bar:*`)
 
 	// seq filter
 	f(`seq()`, `seq()`)
