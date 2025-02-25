@@ -18,10 +18,23 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+* FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmalert.yml): add alerting rule `TooHighQueryLoad` to notify user when VictoriaMetrics or vmselect weren't able to serve requests in timely manner during last 15min.
+* FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229) and [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): add panel `Deduplication rate` that shows how many samples are [deduplicated](https://docs.victoriametrics.com/#deduplication) during merges or read queries by VictoriaMetrics components.
+* FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229) and [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): add panel `Number of snapshots` that shows the max number of [snapshots](https://docs.victoriametrics.com/#how-to-work-with-snapshots) across vmstorage nodes. This panel should help in disk usage [troubleshooting](https://docs.victoriametrics.com/#snapshot-troubleshooting).
+* FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229) and [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): account for samples dropped according to [relabeling config](https://docs.victoriametrics.com/#relabeling) in `Samples dropped for last 1h` panel.
+* FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229) and [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): show number of parts in the last partition on `LSM parts max by type` panel. Before, the resulting graph could be skewed by the max number of parts across all partitions. Displaying parts for the latest partition is the correct way to show if storage is currently impacted by merge delays.
+* FEATURE: [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): add panel `Partial query results` that shows the number of served [partial responses](https://docs.victoriametrics.com/cluster-victoriametrics/#cluster-availability) by vmselects.
+
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): respect time filter when exploring time series for [influxdb mode](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8259) for details.
+
+## [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0)
+
+Released at 2025-02-21
+
 * SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.21.2 to 3.21.3. See [Alpine 3.21.3 release notes](https://alpinelinux.org/posts/Alpine-3.18.12-3.19.7-3.20.6-3.21.3-released.html).
 
-* FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/victoriametrics/): allow disabling per-day indexes for workloads with [low or zero churn rates](https://docs.victoriametrics.com/#index-tuning-for-low-churn-rate) via `-disablePerDayIndex` cmd-line flag. This option works the best for IoT cases and significantly loads resource and disk usage. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6976).
+* FEATURE: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/victoriametrics/): allow [disabling per-day indexes](https://docs.victoriametrics.com/#index-tuning-for-low-churn-rate) for workloads with low or zero churn rates via `-disablePerDayIndex` cmd-line flag. This option works the best for IoT cases and significantly loads resource and disk usage. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/6976).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): add command-line flag `-notifier.sendTimeout(default 10s)` to allow configuring request timeout when sending alerts to the corresponding `-notifier.url`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8287) for details. Thanks to @gjkim42 for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8297).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/): add support of [aggregation windows](https://docs.victoriametrics.com/stream-aggregation/#aggregation-windows) to improve accuracy of stream aggregation. This feature is especially important for aggregation of [histrograms](https://docs.victoriametrics.com/keyconcepts/#histogram), but enabling this feature requires additional memory. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4580).
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): add `-influx.forceStreamMode` cmd-line flag to force stream processing for data ingested via [InfluxDB protocol](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8269).
@@ -33,12 +46,43 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): print full error messages for failed queries on the `Explore Cardinality` page. Before, only response status code was printed. 
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): move values representing changes relative to the previous day to a separate column for easier sorting on the `Explore Cardinality` page.
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/metricsql/): support auto-format (prettify) for expressions that use quoted metric or label names. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7703) for details.
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/metricsql/): parse `$__interval` and `$__rate_interval` inside square brackets as missing square brackets. For example, `rate(m[$__interval])` is parsed as `rate(m)` instead of `rate(m[1i])`. This enables automatic detection of the lookbehind window for [rollup functions](https://docs.victoriametrics.com/metricsql/#rollup-functions) by VictoriaMetrics, which usually returns the most expected result.
 
 * BUGFIX: all the VictoriaMetrics components: properly override basic authorization for API endpoints protected with `authKey`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/7345#issuecomment-2662595807) for details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix polluted alert messages when multiple Alertmanager instances are configured with `alert_relabel_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8040), and thanks to @evkuzin for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8258).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix the auto-generated metrics for alerts and groups. Previously, metrics might be missing after reload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8229) for the details.
 * BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return parsing errors during data ingestion in [multi-level cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup). Before, some of the errors could have been silently ignored.
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): properly enforce presence of default `-retentionPeriod` configuration for [retention filters](https://docs.victoriametrics.com/#retention-filters) debug interface. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8343).
+
+## [v1.110.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.110.2)
+
+Released at 2025-02-21
+
+**v1.110.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.110.x line will be supported for at least 12 months since [v1.110.0](https://docs.victoriametrics.com/changelog/#v11100) release**
+
+* SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.21.2 to 3.21.3. See [Alpine 3.21.3 release notes](https://alpinelinux.org/posts/Alpine-3.18.12-3.19.7-3.20.6-3.21.3-released.html).
+
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix polluted alert messages when multiple Alertmanager instances are configured with `alert_relabel_configs`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8040), and thanks to @evkuzin for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8258).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix the auto-generated metrics for alerts and groups. Previously, metrics might be missing after reload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8229) for the details.
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return parsing errors during data ingestion in [multi-level cluster setup](https://docs.victoriametrics.com/cluster-victoriametrics/#multi-level-cluster-setup). Before, some of the errors could have been silently ignored.
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmselect](https://docs.victoriametrics.com/cluster-victoriametrics/): properly enforce presence of default `-retentionPeriod` configuration for [retention filters](https://docs.victoriametrics.com/#retention-filters) debug interface. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8343).
+
+## [v1.102.14](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.14)
+
+Released at 2025-02-21
+
+**v1.102.x is a line of [LTS releases](https://docs.victoriametrics.com/lts-releases/). It contains important up-to-date bugfixes for [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+All these fixes are also included in [the latest community release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest).
+The v1.102.x line will be supported for at least 12 months since [v1.102.0](https://docs.victoriametrics.com/changelog/#v11020) release**
+
+* SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.21.2 to 3.21.3. See [Alpine 3.21.3 release notes](https://alpinelinux.org/posts/Alpine-3.18.12-3.19.7-3.20.6-3.21.3-released.html).
+
+* BUGFIX: `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and `vmstorage` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly return parsing error for data ingestion.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert/): fix the auto-generated metrics for alerts and groups. Previously, metrics might be missing after reload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8229) for the details.
 
 ## [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0)
 

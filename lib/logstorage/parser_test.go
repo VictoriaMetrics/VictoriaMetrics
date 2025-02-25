@@ -684,7 +684,7 @@ func TestParseFilterRegexp(t *testing.T) {
 		}
 	}
 
-	f(`""`, ``)
+	f(`"."`, `.`)
 	f(`foo`, `foo`)
 	f(`"foo.+|bar.*"`, `foo.+|bar.*`)
 	f(`"foo(bar|baz),x[y]"`, `foo(bar|baz),x[y]`)
@@ -1066,6 +1066,12 @@ func TestParseQuery_Success(t *testing.T) {
 	f("eq_field", `"eq_field"`)
 	f("eq_field:a", `"eq_field":a`)
 	f("a:eq_field", `a:"eq_field"`)
+	f("le_field", `"le_field"`)
+	f("le_field:a", `"le_field":a`)
+	f("a:le_field", `a:"le_field"`)
+	f("lt_field", `"lt_field"`)
+	f("lt_field:a", `"lt_field":a`)
+	f("a:lt_field", `a:"lt_field"`)
 	f("exact", `"exact"`)
 	f("exact:a", `"exact":a`)
 	f("exact-foo", `"exact-foo"`)
@@ -1125,6 +1131,22 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`-a:eq_field(b)`, `!a:eq_field(b)`)
 	f(`a:!eq_field(b)`, `!a:eq_field(b)`)
 	f(`a:-eq_field(b)`, `!a:eq_field(b)`)
+
+	// le_field filter
+	f("le_field(foo)", "le_field(foo)")
+	f(`"a":le_field('b')`, "a:le_field(b)")
+	f("-le_field(a)", `!le_field(a)`)
+	f(`-a:le_field(b)`, `!a:le_field(b)`)
+	f(`a:!le_field(b)`, `!a:le_field(b)`)
+	f(`a:-le_field(b)`, `!a:le_field(b)`)
+
+	// lt_field filter
+	f("lt_field(foo)", "lt_field(foo)")
+	f(`"a":lt_field('b')`, "a:lt_field(b)")
+	f("-lt_field(a)", `!lt_field(a)`)
+	f(`-a:lt_field(b)`, `!a:lt_field(b)`)
+	f(`a:!lt_field(b)`, `!a:lt_field(b)`)
+	f(`a:-lt_field(b)`, `!a:lt_field(b)`)
 
 	// exact filter
 	f("exact(foo)", `=foo`)
@@ -1237,7 +1259,13 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`foo:re(foo-bar/baz.)`, `foo:~"foo-bar/baz."`)
 	f(`~foo.bar.baz !~bar`, `~foo.bar.baz !~bar`)
 	f(`foo:~~foo~ba/ba>z`, `foo:~"~foo~ba/ba>z"`)
-	f(`foo:~'.*'`, `foo:~".*"`)
+	f(`foo:~'.*'`, `*`)
+	f(`foo:~'.+'`, `foo:*`)
+	f(`~".*"`, `*`)
+	f(`~".+"`, `*`)
+	f(`foo bar:~".*"`, `foo`)
+	f(`foo bar:~""`, `foo`)
+	f(`foo bar:~".+"`, `foo bar:*`)
 
 	// seq filter
 	f(`seq()`, `seq()`)
@@ -1798,6 +1826,20 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`eq_field(foo, bar)`)
 	f(`eq_field(foo`)
 	f(`eq_field(foo,`)
+
+	// invalid le_field
+	f(`le_field(`)
+	f(`le_field(foo bar)`)
+	f(`le_field(foo, bar)`)
+	f(`le_field(foo`)
+	f(`le_field(foo,`)
+
+	// invalid lt_field
+	f(`lt_field(`)
+	f(`lt_field(foo bar)`)
+	f(`lt_field(foo, bar)`)
+	f(`lt_field(foo`)
+	f(`lt_field(foo,`)
 
 	// invalid exact
 	f(`exact(`)

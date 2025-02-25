@@ -1512,7 +1512,15 @@ func (p *parser) parseWindowAndStep() (*DurationExpr, *DurationExpr, bool, error
 	}
 	var window *DurationExpr
 	if !strings.HasPrefix(p.lex.Token, ":") {
-		window, err = p.parsePositiveDuration()
+		if p.lex.Token == "$__interval" {
+			// Skip $__interval, since it must be treated as missing lookbehind window,
+			// e.g. rate(m[$__interval]) must be equivalent to rate(m).
+			// In this case VictoriaMetrics automatically adjusts the lookbehind window
+			// to the interval between samples.
+			err = p.lex.Next()
+		} else {
+			window, err = p.parsePositiveDuration()
+		}
 		if err != nil {
 			return nil, nil, false, err
 		}
@@ -1625,6 +1633,9 @@ func (p *parser) parsePositiveDuration() (*DurationExpr, error) {
 	// Verify duration value.
 	if _, err := DurationValue(s, 0); err != nil {
 		return nil, fmt.Errorf(`duration: parse value error: %q: %w`, s, err)
+	}
+	if s == "$__interval" {
+		s = "1i"
 	}
 	de := &DurationExpr{
 		s: s,

@@ -2349,4 +2349,4 @@ VictoriaMetrics performs the following implicit conversions for incoming queries
   is passed to [rollup function](#rollup-functions), then a [subquery](#subqueries) with `1i` lookbehind window and `1i` step is automatically formed.
   For example, `rate(sum(up))` is automatically converted to `rate((sum(default_rollup(up)))[1i:1i])`.
   This behavior can be disabled or logged via `-search.disableImplicitConversion` and `-search.logImplicitConversion` command-line flags
-  starting from [`v1.101.0` release](https://docs.victoriametrics.com/changelog/).
+  starting from [`v1.102.0-rc2` release](https://docs.victoriametrics.com/changelog/changelog_2024/#v11020-rc2).

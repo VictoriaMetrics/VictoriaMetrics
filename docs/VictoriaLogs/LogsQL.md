@@ -277,6 +277,8 @@ The list of LogsQL filters:
 - [Length range filter](#length-range-filter) - matches logs with [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) of the given length range
 - [Value type filter](#value_type-filter) - matches logs with [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) stored under the given value type
 - [Fields' equality filter](#eq_field-filter) - matches logs, which contain identical values in the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+- [`Less than` filter](#lt_field-filter) - matches logs where the given field value is smaller than the other field value
+- [`Less than or equal` filter](#le_field-filter) - matches logs where the given field value doesn't exceed the other field value
 - [Logical filter](#logical-filter) - allows combining other filters
 
 
@@ -749,6 +751,8 @@ See also:
 
 - [String range filter](#string-range-filter)
 - [Range filter](#range-filter)
+- [`le_field` filter](#le_field-filter)
+- [`lt_field` filter](#lt_field-filter)
 
 ### Empty value filter
 
@@ -1365,6 +1369,48 @@ Quick tip: use `NOT user_id:eq_field(customer_id)` for finding logs where `user_
 See also:
 
 - [`exact` filter](#exact-filter)
+- [`le_field` filter](#le_field-filter)
+- [`lt_field` filter](#lt_field-filter)
+
+
+### le_field filter
+
+Sometimes it is needed to find logs where one [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value doesn't exceed the other field value.
+This can be done with `field1:le_field(field2)` filter.
+
+For example, the following query matches logs where `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) doesn't exceed the `max_duration` field:
+
+```logsql
+duration:le_field(max_duration)
+```
+
+Quick tip: use `NOT duration:le_field(max_duration)` for finding logs where `duration` exceeds the `max_duration`.
+
+See also:
+
+- [range comparison filter](#range-comparison-filter)
+- [`lt_field` filter](#lt_field-filter)
+- [`eq_field` filter](#eq_field-filter)
+
+
+### lt_field filter
+
+Sometimes it is needed to find logs where one [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value is smaller than the other field value.
+This can be done with `field1:lt_field(field2)` filter.
+
+For example, the following query matches logs where `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) is smaller than the `max_duration` field:
+
+```logsql
+duration:lt_field(max_duration)
+```
+
+Quick tip: use `NOT duration:lt_field(max_duration)` for finding logs where `duration` is bigger or equal to the `max_duration`.
+
+See also:
+
+- [range comparison filter](#range-comparison-filter)
+- [`le_field` filter](#le_field-filter)
+- [`eq_field` filter](#eq_field-filter)
 
 
 ### Logical filter
