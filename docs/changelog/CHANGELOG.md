@@ -27,6 +27,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/victoriametrics/): fix the incorrect caching of extMetricsIDs when a query timeout error occurs. This can lead to incorrect query results. Thanks to @changshun-shi for [the bug report issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8345).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl/): respect time filter when exploring time series for [influxdb mode](https://docs.victoriametrics.com/vmctl/#migrating-data-from-influxdb-1x). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8259) for details.
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/): properly apply global relabeling configuration, defined with  `-relabelConfig` flag, for metrics scrapped with `-promscrape.config`. Bug was introduces in [v1.108.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.0). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8389).
 
 ## [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0)
 
