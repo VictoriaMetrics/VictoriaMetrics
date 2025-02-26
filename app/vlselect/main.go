@@ -285,5 +285,6 @@ var (
 	logsqlStreamsRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/streams"}`)
 	logsqlStreamsDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/streams"}`)
 
+	// no need to track duration for tail requests, as they usually take long time
 	logsqlTailRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/tail"}`)
 )
