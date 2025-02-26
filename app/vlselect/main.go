@@ -176,50 +176,62 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Request, path string) bool {
 	httpserver.EnableCORS(w, r)
+	startTime := time.Now()
 	switch path {
 	case "/select/logsql/facets":
 		logsqlFacetsRequests.Inc()
 		logsql.ProcessFacetsRequest(ctx, w, r)
+		logsqlFacetsDuration.UpdateDuration(startTime)
 		return true
 	case "/select/logsql/field_names":
 		logsqlFieldNamesRequests.Inc()
 		logsql.ProcessFieldNamesRequest(ctx, w, r)
+		logsqlFieldNamesDuration.UpdateDuration(startTime)
 		return true
 	case "/select/logsql/field_values":
 		logsqlFieldValuesRequests.Inc()
 		logsql.ProcessFieldValuesRequest(ctx, w, r)
+		logsqlFieldValuesDuration.UpdateDuration(startTime)
 		return true
 	case "/select/logsql/hits":
 		logsqlHitsRequests.Inc()
 		logsql.ProcessHitsRequest(ctx, w, r)
+		logsqlHitsDuration.UpdateDuration(startTime)
 		return true
 	case "/select/logsql/query":
 		logsqlQueryRequests.Inc()
 		logsql.ProcessQueryRequest(ctx, w, r)
+		logsqlQueryDuration.UpdateDuration(startTime)
 		return true
 	case "/select/logsql/stats_query":
 		logsqlStatsQueryRequests.Inc()
 		logsql.ProcessStatsQueryRequest(ctx, w, r)
+		logsqlStatsQueryDuration.UpdateDuration(startTime)
 		return true
 	case "/select/logsql/stats_query_range":
 		logsqlStatsQueryRangeRequests.Inc()
 		logsql.ProcessStatsQueryRangeRequest(ctx, w, r)
+		logsqlStatsQueryRangeDuration.UpdateDuration(startTime)
 		return true
 	case "/select/logsql/stream_field_names":
 		logsqlStreamFieldNamesRequests.Inc()
 		logsql.ProcessStreamFieldNamesRequest(ctx, w, r)
+		logsqlStreamFieldNamesDuration.UpdateDuration(startTime)
 		return true
 	case "/select/logsql/stream_field_values":
 		logsqlStreamFieldValuesRequests.Inc()
 		logsql.ProcessStreamFieldValuesRequest(ctx, w, r)
+		logsqlStreamFieldValuesDuration.UpdateDuration(startTime)
 		return true
 	case "/select/logsql/stream_ids":
 		logsqlStreamIDsRequests.Inc()
 		logsql.ProcessStreamIDsRequest(ctx, w, r)
+		logsqlStreamIDsDuration.UpdateDuration(startTime)
 		return true
 	case "/select/logsql/streams":
 		logsqlStreamsRequests.Inc()
 		logsql.ProcessStreamsRequest(ctx, w, r)
+		logsqlStreamsDuration.UpdateDuration(startTime)
 		return true
 	default:
 		return false
@@ -240,16 +252,38 @@ func getMaxQueryDuration(r *http.Request) time.Duration {
 }
 
 var (
-	logsqlFacetsRequests            = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/facets"}`)
-	logsqlFieldNamesRequests        = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_names"}`)
-	logsqlFieldValuesRequests       = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_values"}`)
-	logsqlHitsRequests              = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/hits"}`)
-	logsqlQueryRequests             = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/query"}`)
-	logsqlStatsQueryRequests        = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stats_query"}`)
-	logsqlStatsQueryRangeRequests   = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stats_query_range"}`)
-	logsqlStreamFieldNamesRequests  = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_field_names"}`)
+	logsqlFacetsRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/facets"}`)
+	logsqlFacetsDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/facets"}`)
+
+	logsqlFieldNamesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_names"}`)
+	logsqlFieldNamesDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/field_names"}`)
+
+	logsqlFieldValuesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_values"}`)
+	logsqlFieldValuesDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/field_values"}`)
+
+	logsqlHitsRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/hits"}`)
+	logsqlHitsDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/hits"}`)
+
+	logsqlQueryRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/query"}`)
+	logsqlQueryDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/query"}`)
+
+	logsqlStatsQueryRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stats_query"}`)
+	logsqlStatsQueryDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/stats_query"}`)
+
+	logsqlStatsQueryRangeRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stats_query_range"}`)
+	logsqlStatsQueryRangeDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/stats_query_range"}`)
+
+	logsqlStreamFieldNamesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_field_names"}`)
+	logsqlStreamFieldNamesDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/stream_field_names"}`)
+
 	logsqlStreamFieldValuesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_field_values"}`)
-	logsqlStreamIDsRequests         = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_ids"}`)
-	logsqlStreamsRequests           = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/streams"}`)
-	logsqlTailRequests              = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/tail"}`)
+	logsqlStreamFieldValuesDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/stream_field_values"}`)
+
+	logsqlStreamIDsRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_ids"}`)
+	logsqlStreamIDsDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/stream_ids"}`)
+
+	logsqlStreamsRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/streams"}`)
+	logsqlStreamsDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/streams"}`)
+
+	logsqlTailRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/tail"}`)
 )
