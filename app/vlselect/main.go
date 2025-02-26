@@ -253,37 +253,37 @@ func getMaxQueryDuration(r *http.Request) time.Duration {
 
 var (
 	logsqlFacetsRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/facets"}`)
-	logsqlFacetsDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/facets"}`)
+	logsqlFacetsDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/logsql/facets"}`)
 
 	logsqlFieldNamesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_names"}`)
-	logsqlFieldNamesDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/field_names"}`)
+	logsqlFieldNamesDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/logsql/field_names"}`)
 
 	logsqlFieldValuesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/field_values"}`)
-	logsqlFieldValuesDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/field_values"}`)
+	logsqlFieldValuesDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/logsql/field_values"}`)
 
 	logsqlHitsRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/hits"}`)
-	logsqlHitsDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/hits"}`)
+	logsqlHitsDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/logsql/hits"}`)
 
 	logsqlQueryRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/query"}`)
-	logsqlQueryDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/query"}`)
+	logsqlQueryDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/logsql/query"}`)
 
 	logsqlStatsQueryRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stats_query"}`)
-	logsqlStatsQueryDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/stats_query"}`)
+	logsqlStatsQueryDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/logsql/stats_query"}`)
 
 	logsqlStatsQueryRangeRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stats_query_range"}`)
-	logsqlStatsQueryRangeDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/stats_query_range"}`)
+	logsqlStatsQueryRangeDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/logsql/stats_query_range"}`)
 
 	logsqlStreamFieldNamesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_field_names"}`)
-	logsqlStreamFieldNamesDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/stream_field_names"}`)
+	logsqlStreamFieldNamesDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/logsql/stream_field_names"}`)
 
 	logsqlStreamFieldValuesRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_field_values"}`)
-	logsqlStreamFieldValuesDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/stream_field_values"}`)
+	logsqlStreamFieldValuesDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/logsql/stream_field_values"}`)
 
 	logsqlStreamIDsRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/stream_ids"}`)
-	logsqlStreamIDsDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/stream_ids"}`)
+	logsqlStreamIDsDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/logsql/stream_ids"}`)
 
 	logsqlStreamsRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/streams"}`)
-	logsqlStreamsDuration = metrics.NewSummary(`vl_request_duration_seconds{path="/select/logsql/streams"}`)
+	logsqlStreamsDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/select/logsql/streams"}`)
 
 	// no need to track duration for tail requests, as they usually take long time
 	logsqlTailRequests = metrics.NewCounter(`vl_http_requests_total{path="/select/logsql/tail"}`)
