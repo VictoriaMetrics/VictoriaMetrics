@@ -1,5 +1,6 @@
 # All these commands must run from repository root.
 
+DOCKER_REGISTRIES ?= docker.io quay.io
 DOCKER_NAMESPACE ?= victoriametrics
 
 ROOT_IMAGE ?= alpine:3.21.3
@@ -92,8 +93,10 @@ publish-via-docker:
 		--label "org.opencontainers.image.vendor=VictoriaMetrics" \
 		--label "org.opencontainers.image.version=$(PKG_TAG)" \
 		--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
-		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
-		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
+		$(foreach registry,$(DOCKER_REGISTRIES),\
+		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
+		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
+		) \
 		-o type=image \
 		--provenance=false \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
@@ -110,8 +113,10 @@ publish-via-docker:
 		--label "org.opencontainers.image.vendor=VictoriaMetrics" \
 		--label "org.opencontainers.image.version=$(PKG_TAG)" \
 		--label "org.opencontainers.image.created=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")" \
-		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)-scratch \
-		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE)-scratch \
+		$(foreach registry,$(DOCKER_REGISTRIES),\
+		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE)-scratch \
+		--tag $(registry)/$(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE)-scratch \
+		) \
 		-o type=image \
 		--provenance=false \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
