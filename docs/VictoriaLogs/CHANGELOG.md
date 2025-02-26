@@ -16,8 +16,18 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
-* BUGFIX: [elasticsearch data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/elasticsearch/): support health-check endpoint requested by Jaeger v2. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353).
-* BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): Property convert nested OpenTelemetry attributes into JSON. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8384).
+* BUGFIX: do not treat a string containing leading zeros as a number during data ingestion and querying. For example, `00123` string shouldn't be treated as `123` number. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361).
+* BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): Properly convert nested OpenTelemetry attributes into JSON. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8384).
+
+## [v1.14.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.14.0-victorialogs)
+
+Released at 2025-02-25
+
+* FEATURE: add [`lt_field` filter](https://docs.victoriametrics.com/victorialogs/logsql/#lt_field-filter), which can be used for obtaining logs where the given [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value doesn't exceed the other field value.
+* FEATURE: add [`le_field` filter](https://docs.victoriametrics.com/victorialogs/logsql/#le_field-filter), which can be used for obtaining logs where the given [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value is smaller or equal to the other field value.
+
+* BUGFIX: [elasticsearch data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/#elasticsearch-bulk-api): support health-check endpoint requested by Jaeger v2. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353).
+* BUGFIX: [`stats_query_range` HTTP endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats): fix inconsistent result of `stats_query_range` API. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8312).
 
 ## [v1.13.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.13.0-victorialogs)
 

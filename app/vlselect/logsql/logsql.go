@@ -688,19 +688,22 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 	m := make(map[string]*statsSeries)
 	var mLock sync.Mutex
 
-	timestamp := q.GetTimestamp()
 	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
 		}
 		for i := range timestamps {
+			// Do not move q.GetTimestamp() outside writeBlock, since ts
+			// must be initialized to query timestamp for every processed log row.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8312
+			ts := q.GetTimestamp()
 			labels := make([]logstorage.Field, 0, len(byFields))
 			for j, c := range columns {
 				if c.Name == "_time" {
 					nsec, ok := logstorage.TryParseTimestampRFC3339Nano(c.Values[i])
 					if ok {
-						timestamp = nsec
+						ts = nsec
 						continue
 					}
 				}
@@ -721,7 +724,7 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 					dst = logstorage.MarshalFieldsToJSON(dst, labels)
 					key := string(dst)
 					p := statsPoint{
-						Timestamp: timestamp,
+						Timestamp: ts,
 						Value:     strings.Clone(c.Values[i]),
 					}
 
