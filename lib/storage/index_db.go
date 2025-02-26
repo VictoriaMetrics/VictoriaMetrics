@@ -1751,7 +1751,9 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 		is := extDB.getIndexSearch(deadline)
 		extMetricIDs, err = is.searchMetricIDs(qtChild, tfss, tr, maxMetrics)
 		extDB.putIndexSearch(is)
-		extDB.putMetricIDsToTagFiltersCache(qtChild, extMetricIDs, tfKeyExtBuf.B)
+		if err == nil {
+			extDB.putMetricIDsToTagFiltersCache(qtChild, extMetricIDs, tfKeyExtBuf.B)
+		}
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error when searching for metricIDs in the previous indexdb: %w", err)
