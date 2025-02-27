@@ -16,6 +16,10 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.15.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.15.0-victorialogs)
+
+Released at 2025-02-27
+
 * FEATURE: [`pack_json` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#pack_json-pipe): allow packing fields, which start with the given prefixes. For example, `pack_json fields (foo.*, bar.*)` creates a JSON containing all the fields, which start with either `foo.` or `bar.`.
 * FEATURE: [`pack_logfmt` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#pack_logfmt-pipe): allow packing fields, which start with the given prefixes. For example, `pack_logfmt fields (foo.*, bar.*)` creates [logfmt](https://brandur.org/logfmt) message containing all the fields, which start with either `foo.` or `bar.`.
 * FEATURE: expose `vl_request_duration_seconds` [summaries](https://docs.victoriametrics.com/keyconcepts/#summary) for [select APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) at the [/metrics](https://docs.victoriametrics.com/victorialogs/#monitoring) page.
