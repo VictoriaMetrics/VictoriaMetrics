@@ -31,7 +31,7 @@ var invalidLabelCharRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 func JoinHostPort(host string, port int) string {
 	bb := bbPool.Get()
 	b := bb.B[:0]
-	isIPv6 := strings.IndexByte(host, ':') >= 0
+	isIPv6 := IsIPv6Host(host)
 	if isIPv6 {
 		b = append(b, '[')
 	}
@@ -43,6 +43,24 @@ func JoinHostPort(host string, port int) string {
 	b = strconv.AppendInt(b, int64(port), 10)
 	s := bytesutil.InternBytes(b)
 	bb.B = b
+	bbPool.Put(bb)
+	return s
+}
+
+// IsIPv6Host returns true if host is ipv6 address.
+func IsIPv6Host(host string) bool {
+	return strings.IndexByte(host, ':') >= 0
+}
+
+// EscapeIPv6Host escapes ipv6 host with square brackets.
+// Note that host must be ipv6 address.
+func EscapeIPv6Host(host string) string {
+	bb := bbPool.Get()
+	b := bb.B[:0]
+	b = append(b, '[')
+	b = append(b, host...)
+	b = append(b, ']')
+	s := bytesutil.InternBytes(b)
 	bbPool.Put(bb)
 	return s
 }
