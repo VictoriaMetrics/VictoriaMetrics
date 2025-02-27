@@ -17,6 +17,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * FEATURE: expose `vl_request_duration_seconds` [summaries](https://docs.victoriametrics.com/keyconcepts/#summary) for [select APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) at the [/metrics](https://docs.victoriametrics.com/victorialogs/#monitoring) page.
+* FEATURE: [victorialogs dashboard](https://grafana.com/grafana/dashboards/22084-victorialogs/): add panels to display amount of ingested logs in bytes, latency of [select APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) calls, troubleshooting panels.
 
 * BUGFIX: do not treat a string containing leading zeros as a number during data ingestion and querying. For example, `00123` string shouldn't be treated as `123` number. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361).
 
