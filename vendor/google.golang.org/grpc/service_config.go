@@ -168,7 +168,6 @@ func init() {
 		return parseServiceConfig(js, defaultMaxCallAttempts)
 	}
 }
-
 func parseServiceConfig(js string, maxAttempts int) *serviceconfig.ParseResult {
 	if len(js) == 0 {
 		return &serviceconfig.ParseResult{Err: fmt.Errorf("no JSON service config provided")}
@@ -298,7 +297,7 @@ func convertRetryPolicy(jrp *jsonRetryPolicy, maxAttempts int) (p *internalservi
 	return rp, nil
 }
 
-func minPointers(a, b *int) *int {
+func min(a, b *int) *int {
 	if *a < *b {
 		return a
 	}
@@ -310,7 +309,7 @@ func getMaxSize(mcMax, doptMax *int, defaultVal int) *int {
 		return &defaultVal
 	}
 	if mcMax != nil && doptMax != nil {
-		return minPointers(mcMax, doptMax)
+		return min(mcMax, doptMax)
 	}
 	if mcMax != nil {
 		return mcMax

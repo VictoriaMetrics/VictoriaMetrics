@@ -17,14 +17,12 @@ package externalaccountuser
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"time"
 
 	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/credentials/internal/stsexchange"
 	"cloud.google.com/go/auth/internal"
-	"github.com/googleapis/gax-go/v2/internallog"
 )
 
 // Options stores the configuration for fetching tokens with external authorized
@@ -53,8 +51,6 @@ type Options struct {
 
 	// Client for token request.
 	Client *http.Client
-	// Logger for logging.
-	Logger *slog.Logger
 }
 
 func (c *Options) validate() bool {
@@ -94,7 +90,6 @@ func (tp *tokenProvider) Token(ctx context.Context) (*auth.Token, error) {
 		RefreshToken:   opts.RefreshToken,
 		Authentication: clientAuth,
 		Headers:        headers,
-		Logger:         internallog.New(tp.o.Logger),
 	})
 	if err != nil {
 		return nil, err

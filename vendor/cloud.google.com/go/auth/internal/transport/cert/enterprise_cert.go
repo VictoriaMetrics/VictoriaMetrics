@@ -16,6 +16,7 @@ package cert
 
 import (
 	"crypto/tls"
+	"errors"
 
 	"github.com/googleapis/enterprise-certificate-proxy/client"
 )
@@ -36,9 +37,10 @@ type ecpSource struct {
 func NewEnterpriseCertificateProxyProvider(configFilePath string) (Provider, error) {
 	key, err := client.Cred(configFilePath)
 	if err != nil {
-		// TODO(codyoss): once this is fixed upstream can handle this error a
-		// little better here. But be safe for now and assume unavailable.
-		return nil, errSourceUnavailable
+		if errors.Is(err, client.ErrCredUnavailable) {
+			return nil, errSourceUnavailable
+		}
+		return nil, err
 	}
 
 	return (&ecpSource{

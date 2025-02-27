@@ -19,7 +19,7 @@
 package grpclb
 
 import (
-	rand "math/rand/v2"
+	"math/rand"
 	"sync"
 	"sync/atomic"
 
@@ -112,7 +112,7 @@ type rrPicker struct {
 func newRRPicker(readySCs []balancer.SubConn) *rrPicker {
 	return &rrPicker{
 		subConns:     readySCs,
-		subConnsNext: rand.IntN(len(readySCs)),
+		subConnsNext: rand.Intn(len(readySCs)),
 	}
 }
 
@@ -147,7 +147,7 @@ func newLBPicker(serverList []*lbpb.Server, readySCs []balancer.SubConn, stats *
 	return &lbPicker{
 		serverList:   serverList,
 		subConns:     readySCs,
-		subConnsNext: rand.IntN(len(readySCs)),
+		subConnsNext: rand.Intn(len(readySCs)),
 		stats:        stats,
 	}
 }

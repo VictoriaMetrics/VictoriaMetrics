@@ -148,7 +148,6 @@ func (v Value) FromRaw(iv any) error {
 	case int64:
 		v.SetInt(tv)
 	case uint:
-		// nolint:gosec
 		v.SetInt(int64(tv))
 	case uint8:
 		v.SetInt(int64(tv))
@@ -157,7 +156,6 @@ func (v Value) FromRaw(iv any) error {
 	case uint32:
 		v.SetInt(int64(tv))
 	case uint64:
-		// nolint:gosec
 		v.SetInt(int64(tv))
 	case float32:
 		v.SetDouble(float64(tv))
@@ -403,7 +401,7 @@ func (v Value) AsString() string {
 // This allows us to avoid using reflection.
 func float64AsString(f float64) string {
 	if math.IsInf(f, 0) || math.IsNaN(f) {
-		return "json: unsupported value: " + strconv.FormatFloat(f, 'g', -1, 64)
+		return fmt.Sprintf("json: unsupported value: %s", strconv.FormatFloat(f, 'g', -1, 64))
 	}
 
 	// Convert as if by ES6 number to string conversion.

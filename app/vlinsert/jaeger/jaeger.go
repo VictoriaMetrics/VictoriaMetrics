@@ -2,11 +2,13 @@ package jaeger
 
 import (
 	"fmt"
+	"github.com/jaegertracing/jaeger/storage/dependencystore"
+	"github.com/jaegertracing/jaeger/storage/spanstore"
 	"log"
 	"net"
 
 	jaeger2 "github.com/VictoriaMetrics/VictoriaMetrics/app/vlselect/jaeger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jaeger/proto"
+	"github.com/jaegertracing/jaeger/plugin/storage/grpc/shared"
 
 	"google.golang.org/grpc"
 )
@@ -20,8 +22,21 @@ func MustInit() {
 	var opts []grpc.ServerOption
 	grpcServer := grpc.NewServer(opts...)
 
-	proto.RegisterSpanWriterPluginServer(grpcServer, &SpanWriterPluginServer{})
-	proto.RegisterSpanReaderPluginServer(grpcServer, &jaeger2.SpanReaderPluginServer{})
+	handler := shared.NewGRPCHandler(&shared.GRPCHandlerStorageImpl{
+		SpanReader:          func() spanstore.Reader { return &jaeger2.SpanReaderPluginServer{} },
+		SpanWriter:          func() spanstore.Writer { return &SpanWriterPluginServer{} },
+		DependencyReader:    func() dependencystore.Reader { return nil },
+		ArchiveSpanReader:   func() spanstore.Reader { return nil },
+		ArchiveSpanWriter:   func() spanstore.Writer { return nil },
+		StreamingSpanWriter: func() spanstore.Writer { return nil },
+	})
+
+	//proto.RegisterSpanWriterPluginServer(grpcServer, &SpanWriterPluginServer{})
+	//proto.RegisterSpanReaderPluginServer(grpcServer, &jaeger2.SpanReaderPluginServer{})
+	err = handler.Register(grpcServer)
+	if err != nil {
+		panic("unable to register Jaeger gRPC handler: " + err.Error())
+	}
 
 	go grpcServer.Serve(lis)
 }

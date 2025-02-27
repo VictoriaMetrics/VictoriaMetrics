@@ -15,9 +15,9 @@ package discovery
 
 import (
 	"context"
-	"log/slog"
 	"reflect"
 
+	"github.com/go-kit/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/config"
 
@@ -39,7 +39,7 @@ type Discoverer interface {
 	Run(ctx context.Context, up chan<- []*targetgroup.Group)
 }
 
-// DiscovererMetrics are internal metrics of service discovery mechanisms.
+// Internal metrics of service discovery mechanisms.
 type DiscovererMetrics interface {
 	Register() error
 	Unregister()
@@ -47,7 +47,7 @@ type DiscovererMetrics interface {
 
 // DiscovererOptions provides options for a Discoverer.
 type DiscovererOptions struct {
-	Logger *slog.Logger
+	Logger log.Logger
 
 	Metrics DiscovererMetrics
 
@@ -56,7 +56,7 @@ type DiscovererOptions struct {
 	HTTPClientOptions []config.HTTPClientOption
 }
 
-// RefreshMetrics are used by the "refresh" package.
+// Metrics used by the "refresh" package.
 // We define them here in the "discovery" package in order to avoid a cyclic dependency between
 // "discovery" and "refresh".
 type RefreshMetrics struct {
@@ -64,18 +64,17 @@ type RefreshMetrics struct {
 	Duration prometheus.Observer
 }
 
-// RefreshMetricsInstantiator instantiates the metrics used by the "refresh" package.
+// Instantiate the metrics used by the "refresh" package.
 type RefreshMetricsInstantiator interface {
 	Instantiate(mech string) *RefreshMetrics
 }
 
-// RefreshMetricsManager is an interface for registering, unregistering, and
-// instantiating metrics for the "refresh" package. Refresh metrics are
-// registered and unregistered outside of the service discovery mechanism. This
-// is so that the same metrics can be reused across different service discovery
-// mechanisms. To manage refresh metrics inside the SD mechanism, we'd need to
-// use const labels which are specific to that SD. However, doing so would also
-// expose too many unused metrics on the Prometheus /metrics endpoint.
+// An interface for registering, unregistering, and instantiating metrics for the "refresh" package.
+// Refresh metrics are registered and unregistered outside of the service discovery mechanism.
+// This is so that the same metrics can be reused across different service discovery mechanisms.
+// To manage refresh metrics inside the SD mechanism, we'd need to use const labels which are
+// specific to that SD. However, doing so would also expose too many unused metrics on
+// the Prometheus /metrics endpoint.
 type RefreshMetricsManager interface {
 	DiscovererMetrics
 	RefreshMetricsInstantiator
@@ -109,7 +108,7 @@ func (c *Configs) SetDirectory(dir string) {
 
 // UnmarshalYAML implements yaml.Unmarshaler.
 func (c *Configs) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	cfgTyp := reflect.StructOf(configFields)
+	cfgTyp := getConfigType(configsType)
 	cfgPtr := reflect.New(cfgTyp)
 	cfgVal := cfgPtr.Elem()
 
@@ -124,7 +123,7 @@ func (c *Configs) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // MarshalYAML implements yaml.Marshaler.
 func (c Configs) MarshalYAML() (interface{}, error) {
-	cfgTyp := reflect.StructOf(configFields)
+	cfgTyp := getConfigType(configsType)
 	cfgPtr := reflect.New(cfgTyp)
 	cfgVal := cfgPtr.Elem()
 
@@ -146,8 +145,7 @@ func (c StaticConfig) NewDiscoverer(DiscovererOptions) (Discoverer, error) {
 	return staticDiscoverer(c), nil
 }
 
-// NewDiscovererMetrics returns NoopDiscovererMetrics because no metrics are
-// needed for this service discovery mechanism.
+// No metrics are needed for this service discovery mechanism.
 func (c StaticConfig) NewDiscovererMetrics(prometheus.Registerer, RefreshMetricsInstantiator) DiscovererMetrics {
 	return &NoopDiscovererMetrics{}
 }

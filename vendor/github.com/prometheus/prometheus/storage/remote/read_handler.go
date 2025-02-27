@@ -16,12 +16,13 @@ package remote
 import (
 	"context"
 	"errors"
-	"log/slog"
 	"net/http"
 	"slices"
 	"strings"
 	"sync"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/prometheus/prometheus/config"
@@ -33,7 +34,7 @@ import (
 )
 
 type readHandler struct {
-	logger                    *slog.Logger
+	logger                    log.Logger
 	queryable                 storage.SampleAndChunkQueryable
 	config                    func() config.Config
 	remoteReadSampleLimit     int
@@ -45,7 +46,7 @@ type readHandler struct {
 
 // NewReadHandler creates a http.Handler that accepts remote read requests and
 // writes them to the provided queryable.
-func NewReadHandler(logger *slog.Logger, r prometheus.Registerer, queryable storage.SampleAndChunkQueryable, config func() config.Config, remoteReadSampleLimit, remoteReadConcurrencyLimit, remoteReadMaxBytesInFrame int) http.Handler {
+func NewReadHandler(logger log.Logger, r prometheus.Registerer, queryable storage.SampleAndChunkQueryable, config func() config.Config, remoteReadSampleLimit, remoteReadConcurrencyLimit, remoteReadMaxBytesInFrame int) http.Handler {
 	h := &readHandler{
 		logger:                    logger,
 		queryable:                 queryable,
@@ -139,7 +140,7 @@ func (h *readHandler) remoteReadSamples(
 			}
 			defer func() {
 				if err := querier.Close(); err != nil {
-					h.logger.Warn("Error on querier close", "err", err.Error())
+					level.Warn(h.logger).Log("msg", "Error on querier close", "err", err.Error())
 				}
 			}()
 
@@ -162,7 +163,7 @@ func (h *readHandler) remoteReadSamples(
 				return err
 			}
 			for _, w := range ws {
-				h.logger.Warn("Warnings on remote read query", "err", w.Error())
+				level.Warn(h.logger).Log("msg", "Warnings on remote read query", "err", w.Error())
 			}
 			for _, ts := range resp.Results[i].Timeseries {
 				ts.Labels = MergeLabels(ts.Labels, sortedExternalLabels)
@@ -207,7 +208,7 @@ func (h *readHandler) remoteReadStreamedXORChunks(ctx context.Context, w http.Re
 			}
 			defer func() {
 				if err := querier.Close(); err != nil {
-					h.logger.Warn("Error on chunk querier close", "err", err.Error())
+					level.Warn(h.logger).Log("msg", "Error on chunk querier close", "err", err.Error())
 				}
 			}()
 
@@ -238,7 +239,7 @@ func (h *readHandler) remoteReadStreamedXORChunks(ctx context.Context, w http.Re
 			}
 
 			for _, w := range ws {
-				h.logger.Warn("Warnings on chunked remote read query", "warnings", w.Error())
+				level.Warn(h.logger).Log("msg", "Warnings on chunked remote read query", "warnings", w.Error())
 			}
 			return nil
 		}(); err != nil {

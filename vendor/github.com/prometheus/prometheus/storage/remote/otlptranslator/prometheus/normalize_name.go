@@ -17,8 +17,6 @@
 package prometheus
 
 import (
-	"regexp"
-	"slices"
 	"strings"
 	"unicode"
 
@@ -29,7 +27,7 @@ import (
 // OTLP metrics use the c/s notation as specified at https://ucum.org/ucum.html
 // (See also https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/semantic_conventions/README.md#instrument-units)
 // Prometheus best practices for units: https://prometheus.io/docs/practices/naming/#base-units
-// OpenMetrics specification for units: https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#units-and-base-units
+// OpenMetrics specification for units: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md#units-and-base-units
 var unitMap = map[string]string{
 	// Time
 	"d":   "days",
@@ -78,66 +76,45 @@ var perUnitMap = map[string]string{
 	"y":  "year",
 }
 
-// BuildCompliantName builds a Prometheus-compliant metric name for the specified metric.
+// BuildCompliantName builds a Prometheus-compliant metric name for the specified metric
 //
 // Metric name is prefixed with specified namespace and underscore (if any).
 // Namespace is not cleaned up. Make sure specified namespace follows Prometheus
 // naming convention.
 //
-// See rules at https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels,
-// https://prometheus.io/docs/practices/naming/#metric-and-label-naming
-// and https://github.com/open-telemetry/opentelemetry-specification/blob/v1.38.0/specification/compatibility/prometheus_and_openmetrics.md#otlp-metric-points-to-prometheus.
-func BuildCompliantName(metric pmetric.Metric, namespace string, addMetricSuffixes, allowUTF8 bool) string {
+// See rules at https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
+// and https://prometheus.io/docs/practices/naming/#metric-and-label-naming
+func BuildCompliantName(metric pmetric.Metric, namespace string, addMetricSuffixes bool) string {
+	var metricName string
+
 	// Full normalization following standard Prometheus naming conventions
 	if addMetricSuffixes {
-		return normalizeName(metric, namespace, allowUTF8)
+		return normalizeName(metric, namespace)
 	}
 
-	var metricName string
-	if !allowUTF8 {
-		// Regexp for metric name characters that should be replaced with _.
-		invalidMetricCharRE := regexp.MustCompile(`[^a-zA-Z0-9:_]`)
-
-		// Simple case (no full normalization, no units, etc.).
-		metricName = strings.Join(strings.FieldsFunc(metric.Name(), func(r rune) bool {
-			return invalidMetricCharRE.MatchString(string(r))
-		}), "_")
-	} else {
-		metricName = metric.Name()
-	}
+	// Simple case (no full normalization, no units, etc.), we simply trim out forbidden chars
+	metricName = RemovePromForbiddenRunes(metric.Name())
 
 	// Namespace?
 	if namespace != "" {
 		return namespace + "_" + metricName
 	}
 
-	// Metric name starts with a digit and utf8 not allowed? Prefix it with an underscore.
-	if metricName != "" && unicode.IsDigit(rune(metricName[0])) && !allowUTF8 {
+	// Metric name starts with a digit? Prefix it with an underscore
+	if metricName != "" && unicode.IsDigit(rune(metricName[0])) {
 		metricName = "_" + metricName
 	}
 
 	return metricName
 }
 
-var nonMetricNameCharRE = regexp.MustCompile(`[^a-zA-Z0-9:]`)
-
-// Build a normalized name for the specified metric.
-func normalizeName(metric pmetric.Metric, namespace string, allowUTF8 bool) string {
-	var nameTokens []string
-	var separators []string
-	if !allowUTF8 {
-		// Split metric name into "tokens" (of supported metric name runes).
-		// Note that this has the side effect of replacing multiple consecutive underscores with a single underscore.
-		// This is part of the OTel to Prometheus specification: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.38.0/specification/compatibility/prometheus_and_openmetrics.md#otlp-metric-points-to-prometheus.
-		nameTokens = strings.FieldsFunc(
-			metric.Name(),
-			func(r rune) bool { return nonMetricNameCharRE.MatchString(string(r)) },
-		)
-	} else {
-		translationFunc := func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != ':' }
-		// Split metric name into "tokens" (of supported metric name runes).
-		nameTokens, separators = fieldsFunc(metric.Name(), translationFunc)
-	}
+// Build a normalized name for the specified metric
+func normalizeName(metric pmetric.Metric, namespace string) string {
+	// Split metric name in "tokens" (remove all non-alphanumeric)
+	nameTokens := strings.FieldsFunc(
+		metric.Name(),
+		func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) },
+	)
 
 	// Split unit at the '/' if any
 	unitTokens := strings.SplitN(metric.Unit(), "/", 2)
@@ -145,46 +122,26 @@ func normalizeName(metric pmetric.Metric, namespace string, allowUTF8 bool) stri
 	// Main unit
 	// Append if not blank, doesn't contain '{}', and is not present in metric name already
 	if len(unitTokens) > 0 {
-		var mainUnitProm, perUnitProm string
-		mainUnitOTel := strings.TrimSpace(unitTokens[0])
-		if mainUnitOTel != "" && !strings.ContainsAny(mainUnitOTel, "{}") {
-			mainUnitProm = unitMapGetOrDefault(mainUnitOTel)
-			if !allowUTF8 {
-				mainUnitProm = cleanUpUnit(mainUnitProm)
-			}
-			if slices.Contains(nameTokens, mainUnitProm) {
-				mainUnitProm = ""
+		mainUnitOtel := strings.TrimSpace(unitTokens[0])
+		if mainUnitOtel != "" && !strings.ContainsAny(mainUnitOtel, "{}") {
+			mainUnitProm := CleanUpString(unitMapGetOrDefault(mainUnitOtel))
+			if mainUnitProm != "" && !contains(nameTokens, mainUnitProm) {
+				nameTokens = append(nameTokens, mainUnitProm)
 			}
 		}
 
 		// Per unit
 		// Append if not blank, doesn't contain '{}', and is not present in metric name already
 		if len(unitTokens) > 1 && unitTokens[1] != "" {
-			perUnitOTel := strings.TrimSpace(unitTokens[1])
-			if perUnitOTel != "" && !strings.ContainsAny(perUnitOTel, "{}") {
-				perUnitProm = perUnitMapGetOrDefault(perUnitOTel)
-				if !allowUTF8 {
-					perUnitProm = cleanUpUnit(perUnitProm)
-				}
-			}
-			if perUnitProm != "" {
-				perUnitProm = "per_" + perUnitProm
-				if slices.Contains(nameTokens, perUnitProm) {
-					perUnitProm = ""
+			perUnitOtel := strings.TrimSpace(unitTokens[1])
+			if perUnitOtel != "" && !strings.ContainsAny(perUnitOtel, "{}") {
+				perUnitProm := CleanUpString(perUnitMapGetOrDefault(perUnitOtel))
+				if perUnitProm != "" && !contains(nameTokens, perUnitProm) {
+					nameTokens = append(append(nameTokens, "per"), perUnitProm)
 				}
 			}
 		}
 
-		if perUnitProm != "" {
-			mainUnitProm = strings.TrimSuffix(mainUnitProm, "_")
-		}
-
-		if mainUnitProm != "" {
-			nameTokens = append(nameTokens, mainUnitProm)
-		}
-		if perUnitProm != "" {
-			nameTokens = append(nameTokens, perUnitProm)
-		}
 	}
 
 	// Append _total for Counters
@@ -193,7 +150,7 @@ func normalizeName(metric pmetric.Metric, namespace string, allowUTF8 bool) stri
 	}
 
 	// Append _ratio for metrics with unit "1"
-	// Some OTel receivers improperly use unit "1" for counters of objects
+	// Some Otel receivers improperly use unit "1" for counters of objects
 	// See https://github.com/open-telemetry/opentelemetry-collector-contrib/issues?q=is%3Aissue+some+metric+units+don%27t+follow+otel+semantic+conventions
 	// Until these issues have been fixed, we're appending `_ratio` for gauges ONLY
 	// Theoretically, counters could be ratios as well, but it's absurd (for mathematical reasons)
@@ -206,14 +163,8 @@ func normalizeName(metric pmetric.Metric, namespace string, allowUTF8 bool) stri
 		nameTokens = append([]string{namespace}, nameTokens...)
 	}
 
-	var normalizedName string
-	if !allowUTF8 {
-		// Build the string from the tokens, separated with underscores
-		normalizedName = strings.Join(nameTokens, "_")
-	} else {
-		// Build the string from the tokens + separators.
-		normalizedName = join(nameTokens, separators, "_")
-	}
+	// Build the string from the tokens, separated with underscores
+	normalizedName := strings.Join(nameTokens, "_")
 
 	// Metric name cannot start with a digit, so prefix it with "_" in this case
 	if normalizedName != "" && unicode.IsDigit(rune(normalizedName[0])) {
@@ -283,15 +234,13 @@ func removeSuffix(tokens []string, suffix string) []string {
 	return tokens
 }
 
-// cleanUpUnit cleans up unit so it matches model.LabelNameRE.
-func cleanUpUnit(unit string) string {
-	// Multiple consecutive underscores are replaced with a single underscore.
-	// This is part of the OTel to Prometheus specification: https://github.com/open-telemetry/opentelemetry-specification/blob/v1.38.0/specification/compatibility/prometheus_and_openmetrics.md#otlp-metric-points-to-prometheus.
-	multipleUnderscoresRE := regexp.MustCompile(`__+`)
-	return strings.TrimPrefix(multipleUnderscoresRE.ReplaceAllString(
-		nonMetricNameCharRE.ReplaceAllString(unit, "_"),
-		"_",
-	), "_")
+// Clean up specified string so it's Prometheus compliant
+func CleanUpString(s string) string {
+	return strings.Join(strings.FieldsFunc(s, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }), "_")
+}
+
+func RemovePromForbiddenRunes(s string) string {
+	return strings.Join(strings.FieldsFunc(s, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' && r != ':' }), "_")
 }
 
 // Retrieve the Prometheus "basic" unit corresponding to the specified "basic" unit
@@ -310,6 +259,16 @@ func perUnitMapGetOrDefault(perUnit string) string {
 		return promPerUnit
 	}
 	return perUnit
+}
+
+// Returns whether the slice contains the specified value
+func contains(slice []string, value string) bool {
+	for _, sliceEntry := range slice {
+		if sliceEntry == value {
+			return true
+		}
+	}
+	return false
 }
 
 // Remove the specified value from the slice

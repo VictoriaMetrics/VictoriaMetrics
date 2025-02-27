@@ -18,16 +18,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/model/exemplar"
@@ -41,7 +41,7 @@ import (
 )
 
 type writeHandler struct {
-	logger     *slog.Logger
+	logger     log.Logger
 	appendable storage.Appendable
 
 	samplesWithInvalidLabelsTotal  prometheus.Counter
@@ -57,7 +57,7 @@ const maxAheadTime = 10 * time.Minute
 //
 // NOTE(bwplotka): When accepting v2 proto and spec, partial writes are possible
 // as per https://prometheus.io/docs/specs/remote_write_spec_2_0/#partial-write.
-func NewWriteHandler(logger *slog.Logger, reg prometheus.Registerer, appendable storage.Appendable, acceptedProtoMsgs []config.RemoteWriteProtoMsg) http.Handler {
+func NewWriteHandler(logger log.Logger, reg prometheus.Registerer, appendable storage.Appendable, acceptedProtoMsgs []config.RemoteWriteProtoMsg) http.Handler {
 	protoMsgs := map[config.RemoteWriteProtoMsg]struct{}{}
 	for _, acc := range acceptedProtoMsgs {
 		protoMsgs[acc] = struct{}{}
@@ -118,7 +118,7 @@ func (h *writeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	msgType, err := h.parseProtoMsg(contentType)
 	if err != nil {
-		h.logger.Error("Error decoding remote write request", "err", err)
+		level.Error(h.logger).Log("msg", "Error decoding remote write request", "err", err)
 		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 		return
 	}
@@ -130,7 +130,7 @@ func (h *writeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 			return ret
 		}())
-		h.logger.Error("Error decoding remote write request", "err", err)
+		level.Error(h.logger).Log("msg", "Error decoding remote write request", "err", err)
 		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 	}
 
@@ -141,14 +141,14 @@ func (h *writeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// We could give http.StatusUnsupportedMediaType, but let's assume snappy by default.
 	} else if enc != string(SnappyBlockCompression) {
 		err := fmt.Errorf("%v encoding (compression) is not accepted by this server; only %v is acceptable", enc, SnappyBlockCompression)
-		h.logger.Error("Error decoding remote write request", "err", err)
+		level.Error(h.logger).Log("msg", "Error decoding remote write request", "err", err)
 		http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
 	}
 
 	// Read the request body.
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		h.logger.Error("Error decoding remote write request", "err", err.Error())
+		level.Error(h.logger).Log("msg", "Error decoding remote write request", "err", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -156,7 +156,7 @@ func (h *writeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	decompressed, err := snappy.Decode(nil, body)
 	if err != nil {
 		// TODO(bwplotka): Add more context to responded error?
-		h.logger.Error("Error decompressing remote write request", "err", err.Error())
+		level.Error(h.logger).Log("msg", "Error decompressing remote write request", "err", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -168,7 +168,7 @@ func (h *writeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		var req prompb.WriteRequest
 		if err := proto.Unmarshal(decompressed, &req); err != nil {
 			// TODO(bwplotka): Add more context to responded error?
-			h.logger.Error("Error decoding v1 remote write request", "protobuf_message", msgType, "err", err.Error())
+			level.Error(h.logger).Log("msg", "Error decoding v1 remote write request", "protobuf_message", msgType, "err", err.Error())
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -179,7 +179,7 @@ func (h *writeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			default:
-				h.logger.Error("Error while remote writing the v1 request", "err", err.Error())
+				level.Error(h.logger).Log("msg", "Error while remote writing the v1 request", "err", err.Error())
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -192,7 +192,7 @@ func (h *writeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var req writev2.Request
 	if err := proto.Unmarshal(decompressed, &req); err != nil {
 		// TODO(bwplotka): Add more context to responded error?
-		h.logger.Error("Error decoding v2 remote write request", "protobuf_message", msgType, "err", err.Error())
+		level.Error(h.logger).Log("msg", "Error decoding v2 remote write request", "protobuf_message", msgType, "err", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -204,7 +204,7 @@ func (h *writeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if errHTTPCode/5 == 100 { // 5xx
-			h.logger.Error("Error while remote writing the v2 request", "err", err.Error())
+			level.Error(h.logger).Log("msg", "Error while remote writing the v2 request", "err", err.Error())
 		}
 		http.Error(w, err.Error(), errHTTPCode)
 		return
@@ -236,16 +236,11 @@ func (h *writeHandler) write(ctx context.Context, req *prompb.WriteRequest) (err
 	b := labels.NewScratchBuilder(0)
 	for _, ts := range req.Timeseries {
 		ls := ts.ToLabels(&b, nil)
-
-		// TODO(bwplotka): Even as per 1.0 spec, this should be a 400 error, while other samples are
-		// potentially written. Perhaps unify with fixed writeV2 implementation a bit.
-		if !ls.Has(labels.MetricName) || !ls.IsValid(model.NameValidationScheme) {
-			h.logger.Warn("Invalid metric names or labels", "got", ls.String())
+		if !ls.Has(labels.MetricName) || !ls.IsValid() {
+			level.Warn(h.logger).Log("msg", "Invalid metric names or labels", "got", ls.String())
 			samplesWithInvalidLabels++
-			continue
-		} else if duplicateLabel, hasDuplicate := ls.HasDuplicateLabelNames(); hasDuplicate {
-			h.logger.Warn("Invalid labels for series.", "labels", ls.String(), "duplicated_label", duplicateLabel)
-			samplesWithInvalidLabels++
+			// TODO(bwplotka): Even as per 1.0 spec, this should be a 400 error, while other samples are
+			// potentially written. Perhaps unify with fixed writeV2 implementation a bit.
 			continue
 		}
 
@@ -260,10 +255,10 @@ func (h *writeHandler) write(ctx context.Context, req *prompb.WriteRequest) (err
 				switch {
 				case errors.Is(err, storage.ErrOutOfOrderExemplar):
 					outOfOrderExemplarErrs++
-					h.logger.Debug("Out of order exemplar", "series", ls.String(), "exemplar", fmt.Sprintf("%+v", e))
+					level.Debug(h.logger).Log("msg", "Out of order exemplar", "series", ls.String(), "exemplar", fmt.Sprintf("%+v", e))
 				default:
 					// Since exemplar storage is still experimental, we don't fail the request on ingestion errors
-					h.logger.Debug("Error while adding exemplar in AppendExemplar", "series", ls.String(), "exemplar", fmt.Sprintf("%+v", e), "err", err)
+					level.Debug(h.logger).Log("msg", "Error while adding exemplar in AppendExemplar", "series", ls.String(), "exemplar", fmt.Sprintf("%+v", e), "err", err)
 				}
 			}
 		}
@@ -275,7 +270,7 @@ func (h *writeHandler) write(ctx context.Context, req *prompb.WriteRequest) (err
 	}
 
 	if outOfOrderExemplarErrs > 0 {
-		h.logger.Warn("Error on ingesting out-of-order exemplars", "num_dropped", outOfOrderExemplarErrs)
+		_ = level.Warn(h.logger).Log("msg", "Error on ingesting out-of-order exemplars", "num_dropped", outOfOrderExemplarErrs)
 	}
 	if samplesWithInvalidLabels > 0 {
 		h.samplesWithInvalidLabelsTotal.Add(float64(samplesWithInvalidLabels))
@@ -292,7 +287,7 @@ func (h *writeHandler) appendV1Samples(app storage.Appender, ss []prompb.Sample,
 			if errors.Is(err, storage.ErrOutOfOrderSample) ||
 				errors.Is(err, storage.ErrOutOfBounds) ||
 				errors.Is(err, storage.ErrDuplicateSampleForTimestamp) {
-				h.logger.Error("Out of order sample from remote write", "err", err.Error(), "series", labels.String(), "timestamp", s.Timestamp)
+				level.Error(h.logger).Log("msg", "Out of order sample from remote write", "err", err.Error(), "series", labels.String(), "timestamp", s.Timestamp)
 			}
 			return err
 		}
@@ -314,7 +309,7 @@ func (h *writeHandler) appendV1Histograms(app storage.Appender, hh []prompb.Hist
 			if errors.Is(err, storage.ErrOutOfOrderSample) ||
 				errors.Is(err, storage.ErrOutOfBounds) ||
 				errors.Is(err, storage.ErrDuplicateSampleForTimestamp) {
-				h.logger.Error("Out of order histogram from remote write", "err", err.Error(), "series", labels.String(), "timestamp", hp.Timestamp)
+				level.Error(h.logger).Log("msg", "Out of order histogram from remote write", "err", err.Error(), "series", labels.String(), "timestamp", hp.Timestamp)
 			}
 			return err
 		}
@@ -344,7 +339,7 @@ func (h *writeHandler) writeV2(ctx context.Context, req *writev2.Request) (_ Wri
 			// On 5xx, we always rollback, because we expect
 			// sender to retry and TSDB is not idempotent.
 			if rerr := app.Rollback(); rerr != nil {
-				h.logger.Error("writev2 rollback failed on retry-able error", "err", rerr)
+				level.Error(h.logger).Log("msg", "writev2 rollback failed on retry-able error", "err", rerr)
 			}
 			return WriteResponseStats{}, errHTTPCode, err
 		}
@@ -380,12 +375,8 @@ func (h *writeHandler) appendV2(app storage.Appender, req *writev2.Request, rs *
 		// Validate series labels early.
 		// NOTE(bwplotka): While spec allows UTF-8, Prometheus Receiver may impose
 		// specific limits and follow https://prometheus.io/docs/specs/remote_write_spec_2_0/#invalid-samples case.
-		if !ls.Has(labels.MetricName) || !ls.IsValid(model.NameValidationScheme) {
+		if !ls.Has(labels.MetricName) || !ls.IsValid() {
 			badRequestErrs = append(badRequestErrs, fmt.Errorf("invalid metric name or labels, got %v", ls.String()))
-			samplesWithInvalidLabels += len(ts.Samples) + len(ts.Histograms)
-			continue
-		} else if duplicateLabel, hasDuplicate := ls.HasDuplicateLabelNames(); hasDuplicate {
-			badRequestErrs = append(badRequestErrs, fmt.Errorf("invalid labels for series, labels %v, duplicated label %s", ls.String(), duplicateLabel))
 			samplesWithInvalidLabels += len(ts.Samples) + len(ts.Histograms)
 			continue
 		}
@@ -406,7 +397,7 @@ func (h *writeHandler) appendV2(app storage.Appender, req *writev2.Request, rs *
 				errors.Is(err, storage.ErrDuplicateSampleForTimestamp) ||
 				errors.Is(err, storage.ErrTooOldSample) {
 				// TODO(bwplotka): Not too spammy log?
-				h.logger.Error("Out of order sample from remote write", "err", err.Error(), "series", ls.String(), "timestamp", s.Timestamp)
+				level.Error(h.logger).Log("msg", "Out of order sample from remote write", "err", err.Error(), "series", ls.String(), "timestamp", s.Timestamp)
 				badRequestErrs = append(badRequestErrs, fmt.Errorf("%w for series %v", err, ls.String()))
 				continue
 			}
@@ -431,7 +422,7 @@ func (h *writeHandler) appendV2(app storage.Appender, req *writev2.Request, rs *
 				errors.Is(err, storage.ErrOutOfBounds) ||
 				errors.Is(err, storage.ErrDuplicateSampleForTimestamp) {
 				// TODO(bwplotka): Not too spammy log?
-				h.logger.Error("Out of order histogram from remote write", "err", err.Error(), "series", ls.String(), "timestamp", hp.Timestamp)
+				level.Error(h.logger).Log("msg", "Out of order histogram from remote write", "err", err.Error(), "series", ls.String(), "timestamp", hp.Timestamp)
 				badRequestErrs = append(badRequestErrs, fmt.Errorf("%w for series %v", err, ls.String()))
 				continue
 			}
@@ -449,18 +440,18 @@ func (h *writeHandler) appendV2(app storage.Appender, req *writev2.Request, rs *
 			// Handle append error.
 			if errors.Is(err, storage.ErrOutOfOrderExemplar) {
 				outOfOrderExemplarErrs++ // Maintain old metrics, but technically not needed, given we fail here.
-				h.logger.Error("Out of order exemplar", "err", err.Error(), "series", ls.String(), "exemplar", fmt.Sprintf("%+v", e))
+				level.Error(h.logger).Log("msg", "Out of order exemplar", "err", err.Error(), "series", ls.String(), "exemplar", fmt.Sprintf("%+v", e))
 				badRequestErrs = append(badRequestErrs, fmt.Errorf("%w for series %v", err, ls.String()))
 				continue
 			}
 			// TODO(bwplotka): Add strict mode which would trigger rollback of everything if needed.
 			// For now we keep the previously released flow (just error not debug leve) of dropping them without rollback and 5xx.
-			h.logger.Error("failed to ingest exemplar, emitting error log, but no error for PRW caller", "err", err.Error(), "series", ls.String(), "exemplar", fmt.Sprintf("%+v", e))
+			level.Error(h.logger).Log("msg", "failed to ingest exemplar, emitting error log, but no error for PRW caller", "err", err.Error(), "series", ls.String(), "exemplar", fmt.Sprintf("%+v", e))
 		}
 
 		m := ts.ToMetadata(req.Symbols)
 		if _, err = app.UpdateMetadata(ref, ls, m); err != nil {
-			h.logger.Debug("error while updating metadata from remote write", "err", err)
+			level.Debug(h.logger).Log("msg", "error while updating metadata from remote write", "err", err)
 			// Metadata is attached to each series, so since Prometheus does not reject sample without metadata information,
 			// we don't report remote write error either. We increment metric instead.
 			samplesWithoutMetadata += rs.AllSamples() - allSamplesSoFar
@@ -468,7 +459,7 @@ func (h *writeHandler) appendV2(app storage.Appender, req *writev2.Request, rs *
 	}
 
 	if outOfOrderExemplarErrs > 0 {
-		h.logger.Warn("Error on ingesting out-of-order exemplars", "num_dropped", outOfOrderExemplarErrs)
+		level.Warn(h.logger).Log("msg", "Error on ingesting out-of-order exemplars", "num_dropped", outOfOrderExemplarErrs)
 	}
 	h.samplesWithInvalidLabelsTotal.Add(float64(samplesWithInvalidLabels))
 
@@ -481,53 +472,40 @@ func (h *writeHandler) appendV2(app storage.Appender, req *writev2.Request, rs *
 
 // NewOTLPWriteHandler creates a http.Handler that accepts OTLP write requests and
 // writes them to the provided appendable.
-func NewOTLPWriteHandler(logger *slog.Logger, appendable storage.Appendable, configFunc func() config.Config) http.Handler {
+func NewOTLPWriteHandler(logger log.Logger, appendable storage.Appendable) http.Handler {
 	rwHandler := &writeHandler{
 		logger:     logger,
 		appendable: appendable,
 	}
 
 	return &otlpWriteHandler{
-		logger:     logger,
-		rwHandler:  rwHandler,
-		configFunc: configFunc,
+		logger:    logger,
+		rwHandler: rwHandler,
 	}
 }
 
 type otlpWriteHandler struct {
-	logger     *slog.Logger
-	rwHandler  *writeHandler
-	configFunc func() config.Config
+	logger    log.Logger
+	rwHandler *writeHandler
 }
 
 func (h *otlpWriteHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	req, err := DecodeOTLPWriteRequest(r)
 	if err != nil {
-		h.logger.Error("Error decoding remote write request", "err", err.Error())
+		level.Error(h.logger).Log("msg", "Error decoding remote write request", "err", err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	otlpCfg := h.configFunc().OTLPConfig
-
 	converter := otlptranslator.NewPrometheusConverter()
-	annots, err := converter.FromMetrics(r.Context(), req.Metrics(), otlptranslator.Settings{
-		AddMetricSuffixes:                 true,
-		AllowUTF8:                         otlpCfg.TranslationStrategy == config.NoUTF8EscapingWithSuffixes,
-		PromoteResourceAttributes:         otlpCfg.PromoteResourceAttributes,
-		KeepIdentifyingResourceAttributes: otlpCfg.KeepIdentifyingResourceAttributes,
-	})
-	if err != nil {
-		h.logger.Warn("Error translating OTLP metrics to Prometheus write request", "err", err)
-	}
-	ws, _ := annots.AsStrings("", 0, 0)
-	if len(ws) > 0 {
-		h.logger.Warn("Warnings translating OTLP metrics to Prometheus write request", "warnings", ws)
+	if err := converter.FromMetrics(req.Metrics(), otlptranslator.Settings{
+		AddMetricSuffixes: true,
+	}); err != nil {
+		level.Warn(h.logger).Log("msg", "Error translating OTLP metrics to Prometheus write request", "err", err)
 	}
 
 	err = h.rwHandler.write(r.Context(), &prompb.WriteRequest{
 		Timeseries: converter.TimeSeries(),
-		Metadata:   converter.Metadata(),
 	})
 
 	switch {
@@ -537,7 +515,7 @@ func (h *otlpWriteHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	default:
-		h.logger.Error("Error appending remote write", "err", err.Error())
+		level.Error(h.logger).Log("msg", "Error appending remote write", "err", err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

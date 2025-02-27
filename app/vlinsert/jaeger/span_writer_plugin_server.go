@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/jaegertracing/jaeger/model"
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jaeger/proto"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
@@ -16,19 +16,18 @@ type SpanWriterPluginServer struct {
 }
 
 // WriteSpan writes spans
-func (s *SpanWriterPluginServer) WriteSpan(_ context.Context, req *proto.WriteSpanRequest) (*proto.WriteSpanResponse, error) {
-	span := req.GetSpan()
+func (s *SpanWriterPluginServer) WriteSpan(ctx context.Context, span *model.Span) error {
 	if span == nil {
-		return &proto.WriteSpanResponse{}, fmt.Errorf("span not found")
+		return fmt.Errorf("span not found")
 	}
 
 	jsonSpan, err := json.Marshal(span)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	cp, err := insertutils.GetJaegerCommonParams()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	lmp := cp.NewLogMessageProcessor("jaeger")
 	defer lmp.MustClose()
@@ -46,15 +45,15 @@ func (s *SpanWriterPluginServer) WriteSpan(_ context.Context, req *proto.WriteSp
 	for i := range tags {
 		var value string
 		switch tags[i].GetVType() {
-		case proto.ValueType_STRING:
+		case model.ValueType_STRING:
 			value = tags[i].GetVStr()
-		case proto.ValueType_BOOL:
+		case model.ValueType_BOOL:
 			value = strconv.FormatBool(tags[i].GetVBool())
-		case proto.ValueType_INT64:
+		case model.ValueType_INT64:
 			value = strconv.FormatInt(tags[i].GetVInt64(), 10)
-		case proto.ValueType_FLOAT64:
+		case model.ValueType_FLOAT64:
 			value = strconv.FormatFloat(tags[i].GetVFloat64(), 'f', -1, 64)
-		case proto.ValueType_BINARY:
+		case model.ValueType_BINARY:
 			value = string(tags[i].GetVBinary())
 		}
 		fields = append(fields, logstorage.Field{
@@ -79,15 +78,15 @@ func (s *SpanWriterPluginServer) WriteSpan(_ context.Context, req *proto.WriteSp
 	for i := range processTags {
 		value := "process_tag_"
 		switch processTags[i].GetVType() {
-		case proto.ValueType_STRING:
+		case model.ValueType_STRING:
 			value += processTags[i].GetVStr()
-		case proto.ValueType_BOOL:
+		case model.ValueType_BOOL:
 			value += strconv.FormatBool(processTags[i].GetVBool())
-		case proto.ValueType_INT64:
+		case model.ValueType_INT64:
 			value += strconv.FormatInt(processTags[i].GetVInt64(), 10)
-		case proto.ValueType_FLOAT64:
+		case model.ValueType_FLOAT64:
 			value += strconv.FormatFloat(processTags[i].GetVFloat64(), 'f', -1, 64)
-		case proto.ValueType_BINARY:
+		case model.ValueType_BINARY:
 			value += string(processTags[i].GetVBinary())
 		}
 		fields = append(fields, logstorage.Field{
@@ -96,10 +95,8 @@ func (s *SpanWriterPluginServer) WriteSpan(_ context.Context, req *proto.WriteSp
 		})
 	}
 	lmp.AddRow(span.StartTime.UnixNano(), fields, streamFields)
-	resp := &proto.WriteSpanResponse{}
-	return resp, nil
+	return nil
 }
-func (s *SpanWriterPluginServer) Close(_ context.Context, req *proto.CloseWriterRequest) (*proto.CloseWriterResponse, error) {
-	resp := &proto.CloseWriterResponse{}
-	return resp, nil
+func (s *SpanWriterPluginServer) Close() error {
+	return nil
 }

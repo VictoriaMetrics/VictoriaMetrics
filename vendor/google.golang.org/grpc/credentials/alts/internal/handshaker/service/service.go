@@ -34,6 +34,8 @@ var (
 	// to a corresponding connection to a hypervisor handshaker service
 	// instance.
 	hsConnMap = make(map[string]*grpc.ClientConn)
+	// hsDialer will be reassigned in tests.
+	hsDialer = grpc.Dial
 )
 
 // Dial dials the handshake service in the hypervisor. If a connection has
@@ -47,10 +49,8 @@ func Dial(hsAddress string) (*grpc.ClientConn, error) {
 	if !ok {
 		// Create a new connection to the handshaker service. Note that
 		// this connection stays open until the application is closed.
-		// Disable the service config to avoid unnecessary TXT record lookups that
-		// cause timeouts with some versions of systemd-resolved.
 		var err error
-		hsConn, err = grpc.Dial(hsAddress, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDisableServiceConfig())
+		hsConn, err = hsDialer(hsAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return nil, err
 		}

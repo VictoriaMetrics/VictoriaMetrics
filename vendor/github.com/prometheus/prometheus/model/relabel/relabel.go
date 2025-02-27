@@ -16,8 +16,6 @@ package relabel
 import (
 	"crypto/md5"
 	"encoding/binary"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -85,20 +83,20 @@ func (a *Action) UnmarshalYAML(unmarshal func(interface{}) error) error {
 type Config struct {
 	// A list of labels from which values are taken and concatenated
 	// with the configured separator in order.
-	SourceLabels model.LabelNames `yaml:"source_labels,flow,omitempty" json:"sourceLabels,omitempty"`
+	SourceLabels model.LabelNames `yaml:"source_labels,flow,omitempty"`
 	// Separator is the string between concatenated values from the source labels.
-	Separator string `yaml:"separator,omitempty" json:"separator,omitempty"`
+	Separator string `yaml:"separator,omitempty"`
 	// Regex against which the concatenation is matched.
-	Regex Regexp `yaml:"regex,omitempty" json:"regex,omitempty"`
+	Regex Regexp `yaml:"regex,omitempty"`
 	// Modulus to take of the hash of concatenated values from the source labels.
-	Modulus uint64 `yaml:"modulus,omitempty" json:"modulus,omitempty"`
+	Modulus uint64 `yaml:"modulus,omitempty"`
 	// TargetLabel is the label to which the resulting string is written in a replacement.
 	// Regexp interpolation is allowed for the replace action.
-	TargetLabel string `yaml:"target_label,omitempty" json:"targetLabel,omitempty"`
+	TargetLabel string `yaml:"target_label,omitempty"`
 	// Replacement is the regex replacement pattern to be used.
-	Replacement string `yaml:"replacement,omitempty" json:"replacement,omitempty"`
+	Replacement string `yaml:"replacement,omitempty"`
 	// Action is the action to be performed for the relabeling.
-	Action Action `yaml:"action,omitempty" json:"action,omitempty"`
+	Action Action `yaml:"action,omitempty"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -116,10 +114,10 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 func (c *Config) Validate() error {
 	if c.Action == "" {
-		return errors.New("relabel action cannot be empty")
+		return fmt.Errorf("relabel action cannot be empty")
 	}
 	if c.Modulus == 0 && c.Action == HashMod {
-		return errors.New("relabel configuration for hashmod requires non-zero modulus")
+		return fmt.Errorf("relabel configuration for hashmod requires non-zero modulus")
 	}
 	if (c.Action == Replace || c.Action == HashMod || c.Action == Lowercase || c.Action == Uppercase || c.Action == KeepEqual || c.Action == DropEqual) && c.TargetLabel == "" {
 		return fmt.Errorf("relabel configuration for %s action requires 'target_label' value", c.Action)
@@ -173,7 +171,7 @@ type Regexp struct {
 // NewRegexp creates a new anchored Regexp and returns an error if the
 // passed-in regular expression does not compile.
 func NewRegexp(s string) (Regexp, error) {
-	regex, err := regexp.Compile("^(?s:" + s + ")$")
+	regex, err := regexp.Compile("^(?:" + s + ")$")
 	return Regexp{Regexp: regex}, err
 }
 
@@ -208,25 +206,6 @@ func (re Regexp) MarshalYAML() (interface{}, error) {
 	return nil, nil
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface.
-func (re *Regexp) UnmarshalJSON(b []byte) error {
-	var s string
-	if err := json.Unmarshal(b, &s); err != nil {
-		return err
-	}
-	r, err := NewRegexp(s)
-	if err != nil {
-		return err
-	}
-	*re = r
-	return nil
-}
-
-// MarshalJSON implements the json.Marshaler interface.
-func (re Regexp) MarshalJSON() ([]byte, error) {
-	return json.Marshal(re.String())
-}
-
 // IsZero implements the yaml.IsZeroer interface.
 func (re Regexp) IsZero() bool {
 	return re.Regexp == DefaultRelabelConfig.Regex.Regexp
@@ -234,13 +213,9 @@ func (re Regexp) IsZero() bool {
 
 // String returns the original string used to compile the regular expression.
 func (re Regexp) String() string {
-	if re.Regexp == nil {
-		return ""
-	}
-
 	str := re.Regexp.String()
-	// Trim the anchor `^(?s:` prefix and `)$` suffix.
-	return str[5 : len(str)-2]
+	// Trim the anchor `^(?:` prefix and `)$` suffix.
+	return str[4 : len(str)-2]
 }
 
 // Process returns a relabeled version of the given label set. The relabel configurations
@@ -298,13 +273,6 @@ func relabel(cfg *Config, lb *labels.Builder) (keep bool) {
 			return false
 		}
 	case Replace:
-		// Fast path to add or delete label pair.
-		if val == "" && cfg.Regex == DefaultRelabelConfig.Regex &&
-			!varInRegexTemplate(cfg.TargetLabel) && !varInRegexTemplate(cfg.Replacement) {
-			lb.Set(cfg.TargetLabel, cfg.Replacement)
-			break
-		}
-
 		indexes := cfg.Regex.FindStringSubmatchIndex(val)
 		// If there is no match no replacement must take place.
 		if indexes == nil {
@@ -353,8 +321,4 @@ func relabel(cfg *Config, lb *labels.Builder) (keep bool) {
 	}
 
 	return true
-}
-
-func varInRegexTemplate(template string) bool {
-	return strings.Contains(template, "$")
 }

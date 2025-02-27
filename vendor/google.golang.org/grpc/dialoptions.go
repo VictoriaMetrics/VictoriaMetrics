@@ -33,7 +33,6 @@ import (
 	"google.golang.org/grpc/internal/binarylog"
 	"google.golang.org/grpc/internal/transport"
 	"google.golang.org/grpc/keepalive"
-	"google.golang.org/grpc/mem"
 	"google.golang.org/grpc/resolver"
 	"google.golang.org/grpc/stats"
 )
@@ -61,7 +60,7 @@ func init() {
 	internal.WithBinaryLogger = withBinaryLogger
 	internal.JoinDialOptions = newJoinDialOption
 	internal.DisableGlobalDialOptions = newDisableGlobalDialOptions
-	internal.WithBufferPool = withBufferPool
+	internal.WithRecvBufferPool = withRecvBufferPool
 }
 
 // dialOptions configure a Dial call. dialOptions are set by the DialOption
@@ -87,11 +86,13 @@ type dialOptions struct {
 	disableServiceConfig        bool
 	disableRetry                bool
 	disableHealthCheck          bool
+	healthCheckFunc             internal.HealthChecker
 	minConnectTimeout           func() time.Duration
 	defaultServiceConfig        *ServiceConfig // defaultServiceConfig is parsed from defaultServiceConfigRawJSON.
 	defaultServiceConfigRawJSON *string
 	resolvers                   []resolver.Builder
 	idleTimeout                 time.Duration
+	recvBufferPool              SharedBufferPool
 	defaultScheme               string
 	maxCallAttempts             int
 }
@@ -435,13 +436,17 @@ func WithTimeout(d time.Duration) DialOption {
 // option to true from the Control field. For a concrete example of how to do
 // this, see internal.NetDialerWithTCPKeepalive().
 //
-// For more information, please see [issue 23459] in the Go GitHub repo.
+// For more information, please see [issue 23459] in the Go github repo.
 //
 // [issue 23459]: https://github.com/golang/go/issues/23459
 func WithContextDialer(f func(context.Context, string) (net.Conn, error)) DialOption {
 	return newFuncDialOption(func(o *dialOptions) {
 		o.copts.Dialer = f
 	})
+}
+
+func init() {
+	internal.WithHealthCheckFunc = withHealthCheckFunc
 }
 
 // WithDialer returns a DialOption that specifies a function to use for dialing
@@ -513,8 +518,6 @@ func WithUserAgent(s string) DialOption {
 
 // WithKeepaliveParams returns a DialOption that specifies keepalive parameters
 // for the client transport.
-//
-// Keepalive is disabled by default.
 func WithKeepaliveParams(kp keepalive.ClientParameters) DialOption {
 	if kp.Time < internal.KeepaliveMinPingTime {
 		logger.Warningf("Adjusting keepalive ping interval to minimum period of %v", internal.KeepaliveMinPingTime)
@@ -657,6 +660,16 @@ func WithDisableHealthCheck() DialOption {
 	})
 }
 
+// withHealthCheckFunc replaces the default health check function with the
+// provided one. It makes tests easier to change the health check function.
+//
+// For testing purpose only.
+func withHealthCheckFunc(f internal.HealthChecker) DialOption {
+	return newFuncDialOption(func(o *dialOptions) {
+		o.healthCheckFunc = f
+	})
+}
+
 func defaultDialOptions() dialOptions {
 	return dialOptions{
 		copts: transport.ConnectOptions{
@@ -664,10 +677,11 @@ func defaultDialOptions() dialOptions {
 			WriteBufferSize: defaultWriteBufSize,
 			UseProxy:        true,
 			UserAgent:       grpcUA,
-			BufferPool:      mem.DefaultBufferPool(),
 		},
 		bs:              internalbackoff.DefaultExponential,
+		healthCheckFunc: internal.HealthCheckFunc,
 		idleTimeout:     30 * time.Minute,
+		recvBufferPool:  nopBufferPool{},
 		defaultScheme:   "dns",
 		maxCallAttempts: defaultMaxCallAttempts,
 	}
@@ -744,8 +758,25 @@ func WithMaxCallAttempts(n int) DialOption {
 	})
 }
 
-func withBufferPool(bufferPool mem.BufferPool) DialOption {
+// WithRecvBufferPool returns a DialOption that configures the ClientConn
+// to use the provided shared buffer pool for parsing incoming messages. Depending
+// on the application's workload, this could result in reduced memory allocation.
+//
+// If you are unsure about how to implement a memory pool but want to utilize one,
+// begin with grpc.NewSharedBufferPool.
+//
+// Note: The shared buffer pool feature will not be active if any of the following
+// options are used: WithStatsHandler, EnableTracing, or binary logging. In such
+// cases, the shared buffer pool will be ignored.
+//
+// Deprecated: use experimental.WithRecvBufferPool instead.  Will be deleted in
+// v1.60.0 or later.
+func WithRecvBufferPool(bufferPool SharedBufferPool) DialOption {
+	return withRecvBufferPool(bufferPool)
+}
+
+func withRecvBufferPool(bufferPool SharedBufferPool) DialOption {
 	return newFuncDialOption(func(o *dialOptions) {
-		o.copts.BufferPool = bufferPool
+		o.recvBufferPool = bufferPool
 	})
 }

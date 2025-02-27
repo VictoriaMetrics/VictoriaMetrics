@@ -19,7 +19,6 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
-	"os"
 	"time"
 
 	"cloud.google.com/go/auth"
@@ -27,12 +26,12 @@ import (
 	"cloud.google.com/go/auth/internal"
 	"cloud.google.com/go/auth/internal/transport"
 	"cloud.google.com/go/auth/internal/transport/cert"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opencensus.io/plugin/ochttp"
 	"golang.org/x/net/http2"
 )
 
 const (
-	quotaProjectHeaderKey = "X-goog-user-project"
+	quotaProjectHeaderKey = "X-Goog-User-Project"
 )
 
 func newTransport(base http.RoundTripper, opts *Options) (http.RoundTripper, error) {
@@ -42,7 +41,7 @@ func newTransport(base http.RoundTripper, opts *Options) (http.RoundTripper, err
 		headers: headers,
 	}
 	var trans http.RoundTripper = ht
-	trans = addOpenTelemetryTransport(trans, opts)
+	trans = addOCTransport(trans, opts)
 	switch {
 	case opts.DisableAuthentication:
 		// Do nothing.
@@ -77,21 +76,13 @@ func newTransport(base http.RoundTripper, opts *Options) (http.RoundTripper, err
 			if headers == nil {
 				headers = make(map[string][]string, 1)
 			}
-			// Don't overwrite user specified quota
-			if v := headers.Get(quotaProjectHeaderKey); v == "" {
-				headers.Set(quotaProjectHeaderKey, qp)
-			}
-		}
-		var skipUD bool
-		if iOpts := opts.InternalOptions; iOpts != nil {
-			skipUD = iOpts.SkipUniverseDomainValidation
+			headers.Set(quotaProjectHeaderKey, qp)
 		}
 		creds.TokenProvider = auth.NewCachedTokenProvider(creds.TokenProvider, nil)
 		trans = &authTransport{
-			base:                         trans,
-			creds:                        creds,
-			clientUniverseDomain:         opts.UniverseDomain,
-			skipUniverseDomainValidation: skipUD,
+			base:                 trans,
+			creds:                creds,
+			clientUniverseDomain: opts.UniverseDomain,
 		}
 	}
 	return trans, nil
@@ -103,11 +94,7 @@ func newTransport(base http.RoundTripper, opts *Options) (http.RoundTripper, err
 // http.DefaultTransport.
 // If TLSCertificate is available, set TLSClientConfig as well.
 func defaultBaseTransport(clientCertSource cert.Provider, dialTLSContext func(context.Context, string, string) (net.Conn, error)) http.RoundTripper {
-	defaultTransport, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		defaultTransport = transport.BaseTransport()
-	}
-	trans := defaultTransport.Clone()
+	trans := http.DefaultTransport.(*http.Transport).Clone()
 	trans.MaxIdleConnsPerHost = 100
 
 	if clientCertSource != nil {
@@ -168,37 +155,29 @@ func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return rt.RoundTrip(&newReq)
 }
 
-func addOpenTelemetryTransport(trans http.RoundTripper, opts *Options) http.RoundTripper {
+func addOCTransport(trans http.RoundTripper, opts *Options) http.RoundTripper {
 	if opts.DisableTelemetry {
 		return trans
 	}
-	return otelhttp.NewTransport(trans)
+	return &ochttp.Transport{
+		Base:        trans,
+		Propagation: &httpFormat{},
+	}
 }
 
 type authTransport struct {
-	creds                        *auth.Credentials
-	base                         http.RoundTripper
-	clientUniverseDomain         string
-	skipUniverseDomainValidation bool
+	creds                *auth.Credentials
+	base                 http.RoundTripper
+	clientUniverseDomain string
 }
 
-// getClientUniverseDomain returns the default service domain for a given Cloud
-// universe, with the following precedence:
-//
-// 1. A non-empty option.WithUniverseDomain or similar client option.
-// 2. A non-empty environment variable GOOGLE_CLOUD_UNIVERSE_DOMAIN.
-// 3. The default value "googleapis.com".
-//
-// This is the universe domain configured for the client, which will be compared
-// to the universe domain that is separately configured for the credentials.
+// getClientUniverseDomain returns the universe domain configured for the client.
+// The default value is "googleapis.com".
 func (t *authTransport) getClientUniverseDomain() string {
-	if t.clientUniverseDomain != "" {
-		return t.clientUniverseDomain
+	if t.clientUniverseDomain == "" {
+		return internal.DefaultUniverseDomain
 	}
-	if envUD := os.Getenv(internal.UniverseDomainEnvVar); envUD != "" {
-		return envUD
-	}
-	return internal.DefaultUniverseDomain
+	return t.clientUniverseDomain
 }
 
 // RoundTrip authorizes and authenticates the request with an
@@ -218,7 +197,7 @@ func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !t.skipUniverseDomainValidation && token.MetadataString("auth.google.tokenSource") != "compute-metadata" {
+	if token.MetadataString("auth.google.tokenSource") != "compute-metadata" {
 		credentialsUniverseDomain, err := t.creds.UniverseDomain(req.Context())
 		if err != nil {
 			return nil, err

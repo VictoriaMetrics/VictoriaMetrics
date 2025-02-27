@@ -16,7 +16,7 @@
 package tsdb
 
 import (
-	"log/slog"
+	"github.com/go-kit/log"
 
 	"github.com/prometheus/prometheus/model/labels"
 )
@@ -26,7 +26,7 @@ func (s *memSeries) labels() labels.Labels {
 	return s.lset
 }
 
-// RebuildSymbolTable is a no-op when not using dedupelabels.
-func (h *Head) RebuildSymbolTable(logger *slog.Logger) *labels.SymbolTable {
+// No-op when not using dedupelabels.
+func (h *Head) RebuildSymbolTable(logger log.Logger) *labels.SymbolTable {
 	return nil
 }

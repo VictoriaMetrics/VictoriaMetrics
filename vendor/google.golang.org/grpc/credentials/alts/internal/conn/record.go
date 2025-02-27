@@ -266,3 +266,10 @@ func (p *conn) Write(b []byte) (n int, err error) {
 	}
 	return n, nil
 }
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

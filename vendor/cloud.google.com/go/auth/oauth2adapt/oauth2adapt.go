@@ -26,13 +26,6 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-const (
-	oauth2TokenSourceKey    = "oauth2.google.tokenSource"
-	oauth2ServiceAccountKey = "oauth2.google.serviceAccount"
-	authTokenSourceKey      = "auth.google.tokenSource"
-	authServiceAccountKey   = "auth.google.serviceAccount"
-)
-
 // TokenProviderFromTokenSource converts any [golang.org/x/oauth2.TokenSource]
 // into a [cloud.google.com/go/auth.TokenProvider].
 func TokenProviderFromTokenSource(ts oauth2.TokenSource) auth.TokenProvider {
@@ -54,21 +47,10 @@ func (tp *tokenProviderAdapter) Token(context.Context) (*auth.Token, error) {
 		}
 		return nil, err
 	}
-	// Preserve compute token metadata, for both types of tokens.
-	metadata := map[string]interface{}{}
-	if val, ok := tok.Extra(oauth2TokenSourceKey).(string); ok {
-		metadata[authTokenSourceKey] = val
-		metadata[oauth2TokenSourceKey] = val
-	}
-	if val, ok := tok.Extra(oauth2ServiceAccountKey).(string); ok {
-		metadata[authServiceAccountKey] = val
-		metadata[oauth2ServiceAccountKey] = val
-	}
 	return &auth.Token{
-		Value:    tok.AccessToken,
-		Type:     tok.Type(),
-		Expiry:   tok.Expiry,
-		Metadata: metadata,
+		Value:  tok.AccessToken,
+		Type:   tok.Type(),
+		Expiry: tok.Expiry,
 	}, nil
 }
 
@@ -94,29 +76,11 @@ func (ts *tokenSourceAdapter) Token() (*oauth2.Token, error) {
 		}
 		return nil, err
 	}
-	tok2 := &oauth2.Token{
+	return &oauth2.Token{
 		AccessToken: tok.Value,
 		TokenType:   tok.Type,
 		Expiry:      tok.Expiry,
-	}
-	// Preserve token metadata.
-	m := tok.Metadata
-	if m != nil {
-		// Copy map to avoid concurrent map writes error (#11161).
-		metadata := make(map[string]interface{}, len(m)+2)
-		for k, v := range m {
-			metadata[k] = v
-		}
-		// Append compute token metadata in converted form.
-		if val, ok := metadata[authTokenSourceKey].(string); ok && val != "" {
-			metadata[oauth2TokenSourceKey] = val
-		}
-		if val, ok := metadata[authServiceAccountKey].(string); ok && val != "" {
-			metadata[oauth2ServiceAccountKey] = val
-		}
-		tok2 = tok2.WithExtra(metadata)
-	}
-	return tok2, nil
+	}, nil
 }
 
 // AuthCredentialsFromOauth2Credentials converts a [golang.org/x/oauth2/google.Credentials]

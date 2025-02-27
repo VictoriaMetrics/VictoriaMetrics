@@ -14,17 +14,21 @@
 package logging
 
 import (
-	"context"
 	"fmt"
-	"log/slog"
 	"os"
+	"time"
 
-	"github.com/prometheus/common/promslog"
+	"github.com/go-kit/log"
 )
 
-// JSONFileLogger represents a logger that writes JSON to a file. It implements the promql.QueryLogger interface.
+var timestampFormat = log.TimestampFormat(
+	func() time.Time { return time.Now().UTC() },
+	"2006-01-02T15:04:05.000Z07:00",
+)
+
+// JSONFileLogger represents a logger that writes JSON to a file.
 type JSONFileLogger struct {
-	logger *slog.Logger
+	logger log.Logger
 	file   *os.File
 }
 
@@ -36,30 +40,21 @@ func NewJSONFileLogger(s string) (*JSONFileLogger, error) {
 
 	f, err := os.OpenFile(s, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o666)
 	if err != nil {
-		return nil, fmt.Errorf("can't create json log file: %w", err)
+		return nil, fmt.Errorf("can't create json logger: %w", err)
 	}
 
-	jsonFmt := &promslog.AllowedFormat{}
-	_ = jsonFmt.Set("json")
 	return &JSONFileLogger{
-		logger: promslog.New(&promslog.Config{Format: jsonFmt, Writer: f}),
+		logger: log.With(log.NewJSONLogger(f), "ts", timestampFormat),
 		file:   f,
 	}, nil
 }
 
-// Close closes the underlying file. It implements the promql.QueryLogger interface.
+// Close closes the underlying file.
 func (l *JSONFileLogger) Close() error {
 	return l.file.Close()
 }
 
-// With calls the `With()` method on the underlying `log/slog.Logger` with the
-// provided msg and args. It implements the promql.QueryLogger interface.
-func (l *JSONFileLogger) With(args ...any) {
-	l.logger = l.logger.With(args...)
-}
-
-// Log calls the `Log()` method on the underlying `log/slog.Logger` with the
-// provided msg and args. It implements the promql.QueryLogger interface.
-func (l *JSONFileLogger) Log(ctx context.Context, level slog.Level, msg string, args ...any) {
-	l.logger.Log(ctx, level, msg, args...)
+// Log calls the Log function of the underlying logger.
+func (l *JSONFileLogger) Log(i ...interface{}) error {
+	return l.logger.Log(i...)
 }

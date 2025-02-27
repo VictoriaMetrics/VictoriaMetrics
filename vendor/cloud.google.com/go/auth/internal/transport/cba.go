@@ -20,7 +20,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"log"
-	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -52,19 +51,22 @@ const (
 	mtlsMDSKey  = "/run/google-mds-mtls/client.key"
 )
 
+var (
+	errUniverseNotSupportedMTLS = errors.New("mTLS is not supported in any universe other than googleapis.com")
+)
+
 // Options is a struct that is duplicated information from the individual
 // transport packages in order to avoid cyclic deps. It correlates 1:1 with
 // fields on httptransport.Options and grpctransport.Options.
 type Options struct {
 	Endpoint                string
-	DefaultEndpointTemplate string
 	DefaultMTLSEndpoint     string
+	DefaultEndpointTemplate string
 	ClientCertProvider      cert.Provider
 	Client                  *http.Client
 	UniverseDomain          string
 	EnableDirectPath        bool
 	EnableDirectPathXds     bool
-	Logger                  *slog.Logger
 }
 
 // getUniverseDomain returns the default service domain for a given Cloud
@@ -90,16 +92,6 @@ func (o *Options) defaultEndpoint() string {
 		return ""
 	}
 	return strings.Replace(o.DefaultEndpointTemplate, universeDomainPlaceholder, o.getUniverseDomain(), 1)
-}
-
-// defaultMTLSEndpoint returns the DefaultMTLSEndpointTemplate merged with the
-// universe domain if the DefaultMTLSEndpointTemplate is set, otherwise returns an
-// empty string.
-func (o *Options) defaultMTLSEndpoint() string {
-	if o.DefaultMTLSEndpoint == "" {
-		return ""
-	}
-	return strings.Replace(o.DefaultMTLSEndpoint, universeDomainPlaceholder, o.getUniverseDomain(), 1)
 }
 
 // mergedEndpoint merges a user-provided Endpoint of format host[:port] with the
@@ -141,11 +133,7 @@ func GetGRPCTransportCredsAndEndpoint(opts *Options) (credentials.TransportCrede
 		transportCredsForS2A, err = loadMTLSMDSTransportCreds(mtlsMDSRoot, mtlsMDSKey)
 		if err != nil {
 			log.Printf("Loading MTLS MDS credentials failed: %v", err)
-			if config.s2aAddress != "" {
-				s2aAddr = config.s2aAddress
-			} else {
-				return defaultTransportCreds, config.endpoint, nil
-			}
+			return defaultTransportCreds, config.endpoint, nil
 		}
 	} else if config.s2aAddress != "" {
 		s2aAddr = config.s2aAddress
@@ -189,11 +177,7 @@ func GetHTTPTransportConfig(opts *Options) (cert.Provider, func(context.Context,
 		transportCredsForS2A, err = loadMTLSMDSTransportCreds(mtlsMDSRoot, mtlsMDSKey)
 		if err != nil {
 			log.Printf("Loading MTLS MDS credentials failed: %v", err)
-			if config.s2aAddress != "" {
-				s2aAddr = config.s2aAddress
-			} else {
-				return config.clientCertSource, nil, nil
-			}
+			return config.clientCertSource, nil, nil
 		}
 	} else if config.s2aAddress != "" {
 		s2aAddr = config.s2aAddress
@@ -264,9 +248,12 @@ func getTransportConfig(opts *Options) (*transportConfig, error) {
 	if !shouldUseS2A(clientCertSource, opts) {
 		return &defaultTransportConfig, nil
 	}
+	if !opts.isUniverseDomainGDU() {
+		return nil, errUniverseNotSupportedMTLS
+	}
 
-	s2aAddress := GetS2AAddress(opts.Logger)
-	mtlsS2AAddress := GetMTLSS2AAddress(opts.Logger)
+	s2aAddress := GetS2AAddress()
+	mtlsS2AAddress := GetMTLSS2AAddress()
 	if s2aAddress == "" && mtlsS2AAddress == "" {
 		return &defaultTransportConfig, nil
 	}
@@ -275,7 +262,7 @@ func getTransportConfig(opts *Options) (*transportConfig, error) {
 		endpoint:         endpoint,
 		s2aAddress:       s2aAddress,
 		mtlsS2AAddress:   mtlsS2AAddress,
-		s2aMTLSEndpoint:  opts.defaultMTLSEndpoint(),
+		s2aMTLSEndpoint:  opts.DefaultMTLSEndpoint,
 	}, nil
 }
 
@@ -321,23 +308,24 @@ type transportConfig struct {
 // getEndpoint returns the endpoint for the service, taking into account the
 // user-provided endpoint override "settings.Endpoint".
 //
-// If no endpoint override is specified, we will either return the default
-// endpoint or the default mTLS endpoint if a client certificate is available.
+// If no endpoint override is specified, we will either return the default endpoint or
+// the default mTLS endpoint if a client certificate is available.
 //
-// You can override the default endpoint choice (mTLS vs. regular) by setting
-// the GOOGLE_API_USE_MTLS_ENDPOINT environment variable.
+// You can override the default endpoint choice (mtls vs. regular) by setting the
+// GOOGLE_API_USE_MTLS_ENDPOINT environment variable.
 //
 // If the endpoint override is an address (host:port) rather than full base
 // URL (ex. https://...), then the user-provided address will be merged into
 // the default endpoint. For example, WithEndpoint("myhost:8000") and
-// DefaultEndpointTemplate("https://UNIVERSE_DOMAIN/bar/baz") will return
-// "https://myhost:8080/bar/baz". Note that this does not apply to the mTLS
-// endpoint.
+// DefaultEndpointTemplate("https://UNIVERSE_DOMAIN/bar/baz") will return "https://myhost:8080/bar/baz"
 func getEndpoint(opts *Options, clientCertSource cert.Provider) (string, error) {
 	if opts.Endpoint == "" {
 		mtlsMode := getMTLSMode()
 		if mtlsMode == mTLSModeAlways || (clientCertSource != nil && mtlsMode == mTLSModeAuto) {
-			return opts.defaultMTLSEndpoint(), nil
+			if !opts.isUniverseDomainGDU() {
+				return "", errUniverseNotSupportedMTLS
+			}
+			return opts.DefaultMTLSEndpoint, nil
 		}
 		return opts.defaultEndpoint(), nil
 	}

@@ -20,9 +20,7 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"strconv"
 	"strings"
-	"sync"
 	"unicode/utf8"
 
 	"github.com/gogo/protobuf/proto"
@@ -35,15 +33,6 @@ import (
 
 	dto "github.com/prometheus/prometheus/prompb/io/prometheus/client"
 )
-
-// floatFormatBufPool is exclusively used in formatOpenMetricsFloat.
-var floatFormatBufPool = sync.Pool{
-	New: func() interface{} {
-		// To contain at most 17 digits and additional syntax for a float64.
-		b := make([]byte, 0, 24)
-		return &b
-	},
-}
 
 // ProtobufParser is a very inefficient way of unmarshaling the old Prometheus
 // protobuf format and then present it as it if were parsed by a
@@ -58,7 +47,7 @@ var floatFormatBufPool = sync.Pool{
 // the re-arrangement work is actually causing problems (which has to be seen),
 // that expectation needs to be changed.
 type ProtobufParser struct {
-	in        []byte // The input to parse.
+	in        []byte // The intput to parse.
 	inPos     int    // Position within the input.
 	metricPos int    // Position within Metric slice.
 	// fieldPos is the position within a Summary or (legacy) Histogram. -2
@@ -82,7 +71,7 @@ type ProtobufParser struct {
 
 	mf *dto.MetricFamily
 
-	// Whether to also parse a classic histogram that is also present as a
+	// Wether to also parse a classic histogram that is also present as a
 	// native histogram.
 	parseClassicHistograms bool
 
@@ -420,7 +409,6 @@ func (p *ProtobufParser) Next() (Entry, error) {
 	switch p.state {
 	case EntryInvalid:
 		p.metricPos = 0
-		p.exemplarPos = 0
 		p.fieldPos = -2
 		n, err := readDelimited(p.in[p.inPos:], p.mf)
 		p.inPos += n
@@ -468,12 +456,6 @@ func (p *ProtobufParser) Next() (Entry, error) {
 
 		p.state = EntryHelp
 	case EntryHelp:
-		if p.mf.Unit != "" {
-			p.state = EntryUnit
-		} else {
-			p.state = EntryType
-		}
-	case EntryUnit:
 		p.state = EntryType
 	case EntryType:
 		t := p.mf.GetType()
@@ -503,7 +485,6 @@ func (p *ProtobufParser) Next() (Entry, error) {
 			p.metricPos++
 			p.fieldPos = -2
 			p.fieldsDone = false
-			p.exemplarPos = 0
 			// If this is a metric family containing native
 			// histograms, we have to switch back to native
 			// histograms after parsing a classic histogram.
@@ -621,7 +602,7 @@ func readDelimited(b []byte, mf *dto.MetricFamily) (n int, err error) {
 	return totalLength, mf.Unmarshal(b[varIntLength:totalLength])
 }
 
-// formatOpenMetricsFloat works like the usual Go string formatting of a float
+// formatOpenMetricsFloat works like the usual Go string formatting of a fleat
 // but appends ".0" if the resulting number would otherwise contain neither a
 // "." nor an "e".
 func formatOpenMetricsFloat(f float64) string {
@@ -640,15 +621,11 @@ func formatOpenMetricsFloat(f float64) string {
 	case math.IsInf(f, -1):
 		return "-Inf"
 	}
-	bp := floatFormatBufPool.Get().(*[]byte)
-	defer floatFormatBufPool.Put(bp)
-
-	*bp = strconv.AppendFloat((*bp)[:0], f, 'g', -1, 64)
-	if bytes.ContainsAny(*bp, "e.") {
-		return string(*bp)
+	s := fmt.Sprint(f)
+	if strings.ContainsAny(s, "e.") {
+		return s
 	}
-	*bp = append(*bp, '.', '0')
-	return string(*bp)
+	return s + ".0"
 }
 
 // isNativeHistogram returns false iff the provided histograms has no spans at

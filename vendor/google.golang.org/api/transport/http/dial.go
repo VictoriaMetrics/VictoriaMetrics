@@ -19,6 +19,7 @@ import (
 	"cloud.google.com/go/auth/credentials"
 	"cloud.google.com/go/auth/httptransport"
 	"cloud.google.com/go/auth/oauth2adapt"
+	"go.opencensus.io/plugin/ochttp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/net/http2"
 	"golang.org/x/oauth2"
@@ -26,6 +27,7 @@ import (
 	"google.golang.org/api/internal"
 	"google.golang.org/api/internal/cert"
 	"google.golang.org/api/option"
+	"google.golang.org/api/transport/http/internal/propagation"
 )
 
 // NewClient returns an HTTP client for use communicating with a Google cloud
@@ -119,7 +121,6 @@ func newClientNewAuth(ctx context.Context, base http.RoundTripper, ds *internal.
 			Audience:        aud,
 			CredentialsFile: ds.CredentialsFile,
 			CredentialsJSON: ds.CredentialsJSON,
-			Logger:          ds.Logger,
 		},
 		InternalOptions: &httptransport.InternalOptions{
 			EnableJWTWithScope:      ds.EnableJwtWithScope,
@@ -129,8 +130,6 @@ func newClientNewAuth(ctx context.Context, base http.RoundTripper, ds *internal.
 			DefaultScopes:           ds.DefaultScopes,
 			SkipValidation:          skipValidation,
 		},
-		UniverseDomain: ds.UniverseDomain,
-		Logger:         ds.Logger,
 	})
 	if err != nil {
 		return nil, err
@@ -165,7 +164,10 @@ func newTransport(ctx context.Context, base http.RoundTripper, settings *interna
 		requestReason: settings.RequestReason,
 	}
 	var trans http.RoundTripper = paramTransport
+	// Give OpenTelemetry precedence over OpenCensus in case user configuration
+	// causes both to write the same header (`X-Cloud-Trace-Context`).
 	trans = addOpenTelemetryTransport(trans, settings)
+	trans = addOCTransport(trans, settings)
 	switch {
 	case settings.NoAuth:
 		// Do nothing.
@@ -304,6 +306,16 @@ func addOpenTelemetryTransport(trans http.RoundTripper, settings *internal.DialS
 		return trans
 	}
 	return otelhttp.NewTransport(trans)
+}
+
+func addOCTransport(trans http.RoundTripper, settings *internal.DialSettings) http.RoundTripper {
+	if settings.TelemetryDisabled {
+		return trans
+	}
+	return &ochttp.Transport{
+		Base:        trans,
+		Propagation: &propagation.HTTPFormat{},
+	}
 }
 
 // clonedTransport returns the given RoundTripper as a cloned *http.Transport.
