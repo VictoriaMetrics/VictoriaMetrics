@@ -1866,6 +1866,9 @@ func parseInValues(lex *lexer, fieldName string, f filter, iv *inValues) (filter
 	if err != nil {
 		return nil, err
 	}
+	if q == nil {
+		return &filterNoop{}, nil
+	}
 
 	iv.q = q
 	iv.qFieldName = qFieldName
@@ -2819,6 +2822,9 @@ func parseFilterStreamIDIn(lex *lexer) (filter, error) {
 	if err != nil {
 		return nil, err
 	}
+	if q == nil {
+		return &filterNoop{}, nil
+	}
 
 	fs = &filterStreamID{
 		q:          q,
@@ -2832,12 +2838,28 @@ func parseInQuery(lex *lexer) (*Query, string, error) {
 	if err != nil {
 		return nil, "", fmt.Errorf("cannot parse in(...) query: %w", err)
 	}
-
+	if q.isStarQuery() {
+		return nil, "", nil
+	}
 	qFieldName, err := getFieldNameFromPipes(q.pipes)
 	if err != nil {
 		return nil, "", fmt.Errorf("cannot determine field name for values in 'in(%s)': %w", q, err)
 	}
 	return q, qFieldName, nil
+}
+
+func (q *Query) isStarQuery() bool {
+	if len(q.pipes) > 0 {
+		return false
+	}
+	switch t := q.f.(type) {
+	case *filterNoop:
+		return true
+	case *filterPrefix:
+		return len(t.prefix) == 0
+	default:
+		return false
+	}
 }
 
 func getFieldNameFromPipes(pipes []pipe) (string, error) {
