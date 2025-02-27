@@ -16,7 +16,7 @@ VictoriaMetrics community components are open source and are free to use - see [
 and [the license](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/LICENSE).
 
 VictoriaMetrics Enterprise components are available in binary form at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
-and at [docker hub](https://hub.docker.com/u/victoriametrics). Enterprise binaries and packages have `enterprise` suffix in their names.
+and at [Docker Hub](https://hub.docker.com/u/victoriametrics) and [Quay](https://quay.io/organization/victoriametrics). Enterprise binaries and packages have `enterprise` suffix in their names.
 
 ## Valid cases for VictoriaMetrics Enterprise
 
@@ -115,7 +115,7 @@ Alternatively, VictoriaMetrics Enterprise license can be stored in the file and 
 
 It is allowed to run VictoriaMetrics Enterprise components in [cases listed here](#valid-cases-for-victoriametrics-enterprise).
 
-Docker images for VictoriaMetrics Enterprise are available [at VictoriaMetrics DockerHub](https://hub.docker.com/u/victoriametrics).
+Docker images for VictoriaMetrics Enterprise are available at VictoriaMetrics [Docker Hub](https://hub.docker.com/u/victoriametrics) and [Quay](https://quay.io/organization/victoriametrics).
 Enterprise docker images have `enterprise` suffix in their names. For example, `victoriametrics/victoria-metrics:v1.112.0-enterprise`.
 
 In order to run Docker image of VictoriaMetrics Enterprise component, it is required to provide the license key via command-line

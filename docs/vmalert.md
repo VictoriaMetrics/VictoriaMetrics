@@ -521,7 +521,7 @@ is obtained from `-defaultTenant.prometheus` or `-defaultTenant.graphite` depend
 
 The enterprise version of vmalert is available in `vmutils-*-enterprise.tar.gz` files
 at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) and in `*-enterprise`
-tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
+tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags) and [Quay](https://quay.io/repository/victoriametrics/vmalert?tab=tags).
 
 ### Reading rules from object storage
 
