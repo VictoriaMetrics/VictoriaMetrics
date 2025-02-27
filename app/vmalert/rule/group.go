@@ -88,10 +88,10 @@ func newGroupMetrics(g *Group) *groupMetrics {
 	m.set = metrics.NewSet()
 
 	labels := fmt.Sprintf(`group=%q, file=%q`, g.Name, g.File)
-	m.iterationTotal = m.set.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
-	m.iterationDuration = m.set.GetOrCreateSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
-	m.iterationMissed = m.set.GetOrCreateCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
-	m.iterationInterval = m.set.GetOrCreateGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
+	m.iterationTotal = m.set.NewCounter(fmt.Sprintf(`vmalert_iteration_total{%s}`, labels))
+	m.iterationDuration = m.set.NewSummary(fmt.Sprintf(`vmalert_iteration_duration_seconds{%s}`, labels))
+	m.iterationMissed = m.set.NewCounter(fmt.Sprintf(`vmalert_iteration_missed_total{%s}`, labels))
+	m.iterationInterval = m.set.NewGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
 		g.mu.RLock()
 		i := g.Interval.Seconds()
 		g.mu.RUnlock()
