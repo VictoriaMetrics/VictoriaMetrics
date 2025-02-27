@@ -522,6 +522,19 @@ func TestParseFilterIn(t *testing.T) {
 	f(`a:in(* | fields bar)`, `a`, nil)
 }
 
+func TestParseFilterInStar(t *testing.T) {
+	s := "in(*)"
+
+	q, err := ParseQuery(s)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	_, ok := q.f.(*filterNoop)
+	if !ok {
+		t.Fatalf("unexpected filter type; got %T; want *filterNoop; filter: %s", q.f, q.f)
+	}
+}
+
 func TestParseFilterContainsAll(t *testing.T) {
 	f := func(s, fieldNameExpected string, valuesExpected []string) {
 		t.Helper()
@@ -969,6 +982,9 @@ func TestParseQuery_Success(t *testing.T) {
 		`_stream_id:in(0000007b000001c8302bc96e02e54e5524b3a68ec271e55e,0000007b000001c850d9950ea6196b1a4812081265faa1c7)`)
 	f(`_stream_id:in(_time:5m | fields _stream_id)`, `_stream_id:in(_time:5m | fields _stream_id)`)
 
+	// _stream_id filter with star
+	f(`_stream_id:in(*)`, `*`)
+
 	// _stream filters
 	f(`_stream:{}`, `{}`)
 	f(`_stream:{foo="bar", baz=~"x" OR or!="b", "x=},"="d}{"}`, `{foo="bar",baz=~"x" or "or"!="b","x=},"="d}{"}`)
@@ -1176,6 +1192,10 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`in("foo bar", baz)`, `in("foo bar",baz)`)
 	f(`foo:in(foo-bar/baz)`, `foo:in("foo-bar/baz")`)
 
+	// in filter with star
+	f(`in(*)`, `*`)
+	f(`foo:in(*)`, `*`)
+
 	// in filter with query
 	f(`in(err|fields x)`, `in(err | fields x)`)
 	f(`ip:in(foo and user:in(admin, moderator)|fields ip)`, `ip:in(foo user:in(admin,moderator) | fields ip)`)
@@ -1190,6 +1210,10 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`contains_any("foo bar", baz)`, `contains_any("foo bar",baz)`)
 	f(`foo:contains_any(foo-bar/baz)`, `foo:contains_any("foo-bar/baz")`)
 
+	// contains_any filter with star
+	f(`contains_any(*)`, `*`)
+	f(`foo:contains_any(*)`, `*`)
+
 	// contains_any filter with query
 	f(`contains_any(err|fields x)`, `contains_any(err | fields x)`)
 	f(`ip:contains_any(foo and user:contains_any(admin, moderator)|fields ip)`, `ip:contains_any(foo user:contains_any(admin,moderator) | fields ip)`)
@@ -1203,6 +1227,10 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`contains_all(foo, bar)`, `contains_all(foo,bar)`)
 	f(`contains_all("foo bar", baz)`, `contains_all("foo bar",baz)`)
 	f(`foo:contains_all(foo-bar/baz)`, `foo:contains_all("foo-bar/baz")`)
+
+	// contains_all filter with star
+	f(`contains_all(*)`, `*`)
+	f(`foo:contains_all(*)`, `*`)
 
 	// contains_all filter with query
 	f(`contains_all(err|fields x)`, `contains_all(err | fields x)`)
