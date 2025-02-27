@@ -18,8 +18,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
-* SECURITY: upgrade Go builder from Go1.23.6 to Go1.24. See the list of issues addressed in [Go1.24](https://github.com/golang/go/issues?q=milestone%3AGo1.24).
-
+* FEATURE: upgrade Go builder from Go1.23.6 to Go1.24. See [Go1.24 release notes](https://tip.golang.org/doc/go1.24).
 * FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmalert.yml): add alerting rule `TooHighQueryLoad` to notify user when VictoriaMetrics or vmselect weren't able to serve requests in timely manner during last 15min.
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229) and [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): add panel `Deduplication rate` that shows how many samples are [deduplicated](https://docs.victoriametrics.com/#deduplication) during merges or read queries by VictoriaMetrics components.
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229) and [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): add panel `Number of snapshots` that shows the max number of [snapshots](https://docs.victoriametrics.com/#how-to-work-with-snapshots) across vmstorage nodes. This panel should help in disk usage [troubleshooting](https://docs.victoriametrics.com/#snapshot-troubleshooting).
