@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
 func TestDeduplicator(t *testing.T) {
@@ -18,7 +19,7 @@ func TestDeduplicator(t *testing.T) {
 	}
 
 	offsetMsecs := time.Now().Add(time.Minute).UnixMilli()
-	tss := prompbmarshal.MustParsePromMetrics(`
+	tss := prometheus.MustParsePromMetrics(`
 foo{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",namespace="asdff",container="ohohffd"} 123
 bar{instance="x",job="aaa",pod="sdfd-dfdfdfs",node="aosijjewrerfd",namespace="asdff",container="ohohffd"} 34.54
 x 8943 1
