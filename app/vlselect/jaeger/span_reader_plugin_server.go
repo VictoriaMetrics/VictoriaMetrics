@@ -8,11 +8,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jaegertracing/jaeger/model"
+	"github.com/jaegertracing/jaeger/storage/spanstore"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/jaegertracing/jaeger/model"
-	"github.com/jaegertracing/jaeger/storage/spanstore"
 )
 
 // A SpanReaderPluginServer represents a Jaeger interface to read from gRPC storage backend
@@ -44,7 +45,7 @@ func (s *SpanReaderPluginServer) GetTrace(ctx context.Context, traceID model.Tra
 					spansLock.Lock()
 					spanRows = append(spanRows, span{
 						timestamp: timestamp,
-						msg:       columns[j].Values[i],
+						msg:       strings.Clone(columns[j].Values[i]),
 					})
 					spansLock.Unlock()
 				}
