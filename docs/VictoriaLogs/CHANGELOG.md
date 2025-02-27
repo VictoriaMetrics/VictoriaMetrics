@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [`pack_json` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#pack_json-pipe): allow packing fields, which start with the given prefixes. For example, `pack_json fields (foo.*, bar.*)` creates a JSON containing all the fields, which start with either `foo.` or `bar.`.
+* FEATURE: [`pack_logfmt` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#pack_logfmt-pipe): allow packing fields, which start with the given prefixes. For example, `pack_logfmt fields (foo.*, bar.*)` creates [logfmt](https://brandur.org/logfmt) message containing all the fields, which start with either `foo.` or `bar.`.
 * FEATURE: expose `vl_request_duration_seconds` [summaries](https://docs.victoriametrics.com/keyconcepts/#summary) for [select APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) at the [/metrics](https://docs.victoriametrics.com/victorialogs/#monitoring) page.
 * FEATURE: allow passing `*` as a subquery inside [`in(*)`, `contains_any(*)` and `contains_all(*)` filters](https://docs.victoriametrics.com/victorialogs/logsql/#subquery-filter). Such filter are treated as `match all` aka `*`. This is going to be used by [Grafana plugin for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/). See [this issue](https://github.com/VictoriaMetrics/victorialogs-datasource/issues/238#issuecomment-2685447673).
 * FEATURE: [victorialogs dashboard](https://grafana.com/grafana/dashboards/22084-victorialogs/): add panels to display amount of ingested logs in bytes, latency of [select APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) calls, troubleshooting panels.
