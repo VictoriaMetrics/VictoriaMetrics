@@ -141,9 +141,8 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 				fmt.Println("FAILED")
 				fmt.Printf("failed to run unit test for file %q: \n%v", fileName, err)
 				return true
-			} else {
-				fmt.Println("SUCCESS")
 			}
+			fmt.Println("SUCCESS")
 		}
 		return false
 	}
