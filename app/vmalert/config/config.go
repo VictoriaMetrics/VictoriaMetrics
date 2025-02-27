@@ -88,6 +88,9 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 	if g.EvalOffset.Duration() > g.Interval.Duration() {
 		return fmt.Errorf("eval_offset should be smaller than interval; now eval_offset: %v, interval: %v", g.EvalOffset.Duration(), g.Interval.Duration())
 	}
+	if g.EvalOffset != nil && g.EvalDelay != nil {
+		return fmt.Errorf("eval_offset cannot be used with eval_delay")
+	}
 	if g.Limit < 0 {
 		return fmt.Errorf("invalid limit %d, shouldn't be less than 0", g.Limit)
 	}
