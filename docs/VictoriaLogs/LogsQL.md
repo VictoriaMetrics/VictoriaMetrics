@@ -2437,6 +2437,13 @@ only and stores the result in `baz` field:
 _time:5m | pack_json fields (foo, bar) as baz
 ```
 
+It is possible to pass field prefixes into `fields (...)` in order to pack only the fields, which start with the given prefixes.
+For example, the following query builds JSON with all the fields, which start with either `foo.` or `bar.`:
+
+```logsql
+_time:5m | pack_json fields (foo.*, bar.*) as baz
+```
+
 The `pack_json` doesn't modify or delete other labels. If you do not need them, then add [`| fields ...`](#fields-pipe) after the `pack_json` pipe. For example, the following query
 leaves only the `foo` label with the original log fields packed into JSON:
 
@@ -2474,6 +2481,13 @@ For example, the following query builds [logfmt](https://brandur.org/logfmt) mes
 
 ```logsql
 _time:5m | pack_logfmt fields (foo, bar) as baz
+```
+
+It is possible to pass field prefixes into `fields (...)` in order to pack only the fields, which start with the given prefixes.
+For example, the following query builds `logfmt` message with all the fields, which start with either `foo.` or `bar.`:
+
+```logsql
+_time:5m | pack_logfmt fields (foo.*, bar.*) as baz
 ```
 
 The `pack_logfmt` doesn't modify or delete other labels. If you do not need them, then add [`| fields ...`](#fields-pipe) after the `pack_logfmt` pipe. For example, the following query
