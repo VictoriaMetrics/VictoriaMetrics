@@ -159,6 +159,7 @@ func (s *SpanReaderPluginServer) FindTraceIDs(ctx context.Context, query *spanst
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
 	q.AddTimeFilter(query.StartTimeMin.UnixNano(), query.StartTimeMax.UnixNano())
+	q.AddPipeLimit(uint64(query.NumTraces))
 
 	traceIDSet := make(map[string]struct{})
 	traceIDLock := sync.Mutex{}
