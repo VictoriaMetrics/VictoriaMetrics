@@ -182,7 +182,7 @@ type cache struct {
 	getMaxSizeBytes func() int
 
 	// mu protects all the fields below.
-	mu sync.Mutex
+	mu sync.RWMutex
 
 	// m contains cached blocks keyed by Key.Part and then by Key.Offset
 	m map[any]map[uint64]*cacheEntry
@@ -280,8 +280,8 @@ func (c *cache) cleanByTimeout() {
 func (c *cache) GetBlock(k Key) Block {
 	c.requests.Add(1)
 	var e *cacheEntry
-	c.mu.Lock()
-	defer c.mu.Unlock()
+
+	c.mu.RLock()
 
 	pes := c.m[k.Part]
 	if pes != nil {
@@ -289,16 +289,33 @@ func (c *cache) GetBlock(k Key) Block {
 		if e != nil {
 			// Fast path - the block already exists in the cache, so return it to the caller.
 			currentTime := fasttime.UnixTimestamp()
-			if e.lastAccessTime != currentTime {
-				e.lastAccessTime = currentTime
-				heap.Fix(&c.lah, e.heapIdx)
+			v := e.b
+			lat := atomic.LoadUint64(&e.lastAccessTime)
+			c.mu.RUnlock()
+
+			// update records once in 5 seconds
+			// it should spread write locks and reduce lock contention
+			if lat+5 < currentTime {
+				c.mu.Lock()
+				// concurrent thread may already fix heap
+				lat = atomic.LoadUint64(&e.lastAccessTime)
+				if lat+5 < currentTime {
+					atomic.StoreUint64(&e.lastAccessTime, currentTime)
+					heap.Fix(&c.lah, e.heapIdx)
+				}
+				c.mu.Unlock()
 			}
-			return e.b
+
+			return v
 		}
 	}
+	c.mu.RUnlock()
+
 	// Slow path - the entry is missing in the cache.
+	c.mu.Lock()
 	c.perKeyMisses[k]++
 	c.misses.Add(1)
+	c.mu.Unlock()
 	return nil
 }
 
