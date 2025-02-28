@@ -9,11 +9,13 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -133,16 +135,34 @@ func UnitTest(files []string, disableGroupLabel bool, externalLabels []string, e
 	}
 
 	var failed bool
-	for fileName, file := range testfiles {
-		if err := ruleUnitTest(fileName, file, labels); err != nil {
-			fmt.Println("FAILED")
-			fmt.Printf("failed to run unit test for file %q: \n%v", fileName, err)
-			failed = true
-		} else {
-			fmt.Println("  SUCCESS")
+	runTest := func() bool {
+		for fileName, file := range testfiles {
+			if err := ruleUnitTest(fileName, file, labels); err != nil {
+				fmt.Println("FAILED")
+				fmt.Printf("failed to run unit test for file %q: \n%v", fileName, err)
+				return true
+			}
+			fmt.Println("SUCCESS")
 		}
+		return false
 	}
 
+	finishCh := make(chan struct{}, 1)
+	go func() {
+		failed = runTest()
+		finishCh <- struct{}{}
+	}()
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case sig := <-sigs:
+		fmt.Printf("received signal %s\n", sig)
+		failed = true
+		break
+	case <-finishCh:
+		break
+	}
 	return failed
 }
 
