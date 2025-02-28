@@ -8,8 +8,8 @@ title: vmalert
 aliases:
   - /vmalert.html
 ---
-`vmalert` executes a list of the given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
-or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
+`vmalert` executes a list of the given [alerting](https://docs.victoriametrics.com/vmalert/#alerting-rules)
+or [recording](https://docs.victoriametrics.com/vmalert/#recording-rules)
 rules against configured `-datasource.url`. For sending alerting notifications
 `vmalert` relies on [Alertmanager](https://github.com/prometheus/alertmanager) configured via `-notifier.url` flag.
 Recording rules results are persisted via [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
