@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+**Update note 1: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/) include a fix which enforces IPv6 addresses escaping for containers discovered with [Kubernetes service-discovery](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) and `role: pod` which do not have exposed ports defined. This means that `address` for these containers will always be wrapped in square brackets, this might affect some relabeling rules which were relying on previous behaviour.**
+
 * FEATURE: upgrade Go builder from Go1.23.6 to Go1.24. See [Go1.24 release notes](https://tip.golang.org/doc/go1.24).
 * FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmalert.yml): add alerting rule `TooHighQueryLoad` to notify user when VictoriaMetrics or vmselect weren't able to serve requests in timely manner during last 15min.
 * FEATURE: [dashboards/single](https://grafana.com/grafana/dashboards/10229) and [dashboards/cluster](https://grafana.com/grafana/dashboards/11176): add panel `Deduplication rate` that shows how many samples are [deduplicated](https://docs.victoriametrics.com/#deduplication) during merges or read queries by VictoriaMetrics components.
@@ -31,6 +33,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/): properly apply global relabeling configuration, defined with  `-relabelConfig` flag, for metrics scrapped with `-promscrape.config`. Bug was introduces in [v1.108.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.108.0). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8389).
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager/): properly propagate an error message when applying retention policy fails. Previously, an actual error messages was discarded.
 * BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway): fix data query in [rate limiter](https://docs.victoriametrics.com/vmgateway/#rate-limiter). The bug was introduced in [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/68bad22fd26d1436ad0236b1f3ced8604c5d851c) starting from [v1.106.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.106.0).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): properly escape IPv6 address in [Kubernetes service-discovery](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) with `role: pod` for containers without exposed ports. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8374).
 
 ## [v1.112.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.112.0)
 
