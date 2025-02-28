@@ -189,3 +189,7 @@ func (s *SpanReaderPluginServer) FindTraceIDs(ctx context.Context, query *spanst
 	}
 	return traceIDList, nil
 }
+
+func (s *SpanReaderPluginServer) GetDependencies(ctx context.Context, endTs time.Time, lookback time.Duration) ([]model.DependencyLink, error) {
+	return []model.DependencyLink{}, nil
+}

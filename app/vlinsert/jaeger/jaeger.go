@@ -25,7 +25,7 @@ func MustInit() {
 	handler := shared.NewGRPCHandler(&shared.GRPCHandlerStorageImpl{
 		SpanReader:          func() spanstore.Reader { return &jaeger2.SpanReaderPluginServer{} },
 		SpanWriter:          func() spanstore.Writer { return &SpanWriterPluginServer{} },
-		DependencyReader:    func() dependencystore.Reader { return nil },
+		DependencyReader:    func() dependencystore.Reader { return &jaeger2.SpanReaderPluginServer{} },
 		ArchiveSpanReader:   func() spanstore.Reader { return nil },
 		ArchiveSpanWriter:   func() spanstore.Writer { return nil },
 		StreamingSpanWriter: func() spanstore.Writer { return nil },
