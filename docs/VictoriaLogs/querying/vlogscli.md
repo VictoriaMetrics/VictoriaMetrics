@@ -18,7 +18,7 @@ It has the following features:
 - It supports live tailing - see [these docs](#live-tailing).
 
 This tool can be obtained from the linked release pages at the [changelog](https://docs.victoriametrics.com/victorialogs/changelog/)
-or from [docker images](https://hub.docker.com/r/victoriametrics/vlogscli/tags).
+or from docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/vlogscli/tags) and [Quay](https://quay.io/repository/victoriametrics/vlogscli?tab=tags).
 
 ### Running `vlogscli` from release binary
 
