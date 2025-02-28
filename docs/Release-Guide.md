@@ -17,7 +17,7 @@ git remote add enterprise <url>
 1. Make sure you have singing key configured
 1. Make sure you have github token with at least `read:org, repo, write:packages` permissions exported under `GITHUB_TOKEN` env variable.
    You can create token [here](https://github.com/settings/tokens)
-1. Make sure you're [authorized](https://hub.docker.com/orgs/victoriametrics/settings/enforce-sign-in/windows) for pushing docker images 
+1. Make sure you're [authorized](https://hub.docker.com/orgs/victoriametrics/settings/enforce-sign-in/windows) for pushing docker images to `docker.io` and `quay.io`
 
 ### For MacOS users
 
