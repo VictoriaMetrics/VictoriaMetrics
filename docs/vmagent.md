@@ -1402,7 +1402,7 @@ These messages can be read later from Google PubSub by another `vmagent` instanc
 
 These command-line flags are available only in [enterprise](https://docs.victoriametrics.com/enterprise/) version of `vmagent`,
 which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
-(see `vmutils-...-enterprise.tar.gz` archives) and fromdocker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vmagent?tab=tags) with tags containing `enterprise` suffix.
+(see `vmutils-...-enterprise.tar.gz` archives) and from docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vmagent?tab=tags) with tags containing `enterprise` suffix.
 
 ```sh
   -gcp.pubsub.publish.byteThreshold int
