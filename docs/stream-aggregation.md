@@ -1164,9 +1164,8 @@ It depends on network lag, load, clock synchronization, etc. In most scenarios i
 deduplication results, which are consistent within margin of error. But for metrics represented as a collection of series,
 like [histograms](https://docs.victoriametrics.com/keyconcepts/#histogram), such inaccuracy leads to invalid aggregation results.
 
-For this case, streaming aggregation and deduplication support mode with aggregation windows{{% available_from "v1.112.0" %}}
-for current and previous state. With this mode, flush doesn't happen immediately but is shifted by a calculated samples 
-lag that improves correctness for delayed data.
+For this case, streaming aggregation and deduplication support mode with aggregation windows for current and previous state.
+With this mode, flush doesn't happen immediately but is shifted by a calculated samples lag that improves correctness for delayed data. {{% available_from "v1.112.0" %}}
 
 Enabling of this mode has increased resource usage: memory usage is expected to double as aggregation will store two states
 instead of one. However, this significantly improves accuracy of calculations. Aggregation windows can be enabled via
