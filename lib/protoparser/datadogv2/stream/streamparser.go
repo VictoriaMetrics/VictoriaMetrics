@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutils"
@@ -18,12 +19,12 @@ import (
 // Parse parses DataDog POST request for /api/v2/series from reader and calls callback for the parsed request.
 //
 // callback shouldn't hold series after returning.
-func Parse(r io.Reader, contentEncoding, contentType string, callback func(series []datadogv2.Series) error) error {
+func Parse(r io.Reader, encoding, contentType string, callback func(series []datadogv2.Series) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
 
-	switch contentEncoding {
+	switch encoding {
 	case "gzip":
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
@@ -38,6 +39,13 @@ func Parse(r io.Reader, contentEncoding, contentType string, callback func(serie
 		}
 		defer common.PutZlibReader(zlr)
 		r = zlr
+	case "zstd":
+		zlr := zstd.NewReader(r)
+		defer zlr.Release()
+		r = zlr
+	case "":
+	default:
+		return fmt.Errorf("unsupported encoding type %q", encoding)
 	}
 
 	ctx := getPushCtx(r)

@@ -3,6 +3,7 @@
 package zstd
 
 import (
+	"io"
 	"sync"
 	"sync/atomic"
 

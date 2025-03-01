@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -46,7 +47,7 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 	w.Header().Add("Content-Type", "application/json")
 	startTime := time.Now()
 	v2LogsRequestsTotal.Inc()
-	reader := r.Body
+	var reader io.Reader = r.Body
 
 	var ts int64
 	if tsValue := r.Header.Get("dd-message-timestamp"); tsValue != "" && tsValue != "0" {
@@ -61,7 +62,9 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 		ts = startTime.UnixNano()
 	}
 
-	if r.Header.Get("Content-Encoding") == "gzip" {
+	encoding := r.Header.Get("Content-Encoding")
+	switch encoding {
+	case "gzip":
 		zr, err := common.GetGzipReader(reader)
 		if err != nil {
 			httpserver.Errorf(w, r, "cannot read gzipped logs request: %s", err)
@@ -69,6 +72,14 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 		}
 		defer common.PutGzipReader(zr)
 		reader = zr
+	case "zstd":
+		zr := zstd.NewReader(reader)
+		defer zr.Release()
+		reader = zr
+	case "":
+	default:
+		httpserver.Errorf(w, r, "unsupported encoding type %q", encoding)
+		return true
 	}
 
 	wcr := writeconcurrencylimiter.GetReader(reader)
