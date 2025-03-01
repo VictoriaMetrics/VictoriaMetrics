@@ -14,32 +14,32 @@ package gozstd
 // durting calls from Go.
 // See https://github.com/golang/go/issues/24450 .
 
-static size_t ZSTD_CCtx_setParameter_wrapper(uintptr_t cs, ZSTD_cParameter param, int value) {
-    return ZSTD_CCtx_setParameter((ZSTD_CStream*)cs, param, value);
+static size_t ZSTD_CCtx_setParameter_wrapper(uintptr_t cctx, ZSTD_cParameter param, int value) {
+    return ZSTD_CCtx_setParameter((ZSTD_CCtx*)cctx, param, value);
 }
 
-static size_t ZSTD_initCStream_wrapper(uintptr_t cs, int compressionLevel) {
-    return ZSTD_initCStream((ZSTD_CStream*)cs, compressionLevel);
+static size_t ZSTD_initCStream_wrapper(uintptr_t cctx, int compressionLevel) {
+    return ZSTD_initCStream((ZSTD_CCtx*)cctx, compressionLevel);
 }
 
-static size_t ZSTD_CCtx_refCDict_wrapper(uintptr_t cc, uintptr_t dict) {
-    return ZSTD_CCtx_refCDict((ZSTD_CCtx*)cc, (ZSTD_CDict*)dict);
+static size_t ZSTD_CCtx_refCDict_wrapper(uintptr_t cctx, uintptr_t dict) {
+    return ZSTD_CCtx_refCDict((ZSTD_CCtx*)cctx, (ZSTD_CDict*)dict);
 }
 
-static size_t ZSTD_freeCStream_wrapper(uintptr_t cs) {
-    return ZSTD_freeCStream((ZSTD_CStream*)cs);
+static size_t ZSTD_freeCCtx_wrapper(uintptr_t cctx) {
+    return ZSTD_freeCCtx((ZSTD_CCtx*)cctx);
 }
 
-static size_t ZSTD_compressStream_wrapper(uintptr_t cs, uintptr_t output, uintptr_t input) {
-    return ZSTD_compressStream((ZSTD_CStream*)cs, (ZSTD_outBuffer*)output, (ZSTD_inBuffer*)input);
+static size_t ZSTD_compressStream_wrapper(uintptr_t cctx, uintptr_t output, uintptr_t input) {
+    return ZSTD_compressStream((ZSTD_CCtx*)cctx, (ZSTD_outBuffer*)output, (ZSTD_inBuffer*)input);
 }
 
-static size_t ZSTD_flushStream_wrapper(uintptr_t cs, uintptr_t output) {
-    return ZSTD_flushStream((ZSTD_CStream*)cs, (ZSTD_outBuffer*)output);
+static size_t ZSTD_flushStream_wrapper(uintptr_t cctx, uintptr_t output) {
+    return ZSTD_flushStream((ZSTD_CCtx*)cctx, (ZSTD_outBuffer*)output);
 }
 
-static size_t ZSTD_endStream_wrapper(uintptr_t cs, uintptr_t output) {
-    return ZSTD_endStream((ZSTD_CStream*)cs, (ZSTD_outBuffer*)output);
+static size_t ZSTD_endStream_wrapper(uintptr_t cctx, uintptr_t output) {
+    return ZSTD_endStream((ZSTD_CCtx*)cctx, (ZSTD_outBuffer*)output);
 }
 
 */
@@ -64,7 +64,7 @@ type Writer struct {
 	w                io.Writer
 	compressionLevel int
 	wlog             int
-	cs               *C.ZSTD_CStream
+	cctx             *C.ZSTD_CCtx
 	cd               *CDict
 
 	inBuf  *C.ZSTD_inBuffer
@@ -157,8 +157,8 @@ func NewWriterParams(w io.Writer, params *WriterParams) *Writer {
 		params = &WriterParams{}
 	}
 
-	cs := C.ZSTD_createCStream()
-	initCStream(cs, *params)
+	cctx := C.ZSTD_createCCtx()
+	initCCtx(cctx, *params)
 
 	inBuf := (*C.ZSTD_inBuffer)(C.calloc(1, C.sizeof_ZSTD_inBuffer))
 	inBuf.src = C.calloc(1, cstreamInBufSize)
@@ -174,7 +174,7 @@ func NewWriterParams(w io.Writer, params *WriterParams) *Writer {
 		w:                w,
 		compressionLevel: params.CompressionLevel,
 		wlog:             params.WindowLog,
-		cs:               cs,
+		cctx:             cctx,
 		cd:               params.Dict,
 		inBuf:            inBuf,
 		outBuf:           outBuf,
@@ -183,7 +183,7 @@ func NewWriterParams(w io.Writer, params *WriterParams) *Writer {
 	zw.inBufGo = cMemPtr(zw.inBuf.src)
 	zw.outBufGo = cMemPtr(zw.outBuf.dst)
 
-	runtime.SetFinalizer(zw, freeCStream)
+	runtime.SetFinalizer(zw, freeWriter)
 	return zw
 }
 
@@ -207,32 +207,32 @@ func (zw *Writer) ResetWriterParams(w io.Writer, params *WriterParams) {
 	zw.outBuf.pos = 0
 
 	zw.cd = params.Dict
-	initCStream(zw.cs, *params)
+	initCCtx(zw.cctx, *params)
 
 	zw.w = w
 }
 
-func initCStream(cs *C.ZSTD_CStream, params WriterParams) {
+func initCCtx(cctx *C.ZSTD_CCtx, params WriterParams) {
 	if params.Dict != nil {
 		result := C.ZSTD_CCtx_refCDict_wrapper(
-			C.uintptr_t(uintptr(unsafe.Pointer(cs))),
+			C.uintptr_t(uintptr(unsafe.Pointer(cctx))),
 			C.uintptr_t(uintptr(unsafe.Pointer(params.Dict.p))))
 		ensureNoError("ZSTD_CCtx_refCDict", result)
 	} else {
 		result := C.ZSTD_initCStream_wrapper(
-			C.uintptr_t(uintptr(unsafe.Pointer(cs))),
+			C.uintptr_t(uintptr(unsafe.Pointer(cctx))),
 			C.int(params.CompressionLevel))
 		ensureNoError("ZSTD_initCStream", result)
 	}
 
 	result := C.ZSTD_CCtx_setParameter_wrapper(
-		C.uintptr_t(uintptr(unsafe.Pointer(cs))),
+		C.uintptr_t(uintptr(unsafe.Pointer(cctx))),
 		C.ZSTD_cParameter(C.ZSTD_c_windowLog),
 		C.int(params.WindowLog))
 	ensureNoError("ZSTD_CCtx_setParameter", result)
 }
 
-func freeCStream(v interface{}) {
+func freeWriter(v any) {
 	v.(*Writer).Release()
 }
 
@@ -240,14 +240,14 @@ func freeCStream(v interface{}) {
 //
 // zw cannot be used after the release.
 func (zw *Writer) Release() {
-	if zw.cs == nil {
+	if zw.cctx == nil {
 		return
 	}
 
-	result := C.ZSTD_freeCStream_wrapper(
-		C.uintptr_t(uintptr(unsafe.Pointer(zw.cs))))
-	ensureNoError("ZSTD_freeCStream", result)
-	zw.cs = nil
+	result := C.ZSTD_freeCCtx_wrapper(
+		C.uintptr_t(uintptr(unsafe.Pointer(zw.cctx))))
+	ensureNoError("ZSTD_freeCCtx", result)
+	zw.cctx = nil
 
 	C.free(unsafe.Pointer(zw.inBuf.src))
 	C.free(unsafe.Pointer(zw.inBuf))
@@ -325,7 +325,7 @@ func (zw *Writer) Write(p []byte) (int, error) {
 func (zw *Writer) flushInBuf() error {
 	prevInBufPos := zw.inBuf.pos
 	result := C.ZSTD_compressStream_wrapper(
-		C.uintptr_t(uintptr(unsafe.Pointer(zw.cs))),
+		C.uintptr_t(uintptr(unsafe.Pointer(zw.cctx))),
 		C.uintptr_t(uintptr(unsafe.Pointer(zw.outBuf))),
 		C.uintptr_t(uintptr(unsafe.Pointer(zw.inBuf))))
 	ensureNoError("ZSTD_compressStream", result)
@@ -377,7 +377,7 @@ func (zw *Writer) Flush() error {
 	// Flush the internal buffer to outBuf.
 	for {
 		result := C.ZSTD_flushStream_wrapper(
-			C.uintptr_t(uintptr(unsafe.Pointer(zw.cs))),
+			C.uintptr_t(uintptr(unsafe.Pointer(zw.cctx))),
 			C.uintptr_t(uintptr(unsafe.Pointer(zw.outBuf))))
 		ensureNoError("ZSTD_flushStream", result)
 		if err := zw.flushOutBuf(); err != nil {
@@ -401,7 +401,7 @@ func (zw *Writer) Close() error {
 
 	for {
 		result := C.ZSTD_endStream_wrapper(
-			C.uintptr_t(uintptr(unsafe.Pointer(zw.cs))),
+			C.uintptr_t(uintptr(unsafe.Pointer(zw.cctx))),
 			C.uintptr_t(uintptr(unsafe.Pointer(zw.outBuf))))
 		ensureNoError("ZSTD_endStream", result)
 		if err := zw.flushOutBuf(); err != nil {

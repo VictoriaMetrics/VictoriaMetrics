@@ -24,7 +24,7 @@ func InsertHandler(req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
+	encoding := req.Header.Get("Content-Encoding")
 	var processBody func([]byte) ([]byte, error)
 	if req.Header.Get("Content-Type") == "application/json" {
 		if req.Header.Get("X-Amz-Firehose-Protocol-Version") != "" {
@@ -33,7 +33,7 @@ func InsertHandler(req *http.Request) error {
 			return fmt.Errorf("json encoding isn't supported for opentelemetry format. Use protobuf encoding")
 		}
 	}
-	return stream.ParseStream(req.Body, isGzipped, processBody, func(tss []prompbmarshal.TimeSeries) error {
+	return stream.ParseStream(req.Body, encoding, processBody, func(tss []prompbmarshal.TimeSeries) error {
 		return insertRows(tss, extraLabels)
 	})
 }

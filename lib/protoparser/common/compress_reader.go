@@ -4,6 +4,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/klauspost/compress/gzip"
 	"github.com/klauspost/compress/zlib"
 )
@@ -51,3 +52,24 @@ func PutZlibReader(zr io.ReadCloser) {
 }
 
 var zlibReaderPool sync.Pool
+
+// GetZstdReader returns zstd reader.
+func GetZstdReader(r io.Reader) (zstd.Reader, error) {
+	v := zstdReaderPool.Get()
+	if v == nil {
+		return zstd.NewReader(r)
+	}
+	zr := v.(zstd.Reader)
+	if err := zr.Reset(r); err != nil {
+		return nil, err
+	}
+	return zr, nil
+}
+
+// PutZstdReader returns back zstd reader obtained via GetZstdReader.
+func PutZstdReader(zr zstd.Reader) {
+	zr.Close()
+	zstdReaderPool.Put(zr)
+}
+
+var zstdReaderPool sync.Pool

@@ -24,7 +24,7 @@ func BenchmarkParseStream(b *testing.B) {
 		data := pbRequest.MarshalProtobuf(nil)
 
 		for p.Next() {
-			err := ParseStream(bytes.NewBuffer(data), false, nil, func(_ []prompbmarshal.TimeSeries) error {
+			err := ParseStream(bytes.NewBuffer(data), "", nil, func(_ []prompbmarshal.TimeSeries) error {
 				return nil
 			})
 			if err != nil {
