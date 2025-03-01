@@ -14,21 +14,21 @@ package gozstd
 // durting calls from Go.
 // See https://github.com/golang/go/issues/24450 .
 
-static size_t ZSTD_initDStream_usingDDict_wrapper(uintptr_t ds, uintptr_t dict) {
-    ZSTD_DStream *zds = (ZSTD_DStream *)ds;
-    size_t rv = ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
+static size_t ZSTD_initDCtx_usingDDict_wrapper(uintptr_t dctx, uintptr_t ddict) {
+    ZSTD_DCtx *zdctx = (ZSTD_DCtx *)dctx;
+    size_t rv = ZSTD_DCtx_reset(zdctx, ZSTD_reset_session_only);
     if (rv != 0) {
         return rv;
     }
-    return ZSTD_DCtx_refDDict(zds, (ZSTD_DDict *)dict);
+    return ZSTD_DCtx_refDDict(zdctx, (ZSTD_DDict *)ddict);
 }
 
-static size_t ZSTD_freeDStream_wrapper(uintptr_t ds) {
-    return ZSTD_freeDStream((ZSTD_DStream*)ds);
+static size_t ZSTD_freeDCtx_wrapper(uintptr_t dctx) {
+    return ZSTD_freeDCtx((ZSTD_DCtx*)dctx);
 }
 
-static size_t ZSTD_decompressStream_wrapper(uintptr_t ds, uintptr_t output, uintptr_t input) {
-    return ZSTD_decompressStream((ZSTD_DStream*)ds, (ZSTD_outBuffer*)output, (ZSTD_inBuffer*)input);
+static size_t ZSTD_decompressStream_wrapper(uintptr_t dctx, uintptr_t output, uintptr_t input) {
+    return ZSTD_decompressStream((ZSTD_DCtx*)dctx, (ZSTD_outBuffer*)output, (ZSTD_inBuffer*)input);
 }
 */
 import "C"
@@ -47,9 +47,9 @@ var (
 
 // Reader implements zstd reader.
 type Reader struct {
-	r  io.Reader
-	ds *C.ZSTD_DStream
-	dd *DDict
+	r    io.Reader
+	dctx *C.ZSTD_DCtx
+	dd   *DDict
 
 	inBuf  *C.ZSTD_inBuffer
 	outBuf *C.ZSTD_outBuffer
@@ -58,86 +58,128 @@ type Reader struct {
 	outBufGo cMemPtr
 }
 
+// MustNewReader returns new zstd reader reading compressed data from r and panics in case of error.
+//
+// Call Close when the Reader is no longer needed.
+func MustNewReader(r io.Reader) *Reader {
+	return MustNewReaderDict(r, nil)
+}
+
 // NewReader returns new zstd reader reading compressed data from r.
 //
-// Call Release when the Reader is no longer needed.
-func NewReader(r io.Reader) *Reader {
+// Call Close when the Reader is no longer needed.
+func NewReader(r io.Reader) (*Reader, error) {
 	return NewReaderDict(r, nil)
+}
+
+// MustNewReaderDict returns new zstd reader reading compressed data from r and panics in case of error.
+func MustNewReaderDict(r io.Reader, dd *DDict) *Reader {
+	zr, err := NewReaderDict(r, dd)
+	if err != nil {
+		panic(err)
+	}
+	return zr
 }
 
 // NewReaderDict returns new zstd reader reading compressed data from r
 // using the given DDict.
 //
-// Call Release when the Reader is no longer needed.
-func NewReaderDict(r io.Reader, dd *DDict) *Reader {
-	ds := C.ZSTD_createDStream()
-	initDStream(ds, dd)
-
-	inBuf := (*C.ZSTD_inBuffer)(C.calloc(1, C.sizeof_ZSTD_inBuffer))
-	inBuf.src = C.calloc(1, dstreamInBufSize)
-	inBuf.size = 0
-	inBuf.pos = 0
-
-	outBuf := (*C.ZSTD_outBuffer)(C.calloc(1, C.sizeof_ZSTD_outBuffer))
-	outBuf.dst = C.calloc(1, dstreamOutBufSize)
-	outBuf.size = 0
-	outBuf.pos = 0
+// Call Close when the Reader is no longer needed.
+func NewReaderDict(r io.Reader, dd *DDict) (*Reader, error) {
+	dctx := C.ZSTD_createDCtx()
+	err := initDCtx(dctx, dd)
+	if err != nil {
+		return nil, err
+	}
 
 	zr := &Reader{
-		r:      r,
-		ds:     ds,
-		dd:     dd,
-		inBuf:  inBuf,
-		outBuf: outBuf,
+		r:    r,
+		dctx: dctx,
+		dd:   dd,
 	}
+
+	zr.inBuf = (*C.ZSTD_inBuffer)(C.calloc(1, C.sizeof_ZSTD_inBuffer))
+	zr.inBuf.src = C.calloc(1, dstreamInBufSize)
+	zr.inBuf.size = 0
+	zr.inBuf.pos = 0
+
+	zr.outBuf = (*C.ZSTD_outBuffer)(C.calloc(1, C.sizeof_ZSTD_outBuffer))
+	zr.outBuf.dst = C.calloc(1, dstreamOutBufSize)
+	zr.outBuf.size = 0
+	zr.outBuf.pos = 0
 
 	zr.inBufGo = cMemPtr(zr.inBuf.src)
 	zr.outBufGo = cMemPtr(zr.outBuf.dst)
 
-	runtime.SetFinalizer(zr, freeDStream)
-	return zr
+	runtime.SetFinalizer(zr, freeReader)
+	return zr, nil
 }
 
-// Reset resets zr to read from r using the given dictionary dd.
-func (zr *Reader) Reset(r io.Reader, dd *DDict) {
+// Reset resets zr to read from r.
+func (zr *Reader) Reset(r io.Reader) error {
+	return zr.ResetWithDict(r, nil)
+}
+
+// MustReset resets zr to read from r using the given dictionary dd and panics in case of error.
+func (zr *Reader) MustReset(r io.Reader, dd *DDict) {
+	if err := zr.ResetWithDict(r, dd); err != nil {
+		panic(err)
+	}
+}
+
+// ResetWithDict resets zr to read from r using the given dictionary dd.
+func (zr *Reader) ResetWithDict(r io.Reader, dd *DDict) error {
+	if zr.inBuf == nil {
+		zr.inBuf = (*C.ZSTD_inBuffer)(C.calloc(1, C.sizeof_ZSTD_inBuffer))
+		zr.inBuf.src = C.calloc(1, dstreamInBufSize)
+		zr.inBufGo = cMemPtr(zr.inBuf.src)
+	}
 	zr.inBuf.size = 0
 	zr.inBuf.pos = 0
+	if zr.outBuf == nil {
+		zr.outBuf = (*C.ZSTD_outBuffer)(C.calloc(1, C.sizeof_ZSTD_outBuffer))
+		zr.outBuf.dst = C.calloc(1, dstreamOutBufSize)
+		zr.outBufGo = cMemPtr(zr.outBuf.dst)
+	}
 	zr.outBuf.size = 0
 	zr.outBuf.pos = 0
 
+	if zr.dctx == nil {
+		zr.dctx = C.ZSTD_createDCtx()
+	}
 	zr.dd = dd
-	initDStream(zr.ds, zr.dd)
-
 	zr.r = r
+
+	return initDCtx(zr.dctx, zr.dd)
 }
 
-func initDStream(ds *C.ZSTD_DStream, dd *DDict) {
+func initDCtx(dctx *C.ZSTD_DCtx, dd *DDict) error {
 	var ddict *C.ZSTD_DDict
 	if dd != nil {
 		ddict = dd.p
 	}
-	result := C.ZSTD_initDStream_usingDDict_wrapper(
-		C.uintptr_t(uintptr(unsafe.Pointer(ds))),
+	result := C.ZSTD_initDCtx_usingDDict_wrapper(
+		C.uintptr_t(uintptr(unsafe.Pointer(dctx))),
 		C.uintptr_t(uintptr(unsafe.Pointer(ddict))))
-	ensureNoError("ZSTD_initDStream_usingDDict", result)
+	return getError("ZSTD_initDCtx_usingDDict", result)
 }
 
-func freeDStream(v interface{}) {
-	v.(*Reader).Release()
+func freeReader(v any) {
+	v.(*Reader).Close()
 }
 
-// Release releases all the resources occupied by zr.
+// Close releases all the resources occupied by zr.
 //
 // zr cannot be used after the release.
-func (zr *Reader) Release() {
-	if zr.ds == nil {
+func (zr *Reader) Close() {
+	if zr.dctx == nil {
 		return
 	}
 
-	result := C.ZSTD_freeDStream_wrapper(
-		C.uintptr_t(uintptr(unsafe.Pointer(zr.ds))))
-	ensureNoError("ZSTD_freeDStream", result)
-	zr.ds = nil
+	result := C.ZSTD_freeDCtx_wrapper(
+		C.uintptr_t(uintptr(unsafe.Pointer(zr.dctx))))
+	ensureNoError("ZSTD_freeDCtx", result)
+	zr.dctx = nil
 
 	C.free(zr.inBuf.src)
 	C.free(unsafe.Pointer(zr.inBuf))
@@ -195,7 +237,7 @@ func (zr *Reader) fillOutBuf() error {
 	if zr.inBuf.pos == zr.inBuf.size && zr.outBuf.size < dstreamOutBufSize {
 		// inBuf is empty and the previously decompressed data size
 		// is smaller than the maximum possible zr.outBuf.size.
-		// This means that the internal buffer in zr.ds doesn't contain
+		// This means that the internal buffer in zr.dctx doesn't contain
 		// more data to decompress, so read new data into inBuf.
 		if err := zr.fillInBuf(); err != nil {
 			return err
@@ -208,7 +250,7 @@ tryDecompressAgain:
 	zr.outBuf.pos = 0
 	prevInBufPos := zr.inBuf.pos
 	result := C.ZSTD_decompressStream_wrapper(
-		C.uintptr_t(uintptr(unsafe.Pointer(zr.ds))),
+		C.uintptr_t(uintptr(unsafe.Pointer(zr.dctx))),
 		C.uintptr_t(uintptr(unsafe.Pointer(zr.outBuf))),
 		C.uintptr_t(uintptr(unsafe.Pointer(zr.inBuf))))
 	zr.outBuf.size = zr.outBuf.pos

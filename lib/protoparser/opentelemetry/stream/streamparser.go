@@ -25,17 +25,25 @@ import (
 // callback shouldn't hold tss items after returning.
 //
 // optional processBody can be used for pre-processing the read request body from r before parsing it in OpenTelemetry format.
-func ParseStream(r io.Reader, isGzipped bool, processBody func([]byte) ([]byte, error), callback func(tss []prompbmarshal.TimeSeries) error) error {
+func ParseStream(r io.Reader, encoding string, processBody func([]byte) ([]byte, error), callback func(tss []prompbmarshal.TimeSeries) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
 
-	if isGzipped {
+	switch encoding {
+	case "gzip":
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
 			return fmt.Errorf("cannot read gzip-compressed OpenTelemetry protocol data: %w", err)
 		}
 		defer common.PutGzipReader(zr)
+		r = zr
+	case "zstd":
+		zr, err := common.GetZstdReader(r)
+		if err != nil {
+			return fmt.Errorf("cannot read zstd-compressed OpenTelemetry protocol data: %w", err)
+		}
+		defer common.PutZstdReader(zr)
 		r = zr
 	}
 

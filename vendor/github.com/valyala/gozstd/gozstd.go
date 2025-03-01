@@ -92,16 +92,16 @@ var cctxDictPool = &sync.Pool{
 	New: newCCtx,
 }
 
-func newCCtx() interface{} {
+func newCCtx() any {
 	cctx := C.ZSTD_createCCtx()
 	cw := &cctxWrapper{
 		cctx: cctx,
 	}
-	runtime.SetFinalizer(cw, freeCCtx)
+	runtime.SetFinalizer(cw, freeCWrapper)
 	return cw
 }
 
-func freeCCtx(cw *cctxWrapper) {
+func freeCWrapper(cw *cctxWrapper) {
 	C.ZSTD_freeCCtx(cw.cctx)
 	cw.cctx = nil
 }
@@ -215,16 +215,16 @@ var dctxDictPool = &sync.Pool{
 	New: newDCtx,
 }
 
-func newDCtx() interface{} {
+func newDCtx() any {
 	dctx := C.ZSTD_createDCtx()
 	dw := &dctxWrapper{
 		dctx: dctx,
 	}
-	runtime.SetFinalizer(dw, freeDCtx)
+	runtime.SetFinalizer(dw, freeDWrapper)
 	return dw
 }
 
-func freeDCtx(dw *dctxWrapper) {
+func freeDWrapper(dw *dctxWrapper) {
 	C.ZSTD_freeDCtx(dw.dctx)
 	dw.dctx = nil
 }
@@ -318,13 +318,20 @@ func errStr(result C.size_t) string {
 }
 
 func ensureNoError(funcName string, result C.size_t) {
+	if err := getError(funcName, result); err != nil {
+		panic(err)
+	}
+}
+
+func getError(funcName string, result C.size_t) error {
 	if int(result) >= 0 {
 		// Fast path - avoid calling C function.
-		return
+		return nil
 	}
 	if C.ZSTD_getErrorCode(result) != 0 {
-		panic(fmt.Errorf("BUG: unexpected error in %s: %s", funcName, errStr(result)))
+		return fmt.Errorf("BUG: unexpected error in %s: %s", funcName, errStr(result))
 	}
+	return nil
 }
 
 func streamDecompress(dst, src []byte, dd *DDict) ([]byte, error) {
@@ -366,12 +373,12 @@ func getStreamDecompressor(dd *DDict) *streamDecompressor {
 	v := streamDecompressorPool.Get()
 	if v == nil {
 		sd := &streamDecompressor{
-			zr: NewReader(nil),
+			zr: MustNewReader(nil),
 		}
 		v = sd
 	}
 	sd := v.(*streamDecompressor)
-	sd.zr.Reset((*srcReader)(sd), dd)
+	sd.zr.MustReset((*srcReader)(sd), dd)
 	return sd
 }
 
@@ -379,7 +386,7 @@ func putStreamDecompressor(sd *streamDecompressor) {
 	sd.dst = nil
 	sd.src = nil
 	sd.srcOffset = 0
-	sd.zr.Reset(nil, nil)
+	sd.zr.MustReset(nil, nil)
 	streamDecompressorPool.Put(sd)
 }
 

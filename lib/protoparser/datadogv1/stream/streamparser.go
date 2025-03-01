@@ -38,6 +38,13 @@ func Parse(r io.Reader, contentEncoding string, callback func(series []datadogv1
 		}
 		defer common.PutZlibReader(zlr)
 		r = zlr
+	case "zstd":
+		zlr, err := common.GetZstdReader(r)
+		if err != nil {
+			return fmt.Errorf("cannot read zstd DataDog data: %w", err)
+		}
+		defer common.PutZstdReader(zlr)
+		r = zlr
 	}
 
 	ctx := getPushCtx(r)

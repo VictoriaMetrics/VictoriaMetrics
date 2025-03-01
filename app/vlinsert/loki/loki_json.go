@@ -25,14 +25,23 @@ var parserPool fastjson.ParserPool
 func handleJSON(r *http.Request, w http.ResponseWriter) {
 	startTime := time.Now()
 	requestsJSONTotal.Inc()
-	reader := r.Body
-	if r.Header.Get("Content-Encoding") == "gzip" {
+	var reader io.Reader = r.Body
+	switch r.Header.Get("Content-Encoding") {
+	case "gzip":
 		zr, err := common.GetGzipReader(reader)
 		if err != nil {
 			httpserver.Errorf(w, r, "cannot initialize gzip reader: %s", err)
 			return
 		}
 		defer common.PutGzipReader(zr)
+		reader = zr
+	case "zstd":
+		zr, err := common.GetZstdReader(reader)
+		if err != nil {
+			httpserver.Errorf(w, r, "cannot initialize zstd reader: %s", err)
+			return
+		}
+		defer common.PutZstdReader(zr)
 		reader = zr
 	}
 
