@@ -226,7 +226,7 @@ models:
     queries: ['normal_behavior']  # use the default where it's not needed
 ```
 
-### Group By
+### Group by
 
 > **Note**: The `groupby` argument works only in combination with [multivariate models](#multivariate-models).
 
@@ -264,6 +264,89 @@ models:
     groupby: [host]
 ```
 
+### Scale
+
+Previously available only to [ProphetModel](#prophet) and [OnlineQuantileModel](#online-seasonal-quantile),  the `scale` {{% available_from "v1.20.0" anomaly %}} parameter is now applicable to all models that support generating predictions (`yhat`, `yhat_lower`, `yhat_upper`). Also, it is **two-sided** now, represented as a list of two positive float values, allowing separate scaling for the intervals `[yhat, yhat_upper]` and `[yhat_lower, yhat]`. The new margins are calculated as:
+
+- **Upper margin:** `|yhat_upper - yhat| * scale_upper`
+- **Lower margin:** `|yhat - yhat_lower| * scale_lower`
+
+For backward compatibility, the previous format (`scale: x`) remains supported and will be automatically converted to `scale: [x, x]`.
+
+For example, setting `scale: [1.2, 0.75]` for particular model will:
+- **Increase** the width of the lower confidence interval by **20%**.
+- **Decrease** the width of the upper confidence boundary by **25%**.
+
+The most common **use case** is when there is a preference to **widen one side** to blacklist smaller false positives (which otherwise would have [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#how-is-anomaly-score-calculated) **only slightly higher than 1.0**, still making such data points **anomalous**), while **tightening the other side** to avoid missing true positives due to an overly loose margin (leading to [anomaly scores](https://docs.victoriametrics.com/anomaly-detection/faq/#how-is-anomaly-score-calculated) being slightly less than 1.0, making such data points **non-anomalous**).
+
+```yaml
+# other components like reader, writer, schedulers, monitoring ...
+models:
+  zscore_no_scale:
+    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    z_threshold: 3
+    # if not set, equals to [1.0, 1.0], meaning no scaling is applied
+    # scale: [1.0, 1.0]
+  zscore_scaled:
+    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    z_threshold: 3
+    # vs `zscore_no_scale`, increase lower confidence interval width by 1.2x, decrease upper confidence width by 25%
+    scale: [1.2, 0.75]
+```
+
+### Clip predictions
+
+A post-processing step to **clip model predictions** (`yhat`, `yhat_lower`, and `yhat_upper` series) to the configured [`data_range` values](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=data_range#config-parameters) in `VmReader` is available.
+
+This behavior is controlled by the boolean argument `clip_predictions` {{% available_from "v1.20.0" anomaly %}}:
+- **Disabled by default** for backward compatibility.
+- **Works** for models that generate predictions and estimates (e.g., [`ProphetModel`](#prophet)) by setting `clip_predictions` to `True` for respective model in `models` section.
+
+The primary use case is to **align domain knowledge** about data behavior (defined via `data_range`) with what is shown in visualizations, such as in the [Grafana dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#grafana-dashboard). This ensures that predictions (`yhat`, `yhat_lower`, `yhat_upper`) are plotted consistently alongside real metric values (`y`) and remain within reasonable expected bounds.
+
+> Note: This parameter does not impact the generation of anomaly scores > 1 for datapoints where `y` falls outside the defined `data_range`.
+
+```yaml
+# other components like writer, schedulers, monitoring ...
+reader:
+  # ...
+  queries:
+    q1_clipped: 
+      expr: 'q1_metricsql'
+      data_range: [0, "inf"]
+    q2_no_clip:
+      expr: 'q2_metricsql'
+      # if no data range defined, it will be implicitly converted to ["-inf", "inf"]
+models:
+  zscore_mixed:
+    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    z_threshold: 3
+    clip_predictions: True
+    queries: [
+      # `yhat`, `yhat_lower`, `yhat_upper` will be within [0, inf]
+      # for all `zscore_mixed` instances that are fit on series returned by `q1_clipped` query
+      # anomaly scores > 1 will still be produced for `y` outside of data_range
+      'q1_clipped',
+      # there will be no (explicit) clip of `yhat`, `yhat_lower`, `yhat_upper`
+      # for all `zscore_mixed` instances that are fit on series returned by `q2_no_clip` query
+      # even when `clip_predictions` arg is set, because data_range was not set for `q2_no_clip`
+      'q2_no_clip',
+    ]
+  zscore_no_clip:
+    class: 'zscore' # or 'model.zscore.ZscoreModel' until v1.13.0
+    z_threshold: 3
+    # if not set, by default resolved to `clip_predictions: False`
+    queries: [
+      # `yhat`, `yhat_lower`, `yhat_upper` won't be clipped to [0, inf] 
+      # even though `data_range` for `q1_clipped` is set
+      # however, anomaly scores > 1 will still be produced for y outside of data_range
+      'q1_clipped',
+      # there will be no (explicit) clip of yhat, yhat_lower, yhat_upper  
+      # for all `zscore_mixed` instances that are fit on series returned by `q2_no_clip` query
+      # as `clip_predictions` arg is not set, regardless of data_range for `q2_no_clip`
+      'q2_no_clip',
+    ]
+```
 
 ## Model types
 
@@ -994,7 +1077,7 @@ monitoring:
 Let's pull the docker image for `vmanomaly`:
 
 ```sh
-docker pull victoriametrics/vmanomaly:v1.19.2
+docker pull victoriametrics/vmanomaly:v1.20.0
 ```
 
 Now we can run the docker container putting as volumes both config and model file:
@@ -1008,7 +1091,7 @@ docker run -it \
 -v $(PWD)/license:/license \
 -v $(PWD)/custom_model.py:/vmanomaly/model/custom.py \
 -v $(PWD)/custom.yaml:/config.yaml \
-victoriametrics/vmanomaly:v1.19.2 /config.yaml \
+victoriametrics/vmanomaly:v1.20.0 /config.yaml \
 --licenseFile=/license
 ```
 
