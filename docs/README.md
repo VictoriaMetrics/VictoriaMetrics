@@ -463,7 +463,8 @@ due to [replication](#replication) or [rerouting](https://docs.victoriametrics.c
 
 ### Track ingested metrics usage
 
-VictoriaMetrics provides an ability to record statistics of fetched [metric names](https://docs.victoriametrics.com/keyconcepts/#structure-of-a-metric) during [querying](https://docs.victoriametrics.com/keyconcepts/#query-data). This feature can be enabled via flag `--storage.trackMetricNamesStats` (disabled by default) on  single-node VictoriaMetrics or [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview).
+VictoriaMetrics provides an ability to record statistics of fetched [metric names](https://docs.victoriametrics.com/keyconcepts/#structure-of-a-metric) during [querying](https://docs.victoriametrics.com/keyconcepts/#query-data). This feature can be enabled via flag `--storage.trackMetricNamesStats` (disabled by default) on  single-node VictoriaMetrics or [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview). Querying metric with non-matching filters doesn't increase counter.
+For example, querying for `vm_log_messages_total{level!="info"}` won't increment `vm_log_messages_total` counter because there are no `level="error"` metrics yet.
 
 To get metric names usage statistic use  `/prometheus/api/v1/status/metric_names_stats` API endpoint. It accepts the following query parameters:
 
