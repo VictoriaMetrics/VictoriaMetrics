@@ -2894,7 +2894,7 @@ func (s *Storage) wasMetricIDMissingBefore(metricID uint64) bool {
 // MetricNamesStatsResponse contains metric names usage stats API response
 type MetricNamesStatsResponse = metricnamestats.StatsResult
 
-// GetMetricNamesStats returns metric names usage stats with give limit and lte predicate
+// GetMetricNamesStats returns metric names usage stats with given limit and le predicate
 func (s *Storage) GetMetricNamesStats(_ *querytracer.Tracer, limit, le int, matchPattern string) MetricNamesStatsResponse {
 	return s.metricsTracker.GetStats(limit, le, matchPattern)
 }

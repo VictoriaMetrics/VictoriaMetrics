@@ -10,7 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
-// MetricNamesUsageStatsResponse generates response for /api/v1/status/metric_names_stats .
+// MetricNamesStatsResponse generates response for /api/v1/status/metric_names_stats .
 
 //line app/vmselect/stats/metric_names_usage_response.qtpl:8
 import (

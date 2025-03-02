@@ -4,7 +4,7 @@
 ) %}
 
 {% stripspace %}
-MetricNamesUsageStatsResponse generates response for /api/v1/status/metric_names_stats .
+MetricNamesStatsResponse generates response for /api/v1/status/metric_names_stats .
 {% func MetricNamesStatsResponse(stats *storage.MetricNamesStatsResponse, qt *querytracer.Tracer) %}
 {
 	"status":"success",
