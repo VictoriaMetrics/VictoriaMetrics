@@ -299,7 +299,7 @@ func (c *cache) GetBlock(k Key) Block {
 				c.mu.Lock()
 				// concurrent thread may already fix heap
 				lat = atomic.LoadUint64(&e.lastAccessTime)
-				if lat+5 < currentTime {
+				if lat+5 < currentTime && e.heapIdx > 0 {
 					atomic.StoreUint64(&e.lastAccessTime, currentTime)
 					heap.Fix(&c.lah, e.heapIdx)
 				}
@@ -429,5 +429,8 @@ func (lah *lastAccessHeap) Pop() any {
 	h[len(h)-1] = nil
 
 	*lah = h[:len(h)-1]
+	// mark element as removed from heap
+	// it allows to properly apply heap.Fix at GetBlock
+	e.heapIdx = -1
 	return e
 }
