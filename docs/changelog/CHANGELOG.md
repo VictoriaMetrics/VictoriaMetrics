@@ -19,6 +19,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 ## tip
 
 **Update note 1: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/) include a fix which enforces IPv6 addresses escaping for containers discovered with [Kubernetes service-discovery](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) and `role: pod` which do not have exposed ports defined. This means that `address` for these containers will always be wrapped in square brackets, this might affect some relabeling rules which were relying on previous behaviour.**
+**Update note 2: [vmalert](https://docs.victoriametrics.com/vmalert/) now disallows using [time buckets stats pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-time-buckets) in alerting or recording rules with VictoriaLogs as datasource. Time buckets used with [stats query API](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats) may produce unexpected results for user and result into cardinality issues.**
 
 * FEATURE: upgrade Go builder from Go1.23.6 to Go1.24. See [Go1.24 release notes](https://tip.golang.org/doc/go1.24).
 * FEATURE: [alerts](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/rules/alerts-vmalert.yml): add alerting rule `TooHighQueryLoad` to notify user when VictoriaMetrics or vmselect weren't able to serve requests in timely manner during last 15min.
