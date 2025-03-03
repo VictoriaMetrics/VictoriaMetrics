@@ -100,7 +100,7 @@ func StreamDecompress(dst io.Writer, src io.Reader) error {
 // Use Reader for interactive network streams.
 func StreamDecompressDict(dst io.Writer, src io.Reader, dd *DDict) error {
 	sd := getSDecompressor()
-	sd.zr.Reset(src, dd)
+	sd.zr.MustReset(src, dd)
 	_, err := sd.zr.WriteTo(dst)
 	putSDecompressor(sd)
 	return err
@@ -114,14 +114,14 @@ func getSDecompressor() *sDecompressor {
 	v := sDecompressorPool.Get()
 	if v == nil {
 		return &sDecompressor{
-			zr: NewReader(nil),
+			zr: MustNewReader(nil),
 		}
 	}
 	return v.(*sDecompressor)
 }
 
 func putSDecompressor(sd *sDecompressor) {
-	sd.zr.Reset(nil, nil)
+	sd.zr.MustReset(nil, nil)
 	sDecompressorPool.Put(sd)
 }
 

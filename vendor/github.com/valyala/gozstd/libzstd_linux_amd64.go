@@ -1,4 +1,4 @@
-// +build !musl
+//go:build !musl
 
 package gozstd
 
