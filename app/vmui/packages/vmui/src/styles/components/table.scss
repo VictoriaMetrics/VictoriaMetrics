@@ -94,6 +94,11 @@
       white-space: nowrap;
       width: 100px;
     }
+
+    &_empty {
+      color: $color-text-secondary;
+      font-style: italic;
+    }
   }
 
   &__sort-icon {
