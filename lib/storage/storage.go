@@ -1318,7 +1318,10 @@ var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 // an error will be returned. Otherwise, the funciton returns the number of
 // metrics deleted.
 func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
-	deletedCount, err := s.idb().DeleteTSIDs(qt, tfss, maxMetrics)
+	idb, _, putIndexDBs := s.getIndexDBs()
+	defer putIndexDBs()
+
+	deletedCount, err := idb.DeleteTSIDs(qt, tfss, maxMetrics)
 	if err != nil {
 		return deletedCount, fmt.Errorf("cannot delete tsids: %w", err)
 	}

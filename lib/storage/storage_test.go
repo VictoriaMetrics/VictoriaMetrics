@@ -1370,6 +1370,27 @@ func TestStorageRotateIndexDB_RegisterMetricNames(t *testing.T) {
 	testRotateIndexDB(t, []MetricRow{}, op)
 }
 
+func TestStorageRotateIndexDB_DeleteSeries(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
+	tfs := NewTagFilters()
+	if err := tfs.Add(nil, []byte("metric.*"), false, true); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	op := func(s *Storage) {
+		_, err := s.DeleteSeries(nil, []*TagFilters{tfs}, 1e9)
+		if err != nil {
+			panic(fmt.Sprintf("DeleteSeries() failed unexpectedly: %v", err))
+		}
+	}
+
+	testRotateIndexDB(t, mrs, op)
+}
+
 func TestStorageRotateIndexDB_CreateSnapshot(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	tr := TimeRange{
