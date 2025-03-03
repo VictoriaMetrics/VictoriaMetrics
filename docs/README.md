@@ -1998,7 +1998,7 @@ based on the time range of the query:
 Mappings are added to the indexes during the data ingestion:
 
 -   In global index each mapping is created only once per retention period.
--   In the per-day index each mapping is be created for each unique date that
+-   In the per-day index each mapping is created for each unique date that
     has been seen in the samples for the corresponding time series.
 
 IndexDB respects [retention period](#retention) and once it is over, the indexes
