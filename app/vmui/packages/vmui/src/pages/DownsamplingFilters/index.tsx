@@ -7,6 +7,7 @@ import { PlayIcon, WikiIcon } from "../../components/Main/Icons";
 import { useDebugDownsamplingFilters } from "./hooks/useDebugDownsamplingFilters";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import { useSearchParams } from "react-router-dom";
+import classNames from "classnames";
 
 const example = {
   flags: `-downsampling.period={env="dev"}:7d:5m,{env="dev"}:30d:30m
@@ -54,7 +55,14 @@ const DownsamplingFilters: FC = () => {
   for (const [key, value] of data) {
     rows.push(<tr className="vm-table__row">
       <td className="vm-table-cell">{key}</td>
-      <td className="vm-table-cell">{value.join(" ")}</td>
+      <td
+        className={classNames({
+          "vm-table-cell": true,
+          "vm-table-cell_empty": !value,
+        })}
+      >
+        {value ? value.join(" ") : "No matching rules found!"}
+      </td>
     </tr>);
   }
   return (

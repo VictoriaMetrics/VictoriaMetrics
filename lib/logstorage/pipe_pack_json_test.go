@@ -14,6 +14,7 @@ func TestParsePipePackJSONSuccess(t *testing.T) {
 	f(`pack_json as x`)
 	f(`pack_json fields (a, b)`)
 	f(`pack_json fields (a, b) as x`)
+	f(`pack_json fields (foo.*, bar, baz.abc.*) as x`)
 }
 
 func TestParsePipePackJSONFailure(t *testing.T) {

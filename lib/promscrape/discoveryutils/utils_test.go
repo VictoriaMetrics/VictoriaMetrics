@@ -65,3 +65,26 @@ func testSanitizeLabelName() error {
 	}
 	return f("foo-bar/baz", "foo_bar_baz")
 }
+
+func TestIsIPv6Host(t *testing.T) {
+	f := func(host string, isIPv6Expected bool) {
+		t.Helper()
+		isIPv6 := IsIPv6Host(host)
+		if isIPv6 != isIPv6Expected {
+			t.Fatalf("unexpected result for IsIPv6Host(%q); got %v; want %v", host, isIPv6, isIPv6Expected)
+		}
+	}
+	f("foo", false)
+	f("1:32::43", true)
+}
+
+func TestEscapeIPv6Host(t *testing.T) {
+	f := func(host string, escapedHostExpected string) {
+		t.Helper()
+		escapedHost := EscapeIPv6Host(host)
+		if escapedHost != escapedHostExpected {
+			t.Fatalf("unexpected result for EscapeIPv6Host(%q); got %q; want %q", host, escapedHost, escapedHostExpected)
+		}
+	}
+	f("1:32::43", "[1:32::43]")
+}

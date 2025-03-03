@@ -52,13 +52,18 @@ Examples:
 						Required: false,
 					},
 					&cli.StringFlag{
+						Name:     "httpListenPort",
+						Usage:    `Optional local port for incoming HTTP requests. If not specified, a random unoccupied port will be used.`,
+						Required: false,
+					},
+					&cli.StringFlag{
 						Name:     "loggerLevel",
 						Usage:    `Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "ERROR").`,
 						Required: false,
 					},
 				},
 				Action: func(c *cli.Context) error {
-					if failed := unittest.UnitTest(c.StringSlice("files"), c.Bool("disableAlertgroupLabel"), c.StringSlice("external.label"), c.String("external.url"), c.String("loggerLevel")); failed {
+					if failed := unittest.UnitTest(c.StringSlice("files"), c.Bool("disableAlertgroupLabel"), c.StringSlice("external.label"), c.String("external.url"), c.String("httpListenPort"), c.String("loggerLevel")); failed {
 						return fmt.Errorf("unittest failed")
 					}
 					return nil

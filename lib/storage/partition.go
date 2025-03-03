@@ -18,7 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
@@ -64,7 +63,6 @@ func SetDataFlushInterval(d time.Duration) {
 	}
 
 	dataFlushInterval = d
-	mergeset.SetDataFlushInterval(d)
 }
 
 // The maximum number of rawRow items in rawRowsShard.

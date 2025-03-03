@@ -16,6 +16,39 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+## [v1.15.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.15.0-victorialogs)
+
+Released at 2025-02-27
+
+* FEATURE: [`pack_json` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#pack_json-pipe): allow packing fields, which start with the given prefixes. For example, `pack_json fields (foo.*, bar.*)` creates a JSON containing all the fields, which start with either `foo.` or `bar.`.
+* FEATURE: [`pack_logfmt` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#pack_logfmt-pipe): allow packing fields, which start with the given prefixes. For example, `pack_logfmt fields (foo.*, bar.*)` creates [logfmt](https://brandur.org/logfmt) message containing all the fields, which start with either `foo.` or `bar.`.
+* FEATURE: expose `vl_request_duration_seconds` [summaries](https://docs.victoriametrics.com/keyconcepts/#summary) for [select APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) at the [/metrics](https://docs.victoriametrics.com/victorialogs/#monitoring) page.
+* FEATURE: allow passing `*` as a subquery inside [`in(*)`, `contains_any(*)` and `contains_all(*)` filters](https://docs.victoriametrics.com/victorialogs/logsql/#subquery-filter). Such filters are treated as `match all` aka `*`. This is going to be used by [Grafana plugin for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/). See [this issue](https://github.com/VictoriaMetrics/victorialogs-datasource/issues/238#issuecomment-2685447673).
+* FEATURE: [victorialogs dashboard](https://grafana.com/grafana/dashboards/22084-victorialogs/): add panels to display amount of ingested logs in bytes, latency of [select APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) calls, troubleshooting panels.
+* FEATURE: provide alternative registry for all VictoriaLogs components at [Quay.io](https://quay.io/organization/victoriametrics): [VictoriaLogs](https://quay.io/repository/victoriametrics/victoria-logs?tab=tags) and [vlogscli](https://quay.io/repository/victoriametrics/vlogscli?tab=tags).
+
+* BUGFIX: do not treat a string containing leading zeros as a number during data ingestion and querying. For example, `00123` string shouldn't be treated as `123` number. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361).
+
+## [v1.14.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.14.0-victorialogs)
+
+Released at 2025-02-25
+
+* FEATURE: add [`lt_field` filter](https://docs.victoriametrics.com/victorialogs/logsql/#lt_field-filter), which can be used for obtaining logs where the given [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value doesn't exceed the other field value.
+* FEATURE: add [`le_field` filter](https://docs.victoriametrics.com/victorialogs/logsql/#le_field-filter), which can be used for obtaining logs where the given [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value is smaller or equal to the other field value.
+
+* BUGFIX: [elasticsearch data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/#elasticsearch-bulk-api): support health-check endpoint requested by Jaeger v2. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353).
+* BUGFIX: [`stats_query_range` HTTP endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats): fix inconsistent result of `stats_query_range` API. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8312).
+
+## [v1.13.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.13.0-victorialogs)
+
+Released at 2025-02-22
+
+* FEATURE: add [`contains_all` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_all-filter), which matches logs containing all the given words / phrases in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+* FEATURE: add [`contains_any` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_any-filter), which matches logs containing at least one of the given words / phrases in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+* FEATURE: add [`eq_field` filter](https://docs.victoriametrics.com/victorialogs/logsql/#eq_field-filter), which can be used for obtaining logs with identical values at the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+* FEATURE: add [`unpack_words` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_words-pipe) for unpacking individual [words](https://docs.victoriametrics.com/victorialogs/logsql/#word) from the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into the given destination field as JSON array.
+* FEATURE: add [`json_array_len` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#json_array_len-pipe) for calculating the length of JSON array stored in the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+
 ## [v1.12.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.12.0-victorialogs)
 
 Released at 2025-02-20

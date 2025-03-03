@@ -815,6 +815,10 @@ func parseMathExprFieldName(lex *lexer) (*mathExpr, error) {
 }
 
 func getCompoundMathToken(lex *lexer) (string, error) {
+	if err := lex.isInvalidQuotedString(); err != nil {
+		return "", err
+	}
+
 	stopTokens := []string{"=", "+", "-", "*", "/", "%", "^", ",", ")", "|", "!", ""}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)

@@ -103,3 +103,26 @@ func TestTimeFilter(t *testing.T) {
 	// both start and end filters
 	f("2020-01-01T20:07:00Z", "2020-01-01T21:07:00Z", "time >= '2020-01-01T20:07:00Z' and time <= '2020-01-01T21:07:00Z'")
 }
+
+func TestGetSeriesCommand(t *testing.T) {
+	f := func(filterSeries, filterTime, expCommand string) {
+		t.Helper()
+
+		c := &Client{
+			filterTime:   filterTime,
+			filterSeries: filterSeries,
+		}
+		gotCommand := c.getSeriesCommand()
+		if gotCommand != expCommand {
+			t.Fatalf("unexpected command\ngot\n%s\nwant\n%s", gotCommand, expCommand)
+		}
+	}
+
+	f("", "", "show series")
+	f("from cpu", "", "show series from cpu")
+	f("from cpu where arch='x86'", "", "show series from cpu where arch='x86'")
+	f("", "time >= '2020-01-01T20:07:00Z'", "show series where time >= '2020-01-01T20:07:00Z'")
+	f("from cpu", "time >= '2020-01-01T20:07:00Z'", "show series from cpu where time >= '2020-01-01T20:07:00Z'")
+	f("from cpu where arch='x86'", "time >= '2020-01-01T20:07:00Z'", "show series from cpu where arch='x86' AND time >= '2020-01-01T20:07:00Z'")
+	f("from cpu where arch='x86' AND hostname='host_2753'", "time >= '2020-01-01T20:07:00Z'", "show series from cpu where arch='x86' AND hostname='host_2753' AND time >= '2020-01-01T20:07:00Z'")
+}

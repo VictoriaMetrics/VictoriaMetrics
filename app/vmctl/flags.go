@@ -344,7 +344,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  influxSkipDatabaseLabel,
-			Usage: "Wether to skip adding the label 'db' to timeseries.",
+			Usage: "Whether to skip adding the label 'db' to timeseries.",
 			Value: false,
 		},
 		&cli.BoolFlag{

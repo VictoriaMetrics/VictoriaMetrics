@@ -60,7 +60,7 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	switch path {
-	case "/":
+	case "/", "":
 		switch r.Method {
 		case http.MethodGet:
 			// Return fake response for Elasticsearch ping request.
