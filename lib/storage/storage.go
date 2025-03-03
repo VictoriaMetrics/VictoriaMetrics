@@ -2688,7 +2688,7 @@ type byDateMetricIDEntry struct {
 }
 
 func (s *Storage) updateNextDayMetricIDs(date uint64) {
-	generation := s.idb().generation
+	generation := s.idbCurr.Load().generation
 	e := s.nextDayMetricIDs.Load()
 	s.pendingNextDayMetricIDsLock.Lock()
 	pendingMetricIDs := s.pendingNextDayMetricIDs
