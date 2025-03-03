@@ -1269,7 +1269,7 @@ The shortlist of configuration flags is the following:
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -notifier.sendTimeout
-     Timeout for sending alerts to the configured -notifier.url. (default 10s)
+     Timeout when sending alerts to the corresponding -notifier.url. (default 10s)
   -notifier.showURL
      Whether to avoid stripping sensitive information such as passwords from URL in log messages or UI for -notifier.url. It is hidden by default, since it can contain sensitive info such as auth key
   -notifier.suppressDuplicateTargetErrors
