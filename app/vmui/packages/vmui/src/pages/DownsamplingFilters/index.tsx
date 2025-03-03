@@ -61,7 +61,7 @@ const DownsamplingFilters: FC = () => {
           "vm-table-cell_empty": !value,
         })}
       >
-        {value ? value.join(" ") : "No series matched for the given configuration!"}
+        {value ? value.join(" ") : "No matching rules found!"}
       </td>
     </tr>);
   }
