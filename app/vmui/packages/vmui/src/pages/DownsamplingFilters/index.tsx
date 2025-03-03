@@ -54,7 +54,7 @@ const DownsamplingFilters: FC = () => {
   for (const [key, value] of data) {
     rows.push(<tr className="vm-table__row">
       <td className="vm-table-cell">{key}</td>
-      <td className="vm-table-cell">{value.join(" ")}</td>
+      <td className="vm-table-cell">{value?.join(" ")}</td>
     </tr>);
   }
   return (

@@ -9,7 +9,7 @@ export const useDebugDownsamplingFilters = () => {
   const { serverUrl } = useAppState();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [data, setData] = useState<Map<string, string[]>>(new Map());
+  const [data, setData] = useState<Map<string, string[] | null>>(new Map());
   const [loading, setLoading] = useState(false);
   const [metricsError, setMetricsError] = useState<ErrorTypes | string>();
   const [flagsError, setFlagsError] = useState<ErrorTypes | string>();
