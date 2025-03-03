@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // GetTime returns time in milliseconds from the given argKey query arg.
@@ -28,7 +28,7 @@ func GetTime(r *http.Request, argKey string, defaultMs int64) (int64, error) {
 		return maxTimeMsecs, nil
 	}
 	// Parse argValue
-	msecs, err := promutils.ParseTimeMsec(argValue)
+	msecs, err := timeutil.ParseTimeMsec(argValue)
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse %s=%s: %w", argKey, argValue, err)
 	}

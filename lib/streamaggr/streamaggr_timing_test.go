@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -87,7 +88,7 @@ func newBenchSeries(seriesCount int) []prompbmarshal.TimeSeries {
 	}
 	metrics := strings.Join(a, "\n")
 	offsetMsecs := time.Now().UnixMilli()
-	return prompbmarshal.MustParsePromMetrics(metrics, offsetMsecs)
+	return prometheus.MustParsePromMetrics(metrics, offsetMsecs)
 }
 
 const seriesCount = 10_000

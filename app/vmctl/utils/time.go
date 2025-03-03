@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 const (
@@ -16,7 +16,7 @@ const (
 // ParseTime parses time in s string and returns time.Time object
 // if parse correctly or error if not
 func ParseTime(s string) (time.Time, error) {
-	msecs, err := promutils.ParseTimeMsec(s)
+	msecs, err := timeutil.ParseTimeMsec(s)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("cannot parse %s: %w", s, err)
 	}

@@ -21,14 +21,16 @@ _Note: This page provides only integration instructions for vmalert and Victoria
 
 Run vmalert with the following settings:
 ```sh
-./bin/vmalert -rule=alert.rules \            # Path to the files or http url with alerting and/or recording rules in YAML format.
-    -datasource.url=http://localhost:9428 \  # VictoriaLogs address.
-    -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
-    -remoteWrite.url=http://localhost:8428 \ # Remote write compatible storage to persist rules and alerts state info (required for recording rules)
-    -remoteRead.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource to restore alerts state from
+./bin/vmalert -rule=alert.rules                  \  # Path to the files or http url with alerting and/or recording rules in YAML format.
+    -datasource.url=http://victorialogs:9428     \  # VictoriaLogs address.
+    -notifier.url=http://alertmanager:9093       \  # AlertManager URL (required if alerting rules are used)
+    -remoteWrite.url=http://victoriametrics:8428 \  # Remote write compatible storage to persist recording rules and alerts state info
+    -remoteRead.url=http://victoriametrics:8428  \  # Prometheus HTTP API compatible datasource to restore alerts state from
 ```
 
-> Note: By default, vmalert assumes configured rules have `prometheus` type and will validate them accordingly. For rules in [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) specify `type: vlogs` on [Group level](#groups). Or set `-rule.defaultRuleType=vlogs` cmd-line flag to automatically apply `type: vlogs` to all groups.
+> Note: By default, vmalert assumes all configured rules have `prometheus` type and will validate them accordingly. 
+> For rules in [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) specify `type: vlogs` on [Group level](#groups). 
+> Or set `-rule.defaultRuleType=vlogs` cmd-line flag to apply `type: vlogs` to all configured groups.
 
 Each `-rule` file may contain arbitrary number of [groups](https://docs.victoriametrics.com/vmalert/#groups). 
 See examples in [Groups](#groups) section. See the full list of configuration flags and their descriptions in [configuration](#configuration) section.
@@ -37,9 +39,11 @@ With configuration example above, vmalert will perform the following interaction
 ![vmalert](vmalert_victorialogs.webp)
 
 1. Rules listed in `-rule` file are executed against VictoriaLogs service configured via `-datasource.url`;
-2. Triggered alerting notifications are sent to [Alertmanager](https://github.com/prometheus/alertmanager) service configured via `-notifier.url`;
-3. Results of recording rules expressions and alerts state are persisted to Prometheus-compatible remote-write endpoint (i.e. VictoriaMetrics) configured via `-remoteWrite.url`;
-4. On vmalert restarts, alerts state [can be restored](https://docs.victoriametrics.com/vmalert/#alerts-state-on-restarts) by querying Prometheus-compatible HTTP API endpoint (i.e. VictoriaMetrics) configured via `-remoteRead.url`.
+1. Triggered alerting notifications are sent to [Alertmanager](https://github.com/prometheus/alertmanager) service configured via `-notifier.url`;
+1. Results of recording rules expressions and alerts state are persisted to Prometheus-compatible remote-write endpoint
+   (i.e. VictoriaMetrics) configured via `-remoteWrite.url`;
+1. On vmalert restarts, alerts state [can be restored](https://docs.victoriametrics.com/vmalert/#alerts-state-on-restarts)
+   by querying Prometheus-compatible HTTP API endpoint (i.e. VictoriaMetrics) configured via `-remoteRead.url`.
 
 ## Configuration
 
@@ -82,7 +86,7 @@ The following are key flags related to integration with VictoriaLogs:
    Since there is no intentional search delay in VictoriaLogs, `-rule.evalDelay` can be reduced to a few seconds to accommodate network and ingestion time.
 ```
 
-For more configuration options, such as `notifiers`, visit https://docs.victoriametrics.com/vmalert/#configuration.
+See full list of configuration options [here](https://docs.victoriametrics.com/vmalert/#configuration).
 
 ### Groups
 
@@ -148,7 +152,7 @@ groups:
             description: "Connection from address {{$labels.ip}} has {{$value}}% failed requests in last 5 minutes"
 ```
 
-User can also specify a customized time filter if needed. For example, rule below will be evaluated every 5 minutes,
+User can specify a customized time filter if needed. For example, rule below will be evaluated every 5 minutes,
 but will calculate result over the logs from the last 10 minutes.
 ```yaml
 groups:
@@ -162,7 +166,7 @@ groups:
            description: "Connection from address {{$labels.ip}} has {{$value}}% failed requests in last 10 minutes"
 ```
 
-Please note, vmalert doesn't support [backfilling](#rules-backfilling) for rules with a customized time filter now. (Might be added in future)
+_Please note, vmalert doesn't support [backfilling](#rules-backfilling) for rules with a customized time filter now. (Might be added in future)._
 
 ## Rules backfilling
 
@@ -180,8 +184,8 @@ See more details about backfilling [here](https://docs.victoriametrics.com/vmale
 
 ## Performance tip
 
-LogsQL allows users to obtain multiple stats from a single expression.
-For instance, the following query calculates 50th, 90th and 99th percentiles for the `request_duration_seconds` field over logs for the last 5 minutes:
+LogsQL allows users to obtain multiple stats from a single expression. For instance, the following query calculates 
+50th, 90th and 99th percentiles for the `request_duration_seconds` field over logs for the last 5 minutes:
 
 ```logsql
 _time:5m | stats
@@ -198,8 +202,9 @@ groups:
     interval: 5m
     rules:
       - record: requestDurationQuantile
-        expr: '_time:5m | stats by (service) quantile(0.5, request_duration_seconds) p50, quantile(0.9, request_duration_seconds) p90, quantile(0.99, request_duration_seconds) p99'
+        expr: '* | stats by (service) quantile(0.5, request_duration_seconds) p50, quantile(0.9, request_duration_seconds) p90, quantile(0.99, request_duration_seconds) p99'
 ```
+
 This creates three metrics for each service:
 ```
 requestDurationQuantile{stats_result="p50", service="service-1"}
@@ -217,6 +222,7 @@ For additional tips on writing LogsQL, refer to this [doc](https://docs.victoria
 ## Frequently Asked Questions
 
 ### How to use [multitenancy](https://docs.victoriametrics.com/victorialogs/#multitenancy) in rules?
+
 vmalert doesn't support multi-tenancy for VictoriaLogs in the same way as it [supports it for VictoriaMetrics in ENT version](https://docs.victoriametrics.com/vmalert/#multitenancy).
 However, it is possible to specify the queried tenant from VictoriaLogs datasource via `headers` param in [Group config](https://docs.victoriametrics.com/vmalert/#groups).
 For example, the following config will execute all the rules within the group against tenant with `AccountID=1` and `ProjectID=2`:
@@ -288,10 +294,12 @@ To persist different rule results to different tenants in VictoriaMetrics, there
     ```
 
 ### How to use one vmalert for VictoriaLogs and VictoriaMetrics rules in the same time?
+
 We recommend running separate instances of vmalert for VictoriaMetrics and VictoriaLogs.
 However, vmalert allows having many groups with different rule types (`vlogs`, `prometheus`, `graphite`).
 But only one `-datasource.url` cmd-line flag can be specified, so it can't be configured with more than 1 datasource.
-However, VictoriaMetrics and VictoriaLogs datasources have different query path prefixes, and it is possible to use [vmauth](https://docs.victoriametrics.com/vmauth/) to route requests of different types between datasources.
+VictoriaMetrics and VictoriaLogs datasources have different query path prefixes, so it is possible to use
+[vmauth](https://docs.victoriametrics.com/vmauth/) to route requests of different types between datasources.
 See example of vmauth config for such routing below:
 ```yaml
     unauthorized_user:
@@ -303,4 +311,5 @@ See example of vmauth config for such routing below:
           - "/select/logsql/.*"
           url_prefix: "http://victorialogs:9428"
 ```
-  Now, vmalert needs to be configured with `--datasource.url=http://vmauth:8427/` to send queries to vmauth, and vmauth will route them to the specified destinations as in configuration example above.
+Now, vmalert can be configured with `--datasource.url=http://vmauth:8427/` to send queries to vmauth, 
+and vmauth will route them to the specified destinations as in configuration example above.

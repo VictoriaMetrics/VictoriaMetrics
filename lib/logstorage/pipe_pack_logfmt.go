@@ -11,13 +11,14 @@ import (
 type pipePackLogfmt struct {
 	resultField string
 
+	// the field names and/or field name prefixes to put inside the packed json
 	fields []string
 }
 
 func (pp *pipePackLogfmt) String() string {
 	s := "pack_logfmt"
 	if len(pp.fields) > 0 {
-		s += " fields (" + fieldsToString(pp.fields) + ")"
+		s += " fields (" + fieldsWithOptionalStarsToString(pp.fields) + ")"
 	}
 	if !isMsgFieldName(pp.resultField) {
 		s += " as " + quoteTokenIfNeeded(pp.resultField)

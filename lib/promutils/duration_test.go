@@ -3,13 +3,15 @@ package promutils
 import (
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 func TestDuration(t *testing.T) {
-	if _, err := ParseDuration("foobar"); err == nil {
+	if _, err := timeutil.ParseDuration("foobar"); err == nil {
 		t.Fatalf("expecting error for invalid duration")
 	}
-	dNative, err := ParseDuration("1w")
+	dNative, err := timeutil.ParseDuration("1w")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

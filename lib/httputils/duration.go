@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // GetDuration returns duration in milliseconds from the given argKey query arg.
@@ -21,7 +21,7 @@ func GetDuration(r *http.Request, argKey string, defaultValue int64) (int64, err
 	secs, err := strconv.ParseFloat(argValue, 64)
 	if err != nil {
 		// Try parsing string format
-		d, err := promutils.ParseDuration(argValue)
+		d, err := timeutil.ParseDuration(argValue)
 		if err != nil {
 			return 0, fmt.Errorf("cannot parse %q=%q: %w", argKey, argValue, err)
 		}

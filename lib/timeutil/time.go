@@ -1,4 +1,4 @@
-package promutils
+package timeutil
 
 import (
 	"fmt"
@@ -6,8 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // ParseTimeMsec parses time s in different formats.
@@ -64,7 +62,7 @@ func ParseTimeAt(s string, currentTimestamp int64) (int64, error) {
 			s = sOrig[:len(sOrig)-6]
 		} else {
 			if !strings.HasSuffix(s, "Z") {
-				tzOffset = -timeutil.GetLocalTimezoneOffsetNsecs()
+				tzOffset = -GetLocalTimezoneOffsetNsecs()
 			} else {
 				s = s[:len(s)-1]
 			}

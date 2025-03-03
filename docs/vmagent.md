@@ -55,7 +55,7 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
 ## Quick Start
 
 Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) (
-`vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags)),
+`vmagent` is also available in docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vmagent?tab=tags)),
 unpack it and pass the following flags to the `vmagent` binary in order to start scraping Prometheus-compatible targets
 and sending the data to the Prometheus-compatible remote storage:
 
@@ -1368,7 +1368,7 @@ and gzipped [JSON line](https://docs.victoriametrics.com/#json-line-format) mess
 
 These command-line flags are available only in [enterprise](https://docs.victoriametrics.com/enterprise/) version of `vmagent`,
 which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
-(see `vmutils-...-enterprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+(see `vmutils-...-enterprise.tar.gz` archives) and from docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vmagent?tab=tags) with tags containing `enterprise` suffix.
 
 ```sh
   -gcp.pubsub.subscribe.credentialsFile string
@@ -1402,7 +1402,7 @@ These messages can be read later from Google PubSub by another `vmagent` instanc
 
 These command-line flags are available only in [enterprise](https://docs.victoriametrics.com/enterprise/) version of `vmagent`,
 which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
-(see `vmutils-...-enterprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+(see `vmutils-...-enterprise.tar.gz` archives) and from docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vmagent?tab=tags) with tags containing `enterprise` suffix.
 
 ```sh
   -gcp.pubsub.publish.byteThreshold int
@@ -1431,7 +1431,7 @@ which can be downloaded for evaluation from [releases](https://github.com/Victor
 * [Writing metrics to Kafka](#writing-metrics-to-kafka)
 
 The enterprise version of vmagent is available for evaluation at [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
-in `vmutils-...-enterprise.tar.gz` archives and in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+in `vmutils-...-enterprise.tar.gz` archives and in docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vmagent?tab=tags) with tags containing `enterprise` suffix.
 See how to request a free trial license [here](https://victoriametrics.com/products/enterprise/trial/).
 
 ### Reading metrics from Kafka
@@ -1507,7 +1507,7 @@ See also [how to write metrics to multiple distinct tenants](https://docs.victor
 
 These command-line flags are available only in [enterprise](https://docs.victoriametrics.com/enterprise/) version of `vmagent`,
 which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) page
-(see `vmutils-...-enterprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+(see `vmutils-...-enterprise.tar.gz` archives) and from docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/vmagent/tags) and [Quay](https://quay.io/repository/victoriametrics/vmagent?tab=tags) with tags containing `enterprise` suffix.
 
 ```sh
   -kafka.consumer.topic array

@@ -14,6 +14,7 @@ func TestParsePipePackLogfmtSuccess(t *testing.T) {
 	f(`pack_logfmt as x`)
 	f(`pack_logfmt fields (a, b)`)
 	f(`pack_logfmt fields (a, b) as x`)
+	f(`pack_logfmt fields (foo.*, bar, baz.abc.*) as x`)
 }
 
 func TestParsePipePackLogfmtFailure(t *testing.T) {
@@ -96,10 +97,10 @@ func TestPipePackLogfmt(t *testing.T) {
 			{"_msg", `x`},
 			{"foo", `abc`},
 			{"bar", `cde`},
-			{"a", `foo=abc baz=`},
+			{"a", `foo=abc`},
 		},
 		{
-			{"a", `foo= baz=`},
+			{"a", ""},
 			{"c", "d"},
 		},
 	})

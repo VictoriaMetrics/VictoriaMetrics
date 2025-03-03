@@ -33,7 +33,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/formatutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // go template execution fails when it's tree is empty
@@ -259,7 +259,7 @@ func templateFuncs() textTpl.FuncMap {
 
 		// parseDuration parses a duration string such as "1h" into the number of seconds it represents
 		"parseDuration": func(s string) (float64, error) {
-			d, err := promutils.ParseDuration(s)
+			d, err := timeutil.ParseDuration(s)
 			if err != nil {
 				return 0, err
 			}
@@ -268,7 +268,7 @@ func templateFuncs() textTpl.FuncMap {
 
 		// same with parseDuration but returns a time.Duration
 		"parseDurationTime": func(s string) (time.Duration, error) {
-			d, err := promutils.ParseDuration(s)
+			d, err := timeutil.ParseDuration(s)
 			if err != nil {
 				return 0, err
 			}

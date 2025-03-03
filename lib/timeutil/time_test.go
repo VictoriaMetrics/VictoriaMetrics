@@ -1,4 +1,4 @@
-package promutils
+package timeutil
 
 import (
 	"testing"

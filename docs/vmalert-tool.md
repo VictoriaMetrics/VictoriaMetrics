@@ -312,6 +312,8 @@ Run `vmalert-tool unittest --help` to get all configuration options:
     Optional label in the form 'name=value' to add to all generated recording rules and alerts. Supports an array of values separated by comma or specified via multiple flags.
   -external.url
     Optional external URL to template in rule's labels or annotations.
+  -httpListenPort
+    Optional local port for incoming HTTP requests. If not specified, a random unoccupied port will be used.
   -loggerLevel
     Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "ERROR").
 ```

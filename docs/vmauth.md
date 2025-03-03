@@ -28,7 +28,7 @@ The port can be modified via `-httpListenAddr` command-line flag.
 
 See [how to reload config without restart](#config-reload).
 
-Docker images for `vmauth` are available [here](https://hub.docker.com/r/victoriametrics/vmauth/tags).
+Docker images for `vmauth` are available at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmauth/tags) and [Quay](https://quay.io/repository/victoriametrics/vmauth?tab=tags).
 See how `vmauth` used in [docker-compose env](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/README.md#victoriametrics-cluster).
 
 Pass `-help` to `vmauth` in order to see all the supported command-line flags with their descriptions.
