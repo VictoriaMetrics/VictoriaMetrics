@@ -348,6 +348,52 @@ models:
     ]
 ```
 
+### Score outside data range
+
+The `anomaly_score_outside_data_range` {{% available_from "v1.20.0" anomaly %}} parameter allows overriding the default **anomaly score (`1.01`)** assigned when actual values (`y`) fall **outside the defined `data_range` if defined in [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/)**. This provides greater flexibility for **alerting rule configurations** and enables **clearer visual differentiation** between different types of anomalies:
+
+- By default, `y` values **outside `data_range`** trigger an anomaly score of `1.01`, which serves as a basic alerting rule.
+- However, some users may require **higher anomaly scores** (e.g., `> 1.2`) to **trigger alerts reliably** in their monitoring setups.
+
+**How it works**
+- If **not set**, the **default value (`1.01`)** is used for backward compatibility.
+- If defined at the **service level** (`settings`), it applies to all models **unless overridden at the model level**.
+- If set **per model**, it takes **priority over the global setting**.
+
+**Example (override)**
+
+```yaml
+settings:
+  # other parameters ...
+  # all the models in `models` section will inherit this value unless overridden at the model level
+  anomaly_score_outside_data_range: 1.2
+
+models:
+  model_score_override:
+    class: 'zscore_online'
+    # explicitly set, takes priority over `settings`'s value
+    anomaly_score_outside_data_range: 1.5
+  model_score_from_settings_level:
+    class: 'zscore_online'
+    # inherits from `settings`, will be `1.2`, same as setting
+    # anomaly_score_outside_data_range: 1.2
+```
+
+**Example (default vs custom)**
+
+```yaml
+models:
+  model_default_score:
+    class: 'zscore_online'
+    # default anomaly score (1.01) is applied when y is outside data_range, same as setting
+    # anomaly_score_outside_data_range: 1.01
+  model_higher_out_of_data_range_score:
+    class: 'zscore_online'
+    # explicitly set, takes priority over `settings`'s value
+    anomaly_score_outside_data_range: 3.0  
+```
+
+
 ## Model types
 
 There are **2 model types**, supported in `vmanomaly`, resulting in **4 possible combinations**:
@@ -359,7 +405,7 @@ Each of these models can be of type
 - [Rolling](#rolling-models)
 - [Non-rolling](#non-rolling-models)
 
-Moreover, starting from [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1150), there exist **[online (incremental) models](#online-models)** subclass. Please refer to the [correspondent section](#online-models) for more details.
+Moreover, {{% available_from "v1.15.0" anomaly %}}, there exist **[online (incremental) models](#online-models)** subclass. Please refer to the [correspondent section](#online-models) for more details.
 
 ### Univariate Models
 
@@ -382,7 +428,7 @@ For a multivariate type, **one shared model** is fit/used for inference on **all
 
 For example, if you have some **multivariate** model to use 3 [MetricQL queries](https://docs.victoriametrics.com/metricsql/), each returning 5 time series, there will be one shared model created in total. Once fit, this model will expect **exactly 15 time series with exact same labelsets as an input**. This model will produce **one shared [output](#vmanomaly-output)**.
 
-> **Note:** Starting from [v1.16.0](https://docs.victoriametrics.com/anomaly-detection/changelog#v1160), N models — one for each unique combination of label values specified in the `groupby` [common argument](#group-by) — can be trained. This allows for context separation (e.g., one model per host, region, or other relevant grouping label), leading to improved accuracy and faster training. See an example [here](#group-by).
+> **Note:** {{% available_from "v1.16.0" anomaly %}}, N models — one for each unique combination of label values specified in the `groupby` [common argument](#group-by) — can be trained. This allows for context separation (e.g., one model per host, region, or other relevant grouping label), leading to improved accuracy and faster training. See an example [here](#group-by).
 
 If during an inference, you got a **different amount of series** or some series having a **new labelset** (not present in any of fitted models), the inference will be skipped until you get a model, trained particularly for such labelset during forthcoming re-fit step. 
 
@@ -469,16 +515,16 @@ Every other model that isn't [online](#online-models). Offline models are comple
 ## Built-in Models 
 
 ### Overview
-VictoriaMetrics Anomaly Detection models support 2 groups of parameters:
+Built-in models support 2 groups of arguments:
 
 - **`vmanomaly`-specific** arguments - please refer to *Parameters specific for vmanomaly* and *Default model parameters* subsections for each of the models below.
-- Arguments to **inner model** (say, [Facebook's Prophet](https://facebook.github.io/prophet/docs/quick_start#python-api)), passed in a `args` argument as key-value pairs, that will be directly given to the model during initialization to allow granular control. Optional.
+- Arguments to **inner model** (say, [Facebook's Prophet](https://facebook.github.io/prophet/docs/quick_start#python-api)), passed inside `args` argument as key-value pairs, that will be directly given to the model during initialization to allow granular control. Optional.
 
 > **Note**: For users who may not be familiar with Python data types such as `list[dict]`, a [dictionary](https://www.w3schools.com/python/python_dictionaries.asp) in Python is a data structure that stores data values in key-value pairs. This structure allows for efficient data retrieval and management.
 
 
 **Models**:
-* [AutoTuned](#autotuned) - designed to take the cognitive load off the user, allowing any of built-in models below to be re-tuned for best params on data seen during each `fit` phase of the algorithm. Tradeoff is between increased computational time and optimized results / simpler maintenance.
+* [AutoTuned](#autotuned) - designed to take the cognitive load off the user, allowing any of built-in models below to be re-tuned for best hyperparameters on data seen during each `fit` phase of the algorithm. Tradeoff is between increased computational time and optimized results / simpler maintenance.
 * [Prophet](#prophet) - the most versatile one for production usage, especially for complex data ([trends](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend), [change points](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-2/#novelties), [multi-seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality))
 * [Z-score](#z-score) - useful for initial testing and for simpler data ([de-trended](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#trend) data without strict [seasonality](https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1/#seasonality) and with anomalies of similar magnitude as your "normal" data)
 * [Online Z-score](#online-z-score) - [online](#online-models) alternative to [Z-score](#z-score) model with exact same behavior and use cases.
@@ -501,7 +547,7 @@ Tuning hyperparameters of a model can be tricky and often requires in-depth know
 * `tuned_class_name` (string) - Built-in model class to tune, i.e. `model.zscore.ZscoreModel` (or `zscore`with class alias support{{% available_from "v1.13.0" anomaly %}}).
 * `optimization_params` (dict) - Optimization parameters for unsupervised model tuning. Control % of found anomalies, as well as a tradeoff between time spent and the accuracy. The more `timeout` and `n_trials` are, the better model configuration can be found for `tuned_class_name`, but the longer it takes and vice versa. Set `n_jobs` to `-1` to use all the CPUs available, it makes sense if only you have a big dataset to train on during `fit` calls, otherwise overhead isn't worth it.
   - `anomaly_percentage` (float) - Expected percentage of anomalies that can be seen in training data, from (0, 0.5) interval.
-  - `optimized_business_params` (list[string]) - Starting from [v1.15.0](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1150) this argument allows particular business-specific parameters such as [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) or [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to remain **unchanged during optimizations, retaining their default values**. I.e. setting `optimized_business_params` to  `['detection_direction']` will allow to optimize only `detection_direction` business-specific arg, while `min_dev_from_expected` will retain its default value (0.0). By default and if not set, will be equal to `[]` (empty list), meaning no business params will be optimized. **A recommended option is to leave it empty** for more stable results and increased convergence (less iterations needed for a good result).
+  - `optimized_business_params` (list[string]) - {{% available_from "v1.15.0" anomaly %}} this argument allows particular business-specific parameters such as [`detection_direction`](https://docs.victoriametrics.com/anomaly-detection/components/models/#detection-direction) or [`min_dev_from_expected`](https://docs.victoriametrics.com/anomaly-detection/components/models/#minimal-deviation-from-expected) to remain **unchanged during optimizations, retaining their default values**. I.e. setting `optimized_business_params` to  `['detection_direction']` will allow to optimize only `detection_direction` business-specific arg, while `min_dev_from_expected` will retain its default value (0.0). By default and if not set, will be equal to `[]` (empty list), meaning no business params will be optimized. **A recommended option is to leave it empty** for more stable results and increased convergence (less iterations needed for a good result).
   - `seed` (int) - Random seed for reproducibility and deterministic nature of underlying optimizations.
   - `n_splits` (int) - How many folds to create for hyperparameter tuning out of your data. The higher, the longer it takes but the better the results can be. Defaults to 3.
   - `n_trials` (int) - How many trials to sample from hyperparameter search space. The higher, the longer it takes but the better the results can be. Defaults to 128.
@@ -536,19 +582,17 @@ models:
 ### [Prophet](https://facebook.github.io/prophet/)
 `vmanomaly` uses the Facebook Prophet implementation for time series forecasting, with detailed usage provided in the [Prophet library documentation](https://facebook.github.io/prophet/docs/quick_start#python-api). All original Prophet parameters are supported and can be directly passed to the model via `args` argument.
 
-
 > **Note**: `ProphetModel` is a [univariate](#univariate-models), [non-rolling](#non-rolling-models), [offline](#offline-models) model.
 
-
-> **Note**: Starting with [v1.18.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1182), the format for `tz_seasonalities` has been updated to enhance flexibility. Previously, it accepted a list of strings (e.g., `['hod', 'minute']`). Now, it follows the same structure as custom seasonalities defined in the `seasonalities` argument (e.g., `{"name": "hod", "fourier_order": 5, "mode": "additive"}`). This change is backward-compatible, so older configurations will be automatically converted to the new format using default values.
+> **Note**: {{% available_from "v1.18.2" anomaly %}} the format for `tz_seasonalities` has been updated to enhance flexibility. Previously, it accepted a list of strings (e.g., `['hod', 'minute']`). Now, it follows the same structure as custom seasonalities defined in the `seasonalities` argument (e.g., `{"name": "hod", "fourier_order": 5, "mode": "additive"}`). This change is backward-compatible, so older configurations will be automatically converted to the new format using default values.
 
 *Parameters specific for vmanomaly*:
 
 - `class` (string) - model class name `"model.prophet.ProphetModel"` (or `prophet` with class alias support{{% available_from "v1.13.0" anomaly %}})
 - `seasonalities` (list[dict], optional): Additional seasonal components to include in Prophet. See Prophet’s [`add_seasonality()`](https://facebook.github.io/prophet/docs/seasonality,_holiday_effects,_and_regressors#modeling-holidays-and-special-events:~:text=modeling%20the%20cycle-,Specifying,-Custom%20Seasonalities) documentation for details.
-- `scale`{{% available_from "v1.18.0" anomaly %}} (float): Is used to adjust the margin between `yhat` and [`yhat_lower`, `yhat_upper`]. New margin = `|yhat_* - yhat_lower| * scale`. Defaults to 1 (no scaling is applied).
+- `scale`{{% available_from "v1.18.0" anomaly %}} (float): Is used to adjust the margins between `yhat` and [`yhat_lower`, `yhat_upper`]. New margin = `|yhat_* - yhat_lower| * scale`. Defaults to 1 (no scaling is applied). See `scale`[common arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale) section for detailed instructions and 2-sided option.
 - `tz_aware`{{% available_from "v1.18.0" anomaly %}} (bool): Enables handling of timezone-aware timestamps. Default is `False`. Should be used with `tz_seasonalities` and `tz_use_cyclical_encoding` parameters.
-- `tz_seasonalities`{{% available_from "v1.18.0" anomaly %}} (list[dict]): Specifies timezone-aware seasonal components. Requires `tz_aware=True`. Supported options include `minute`, `hod` (hour of day), `dow` (day of week), and `month` (month of year). Starting with [v1.18.2](https://docs.victoriametrics.com/anomaly-detection/changelog/#v1182), users can configure additional parameters for each seasonality, such as `fourier_order`, `prior_scale`, and `mode`. For more details, please refer to the **Timezone-unaware** configuration example below.
+- `tz_seasonalities`{{% available_from "v1.18.0" anomaly %}} (list[dict]): Specifies timezone-aware seasonal components. Requires `tz_aware=True`. Supported options include `minute`, `hod` (hour of day), `dow` (day of week), and `month` (month of year). {{% available_from "v1.18.2" anomaly %}} users can configure additional parameters for each seasonality, such as `fourier_order`, `prior_scale`, and `mode`. For more details, please refer to the **Timezone-unaware** configuration example below.
 - `tz_use_cyclical_encoding`{{% available_from "v1.18.0" anomaly %}} (bool): If set to `True`, applies [cyclical encoding technique](https://www.kaggle.com/code/avanwyk/encoding-cyclical-features-for-deep-learning) to timezone-aware seasonalities. Should be used with `tz_aware=True` and `tz_seasonalities`.
 
 > **Note**: Apart from standard [`vmanomaly` output](#vmanomaly-output), Prophet model can provide additional metrics.
@@ -572,6 +616,17 @@ models:
   your_desired_alias_for_a_model:
     class: 'prophet'  # or 'model.prophet.ProphetModel' until v1.13.0
     provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
+    # schedulers: [all scheduler aliases defined in `scheduler` section]
+    # queries: [all query aliases defined in `reader.queries` section]
+    # detection_direction: 'both'  # meaning both drops and spikes will be captured
+    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
     seasonalities:
       - name: 'hourly'
         period: 0.04166666666
@@ -591,6 +646,17 @@ models:
   your_desired_alias_for_a_model:
     class: 'prophet'  # or 'model.prophet.ProphetModel' until v1.13.0
     provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']
+    # schedulers: [all scheduler aliases defined in `scheduler` section]
+    # queries: [all query aliases defined in `reader.queries` section]
+    # detection_direction: 'both'  # meaning both drops and spikes will be captured
+    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
     tz_aware: True
     tz_use_cyclical_encoding: True
     tz_seasonalities: # intra-day + intra-week seasonality, no intra-year / sub-hour seasonality
@@ -627,6 +693,17 @@ models:
   your_desired_alias_for_a_model:
     class: "zscore"  # or 'model.zscore.ZscoreModel' until v1.13.0
     z_threshold: 3.5
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    # schedulers: [all scheduler aliases defined in `scheduler` section]
+    # queries: [all query aliases defined in `reader.queries` section]
+    # detection_direction: 'both'  # meaning both drops and spikes will be captured
+    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
 ```
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
@@ -652,6 +729,17 @@ models:
     z_threshold: 3.5
     min_n_samples_seen: 128  # i.e. calculate it as full seasonality / data freq
     provide_series: ['anomaly_score', 'yhat']  # common arg example
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    # schedulers: [all scheduler aliases defined in `scheduler` section]
+    # queries: [all query aliases defined in `reader.queries` section]
+    # detection_direction: 'both'  # meaning both drops and spikes will be captured
+    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
 ```
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
@@ -697,6 +785,17 @@ models:
     args:
       seasonal: 'add'
       initialization_method: 'estimated'
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    # schedulers: [all scheduler aliases defined in `scheduler` section]
+    # queries: [all query aliases defined in `reader.queries` section]
+    # detection_direction: 'both'  # meaning both drops and spikes will be captured
+    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
 ```
 
 
@@ -722,6 +821,17 @@ models:
   your_desired_alias_for_a_model:
     class: "mad"  # or 'model.mad.MADModel' until v1.13.0
     threshold: 2.5
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    # schedulers: [all scheduler aliases defined in `scheduler` section]
+    # queries: [all query aliases defined in `reader.queries` section]
+    # detection_direction: 'both'  # meaning both drops and spikes will be captured
+    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
 ```
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
@@ -751,6 +861,17 @@ models:
     min_n_samples_seen: 128  # i.e. calculate it as full seasonality / data freq
     compression: 100  # higher values mean higher accuracy but higher memory usage
     provide_series: ['anomaly_score', 'yhat']  # common arg example
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    # schedulers: [all scheduler aliases defined in `scheduler` section]
+    # queries: [all query aliases defined in `reader.queries` section]
+    # detection_direction: 'both'  # meaning both drops and spikes will be captured
+    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
 ```
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
@@ -776,6 +897,17 @@ models:
     class: "rolling_quantile" # or 'model.rolling_quantile.RollingQuantileModel' until v1.13.0
     quantile: 0.9
     window_steps: 96
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    # schedulers: [all scheduler aliases defined in `scheduler` section]
+    # queries: [all query aliases defined in `reader.queries` section]
+    # detection_direction: 'both'  # meaning both drops and spikes will be captured
+    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
 ```
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
@@ -799,7 +931,7 @@ It uses the `quantiles` triplet to calculate `yhat_lower`, `yhat`, and `yhat_upp
 * `min_subseason` (str, optional) - the minimum interval to estimate quantiles for. By default not set. Note that the minimum interval should be a multiple of the seasonal interval, i.e. if seasonal_interval='2h', then min_subseason='15m' is valid, but '37m' is not.
 * `use_transform` (bool, optional) - whether to internally apply a `log1p(abs(x)) * sign(x)` transformation to the data to stabilize internal quantile estimation. Does not affect the scale of produced output (i.e. `yhat`) By default False.
 * `global_smoothing` (float, optional) - the smoothing parameter for the global quantiles. i.e. the output is a weighted average of the global and seasonal quantiles (if `seasonal_interval` and `min_subseason` args are set). Should be from `[0, 1]` interval, where 0 means no smoothing and 1 means using only global quantile values.
-* `scale` (float, optional) - the scaling factor for the `yhat_lower` and `yhat_upper` quantiles. By default 1.0 (no scaling). if > 1, increases the boundaries [`yhat_lower`, `yhat_upper`] that define "non-anomalous" points. Should be > 0.
+* `scale` (float, optional) - Is used to adjust the margins between `yhat` and [`yhat_lower`, `yhat_upper`]. New margin = `|yhat_* - yhat_lower| * scale`. Defaults to 1 (no scaling is applied). See `scale`[common arg](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale) section for detailed instructions and 2-sided option.
 * `season_starts_from` (str, optional) - the start date for the seasonal adjustment, as a reference point to start counting the intervals. By default '1970-01-01'.
 * `min_n_samples_seen` (int, optional) - the minimum number of samples to be seen (`n_samples_seen_` property) before computing the anomaly score. Otherwise, the **anomaly score will be 0**, as there is not enough data to trust the model's predictions. Defaults to 16.
 * `compression` (int, optional) - the compression parameter for the underlying [t-digests](https://www.sciencedirect.com/science/article/pii/S2665963820300403). Higher values mean higher accuracy but higher memory usage. By default 100.
@@ -820,6 +952,17 @@ models:
     season_starts_from: '2024-01-01'  # interval calculation starting point, especially for uncommon seasonalities like '36h' or '12d'
     compression: 100  # higher values mean higher accuracy but higher memory usage
     provide_series: ['anomaly_score', 'yhat']  # common arg example
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    # schedulers: [all scheduler aliases defined in `scheduler` section]
+    # queries: [all query aliases defined in `reader.queries` section]
+    # detection_direction: 'both'  # meaning both drops and spikes will be captured
+    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
 ```
 
 Resulting metrics of the model are described [here](#vmanomaly-output).
@@ -846,6 +989,17 @@ models:
   your_desired_alias_for_a_model:
     class: "std"  # or 'model.std.StdModel' starting from v1.13.0
     period: 2
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    # schedulers: [all scheduler aliases defined in `scheduler` section]
+    # queries: [all query aliases defined in `reader.queries` section]
+    # detection_direction: 'both'  # meaning both drops and spikes will be captured
+    # min_dev_from_expected: 0.0  # meaning, no minimal threshold is applied to prevent smaller anomalies
+    # scale: [1.0, 1.0]  # if needed, prediction intervals' width can be increased (>1) or narrowed (<1)
+    # clip_predictions: False  # if data_range for respective `queries` is set in reader, `yhat.*` columns will be clipped
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
 ```
 
 
@@ -901,6 +1055,13 @@ models:
       n_estimators: 100
       # i.e. to assure reproducibility of produced results each time model is fit on the same input
       random_state: 42
+    # Common arguments for built-in model, if not set, default to
+    # See https://docs.victoriametrics.com/anomaly-detection/components/models/#common-args
+    #
+    # provide_series: ['anomaly_score', 'yhat', 'yhat_lower', 'yhat_upper']
+    # schedulers: [all scheduler aliases defined in `scheduler` section]
+    # queries: [all query aliases defined in `reader.queries` section]
+    # anomaly_score_outside_data_range: 1.01  # auto anomaly score (1.01) if `y` (real value) is outside of data_range, if set
 ```
 
 
