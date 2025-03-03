@@ -1538,6 +1538,14 @@ func TestStorageRotateIndexDB_NotifyReadWriteMode(t *testing.T) {
 	testRotateIndexDB(t, []MetricRow{}, op)
 }
 
+func TestStorageRotateIndexDB_UpdateMetrics(t *testing.T) {
+	op := func(s *Storage) {
+		s.UpdateMetrics(&Metrics{})
+	}
+
+	testRotateIndexDB(t, []MetricRow{}, op)
+}
+
 // testRotateIndexDB checks that storage handles gracefully indexDB rotation
 // that happens concurrently with some operation (ingestion or search). The
 // operation is expected to finish successfully and there must be no panics.

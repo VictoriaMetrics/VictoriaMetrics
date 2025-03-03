@@ -680,7 +680,9 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	}
 	m.NextRetentionSeconds = uint64(d)
 
-	s.idb().UpdateMetrics(&m.IndexDBMetrics)
+	idb, _, putIndexDBs := s.getIndexDBs()
+	defer putIndexDBs()
+	idb.UpdateMetrics(&m.IndexDBMetrics)
 	s.tb.UpdateMetrics(&m.TableMetrics)
 }
 
