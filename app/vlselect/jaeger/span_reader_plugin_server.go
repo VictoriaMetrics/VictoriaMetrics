@@ -25,6 +25,10 @@ type span struct {
 }
 
 func (s *SpanReaderPluginServer) GetTrace(ctx context.Context, traceID model.TraceID) (*model.Trace, error) {
+	start := time.Now()
+	defer func() {
+		logger.Infof("GetTrace finished in %dms", time.Since(start).Milliseconds())
+	}()
 	qStr := fmt.Sprintf("trace_id:%s | fields _time, _msg", traceID.String())
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, time.Now().UnixNano())
 	if err != nil {
@@ -76,6 +80,10 @@ func (s *SpanReaderPluginServer) GetTrace(ctx context.Context, traceID model.Tra
 }
 
 func (s *SpanReaderPluginServer) GetServices(ctx context.Context) ([]string, error) {
+	start := time.Now()
+	defer func() {
+		logger.Infof("GetServices finished in %dms", time.Since(start).Milliseconds())
+	}()
 	qStr := "*"
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, time.Now().UnixNano())
 	if err != nil {
@@ -96,6 +104,10 @@ func (s *SpanReaderPluginServer) GetServices(ctx context.Context) ([]string, err
 }
 
 func (s *SpanReaderPluginServer) GetOperations(ctx context.Context, req spanstore.OperationQueryParameters) ([]spanstore.Operation, error) {
+	start := time.Now()
+	defer func() {
+		logger.Infof("GetOperations finished in %dms", time.Since(start).Milliseconds())
+	}()
 	qStr := fmt.Sprintf("_stream:{service_name=\"%s\"}", req.ServiceName) // todo spankind filter
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, time.Now().UnixNano())
 	if err != nil {
@@ -114,6 +126,10 @@ func (s *SpanReaderPluginServer) GetOperations(ctx context.Context, req spanstor
 }
 
 func (s *SpanReaderPluginServer) FindTraces(ctx context.Context, query *spanstore.TraceQueryParameters) ([]*model.Trace, error) {
+	start := time.Now()
+	defer func() {
+		logger.Infof("FindTraces finished in %dms", time.Since(start).Milliseconds())
+	}()
 	traceIDs, err := s.FindTraceIDs(ctx, query)
 	if err != nil {
 		return nil, err
@@ -134,6 +150,10 @@ func (s *SpanReaderPluginServer) FindTraces(ctx context.Context, query *spanstor
 }
 
 func (s *SpanReaderPluginServer) FindTraceIDs(ctx context.Context, query *spanstore.TraceQueryParameters) ([]model.TraceID, error) {
+	start := time.Now()
+	defer func() {
+		logger.Infof("FindTraceIDs finished in %dms", time.Since(start).Milliseconds())
+	}()
 	qStr := ""
 	if svcName := query.ServiceName; svcName != "" {
 		qStr += fmt.Sprintf("AND _stream:{service_name=\"%s\"} ", svcName)
