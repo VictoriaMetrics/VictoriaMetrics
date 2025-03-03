@@ -325,7 +325,7 @@ func (db *indexDB) incRef() {
 func (db *indexDB) decRef() {
 	n := db.refCount.Add(-1)
 	if n < 0 {
-		logger.Panicf("BUG: negative refCount: %d", n)
+		logger.Panicf("BUG: %q negative refCount: %d", db.name, n)
 	}
 	if n > 0 {
 		return

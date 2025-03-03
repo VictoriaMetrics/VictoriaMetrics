@@ -1340,6 +1340,208 @@ func testCountAllMetricNamesNoExtDB(is *indexSearch, tr TimeRange) int {
 	return len(metricNames)
 }
 
+func TestStorageRotateIndexDB_AddRows(t *testing.T) {
+	op := func(s *Storage) {
+		rng := rand.New(rand.NewSource(1))
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		}
+		mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+	}
+
+	testRotateIndexDB(t, []MetricRow{}, op)
+}
+
+func TestStorageRotateIndexDB_RegisterMetricNames(t *testing.T) {
+	op := func(s *Storage) {
+		rng := rand.New(rand.NewSource(1))
+		tr := TimeRange{
+			MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		}
+		mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
+		s.RegisterMetricNames(nil, mrs)
+		s.DebugFlush()
+	}
+
+	testRotateIndexDB(t, []MetricRow{}, op)
+}
+
+func TestStorageRotateIndexDB_CreateSnapshot(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
+	op := func(s *Storage) {
+		_, err := s.CreateSnapshot()
+		if err != nil {
+			panic(fmt.Sprintf("CreateSnapshot() failed unexpectedly: %v", err))
+		}
+	}
+
+	testRotateIndexDB(t, mrs, op)
+}
+
+func TestStorageRotateIndexDB_SearchMetricNames(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
+	tfs := NewTagFilters()
+	if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	tfss := []*TagFilters{tfs}
+	op := func(s *Storage) {
+		_, err := s.SearchMetricNames(nil, tfss, tr, 1e9, noDeadline)
+		if err != nil {
+			panic(fmt.Sprintf("SearchMetricNames() failed unexpectedly: %v", err))
+		}
+	}
+
+	testRotateIndexDB(t, mrs, op)
+}
+
+func TestStorageRotateIndexDB_SearchLabelNames(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
+
+	testRotateIndexDB(t, mrs, func(s *Storage) {
+		_, err := s.SearchLabelNames(nil, []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+		if err != nil {
+			panic(fmt.Sprintf("SearchLabelNames() failed unexpectedly: %v", err))
+		}
+	})
+}
+
+func TestStorageRotateIndexDB_SearchLabelValues(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
+
+	testRotateIndexDB(t, mrs, func(s *Storage) {
+		_, err := s.SearchLabelValues(nil, "__name__", []*TagFilters{}, tr, 1e6, 1e6, noDeadline)
+		if err != nil {
+			panic(fmt.Sprintf("SearchLabelValues() failed unexpectedly: %v", err))
+		}
+	})
+}
+
+func TestStorageRotateIndexDB_SearchTagValueSuffixes(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric.", tr)
+
+	testRotateIndexDB(t, mrs, func(s *Storage) {
+		_, err := s.SearchTagValueSuffixes(nil, tr, "", "metric.", '.', 1e6, noDeadline)
+		if err != nil {
+			panic(fmt.Sprintf("SearchTagValueSuffixes() failed unexpectedly: %v", err))
+		}
+	})
+}
+
+func TestStorageRotateIndexDB_SearchGraphitePaths(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric.", tr)
+
+	testRotateIndexDB(t, mrs, func(s *Storage) {
+		_, err := s.SearchGraphitePaths(nil, tr, []byte("*.*"), 1e6, noDeadline)
+		if err != nil {
+			panic(fmt.Sprintf("SearchGraphitePaths() failed unexpectedly: %v", err))
+		}
+	})
+}
+
+func TestStorageRotateIndexDB_GetSeriesCount(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
+
+	testRotateIndexDB(t, mrs, func(s *Storage) {
+		_, err := s.GetSeriesCount(noDeadline)
+		if err != nil {
+			panic(fmt.Sprintf("GetSeriesCount() failed unexpectedly: %v", err))
+		}
+	})
+}
+
+func TestStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
+	date := uint64(tr.MinTimestamp) / msecPerDay
+
+	testRotateIndexDB(t, mrs, func(s *Storage) {
+		_, err := s.GetTSDBStatus(nil, nil, date, "", 10, 1e6, noDeadline)
+		if err != nil {
+			panic(fmt.Sprintf("GetTSDBStatus failed unexpectedly"))
+		}
+	})
+}
+
+// testRotateIndexDB checks that storage handles gracefully indexDB rotation
+// that happens concurrently with some operation (ingestion or search). The
+// operation is expected to finish successfully and there must be no panics.
+func testRotateIndexDB(t *testing.T, mrs []MetricRow, op func(s *Storage)) {
+	defer testRemoveAll(t)
+
+	s := MustOpenStorage(t.Name(), OpenOptions{})
+	defer s.MustClose()
+	s.AddRows(mrs, defaultPrecisionBits)
+	s.DebugFlush()
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+	for range 100 {
+		wg.Add(1)
+		go func() {
+			for {
+				select {
+				case <-stop:
+					wg.Done()
+					return
+				default:
+				}
+				op(s)
+			}
+		}()
+	}
+
+	for range 10 {
+		s.mustRotateIndexDB(time.Now())
+	}
+
+	close(stop)
+	wg.Wait()
+}
+
 func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageDeleteStaleSnapshots"
