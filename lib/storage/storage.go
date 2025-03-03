@@ -746,7 +746,9 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 func (s *Storage) notifyReadWriteMode() {
 	s.tb.NotifyReadWriteMode()
 
-	idb := s.idb()
+	idb, _, putIndexDBs := s.getIndexDBs()
+	defer putIndexDBs()
+
 	idb.tb.NotifyReadWriteMode()
 	idb.doExtDB(func(extDB *indexDB) {
 		extDB.tb.NotifyReadWriteMode()

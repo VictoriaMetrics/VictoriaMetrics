@@ -1527,6 +1527,17 @@ func TestStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
 	})
 }
 
+func TestStorageRotateIndexDB_NotifyReadWriteMode(t *testing.T) {
+	op := func(s *Storage) {
+		// Set readonly so that the background workers started by
+		// notifyReadWriteMode exit early.
+		s.isReadOnly.Store(true)
+		s.notifyReadWriteMode()
+	}
+
+	testRotateIndexDB(t, []MetricRow{}, op)
+}
+
 // testRotateIndexDB checks that storage handles gracefully indexDB rotation
 // that happens concurrently with some operation (ingestion or search). The
 // operation is expected to finish successfully and there must be no panics.
