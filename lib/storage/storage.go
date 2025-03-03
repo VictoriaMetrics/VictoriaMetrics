@@ -396,8 +396,10 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	dstMetadataDir := filepath.Join(dstDir, metadataDirname)
 	fs.MustCopyDirectory(srcMetadataDir, dstMetadataDir)
 
+	idb, _, putIndexDBs := s.getIndexDBs()
+	defer putIndexDBs()
+
 	idbSnapshot := filepath.Join(srcDir, indexdbDirname, snapshotsDirname, snapshotName)
-	idb := s.idb()
 	currSnapshot := filepath.Join(idbSnapshot, idb.name)
 	if err := idb.tb.CreateSnapshotAt(currSnapshot); err != nil {
 		return "", fmt.Errorf("cannot create curr indexDB snapshot: %w", err)

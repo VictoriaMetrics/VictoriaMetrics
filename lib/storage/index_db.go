@@ -333,6 +333,7 @@ func (db *indexDB) decRef() {
 
 	tbPath := db.tb.Path()
 	db.tb.MustClose()
+	db.tb = nil
 	db.SetExtDB(nil)
 
 	// Free space occupied by caches owned by db.
