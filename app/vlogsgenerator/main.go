@@ -18,7 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 var (
@@ -306,7 +306,7 @@ type timeFlag struct {
 }
 
 func (tf *timeFlag) Set(s string) error {
-	msec, err := promutils.ParseTimeMsec(s)
+	msec, err := timeutil.ParseTimeMsec(s)
 	if err != nil {
 		return fmt.Errorf("cannot parse time from %q: %w", s, err)
 	}

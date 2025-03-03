@@ -216,20 +216,30 @@ writer:
 ```
 
 
-Next steps:
-- Define how often to run and make inferences in the [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) section of a config file.
-- Setup the datasource to read data from in the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) section.
-- Specify where and how to store anomaly detection metrics in the [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/) section.
-- Configure built-in models parameters according to your needs in the [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) section.
-- Integrate your [custom models](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide) with `vmanomaly`.
-- Define queries for input data using [MetricsQL](https://docs.victoriametrics.com/metricsql/).
+### Recommended steps
 
+**Schedulers**:
+- Define how often to run and make inferences in the [scheduler](https://docs.victoriametrics.com/anomaly-detection/components/scheduler/) section of a config file.
+
+**Reader**:
+- Setup the datasource to read data from in the [reader](https://docs.victoriametrics.com/anomaly-detection/components/reader/) section. Include tenant ID if using a [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) for reading the data.
+- Define queries for input data using [MetricsQL](https://docs.victoriametrics.com/metricsql/) under `reader.queries` section.
+
+**Writer**:
+- Specify where and how to store anomaly detection metrics in the [writer](https://docs.victoriametrics.com/anomaly-detection/components/writer/) section.
+- Include tenant ID if using a [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/) for writing the results.
+- Adding `for` label to `metric_format` argument is recommended for smoother visual experience in the [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#default).
+
+**Models**:
+- Configure built-in models parameters according to your needs in the [models](https://docs.victoriametrics.com/anomaly-detection/components/models/) section. 
+- (Optionally) Develop or integrate your [custom models](https://docs.victoriametrics.com/anomaly-detection/components/models/#custom-model-guide) with `vmanomaly`.
+- Adding `y` to `provide_series` arg values is recommended for smoother visual experience in the [anomaly score dashboard](https://docs.victoriametrics.com/anomaly-detection/presets/#default). Also, other `vmanomaly` [output](https://docs.victoriametrics.com/anomaly-detection/components/models#vmanomaly-output) can be used in `provide_series`. <br>**Note:** Only [univariate models](https://docs.victoriametrics.com/anomaly-detection/components/models/#univariate-models) support the generation of such output.
 
 ## Check also
 
-Here are other materials that you might find useful:
+Here are the links for further deep dive into Anomaly Detection in general and `vmanomaly` in particular:
 
 - [Guide: Anomaly Detection and Alerting Setup](https://docs.victoriametrics.com/anomaly-detection/guides/guide-vmanomaly-vmalert/)
 - [FAQ](https://docs.victoriametrics.com/anomaly-detection/faq/)
-- [Changelog](https://docs.victoriametrics.com/anomaly-detection/changelog/)
+- [CHANGELOG](https://docs.victoriametrics.com/anomaly-detection/changelog/)
 - [Anomaly Detection Blog](https://victoriametrics.com/tags/anomaly-detection/)

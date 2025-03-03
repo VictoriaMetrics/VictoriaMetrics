@@ -266,6 +266,8 @@ The list of LogsQL filters:
 - [Exact prefix filter](#exact-prefix-filter) - matches logs starting with the given prefix for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 - [Multi-exact filter](#multi-exact-filter) - matches logs with one of the specified exact values for the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 - [Subquery filter](#subquery-filter) - matches logs with [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) values matching the results of another query
+- [`contains_all` filter](#contains_any-filter) - matches logs with [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) containing all the provided [words](#word) / phrases
+- [`contains_any` filter](#contains_any-filter) - matches logs with [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) containing at least one of the provided [words](#word) / phrases
 - [Case-insensitive filter](#case-insensitive-filter) - matches logs with the given case-insensitive word, phrase or prefix
 - [Sequence filter](#sequence-filter) - matches logs with the given sequence of words or phrases
 - [Regexp filter](#regexp-filter) - matches logs for the given regexp
@@ -274,6 +276,9 @@ The list of LogsQL filters:
 - [String range filter](#string-range-filter) - matches logs with [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) in the given string range
 - [Length range filter](#length-range-filter) - matches logs with [field values](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) of the given length range
 - [Value type filter](#value_type-filter) - matches logs with [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) stored under the given value type
+- [Fields' equality filter](#eq_field-filter) - matches logs, which contain identical values in the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+- [`Less than` filter](#lt_field-filter) - matches logs where the given field value is smaller than the other field value
+- [`Less than or equal` filter](#le_field-filter) - matches logs where the given field value doesn't exceed the other field value
 - [Logical filter](#logical-filter) - allows combining other filters
 
 
@@ -297,12 +302,17 @@ The following formats are supported for `_time` filter:
   - `_time:5m` - returns logs for the last 5 minutes
   - `_time:2.5d15m42.345s` - returns logs for the last 2.5 days, 15 minutes and 42.345 seconds
   - `_time:1y` - returns logs for the last year
+- `_time:>duration` - matches logs with timestamps older than `now-duration`.
 - `_time:YYYY-MM-DDZ` - matches all the logs for the particular day by UTC. For example, `_time:2023-04-25Z` matches logs on April 25, 2023 by UTC.
 - `_time:YYYY-MMZ` - matches all the logs for the particular month by UTC. For example, `_time:2023-02Z` matches logs on February, 2023 by UTC.
 - `_time:YYYYZ` - matches all the logs for the particular year by UTC. For example, `_time:2023Z` matches logs on 2023 by UTC.
 - `_time:YYYY-MM-DDTHHZ` - matches all the logs for the particular hour by UTC. For example, `_time:2023-04-25T22Z` matches logs on April 25, 2023 at 22 hour by UTC.
 - `_time:YYYY-MM-DDTHH:MMZ` - matches all the logs for the particular minute by UTC. For example, `_time:2023-04-25T22:45Z` matches logs on April 25, 2023 at 22:45 by UTC.
 - `_time:YYYY-MM-DDTHH:MM:SSZ` - matches all the logs for the particular second by UTC. For example, `_time:2023-04-25T22:45:59Z` matches logs on April 25, 2023 at 22:45:59 by UTC.
+- `_time:>min_time` - matches logs with timestamps bigger than the `min_time`.
+- `_time:>=min_time` - matches logs with timestamps bigger or equal to the `min_time`.
+- `_time:<max_time` - matches logs with timestamps smaller than the `max_time`.
+- `_time:<=max_time` - matches logs with timestamps smaller or equal to the `max_time`.
 - `_time:[min_time, max_time]` - matches logs on the time range `[min_time, max_time]`, including both `min_time` and `max_time`.
     The `min_time` and `max_time` can contain any format specified [here](https://docs.victoriametrics.com/#timestamp-formats).
     For example, `_time:[2023-04-01Z, 2023-04-30Z]` matches logs for the whole April, 2023 by UTC, e.g. it is equivalent to `_time:2023-04Z`.
@@ -741,6 +751,8 @@ See also:
 
 - [String range filter](#string-range-filter)
 - [Range filter](#range-filter)
+- [`le_field` filter](#le_field-filter)
+- [`lt_field` filter](#lt_field-filter)
 
 ### Empty value filter
 
@@ -816,6 +828,7 @@ For example, the following query matches the `error` value in the field `log:lev
 
 See also:
 
+- [Fields' equality filter](#eq_field-filter)
 - [Exact prefix filter](#exact-prefix-filter)
 - [Multi-exact filter](#multi-exact-filter)
 - [Word filter](#word-filter)
@@ -898,6 +911,8 @@ See [these docs](#subquery-filter) for details.
 
 See also:
 
+- [`contains_any` filter](#contains_any-filter)
+- [`contains_all` filter](#contains_all-filter)
 - [Exact filter](#exact-filter)
 - [Word filter](#word-filter)
 - [Phrase filter](#phrase-filter)
@@ -905,26 +920,104 @@ See also:
 - [Logical filter](#logical-filter)
 
 
-### Subquery filter
+### contains_all filter
 
-Sometimes it is needed to select logs with [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) containing values
-selected by another query (aka subquery). LogsQL provides such an ability with the `in(<subquery>)` filter.
-For example, the following query selects all the logs for the last 5 minutes for users,
-who visited pages with `admin` [word](#word) in the `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
-during the last day:
+If it is needed to find logs, which contain all the given [words](#word) / phrases, then `v1 AND v2 ... AND vN` [logical filter](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter)
+can be used. VictoriaLogs provides an alternative approach with the `contains_all(v1, v2, ..., vN)` filter. For example, the following query matches logs,
+which contain both `foo` [word](#word) and `"bar baz"` phrase in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
 
 ```logsql
-_time:5m AND user_id:in(_time:1d AND path:admin | fields user_id)
+contains_all(foo, "bar baz")
 ```
 
-The subquery inside `in(...)` must end with either [`fields` pipe](#fields-pipe) or [`uniq` pipe](#uniq-pipe) containing a single field name,
-so VictoriaLogs could use values of this field for matching the `in(...)` filter.
+This is equivalent to the following query:
+
+```logsql
+foo AND "bar baz"
+```
+
+It is possible to pass arbitrary [query](#query-syntax) inside `contains_all(...)` filter in order to match against the results of this query.
+See [these docs](#subquery-filter) for details.
 
 See also:
 
-- [multi-exact filter](#multi-exact-filter)
+- [`seq` filter](#sequence-filter)
+- [word filter](#word-filter)
+- [phrase filter](#phrase-filter)
+- [`in` filter](#multi-exact-filter)
+- [`contains_any` filter](#contains_any-filter)
+
+
+### contains_any filter
+
+Sometimes it is needed to find logs, which contain at least one [word](#word) or phrase out of many words / phrases.
+This can be done with `v1 OR v2 OR ... OR vN` [logical filter](https://docs.victoriametrics.com/victorialogs/logsql/#logical-filter).
+VictoriaLogs provides an alternative approach with the `contains_any(v1, v2, ..., vN)` filter. For example, the following query matches logs,
+which contain `foo` [word](#word) or `"bar baz"` phrase in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+```logsql
+contains_any(foo, "bar baz")
+```
+
+This is equivalent to the following query:
+
+```logsql
+foo OR "bar baz"
+```
+
+It is possible to pass arbitrary [query](#query-syntax) inside `contains_any(...)` filter in order to match against the results of this query.
+See [these docs](#subquery-filter) for details.
+
+
+See also:
+
+- [word filter](#word-filter)
+- [phrase filter](#phrase-filter)
+- [`in` filter](#multi-exact-filter)
+- [`contains_all` filter](#contains_all-filter)
+
+
+### Subquery filter
+
+Sometimes it is needed to select logs with [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) matching values
+selected by another [query](#query-syntax) (aka subquery). LogsQL provides such an ability with the following filters:
+
+- `field:in(<subquery>)` - it returns logs with `field` values matching the values returned by the `<subquery>`.
+  For example, the following query selects all the logs for the last 5 minutes for users,
+  who visited pages with `admin` [word](#word) in the `path` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+  during the last day:
+
+  ```logsql
+  _time:5m AND user_id:in(_time:1d AND path:admin | fields user_id)
+  ```
+
+- `field:contains_all(<subquery>)` - it returns logs with `field` values containing all the [words](#word) and phrases returned by the `<subquery>`.
+  For example, the following query selects all the logs for the last 5 minutes, which contain all the `user_id` values from admin logs over the last day
+  in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+  ```logsql
+  _time:5m _msg:contains_all(_time:1d is_admin:true | fields user_id)
+  ```
+
+- `field:contains_any(<subquery>)` - it returns logs with the `field` values containing at least one [word](#word) or phrase returned by the `<subquery>`.
+  For example, the following query selects all the logs for the last 5 minutes, which contain at least one `user_id` value from admin logs over the last day
+  in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
+
+  ```logsql
+  _time:5m _msg:contains_any(_time:1d is_admin:true | fields user_id)
+  ```
+
+The `<subquery>` must end with either [`fields` pipe](#fields-pipe) or [`uniq` pipe](#uniq-pipe) containing a single field name,
+so VictoriaLogs could use values of this field for matching the given filter.
+
+See also:
+
+- [`in` filter](#multi-exact-filter)
+- [`contains_all` filter](#contains_all-filter)
+- [`contains_any` filter](#contains_any-filter)
 - [`join` pipe](#join-pipe)
 - [`union` pipe](#union-pipe)
+
 
 ### Case-insensitive filter
 
@@ -1011,6 +1104,7 @@ For example, the following query matches `event:original` field containing `(err
 
 See also:
 
+- [`contains_all` filter](#contains_all-filter)
 - [Word filter](#word-filter)
 - [Phrase filter](#phrase-filter)
 - [Exact-filter](#exact-filter)
@@ -1259,6 +1353,66 @@ See also:
 - [Logical filter](#logical-filter)
 
 
+### eq_field filter
+
+Sometimes it is needed to find logs, which contain identical values in the given [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+This can be done with `field1:eq_field(field2)` filter.
+
+For example, the following query matches logs with identical values at `user_id` and `customer_id` fields:
+
+```logsql
+user_id:eq_field(customer_id)
+```
+
+Quick tip: use `NOT user_id:eq_field(customer_id)` for finding logs where `user_id` isn't equal to `customer_id`. It uses [`NOT` logical operator](#logical-filter).
+
+See also:
+
+- [`exact` filter](#exact-filter)
+- [`le_field` filter](#le_field-filter)
+- [`lt_field` filter](#lt_field-filter)
+
+
+### le_field filter
+
+Sometimes it is needed to find logs where one [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value doesn't exceed the other field value.
+This can be done with `field1:le_field(field2)` filter.
+
+For example, the following query matches logs where `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) doesn't exceed the `max_duration` field:
+
+```logsql
+duration:le_field(max_duration)
+```
+
+Quick tip: use `NOT duration:le_field(max_duration)` for finding logs where `duration` exceeds the `max_duration`.
+
+See also:
+
+- [range comparison filter](#range-comparison-filter)
+- [`lt_field` filter](#lt_field-filter)
+- [`eq_field` filter](#eq_field-filter)
+
+
+### lt_field filter
+
+Sometimes it is needed to find logs where one [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value is smaller than the other field value.
+This can be done with `field1:lt_field(field2)` filter.
+
+For example, the following query matches logs where `duration` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) is smaller than the `max_duration` field:
+
+```logsql
+duration:lt_field(max_duration)
+```
+
+Quick tip: use `NOT duration:lt_field(max_duration)` for finding logs where `duration` is bigger or equal to the `max_duration`.
+
+See also:
+
+- [range comparison filter](#range-comparison-filter)
+- [`le_field` filter](#le_field-filter)
+- [`eq_field` filter](#eq_field-filter)
+
+
 ### Logical filter
 
 Basic LogsQL [filters](#filters) can be combined into more complex filters with the following logical operations:
@@ -1267,11 +1421,11 @@ Basic LogsQL [filters](#filters) can be combined into more complex filters with 
   For example, `error AND file AND app` matches [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
   which simultaneously contain `error`, `file` and `app` [words](#word).
   The `AND` operation is frequently used in LogsQL queries, so it is allowed to skip the `AND` word.
-  For example, `error file app` is equivalent to `error AND file AND app`.
+  For example, `error file app` is equivalent to `error AND file AND app`. See also [`contains_all` filter](#contains_all-filter).
 
 - `q1 OR q2` - merges log entries returned by both `q1` and `q2`. Arbitrary number of [filters](#filters) can be combined with `OR` operation.
   For example, `error OR warning OR info` matches [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
-  which contain at least one of `error`, `warning` or `info` [words](#word).
+  which contain at least one of `error`, `warning` or `info` [words](#word). See also [`contains_any` filter](#contains_any-filter).
 
 - `NOT q` - returns all the log entries except of those which match `q`. For example, `NOT info` returns all the
   [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
@@ -1345,6 +1499,7 @@ LogsQL supports the following pipes:
 - [`first`](#first-pipe) returns the first N logs after sorting them by the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`format`](#format-pipe) formats output field from input [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`join`](#join-pipe) joins query results by the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`json_array_len`](#json_array_len-pipe) returns the length of JSON array stored at the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`hash`](#hash-pipe) returns the hash over the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
 - [`last`](#last-pipe) returns the last N logs after sorting them by the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`len`](#len-pipe) returns byte length of the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) value.
@@ -1366,7 +1521,8 @@ LogsQL supports the following pipes:
 - [`unpack_json`](#unpack_json-pipe) unpacks JSON messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_logfmt`](#unpack_logfmt-pipe) unpacks [logfmt](https://brandur.org/logfmt) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 - [`unpack_syslog`](#unpack_syslog-pipe) unpacks [syslog](https://en.wikipedia.org/wiki/Syslog) messages from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
-- [`unroll`](#unroll-pipe) unrolls JSON arrays from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`unpack_words`](#unpack_words-pipe) unpacks [words](#word) from the given [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+- [`unroll`](#unroll-pipe) unrolls JSON arrays from [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) into separate rows.
 
 ### block_stats pipe
 
@@ -2055,6 +2211,24 @@ See also:
 - [conditional `stats`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters)
 - [`filter` pipe](#filter-pipe)
 
+### json_array_len pipe
+
+`<q> | json_array_len(field) as result_field` calculates the length of JSON array at the given [`field`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+and stores it into the `result_field`, for every log entry returned by `<q>` [query](#query-syntax).
+
+For example, the following query returns top 5 logs with contain [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field)
+with the biggest number of [words](#word) across all the logs for the last 5 minutes:
+
+```logsql
+_time:5m | unpack_words _msg as words | json_array_len (words) as words_count | first 5 (words_count desc)
+```
+
+See also:
+
+- [`len` pipe](#len-pipe)
+- [`unpack_words` pipe](#unpack_words-pipe)
+- [`first` pipe](#first-pipe)
+
 ### hash pipe
 
 `<q> | hash(field) as result_field` calculates hash value for the given [`field`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
@@ -2110,6 +2284,7 @@ _time:5m | len(_msg) as msg_len | sort by (msg_len desc) | limit 5
 
 See also:
 
+- [`json_array_len` pipe](#json_array_len-pipe)
 - [`sum_len` stats function](#sum_len-stats)
 - [`sort` pipe](#sort-pipe)
 - [`limit` pipe](#limit-pipe)
@@ -2262,6 +2437,13 @@ only and stores the result in `baz` field:
 _time:5m | pack_json fields (foo, bar) as baz
 ```
 
+It is possible to pass field prefixes into `fields (...)` in order to pack only the fields, which start with the given prefixes.
+For example, the following query builds JSON with all the fields, which start with either `foo.` or `bar.`:
+
+```logsql
+_time:5m | pack_json fields (foo.*, bar.*) as baz
+```
+
 The `pack_json` doesn't modify or delete other labels. If you do not need them, then add [`| fields ...`](#fields-pipe) after the `pack_json` pipe. For example, the following query
 leaves only the `foo` label with the original log fields packed into JSON:
 
@@ -2299,6 +2481,13 @@ For example, the following query builds [logfmt](https://brandur.org/logfmt) mes
 
 ```logsql
 _time:5m | pack_logfmt fields (foo, bar) as baz
+```
+
+It is possible to pass field prefixes into `fields (...)` in order to pack only the fields, which start with the given prefixes.
+For example, the following query builds `logfmt` message with all the fields, which start with either `foo.` or `bar.`:
+
+```logsql
+_time:5m | pack_logfmt fields (foo.*, bar.*) as baz
 ```
 
 The `pack_logfmt` doesn't modify or delete other labels. If you do not need them, then add [`| fields ...`](#fields-pipe) after the `pack_logfmt` pipe. For example, the following query
@@ -3157,6 +3346,35 @@ only if `hostname` field in the current log entry isn't set or empty:
 _time:5m | unpack_syslog if (hostname:"") from foo
 ```
 
+### unpack_words pipe
+
+`<q> | unpack_words from <src_field> as <dst_field>` [pipe](#pipes) unpacks [words](#word) from the given `<src_field>` [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+of `<q>` [query](#query-syntax) results into `<dst_field>` as a JSON array.
+
+For example, the following query unpacks words from [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) into `words` field:
+
+```logsql
+_time:5m | unpack_words from _msg as words
+```
+
+By default `unpack_words` pipe unpacks all the words, including duplicates, from the `<src_field>`. It is possible to drop duplicate words by adding `drop_duplicates` suffix to the pipe.
+For example, the following query extracts only unique words from every `text` field:
+
+```logsql
+_time:5m | unpack_words from text as words drop_duplicates
+```
+
+It may be convenient to use [`unroll` pipe](#unroll-pipe) for unrolling the JSON array with unpacked words from the destination field.
+For example, the following query returns top 5 most frequently seen words across [log messages](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field) for the last 5 minutes:
+
+```logsql
+_time:5m | unpack_words from _msg as words | unroll words | top 5 (words)
+```
+
+See also:
+
+- [`unroll` pipe](#unroll-pipe)
+
 ### unroll pipe
 
 `<q> | unroll by (field1, ..., fieldN)` [pipe](#pipes) can be used for unrolling JSON arrays from `field1`, ..., `fieldN`
@@ -3174,6 +3392,7 @@ the unrolled array items into separate fields for further processing.
 See also:
 
 - [`unpack_json` pipe](#unpack_json-pipe)
+- [`unpack_words` pipe](#unpack_words-pipe)
 - [`extract` pipe](#extract-pipe)
 - [`uniq_values` stats function](#uniq_values-stats)
 - [`values` stats function](#values-stats)

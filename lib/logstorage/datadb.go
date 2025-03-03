@@ -29,10 +29,6 @@ const maxBigPartSize = 1e12
 // cannot keep up with the rate of creating new in-memory parts.
 const maxInmemoryPartsPerPartition = 20
 
-// The interval for guaranteed flush of recently ingested data from memory to on-disk parts,
-// so they survive process crash.
-var dataFlushInterval = 5 * time.Second
-
 // Default number of parts to merge at once.
 //
 // This number has been obtained empirically - it gives the lowest possible overhead.
@@ -272,7 +268,7 @@ func (ddb *datadb) startInmemoryPartsFlusher() {
 
 func (ddb *datadb) inmemoryPartsFlusher() {
 	// Do not add jitter to d in order to guarantee the flush interval
-	ticker := time.NewTicker(dataFlushInterval)
+	ticker := time.NewTicker(ddb.flushInterval)
 	defer ticker.Stop()
 	for {
 		select {

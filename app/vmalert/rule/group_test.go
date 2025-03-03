@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
 	"gopkg.in/yaml.v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
@@ -41,6 +42,7 @@ func TestUpdateWith(t *testing.T) {
 		g := &Group{
 			Name: "test",
 		}
+		g.metrics = newGroupMetrics(g)
 		qb := &datasource.FakeQuerier{}
 		for _, r := range currentRules {
 			r.ID = config.HashRule(r)
@@ -50,6 +52,7 @@ func TestUpdateWith(t *testing.T) {
 		ng := &Group{
 			Name: "test",
 		}
+		ng.metrics = newGroupMetrics(ng)
 		for _, r := range newRules {
 			r.ID = config.HashRule(r)
 			ng.Rules = append(ng.Rules, ng.newRule(qb, r))
@@ -195,6 +198,7 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 		Interval: 100 * time.Hour,
 		updateCh: make(chan *Group),
 	}
+	g.metrics = newGroupMetrics(g)
 	go g.Start(context.Background(), nil, nil, nil)
 
 	rule1 := AlertingRule{
@@ -209,6 +213,7 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 			&rule1,
 		},
 	}
+	g1.metrics = newGroupMetrics(g1)
 	g.updateCh <- g1
 	time.Sleep(10 * time.Millisecond)
 	g.mu.RLock()
@@ -218,8 +223,9 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 	g.mu.RUnlock()
 
 	rule2 := AlertingRule{
-		Name: "jobDown",
-		Expr: "up{job=\"vmagent\"}==0",
+		RuleID: 1,
+		Name:   "jobDown",
+		Expr:   "up{job=\"vmagent\"}==0",
 		Labels: map[string]string{
 			"foo": "bar",
 			"baz": "qux",
@@ -227,16 +233,31 @@ func TestUpdateDuringRandSleep(t *testing.T) {
 	}
 	g2 := &Group{
 		Rules: []Rule{
+			&rule1,
 			&rule2,
 		},
 	}
+	g2.metrics = newGroupMetrics(g2)
 	g.updateCh <- g2
 	time.Sleep(10 * time.Millisecond)
 	g.mu.RLock()
-	if len(g.Rules[0].(*AlertingRule).Labels) != 2 {
+	if len(g.Rules) != 2 {
+		t.Fatalf("expected to have updated rules")
+	}
+
+	if len(g.Rules[1].(*AlertingRule).Labels) != 2 {
 		t.Fatalf("expected to have updated labels")
 	}
 	g.mu.RUnlock()
+
+	metricsAfter := metrics.GetDefaultSet().ListMetricNames()
+	metricsRegistry := make(map[string]struct{}, len(metricsAfter))
+	for _, m := range metricsAfter {
+		if _, ok := metricsRegistry[m]; ok {
+			t.Fatalf("duplicate metric name %q", m)
+		}
+		metricsRegistry[m] = struct{}{}
+	}
 
 	g.Close()
 }

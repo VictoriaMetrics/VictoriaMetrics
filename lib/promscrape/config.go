@@ -48,6 +48,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 var (
@@ -1220,7 +1221,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	// Read __scrape_interval__ and __scrape_timeout__ from labels.
 	scrapeInterval := swc.scrapeInterval
 	if s := labels.Get("__scrape_interval__"); len(s) > 0 {
-		d, err := promutils.ParseDuration(s)
+		d, err := timeutil.ParseDuration(s)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __scrape_interval__=%q: %w", s, err)
 		}
@@ -1228,7 +1229,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	}
 	scrapeTimeout := swc.scrapeTimeout
 	if s := labels.Get("__scrape_timeout__"); len(s) > 0 {
-		d, err := promutils.ParseDuration(s)
+		d, err := timeutil.ParseDuration(s)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse __scrape_timeout__=%q: %w", s, err)
 		}

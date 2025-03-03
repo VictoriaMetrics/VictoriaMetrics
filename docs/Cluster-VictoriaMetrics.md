@@ -174,9 +174,9 @@ Also see archives containing the word `cluster`.
 
 Docker images for the cluster version are available here:
 
-- `vminsert` - <https://hub.docker.com/r/victoriametrics/vminsert/tags>
-- `vmselect` - <https://hub.docker.com/r/victoriametrics/vmselect/tags>
-- `vmstorage` - <https://hub.docker.com/r/victoriametrics/vmstorage/tags>
+- `vminsert` - [Docker Hub](https://hub.docker.com/r/victoriametrics/vminsert/tags) and [Quay](https://quay.io/repository/victoriametrics/vminsert?tab=tags)
+- `vmselect` - [Docker Hub](https://hub.docker.com/r/victoriametrics/vmselect/tags) and [Quay](https://quay.io/repository/victoriametrics/vmselect?tab=tags)
+- `vmstorage` - [Docker Hub](https://hub.docker.com/r/victoriametrics/vmstorage/tags) and [Quay](https://quay.io/repository/victoriametrics/vmstorage?tab=tags)
 
 ## Building from sources
 
@@ -761,7 +761,7 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
 - `-search.maxDeleteSeries` at `vmselect` limits the number of unique time
   series that can be deleted by a single
   [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series)
-  call. The duration is limited via `-search.maxDeleteDuration` flag{{% available_from "#tip" %}}. Deleting too many time series may require big
+  call. The duration is limited via `-search.maxDeleteDuration` flag{{% available_from "v1.110.0" %}}. Deleting too many time series may require big
   amount of CPU and memory at `vmstorage` and this limit guards against unplanned resource usage spikes.
   Also see [How to delete time series](#how-to-delete-time-series) section to
   learn about different ways of deleting series.

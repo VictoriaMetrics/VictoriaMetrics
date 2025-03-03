@@ -405,6 +405,9 @@ func configsEqual(a, b []config.Group) bool {
 		if a[i].Checksum != b[i].Checksum {
 			return false
 		}
+		if a[i].File != b[i].File {
+			return false
+		}
 	}
 	return true
 }

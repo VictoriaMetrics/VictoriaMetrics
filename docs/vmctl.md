@@ -1191,7 +1191,7 @@ Flags available only for the `opentsdb` command:
    --influx-measurement-field-separator value
      The {separator} symbol used to concatenate {measurement} and {field} names into series name {measurement}{separator}{field}. (default: "_")
    --influx-skip-database-label
-     Wether to skip adding the label 'db' to timeseries. (default: false)
+     Whether to skip adding the label 'db' to timeseries. (default: false)
    --influx-prometheus-mode
      Whether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write. (default: false)
    --influx-cert-file value

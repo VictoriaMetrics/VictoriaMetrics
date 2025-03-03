@@ -10,7 +10,8 @@ import (
 
 // tokenizeHashes extracts word tokens from a, hashes them, appends hashes to dst and returns the result.
 //
-// The returned hashes can be used for building bloom filters.
+// The returned hashes must be passed to bloomFilterMarshalHashes in order to build bloom filters.
+// The returned hashes must be passed to appendHashesHashes before being passed to bloomFilter.containsAll.
 func tokenizeHashes(dst []uint64, a []string) []uint64 {
 	t := getHashTokenizer()
 	for i, s := range a {
