@@ -10,10 +10,10 @@ menu:
 ---
 In this section you will find everything you need to start using [VictoriaMetrics Cloud](https://console.victoriametrics.cloud/signUp?utm_source=website&utm_campaign=docs_vm_get_started).
 
-* [Overview of VictoriaMetrics Cloud](overview/)
-* [Key Features and Benefits](features/)
-* [Quick Start](quickstart/)
-* [Guides and Best Practices](guides/)
+* [Overview of VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/overview/)
+* [Key Features & Benefits](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/features/)
+* [Quick Start](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/quickstart/)
+* [Guides and Best Practices](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/guides/)
 
 <details>
 <summary>Learn more about VictoriaMetrics Cloud</summary>

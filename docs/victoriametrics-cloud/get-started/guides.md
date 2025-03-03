@@ -12,8 +12,8 @@ aliases:
 
 Here you can find some guides and best practices:
 
-* [Understand Your Setup Size](/guides/understand-your-setup-size/)
-* [Alerting & recording rules with Alertmanager configuration for VictoriaMetrics Cloud deployment](/victoriametrics-cloud/alertmanager-setup-for-deployment/)
-* [Kubernetes Monitoring with VictoriaMetrics Cloud](/victoriametrics-cloud/how-to-monitor-k8s/)
-* [Setup Notifications](/victoriametrics-cloud/setup-notifications/)
-* [User Management](/victoriametrics-cloud/user-managment/)
+* [Understand Your Setup Size](https://docs.victoriametrics.com/guides/understand-your-setup-size/)
+* [Alerting & recording rules with Alertmanager configuration for VictoriaMetrics Cloud deployment](https://docs.victoriametrics.com/victoriametrics-cloud/alertmanager-setup-for-deployment/)
+* [Kubernetes Monitoring with VictoriaMetrics Cloud](https://docs.victoriametrics.com/victoriametrics-cloud/how-to-monitor-k8s/)
+* [Setup Notifications](https://docs.victoriametrics.com/victoriametrics-cloud/setup-notifications/)
+* [User Management](https://docs.victoriametrics.com/victoriametrics-cloud/user-managment/)

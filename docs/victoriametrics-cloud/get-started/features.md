@@ -1,6 +1,6 @@
 ---
 weight: 2
-title: Key Features and Benefits
+title: Key Features & Benefits
 menu:
   docs:
     parent: get-started
@@ -10,7 +10,7 @@ aliases:
   - /managed-victoriametrics/quickstart/features.html
 ---
 
-VictoriaMetrics Cloud helps optimizing your data and maximizing its value in the most reliable way. It can be used as an **Enterprise-level Managed Prometheus**: just configure Prometheus, [vmagent](/vmagent/), an OpenTelemetry Collector or any agent to write data to VictoriaMetrics Cloud, and point Grafana to VictoriaMetrics Cloud by configuring it as a Prometheus datasource.
+VictoriaMetrics Cloud helps optimizing your data and maximizing its value in the most reliable way. It can be used as an **Enterprise-level Managed Prometheus**: just configure Prometheus, [vmagent](https://docs.victoriametrics.com/vmagent/), an OpenTelemetry Collector or any agent to write data to VictoriaMetrics Cloud, and point Grafana to VictoriaMetrics Cloud by configuring it as a Prometheus datasource.
 
 ## Features
 VictoriaMetrics Cloud offers a robust suite of features designed to optimize your cloud experience. Seamless integrations, scalability and cost-saving measures, and comprehensive operational tools ensure that VictoriaMetrics Cloud can support your business needs.
@@ -22,7 +22,7 @@ VictoriaMetrics Cloud offers a robust suite of features designed to optimize you
 * **Data visualization**: Use built-in [VictoriaMetrics UI](https://play.victoriametrics.com/) or integrate seamlessly with your current stack to query and visualize your data in [Grafana](https://grafana.com/) or [Perses](https://perses.dev).
 * [**AWS PrivateLink**](https://aws.amazon.com/privatelink/): enabling even more secure communication with VictoriaMetrics Cloud deployments directly from your VPC.
 
-![Integrations](/victoriametrics-cloud/get-started/features_integrations.webp)
+![Integrations](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/features_integrations.webp)
 <figcaption style="text-align: center; font-style: italic;">VictoriaMetrics Cloud Integrations</figcaption>
 
 </details>
@@ -63,7 +63,7 @@ VictoriaMetrics Cloud allows you to explore and optimize both your data and depl
 * Autocomplete to help you writing queries
 * Trace your queries to understand behavior
 
-![Query](/victoriametrics-cloud/get-started/features_query.webp)
+![Query](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/features_query.webp)
 <figcaption style="text-align: center; font-style: italic;">Query your data with VictoriaMetrics Cloud</figcaption>
 
 </details>
@@ -75,7 +75,7 @@ VictoriaMetrics Cloud allows you to explore and optimize both your data and depl
 * Inspect your time series data cardinality to optimize usage and costs
 * Discover top used or heaviest queries
 
-![Cardinality](/victoriametrics-cloud/get-started/features_cardinality.webp)
+![Cardinality](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/features_cardinality.webp)
 <figcaption style="text-align: center; font-style: italic;">Understand your data with VictoriaMetrics Cloud</figcaption>
 </details>
 
@@ -86,7 +86,7 @@ VictoriaMetrics Cloud allows you to explore and optimize both your data and depl
 * WITH templating for MetricsQL: functions, variables and filters
 * Debug metrics relabling with easy-to-follow examples
 
-![Traces](/victoriametrics-cloud/get-started/features_traces.webp)
+![Traces](https://docs.victoriametrics.com/victoriametrics-cloud/get-started/features_traces.webp)
 <figcaption style="text-align: center; font-style: italic;">Debug your queries</figcaption>
 </details>
 

@@ -14,7 +14,7 @@ for further details about importing time series data into VictoriaMetrics.
 
 
 ## Use cases
-VictoriaMetrics Cloud is for teams and organizations that deal with medium to high volume of metrics. The most common use cases for VictoriaMetrics Cloud are:
+VictoriaMetrics Cloud is designed for teams and organizations that handle any volume of metrics. The most common use cases for VictoriaMetrics Cloud are:
 * Long-term remote storage for Prometheus, OpenTelemetry and any other standardized metrics.
 * Reliable and efficient drop-in replacement for Prometheus and Graphite.
 * Easy and cost-saving  enterprise managed alternative solution for Prometheus, Thanos, Mimir or Cortex.
