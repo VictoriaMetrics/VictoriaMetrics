@@ -843,7 +843,7 @@ func (s *Storage) mustRotateIndexDB(currentTime time.Time) {
 	s.idbNext.Store(idbNew)
 
 	// Set idbCurr to idbNext
-	idbCurr := s.idb()
+	idbCurr := s.idbCurr.Load()
 	s.idbCurr.Store(idbNext)
 
 	// Schedule data removal for idbPrev
