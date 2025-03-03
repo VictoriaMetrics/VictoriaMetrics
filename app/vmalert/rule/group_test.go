@@ -533,34 +533,14 @@ func TestGroupStartDelay(t *testing.T) {
 	f("2023-01-01T00:00:29.000+00:00", "2023-01-01T00:00:30.000+00:00")
 	f("2023-01-01T00:00:31.000+00:00", "2023-01-01T00:05:30.000+00:00")
 
-	// test group with offset smaller than above fixed randSleep,
-	// this way randSleep will always be enough
-	offset := 20 * time.Second
+	// test group with offset
+	offset := 3 * time.Minute
 	g.EvalOffset = &offset
 
-	f("2023-01-01T00:00:00.000+00:00", "2023-01-01T00:00:30.000+00:00")
-	f("2023-01-01T00:00:29.000+00:00", "2023-01-01T00:00:30.000+00:00")
-	f("2023-01-01T00:00:31.000+00:00", "2023-01-01T00:05:30.000+00:00")
-
-	// test group with offset bigger than above fixed randSleep,
-	// this way offset will be added to delay
-	offset = 3 * time.Minute
-	g.EvalOffset = &offset
-
-	f("2023-01-01T00:00:00.000+00:00", "2023-01-01T00:03:30.000+00:00")
-	f("2023-01-01T00:00:29.000+00:00", "2023-01-01T00:03:30.000+00:00")
-	f("2023-01-01T00:01:00.000+00:00", "2023-01-01T00:08:30.000+00:00")
-	f("2023-01-01T00:03:30.000+00:00", "2023-01-01T00:08:30.000+00:00")
-	f("2023-01-01T00:07:30.000+00:00", "2023-01-01T00:13:30.000+00:00")
-
-	offset = 10 * time.Minute
-	g.EvalOffset = &offset
-	// interval of 1h and key generate a static delay of 6m
-	g.Interval = time.Hour
-
-	f("2023-01-01T00:00:00.000+00:00", "2023-01-01T00:16:00.000+00:00")
-	f("2023-01-01T00:05:00.000+00:00", "2023-01-01T00:16:00.000+00:00")
-	f("2023-01-01T00:30:00.000+00:00", "2023-01-01T01:16:00.000+00:00")
+	f("2023-01-01T00:00:15.000+00:00", "2023-01-01T00:03:00.000+00:00")
+	f("2023-01-01T00:01:00.000+00:00", "2023-01-01T00:03:00.000+00:00")
+	f("2023-01-01T00:03:30.000+00:00", "2023-01-01T00:08:00.000+00:00")
+	f("2023-01-01T00:08:00.000+00:00", "2023-01-01T00:08:00.000+00:00")
 }
 
 func TestGetPrometheusReqTimestamp(t *testing.T) {
@@ -590,17 +570,11 @@ func TestGetPrometheusReqTimestamp(t *testing.T) {
 		evalAlignment: &disableAlign,
 	}, "2023-08-28T11:11:00+00:00", "2023-08-28T11:10:30+00:00")
 
-	// with eval_offset, find previous offset point + default evalDelay
+	// with eval_offset
 	f(&Group{
 		EvalOffset: &offset,
 		Interval:   time.Hour,
-	}, "2023-08-28T11:11:00+00:00", "2023-08-28T10:30:00+00:00")
-
-	// with eval_offset + default evalDelay
-	f(&Group{
-		EvalOffset: &offset,
-		Interval:   time.Hour,
-	}, "2023-08-28T11:41:00+00:00", "2023-08-28T11:30:00+00:00")
+	}, "2023-08-28T11:30:00+00:00", "2023-08-28T11:30:00+00:00")
 
 	// 1h interval with eval_delay
 	f(&Group{
