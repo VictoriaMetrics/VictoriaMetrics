@@ -11,8 +11,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 type lexer struct {
@@ -2912,7 +2912,7 @@ func parseTime(lex *lexer) (int64, string, error) {
 	if err != nil {
 		return 0, "", err
 	}
-	nsecs, err := promutils.ParseTimeAt(s, lex.currentTimestamp)
+	nsecs, err := timeutil.ParseTimeAt(s, lex.currentTimestamp)
 	if err != nil {
 		return 0, "", err
 	}
