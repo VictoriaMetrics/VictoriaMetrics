@@ -11,6 +11,15 @@ aliases:
 ---
 Please find the changelog for VictoriaMetrics Anomaly Detection below.
 
+## v1.20.0
+Released: 2025-03-03
+
+- FEATURE: The `scale` argument is now a [common argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#scale), previously supported only by [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet) and [`OnlineQuantileModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#online-seasonal-quantile). Additionally, `scale` is now **two-sided**, represented as `[scale_lb, scale_ub]`. The previous format (`scale: x`) remains supported and will be automatically converted to `scale: [x, x]`.
+  
+- FEATURE: Introduced a post-processing step to clip `yhat`, `yhat_lower`, and `yhat_upper` to the configured `data_range` [values](https://docs.victoriametrics.com/anomaly-detection/components/reader/?highlight=data_range#config-parameters) in `VmReader`, if defined. This feature is disabled by default for backward compatibility. It can be enabled for models that generate predictions and estimates, such as [`ProphetModel`](https://docs.victoriametrics.com/anomaly-detection/components/models/#prophet), by setting the [common argument](https://docs.victoriametrics.com/anomaly-detection/components/models/#clip-predictions) `clip_predictions` to `True`.
+
+- IMPROVEMENT: Introduced the `anomaly_score_outside_data_range` [parameter](https://docs.victoriametrics.com/anomaly-detection/components/models/#score-outside-data-range) to allow overriding the default anomaly score (`1.01`) assigned when input values (`y`) fall outside the defined `data_range` (data domain violation). It improves flexibility for alerting rules and enables clearer visual distinction between different anomaly scenarios. Override can be configured at the **service level** (`settings`) or per **model instance** (`models.model_xxx`), with model-level values taking priority. If not explicitly set, the default anomaly score remains `1.01` for backward compatibility.
+
 ## v1.19.2
 Released: 2025-01-27
 
