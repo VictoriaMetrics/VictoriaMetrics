@@ -913,7 +913,7 @@ func (s *Storage) MustClose() {
 	s.nextDayMetricIDsUpdaterWG.Wait()
 
 	s.tb.MustClose()
-	s.idb().MustClose()
+	s.idbCurr.Load().MustClose()
 
 	// Save caches.
 	s.mustSaveCache(s.tsidCache, "metricName_tsid")
