@@ -88,8 +88,10 @@ func (qos *QueryOpts) getTenant() string {
 // PrometheusAPIV1QueryResponse is an inmemory representation of the
 // /prometheus/api/v1/query or /prometheus/api/v1/query_range response.
 type PrometheusAPIV1QueryResponse struct {
-	Status string
-	Data   *QueryData
+	Status    string
+	Data      *QueryData
+	ErrorType string
+	Error     string
 }
 
 // NewPrometheusAPIV1QueryResponse is a test helper function that creates a new
@@ -185,6 +187,8 @@ type PrometheusAPIV1SeriesResponse struct {
 	IsPartial bool
 	Data      []map[string]string
 	Trace     *Trace
+	ErrorType string
+	Error     string
 }
 
 // NewPrometheusAPIV1SeriesResponse is a test helper function that creates a new

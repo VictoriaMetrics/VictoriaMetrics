@@ -11,7 +11,6 @@ import (
 	"github.com/valyala/quicktemplate"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 )
 
 type statsUniqValues struct {
@@ -40,6 +39,11 @@ func (su *statsUniqValues) newStatsProcessor(a *chunkedAllocator) statsProcessor
 
 type statsUniqValuesProcessor struct {
 	a *chunkedAllocator
+
+	// concurrency is the number of parallel workers to use when merging shards.
+	//
+	// this field must be updated by the caller before using statsUniqValuesProcessor.
+	concurrency uint
 
 	m  map[string]struct{}
 	ms []map[string]struct{}
@@ -137,7 +141,7 @@ func (sup *statsUniqValuesProcessor) updateStatsForRowColumn(c *blockResultColum
 	return sup.updateState(v)
 }
 
-func (sup *statsUniqValuesProcessor) mergeState(sf statsFunc, sfp statsProcessor) {
+func (sup *statsUniqValuesProcessor) mergeState(_ *chunkedAllocator, sf statsFunc, sfp statsProcessor) {
 	su := sf.(*statsUniqValues)
 	if sup.limitReached(su) {
 		return
@@ -162,7 +166,7 @@ func (sup *statsUniqValuesProcessor) finalizeStats(sf statsFunc, dst []byte, sto
 	var items []string
 	if len(sup.ms) > 0 {
 		sup.ms = append(sup.ms, sup.m)
-		items = mergeSetsParallel(sup.ms, stopCh)
+		items = mergeSetsParallel(sup.ms, sup.concurrency, stopCh)
 	} else {
 		items = setToSortedSlice(sup.m)
 	}
@@ -174,9 +178,9 @@ func (sup *statsUniqValuesProcessor) finalizeStats(sf statsFunc, dst []byte, sto
 	return marshalJSONArray(dst, items)
 }
 
-func mergeSetsParallel(ms []map[string]struct{}, stopCh <-chan struct{}) []string {
+func mergeSetsParallel(ms []map[string]struct{}, concurrency uint, stopCh <-chan struct{}) []string {
 	shardsLen := len(ms)
-	cpusCount := cgroup.AvailableCPUs()
+	cpusCount := concurrency
 
 	var wg sync.WaitGroup
 	msShards := make([][]map[string]struct{}, shardsLen)

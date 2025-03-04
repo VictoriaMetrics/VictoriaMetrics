@@ -1,7 +1,12 @@
 import React from "preact/compat";
 import "./style.scss";
 
-const LineProgress = ({ value }: {value: number}) => (
+type Props = {
+  value: number;
+  hideValue?: boolean;
+}
+
+const LineProgress = ({ value, hideValue }: Props) => (
   <div className="vm-line-progress">
     <div className="vm-line-progress-track">
       <div
@@ -9,7 +14,9 @@ const LineProgress = ({ value }: {value: number}) => (
         style={{ width: `${value}%` }}
       />
     </div>
-    <span>{value.toFixed(2)}%</span>
+    {!hideValue && (
+      <span>{value.toFixed(2)}%</span>
+    )}
   </div>
 );
 

@@ -38,7 +38,7 @@ type Regex struct {
 	substrDotPlus string
 
 	// orValues contains or values for the suffix regex.
-	// For example, orValues contain ["foo","bar","baz"] for regex suffix="foo|bar|baz"
+	// For example, orValues contain ["foo","bar","baz"] for regex="foo|bar|baz"
 	orValues []string
 
 	// suffixRe is the regexp for suffix
@@ -85,6 +85,9 @@ func NewRegex(expr string) (*Regex, error) {
 // MatchString returns true if s matches r.
 func (r *Regex) MatchString(s string) bool {
 	if r.isOnlyPrefix {
+		if len(r.prefix) == 0 {
+			return true
+		}
 		return strings.Contains(s, r.prefix)
 	}
 

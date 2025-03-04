@@ -29,10 +29,6 @@ const maxBigPartSize = 1e12
 // cannot keep up with the rate of creating new in-memory parts.
 const maxInmemoryPartsPerPartition = 20
 
-// The interval for guaranteed flush of recently ingested data from memory to on-disk parts,
-// so they survive process crash.
-var dataFlushInterval = 5 * time.Second
-
 // Default number of parts to merge at once.
 //
 // This number has been obtained empirically - it gives the lowest possible overhead.
@@ -272,7 +268,7 @@ func (ddb *datadb) startInmemoryPartsFlusher() {
 
 func (ddb *datadb) inmemoryPartsFlusher() {
 	// Do not add jitter to d in order to guarantee the flush interval
-	ticker := time.NewTicker(dataFlushInterval)
+	ticker := time.NewTicker(ddb.flushInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -530,15 +526,11 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 	srcSize := uint64(0)
 	srcRowsCount := uint64(0)
 	srcBlocksCount := uint64(0)
-	bloomValuesShardsCount := uint64(0)
 	for _, pw := range pws {
 		ph := &pw.p.ph
 		srcSize += ph.CompressedSizeBytes
 		srcRowsCount += ph.RowsCount
 		srcBlocksCount += ph.BlocksCount
-		if ph.BloomValuesFieldsCount > bloomValuesShardsCount {
-			bloomValuesShardsCount = ph.BloomValuesFieldsCount
-		}
 	}
 	bsw := getBlockStreamWriter()
 	var mpNew *inmemoryPart
@@ -547,7 +539,7 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 		bsw.MustInitForInmemoryPart(mpNew)
 	} else {
 		nocache := dstPartType == partBig
-		bsw.MustInitForFilePart(dstPartPath, nocache, bloomValuesShardsCount)
+		bsw.MustInitForFilePart(dstPartPath, nocache)
 	}
 
 	// Merge source parts to destination part.

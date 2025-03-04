@@ -19,13 +19,13 @@ import (
 // this operation provides a suitable alternative to sending individual delete
 // requests, reducing per-request overhead.
 //
-// The request can contain a list of up to 1000 keys that you want to delete. In
+// The request can contain a list of up to 1,000 keys that you want to delete. In
 // the XML, you provide the object key names, and optionally, version IDs if you
 // want to delete a specific version of the object from a versioning-enabled
 // bucket. For each key, Amazon S3 performs a delete operation and returns the
-// result of that delete, success or failure, in the response. Note that if the
-// object specified in the request is not found, Amazon S3 returns the result as
-// deleted.
+// result of that delete, success or failure, in the response. If the object
+// specified in the request isn't found, Amazon S3 confirms the deletion by
+// returning the result as deleted.
 //
 //   - Directory buckets - S3 Versioning isn't enabled and supported for directory
 //     buckets.
@@ -33,10 +33,10 @@ import (
 //   - Directory buckets - For directory buckets, you must make requests for this
 //     API operation to the Zonal endpoint. These endpoints support
 //     virtual-hosted-style requests in the format
-//     https://bucket-name.s3express-zone-id.region-code.amazonaws.com/key-name .
-//     Path-style requests are not supported. For more information about endpoints in
-//     Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information
-//     about endpoints in Local Zones, see [Available Local Zone for directory buckets]in the Amazon S3 User Guide.
+//     https://amzn-s3-demo-bucket.s3express-zone-id.region-code.amazonaws.com/key-name
+//     . Path-style requests are not supported. For more information about endpoints
+//     in Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information
+//     about endpoints in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
 //
 // The operation supports two modes for the response: verbose and quiet. By
 // default, the operation uses verbose mode in which the response includes the
@@ -104,13 +104,13 @@ import (
 //
 // [AbortMultipartUpload]
 //
+// [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [ListParts]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html
 // [AbortMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html
 // [UploadPart]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html
 // [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 // [CompleteMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html
-// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
-// [Available Local Zone for directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
 // [MFA Delete]: https://docs.aws.amazon.com/AmazonS3/latest/dev/Versioning.html#MultiFactorAuthenticationDelete
 // [CreateMultipartUpload]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html
 func (c *Client) DeleteObjects(ctx context.Context, params *DeleteObjectsInput, optFns ...func(*Options)) (*DeleteObjectsOutput, error) {
@@ -138,7 +138,7 @@ type DeleteObjectsInput struct {
 	// are not supported. Directory bucket names must be unique in the chosen Zone
 	// (Availability Zone or Local Zone). Bucket names must follow the format
 	// bucket-base-name--zone-id--x-s3 (for example,
-	// DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket naming
+	// amzn-s3-demo-bucket--usw2-az1--x-s3 ). For information about bucket naming
 	// restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
 	//
 	// Access points - When you use this action with an access point, you must provide
@@ -153,13 +153,12 @@ type DeleteObjectsInput struct {
 	// Access points and Object Lambda access points are not supported by directory
 	// buckets.
 	//
-	// S3 on Outposts - When you use this action with Amazon S3 on Outposts, you must
-	// direct requests to the S3 on Outposts hostname. The S3 on Outposts hostname
-	// takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
-	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
+	// S3 on Outposts - When you use this action with S3 on Outposts, you must direct
+	// requests to the S3 on Outposts hostname. The S3 on Outposts hostname takes the
+	// form AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When
+	// you use this action with S3 on Outposts, the destination bucket must be the
+	// Outposts access point ARN or the access point alias. For more information about
+	// S3 on Outposts, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
 	//
 	// [Directory bucket naming rules]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html
 	// [What is S3 on Outposts?]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html

@@ -3,7 +3,7 @@
 ![Latest Release](https://img.shields.io/github/v/release/VictoriaMetrics/VictoriaMetrics?sort=semver&label=&filter=!*-victorialogs&logo=github&labelColor=gray&color=gray&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Freleases%2Flatest)
 ![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-metrics?label=&logo=docker&logoColor=white&labelColor=2496ED&color=2496ED&link=https%3A%2F%2Fhub.docker.com%2Fr%2Fvictoriametrics%2Fvictoria-metrics)
 ![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaMetrics?link=https%3A%2F%2Fgoreportcard.com%2Freport%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics)
-![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/workflows/main/badge.svg?link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Factions)
+![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/actions/workflows/main.yml/badge.svg?branch=master&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Factions)
 ![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg?link=https%3A%2F%2Fcodecov.io%2Fgh%2FVictoriaMetrics%2FVictoriaMetrics)
 ![License](https://img.shields.io/github/license/VictoriaMetrics/VictoriaMetrics?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Fblob%2Fmaster%2FLICENSE)
 ![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
@@ -22,7 +22,7 @@ Here are some resources and information about VictoriaMetrics:
 
 - Documentation: [docs.victoriametrics.com](https://docs.victoriametrics.com)
 - Case studies: [Grammarly, Roblox, Wix,...](https://docs.victoriametrics.com/casestudies/).
-- Available: [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics)
+- Available: [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest), docker images [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [Quay](https://quay.io/repository/victoriametrics/victoria-metrics), [Source code](https://github.com/VictoriaMetrics/VictoriaMetrics)
 - Deployment types: [Single-node version](https://docs.victoriametrics.com/), [Cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/), and [Enterprise version](https://docs.victoriametrics.com/enterprise/)
 - Changelog: [CHANGELOG](https://docs.victoriametrics.com/changelog/), and [How to upgrade](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics)
 - Community: [Slack](https://slack.victoriametrics.com/), [X (Twitter)](https://x.com/VictoriaMetrics), [LinkedIn](https://www.linkedin.com/company/victoriametrics/), [YouTube](https://www.youtube.com/@VictoriaMetrics)

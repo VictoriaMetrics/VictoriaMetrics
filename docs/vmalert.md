@@ -8,8 +8,8 @@ title: vmalert
 aliases:
   - /vmalert.html
 ---
-`vmalert` executes a list of the given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
-or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
+`vmalert` executes a list of the given [alerting](https://docs.victoriametrics.com/vmalert/#alerting-rules)
+or [recording](https://docs.victoriametrics.com/vmalert/#recording-rules)
 rules against configured `-datasource.url`. For sending alerting notifications
 `vmalert` relies on [Alertmanager](https://github.com/prometheus/alertmanager) configured via `-notifier.url` flag.
 Recording rules results are persisted via [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
@@ -521,7 +521,7 @@ is obtained from `-defaultTenant.prometheus` or `-defaultTenant.graphite` depend
 
 The enterprise version of vmalert is available in `vmutils-*-enterprise.tar.gz` files
 at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) and in `*-enterprise`
-tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
+tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags) and [Quay](https://quay.io/repository/victoriametrics/vmalert?tab=tags).
 
 ### Reading rules from object storage
 
@@ -952,7 +952,7 @@ Sensitive info is stripped from the `curl` examples - see [security](#security) 
 
 ### Never-firing alerts
 
-vmalert can detect if alert's expression doesn't match any time series in runtime 
+vmalert can detect{{% available_from "v1.90.0" %}} if alert's expression doesn't match any time series in runtime 
 starting from [v1.91](https://docs.victoriametrics.com/changelog/#v1910). This problem usually happens
 when alerting expression selects time series which aren't present in the datasource (i.e. wrong `job` label)
 or there is a typo in the series selector (i.e. `env=prod`). Such alerting rules will be marked with special icon in 
@@ -964,8 +964,8 @@ used to detect rules matching no series:
 max(vmalert_alerting_rules_last_evaluation_series_fetched) by(group, alertname) == 0
 ```
 
-See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039).
-This feature is available only if vmalert is using VictoriaMetrics v1.90 or higher as a datasource.
+See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039) and 
+read [Never-firing alerts](https://victoriametrics.com/blog/never-firing-alerts/) blogpost.
 
 ### Series with the same labelset
 
@@ -1268,6 +1268,8 @@ The shortlist of configuration flags is the following:
      Optional OAuth2 tokenURL to use for -notifier.url. If multiple args are set, then they are applied independently for the corresponding -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -notifier.sendTimeout
+     Timeout when sending alerts to the corresponding -notifier.url. (default 10s)
   -notifier.showURL
      Whether to avoid stripping sensitive information such as passwords from URL in log messages or UI for -notifier.url. It is hidden by default, since it can contain sensitive info such as auth key
   -notifier.suppressDuplicateTargetErrors
@@ -1383,7 +1385,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.bearerTokenFile string
      Optional path to bearer token file to use for -remoteWrite.url.
   -remoteWrite.concurrency int
-     Defines number of writers for concurrent writing into remote write endpoint (default 4)
+     Defines number of writers for concurrent writing into remote write endpoint. Default value depends on the number of available CPU cores.
   -remoteWrite.disablePathAppend
      Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.
   -remoteWrite.flushInterval duration

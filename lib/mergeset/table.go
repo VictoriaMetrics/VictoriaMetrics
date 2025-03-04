@@ -47,24 +47,6 @@ const maxPartSize = 400e9
 // The interval for flushing buffered data to parts, so it becomes visible to search.
 const pendingItemsFlushInterval = time.Second
 
-// The interval for guaranteed flush of recently ingested data from memory to on-disk parts so they survive process crash.
-var dataFlushInterval = 5 * time.Second
-
-// SetDataFlushInterval sets the interval for guaranteed flush of recently ingested data from memory to disk.
-//
-// The data can be flushed from memory to disk more frequently if it doesn't fit the memory limit.
-//
-// This function must be called before initializing the indexdb.
-func SetDataFlushInterval(d time.Duration) {
-	if d < pendingItemsFlushInterval {
-		// There is no sense in setting dataFlushInterval to values smaller than pendingItemsFlushInterval,
-		// since pending rows unconditionally remain in memory for up to pendingItemsFlushInterval.
-		d = pendingItemsFlushInterval
-	}
-
-	dataFlushInterval = d
-}
-
 // maxItemsPerCachedPart is the maximum items per created part by the merge,
 // which must be cached in the OS page cache.
 //
@@ -103,6 +85,9 @@ type Table struct {
 	mergeIdx atomic.Uint64
 
 	path string
+
+	// The interval for guaranteed flush of recently ingested data from memory to on-disk parts so they survive process crash.
+	flushInterval time.Duration
 
 	flushCallback         func()
 	needFlushCallbackCall atomic.Bool
@@ -348,6 +333,8 @@ func (pw *partWrapper) decRef() {
 
 // MustOpenTable opens a table on the given path.
 //
+// The flushInterval is the interval for flushing pending in-memory data to disk.
+//
 // Optional flushCallback is called every time new data batch is flushed
 // to the underlying storage and becomes visible to search.
 //
@@ -355,8 +342,14 @@ func (pw *partWrapper) decRef() {
 // to persistent storage.
 //
 // The table is created if it doesn't exist yet.
-func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallback, isReadOnly *atomic.Bool) *Table {
+func MustOpenTable(path string, flushInterval time.Duration, flushCallback func(), prepareBlock PrepareBlockCallback, isReadOnly *atomic.Bool) *Table {
 	path = filepath.Clean(path)
+
+	if flushInterval < pendingItemsFlushInterval {
+		// There is no sense in setting flushInterval to values smaller than pendingItemsFlushInterval,
+		// since pending rows unconditionally remain in memory for up to pendingItemsFlushInterval.
+		flushInterval = pendingItemsFlushInterval
+	}
 
 	// Create a directory for the table if it doesn't exist yet.
 	fs.MustMkdirIfNotExist(path)
@@ -366,6 +359,7 @@ func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockC
 
 	tb := &Table{
 		path:                 path,
+		flushInterval:        flushInterval,
 		flushCallback:        flushCallback,
 		prepareBlock:         prepareBlock,
 		isReadOnly:           isReadOnly,
@@ -763,8 +757,7 @@ func (tb *Table) pendingItemsFlusher() {
 
 func (tb *Table) inmemoryPartsFlusher() {
 	// do not add jitter in order to guarantee flush interval
-	d := dataFlushInterval
-	ticker := time.NewTicker(d)
+	ticker := time.NewTicker(tb.flushInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -994,7 +987,7 @@ func (tb *Table) mustMergeInmemoryPartsFinal(pws []*partWrapper) *partWrapper {
 		bsrs = append(bsrs, bsr)
 	}
 
-	flushToDiskDeadline := getFlushToDiskDeadline(pws)
+	flushToDiskDeadline := getFlushToDiskDeadline(pws, tb.flushInterval)
 	return tb.mustMergeIntoInmemoryPart(bsrs, flushToDiskDeadline)
 }
 
@@ -1013,7 +1006,7 @@ func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
 		return nil
 	}
 
-	flushToDiskDeadline := time.Now().Add(dataFlushInterval)
+	flushToDiskDeadline := time.Now().Add(tb.flushInterval)
 	if len(bsrs) == 1 {
 		// Nothing to merge. Just return a single inmemory part.
 		bsr := bsrs[0]
@@ -1275,8 +1268,8 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 	return nil
 }
 
-func getFlushToDiskDeadline(pws []*partWrapper) time.Time {
-	d := time.Now().Add(dataFlushInterval)
+func getFlushToDiskDeadline(pws []*partWrapper, flushInterval time.Duration) time.Time {
+	d := time.Now().Add(flushInterval)
 	for _, pw := range pws {
 		if pw.mp != nil && pw.flushToDiskDeadline.Before(d) {
 			d = pw.flushToDiskDeadline
@@ -1353,7 +1346,7 @@ func (tb *Table) openCreatedPart(pws []*partWrapper, mpNew *inmemoryPart, dstPar
 	// Open the created part.
 	if mpNew != nil {
 		// Open the created part from memory.
-		flushToDiskDeadline := getFlushToDiskDeadline(pws)
+		flushToDiskDeadline := getFlushToDiskDeadline(pws, tb.flushInterval)
 		pwNew := newPartWrapperFromInmemoryPart(mpNew, flushToDiskDeadline)
 		return pwNew
 	}

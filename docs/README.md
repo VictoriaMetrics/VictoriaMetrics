@@ -1,7 +1,7 @@
 ![Latest Release](https://img.shields.io/github/v/release/VictoriaMetrics/VictoriaMetrics?sort=semver&label=&filter=!*-victorialogs&logo=github&labelColor=gray&color=gray&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Freleases%2Flatest)
 ![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-metrics?label=&logo=docker&logoColor=white&labelColor=2496ED&color=2496ED&link=https%3A%2F%2Fhub.docker.com%2Fr%2Fvictoriametrics%2Fvictoria-metrics)
 ![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaMetrics?link=https%3A%2F%2Fgoreportcard.com%2Freport%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics)
-![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/workflows/main/badge.svg?link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Factions)
+![Build Status](https://github.com/VictoriaMetrics/VictoriaMetrics/actions/workflows/main.yml/badge.svg?branch=master&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Factions)
 ![codecov](https://codecov.io/gh/VictoriaMetrics/VictoriaMetrics/branch/master/graph/badge.svg?link=https%3A%2F%2Fcodecov.io%2Fgh%2FVictoriaMetrics%2FVictoriaMetrics)
 ![License](https://img.shields.io/github/license/VictoriaMetrics/VictoriaMetrics?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaMetrics%2Fblob%2Fmaster%2FLICENSE)
 ![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
@@ -12,7 +12,7 @@ VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and t
 See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/casestudies/).
 
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
-[Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
+Docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags), [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
 
 Documentation for the cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/cluster-victoriametrics/).
 
@@ -124,7 +124,7 @@ VictoriaMetrics ecosystem contains the following components additionally to [sin
 ### Install
 
 To quickly try VictoriaMetrics, just download the [VictoriaMetrics executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
-or [Docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and start it with the desired command-line flags.
+or docker image from [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) or [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags) and start it with the desired command-line flags.
 See also [QuickStart guide](https://docs.victoriametrics.com/quick-start/) for additional information.
 
 VictoriaMetrics can also be installed via these installation methods:
@@ -607,8 +607,9 @@ Or in case of [`http`](https://github.com/influxdata/telegraf/blob/master/plugin
 ```
 
 The size of the request sent to VictoriaMetrics's Influx HTTP endpoints is limited by `-influx.maxRequestSize` (default: 64Mb).
-For better ingestion speed and lower memory usage, VM can be switched to stream processing mode by setting `Stream-Mode: "1"`
-HTTP header with each request. Please note, in streaming mode VictoriaMetrics processes workload line-by-line (see `-influx.maxLineSize`),
+For better ingestion speed and lower memory usage, VM can be switched to stream processing mode by setting `Stream-Mode: 1`
+HTTP header with each request or by setting `-influx.forceStreamMode` command-line flag to enable stream processing for all requests.
+Please note, in streaming mode VictoriaMetrics processes workload line-by-line (see `-influx.maxLineSize`),
 it ignores invalid rows (only logs them) and ingests successfully parsed rows. If client cancels the ingestion request
 due to timeout or other reasons, it could happen that some lines from the workload were already parsed and ingested.
 
@@ -1075,7 +1076,7 @@ VictoriaMetrics supports the following handlers from [Graphite Tags API](https:/
 ## How to build from sources
 
 We recommend using either [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) or
-[docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) instead of building VictoriaMetrics
+docker images ([Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags)) instead of building VictoriaMetrics
 from sources. Building from sources is reasonable when developing additional features specific
 to your needs or when testing bugfixes.
 
@@ -1769,7 +1770,7 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
 - `-search.maxDeleteSeries` limits the number of unique time series that can be
   deleted by a single
   [/api/v1/admin/tsdb/delete_series](https://docs.victoriametrics.com/url-examples/#apiv1admintsdbdelete_series)
-  call. The duration is limited via `-search.maxDeleteDuration` flag{{% available_from "#tip" %}}. Deleting too many time series may require big
+  call. The duration is limited via `-search.maxDeleteDuration` flag{{% available_from "v1.110.0" %}}. Deleting too many time series may require big
   amount of CPU and memory and this limit guards against unplanned resource usage spikes. Also see
   [How to delete time series](#how-to-delete-time-series) section to learn about
   different ways of deleting series.
@@ -1783,9 +1784,8 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxTagValues` to quite low value in order to limit CPU and memory usage.
   See also `-search.maxLabelsAPIDuration` and `-search.maxLabelsAPISeries`.
-- `-search.maxLabelsAPISeries` limits the number of time series, which can be scanned when performing [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels),
-  [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues)
-  or [/api/v1/series](https://docs.victoriametrics.com/url-examples/#apiv1series) requests.
+- `-search.maxLabelsAPISeries` limits the number of time series, which can be scanned when performing [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels) or
+  [/api/v1/label/.../values](https://docs.victoriametrics.com/url-examples/#apiv1labelvalues) requests.
   These endpoints are used mostly by Grafana for auto-completion of label names and label values. Queries to these endpoints may take big amounts of CPU time and memory
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
   In this case it might be useful to set the `-search.maxLabelsAPISeries` to quite low value in order to limit CPU and memory usage.
@@ -1998,12 +1998,14 @@ based on the time range of the query:
 Mappings are added to the indexes during the data ingestion:
 
 -   In global index each mapping is created only once per retention period.
--   In the per-day index each mapping is be created for each unique date that
+-   In the per-day index each mapping is created for each unique date that
     has been seen in the samples for the corresponding time series.
 
 IndexDB respects [retention period](#retention) and once it is over, the indexes
 are dropped. For the new retention period, the indexes are gradually populated
 again as the new samples arrive.
+
+Also see how IndexDB can be [tuned](#index-tuning).
 
 ## Retention
 
@@ -2100,9 +2102,9 @@ while leaving the last sample per each 1-hour interval for samples older than 18
 VictoriaMetrics supports{{% available_from "v1.100.0" %}} configuring independent downsampling per different sets of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 via `-downsampling.period=filter:offset:interval` syntax. In this case the given `offset:interval` downsampling is applied only to time series matching the given `filter`.
 The `filter` can contain arbitrary [series filter](https://docs.victoriametrics.com/keyconcepts/#filtering).
-For example, `-downsampling.period='{__name__=~"(node|process)_.*"}:1d:1m` instructs VictoriaMetrics to deduplicate samples older than one day with one minute interval
+For example, `-downsampling.period='{__name__=~"(node|process)_.*"}:1d:1m` instructs VictoriaMetrics to downsample samples older than one day with one minute interval
 only for [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) with names starting with `node_` or `process_` prefixes.
-The deduplication for other time series can be configured independently via additional `-downsampling.period` command-line flags.
+The downsampling for other time series can be configured independently via additional `-downsampling.period` command-line flags.
 Downsampling configuration can be tested in enterprise version of vmui on the page `Tools.Downsampling filters debug`.
 
 If the time series doesn't match any `filter`, then it isn't downsampled. If the time series matches multiple filters, then the downsampling
@@ -2592,6 +2594,42 @@ and vmstorage has enough free memory to accommodate new cache sizes.
 To override the default values see command-line flags with `-storage.cacheSize` prefix.
 See the full description of flags [here](#list-of-command-line-flags).
 
+## Index tuning for low churn rate
+
+By default, VictoriaMetrics uses the following indexes for data retrieval: `global` and `per-day`.
+Both store the same data and on query time VictoriaMetrics can choose between indexes for optimal performance. 
+See [IndexDB](#indexdb) for details.
+
+If your use case involves [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
+with [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
+then this default setting should be ideal for you.
+
+A prominent example is Kubernetes. Services in k8s expose big number of series with short lifetime, significantly 
+increasing churn rate. The per-day index speeds up data retrieval in this case.
+
+But if your use case assumes low or no churn rate, then you might benefit from disabling the per-day index by setting 
+the flag `-disablePerDayIndex`{{% available_from "v1.112.0" %}}. This will improve the time series ingestion speed and decrease disk space usage,
+since no time or disk space is spent maintaining the per-day index.
+
+Example use cases:
+
+* Historical weather data, such as [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels).
+  It consists of millions time series whose hourly values span tens of years. The time series set never changes.
+  If the per-day index is disabled, once the first hour of data is ingested the entire time series set will be written
+  into the global index and subsequent portions of data will not result in index update. But if the per-day index 
+  is enabled, the same set of time-series will be written to the per-day index for every day of data.
+
+* IoT: a huge set of sensors exports time series with the sensor ID used as a metric label value. Since sensor additions
+  or removals happen infrequently, the time series churn rate will be low. With the per-day index disabled, the entire
+  time series set will be registered in global index during the initial data ingestion and the global index will receive
+  small updates when a sensor is added or removed.
+
+What to expect:
+
+* Prefer setting this flag on fresh installations.
+* Disabling per-day index on installations with historical data is Ok.
+* Re-enabling per-day index on installations with historical data will make it unsearchable.
+
 ## Data migration
 
 ### From VictoriaMetrics
@@ -2930,6 +2968,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -influx.forceStreamMode bool
+     Force stream mode parsing for ingested data. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf.
   -influx.maxLineSize size
      The maximum size in bytes for a single InfluxDB line during parsing. Applicable for stream mode only. See https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
@@ -3224,7 +3264,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxLabelsAPISeries int
      The maximum number of time series, which could be scanned when searching for the matching time series at /api/v1/labels and /api/v1/label/.../values. This option allows limiting memory usage and CPU usage. See also -search.maxLabelsAPIDuration, -search.maxTagKeys, -search.maxTagValues and -search.ignoreExtraFiltersAtLabelsAPI (default 1000000)
   -search.maxLookback duration
-     Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
+     Synonym to -query.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
   -search.maxMemoryPerQuery size
      The maximum amounts of memory a single query may consume. Queries requiring more memory are rejected. The total memory limit for concurrently executed queries can be estimated as -search.maxMemoryPerQuery multiplied by -search.maxConcurrentRequests . See also -search.logQueryMemoryUsage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -3343,6 +3383,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      An optional list of labels to drop from samples before stream de-duplication and aggregation . See https://docs.victoriametrics.com/stream-aggregation/#dropping-unneeded-labels
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -streamAggr.enableWindows
+      Enables aggregation within fixed windows for all aggregators. This allows to get more precise results, but impacts resource usage as it requires twice more memory to store two states. See https://docs.victoriametrics.com/stream-aggregation/#aggregation-windows.  
   -streamAggr.ignoreFirstIntervals int
      Number of aggregation intervals to skip after the start. Increase this value if you observe incorrect aggregation results after restarts. It could be caused by receiving unordered delayed data from clients pushing data into the database. See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start
   -streamAggr.ignoreOldSamples

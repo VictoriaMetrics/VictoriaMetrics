@@ -67,7 +67,7 @@ type ListObjectsInput struct {
 	// are not supported. Directory bucket names must be unique in the chosen Zone
 	// (Availability Zone or Local Zone). Bucket names must follow the format
 	// bucket-base-name--zone-id--x-s3 (for example,
-	// DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket naming
+	// amzn-s3-demo-bucket--usw2-az1--x-s3 ). For information about bucket naming
 	// restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
 	//
 	// Access points - When you use this action with an access point, you must provide
@@ -82,13 +82,12 @@ type ListObjectsInput struct {
 	// Access points and Object Lambda access points are not supported by directory
 	// buckets.
 	//
-	// S3 on Outposts - When you use this action with Amazon S3 on Outposts, you must
-	// direct requests to the S3 on Outposts hostname. The S3 on Outposts hostname
-	// takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
-	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
+	// S3 on Outposts - When you use this action with S3 on Outposts, you must direct
+	// requests to the S3 on Outposts hostname. The S3 on Outposts hostname takes the
+	// form AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When
+	// you use this action with S3 on Outposts, the destination bucket must be the
+	// Outposts access point ARN or the access point alias. For more information about
+	// S3 on Outposts, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
 	//
 	// [Directory bucket naming rules]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html
 	// [What is S3 on Outposts?]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html

@@ -258,12 +258,13 @@ consider [backfilling tips](https://docs.victoriametrics.com/single-server-victo
     * _VictoriaMetrics may return non-existing data points if `step` param is lower than the actual data resolution. See
       more about this [here](https://docs.victoriametrics.com/keyconcepts/#range-query)._
 * How do I get the `real` last data point, not `ephemeral`?
-    * _[last_over_time](https://docs.victoriametrics.com/metricsql/#last_over_time) function can be used for
-      limiting the lookbehind window for calculated data. For example, `last_over_time(metric[10s])` would return
-      calculated samples only if the real samples are located closer than 10 seconds to the calculated timestamps
-      according to
-      `start`, `end` and `step` query args passed
+    * _[last_over_time](https://docs.victoriametrics.com/metricsql/#last_over_time) function returns last value on 
+      the given look-behind window. For example, `last_over_time(metric[10s])` would return
+      sample values only if the real samples are located closer than 10 seconds to the calculated timestamps
+      according to `start`, `end` and `step` query args passed
       to [range query](https://docs.victoriametrics.com/keyconcepts/#range-query)._
+    * _[tlast_over_time](https://docs.victoriametrics.com/metricsql/#tlast_over_time) function returns last timestamp on
+      the given look-behind window, similarly to [last_over_time](https://docs.victoriametrics.com/metricsql/#last_over_time)._
 * How do I get raw data points with MetricsQL?
     * _For getting raw data points specify the interval at which you want them in square brackets and send
       as [instant query](https://docs.victoriametrics.com/keyconcepts/#instant-query). For

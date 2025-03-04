@@ -221,12 +221,10 @@ func (s *Storage) GetFieldNames(ctx context.Context, tenantIDs []TenantID, q *Qu
 
 	pipes = append(pipes, pf)
 
-	q = &Query{
-		f:     q.f,
-		pipes: pipes,
-	}
+	qNew := q.cloneShallow()
+	qNew.pipes = pipes
 
-	return s.runValuesWithHitsQuery(ctx, tenantIDs, q)
+	return s.runValuesWithHitsQuery(ctx, tenantIDs, qNew)
 }
 
 func (s *Storage) getJoinMap(ctx context.Context, tenantIDs []TenantID, q *Query, byFields []string, prefix string) (map[string][][]Field, error) {
@@ -301,25 +299,24 @@ func marshalStrings(dst []byte, a []string) []byte {
 func (s *Storage) getFieldValuesNoHits(ctx context.Context, tenantIDs []TenantID, q *Query, fieldName string) ([]string, error) {
 	// TODO: track memory usage
 
-	pipes := append([]pipe{}, q.pipes...)
-	quotedFieldName := quoteTokenIfNeeded(fieldName)
-	pipeStr := fmt.Sprintf("uniq by (%s)", quotedFieldName)
-	lex := newLexer(pipeStr, q.timestamp)
+	if !isLastPipeUniq(q.pipes) {
+		pipes := append([]pipe{}, q.pipes...)
+		quotedFieldName := quoteTokenIfNeeded(fieldName)
+		pipeStr := fmt.Sprintf("uniq by (%s)", quotedFieldName)
+		lex := newLexer(pipeStr, q.timestamp)
 
-	pu, err := parsePipeUniq(lex)
-	if err != nil {
-		logger.Panicf("BUG: unexpected error when parsing 'uniq' pipe at [%s]: %s", pipeStr, err)
-	}
+		pu, err := parsePipeUniq(lex)
+		if err != nil {
+			logger.Panicf("BUG: unexpected error when parsing 'uniq' pipe at [%s]: %s", pipeStr, err)
+		}
+		if !lex.isEnd() {
+			logger.Panicf("BUG: unexpected tail left after parsing pipes [%s]: %q", pipeStr, lex.s)
+		}
+		pipes = append(pipes, pu)
 
-	if !lex.isEnd() {
-		logger.Panicf("BUG: unexpected tail left after parsing pipes [%s]: %q", pipeStr, lex.s)
-	}
-
-	pipes = append(pipes, pu)
-
-	q = &Query{
-		f:     q.f,
-		pipes: pipes,
+		qNew := q.cloneShallow()
+		qNew.pipes = pipes
+		q = qNew
 	}
 
 	cpusCount := cgroup.AvailableCPUs()
@@ -362,6 +359,14 @@ func (s *Storage) getFieldValuesNoHits(ctx context.Context, tenantIDs []TenantID
 	return valuesAll, nil
 }
 
+func isLastPipeUniq(pipes []pipe) bool {
+	if len(pipes) == 0 {
+		return false
+	}
+	_, ok := pipes[len(pipes)-1].(*pipeUniq)
+	return ok
+}
+
 // GetFieldValues returns unique values with the number of hits for the given fieldName returned by q for the given tenantIDs.
 //
 // If limit > 0, then up to limit unique values are returned.
@@ -382,12 +387,10 @@ func (s *Storage) GetFieldValues(ctx context.Context, tenantIDs []TenantID, q *Q
 
 	pipes = append(pipes, pu)
 
-	q = &Query{
-		f:     q.f,
-		pipes: pipes,
-	}
+	qNew := q.cloneShallow()
+	qNew.pipes = pipes
 
-	return s.runValuesWithHitsQuery(ctx, tenantIDs, q)
+	return s.runValuesWithHitsQuery(ctx, tenantIDs, qNew)
 }
 
 // ValueWithHits contains value and hits.
@@ -578,10 +581,11 @@ func (s *Storage) initFilterInValues(ctx context.Context, tenantIDs []TenantID, 
 	if err != nil {
 		return nil, err
 	}
-	qNew := &Query{
-		f:     fNew,
-		pipes: pipesNew,
-	}
+
+	qNew := q.cloneShallow()
+	qNew.f = fNew
+	qNew.pipes = pipesNew
+
 	return qNew, nil
 }
 
@@ -605,10 +609,10 @@ func (s *Storage) initUnionQueries(tenantIDs []TenantID, q *Query) (*Query, erro
 		}
 		pipesNew[i] = p
 	}
-	qNew := &Query{
-		f:     q.f,
-		pipes: pipesNew,
-	}
+
+	qNew := q.cloneShallow()
+	qNew.pipes = pipesNew
+
 	return qNew, nil
 }
 
@@ -643,10 +647,10 @@ func (s *Storage) initJoinMaps(ctx context.Context, tenantIDs []TenantID, q *Que
 		}
 		pipesNew[i] = p
 	}
-	qNew := &Query{
-		f:     q.f,
-		pipes: pipesNew,
-	}
+
+	qNew := q.cloneShallow()
+	qNew.pipes = pipesNew
+
 	return qNew, nil
 }
 
@@ -679,9 +683,13 @@ func hasFilterInWithQueryForFilter(f filter) bool {
 	visitFunc := func(f filter) bool {
 		switch t := f.(type) {
 		case *filterIn:
-			return t.needExecuteQuery
+			return t.values.q != nil
+		case *filterContainsAll:
+			return t.values.q != nil
+		case *filterContainsAny:
+			return t.values.q != nil
 		case *filterStreamID:
-			return t.needExecuteQuery
+			return t.q != nil
 		default:
 			return false
 		}
@@ -723,9 +731,13 @@ func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesF
 	visitFunc := func(f filter) bool {
 		switch t := f.(type) {
 		case *filterIn:
-			return t.needExecuteQuery
+			return t.values.q != nil
+		case *filterContainsAll:
+			return t.values.q != nil
+		case *filterContainsAny:
+			return t.values.q != nil
 		case *filterStreamID:
-			return t.needExecuteQuery
+			return t.q != nil
 		default:
 			return false
 		}
@@ -733,16 +745,40 @@ func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesF
 	copyFunc := func(f filter) (filter, error) {
 		switch t := f.(type) {
 		case *filterIn:
-			values, err := getValuesForQuery(t.q, t.qFieldName, cache, getFieldValuesFunc)
+			values, err := getValuesForQuery(t.values.q, t.values.qFieldName, cache, getFieldValuesFunc)
 			if err != nil {
 				return nil, fmt.Errorf("cannot obtain unique values for %s: %w", t, err)
 			}
 
 			fiNew := &filterIn{
 				fieldName: t.fieldName,
-				q:         t.q,
-				values:    values,
 			}
+			fiNew.values.q = t.values.q
+			fiNew.values.values = values
+			return fiNew, nil
+		case *filterContainsAll:
+			values, err := getValuesForQuery(t.values.q, t.values.qFieldName, cache, getFieldValuesFunc)
+			if err != nil {
+				return nil, fmt.Errorf("cannot obtain unique values for %s: %w", t, err)
+			}
+
+			fiNew := &filterContainsAll{
+				fieldName: t.fieldName,
+			}
+			fiNew.values.q = t.values.q
+			fiNew.values.values = values
+			return fiNew, nil
+		case *filterContainsAny:
+			values, err := getValuesForQuery(t.values.q, t.values.qFieldName, cache, getFieldValuesFunc)
+			if err != nil {
+				return nil, fmt.Errorf("cannot obtain unique values for %s: %w", t, err)
+			}
+
+			fiNew := &filterContainsAny{
+				fieldName: t.fieldName,
+			}
+			fiNew.values.q = t.values.q
+			fiNew.values.values = values
 			return fiNew, nil
 		case *filterStreamID:
 			values, err := getValuesForQuery(t.q, t.qFieldName, cache, getFieldValuesFunc)

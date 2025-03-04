@@ -22,7 +22,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 // ProcessFacetsRequest handles /select/logsql/facets request.
@@ -116,7 +116,7 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	if stepStr == "" {
 		stepStr = "1d"
 	}
-	step, err := promutils.ParseDuration(stepStr)
+	step, err := timeutil.ParseDuration(stepStr)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse 'step' arg: %s", err)
 		return
@@ -131,7 +131,7 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	if offsetStr == "" {
 		offsetStr = "0s"
 	}
-	offset, err := promutils.ParseDuration(offsetStr)
+	offset, err := timeutil.ParseDuration(offsetStr)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse 'offset' arg: %s", err)
 		return
@@ -665,7 +665,7 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 	if stepStr == "" {
 		stepStr = "1d"
 	}
-	step, err := promutils.ParseDuration(stepStr)
+	step, err := timeutil.ParseDuration(stepStr)
 	if err != nil {
 		err = fmt.Errorf("cannot parse 'step' arg: %s", err)
 		httpserver.SendPrometheusError(w, r, err)
@@ -688,19 +688,22 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 	m := make(map[string]*statsSeries)
 	var mLock sync.Mutex
 
-	timestamp := q.GetTimestamp()
 	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
 		}
 		for i := range timestamps {
+			// Do not move q.GetTimestamp() outside writeBlock, since ts
+			// must be initialized to query timestamp for every processed log row.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8312
+			ts := q.GetTimestamp()
 			labels := make([]logstorage.Field, 0, len(byFields))
 			for j, c := range columns {
 				if c.Name == "_time" {
 					nsec, ok := logstorage.TryParseTimestampRFC3339Nano(c.Values[i])
 					if ok {
-						timestamp = nsec
+						ts = nsec
 						continue
 					}
 				}
@@ -721,7 +724,7 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 					dst = logstorage.MarshalFieldsToJSON(dst, labels)
 					key := string(dst)
 					p := statsPoint{
-						Timestamp: timestamp,
+						Timestamp: ts,
 						Value:     strings.Clone(c.Values[i]),
 					}
 
@@ -1158,7 +1161,7 @@ func getTimeNsec(r *http.Request, argName string) (int64, bool, error) {
 		return 0, false, nil
 	}
 	currentTimestamp := time.Now().UnixNano()
-	nsecs, err := promutils.ParseTimeAt(s, currentTimestamp)
+	nsecs, err := timeutil.ParseTimeAt(s, currentTimestamp)
 	if err != nil {
 		return 0, false, fmt.Errorf("cannot parse %s=%s: %w", argName, s, err)
 	}

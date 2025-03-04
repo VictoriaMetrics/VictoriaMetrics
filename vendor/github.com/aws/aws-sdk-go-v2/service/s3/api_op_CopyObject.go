@@ -31,10 +31,10 @@ import (
 //   - Directory buckets - For directory buckets, you must make requests for this
 //     API operation to the Zonal endpoint. These endpoints support
 //     virtual-hosted-style requests in the format
-//     https://bucket-name.s3express-zone-id.region-code.amazonaws.com/key-name .
-//     Path-style requests are not supported. For more information about endpoints in
-//     Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information
-//     about endpoints in Local Zones, see [Available Local Zone for directory buckets]in the Amazon S3 User Guide.
+//     https://amzn-s3-demo-bucket.s3express-zone-id.region-code.amazonaws.com/key-name
+//     . Path-style requests are not supported. For more information about endpoints
+//     in Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information
+//     about endpoints in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
 //
 //   - VPC endpoints don't support cross-Region requests (including copies). If
 //     you're using VPC endpoints, your source and destination buckets should be in the
@@ -135,8 +135,16 @@ import (
 // retrieval. If the copy source is in a different region, the data transfer is
 // billed to the copy source account. For pricing information, see [Amazon S3 pricing].
 //
-// HTTP Host header syntax  Directory buckets - The HTTP Host header syntax is
-// Bucket-name.s3express-zone-id.region-code.amazonaws.com .
+// HTTP Host header syntax
+//
+//   - Directory buckets - The HTTP Host header syntax is
+//     Bucket-name.s3express-zone-id.region-code.amazonaws.com .
+//
+//   - Amazon S3 on Outposts - When you use this action with S3 on Outposts
+//     through the REST API, you must direct requests to the S3 on Outposts hostname.
+//     The S3 on Outposts hostname takes the form
+//     AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . The
+//     hostname isn't required when you use the Amazon Web Services CLI or SDKs.
 //
 // The following operations are related to CopyObject :
 //
@@ -144,6 +152,7 @@ import (
 //
 // [GetObject]
 //
+// [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [Amazon Web Services Identity and Access Management (IAM) identity-based policies for S3 Express One Zone]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-security-iam-identity-policies.html
 // [Resolve the Error 200 response when copying objects to Amazon S3]: https://repost.aws/knowledge-center/s3-resolve-200-internalerror
 // [Copy Object Using the REST Multipart Upload API]: https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjctsUsingRESTMPUapi.html
@@ -153,8 +162,7 @@ import (
 // [Transfer Acceleration]: https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html
 // [PutObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html
 // [GetObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
-// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
-// [Available Local Zone for directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
 // [Amazon S3 pricing]: http://aws.amazon.com/s3/pricing/
 func (c *Client) CopyObject(ctx context.Context, params *CopyObjectInput, optFns ...func(*Options)) (*CopyObjectOutput, error) {
 	if params == nil {
@@ -181,7 +189,7 @@ type CopyObjectInput struct {
 	// are not supported. Directory bucket names must be unique in the chosen Zone
 	// (Availability Zone or Local Zone). Bucket names must follow the format
 	// bucket-base-name--zone-id--x-s3 (for example,
-	// DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket naming
+	// amzn-s3-demo-bucket--usw2-az1--x-s3 ). For information about bucket naming
 	// restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
 	//
 	// Copying objects across different Amazon Web Services Regions isn't supported
@@ -202,13 +210,18 @@ type CopyObjectInput struct {
 	// Access points and Object Lambda access points are not supported by directory
 	// buckets.
 	//
-	// S3 on Outposts - When you use this action with Amazon S3 on Outposts, you must
-	// direct requests to the S3 on Outposts hostname. The S3 on Outposts hostname
-	// takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
-	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
+	// S3 on Outposts - When you use this action with S3 on Outposts, you must use the
+	// Outpost bucket access point ARN or the access point alias for the destination
+	// bucket.
+	//
+	// You can only copy objects within the same Outpost bucket. It's not supported to
+	// copy objects across different Amazon Web Services Outposts, between buckets on
+	// the same Outposts, or between Outposts buckets and any other bucket types. For
+	// more information about S3 on Outposts, see [What is S3 on Outposts?]in the S3 on Outposts guide. When
+	// you use this action with S3 on Outposts through the REST API, you must direct
+	// requests to the S3 on Outposts hostname, in the format
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . The
+	// hostname isn't required when you use the Amazon Web Services CLI or SDKs.
 	//
 	// [Directory bucket naming rules]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html
 	// [What is S3 on Outposts?]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html
@@ -596,17 +609,16 @@ type CopyObjectInput struct {
 	// of the officially supported Amazon Web Services SDKs and Amazon Web Services
 	// CLI, see [Specifying the Signature Version in Request Authentication]in the Amazon S3 User Guide.
 	//
-	// Directory buckets - If you specify x-amz-server-side-encryption with aws:kms ,
-	// the x-amz-server-side-encryption-aws-kms-key-id header is implicitly assigned
-	// the ID of the KMS symmetric encryption customer managed key that's configured
-	// for your directory bucket's default encryption setting. If you want to specify
-	// the x-amz-server-side-encryption-aws-kms-key-id header explicitly, you can only
-	// specify it with the ID (Key ID or Key ARN) of the KMS customer managed key
-	// that's configured for your directory bucket's default encryption setting.
-	// Otherwise, you get an HTTP 400 Bad Request error. Only use the key ID or key
-	// ARN. The key alias format of the KMS key isn't supported. Your SSE-KMS
-	// configuration can only support 1 [customer managed key]per directory bucket for the lifetime of the
-	// bucket. The [Amazon Web Services managed key]( aws/s3 ) isn't supported.
+	// Directory buckets - To encrypt data using SSE-KMS, it's recommended to specify
+	// the x-amz-server-side-encryption header to aws:kms . Then, the
+	// x-amz-server-side-encryption-aws-kms-key-id header implicitly uses the bucket's
+	// default KMS customer managed key ID. If you want to explicitly set the
+	// x-amz-server-side-encryption-aws-kms-key-id header, it must match the bucket's
+	// default customer managed key (using key ID or ARN, not alias). Your SSE-KMS
+	// configuration can only support 1 [customer managed key]per directory bucket's lifetime. The [Amazon Web Services managed key] ( aws/s3
+	// ) isn't supported.
+	//
+	// Incorrect key specification results in an HTTP 400 Bad Request error.
 	//
 	// [customer managed key]: https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#customer-cmk
 	// [Specifying the Signature Version in Request Authentication]: https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version

@@ -2,7 +2,6 @@ package apptest
 
 import (
 	"fmt"
-	"net/http"
 	"regexp"
 	"testing"
 )
@@ -66,7 +65,7 @@ func (app *Vmselect) PrometheusAPIV1Export(t *testing.T, query string, opts Quer
 	values := opts.asURLValues()
 	values.Add("match[]", query)
 	values.Add("format", "promapi")
-	res := app.cli.PostForm(t, exportURL, values, http.StatusOK)
+	res, _ := app.cli.PostForm(t, exportURL, values)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -82,7 +81,7 @@ func (app *Vmselect) PrometheusAPIV1Query(t *testing.T, query string, opts Query
 	values := opts.asURLValues()
 	values.Add("query", query)
 
-	res := app.cli.PostForm(t, queryURL, values, http.StatusOK)
+	res, _ := app.cli.PostForm(t, queryURL, values)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -98,7 +97,7 @@ func (app *Vmselect) PrometheusAPIV1QueryRange(t *testing.T, query string, opts 
 	values := opts.asURLValues()
 	values.Add("query", query)
 
-	res := app.cli.PostForm(t, queryURL, values, http.StatusOK)
+	res, _ := app.cli.PostForm(t, queryURL, values)
 	return NewPrometheusAPIV1QueryResponse(t, res)
 }
 
@@ -113,7 +112,7 @@ func (app *Vmselect) PrometheusAPIV1Series(t *testing.T, matchQuery string, opts
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
-	res := app.cli.PostForm(t, seriesURL, values, http.StatusOK)
+	res, _ := app.cli.PostForm(t, seriesURL, values)
 	return NewPrometheusAPIV1SeriesResponse(t, res)
 }
 
@@ -127,7 +126,8 @@ func (app *Vmselect) DeleteSeries(t *testing.T, matchQuery string, opts QueryOpt
 	values := opts.asURLValues()
 	values.Add("match[]", matchQuery)
 
-	res := app.cli.PostForm(t, seriesURL, values, http.StatusNoContent)
+	// TODO(@rtm0): Add DeleteSeriesResponse.
+	res, _ := app.cli.PostForm(t, seriesURL, values)
 	if res != "" {
 		t.Fatalf("unexpected non-empty DeleteSeries response=%q", res)
 	}

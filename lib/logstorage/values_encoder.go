@@ -349,31 +349,12 @@ func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	nsecs := secs * 1e9
 
 	// Parse timezone offset
-	n := strings.IndexAny(s, "Z+-")
-	if n < 0 {
-		nsecs -= timeutil.GetLocalTimezoneOffsetNsecs()
-	} else {
-		offsetStr := s[n+1:]
-		if s[n] != 'Z' {
-			isMinus := s[n] == '-'
-			if len(offsetStr) == 0 {
-				return 0, false
-			}
-			offsetNsecs, ok := tryParseTimezoneOffset(offsetStr)
-			if !ok {
-				return 0, false
-			}
-			if isMinus {
-				offsetNsecs = -offsetNsecs
-			}
-			nsecs -= offsetNsecs
-		} else {
-			if len(offsetStr) != 0 {
-				return 0, false
-			}
-		}
-		s = s[:n]
+	offsetNsecs, prefix, ok := parseTimezoneOffset(s)
+	if !ok {
+		return 0, false
 	}
+	nsecs -= offsetNsecs
+	s = prefix
 
 	// Parse optional fractional part of seconds.
 	if len(s) == 0 {
@@ -386,7 +367,7 @@ func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	if digits > 9 {
 		return 0, false
 	}
-	n64, ok := tryParseUint64(s)
+	n64, ok := tryParseDateUint64(s)
 	if !ok {
 		return 0, false
 	}
@@ -398,18 +379,42 @@ func TryParseTimestampRFC3339Nano(s string) (int64, bool) {
 	return nsecs, true
 }
 
-func tryParseTimezoneOffset(offsetStr string) (int64, bool) {
-	n := strings.IndexByte(offsetStr, ':')
+func parseTimezoneOffset(s string) (int64, string, bool) {
+	if strings.HasSuffix(s, "Z") {
+		return 0, s[:len(s)-1], true
+	}
+
+	n := strings.LastIndexAny(s, "+-")
 	if n < 0 {
+		offsetNsecs := timeutil.GetLocalTimezoneOffsetNsecs()
+		return offsetNsecs, s, true
+	}
+	offsetStr := s[n+1:]
+	isMinus := s[n] == '-'
+	if len(offsetStr) == 0 {
+		return 0, s, false
+	}
+	offsetNsecs, ok := tryParseHHMM(offsetStr)
+	if !ok {
+		return 0, s, false
+	}
+	if isMinus {
+		offsetNsecs = -offsetNsecs
+	}
+	return offsetNsecs, s[:n], true
+}
+
+func tryParseHHMM(s string) (int64, bool) {
+	if len(s) != len("hh:mm") || s[2] != ':' {
 		return 0, false
 	}
-	hourStr := offsetStr[:n]
-	minuteStr := offsetStr[n+1:]
-	hours, ok := tryParseUint64(hourStr)
+	hourStr := s[:2]
+	minuteStr := s[3:]
+	hours, ok := tryParseDateUint64(hourStr)
 	if !ok || hours > 24 {
 		return 0, false
 	}
-	minutes, ok := tryParseUint64(minuteStr)
+	minutes, ok := tryParseDateUint64(minuteStr)
 	if !ok || minutes > 60 {
 		return 0, false
 	}
@@ -445,7 +450,7 @@ func tryParseTimestampISO8601(s string) (int64, bool) {
 		return 0, false
 	}
 	millisecondStr := s[:len("000")]
-	msecs, ok := tryParseUint64(millisecondStr)
+	msecs, ok := tryParseDateUint64(millisecondStr)
 	if !ok {
 		return 0, false
 	}
@@ -466,7 +471,7 @@ func tryParseTimestampSecs(s string) (int64, bool, string) {
 		return 0, false, s
 	}
 	yearStr := s[:len("YYYY")]
-	n, ok := tryParseUint64(yearStr)
+	n, ok := tryParseDateUint64(yearStr)
 	if !ok || n < 1677 || n > 2262 {
 		return 0, false, s
 	}
@@ -478,7 +483,7 @@ func tryParseTimestampSecs(s string) (int64, bool, string) {
 		return 0, false, s
 	}
 	monthStr := s[:len("MM")]
-	n, ok = tryParseUint64(monthStr)
+	n, ok = tryParseDateUint64(monthStr)
 	if !ok {
 		return 0, false, s
 	}
@@ -495,7 +500,7 @@ func tryParseTimestampSecs(s string) (int64, bool, string) {
 		return 0, false, s
 	}
 	dayStr := s[:len("DD")]
-	n, ok = tryParseUint64(dayStr)
+	n, ok = tryParseDateUint64(dayStr)
 	if !ok {
 		return 0, false, s
 	}
@@ -507,7 +512,7 @@ func tryParseTimestampSecs(s string) (int64, bool, string) {
 		return 0, false, s
 	}
 	hourStr := s[:len("HH")]
-	n, ok = tryParseUint64(hourStr)
+	n, ok = tryParseDateUint64(hourStr)
 	if !ok {
 		return 0, false, s
 	}
@@ -519,7 +524,7 @@ func tryParseTimestampSecs(s string) (int64, bool, string) {
 		return 0, false, s
 	}
 	minuteStr := s[:len("MM")]
-	n, ok = tryParseUint64(minuteStr)
+	n, ok = tryParseDateUint64(minuteStr)
 	if !ok {
 		return 0, false, s
 	}
@@ -528,7 +533,7 @@ func tryParseTimestampSecs(s string) (int64, bool, string) {
 
 	// Parse second
 	secondStr := s[:len("SS")]
-	n, ok = tryParseUint64(secondStr)
+	n, ok = tryParseDateUint64(secondStr)
 	if !ok {
 		return 0, false, s
 	}
@@ -548,12 +553,51 @@ func tryParseUint64(s string) (uint64, bool) {
 	if len(s) == 0 || len(s) > len("18_446_744_073_709_551_615") {
 		return 0, false
 	}
+	if len(s) > 1 && s[0] == '0' {
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361
+		return 0, false
+	}
+
 	n := uint64(0)
 	for i := 0; i < len(s); i++ {
 		ch := s[i]
 		if ch == '_' {
 			continue
 		}
+		if ch < '0' || ch > '9' {
+			return 0, false
+		}
+		if n > ((1<<64)-1)/10 {
+			return 0, false
+		}
+		n *= 10
+		d := uint64(ch - '0')
+		if n > (1<<64)-1-d {
+			return 0, false
+		}
+		n += d
+	}
+	return n, true
+}
+
+// tryParseDateUint64 parses s (which is a part of some timestamp) as uint64 value.
+func tryParseDateUint64(s string) (uint64, bool) {
+	if len(s) == 0 || len(s) > 9 {
+		return 0, false
+	}
+
+	if len(s) == 2 {
+		// fast path for two-digit number, which is used in hours, minutes and seconds
+		if s[0] < '0' || s[0] > '9' {
+			return 0, false
+		}
+		n := 10*uint64(s[0]-'0') + uint64(s[1]-'0')
+		return n, true
+	}
+
+	n := uint64(0)
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
 		if ch < '0' || ch > '9' {
 			return 0, false
 		}
@@ -639,7 +683,7 @@ func tryParseIPv4(s string) (uint32, bool) {
 	if n <= 0 || n > 3 {
 		return 0, false
 	}
-	v, ok = tryParseUint64(s[:n])
+	v, ok = tryParseDateUint64(s[:n])
 	if !ok || v > 255 {
 		return 0, false
 	}
@@ -651,7 +695,7 @@ func tryParseIPv4(s string) (uint32, bool) {
 	if n <= 0 || n > 3 {
 		return 0, false
 	}
-	v, ok = tryParseUint64(s[:n])
+	v, ok = tryParseDateUint64(s[:n])
 	if !ok || v > 255 {
 		return 0, false
 	}
@@ -663,7 +707,7 @@ func tryParseIPv4(s string) (uint32, bool) {
 	if n <= 0 || n > 3 {
 		return 0, false
 	}
-	v, ok = tryParseUint64(s[:n])
+	v, ok = tryParseDateUint64(s[:n])
 	if !ok || v > 255 {
 		return 0, false
 	}
@@ -671,7 +715,7 @@ func tryParseIPv4(s string) (uint32, bool) {
 	s = s[n+1:]
 
 	// Parse octet 4
-	v, ok = tryParseUint64(s)
+	v, ok = tryParseDateUint64(s)
 	if !ok || v > 255 {
 		return 0, false
 	}

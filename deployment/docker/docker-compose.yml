@@ -4,7 +4,7 @@ services:
   #  And forward them to --remoteWrite.url
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.110.0
+    image: victoriametrics/vmagent:v1.112.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -15,14 +15,12 @@ services:
     command:
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
       - "--remoteWrite.url=http://victoriametrics:8428/api/v1/write"
-    networks:
-      - vm_net
     restart: always
   # VictoriaMetrics instance, a single process responsible for
   # storing metrics and serve read requests.
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.110.0
+    image: victoriametrics/victoria-metrics:v1.112.0
     ports:
       - 8428:8428
       - 8089:8089
@@ -39,14 +37,12 @@ services:
       - "--httpListenAddr=:8428"
       - "--influxListenAddr=:8089"
       - "--vmalert.proxyURL=http://vmalert:8880"
-    networks:
-      - vm_net
     restart: always
 
   # Grafana instance configured with VictoriaMetrics as datasource
   grafana:
     container_name: grafana
-    image: grafana/grafana:10.4.2
+    image: grafana/grafana:11.5.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -58,14 +54,12 @@ services:
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
-    networks:
-      - vm_net
     restart: always
 
   # vmalert executes alerting and recording rules
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.110.0
+    image: victoriametrics/vmalert:v1.112.0
     depends_on:
       - "victoriametrics"
       - "alertmanager"
@@ -85,28 +79,22 @@ services:
       # display source of alerts in grafana
       - "--external.url=http://127.0.0.1:3000" #grafana outside container
       - '--external.alert.source=explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{.Expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"{{ .ActiveAt.UnixMilli }}","to":"now"}}'
-    networks:
-      - vm_net
     restart: always
 
   # alertmanager receives alerting notifications from vmalert
   # and distributes them according to --config.file.
   alertmanager:
     container_name: alertmanager
-    image: prom/alertmanager:v0.27.0
+    image: prom/alertmanager:v0.28.0
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
     command:
       - "--config.file=/config/alertmanager.yml"
     ports:
       - 9093:9093
-    networks:
-      - vm_net
     restart: always
 
 volumes:
   vmagentdata: {}
   vmdata: {}
   grafanadata: {}
-networks:
-  vm_net:

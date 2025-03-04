@@ -56,7 +56,8 @@ Otherwise the timestamp field must be in one of the following formats:
   If timezone information is missing (for example, `2023-06-20 15:32:10`),
   then the time is parsed in the local timezone of the host where VictoriaLogs runs.
 
-- Unix timestamp in seconds or in milliseconds. For example, `1686026893` (seconds) or `1686026893735` (milliseconds).
+- Unix timestamp in seconds, milliseconds, microseconds or nanoseconds. For example, `1686026893` (seconds), `1686026893735` (milliseconds),
+  `1686026893735321` (microseconds) or `1686026893735321098` (nanoseconds).
 
 See [these docs](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) for details on fields,
 which must be present in the ingested log messages.
@@ -111,7 +112,8 @@ Otherwise the timestamp field must be in one of the following formats:
   If timezone information is missing (for example, `2023-06-20 15:32:10`),
   then the time is parsed in the local timezone of the host where VictoriaLogs runs.
 
-- Unix timestamp in seconds or in milliseconds. For example, `1686026893` (seconds) or `1686026893735` (milliseconds).
+- Unix timestamp in seconds, milliseconds, microseconds or nanoseconds. For example, `1686026893` (seconds), `1686026893735` (milliseconds),
+  `1686026893735321` (microseconds) or `1686026893735321098` (nanoseconds).
 
 See [these docs](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) for details on fields,
 which must be present in the ingested log messages.

@@ -284,37 +284,41 @@ See also [quantiles over input metrics](#quantiles-over-input-metrics) and [aggr
 ## Aggregating histograms
 
 [Histogram](https://docs.victoriametrics.com/keyconcepts/#histogram) is a set of [counter](https://docs.victoriametrics.com/keyconcepts/#counter)
-metrics with different `vmrange` or `le` labels. As they're counters, the applicable aggregation output is
-[total](https://docs.victoriametrics.com/stream-aggregation/#total):
+metrics with different `vmrange` or `le` labels. Since typical usage of histograms is to calculate quantiles over the
+buckets change via [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile) function the
+appropriate aggregation output for this is [total](https://docs.victoriametrics.com/stream-aggregation/#rate_sum):
 
 ```yaml
 - match: 'http_request_duration_seconds_bucket'
-  interval: 1m
+  interval: 5m
   without: [instance]
-  outputs: [total]
+  enable_windows: true
+  outputs: [rate_sum]
 ```
 
 This config generates the following output metrics according to [output metric naming](#output-metric-names):
 
 ```text
-http_request_duration_seconds_bucket:1m_without_instance_total{le="0.1"} value1
-http_request_duration_seconds_bucket:1m_without_instance_total{le="0.2"} value2
-http_request_duration_seconds_bucket:1m_without_instance_total{le="0.4"} value3
-http_request_duration_seconds_bucket:1m_without_instance_total{le="1"}   value4
-http_request_duration_seconds_bucket:1m_without_instance_total{le="3"}   value5
-http_request_duration_seconds_bucket:1m_without_instance_total{le="+Inf" value6
+http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="0.1"}  value1
+http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="0.2"}  value2
+http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="0.4"}  value3
+http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="1"}    value4
+http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="3"}    value5
+http_request_duration_seconds_bucket:5m_without_instance_rate_sum{le="+Inf"} value6
 ```
 
 The resulting metrics can be passed to [histogram_quantile](https://docs.victoriametrics.com/metricsql/#histogram_quantile)
 function:
 
 ```metricsql
-histogram_quantile(0.9, sum(rate(http_request_duration_seconds_bucket:1m_without_instance_total[5m])) by(le))
+histogram_quantile(0.9, sum(http_request_duration_seconds_bucket:5m_without_instance_rate_sum) by(le))
 ```
 
 Please note, histograms can be aggregated if their `le` labels are configured identically.
 [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
 have no such requirement.
+
+It's recommended to use [aggregation windows](#aggregation-windows) when aggregating histograms if you observe [accuracy issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4580).
 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [histograms over input metrics](#histograms-over-input-metrics) and [quantiles over input metrics](#quantiles-over-input-metrics).
@@ -808,6 +812,11 @@ specified individually per each `-remoteWrite.url`:
   #
   # dedup_interval: 30s
 
+  # enable_windows is a boolean option to enable fixed aggregation windows.
+  # See https://docs.victoriametrics.com/stream-aggregation#aggregation-windows
+  #
+  # enable_windows: true
+
   # staleness_interval is an optional interval for resetting the per-series state if no new samples
   # are received during this interval for the following outputs:
   # - histogram_bucket
@@ -1143,6 +1152,32 @@ Typical use case is to drop `replica` label from samples, which are received fro
 - [Lower than expected values for `total_prometheus` and `increase_prometheus` outputs](#staleness).
 - [High memory usage and CPU usage](#high-resource-usage).
 - [Unexpected results in vmagent cluster mode](#cluster-mode).
+- [Inaccurate aggregation results for histograms](#aggregation-windows)
+
+## Aggregation windows
+
+By default, stream aggregation and deduplication stores a single state per each aggregation output result.
+The data for each aggregator is flushed independently once per aggregation interval. But there's no guarantee that
+incoming samples with timestamps close to the aggregation interval's end will get into it. For example, when aggregating
+with `interval: 1m` a data sample with timestamp 1739473078 (18:57:59) can fall into aggregation round `18:58:00` or `18:59:00`.
+It depends on network lag, load, clock synchronization, etc. In most scenarios it doesn't impact aggregation or
+deduplication results, which are consistent within margin of error. But for metrics represented as a collection of series,
+like [histograms](https://docs.victoriametrics.com/keyconcepts/#histogram), such inaccuracy leads to invalid aggregation results.
+
+For this case, streaming aggregation and deduplication support mode with aggregation windows for current and previous state.
+With this mode, flush doesn't happen immediately but is shifted by a calculated samples lag that improves correctness for delayed data. {{% available_from "v1.112.0" %}}
+
+Enabling of this mode has increased resource usage: memory usage is expected to double as aggregation will store two states
+instead of one. However, this significantly improves accuracy of calculations. Aggregation windows can be enabled via
+the following settings:
+
+- `-streamAggr.enableWindows` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
+  and [vmagent](https://docs.victoriametrics.com/vmagent/). At [vmagent](https://docs.victoriametrics.com/vmagent/)
+  `-remoteWrite.streamAggr.enableWindows` flag can be specified individually per each `-remoteWrite.url`.
+  If one of these flags is set, then all aggregators will be using fixed windows. In conjunction with `-remoteWrite.streamAggr.dedupInterval` or
+  `-streamAggr.dedupInterval` fixed aggregation windows are enabled on deduplicator as well.
+ - `enable_windows` option in [aggregation config](https://docs.victoriametrics.com/stream-aggregation/#stream-aggregation-config).
+  It allows enabling aggregation windows for a specific aggregator.
 
 ## Staleness
 

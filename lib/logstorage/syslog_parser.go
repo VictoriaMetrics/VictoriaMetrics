@@ -1,7 +1,6 @@
 package logstorage
 
 import (
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -21,7 +20,9 @@ import (
 func GetSyslogParser(currentYear int, timezone *time.Location) *SyslogParser {
 	v := syslogParserPool.Get()
 	if v == nil {
-		v = &SyslogParser{}
+		v = &SyslogParser{
+			unescaper: strings.NewReplacer(`\]`, `]`),
+		}
 	}
 	p := v.(*SyslogParser)
 	p.currentYear = currentYear
@@ -64,6 +65,9 @@ type SyslogParser struct {
 
 	// timezone is used as the current timezone for rfc3164 messages.
 	timezone *time.Location
+
+	// unescaper is a replacer, which unescapes \] that is allowed in rfc5424, but breaks strings unquoting
+	unescaper *strings.Replacer
 }
 
 func (p *SyslogParser) reset() {
@@ -248,7 +252,7 @@ func (p *SyslogParser) parseRFC5424SDLine(s string) (string, bool) {
 
 	// Parse structured data
 	i := 0
-	for i < len(s) && s[i] != ']' {
+	for i < len(s) && (s[i] != ']' || (i > 0 && s[i-1] == '\\')) {
 		// skip whitespace
 		if s[i] == ' ' {
 			i++
@@ -263,12 +267,20 @@ func (p *SyslogParser) parseRFC5424SDLine(s string) (string, bool) {
 		i += n + 1
 
 		// Parse value
-		if strings.HasPrefix(s[i:], `"`) {
-			qp, err := strconv.QuotedPrefix(s[i:])
-			if err != nil {
+		if s[i] == '"' {
+			valid := false
+			i++
+			for i < len(s) {
+				if s[i] == '"' && s[i-1] != '\\' {
+					valid = true
+					break
+				}
+				i++
+			}
+			if !valid {
 				return s, false
 			}
-			i += len(qp)
+			i++
 		} else {
 			n := strings.IndexAny(s[i:], " ]")
 			if n < 0 {
@@ -281,8 +293,7 @@ func (p *SyslogParser) parseRFC5424SDLine(s string) (string, bool) {
 		return s, false
 	}
 
-	sdValue := strings.TrimSpace(s[:i])
-
+	sdValue := p.unescaper.Replace(strings.TrimSpace(s[:i]))
 	p.sdParser.parse(sdValue)
 	if len(p.sdParser.fields) == 0 {
 		// Special case when structured data doesn't contain any fields

@@ -24,10 +24,10 @@ import (
 // Directory buckets - For directory buckets, you must make requests for this API
 // operation to the Zonal endpoint. These endpoints support virtual-hosted-style
 // requests in the format
-// https://bucket-name.s3express-zone-id.region-code.amazonaws.com/key-name .
-// Path-style requests are not supported. For more information about endpoints in
-// Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information about
-// endpoints in Local Zones, see [Available Local Zone for directory buckets]in the Amazon S3 User Guide.
+// https://amzn-s3-demo-bucket.s3express-zone-id.region-code.amazonaws.com/key-name
+// . Path-style requests are not supported. For more information about endpoints
+// in Availability Zones, see [Regional and Zonal endpoints for directory buckets in Availability Zones]in the Amazon S3 User Guide. For more information
+// about endpoints in Local Zones, see [Concepts for directory buckets in Local Zones]in the Amazon S3 User Guide.
 //
 // Permissions
 //
@@ -149,20 +149,20 @@ import (
 //
 // [Specifying server-side encryption with KMS for new object uploads]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-specifying-kms-encryption.html
 // [GetObjectLegalHold]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectLegalHold.html
+// [Concepts for directory buckets in Local Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [ListParts]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html
 // [Server-Side Encryption (Using Customer-Provided Encryption Keys)]: https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html
 // [CreateSession]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateSession.html
 // [GetObjectTagging]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html
 // [Specifying Permissions in a Policy]: https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html
 // [RFC 7232]: https://tools.ietf.org/html/rfc7232
-// [Available Local Zone for directory buckets]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-lzs-for-directory-buckets.html
 // [HeadObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadObject.html
 // [GetObjectLockConfiguration]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectLockConfiguration.html
 // [Protecting data with server-side encryption]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-serv-side-encryption.html
 // [GetObjectAcl]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAcl.html
 // [GetObjectRetention]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectRetention.html
 // [GetObject]: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html
-// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-express-Regions-and-Zones.html
+// [Regional and Zonal endpoints for directory buckets in Availability Zones]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/endpoint-directory-buckets-AZ.html
 func (c *Client) GetObjectAttributes(ctx context.Context, params *GetObjectAttributesInput, optFns ...func(*Options)) (*GetObjectAttributesOutput, error) {
 	if params == nil {
 		params = &GetObjectAttributesInput{}
@@ -188,7 +188,7 @@ type GetObjectAttributesInput struct {
 	// are not supported. Directory bucket names must be unique in the chosen Zone
 	// (Availability Zone or Local Zone). Bucket names must follow the format
 	// bucket-base-name--zone-id--x-s3 (for example,
-	// DOC-EXAMPLE-BUCKET--usw2-az1--x-s3 ). For information about bucket naming
+	// amzn-s3-demo-bucket--usw2-az1--x-s3 ). For information about bucket naming
 	// restrictions, see [Directory bucket naming rules]in the Amazon S3 User Guide.
 	//
 	// Access points - When you use this action with an access point, you must provide
@@ -203,13 +203,12 @@ type GetObjectAttributesInput struct {
 	// Access points and Object Lambda access points are not supported by directory
 	// buckets.
 	//
-	// S3 on Outposts - When you use this action with Amazon S3 on Outposts, you must
-	// direct requests to the S3 on Outposts hostname. The S3 on Outposts hostname
-	// takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
-	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
+	// S3 on Outposts - When you use this action with S3 on Outposts, you must direct
+	// requests to the S3 on Outposts hostname. The S3 on Outposts hostname takes the
+	// form AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When
+	// you use this action with S3 on Outposts, the destination bucket must be the
+	// Outposts access point ARN or the access point alias. For more information about
+	// S3 on Outposts, see [What is S3 on Outposts?]in the Amazon S3 User Guide.
 	//
 	// [Directory bucket naming rules]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/directory-bucket-naming-rules.html
 	// [What is S3 on Outposts?]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html
@@ -298,8 +297,11 @@ type GetObjectAttributesOutput struct {
 
 	// Specifies whether the object retrieved was ( true ) or was not ( false ) a
 	// delete marker. If false , this response header does not appear in the response.
+	// To learn more about delete markers, see [Working with delete markers].
 	//
 	// This functionality is not supported for directory buckets.
+	//
+	// [Working with delete markers]: https://docs.aws.amazon.com/AmazonS3/latest/userguide/DeleteMarker.html
 	DeleteMarker *bool
 
 	// An ETag is an opaque identifier assigned by a web server to a specific version

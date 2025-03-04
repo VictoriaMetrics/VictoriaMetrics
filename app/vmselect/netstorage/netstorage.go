@@ -8,7 +8,6 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
-	"time"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -792,7 +791,7 @@ func LabelNames(qt *querytracer.Tracer, sq *storage.SearchQuery, maxLabelNames i
 	if err != nil {
 		return nil, err
 	}
-	labels, err := vmstorage.SearchLabelNamesWithFiltersOnTimeRange(qt, tfss, tr, maxLabelNames, sq.MaxMetrics, deadline.Deadline())
+	labels, err := vmstorage.SearchLabelNames(qt, tfss, tr, maxLabelNames, sq.MaxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during labels search on time range: %w", err)
 	}
@@ -865,7 +864,7 @@ func LabelValues(qt *querytracer.Tracer, labelName string, sq *storage.SearchQue
 	if err != nil {
 		return nil, err
 	}
-	labelValues, err := vmstorage.SearchLabelValuesWithFiltersOnTimeRange(qt, labelName, tfss, tr, maxLabelValues, sq.MaxMetrics, deadline.Deadline())
+	labelValues, err := vmstorage.SearchLabelValues(qt, labelName, tfss, tr, maxLabelValues, sq.MaxMetrics, deadline.Deadline())
 	if err != nil {
 		return nil, fmt.Errorf("error during label values search on time range for labelName=%q: %w", labelName, err)
 	}
@@ -1002,9 +1001,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 
 	sr := getStorageSearch()
 	defer putStorageSearch(sr)
-	startTime := time.Now()
 	sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
-	indexSearchDuration.UpdateDuration(startTime)
 
 	// Start workers that call f in parallel on available CPU cores.
 	workCh := make(chan *exportWork, gomaxprocs*8)
@@ -1142,9 +1139,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	defer vmstorage.WG.Done()
 
 	sr := getStorageSearch()
-	startTime := time.Now()
 	maxSeriesCount := sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
-	indexSearchDuration.UpdateDuration(startTime)
 	type blockRefs struct {
 		brs []blockRef
 	}
@@ -1295,8 +1290,6 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	rss.tbf = tbf
 	return &rss, nil
 }
-
-var indexSearchDuration = metrics.NewHistogram(`vm_index_search_duration_seconds`)
 
 type blockRef struct {
 	partRef storage.PartRef

@@ -85,20 +85,10 @@ func parsePipeUnion(lex *lexer) (pipe, error) {
 	}
 	lex.nextToken()
 
-	if !lex.isKeyword("(") {
-		return nil, fmt.Errorf("missing '(' before the union query")
-	}
-	lex.nextToken()
-
-	q, err := parseQuery(lex)
+	q, err := parseQueryInParens(lex)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse query inside union(...): %w", err)
+		return nil, fmt.Errorf("cannot parse union(...): %w", err)
 	}
-
-	if !lex.isKeyword(")") {
-		return nil, fmt.Errorf("missing ')' after the union query")
-	}
-	lex.nextToken()
 
 	pu := &pipeUnion{
 		q: q,

@@ -92,7 +92,7 @@ const Select: FC<SelectProps> = ({
     setSearch((e.target as HTMLInputElement).value);
   };
 
-  const createHandleClick = (value: string) => (e: MouseEvent) => {
+  const createHandleClick = (value: string) => (e: MouseEvent<HTMLDivElement>) => {
     handleSelected(value);
     e.stopPropagation();
   };

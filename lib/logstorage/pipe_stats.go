@@ -10,7 +10,6 @@ import (
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -47,6 +46,8 @@ type statsFunc interface {
 	updateNeededFields(neededFields fieldsSet)
 
 	// newStatsProcessor must create new statsProcessor for calculating stats for the given statsFunc
+	//
+	// a must be used for allocating memory inside the returned statsProcessor.
 	newStatsProcessor(a *chunkedAllocator) statsProcessor
 }
 
@@ -61,6 +62,8 @@ type statsProcessor interface {
 	// updateStatsForAllRows must update statsProcessor stats for all the rows in br.
 	//
 	// It must return the change of internal state size in bytes for the statsProcessor.
+	//
+	// It is guaranteed that br contains at least a single row.
 	updateStatsForAllRows(sf statsFunc, br *blockResult) int
 
 	// updateStatsForRow must update statsProcessor stats for the row at rowIndex in br.
@@ -69,7 +72,9 @@ type statsProcessor interface {
 	updateStatsForRow(sf statsFunc, br *blockResult, rowIndex int) int
 
 	// mergeState must merge sfp state into statsProcessor state.
-	mergeState(sf statsFunc, sfp statsProcessor)
+	//
+	// a must be used for allocating memory inside mergeState.
+	mergeState(a *chunkedAllocator, sf statsFunc, sfp statsProcessor)
 
 	// finalizeStats must append string represetnation of the collected stats result to dst and return it.
 	//
@@ -211,26 +216,26 @@ const stateSizeBudgetChunk = 1 << 20
 func (ps *pipeStats) newPipeProcessor(workersCount int, stopCh <-chan struct{}, cancel func(), ppNext pipeProcessor) pipeProcessor {
 	maxStateSize := int64(float64(memory.Allowed()) * 0.4)
 
-	shards := make([]pipeStatsProcessorShard, workersCount)
-	for i := range shards {
-		shards[i] = pipeStatsProcessorShard{
-			pipeStatsProcessorShardNopad: pipeStatsProcessorShardNopad{
-				ps: ps,
-			},
-		}
-		shards[i].init()
-	}
-
 	psp := &pipeStatsProcessor{
 		ps:     ps,
 		stopCh: stopCh,
 		cancel: cancel,
 		ppNext: ppNext,
 
-		shards: shards,
-
 		maxStateSize: maxStateSize,
 	}
+
+	shards := make([]pipeStatsProcessorShard, workersCount)
+	for i := range shards {
+		shards[i] = pipeStatsProcessorShard{
+			pipeStatsProcessorShardNopad: pipeStatsProcessorShardNopad{
+				psp: psp,
+			},
+		}
+		shards[i].init()
+	}
+	psp.shards = shards
+
 	psp.stateSizeBudget.Store(maxStateSize)
 
 	return psp
@@ -256,9 +261,19 @@ type pipeStatsProcessorShard struct {
 }
 
 type pipeStatsProcessorShardNopad struct {
-	ps *pipeStats
+	psp *pipeStatsProcessor
 
-	m pipeStatsGroupMap
+	// groupMap is used for tracking small number of groups until it reaches pipeStatsGroupMapMaxLen.
+	// After that the groups are tracked by groupMapShards.
+	groupMap pipeStatsGroupMap
+
+	// groupMapShards are used for tracking big number of groups.
+	//
+	// Every shard contains a share of unique groups, which are merged in parallel at flush().
+	groupMapShards []pipeStatsGroupMap
+
+	// a is used for reducing memory allocations when calculating stats among big number of different groups.
+	a chunkedAllocator
 
 	// bms and brTmp are used for applying per-func filters.
 	bms   []bitmap
@@ -270,34 +285,26 @@ type pipeStatsProcessorShardNopad struct {
 	stateSizeBudget int
 }
 
+// the maximum number of groups to track in pipeStatsProcessorShard.groupMap before switching to pipeStatsProcessorShard.groupMapShards
+//
+// Too big value may slow down flush() across big number of CPU cores.
+// Too small value may significantly increase RAM usage when stats for big number of groups is calculated.
+const pipeStatsGroupMapMaxLen = 4 << 10
+
 type pipeStatsGroupMap struct {
 	shard *pipeStatsProcessorShard
 
 	u64        map[uint64]*pipeStatsGroup
 	negative64 map[uint64]*pipeStatsGroup
 	strings    map[string]*pipeStatsGroup
-
-	// a and sfpsBuf are used for reducing memory allocations when calculating stats among big number of different groups.
-	a       chunkedAllocator
-	sfpsBuf []statsProcessor
 }
 
 func (psm *pipeStatsGroupMap) reset() {
-	psm.shard = nil
-
-	psm.u64 = nil
-	psm.negative64 = nil
-	psm.strings = nil
-
-	psm.sfpsBuf = nil
+	*psm = pipeStatsGroupMap{}
 }
 
 func (psm *pipeStatsGroupMap) init(shard *pipeStatsProcessorShard) {
 	psm.shard = shard
-
-	psm.u64 = make(map[uint64]*pipeStatsGroup)
-	psm.negative64 = make(map[uint64]*pipeStatsGroup)
-	psm.strings = make(map[string]*pipeStatsGroup)
 }
 
 func (psm *pipeStatsGroupMap) entriesCount() uint64 {
@@ -305,108 +312,80 @@ func (psm *pipeStatsGroupMap) entriesCount() uint64 {
 	return uint64(n)
 }
 
-func (psm *pipeStatsGroupMap) getPipeStatsGroupGeneric(key string) *pipeStatsGroup {
-	if n, ok := tryParseUint64(key); ok {
-		return psm.getPipeStatsGroupUint64(n)
+func (psm *pipeStatsGroupMap) getPipeStatsGroupUint64(n uint64) (*pipeStatsGroup, bool) {
+	if psg := psm.u64[n]; psg != nil {
+		return psg, false
 	}
-	if len(key) > 0 && key[0] == '-' {
-		if n, ok := tryParseInt64(key); ok {
-			return psm.getPipeStatsGroupNegativeInt64(n)
+
+	psg := psm.shard.newPipeStatsGroup()
+	psm.shard.stateSizeBudget -= psm.setPipeStatsGroupUint64(n, psg)
+	return psg, true
+}
+
+func (psm *pipeStatsGroupMap) setPipeStatsGroupUint64(n uint64, psg *pipeStatsGroup) int {
+	if psm.u64 == nil {
+		psm.u64 = map[uint64]*pipeStatsGroup{
+			n: psg,
 		}
+		return int(unsafe.Sizeof(psm.u64) + unsafe.Sizeof(n) + unsafe.Sizeof(psg))
 	}
-	return psm.getPipeStatsGroupString(bytesutil.ToUnsafeBytes(key))
-}
-
-func (psm *pipeStatsGroupMap) getPipeStatsGroupInt64(n int64) *pipeStatsGroup {
-	if n >= 0 {
-		return psm.getPipeStatsGroupUint64(uint64(n))
-	}
-	return psm.getPipeStatsGroupNegativeInt64(n)
-}
-
-func (psm *pipeStatsGroupMap) getPipeStatsGroupUint64(n uint64) *pipeStatsGroup {
-	psg := psm.u64[n]
-	if psg != nil {
-		return psg
-	}
-
-	psg = psm.newPipeStatsGroup()
 	psm.u64[n] = psg
-	psm.shard.stateSizeBudget -= int(unsafe.Sizeof(n) + unsafe.Sizeof(psg))
-
-	return psg
+	return int(unsafe.Sizeof(n) + unsafe.Sizeof(psg))
 }
 
-func (psm *pipeStatsGroupMap) getPipeStatsGroupNegativeInt64(n int64) *pipeStatsGroup {
-	psg := psm.negative64[uint64(n)]
-	if psg != nil {
-		return psg
+func (psm *pipeStatsGroupMap) getPipeStatsGroupNegativeInt64(n int64) (*pipeStatsGroup, bool) {
+	if psg := psm.negative64[uint64(n)]; psg != nil {
+		return psg, false
 	}
 
-	psg = psm.newPipeStatsGroup()
+	psg := psm.shard.newPipeStatsGroup()
+	psm.shard.stateSizeBudget -= psm.setPipeStatsGroupNegativeInt64(n, psg)
+	return psg, true
+}
+
+func (psm *pipeStatsGroupMap) setPipeStatsGroupNegativeInt64(n int64, psg *pipeStatsGroup) int {
+	if psm.negative64 == nil {
+		psm.negative64 = map[uint64]*pipeStatsGroup{
+			uint64(n): psg,
+		}
+		return int(unsafe.Sizeof(psm.negative64) + unsafe.Sizeof(n) + unsafe.Sizeof(psg))
+	}
 	psm.negative64[uint64(n)] = psg
-	psm.shard.stateSizeBudget -= int(unsafe.Sizeof(n) + unsafe.Sizeof(psg))
-
-	return psg
+	return int(unsafe.Sizeof(n) + unsafe.Sizeof(psg))
 }
 
-func (psm *pipeStatsGroupMap) getPipeStatsGroupString(key []byte) *pipeStatsGroup {
-	psg := psm.strings[string(key)]
-	if psg != nil {
-		return psg
+func (psm *pipeStatsGroupMap) getPipeStatsGroupString(key []byte) (*pipeStatsGroup, bool) {
+	if psg := psm.strings[string(key)]; psg != nil {
+		return psg, false
 	}
 
-	psg = psm.newPipeStatsGroup()
-	keyCopy := psm.a.cloneBytesToString(key)
-	psm.strings[keyCopy] = psg
-	psm.shard.stateSizeBudget -= len(keyCopy) + int(unsafe.Sizeof(keyCopy))
-
-	return psg
+	psg := psm.shard.newPipeStatsGroup()
+	keyCopy := psm.shard.a.cloneBytesToString(key)
+	psm.shard.stateSizeBudget -= psm.setPipeStatsGroupString(keyCopy, psg) + len(keyCopy)
+	return psg, true
 }
 
-func (psm *pipeStatsGroupMap) newPipeStatsGroup() *pipeStatsGroup {
-	sfps := psm.newStatsProcessors()
-
-	for i, f := range psm.shard.ps.funcs {
-		bytesAllocated := psm.a.bytesAllocated
-		sfps[i] = f.f.newStatsProcessor(&psm.a)
-		psm.shard.stateSizeBudget -= psm.a.bytesAllocated - bytesAllocated
+func (psm *pipeStatsGroupMap) setPipeStatsGroupString(v string, psg *pipeStatsGroup) int {
+	if psm.strings == nil {
+		psm.strings = map[string]*pipeStatsGroup{
+			v: psg,
+		}
+		return int(unsafe.Sizeof(psm.strings) + unsafe.Sizeof(v))
 	}
-
-	psg := psm.a.newPipeStatsGroup()
-	psg.funcs = psm.shard.ps.funcs
-	psg.sfps = sfps
-	psm.shard.stateSizeBudget -= int(unsafe.Sizeof(*psg) + unsafe.Sizeof(sfps[0])*uintptr(len(sfps)))
-
-	return psg
+	psm.strings[v] = psg
+	return int(unsafe.Sizeof(v))
 }
 
-func (psm *pipeStatsGroupMap) newStatsProcessors() []statsProcessor {
-	funcsLen := len(psm.shard.ps.funcs)
-	if len(psm.sfpsBuf)+funcsLen > cap(psm.sfpsBuf) {
-		psm.sfpsBuf = nil
-	}
-	if psm.sfpsBuf == nil {
-		psm.sfpsBuf = make([]statsProcessor, 0, pipeStatsProcessorChunkLen)
-	}
-
-	sfpsBufLen := len(psm.sfpsBuf)
-	psm.sfpsBuf = slicesutil.SetLength(psm.sfpsBuf, sfpsBufLen+funcsLen)
-	return psm.sfpsBuf[sfpsBufLen:]
-}
-
-const pipeStatsProcessorChunkLen = 64 * 1024 / int(unsafe.Sizeof((statsProcessor)(nil)))
-
-func (psm *pipeStatsGroupMap) mergeState(src *pipeStatsGroupMap, stopCh <-chan struct{}) {
+func (psm *pipeStatsGroupMap) mergeState(a *chunkedAllocator, src *pipeStatsGroupMap, stopCh <-chan struct{}) {
 	for n, psgSrc := range src.u64 {
 		if needStop(stopCh) {
 			return
 		}
 		psgDst := psm.u64[n]
 		if psgDst == nil {
-			psm.u64[n] = psgSrc
+			psm.setPipeStatsGroupUint64(n, psgSrc)
 		} else {
-			psgDst.mergeState(psgSrc)
+			psgDst.mergeState(a, psgSrc)
 		}
 	}
 	for n, psgSrc := range src.negative64 {
@@ -415,9 +394,9 @@ func (psm *pipeStatsGroupMap) mergeState(src *pipeStatsGroupMap, stopCh <-chan s
 		}
 		psgDst := psm.negative64[n]
 		if psgDst == nil {
-			psm.negative64[n] = psgSrc
+			psm.setPipeStatsGroupNegativeInt64(int64(n), psgSrc)
 		} else {
-			psgDst.mergeState(psgSrc)
+			psgDst.mergeState(a, psgSrc)
 		}
 	}
 	for k, psgSrc := range src.strings {
@@ -426,22 +405,54 @@ func (psm *pipeStatsGroupMap) mergeState(src *pipeStatsGroupMap, stopCh <-chan s
 		}
 		psgDst := psm.strings[k]
 		if psgDst == nil {
-			psm.strings[k] = psgSrc
+			psm.setPipeStatsGroupString(k, psgSrc)
 		} else {
-			psgDst.mergeState(psgSrc)
+			psgDst.mergeState(a, psgSrc)
 		}
 	}
 }
 
-func (shard *pipeStatsProcessorShard) init() {
-	shard.m.init(shard)
+func initStatsConcurrency(sfp statsProcessor, concurrency uint) {
+	switch t := sfp.(type) {
+	case *statsCountUniqProcessor:
+		t.concurrency = concurrency
+	case *statsCountUniqHashProcessor:
+		t.concurrency = concurrency
+	case *statsUniqValuesProcessor:
+		t.concurrency = concurrency
+	}
+}
 
-	funcsLen := len(shard.ps.funcs)
+func (shard *pipeStatsProcessorShard) init() {
+	shard.groupMap.init(shard)
+
+	funcsLen := len(shard.psp.ps.funcs)
 	shard.bms = make([]bitmap, funcsLen)
 }
 
+func (shard *pipeStatsProcessorShard) newPipeStatsGroup() *pipeStatsGroup {
+	bytesAllocated := shard.a.bytesAllocated
+
+	funcsLen := len(shard.psp.ps.funcs)
+	sfps := shard.a.newStatsProcessors(uint(funcsLen))
+
+	for i, f := range shard.psp.ps.funcs {
+		sfp := f.f.newStatsProcessor(&shard.a)
+		initStatsConcurrency(sfp, uint(len(shard.psp.shards)))
+		sfps[i] = sfp
+	}
+
+	psg := shard.a.newPipeStatsGroup()
+	psg.funcs = shard.psp.ps.funcs
+	psg.sfps = sfps
+
+	shard.stateSizeBudget -= shard.a.bytesAllocated - bytesAllocated
+
+	return psg
+}
+
 func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
-	byFields := shard.ps.byFields
+	byFields := shard.psp.ps.byFields
 
 	// Update shard.bms by applying per-function filters
 	shard.applyPerFunctionFilters(br)
@@ -449,7 +460,7 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 	// Process stats for the defined functions
 	if len(byFields) == 0 {
 		// Fast path - pass all the rows to a single group with empty key.
-		psg := shard.m.getPipeStatsGroupString(nil)
+		psg := shard.getPipeStatsGroupString(nil)
 		shard.stateSizeBudget -= psg.updateStatsForAllRows(shard.bms, br, &shard.brTmp)
 		return
 	}
@@ -460,11 +471,14 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 	}
 
 	// Obtain columns for byFields
-	columnValues := shard.columnValues[:0]
-	for _, bf := range byFields {
+	columnValues := slicesutil.SetLength(shard.columnValues, len(byFields))
+	for i, bf := range byFields {
 		c := br.getColumnByName(bf.name)
-		values := c.getValuesBucketed(br, bf)
-		columnValues = append(columnValues, values)
+		if bf.hasBucketConfig() {
+			columnValues[i] = c.getValuesBucketed(br, bf)
+		} else {
+			columnValues[i] = c.getValues(br)
+		}
 	}
 	shard.columnValues = columnValues
 
@@ -482,7 +496,7 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 		for _, values := range columnValues {
 			keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[0]))
 		}
-		psg := shard.m.getPipeStatsGroupString(keyBuf)
+		psg := shard.getPipeStatsGroupString(keyBuf)
 		shard.stateSizeBudget -= psg.updateStatsForAllRows(shard.bms, br, &shard.brTmp)
 		shard.keyBuf = keyBuf
 		return
@@ -506,7 +520,7 @@ func (shard *pipeStatsProcessorShard) writeBlock(br *blockResult) {
 			for _, values := range columnValues {
 				keyBuf = encoding.MarshalBytes(keyBuf, bytesutil.ToUnsafeBytes(values[i]))
 			}
-			psg = shard.m.getPipeStatsGroupString(keyBuf)
+			psg = shard.getPipeStatsGroupString(keyBuf)
 		}
 		shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
 	}
@@ -517,85 +531,106 @@ func (shard *pipeStatsProcessorShard) updateStatsSingleColumn(br *blockResult, b
 	c := br.getColumnByName(bf.name)
 	if c.isConst {
 		// Fast path for column with a constant value.
-		v := br.getBucketedValue(c.valuesEncoded[0], bf)
-		psg := shard.m.getPipeStatsGroupGeneric(v)
+		v := c.valuesEncoded[0]
+		if bf.hasBucketConfig() {
+			v = br.getBucketedValue(c.valuesEncoded[0], bf)
+		}
+		psg := shard.getPipeStatsGroupGeneric(v)
 		shard.stateSizeBudget -= psg.updateStatsForAllRows(shard.bms, br, &shard.brTmp)
 		return
 	}
 
-	if !bf.hasBucketConfig() {
-		switch c.valueType {
-		case valueTypeUint8:
-			var psg *pipeStatsGroup
-			values := c.getValuesEncoded(br)
-			for i, v := range values {
-				if i <= 0 || values[i-1] != v {
-					n := unmarshalUint8(v)
-					psg = shard.m.getPipeStatsGroupUint64(uint64(n))
-				}
-				shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
-			}
-			return
-		case valueTypeUint16:
-			var psg *pipeStatsGroup
-			values := c.getValuesEncoded(br)
-			for i, v := range values {
-				if i <= 0 || values[i-1] != v {
-					n := unmarshalUint16(v)
-					psg = shard.m.getPipeStatsGroupUint64(uint64(n))
-				}
-				shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
-			}
-			return
-		case valueTypeUint32:
-			var psg *pipeStatsGroup
-			values := c.getValuesEncoded(br)
-			for i, v := range values {
-				if i <= 0 || values[i-1] != v {
-					n := unmarshalUint32(v)
-					psg = shard.m.getPipeStatsGroupUint64(uint64(n))
-				}
-				shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
-			}
-			return
-		case valueTypeUint64:
-			var psg *pipeStatsGroup
-			values := c.getValuesEncoded(br)
-			for i, v := range values {
-				if i <= 0 || values[i-1] != v {
-					n := unmarshalUint64(v)
-					psg = shard.m.getPipeStatsGroupUint64(n)
-				}
-				shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
-			}
-			return
-		case valueTypeInt64:
-			var psg *pipeStatsGroup
-			values := c.getValuesEncoded(br)
-			for i, v := range values {
-				if i <= 0 || values[i-1] != v {
-					n := unmarshalInt64(v)
-					psg = shard.m.getPipeStatsGroupInt64(n)
-				}
-				shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
-			}
+	if bf.hasBucketConfig() {
+		values := c.getValuesBucketed(br, bf)
+		if areConstValues(values) {
+			// Fast path - values are constant after bucketing.
+			psg := shard.getPipeStatsGroupGeneric(values[0])
+			shard.stateSizeBudget -= psg.updateStatsForAllRows(shard.bms, br, &shard.brTmp)
 			return
 		}
+
+		var psg *pipeStatsGroup
+		for i := 0; i < br.rowsLen; i++ {
+			if i <= 0 || values[i-1] != values[i] {
+				psg = shard.getPipeStatsGroupGeneric(values[i])
+			}
+			shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
+		}
+		return
 	}
 
-	// Slower generic path for a column with different values.
+	switch c.valueType {
+	case valueTypeUint8:
+		var psg *pipeStatsGroup
+		values := c.getValuesEncoded(br)
+		for i, v := range values {
+			if i <= 0 || values[i-1] != v {
+				n := unmarshalUint8(v)
+				psg = shard.getPipeStatsGroupUint64(uint64(n))
+			}
+			shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
+		}
+		return
+	case valueTypeUint16:
+		var psg *pipeStatsGroup
+		values := c.getValuesEncoded(br)
+		for i, v := range values {
+			if i <= 0 || values[i-1] != v {
+				n := unmarshalUint16(v)
+				psg = shard.getPipeStatsGroupUint64(uint64(n))
+			}
+			shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
+		}
+		return
+	case valueTypeUint32:
+		var psg *pipeStatsGroup
+		values := c.getValuesEncoded(br)
+		for i, v := range values {
+			if i <= 0 || values[i-1] != v {
+				n := unmarshalUint32(v)
+				psg = shard.getPipeStatsGroupUint64(uint64(n))
+			}
+			shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
+		}
+		return
+	case valueTypeUint64:
+		var psg *pipeStatsGroup
+		values := c.getValuesEncoded(br)
+		for i, v := range values {
+			if i <= 0 || values[i-1] != v {
+				n := unmarshalUint64(v)
+				psg = shard.getPipeStatsGroupUint64(n)
+			}
+			shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
+		}
+		return
+	case valueTypeInt64:
+		var psg *pipeStatsGroup
+		values := c.getValuesEncoded(br)
+		for i, v := range values {
+			if i <= 0 || values[i-1] != v {
+				n := unmarshalInt64(v)
+				psg = shard.getPipeStatsGroupInt64(n)
+			}
+			shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
+		}
+		return
+	}
+
+	// Generic path for a column with different values.
+	values := c.getValues(br)
+
 	var psg *pipeStatsGroup
-	values := c.getValuesBucketed(br, bf)
 	for i := 0; i < br.rowsLen; i++ {
 		if i <= 0 || values[i-1] != values[i] {
-			psg = shard.m.getPipeStatsGroupGeneric(values[i])
+			psg = shard.getPipeStatsGroupGeneric(values[i])
 		}
 		shard.stateSizeBudget -= psg.updateStatsForRow(shard.bms, br, i)
 	}
 }
 
 func (shard *pipeStatsProcessorShard) applyPerFunctionFilters(br *blockResult) {
-	funcs := shard.ps.funcs
+	funcs := shard.psp.ps.funcs
 	for i := range funcs {
 		iff := funcs[i].iff
 		if iff == nil {
@@ -610,14 +645,119 @@ func (shard *pipeStatsProcessorShard) applyPerFunctionFilters(br *blockResult) {
 	}
 }
 
+func (shard *pipeStatsProcessorShard) getPipeStatsGroupGeneric(v string) *pipeStatsGroup {
+	if n, ok := tryParseUint64(v); ok {
+		return shard.getPipeStatsGroupUint64(n)
+	}
+	if len(v) > 0 && v[0] == '-' {
+		if n, ok := tryParseInt64(v); ok {
+			return shard.getPipeStatsGroupNegativeInt64(n)
+		}
+	}
+	return shard.getPipeStatsGroupString(bytesutil.ToUnsafeBytes(v))
+}
+
+func (shard *pipeStatsProcessorShard) getPipeStatsGroupInt64(n int64) *pipeStatsGroup {
+	if n >= 0 {
+		return shard.getPipeStatsGroupUint64(uint64(n))
+	}
+	return shard.getPipeStatsGroupNegativeInt64(n)
+}
+
+func (shard *pipeStatsProcessorShard) getPipeStatsGroupUint64(n uint64) *pipeStatsGroup {
+	if shard.groupMapShards == nil {
+		psg, isNew := shard.groupMap.getPipeStatsGroupUint64(n)
+		if isNew {
+			shard.probablyMoveGroupMapToShards(&shard.a)
+		}
+		return psg
+	}
+	psm := shard.getGroupMapShardByUint64(n)
+	psg, _ := psm.getPipeStatsGroupUint64(n)
+	return psg
+}
+
+func (shard *pipeStatsProcessorShard) getPipeStatsGroupNegativeInt64(n int64) *pipeStatsGroup {
+	if shard.groupMapShards == nil {
+		psg, isNew := shard.groupMap.getPipeStatsGroupNegativeInt64(n)
+		if isNew {
+			shard.probablyMoveGroupMapToShards(&shard.a)
+		}
+		return psg
+	}
+	psm := shard.getGroupMapShardByUint64(uint64(n))
+	psg, _ := psm.getPipeStatsGroupNegativeInt64(n)
+	return psg
+}
+
+func (shard *pipeStatsProcessorShard) getPipeStatsGroupString(v []byte) *pipeStatsGroup {
+	if shard.groupMapShards == nil {
+		psg, isNew := shard.groupMap.getPipeStatsGroupString(v)
+		if isNew {
+			shard.probablyMoveGroupMapToShards(&shard.a)
+		}
+		return psg
+	}
+	psm := shard.getGroupMapShardByString(v)
+	psg, _ := psm.getPipeStatsGroupString(v)
+	return psg
+}
+
+func (shard *pipeStatsProcessorShard) probablyMoveGroupMapToShards(a *chunkedAllocator) {
+	if shard.groupMap.entriesCount() < pipeStatsGroupMapMaxLen {
+		return
+	}
+	shard.moveGroupMapToShards(a)
+}
+
+func (shard *pipeStatsProcessorShard) moveGroupMapToShards(a *chunkedAllocator) {
+	// set cpusCount to the number of shards, since this is the concurrency limit set by the caller.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8201
+	cpusCount := uint(len(shard.psp.shards))
+	bytesAllocatedPrev := a.bytesAllocated
+	shard.groupMapShards = a.newPipeStatsGroupMaps(cpusCount)
+	shard.stateSizeBudget -= a.bytesAllocated - bytesAllocatedPrev
+
+	for i := range shard.groupMapShards {
+		shard.groupMapShards[i].init(shard)
+	}
+
+	for n, psg := range shard.groupMap.u64 {
+		psm := shard.getGroupMapShardByUint64(n)
+		psm.setPipeStatsGroupUint64(n, psg)
+	}
+	for n, psg := range shard.groupMap.negative64 {
+		psm := shard.getGroupMapShardByUint64(n)
+		psm.setPipeStatsGroupNegativeInt64(int64(n), psg)
+	}
+	for s, psg := range shard.groupMap.strings {
+		psm := shard.getGroupMapShardByString(bytesutil.ToUnsafeBytes(s))
+		psm.setPipeStatsGroupString(s, psg)
+	}
+
+	shard.groupMap.reset()
+}
+
+func (shard *pipeStatsProcessorShard) getGroupMapShardByString(v []byte) *pipeStatsGroupMap {
+	h := xxhash.Sum64(v)
+	shardIdx := h % uint64(len(shard.groupMapShards))
+	return &shard.groupMapShards[shardIdx]
+}
+
+func (shard *pipeStatsProcessorShard) getGroupMapShardByUint64(n uint64) *pipeStatsGroupMap {
+	h := fastHashUint64(n)
+	shardIdx := h % uint64(len(shard.groupMapShards))
+	return &shard.groupMapShards[shardIdx]
+}
+
 type pipeStatsGroup struct {
 	funcs []pipeStatsFunc
 	sfps  []statsProcessor
 }
 
-func (psg *pipeStatsGroup) mergeState(src *pipeStatsGroup) {
+func (psg *pipeStatsGroup) mergeState(a *chunkedAllocator, src *pipeStatsGroup) {
 	for i, sfp := range psg.sfps {
-		sfp.mergeState(psg.funcs[i].f, src.sfps[i])
+		sfp.mergeState(a, psg.funcs[i].f, src.sfps[i])
 	}
 }
 
@@ -630,7 +770,9 @@ func (psg *pipeStatsGroup) updateStatsForAllRows(bms []bitmap, br, brTmp *blockR
 			n += sfp.updateStatsForAllRows(f.f, br)
 		} else {
 			brTmp.initFromFilterAllColumns(br, &bms[i])
-			n += sfp.updateStatsForAllRows(f.f, brTmp)
+			if brTmp.rowsLen > 0 {
+				n += sfp.updateStatsForAllRows(f.f, brTmp)
+			}
 		}
 	}
 	return n
@@ -678,10 +820,7 @@ func (psp *pipeStatsProcessor) flush() error {
 	}
 
 	// Merge states across shards in parallel
-	psms, err := psp.mergeShardsParallel()
-	if err != nil {
-		return err
-	}
+	psms := psp.mergeShardsParallel()
 	if needStop(psp.stopCh) {
 		return nil
 	}
@@ -690,8 +829,8 @@ func (psp *pipeStatsProcessor) flush() error {
 		// Special case - zero matching rows.
 		shard := &psp.shards[0]
 		shard.init()
-		_ = shard.m.getPipeStatsGroupString(nil)
-		psms = append(psms, &shard.m)
+		shard.groupMap.getPipeStatsGroupString(nil)
+		psms = append(psms, &shard.groupMap)
 	}
 
 	// Write the calculated stats in parallel to the next pipe.
@@ -846,90 +985,49 @@ func (psw *pipeStatsWriter) writeShardData(psm *pipeStatsGroupMap) {
 	}
 }
 
-func (psp *pipeStatsProcessor) mergeShardsParallel() ([]*pipeStatsGroupMap, error) {
+func (psp *pipeStatsProcessor) mergeShardsParallel() []*pipeStatsGroupMap {
 	shards := psp.shards
-	shardsLen := len(shards)
-	cpusCount := cgroup.AvailableCPUs()
-
-	if shardsLen == 1 {
-		var psms []*pipeStatsGroupMap
-		shard := &shards[0]
-		if shard.m.entriesCount() > 0 {
-			psms = append(psms, &shard.m)
-		}
-		return psms, nil
-	}
-
 	var wg sync.WaitGroup
-	perShardMaps := make([][]pipeStatsGroupMap, shardsLen)
 	for i := range shards {
+		shard := &shards[i]
+		if shard.groupMapShards != nil {
+			continue
+		}
+
 		wg.Add(1)
-		go func(idx int) {
+		go func() {
 			defer wg.Done()
 
-			perCPU := make([]pipeStatsGroupMap, cpusCount)
-			for i := range perCPU {
-				perCPU[i].init(&shards[idx])
-			}
-
-			psm := &shards[idx].m
-
-			for n, psg := range psm.u64 {
-				if needStop(psp.stopCh) {
-					return
-				}
-				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
-				h := xxhash.Sum64(k)
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].u64[n] = psg
-			}
-			for n, psg := range psm.negative64 {
-				if needStop(psp.stopCh) {
-					return
-				}
-				k := unsafe.Slice((*byte)(unsafe.Pointer(&n)), 8)
-				h := xxhash.Sum64(k)
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].negative64[n] = psg
-			}
-			for k, psg := range psm.strings {
-				if needStop(psp.stopCh) {
-					return
-				}
-				h := xxhash.Sum64(bytesutil.ToUnsafeBytes(k))
-				cpuIdx := h % uint64(len(perCPU))
-				perCPU[cpuIdx].strings[k] = psg
-			}
-
-			perShardMaps[idx] = perCPU
-			psm.reset()
-		}(i)
+			var a chunkedAllocator
+			shard.moveGroupMapToShards(&a)
+		}()
 	}
 	wg.Wait()
 	if needStop(psp.stopCh) {
-		return nil, nil
+		return nil
 	}
 
-	// Merge per-shard entries into perShardMaps[0]
-	for i := 0; i < cpusCount; i++ {
+	psms := shards[0].groupMapShards
+	for i := range psms {
 		wg.Add(1)
 		go func(cpuIdx int) {
 			defer wg.Done()
 
-			psm := &perShardMaps[0][cpuIdx]
-			for _, perCPU := range perShardMaps[1:] {
-				psm.mergeState(&perCPU[cpuIdx], psp.stopCh)
-				perCPU[cpuIdx].reset()
+			var a chunkedAllocator
+			psm := &psms[cpuIdx]
+			for j := range shards[1:] {
+				src := &shards[1+j].groupMapShards[cpuIdx]
+				psm.mergeState(&a, src, psp.stopCh)
+				src.reset()
 			}
 		}(i)
 	}
 	wg.Wait()
 	if needStop(psp.stopCh) {
-		return nil, nil
+		return nil
 	}
 
 	// Filter out maps without entries
-	psms := perShardMaps[0]
 	result := make([]*pipeStatsGroupMap, 0, len(psms))
 	for i := range psms {
 		if psms[i].entriesCount() > 0 {
@@ -937,7 +1035,7 @@ func (psp *pipeStatsProcessor) mergeShardsParallel() ([]*pipeStatsGroupMap, erro
 		}
 	}
 
-	return result, nil
+	return result
 }
 
 func parsePipeStats(lex *lexer, needStatsKeyword bool) (pipe, error) {
@@ -1165,8 +1263,6 @@ var statsNames = []string{
 	"uniq_values",
 	"values",
 }
-
-var zeroByStatsField = &byStatsField{}
 
 // byStatsField represents 'by (...)' part of the pipeStats.
 //

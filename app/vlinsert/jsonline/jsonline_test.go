@@ -7,16 +7,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 )
 
-func TestProcessStreamInternal_Success(t *testing.T) {
+func TestProcessStreamInternal(t *testing.T) {
 	f := func(data, timeField, msgField string, timestampsExpected []int64, resultExpected string) {
 		t.Helper()
 
 		msgFields := []string{msgField}
 		tlp := &insertutils.TestLogMessageProcessor{}
 		r := bytes.NewBufferString(data)
-		if err := processStreamInternal("test", r, timeField, msgFields, tlp); err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
+		processStreamInternal("test", r, timeField, msgFields, tlp)
 
 		if err := tlp.Verify(timestampsExpected, resultExpected); err != nil {
 			t.Fatal(err)
@@ -45,22 +43,37 @@ func TestProcessStreamInternal_Success(t *testing.T) {
 	resultExpected = `{"log.offset":"71770","log.file.path":"/var/log/auth.log","message":"foobar"}
 {"message":"baz"}`
 	f(data, timeField, msgField, timestampsExpected, resultExpected)
-}
-
-func TestProcessStreamInternal_Failure(t *testing.T) {
-	f := func(data string) {
-		t.Helper()
-
-		tlp := &insertutils.TestLogMessageProcessor{}
-		r := bytes.NewBufferString(data)
-		if err := processStreamInternal("test", r, "time", nil, tlp); err == nil {
-			t.Fatalf("expecting non-nil error")
-		}
-	}
 
 	// invalid json
-	f("foobar")
+	data = "foobar"
+	timeField = "@timestamp"
+	msgField = "aaa"
+	timestampsExpected = nil
+	resultExpected = ``
+	f(data, timeField, msgField, timestampsExpected, resultExpected)
 
 	// invalid timestamp field
-	f(`{"time":"foobar"}`)
+	data = `{"time":"foobar"}`
+	timeField = "time"
+	msgField = "abc"
+	timestampsExpected = nil
+	resultExpected = ``
+	f(data, timeField, msgField, timestampsExpected, resultExpected)
+
+	// invalid lines among valid lines
+	data = `
+dsfodmasd
+
+{"time":"2023-06-06T04:48:11.735Z","log":{"offset":71770,"file":{"path":"/var/log/auth.log"}},"message":"foobar"}
+invalid line
+{"time":"2023-06-06T04:48:12.735+01:00","message":"baz"}
+asbsdf
+
+`
+	timeField = "time"
+	msgField = "message"
+	timestampsExpected = []int64{1686026891735000000, 1686023292735000000}
+	resultExpected = `{"log.offset":"71770","log.file.path":"/var/log/auth.log","_msg":"foobar"}
+{"_msg":"baz"}`
+	f(data, timeField, msgField, timestampsExpected, resultExpected)
 }

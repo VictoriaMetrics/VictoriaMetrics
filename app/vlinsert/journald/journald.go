@@ -30,7 +30,7 @@ const (
 
 var (
 	bodyBufferPool                bytesutil.ByteBufferPool
-	allowedJournaldEntryNameChars = regexp.MustCompile(`^[A-Z_][A-Z0-9_]+`)
+	allowedJournaldEntryNameChars = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*`)
 )
 
 var (
@@ -128,6 +128,11 @@ func handleJournald(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "cannot parse Journald protobuf request: %s", err)
 		return
 	}
+
+	// systemd starting release v258 will support compression, which starts working after negotiation: it expects supported compression
+	// algorithms list in Accept-Encoding response header in a format "<algorithm_1>[:<priority_1>][;<algorithm_2>:<priority_2>]"
+	// See https://github.com/systemd/systemd/pull/34822
+	w.Header().Set("Accept-Encoding", "zstd")
 
 	// update requestJournaldDuration only for successfully parsed requests
 	// There is no need in updating requestJournaldDuration for request errors,

@@ -46,10 +46,10 @@ func TestParsePipeUnpackLogfmtFailure(t *testing.T) {
 		expectParsePipeFailure(t, pipeStr)
 	}
 
-	f(`unpack_logfmt foo`)
+	f(`unpack_logfmt foo,`)
 	f(`unpack_logfmt fields`)
 	f(`unpack_logfmt if`)
-	f(`unpack_logfmt if (x:y) foobar`)
+	f(`unpack_logfmt if (x:y) foobar,`)
 	f(`unpack_logfmt from`)
 	f(`unpack_logfmt from x y`)
 	f(`unpack_logfmt from x if`)
@@ -181,7 +181,7 @@ func TestPipeUnpackLogfmt(t *testing.T) {
 	})
 
 	// single row, unpack from missing field
-	f("unpack_logfmt from x", [][]Field{
+	f("unpack_logfmt x", [][]Field{
 		{
 			{"_msg", `foo=bar`},
 		},
@@ -204,7 +204,7 @@ func TestPipeUnpackLogfmt(t *testing.T) {
 	})
 
 	// unpack empty value
-	f("unpack_logfmt from x", [][]Field{
+	f("unpack_logfmt x", [][]Field{
 		{
 			{"x", `foobar=`},
 		},

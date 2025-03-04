@@ -2,6 +2,8 @@ package apptest
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -122,16 +124,43 @@ func (tc *TestCase) MustStartVminsert(instance string, flags []string) *Vminsert
 	return app
 }
 
-type vmcluster struct {
+// Vmcluster represents a typical cluster setup: several vmstorage replicas, one
+// vminsert, and one vmselect.
+//
+// Both Vmsingle and Vmcluster implement the PrometheusWriteQuerier used in
+// business logic tests to abstract out the infrasture.
+//
+// This type is not suitable for infrastructure tests where custom cluster
+// setups are often required.
+type Vmcluster struct {
 	*Vminsert
 	*Vmselect
-	vmstorages []*Vmstorage
+	Vmstorages []*Vmstorage
 }
 
-func (c *vmcluster) ForceFlush(t *testing.T) {
-	for _, s := range c.vmstorages {
+// ForceFlush forces the ingested data to become visible for searching
+// immediately.
+func (c *Vmcluster) ForceFlush(t *testing.T) {
+	for _, s := range c.Vmstorages {
 		s.ForceFlush(t)
 	}
+}
+
+// MustStartVmauth is a test helper function that starts an instance of
+// vmauth and fails the test if the app fails to start.
+func (tc *TestCase) MustStartVmauth(instance string, flags []string, configFileYAML string) *Vmauth {
+	tc.t.Helper()
+
+	configFilePath := path.Join(tc.t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configFilePath, []byte(configFileYAML), os.ModePerm); err != nil {
+		tc.t.Fatalf("cannot init vmauth: config file write failed: %s", err)
+	}
+	app, err := StartVmauth(instance, flags, tc.cli, configFilePath)
+	if err != nil {
+		tc.t.Fatalf("Could not start %s: %v", instance, err)
+	}
+	tc.addApp(instance, app)
+	return app
 }
 
 // MustStartDefaultCluster starts a typical cluster configuration with default
@@ -195,7 +224,7 @@ func (tc *TestCase) MustStartCluster(opts *ClusterOptions) PrometheusWriteQuerie
 	}...)
 	vmselect := tc.MustStartVmselect(opts.VmselectInstance, opts.VmselectFlags)
 
-	return &vmcluster{vminsert, vmselect, []*Vmstorage{vmstorage1, vmstorage2}}
+	return &Vmcluster{vminsert, vmselect, []*Vmstorage{vmstorage1, vmstorage2}}
 }
 
 func (tc *TestCase) addApp(instance string, app Stopper) {
@@ -211,6 +240,23 @@ func (tc *TestCase) StopApp(instance string) {
 	if app, exists := tc.startedApps[instance]; exists {
 		app.Stop()
 		delete(tc.startedApps, instance)
+	}
+}
+
+// StopPrometheusWriteQuerier stop all apps that are a part of the pwq.
+func (tc *TestCase) StopPrometheusWriteQuerier(pwq PrometheusWriteQuerier) {
+	tc.t.Helper()
+	switch t := pwq.(type) {
+	case *Vmsingle:
+		tc.StopApp(t.Name())
+	case *Vmcluster:
+		tc.StopApp(t.Vminsert.Name())
+		tc.StopApp(t.Vmselect.Name())
+		for _, vmstorage := range t.Vmstorages {
+			tc.StopApp(vmstorage.Name())
+		}
+	default:
+		tc.t.Fatalf("Unsupported type: %v", t)
 	}
 }
 

@@ -1,11 +1,11 @@
 ---
-weight: 22
+weight: 1
 title: Quick start
 menu:
   docs:
     identifier: vm-quick-start
     parent: victoriametrics
-    weight: 22
+    weight: 1
 aliases:
 - /Quick-Start.html
 ---
@@ -23,7 +23,7 @@ VictoriaMetrics is distributed in the following forms:
 
 VictoriaMetrics is available as:
 
-* [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/)
+* docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags)
 * [Helm Charts](https://github.com/VictoriaMetrics/helm-charts#list-of-charts)
 * [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 * [Ansible Roles](https://github.com/VictoriaMetrics/ansible-playbooks)
@@ -55,8 +55,8 @@ under the current directory:
 
 
 ```sh
-docker pull victoriametrics/victoria-metrics:v1.110.0
-docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 victoriametrics/victoria-metrics:v1.110.0
+docker pull victoriametrics/victoria-metrics:v1.112.0
+docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 victoriametrics/victoria-metrics:v1.112.0
 ```
 
 
@@ -106,13 +106,13 @@ sudo useradd -s /usr/sbin/nologin victoriametrics
 4. Create a folder for storing VictoriaMetrics data:
 
 ```sh
-mkdir -p /var/lib/victoria-metrics && chown -R victoriametrics:victoriametrics /var/lib/victoria-metrics
+sudo mkdir -p /var/lib/victoria-metrics && sudo chown -R victoriametrics:victoriametrics /var/lib/victoria-metrics
 ```
 
 5. Create a Linux Service by running the following:
 
 ```sh
-cat <<END >/etc/systemd/system/victoriametrics.service
+sudo bash -c 'cat <<END >/etc/systemd/system/victoriametrics.service
 [Unit]
 Description=VictoriaMetrics service
 After=network.target
@@ -133,7 +133,7 @@ ProtectSystem=full
 
 [Install]
 WantedBy=multi-user.target
-END
+END'
 ```
 
 Extra [command-line flags](https://docs.victoriametrics.com/#list-of-command-line-flags) can be added to `ExecStart` line.
@@ -189,12 +189,12 @@ See recommendations for installing each type of [cluster component](https://docs
 
 1. Create a folder for storing `vmstorage` data:
 
-`mkdir -p /var/lib/vmstorage && chown -R victoriametrics:victoriametrics /var/lib/vmstorage`
+`sudo mkdir -p /var/lib/vmstorage && sudo chown -R victoriametrics:victoriametrics /var/lib/vmstorage`
 
 2. Create a Linux Service for `vmstorage` service by running the following command:
 
 ```sh
-cat <<END >/etc/systemd/system/vmstorage.service
+sudo bash -c 'cat <<END >/etc/systemd/system/vmstorage.service
 [Unit]
 Description=VictoriaMetrics vmstorage service
 After=network.target
@@ -212,7 +212,7 @@ ProtectSystem=full
 
 [Install]
 WantedBy=multi-user.target
-END
+END'
 ```
 
 Extra [command-line flags](https://docs.victoriametrics.com/cluster-victoriametrics/#list-of-command-line-flags-for-vmstorage)
@@ -224,7 +224,7 @@ for vmstorage can be added to `ExecStart` line.
 3. Start and Enable `vmstorage`:
 
 ```sh
-sudo systemctl daemon-reload && systemctl enable --now vmstorage
+sudo systemctl daemon-reload && sudo systemctl enable --now vmstorage
 ```
 
 4. Check that service started successfully:
@@ -241,7 +241,7 @@ It should say "VictoriaMetrics is Healthy".
 1. Create a Linux Service for `vminsert` by running the following command:
 
 ```sh
-cat << END >/etc/systemd/system/vminsert.service
+sudo bash -c 'cat <<END >/etc/systemd/system/vminsert.service
 [Unit]
 Description=VictoriaMetrics vminsert service
 After=network.target
@@ -259,7 +259,7 @@ ProtectSystem=full
 
 [Install]
 WantedBy=multi-user.target
-END
+END'
 ```
 
 Replace `<list of vmstorages>` with addresses of previously configured `vmstorage` services. 
@@ -294,7 +294,7 @@ sudo mkdir -p /var/lib/vmselect-cache && sudo chown -R victoriametrics:victoriam
 2. Add a Linux Service for `vmselect` by running
 
 ```bash
-cat << END >/etc/systemd/system/vmselect.service
+sudo bash -c 'cat <<END >/etc/systemd/system/vmselect.service
 [Unit]
 Description=VictoriaMetrics vmselect service
 After=network.target
@@ -313,7 +313,7 @@ ProtectSystem=full
 
 [Install]
 WantedBy=multi-user.target
-END
+END'
 ```
 
 Replace `<list of vmstorages>` with addresses of previously configured `vmstorage` services.
@@ -345,6 +345,7 @@ and [pull](https://docs.victoriametrics.com/keyconcepts/#pull-model).
 Both are used in modern monitoring and both are supported by VictoriaMetrics.
 
 See more details on [writing data here](https://docs.victoriametrics.com/keyconcepts/#write-data).
+See documentation for configuring [metrics collectors](https://docs.victoriametrics.com/data-ingestion/).
 
 
 ## Query data
@@ -361,7 +362,7 @@ for querying and visualizing metrics.
 in VictoriaMetrics. MetricsQL is a [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics) 
 -like query language with a powerful set of functions and features for working specifically with time series data.
 
-See more details on [querying data here](https://docs.victoriametrics.com/keyconcepts/#query-data)
+See more details on [querying data here](https://docs.victoriametrics.com/keyconcepts/#query-data).
 
 
 ## Alerting

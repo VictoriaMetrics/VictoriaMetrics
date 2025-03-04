@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
@@ -15,20 +16,22 @@ func TestRecordingToApi(t *testing.T) {
 	fq.Add(datasource.Metric{
 		Values: []float64{1}, Timestamps: []int64{0},
 	})
-	g := &rule.Group{
+	entriesLimit := 44
+	g := rule.NewGroup(config.Group{
 		Name:        "group",
 		File:        "rules.yaml",
 		Concurrency: 1,
-	}
-
-	entriesLimit := 44
-	rr := rule.NewRecordingRule(fq, g, config.Rule{
-		ID:                 1248,
-		Record:             "record_name",
-		Expr:               "up",
-		Labels:             map[string]string{"label": "value"},
-		UpdateEntriesLimit: &entriesLimit,
-	})
+		Rules: []config.Rule{
+			{
+				ID:                 1248,
+				Record:             "record_name",
+				Expr:               "up",
+				Labels:             map[string]string{"label": "value"},
+				UpdateEntriesLimit: &entriesLimit,
+			},
+		},
+	}, fq, 1*time.Minute, nil)
+	rr := g.Rules[0].(*rule.RecordingRule)
 
 	expectedRes := apiRule{
 		Name:           "record_name",

@@ -58,11 +58,16 @@ func (ph *pipeHash) visitSubqueries(_ func(q *Query)) {
 }
 
 func (ph *pipeHash) newPipeProcessor(workersCount int, _ <-chan struct{}, _ func(), ppNext pipeProcessor) pipeProcessor {
+	shards := make([]pipeHashProcessorShard, workersCount)
+	for i := range shards {
+		shards[i].reset()
+	}
+
 	return &pipeHashProcessor{
 		ph:     ph,
 		ppNext: ppNext,
 
-		shards: make([]pipeHashProcessorShard, workersCount),
+		shards: shards,
 	}
 }
 
@@ -106,9 +111,12 @@ func (php *pipeHashProcessor) writeBlock(workerID uint, br *blockResult) {
 		br.addResultColumnConst(&shard.rc)
 	} else {
 		// Slow path for other columns
-		for rowIdx := 0; rowIdx < br.rowsLen; rowIdx++ {
-			v := c.getValueAtRow(br, rowIdx)
-			vEncoded := shard.getEncodedHash(v)
+		values := c.getValues(br)
+		vEncoded := ""
+		for rowIdx := range values {
+			if rowIdx == 0 || values[rowIdx] != values[rowIdx-1] {
+				vEncoded = shard.getEncodedHash(values[rowIdx])
+			}
 			shard.rc.addValue(vEncoded)
 		}
 		br.addResultColumnFloat64(&shard.rc, shard.minValue, shard.maxValue)

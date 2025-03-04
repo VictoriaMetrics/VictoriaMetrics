@@ -71,7 +71,7 @@ func (smp *statsMaxProcessor) updateStatsForRow(sf statsFunc, br *blockResult, r
 	return maxLen - len(smp.max)
 }
 
-func (smp *statsMaxProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
+func (smp *statsMaxProcessor) mergeState(_ *chunkedAllocator, _ statsFunc, sfp statsProcessor) {
 	src := sfp.(*statsMaxProcessor)
 	if src.hasItems {
 		smp.updateStateString(src.max)
@@ -79,10 +79,6 @@ func (smp *statsMaxProcessor) mergeState(_ statsFunc, sfp statsProcessor) {
 }
 
 func (smp *statsMaxProcessor) updateStateForColumn(br *blockResult, c *blockResultColumn) {
-	if br.rowsLen == 0 {
-		return
-	}
-
 	if c.isTime {
 		timestamp, ok := TryParseTimestampRFC3339Nano(smp.max)
 		if !ok {

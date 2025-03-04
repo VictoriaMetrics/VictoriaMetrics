@@ -91,8 +91,7 @@ VictoriaLogs is designed solely for logs. VictoriaLogs uses [similar design idea
 
   VictoriaLogs provides easy to use query language with full-text search specifically optimized
   for log analysis - [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
-  LogsQL is usually easier to use than SQL for typical log analysis tasks, while some
-  non-trivial analytics may require SQL power.
+  LogsQL is usually easier to use than SQL for typical log analysis tasks - see [these docs](https://docs.victoriametrics.com/victorialogs/sql-to-logsql/).
 
 - VictoriaLogs accepts logs from popular log shippers out of the box - see [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
 
@@ -141,28 +140,23 @@ for limiting the amounts of exported logs.
 
 ## I want to ingest logs without message field, is that possible?
 
-Starting from version `v0.30.0`, VictoriaLogs started blocking the ingestion of logs **without a message field**, as it is a requirement of the [VictoriaLogs data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field). 
+VictoriaLogs [accepts](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs without [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field).
+In this case the `_msg` field is set to the default value, which can be configured via `-defaultMsgValue` command-line flag.
 
-However, some logs do not have a message field and only contain other fields, such as logs in [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/7056#issuecomment-2434189718) and [this slack thread](https://victoriametrics.slack.com/archives/C05UNTPAEDN/p1730982146818249). Therefore, starting from version `v0.39.0`, logs without a message field are **allowed to be ingested**, 
-and their message field will be recorded as: 
-```json
-{"_msg": "missing _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field"}
-```
-
-The default message field value can be changed using the `-defaultMsgValue` flag, for example, `-defaultMsgValue=foo`.
-
-Please note that the message field is **crucial** for VictoriaLogs, so it is important to fill it with meaningful content.
+Please note that the `_msg` field is **crucial** for VictoriaLogs, so it is highly recommended to fill it with meaningful content.
 
 ## What if my logs have multiple message fields candidates?
 
-When ingesting with VictoriaLogs, the message fields is specified through `_msg_field` param, which can accept **multiple fields**, and the **first non-empty field** will be used as the message field. 
-Here is an example URL when pushing logs to VictoriaLogs with Promtail:
-```yaml
-clients:
-  - url: http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job,host,app&_msg=message,body
-```
+If you [ingest](https://docs.victoriametrics.com/victorialogs/data-ingestion/) logs into VictoriaLogs
+without [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field), then this field
+is filled according to the `_msg_field` HTTP query arg and/or `VL-Msg-Field` HTTP header.
+See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
+If the `_msg_field` HTTP query arg and/or `VL-Msg-Field` HTTP header contains a list of comma-separated field names,
+then the first non-empty field from this list is used as `_msg` field.
 
-For the following log, its `_msg` will be `foo bar in message`:
+For example, if the following [log entry](https://docs.victoriametrics.com/victorialogs/keyconcepts/)
+is ingested into VictoriaLogs with `_msg_field=message,body`:
+
 ```json
 {
   "message": "foo bar in message",
@@ -170,13 +164,17 @@ For the following log, its `_msg` will be `foo bar in message`:
 }
 ```
 
-And for the following log, its `_msg` will be `foo bar in body`:
+Then `_msg` field is set to `foo bar in message`.
+
+If the following log entry is ingested into VictoriaLogs with `_msg_field=message,body`:
+
 ```json
 {
-  "message": "",
   "body": "foo bar in body"
 }
 ```
+
+Then `_msg` field is set to `foo bar in body`.
 
 ## What length a log record is expected to have?
 
@@ -304,3 +302,48 @@ across all the logs over the last day:
 ```logsql
 _time:1d | count_uniq(_stream)
 ```
+
+## Does LogsQL support subqueries?
+
+Yes. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#subquery-filter).
+For example, the following query returns the total number of unique values for the `user_id` [field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+across top 3 [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) with the biggest number of logs during the last hour:
+
+```logsql
+_time:1h _stream_id:in(_time:1h | top 3 (_stream_id) | keep _stream_id) | count_uniq(user_id)
+```
+
+The query works in the following way:
+
+- It selects top 3 log streams with the biggest number of logs during the last hour with the following subquery:
+  ```logsql
+  _time:1h | top 3 (_stream_id) | keep _stream_id
+  ```
+  This subquery uses [`top`](https://docs.victoriametrics.com/victorialogs/logsql/#top-pipe) and [`keep`](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) pipes.
+
+- Then it selects all the logs across the selected log streams over the last hour with the help of [`_stream_id:...` filter](https://docs.victoriametrics.com/victorialogs/logsql/#_stream_id-filter).
+
+
+## How to estimate the needed compute resources for the given workload?
+
+The needed storage space depends on the following factors:
+
+- Data compressibility. VictoraLogs compresses the ingested logs before storing them to disk. The compression ratio depends on the "randomness" of the ingested logs.
+  Less "random" logs with many repeated field values and small differences between log messages compress the best (up to 100x and more).
+  More "random" logs with many unique field values may have very low compression rate.
+
+- [Data retention](https://docs.victoriametrics.com/victorialogs/#retention). For example, a year-long retention needs 52x more storage space than a week-long retention.
+
+The needed RAM, CPU, storage IO and network bandwidth depends on the type and the rate of queries over the ingested logs.
+
+- "Lightweight" queries over the recently ingested logs with very narrow [log stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter)
+  require very low compute resources, even if they are executed at 1000 rps.
+
+- "Heavy" queries over the long time range, which do not contain [log stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter)
+  or have some heavy [pipe processing](https://docs.victoriametrics.com/victorialogs/logsql/#pipes) such as [analytics' calculations](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe)
+  or [sorting over billions of rows](https://docs.victoriametrics.com/victorialogs/logsql/#sort-pipe) may require hundreds of CPU cores and terabytes of RAM
+  for fast execution. It is OK to execute such queries on machines with a few CPU cores and a few GiB of RAM - these queries will take more time to execute.
+
+The best approach to estimate the needed compute resources for the given workload is to start a VictoriaLogs, to ingest a share (1%-10%) of your production logs into it,
+and to execute typical queries on it, while [measuring](https://docs.victoriametrics.com/victorialogs/#monitoring) the consumed compute resources.
+Then you can extrapolate the needed compute resources for the full production workload in your case.

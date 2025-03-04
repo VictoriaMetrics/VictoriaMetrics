@@ -851,11 +851,11 @@ When there are insufficient valid data points (at least 1 for [online models](ht
 [Scheduler {{scheduler_alias}}] Skipping run for stage 'fit' for model '{{model_alias}}' (query_key: {{query_key}}): Not enough valid data to fit: {{valid_values_cnt}}
 ```
 
-When all the received timestamps during an `infer` call have already been processed, meaning the [`anomaly_score`](https://docs.victoriametrics.com/anomaly-detection/faq/index.html#what-is-anomaly-score) has already been produced for those points
+When all the received timestamps during an `infer` call have already been processed, meaning the [`anomaly_score`](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score) has already been produced for those points
 ```text
 [Scheduler {{scheduler_alias}}] Skipping run for stage 'infer' for model '{{model_alias}}' (query_key: {{query_key}}): No unseen data to infer on.
 ```
-When the model fails to produce any valid or finite outputs (such as [`anomaly_score`](https://docs.victoriametrics.com/anomaly-detection/faq/index.html#what-is-anomaly-score))
+When the model fails to produce any valid or finite outputs (such as [`anomaly_score`](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score))
 ```text
 [Scheduler {{scheduler_alias}}] Skipping run for stage 'infer' for model '{{model_alias}}' (query_key: {{query_key}}): No (valid) datapoints produced.
 ```
@@ -917,7 +917,7 @@ For [rolling models](https://docs.victoriametrics.com/anomaly-detection/componen
 
 ### Writer logs
 
-The `writer` component logs events during the process of sending produced data (like `anomaly_score` [metrics](https://docs.victoriametrics.com/anomaly-detection/faq/index.html#what-is-anomaly-score)) to VictoriaMetrics. This includes data preparation, serialization, and network requests to VictoriaMetrics endpoints. The logs can help identify issues in data transmission, such as connection errors, invalid data points, and track the performance of write requests.
+The `writer` component logs events during the process of sending produced data (like `anomaly_score` [metrics](https://docs.victoriametrics.com/anomaly-detection/faq/#what-is-anomaly-score)) to VictoriaMetrics. This includes data preparation, serialization, and network requests to VictoriaMetrics endpoints. The logs can help identify issues in data transmission, such as connection errors, invalid data points, and track the performance of write requests.
 
 ---
 
