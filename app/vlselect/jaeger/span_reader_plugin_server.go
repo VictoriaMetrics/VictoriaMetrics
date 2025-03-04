@@ -150,6 +150,7 @@ func (s *SpanReaderPluginServer) FindTraces(ctx context.Context, query *spanstor
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
+	q.AddTimeFilter(query.StartTimeMin.UnixNano(), query.StartTimeMax.UnixNano())
 
 	var spanRows []span
 	var spansLock sync.Mutex
