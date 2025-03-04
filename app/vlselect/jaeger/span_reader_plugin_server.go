@@ -57,6 +57,7 @@ func (s *SpanReaderPluginServer) GetTrace(ctx context.Context, traceID model.Tra
 
 		}
 	}
+	logger.Infof("GetTrace query: %s", q.String())
 	if err = vlstorage.RunQuery(context.TODO(), []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, writeBlock); err != nil {
 		return nil, err
 	}
@@ -90,6 +91,7 @@ func (s *SpanReaderPluginServer) GetServices(ctx context.Context) ([]string, err
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
 	q.AddTimeFilter(0, time.Now().UnixNano())
+	logger.Infof("GetServices StreamFieldValues query: %s", q.String())
 	serviceHits, err := vlstorage.GetStreamFieldValues(ctx, []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, "service_name", uint64(1000))
 	if err != nil {
 		return nil, err
@@ -113,6 +115,7 @@ func (s *SpanReaderPluginServer) GetOperations(ctx context.Context, req spanstor
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
+	logger.Infof("GetOperations StreamFieldValues query: %s", q.String())
 	operationHits, err := vlstorage.GetStreamFieldValues(ctx, []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, "operation_name", uint64(1000))
 	if err != nil {
 		return nil, err
@@ -137,14 +140,61 @@ func (s *SpanReaderPluginServer) FindTraces(ctx context.Context, query *spanstor
 	if len(traceIDs) == 0 {
 		return nil, nil
 	}
-
-	traces := make([]*model.Trace, 0, len(traceIDs))
+	traceIDStrList := make([]string, 0, len(traceIDs))
 	for _, traceID := range traceIDs {
-		t, err := s.GetTrace(ctx, traceID)
-		if err != nil {
-			return nil, err
+		traceIDStrList = append(traceIDStrList, traceID.String())
+	}
+	qStr := fmt.Sprintf("trace_id:in(%s) | fields _time, _msg", strings.Join(traceIDStrList, ","))
+
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, time.Now().UnixNano())
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
+	}
+
+	var spanRows []span
+	var spansLock sync.Mutex
+	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
+		clonedColumnNames := make([]string, len(columns))
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
 		}
-		traces = append(traces, t)
+
+		for i, timestamp := range timestamps {
+			for j := range columns {
+				if columns[j].Name == "_msg" {
+					spansLock.Lock()
+					spanRows = append(spanRows, span{
+						timestamp: timestamp,
+						msg:       strings.Clone(columns[j].Values[i]),
+					})
+					spansLock.Unlock()
+				}
+			}
+
+		}
+	}
+	logger.Infof("FindTraces query: %s", q.String())
+	if err = vlstorage.RunQuery(context.TODO(), []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, writeBlock); err != nil {
+		return nil, err
+	}
+	tracesMap := make(map[string]*model.Trace)
+	traces := make([]*model.Trace, len(traceIDs), len(traceIDs))
+	for i := range traceIDs {
+		traces[i] = &model.Trace{}
+		tracesMap[traceIDs[i].String()] = traces[i]
+	}
+
+	for i := range spanRows {
+		var sp *model.Span
+		msg := spanRows[i].msg
+		err = json.Unmarshal([]byte(msg), &sp)
+		if err != nil {
+			logger.Errorf("cannot unmarshal [%s]: %s", spanRows[i].msg, err)
+			//return nil, fmt.Errorf("cannot unmarshal [%s]: %s", spanRows[i].msg, err)
+			continue
+		}
+
+		tracesMap[sp.TraceID.String()].Spans = append(tracesMap[sp.TraceID.String()].Spans, sp)
 	}
 	return traces, nil
 }
@@ -168,10 +218,10 @@ func (s *SpanReaderPluginServer) FindTraceIDs(ctx context.Context, query *spanst
 		}
 	}
 	if durationMin := query.DurationMin; durationMin > 0 {
-		qStr += fmt.Sprintf("AND duration:>%d", durationMin.Nanoseconds())
+		qStr += fmt.Sprintf("AND duration:>%d ", durationMin.Nanoseconds())
 	}
 	if durationMax := query.DurationMax; durationMax > 0 {
-		qStr += fmt.Sprintf("AND duration:<%d", durationMax.Nanoseconds())
+		qStr += fmt.Sprintf("AND duration:<%d ", durationMax.Nanoseconds())
 	}
 	qStr = strings.TrimLeft(qStr+" | fields _time, trace_id", "AND ")
 
@@ -196,6 +246,7 @@ func (s *SpanReaderPluginServer) FindTraceIDs(ctx context.Context, query *spanst
 			}
 		}
 	}
+	logger.Infof("FindTraces query: %s", q.String())
 	if err = vlstorage.RunQuery(context.TODO(), []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, writeBlock); err != nil {
 		return nil, err
 	}

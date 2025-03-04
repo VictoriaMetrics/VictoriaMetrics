@@ -97,6 +97,7 @@ func (s *SpanWriterPluginServer) WriteSpan(ctx context.Context, span *model.Span
 	lmp.AddRow(span.StartTime.UnixNano(), fields, streamFields)
 	return nil
 }
+
 func (s *SpanWriterPluginServer) Close() error {
 	return nil
 }
