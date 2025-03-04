@@ -1546,6 +1546,33 @@ func TestStorageRotateIndexDB_UpdateMetrics(t *testing.T) {
 	testRotateIndexDB(t, []MetricRow{}, op)
 }
 
+func TestStorageRotateIndexDB_Search(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+	tr := TimeRange{
+		MinTimestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+		MaxTimestamp: time.Date(2024, 1, 31, 23, 59, 59, 999_999_999, time.UTC).UnixMilli(),
+	}
+	mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", tr)
+	tfs := NewTagFilters()
+	if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		t.Fatalf("unexpected error in TagFilters.Add: %v", err)
+	}
+	tfss := []*TagFilters{tfs}
+
+	testRotateIndexDB(t, mrs, func(s *Storage) {
+		var search Search
+		search.Init(nil, s, tfss, tr, 1e5, noDeadline)
+		for search.NextMetricBlock() {
+			var b Block
+			search.MetricBlockRef.BlockRef.MustReadBlock(&b)
+		}
+		if err := search.Error(); err != nil {
+			panic(fmt.Sprintf("search error: %v", err))
+		}
+		search.MustClose()
+	})
+}
+
 // testRotateIndexDB checks that storage handles gracefully indexDB rotation
 // that happens concurrently with some operation (ingestion or search). The
 // operation is expected to finish successfully and there must be no panics.
