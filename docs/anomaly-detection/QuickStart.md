@@ -1,9 +1,10 @@
 ---
 weight: 1
-title: VictoriaMetrics Anomaly Detection Quick Start
+title: Quick Start
 menu:
   docs:
     parent: "anomaly-detection"
+    identifier: "vmanomaly-quick-start"
     weight: 1
     title: Quick Start
 aliases:

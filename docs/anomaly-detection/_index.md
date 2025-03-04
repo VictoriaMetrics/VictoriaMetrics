@@ -1,5 +1,5 @@
 ---
-title: VictoriaMetrics Anomaly Detection
+title: Anomaly Detection
 weight: 50
 menu:
   docs:
