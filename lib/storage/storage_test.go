@@ -889,13 +889,15 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	tfss := []*TagFilters{tfs}
 	s := MustOpenStorage(t.Name(), OpenOptions{})
 	defer s.MustClose()
+	idb, _, putIndexDBs := s.getIndexDBs()
+	defer putIndexDBs()
 
 	// Ensure caches are empty.
 	if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
 		t.Fatalf("tsidCache unexpected contents: got %v, want empty", genTSID)
 	}
 	tfssKey = marshalTagFiltersKey(nil, tfss, tr, true)
-	if got, ok := s.idb().getMetricIDsFromTagFiltersCache(nil, tfssKey); ok {
+	if got, ok := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey); ok {
 		t.Fatalf("tagFiltersToMetricIDsCache unexpected contents: got %v, want empty", got)
 	}
 	if got := s.getDeletedMetricIDs().Len(); got != 0 {
@@ -921,7 +923,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	}
 	metricID := genTSID.TSID.MetricID
 	tfssKey = marshalTagFiltersKey(nil, tfss, tr, true)
-	if _, ok := s.idb().getMetricIDsFromTagFiltersCache(nil, tfssKey); !ok {
+	if _, ok := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey); !ok {
 		t.Fatalf("tagFiltersToMetricIDsCache was expected to contain a record but it did not")
 	}
 	if got := s.getDeletedMetricIDs().Len(); got != 0 {
@@ -942,7 +944,7 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 		t.Fatalf("tsidCache unexpected contents: got %v, want empty", genTSID)
 	}
 	tfssKey = marshalTagFiltersKey(nil, tfss, tr, true)
-	if got, ok := s.idb().getMetricIDsFromTagFiltersCache(nil, tfssKey); ok {
+	if got, ok := idb.getMetricIDsFromTagFiltersCache(nil, tfssKey); ok {
 		t.Fatalf("tagFiltersToMetricIDsCache unexpected contents: got %v, want empty", got)
 	}
 	if got, want := s.getDeletedMetricIDs().AppendTo(nil), []uint64{metricID}; !reflect.DeepEqual(got, want) {
@@ -1295,7 +1297,8 @@ func TestStorageRotateIndexDB(t *testing.T) {
 		wg.Wait()
 		s.DebugFlush()
 
-		idbCurr := s.idb()
+		idbCurr, _, putIndexDBs := s.getIndexDBs()
+		defer putIndexDBs()
 		idbPrev := idbCurr.extDB
 		isCurr := idbCurr.getIndexSearch(noDeadline)
 		defer idbCurr.putIndexSearch(isCurr)
@@ -1887,7 +1890,9 @@ func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
 	if s.disablePerDayIndex {
 		tr = globalIndexTimeRange
 	}
-	ids, err := s.idb().searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
+	idb, _, putIndexDBs := s.getIndexDBs()
+	defer putIndexDBs()
+	ids, err := idb.searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
 	if err != nil {
 		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))
 	}

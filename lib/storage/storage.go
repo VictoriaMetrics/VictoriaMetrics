@@ -497,10 +497,6 @@ func (s *Storage) DeleteStaleSnapshots(maxAge time.Duration) error {
 	return nil
 }
 
-func (s *Storage) idb() *indexDB {
-	return s.idbCurr.Load()
-}
-
 func (s *Storage) getIndexDBs() (*indexDB, *indexDB, func()) {
 	s.idbLock.Lock()
 	defer s.idbLock.Unlock()
