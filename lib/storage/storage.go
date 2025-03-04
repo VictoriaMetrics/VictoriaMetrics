@@ -73,7 +73,6 @@ type Storage struct {
 
 	// idbCurr contains the currently used indexdb.
 	idbCurr atomic.Pointer[indexDB]
-	idbLock sync.Mutex
 
 	// idbNext is the next indexdb, which will become idbCurr at the next rotation.
 	//
@@ -82,6 +81,10 @@ type Storage struct {
 	// This reduces spikes in CPU and disk IO usage just after the rotiation.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401
 	idbNext atomic.Pointer[indexDB]
+
+	// idbLock prevents accidental removal of indexDBs by retentionWatcher while
+	// these indexDBs are in use by some storage operation(s).
+	idbLock sync.Mutex
 
 	disablePerDayIndex bool
 
@@ -497,6 +500,8 @@ func (s *Storage) DeleteStaleSnapshots(maxAge time.Duration) error {
 	return nil
 }
 
+// getIndexDBs increments refcount for the current and next indexDB and returns
+// them along with a cleanup function that decrements their refcounts.
 func (s *Storage) getIndexDBs() (*indexDB, *indexDB, func()) {
 	s.idbLock.Lock()
 	defer s.idbLock.Unlock()
