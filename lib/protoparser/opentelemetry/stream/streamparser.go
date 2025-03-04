@@ -267,7 +267,7 @@ func appendAttributesToPromLabels(dst []prompbmarshal.Label, attributes []*pb.Ke
 	for _, at := range attributes {
 		dst = append(dst, prompbmarshal.Label{
 			Name:  sanitizeLabelName(at.Key),
-			Value: at.Value.FormatString(),
+			Value: at.Value.FormatString(true),
 		})
 	}
 	return dst
