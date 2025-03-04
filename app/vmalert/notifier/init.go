@@ -54,7 +54,7 @@ var (
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
 	oauth2Scopes = flagutil.NewArrayString("notifier.oauth2.scopes", "Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. "+
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
-	sendTimeout = flagutil.NewArrayDuration("notifier.sendTimeout", time.Second*10, "Timeout for pushing alerts to corresponding -notifier.url.")
+	sendTimeout = flagutil.NewArrayDuration("notifier.sendTimeout", 10*time.Second, "Timeout when sending alerts to the corresponding -notifier.url")
 )
 
 // cw holds a configWatcher for configPath configuration file

@@ -158,6 +158,19 @@ func TestGroupValidate_Failure(t *testing.T) {
 	f(&Group{}, false, "group name must be set")
 
 	f(&Group{
+		Name: "both record and alert are not set",
+		Rules: []Rule{
+			{
+				Expr: "sum(up == 0 ) by (host)",
+				For:  promutils.NewDuration(10 * time.Millisecond),
+			},
+			{
+				Expr: "sumSeries(time('foo.bar',10))",
+			},
+		},
+	}, false, "invalid rule")
+
+	f(&Group{
 		Name:     "negative interval",
 		Interval: promutils.NewDuration(-1),
 	}, false, "interval shouldn't be lower than 0")
@@ -241,59 +254,6 @@ func TestGroupValidate_Failure(t *testing.T) {
 	}, false, "duplicate")
 
 	f(&Group{
-		Name: "test graphite with prometheus expr",
-		Type: NewGraphiteType(),
-		Rules: []Rule{
-			{
-				Expr: "sum(up == 0 ) by (host)",
-				For:  promutils.NewDuration(10 * time.Millisecond),
-			},
-			{
-				Expr: "sumSeries(time('foo.bar',10))",
-			},
-		},
-	}, false, "invalid rule")
-
-	f(&Group{
-		Name: "test graphite inherit",
-		Type: NewGraphiteType(),
-		Rules: []Rule{
-			{
-				Expr: "sumSeries(time('foo.bar',10))",
-				For:  promutils.NewDuration(10 * time.Millisecond),
-			},
-			{
-				Expr: "sum(up == 0 ) by (host)",
-			},
-		},
-	}, false, "either `record` or `alert` must be set")
-
-	f(&Group{
-		Name: "test vlogs with prometheus expr",
-		Type: NewVLogsType(),
-		Rules: []Rule{
-			{
-				Expr: "sum(up == 0 ) by (host)",
-				For:  promutils.NewDuration(10 * time.Millisecond),
-			},
-			{
-				Expr: "sumSeries(time('foo.bar',10))",
-			},
-		},
-	}, false, "invalid rule")
-
-	// validate expressions
-	f(&Group{
-		Name: "test",
-		Rules: []Rule{
-			{
-				Record: "record",
-				Expr:   "up | 0",
-			},
-		},
-	}, true, "invalid expression")
-
-	f(&Group{
 		Name: "test thanos",
 		Type: NewRawType("thanos"),
 		Rules: []Rule{
@@ -303,8 +263,20 @@ func TestGroupValidate_Failure(t *testing.T) {
 		},
 	}, true, "unknown datasource type")
 
+	// validate expressions
 	f(&Group{
-		Name: "test graphite",
+		Name: "test prometheus expr",
+		Type: NewPrometheusType(),
+		Rules: []Rule{
+			{
+				Record: "record",
+				Expr:   "up | 0",
+			},
+		},
+	}, true, "bad prometheus expr")
+
+	f(&Group{
+		Name: "test graphite expr",
 		Type: NewGraphiteType(),
 		Rules: []Rule{
 			{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
@@ -314,14 +286,63 @@ func TestGroupValidate_Failure(t *testing.T) {
 	}, true, "bad graphite expr")
 
 	f(&Group{
-		Name: "test vlogs",
+		Name: "test vlogs expr",
 		Type: NewVLogsType(),
 		Rules: []Rule{
-			{Alert: "alert", Expr: "stats count(*) as requests", Labels: map[string]string{
-				"description": "some-description",
-			}},
+			{Alert: "alert", Expr: "stats count(*) as requests"},
 		},
 	}, true, "bad LogsQL expr")
+
+	f(&Group{
+		Name: "test vlogs expr",
+		Type: NewVLogsType(),
+		Rules: []Rule{
+			{Alert: "alert", Expr: "_time: 1m | stats by (path, _time: 1m) count(*) as requests"},
+		},
+	}, true, "bad LogsQL expr")
+
+	f(&Group{
+		Name: "test graphite with prometheus expr",
+		Type: NewGraphiteType(),
+		Rules: []Rule{
+			{
+				Record: "r1",
+				ID:     1,
+				Expr:   "sumSeries(time('foo.bar',10))",
+				For:    promutils.NewDuration(10 * time.Millisecond),
+			},
+			{
+				Record: "r2",
+				ID:     2,
+				Expr:   "sum(up == 0 ) by (host)",
+			},
+		},
+	}, true, "bad graphite expr")
+
+	f(&Group{
+		Name: "test vlogs with prometheus exp",
+		Type: NewVLogsType(),
+		Rules: []Rule{
+			{
+				Record: "r1",
+				Expr:   "sum(up == 0 ) by (host)",
+				For:    promutils.NewDuration(10 * time.Millisecond),
+			},
+		},
+	}, true, "bad LogsQL expr")
+
+	f(&Group{
+		Name: "test prometheus with vlogs exp",
+		Type: NewPrometheusType(),
+		Rules: []Rule{
+			{
+				Record: "r1",
+				Expr:   "* | stats by (path) count()",
+				For:    promutils.NewDuration(10 * time.Millisecond),
+			},
+		},
+	}, true, "bad prometheus expr")
+
 }
 
 func TestGroupValidate_Success(t *testing.T) {
