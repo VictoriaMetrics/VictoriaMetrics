@@ -463,14 +463,14 @@ due to [replication](#replication) or [rerouting](https://docs.victoriametrics.c
 
 ### Track ingested metrics usage
 
-VictoriaMetrics provides an ability to record statistics of fetched [metric names](https://docs.victoriametrics.com/keyconcepts/#structure-of-a-metric) during [querying](https://docs.victoriametrics.com/keyconcepts/#query-data). This feature can be enabled via flag `--storage.trackMetricNamesStats` (disabled by default) on  single-node VictoriaMetrics or [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview). Querying metric with non-matching filters doesn't increase counter.
-For example, querying for `vm_log_messages_total{level!="info"}` won't increment `vm_log_messages_total` counter because there are no `level="error"` metrics yet.
+VictoriaMetrics provides the ability to record statistics of fetched [metric names](https://docs.victoriametrics.com/keyconcepts/#structure-of-a-metric) during [querying](https://docs.victoriametrics.com/keyconcepts/#query-data). This feature can be enabled via the flag `--storage.trackMetricNamesStats` (disabled by default) on  a single-node VictoriaMetrics or [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview). Querying a metric with non-matching filters doesn't increase the counter for this particular metric name.
+For example, querying for `vm_log_messages_total{level!="info"}` won't increment usage counter for `vm_log_messages_total` if there are no `{level="error"}` or `{level="warning"}` series yet.
 
-To get metric names usage statistic use  `/prometheus/api/v1/status/metric_names_stats` API endpoint. It accepts the following query parameters:
+To get metric names usage statistics, use the `/prometheus/api/v1/status/metric_names_stats` API endpoint. It accepts the following query parameters:
 
-* `limit` - limits the number of metric names in response. By default, API returns 1000 records.
-* `le` -  less than or equal to threshold for filtering metric names by their usage count in queries. For example, if set to 1 then API returns only metric names that were queried 1 or less times.
-* `match_pattern` - a substring pattern to match metric names. For example, `match_pattern=vm_` will match any metric names with `vm_` pattern, like `vm_http_requests`, `max_vm_memory_available`. It doesn't support regex syntax.
+* `limit` - integer value to limit the number of metric names in response. By default, API returns 1000 records.
+* `le` -  `less than or equal`, is an integer threshold for filtering metric names by their usage count in queries. For example, with `?le=1` API returns metric names that were queried <=1 times.
+* `match_pattern` - a substring pattern to match metric names. For example, `?match_pattern=vm_` will match any metric names with `vm_` pattern, like `vm_http_requests`, `max_vm_memory_available`. It doesn't support regex syntax.
 
  The API endpoint returns the following `JSON` response:
 
@@ -498,13 +498,16 @@ VictoriaMetrics stores tracked metric names in memory and saves the state to dis
 The size of the in-memory state is limited to 1% of the available memory by default.
 This limit can be adjusted using the `-storage.cacheSizeMetricNamesStats` flag.
 
-When the maximum state capacity is reached, VictoriaMetrics will not track stats for newly registered time series.
+When the maximum state capacity is reached, VictoriaMetrics will stop tracking stats for newly registered time series.
 However, read request statistics for already tracked time series will continue to work as expected.
 
 VictoriaMetrics exposes the following metrics for the metric name tracker:
 * vm_cache_size_bytes{type="storage/metricNamesStatsTracker"}
 * vm_cache_size{type="storage/metricNamesStatsTracker"}
 * vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"}
+
+
+An alerting rule with query `vm_cache_size_bytes{type="storage/metricNamesStatsTracker"} \ vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"} > 0.9` can be used to notify the user of cache utilization exceeding 90%.
 
 The metric name tracker state can be reset via the API endpoint /api/v1/admin/status/metric_names_stats/reset or  
 via [cache removal](#cache-removal) procedure.
