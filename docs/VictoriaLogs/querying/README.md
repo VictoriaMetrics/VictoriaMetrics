@@ -56,6 +56,10 @@ By default the `/select/logsql/query` returns all the log entries matching the g
   ```sh
   curl http://localhost:9428/select/logsql/query -d 'query=error' -d 'limit=10'
   ```
+  In addition to returning the most recently added log entries, the `firstmatches=true` query arg can be passed to return the first matching log entries instead:
+  ```sh
+  curl http://localhost:9428/select/logsql/query -d 'query=error' -d 'limit=10' -d 'firstmatches=true'
+  ```
 - By adding [`limit` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe) to the query. For example, the following command returns up to 10 **random** log entries
   with the `error` [word](https://docs.victoriametrics.com/victorialogs/logsql/#word) in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field):
   ```sh
