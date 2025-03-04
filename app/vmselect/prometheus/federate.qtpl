@@ -2,7 +2,6 @@
 	"math"
 	"unsafe"
 
-	"github.com/prometheus/common/model"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 ) %}
@@ -11,7 +10,7 @@
 
 // Federate writes rs in /federate format.
 // See https://prometheus.io/docs/prometheus/latest/federation/
-{% func Federate(rs *netstorage.Result, escapingScheme model.EscapingScheme) %}
+{% func Federate(rs *netstorage.Result, escapingScheme EscapingScheme) %}
 	{% code
 		values := rs.Values
 		timestamps := rs.Timestamps
@@ -33,8 +32,8 @@
 	{%dl= timestamps[len(timestamps)-1] %}{% newline %}
 {% endfunc %}
 
-{% func prometheusFederateMetricName(mn *storage.MetricName, escapingScheme model.EscapingScheme)  %}
-    {% if escapingScheme == model.NoEscaping %}
+{% func prometheusFederateMetricName(mn *storage.MetricName, escapingScheme EscapingScheme)  %}
+    {% if escapingScheme == NoEscaping %}
         {% if len(mn.Tags) > 0 %}
             {
                 {% code tags := mn.Tags %}
@@ -54,17 +53,17 @@
     {% endif %}
 {% endfunc %}
 
-{% func escapePrometheusKey(name []byte, escapingScheme model.EscapingScheme) %}
+{% func escapePrometheusKey(name []byte, escapingScheme EscapingScheme) %}
     {% code str := unsafe.String(unsafe.SliceData(name), len(name)) %}
-    {% code escapedStr := model.EscapeName(str, escapingScheme) %}
-    {% if !model.IsValidLegacyMetricName(escapedStr) %}
+    {% code escapedStr := EscapeName(str, escapingScheme) %}
+    {% if !IsValidLegacyMetricName(escapedStr) %}
         "{%s= escapedStr %}"
     {% else %}
         {%s= escapedStr %}
     {% endif %}
 {% endfunc %}
 
-{% func fillTags(tags []storage.Tag, escapingScheme model.EscapingScheme) %}
+{% func fillTags(tags []storage.Tag, escapingScheme EscapingScheme) %}
     {% for i := range tags %}
         {% code tag := &tags[i] %}
         ,{%= escapePrometheusKey(tag.Key, escapingScheme) %}={%= escapePrometheusLabel(tag.Value) %}

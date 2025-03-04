@@ -14,7 +14,6 @@ import (
 
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
-	"github.com/prometheus/common/expfmt"
 	"github.com/valyala/fastjson/fastfloat"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
@@ -112,8 +111,7 @@ func PrettifyQuery(w http.ResponseWriter, r *http.Request) {
 func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer federateDuration.UpdateDuration(startTime)
 
-	format := expfmt.Negotiate(r.Header)
-	escapingScheme := format.ToEscapingScheme()
+	escapingScheme := ParseEscapingScheme(r.Header)
 
 	cp, err := getCommonParams(r, startTime, true)
 	if err != nil {
