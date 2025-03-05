@@ -23,7 +23,7 @@
 {% if len(av.Values) > 0 %}
 [      
         {% for i, v := range av.Values %}
-		{%s= v.FormatString(false) %}
+                {%s= v.FormatString(false) %}
                 {% if i + 1 < len(av.Values) %},{% endif %}
         {% endfor %}
 ]
@@ -35,6 +35,12 @@
 
 {% stripspace %}
 {% func (av *AnyValue) FormatString(toplevel bool) %}
+{% if av == nil %}
+{% if !toplevel %}
+null
+{% endif %}
+{% return %}
+{% endif %}
 {% switch %}
 {% case av.StringValue != nil %}
 	{% if toplevel %}
