@@ -819,6 +819,7 @@ func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf 
 	for _, v := range tssAt[0].Values {
 		if !math.IsNaN(v) {
 			atValue = v
+			break
 		}
 	}
 	atTimestamp := int64(atValue * 1000)
