@@ -12,7 +12,7 @@ VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and t
 See [case studies for VictoriaMetrics](https://docs.victoriametrics.com/casestudies/).
 
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest),
-[Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
+Docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags), [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
 
 Documentation for the cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/cluster-victoriametrics/).
 
@@ -124,7 +124,7 @@ VictoriaMetrics ecosystem contains the following components additionally to [sin
 ### Install
 
 To quickly try VictoriaMetrics, just download the [VictoriaMetrics executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
-or [Docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and start it with the desired command-line flags.
+or docker image from [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) or [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags) and start it with the desired command-line flags.
 See also [QuickStart guide](https://docs.victoriametrics.com/quick-start/) for additional information.
 
 VictoriaMetrics can also be installed via these installation methods:
@@ -1076,7 +1076,7 @@ VictoriaMetrics supports the following handlers from [Graphite Tags API](https:/
 ## How to build from sources
 
 We recommend using either [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest) or
-[docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/) instead of building VictoriaMetrics
+docker images ([Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags)) instead of building VictoriaMetrics
 from sources. Building from sources is reasonable when developing additional features specific
 to your needs or when testing bugfixes.
 
@@ -1998,7 +1998,7 @@ based on the time range of the query:
 Mappings are added to the indexes during the data ingestion:
 
 -   In global index each mapping is created only once per retention period.
--   In the per-day index each mapping is be created for each unique date that
+-   In the per-day index each mapping is created for each unique date that
     has been seen in the samples for the corresponding time series.
 
 IndexDB respects [retention period](#retention) and once it is over, the indexes
@@ -2102,9 +2102,9 @@ while leaving the last sample per each 1-hour interval for samples older than 18
 VictoriaMetrics supports{{% available_from "v1.100.0" %}} configuring independent downsampling per different sets of [time series](https://docs.victoriametrics.com/keyconcepts/#time-series)
 via `-downsampling.period=filter:offset:interval` syntax. In this case the given `offset:interval` downsampling is applied only to time series matching the given `filter`.
 The `filter` can contain arbitrary [series filter](https://docs.victoriametrics.com/keyconcepts/#filtering).
-For example, `-downsampling.period='{__name__=~"(node|process)_.*"}:1d:1m` instructs VictoriaMetrics to deduplicate samples older than one day with one minute interval
+For example, `-downsampling.period='{__name__=~"(node|process)_.*"}:1d:1m` instructs VictoriaMetrics to downsample samples older than one day with one minute interval
 only for [time series](https://docs.victoriametrics.com/keyconcepts/#time-series) with names starting with `node_` or `process_` prefixes.
-The deduplication for other time series can be configured independently via additional `-downsampling.period` command-line flags.
+The downsampling for other time series can be configured independently via additional `-downsampling.period` command-line flags.
 Downsampling configuration can be tested in enterprise version of vmui on the page `Tools.Downsampling filters debug`.
 
 If the time series doesn't match any `filter`, then it isn't downsampled. If the time series matches multiple filters, then the downsampling

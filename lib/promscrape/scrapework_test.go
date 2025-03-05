@@ -775,7 +775,7 @@ func parsePromRow(data string) *parser.Row {
 }
 
 func parseData(data string) []prompbmarshal.TimeSeries {
-	return prompbmarshal.MustParsePromMetrics(data, 0)
+	return parser.MustParsePromMetrics(data, 0)
 }
 
 func expectEqualTimeseries(tss, tssExpected []prompbmarshal.TimeSeries) error {

@@ -174,9 +174,9 @@ Also see archives containing the word `cluster`.
 
 Docker images for the cluster version are available here:
 
-- `vminsert` - <https://hub.docker.com/r/victoriametrics/vminsert/tags>
-- `vmselect` - <https://hub.docker.com/r/victoriametrics/vmselect/tags>
-- `vmstorage` - <https://hub.docker.com/r/victoriametrics/vmstorage/tags>
+- `vminsert` - [Docker Hub](https://hub.docker.com/r/victoriametrics/vminsert/tags) and [Quay](https://quay.io/repository/victoriametrics/vminsert?tab=tags)
+- `vmselect` - [Docker Hub](https://hub.docker.com/r/victoriametrics/vmselect/tags) and [Quay](https://quay.io/repository/victoriametrics/vmselect?tab=tags)
+- `vmstorage` - [Docker Hub](https://hub.docker.com/r/victoriametrics/vmstorage/tags) and [Quay](https://quay.io/repository/victoriametrics/vmstorage?tab=tags)
 
 ## Building from sources
 

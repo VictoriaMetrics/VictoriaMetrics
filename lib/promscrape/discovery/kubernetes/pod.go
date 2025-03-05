@@ -196,6 +196,8 @@ func appendPodLabelsInternal(ms []*promutils.Labels, gw *groupWatcher, p *Pod, c
 	addr := p.Status.PodIP
 	if cp != nil {
 		addr = discoveryutils.JoinHostPort(addr, cp.ContainerPort)
+	} else if discoveryutils.IsIPv6Host(addr) {
+		addr = discoveryutils.EscapeIPv6Host(addr)
 	}
 	m := promutils.GetLabels()
 	m.Add("__address__", addr)
