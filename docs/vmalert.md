@@ -952,7 +952,7 @@ Sensitive info is stripped from the `curl` examples - see [security](#security) 
 
 ### Never-firing alerts
 
-vmalert can detect{{% available_from "v1.90.0" %}} if alert's expression doesn't match any time series in runtime 
+vmalert can detect{{% available_from "v1.91.0" %}} if alert's expression doesn't match any time series in runtime 
 starting from [v1.91](https://docs.victoriametrics.com/changelog/#v1910). This problem usually happens
 when alerting expression selects time series which aren't present in the datasource (i.e. wrong `job` label)
 or there is a typo in the series selector (i.e. `env=prod`). Such alerting rules will be marked with special icon in 

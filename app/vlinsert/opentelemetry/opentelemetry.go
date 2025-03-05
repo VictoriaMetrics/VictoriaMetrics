@@ -101,7 +101,7 @@ func pushProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor, useDe
 		commonFields = slicesutil.SetLength(commonFields, len(attributes))
 		for i, attr := range attributes {
 			commonFields[i].Name = attr.Key
-			commonFields[i].Value = attr.Value.FormatString()
+			commonFields[i].Value = attr.Value.FormatString(true)
 		}
 		commonFieldsLen := len(commonFields)
 		for _, sc := range rl.ScopeLogs {
@@ -118,12 +118,12 @@ func pushFieldsFromScopeLogs(sc *pb.ScopeLogs, commonFields []logstorage.Field, 
 		fields = fields[:len(commonFields)]
 		fields = append(fields, logstorage.Field{
 			Name:  "_msg",
-			Value: lr.Body.FormatString(),
+			Value: lr.Body.FormatString(true),
 		})
 		for _, attr := range lr.Attributes {
 			fields = append(fields, logstorage.Field{
 				Name:  attr.Key,
-				Value: attr.Value.FormatString(),
+				Value: attr.Value.FormatString(true),
 			})
 		}
 		if len(lr.TraceID) > 0 {
