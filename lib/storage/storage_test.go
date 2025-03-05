@@ -1525,7 +1525,7 @@ func TestStorageRotateIndexDB_GetTSDBStatus(t *testing.T) {
 	testRotateIndexDB(t, mrs, func(s *Storage) {
 		_, err := s.GetTSDBStatus(nil, nil, date, "", 10, 1e6, noDeadline)
 		if err != nil {
-			panic(fmt.Sprintf("GetTSDBStatus failed unexpectedly"))
+			panic(fmt.Sprintf("GetTSDBStatus failed unexpectedly: %v", err))
 		}
 	})
 }
