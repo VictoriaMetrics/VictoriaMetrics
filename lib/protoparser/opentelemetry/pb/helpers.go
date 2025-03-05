@@ -1,39 +1,10 @@
 package pb
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
 )
-
-// FormatString returns string reperesentation for av.
-func (av *AnyValue) FormatString() string {
-	if av == nil {
-		return ""
-	}
-	switch {
-	case av.StringValue != nil:
-		return *av.StringValue
-	case av.BoolValue != nil:
-		return strconv.FormatBool(*av.BoolValue)
-	case av.IntValue != nil:
-		return strconv.FormatInt(*av.IntValue, 10)
-	case av.DoubleValue != nil:
-		return float64AsString(*av.DoubleValue)
-	case av.ArrayValue != nil:
-		jsonStr, _ := json.Marshal(av.ArrayValue.Values)
-		return string(jsonStr)
-	case av.KeyValueList != nil:
-		jsonStr, _ := json.Marshal(av.KeyValueList.Values)
-		return string(jsonStr)
-	case av.BytesValue != nil:
-		return base64.StdEncoding.EncodeToString(*av.BytesValue)
-	default:
-		return ""
-	}
-}
 
 func float64AsString(f float64) string {
 	if math.IsInf(f, 0) || math.IsNaN(f) {

@@ -214,6 +214,105 @@ func TestParseStream(t *testing.T) {
 		},
 		true,
 	)
+
+	// Test gauge with deeply nested attributes
+	f(
+		[]*pb.Metric{
+			{
+				Name: "my-gauge",
+				Unit: "",
+				Gauge: &pb.Gauge{
+					DataPoints: []*pb.NumberDataPoint{
+						{
+							Attributes: []*pb.KeyValue{
+								{
+									Key: "label1",
+									Value: &pb.AnyValue{
+										StringValue: ptrTo("value1"),
+									},
+								},
+								{
+									Key:   "emptylabelvalue",
+									Value: &pb.AnyValue{},
+								},
+								{
+									Key: "emptylabel",
+								},
+								{
+									Key: "label_array",
+									Value: &pb.AnyValue{
+										ArrayValue: &pb.ArrayValue{
+											Values: []*pb.AnyValue{
+												{
+													StringValue: ptrTo("value5"),
+												},
+												{
+													KeyValueList: &pb.KeyValueList{},
+												},
+											},
+										},
+									},
+								},
+								{
+									Key: "nested_label",
+									Value: &pb.AnyValue{
+										KeyValueList: &pb.KeyValueList{
+											Values: []*pb.KeyValue{
+												{
+													Key: "empty_value",
+												},
+												{
+													Key: "value_top_2",
+													Value: &pb.AnyValue{
+														StringValue: ptrTo("valuetop"),
+													},
+												},
+												{
+													Key: "nested_kv_list",
+													Value: &pb.AnyValue{
+														KeyValueList: &pb.KeyValueList{
+															Values: []*pb.KeyValue{
+																{
+																	Key:   "integer",
+																	Value: &pb.AnyValue{IntValue: ptrTo(int64(15))},
+																},
+																{
+																	Key:   "doable",
+																	Value: &pb.AnyValue{DoubleValue: ptrTo(5.1)},
+																},
+																{
+																	Key:   "string",
+																	Value: &pb.AnyValue{StringValue: ptrTo("value2")},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+							IntValue:     ptrTo(int64(15)),
+							TimeUnixNano: uint64(15 * time.Second),
+						},
+					},
+				},
+			},
+		},
+		[]prompbmarshal.TimeSeries{
+			newPromPBTs("my-gauge",
+				15000,
+				15.0,
+				jobLabelValue,
+				kvLabel("label1", "value1"),
+				kvLabel("emptylabelvalue", ""),
+				kvLabel("emptylabel", ""),
+				kvLabel("label_array", `["value5",{}]`),
+				kvLabel("nested_label", `{"empty_value":null,"value_top_2":"valuetop","nested_kv_list":{"integer":15,"doable":5.1,"string":"value2"}}`)),
+		},
+		false,
+	)
 }
 
 func checkParseStream(data []byte, checkSeries func(tss []prompbmarshal.TimeSeries) error) error {
@@ -428,4 +527,8 @@ func sortLabels(labels []prompbmarshal.Label) {
 	sort.Slice(labels, func(i, j int) bool {
 		return labels[i].Name < labels[j].Name
 	})
+}
+
+func ptrTo[T any](v T) *T {
+	return &v
 }
