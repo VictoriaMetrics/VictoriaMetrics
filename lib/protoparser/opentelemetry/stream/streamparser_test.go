@@ -232,6 +232,28 @@ func TestParseStream(t *testing.T) {
 									},
 								},
 								{
+									Key:   "emptylabelvalue",
+									Value: &pb.AnyValue{},
+								},
+								{
+									Key: "emptylabel",
+								},
+								{
+									Key: "label_array",
+									Value: &pb.AnyValue{
+										ArrayValue: &pb.ArrayValue{
+											Values: []*pb.AnyValue{
+												{
+													StringValue: ptrTo("value5"),
+												},
+												{
+													KeyValueList: &pb.KeyValueList{},
+												},
+											},
+										},
+									},
+								},
+								{
 									Key: "nested_label",
 									Value: &pb.AnyValue{
 										KeyValueList: &pb.KeyValueList{
@@ -279,7 +301,15 @@ func TestParseStream(t *testing.T) {
 			},
 		},
 		[]prompbmarshal.TimeSeries{
-			newPromPBTs("my-gauge", 15000, 15.0, jobLabelValue, kvLabel("label1", "value1"), kvLabel("nested_label", `{"empty_value":null,"value_top_2":"valuetop","nested_kv_list":{"integer":15,"doable":5.1,"string":"value2"}}`)),
+			newPromPBTs("my-gauge",
+				15000,
+				15.0,
+				jobLabelValue,
+				kvLabel("label1", "value1"),
+				kvLabel("emptylabelvalue", ""),
+				kvLabel("emptylabel", ""),
+				kvLabel("label_array", `["value5",{}]`),
+				kvLabel("nested_label", `{"empty_value":null,"value_top_2":"valuetop","nested_kv_list":{"integer":15,"doable":5.1,"string":"value2"}}`)),
 		},
 		false,
 	)

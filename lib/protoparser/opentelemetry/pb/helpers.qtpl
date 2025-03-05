@@ -36,10 +36,10 @@
 {% stripspace %}
 {% func (av *AnyValue) FormatString(toplevel bool) %}
 {% if av == nil %}
-{% if !toplevel %}
-null
-{% endif %}
-{% return %}
+  {% if !toplevel %}
+       null
+  {% endif %}
+  {% return %}
 {% endif %}
 {% switch %}
 {% case av.StringValue != nil %}
