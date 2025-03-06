@@ -149,6 +149,11 @@ func getCommonLabelFilters(e Expr) []LabelFilter {
 			// {f1} unless on(f1, f2) {f2} -> {f1}
 			// {f1} unless on(f3) {f2} -> {}
 			return TrimFiltersByGroupModifier(lfsLeft, t)
+		case "ifnot":
+			// remove right from left, so filter in left can be pushed down to right.
+			// {f1} ifnot `any` -> {f1}
+			// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8435
+			return TrimFiltersByGroupModifier(lfsLeft, t)
 		default:
 			switch strings.ToLower(t.JoinModifier.Op) {
 			case "group_left":
