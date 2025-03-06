@@ -97,6 +97,10 @@ type Search struct {
 	// idb is used for MetricName lookup for the found data blocks.
 	idb *indexDB
 
+	// putIndexDBs decrements indexDB ref counters. Must be called in
+	// Search.MustClose().
+	putIndexDBs func()
+
 	// retentionDeadline is used for filtering out blocks outside the configured retention.
 	retentionDeadline int64
 
@@ -154,7 +158,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	retentionDeadline := int64(fasttime.UnixTimestamp()*1e3) - storage.retentionMsecs
 
 	s.reset()
-	s.idb = storage.idb()
+	s.idb, _, s.putIndexDBs = storage.getIndexDBs()
 	s.retentionDeadline = retentionDeadline
 	s.tr = tr
 	s.tfss = tfss
@@ -166,7 +170,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	if err == nil {
 		tsids, err = s.idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
 		if err == nil {
-			err = storage.prefetchMetricNames(qt, metricIDs, deadline)
+			err = storage.prefetchMetricNames(qt, s.idb, metricIDs, deadline)
 		}
 	}
 	// It is ok to call Init on non-nil err.
@@ -187,6 +191,7 @@ func (s *Search) MustClose() {
 		logger.Panicf("BUG: missing Init call before MustClose")
 	}
 	s.ts.MustClose()
+	s.putIndexDBs()
 	s.reset()
 }
 
