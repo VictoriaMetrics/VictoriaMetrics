@@ -47,7 +47,6 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix an infinite loader on the [Downsampling filters debug page](https://docs.victoriametrics.com/#vmui) when provided configuration matches no series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8339).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): fix filters pushdown logic for expression like `foo{a="a"} ifnot bar{a="b"}`. Previously, filters from right operand were incorrectly propagated to the left operand and could result in empty query results even if `foo{a="a"}` matches time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8435).
 
-
 ## [v1.102.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.15)
 
 Released at 2025-02-28
