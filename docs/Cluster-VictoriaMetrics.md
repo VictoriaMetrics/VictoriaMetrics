@@ -1936,6 +1936,9 @@ Below is the output for `/path/to/vmstorage -help`:
   -storage.cacheSizeIndexDBTagFilters size
      Overrides max size for indexdb/tagFiltersToMetricIDs cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
+  -storage.cacheSizeMetricNamesStats size
+     Overrides max size for storage/metricNamesStatsTracker cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.cacheSizeStorageTSID size
      Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -1950,6 +1953,9 @@ Below is the output for `/path/to/vmstorage -help`:
   -storage.minFreeDiskSpaceBytes size
      The minimum free disk space at -storageDataPath after which the storage stops accepting new data
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)
+  -storage.trackMetricNamesStats
+     Whether to track ingest and query requests for timeseries metric names. This feature allows to track metric names unused at query requests.
+     See https://docs.victoriametrics.com/#track-ingested-metrics-usage
   -storage.vminsertConnsShutdownDuration duration
      The time needed for gradual closing of vminsert connections during graceful shutdown. Bigger duration reduces spikes in CPU, RAM and disk IO load on the remaining vmstorage nodes during rolling restart. Smaller duration reduces the time needed to close all the vminsert connections, thus reducing the time for graceful shutdown. See https://docs.victoriametrics.com/cluster-victoriametrics/#improving-re-routing-performance-during-restart (default 25s)
   -storageDataPath string
