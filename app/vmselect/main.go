@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/stats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -52,8 +53,11 @@ var (
 		"limit is reached; see also -search.maxQueryDuration")
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the last sample in every time series per each discrete interval "+
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication for details")
-	deleteAuthKey        = flagutil.NewPassword("deleteAuthKey", "authKey for metrics' deletion via /prometheus/api/v1/admin/tsdb/delete_series and /graphite/tags/delSeries. It could be passed via authKey query arg. It overrides -httpAuth.*")
-	resetCacheAuthKey    = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg. It overrides -httpAuth.*")
+	deleteAuthKey                = flagutil.NewPassword("deleteAuthKey", "authKey for metrics' deletion via /prometheus/api/v1/admin/tsdb/delete_series and /graphite/tags/delSeries. It could be passed via authKey query arg. It overrides -httpAuth.*")
+	resetCacheAuthKey            = flagutil.NewPassword("search.resetCacheAuthKey", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call. It could be passed via authKey query arg. It overrides -httpAuth.*")
+	metricNamesStatsResetAuthKey = flagutil.NewPassword("metricNamesStatsResetAuthKey", "authKey for reseting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*. "+
+		"See https://docs.victoriametrics.com/#track-ingested-metrics-usage")
+
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging. "+
 		"See also -search.logQueryMemoryUsage")
 	vmalertProxyURL = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules")
@@ -262,6 +266,19 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "error getting tenants: %s", err)
 			return true
 		}
+		return true
+	}
+	if path == "/admin/api/v1/admin/status/metric_names_stats/reset" {
+		metricNamesStatsResetRequests.Inc()
+		if !httpserver.CheckAuthFlag(w, r, metricNamesStatsResetAuthKey) {
+			return true
+		}
+		if err := stats.ResetMetricNamesStatsHandler(startTime, qt, r); err != nil {
+			metricNamesStatsResetErrors.Inc()
+			httpserver.Errorf(w, r, "error reseting metric names stats: %s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
 		return true
 	}
 	p, err := httpserver.ParsePath(path)
@@ -516,6 +533,14 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			graphiteRenderErrors.Inc()
 			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 			return true
+		}
+		return true
+
+	case "prometheus/api/v1/status/metric_names_stats":
+		metricNamesStatsRequests.Inc()
+		if err := stats.MetricNamesStatsHandler(startTime, at, qt, w, r); err != nil {
+			metricNamesStatsErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
 		}
 		return true
 	default:
@@ -894,6 +919,12 @@ var (
 
 	httpRequests         = tenantmetrics.NewCounterMap(`vm_tenant_select_requests_total`)
 	httpRequestsDuration = tenantmetrics.NewCounterMap(`vm_tenant_select_requests_duration_ms_total`)
+
+	metricNamesStatsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/status/metric_names_stats"}`)
+	metricNamesStatsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/prometheus/api/v1/status/metric_names_stats"}`)
+
+	metricNamesStatsResetRequests = metrics.NewCounter(`vm_http_requests_total{path="/admin/api/v1/admin/status/metric_names_stats/reset"}`)
+	metricNamesStatsResetErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/admin/api/v1/admin/status/metric_names_stats/reset"}`)
 )
 
 func usage() {

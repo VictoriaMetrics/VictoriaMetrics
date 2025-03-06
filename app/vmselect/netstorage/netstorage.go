@@ -3047,6 +3047,12 @@ func writeUint64(bc *handshake.BufferedConn, n uint64) error {
 	return err
 }
 
+func writeInt64(bc *handshake.BufferedConn, n int64) error {
+	sizeBuf := encoding.MarshalInt64(nil, n)
+	_, err := bc.Write(sizeBuf)
+	return err
+}
+
 func writeBool(bc *handshake.BufferedConn, b bool) error {
 	var buf [1]byte
 	if b {
@@ -3287,7 +3293,7 @@ func execSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, cb func(qt
 
 	for i := range sq.TenantTokens {
 		requestData = sq.TenantTokens[i].Marshal(requestData)
-		requestData = sq.MarshaWithoutTenant(requestData)
+		requestData = sq.MarshalWithoutTenant(requestData)
 		qtL := qt
 		if sq.IsMultiTenant && qt.Enabled() {
 			qtL = qt.NewChild("query for tenant: %s", sq.TenantTokens[i].String())
@@ -3316,4 +3322,155 @@ func metricNameTenantToTags(mn *storage.MetricName) {
 	mn.AddTagBytes([]byte(`vm_project_id`), buf)
 	mn.AccountID = 0
 	mn.ProjectID = 0
+}
+
+// GetMetricNamesStats returns metric names usage statistics for the given params
+func GetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, deadline searchutils.Deadline) (storage.MetricNamesStatsResponse, error) {
+	type nodeResult struct {
+		resp storage.MetricNamesStatsResponse
+		err  error
+	}
+	sns := getStorageNodes()
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
+		resp, err := sn.processGetMetricNamesStats(qt, tt, limit, le, matchPattern, deadline)
+		return nodeResult{resp: resp, err: err}
+	})
+	var mu sync.Mutex
+	var mnuss storage.MetricNamesStatsResponse
+	if err := snr.collectAllResults(func(result any) error {
+		r := result.(nodeResult)
+		if r.err != nil {
+			return r.err
+		}
+		mu.Lock()
+		mnuss.Merge(&r.resp)
+		mu.Unlock()
+		return nil
+	}); err != nil {
+		return mnuss, err
+	}
+	mnuss.Sort()
+	return mnuss, nil
+}
+
+func (sn *storageNode) processGetMetricNamesStats(qt *querytracer.Tracer, tt *storage.TenantToken, limit, le int, matchPattern string, deadline searchutils.Deadline) (storage.MetricNamesStatsResponse, error) {
+	var result storage.MetricNamesStatsResponse
+	f := func(bc *handshake.BufferedConn) error {
+		bcResult, err := processGetMetricNamesUsageStatsOnConn(bc, tt, limit, le, matchPattern)
+		if err != nil {
+			return err
+		}
+		result = bcResult
+		return nil
+	}
+	if err := sn.execOnConnWithPossibleRetry(qt, "metricNamesUsageStats_v1", f, deadline); err != nil {
+		return result, err
+	}
+	return result, nil
+}
+
+func processGetMetricNamesUsageStatsOnConn(bc *handshake.BufferedConn, tt *storage.TenantToken, limit, le int, matchPattern string) (storage.MetricNamesStatsResponse, error) {
+	var result storage.MetricNamesStatsResponse
+	hasTenantToken := tt != nil
+	if err := writeBool(bc, hasTenantToken); err != nil {
+		return result, fmt.Errorf("cannot write hasTenantToken: %w", err)
+	}
+	// conditionally write tenant token
+	if hasTenantToken {
+		if err := writeUint32(bc, tt.AccountID); err != nil {
+			return result, fmt.Errorf("cannot write AccountID: %w", err)
+		}
+		if err := writeUint32(bc, tt.ProjectID); err != nil {
+			return result, fmt.Errorf("cannot write ProjectID: %w", err)
+		}
+	}
+	if err := writeLimit(bc, limit); err != nil {
+		return result, fmt.Errorf("cannot write limit: %w", err)
+	}
+	if err := writeInt64(bc, int64(le)); err != nil {
+		return result, fmt.Errorf("cannot write le: %w", err)
+	}
+	if err := writeBytes(bc, []byte(matchPattern)); err != nil {
+		return result, fmt.Errorf("cannot write matchPattern: %w", err)
+	}
+	if err := bc.Flush(); err != nil {
+		return result, fmt.Errorf("cannot flush write: %w", err)
+	}
+	// read error message
+	buf, err := readBytes(nil, bc, maxErrorMessageSize)
+	if err != nil {
+		return result, fmt.Errorf("cannot read error message: %w", err)
+	}
+	if len(buf) > 0 {
+		return result, newErrRemote(buf)
+	}
+	// start read response
+	result.CollectedSinceTs, err = readUint64(bc)
+	if err != nil {
+		return result, fmt.Errorf("cannot read collected: %w", err)
+	}
+	result.TotalRecords, err = readUint64(bc)
+	if err != nil {
+		return result, fmt.Errorf("cannot read TotalRecords: %w", err)
+	}
+	result.CurrentSizeBytes, err = readUint64(bc)
+	if err != nil {
+		return result, fmt.Errorf("cannot read CurrentSizeBytes: %w", err)
+	}
+	result.MaxSizeBytes, err = readUint64(bc)
+	if err != nil {
+		return result, fmt.Errorf("cannot read MaxSizeBytes: %w", err)
+	}
+	n, err := readUint64(bc)
+	if err != nil {
+		return result, fmt.Errorf("cannot read records count: %w", err)
+	}
+	result.Records = make([]storage.MetricNamesStatsRecord, n)
+	var mnBuff []byte
+	for i := range n {
+		mnBuff, err = readBytes(mnBuff[:0], bc, 256)
+		if err != nil {
+			return result, fmt.Errorf("cannot read record metricName: %w", err)
+		}
+		record := &result.Records[i]
+		record.MetricName = string(mnBuff)
+		record.LastRequestTs, err = readUint64(bc)
+		if err != nil {
+			return result, fmt.Errorf("cannot read record LastRequestTs: %w", err)
+		}
+		record.RequestsCount, err = readUint64(bc)
+		if err != nil {
+			return result, fmt.Errorf("cannot read record RequestCount: %w", err)
+		}
+	}
+	return result, nil
+}
+
+// ResetMetricNamesStats forwards reset tracker state request to the storage nodes
+//
+// In case of error request must be retried by the client in order to consistently reset state at all nodes
+func ResetMetricNamesStats(qt *querytracer.Tracer, deadline searchutils.Deadline) error {
+	sns := getStorageNodes()
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, _ uint, sn *storageNode) any {
+		return sn.processResetMetricNamesUsageStats(qt, deadline)
+	})
+	if err := snr.collectAllResults(func(result any) error {
+		if result != nil {
+			return result.(error)
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (sn *storageNode) processResetMetricNamesUsageStats(qt *querytracer.Tracer, deadline searchutils.Deadline) error {
+	f := func(bc *handshake.BufferedConn) error {
+		if err := bc.Flush(); err != nil {
+			return fmt.Errorf("cannot flush buffer: %w", err)
+		}
+		return nil
+	}
+	return sn.execOnConnWithPossibleRetry(qt, "resetMetricNamesStats_v1", f, deadline)
 }

@@ -154,6 +154,9 @@ type Search struct {
 	loops int
 
 	prevMetricID uint64
+
+	// metricGroupBuf holds metricGroup used for metric names tracker
+	metricGroupBuf []byte
 }
 
 func (s *Search) reset() {
@@ -170,6 +173,7 @@ func (s *Search) reset() {
 	s.needClosing = false
 	s.loops = 0
 	s.prevMetricID = 0
+	s.metricGroupBuf = nil
 }
 
 // Init initializes s from the given storage, tfss and tr.
@@ -261,6 +265,22 @@ func (s *Search) NextMetricBlock() bool {
 				// Skip missing metricName for tsid.MetricID.
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
 				continue
+			}
+			// for perfomance reasons parse metricGroup conditionally
+			if s.idb.s.metricsTracker != nil {
+				var err error
+				// MetricName must be sorted and marshalled with MetricName.Marshal()
+				// it guarantees that first tag is metricGroup
+				if len(s.MetricBlockRef.MetricName) < 8 {
+					s.err = fmt.Errorf("BUG: unexpected MetricBlockRef.MetricName len: %d, want at least 8", len(s.MetricBlockRef.MetricName))
+					return false
+				}
+				_, s.metricGroupBuf, err = unmarshalTagValue(s.metricGroupBuf[:0], s.MetricBlockRef.MetricName[8:])
+				if err != nil {
+					s.err = fmt.Errorf("cannot unmarshal metricGroup from MetricBlockRef.MetricName: %w", err)
+					return false
+				}
+				s.idb.s.metricsTracker.RegisterQueryRequest(tsid.AccountID, tsid.ProjectID, s.metricGroupBuf)
 			}
 			s.prevMetricID = tsid.MetricID
 		}
@@ -478,9 +498,9 @@ func tagFiltersToString(tfs []TagFilter) string {
 	return "{" + strings.Join(a, ",") + "}"
 }
 
-// MarshaWithoutTenant appends marshaled sq without AccountID/ProjectID to dst and returns the result.
+// MarshalWithoutTenant appends marshaled sq without AccountID/ProjectID to dst and returns the result.
 // It is expected that TenantToken is already marshaled to dst.
-func (sq *SearchQuery) MarshaWithoutTenant(dst []byte) []byte {
+func (sq *SearchQuery) MarshalWithoutTenant(dst []byte) []byte {
 	dst = encoding.MarshalVarInt64(dst, sq.MinTimestamp)
 	dst = encoding.MarshalVarInt64(dst, sq.MaxTimestamp)
 	dst = encoding.MarshalVarUint64(dst, uint64(len(sq.TagFilterss)))

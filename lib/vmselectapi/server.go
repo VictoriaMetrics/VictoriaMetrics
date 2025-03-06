@@ -348,6 +348,18 @@ func (ctx *vmselectRequestCtx) readUint64() (uint64, error) {
 	return n, nil
 }
 
+func (ctx *vmselectRequestCtx) readInt64() (int64, error) {
+	ctx.sizeBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.sizeBuf, 8)
+	if _, err := io.ReadFull(ctx.bc, ctx.sizeBuf); err != nil {
+		if err == io.EOF {
+			return 0, err
+		}
+		return 0, fmt.Errorf("cannot read int64: %w", err)
+	}
+	n := encoding.UnmarshalInt64(ctx.sizeBuf)
+	return n, nil
+}
+
 func (ctx *vmselectRequestCtx) readAccountIDProjectID() (uint32, uint32, error) {
 	accountID, err := ctx.readUint32()
 	if err != nil {
@@ -574,6 +586,10 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 		return s.processRegisterMetricNames(ctx)
 	case "tenants_v1":
 		return s.processTenants(ctx)
+	case "metricNamesUsageStats_v1":
+		return s.processMetricNamesUsageStats(ctx)
+	case "resetMetricNamesStats_v1":
+		return s.processResetMetricUsageStats(ctx)
 	default:
 		return fmt.Errorf("unsupported rpcName: %q", rpcName)
 	}
@@ -1019,7 +1035,6 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	if err := ctx.readSearchQuery(); err != nil {
 		return err
 	}
-
 	if err := s.beginConcurrentRequest(ctx); err != nil {
 		return ctx.writeErrorMessage(err)
 	}
@@ -1057,6 +1072,96 @@ func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
 	// Send 'end of response' marker
 	if err := ctx.writeString(""); err != nil {
 		return fmt.Errorf("cannot send 'end of response' marker")
+	}
+	return nil
+}
+
+func (s *Server) processMetricNamesUsageStats(ctx *vmselectRequestCtx) error {
+	// Read request.
+	hasTenant, err := ctx.readBool()
+	if err != nil {
+		return fmt.Errorf("cannot read hasTenant: %w", err)
+	}
+	var at *storage.TenantToken
+	if hasTenant {
+		accountID, err := ctx.readUint32()
+		if err != nil {
+			return fmt.Errorf("cannot read accountID: %w", err)
+		}
+		projectID, err := ctx.readUint32()
+		if err != nil {
+			return fmt.Errorf("cannot read projectID: %w", err)
+		}
+		at = &storage.TenantToken{
+			AccountID: accountID,
+			ProjectID: projectID,
+		}
+	}
+	limit, err := ctx.readLimit()
+	if err != nil {
+		return fmt.Errorf("cannot read limit: %w", err)
+	}
+	le, err := ctx.readInt64()
+	if err != nil {
+		return fmt.Errorf("cannot read le: %w", err)
+	}
+	if err := ctx.readDataBufBytes(256); err != nil {
+		return fmt.Errorf("cannot read matchPattern: %w", err)
+	}
+	matchPattern := string(ctx.dataBuf)
+
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
+
+	result, err := s.api.GetMetricNamesUsageStats(ctx.qt, at, limit, int(le), matchPattern, ctx.deadline)
+	if err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+
+	// Send an empty error message to vmselect.
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send empty error message: %w", err)
+	}
+
+	if err := ctx.writeUint64(result.CollectedSinceTs); err != nil {
+		return fmt.Errorf("cannot write CollectedSinceTs: %w", err)
+	}
+	if err := ctx.writeUint64(result.TotalRecords); err != nil {
+		return fmt.Errorf("cannot write TotalRecords: %w", err)
+	}
+	if err := ctx.writeUint64(result.CurrentSizeBytes); err != nil {
+		return fmt.Errorf("cannot write CurrentSizeBytes: %w", err)
+	}
+	if err := ctx.writeUint64(result.MaxSizeBytes); err != nil {
+		return fmt.Errorf("cannot write MaxSizeBytes: %w", err)
+	}
+	if err := ctx.writeUint64(uint64(len(result.Records))); err != nil {
+		return fmt.Errorf("cannot write records count: %w", err)
+	}
+	for _, r := range result.Records {
+		if err := ctx.writeString(r.MetricName); err != nil {
+			return fmt.Errorf("cannot write MetricName=%q record: %w", r.MetricName, err)
+		}
+		if err := ctx.writeUint64(r.LastRequestTs); err != nil {
+			return fmt.Errorf("cannot write record LastRequestTs: %w", err)
+		}
+		if err := ctx.writeUint64(r.RequestsCount); err != nil {
+			return fmt.Errorf("cannot write record RequestCount: %w", err)
+		}
+	}
+	return nil
+}
+
+func (s *Server) processResetMetricUsageStats(ctx *vmselectRequestCtx) error {
+
+	if err := s.beginConcurrentRequest(ctx); err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+	defer s.endConcurrentRequest()
+	if err := s.api.ResetMetricNamesUsageStats(ctx.qt, ctx.deadline); err != nil {
+		return fmt.Errorf("cannot reset state of the metric names usage tracker: %w", err)
 	}
 	return nil
 }

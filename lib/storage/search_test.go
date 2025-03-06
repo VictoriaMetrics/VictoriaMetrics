@@ -34,7 +34,7 @@ func TestSearchQueryMarshalUnmarshal(t *testing.T) {
 			ProjectID: sq1.ProjectID,
 		}
 		buf = tt.Marshal(buf[:0])
-		buf = sq1.MarshaWithoutTenant(buf)
+		buf = sq1.MarshalWithoutTenant(buf)
 
 		tail, err := sq2.Unmarshal(buf)
 		if err != nil {
