@@ -506,9 +506,9 @@ func tagFiltersToString(tfs []TagFilter) string {
 	return "{" + strings.Join(a, ",") + "}"
 }
 
-// MarshaWithoutTenant appends marshaled sq without AccountID/ProjectID to dst and returns the result.
+// MarshalWithoutTenant appends marshaled sq without AccountID/ProjectID to dst and returns the result.
 // It is expected that TenantToken is already marshaled to dst.
-func (sq *SearchQuery) MarshaWithoutTenant(dst []byte) []byte {
+func (sq *SearchQuery) MarshalWithoutTenant(dst []byte) []byte {
 	dst = encoding.MarshalVarInt64(dst, sq.MinTimestamp)
 	dst = encoding.MarshalVarInt64(dst, sq.MaxTimestamp)
 	dst = encoding.MarshalVarUint64(dst, uint64(len(sq.TagFilterss)))
@@ -519,6 +519,12 @@ func (sq *SearchQuery) MarshaWithoutTenant(dst []byte) []byte {
 		}
 	}
 	dst = encoding.MarshalUint32(dst, uint32(sq.MaxMetrics))
+	return dst
+}
+
+// MarshalV8 marshals search query for search_v8 RPC call
+func (sq *SearchQuery) MarshalV8(dst []byte) []byte {
+	dst = sq.MarshalWithoutTenant(dst)
 	dst = encoding.MarshalBool(dst, sq.TrackMetricStats)
 	return dst
 }
