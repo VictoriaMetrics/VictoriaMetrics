@@ -79,7 +79,7 @@ func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQu
 		return nil, fmt.Errorf("missing tag filters")
 	}
 	bi := getBlockIterator()
-	bi.sr.Init(qt, api.s, tfss, tr, maxMetrics, deadline)
+	bi.sr.Init(qt, api.s, tfss, tr, maxMetrics, sq.TrackMetricStats, deadline)
 	if err := bi.sr.Error(); err != nil {
 		bi.MustClose()
 		return nil, err

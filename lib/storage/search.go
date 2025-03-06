@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -155,6 +156,7 @@ type Search struct {
 
 	prevMetricID uint64
 
+	metricsTracker *metricnamestats.Tracker
 	// metricGroupBuf holds metricGroup used for metric names tracker
 	metricGroupBuf []byte
 }
@@ -173,6 +175,7 @@ func (s *Search) reset() {
 	s.needClosing = false
 	s.loops = 0
 	s.prevMetricID = 0
+	s.metricsTracker = nil
 	s.metricGroupBuf = nil
 }
 
@@ -181,7 +184,7 @@ func (s *Search) reset() {
 // MustClose must be called when the search is done.
 //
 // Init returns the upper bound on the number of found time series.
-func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
+func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, trackMetricStats bool, deadline uint64) int {
 	qt = qt.NewChild("init series search: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
@@ -200,6 +203,9 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	s.tfss = tfss
 	s.deadline = deadline
 	s.needClosing = true
+	if trackMetricStats {
+		s.metricsTracker = storage.metricsTracker
+	}
 
 	var tsids []TSID
 	metricIDs, err := s.idb.searchMetricIDs(qt, tfss, indexTR, maxMetrics, deadline)
@@ -267,7 +273,7 @@ func (s *Search) NextMetricBlock() bool {
 				continue
 			}
 			// for perfomance reasons parse metricGroup conditionally
-			if s.idb.s.metricsTracker != nil {
+			if s.metricsTracker != nil {
 				var err error
 				// MetricName must be sorted and marshalled with MetricName.Marshal()
 				// it guarantees that first tag is metricGroup
@@ -280,7 +286,7 @@ func (s *Search) NextMetricBlock() bool {
 					s.err = fmt.Errorf("cannot unmarshal metricGroup from MetricBlockRef.MetricName: %w", err)
 					return false
 				}
-				s.idb.s.metricsTracker.RegisterQueryRequest(tsid.AccountID, tsid.ProjectID, s.metricGroupBuf)
+				s.metricsTracker.RegisterQueryRequest(tsid.AccountID, tsid.ProjectID, s.metricGroupBuf)
 			}
 			s.prevMetricID = tsid.MetricID
 		}
@@ -318,6 +324,8 @@ type SearchQuery struct {
 
 	// The maximum number of time series the search query can return.
 	MaxMetrics int
+
+	TrackMetricStats bool
 }
 
 // GetTimeRange returns time range for the given sq.
@@ -511,7 +519,24 @@ func (sq *SearchQuery) MarshaWithoutTenant(dst []byte) []byte {
 		}
 	}
 	dst = encoding.MarshalUint32(dst, uint32(sq.MaxMetrics))
+	dst = encoding.MarshalBool(dst, sq.TrackMetricStats)
 	return dst
+}
+
+// UnmarshalV8 unmarshals sq for search_v8 RPC call from src and returns the tail.
+func (sq *SearchQuery) UnmarshalV8(src []byte) ([]byte, error) {
+	src, err := sq.Unmarshal(src)
+	if err != nil {
+		return nil, fmt.Errorf("cannot unmarshal SearchQuery: %w", err)
+	}
+
+	if len(src) < 1 {
+		return src, fmt.Errorf("cannot unmarshal TrackMetricStats: too short src len: %d; must be at least %d bytes", len(src), 1)
+	}
+	sq.TrackMetricStats = encoding.UnmarshalBool(src)
+	src = src[1:]
+
+	return src, nil
 }
 
 // Unmarshal unmarshals sq from src and returns the tail.

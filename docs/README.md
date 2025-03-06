@@ -465,6 +465,7 @@ due to [replication](#replication) or [rerouting](https://docs.victoriametrics.c
 
 VictoriaMetrics provides the ability to record statistics of fetched [metric names](https://docs.victoriametrics.com/keyconcepts/#structure-of-a-metric) during [querying](https://docs.victoriametrics.com/keyconcepts/#query-data). This feature can be enabled via the flag `--storage.trackMetricNamesStats` (disabled by default) on  a single-node VictoriaMetrics or [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview). Querying a metric with non-matching filters doesn't increase the counter for this particular metric name.
 For example, querying for `vm_log_messages_total{level!="info"}` won't increment usage counter for `vm_log_messages_total` if there are no `{level="error"}` or `{level="warning"}` series yet.
+VictoriaMetrics tracks metric names query statistics for `/api/v1/query`, `/api/v1/query_range` and `/render` API calls.
 
 To get metric names usage statistics, use the `/prometheus/api/v1/status/metric_names_stats` API endpoint. It accepts the following query parameters:
 
@@ -482,7 +483,7 @@ To get metric names usage statistics, use the `/prometheus/api/v1/status/metric_
   "records": [
     {
       "metricName": "node_disk_writes_completed_total",
-      "queryRequests": 0,
+      "queryRequests": 50,
       "lastRequestTimestamp": 1737534262
     },
     {
