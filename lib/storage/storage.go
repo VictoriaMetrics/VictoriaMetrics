@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -136,6 +137,7 @@ type Storage struct {
 	nextDayMetricIDsUpdaterWG  sync.WaitGroup
 	retentionWatcherWG         sync.WaitGroup
 	freeDiskSpaceWatcherWG     sync.WaitGroup
+	readonlyWatchdogWG         sync.WaitGroup
 
 	// The snapshotLock prevents from concurrent creation of snapshots,
 	// since this may result in snapshots without recently added data,
@@ -164,7 +166,8 @@ type Storage struct {
 	missingMetricIDsResetDeadline uint64
 
 	// isReadOnly is set to true when the storage is in read-only mode.
-	isReadOnly atomic.Bool
+	isReadOnly  atomic.Bool
+	cannotWrite atomic.Bool
 }
 
 type pendingHourMetricIDEntry struct {
@@ -203,6 +206,11 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		stopCh:         make(chan struct{}),
 	}
 	fs.MustMkdirIfNotExist(path)
+	tmpFile, err := os.Create(filepath.Join(s.path, ".is_readonly_watchdog"))
+	if err != nil {
+		logger.Panicf("FATAL: cannot create files on the disk")
+	}
+	s.cannotWrite.Store(!MustBeWritable(tmpFile))
 
 	// Check whether the cache directory must be removed
 	// It is removed if it contains resetCacheOnStartupFilename.
@@ -311,7 +319,7 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
 	s.startRetentionWatcher()
-
+	s.startReadonlyWatchdog()
 	return s
 }
 
@@ -695,7 +703,7 @@ var freeDiskSpaceLimitBytes uint64
 
 // IsReadOnly returns information is storage in read only mode
 func (s *Storage) IsReadOnly() bool {
-	return s.isReadOnly.Load()
+	return s.isReadOnly.Load() && s.cannotWrite.Load()
 }
 
 func (s *Storage) startFreeDiskSpaceWatcher() {
@@ -899,7 +907,7 @@ func (s *Storage) MustClose() {
 	s.retentionWatcherWG.Wait()
 	s.currHourMetricIDsUpdaterWG.Wait()
 	s.nextDayMetricIDsUpdaterWG.Wait()
-
+	s.readonlyWatchdogWG.Wait()
 	s.tb.MustClose()
 	s.idb().MustClose()
 
@@ -2948,6 +2956,99 @@ func (s *Storage) mustOpenIndexDBTables(path string) (next, curr, prev *indexDB)
 	prev = mustOpenIndexDB(prevPath, s, &s.isReadOnly)
 
 	return next, curr, prev
+}
+
+func (s *Storage) startReadonlyWatchdog() {
+	s.readonlyWatchdogWG.Add(1)
+	go func() {
+		s.readonlyWatchDog()
+		s.readonlyWatchdogWG.Done()
+	}()
+}
+
+func (s *Storage) readonlyWatchDog() {
+	timeout := 10 * time.Second
+	for {
+		if !s.cannotWrite.Load() {
+			timeoutChan := time.After(timeout)
+			tmpFileChan := make(chan *os.File, 1)
+			go func() {
+				tmpFile, err := os.Create(filepath.Join(s.path, ".is_readonly_watchdog"))
+				if err != nil {
+					tmpFileChan <- nil
+				} else {
+					tmpFileChan <- tmpFile
+				}
+			}()
+
+			select {
+			case tmpFile := <-tmpFileChan:
+				if tmpFile == nil {
+					logger.Panicf("FATAL: cannot create files on the disk")
+				} else {
+					if !MustBeWritable(tmpFile) {
+						logger.Panicf("FATAL: cannot write files to the disk")
+					}
+				}
+			case <-timeoutChan:
+				logger.Panicf("FATAL: cannot write to the disk or disk is overloaded and takes more than %s to write", timeout.String())
+			}
+
+		}
+		time.Sleep(5 * time.Second)
+	}
+}
+
+func MustBeWritable(tmpFile *os.File) bool {
+	defer tmpFile.Close()
+	timeout := time.After(10 * time.Second)
+
+	totalSize := 10 * 1024 * 1024 // 10 MB
+	blockSize := 4 * 1024         // 4 KB
+
+	writer := bufio.NewWriterSize(tmpFile, blockSize)
+
+	writeResultChan := make(chan error, 1)
+
+	f := func() {
+		bytesWritten := 0
+		for bytesWritten < totalSize {
+			chunkSize := blockSize
+			if totalSize-bytesWritten < blockSize {
+				chunkSize = totalSize - bytesWritten
+			}
+			data := make([]byte, chunkSize)
+
+			for i := range data {
+				data[i] = '0'
+			}
+
+			n, err := writer.Write(data)
+			if err != nil {
+				writeResultChan <- err
+				return
+			}
+			bytesWritten += n
+		}
+
+		err := writer.Flush()
+		if err != nil {
+			writeResultChan <- err
+			return
+		}
+
+		writeResultChan <- nil
+	}
+	go f()
+	select {
+	case err := <-writeResultChan:
+		if err != nil {
+			return false
+		}
+		return true
+	case <-timeout:
+		return false
+	}
 }
 
 var indexDBTableNameRegexp = regexp.MustCompile("^[0-9A-F]{16}$")
