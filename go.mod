@@ -7,6 +7,8 @@ go 1.24.0
 // TODO: remove this entry after https://github.com/googleapis/google-cloud-go/issues/11448 is fixed
 replace cloud.google.com/go/storage => cloud.google.com/go/storage v1.43.0
 
+replace github.com/valyala/gozstd => github.com/AndrewChubatiuk/gozstd v0.0.0-20250301095332-4c0a10558f61
+
 require (
 	cloud.google.com/go/storage v1.50.0
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.17.0

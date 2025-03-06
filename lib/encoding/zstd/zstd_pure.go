@@ -3,6 +3,7 @@
 package zstd
 
 import (
+	"io"
 	"sync"
 	"sync/atomic"
 
@@ -33,6 +34,11 @@ func init() {
 // Decompress appends decompressed src to dst and returns the result.
 func Decompress(dst, src []byte) ([]byte, error) {
 	return decoder.DecodeAll(src, dst)
+}
+
+// NewReader creates new zstd decompression reader
+func NewReader(r io.Reader) (Reader, error) {
+	return zstd.NewReader(r)
 }
 
 // CompressLevel appends compressed src to dst and returns the result.
