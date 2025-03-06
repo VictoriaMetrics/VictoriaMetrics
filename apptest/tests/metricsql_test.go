@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -179,9 +180,10 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 	}
 }
 
-// This test would lead to a panic only for some combinations of platform and Go version.
-// It will lead to converting NaN to int64. The result of this depends on specific implementation.
+// This test checks absence of panic after conversion of math.NaN to int64 in vmselect.
 // See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8444
+// However, conversion of math.NaN to int64 could behave differently depending on platform and Go version.
+// Hence, this test could succeed for some platforms even if fix is rolled back.
 func testQueryRangeWithAtModifier(t *testing.T, sut apptest.PrometheusWriteQuerier) {
 	data := []pb.TimeSeries{
 		{
@@ -190,6 +192,14 @@ func testQueryRangeWithAtModifier(t *testing.T, sut apptest.PrometheusWriteQueri
 			},
 			Samples: []pb.Sample{
 				{Value: 1, Timestamp: millis("2025-01-01T00:01:00Z")},
+			},
+		},
+		{
+			Labels: []pb.Label{
+				{Name: "__name__", Value: "metricNaN"},
+			},
+			Samples: []pb.Sample{
+				{Value: decimal.StaleNaN, Timestamp: millis("2025-01-01T00:01:00Z")},
 			},
 		},
 	}
@@ -205,5 +215,18 @@ func testQueryRangeWithAtModifier(t *testing.T, sut apptest.PrometheusWriteQueri
 
 	if resp.Status != "success" {
 		t.Fatalf("unexpected status: %q", resp.Status)
+	}
+
+	resp = sut.PrometheusAPIV1QueryRange(t, `vector(1) @ metricNaN`, apptest.QueryOpts{
+		Start: "2025-01-01T00:00:00Z",
+		End:   "2025-01-01T00:02:00Z",
+		Step:  "10s",
+	})
+
+	if resp.Status != "error" {
+		t.Fatalf("unexpected status: %q", resp.Status)
+	}
+	if !strings.Contains(resp.Error, "modifier must return a non-NaN value") {
+		t.Fatalf("unexpected error: %q", resp.Error)
 	}
 }
