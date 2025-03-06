@@ -118,6 +118,8 @@ type Search struct {
 	loops int
 
 	prevMetricID uint64
+
+	metrigGroup []byte
 }
 
 func (s *Search) reset() {
@@ -134,6 +136,7 @@ func (s *Search) reset() {
 	s.needClosing = false
 	s.loops = 0
 	s.prevMetricID = 0
+	s.metrigGroup = nil
 }
 
 // Init initializes s from the given storage, tfss and tr.
@@ -223,6 +226,18 @@ func (s *Search) NextMetricBlock() bool {
 				// Skip missing metricName for tsid.MetricID.
 				// It should be automatically fixed. See indexDB.searchMetricNameWithCache for details.
 				continue
+			}
+			// for perfomance reasons parse metricGroup conditionally
+			if s.idb.s.metricsTracker != nil {
+				var err error
+				// MetricName must be sorted and marshalled with MetricName.Marshal()
+				// it guarantees that first tag is metricGroup
+				_, s.metrigGroup, err = unmarshalTagValue(s.metrigGroup[:0], s.MetricBlockRef.MetricName)
+				if err != nil {
+					s.err = fmt.Errorf("cannot unmarshal metricGroup from MetricBlockRef.MetricName: %w", err)
+					return false
+				}
+				s.idb.s.metricsTracker.RegisterQueryRequest(0, 0, s.metrigGroup)
 			}
 			s.prevMetricID = tsid.MetricID
 		}
