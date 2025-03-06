@@ -61,20 +61,6 @@ func TestSingleMetricNamesStats(t *testing.T) {
 		t.Errorf("unexpected response (-want, +got):\n%s", diff)
 	}
 
-	// export all series, it must not increase counter for metric names stats
-	sut.PrometheusAPIV1Export(t, `{__name__!=""}`, at.QueryOpts{})
-	expected = apptest.MetricNamesStatsResponse{
-		Records: []at.MetricNamesStatsRecord{
-			{MetricName: "metric_name_1", QueryRequestsCount: 3},
-			{MetricName: "metric_name_2", QueryRequestsCount: 1},
-			{MetricName: "metric_name_3", QueryRequestsCount: 1},
-		},
-	}
-	got = sut.APIV1StatusMetricNamesStats(t, "", "", "", at.QueryOpts{})
-	if diff := cmp.Diff(expected, got); diff != "" {
-		t.Errorf("unexpected response (-want, +got):\n%s", diff)
-	}
-
 	// perform query request for single metric and check counter increase
 	sut.PrometheusAPIV1Query(t, `metric_name_2`, at.QueryOpts{Time: ingestDateTime})
 	expected = apptest.MetricNamesStatsResponse{
@@ -172,22 +158,6 @@ func TestClusterMetricNamesStats(t *testing.T) {
 			},
 		}
 		gotStats := vmselect.MetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
-		if diff := cmp.Diff(expected, gotStats); diff != "" {
-			t.Errorf("unexpected response (-want, +got):\n%s", diff)
-		}
-
-		// export all series, it must not increase counter for metric names stats
-		vmselect.PrometheusAPIV1Export(t, `{__name__!=""}`, apptest.QueryOpts{
-			Tenant: "multitenant",
-		})
-		expected = apptest.MetricNamesStatsResponse{
-			Records: []at.MetricNamesStatsRecord{
-				{MetricName: "metric_name_1"},
-				{MetricName: "metric_name_2"},
-				{MetricName: "metric_name_3"},
-			},
-		}
-		gotStats = vmselect.MetricNamesStats(t, "", "", "", apptest.QueryOpts{Tenant: tenantID})
 		if diff := cmp.Diff(expected, gotStats); diff != "" {
 			t.Errorf("unexpected response (-want, +got):\n%s", diff)
 		}

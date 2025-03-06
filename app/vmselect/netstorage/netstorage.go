@@ -1001,7 +1001,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 
 	sr := getStorageSearch()
 	defer putStorageSearch(sr)
-	sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, false, deadline.Deadline())
+	sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
 
 	// Start workers that call f in parallel on available CPU cores.
 	workCh := make(chan *exportWork, gomaxprocs*8)
@@ -1118,7 +1118,7 @@ func SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline
 // ProcessSearchQuery performs sq until the given deadline.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
-func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, trackMetricStats bool, deadline searchutils.Deadline) (*Results, error) {
+func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline) (*Results, error) {
 	qt = qt.NewChild("fetch matching series: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -1139,7 +1139,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, trackMe
 	defer vmstorage.WG.Done()
 
 	sr := getStorageSearch()
-	maxSeriesCount := sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, trackMetricStats, deadline.Deadline())
+	maxSeriesCount := sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
 	type blockRefs struct {
 		brs []blockRef
 	}

@@ -153,7 +153,7 @@ func evalMetricExpr(ec *evalConfig, me *graphiteql.MetricExpr) (nextSeriesFunc, 
 }
 
 func newNextSeriesForSearchQuery(ec *evalConfig, sq *storage.SearchQuery, expr graphiteql.Expr) (nextSeriesFunc, error) {
-	rss, err := netstorage.ProcessSearchQuery(nil, sq, true, ec.deadline)
+	rss, err := netstorage.ProcessSearchQuery(nil, sq, ec.deadline)
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
