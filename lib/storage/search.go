@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage/metricnamestats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 )
 
@@ -119,6 +120,7 @@ type Search struct {
 
 	prevMetricID uint64
 
+	metricsTracker *metricnamestats.Tracker
 	// metricGroupBuf holds metricGroup used for metric names tracker
 	metricGroupBuf []byte
 }
@@ -137,6 +139,7 @@ func (s *Search) reset() {
 	s.needClosing = false
 	s.loops = 0
 	s.prevMetricID = 0
+	s.metricsTracker = nil
 	s.metricGroupBuf = nil
 }
 
@@ -145,7 +148,7 @@ func (s *Search) reset() {
 // MustClose must be called when the search is done.
 //
 // Init returns the upper bound on the number of found time series.
-func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
+func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, trackMetricStats bool, deadline uint64) int {
 	qt = qt.NewChild("init series search: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
@@ -164,6 +167,9 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	s.tfss = tfss
 	s.deadline = deadline
 	s.needClosing = true
+	if trackMetricStats {
+		s.metricsTracker = storage.metricsTracker
+	}
 
 	var tsids []TSID
 	metricIDs, err := s.idb.searchMetricIDs(qt, tfss, indexTR, maxMetrics, deadline)
@@ -229,7 +235,7 @@ func (s *Search) NextMetricBlock() bool {
 				continue
 			}
 			// for perfomance reasons parse metricGroup conditionally
-			if s.idb.s.metricsTracker != nil {
+			if s.metricsTracker != nil {
 				var err error
 				// MetricName must be sorted and marshalled with MetricName.Marshal()
 				// it guarantees that first tag is metricGroup
@@ -238,7 +244,7 @@ func (s *Search) NextMetricBlock() bool {
 					s.err = fmt.Errorf("cannot unmarshal metricGroup from MetricBlockRef.MetricName: %w", err)
 					return false
 				}
-				s.idb.s.metricsTracker.RegisterQueryRequest(0, 0, s.metricGroupBuf)
+				s.metricsTracker.RegisterQueryRequest(0, 0, s.metricGroupBuf)
 			}
 			s.prevMetricID = tsid.MetricID
 		}

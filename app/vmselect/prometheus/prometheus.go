@@ -126,7 +126,7 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 		cp.start = cp.end - lookbackDelta
 	}
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxFederateSeries)
-	rss, err := netstorage.ProcessSearchQuery(nil, sq, cp.deadline)
+	rss, err := netstorage.ProcessSearchQuery(nil, sq, false, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
@@ -185,7 +185,7 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	}
 	doneCh := make(chan error, 1)
 	if !reduceMemUsage {
-		rss, err := netstorage.ProcessSearchQuery(nil, sq, cp.deadline)
+		rss, err := netstorage.ProcessSearchQuery(nil, sq, false, cp.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
@@ -400,7 +400,7 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 
 	doneCh := make(chan error, 1)
 	if !reduceMemUsage {
-		rss, err := netstorage.ProcessSearchQuery(qt, sq, cp.deadline)
+		rss, err := netstorage.ProcessSearchQuery(qt, sq, false, cp.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}

@@ -1717,7 +1717,7 @@ func evalRollupFuncNoCache(qt *querytracer.Tracer, ec *EvalConfig, funcName stri
 		minTimestamp -= ec.Step
 	}
 	sq := storage.NewSearchQuery(minTimestamp, ec.End, tfss, ec.MaxSeries)
-	rss, err := netstorage.ProcessSearchQuery(qt, sq, ec.Deadline)
+	rss, err := netstorage.ProcessSearchQuery(qt, sq, true, ec.Deadline)
 	if err != nil {
 		return nil, err
 	}
