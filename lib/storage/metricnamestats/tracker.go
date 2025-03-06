@@ -211,7 +211,19 @@ func (mt *Tracker) saveLocked() error {
 		}
 	}
 
-	f, err := os.CreateTemp(os.TempDir(), fileName)
+	// create temp directory in the same directory where original file located
+	// it's needed to mitigate cross block-device rename error.
+	tempDir, err := os.MkdirTemp(dir, "metricnamestats.tmp.")
+	if err != nil {
+		return fmt.Errorf("cannot create tempDir for state save: %w", err)
+	}
+	defer func() {
+		if tempDir != "" {
+			_ = os.RemoveAll(tempDir)
+		}
+	}()
+
+	f, err := os.Create(filepath.Join(tempDir, fileName))
 	if err != nil {
 		return fmt.Errorf("cannot open file for state save: %w", err)
 	}
@@ -265,7 +277,7 @@ func (mt *Tracker) UpdateMetrics(dst *TrackerMetrics) {
 
 // IsEmpty checks if internal state has any records
 func (mt *Tracker) IsEmpty() bool {
-	return mt.currentItemsCount.Load() > 0
+	return mt.currentItemsCount.Load() == 0
 }
 
 // Reset cleans stats, saves cache state and executes provided func
