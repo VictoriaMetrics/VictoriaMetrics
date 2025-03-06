@@ -179,6 +179,9 @@ func testInstantQueryDoesNotReturnStaleNaNs(t *testing.T, sut apptest.Prometheus
 	}
 }
 
+// This test would lead to a panic only for some combinations of platform and Go version.
+// It will lead to converting NaN to int64. The result of this depends on specific implementation.
+// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8444
 func testQueryRangeWithAtModifier(t *testing.T, sut apptest.PrometheusWriteQuerier) {
 	data := []pb.TimeSeries{
 		{
