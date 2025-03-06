@@ -833,7 +833,19 @@ func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf 
 			Err: fmt.Errorf("`@` modifier must return a single series; it returns %d series instead", len(tssAt)),
 		}
 	}
-	atTimestamp := int64(tssAt[0].Values[0] * 1000)
+	atValue := math.NaN()
+	for _, v := range tssAt[0].Values {
+		if !math.IsNaN(v) {
+			atValue = v
+			break
+		}
+	}
+	if math.IsNaN(atValue) {
+		return nil, &httpserver.UserReadableError{
+			Err: fmt.Errorf("`@` modifier must return a non-NaN value"),
+		}
+	}
+	atTimestamp := int64(atValue * 1000)
 	ecNew := copyEvalConfig(ec)
 	ecNew.Start = atTimestamp
 	ecNew.End = atTimestamp
