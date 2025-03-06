@@ -45,6 +45,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): properly escape IPv6 address in [Kubernetes service-discovery](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) with `role: pod` for containers without exposed ports. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8374).
 * BUGFIX: [vmalert-tool](https://docs.victoriametrics.com/vmalert-tool/): clean up the temporary storage path when process is terminated by SIGTERM or SIGINT. Previously, unclean shut down might affect the next run.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix an infinite loader on the [Downsampling filters debug page](https://docs.victoriametrics.com/#vmui) when provided configuration matches no series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8339).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/metricsql/): fix filters pushdown logic for expression like `foo{a="a"} ifnot bar{a="b"}`. Previously, filters from right operand were incorrectly propagated to the left operand and could result in empty query results even if `foo{a="a"}` matches time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8435).
 
 ## [v1.102.15](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.102.15)
 
