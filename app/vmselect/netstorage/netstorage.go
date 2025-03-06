@@ -1772,7 +1772,7 @@ func (e limitExceededErr) Error() string { return e.err.Error() }
 // ProcessSearchQuery performs sq until the given deadline.
 //
 // Results.RunParallel or Results.Cancel must be called on the returned Results.
-func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, trackMetricStats bool, deadline searchutils.Deadline) (*Results, bool, error) {
+func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, deadline searchutils.Deadline) (*Results, bool, error) {
 	qt = qt.NewChild("fetch matching series: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -1784,7 +1784,6 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
-	sq.TrackMetricStats = trackMetricStats
 	sns := getStorageNodes()
 	tbfw := newTmpBlocksFileWrapper(sns)
 	blocksRead := newPerNodeCounter(sns)
@@ -1891,9 +1890,25 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any {
 		// Use a separate variable for each goroutine
 		var err error
-		if err := execSearchQueryRequest(qt, sq, workerID, sn, f, deadline); err != nil {
+		res := execSearchQuery(qt, sq, func(qt *querytracer.Tracer, rd []byte, _ storage.TenantToken) any {
+			sn.searchRequests.Inc()
+			err = sn.processSearchQuery(qt, rd, f, workerID, deadline)
+			if err != nil {
+				sn.searchErrors.Inc()
+				err = fmt.Errorf("cannot perform search on vmstorage %s: %w", sn.connPool.Addr(), err)
+				return &err
+			}
+
 			return &err
+		})
+
+		for _, e := range res {
+			e := e.(*error)
+			if *e != nil {
+				return e
+			}
 		}
+
 		return &err
 	})
 
@@ -2401,7 +2416,7 @@ func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []
 	f := func(bc *handshake.BufferedConn) error {
 		return sn.processSearchQueryOnConn(bc, requestData, processBlock, workerID)
 	}
-	return sn.execOnConnWithPossibleRetry(qt, "search_v8", f, deadline)
+	return sn.execOnConnWithPossibleRetry(qt, "search_v7", f, deadline)
 }
 
 func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutils.Deadline) error {
@@ -3270,31 +3285,6 @@ func (pnc *perNodeCounter) GetTotal() uint64 {
 //
 // See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
 const maxFastAllocBlockSize = 32 * 1024
-
-// execSearchQueryRequest performs search_v8 RPC call and applies provded  cb for with marshaled requestData for each tenant in sq.
-func execSearchQueryRequest(qt *querytracer.Tracer, sq *storage.SearchQuery, workerID uint, sn *storageNode, f func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline) error {
-	var requestData []byte
-
-	for i := range sq.TenantTokens {
-		requestData = sq.TenantTokens[i].Marshal(requestData)
-		requestData = sq.MarshalV8(requestData)
-		qtL := qt
-		if sq.IsMultiTenant && qt.Enabled() {
-			qtL = qt.NewChild("query for tenant: %s", sq.TenantTokens[i].String())
-		}
-		sn.searchRequests.Inc()
-		if err := sn.processSearchQuery(qt, requestData, f, workerID, deadline); err != nil {
-			sn.searchErrors.Inc()
-			return fmt.Errorf("cannot perform search on vmstorage %s: %w", sn.connPool.Addr(), err)
-		}
-		if sq.IsMultiTenant {
-			qtL.Done()
-		}
-		requestData = requestData[:0]
-	}
-
-	return nil
-}
 
 // execSearchQuery calls cb for with marshaled requestData for each tenant in sq.
 func execSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, cb func(qt *querytracer.Tracer, requestData []byte, t storage.TenantToken) any) []any {

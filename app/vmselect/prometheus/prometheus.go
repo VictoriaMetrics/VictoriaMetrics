@@ -133,7 +133,7 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 		return fmt.Errorf("cannot obtain search query: %w", err)
 	}
 	denyPartialResponse := httputils.GetDenyPartialResponse(r)
-	rss, isPartial, err := netstorage.ProcessSearchQuery(nil, denyPartialResponse, sq, false, cp.deadline)
+	rss, isPartial, err := netstorage.ProcessSearchQuery(nil, denyPartialResponse, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 	}
@@ -201,7 +201,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 		// Unconditionally deny partial response for the exported data,
 		// since users usually expect that the exported data is full.
 		denyPartialResponse := true
-		rss, _, err := netstorage.ProcessSearchQuery(nil, denyPartialResponse, sq, false, cp.deadline)
+		rss, _, err := netstorage.ProcessSearchQuery(nil, denyPartialResponse, sq, cp.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}
@@ -426,7 +426,7 @@ func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter
 		// Unconditionally deny partial response for the exported data,
 		// since users usually expect that the exported data is full.
 		denyPartialResponse := true
-		rss, _, err := netstorage.ProcessSearchQuery(qt, denyPartialResponse, sq, false, cp.deadline)
+		rss, _, err := netstorage.ProcessSearchQuery(qt, denyPartialResponse, sq, cp.deadline)
 		if err != nil {
 			return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
 		}

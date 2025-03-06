@@ -390,20 +390,6 @@ func (ctx *vmselectRequestCtx) readSearchQuery() error {
 	return nil
 }
 
-func (ctx *vmselectRequestCtx) readSearchQueryV8() error {
-	if err := ctx.readDataBufBytes(maxSearchQuerySize); err != nil {
-		return fmt.Errorf("cannot read searchQuery: %w", err)
-	}
-	tail, err := ctx.sq.UnmarshalV8(ctx.dataBuf)
-	if err != nil {
-		return fmt.Errorf("cannot unmarshal SearchQuery: %w", err)
-	}
-	if len(tail) > 0 {
-		return fmt.Errorf("unexpected non-zero tail left after unmarshaling SearchQuery: (len=%d) %q", len(tail), tail)
-	}
-	return nil
-}
-
 func (ctx *vmselectRequestCtx) readDataBufBytes(maxDataSize int) error {
 	ctx.sizeBuf = bytesutil.ResizeNoCopyMayOverallocate(ctx.sizeBuf, 8)
 	if _, err := io.ReadFull(ctx.bc, ctx.sizeBuf); err != nil {
@@ -581,9 +567,7 @@ func (s *Server) endConcurrentRequest() {
 func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 	switch rpcName {
 	case "search_v7":
-		return s.processSearchV7(ctx)
-	case "search_v8":
-		return s.processSearchV8(ctx)
+		return s.processSearch(ctx)
 	case "searchMetricNames_v3":
 		return s.processSearchMetricNames(ctx)
 	case "labelValues_v5":
@@ -1044,25 +1028,13 @@ func (s *Server) processSearchMetricNames(ctx *vmselectRequestCtx) error {
 	return nil
 }
 
-func (s *Server) processSearchV7(ctx *vmselectRequestCtx) error {
+func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
+	s.searchRequests.Inc()
+
 	// Read request.
 	if err := ctx.readSearchQuery(); err != nil {
 		return err
 	}
-	return s.processSearch(ctx)
-}
-
-func (s *Server) processSearchV8(ctx *vmselectRequestCtx) error {
-	// Read request.
-	if err := ctx.readSearchQueryV8(); err != nil {
-		return err
-	}
-	return s.processSearch(ctx)
-}
-
-func (s *Server) processSearch(ctx *vmselectRequestCtx) error {
-	s.searchRequests.Inc()
-
 	if err := s.beginConcurrentRequest(ctx); err != nil {
 		return ctx.writeErrorMessage(err)
 	}

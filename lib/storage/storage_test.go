@@ -843,7 +843,7 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 	metricBlocksCount := func(tfs *TagFilters) int {
 		// Verify the number of blocks
 		n := 0
-		sr.Init(nil, s, []*TagFilters{tfs}, tr, 1e5, false, noDeadline)
+		sr.Init(nil, s, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 		for sr.NextMetricBlock() {
 			n++
 		}
@@ -3133,7 +3133,7 @@ func TestStorageMetricTracker(t *testing.T) {
 		t.Fatalf("unexpected error at tfs add: %s", err)
 	}
 
-	sr.Init(nil, s, []*TagFilters{tfs}, tr, 1e5, true, noDeadline)
+	sr.Init(nil, s, []*TagFilters{tfs}, tr, 1e5, noDeadline)
 	for sr.NextMetricBlock() {
 	}
 	sr.MustClose()
