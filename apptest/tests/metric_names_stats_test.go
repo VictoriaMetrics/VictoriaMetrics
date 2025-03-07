@@ -25,7 +25,6 @@ func TestSingleMetricNamesStats(t *testing.T) {
 		`metric_name_2{label="baz"} 20`,
 		`metric_name_1{label="baz"} 10`,
 		`metric_name_3{label="baz"} 30`,
-		`metric_name_3{label="baz"} 30`,
 	}
 	for idx := range dataSet {
 		dataSet[idx] += ingestTimestamp
@@ -135,7 +134,6 @@ func TestClusterMetricNamesStats(t *testing.T) {
 		`metric_name_1{label="bar"} 10`,
 		`metric_name_2{label="baz"} 20`,
 		`metric_name_1{label="baz"} 10`,
-		`metric_name_3{label="baz"} 30`,
 		`metric_name_3{label="baz"} 30`,
 	}
 	for idx := range dataSet {
