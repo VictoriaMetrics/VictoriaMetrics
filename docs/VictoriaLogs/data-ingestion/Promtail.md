@@ -26,7 +26,7 @@ clients:
 Substitute `localhost:9428` address inside `clients` with the real TCP address of VictoriaLogs.
 
 VictoriaLogs uses [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) defined at the client side,
-e.g. at Promtail, Grafana Agent or Grafana Allow. Sometimes it may be needed overriding the set of these fields. This can be done via `_stream_fields`
+e.g. at Promtail, Grafana Agent or Grafana Alloy. Sometimes it may be needed overriding the set of these fields. This can be done via `_stream_fields`
 query arg. For example, the following config instructs using only the `instance` and `job` labels as log stream fields, while other labels
 will be stored as [usual log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
 
