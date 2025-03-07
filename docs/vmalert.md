@@ -1559,7 +1559,7 @@ the latter will have higher priority.
 
 For chaining groups, they must be executed in a specific order, and the next group should be executed after
 the results from previous group are available in the datasource.
-In `vmalert`, user can specify `eval_offset` to achieve that{{% available_from "#" %}}.
+In `vmalert`, user can specify `eval_offset` to achieve that{{% available_from "v1.113.0" %}}.
 
 For example:
 ```yaml
