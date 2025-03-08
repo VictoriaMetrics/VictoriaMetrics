@@ -68,7 +68,8 @@ func TestRemoteWriteContext_TryPush_ImmutableTimeseries(t *testing.T) {
 		allRelabelConfigs.Store(rcs)
 
 		pss := make([]*pendingSeries, 1)
-		pss[0] = newPendingSeries(nil, true, 0, 100)
+		isVMProto := func() bool { return true }
+		pss[0] = newPendingSeries(nil, isVMProto, 0, 100)
 		rwctx := &remoteWriteCtx{
 			idx:                    0,
 			streamAggrKeepInput:    keepInput,

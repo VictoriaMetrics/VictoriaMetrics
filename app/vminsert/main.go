@@ -174,6 +174,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
+
+		// Set the Accept-Encoding header only if the request does not already use the preferred encoding (zstd).
+		// avoiding redundant data transmission
+		if r.Header.Get("Content-Encoding") != "zstd" {
+			w.Header().Set("Accept-Encoding", "zstd, snappy")
+		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
 	case "/prometheus/api/v1/import", "/api/v1/import":
