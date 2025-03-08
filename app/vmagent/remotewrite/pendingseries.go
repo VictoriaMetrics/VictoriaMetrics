@@ -40,7 +40,7 @@ type pendingSeries struct {
 	periodicFlusherWG sync.WaitGroup
 }
 
-func newPendingSeries(fq *persistentqueue.FastQueue, isVMRemoteWrite bool, significantFigures, roundDigits int) *pendingSeries {
+func newPendingSeries(fq *persistentqueue.FastQueue, isVMRemoteWrite *atomic.Bool, significantFigures, roundDigits int) *pendingSeries {
 	var ps pendingSeries
 	ps.wr.fq = fq
 	ps.wr.isVMRemoteWrite = isVMRemoteWrite
@@ -100,7 +100,7 @@ type writeRequest struct {
 	fq *persistentqueue.FastQueue
 
 	// Whether to encode the write request with VictoriaMetrics remote write protocol.
-	isVMRemoteWrite bool
+	isVMRemoteWrite *atomic.Bool
 
 	// How many significant figures must be left before sending the writeRequest to fq.
 	significantFigures int
@@ -138,7 +138,7 @@ func (wr *writeRequest) reset() {
 // This is needed in order to properly save in-memory data to persistent queue on graceful shutdown.
 func (wr *writeRequest) mustFlushOnStop() {
 	wr.wr.Timeseries = wr.tss
-	if !tryPushWriteRequest(&wr.wr, wr.mustWriteBlock, wr.isVMRemoteWrite) {
+	if !tryPushWriteRequest(&wr.wr, wr.mustWriteBlock, wr.isVMRemoteWrite.Load()) {
 		logger.Panicf("BUG: final flush must always return true")
 	}
 	wr.reset()
@@ -152,7 +152,7 @@ func (wr *writeRequest) mustWriteBlock(block []byte) bool {
 func (wr *writeRequest) tryFlush() bool {
 	wr.wr.Timeseries = wr.tss
 	wr.lastFlushTime.Store(fasttime.UnixTimestamp())
-	if !tryPushWriteRequest(&wr.wr, wr.fq.TryWriteBlock, wr.isVMRemoteWrite) {
+	if !tryPushWriteRequest(&wr.wr, wr.fq.TryWriteBlock, wr.isVMRemoteWrite.Load()) {
 		return false
 	}
 	wr.reset()
