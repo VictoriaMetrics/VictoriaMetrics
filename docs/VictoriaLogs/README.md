@@ -14,7 +14,7 @@ VictoriaLogs provides the following features:
   all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
   See [LogsQL docs](https://docs.victoriametrics.com/victorialogs/logsql/).
 - It provides [built-in web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) for logs' exploration.
-- Ir provides [Grafana plugin](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/) for building arbitrary dashboards in Grafana.
+- It provides [Grafana plugin](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/) for building arbitrary dashboards in Grafana.
 - It provides [interactive command-line tool for querying VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/vlogscli/).
 - It can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
   See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line) for details.
