@@ -46,9 +46,9 @@ func (s *SpanReaderPluginServer) GetTrace(ctx context.Context, traceID model.Tra
 		for i, timestamp := range timestamps {
 			fields := make([]logstorage.Field, len(columns))
 			for j := range columns {
-				f := &fields[j]
-				f.Name = clonedColumnNames[j]
-				f.Value = strings.Clone(columns[j].Values[i])
+				if columns[j].Values[i] != "" {
+					fields = append(fields, logstorage.Field{Name: clonedColumnNames[j], Value: strings.Clone(columns[j].Values[i])})
+				}
 			}
 
 			rowsLock.Lock()
