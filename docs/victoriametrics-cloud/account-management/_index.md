@@ -16,5 +16,5 @@ Here, the following information is presented:
 
 * [Registration and Trial](https://docs.victoriametrics.com/victoriametrics-cloud/account-management/registration-and-trial/), including authentication methods, trial period information and how to continue using VictoriaMetrics Cloud after the trial period expires.
 * [Account and Profile](https://docs.victoriametrics.com/victoriametrics-cloud/account-management/account-and-profile/).
-* [Roles and permissions]().
+* [Roles and permissions](https://docs.victoriametrics.com/victoriametrics-cloud/account-management/roles-and-permissions/).
 * [User management](https://docs.victoriametrics.com/victoriametrics-cloud/account-management/user-management/).
