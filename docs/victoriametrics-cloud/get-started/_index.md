@@ -1,6 +1,7 @@
 ---
 title: Get Started
 weight: 1
+disableToc: true
 menu:
   docs:
     weight: 1
