@@ -11,120 +11,45 @@ aliases:
   - /victoriametrics-cloud/user-management/index.html
   - /managed-victoriametrics/user-management/index.html
 ---
-The user management system enables admins to control user access and onboard and offboard users to the VictoriaMetrics Cloud. It organizes users according to their needs and role.
+The User Management system enables VictoriaMetrics Cloud Administrators to control user access and
+onboard or offboard users to their Organization. It categorizes users according to their needs and role.
 
-The document covers the following topics
-- [User list](#user-list)
-- [How to Add User](#how-to-add-user)
-- [How to Update User](#how-to-update-user)
-- [How to Delete User](#how-to-delete-user)
-- [How to resend invitation](#how-to-resend-invitation)
+Administrators can manage users in the [User Management section](https://cloud.victoriametrics.com/users), which provides a
+user list where actions can be applied:
 
 
+|               **User Management field**           | **Description**                   |
+|------------------------------------|-----------------------------------|
+| **`Email`**       | Registration user email. |
+| **`Status`**      | User profile [status](https://docs.victoriametrics.com/victoriametrics-cloud/account-management/roles-and-permissions#profile-status). |
+| **`User Role`**   | Admin, Editor or Viewer. See description [here](https://docs.victoriametrics.com/victoriametrics-cloud/account-management/roles-and-permissions#roles-and-permissions). |
+| **`Created At`**  | Date on which this user was created. |
+| **`Last Active`** | User's last login date and time.    |
+| **`Auth method`** | User's [authentication method](https://docs.victoriametrics.com/victoriametrics-cloud/account-management/registration-and-trial/#authentication-methods).    |
+| **`Actions`**  | Click here to manage the user. |
 
-## User list
+## Adding Users
 
-It shows all users with different roles, and you can apply provided actions with them.
-
-![User Management list](user_management_list.webp)
-
-In the table, there is additional information about the users:
-
-
-<table class="params">
-  <tr>
-   <td>Email:</td>
-   <td>Registration user email</td>
-  </tr>
-  <tr>
-   <td>Status:</td>
-   <td>Active, Inactive or Pending Invitation</td>
-  </tr>
-  <tr>
-   <td>User Role:</td>
-   <td>Admin, Editor or Viewer</td>
-  </tr>
-  <tr>
-   <td>Created At:</td>
-   <td>When user was created</td>
-  </tr>
-  <tr>
-   <td>Last Active:</td>
-   <td>Last login date and time</td>
-  </tr>
-  <tr>
-   <td>Auth method:</td>
-   <td>Auth options to login into the VictoriaMetrics Cloud</td>
-  </tr>
-  <tr>
-   <td>Actions:</td>
-   <td>Actions to manipulate with users</td>
-  </tr>
-</table>
-
-## How to Add User
-
-Click on `Invite user` button 
-the user invitation button and fill out the form in the modal, which will appear after you click. All fields are mandatory.
-
-![Invite user](user_management_invite_user.webp)
+Users can be added to VictoriaMetrics Cloud by sending an invitation. Invitations can be sent by
+clicking on `Invite User` in the [User Management section](https://cloud.victoriametrics.com/users).
 
 After filling out the form, click on the `Invite` button. 
 The user will be saved, and an invitation email to the provided email address will be sent. As a confirmation, you will see the success message.
 
-**The invitation link is only active for 24 hours.**
+> The invitation link is only active for 24 hours.
 
-The user will be at Pending Invitation status. After accepting the invitation user status changes to Active.
+The user will remain at the `Pending Invitation` [status](https://docs.victoriametrics.com/victoriametrics-cloud/account-management/roles-and-permissions#profile-status)
+until the invitation is accepted. At his point the user is all set and transitions to the `Active` status.
 
+## Updating Users
 
-![Invite success](user_management_invite_success.webp)
+Users can be activated, deactivated or modified, including their role, under the `Actions` menu and selecting `Manage`.
 
+## Deleting Users
 
-## How to Update User
+Users can also be deleted from an Organization. Simply navigate to the [User Management section](https://cloud.victoriametrics.com/users),
+and select `Delete user` under the `Actions` menu.
 
-To edit the user role and details, activate or deactivate a user, and click on
+## Resending invitations
 
-
-![Update user](user_management_update_user.webp)
-
-![Update user dropdown](user_management_update_user_dropdown.webp)
-
-User editing form:
-
-![Update form](user_management_user_update_form.webp)
-
-To save changes, click the `Update` button. If changes are saved successfully, you will see a message at the top of the page.
-
-![Updated success](user_management_user_updated_success.webp)
-
-## How to Delete User
-
-You can delete a user from your account. However, you will need to invite them again if you want to give them access.
-
-Click on `Delete` button to delete the user.
-
-![User delete](user_management_user_delete.webp)
-
-To confirm the deletion of a user, you will need to re-enter their email address and press the **Confirm** button
-
-![User delete form](user_management_delete_user_form.webp)
-
-If the user is deleted successfully, you will see a success message
-
-![Delete success](user_management_delete_success.webp)
-
-## How to resend invitation
-
-If the invitation is expired, it is possible to resend email to the user
-
-Click `Resend invitation` button
-
-![Resend invitation](user_management_resend_invitation.webp)
-
-Confirm resend invitation by clicking `Confirm` button in the modal dialog
-
-![Confirm resend invitation](user_management_confirm_resend_invitation.webp)
-
-If invitation successfully resented to the user success message will appear
-
-![Resend success](user_management_resend_success.webp)
+If an invitation is expired, you can always to resend the invite to the user, by clicking on the `Resend invitation` button.
