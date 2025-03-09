@@ -1,23 +1,27 @@
 ---
-weight: 6
+weight: 4
 title: User Management in VictoriaMetrics Cloud
 menu:
   docs:
-    parent: "cloud"
-    weight: 6
+    parent: account-management
+    weight: 4
     name: User Management
 aliases:
+  - /victoriametrics-cloud/user-managment/index.html
   - /victoriametrics-cloud/user-management/index.html
   - /managed-victoriametrics/user-management/index.html
 ---
 The user management system enables admins to control user access and onboard and offboard users to the VictoriaMetrics Cloud. It organizes users according to their needs and role.
 
 The document covers the following topics
-1. [User Roles](#user-roles)
-1. [User List](#user-list)
-1. [How to Add User](#how-to-add-user)
-1. [How to Update User](#how-to-update-user)
-1. [How to Delete User](#how-to-delete-user)
+- [User roles](#user-roles)
+  - [Roles definition](#roles-definition)
+  - [User statuses](#user-statuses)
+- [User list](#user-list)
+- [How to Add User](#how-to-add-user)
+- [How to Update User](#how-to-update-user)
+- [How to Delete User](#how-to-delete-user)
+- [How to resend invitation](#how-to-resend-invitation)
 
 ## User roles
 
