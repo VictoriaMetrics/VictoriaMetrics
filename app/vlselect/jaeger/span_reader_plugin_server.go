@@ -2,8 +2,8 @@ package jaeger
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/jaeger"
 	"strings"
 	"sync"
 	"time"
@@ -19,9 +19,9 @@ import (
 // A SpanReaderPluginServer represents a Jaeger interface to read from gRPC storage backend
 type SpanReaderPluginServer struct{}
 
-type span struct {
+type row struct {
 	timestamp int64
-	msg       string
+	fields    []logstorage.Field
 }
 
 func (s *SpanReaderPluginServer) GetTrace(ctx context.Context, traceID model.TraceID) (*model.Trace, error) {
@@ -29,14 +29,14 @@ func (s *SpanReaderPluginServer) GetTrace(ctx context.Context, traceID model.Tra
 	defer func() {
 		logger.Infof("GetTrace finished in %dms", time.Since(start).Milliseconds())
 	}()
-	qStr := fmt.Sprintf("trace_id:%s | fields _time, _msg", traceID.String())
+	qStr := fmt.Sprintf("%s:%s", jaeger.TraceID, traceID.String())
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, time.Now().UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
 
-	var spanRows []span
-	var spansLock sync.Mutex
+	var rows []row
+	var rowsLock sync.Mutex
 	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
@@ -44,17 +44,19 @@ func (s *SpanReaderPluginServer) GetTrace(ctx context.Context, traceID model.Tra
 		}
 
 		for i, timestamp := range timestamps {
+			fields := make([]logstorage.Field, len(columns))
 			for j := range columns {
-				if columns[j].Name == "_msg" {
-					spansLock.Lock()
-					spanRows = append(spanRows, span{
-						timestamp: timestamp,
-						msg:       strings.Clone(columns[j].Values[i]),
-					})
-					spansLock.Unlock()
-				}
+				f := &fields[j]
+				f.Name = clonedColumnNames[j]
+				f.Value = strings.Clone(columns[j].Values[i])
 			}
 
+			rowsLock.Lock()
+			rows = append(rows, row{
+				timestamp: timestamp,
+				fields:    fields,
+			})
+			rowsLock.Unlock()
 		}
 	}
 	logger.Infof("GetTrace query: %s", q.String())
@@ -62,14 +64,11 @@ func (s *SpanReaderPluginServer) GetTrace(ctx context.Context, traceID model.Tra
 		return nil, err
 	}
 
-	spans := make([]*model.Span, 0, len(spanRows))
-	for i := range spanRows {
-		var sp *model.Span
-		msg := spanRows[i].msg
-		err = json.Unmarshal([]byte(msg), &sp)
+	spans := make([]*model.Span, 0, len(rows))
+	for i := range rows {
+		sp, err := jaeger.FieldsToSpan(rows[i].fields)
 		if err != nil {
-			logger.Errorf("cannot unmarshal [%s]: %s", spanRows[i].msg, err)
-			//return nil, fmt.Errorf("cannot unmarshal [%s]: %s", spanRows[i].msg, err)
+			logger.Errorf("cannot unmarshal log fields [%v] to span: %s", rows[i].fields, err)
 			continue
 		}
 		spans = append(spans, sp)
@@ -92,7 +91,7 @@ func (s *SpanReaderPluginServer) GetServices(ctx context.Context) ([]string, err
 	}
 	q.AddTimeFilter(0, time.Now().UnixNano())
 	logger.Infof("GetServices StreamFieldValues query: %s", q.String())
-	serviceHits, err := vlstorage.GetStreamFieldValues(ctx, []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, "service_name", uint64(1000))
+	serviceHits, err := vlstorage.GetStreamFieldValues(ctx, []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, jaeger.ProcessServiceName, uint64(1000))
 	if err != nil {
 		return nil, err
 	}
@@ -110,13 +109,13 @@ func (s *SpanReaderPluginServer) GetOperations(ctx context.Context, req spanstor
 	defer func() {
 		logger.Infof("GetOperations finished in %dms", time.Since(start).Milliseconds())
 	}()
-	qStr := fmt.Sprintf("_stream:{service_name=\"%s\"}", req.ServiceName) // todo spankind filter
+	qStr := fmt.Sprintf("_stream:{%s=\"%s\"}", jaeger.ProcessServiceName, req.ServiceName) // todo spankind filter
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, time.Now().UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
 	logger.Infof("GetOperations StreamFieldValues query: %s", q.String())
-	operationHits, err := vlstorage.GetStreamFieldValues(ctx, []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, "operation_name", uint64(1000))
+	operationHits, err := vlstorage.GetStreamFieldValues(ctx, []logstorage.TenantID{{AccountID: 0, ProjectID: 0}}, q, jaeger.OperationName, uint64(1000))
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +143,7 @@ func (s *SpanReaderPluginServer) FindTraces(ctx context.Context, query *spanstor
 	for _, traceID := range traceIDs {
 		traceIDStrList = append(traceIDStrList, traceID.String())
 	}
-	qStr := fmt.Sprintf("trace_id:in(%s) | fields _time, _msg", strings.Join(traceIDStrList, ","))
+	qStr := fmt.Sprintf(jaeger.TraceID+":in(%s)", strings.Join(traceIDStrList, ","))
 
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, time.Now().UnixNano())
 	if err != nil {
@@ -152,8 +151,8 @@ func (s *SpanReaderPluginServer) FindTraces(ctx context.Context, query *spanstor
 	}
 	q.AddTimeFilter(query.StartTimeMin.UnixNano(), query.StartTimeMax.UnixNano())
 
-	var spanRows []span
-	var spansLock sync.Mutex
+	var rows []row
+	var rowsLock sync.Mutex
 	writeBlock := func(_ uint, timestamps []int64, columns []logstorage.BlockColumn) {
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
@@ -161,17 +160,19 @@ func (s *SpanReaderPluginServer) FindTraces(ctx context.Context, query *spanstor
 		}
 
 		for i, timestamp := range timestamps {
+			fields := make([]logstorage.Field, len(columns))
 			for j := range columns {
-				if columns[j].Name == "_msg" {
-					spansLock.Lock()
-					spanRows = append(spanRows, span{
-						timestamp: timestamp,
-						msg:       strings.Clone(columns[j].Values[i]),
-					})
-					spansLock.Unlock()
-				}
+				f := &fields[j]
+				f.Name = clonedColumnNames[j]
+				f.Value = strings.Clone(columns[j].Values[i])
 			}
 
+			rowsLock.Lock()
+			rows = append(rows, row{
+				timestamp: timestamp,
+				fields:    fields,
+			})
+			rowsLock.Unlock()
 		}
 	}
 	logger.Infof("FindTraces query: %s", q.String())
@@ -185,13 +186,10 @@ func (s *SpanReaderPluginServer) FindTraces(ctx context.Context, query *spanstor
 		tracesMap[traceIDs[i].String()] = traces[i]
 	}
 
-	for i := range spanRows {
-		var sp *model.Span
-		msg := spanRows[i].msg
-		err = json.Unmarshal([]byte(msg), &sp)
+	for i := range rows {
+		sp, err := jaeger.FieldsToSpan(rows[i].fields)
 		if err != nil {
-			logger.Errorf("cannot unmarshal [%s]: %s", spanRows[i].msg, err)
-			//return nil, fmt.Errorf("cannot unmarshal [%s]: %s", spanRows[i].msg, err)
+			logger.Errorf("cannot unmarshal log fields [%v] to span: %s", rows[i].fields, err)
 			continue
 		}
 
@@ -207,24 +205,24 @@ func (s *SpanReaderPluginServer) FindTraceIDs(ctx context.Context, query *spanst
 	}()
 	qStr := ""
 	if svcName := query.ServiceName; svcName != "" {
-		qStr += fmt.Sprintf("AND _stream:{service_name=\"%s\"} ", svcName)
+		qStr += fmt.Sprintf("AND _stream:{"+jaeger.ProcessServiceName+"=\"%s\"} ", svcName)
 	}
 	if operationName := query.OperationName; operationName != "" {
-		qStr += fmt.Sprintf("AND _stream:{operation_name=\"%s\"} ", operationName)
+		qStr += fmt.Sprintf("AND _stream:{"+jaeger.OperationName+"=\"%s\"} ", operationName)
 	}
 
 	if tags := query.Tags; len(tags) > 0 {
 		for k, v := range tags {
-			qStr += fmt.Sprintf("AND %s:%s ", k, v)
+			qStr += fmt.Sprintf("AND "+jaeger.TagKey+":%s ", k, v)
 		}
 	}
 	if durationMin := query.DurationMin; durationMin > 0 {
-		qStr += fmt.Sprintf("AND duration:>%d ", durationMin.Nanoseconds())
+		qStr += fmt.Sprintf("AND "+jaeger.Duration+":>%d ", durationMin.Nanoseconds())
 	}
 	if durationMax := query.DurationMax; durationMax > 0 {
 		qStr += fmt.Sprintf("AND duration:<%d ", durationMax.Nanoseconds())
 	}
-	qStr = strings.TrimLeft(qStr+" | fields _time, trace_id", "AND ")
+	qStr = strings.TrimLeft(qStr+" | fields _time, "+jaeger.TraceID, "AND ")
 
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, query.StartTimeMax.UnixNano())
 	if err != nil {
