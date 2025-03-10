@@ -59,7 +59,7 @@ services:
   # scraping, storing metrics and serve read requests.
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.112.0
+    image: victoriametrics/victoria-metrics:v1.113.0
     ports:
       - 8428:8428
     volumes:
@@ -78,7 +78,7 @@ services:
   # depending on the requested path.
   vmauth:
     container_name: vmauth
-    image: victoriametrics/vmauth:v1.112.0
+    image: victoriametrics/vmauth:v1.113.0
     depends_on:
       - "victoriametrics"
       - "victorialogs"
@@ -95,7 +95,7 @@ services:
   # vmalert executes alerting and recording rules according to given rule type.
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.112.0
+    image: victoriametrics/vmalert:v1.113.0
     depends_on:
       - "vmauth"
       - "alertmanager"
