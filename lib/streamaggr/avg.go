@@ -10,7 +10,7 @@ func (av *avgAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _
 	av.count++
 }
 
-func (av *avgAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string) {
+func (av *avgAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string, _ bool) {
 	if av.count > 0 {
 		avg := av.sum / av.count
 		ctx.appendSeries(key, "avg", avg)
