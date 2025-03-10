@@ -18,7 +18,7 @@ VictoriaMetrics Cloud offers a robust suite of features designed to optimize you
 <details>
 <summary>Integrations and Compatibility</summary>
 
-* **Observability protocols**: OpenTelemetry, InfluxDB, DataDog, NewRelic, OpenTSDB & Graphite.
+* **Observability protocols**: Prometheus, OpenTelemetry, InfluxDB, DataDog, NewRelic, OpenTSDB & Graphite.
 * **Data visualization**: Use built-in [VictoriaMetrics UI](https://play.victoriametrics.com/) or integrate seamlessly with your current stack to query and visualize your data in [Grafana](https://grafana.com/) or [Perses](https://perses.dev).
 * [**AWS PrivateLink**](https://aws.amazon.com/privatelink/): enabling even more secure communication with VictoriaMetrics Cloud deployments directly from your VPC.
 
