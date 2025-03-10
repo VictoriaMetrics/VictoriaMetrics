@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
@@ -23,8 +24,10 @@ var parserPool fastjson.ParserPool
 func handleJSON(r *http.Request, w http.ResponseWriter) {
 	startTime := time.Now()
 	requestsJSONTotal.Inc()
-	reader := r.Body
-	if r.Header.Get("Content-Encoding") == "gzip" {
+	var reader io.Reader = r.Body
+	encoding := r.Header.Get("Content-Encoding")
+	switch encoding {
+	case "gzip":
 		zr, err := common.GetGzipReader(reader)
 		if err != nil {
 			httpserver.Errorf(w, r, "cannot initialize gzip reader: %s", err)
@@ -32,6 +35,14 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 		}
 		defer common.PutGzipReader(zr)
 		reader = zr
+	case "zstd":
+		zr := zstd.NewReader(reader)
+		defer zr.Release()
+		reader = zr
+	case "":
+	default:
+		httpserver.Errorf(w, r, "unsupported encoding type %q", encoding)
+		return
 	}
 
 	wcr := writeconcurrencylimiter.GetReader(reader)

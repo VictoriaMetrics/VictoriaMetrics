@@ -2,12 +2,15 @@ package stream
 
 import (
 	"bytes"
-	"compress/gzip"
 	"fmt"
+	"io"
 	"reflect"
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/klauspost/compress/gzip"
+	"github.com/klauspost/compress/zstd"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -317,20 +320,32 @@ func TestParseStream(t *testing.T) {
 
 func checkParseStream(data []byte, checkSeries func(tss []prompbmarshal.TimeSeries) error) error {
 	// Verify parsing without compression
-	if err := ParseStream(bytes.NewBuffer(data), false, nil, checkSeries); err != nil {
+	if err := ParseStream(bytes.NewBuffer(data), "", nil, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing data: %w", err)
 	}
 
-	// Verify parsing with compression
+	// Verify parsing with gzip compression
 	var bb bytes.Buffer
-	zw := gzip.NewWriter(&bb)
+	var zw io.WriteCloser = gzip.NewWriter(&bb)
 	if _, err := zw.Write(data); err != nil {
 		return fmt.Errorf("cannot compress data: %w", err)
 	}
 	if err := zw.Close(); err != nil {
 		return fmt.Errorf("cannot close gzip writer: %w", err)
 	}
-	if err := ParseStream(&bb, true, nil, checkSeries); err != nil {
+	if err := ParseStream(&bb, "gzip", nil, checkSeries); err != nil {
+		return fmt.Errorf("error when parsing compressed data: %w", err)
+	}
+
+	// Verify parsing with zstd  compression
+	zw, _ = zstd.NewWriter(&bb)
+	if _, err := zw.Write(data); err != nil {
+		return fmt.Errorf("cannot compress data: %w", err)
+	}
+	if err := zw.Close(); err != nil {
+		return fmt.Errorf("cannot close zstd writer: %w", err)
+	}
+	if err := ParseStream(&bb, "zstd", nil, checkSeries); err != nil {
 		return fmt.Errorf("error when parsing compressed data: %w", err)
 	}
 
