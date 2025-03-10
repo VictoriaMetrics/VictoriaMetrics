@@ -49,9 +49,9 @@ please refer to the [VictoriaMetrics Cloud documentation](https://docs.victoriam
 * `vmalert` execute queries against remote datasource which has reliability risks because of the network.
   It is recommended to configure alerts thresholds and rules expressions with the understanding that network
   requests may fail;
-* by default, rules execution is sequential within one group, but persistence of execution results to remote
+* `vmalert` executes rules within a group sequentially, but persistence of execution results to remote
   storage is asynchronous. Hence, user shouldn't rely on chaining of recording rules when result of previous
-  recording rule is reused in the next one;
+  recording rule is reused in the next one. See how to chain groups [here](https://docs.victoriametrics.com/vmalert/#chaining-groups).
 
 ## QuickStart
 
@@ -138,7 +138,8 @@ name: <string>
 # Group will be evaluated at the exact offset in the range of [0...interval].
 # E.g. for Group with `interval: 1h` and `eval_offset: 5m` the evaluation will
 # start at 5th minute of the hour. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3409
-# `eval_offset` can't be bigger than `interval`.
+# `interval` must be specified if `eval_offset` is used, and `eval_offset` cannot exceed `interval`.
+# `eval_offset` cannot be used with `eval_delay`, as group will be executed at the exact offset and `eval_delay` is ignored.
 [ eval_offset: <duration> ]
 
 # Optional
@@ -952,7 +953,7 @@ Sensitive info is stripped from the `curl` examples - see [security](#security) 
 
 ### Never-firing alerts
 
-vmalert can detect{{% available_from "v1.90.0" %}} if alert's expression doesn't match any time series in runtime 
+vmalert can detect{{% available_from "v1.91.0" %}} if alert's expression doesn't match any time series in runtime 
 starting from [v1.91](https://docs.victoriametrics.com/changelog/#v1910). This problem usually happens
 when alerting expression selects time series which aren't present in the datasource (i.e. wrong `job` label)
 or there is a typo in the series selector (i.e. `env=prod`). Such alerting rules will be marked with special icon in 
@@ -1460,7 +1461,7 @@ The shortlist of configuration flags is the following:
   -rule.defaultRuleType string
      Default type for rule expressions, can be overridden by type parameter inside the rule group. Supported values: "graphite", "prometheus" and "vlogs". (default: "prometheus")
   -rule.evalDelay time
-     Adjustment of the time parameter for rule evaluation requests to compensate intentional data delay from the datasource.Normally, should be equal to `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect). (default 30s)
+     Adjustment of the time parameter for rule evaluation requests to compensate intentional data delay from the datasource.Normally, should be equal to `-search.latencyOffset` (cmd-line flag configured for VictoriaMetrics single-node or vmselect). This doesn't apply to groups with eval_offset specified. (default 30s)
   -rule.maxResolveDuration duration
      Limits the maxiMum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group
   -rule.resendDelay duration
@@ -1553,6 +1554,62 @@ groups:
 Please note, `params` are used only for executing rules expressions (requests to `datasource.url`).
 If there would be a conflict between URL params set in `datasource.url` flag and params in group definition
 the latter will have higher priority.
+
+### Chaining groups
+
+For chaining groups, they must be executed in a specific order, and the next group should be executed after
+the results from previous group are available in the datasource.
+In `vmalert`, user can specify `eval_offset` to achieve that{{% available_from "v1.113.0" %}}.
+
+For example:
+```yaml
+groups:
+  - name: BaseGroup
+    interval: 1m
+    eval_offset: 10s
+    rules:
+      - record: http_server_request_duration_seconds:sum_rate:5m:http_get
+        expr: |
+          sum without(instance, pod) (
+            rate(
+              http_server_request_duration_seconds{
+                http_request_method="GET"
+              }[5m]
+            )
+          )
+      - record: http_server_request_duration_seconds:sum_rate:5m:http_post
+        expr: |
+          sum without(instance, pod) (
+            rate(
+              http_server_request_duration_seconds{
+                http_request_method="POST"
+              }[5m]
+            )
+          )
+  - name: TopGroup
+    interval: 1m
+    eval_offset: 40s
+    rules:
+      - record: http_server_request_duration_seconds:sum_rate:5m:merged
+        expr: |
+          http_server_request_duration_seconds:sum_rate:5m:http_get
+          or 
+          http_server_request_duration_seconds:sum_rate:5m:http_post
+```
+
+This configuration ensures that rules in `BaseGroup` are exectuted at(assuming vmalert starts at `12:00:00`): 
+```
+[12:00:10, 12:01:10, 12:02:10, 12:03:10...]
+```
+while rules in group `TopGroup` are exectuted at:
+```
+[12:00:40, 12:01:40, 12:02:40, 12:03:40...]
+```
+As a result, `TopGroup` always gets the latest results of `BaseGroup`.
+
+By default, the `eval_offset` values should be at least 30 seconds apart to accommodate the 
+`-search.latencyOffset(default 30s)` command-line flag at vmselect or VictoriaMetrics single-node. 
+The mininum `eval_offset` gap can be adjusted accordingly with `-search.latencyOffset`.
 
 ### Notifier configuration file
 

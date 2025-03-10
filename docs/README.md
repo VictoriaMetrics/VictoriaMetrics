@@ -461,6 +461,58 @@ vmselect requests stats via [/api/v1/status/tsdb](#tsdb-stats) API from each vms
 This may lead to inflated values when samples for the same time series are spread across multiple vmstorage nodes
 due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=re-routes#cluster-availability).
 
+### Track ingested metrics usage
+
+VictoriaMetrics provides the ability to record statistics of fetched [metric names](https://docs.victoriametrics.com/keyconcepts/#structure-of-a-metric) during [querying](https://docs.victoriametrics.com/keyconcepts/#query-data). This feature can be enabled via the flag `--storage.trackMetricNamesStats` (disabled by default) on  a single-node VictoriaMetrics or [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview). Querying a metric with non-matching filters doesn't increase the counter for this particular metric name.
+For example, querying for `vm_log_messages_total{level!="info"}` won't increment usage counter for `vm_log_messages_total` if there are no `{level="error"}` or `{level="warning"}` series yet.
+VictoriaMetrics tracks metric names query statistics for `/api/v1/query`, `/api/v1/query_range`, `/render`, `/federate` and `/api/v1/export` API calls.
+
+To get metric names usage statistics, use the `/prometheus/api/v1/status/metric_names_stats` API endpoint. It accepts the following query parameters:
+
+* `limit` - integer value to limit the number of metric names in response. By default, API returns 1000 records.
+* `le` -  `less than or equal`, is an integer threshold for filtering metric names by their usage count in queries. For example, with `?le=1` API returns metric names that were queried <=1 times.
+* `match_pattern` - a substring pattern to match metric names. For example, `?match_pattern=vm_` will match any metric names with `vm_` pattern, like `vm_http_requests`, `max_vm_memory_available`. It doesn't support regex syntax.
+
+ The API endpoint returns the following `JSON` response:
+
+```json
+{
+  "status": "success",
+  "statsSollectedSince": 1737534094,
+  "statsCollectedRecordsTotal": 2,
+  "records": [
+    {
+      "metricName": "node_disk_writes_completed_total",
+      "queryRequests": 50,
+      "lastRequestTimestamp": 1737534262
+    },
+    {
+      "metricName": "node_network_transmit_errs_total",
+      "queryRequestsCount": 100,
+      "lastRequestTimestamp": 1737534262
+    }
+  ]
+}
+```
+
+VictoriaMetrics stores tracked metric names in memory and saves the state to disk in the data/cache folder during restarts.
+The size of the in-memory state is limited to 1% of the available memory by default.
+This limit can be adjusted using the `-storage.cacheSizeMetricNamesStats` flag.
+
+When the maximum state capacity is reached, VictoriaMetrics will stop tracking stats for newly registered time series.
+However, read request statistics for already tracked time series will continue to work as expected.
+
+VictoriaMetrics exposes the following metrics for the metric name tracker:
+* vm_cache_size_bytes{type="storage/metricNamesStatsTracker"}
+* vm_cache_size{type="storage/metricNamesStatsTracker"}
+* vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"}
+
+
+An alerting rule with query `vm_cache_size_bytes{type="storage/metricNamesStatsTracker"} \ vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"} > 0.9` can be used to notify the user of cache utilization exceeding 90%.
+
+The metric name tracker state can be reset via the API endpoint /api/v1/admin/status/metric_names_stats/reset or  
+via [cache removal](#cache-removal) procedure.
+
 ## How to apply new config to VictoriaMetrics
 
 VictoriaMetrics is configured via command-line flags, so it must be restarted when new command-line flags should be applied:
@@ -3209,6 +3261,11 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -reloadAuthKey value
      Auth key for /-/reload http endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -reloadAuthKey=file:///abs/path/to/file or -reloadAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -reloadAuthKey=http://host/path or -reloadAuthKey=https://host/path
+  -metricNamesStatsResetAuthKey value
+     AuthKey for reseting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*
+     See https://docs.victoriametrics.com/#track-ingested-metrics-usage
+     Flag value can be read from the given file when using -metricNamesStatsResetAuthKey=file:///abs/path/to/file or -metricNamesStatsResetAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https
+ url when using -metricNamesStatsResetAuthKey=http://host/path or -metricNamesStatsResetAuthKey=https://host/path
   -retentionFilter array
      Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise/
      Supports an array of values separated by comma or specified via multiple flags.
@@ -3357,6 +3414,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -storage.cacheSizeIndexDBTagFilters size
      Overrides max size for indexdb/tagFiltersToMetricIDs cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
+  -storage.cacheSizeMetricNamesStats size
+     Overrides max size for storage/metricNamesStatsTracker cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -storage.cacheSizeStorageTSID size
      Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/single-server-victoriametrics/#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -3371,6 +3431,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -storage.minFreeDiskSpaceBytes size
      The minimum free disk space at -storageDataPath after which the storage stops accepting new data
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)
+  -storage.trackMetricNamesStats
+     Whether to track ingest and query requests for timeseries metric names. This feature allows to track metric names unused at query requests.
+     See https://docs.victoriametrics.com/#track-ingested-metrics-usage
   -storageDataPath string
      Path to storage data (default "victoria-metrics-data")
   -streamAggr.config string
