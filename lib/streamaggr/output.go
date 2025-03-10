@@ -112,7 +112,7 @@ func (ao *aggrOutputs) flushState(ctx *flushCtx) {
 			outputs = av.blue
 		}
 		for i, o := range outputs {
-			o.flush(ao.configs[i], ctx, outputKey)
+			o.flush(ao.configs[i], ctx, outputKey, ctx.isLast)
 		}
 		av.mu.Unlock()
 		if ctx.isLast {
@@ -135,6 +135,6 @@ type aggrConfig interface {
 
 type aggrValue interface {
 	pushSample(aggrConfig, *pushSample, string, int64)
-	flush(aggrConfig, *flushCtx, string)
+	flush(aggrConfig, *flushCtx, string, bool)
 	state() any
 }

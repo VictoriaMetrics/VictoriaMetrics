@@ -18,7 +18,7 @@ func (av *stdAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _
 	av.avg = avg
 }
 
-func (av *stdAggrValue) flush(c aggrConfig, ctx *flushCtx, key string) {
+func (av *stdAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, _ bool) {
 	ac := c.(*stdAggrConfig)
 	if av.count > 0 {
 		suffix := ac.getSuffix()
