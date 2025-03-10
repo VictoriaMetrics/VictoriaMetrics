@@ -88,7 +88,6 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 		return fmt.Errorf("`streams` item in the parsed JSON must contain an array; got %q", streamsV)
 	}
 
-	var ts int64
 	currentTimestamp := time.Now().UnixNano()
 	var commonFields []logstorage.Field
 	for _, stream := range streams {
@@ -143,15 +142,12 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 			if err != nil {
 				return fmt.Errorf("unexpected log timestamp type for %q; want string", lineA[0])
 			}
-
-			if len(timestamp) == 0 {
-				// Special case - an empty timestamp must be substituted with the current time by the caller.
+			ts, err := parseLokiTimestamp(bytesutil.ToUnsafeString(timestamp))
+			if err != nil {
+				return fmt.Errorf("cannot parse log timestamp %q: %w", timestamp, err)
+			}
+			if ts == 0 {
 				ts = currentTimestamp
-			} else {
-				ts, err = insertutils.ParseUnixTimestamp(bytesutil.ToUnsafeString(timestamp))
-				if err != nil {
-					return fmt.Errorf("cannot parse log timestamp %q: %w", timestamp, err)
-				}
 			}
 
 			// parse log message
@@ -197,4 +193,12 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 	}
 
 	return nil
+}
+
+func parseLokiTimestamp(s string) (int64, error) {
+	if s == "" {
+		// Special case - an empty timestamp must be substituted with the current time by the caller.
+		return 0, nil
+	}
+	return insertutils.ParseUnixTimestamp(s)
 }

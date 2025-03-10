@@ -16,7 +16,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
-* BUGFIX: [vlinsert](https://docs.victoriametrics.com/victorialogs/): support floats in elasticsearch timestamps. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8470).
+* BUGFIX: [vlinsert](https://docs.victoriametrics.com/victorialogs/): support timestamps with decimal points for elasticsearch ingestion protocol. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8470).
 
 ## [v1.15.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.15.0-victorialogs)
 
