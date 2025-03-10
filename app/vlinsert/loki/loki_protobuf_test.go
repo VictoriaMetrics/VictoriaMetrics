@@ -90,7 +90,7 @@ func TestParseProtobufRequest_Success(t *testing.T) {
 	["1577836800000000001", "foo bar"],
 	["1477836900005000002", "abc"],
 	["147.78369e9", "foobar"]
-]}]}`, []int64{1577836800000000001, 1477836900005000002, 147783690000}, `{"label1":"value1","label2":"value2","_msg":"foo bar"}
+]}]}`, []int64{1577836800000000001, 1477836900005000002, 147783690000000000}, `{"label1":"value1","label2":"value2","_msg":"foo bar"}
 {"label1":"value1","label2":"value2","_msg":"abc"}
 {"label1":"value1","label2":"value2","_msg":"foobar"}`)
 
