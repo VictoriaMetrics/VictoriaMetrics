@@ -33,4 +33,4 @@ the service won't be disrupted and you will be charged on that one once the cred
 
 ## After trial version expires
 When the trial period ends, adding a [payment method](https://docs.victoriametrics.com/victoriametrics-cloud/billing/#payment-methods) will let you continue
-using VictoriaMetrics Cloud. After the trial period expires, deployments will be stopped and deleted if no payment methods are found for your account. If you need assistance or have any questions, don't hesitate to contact our support team at support-cloud@victoriametrics.com.
+using VictoriaMetrics Cloud. After the trial period expires, deployments will be stopped and deleted after 7 days if no payment methods are found for your account. If you need assistance or have any questions, don't hesitate to contact our support team at support-cloud@victoriametrics.com.
