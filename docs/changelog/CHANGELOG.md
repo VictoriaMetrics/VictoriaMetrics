@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+- FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): add `vmalert_alerts_send_duration_seconds` metric to measure the time for alertmanager calls per notifier.
+
 ## [v1.113.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.113.0)
 
 Released at 2025-03-07
