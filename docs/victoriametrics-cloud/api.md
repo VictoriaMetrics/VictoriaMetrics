@@ -34,6 +34,27 @@ VictoriaMetrics Cloud provides programmatic access for managing cloud resources 
     * **Header Name**: `X-VM-Cloud-Access`
     * **Header Value**: `<Key-Value>`
 
+## General information API:
+
+* **List Cloud Providers**: [API reference](https://console.victoriametrics.cloud/api-docs)
+* **List Regions**: [API reference](https://console.victoriametrics.cloud/api-docs)
+* **List Deployment Tiers**: [API reference](https://console.victoriametrics.cloud/api-docs)
+
+## Deployments API:
+
+* **List Deployments**: [API reference](https://console.victoriametrics.cloud/api-docs)
+* **Get Deployment Details**: [API reference](https://console.victoriametrics.cloud/api-docs)
+* **Create New Deployment**: [API reference](https://console.victoriametrics.cloud/api-docs)
+* **Update Deployment Parameters**: [API reference](https://console.victoriametrics.cloud/api-docs)
+* **Delete Deployment**: [API reference](https://console.victoriametrics.cloud/api-docs)
+
+## Access Tokens API:
+
+* **List Access Tokens**: [API reference](https://console.victoriametrics.cloud/api-docs)
+* **Create New Access Token**: [API reference](https://console.victoriametrics.cloud/api-docs)
+* **Reveal Access Token Secret**: [API reference](https://console.victoriametrics.cloud/api-docs)
+* **Revoke Access Token**: [API reference](https://console.victoriametrics.cloud/api-docs)
+
 ## Alerting & Recording Rules API:
 
 * **List Files**: [API reference](https://console.victoriametrics.cloud/api-docs)
@@ -45,6 +66,4 @@ For detailed setup instructions, check the [VictoriaMetrics Cloud - AlertManager
 
 ## Future API Features:
 
-* **Deployments**: Create, Delete, Update, List, Get.
-* **Access Token**: Create, Delete, List, Get/Reveal.
 * **AlertManager**: Get Config, Upsert Config.
