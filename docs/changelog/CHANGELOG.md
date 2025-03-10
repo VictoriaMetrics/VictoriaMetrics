@@ -18,7 +18,10 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+**Update note 1: Update compose files at [deployment/docker](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker) to prevent silent collision issues. Consider recreating existing environments if you rely on any of `make docker-*-up` targets**
+
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation): fix panic on `rate` output. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8469).
+* BUGFIX: Remove `container_name` and `networks` from compose files at deployment/docker, run conflicting compose files with project name to prevent silent collision-related issues. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8459).
 
 ## [v1.113.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.113.0)
 

@@ -1,6 +1,5 @@
 services:
   grafana:
-    container_name: grafana
     image: grafana/grafana:11.5.0
     depends_on:
       - "vmauth"

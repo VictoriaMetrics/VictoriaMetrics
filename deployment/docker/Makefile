@@ -15,6 +15,7 @@ DOCKER_RUN ?= $(DOCKER) run
 DOCKER_BUILD ?= $(DOCKER) build
 DOCKER_COMPOSE ?= $(DOCKER) compose
 DOCKER_IMAGE_LS ?= $(DOCKER) image ls --format '{{.Repository}}:{{.Tag}}'
+DOCKER_CTX ?= deployment/docker
 
 package-base:
 	($(DOCKER_IMAGE_LS) | grep -q '$(BASE_IMAGE)$$') \
@@ -209,31 +210,51 @@ remove-docker-images:
 	docker image ls --format '{{.ID}}' | xargs docker image rm -f
 
 docker-single-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml up -d
+	COMPOSE_PROJECT_NAME=vmsingle \
+	COMPOSE_FILE=$(DOCKER_CTX)/compose.yml \
+	$(DOCKER_COMPOSE) up -d
 
 docker-single-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml down -v
+	COMPOSE_PROJECT_NAME=vmsingle \
+	COMPOSE_FILE=$(DOCKER_CTX)/compose.yml \
+	$(DOCKER_COMPOSE) down -v
 
 docker-single-vm-datasource-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/vm-datasource/docker-compose.yml up -d
+	COMPOSE_PROJECT_NAME=vmsingle \
+	COMPOSE_FILE=$(DOCKER_CTX)/compose.yml:$(DOCKER_CTX)/vm-datasource/compose.yml \
+	$(DOCKER_COMPOSE) up -d
 
 docker-single-vm-datasource-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml -f deployment/docker/vm-datasource/docker-compose.yml down -v
+	COMPOSE_PROJECT_NAME=vmsingle \
+	COMPOSE_FILE=$(DOCKER_CTX)/compose.yml:$(DOCKER_CTX)/vm-datasource/compose.yml \
+	$(DOCKER_COMPOSE) down -v
 
 docker-cluster-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml up -d
+	COMPOSE_PROJECT_NAME=vmcluster \
+	COMPOSE_FILE=$(DOCKER_CTX)/compose-cluster.yml \
+	$(DOCKER_COMPOSE) up -d
 
 docker-cluster-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml down -v
+	COMPOSE_PROJECT_NAME=vmcluster \
+        COMPOSE_FILE=$(DOCKER_CTX)/compose-cluster.yml \
+	$(DOCKER_COMPOSE) down -v
 
 docker-cluster-vm-datasource-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/vm-datasource/docker-compose-cluster.yml up -d
+	COMPOSE_PROJECT_NAME=vmcluster \
+        COMPOSE_FILE=$(DOCKER_CTX)/compose-cluster.yml:$(DOCKER_CTX)/vm-datasource/compose-cluster.yml \
+	$(DOCKER_COMPOSE) up -d
 
 docker-cluster-vm-datasource-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml -f deployment/docker/vm-datasource/docker-compose-cluster.yml down -v
+	COMPOSE_PROJECT_NAME=vmcluster \
+        COMPOSE_FILE=$(DOCKER_CTX)/compose-cluster.yml:$(DOCKER_CTX)/vm-datasource/compose-cluster.yml \
+	$(DOCKER_COMPOSE) down -v
 
 docker-victorialogs-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-victorialogs.yml up -d
+	COMPOSE_PROJECT_NAME=victorialogs \
+	COMPOSE_FILE=$(DOCKER_CTX)/compose-victorialogs.yml \
+	$(DOCKER_COMPOSE) up -d
 
 docker-victorialogs-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-victorialogs.yml down -v
+	COMPOSE_PROJECT_NAME=victorialogs \
+        COMPOSE_FILE=$(DOCKER_CTX)/compose-victorialogs.yml \
+	$(DOCKER_COMPOSE) down -v

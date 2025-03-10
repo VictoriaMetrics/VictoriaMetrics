@@ -3,7 +3,6 @@ services:
   #  It scrapes targets defined in --promscrape.config
   #  And forward them to --remoteWrite.url
   vmagent:
-    container_name: vmagent
     image: victoriametrics/vmagent:v1.113.0
     depends_on:
       - "vminsert"
@@ -19,7 +18,6 @@ services:
 
   # Grafana instance configured with VictoriaMetrics as datasource
   grafana:
-    container_name: grafana
     image: grafana/grafana:11.5.0
     depends_on:
       - "vmauth"
@@ -38,7 +36,6 @@ services:
   # vmstorage shards. Each shard receives 1/N of all metrics sent to vminserts,
   # where N is number of vmstorages (2 in this case).
   vmstorage-1:
-    container_name: vmstorage-1
     image: victoriametrics/vmstorage:v1.113.0-cluster
     ports:
       - 8482
@@ -50,7 +47,6 @@ services:
       - "--storageDataPath=/storage"
     restart: always
   vmstorage-2:
-    container_name: vmstorage-2
     image: victoriametrics/vmstorage:v1.113.0-cluster
     ports:
       - 8482
@@ -65,7 +61,6 @@ services:
   # vminsert is ingestion frontend. It receives metrics pushed by vmagent,
   # pre-process them and distributes across configured vmstorage shards.
   vminsert:
-    container_name: vminsert
     image: victoriametrics/vminsert:v1.113.0-cluster
     depends_on:
       - "vmstorage-1"
@@ -80,7 +75,6 @@ services:
   # vmselect is a query fronted. It serves read queries in MetricsQL or PromQL.
   # vmselect collects results from configured `--storageNode` shards.
   vmselect-1:
-    container_name: vmselect-1
     image: victoriametrics/vmselect:v1.113.0-cluster
     depends_on:
       - "vmstorage-1"
@@ -93,7 +87,6 @@ services:
       - 8481
     restart: always
   vmselect-2:
-    container_name: vmselect-2
     image: victoriametrics/vmselect:v1.113.0-cluster
     depends_on:
       - "vmstorage-1"
@@ -111,7 +104,6 @@ services:
   # read requests from Grafana, vmui, vmalert among vmselects.
   # It can be used as an authentication proxy.
   vmauth:
-    container_name: vmauth
     image: victoriametrics/vmauth:v1.113.0
     depends_on:
       - "vmselect-1"
@@ -126,7 +118,6 @@ services:
 
   # vmalert executes alerting and recording rules
   vmalert:
-    container_name: vmalert
     image: victoriametrics/vmalert:v1.113.0
     depends_on:
       - "vmauth"
@@ -151,7 +142,6 @@ services:
   # alertmanager receives alerting notifications from vmalert
   # and distributes them according to --config.file.
   alertmanager:
-    container_name: alertmanager
     image: prom/alertmanager:v0.28.0
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
