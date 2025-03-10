@@ -3,9 +3,7 @@ package loki
 import (
 	"fmt"
 	"io"
-	"math"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -90,6 +88,7 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 		return fmt.Errorf("`streams` item in the parsed JSON must contain an array; got %q", streamsV)
 	}
 
+	var ts int64
 	currentTimestamp := time.Now().UnixNano()
 	var commonFields []logstorage.Field
 	for _, stream := range streams {
@@ -144,12 +143,15 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 			if err != nil {
 				return fmt.Errorf("unexpected log timestamp type for %q; want string", lineA[0])
 			}
-			ts, err := parseLokiTimestamp(bytesutil.ToUnsafeString(timestamp))
-			if err != nil {
-				return fmt.Errorf("cannot parse log timestamp %q: %w", timestamp, err)
-			}
-			if ts == 0 {
+
+			if len(timestamp) == 0 {
+				// Special case - an empty timestamp must be substituted with the current time by the caller.
 				ts = currentTimestamp
+			} else {
+				ts, err = insertutils.ParseUnixTimestamp(bytesutil.ToUnsafeString(timestamp))
+				if err != nil {
+					return fmt.Errorf("cannot parse log timestamp %q: %w", timestamp, err)
+				}
 			}
 
 			// parse log message
@@ -195,30 +197,4 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 	}
 
 	return nil
-}
-
-func parseLokiTimestamp(s string) (int64, error) {
-	if s == "" {
-		// Special case - an empty timestamp must be substituted with the current time by the caller.
-		return 0, nil
-	}
-	n, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		// Fall back to parsing floating-point value
-		f, err := strconv.ParseFloat(s, 64)
-		if err != nil {
-			return 0, err
-		}
-		if f > math.MaxInt64 {
-			return 0, fmt.Errorf("too big timestamp in nanoseconds: %v; mustn't exceed %v", f, int64(math.MaxInt64))
-		}
-		if f < math.MinInt64 {
-			return 0, fmt.Errorf("too small timestamp in nanoseconds: %v; must be bigger or equal to %v", f, int64(math.MinInt64))
-		}
-		n = int64(f)
-	}
-	if n < 0 {
-		return 0, fmt.Errorf("too small timestamp in nanoseconds: %d; must be bigger than 0", n)
-	}
-	return n, nil
 }
