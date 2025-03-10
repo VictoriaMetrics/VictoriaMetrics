@@ -21,7 +21,7 @@ VictoriaMetrics Cloud supports user registration and authentication via the foll
 ## Trial period and credits
 
 After registration, every new user is granted with $`200` in credits to spend during the trial period.
-The trial period starts once the first deployment is created and lasts for 30 days.
+The trial period starts once the first deployment is created and lasts for `30` days.
 
 In general, VictoriaMetrics Cloud billing is based on the time a deployment is running.
 This means that, during the trial period, you are welcome to start, test and delete as many VictoriaMetrics
