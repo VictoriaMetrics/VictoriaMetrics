@@ -2,6 +2,7 @@ package remotewrite
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
@@ -87,7 +89,7 @@ type client struct {
 	remoteWriteURL string
 
 	// Whether to use VictoriaMetrics remote write protocol for sending the data to remoteWriteURL
-	useVMProto bool
+	useVMProto atomic.Bool
 
 	fq *persistentqueue.FastQueue
 	hc *http.Client
@@ -175,8 +177,14 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 			logger.Infof("the remote storage at %q doesn't support VictoriaMetrics remote write protocol. Switching to Prometheus remote write protocol. "+
 				"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol", sanitizedURL)
 		}
+
+		c.wg.Add(1)
+		go func() {
+			defer c.wg.Done()
+			c.runHandshake()
+		}()
 	}
-	c.useVMProto = useVMProto
+	c.useVMProto.Store(useVMProto)
 
 	return c
 }
@@ -344,6 +352,40 @@ func (c *client) runWorker() {
 	}
 }
 
+func (c *client) runHandshake() {
+	t := time.NewTicker(time.Minute * 10)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-t.C:
+			// Auto-detect whether the remote storage supports VictoriaMetrics remote write protocol.
+			doRequest := func(url string) (*http.Response, error) {
+				return c.doRequest(url, nil)
+			}
+
+			useVMProto := common.HandleVMProtoClientHandshake(c.remoteWriteURL, doRequest)
+
+			currUseVMProto := c.useVMProto.Load()
+			if useVMProto == currUseVMProto {
+				continue
+			}
+
+			if useVMProto {
+				logger.Infof("protocol upgraded for remote storage at %q: switching from Prometheus to VictoriaMetrics remote write protocol. "+
+					"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
+				c.useVMProto.Store(useVMProto)
+			} else {
+				logger.Infof("protocol downgraded for remote storage at %q: switching from VictoriaMetrics to Prometheus remote write protocol. "+
+					"See https://docs.victoriametrics.com/vmagent/#victoriametrics-remote-write-protocol", c.sanitizedURL)
+				c.useVMProto.Store(useVMProto)
+			}
+		case <-c.stopCh:
+			return
+		}
+	}
+}
+
 func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
 	req, err := c.newRequest(url, body)
 	if err != nil {
@@ -384,7 +426,7 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
 	h.Set("Content-Type", "application/x-protobuf")
-	if c.useVMProto {
+	if isZstd(body) {
 		h.Set("Content-Encoding", "zstd")
 		h.Set("X-VictoriaMetrics-Remote-Write-Version", "1")
 	} else {
@@ -533,4 +575,8 @@ func parseRetryAfterHeader(retryAfterString string) (retryAfterDuration time.Dur
 	}
 
 	return 0
+}
+
+func isZstd(body []byte) bool {
+	return len(body) >= 4 && binary.LittleEndian.Uint32(body) == 0xFD2FB528
 }
