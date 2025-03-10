@@ -1,7 +1,6 @@
 services:
   # Grafana instance configured with VictoriaLogs as datasource
   grafana:
-    container_name: grafana
     image: grafana/grafana:11.5.0
     depends_on:
       - "victoriametrics"
@@ -17,8 +16,6 @@ services:
       - ./../../dashboards/victorialogs.json:/var/lib/grafana/dashboards/vl.json
     environment:
       - "GF_INSTALL_PLUGINS=victoriametrics-logs-datasource"
-    networks:
-      - vm_net
     restart: always
 
   # vector is logs collector. It collects logs according to vector.yaml
@@ -37,13 +34,10 @@ services:
     ports:
       - "8686:8686"
     user: root
-    networks:
-      - vm_net
 
   #  VictoriaLogs instance, a single process responsible for
   #  storing logs and serving read queries.
   victorialogs:
-    container_name: victorialogs
     image: victoriametrics/victoria-logs:v1.15.0-victorialogs
     command:
       - "--storageDataPath=/vlogs"
@@ -52,13 +46,10 @@ services:
       - vldata:/vlogs
     ports:
       - "9428:9428"
-    networks:
-      - vm_net
 
   # VictoriaMetrics instance, a single process responsible for
   # scraping, storing metrics and serve read requests.
   victoriametrics:
-    container_name: victoriametrics
     image: victoriametrics/victoria-metrics:v1.113.0
     ports:
       - 8428:8428
@@ -69,15 +60,12 @@ services:
       - "--storageDataPath=/storage"
       - "--httpListenAddr=:8428"
       - "--promscrape.config=/etc/prometheus/prometheus.yml"
-    networks:
-      - vm_net
     restart: always
 
   # vmauth is a router and balancer for HTTP requests.
   # It proxies query requests from vmalert to either VictoriaMetrics or VictoriaLogs,
   # depending on the requested path.
   vmauth:
-    container_name: vmauth
     image: victoriametrics/vmauth:v1.113.0
     depends_on:
       - "victoriametrics"
@@ -88,13 +76,10 @@ services:
       - "--auth.config=/etc/auth.yml"
     ports:
       - 8427:8427
-    networks:
-      - vm_net
     restart: always
 
   # vmalert executes alerting and recording rules according to given rule type.
   vmalert:
-    container_name: vmalert
     image: victoriametrics/vmalert:v1.113.0
     depends_on:
       - "vmauth"
@@ -118,14 +103,11 @@ services:
       - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana
       - "--external.url=http://127.0.0.1:3000" #grafana outside container
-    networks:
-      - vm_net
     restart: always
 
   # alertmanager receives alerting notifications from vmalert
   # and distributes them according to --config.file.
   alertmanager:
-    container_name: alertmanager
     image: prom/alertmanager:v0.28.0
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
@@ -133,13 +115,9 @@ services:
       - "--config.file=/config/alertmanager.yml"
     ports:
       - 9093:9093
-    networks:
-      - vm_net
     restart: always
 
 volumes:
   vmdata: {}
   vldata: {}
   grafanadata: {}
-networks:
-  vm_net:
