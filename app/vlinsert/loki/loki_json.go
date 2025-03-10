@@ -3,9 +3,7 @@ package loki
 import (
 	"fmt"
 	"io"
-	"math"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -202,23 +200,5 @@ func parseLokiTimestamp(s string) (int64, error) {
 		// Special case - an empty timestamp must be substituted with the current time by the caller.
 		return 0, nil
 	}
-	n, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		// Fall back to parsing floating-point value
-		f, err := strconv.ParseFloat(s, 64)
-		if err != nil {
-			return 0, err
-		}
-		if f > math.MaxInt64 {
-			return 0, fmt.Errorf("too big timestamp in nanoseconds: %v; mustn't exceed %v", f, int64(math.MaxInt64))
-		}
-		if f < math.MinInt64 {
-			return 0, fmt.Errorf("too small timestamp in nanoseconds: %v; must be bigger or equal to %v", f, int64(math.MinInt64))
-		}
-		n = int64(f)
-	}
-	if n < 0 {
-		return 0, fmt.Errorf("too small timestamp in nanoseconds: %d; must be bigger than 0", n)
-	}
-	return n, nil
+	return insertutils.ParseUnixTimestamp(s)
 }
