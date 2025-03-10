@@ -16,6 +16,8 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 
 ## tip
 
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): add new flags `-insert.httpListenAddr` and `-insert.useProxyProtocol` to specify additional listen addresses for data ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8404).
+
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix endless group expansion loop bug. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8347).
 
 ## [v1.17.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.17.0-victorialogs)
