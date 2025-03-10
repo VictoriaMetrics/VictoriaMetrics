@@ -1,14 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
 	"time"
 
+	"github.com/cheggaaa/pb/v3"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/cheggaaa/pb/v3"
 )
 
 type otsdbProcessor struct {
@@ -37,7 +39,7 @@ func newOtsdbProcessor(oc *opentsdb.Client, im *vm.Importer, otsdbcc int, verbos
 	}
 }
 
-func (op *otsdbProcessor) run() error {
+func (op *otsdbProcessor) run(ctx context.Context) error {
 	log.Println("Loading all metrics from OpenTSDB for filters: ", op.oc.Filters)
 	var metrics []string
 	for _, filter := range op.oc.Filters {
@@ -93,7 +95,7 @@ func (op *otsdbProcessor) run() error {
 			go func() {
 				defer wg.Done()
 				for s := range seriesCh {
-					if err := op.do(s); err != nil {
+					if err := op.do(ctx, s); err != nil {
 						errCh <- fmt.Errorf("couldn't retrieve series for %s : %s", metric, err)
 						return
 					}
@@ -148,7 +150,7 @@ func (op *otsdbProcessor) run() error {
 	return nil
 }
 
-func (op *otsdbProcessor) do(s queryObj) error {
+func (op *otsdbProcessor) do(ctx context.Context, s queryObj) error {
 	start := s.StartTime - s.Tr.Start
 	end := s.StartTime - s.Tr.End
 	data, err := op.oc.GetData(s.Series, s.Rt, start, end, op.oc.MsecsTime)
@@ -168,5 +170,5 @@ func (op *otsdbProcessor) do(s queryObj) error {
 		Timestamps: data.Timestamps,
 		Values:     data.Values,
 	}
-	return op.im.Input(&ts)
+	return op.im.Input(ctx, &ts)
 }
