@@ -44,15 +44,16 @@ type PrometheusWriteQuerier interface {
 
 // QueryOpts contains various params used for querying or ingesting data
 type QueryOpts struct {
-	Tenant       string
-	Timeout      string
-	Start        string
-	End          string
-	Time         string
-	Step         string
-	ExtraFilters []string
-	ExtraLabels  []string
-	Trace        string
+	Tenant         string
+	Timeout        string
+	Start          string
+	End            string
+	Time           string
+	Step           string
+	ExtraFilters   []string
+	ExtraLabels    []string
+	Trace          string
+	ReduceMemUsage string
 }
 
 func (qos *QueryOpts) asURLValues() url.Values {
@@ -73,6 +74,7 @@ func (qos *QueryOpts) asURLValues() url.Values {
 	addNonEmpty("extra_label", qos.ExtraLabels...)
 	addNonEmpty("extra_filters", qos.ExtraFilters...)
 	addNonEmpty("trace", qos.Trace)
+	addNonEmpty("reduce_mem_usage", qos.ReduceMemUsage)
 
 	return uv
 }
