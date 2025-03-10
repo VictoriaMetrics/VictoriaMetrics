@@ -20,6 +20,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 * SECURITY: upgrade Go builder from Go1.24.0 to Go1.24.1. See the list of issues addressed in [Go1.24.1](https://github.com/golang/go/issues?q=milestone%3AGo1.24.1+label%3ACherryPickApproved).
 
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): add new flags `-insert.httpListenAddr` and `-insert.useProxyProtocol` to specify additional listen addresses for data ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8404).
+
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation): fix panic on `rate` output. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8469).
 
 ## [v1.113.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.113.0)
