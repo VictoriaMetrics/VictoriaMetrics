@@ -47,7 +47,7 @@ func (av *totalAggrValue) pushSample(c aggrConfig, sample *pushSample, key strin
 	av.shared.lastValues[key] = lv
 }
 
-func (av *totalAggrValue) flush(c aggrConfig, ctx *flushCtx, key string) {
+func (av *totalAggrValue) flush(c aggrConfig, ctx *flushCtx, key string, isLast bool) {
 	ac := c.(*totalAggrConfig)
 	suffix := ac.getSuffix()
 	// check for stale entries
@@ -55,7 +55,7 @@ func (av *totalAggrValue) flush(c aggrConfig, ctx *flushCtx, key string) {
 	av.total = 0
 	lvs := av.shared.lastValues
 	for lk, lv := range lvs {
-		if ctx.flushTimestamp > lv.deleteDeadline {
+		if ctx.flushTimestamp > lv.deleteDeadline || isLast {
 			delete(lvs, lk)
 		}
 	}

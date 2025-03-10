@@ -1,7 +1,9 @@
 package apptest
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"regexp"
 	"testing"
 )
@@ -130,6 +132,45 @@ func (app *Vmselect) DeleteSeries(t *testing.T, matchQuery string, opts QueryOpt
 	res, _ := app.cli.PostForm(t, seriesURL, values)
 	if res != "" {
 		t.Fatalf("unexpected non-empty DeleteSeries response=%q", res)
+	}
+}
+
+// MetricNamesStats sends a query to a /select/tenant/prometheus/api/v1/status/metric_names_stats endpoint
+// and returns the statistics response for given params.
+//
+// See https://docs.victoriametrics.com/#Trackingestedmetricsusage
+func (app *Vmselect) MetricNamesStats(t *testing.T, limit, le, matchPattern string, opts QueryOpts) MetricNamesStatsResponse {
+	t.Helper()
+
+	values := opts.asURLValues()
+	values.Add("limit", limit)
+	values.Add("le", le)
+	values.Add("match_pattern", matchPattern)
+	queryURL := fmt.Sprintf("http://%s/select/%s/prometheus/api/v1/status/metric_names_stats", app.httpListenAddr, opts.getTenant())
+
+	res, statusCode := app.cli.PostForm(t, queryURL, values)
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusOK, res)
+	}
+	var resp MetricNamesStatsResponse
+	if err := json.Unmarshal([]byte(res), &resp); err != nil {
+		t.Fatalf("could not unmarshal series response data:\n%s\n err: %v", res, err)
+	}
+	return resp
+}
+
+// MetricNamesStatsReset sends a query to a /admin/api/v1/status/metric_names_stats/reset endpoint
+//
+// See https://docs.victoriametrics.com/#Trackingestedmetricsusage
+func (app *Vmselect) MetricNamesStatsReset(t *testing.T, opts QueryOpts) {
+	t.Helper()
+
+	values := opts.asURLValues()
+	queryURL := fmt.Sprintf("http://%s/admin/api/v1/admin/status/metric_names_stats/reset", app.httpListenAddr)
+
+	res, statusCode := app.cli.PostForm(t, queryURL, values)
+	if statusCode != http.StatusNoContent {
+		t.Fatalf("unexpected status code: got %d, want %d, resp text=%q", statusCode, http.StatusNoContent, res)
 	}
 }
 

@@ -2,6 +2,7 @@ package insertutils
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
@@ -51,20 +52,39 @@ func parseTimestamp(s string) (int64, error) {
 func ParseUnixTimestamp(s string) (int64, error) {
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("cannot parse unix timestamp from %q: %w", s, err)
+		// Fall back to parsing floating-point value
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse unix timestamp from %q: %w", s, err)
+		}
+		if f > math.MaxInt64 {
+			return 0, fmt.Errorf("too big timestamp in nanoseconds: %v; mustn't exceed %v", f, int64(math.MaxInt64))
+		}
+		if f < math.MinInt64 {
+			return 0, fmt.Errorf("too small timestamp in nanoseconds: %v; must be bigger or equal to %v", f, int64(math.MinInt64))
+		}
+
+		return int64(toNano(f)), nil
 	}
-	if n < (1<<31) && n >= (-1<<31) {
-		// The timestamp is in seconds.
-		return n * 1e9, nil
-	}
-	if n < 1e3*(1<<31) && n >= 1e3*(-1<<31) {
-		// The timestamp is in milliseconds.
-		return n * 1e6, nil
-	}
-	if n < 1e6*(1<<31) && n >= 1e6*(-1<<31) {
-		// The timestamp is in microseconds.
-		return n * 1e3, nil
+	if n < 0 {
+		return 0, fmt.Errorf("too small timestamp in nanoseconds: %d; must be bigger than 0", n)
 	}
 	// The timestamp is in nanoseconds
-	return n, nil
+	return toNano(n), nil
+}
+
+func toNano[T int64 | float64](t T) T {
+	if t < (1<<31) && t >= (-1<<31) {
+		// The timestamp is in seconds.
+		return t * 1e9
+	}
+	if t < 1e3*(1<<31) && t >= 1e3*(-1<<31) {
+		// The timestamp is in milliseconds.
+		return t * 1e6
+	}
+	if t < 1e6*(1<<31) && t >= 1e6*(-1<<31) {
+		// The timestamp is in microseconds.
+		return t * 1e3
+	}
+	return t
 }
