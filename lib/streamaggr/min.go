@@ -14,7 +14,7 @@ func (av *minAggrValue) pushSample(_ aggrConfig, sample *pushSample, _ string, _
 	}
 }
 
-func (av *minAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string) {
+func (av *minAggrValue) flush(_ aggrConfig, ctx *flushCtx, key string, _ bool) {
 	if av.defined {
 		ctx.appendSeries(key, "min", av.min)
 		av.min = 0
