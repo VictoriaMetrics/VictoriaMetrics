@@ -2456,6 +2456,45 @@ func TestStorageAddRows_SamplesWithZeroDate(t *testing.T) {
 	})
 }
 
+func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
+	defer testRemoveAll(t)
+
+	f := func(t *testing.T, disablePerDayIndex bool) {
+		t.Helper()
+
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: disablePerDayIndex,
+		})
+		defer s.MustClose()
+
+		now := time.Now().UTC()
+		currHourStart := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, time.UTC).UnixMilli()
+		currHourEnd := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 59, 59, 999_999_999, time.UTC).UnixMilli()
+		rng := rand.New(rand.NewSource(1))
+		mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "metric", TimeRange{
+			MinTimestamp: currHourStart,
+			MaxTimestamp: currHourEnd,
+		})
+
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		currHour := uint64(currHourStart / 1000 / 3600)
+		s.updateCurrHourMetricIDs(currHour)
+
+		if got, want := s.currHourMetricIDs.Load().m.Len(), 1000; got != want {
+			t.Errorf("unexpected current hour metric ID count: got %d, want %d", got, want)
+		}
+	}
+
+	t.Run("disablePerDayIndex=false", func(t *testing.T) {
+		f(t, false)
+	})
+	t.Run("disablePerDayIndex=true", func(t *testing.T) {
+		t.Skip()
+		f(t, true)
+	})
+}
+
 func TestStorageRegisterMetricNamesForVariousDataPatternsConcurrently(t *testing.T) {
 	testStorageVariousDataPatternsConcurrently(t, true, func(s *Storage, mrs []MetricRow) {
 		s.RegisterMetricNames(nil, mrs)
