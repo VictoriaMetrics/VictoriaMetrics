@@ -19,6 +19,12 @@ func BenchmarkReadBulkRequest(b *testing.B) {
 	b.Run("encoding:zstd", func(b *testing.B) {
 		benchmarkReadBulkRequest(b, "zstd")
 	})
+	b.Run("encoding:deflate", func(b *testing.B) {
+		benchmarkReadBulkRequest(b, "deflate")
+	})
+	b.Run("encoding:snappy", func(b *testing.B) {
+		benchmarkReadBulkRequest(b, "snappy")
+	})
 }
 
 func benchmarkReadBulkRequest(b *testing.B, encoding string) {

@@ -16,7 +16,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -94,27 +93,13 @@ func handleJournald(r *http.Request, w http.ResponseWriter) {
 		return
 	}
 
-	var reader io.Reader = r.Body
-	var err error
-
 	encoding := r.Header.Get("Content-Encoding")
-	switch encoding {
-	case "gzip":
-		zr, err := common.GetGzipReader(reader)
-		if err != nil {
-			httpserver.Errorf(w, r, "cannot read gzip-compressed OpenTelemetry protocol data: %s", err)
-		}
-		defer common.PutGzipReader(zr)
-		reader = zr
-	case "zstd":
-		zr := zstd.NewReader(reader)
-		defer zr.Release()
-		reader = zr
-	case "":
-	default:
-		httpserver.Errorf(w, r, "unsupported encoding type %q", encoding)
+	reader, err := common.GetUncompressedReader(r.Body, encoding)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot read %s-compressed Journal protocol data: %s", encoding, err)
 		return
 	}
+	defer common.PutUncompressedReader(reader, encoding)
 
 	wcr := writeconcurrencylimiter.GetReader(reader)
 	data, err := io.ReadAll(wcr)

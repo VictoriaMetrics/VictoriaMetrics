@@ -1,6 +1,7 @@
 package loki
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"testing"
@@ -29,16 +30,16 @@ func benchmarkParseProtobufRequest(b *testing.B, streams, rows, labels int) {
 	b.ReportAllocs()
 	b.SetBytes(int64(streams * rows))
 	b.RunParallel(func(pb *testing.PB) {
-		body := getProtobufBody(streams, rows, labels)
+		r := getProtobufBody(streams, rows, labels)
 		for pb.Next() {
-			if err := parseProtobufRequest(body, blp, nil, false, true); err != nil {
+			if err := parseProtobufRequest(r, "snappy", blp, nil, false, true); err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
 			}
 		}
 	})
 }
 
-func getProtobufBody(streamsCount, rowsCount, labelsCount int) []byte {
+func getProtobufBody(streamsCount, rowsCount, labelsCount int) *bytes.Buffer {
 	var b []byte
 	var entries []Entry
 	streams := make([]Stream, streamsCount)
@@ -79,7 +80,9 @@ func getProtobufBody(streamsCount, rowsCount, labelsCount int) []byte {
 	}
 
 	body := pr.MarshalProtobuf(nil)
-	encodedBody := snappy.Encode(nil, body)
-
-	return encodedBody
+	var buf bytes.Buffer
+	w := snappy.NewBufferedWriter(&buf)
+	_, _ = w.Write(body)
+	_ = w.Close()
+	return &buf
 }

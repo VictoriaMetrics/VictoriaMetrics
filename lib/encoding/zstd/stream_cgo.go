@@ -9,11 +9,31 @@ import (
 )
 
 // Reader is zstd reader
-type Reader = gozstd.Reader
+type Reader struct {
+	d *gozstd.Reader
+}
 
 // NewReader returns zstd reader for the given r.
 func NewReader(r io.Reader) *Reader {
-	return gozstd.NewReader(r)
+	return &Reader{
+		d: gozstd.NewReader(r),
+	}
+}
+
+// Close implements io.ReadCloser interface
+func (r *Reader) Close() error {
+	r.d.Reset(nil, nil)
+	return nil
+}
+
+// Reset updates supplied stream r.
+func (r *Reader) Reset(reader io.Reader) {
+	r.d.Reset(reader, nil)
+}
+
+// Read reads up to len(p) bytes to p from r.
+func (r *Reader) Read(p []byte) (int, error) {
+	return r.d.Read(p)
 }
 
 // Writer is zstd writer

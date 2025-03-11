@@ -12,7 +12,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -31,22 +30,12 @@ func ParseStream(r io.Reader, encoding string, processBody func([]byte) ([]byte,
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
 
-	switch encoding {
-	case "gzip":
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read gzip-compressed OpenTelemetry protocol data: %w", err)
-		}
-		defer common.PutGzipReader(zr)
-		r = zr
-	case "zstd":
-		zr := zstd.NewReader(r)
-		defer zr.Release()
-		r = zr
-	case "":
-	default:
-		return fmt.Errorf("unsupported encoding type %q", encoding)
+	zr, err := common.GetUncompressedReader(r, encoding)
+	if err != nil {
+		return fmt.Errorf("cannot read %s-compressed OpenTelemetry protocol data: %w", encoding, err)
 	}
+	defer common.PutUncompressedReader(zr, encoding)
+	r = zr
 
 	wr := getWriteContext()
 	defer putWriteContext(wr)

@@ -14,7 +14,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -135,22 +134,12 @@ var (
 func readBulkRequest(streamName string, r io.Reader, encoding string, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) (int, error) {
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
-	switch encoding {
-	case "gzip":
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return 0, fmt.Errorf("cannot read gzipped _bulk request: %w", err)
-		}
-		defer common.PutGzipReader(zr)
-		r = zr
-	case "zstd":
-		zr := zstd.NewReader(r)
-		defer zr.Release()
-		r = zr
-	case "":
-	default:
-		return 0, fmt.Errorf("unsupported encoding type %q", encoding)
+	zr, err := common.GetUncompressedReader(r, encoding)
+	if err != nil {
+		return 0, fmt.Errorf("cannot read %s-compressed Elasticsearch protocol data: %w", encoding, err)
 	}
+	defer common.PutUncompressedReader(zr, encoding)
+	r = zr
 
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)

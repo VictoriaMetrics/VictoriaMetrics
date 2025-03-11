@@ -3,7 +3,9 @@ package elasticsearch
 import (
 	"bytes"
 	"fmt"
+	"github.com/golang/snappy"
 	"github.com/klauspost/compress/gzip"
+	"github.com/klauspost/compress/zlib"
 	"github.com/klauspost/compress/zstd"
 	"io"
 	"testing"
@@ -108,6 +110,10 @@ func compressData(s string, encoding string) string {
 		zw = gzip.NewWriter(&bb)
 	case "zstd":
 		zw, _ = zstd.NewWriter(&bb)
+	case "snappy":
+		zw = snappy.NewBufferedWriter(&bb)
+	case "deflate":
+		zw = zlib.NewWriter(&bb)
 	default:
 		panic(fmt.Errorf("%q encoding is not supported", encoding))
 	}

@@ -1,6 +1,7 @@
 package loki
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -53,7 +54,7 @@ func TestParseProtobufRequest_Success(t *testing.T) {
 		t.Helper()
 
 		tlp := &testLogMessageProcessor{}
-		if err := parseJSONRequest([]byte(s), tlp, nil, false, false); err != nil {
+		if err := parseJSONRequest(strings.NewReader(s), "", tlp, nil, false, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		if len(tlp.pr.Streams) != len(timestampsExpected) {
@@ -61,10 +62,17 @@ func TestParseProtobufRequest_Success(t *testing.T) {
 		}
 
 		data := tlp.pr.MarshalProtobuf(nil)
-		encodedData := snappy.Encode(nil, data)
+		var buf bytes.Buffer
+		w := snappy.NewBufferedWriter(&buf)
+		if _, err := w.Write(data); err != nil {
+			t.Fatalf("failed to compress snappy data: %s", err)
+		}
+		if err := w.Close(); err != nil {
+			t.Fatalf("failed to close buffer: %s", err)
+		}
 
 		tlp2 := &insertutils.TestLogMessageProcessor{}
-		if err := parseProtobufRequest(encodedData, tlp2, nil, false, false); err != nil {
+		if err := parseProtobufRequest(&buf, "snappy", tlp2, nil, false, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		if err := tlp2.Verify(timestampsExpected, resultExpected); err != nil {
@@ -126,7 +134,7 @@ func TestParseProtobufRequest_ParseMessage(t *testing.T) {
 		t.Helper()
 
 		tlp := &testLogMessageProcessor{}
-		if err := parseJSONRequest([]byte(s), tlp, nil, false, false); err != nil {
+		if err := parseJSONRequest(strings.NewReader(s), "", tlp, nil, false, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		if len(tlp.pr.Streams) != len(timestampsExpected) {
@@ -134,10 +142,17 @@ func TestParseProtobufRequest_ParseMessage(t *testing.T) {
 		}
 
 		data := tlp.pr.MarshalProtobuf(nil)
-		encodedData := snappy.Encode(nil, data)
+		var buf bytes.Buffer
+		w := snappy.NewBufferedWriter(&buf)
+		if _, err := w.Write(data); err != nil {
+			t.Fatalf("failed to compress snappy data: %s", err)
+		}
+		if err := w.Close(); err != nil {
+			t.Fatalf("failed to close buffer: %s", err)
+		}
 
 		tlp2 := &insertutils.TestLogMessageProcessor{}
-		if err := parseProtobufRequest(encodedData, tlp2, msgFields, false, true); err != nil {
+		if err := parseProtobufRequest(&buf, "snappy", tlp2, msgFields, false, true); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		if err := tlp2.Verify(timestampsExpected, resultExpected); err != nil {

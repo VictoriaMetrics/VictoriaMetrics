@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadogutils"
@@ -24,29 +23,12 @@ func Parse(r io.Reader, encoding string, callback func(series []datadogv1.Series
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
 
-	switch encoding {
-	case "gzip":
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read gzipped DataDog data: %w", err)
-		}
-		defer common.PutGzipReader(zr)
-		r = zr
-	case "deflate":
-		zlr, err := common.GetZlibReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read deflated DataDog data: %w", err)
-		}
-		defer common.PutZlibReader(zlr)
-		r = zlr
-	case "zstd":
-		zlr := zstd.NewReader(r)
-		defer zlr.Release()
-		r = zlr
-	case "":
-	default:
-		return fmt.Errorf("unsupported encoding type %q", encoding)
+	zr, err := common.GetUncompressedReader(r, encoding)
+	if err != nil {
+		return fmt.Errorf("cannot read %s-compressed DataDog protocol data: %w", encoding, err)
 	}
+	defer common.PutUncompressedReader(zr, encoding)
+	r = zr
 
 	ctx := getPushCtx(r)
 	defer putPushCtx(ctx)
