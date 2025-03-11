@@ -3,6 +3,7 @@ package apptest
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
 	"slices"
 	"sort"
@@ -110,6 +111,10 @@ func NewPrometheusAPIV1QueryResponse(t *testing.T, s string) *PrometheusAPIV1Que
 
 // Sort performs data.Result sort by metric labels
 func (pqr *PrometheusAPIV1QueryResponse) Sort() {
+	if pqr.Data == nil {
+		return
+	}
+
 	sort.Slice(pqr.Data.Result, func(i, j int) bool {
 		leftS := make([]string, 0, len(pqr.Data.Result[i].Metric))
 		rightS := make([]string, 0, len(pqr.Data.Result[j].Metric))
@@ -125,6 +130,25 @@ func (pqr *PrometheusAPIV1QueryResponse) Sort() {
 		return strings.Join(leftS, ",") < strings.Join(rightS, ",")
 	})
 
+	for _, result := range pqr.Data.Result {
+		sort.Slice(result.Samples, func(i, j int) bool {
+			a := result.Samples[i]
+			b := result.Samples[j]
+			if a.Timestamp != b.Timestamp {
+				return a.Timestamp < b.Timestamp
+			}
+
+			// Put NaNs at the end of the slice.
+			if math.IsNaN(a.Value) {
+				return false
+			}
+			if math.IsNaN(b.Value) {
+				return true
+			}
+
+			return a.Value < b.Value
+		})
+	}
 }
 
 // QueryData holds the query result along with its type.

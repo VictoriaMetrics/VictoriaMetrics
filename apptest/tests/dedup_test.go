@@ -90,7 +90,8 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 
 	// Intentionally check that deduplication works for the current month, since
 	// by reading the code it may seem that deduplication for the current month
-	// is skipped: https://github.com/VictoriaMetrics/VictoriaMetrics/blob/0ed835026fe22b43f5f56c5cf82a3ef1b703ecf0/lib/storage/table.go#L450
+	// is skipped.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6965
 	start := firstDayOfThisMonth()
 	end := start.Add(1 * time.Hour)
 	ts1 := start.Add(1 * time.Second).UnixMilli()
@@ -140,6 +141,12 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 		Start:          fmt.Sprintf("%d", start.UnixMilli()),
 		End:            fmt.Sprintf("%d", end.UnixMilli()),
 	})
+	// Delete cluster-specific labels from the metric name since they are
+	// irrelevant for the test.
+	for _, result := range got.Data.Result {
+		delete(result.Metric, "vm_account_id")
+		delete(result.Metric, "vm_project_id")
+	}
 	got.Sort()
 
 	wantDuplicates := &at.PrometheusAPIV1QueryResponse{
@@ -159,12 +166,12 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 				}},
 				{Metric: map[string]string{"__name__": "metric3"}, Samples: []*at.Sample{
 					{Timestamp: ts10, Value: 30},
-					{Timestamp: ts10, Value: 100},
 					{Timestamp: ts10, Value: 50},
+					{Timestamp: ts10, Value: 100},
 				}},
 				{Metric: map[string]string{"__name__": "metric4"}, Samples: []*at.Sample{
-					{Timestamp: ts10, Value: 50},
 					{Timestamp: ts10, Value: 30},
+					{Timestamp: ts10, Value: 50},
 					{Timestamp: ts10, Value: decimal.StaleNaN},
 				}},
 			},
