@@ -21,6 +21,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * SECURITY: upgrade Go builder from Go1.24.0 to Go1.24.1. See the list of issues addressed in [Go1.24.1](https://github.com/golang/go/issues?q=milestone%3AGo1.24.1+label%3ACherryPickApproved).
 
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation): fix panic on `rate` output. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8469).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): use original unmodified by [relabeling](https://docs.victoriametrics.com/#relabeling) job name as `scrape_pool` value for [/api/v1/targets](https://docs.victoriametrics.com/#prometheus-querying-api-usage) responses. This change fixes discrepancy with Prometheus as mentioned in [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5343). Thanks to @evkuzin for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8457). 
 
 ## [v1.113.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.113.0)
 
