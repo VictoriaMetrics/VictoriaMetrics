@@ -379,6 +379,9 @@ func (s *Storage) DebugFlush() {
 	idb.doExtDB(func(extDB *indexDB) {
 		extDB.tb.DebugFlush()
 	})
+
+	hour := fasttime.UnixHour()
+	s.updateCurrHourMetricIDs(hour)
 }
 
 // CreateSnapshot creates snapshot for s and returns the snapshot name.
