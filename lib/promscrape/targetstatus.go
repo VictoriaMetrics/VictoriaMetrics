@@ -262,7 +262,8 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 		writeLabelsJSON(w, ts.sw.Config.OriginalLabels)
 		fmt.Fprintf(w, `,"labels":`)
 		writeLabelsJSON(w, ts.sw.Config.Labels)
-		fmt.Fprintf(w, `,"scrapePool":%s`, stringsutil.JSONString(ts.sw.Config.Job()))
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5343
+		fmt.Fprintf(w, `,"scrapePool":%s`, stringsutil.JSONString(ts.sw.Config.jobNameOriginal))
 		fmt.Fprintf(w, `,"scrapeUrl":%s`, stringsutil.JSONString(ts.sw.Config.ScrapeURL))
 		errMsg := ""
 		if ts.err != nil {
