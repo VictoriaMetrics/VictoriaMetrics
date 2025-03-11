@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -202,7 +204,17 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 		fs.MustWriteAtomic(filepath, nil, false)
 	}
 	if mi.Name != q.name {
-		return nil, fmt.Errorf("unexpected queue name; got %q; want %q", mi.Name, q.name)
+		// For compatibility, further check if their name without match.
+		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8477
+		if !CheckQueueNameCompatible(mi.Name, q.name) {
+			return nil, fmt.Errorf("unexpected queue name; got %q; want %q", mi.Name, q.name)
+		}
+		// update metadata name to new format.
+		logger.Infof("a compatible metadata file was found: %s. Update the metadata name from %q to %q.", metainfoPath, mi.Name, q.name)
+		mi.Name = q.name
+		if err := mi.WriteToFile(metainfoPath); err != nil {
+			return nil, fmt.Errorf("cannot update %q: %w", metainfoPath, err)
+		}
 	}
 
 	// Locate reader and writer chunks in the path.
@@ -312,6 +324,32 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 	}
 	mustCloseFlockF = false
 	return &q, nil
+}
+
+// CheckQueueNameCompatible check if two queue name is identical when queue params and fragments are removed.
+// For backward compatibility with the old "name" format, where queue parameters and fragments were not removed.
+// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8477
+func CheckQueueNameCompatible(metadataName, queueName string) bool {
+	// try to parse remote write URL from name
+	metadataSplit, newSplit := strings.SplitN(metadataName, ":", 2), strings.SplitN(queueName, ":", 2)
+	if len(metadataSplit) != 2 || len(newSplit) != 2 {
+		return false
+	}
+
+	mURLStr, nURLStr := metadataSplit[1], newSplit[1]
+	mURL, err := url.Parse(mURLStr)
+	if err != nil {
+		return false
+	}
+	nURL, err := url.Parse(nURLStr)
+	if err != nil {
+		return false
+	}
+	mURL.RawQuery = ""
+	mURL.Fragment = ""
+	nURL.RawQuery = ""
+	nURL.Fragment = ""
+	return mURL.String() == nURL.String()
 }
 
 // MustClose closes q.
