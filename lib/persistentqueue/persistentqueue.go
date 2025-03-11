@@ -204,7 +204,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 		fs.MustWriteAtomic(filepath, nil, false)
 	}
 	if mi.Name != q.name {
-		// For compatibility, further check if their name without match.
+		// For compatibility, further check if their name without query params and fragment would match.
 		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8477
 		if !CheckQueueNameCompatible(mi.Name, q.name) {
 			return nil, fmt.Errorf("unexpected queue name; got %q; want %q", mi.Name, q.name)
