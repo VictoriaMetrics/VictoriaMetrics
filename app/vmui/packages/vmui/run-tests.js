@@ -1,8 +1,6 @@
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { readdirSync, statSync } from "fs";
 import { join } from "path";
-import { fileURLToPath } from "url";
-import { dirname } from "path";
 
 // Function to find all test files recursively
 function findTestFiles(dir) {
@@ -35,7 +33,7 @@ let failedTests = 0;
 testFiles.forEach((file) => {
   console.log(`\n=== Running ${file} ===\n`);
   try {
-    execSync(`npx tsx ${file}`, { stdio: "inherit" });
+    execFileSync("npx", ["tsx", file], { stdio: "inherit" });
   } catch (error) {
     failedTests++;
     console.error(`\n${file} failed\n`);
