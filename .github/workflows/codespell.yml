@@ -1,0 +1,25 @@
+name: Codespell
+
+on:
+  # Trigger the workflow on push or pull requests.
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v4
+
+    - name: Install codespell
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y codespell
+
+    - name: Display codespell version
+      run: codespell --version
+
+    - name: Execute codespell
+      run: codespell --ignore-words=.github/actions/codespell/stopwords --skip='*/vendor/*,*.js,*.pb.go,*.qtpl.go' .
