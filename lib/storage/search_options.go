@@ -12,7 +12,7 @@ import (
 type searchOptions struct {
 	deadline uint64
 
-	readMetricIDs *atomic.Uint64
+	readMetricIDs atomic.Uint64
 	source        string
 }
 
@@ -23,7 +23,7 @@ func getSearchOptions(deadline uint64, source string) *searchOptions {
 		deadline: deadline,
 		source:   source,
 
-		readMetricIDs: &atomic.Uint64{},
+		readMetricIDs: atomic.Uint64{},
 	}
 }
 
