@@ -23,7 +23,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add command-line flag `-search.maxTSDBStatusTopNSeries` to allow setting a limit for topN argument accepted by `/api/v1/status/tsdb` endpoint.
 
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation): fix panic on `rate` output. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8469).
-- FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): add `vmalert_alerts_send_duration_seconds` metric to measure the time for alertmanager calls per notifier.
+- FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert/): expose `vmalert_alerts_send_duration_seconds` metric to measure the time taken to send alerts to the specified `-notifier.url`.
 
 ## [v1.113.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.113.0)
 
