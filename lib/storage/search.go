@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -187,7 +186,10 @@ func (s *Search) reset() {
 // MustClose must be called when the search is done.
 //
 // Init returns the upper bound on the number of found time series.
-func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64, readMetricIDs *atomic.Uint64) int {
+func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) int {
+	so := getSearchOptions(deadline, "search")
+	defer putSearchOptions(so)
+
 	qt = qt.NewChild("init series search: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
@@ -204,17 +206,17 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	s.retentionDeadline = retentionDeadline
 	s.tr = tr
 	s.tfss = tfss
-	s.deadline = deadline
+	s.deadline = so.deadline
 	s.needClosing = true
 
 	var tsids []TSID
-	metricIDs, err := s.idb.searchMetricIDs(qt, tfss, indexTR, maxMetrics, deadline, readMetricIDs)
+	metricIDs, err := s.idb.searchMetricIDs(qt, tfss, indexTR, maxMetrics, so)
 	if err == nil && len(metricIDs) > 0 && len(tfss) > 0 {
 		accountID := tfss[0].accountID
 		projectID := tfss[0].projectID
-		tsids, err = s.idb.getTSIDsFromMetricIDs(qt, accountID, projectID, metricIDs, deadline)
+		tsids, err = s.idb.getTSIDsFromMetricIDs(qt, accountID, projectID, metricIDs, so.deadline)
 		if err == nil {
-			err = storage.prefetchMetricNames(qt, s.idb, accountID, projectID, metricIDs, deadline)
+			err = storage.prefetchMetricNames(qt, s.idb, accountID, projectID, metricIDs, so.deadline)
 		}
 	}
 	// It is ok to call Init on non-nil err.

@@ -1312,14 +1312,18 @@ func nextRetentionDeadlineSeconds(atSecs, retentionSecs, offsetSecs int64) int64
 // If -disablePerDayIndex is set or the time range is more than 40 days, the
 // time range is ignored and the metrics are searched within the entire
 // retention period, i.e. the global index are used for searching.
-func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64, readMetricIDs *atomic.Uint64) ([]string, error) {
+func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]string, error) {
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
+
+	so := getSearchOptions(deadline, "search_metric_names")
+	defer putSearchOptions(so)
+
 	tr = s.adjustTimeRange(tr)
 	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
-	idb, putIndexDB := s.getCurrIndexDB()
-	defer putIndexDB()
-	metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline, readMetricIDs)
+	metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, so)
 	if err != nil {
 		return nil, err
 	}
@@ -1329,7 +1333,7 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 
 	accountID := tfss[0].accountID
 	projectID := tfss[0].projectID
-	if err = s.prefetchMetricNames(qt, idb, accountID, projectID, metricIDs, deadline); err != nil {
+	if err = s.prefetchMetricNames(qt, idb, accountID, projectID, metricIDs, so.deadline); err != nil {
 		return nil, err
 	}
 	metricNames := make([]string, 0, len(metricIDs))
@@ -1337,7 +1341,7 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	var metricName []byte
 	for i, metricID := range metricIDs {
 		if i&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(deadline); err != nil {
+			if err := checkSearchDeadlineAndPace(so.deadline); err != nil {
 				return nil, err
 			}
 		}
@@ -1454,11 +1458,14 @@ var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 // If the number of the series exceeds maxMetrics, no series will be deleted and
 // an error will be returned. Otherwise, the function returns the number of
 // metrics deleted.
-func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int, readMetricIDs *atomic.Uint64) (int, error) {
+func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 
-	deletedCount, err := idb.DeleteTSIDs(qt, tfss, maxMetrics, readMetricIDs)
+	so := getSearchOptions(noDeadline, "delete_series")
+	defer putSearchOptions(so)
+
+	deletedCount, err := idb.DeleteTSIDs(qt, tfss, maxMetrics, so)
 	if err != nil {
 		return deletedCount, fmt.Errorf("cannot delete tsids: %w", err)
 	}
@@ -1479,11 +1486,15 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 // If -disablePerDayIndex is set or the time range is more than 40 days, the
 // time range is ignored and the label names are searched within the entire
 // retention period, i.e. the global index are used for searching.
-func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64, readMetricIDs *atomic.Uint64) ([]string, error) {
+func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
+
+	so := getSearchOptions(deadline, "search_label_names")
+	defer putSearchOptions(so)
+
 	tr = s.adjustTimeRange(tr)
-	return idb.SearchLabelNames(qt, accountID, projectID, tfss, tr, maxLabelNames, maxMetrics, deadline, readMetricIDs)
+	return idb.SearchLabelNames(qt, accountID, projectID, tfss, tr, maxLabelNames, maxMetrics, so)
 }
 
 // SearchLabelValues searches for label values for the given labelName, filters
@@ -1496,9 +1507,13 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, accountID, projectID 
 // If -disablePerDayIndex is set or the time range is more than 40 days, the
 // time range is ignored and the label values are searched within the entire
 // retention period, i.e. the global index are used for searching.
-func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, accountID, projectID uint32, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64, readMetricIDs *atomic.Uint64) ([]string, error) {
+func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, accountID, projectID uint32, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
+
+	so := getSearchOptions(deadline, "search_label_values")
+	defer putSearchOptions(so)
+
 	tr = s.adjustTimeRange(tr)
 
 	key := labelName
@@ -1510,7 +1525,7 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, accountID, projectID
 		// without any filters and limits and then later applying the filter and the limit to the found label values.
 		qt.Printf("search for up to %d values for the label %q on the time range %s", maxMetrics, labelName, &tr)
 
-		lvs, err := idb.SearchLabelValues(qt, accountID, projectID, labelName, nil, tr, maxMetrics, maxMetrics, deadline, readMetricIDs)
+		lvs, err := idb.SearchLabelValues(qt, accountID, projectID, labelName, nil, tr, maxMetrics, maxMetrics, so)
 		if err != nil {
 			return nil, err
 		}
@@ -1533,7 +1548,7 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, accountID, projectID
 		qt.Printf("fall back to slow search because only a subset of label values is found")
 	}
 
-	return idb.SearchLabelValues(qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline, readMetricIDs)
+	return idb.SearchLabelValues(qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics, so)
 }
 
 func filterLabelValues(accountID, projectID uint32, lvs []string, tf *tagFilter, key string) []string {
@@ -1792,13 +1807,17 @@ func (s *Storage) SearchTenants(qt *querytracer.Tracer, tr TimeRange, deadline u
 //
 // Otherwise, the date is ignored and the status is calculated for the entire
 // retention period, i.e. the global index are used for calculation.
-func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64, readMetricIDs *atomic.Uint64) (*TSDBStatus, error) {
+func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
+
+	so := getSearchOptions(deadline, "tsdb_status")
+	defer putSearchOptions(so)
+
 	if s.disablePerDayIndex {
 		date = globalIndexDate
 	}
-	res, err := idb.GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline, readMetricIDs)
+	res, err := idb.GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, so)
 	if err != nil {
 		return nil, err
 	}
