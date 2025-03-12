@@ -384,7 +384,7 @@ func TestRecordingRuleExec_Negative(t *testing.T) {
 		t.Fatalf("expected to get err; got nil")
 	}
 	if !strings.Contains(err.Error(), expErr) {
-		t.Fatalf("expected to get err %q; got %q insterad", expErr, err)
+		t.Fatalf("expected to get err %q; got %q instead", expErr, err)
 	}
 
 	fq.Reset()

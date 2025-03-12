@@ -247,7 +247,7 @@ type blockStreamWriter struct {
 	indexBlockHeader indexBlockHeader
 }
 
-// reset resets bsw for subsequent re-use.
+// reset resets bsw for subsequent reuse.
 func (bsw *blockStreamWriter) reset() {
 	bsw.streamWriters.reset()
 	bsw.sidLast.reset()
@@ -443,7 +443,7 @@ func (bsw *blockStreamWriter) mustFlushIndexBlock(data []byte) {
 //
 // It closes the writers passed to MustInit().
 //
-// bsw can be re-used after calling Finalize().
+// bsw can be reused after calling Finalize().
 func (bsw *blockStreamWriter) Finalize(ph *partHeader) {
 	ph.FormatVersion = partFormatLatestVersion
 	ph.UncompressedSizeBytes = bsw.globalUncompressedSizeBytes

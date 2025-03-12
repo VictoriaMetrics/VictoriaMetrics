@@ -474,7 +474,7 @@ func (rrc *rollupResultCache) getSeriesFromCache(qt *querytracer.Tracer, key []b
 	}
 	qt.Printf("load compressed entry from cache with size %d bytes", len(compressedResultBuf.B))
 	// Decompress into newly allocated byte slice, since tss returned from unmarshalTimeseriesFast
-	// refers to the byte slice, so it cannot be re-used.
+	// refers to the byte slice, so it cannot be reused.
 	resultBuf, err := encoding.DecompressZSTD(nil, compressedResultBuf.B)
 	if err != nil {
 		logger.Panicf("BUG: cannot decompress resultBuf from rollupResultCache: %s; it looks like it was improperly saved", err)

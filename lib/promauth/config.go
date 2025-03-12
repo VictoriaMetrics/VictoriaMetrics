@@ -562,7 +562,7 @@ func (rt *roundTripper) getTransport() (http.RoundTripper, error) {
 
 func (ac *Config) getTLSConfig() (*tls.Config, error) {
 	if ac.getTLSCertCached == nil && ac.tlsServerName == "" && !ac.tlsInsecureSkipVerify && ac.tlsMinVersion == 0 && ac.getTLSRootCA == nil {
-		// Re-use zeroTLSConfig when ac doesn't contain tls-specific configs.
+		// Reuse zeroTLSConfig when ac doesn't contain tls-specific configs.
 		// This should reduce memory usage a bit.
 		return zeroTLSConfig, nil
 	}

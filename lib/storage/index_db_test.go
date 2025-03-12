@@ -1420,7 +1420,7 @@ func TestMatchTagFilters(t *testing.T) {
 		t.Fatalf("cannot add regexp, no negative filter: %s", err)
 	}
 	if err := tfs.Add([]byte("key 3"), []byte("value 23"), true, false); err != nil {
-		t.Fatalf("cannt add no regexp, negative filter: %s", err)
+		t.Fatalf("cannot add no regexp, negative filter: %s", err)
 	}
 	if err := tfs.Add([]byte("key 2"), []byte("lue.+43"), true, true); err != nil {
 		t.Fatalf("cannot add regexp, negative filter: %s", err)

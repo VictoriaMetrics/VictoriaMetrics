@@ -88,7 +88,7 @@ func (bb *ByteBuffer) ReadFrom(r io.Reader) (int64, error) {
 	}
 }
 
-// MustClose closes bb for subsequent re-use.
+// MustClose closes bb for subsequent reuse.
 func (bb *ByteBuffer) MustClose() {
 	// Do nothing, since certain code rely on bb reading after MustClose call.
 }
@@ -123,7 +123,7 @@ func (r *reader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// MustClose closes bb for subsequent re-use.
+// MustClose closes bb for subsequent reuse.
 func (r *reader) MustClose() {
 	r.bb = nil
 	r.readOffset = 0

@@ -38,7 +38,7 @@ type StreamTags struct {
 	tags []streamTag
 }
 
-// Reset resets st for re-use
+// Reset resets st for reuse
 func (st *StreamTags) Reset() {
 	st.buf = st.buf[:0]
 

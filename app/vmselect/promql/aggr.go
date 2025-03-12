@@ -478,7 +478,7 @@ func aggrFuncShare(afa *aggrFuncArg) ([]*timeseries, error) {
 				}
 				sum += v
 			}
-			// Divide every non-negative value at poisition i by sum in order to get its' share.
+			// Divide every non-negative value at position i by sum in order to get its' share.
 			for _, ts := range tss {
 				v := ts.Values[i]
 				if math.IsNaN(v) || v < 0 {

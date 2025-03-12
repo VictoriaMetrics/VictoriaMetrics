@@ -39,7 +39,7 @@ func TestPipeStats(t *testing.T) {
 		expectPipeResults(t, pipeStr, rows, rowsExpected)
 	}
 
-	// missing 'stats' keyword and resutl name
+	// missing 'stats' keyword and result name
 	f("count(*)", [][]Field{
 		{
 			{"_msg", `abc`},

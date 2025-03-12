@@ -1986,7 +1986,7 @@ func (br *blockResult) truncateRows(keepRows int) {
 // blockResultColumn represents named column from blockResult.
 //
 // blockResultColumn doesn't own any referred data - all the referred data must be owned by blockResult.
-// This simplifies copying, resetting and re-using of the struct.
+// This simplifies copying, resetting and reusing of the struct.
 type blockResultColumn struct {
 	// name is column name
 	name string

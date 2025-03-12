@@ -785,7 +785,7 @@ func (sp *tagToStreamIDsRowParser) Reset() {
 
 // Init initializes sp from b, which should contain encoded tenantID:name:value -> streamIDs row.
 //
-// b cannot be re-used until Reset call.
+// b cannot be reused until Reset call.
 //
 // ParseStreamIDs() must be called later for obtaining sp.StreamIDs from the given tail.
 func (sp *tagToStreamIDsRowParser) Init(b []byte) error {
@@ -815,7 +815,7 @@ func (sp *tagToStreamIDsRowParser) MarshalPrefix(dst []byte) []byte {
 
 // InitOnlyTail initializes sp.tail from tail, which must contain streamIDs.
 //
-// tail cannot be re-used until Reset call.
+// tail cannot be reused until Reset call.
 //
 // ParseStreamIDs() must be called later for obtaining sp.StreamIDs from the given tail.
 func (sp *tagToStreamIDsRowParser) InitOnlyTail(tail []byte) error {

@@ -39,7 +39,7 @@ func (b *block) reset() {
 	b.constColumns = ccs[:0]
 }
 
-// uncompressedSizeBytes returns the total size of the origianl log entries stored in b.
+// uncompressedSizeBytes returns the total size of the original log entries stored in b.
 //
 // It is supposed that every log entry has the following format:
 //

@@ -21,7 +21,7 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 		minTimestampExpected := int64(math.MaxInt64)
 		maxTimestampExpected := int64(math.MinInt64)
 
-		// make a copy of lr - it is used for comapring the results later,
+		// make a copy of lr - it is used for comparing the results later,
 		// since lr may be modified by inmemoryPart.mustInitFromRows()
 		lrOrig := GetLogRows(nil, nil, nil, "")
 		for i, timestamp := range lr.timestamps {

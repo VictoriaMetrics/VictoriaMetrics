@@ -50,7 +50,7 @@ func (b *bloomValuesBuffer) NewStreamWriter() bloomValuesStreamWriter {
 	}
 }
 
-// reset resets mp, so it can be re-used
+// reset resets mp, so it can be reused
 func (mp *inmemoryPart) reset() {
 	mp.ph.reset()
 

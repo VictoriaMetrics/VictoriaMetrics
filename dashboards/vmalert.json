@@ -1146,7 +1146,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "The precentage of used RSS memory\n\nIf you think that usage is abnormal or unexpected, please file an issue and attach memory profile if possible.",
+          "description": "The percentage of used RSS memory\n\nIf you think that usage is abnormal or unexpected, please file an issue and attach memory profile if possible.",
           "fieldConfig": {
             "defaults": {
               "color": {

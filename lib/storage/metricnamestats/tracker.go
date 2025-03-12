@@ -285,7 +285,7 @@ func (mt *Tracker) Reset(onReset func()) {
 	if mt == nil {
 		return
 	}
-	logger.Infof("reseting metric names tracker state")
+	logger.Infof("resetting metric names tracker state")
 	mt.mu.Lock()
 	defer mt.mu.Unlock()
 	mt.initEmpty()

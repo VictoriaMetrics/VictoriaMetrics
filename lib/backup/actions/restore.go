@@ -219,7 +219,7 @@ func createRestoreLock(dstDir string) error {
 func removeRestoreLock(dstDir string) error {
 	lockF := path.Join(dstDir, backupnames.RestoreInProgressFilename)
 	if err := os.Remove(lockF); err != nil {
-		return fmt.Errorf("cannote remove restore lock file %q: %w", lockF, err)
+		return fmt.Errorf("cannot remove restore lock file %q: %w", lockF, err)
 	}
 	return nil
 }

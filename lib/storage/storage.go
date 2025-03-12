@@ -1478,7 +1478,7 @@ func replaceAlternateRegexpsWithGraphiteWildcards(b []byte) []byte {
 		n := bytes.IndexByte(b, '(')
 		if n < 0 {
 			if len(dst) == 0 {
-				// Fast path - b doesn't contain the openining brace.
+				// Fast path - b doesn't contain the opening brace.
 				return b
 			}
 			dst = append(dst, b...)

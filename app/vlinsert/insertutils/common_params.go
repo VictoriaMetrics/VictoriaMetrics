@@ -141,7 +141,7 @@ type LogMessageProcessor interface {
 	//
 	// If streamFields is non-nil, then the given streamFields must be used as log stream fields instead of pre-configured fields.
 	//
-	// The LogMessageProcessor implementation cannot hold references to fields, since the caller can re-use them.
+	// The LogMessageProcessor implementation cannot hold references to fields, since the caller can reuse them.
 	AddRow(timestamp int64, fields, streamFields []logstorage.Field)
 
 	// MustClose() must flush all the remaining fields and free up resources occupied by LogMessageProcessor.

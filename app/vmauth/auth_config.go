@@ -141,7 +141,7 @@ func (h *Header) UnmarshalYAML(f func(any) error) error {
 
 	n := strings.IndexByte(s, ':')
 	if n < 0 {
-		return fmt.Errorf("missing speparator char ':' between Name and Value in the header %q; expected format - 'Name: Value'", s)
+		return fmt.Errorf("missing separator char ':' between Name and Value in the header %q; expected format - 'Name: Value'", s)
 	}
 	h.Name = strings.TrimSpace(s[:n])
 	h.Value = strings.TrimSpace(s[n+1:])
@@ -173,7 +173,7 @@ type URLMap struct {
 	// DiscoverBackendIPs instructs discovering URLPrefix backend IPs via DNS.
 	DiscoverBackendIPs *bool `yaml:"discover_backend_ips,omitempty"`
 
-	// HeadersConf is the config for augumenting request and response headers.
+	// HeadersConf is the config for augmenting request and response headers.
 	HeadersConf HeadersConf `yaml:",inline"`
 
 	// RetryStatusCodes is the list of response status codes used for retrying requests.

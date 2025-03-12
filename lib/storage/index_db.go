@@ -1220,7 +1220,7 @@ func (is *indexSearch) searchTagValueSuffixesForPrefix(tvss map[string]struct{},
 		ts.Seek(kb.B)
 	}
 	if err := ts.Error(); err != nil {
-		return fmt.Errorf("error when searching for tag value sufixes for prefix %q: %w", prefix, err)
+		return fmt.Errorf("error when searching for tag value suffixes for prefix %q: %w", prefix, err)
 	}
 	return nil
 }
@@ -3216,7 +3216,7 @@ func (mp *tagToMetricIDsRowParser) Reset() {
 
 // Init initializes mp from b, which should contain encoded tag->metricIDs row.
 //
-// b cannot be re-used until Reset call.
+// b cannot be reused until Reset call.
 func (mp *tagToMetricIDsRowParser) Init(b []byte, nsPrefixExpected byte) error {
 	tail, nsPrefix, err := unmarshalCommonPrefix(b)
 	if err != nil {
@@ -3254,7 +3254,7 @@ func (mp *tagToMetricIDsRowParser) MarshalPrefix(dst []byte) []byte {
 // InitOnlyTail initializes mp.tail from tail.
 //
 // b must contain tag->metricIDs row.
-// b cannot be re-used until Reset call.
+// b cannot be reused until Reset call.
 func (mp *tagToMetricIDsRowParser) InitOnlyTail(b, tail []byte) error {
 	if len(tail) == 0 {
 		return fmt.Errorf("missing metricID in the tag->metricIDs row %q", b)
