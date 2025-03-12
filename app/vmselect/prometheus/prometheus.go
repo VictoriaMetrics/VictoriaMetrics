@@ -744,7 +744,10 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		if err != nil {
 			return fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", query, err)
 		}
-		offset := offsetExpr.Duration(step)
+		offset, err := offsetExpr.Duration(step)
+		if err != nil {
+			return fmt.Errorf("cannot parse offset at %s: %w", query, err)
+		}
 		start -= offset
 		end := start
 		start = end - window
@@ -783,7 +786,10 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		if err != nil {
 			return fmt.Errorf("cannot parse lookbehind window in square brackets at %s: %w", query, err)
 		}
-		offset := offsetExpr.Duration(step)
+		offset, err := offsetExpr.Duration(step)
+		if err != nil {
+			return fmt.Errorf("cannot parse offset at %s: %w", query, err)
+		}
 		start -= offset
 		end := start
 		start = end - window

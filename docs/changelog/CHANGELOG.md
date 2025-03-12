@@ -23,6 +23,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): add command-line flag `-search.maxTSDBStatusTopNSeries` to allow setting a limit for topN argument accepted by `/api/v1/status/tsdb` endpoint.
 
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation): fix panic on `rate` output. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8469).
+* BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): prevent panic in case [subquery](https://docs.victoriametrics.com/metricsql/#subqueries) step value exceeds max allowed value. Previously, the following query would lead to panic `rate(sum(up)[11i:922335359011637780i])`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8447).
 
 ## [v1.113.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.113.0)
 

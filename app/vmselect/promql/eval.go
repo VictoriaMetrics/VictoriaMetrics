@@ -347,7 +347,10 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 		return rv, nil
 	}
 	if de, ok := e.(*metricsql.DurationExpr); ok {
-		d := de.Duration(ec.Step)
+		d, err := de.Duration(ec.Step)
+		if err != nil {
+			return nil, fmt.Errorf("cannot evaluate %q: %w", de.AppendString(nil), err)
+		}
 		dSec := float64(d) / 1000
 		rv := evalNumber(ec, dSec)
 		return rv, nil
@@ -853,9 +856,15 @@ func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName st
 	expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
 	funcName = strings.ToLower(funcName)
 	ecNew := ec
-	var offset int64
+	var (
+		offset int64
+		err    error
+	)
 	if re.Offset != nil {
-		offset = re.Offset.Duration(ec.Step)
+		offset, err = re.Offset.Duration(ec.Step)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse offset at %q: %w", expr.AppendString(nil), err)
+		}
 		ecNew = copyEvalConfig(ecNew)
 		ecNew.Start -= offset
 		ecNew.End -= offset
@@ -875,7 +884,6 @@ func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName st
 		offset -= step
 	}
 	var rvs []*timeseries
-	var err error
 	if me, ok := re.Expr.(*metricsql.MetricExpr); ok {
 		rvs, err = evalRollupFuncWithMetricExpr(qt, ecNew, funcName, rf, expr, me, iafc, re.Window)
 	} else {
@@ -1194,7 +1202,10 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 			feIncrease := *fe
 			feIncrease.Name = "increase"
 			re := fe.Args[0].(*metricsql.RollupExpr)
-			d := re.Window.Duration(ec.Step)
+			d, err := re.Window.Duration(ec.Step)
+			if err != nil {
+				return nil, err
+			}
 			if d == 0 {
 				d = ec.Step
 			}
@@ -1215,7 +1226,10 @@ func evalInstantRollup(qt *querytracer.Tracer, ec *EvalConfig, funcName string, 
 		feIncrease := *fe
 		feIncrease.Name = "increase"
 		re := fe.Args[0].(*metricsql.RollupExpr)
-		d := re.Window.Duration(ec.Step)
+		d, err := re.Window.Duration(ec.Step)
+		if err != nil {
+			return nil, err
+		}
 		if d == 0 {
 			d = ec.Step
 		}

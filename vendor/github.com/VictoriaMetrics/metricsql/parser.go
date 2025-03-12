@@ -1663,7 +1663,10 @@ func (de *DurationExpr) AppendString(dst []byte) []byte {
 //
 // Error is returned if the duration is negative.
 func (de *DurationExpr) NonNegativeDuration(step int64) (int64, error) {
-	d := de.Duration(step)
+	d, err := de.Duration(step)
+	if err != nil {
+		return 0, err
+	}
 	if d < 0 {
 		return 0, fmt.Errorf("unexpected negative duration %dms", d)
 	}
@@ -1671,18 +1674,18 @@ func (de *DurationExpr) NonNegativeDuration(step int64) (int64, error) {
 }
 
 // Duration returns the duration from de in milliseconds.
-func (de *DurationExpr) Duration(step int64) int64 {
+func (de *DurationExpr) Duration(step int64) (int64, error) {
 	if de == nil {
-		return 0
+		return 0, nil
 	}
 	if de.needsParsing {
 		panic(fmt.Errorf("BUG: duration %q must be already parsed", de.s))
 	}
 	d, err := DurationValue(de.s, step)
 	if err != nil {
-		panic(fmt.Errorf("BUG: cannot parse duration %q: %s", de.s, err))
+		return 0, fmt.Errorf("cannot parse duration %q: %w", de.s, err)
 	}
-	return d
+	return d, nil
 }
 
 // parseIdentExpr parses expressions starting with `ident` token.
