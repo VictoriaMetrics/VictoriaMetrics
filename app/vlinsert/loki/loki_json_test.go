@@ -89,9 +89,9 @@ func TestParseJSONRequest_Success(t *testing.T) {
 	"label2": "value2"
 },"values":[
 	["1577836800000000001", "foo bar"],
-	["1477836900005000002", "abc"],
+	["1686026123.62", "abc"],
 	["147.78369e9", "foobar"]
-]}]}`, []int64{1577836800000000001, 1477836900005000002, 147783690000}, `{"label1":"value1","label2":"value2","_msg":"foo bar"}
+]}]}`, []int64{1577836800000000001, 1686026123620000000, 147783690000000000}, `{"label1":"value1","label2":"value2","_msg":"foo bar"}
 {"label1":"value1","label2":"value2","_msg":"abc"}
 {"label1":"value1","label2":"value2","_msg":"foobar"}`)
 
