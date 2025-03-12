@@ -74,9 +74,9 @@ func (am AlertManager) Addr() string {
 // Send an alert or resolve message
 func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[string]string) error {
 	am.metrics.alertsSent.Add(len(alerts))
-	t0 := time.Now()
+	startTime := time.Now()
 	err := am.send(ctx, alerts, headers)
-	am.metrics.alertsSendDuration.Update(time.Since(t0).Seconds())
+	am.metrics.alertsSendDuration.UpdateDuration(startTime)
 	if err != nil {
 		am.metrics.alertsSendErrors.Add(len(alerts))
 	}
