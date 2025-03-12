@@ -17,7 +17,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 ## tip
 
 * BUGFIX: [querying](https://docs.victoriametrics.com/victorialogs/querying/): properly parse floating-point numbers with leading zeroes in fractional part (for example, `12.03` or `1.0002`). Parsing for these numbers has been broken in [v1.15.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.15.0-victorialogs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8464).
-* BUGFIX: [vlinsert](https://docs.victoriametrics.com/victorialogs/): support timestamps with decimal points for elasticsearch ingestion protocol. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8470).
+* BUGFIX: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support floating-point timestamps for [Elasticsearch data ingestion protocol](https://docs.victoriametrics.com/victorialogs/data-ingestion/#elasticsearch-bulk-api). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8470).
 * BUGFIX: [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): properly convert nested OpenTelemetry attributes into JSON. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8384).
 
 ## [v1.15.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.15.0-victorialogs)
