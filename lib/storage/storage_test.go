@@ -889,8 +889,8 @@ func TestStorageDeleteSeries_CachesAreUpdatedOrReset(t *testing.T) {
 	tfss := []*TagFilters{tfs}
 	s := MustOpenStorage(t.Name(), OpenOptions{})
 	defer s.MustClose()
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 
 	// Ensure caches are empty.
 	if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
@@ -1297,8 +1297,8 @@ func TestStorageRotateIndexDB(t *testing.T) {
 		wg.Wait()
 		s.DebugFlush()
 
-		idbCurr, _, putIndexDBs := s.getIndexDBs()
-		defer putIndexDBs()
+		idbCurr, putIndexDB := s.getCurrIndexDB()
+		defer putIndexDB()
 		idbPrev := idbCurr.extDB
 		isCurr := idbCurr.getIndexSearch(noDeadline)
 		defer idbCurr.putIndexSearch(isCurr)
@@ -1890,8 +1890,8 @@ func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
 	if s.disablePerDayIndex {
 		tr = globalIndexTimeRange
 	}
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 	ids, err := idb.searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
 	if err != nil {
 		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))

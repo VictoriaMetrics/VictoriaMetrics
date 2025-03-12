@@ -379,8 +379,8 @@ func (s *Storage) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 func (s *Storage) DebugFlush() {
 	s.tb.flushPendingRows()
 
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 
 	idb.tb.DebugFlush()
 	idb.doExtDB(func(extDB *indexDB) {
@@ -427,8 +427,8 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	dstMetadataDir := filepath.Join(dstDir, metadataDirname)
 	fs.MustCopyDirectory(srcMetadataDir, dstMetadataDir)
 
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 
 	idbSnapshot := filepath.Join(srcDir, indexdbDirname, snapshotsDirname, snapshotName)
 	currSnapshot := filepath.Join(idbSnapshot, idb.name)
@@ -528,9 +528,10 @@ func (s *Storage) DeleteStaleSnapshots(maxAge time.Duration) error {
 	return nil
 }
 
-// getIndexDBs increments refcount for the current and next indexDB and returns
-// them along with a cleanup function that decrements their refcounts.
-func (s *Storage) getIndexDBs() (*indexDB, *indexDB, func()) {
+// getCurrAndNextIndexDBs increments refcount for the current and next indexDBs
+// and returns them along with a cleanup function that decrements their
+// refcounts.
+func (s *Storage) getCurrAndNextIndexDBs() (*indexDB, *indexDB, func()) {
 	s.idbLock.Lock()
 	defer s.idbLock.Unlock()
 	idbCurr := s.idbCurr.Load()
@@ -540,6 +541,18 @@ func (s *Storage) getIndexDBs() (*indexDB, *indexDB, func()) {
 	return idbCurr, idbNext, func() {
 		idbCurr.decRef()
 		idbNext.decRef()
+	}
+}
+
+// getCurrIndexDBs increments refcount for the current and returns it along with
+// a cleanup function that decrements its refcount.
+func (s *Storage) getCurrIndexDB() (*indexDB, func()) {
+	s.idbLock.Lock()
+	defer s.idbLock.Unlock()
+	idbCurr := s.idbCurr.Load()
+	idbCurr.incRef()
+	return idbCurr, func() {
+		idbCurr.decRef()
 	}
 }
 
@@ -719,8 +732,8 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	}
 	m.NextRetentionSeconds = uint64(d)
 
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 	idb.UpdateMetrics(&m.IndexDBMetrics)
 	s.tb.UpdateMetrics(&m.TableMetrics)
 }
@@ -787,8 +800,8 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 func (s *Storage) notifyReadWriteMode() {
 	s.tb.NotifyReadWriteMode()
 
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 
 	idb.tb.NotifyReadWriteMode()
 	idb.doExtDB(func(extDB *indexDB) {
@@ -1229,8 +1242,8 @@ func (s *Storage) SearchMetricNames(qt *querytracer.Tracer, tfss []*TagFilters, 
 	qt = qt.NewChild("search for matching metric names: filters=%s, timeRange=%s", tfss, &tr)
 	defer qt.Done()
 
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 	metricIDs, err := idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err != nil {
 		return nil, err
@@ -1362,8 +1375,8 @@ var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 // an error will be returned. Otherwise, the funciton returns the number of
 // metrics deleted.
 func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 
 	deletedCount, err := idb.DeleteTSIDs(qt, tfss, maxMetrics)
 	if err != nil {
@@ -1387,8 +1400,8 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 // time range is ignored and the label names are searched within the entire
 // retention period, i.e. the global index are used for searching.
 func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 	tr = s.adjustTimeRange(tr)
 	return idb.SearchLabelNames(qt, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
@@ -1404,8 +1417,8 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, tfss []*TagFilters, t
 // time range is ignored and the label values are searched within the entire
 // retention period, i.e. the global index are used for searching.
 func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, labelName string, tfss []*TagFilters, tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 	tr = s.adjustTimeRange(tr)
 
 	key := labelName
@@ -1481,8 +1494,8 @@ func filterLabelValues(lvs []string, tf *tagFilter, key string) []string {
 func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, tagKey, tagValuePrefix string,
 	delimiter byte, maxTagValueSuffixes int, deadline uint64,
 ) ([]string, error) {
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 	tr = s.adjustTimeRange(tr)
 	return idb.SearchTagValueSuffixes(qt, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 }
@@ -1498,8 +1511,8 @@ func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, t
 // time range is ignored and the graphite paths are searched within the entire
 // retention period, i.e. global index are used for searching.
 func (s *Storage) SearchGraphitePaths(qt *querytracer.Tracer, tr TimeRange, query []byte, maxPaths int, deadline uint64) ([]string, error) {
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 	tr = s.adjustTimeRange(tr)
 	query = replaceAlternateRegexpsWithGraphiteWildcards(query)
 	return s.searchGraphitePaths(qt, idb, tr, nil, query, maxPaths, deadline)
@@ -1680,8 +1693,8 @@ func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {
 // It includes the deleted series too and may count the same series
 // up to two times - in db and extDB.
 func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 	return idb.GetSeriesCount(deadline)
 }
 
@@ -1693,8 +1706,8 @@ func (s *Storage) GetSeriesCount(deadline uint64) (uint64, error) {
 // Otherwise, the date is ignored and the status is calculated for the entire
 // retention period, i.e. the global index are used for calculation.
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 	if s.disablePerDayIndex {
 		date = globalIndexDate
 	}
@@ -1874,8 +1887,8 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 	var newSeriesCount uint64
 	var seriesRepopulated uint64
 
-	idb, _, putIndexDBs := s.getIndexDBs()
-	defer putIndexDBs()
+	idb, putIndexDB := s.getCurrIndexDB()
+	defer putIndexDB()
 	generation := idb.generation
 	is := idb.getIndexSearch(noDeadline)
 	defer idb.putIndexSearch(is)
@@ -1986,7 +1999,7 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) {
 }
 
 func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) int {
-	idb, idbNext, putIndexDBs := s.getIndexDBs()
+	idb, idbNext, putIndexDBs := s.getCurrAndNextIndexDBs()
 	defer putIndexDBs()
 	generation := idb.generation
 	is := idb.getIndexSearch(noDeadline)
