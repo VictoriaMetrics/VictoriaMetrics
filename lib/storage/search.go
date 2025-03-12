@@ -129,6 +129,7 @@ func (s *Search) reset() {
 	s.MetricBlockRef.BlockRef = nil
 
 	s.idb = nil
+	s.putIndexDBs = nil
 	s.retentionDeadline = 0
 	s.ts.reset()
 	s.tr = TimeRange{}
