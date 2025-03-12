@@ -5,10 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"time"
-
-	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -42,14 +39,8 @@ var (
 )
 
 var (
-	maxUniqueTimeseriesValue       int
-	maxUniqueTimeseriesValueOnce   sync.Once
-	readMetricIDsSearch            = metrics.NewHistogram(`vm_series_read_per_query{type="search"}`)
-	readMetricIDsSearchMetricNames = metrics.NewHistogram(`vm_series_read_per_query{type="search_metric_names"}`)
-	readMetricIDsSearchLabelValues = metrics.NewHistogram(`vm_series_read_per_query{type="search_label_values"}`)
-	readMetricIDsSearchLabelNames  = metrics.NewHistogram(`vm_series_read_per_query{type="search_label_names"}`)
-	readMetricIDsTSDBStatus        = metrics.NewHistogram(`vm_series_read_per_query{type="tsdb_status"}`)
-	readMetricIDsDeleteSeries      = metrics.NewHistogram(`vm_series_read_per_query{type="delete_series"}`)
+	maxUniqueTimeseriesValue     int
+	maxUniqueTimeseriesValueOnce sync.Once
 )
 
 // NewVMSelectServer starts new server at the given addr, which serves vmselect requests from the given s.
@@ -88,9 +79,7 @@ func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQu
 		return nil, fmt.Errorf("missing tag filters")
 	}
 	bi := getBlockIterator()
-	readMetricIDs := atomic.Uint64{}
-	bi.sr.Init(qt, api.s, tfss, tr, maxMetrics, deadline, &readMetricIDs)
-	readMetricIDsSearch.Update(float64(readMetricIDs.Load()))
+	bi.sr.Init(qt, api.s, tfss, tr, maxMetrics, deadline)
 	if err := bi.sr.Error(); err != nil {
 		bi.MustClose()
 		return nil, err
@@ -113,10 +102,7 @@ func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.S
 	if len(tfss) == 0 {
 		return nil, fmt.Errorf("missing tag filters")
 	}
-	readMetricIDs := atomic.Uint64{}
-	res, err := api.s.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline, &readMetricIDs)
-	readMetricIDsSearchMetricNames.Update(float64(readMetricIDs.Load()))
-	return res, err
+	return api.s.SearchMetricNames(qt, tfss, tr, maxMetrics, deadline)
 }
 
 func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQuery, labelName string, maxLabelValues int, deadline uint64) ([]string, error) {
@@ -131,10 +117,7 @@ func (api *vmstorageAPI) LabelValues(qt *querytracer.Tracer, sq *storage.SearchQ
 	if err != nil {
 		return nil, err
 	}
-	readMetricIDs := atomic.Uint64{}
-	res, err := api.s.SearchLabelValues(qt, sq.AccountID, sq.ProjectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline, &readMetricIDs)
-	readMetricIDsSearchLabelValues.Update(float64(readMetricIDs.Load()))
-	return res, err
+	return api.s.SearchLabelValues(qt, sq.AccountID, sq.ProjectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 }
 
 func (api *vmstorageAPI) TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string, delimiter byte,
@@ -162,10 +145,7 @@ func (api *vmstorageAPI) LabelNames(qt *querytracer.Tracer, sq *storage.SearchQu
 	if err != nil {
 		return nil, err
 	}
-	readMetricIDs := atomic.Uint64{}
-	res, err := api.s.SearchLabelNames(qt, sq.AccountID, sq.ProjectID, tfss, tr, maxLabelNames, maxMetrics, deadline, &readMetricIDs)
-	readMetricIDsSearchLabelNames.Update(float64(readMetricIDs.Load()))
-	return res, err
+	return api.s.SearchLabelNames(qt, sq.AccountID, sq.ProjectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
 
 func (api *vmstorageAPI) SeriesCount(_ *querytracer.Tracer, accountID, projectID uint32, deadline uint64) (uint64, error) {
@@ -189,11 +169,7 @@ func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQu
 		return nil, err
 	}
 	date := uint64(sq.MinTimestamp) / (24 * 3600 * 1000)
-
-	readMetricIDs := atomic.Uint64{}
-	status, err := api.s.GetTSDBStatus(qt, sq.AccountID, sq.ProjectID, tfss, date, focusLabel, topN, maxMetrics, deadline, &readMetricIDs)
-	readMetricIDsTSDBStatus.Update(float64(readMetricIDs.Load()))
-	return status, err
+	return api.s.GetTSDBStatus(qt, sq.AccountID, sq.ProjectID, tfss, date, focusLabel, topN, maxMetrics, deadline)
 }
 
 func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (int, error) {
@@ -211,11 +187,7 @@ func (api *vmstorageAPI) DeleteSeries(qt *querytracer.Tracer, sq *storage.Search
 	if len(tfss) == 0 {
 		return 0, fmt.Errorf("missing tag filters")
 	}
-
-	readMetricIDs := atomic.Uint64{}
-	res, err := api.s.DeleteSeries(qt, tfss, maxMetrics, &readMetricIDs)
-	readMetricIDsDeleteSeries.Update(float64(readMetricIDs.Load()))
-	return res, err
+	return api.s.DeleteSeries(qt, tfss, maxMetrics)
 }
 
 func (api *vmstorageAPI) RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, _ uint64) error {
