@@ -260,14 +260,10 @@ func testSingleActiveTimeseriesMetric(t *testing.T, disablePerDayIndex bool) {
 }
 
 func TestClusterActiveTimeseriesMetric_enabledPerDayIndex(t *testing.T) {
-	t.Skip("TODO(@rtm0): Enable once the fix is ported to cluster")
-
 	testClusterActiveTimeseriesMetric(t, false)
 }
 
 func TestClusterActiveTimeseriesMetric_disabledPerDayIndex(t *testing.T) {
-	t.Skip("TODO(@rtm0): Enable once the fix is ported to cluster")
-
 	testClusterActiveTimeseriesMetric(t, true)
 }
 
