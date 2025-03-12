@@ -765,6 +765,10 @@ Some workloads may need fine-grained resource usage limits. In these cases the f
   amount of CPU and memory at `vmstorage` and this limit guards against unplanned resource usage spikes.
   Also see [How to delete time series](#how-to-delete-time-series) section to
   learn about different ways of deleting series.
+- `-search.maxTSDBStatusTopNSeries` at `vmselect` limits the number of unique time
+  series that can be queried with topN argument by a single
+  [/api/v1/status/tsdb?topN=N](https://docs.victoriametrics.com/readme/#tsdb-stats)
+  call. 
 - `-search.maxTagKeys` at `vmstorage` limits the number of items, which may be returned from
   [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels). This endpoint is used mostly by Grafana
   for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect`
@@ -1591,6 +1595,8 @@ Below is the output for `/path/to/vmselect -help`:
      The maximum duration for /api/v1/admin/tsdb/delete_series call (default 5m)
   -search.maxDeleteSeries int
      The maximum number of time series, which can be deleted using /api/v1/admin/tsdb/delete_series. This option allows limiting memory usage (default 1000000)
+  -search.maxTSDBStatusTopNSeries int
+     The maximum number of time series that can be returned from /api/v1/status/tsdb. This option allows limiting memory usage (default 1000)
   -search.maxExportDuration duration
      The maximum duration for /api/v1/export call (default 720h0m0s)
   -search.maxExportSeries int
