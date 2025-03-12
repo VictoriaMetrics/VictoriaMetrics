@@ -48,9 +48,9 @@ func newNotifierMetrics(addr string) *notifierMetrics {
 
 	return &notifierMetrics{
 		set:                set,
-		alertsSent:         set.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
-		alertsSendErrors:   set.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", addr)),
-		alertsSendDuration: set.GetOrCreateHistogram(fmt.Sprintf("vmalert_alerts_send_duration_seconds{addr=%q}", addr)),
+		alertsSent:         set.NewCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
+		alertsSendErrors:   set.NewCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", addr)),
+		alertsSendDuration: set.NewHistogram(fmt.Sprintf("vmalert_alerts_send_duration_seconds{addr=%q}", addr)),
 	}
 }
 
