@@ -1525,7 +1525,7 @@ func testCountAllMetricNamesNoExtDB(tfss *TagFilters, is *indexSearch, tr TimeRa
 	if err := tfss.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
 		panic(fmt.Sprintf("unexpected error in TagFilters.Add: %v", err))
 	}
-	metricIDs, err := is.searchMetricIDs(nil, []*TagFilters{tfss}, tr, 1e9)
+	metricIDs, err := is.searchMetricIDs(nil, []*TagFilters{tfss}, tr, 1e9, getSearchOptions(noDeadline, "test"))
 	if err != nil {
 		panic(fmt.Sprintf("searchMetricIDs failed unexpectedly: %v", err))
 	}
@@ -1822,7 +1822,7 @@ func testCountAllMetricIDs(s *Storage, tr TimeRange) int {
 	if s.disablePerDayIndex {
 		tr = globalIndexTimeRange
 	}
-	ids, err := s.idb().searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, noDeadline)
+	ids, err := s.idb().searchMetricIDs(nil, []*TagFilters{tfsAll}, tr, 1e9, getSearchOptions(noDeadline, "test"))
 	if err != nil {
 		panic(fmt.Sprintf("seachMetricIDs() failed unexpectedly: %s", err))
 	}
