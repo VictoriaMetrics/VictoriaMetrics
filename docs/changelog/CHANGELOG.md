@@ -22,6 +22,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent/) and [Single-node VictoriaMetrics](https://docs.victoriametrics.com/): use original unmodified by [relabeling](https://docs.victoriametrics.com/#relabeling) job name as `scrape_pool` value for [/api/v1/targets](https://docs.victoriametrics.com/#prometheus-querying-api-usage) responses. This change fixes discrepancy with Prometheus as mentioned in [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/5343). Thanks to @evkuzin for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8457).
 
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation): fix panic on `rate` output. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8469).
+* BUGFIX: [Single-node VictoriaMetrics](https://docs.victoriametrics.com/) and [vmstorage](https://docs.victoriametrics.com/victoriametrics/): Fix active timeseries collection when per-day index is disabled. Previously, once per-day index was disabled, the active timeseries metric would stop being populated and and the `Active time series` chart would show 0. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8411) for details.
 
 ## [v1.113.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.113.0)
 
