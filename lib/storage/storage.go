@@ -394,6 +394,9 @@ func (s *Storage) DebugFlush() {
 	idb.doExtDB(func(extDB *indexDB) {
 		extDB.tb.DebugFlush()
 	})
+
+	hour := fasttime.UnixHour()
+	s.updateCurrHourMetricIDs(hour)
 }
 
 // CreateSnapshot creates snapshot for s and returns the snapshot name.
@@ -2056,6 +2059,10 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	is := idb.getIndexSearch(0, 0, noDeadline)
 	defer idb.putIndexSearch(is)
 
+	hmPrev := s.prevHourMetricIDs.Load()
+	hmCurr := s.currHourMetricIDs.Load()
+	var pendingHourEntries []pendingHourMetricIDEntry
+
 	mn := GetMetricName()
 	defer PutMetricName(mn)
 
@@ -2115,6 +2122,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		r.Value = mr.Value
 		r.PrecisionBits = precisionBits
 		date := s.date(r.Timestamp)
+		hour := uint64(r.Timestamp) / msecPerHour
 
 		// Search for TSID for the given mr.MetricNameRaw and store it at r.TSID.
 		if string(mr.MetricNameRaw) == string(prevMetricNameRaw) {
@@ -2123,6 +2131,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			r.TSID = prevTSID
 			continue
 		}
+
 		if s.getTSIDFromCache(&genTSID, mr.MetricNameRaw) {
 			// Fast path - the TSID for the given mr.MetricNameRaw has been found in cache and isn't deleted.
 			// There is no need in checking whether r.TSID.MetricID is deleted, since tsidCache doesn't
@@ -2155,6 +2164,14 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 				s.putSeriesToCache(mr.MetricNameRaw, &genTSID, date)
 				seriesRepopulated++
 				slowInsertsCount++
+			}
+			if hour == hmCurr.hour && !hmCurr.m.Has(genTSID.TSID.MetricID) {
+				e := pendingHourMetricIDEntry{
+					AccountID: genTSID.TSID.AccountID,
+					ProjectID: genTSID.TSID.ProjectID,
+					MetricID:  genTSID.TSID.MetricID,
+				}
+				pendingHourEntries = append(pendingHourEntries, e)
 			}
 			continue
 		}
@@ -2200,6 +2217,16 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 			r.TSID = genTSID.TSID
 			prevTSID = genTSID.TSID
 			prevMetricNameRaw = mr.MetricNameRaw
+
+			if hour == hmCurr.hour && !hmCurr.m.Has(genTSID.TSID.MetricID) {
+				e := pendingHourMetricIDEntry{
+					AccountID: genTSID.TSID.AccountID,
+					ProjectID: genTSID.TSID.ProjectID,
+					MetricID:  genTSID.TSID.MetricID,
+				}
+				pendingHourEntries = append(pendingHourEntries, e)
+			}
+
 			continue
 		}
 
@@ -2221,6 +2248,15 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		prevTSID = r.TSID
 		prevMetricNameRaw = mr.MetricNameRaw
 
+		if hour == hmCurr.hour && !hmCurr.m.Has(genTSID.TSID.MetricID) {
+			e := pendingHourMetricIDEntry{
+				AccountID: genTSID.TSID.AccountID,
+				ProjectID: genTSID.TSID.ProjectID,
+				MetricID:  genTSID.TSID.MetricID,
+			}
+			pendingHourEntries = append(pendingHourEntries, e)
+		}
+
 		if logNewSeries {
 			logger.Infof("new series created: %s", mn.String())
 		}
@@ -2233,13 +2269,19 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	dstMrs = dstMrs[:j]
 	rows = rows[:j]
 
+	if len(pendingHourEntries) > 0 {
+		s.pendingHourEntriesLock.Lock()
+		s.pendingHourEntries = append(s.pendingHourEntries, pendingHourEntries...)
+		s.pendingHourEntriesLock.Unlock()
+	}
+
 	if err := s.prefillNextIndexDB(rows, dstMrs); err != nil {
 		if firstWarn == nil {
 			firstWarn = fmt.Errorf("cannot prefill next indexdb: %w", err)
 		}
 	}
 
-	if err := s.updatePerDateData(rows, dstMrs); err != nil {
+	if err := s.updatePerDateData(rows, dstMrs, hmPrev, hmCurr); err != nil {
 		if firstWarn == nil {
 			firstWarn = fmt.Errorf("cannot not update per-day index: %w", err)
 		}
@@ -2388,7 +2430,7 @@ func (s *Storage) prefillNextIndexDB(rows []rawRow, mrs []*MetricRow) error {
 	return firstError
 }
 
-func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
+func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow, hmPrev, hmCurr *hourMetricIDs) error {
 	if s.disablePerDayIndex {
 		return nil
 	}
@@ -2406,8 +2448,6 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	idb := s.idb()
 	generation := idb.generation
 
-	hm := s.currHourMetricIDs.Load()
-	hmPrev := s.prevHourMetricIDs.Load()
 	hmPrevDate := hmPrev.hour / 24
 	nextDayMetricIDs := &s.nextDayMetricIDs.Load().v
 	ts := fasttime.UnixTimestamp()
@@ -2421,7 +2461,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	}
 	var pendingDateMetricIDs []pendingDateMetricID
 	var pendingNextDayMetricIDs []uint64
-	var pendingHourEntries []pendingHourMetricIDEntry
+
 	for i := range rows {
 		r := &rows[i]
 		if r.Timestamp != prevTimestamp {
@@ -2436,9 +2476,9 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 		}
 		prevDate = date
 		prevMetricID = metricID
-		if hour == hm.hour {
+		if hour == hmCurr.hour {
 			// The row belongs to the current hour. Check for the current hour cache.
-			if hm.m.Has(metricID) {
+			if hmCurr.m.Has(metricID) {
 				// Fast path: the metricID is in the current hour cache.
 				// This means the metricID has been already added to per-day inverted index.
 
@@ -2459,12 +2499,6 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 				}
 				continue
 			}
-			e := pendingHourMetricIDEntry{
-				AccountID: r.TSID.AccountID,
-				ProjectID: r.TSID.ProjectID,
-				MetricID:  metricID,
-			}
-			pendingHourEntries = append(pendingHourEntries, e)
 			if date == hmPrevDate && hmPrev.m.Has(metricID) {
 				// The metricID is already registered for the current day on the previous hour.
 				continue
@@ -2486,11 +2520,6 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 		s.pendingNextDayMetricIDsLock.Lock()
 		s.pendingNextDayMetricIDs.AddMulti(pendingNextDayMetricIDs)
 		s.pendingNextDayMetricIDsLock.Unlock()
-	}
-	if len(pendingHourEntries) > 0 {
-		s.pendingHourEntriesLock.Lock()
-		s.pendingHourEntries = append(s.pendingHourEntries, pendingHourEntries...)
-		s.pendingHourEntriesLock.Unlock()
 	}
 	if len(pendingDateMetricIDs) == 0 {
 		// Fast path - there are no new (date, metricID) entries.
