@@ -220,7 +220,7 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 		acNew = ac
 	}
 
-	// we need instance credentials if dont have access keys
+	// we need instance credentials if we do not have access keys
 	if len(acNew.AccessKeyID) == 0 && len(acNew.SecretAccessKey) == 0 {
 		ac, err := getInstanceRoleCredentials(cfg.client)
 		if err != nil {

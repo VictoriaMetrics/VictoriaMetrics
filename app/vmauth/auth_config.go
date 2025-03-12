@@ -438,7 +438,7 @@ func getFirstAvailableBackendURL(bus []*backendURL) *backendURL {
 		return bu
 	}
 
-	// Slow path - the first url is temporarily unavailabel. Fall back to the remaining urls.
+	// Slow path - the first url is temporarily unavailable. Fall back to the remaining urls.
 	for i := 1; i < len(bus); i++ {
 		if !bus[i].isBroken() {
 			bu = bus[i]

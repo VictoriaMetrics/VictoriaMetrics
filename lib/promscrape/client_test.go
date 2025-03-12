@@ -166,7 +166,7 @@ func TestClientProxyReadOk(t *testing.T) {
 		}
 
 		if !proxyHandler.receivedProxyRequest {
-			t.Fatalf("proxy server didn't recieved request")
+			t.Fatalf("proxy server didn't received request")
 		}
 		if string(got) != expectedBackendResponse {
 			t.Fatalf("not expected response: ")

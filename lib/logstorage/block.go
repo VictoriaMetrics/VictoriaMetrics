@@ -280,7 +280,7 @@ func (b *block) mustInitFromRows(timestamps []int64, rows [][]Field) {
 			for k := range columnIdxs {
 				fieldNames = append(fieldNames, k)
 			}
-			logger.Warnf("ignoring %d rows in the block, becasue they contain more than %d unique field names: %s", len(rows)-i, maxColumnsPerBlock, fieldNames)
+			logger.Warnf("ignoring %d rows in the block, because they contain more than %d unique field names: %s", len(rows)-i, maxColumnsPerBlock, fieldNames)
 			break
 		}
 		for j := range fields {

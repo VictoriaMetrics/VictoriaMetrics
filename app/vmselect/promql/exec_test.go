@@ -10195,7 +10195,7 @@ max_over_time(cpuIdle[1h:])`)
 	f("avg(foo[5m])")
 	f("sort(foo[5m])")
 
-	// These are valid subqueries with MetricsQL extention, which allows omitting lookbehind window for rollup functions
+	// These are valid subqueries with MetricsQL extension, which allows omitting lookbehind window for rollup functions
 	f("rate(rate(http_total)[5m:1m])")
 	f("rate(sum(rate(http_total))[5m:1m])")
 	f("rate(sum(rate(http_total))[5m:1m])")

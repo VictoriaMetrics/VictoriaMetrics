@@ -988,7 +988,7 @@
   "integralByInterval": {
     "name": "integralByInterval",
     "function": "integralByInterval(seriesList, intervalUnit)",
-    "description": "This will do the same as integral() funcion, except resetting the total to 0\nat the given time in the parameter \"from\"\nUseful for finding totals per hour/day/week/..\n\nExample:\n\n.. code-block:: none\n\n  &target=integralByInterval(company.sales.perMinute, \"1d\")&from=midnight-10days\n\nThis would start at zero on the left side of the graph, adding the sales each\nminute, and show the evolution of sales per day during the last 10 days.",
+    "description": "This will do the same as integral() function, except resetting the total to 0\nat the given time in the parameter \"from\"\nUseful for finding totals per hour/day/week/..\n\nExample:\n\n.. code-block:: none\n\n  &target=integralByInterval(company.sales.perMinute, \"1d\")&from=midnight-10days\n\nThis would start at zero on the left side of the graph, adding the sales each\nminute, and show the evolution of sales per day during the last 10 days.",
     "module": "graphite.render.functions",
     "group": "Transform",
     "params": [
@@ -1776,7 +1776,7 @@
   "movingAverage": {
     "name": "movingAverage",
     "function": "movingAverage(seriesList, windowSize, xFilesFactor=None)",
-    "description": "Graphs the moving average of a metric (or metrics) over a fixed number of\npast points, or a time interval.\n\nTakes one metric or a wildcard seriesList followed by a number N of datapoints\nor a quoted string with a length of time like '1hour' or '5min' (See ``from /\nuntil`` in the :doc:`Render API <render_api>` for examples of time formats), and an xFilesFactor value to specify\nhow many points in the window must be non-null for the output to be considered valid. Graphs the\naverage of the preceeding datapoints for each point on the graph.\n\nExample:\n\n.. code-block:: none\n\n  &target=movingAverage(Server.instance01.threads.busy,10)\n  &target=movingAverage(Server.instance*.threads.idle,'5min')",
+    "description": "Graphs the moving average of a metric (or metrics) over a fixed number of\npast points, or a time interval.\n\nTakes one metric or a wildcard seriesList followed by a number N of datapoints\nor a quoted string with a length of time like '1hour' or '5min' (See ``from /\nuntil`` in the :doc:`Render API <render_api>` for examples of time formats), and an xFilesFactor value to specify\nhow many points in the window must be non-null for the output to be considered valid. Graphs the\naverage of the preceding datapoints for each point on the graph.\n\nExample:\n\n.. code-block:: none\n\n  &target=movingAverage(Server.instance01.threads.busy,10)\n  &target=movingAverage(Server.instance*.threads.idle,'5min')",
     "module": "graphite.render.functions",
     "group": "Calculate",
     "params": [
@@ -1809,7 +1809,7 @@
   "movingMax": {
     "name": "movingMax",
     "function": "movingMax(seriesList, windowSize, xFilesFactor=None)",
-    "description": "Graphs the moving maximum of a metric (or metrics) over a fixed number of\npast points, or a time interval.\n\nTakes one metric or a wildcard seriesList followed by a number N of datapoints\nor a quoted string with a length of time like '1hour' or '5min' (See ``from /\nuntil`` in the :doc:`Render API <render_api>` for examples of time formats), and an xFilesFactor value to specify\nhow many points in the window must be non-null for the output to be considered valid. Graphs the\nmaximum of the preceeding datapoints for each point on the graph.\n\nExample:\n\n.. code-block:: none\n\n  &target=movingMax(Server.instance01.requests,10)\n  &target=movingMax(Server.instance*.errors,'5min')",
+    "description": "Graphs the moving maximum of a metric (or metrics) over a fixed number of\npast points, or a time interval.\n\nTakes one metric or a wildcard seriesList followed by a number N of datapoints\nor a quoted string with a length of time like '1hour' or '5min' (See ``from /\nuntil`` in the :doc:`Render API <render_api>` for examples of time formats), and an xFilesFactor value to specify\nhow many points in the window must be non-null for the output to be considered valid. Graphs the\nmaximum of the preceding datapoints for each point on the graph.\n\nExample:\n\n.. code-block:: none\n\n  &target=movingMax(Server.instance01.requests,10)\n  &target=movingMax(Server.instance*.errors,'5min')",
     "module": "graphite.render.functions",
     "group": "Calculate",
     "params": [
@@ -1842,7 +1842,7 @@
   "movingMedian": {
     "name": "movingMedian",
     "function": "movingMedian(seriesList, windowSize, xFilesFactor=None)",
-    "description": "Graphs the moving median of a metric (or metrics) over a fixed number of\npast points, or a time interval.\n\nTakes one metric or a wildcard seriesList followed by a number N of datapoints\nor a quoted string with a length of time like '1hour' or '5min' (See ``from /\nuntil`` in the :doc:`Render API <render_api>` for examples of time formats), and an xFilesFactor value to specify\nhow many points in the window must be non-null for the output to be considered valid. Graphs the\nmedian of the preceeding datapoints for each point on the graph.\n\nExample:\n\n.. code-block:: none\n\n  &target=movingMedian(Server.instance01.threads.busy,10)\n  &target=movingMedian(Server.instance*.threads.idle,'5min')",
+    "description": "Graphs the moving median of a metric (or metrics) over a fixed number of\npast points, or a time interval.\n\nTakes one metric or a wildcard seriesList followed by a number N of datapoints\nor a quoted string with a length of time like '1hour' or '5min' (See ``from /\nuntil`` in the :doc:`Render API <render_api>` for examples of time formats), and an xFilesFactor value to specify\nhow many points in the window must be non-null for the output to be considered valid. Graphs the\nmedian of the preceding datapoints for each point on the graph.\n\nExample:\n\n.. code-block:: none\n\n  &target=movingMedian(Server.instance01.threads.busy,10)\n  &target=movingMedian(Server.instance*.threads.idle,'5min')",
     "module": "graphite.render.functions",
     "group": "Calculate",
     "params": [
@@ -1875,7 +1875,7 @@
   "movingMin": {
     "name": "movingMin",
     "function": "movingMin(seriesList, windowSize, xFilesFactor=None)",
-    "description": "Graphs the moving minimum of a metric (or metrics) over a fixed number of\npast points, or a time interval.\n\nTakes one metric or a wildcard seriesList followed by a number N of datapoints\nor a quoted string with a length of time like '1hour' or '5min' (See ``from /\nuntil`` in the :doc:`Render API <render_api>` for examples of time formats), and an xFilesFactor value to specify\nhow many points in the window must be non-null for the output to be considered valid. Graphs the\nminimum of the preceeding datapoints for each point on the graph.\n\nExample:\n\n.. code-block:: none\n\n  &target=movingMin(Server.instance01.requests,10)\n  &target=movingMin(Server.instance*.errors,'5min')",
+    "description": "Graphs the moving minimum of a metric (or metrics) over a fixed number of\npast points, or a time interval.\n\nTakes one metric or a wildcard seriesList followed by a number N of datapoints\nor a quoted string with a length of time like '1hour' or '5min' (See ``from /\nuntil`` in the :doc:`Render API <render_api>` for examples of time formats), and an xFilesFactor value to specify\nhow many points in the window must be non-null for the output to be considered valid. Graphs the\nminimum of the preceding datapoints for each point on the graph.\n\nExample:\n\n.. code-block:: none\n\n  &target=movingMin(Server.instance01.requests,10)\n  &target=movingMin(Server.instance*.errors,'5min')",
     "module": "graphite.render.functions",
     "group": "Calculate",
     "params": [
@@ -1908,7 +1908,7 @@
   "movingSum": {
     "name": "movingSum",
     "function": "movingSum(seriesList, windowSize, xFilesFactor=None)",
-    "description": "Graphs the moving sum of a metric (or metrics) over a fixed number of\npast points, or a time interval.\n\nTakes one metric or a wildcard seriesList followed by a number N of datapoints\nor a quoted string with a length of time like '1hour' or '5min' (See ``from /\nuntil`` in the :doc:`Render API <render_api>` for examples of time formats), and an xFilesFactor value to specify\nhow many points in the window must be non-null for the output to be considered valid. Graphs the\nsum of the preceeding datapoints for each point on the graph.\n\nExample:\n\n.. code-block:: none\n\n  &target=movingSum(Server.instance01.requests,10)\n  &target=movingSum(Server.instance*.errors,'5min')",
+    "description": "Graphs the moving sum of a metric (or metrics) over a fixed number of\npast points, or a time interval.\n\nTakes one metric or a wildcard seriesList followed by a number N of datapoints\nor a quoted string with a length of time like '1hour' or '5min' (See ``from /\nuntil`` in the :doc:`Render API <render_api>` for examples of time formats), and an xFilesFactor value to specify\nhow many points in the window must be non-null for the output to be considered valid. Graphs the\nsum of the preceding datapoints for each point on the graph.\n\nExample:\n\n.. code-block:: none\n\n  &target=movingSum(Server.instance01.requests,10)\n  &target=movingSum(Server.instance*.errors,'5min')",
     "module": "graphite.render.functions",
     "group": "Calculate",
     "params": [
@@ -1941,7 +1941,7 @@
   "movingWindow": {
     "name": "movingWindow",
     "function": "movingWindow(seriesList, windowSize, func='average', xFilesFactor=None)",
-    "description": "Graphs a moving window function of a metric (or metrics) over a fixed number of\npast points, or a time interval.\n\nTakes one metric or a wildcard seriesList, a number N of datapoints\nor a quoted string with a length of time like '1hour' or '5min' (See ``from /\nuntil`` in the :doc:`Render API <render_api>` for examples of time formats), a function to apply to the points\nin the window to produce the output, and an xFilesFactor value to specify how many points in the\nwindow must be non-null for the output to be considered valid. Graphs the\noutput of the function for the preceeding datapoints for each point on the graph.\n\nExample:\n\n.. code-block:: none\n\n  &target=movingWindow(Server.instance01.threads.busy,10)\n  &target=movingWindow(Server.instance*.threads.idle,'5min','median',0.5)\n\n.. note::\n\n  `xFilesFactor` follows the same semantics as in Whisper storage schemas.  Setting it to 0 (the\n  default) means that only a single value in a given interval needs to be non-null, setting it to\n  1 means that all values in the interval must be non-null.  A setting of 0.5 means that at least\n  half the values in the interval must be non-null.",
+    "description": "Graphs a moving window function of a metric (or metrics) over a fixed number of\npast points, or a time interval.\n\nTakes one metric or a wildcard seriesList, a number N of datapoints\nor a quoted string with a length of time like '1hour' or '5min' (See ``from /\nuntil`` in the :doc:`Render API <render_api>` for examples of time formats), a function to apply to the points\nin the window to produce the output, and an xFilesFactor value to specify how many points in the\nwindow must be non-null for the output to be considered valid. Graphs the\noutput of the function for the preceding datapoints for each point on the graph.\n\nExample:\n\n.. code-block:: none\n\n  &target=movingWindow(Server.instance01.threads.busy,10)\n  &target=movingWindow(Server.instance*.threads.idle,'5min','median',0.5)\n\n.. note::\n\n  `xFilesFactor` follows the same semantics as in Whisper storage schemas.  Setting it to 0 (the\n  default) means that only a single value in a given interval needs to be non-null, setting it to\n  1 means that all values in the interval must be non-null.  A setting of 0.5 means that at least\n  half the values in the interval must be non-null.",
     "module": "graphite.render.functions",
     "group": "Calculate",
     "params": [

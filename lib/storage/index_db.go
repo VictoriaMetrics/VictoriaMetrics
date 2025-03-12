@@ -1599,7 +1599,7 @@ func (db *indexDB) searchMetricName(dst []byte, metricID uint64, noCache bool) (
 // be stored.
 //
 // If the number of the series exceeds maxMetrics, no series will be deleted and
-// an error will be returned. Otherwise, the funciton returns the number of
+// an error will be returned. Otherwise, the function returns the number of
 // series deleted.
 func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
 	qt = qt.NewChild("deleting series for %s", tfss)
@@ -1621,7 +1621,7 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	deletedCount := len(metricIDs)
 	db.doExtDB(func(extDB *indexDB) {
 		var n int
-		qtChild := qt.NewChild("deleting series from the previos indexdb")
+		qtChild := qt.NewChild("deleting series from the previous indexdb")
 		n, err = extDB.DeleteTSIDs(qtChild, tfss, maxMetrics)
 		qtChild.Donef("deleted %d series", n)
 		deletedCount += n

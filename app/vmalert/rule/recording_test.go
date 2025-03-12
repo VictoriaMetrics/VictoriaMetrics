@@ -194,7 +194,7 @@ func TestRecordingRule_ExecRange(t *testing.T) {
 			t.Fatalf("unexpected RecordingRule.execRange error: %s", err)
 		}
 		if err := compareTimeSeries(t, tssExpected, tss); err != nil {
-			t.Fatalf("timeseries missmatch: %s", err)
+			t.Fatalf("timeseries mismatch: %s", err)
 		}
 	}
 

@@ -47,7 +47,7 @@ func unmarshalColumnIdxs(src []byte, columnNames []string, shardsCount uint64) (
 	}
 	src = src[nBytes:]
 	if n > math.MaxInt {
-		return nil, fmt.Errorf("too many entries: %d; musn't exceed %d", n, math.MaxInt)
+		return nil, fmt.Errorf("too many entries: %d; mustn't exceed %d", n, math.MaxInt)
 	}
 
 	shardIdxs := make(map[string]uint64, n)
@@ -121,7 +121,7 @@ func unmarshalColumnNames(src []byte) ([]string, map[string]uint64, error) {
 	}
 	src = src[nBytes:]
 	if n > math.MaxInt {
-		return nil, nil, fmt.Errorf("too many distinct column names: %d; musn't exceed %d", n, math.MaxInt)
+		return nil, nil, fmt.Errorf("too many distinct column names: %d; mustn't exceed %d", n, math.MaxInt)
 	}
 
 	columnNameIDs := make(map[string]uint64, n)

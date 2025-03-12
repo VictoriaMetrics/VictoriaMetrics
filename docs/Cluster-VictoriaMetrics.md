@@ -1269,7 +1269,7 @@ Below is the output for `/path/to/vminsert -help`:
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
   -metricNamesStatsResetAuthKey value
-     AuthKey for reseting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*
+     AuthKey for resetting metric names usage cache via /api/v1/admin/status/metric_names_stats/reset. It overrides -httpAuth.*
      See https://docs.victoriametrics.com/#track-ingested-metrics-usage
      Flag value can be read from the given file when using -metricNamesStatsResetAuthKey=file:///abs/path/to/file or -metricNamesStatsResetAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https
  url when using -metricNamesStatsResetAuthKey=http://host/path or -metricNamesStatsResetAuthKey=https://host/path

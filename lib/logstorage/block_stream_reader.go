@@ -449,7 +449,7 @@ func (bsr *blockStreamReader) NextBlock() bool {
 		logger.Panicf("FATAL: %s: too many blocks read so far: %d; mustn't exceed partHeader.BlocksCount=%d", bsr.Path(), bsr.globalBlocksCount, bsr.ph.BlocksCount)
 	}
 
-	// The block has been sucessfully read
+	// The block has been successfully read
 	bsr.nextBlockIdx++
 	return true
 }

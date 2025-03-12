@@ -391,7 +391,7 @@ func newGetAuthHeaderCached(getAuthHeader getAuthHeaderFunc) getAuthHeaderFunc {
 	var ah string
 	var err error
 	return func() (string, error) {
-		// Cahe the auth header and the error for up to a second in order to save CPU time
+		// Cache the auth header and the error for up to a second in order to save CPU time
 		// on reading and parsing auth headers from files.
 		// This also reduces load on OAuth2 server when oauth2 config is enabled.
 		mu.Lock()

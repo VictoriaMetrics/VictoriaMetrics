@@ -963,7 +963,7 @@ func testGroupSkipSlowReplicas(tc *at.TestCase, opts *testGroupReplicationOpts) 
 	// case when each group receives the response from at least M-groupRF+1
 	// nodes.
 	//
-	// Min number of nodes to skip is groupRF-1. This correponds to the case
+	// Min number of nodes to skip is groupRF-1. This corresponds to the case
 	// when one group is slower than other groups and it receives responses from
 	// M-groupRF+1 nodes only when the rest of the groups have received
 	// responses from all of their nodes.
@@ -995,7 +995,7 @@ func testGroupSkipSlowReplicas(tc *at.TestCase, opts *testGroupReplicationOpts) 
 	// Replication factor is groupRF.
 	//
 	// Max number of nodes to skip is M*(globalRF-1) + (N-globalRF+1)(groupRF-1).
-	// This correponds to the case when N-globalRF+1 groups receive the response
+	// This corresponds to the case when N-globalRF+1 groups receive the response
 	// from at least M-groupRF+1 nodes.
 	//
 	// Min number of nodes to skip is (globalRF-1)*(groupRF-1). This corresponds

@@ -930,7 +930,7 @@ func TestGroup_Restore(t *testing.T) {
 			},
 		})
 
-	// one active alert with restore labels missmatch
+	// one active alert with restore labels mismatch
 	ts = time.Now().Truncate(time.Hour)
 	fqr.Set(`default_rollup(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
 		stateMetric("foo", ts, "env", "dev", "team", "foo"))

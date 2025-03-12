@@ -114,7 +114,7 @@ func loadFrom(loadPath string, maxSizeBytes uint64) (*Tracker, error) {
 		return nil, fmt.Errorf("cannot parse maxSizeBytes: %w", err)
 	}
 	if storedMaxSizeBytes > maxSizeBytes {
-		logger.Infof("Reseting tracker state due to changed maxSizeBytes from %d to %d.", storedMaxSizeBytes, maxSizeBytes)
+		logger.Infof("Resetting tracker state due to changed maxSizeBytes from %d to %d.", storedMaxSizeBytes, maxSizeBytes)
 		return mt, nil
 	}
 	var creationTs uint64

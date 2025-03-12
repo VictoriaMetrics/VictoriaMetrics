@@ -131,7 +131,7 @@ func reloadStreamAggrConfigGlobal() {
 func initStreamAggrConfigGlobal() {
 	sas, err := newStreamAggrConfigGlobal()
 	if err != nil {
-		logger.Fatalf("cannot initialize gloabl stream aggregators: %s", err)
+		logger.Fatalf("cannot initialize global stream aggregators: %s", err)
 	}
 	if sas != nil {
 		filePath := sas.FilePath()

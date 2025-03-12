@@ -49,7 +49,7 @@ type IndexdbStats struct {
 }
 
 type indexdb struct {
-	// streamsCreatedTotal is the number of log streams created since the indexdb intialization.
+	// streamsCreatedTotal is the number of log streams created since the indexdb initialization.
 	streamsCreatedTotal atomic.Uint64
 
 	// the generation of the filterStreamCache.

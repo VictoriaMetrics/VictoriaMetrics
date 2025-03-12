@@ -1366,7 +1366,7 @@ func (br *blockResult) getBucketedFloat64Values(c *blockResultColumn, bf *byStat
 	fMin := truncateFloat64(minValue, p10, bucketSizeP10, bf.bucketOffset)
 	fMax := truncateFloat64(maxValue, p10, bucketSizeP10, bf.bucketOffset)
 	if fMin == fMax {
-		// Fast path - all the trucated values in the block are the same.
+		// Fast path - all the truncated values in the block are the same.
 		buf := br.a.b
 		bufLen := len(buf)
 		buf = marshalFloat64String(buf, fMin)
