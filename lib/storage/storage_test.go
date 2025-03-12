@@ -2456,6 +2456,103 @@ func TestStorageAddRows_SamplesWithZeroDate(t *testing.T) {
 	})
 }
 
+func TestStorageAddRows_currHourMetricIDs(t *testing.T) {
+	defer testRemoveAll(t)
+
+	f := func(t *testing.T, disablePerDayIndex bool) {
+		t.Helper()
+
+		s := MustOpenStorage(t.Name(), OpenOptions{
+			DisablePerDayIndex: disablePerDayIndex,
+		})
+		defer s.MustClose()
+
+		now := time.Now().UTC()
+		currHourTR := TimeRange{
+			MinTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, time.UTC).UnixMilli(),
+			MaxTimestamp: time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 59, 59, 999_999_999, time.UTC).UnixMilli(),
+		}
+		currHour := uint64(currHourTR.MinTimestamp / 1000 / 3600)
+		prevHourTR := TimeRange{
+			MinTimestamp: currHourTR.MinTimestamp - 3600*1000,
+			MaxTimestamp: currHourTR.MaxTimestamp - 3600*1000,
+		}
+		rng := rand.New(rand.NewSource(1))
+
+		// Test current hour metricIDs population when data ingestion takes the
+		// slow path. The database is empty, therefore the index and the
+		// tsidCache contain no metricIDs, therefore the data ingestion will
+		// take slow path.
+
+		mrs := testGenerateMetricRowsWithPrefix(rng, 1000, "slow_path", currHourTR)
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		s.updateCurrHourMetricIDs(currHour)
+		if got, want := s.currHourMetricIDs.Load().m.Len(), 1000; got != want {
+			t.Errorf("[slow path] unexpected current hour metric ID count: got %d, want %d", got, want)
+		}
+
+		// Test current hour metricIDs population when data ingestion takes the
+		// fast path (when the metricIDs are found in the tsidCache)
+
+		// First insert samples to populate the tsidCache. The samples belong to
+		// the previous hour, therefore the metricIDs won't be added to
+		// currHourMetricIDs.
+		mrs = testGenerateMetricRowsWithPrefix(rng, 1000, "fast_path", prevHourTR)
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		s.updateCurrHourMetricIDs(currHour)
+		if got, want := s.currHourMetricIDs.Load().m.Len(), 1000; got != want {
+			t.Errorf("[fast path] unexpected current hour metric ID count after ingesting samples for previous hour: got %d, want %d", got, want)
+		}
+
+		// Now ingest the same metrics. This time the metricIDs will be found in
+		// tsidCache so the ingestion will take the fast path.
+		mrs = testGenerateMetricRowsWithPrefix(rng, 1000, "fast_path", currHourTR)
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		s.updateCurrHourMetricIDs(currHour)
+		if got, want := s.currHourMetricIDs.Load().m.Len(), 2000; got != want {
+			t.Errorf("[fast path] unexpected current hour metric ID count: got %d, want %d", got, want)
+		}
+
+		// Test current hour metricIDs population when data ingestion takes the
+		// slower path (when the metricIDs are not found in the tsidCache but
+		// found in the index)
+
+		// First insert samples to populate the index. The samples belong to
+		// the previous hour, therefore the metricIDs won't be added to
+		// currHourMetricIDs.
+		mrs = testGenerateMetricRowsWithPrefix(rng, 1000, "slower_path", prevHourTR)
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		s.updateCurrHourMetricIDs(currHour)
+		if got, want := s.currHourMetricIDs.Load().m.Len(), 2000; got != want {
+			t.Errorf("[slower path] unexpected current hour metric ID count after ingesting samples for previous hour: got %d, want %d", got, want)
+		}
+		// Inserted samples were also added to the tsidCache. Drop it to
+		// enforce the fallback to index search.
+		s.resetAndSaveTSIDCache()
+
+		// Now ingest the same metrics. This time the metricIDs will be searched
+		// and found in index so the ingestion will take the slower path.
+		mrs = testGenerateMetricRowsWithPrefix(rng, 1000, "slower_path", currHourTR)
+		s.AddRows(mrs, defaultPrecisionBits)
+		s.DebugFlush()
+		s.updateCurrHourMetricIDs(currHour)
+		if got, want := s.currHourMetricIDs.Load().m.Len(), 3000; got != want {
+			t.Errorf("[slower path] unexpected current hour metric ID count: got %d, want %d", got, want)
+		}
+	}
+
+	t.Run("disablePerDayIndex=false", func(t *testing.T) {
+		f(t, false)
+	})
+	t.Run("disablePerDayIndex=true", func(t *testing.T) {
+		f(t, true)
+	})
+}
+
 func TestStorageRegisterMetricNamesForVariousDataPatternsConcurrently(t *testing.T) {
 	testStorageVariousDataPatternsConcurrently(t, true, func(s *Storage, mrs []MetricRow) {
 		s.RegisterMetricNames(nil, mrs)
