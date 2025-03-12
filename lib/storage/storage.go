@@ -1462,7 +1462,7 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMe
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 
-	so := getSearchOptions(noDeadline, "delete_series")
+	so := getSearchOptions(noDeadline, "/api/v1/admin/tsdb/delete_series")
 	defer putSearchOptions(so)
 
 	deletedCount, err := idb.DeleteTSIDs(qt, tfss, maxMetrics, so)
@@ -1490,7 +1490,7 @@ func (s *Storage) SearchLabelNames(qt *querytracer.Tracer, accountID, projectID 
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 
-	so := getSearchOptions(deadline, "search_label_names")
+	so := getSearchOptions(deadline, "/api/v1/labels")
 	defer putSearchOptions(so)
 
 	tr = s.adjustTimeRange(tr)
@@ -1511,7 +1511,7 @@ func (s *Storage) SearchLabelValues(qt *querytracer.Tracer, accountID, projectID
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 
-	so := getSearchOptions(deadline, "search_label_values")
+	so := getSearchOptions(deadline, "/api/v1/label/{}/values")
 	defer putSearchOptions(so)
 
 	tr = s.adjustTimeRange(tr)
@@ -1811,7 +1811,7 @@ func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uin
 	idb, putIndexDB := s.getCurrIndexDB()
 	defer putIndexDB()
 
-	so := getSearchOptions(deadline, "tsdb_status")
+	so := getSearchOptions(deadline, "/api/v1/status/tsdb")
 	defer putSearchOptions(so)
 
 	if s.disablePerDayIndex {
