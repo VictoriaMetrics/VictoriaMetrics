@@ -3,4 +3,4 @@
 package manager
 
 // goModuleVersion is the tagged release for this module
-const goModuleVersion = "1.17.61"
+const goModuleVersion = "1.17.66"

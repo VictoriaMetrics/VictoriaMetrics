@@ -236,3 +236,79 @@ func testSearchWithDisabledPerDayIndex(tc *at.TestCase, start startSUTFunc) {
 		},
 	})
 }
+
+func TestSingleActiveTimeseriesMetric_enabledPerDayIndex(t *testing.T) {
+	testSingleActiveTimeseriesMetric(t, false)
+}
+
+func TestSingleActiveTimeseriesMetric_disabledPerDayIndex(t *testing.T) {
+	testSingleActiveTimeseriesMetric(t, true)
+}
+
+func testSingleActiveTimeseriesMetric(t *testing.T, disablePerDayIndex bool) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	vmsingle := tc.MustStartVmsingle("vmsingle", []string{
+		fmt.Sprintf("-storageDataPath=%s/vmsingle-%t", tc.Dir(), disablePerDayIndex),
+		fmt.Sprintf("-disablePerDayIndex=%t", disablePerDayIndex),
+	})
+
+	testActiveTimeseriesMetric(tc, vmsingle, func() int {
+		return vmsingle.GetIntMetric(t, `vm_cache_entries{type="storage/hour_metric_ids"}`)
+	})
+}
+
+func TestClusterActiveTimeseriesMetric_enabledPerDayIndex(t *testing.T) {
+	testClusterActiveTimeseriesMetric(t, false)
+}
+
+func TestClusterActiveTimeseriesMetric_disabledPerDayIndex(t *testing.T) {
+	testClusterActiveTimeseriesMetric(t, true)
+}
+
+func testClusterActiveTimeseriesMetric(t *testing.T, disablePerDayIndex bool) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	vmstorage1 := tc.MustStartVmstorage("vmstorage1", []string{
+		fmt.Sprintf("-storageDataPath=%s/vmstorage1-%t", tc.Dir(), disablePerDayIndex),
+		fmt.Sprintf("-disablePerDayIndex=%t", disablePerDayIndex),
+	})
+	vmstorage2 := tc.MustStartVmstorage("vmstorage2", []string{
+		fmt.Sprintf("-storageDataPath=%s/vmstorage2-%t", tc.Dir(), disablePerDayIndex),
+		fmt.Sprintf("-disablePerDayIndex=%t", disablePerDayIndex),
+	})
+	vminsert := tc.MustStartVminsert("vminsert", []string{
+		"-storageNode=" + vmstorage1.VminsertAddr() + "," + vmstorage2.VminsertAddr(),
+	})
+
+	vmcluster := &at.Vmcluster{
+		Vmstorages: []*at.Vmstorage{vmstorage1, vmstorage2},
+		Vminsert:   vminsert,
+	}
+
+	testActiveTimeseriesMetric(tc, vmcluster, func() int {
+		cnt1 := vmstorage1.GetIntMetric(t, `vm_cache_entries{type="storage/hour_metric_ids"}`)
+		cnt2 := vmstorage2.GetIntMetric(t, `vm_cache_entries{type="storage/hour_metric_ids"}`)
+		return cnt1 + cnt2
+	})
+}
+
+func testActiveTimeseriesMetric(tc *at.TestCase, sut at.PrometheusWriteQuerier, getActiveTimeseries func() int) {
+	t := tc.T()
+	const numSamples = 1000
+	samples := make([]string, numSamples)
+	for i := range numSamples {
+		samples[i] = fmt.Sprintf("metric_%03d %d", i, i)
+	}
+	sut.PrometheusAPIV1ImportPrometheus(t, samples, at.QueryOpts{})
+	sut.ForceFlush(t)
+	tc.Assert(&at.AssertOptions{
+		Msg: `unexpected vm_cache_entries{type="storage/hour_metric_ids"} metric value`,
+		Got: func() any {
+			return getActiveTimeseries()
+		},
+		Want: numSamples,
+	})
+}

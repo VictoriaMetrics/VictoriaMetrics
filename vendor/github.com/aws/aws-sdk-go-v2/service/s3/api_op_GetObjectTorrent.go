@@ -169,6 +169,9 @@ func (c *Client) addOperationGetObjectTorrentMiddlewares(stack *middleware.Stack
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetObjectTorrentValidationMiddleware(stack); err != nil {
 		return err
 	}

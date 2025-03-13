@@ -207,6 +207,9 @@ func (c *Client) addOperationPutBucketTaggingMiddlewares(stack *middleware.Stack
 	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpPutBucketTaggingValidationMiddleware(stack); err != nil {
 		return err
 	}

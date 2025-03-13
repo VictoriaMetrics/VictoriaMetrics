@@ -164,6 +164,9 @@ func (c *Client) addOperationGetBucketIntelligentTieringConfigurationMiddlewares
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetBucketIntelligentTieringConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}
