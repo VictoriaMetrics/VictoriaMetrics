@@ -463,11 +463,11 @@ due to [replication](#replication) or [rerouting](https://docs.victoriametrics.c
 
 ### Track ingested metrics usage
 
-VictoriaMetrics provides the ability to record statistics of fetched [metric names](https://docs.victoriametrics.com/keyconcepts/#structure-of-a-metric) during [querying](https://docs.victoriametrics.com/keyconcepts/#query-data). This feature can be enabled via the flag `--storage.trackMetricNamesStats` (disabled by default) on  a single-node VictoriaMetrics or [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview). Querying a metric with non-matching filters doesn't increase the counter for this particular metric name.
+VictoriaMetrics provides the ability to record statistics of fetched [metric names](https://docs.victoriametrics.com/keyconcepts/#structure-of-a-metric) during [querying](https://docs.victoriametrics.com/keyconcepts/#query-data) {{% available_from "v1.113.0" %}}. This feature can be enabled via the flag `--storage.trackMetricNamesStats` (disabled by default) on  a single-node VictoriaMetrics or [vmstorage](https://docs.victoriametrics.com/cluster-victoriametrics/#architecture-overview). Querying a metric with non-matching filters doesn't increase the counter for this particular metric name.
 For example, querying for `vm_log_messages_total{level!="info"}` won't increment usage counter for `vm_log_messages_total` if there are no `{level="error"}` or `{level="warning"}` series yet.
 VictoriaMetrics tracks metric names query statistics for `/api/v1/query`, `/api/v1/query_range`, `/render`, `/federate` and `/api/v1/export` API calls.
 
-To get metric names usage statistics, use the `/prometheus/api/v1/status/metric_names_stats` API endpoint. It accepts the following query parameters:
+To get metric names usage statistics, use the `/prometheus/api/v1/status/metric_names_stats` API endpoint for a single-node VictoriaMetrics (or at `http://<vmselect>:8481/select/<accountID>/prometheus/api/v1/status/metric_names_stats` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)). It accepts the following query parameters:
 
 * `limit` - integer value to limit the number of metric names in response. By default, API returns 1000 records.
 * `le` -  `less than or equal`, is an integer threshold for filtering metric names by their usage count in queries. For example, with `?le=1` API returns metric names that were queried <=1 times.
@@ -510,7 +510,7 @@ VictoriaMetrics exposes the following metrics for the metric name tracker:
 
 An alerting rule with query `vm_cache_size_bytes{type="storage/metricNamesStatsTracker"} \ vm_cache_size_max_bytes{type="storage/metricNamesStatsTracker"} > 0.9` can be used to notify the user of cache utilization exceeding 90%.
 
-The metric name tracker state can be reset via the API endpoint /api/v1/admin/status/metric_names_stats/reset or  
+The metric name tracker state can be reset via the API endpoint `/api/v1/admin/status/metric_names_stats/reset` for a single-node VictoriaMetrics (or at `http://<vmselect>:8481/admin/api/v1/admin/status/metric_names_stats/reset` in [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/cluster-victoriametrics/)) or
 via [cache removal](#cache-removal) procedure.
 
 ## How to apply new config to VictoriaMetrics
@@ -1826,6 +1826,10 @@ By default, VictoriaMetrics is tuned for an optimal resource usage under typical
   amount of CPU and memory and this limit guards against unplanned resource usage spikes. Also see
   [How to delete time series](#how-to-delete-time-series) section to learn about
   different ways of deleting series.
+- `-search.maxTSDBStatusTopNSeries` at `vmselect` limits the number of unique time
+  series that can be queried with topN argument by a single
+  [/api/v1/status/tsdb?topN=N](https://docs.victoriametrics.com/readme/#tsdb-stats)
+  call.
 - `-search.maxTagKeys` limits the number of items, which may be returned from [/api/v1/labels](https://docs.victoriametrics.com/url-examples/#apiv1labels).
   This endpoint is used mostly by Grafana for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory
   when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
@@ -3304,6 +3308,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum duration for /api/v1/admin/tsdb/delete_series call (default 5m)
   -search.maxDeleteSeries int
      The maximum number of time series, which can be deleted using /api/v1/admin/tsdb/delete_series. This option allows limiting memory usage (default 1000000)
+  -search.maxTSDBStatusTopNSeries int
+     The maximum number of time series that can be returned from /api/v1/status/tsdb. This option allows limiting memory usage (default 1000)
   -search.maxExportDuration duration
      The maximum duration for /api/v1/export call (default 720h0m0s)
   -search.maxExportSeries int

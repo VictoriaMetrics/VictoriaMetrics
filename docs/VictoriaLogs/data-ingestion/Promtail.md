@@ -25,7 +25,21 @@ clients:
 
 Substitute `localhost:9428` address inside `clients` with the real TCP address of VictoriaLogs.
 
-VictoriaLogs uses [log streams](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) defined at the client side,
+VictoriaLogs automatically parses JSON string from the log message into [distinct log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+This behavior can be disabled by passing `-loki.disableMessageParsing` command-line flag to VictoriaLogs or by adding `disable_message_parsing=1` query arg
+to the `/insert/loki/api/v1/push` url in the config of log shipper:
+
+```yaml
+clients:
+  - url: "http://localhost:9428/insert/loki/api/v1/push?disable_message_parsing=1"
+```
+
+In this case the JSON with log fields is stored as a string in the [`_msg` field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field),
+so later it could be parsed at query time with the [`unpack_json` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#unpack_json-pipe).
+JSON parsing at query can be slow and can consume a lot of additional CPU time and disk read IO bandwidth. That's why it isn't
+recommended disabling JSON message parsing.
+
+VictoriaLogs uses [log stream labels](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields) defined at the client side,
 e.g. at Promtail, Grafana Agent or Grafana Alloy. Sometimes it may be needed overriding the set of these fields. This can be done via `_stream_fields`
 query arg. For example, the following config instructs using only the `instance` and `job` labels as log stream fields, while other labels
 will be stored as [usual log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
@@ -34,9 +48,6 @@ will be stored as [usual log fields](https://docs.victoriametrics.com/victorialo
 clients:
   - url: "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=instance,job"
 ```
-
-See also [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details on other supported query args.
-There is no need in specifying `_msg_field` and `_time_field` query args, since VictoriaLogs automatically extracts log message and timestamp from the ingested Loki data.
 
 It is recommended verifying whether the initial setup generates the needed [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
 and uses the correct [stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
@@ -56,6 +67,9 @@ For example, the following config instructs VictoriaLogs to ignore `filename` an
 clients:
   - url: 'http://localhost:9428/insert/loki/api/v1/push?ignore_fields=filename,stream'
 ```
+
+See also [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details on other supported query args.
+There is no need in specifying `_time_field` query arg, since VictoriaLogs automatically extracts timestamp from the ingested Loki data.
 
 By default the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy).
 If you need storing logs in other tenant, then specify the needed tenant via `tenant_id` field

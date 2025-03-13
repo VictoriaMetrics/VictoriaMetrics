@@ -207,6 +207,9 @@ func (c *Client) addOperationPutBucketInventoryConfigurationMiddlewares(stack *m
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpPutBucketInventoryConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}

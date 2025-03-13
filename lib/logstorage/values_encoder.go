@@ -817,14 +817,24 @@ func tryParseFloat64Internal(s string, isExact bool) (float64, bool) {
 	}
 	sInt := s[:n]
 	sFrac := s[n+1:]
+
 	nInt, ok := tryParseUint64(sInt)
 	if !ok {
 		return 0, false
 	}
-	nFrac, ok := tryParseUint64(sFrac)
+
+	// Skip leading zeroes at sFrac, since tryParseUint64 rejects them.
+	// This fixes https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8464
+	n = 0
+	for n < len(sFrac)-1 && sFrac[n] == '0' {
+		n++
+	}
+
+	nFrac, ok := tryParseUint64(sFrac[n:])
 	if !ok {
 		return 0, false
 	}
+
 	p10 := math.Pow10(strings.Count(sFrac, "_") - len(sFrac))
 	f := math.FMA(float64(nFrac), p10, float64(nInt))
 	if minus {

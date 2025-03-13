@@ -203,6 +203,9 @@ func (c *Client) addOperationGetObjectTaggingMiddlewares(stack *middleware.Stack
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetObjectTaggingValidationMiddleware(stack); err != nil {
 		return err
 	}
