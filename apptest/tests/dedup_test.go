@@ -201,7 +201,9 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 					{Timestamp: ts10, Value: 100},
 				}},
 				{Metric: map[string]string{"__name__": "metric4"}, Samples: []*at.Sample{
-					// Stale markers are preferred over any other value.
+					// If multiple raw samples have the same timestamp on the
+					// given -dedup.minScrapeInterval discrete interval, then
+					// stale markers are preferred over any other value.
 					{Timestamp: ts10, Value: decimal.StaleNaN},
 				}},
 			},
