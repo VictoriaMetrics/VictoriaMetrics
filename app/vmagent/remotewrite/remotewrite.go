@@ -313,12 +313,7 @@ func newRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
 		}
 		sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
 		if *showRemoteWriteURL {
-			// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8477
-			// strip query params, otherwise changing params resets pq
-			remoteWriteURLName := *remoteWriteURL
-			remoteWriteURLName.RawQuery = ""
-			remoteWriteURLName.Fragment = ""
-			sanitizedURL = fmt.Sprintf("%d:%s", i+1, &remoteWriteURLName)
+			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
 		}
 		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
 	}
