@@ -102,6 +102,7 @@ type PrometheusAPIV1QueryResponse struct {
 	Data      *QueryData
 	ErrorType string
 	Error     string
+	IsPartial bool
 }
 
 // NewPrometheusAPIV1QueryResponse is a test helper function that creates a new
