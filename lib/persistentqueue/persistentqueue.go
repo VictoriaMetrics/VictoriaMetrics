@@ -201,15 +201,6 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 		filepath := q.chunkFilePath(0)
 		fs.MustWriteAtomic(filepath, nil, false)
 	}
-	if mi.Name != q.name {
-		// For compatibility, update metadata name to new format.
-		// https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8477
-		logger.Infof("a compatible metadata file was found: %s. Update the metadata name from %q to %q.", metainfoPath, mi.Name, q.name)
-		mi.Name = q.name
-		if err := mi.WriteToFile(metainfoPath); err != nil {
-			return nil, fmt.Errorf("cannot update %q: %w", metainfoPath, err)
-		}
-	}
 
 	// Locate reader and writer chunks in the path.
 	des := fs.MustReadDir(path)
