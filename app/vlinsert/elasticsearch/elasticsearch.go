@@ -100,9 +100,9 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		lmp := cp.NewLogMessageProcessor("elasticsearch_bulk")
-		isGzip := r.Header.Get("Content-Encoding") == "gzip"
+		encoding := r.Header.Get("Content-Encoding")
 		streamName := fmt.Sprintf("remoteAddr=%s, requestURI=%q", httpserver.GetQuotedRemoteAddr(r), r.RequestURI)
-		n, err := readBulkRequest(streamName, r.Body, isGzip, cp.TimeField, cp.MsgFields, lmp)
+		n, err := readBulkRequest(streamName, r.Body, encoding, cp.TimeField, cp.MsgFields, lmp)
 		lmp.MustClose()
 		if err != nil {
 			logger.Warnf("cannot decode log message #%d in /_bulk request: %s, stream fields: %s", n, err, cp.StreamFields)
@@ -131,19 +131,16 @@ var (
 	bulkRequestDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/elasticsearch/_bulk"}`)
 )
 
-func readBulkRequest(streamName string, r io.Reader, isGzip bool, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) (int, error) {
+func readBulkRequest(streamName string, r io.Reader, encoding string, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) (int, error) {
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
-	if isGzip {
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return 0, fmt.Errorf("cannot read gzipped _bulk request: %w", err)
-		}
-		defer common.PutGzipReader(zr)
-		r = zr
+	reader, err := common.GetUncompressedReader(r, encoding)
+	if err != nil {
+		return 0, fmt.Errorf("cannot read %s-compressed Elasticsearch protocol data: %w", encoding, err)
 	}
+	defer common.PutUncompressedReader(reader, encoding)
 
-	wcr := writeconcurrencylimiter.GetReader(r)
+	wcr := writeconcurrencylimiter.GetReader(reader)
 	defer writeconcurrencylimiter.PutReader(wcr)
 
 	lr := insertutils.NewLineReader(streamName, wcr)

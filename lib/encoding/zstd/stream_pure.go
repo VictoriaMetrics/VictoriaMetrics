@@ -30,7 +30,20 @@ func (r *Reader) Read(p []byte) (int, error) {
 	return r.d.Read(p)
 }
 
+// Close implements io.ReadCloser interface
+func (r *Reader) Close() error {
+	r.d.Reset(nil)
+	return nil
+}
+
+// Reset updates supplied stream r.
+func (r *Reader) Reset(reader io.Reader) {
+	_ = r.d.Reset(reader)
+}
+
 // Release releases r.
+//
+// r cannot be used after the release.
 func (r *Reader) Release() {
 	r.d.Close()
 	r.d = nil

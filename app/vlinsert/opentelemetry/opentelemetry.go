@@ -37,16 +37,14 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 	startTime := time.Now()
 	requestsProtobufTotal.Inc()
-	reader := r.Body
-	if r.Header.Get("Content-Encoding") == "gzip" {
-		zr, err := common.GetGzipReader(reader)
-		if err != nil {
-			httpserver.Errorf(w, r, "cannot initialize gzip reader: %s", err)
-			return
-		}
-		defer common.PutGzipReader(zr)
-		reader = zr
+
+	encoding := r.Header.Get("Content-Encoding")
+	reader, err := common.GetUncompressedReader(r.Body, encoding)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot read %s-compressed OpenTelemetry protocol data: %s", encoding, err)
+		return
 	}
+	defer common.PutUncompressedReader(reader, encoding)
 
 	wcr := writeconcurrencylimiter.GetReader(reader)
 	data, err := io.ReadAll(wcr)

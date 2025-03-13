@@ -10,15 +10,24 @@ import (
 )
 
 func BenchmarkReadBulkRequest(b *testing.B) {
-	b.Run("gzip:off", func(b *testing.B) {
-		benchmarkReadBulkRequest(b, false)
+	b.Run("encoding:none", func(b *testing.B) {
+		benchmarkReadBulkRequest(b, "")
 	})
-	b.Run("gzip:on", func(b *testing.B) {
-		benchmarkReadBulkRequest(b, true)
+	b.Run("encoding:gzip", func(b *testing.B) {
+		benchmarkReadBulkRequest(b, "gzip")
+	})
+	b.Run("encoding:zstd", func(b *testing.B) {
+		benchmarkReadBulkRequest(b, "zstd")
+	})
+	b.Run("encoding:deflate", func(b *testing.B) {
+		benchmarkReadBulkRequest(b, "deflate")
+	})
+	b.Run("encoding:snappy", func(b *testing.B) {
+		benchmarkReadBulkRequest(b, "snappy")
 	})
 }
 
-func benchmarkReadBulkRequest(b *testing.B, isGzip bool) {
+func benchmarkReadBulkRequest(b *testing.B, encoding string) {
 	data := `{"create":{"_index":"filebeat-8.8.0"}}
 {"@timestamp":"2023-06-06T04:48:11.735Z","log":{"offset":71770,"file":{"path":"/var/log/auth.log"}},"message":"foobar"}
 {"create":{"_index":"filebeat-8.8.0"}}
@@ -26,8 +35,8 @@ func benchmarkReadBulkRequest(b *testing.B, isGzip bool) {
 {"create":{"_index":"filebeat-8.8.0"}}
 {"message":"xyz","@timestamp":"2023-06-06T04:48:13.735Z","x":"y"}
 `
-	if isGzip {
-		data = compressData(data)
+	if encoding != "" {
+		data = compressData(data, encoding)
 	}
 	dataBytes := bytesutil.ToUnsafeBytes(data)
 
@@ -41,7 +50,7 @@ func benchmarkReadBulkRequest(b *testing.B, isGzip bool) {
 		r := &bytes.Reader{}
 		for pb.Next() {
 			r.Reset(dataBytes)
-			_, err := readBulkRequest("test", r, isGzip, timeField, msgFields, blp)
+			_, err := readBulkRequest("test", r, encoding, timeField, msgFields, blp)
 			if err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
 			}
