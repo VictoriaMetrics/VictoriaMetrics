@@ -97,6 +97,10 @@ type Search struct {
 	// idb is used for MetricName lookup for the found data blocks.
 	idb *indexDB
 
+	// putIndexDB decrements the idb ref counter. Must be called in
+	// Search.MustClose().
+	putIndexDB func()
+
 	// retentionDeadline is used for filtering out blocks outside the configured retention.
 	retentionDeadline int64
 
@@ -128,6 +132,7 @@ func (s *Search) reset() {
 	s.MetricBlockRef.BlockRef = nil
 
 	s.idb = nil
+	s.putIndexDB = nil
 	s.retentionDeadline = 0
 	s.ts.reset()
 	s.tr = TimeRange{}
@@ -158,7 +163,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	retentionDeadline := int64(fasttime.UnixTimestamp()*1e3) - storage.retentionMsecs
 
 	s.reset()
-	s.idb = storage.idb()
+	s.idb, s.putIndexDB = storage.getCurrIndexDB()
 	s.retentionDeadline = retentionDeadline
 	s.tr = tr
 	s.tfss = tfss
@@ -170,7 +175,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	if err == nil {
 		tsids, err = s.idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
 		if err == nil {
-			err = storage.prefetchMetricNames(qt, metricIDs, deadline)
+			err = storage.prefetchMetricNames(qt, s.idb, metricIDs, deadline)
 		}
 	}
 	// It is ok to call Init on non-nil err.
@@ -191,6 +196,7 @@ func (s *Search) MustClose() {
 		logger.Panicf("BUG: missing Init call before MustClose")
 	}
 	s.ts.MustClose()
+	s.putIndexDB()
 	s.reset()
 }
 
