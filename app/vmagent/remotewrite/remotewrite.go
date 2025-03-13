@@ -89,9 +89,9 @@ var (
 
 	disableOnDiskQueue = flagutil.NewArrayBool("remoteWrite.disableOnDiskQueue", "Whether to disable storing pending data to -remoteWrite.tmpDataPath "+
 		"when the remote storage system at the corresponding -remoteWrite.url cannot keep up with the data ingestion rate. "+
-		"See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence . See also -remoteWrite.dropSamplesOnOverload")
+		"See https://docs.victoriametrics.com/vmagent#on-disk-persistence-and-how-to-disable-it . See also -remoteWrite.dropSamplesOnOverload")
 	dropSamplesOnOverload = flag.Bool("remoteWrite.dropSamplesOnOverload", false, "Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples "+
-		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence")
+		"cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/vmagent#on-disk-persistence-and-how-to-disable-it")
 )
 
 var (

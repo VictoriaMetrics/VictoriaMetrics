@@ -1030,13 +1030,39 @@ scrape_configs:
   - "Proxy-Auth: top-secret"
 ```
 
-## Disabling on-disk persistence
+## On-disk persistence and how to disable it
 
 By default `vmagent` stores pending data, which cannot be sent to the configured remote storage systems in a timely manner, in the folder set
 by `-remoteWrite.tmpDataPath` command-line flag. By default `vmagent` writes all the pending data to this folder until this data is sent to the configured
 `-remoteWrite.url` systems or until the folder becomes full. The maximum data size, which can be saved to `-remoteWrite.tmpDataPath`
 per every configured `-remoteWrite.url`, can be limited via `-remoteWrite.maxDiskUsagePerURL` command-line flag.
 When this limit is reached, `vmagent` drops the oldest data from disk in order to save newly ingested data.
+
+The folder structure of persistence data is as follows. Each remote write URL corresponds to a folder similar to `1_B9EB7BE220B91E9D`.
+
+```
+<remoteWrite.tmpDataPath>
+└── persistent-queue
+    └── 1_B9EB7BE220B91E9D
+```
+
+It's generated based on the following information:
+1. The **sequence order** of this remote write URL in the remote write configuration, starting from **1**.
+2. The **hash result** of the remote write URL itself, excluding query parameters and fragments. 
+
+For the following remote write configs:
+```
+-remoteWrite.url=http://example-1:8428/prometheus/api/v1/write?foo=bar#baz
+-remoteWrite.url=http://user:pass@example-2:8428/prometheus/api/v1/write?qux=quux#quuz
+```
+
+vmagent will generate persistent queue folders:
+```bash
+# 1_<hash(http://example-1:8428/prometheus/api/v1/write)>, query parameters foo=bar and fragment baz are removed.
+1_BA6E4303DCFA0D45
+# 2_<hash(http://user:pass@example-2:8428/prometheus/api/v1/write)>, query parameters qux=quux and fragment quuz are removed.
+2_0AAFDF53E314A72A
+```
 
 There are cases when it is better disabling on-disk persistence for pending data at `vmagent` side:
 
@@ -2147,11 +2173,11 @@ See the docs at https://docs.victoriametrics.com/vmagent/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.disableOnDiskQueue array
-     Whether to disable storing pending data to -remoteWrite.tmpDataPath when the remote storage system at the corresponding -remoteWrite.url cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence . See also -remoteWrite.dropSamplesOnOverload
+     Whether to disable storing pending data to -remoteWrite.tmpDataPath when the remote storage system at the corresponding -remoteWrite.url cannot keep up with the data ingestion rate. See https://docs.victoriametrics.com/vmagent#on-disk-persistence-and-how-to-disable-it . See also -remoteWrite.dropSamplesOnOverload
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
   -remoteWrite.dropSamplesOnOverload
-     Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/vmagent#disabling-on-disk-persistence
+     Whether to drop samples when -remoteWrite.disableOnDiskQueue is set and if the samples cannot be pushed into the configured -remoteWrite.url systems in a timely manner. See https://docs.victoriametrics.com/vmagent#on-disk-persistence-and-how-to-disable-it
   -remoteWrite.flushInterval duration
      Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
   -remoteWrite.forcePromProto array
