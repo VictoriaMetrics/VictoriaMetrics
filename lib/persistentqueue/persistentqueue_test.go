@@ -400,8 +400,8 @@ func mustCreateEmptyMetainfo(path, name string) {
 func TestCheckQueueNameCompatible(t *testing.T) {
 	f := func(metadataName, queueName string, want bool) {
 		t.Helper()
-		if got := CheckQueueNameCompatible(metadataName, queueName); got != want {
-			t.Errorf("CheckQueueNameCompatible %s and %s:  %v != %v", metadataName, queueName, got, want)
+		if got := IsQueueNameEqual(metadataName, queueName); got != want {
+			t.Errorf("IsQueueNameEqual %s and %s:  %v != %v", metadataName, queueName, got, want)
 		}
 	}
 
@@ -410,5 +410,7 @@ func TestCheckQueueNameCompatible(t *testing.T) {
 	f("1:http://host:80/prometheus/api/v1/write#f", "1:http://host:80/prometheus/api/v1/write?foo=bar", true)
 	f("1:https://host:80/prometheus/api/v1/write", "1:http://host:80/prometheus/api/v1/write", false)
 	f("1:http://host:8080/prometheus/api/v1/write", "1:http://host:80/prometheus/api/v1/write", false)
-	f("1:secret-1", "1:secret-1", true)
+	f("1:secret-url", "1:secret-url", true)
+	f("1:secret-url", "1:http://host:8080/prometheus/api/v1/write", true)
+	f("1:http://user:pass@host:8080/prometheus/api/v1/write", "1:http://user:2pass@host:8080/prometheus/api/v1/write", true)
 }
