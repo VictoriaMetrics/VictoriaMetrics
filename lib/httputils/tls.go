@@ -7,20 +7,15 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 )
 
-// Transport creates http.Transport object based on provided URL.
-// Returns Transport with TLS configuration if URL contains `https` prefix
+// Transport creates http.Transport object and validates provided URL.
 func Transport(URL, certFile, keyFile, caFile, serverName string, insecureSkipVerify bool) (*http.Transport, error) {
 	_, err := url.Parse(URL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse URL: %w", err)
 	}
 	t := http.DefaultTransport.(*http.Transport).Clone()
-	if !strings.HasPrefix(URL, "https") {
-		return t, nil
-	}
 	tlsCfg, err := TLSConfig(certFile, keyFile, caFile, serverName, insecureSkipVerify)
 	if err != nil {
 		return nil, err
