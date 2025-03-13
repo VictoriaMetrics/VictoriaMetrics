@@ -35,12 +35,19 @@ type StorageFlusher interface {
 	ForceFlush(t *testing.T)
 }
 
+// StorageMerger defines a method that forces the merging of data inserted
+// into the storage.
+type StorageMerger interface {
+	ForceMerge(t *testing.T)
+}
+
 // PrometheusWriteQuerier encompasses the methods for writing, flushing and
 // querying the data.
 type PrometheusWriteQuerier interface {
 	PrometheusWriter
 	PrometheusQuerier
 	StorageFlusher
+	StorageMerger
 }
 
 // QueryOpts contains various params used for querying or ingesting data

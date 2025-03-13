@@ -136,19 +136,7 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 
 	sut.PrometheusAPIV1Write(t, data, apptest.QueryOpts{})
 	sut.ForceFlush(t)
-
-	got := sut.PrometheusAPIV1Export(t, `{__name__=~"metric.*"}`, apptest.QueryOpts{
-		ReduceMemUsage: "1",
-		Start:          fmt.Sprintf("%d", start.UnixMilli()),
-		End:            fmt.Sprintf("%d", end.UnixMilli()),
-	})
-	// Delete cluster-specific labels from the metric name since they are
-	// irrelevant for the test.
-	for _, result := range got.Data.Result {
-		delete(result.Metric, "vm_account_id")
-		delete(result.Metric, "vm_project_id")
-	}
-	got.Sort()
+	sut.ForceMerge(t)
 
 	wantDuplicates := &at.PrometheusAPIV1QueryResponse{
 		Status: "success",
@@ -215,7 +203,27 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 	if deduplicationIsOn {
 		want = wantDeduped
 	}
-	if diff := cmp.Diff(want, got, cmpopts.EquateNaNs()); diff != "" {
-		t.Errorf("unexpected response (-want, +got):\n%s", diff)
-	}
+
+	tc.Assert(&at.AssertOptions{
+		Msg: "unexpected response",
+		Got: func() any {
+			got := sut.PrometheusAPIV1Export(t, `{__name__=~"metric.*"}`, apptest.QueryOpts{
+				ReduceMemUsage: "1",
+				Start:          fmt.Sprintf("%d", start.UnixMilli()),
+				End:            fmt.Sprintf("%d", end.UnixMilli()),
+			})
+			// Delete cluster-specific labels from the metric name since they are
+			// irrelevant for the test.
+			for _, result := range got.Data.Result {
+				delete(result.Metric, "vm_account_id")
+				delete(result.Metric, "vm_project_id")
+			}
+			got.Sort()
+			return got
+		},
+		Want: want,
+		CmpOpts: []cmp.Option{
+			cmpopts.EquateNaNs(),
+		},
+	})
 }
