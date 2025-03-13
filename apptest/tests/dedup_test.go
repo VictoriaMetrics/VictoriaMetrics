@@ -91,6 +91,15 @@ func testDeduplication(tc *at.TestCase, sut at.PrometheusWriteQuerier, deduplica
 	// Intentionally check that deduplication works for the current month, since
 	// by reading the code it may seem that deduplication for the current month
 	// is skipped.
+	//
+	// Specifically, the following code suggests that deduplication is never
+	// performed for the current month:
+	// https://github.com/VictoriaMetrics/VictoriaMetrics/blob/0ed835026fe22b43f5f56c5cf82a3ef1b703ecf0/lib/storage/table.go#L450
+	// However, samples are countinously deduplicated by the background
+	// in-memory, small, and big part merge tasks. See:
+	// - paritition.mergeParts() in lib/storage/paritiont.go and
+	// - Block.deduplicateSamplesDuringMerge() in lib/storage/block.go.
+	//
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/6965
 	start := firstDayOfThisMonth()
 	end := start.Add(1 * time.Hour)
