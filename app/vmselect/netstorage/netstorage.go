@@ -3280,12 +3280,17 @@ func execSearchQueryRequest(qt *querytracer.Tracer, sq *storage.SearchQuery, wor
 		qtL := qt
 		if sq.IsMultiTenant && qt.Enabled() {
 			qtL = qt.NewChild("query for tenant: %s", sq.TenantTokens[i].String())
-			defer qtL.Done()
 		}
 		sn.searchRequests.Inc()
 		if err := sn.processSearchQuery(qtL, requestData, f, workerID, deadline); err != nil {
 			sn.searchErrors.Inc()
+			if sq.IsMultiTenant {
+				qtL.Done()
+			}
 			return fmt.Errorf("cannot perform search on vmstorage %s: %w", sn.connPool.Addr(), err)
+		}
+		if sq.IsMultiTenant {
+			qtL.Done()
 		}
 		requestData = requestData[:0]
 	}
