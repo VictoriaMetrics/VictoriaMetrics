@@ -44,15 +44,16 @@ type PrometheusWriteQuerier interface {
 
 // QueryOpts contains various params used for querying or ingesting data
 type QueryOpts struct {
-	Tenant       string
-	Timeout      string
-	Start        string
-	End          string
-	Time         string
-	Step         string
-	ExtraFilters []string
-	ExtraLabels  []string
-	Trace        string
+	Tenant        string
+	Timeout       string
+	Start         string
+	End           string
+	Time          string
+	Step          string
+	ExtraFilters  []string
+	ExtraLabels   []string
+	Trace         string
+	IsNonBlocking bool
 }
 
 func (qos *QueryOpts) asURLValues() url.Values {

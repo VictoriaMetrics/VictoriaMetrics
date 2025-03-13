@@ -129,6 +129,10 @@ func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 		url += "?" + uvs
 	}
 	data := []byte(strings.Join(records, "\n"))
+	if opts.IsNonBlocking {
+		app.cli.Post(t, url, "text/plain", data, http.StatusNoContent)
+		return
+	}
 	app.sendBlocking(t, len(records), func() {
 		_, statusCode := app.cli.Post(t, url, "text/plain", data)
 		if statusCode != http.StatusNoContent {
@@ -140,6 +144,10 @@ func (app *Vminsert) PrometheusAPIV1ImportPrometheus(t *testing.T, records []str
 // String returns the string representation of the vminsert app state.
 func (app *Vminsert) String() string {
 	return fmt.Sprintf("{app: %s httpListenAddr: %q}", app.app, app.httpListenAddr)
+}
+
+func (app *Vminsert) ListenAddr() string {
+	return app.httpListenAddr
 }
 
 // sendBlocking sends the data to vmstorage by executing `send` function and
