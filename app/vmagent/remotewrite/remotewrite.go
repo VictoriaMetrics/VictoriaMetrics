@@ -766,7 +766,6 @@ type remoteWriteCtx struct {
 func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks int, sanitizedURL string) *remoteWriteCtx {
 	// strip query params, otherwise changing params resets pq
 	pqURL := *remoteWriteURL
-	pqURL.User = nil
 	pqURL.RawQuery = ""
 	pqURL.Fragment = ""
 	h := xxhash.Sum64([]byte(pqURL.String()))
