@@ -773,7 +773,7 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 	}
 
 	isPQDisabled := disableOnDiskQueue.GetOptionalArg(argIdx)
-	fq := persistentqueue.MustOpenFastQueue(queuePath, remoteWriteURL.String(), maxInmemoryBlocks, maxPendingBytes, isPQDisabled)
+	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytes, isPQDisabled)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
 		return float64(fq.GetPendingBytes())
 	})
