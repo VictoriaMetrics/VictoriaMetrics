@@ -544,7 +544,7 @@ func (s *Storage) getCurrAndNextIndexDBs() (*indexDB, *indexDB, func()) {
 	}
 }
 
-// getCurrIndexDBs increments refcount for the current and returns it along with
+// getCurrIndexDBs increments refcount for the current indexDB and returns it along with
 // a cleanup function that decrements its refcount.
 func (s *Storage) getCurrIndexDB() (*indexDB, func()) {
 	s.idbLock.Lock()
