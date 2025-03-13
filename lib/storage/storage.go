@@ -2210,7 +2210,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 		s.pendingHourEntriesLock.Unlock()
 	}
 
-	if err := s.prefillNextIndexDB(rows, dstMrs); err != nil {
+	if err := s.prefillNextIndexDB(idbNext, rows, dstMrs); err != nil {
 		if firstWarn == nil {
 			firstWarn = fmt.Errorf("cannot prefill next indexdb: %w", err)
 		}
