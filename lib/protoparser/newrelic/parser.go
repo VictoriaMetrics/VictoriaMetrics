@@ -16,7 +16,7 @@ type Rows struct {
 	Rows []Row
 }
 
-// Reset resets r, so it can be re-used
+// Reset resets r, so it can be reused
 func (r *Rows) Reset() {
 	rows := r.Rows
 	for i := range rows {
@@ -29,7 +29,7 @@ var jsonParserPool fastjson.ParserPool
 
 // Unmarshal parses NewRelic Event request from b to r.
 //
-// b can be re-used after returning from r.
+// b can be reused after returning from r.
 func (r *Rows) Unmarshal(b []byte) error {
 	p := jsonParserPool.Get()
 	defer jsonParserPool.Put(p)

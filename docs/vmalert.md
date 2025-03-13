@@ -1597,11 +1597,11 @@ groups:
           http_server_request_duration_seconds:sum_rate:5m:http_post
 ```
 
-This configuration ensures that rules in `BaseGroup` are exectuted at(assuming vmalert starts at `12:00:00`): 
+This configuration ensures that rules in `BaseGroup` are executed at(assuming vmalert starts at `12:00:00`): 
 ```
 [12:00:10, 12:01:10, 12:02:10, 12:03:10...]
 ```
-while rules in group `TopGroup` are exectuted at:
+while rules in group `TopGroup` are executed at:
 ```
 [12:00:40, 12:01:40, 12:02:40, 12:03:40...]
 ```
@@ -1609,7 +1609,7 @@ As a result, `TopGroup` always gets the latest results of `BaseGroup`.
 
 By default, the `eval_offset` values should be at least 30 seconds apart to accommodate the 
 `-search.latencyOffset(default 30s)` command-line flag at vmselect or VictoriaMetrics single-node. 
-The mininum `eval_offset` gap can be adjusted accordingly with `-search.latencyOffset`.
+The minimum `eval_offset` gap can be adjusted accordingly with `-search.latencyOffset`.
 
 ### Notifier configuration file
 

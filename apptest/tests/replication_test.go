@@ -47,7 +47,7 @@ func newClusterWithReplication(tc *at.TestCase, replicationFactor int) *clusterW
 		fmt.Sprintf("-replicationFactor=%d", replicationFactor),
 	})
 
-	// An instace of vmselect that knows nothing about data replication.
+	// An instance of vmselect that knows nothing about data replication.
 	c.vmselect = tc.MustStartVmselect("vmselect", []string{
 		"-storageNode=" + strings.Join(vmselectAddrs, ","),
 	})
@@ -97,7 +97,7 @@ func TestClusterReplication_DataIsWrittenSeveralTimes(t *testing.T) {
 	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{})
 	tc.ForceFlush(c.vmstorages...)
 
-	// Verify that each strorage node has metrics and that total metric count across
+	// Verify that each storage node has metrics and that total metric count across
 	// all vmstorages is replicationFactor*numRecs.
 
 	getMetricsReadTotal := func(app *at.Vmstorage) int {
@@ -117,7 +117,7 @@ func TestClusterReplication_DataIsWrittenSeveralTimes(t *testing.T) {
 	}
 	want := replicationFactor * numRecs
 	if got != want {
-		t.Fatalf("unxepected metric count across all vmstorage replicas: got sum(%v) = %d, want %d*%d = %d", cnts, got, replicationFactor, numRecs, want)
+		t.Fatalf("unexpected metric count across all vmstorage replicas: got sum(%v) = %d, want %d*%d = %d", cnts, got, replicationFactor, numRecs, want)
 	}
 }
 
@@ -560,7 +560,7 @@ func newClusterWithGroupReplication(tc *at.TestCase, groupRFs []int, globalRF in
 		fmt.Sprintf("-replicationFactor=%d", globalRF),
 	})
 
-	// An instace of vmselect that knows nothing about data replication.
+	// An instance of vmselect that knows nothing about data replication.
 	c.vmselect = tc.MustStartVmselect("vmselect", []string{
 		"-storageNode=" + strings.Join(vmselectAddrs, ","),
 	})
@@ -723,7 +723,7 @@ func testGroupDataIsWrittenSeveralTimes(tc *at.TestCase, opts *testGroupReplicat
 	}
 
 	if got, want := total, opts.globalRF*opts.groupRF*opts.numRecs; got != want {
-		t.Fatalf("unxepected metric count: got sum(%v)=%d, want %d*%d*%d=%d", []any{
+		t.Fatalf("unexpected metric count: got sum(%v)=%d, want %d*%d*%d=%d", []any{
 			cnts, got, opts.globalRF, opts.groupRF, opts.numRecs, want}...)
 	}
 }
@@ -963,7 +963,7 @@ func testGroupSkipSlowReplicas(tc *at.TestCase, opts *testGroupReplicationOpts) 
 	// case when each group receives the response from at least M-groupRF+1
 	// nodes.
 	//
-	// Min number of nodes to skip is groupRF-1. This correponds to the case
+	// Min number of nodes to skip is groupRF-1. This corresponds to the case
 	// when one group is slower than other groups and it receives responses from
 	// M-groupRF+1 nodes only when the rest of the groups have received
 	// responses from all of their nodes.
@@ -995,7 +995,7 @@ func testGroupSkipSlowReplicas(tc *at.TestCase, opts *testGroupReplicationOpts) 
 	// Replication factor is groupRF.
 	//
 	// Max number of nodes to skip is M*(globalRF-1) + (N-globalRF+1)(groupRF-1).
-	// This correponds to the case when N-globalRF+1 groups receive the response
+	// This corresponds to the case when N-globalRF+1 groups receive the response
 	// from at least M-groupRF+1 nodes.
 	//
 	// Min number of nodes to skip is (globalRF-1)*(groupRF-1). This corresponds

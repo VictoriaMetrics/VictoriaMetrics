@@ -165,7 +165,7 @@ func TestPipeExtractRegexp(t *testing.T) {
 		},
 	})
 
-	// single row, overwirte existing column
+	// single row, overwrite existing column
 	f(`extract_regexp "foo=(?P<bar>.*) baz=(?P<xx>.*)" from x`, [][]Field{
 		{
 			{"x", `a foo=cc baz=aa b`},

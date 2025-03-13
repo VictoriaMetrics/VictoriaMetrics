@@ -183,7 +183,7 @@ func TestMetricNameCopyFrom(t *testing.T) {
 	expected.AddTag("key", "value")
 
 	if !reflect.DeepEqual(expected, to) {
-		t.Fatalf("expecting equal metics exp: %s, got %s", &expected, &to)
+		t.Fatalf("expecting equal metrics exp: %s, got %s", &expected, &to)
 	}
 }
 

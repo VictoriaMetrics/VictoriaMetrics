@@ -220,7 +220,7 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 		acNew = ac
 	}
 
-	// we need instance credentials if dont have access keys
+	// we need instance credentials if we do not have access keys
 	if len(acNew.AccessKeyID) == 0 && len(acNew.SecretAccessKey) == 0 {
 		ac, err := getInstanceRoleCredentials(cfg.client)
 		if err != nil {
@@ -272,7 +272,7 @@ func getInstanceRoleCredentials(client *http.Client) (*credentials, error) {
 	}
 	data, err := getMetadataByPath(client, "meta-data/iam/security-credentials/"+string(instanceRoleName))
 	if err != nil {
-		return nil, fmt.Errorf("cannot get security credentails for instanceRoleName %q: %w", instanceRoleName, err)
+		return nil, fmt.Errorf("cannot get security credentials for instanceRoleName %q: %w", instanceRoleName, err)
 	}
 	return parseMetadataSecurityCredentials(data)
 }

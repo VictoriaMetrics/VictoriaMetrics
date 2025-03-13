@@ -207,7 +207,7 @@ func (bh *blockHeader) unmarshalPortable(src []byte) ([]byte, error) {
 		return src, fmt.Errorf("got too small scale=%d; it mustn't be smaller than %d", scale, math.MinInt16)
 	}
 	if scale > math.MaxInt16 {
-		return src, fmt.Errorf("got too big scale=%d; it mustn't exceeed %d", scale, math.MaxInt16)
+		return src, fmt.Errorf("got too big scale=%d; it mustn't exceed %d", scale, math.MaxInt16)
 	}
 	bh.Scale = int16(scale)
 	if len(src) < 1 {

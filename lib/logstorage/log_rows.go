@@ -166,7 +166,7 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields, streamFie
 	// Compose StreamTags from fields according to streamFields, lr.streamFields and lr.extraStreamFields
 	st := GetStreamTags()
 	if streamFields != nil {
-		// streamFields overrride lr.streamFields
+		// streamFields override lr.streamFields
 		for _, f := range streamFields {
 			if _, ok := lr.ignoreFields[f.Name]; !ok {
 				st.Add(f.Name, f.Value)

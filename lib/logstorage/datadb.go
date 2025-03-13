@@ -786,7 +786,7 @@ func (ddb *datadb) updateStats(s *DatadbStats) {
 	ddb.partsLock.Unlock()
 }
 
-// debugFlush() makes sure that the recently ingested data is availalbe for search.
+// debugFlush() makes sure that the recently ingested data is available for search.
 func (ddb *datadb) debugFlush() {
 	// Nothing to do, since all the ingested data is available for search via ddb.inmemoryParts.
 }

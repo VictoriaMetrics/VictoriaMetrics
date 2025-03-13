@@ -1287,7 +1287,7 @@ func parseQueryOptions(lex *lexer) (*queryOptions, error) {
 		case "concurrency":
 			n, ok := tryParseUint64(v)
 			if !ok {
-				return nil, fmt.Errorf("cannot parse 'concurrency=%q' option as unsinged interger", v)
+				return nil, fmt.Errorf("cannot parse 'concurrency=%q' option as unsigned integer", v)
 			}
 			if n > 1024 {
 				// There is zero sense in running too many workers.

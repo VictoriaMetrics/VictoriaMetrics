@@ -18,7 +18,7 @@ type Field struct {
 	Value string
 }
 
-// Reset resets f for future re-use.
+// Reset resets f for future reuse.
 func (f *Field) Reset() {
 	f.Name = ""
 	f.Value = ""

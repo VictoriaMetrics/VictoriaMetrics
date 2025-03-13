@@ -891,7 +891,7 @@ func incRefForParts(pws []*partWrapper) {
 // The pt must be detached from table before calling pt.MustClose.
 func (pt *partition) MustClose() {
 	// Notify the background workers to stop.
-	// The pt.partsLock is aquired in order to guarantee that pt.wg.Add() isn't called
+	// The pt.partsLock is acquired in order to guarantee that pt.wg.Add() isn't called
 	// after pt.stopCh is closed and pt.wg.Wait() is called below.
 	pt.partsLock.Lock()
 	close(pt.stopCh)

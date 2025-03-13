@@ -2,7 +2,7 @@ schedulers:
   periodic:
     infer_every: "1m"
     fit_every: "1h"
-    fit_window: "2d" # 2d-14d based on the presense of weekly seasonality in your data
+    fit_window: "2d" # 2d-14d based on the presence of weekly seasonality in your data
 
 models:
   prophet:

@@ -92,7 +92,7 @@ type ServeOptions struct {
 	// /health, /debug/pprof and few others
 	// In addition basic auth check and authKey checks will be disabled for the given addr
 	//
-	// Mostly required by http proxy servers, which peforms own authorization and requests routing
+	// Mostly required by http proxy servers, which performs own authorization and requests routing
 	DisableBuiltinRoutes bool
 }
 

@@ -46,12 +46,12 @@ func main() {
 
 	limitTicker := time.NewTicker(*outputRateLimitPeriod)
 	limitItems := *outputRateLimitItems
-	limitter := make(chan struct{}, limitItems)
+	limiter := make(chan struct{}, limitItems)
 	go func() {
 		for {
 			<-limitTicker.C
 			for i := 0; i < limitItems; i++ {
-				limitter <- struct{}{}
+				limiter <- struct{}{}
 			}
 		}
 	}()
@@ -82,7 +82,7 @@ func main() {
 
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
-			<-limitter
+			<-limiter
 			line := scanner.Text()
 			if *randomSuffix {
 				line = line + " " + randomString()

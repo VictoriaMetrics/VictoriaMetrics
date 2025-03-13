@@ -125,7 +125,7 @@ func readProxyProto(r io.Reader) (net.Addr, error) {
 			return nil, fmt.Errorf("the proxy protocol implementation doesn't support protocol family %d; supported values: 1, 2", family)
 		}
 	default:
-		return nil, fmt.Errorf("the proxy protocol implementation doesn't support command %d; suppoted values: 0, 1", command)
+		return nil, fmt.Errorf("the proxy protocol implementation doesn't support command %d; supported values: 0, 1", command)
 	}
 }
 

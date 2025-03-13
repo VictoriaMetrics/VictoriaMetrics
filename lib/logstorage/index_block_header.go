@@ -29,7 +29,7 @@ type indexBlockHeader struct {
 	indexBlockSize uint64
 }
 
-// reset resets ih for subsequent re-use.
+// reset resets ih for subsequent reuse.
 func (ih *indexBlockHeader) reset() {
 	ih.streamID.reset()
 	ih.minTimestamp = 0
@@ -38,7 +38,7 @@ func (ih *indexBlockHeader) reset() {
 	ih.indexBlockSize = 0
 }
 
-// mustWriteIndexBlock writes data with the given additioanl args to sw and updates ih accordingly.
+// mustWriteIndexBlock writes data with the given additional args to sw and updates ih accordingly.
 func (ih *indexBlockHeader) mustWriteIndexBlock(data []byte, sidFirst streamID, minTimestamp, maxTimestamp int64, sw *streamWriters) {
 	ih.streamID = sidFirst
 	ih.minTimestamp = minTimestamp

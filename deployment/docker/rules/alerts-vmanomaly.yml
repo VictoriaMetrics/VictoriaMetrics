@@ -40,7 +40,7 @@ groups:
         annotations:
           summary: "Metrics have not been seen from \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") for {{ $value }} seconds"
           description: >
-           The missing metric may incidate that vmanomaly is not running or is inaccessable from vmagent or the remotewrite endpoint.
+           The missing metric may indicate that vmanomaly is not running or is inaccessible from vmagent or the remotewrite endpoint.
 
       - alert: ProcessNearFDLimits
         expr: (process_max_fds{job=~".*vmanomaly.*"} - process_open_fds{job=~".*vmanomaly.*"}) < 100

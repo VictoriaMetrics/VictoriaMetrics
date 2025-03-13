@@ -266,7 +266,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	des := fs.MustReadDir(partitionsPath)
 	ptws := make([]*partitionWrapper, len(des))
 
-	// Open partitions in parallel. This should improve VictoriaLogs initializiation duration
+	// Open partitions in parallel. This should improve VictoriaLogs initialization duration
 	// when it opens many partitions.
 	var wg sync.WaitGroup
 	concurrencyLimiterCh := make(chan struct{}, cgroup.AvailableCPUs())

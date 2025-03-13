@@ -442,7 +442,7 @@ func (si *mockSamplesIterator) At() (int64, float64) {
 }
 
 func (si *mockSamplesIterator) AtHistogram(*histogram.Histogram) (int64, *histogram.Histogram) {
-	panic("BUG: musn't be called")
+	panic("BUG: mustn't be called")
 }
 
 func (si *mockSamplesIterator) AtFloatHistogram(*histogram.FloatHistogram) (int64, *histogram.FloatHistogram) {

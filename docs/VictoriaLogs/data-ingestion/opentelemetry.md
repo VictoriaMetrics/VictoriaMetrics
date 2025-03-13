@@ -24,7 +24,7 @@ logExporter, err := otlploghttp.New(ctx,
 ```
 
 VictoriaLogs treats all the resource labels as [log stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
-The list of log stream fields can be overriden via `VL-Stream-Fields` HTTP header if needed. For example, the following config uses only `host` and `app`
+The list of log stream fields can be overridden via `VL-Stream-Fields` HTTP header if needed. For example, the following config uses only `host` and `app`
 labels as log stream fields, while the remaining labels are stored as [regular log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model):
 
 ```go
@@ -93,7 +93,7 @@ exporters:
 ```
 
 VictoriaLogs supports various HTTP headers, which can be used during data ingestion - see the list [here](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-headers).
-These headers can be pssed to OpenTelemetry exporter config via `headers` options. For example, the following config instructs ignoring `foo` and `bar` fields during data ingestion:
+These headers can be passed to OpenTelemetry exporter config via `headers` options. For example, the following config instructs ignoring `foo` and `bar` fields during data ingestion:
 
 ```yaml
 exporters:

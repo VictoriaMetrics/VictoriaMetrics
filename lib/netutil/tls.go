@@ -19,7 +19,7 @@ func GetServerTLSConfig(tlsCertFile, tlsKeyFile, tlsMinVersion string, tlsCipher
 
 	minVersion, err := ParseTLSVersion(tlsMinVersion)
 	if err != nil {
-		return nil, fmt.Errorf("cannnot use TLS min version from tlsMinVersion=%q. Supported TLS versions (TLS10, TLS11, TLS12, TLS13): %w", tlsMinVersion, err)
+		return nil, fmt.Errorf("cannot use TLS min version from tlsMinVersion=%q. Supported TLS versions (TLS10, TLS11, TLS12, TLS13): %w", tlsMinVersion, err)
 	}
 	cipherSuites, err := cipherSuitesFromNames(tlsCipherSuites)
 	if err != nil {

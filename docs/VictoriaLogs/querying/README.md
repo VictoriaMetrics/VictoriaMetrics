@@ -393,7 +393,7 @@ returns the most frequent values across log fields containing values no longer t
 curl http://localhost:9428/select/logsql/facets -d 'query=_time:1h' -d 'max_value_len=100'
 ```
 
-By default the `/select/logsql/facets` endpoint doesn't return log fields, which contan the same constant value across all the logs matching the given `query`.
+By default the `/select/logsql/facets` endpoint doesn't return log fields, which contain the same constant value across all the logs matching the given `query`.
 Add `keep_const_fields=1` query arg if you need such log fields:
 
 ```sh

@@ -114,7 +114,7 @@ func loadFrom(loadPath string, maxSizeBytes uint64) (*Tracker, error) {
 		return nil, fmt.Errorf("cannot parse maxSizeBytes: %w", err)
 	}
 	if storedMaxSizeBytes > maxSizeBytes {
-		logger.Infof("Reseting tracker state due to changed maxSizeBytes from %d to %d.", storedMaxSizeBytes, maxSizeBytes)
+		logger.Infof("Resetting tracker state due to changed maxSizeBytes from %d to %d.", storedMaxSizeBytes, maxSizeBytes)
 		return mt, nil
 	}
 	var creationTs uint64
@@ -285,7 +285,7 @@ func (mt *Tracker) Reset(onReset func()) {
 	if mt == nil {
 		return
 	}
-	logger.Infof("reseting metric names tracker state")
+	logger.Infof("resetting metric names tracker state")
 	mt.mu.Lock()
 	defer mt.mu.Unlock()
 	mt.initEmpty()

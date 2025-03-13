@@ -47,7 +47,7 @@ type pipeProcessor interface {
 	// It is in the range 0 ... workersCount-1 .
 	//
 	// It is OK to modify br contents inside writeBlock. The caller mustn't rely on br contents after writeBlock call.
-	// It is forbidden to hold references to br after returning from writeBlock, since the caller may re-use it.
+	// It is forbidden to hold references to br after returning from writeBlock, since the caller may reuse it.
 	//
 	// If any error occurs at writeBlock, then cancel() must be called by pipeProcessor in order to notify worker goroutines
 	// to stop sending new data. The occurred error must be returned from flush().
@@ -162,7 +162,7 @@ func parsePipe(lex *lexer) (pipe, error) {
 	case lex.isKeyword("field_values"):
 		pf, err := parsePipeFieldValues(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot pase 'field_values' pipe: %w", err)
+			return nil, fmt.Errorf("cannot parse 'field_values' pipe: %w", err)
 		}
 		return pf, nil
 	case lex.isKeyword("fields", "keep"):

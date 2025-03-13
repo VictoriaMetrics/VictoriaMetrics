@@ -56,7 +56,7 @@ var (
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignoring-old-samples")
 	streamAggrIgnoreFirstIntervals = flagutil.NewArrayInt("remoteWrite.streamAggr.ignoreFirstIntervals", 0, "Number of aggregation intervals to skip after the start "+
 		"for the corresponding -remoteWrite.streamAggr.config at the corresponding -remoteWrite.url. Increase this value if "+
-		"you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving bufferred delayed data from clients pushing data into the vmagent. "+
+		"you observe incorrect aggregation results after vmagent restarts. It could be caused by receiving buffered delayed data from clients pushing data into the vmagent. "+
 		"See https://docs.victoriametrics.com/stream-aggregation/#ignore-aggregation-intervals-on-start")
 	streamAggrDropInputLabels = flagutil.NewArrayString("remoteWrite.streamAggr.dropInputLabels", "An optional list of labels to drop from samples "+
 		"before stream de-duplication and aggregation with -remoteWrite.streamAggr.config and -remoteWrite.streamAggr.dedupInterval at the corresponding -remoteWrite.url. "+
@@ -131,7 +131,7 @@ func reloadStreamAggrConfigGlobal() {
 func initStreamAggrConfigGlobal() {
 	sas, err := newStreamAggrConfigGlobal()
 	if err != nil {
-		logger.Fatalf("cannot initialize gloabl stream aggregators: %s", err)
+		logger.Fatalf("cannot initialize global stream aggregators: %s", err)
 	}
 	if sas != nil {
 		filePath := sas.FilePath()

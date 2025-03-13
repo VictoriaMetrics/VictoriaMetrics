@@ -281,7 +281,7 @@
         "type": "victoriametrics-metrics-datasource",
         "uid": "$ds"
       },
-      "description": "Shows number of generated  error messages in  logs over last 30m. Non-zero value may be a sign of connectivity or missconfiguration errors.",
+      "description": "Shows number of generated  error messages in  logs over last 30m. Non-zero value may be a sign of connectivity or misconfiguration errors.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -3848,7 +3848,7 @@
             "type": "victoriametrics-metrics-datasource",
             "uid": "$ds"
           },
-          "description": "Shows how many samples were ignored on insertion due to various resons. See the reason of rejection application logs.",
+          "description": "Shows how many samples were ignored on insertion due to various reasons. See the reason of rejection application logs.",
           "fieldConfig": {
             "defaults": {
               "color": {

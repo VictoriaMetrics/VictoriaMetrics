@@ -157,7 +157,7 @@ func (p *Pod) getContainerStatus(containerName string, isInit bool) *ContainerSt
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#pod
 func (p *Pod) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
 	if len(p.Status.PodIP) == 0 {
-		// Skip pod without IP, since such pods cannnot be scraped.
+		// Skip pod without IP, since such pods cannot be scraped.
 		return nil
 	}
 	if isPodPhaseFinished(p.Status.Phase) {

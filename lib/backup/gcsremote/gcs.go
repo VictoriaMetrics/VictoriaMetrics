@@ -285,7 +285,7 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	return nil
 }
 
-// HasFile returns ture if filePath exists at fs.
+// HasFile returns true if filePath exists at fs.
 func (fs *FS) HasFile(filePath string) (bool, error) {
 	path := path.Join(fs.Dir, filePath)
 	o := fs.bkt.Object(path)

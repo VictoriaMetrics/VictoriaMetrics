@@ -154,7 +154,7 @@ func readNextJSONObject(d *json.Decoder) ([]logstorage.Field, error) {
 		}
 		value, ok := t.(string)
 		if !ok {
-			return nil, fmt.Errorf("unexpected token read for oject value: %v; want string", t)
+			return nil, fmt.Errorf("unexpected token read for object value: %v; want string", t)
 		}
 
 		fields = append(fields, logstorage.Field{

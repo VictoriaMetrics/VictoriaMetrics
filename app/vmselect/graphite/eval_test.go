@@ -36,7 +36,7 @@ func TestExecExprSuccess(t *testing.T) {
 		if err := compareSeries(ss, expectedSeries, expr); err != nil {
 			t.Fatalf("series mismatch for query %q: %s\ngot series\n%s\nexpected series\n%s", query, err, printSeriess(ss), printSeriess(expectedSeries))
 		}
-		// make sure ec isn't changed during query exection.
+		// make sure ec isn't changed during query execution.
 		if !reflect.DeepEqual(ec, &ecCopy) {
 			t.Fatalf("unexpected ec\ngot\n%v\nwant\n%v", &ecCopy, ec)
 		}

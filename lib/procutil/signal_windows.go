@@ -13,7 +13,7 @@ import (
 //
 // Returns the caught signal.
 //
-// Windows dont have SIGHUP syscall.
+// Windows does not have SIGHUP syscall.
 func WaitForSigterm() os.Signal {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)

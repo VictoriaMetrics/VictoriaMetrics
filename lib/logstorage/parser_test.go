@@ -226,7 +226,7 @@ func TestParseTimeDuration(t *testing.T) {
 			t.Fatalf("unexpected filter; got %T; want *filterTime; filter: %s", q.f, q.f)
 		}
 		if ft.stringRepr != s {
-			t.Fatalf("unexpected string represenation for filterTime; got %q; want %q", ft.stringRepr, s)
+			t.Fatalf("unexpected string representation for filterTime; got %q; want %q", ft.stringRepr, s)
 		}
 		duration := time.Duration(ft.maxTimestamp - ft.minTimestamp)
 		if duration != durationExpected {
@@ -254,7 +254,7 @@ func TestParseTimeRange(t *testing.T) {
 			t.Fatalf("unexpected filter; got %T; want *filterTime; filter: %s", q.f, q.f)
 		}
 		if ft.stringRepr != s {
-			t.Fatalf("unexpected string represenation for filterTime; got %q; want %q", ft.stringRepr, s)
+			t.Fatalf("unexpected string representation for filterTime; got %q; want %q", ft.stringRepr, s)
 		}
 		if ft.minTimestamp != minTimestampExpected {
 			t.Fatalf("unexpected minTimestamp; got %s; want %s", timestampToString(ft.minTimestamp), timestampToString(minTimestampExpected))
@@ -2011,7 +2011,7 @@ func TestParseQuery_Failure(t *testing.T) {
 	// missing pipe keyword
 	f(`foo |`)
 
-	// invlaid pipe
+	// invalid pipe
 	f(`foo | bar(`)
 	f(`foo | fields bar | baz(`)
 

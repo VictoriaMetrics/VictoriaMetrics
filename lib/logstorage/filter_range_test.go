@@ -672,7 +672,7 @@ func TestFilterRange(t *testing.T) {
 			},
 		}
 
-		// range filter always mismatches timestmap
+		// range filter always mismatches timestamp
 		fr := &filterRange{
 			fieldName: "_msg",
 			minValue:  -100,

@@ -360,7 +360,7 @@ func (a *Aggregators) Equal(b *Aggregators) bool {
 // Otherwise matchIdxs[idx] is set to 0.
 //
 // Push returns matchIdxs with len equal to len(tss).
-// It re-uses the matchIdxs if it has enough capacity to hold len(tss) items.
+// It reuses the matchIdxs if it has enough capacity to hold len(tss) items.
 // Otherwise it allocates new matchIdxs.
 func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matchIdxs []byte) []byte {
 	matchIdxs = bytesutil.ResizeNoCopyMayOverallocate(matchIdxs, len(tss))
@@ -1097,7 +1097,7 @@ func (ctx *pushCtx) reset() {
 
 type pushSample struct {
 	// key identifies a sample that belongs to unique series
-	// key value can't be re-used
+	// key value can't be reused
 	key       string
 	value     float64
 	timestamp int64

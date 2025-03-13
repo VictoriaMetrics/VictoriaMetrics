@@ -7,7 +7,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
-// filterAnd contains filters joined by AND opertor.
+// filterAnd contains filters joined by AND operator.
 //
 // It is expressed as `f1 AND f2 ... AND fN` in LogsQL.
 type filterAnd struct {

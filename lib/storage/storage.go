@@ -256,9 +256,9 @@ func MustOpenStorage(path string, opts OpenOptions) *Storage {
 		mnt := metricnamestats.MustLoadFrom(filepath.Join(s.cachePath, "metric_usage_tracker"), uint64(getMetricNamesStatsCacheSize()))
 		s.metricsTracker = mnt
 		if mnt.IsEmpty() {
-			// metric names tracker performs attemp to track timeseries during ingestion only at tsid cache miss.
+			// metric names tracker performs attempt to track timeseries during ingestion only at tsid cache miss.
 			// It allows to do not decrease storage performance.
-			logger.Infof("reseting tsidCache in order to properly track metric names stats usage")
+			logger.Infof("resetting tsidCache in order to properly track metric names stats usage")
 			s.tsidCache.Reset()
 		}
 	}
@@ -1376,7 +1376,7 @@ var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 // DeleteSeries deletes the series matching the given tfss.
 //
 // If the number of the series exceeds maxMetrics, no series will be deleted and
-// an error will be returned. Otherwise, the funciton returns the number of
+// an error will be returned. Otherwise, the function returns the number of
 // metrics deleted.
 func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters, maxMetrics int) (int, error) {
 	idb, putIndexDB := s.getCurrIndexDB()
@@ -1529,7 +1529,7 @@ func replaceAlternateRegexpsWithGraphiteWildcards(b []byte) []byte {
 		n := bytes.IndexByte(b, '(')
 		if n < 0 {
 			if len(dst) == 0 {
-				// Fast path - b doesn't contain the openining brace.
+				// Fast path - b doesn't contain the opening brace.
 				return b
 			}
 			dst = append(dst, b...)

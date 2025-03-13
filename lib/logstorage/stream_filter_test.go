@@ -133,7 +133,7 @@ func TestStreamFilterMatchStreamName(t *testing.T) {
 	f(`{a=~"foo.+",a!~".+bar"}`, `{a="foobar"}`, false)
 	f(`{a=~"foo.+",a!~".+bar"}`, `{a="foozar"}`, true)
 
-	// multple `or` filters
+	// multiple `or` filters
 	f(`{a="b" or b="c"}`, `{x="y"}`, false)
 	f(`{a="b" or b="c"}`, `{x="y",b="c"}`, true)
 	f(`{a="b" or b="c"}`, `{a="b",x="y",b="c"}`, true)

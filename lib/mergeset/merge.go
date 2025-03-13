@@ -15,7 +15,7 @@ import (
 // to persistent storage.
 //
 // The callback must return sorted items. The first and the last item must be unchanged.
-// The callback can re-use data and items for storing the result.
+// The callback can reuse data and items for storing the result.
 type PrepareBlockCallback func(data []byte, items []Item) ([]byte, []Item)
 
 // mergeBlockStreams merges bsrs and writes result to bsw.
