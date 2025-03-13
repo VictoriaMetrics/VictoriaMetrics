@@ -1103,3 +1103,83 @@ func testGroupPartialResponse(tc *at.TestCase, opts *testGroupReplicationOpts) {
 	assertSeries(opts.c.vmselectGlobalRF, mustReturnPartialResponse)
 	assertSeries(opts.c.vmselectGroupGlobalRF, mustReturnPartialResponse)
 }
+
+// TestClusterReplication_PartialResponseMultitenant checks how vmselect handles some
+// vmstorage nodes being unavailable in multitenant cluster requests.
+//
+// By default in such cases, vmselect must mark responses as partial. However,
+// passing -replicationFactor=N command-line flag to vmselect instructs it to
+// not mark responses as partial if less than -replicationFactor vmstorage
+// nodes are unavailable during the query.
+//
+// See: https://docs.victoriametrics.com/cluster-victoriametrics/#replication-and-data-safety
+func TestClusterReplication_PartialResponseMultitenant(t *testing.T) {
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	const replicationFactor = 2
+	c := newClusterWithReplication(tc, replicationFactor)
+
+	// Insert data.
+
+	const numRecs = 1000
+	recs := make([]string, numRecs)
+	for i := range numRecs {
+		recs[i] = fmt.Sprintf("metric_%d %d", i, rand.IntN(1000))
+	}
+
+	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{
+		Tenant: "0",
+	})
+	c.vminsert.PrometheusAPIV1ImportPrometheus(t, recs, at.QueryOpts{
+		Tenant: "1",
+	})
+	tc.ForceFlush(c.vmstorages...)
+
+	// Verify partial vs full response.
+
+	assertSeries := func(app *at.Vmselect, wantPartial bool) {
+		t.Helper()
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /api/v1/query response",
+			Got: func() any {
+				qo := at.QueryOpts{Tenant: "multitenant", Trace: "1"}
+				return app.PrometheusAPIV1Query(t, `{__name__=~"metric_.*"}`, qo)
+			},
+			Want: &at.PrometheusAPIV1QueryResponse{
+				Status:    "success",
+				IsPartial: wantPartial,
+			},
+			CmpOpts: []cmp.Option{
+				cmpopts.IgnoreFields(apptest.PrometheusAPIV1QueryResponse{}, "Data"),
+			},
+		})
+	}
+
+	mustReturnPartialResponse := true
+	mustReturnFullResponse := false
+
+	// All vmstorage replicas are available so both vmselects must return full
+	// response.
+	assertSeries(c.vmselect, mustReturnFullResponse)
+	assertSeries(c.vmselectRF, mustReturnFullResponse)
+
+	// Stop replicationFactor-1 vmstorage nodes.
+	// vmselect is not aware about the replication factor and therefore must
+	// return partial response.
+	// vmselectRF is aware about the replication factor and therefore it knows
+	// that the remaining vmstorage nodes must still be able to provide full
+	// response.
+	for i := range replicationFactor - 1 {
+		tc.StopApp(c.vmstorages[i].Name())
+	}
+	assertSeries(c.vmselect, mustReturnPartialResponse)
+	assertSeries(c.vmselectRF, mustReturnFullResponse)
+
+	// Stop one more vmstorage. At this point the remaining vmstorage nodes are
+	// not enough to provide the full dataset. Therefore both vmselects must
+	// return partial response.
+	tc.StopApp(c.vmstorages[replicationFactor].Name())
+	assertSeries(c.vmselect, mustReturnPartialResponse)
+	assertSeries(c.vmselectRF, mustReturnPartialResponse)
+}

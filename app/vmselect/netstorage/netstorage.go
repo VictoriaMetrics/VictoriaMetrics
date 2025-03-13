@@ -1888,34 +1888,18 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 	}
 	// Send the query to all the storage nodes in parallel.
 	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) any {
-		// Use a separate variable for each goroutine
-		var err error
-		res := execSearchQuery(qt, sq, func(qt *querytracer.Tracer, rd []byte, _ storage.TenantToken) any {
-			sn.searchRequests.Inc()
-			err = sn.processSearchQuery(qt, rd, f, workerID, deadline)
-			if err != nil {
-				sn.searchErrors.Inc()
-				err = fmt.Errorf("cannot perform search on vmstorage %s: %w", sn.connPool.Addr(), err)
-				return &err
-			}
-
-			return &err
-		})
-
-		for _, e := range res {
-			e := e.(*error)
-			if *e != nil {
-				return e
-			}
+		if err := execSearchQueryRequest(qt, sq, workerID, sn, f, deadline); err != nil {
+			return err
 		}
-
-		return &err
+		return nil
 	})
 
 	// Collect results.
 	isPartial, err := snr.collectResults(partialSearchResults, func(result any) error {
-		errP := result.(*error)
-		return *errP
+		if result != nil {
+			return result.(error)
+		}
+		return nil
 	})
 	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
 	for i := range wgs {
@@ -3285,6 +3269,34 @@ func (pnc *perNodeCounter) GetTotal() uint64 {
 //
 // See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
 const maxFastAllocBlockSize = 32 * 1024
+
+// execSearchQueryRequest executes processSearchQuery for each searchQuery tenant.
+func execSearchQueryRequest(qt *querytracer.Tracer, sq *storage.SearchQuery, workerID uint, sn *storageNode, f func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline) error {
+	var requestData []byte
+
+	for i := range sq.TenantTokens {
+		requestData = sq.TenantTokens[i].Marshal(requestData)
+		requestData = sq.MarshalWithoutTenant(requestData)
+		qtL := qt
+		if sq.IsMultiTenant && qt.Enabled() {
+			qtL = qt.NewChild("query for tenant: %s", sq.TenantTokens[i].String())
+		}
+		sn.searchRequests.Inc()
+		if err := sn.processSearchQuery(qtL, requestData, f, workerID, deadline); err != nil {
+			sn.searchErrors.Inc()
+			if sq.IsMultiTenant {
+				qtL.Done()
+			}
+			return fmt.Errorf("cannot perform search on vmstorage %s: %w", sn.connPool.Addr(), err)
+		}
+		if sq.IsMultiTenant {
+			qtL.Done()
+		}
+		requestData = requestData[:0]
+	}
+
+	return nil
+}
 
 // execSearchQuery calls cb for with marshaled requestData for each tenant in sq.
 func execSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, cb func(qt *querytracer.Tracer, requestData []byte, t storage.TenantToken) any) []any {
