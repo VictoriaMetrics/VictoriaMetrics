@@ -529,8 +529,8 @@ func (s *Storage) DeleteStaleSnapshots(maxAge time.Duration) error {
 }
 
 // getCurrAndNextIndexDBs increments refcount for the current and next indexDBs
-// and returns them along with a cleanup function that decrements their
-// refcounts.
+// and returns them along with a cleanup function that decrements their refcounts.
+// Returned indexDBs shouldn't be used after cleanup function was called.
 func (s *Storage) getCurrAndNextIndexDBs() (*indexDB, *indexDB, func()) {
 	s.idbLock.Lock()
 	defer s.idbLock.Unlock()
