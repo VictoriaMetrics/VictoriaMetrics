@@ -1,6 +1,7 @@
 package loki
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
@@ -11,7 +12,7 @@ func TestParseJSONRequest_Failure(t *testing.T) {
 		t.Helper()
 
 		tlp := &insertutils.TestLogMessageProcessor{}
-		if err := parseJSONRequest([]byte(s), tlp, nil, false, false); err == nil {
+		if err := parseJSONRequest(strings.NewReader(s), "", tlp, nil, false, false); err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
 		if err := tlp.Verify(nil, ""); err != nil {
@@ -65,7 +66,7 @@ func TestParseJSONRequest_Success(t *testing.T) {
 
 		tlp := &insertutils.TestLogMessageProcessor{}
 
-		if err := parseJSONRequest([]byte(s), tlp, nil, false, false); err != nil {
+		if err := parseJSONRequest(strings.NewReader(s), "", tlp, nil, false, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		if err := tlp.Verify(timestampsExpected, resultExpected); err != nil {
@@ -132,7 +133,7 @@ func TestParseJSONRequest_ParseMessage(t *testing.T) {
 
 		tlp := &insertutils.TestLogMessageProcessor{}
 
-		if err := parseJSONRequest([]byte(s), tlp, msgFields, false, true); err != nil {
+		if err := parseJSONRequest(strings.NewReader(s), "", tlp, msgFields, false, true); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		if err := tlp.Verify(timestampsExpected, resultExpected); err != nil {

@@ -23,24 +23,6 @@ var parserPool fastjson.ParserPool
 func handleJSON(r *http.Request, w http.ResponseWriter) {
 	startTime := time.Now()
 	requestsJSONTotal.Inc()
-	reader := r.Body
-	if r.Header.Get("Content-Encoding") == "gzip" {
-		zr, err := common.GetGzipReader(reader)
-		if err != nil {
-			httpserver.Errorf(w, r, "cannot initialize gzip reader: %s", err)
-			return
-		}
-		defer common.PutGzipReader(zr)
-		reader = zr
-	}
-
-	wcr := writeconcurrencylimiter.GetReader(reader)
-	data, err := io.ReadAll(wcr)
-	writeconcurrencylimiter.PutReader(wcr)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot read request body: %s", err)
-		return
-	}
 
 	cp, err := getCommonParams(r)
 	if err != nil {
@@ -53,10 +35,11 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 	}
 	lmp := cp.cp.NewLogMessageProcessor("loki_json")
 	useDefaultStreamFields := len(cp.cp.StreamFields) == 0
-	err = parseJSONRequest(data, lmp, cp.cp.MsgFields, useDefaultStreamFields, cp.parseMessage)
+	encoding := r.Header.Get("Content-Encoding")
+	err = parseJSONRequest(r.Body, encoding, lmp, cp.cp.MsgFields, useDefaultStreamFields, cp.parseMessage)
 	lmp.MustClose()
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse Loki json request: %s; data=%s", err, data)
+		httpserver.Errorf(w, r, "cannot parse Loki json request: %s", err)
 		return
 	}
 
@@ -71,7 +54,20 @@ var (
 	requestJSONDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
-func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, msgFields []string, useDefaultStreamFields, parseMessage bool) error {
+func parseJSONRequest(r io.Reader, encoding string, lmp insertutils.LogMessageProcessor, msgFields []string, useDefaultStreamFields, parseMessage bool) error {
+	reader, err := common.GetUncompressedReader(r, encoding)
+	if err != nil {
+		return fmt.Errorf("cannot read %s-compressed Loki protocol data: %w", encoding, err)
+	}
+	defer common.PutUncompressedReader(reader, encoding)
+
+	wcr := writeconcurrencylimiter.GetReader(reader)
+	data, err := io.ReadAll(wcr)
+	writeconcurrencylimiter.PutReader(wcr)
+	if err != nil {
+		return fmt.Errorf("cannot read request body: %w", err)
+	}
+
 	p := parserPool.Get()
 	defer parserPool.Put(p)
 

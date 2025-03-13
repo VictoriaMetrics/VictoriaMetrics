@@ -18,29 +18,17 @@ import (
 // Parse parses DataDog POST request for /api/v1/series from reader and calls callback for the parsed request.
 //
 // callback shouldn't hold series after returning.
-func Parse(r io.Reader, contentEncoding string, callback func(series []datadogv1.Series) error) error {
+func Parse(r io.Reader, encoding string, callback func(series []datadogv1.Series) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
-	r = wcr
 
-	switch contentEncoding {
-	case "gzip":
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read gzipped DataDog data: %w", err)
-		}
-		defer common.PutGzipReader(zr)
-		r = zr
-	case "deflate":
-		zlr, err := common.GetZlibReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read deflated DataDog data: %w", err)
-		}
-		defer common.PutZlibReader(zlr)
-		r = zlr
+	reader, err := common.GetUncompressedReader(wcr, encoding)
+	if err != nil {
+		return fmt.Errorf("cannot read %s-compressed DataDog protocol data: %w", encoding, err)
 	}
+	defer common.PutUncompressedReader(reader, encoding)
 
-	ctx := getPushCtx(r)
+	ctx := getPushCtx(reader)
 	defer putPushCtx(ctx)
 	if err := ctx.Read(); err != nil {
 		return err

@@ -16,10 +16,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -29,7 +29,6 @@ const (
 )
 
 var (
-	bodyBufferPool                bytesutil.ByteBufferPool
 	allowedJournaldEntryNameChars = regexp.MustCompile(`^[A-Z_][A-Z0-9_]*`)
 )
 
@@ -94,26 +93,22 @@ func handleJournald(r *http.Request, w http.ResponseWriter) {
 		return
 	}
 
-	reader := r.Body
-	var err error
+	encoding := r.Header.Get("Content-Encoding")
+	reader, err := common.GetUncompressedReader(r.Body, encoding)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot read %s-compressed Journal protocol data: %s", encoding, err)
+		return
+	}
+	defer common.PutUncompressedReader(reader, encoding)
 
 	wcr := writeconcurrencylimiter.GetReader(reader)
 	data, err := io.ReadAll(wcr)
+	writeconcurrencylimiter.PutReader(wcr)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot read request body: %s", err)
 		return
 	}
-	writeconcurrencylimiter.PutReader(wcr)
-	bb := bodyBufferPool.Get()
-	defer bodyBufferPool.Put(bb)
-	if r.Header.Get("Content-Encoding") == "zstd" {
-		bb.B, err = zstd.Decompress(bb.B[:0], data)
-		if err != nil {
-			httpserver.Errorf(w, r, "cannot decompress zstd-encoded request with length %d: %s", len(data), err)
-			return
-		}
-		data = bb.B
-	}
+
 	cp, err := getCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)

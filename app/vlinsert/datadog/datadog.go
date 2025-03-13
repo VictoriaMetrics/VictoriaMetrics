@@ -46,7 +46,6 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 	w.Header().Add("Content-Type", "application/json")
 	startTime := time.Now()
 	v2LogsRequestsTotal.Inc()
-	reader := r.Body
 
 	var ts int64
 	if tsValue := r.Header.Get("dd-message-timestamp"); tsValue != "" && tsValue != "0" {
@@ -61,15 +60,13 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 		ts = startTime.UnixNano()
 	}
 
-	if r.Header.Get("Content-Encoding") == "gzip" {
-		zr, err := common.GetGzipReader(reader)
-		if err != nil {
-			httpserver.Errorf(w, r, "cannot read gzipped logs request: %s", err)
-			return true
-		}
-		defer common.PutGzipReader(zr)
-		reader = zr
+	encoding := r.Header.Get("Content-Encoding")
+	reader, err := common.GetUncompressedReader(r.Body, encoding)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot read %s-compressed DataDog protocol data: %s", encoding, err)
+		return true
 	}
+	defer common.PutUncompressedReader(reader, encoding)
 
 	wcr := writeconcurrencylimiter.GetReader(reader)
 	data, err := io.ReadAll(wcr)
