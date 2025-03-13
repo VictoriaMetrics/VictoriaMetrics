@@ -187,6 +187,9 @@ func (c *Client) addOperationListBucketMetricsConfigurationsMiddlewares(stack *m
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpListBucketMetricsConfigurationsValidationMiddleware(stack); err != nil {
 		return err
 	}

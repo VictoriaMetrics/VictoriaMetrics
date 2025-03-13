@@ -142,6 +142,9 @@ func (c *Client) addOperationGetBucketRequestPaymentMiddlewares(stack *middlewar
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetBucketRequestPaymentValidationMiddleware(stack); err != nil {
 		return err
 	}

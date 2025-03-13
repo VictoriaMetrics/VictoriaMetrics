@@ -1,3 +1,26 @@
+# v1.78.2 (2025-03-11)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.78.1 (2025-03-04.2)
+
+* **Bug Fix**: Add assurance test for operation order.
+
+# v1.78.0 (2025-02-27)
+
+* **Feature**: Track credential providers via User-Agent Feature ids
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.77.1 (2025-02-18)
+
+* **Bug Fix**: Bump go version to 1.22
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.77.0 (2025-02-14)
+
+* **Feature**: Added support for Content-Range header in HeadObject response.
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.76.1 (2025-02-10)
 
 * **Dependency Update**: Updated to the latest SDK module versions

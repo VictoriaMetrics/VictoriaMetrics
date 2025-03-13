@@ -211,6 +211,9 @@ func (c *Client) addOperationPutBucketVersioningMiddlewares(stack *middleware.St
 	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpPutBucketVersioningValidationMiddleware(stack); err != nil {
 		return err
 	}

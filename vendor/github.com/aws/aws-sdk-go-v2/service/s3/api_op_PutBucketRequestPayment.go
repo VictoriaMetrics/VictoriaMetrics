@@ -175,6 +175,9 @@ func (c *Client) addOperationPutBucketRequestPaymentMiddlewares(stack *middlewar
 	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpPutBucketRequestPaymentValidationMiddleware(stack); err != nil {
 		return err
 	}

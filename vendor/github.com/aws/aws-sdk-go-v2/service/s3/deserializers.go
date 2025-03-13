@@ -7796,6 +7796,11 @@ func awsRestxml_deserializeOpHttpBindingsHeadObjectOutput(v *HeadObjectOutput, r
 		v.ContentLength = ptr.Int64(vv)
 	}
 
+	if headerValues := response.Header.Values("Content-Range"); len(headerValues) != 0 {
+		headerValues[0] = strings.TrimSpace(headerValues[0])
+		v.ContentRange = ptr.String(headerValues[0])
+	}
+
 	if headerValues := response.Header.Values("Content-Type"); len(headerValues) != 0 {
 		headerValues[0] = strings.TrimSpace(headerValues[0])
 		v.ContentType = ptr.String(headerValues[0])

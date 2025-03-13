@@ -51,9 +51,9 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	lmp := cp.NewLogMessageProcessor("loki_json")
-	useDefaultStreamFields := len(cp.StreamFields) == 0
-	err = parseJSONRequest(data, lmp, useDefaultStreamFields)
+	lmp := cp.cp.NewLogMessageProcessor("loki_json")
+	useDefaultStreamFields := len(cp.cp.StreamFields) == 0
+	err = parseJSONRequest(data, lmp, cp.cp.MsgFields, useDefaultStreamFields, cp.parseMessage)
 	lmp.MustClose()
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse Loki json request: %s; data=%s", err, data)
@@ -71,9 +71,10 @@ var (
 	requestJSONDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
-func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefaultStreamFields bool) error {
+func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, msgFields []string, useDefaultStreamFields, parseMessage bool) error {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
+
 	v, err := p.ParseBytes(data)
 	if err != nil {
 		return fmt.Errorf("cannot parse JSON request body: %w", err)
@@ -88,11 +89,20 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 		return fmt.Errorf("`streams` item in the parsed JSON must contain an array; got %q", streamsV)
 	}
 
+	fields := getFields()
+	defer putFields(fields)
+
+	var msgParser *logstorage.JSONParser
+	if parseMessage {
+		msgParser = logstorage.GetJSONParser()
+		defer logstorage.PutJSONParser(msgParser)
+	}
+
 	currentTimestamp := time.Now().UnixNano()
-	var commonFields []logstorage.Field
+
 	for _, stream := range streams {
 		// populate common labels from `stream` dict
-		commonFields = commonFields[:0]
+		fields.fields = fields.fields[:0]
 		labelsV := stream.Get("stream")
 		var labels *fastjson.Object
 		if labelsV != nil {
@@ -108,7 +118,7 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 				err = fmt.Errorf("unexpected label value type for %q:%q; want string", k, v)
 				return
 			}
-			commonFields = append(commonFields, logstorage.Field{
+			fields.fields = append(fields.fields, logstorage.Field{
 				Name:  bytesutil.ToUnsafeString(k),
 				Value: bytesutil.ToUnsafeString(vStr),
 			})
@@ -127,8 +137,10 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 			return fmt.Errorf("`values` item in the parsed JSON must contain an array; got %q", linesV)
 		}
 
-		fields := commonFields
+		commonFieldsLen := len(fields.fields)
 		for _, line := range lines {
+			fields.fields = fields.fields[:commonFieldsLen]
+
 			lineA, err := line.Array()
 			if err != nil {
 				return fmt.Errorf("unexpected contents of `values` item; want array; got %q", line)
@@ -150,17 +162,6 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 				ts = currentTimestamp
 			}
 
-			// parse log message
-			msg, err := lineA[1].StringBytes()
-			if err != nil {
-				return fmt.Errorf("unexpected log message type for %q; want string", lineA[1])
-			}
-
-			fields = append(fields[:len(commonFields)], logstorage.Field{
-				Name:  "_msg",
-				Value: bytesutil.ToUnsafeString(msg),
-			})
-
 			// parse structured metadata - see https://grafana.com/docs/loki/latest/reference/loki-http-api/#ingest-logs
 			if len(lineA) > 2 {
 				structuredMetadata, err := lineA[2].Object()
@@ -175,7 +176,7 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 						return
 					}
 
-					fields = append(fields, logstorage.Field{
+					fields.fields = append(fields.fields, logstorage.Field{
 						Name:  bytesutil.ToUnsafeString(k),
 						Value: bytesutil.ToUnsafeString(vStr),
 					})
@@ -184,15 +185,45 @@ func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, useDefau
 					return fmt.Errorf("error when parsing `structuredMetadata` object: %w", err)
 				}
 			}
+
+			// parse log message
+			msg, err := lineA[1].StringBytes()
+			if err != nil {
+				return fmt.Errorf("unexpected log message type for %q; want string", lineA[1])
+			}
+			allowMsgRenaming := false
+			fields.fields, allowMsgRenaming = addMsgField(fields.fields, msgParser, bytesutil.ToUnsafeString(msg))
+
 			var streamFields []logstorage.Field
 			if useDefaultStreamFields {
-				streamFields = commonFields
+				streamFields = fields.fields[:commonFieldsLen]
 			}
-			lmp.AddRow(ts, fields, streamFields)
+			if allowMsgRenaming {
+				logstorage.RenameField(fields.fields[commonFieldsLen:], msgFields, "_msg")
+			}
+			lmp.AddRow(ts, fields.fields, streamFields)
 		}
 	}
 
 	return nil
+}
+
+func addMsgField(dst []logstorage.Field, msgParser *logstorage.JSONParser, msg string) ([]logstorage.Field, bool) {
+	if msgParser == nil || len(msg) < 2 || msg[0] != '{' || msg[len(msg)-1] != '}' {
+		return append(dst, logstorage.Field{
+			Name:  "_msg",
+			Value: msg,
+		}), false
+	}
+	if msgParser != nil && len(msg) >= 2 && msg[0] == '{' && msg[len(msg)-1] == '}' {
+		if err := msgParser.ParseLogMessage(bytesutil.ToUnsafeBytes(msg)); err == nil {
+			return append(dst, msgParser.Fields...), true
+		}
+	}
+	return append(dst, logstorage.Field{
+		Name:  "_msg",
+		Value: msg,
+	}), false
 }
 
 func parseLokiTimestamp(s string) (int64, error) {

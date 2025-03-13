@@ -163,6 +163,9 @@ func (c *Client) addOperationGetBucketAnalyticsConfigurationMiddlewares(stack *m
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetBucketAnalyticsConfigurationValidationMiddleware(stack); err != nil {
 		return err
 	}

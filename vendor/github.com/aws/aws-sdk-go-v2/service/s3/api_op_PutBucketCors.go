@@ -210,6 +210,9 @@ func (c *Client) addOperationPutBucketCorsMiddlewares(stack *middleware.Stack, o
 	if err = addRequestChecksumMetricsTracking(stack, options); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpPutBucketCorsValidationMiddleware(stack); err != nil {
 		return err
 	}

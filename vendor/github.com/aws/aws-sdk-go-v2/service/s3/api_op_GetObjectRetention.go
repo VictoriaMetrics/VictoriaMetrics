@@ -174,6 +174,9 @@ func (c *Client) addOperationGetObjectRetentionMiddlewares(stack *middleware.Sta
 	if err = addIsExpressUserAgent(stack); err != nil {
 		return err
 	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpGetObjectRetentionValidationMiddleware(stack); err != nil {
 		return err
 	}
