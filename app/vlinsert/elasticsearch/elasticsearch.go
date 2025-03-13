@@ -134,14 +134,13 @@ var (
 func readBulkRequest(streamName string, r io.Reader, encoding string, timeField string, msgFields []string, lmp insertutils.LogMessageProcessor) (int, error) {
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
-	zr, err := common.GetUncompressedReader(r, encoding)
+	reader, err := common.GetUncompressedReader(r, encoding)
 	if err != nil {
 		return 0, fmt.Errorf("cannot read %s-compressed Elasticsearch protocol data: %w", encoding, err)
 	}
-	defer common.PutUncompressedReader(zr, encoding)
-	r = zr
+	defer common.PutUncompressedReader(reader, encoding)
 
-	wcr := writeconcurrencylimiter.GetReader(r)
+	wcr := writeconcurrencylimiter.GetReader(reader)
 	defer writeconcurrencylimiter.PutReader(wcr)
 
 	lr := insertutils.NewLineReader(streamName, wcr)

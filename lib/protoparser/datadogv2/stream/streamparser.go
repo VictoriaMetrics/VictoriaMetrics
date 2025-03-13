@@ -21,16 +21,14 @@ import (
 func Parse(r io.Reader, encoding, contentType string, callback func(series []datadogv2.Series) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
-	r = wcr
 
-	zr, err := common.GetUncompressedReader(r, encoding)
+	reader, err := common.GetUncompressedReader(wcr, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot read %s-compressed DataDog protocol data: %w", encoding, err)
 	}
-	defer common.PutUncompressedReader(zr, encoding)
-	r = zr
+	defer common.PutUncompressedReader(reader, encoding)
 
-	ctx := getPushCtx(r)
+	ctx := getPushCtx(reader)
 	defer putPushCtx(ctx)
 	if err := ctx.Read(); err != nil {
 		return err

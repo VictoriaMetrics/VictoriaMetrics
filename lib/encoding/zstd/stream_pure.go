@@ -25,15 +25,15 @@ func NewReader(r io.Reader) *Reader {
 	}
 }
 
+// Read reads up to len(p) bytes to p from r.
+func (r *Reader) Read(p []byte) (int, error) {
+	return r.d.Read(p)
+}
+
 // Close implements io.ReadCloser interface
 func (r *Reader) Close() error {
 	r.d.Reset(nil)
 	return nil
-}
-
-// Read reads up to len(p) bytes to p from r.
-func (r *Reader) Read(p []byte) (int, error) {
-	return r.d.Read(p)
 }
 
 // Reset updates supplied stream r.
@@ -42,6 +42,8 @@ func (r *Reader) Reset(reader io.Reader) {
 }
 
 // Release releases r.
+//
+// r cannot be used after the release.
 func (r *Reader) Release() {
 	r.d.Close()
 	r.d = nil

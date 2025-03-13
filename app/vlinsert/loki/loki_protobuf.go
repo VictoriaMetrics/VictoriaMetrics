@@ -57,14 +57,13 @@ var (
 )
 
 func parseProtobufRequest(r io.Reader, encoding string, lmp insertutils.LogMessageProcessor, msgFields []string, useDefaultStreamFields, parseMessage bool) error {
-	zr, err := common.GetUncompressedReader(r, encoding)
+	reader, err := common.GetUncompressedReader(r, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot read %s-compressed Loki protocol data: %w", encoding, err)
 	}
-	defer common.PutUncompressedReader(zr, encoding)
-	r = zr
+	defer common.PutUncompressedReader(reader, encoding)
 
-	wcr := writeconcurrencylimiter.GetReader(r)
+	wcr := writeconcurrencylimiter.GetReader(reader)
 	data, err := io.ReadAll(wcr)
 	writeconcurrencylimiter.PutReader(wcr)
 	if err != nil {

@@ -36,6 +36,14 @@ func (r *Reader) Read(p []byte) (int, error) {
 	return r.d.Read(p)
 }
 
+// Release releases r.
+//
+// r cannot be used after the release.
+func (r *Reader) Release() {
+	r.d.Release()
+	r.d = nil
+}
+
 // Writer is zstd writer
 type Writer = gozstd.Writer
 

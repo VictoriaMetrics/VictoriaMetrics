@@ -28,18 +28,16 @@ import (
 func ParseStream(r io.Reader, encoding string, processBody func([]byte) ([]byte, error), callback func(tss []prompbmarshal.TimeSeries) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
-	r = wcr
 
-	zr, err := common.GetUncompressedReader(r, encoding)
+	reader, err := common.GetUncompressedReader(wcr, encoding)
 	if err != nil {
 		return fmt.Errorf("cannot read %s-compressed OpenTelemetry protocol data: %w", encoding, err)
 	}
-	defer common.PutUncompressedReader(zr, encoding)
-	r = zr
+	defer common.PutUncompressedReader(reader, encoding)
 
 	wr := getWriteContext()
 	defer putWriteContext(wr)
-	req, err := wr.readAndUnpackRequest(r, processBody)
+	req, err := wr.readAndUnpackRequest(reader, processBody)
 	if err != nil {
 		return fmt.Errorf("cannot unpack OpenTelemetry metrics: %w", err)
 	}
