@@ -82,7 +82,7 @@ Apr 28 13:48:01 localhost kernel: [36020.499859] CPU2: Package temperature/speed
 
 	// const strings
 	f("foo\nfoo", 10)
-	f("foo\nfoo\nfoo", 17)
+	f("foo\nfoo\nfoo", 9)
 
 	// Generate a string longer than 1<<16 bytes
 	s := "foo"
