@@ -10,6 +10,7 @@ url: /victorialogs/data-ingestion/datadog-agent/
 aliases:
   - /VictoriaLogs/data-ingestion/DataDogAgent.html
 ---
+
 Datadog Agent doesn't support custom path prefix, so for this reason it's required to use [VMAuth](https://docs.victoriametrics.com/vmauth/) or any other
 reverse proxy to append `/insert/datadog` path prefix to all Datadog API logs requests.
 
@@ -55,9 +56,28 @@ provider:
 
 Substitute the `<vmauth-base-url>` address with the real address of VMAuth proxy.
 
+## Dropping fields
+
+VictoriaLogs can be configured for skipping the given [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
+for logs ingested via DataDog protocol. This can be done via the following options:
+
+- `-datadog.ignoreFields` command-line flag, which accepts comma-separated list of log fields to ignore.
+  This list can contain log field prefixes ending with `*` such as `some-prefix*`. In this case all the fields starting from `some-prefix` are ignored.
+- `ignore_fields` HTTP request query arg or `VL-Ignore-Fields` HTTP request header. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
+
+## Stream fields
+
+VictoriaLogs can be configured to use the particular fields from the ingested logs as [log stream fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields)
+for logs ingested via DataDog protocol. This can be done via the following options:
+
+- `-datadog.streamFields` command-line flag, which accpets comma-separated list of fields to use as log stream fields.
+- `_stream_fields` HTTP request query arg or `VL-Stream-Fields` HTTP request header. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
+
+
 See also:
 
-- [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/).
-- [Docker-compose demo for Datadog integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/datadog-agent).
-- [Docker-compose demo for Datadog Serverless integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/datadog-serverless).
+- [HTTP query args and HTTP headers, which can be set during data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters)
+- [Data ingestion troubleshooting](https://docs.victoriametrics.com/victorialogs/data-ingestion/#troubleshooting)
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/)
+- [Docker-compose demo for Datadog integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/datadog-agent)
+- [Docker-compose demo for Datadog Serverless integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/datadog-serverless)
