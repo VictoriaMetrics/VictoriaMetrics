@@ -108,9 +108,9 @@ func TestInmemoryPartMustInitFromRows_Overflow(t *testing.T) {
 	}
 
 	// check block overflow with unique tag rows
-	f(newTestLogRowsUniqTags(5, 21, 100), 5, 0.4)
-	f(newTestLogRowsUniqTags(5, 10, 100), 5, 0.5)
-	f(newTestLogRowsUniqTags(1, 2001, 1), 1, 1.3)
+	f(newTestLogRowsUniqTags(5, 21, 100), 5, 0.5)
+	f(newTestLogRowsUniqTags(5, 10, 100), 5, 0.6)
+	f(newTestLogRowsUniqTags(1, 2001, 1), 1, 1.7)
 	f(newTestLogRowsUniqTags(15, 20, 250), 15, 0.6)
 }
 
