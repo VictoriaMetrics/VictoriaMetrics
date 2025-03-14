@@ -5,16 +5,82 @@ import (
 	"io"
 	"sync"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/snappy"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
+	"github.com/golang/snappy"
 	"github.com/klauspost/compress/gzip"
 	"github.com/klauspost/compress/zlib"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
 
-// GetGzipReader returns new gzip reader from the pool.
+// ReadUncompressedData reads uncompressed data from r using the given encoding and then passes it to the callback.
 //
-// Return back the gzip reader when it no longer needed with PutGzipReader.
-func GetGzipReader(r io.Reader) (io.ReadCloser, error) {
+// The maxDataSize limits the maximum data size, which can be read from r.
+//
+// The callback musn't hold references to the data after returning.
+func ReadUncompressedData(r io.Reader, encoding string, maxDataSize *flagutil.Bytes, callback func(data []byte) error) error {
+	reader, err := GetUncompressedReader(r, encoding)
+	if err != nil {
+		return err
+	}
+	lr := io.LimitReader(reader, maxDataSize.N+1)
+
+	bb := dataBufPool.Get()
+	defer dataBufPool.Put(bb)
+
+	wcr := writeconcurrencylimiter.GetReader(lr)
+	_, err = bb.ReadFrom(wcr)
+	writeconcurrencylimiter.PutReader(wcr)
+	PutUncompressedReader(reader)
+	if err != nil {
+		return err
+	}
+	if int64(len(bb.B)) > maxDataSize.N {
+		return fmt.Errorf("too big data size exceeding -%s=%d bytes", maxDataSize.Name, maxDataSize.N)
+	}
+
+	return callback(bb.B)
+}
+
+var dataBufPool bytesutil.ByteBufferPool
+
+// GetUncompressedReader returns uncompressed reader for r and the given encoding
+//
+// The returned reader must be passed to PutUncompressedReader when no longer needed.
+func GetUncompressedReader(r io.Reader, encoding string) (io.Reader, error) {
+	switch encoding {
+	case "zstd":
+		return getZstdReader(r), nil
+	case "snappy":
+		return getSnappyReader(r), nil
+	case "gzip":
+		return getGzipReader(r)
+	case "deflate":
+		return getZlibReader(r)
+	case "", "none":
+		return r, nil
+	default:
+		return nil, fmt.Errorf("unsupported encoding: %s", encoding)
+	}
+}
+
+// PutUncompressedReader puts r to the pool, so it could be re-used via GetUncompressedReader()
+func PutUncompressedReader(r io.Reader) {
+	switch t := r.(type) {
+	case *snappy.Reader:
+		putSnappyReader(t)
+	case *zstd.Reader:
+		putZstdReader(t)
+	case *gzip.Reader:
+		putGzipReader(t)
+	case zlib.Resetter:
+		putZlibReader(t)
+	}
+}
+
+func getGzipReader(r io.Reader) (*gzip.Reader, error) {
 	v := gzipReaderPool.Get()
 	if v == nil {
 		return gzip.NewReader(r)
@@ -26,37 +92,31 @@ func GetGzipReader(r io.Reader) (io.ReadCloser, error) {
 	return zr, nil
 }
 
-// PutGzipReader returns back gzip reader obtained via GetGzipReader.
-func PutGzipReader(zr io.ReadCloser) {
-	_ = zr.Close()
+func putGzipReader(zr *gzip.Reader) {
 	gzipReaderPool.Put(zr)
 }
 
 var gzipReaderPool sync.Pool
 
-// GetZlibReader returns zlib reader.
-func GetZlibReader(r io.Reader) (io.ReadCloser, error) {
+func getZlibReader(r io.Reader) (io.ReadCloser, error) {
 	v := zlibReaderPool.Get()
 	if v == nil {
 		return zlib.NewReader(r)
 	}
-	zr := v.(io.ReadCloser)
-	if err := zr.(zlib.Resetter).Reset(r, nil); err != nil {
+	zr := v.(zlib.Resetter)
+	if err := zr.Reset(r, nil); err != nil {
 		return nil, err
 	}
-	return zr, nil
+	return zr.(io.ReadCloser), nil
 }
 
-// PutZlibReader returns back zlib reader obtained via GetZlibReader.
-func PutZlibReader(zr io.ReadCloser) {
-	_ = zr.Close()
+func putZlibReader(zr zlib.Resetter) {
 	zlibReaderPool.Put(zr)
 }
 
 var zlibReaderPool sync.Pool
 
-// GetSnappyReader returns snappy reader.
-func GetSnappyReader(r io.Reader) io.ReadCloser {
+func getSnappyReader(r io.Reader) *snappy.Reader {
 	v := snappyReaderPool.Get()
 	if v == nil {
 		return snappy.NewReader(r)
@@ -66,69 +126,24 @@ func GetSnappyReader(r io.Reader) io.ReadCloser {
 	return zr
 }
 
-// PutSnappyReader returns back zlib reader obtained via GetSnappyReader.
-func PutSnappyReader(zr io.ReadCloser) {
-	_ = zr.Close()
+func putSnappyReader(zr *snappy.Reader) {
 	snappyReaderPool.Put(zr)
 }
 
 var snappyReaderPool sync.Pool
 
-// GetZstdReader returns snappy reader.
-func GetZstdReader(r io.Reader) io.ReadCloser {
+func getZstdReader(r io.Reader) *zstd.Reader {
 	v := zstdReaderPool.Get()
 	if v == nil {
 		return zstd.NewReader(r)
 	}
 	zr := v.(*zstd.Reader)
-	zr.Reset(r)
+	zr.Reset(r, nil)
 	return zr
 }
 
-// PutZstdReader returns back zlib reader obtained via GetZstdReader.
-func PutZstdReader(zr io.ReadCloser) {
-	_ = zr.Close()
+func putZstdReader(zr *zstd.Reader) {
 	zstdReaderPool.Put(zr)
 }
 
 var zstdReaderPool sync.Pool
-
-// GetUncompressedReader returns uncompressed reader for r reader
-//
-// The returned reader must be closed when no longer needed
-func GetUncompressedReader(r io.Reader, encoding string) (io.ReadCloser, error) {
-	switch encoding {
-	case "zstd":
-		return zstd.NewReader(r), nil
-	case "snappy":
-		return GetSnappyReader(r), nil
-	case "gzip":
-		return GetGzipReader(r)
-	case "deflate":
-		return GetZlibReader(r)
-	case "":
-		rc, ok := r.(io.ReadCloser)
-		if ok {
-			return rc, nil
-		}
-		return io.NopCloser(r), nil
-	default:
-		return nil, fmt.Errorf("unsupported encoding: %s", encoding)
-	}
-}
-
-// PutUncompressedReader closes and puts uncompressed reader back to a respective pool
-func PutUncompressedReader(r io.ReadCloser, encoding string) {
-	switch encoding {
-	case "snappy":
-		PutSnappyReader(r)
-	case "zstd":
-		PutZstdReader(r)
-	case "gzip":
-		PutGzipReader(r)
-	case "deflate":
-		PutZlibReader(r)
-	case "":
-		_ = r.Close()
-	}
-}

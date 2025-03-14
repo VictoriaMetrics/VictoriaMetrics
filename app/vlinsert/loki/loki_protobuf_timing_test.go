@@ -1,13 +1,10 @@
 package loki
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
 	"testing"
 	"time"
-
-	"github.com/golang/snappy"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -30,16 +27,16 @@ func benchmarkParseProtobufRequest(b *testing.B, streams, rows, labels int) {
 	b.ReportAllocs()
 	b.SetBytes(int64(streams * rows))
 	b.RunParallel(func(pb *testing.PB) {
-		r := getProtobufBody(streams, rows, labels)
+		body := getProtobufBody(streams, rows, labels)
 		for pb.Next() {
-			if err := parseProtobufRequest(r, "snappy", blp, nil, false, true); err != nil {
+			if err := parseProtobufRequest(body, blp, nil, false, true); err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
 			}
 		}
 	})
 }
 
-func getProtobufBody(streamsCount, rowsCount, labelsCount int) *bytes.Buffer {
+func getProtobufBody(streamsCount, rowsCount, labelsCount int) []byte {
 	var b []byte
 	var entries []Entry
 	streams := make([]Stream, streamsCount)
@@ -79,10 +76,5 @@ func getProtobufBody(streamsCount, rowsCount, labelsCount int) *bytes.Buffer {
 		Streams: streams,
 	}
 
-	body := pr.MarshalProtobuf(nil)
-	var buf bytes.Buffer
-	w := snappy.NewBufferedWriter(&buf)
-	_, _ = w.Write(body)
-	_ = w.Close()
-	return &buf
+	return pr.MarshalProtobuf(nil)
 }

@@ -384,7 +384,10 @@ func main() {
 				Action: func(c *cli.Context) error {
 					common.StartUnmarshalWorkers()
 					blockPath := c.Args().First()
-					isBlockGzipped := c.Bool("gunzip")
+					encoding := ""
+					if c.Bool("gunzip") {
+						encoding = "gzip"
+					}
 					if len(blockPath) == 0 {
 						return cli.Exit("you must provide path for exported data block", 1)
 					}
@@ -395,7 +398,7 @@ func main() {
 					}
 					defer f.Close()
 					var blocksCount atomic.Uint64
-					if err := stream.Parse(f, isBlockGzipped, func(_ *stream.Block) error {
+					if err := stream.Parse(f, encoding, func(_ *stream.Block) error {
 						blocksCount.Add(1)
 						return nil
 					}); err != nil {

@@ -3,7 +3,6 @@ package datadog
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -16,10 +15,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
 
 var (
@@ -27,6 +24,8 @@ var (
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/#stream-fields")
 	datadogIgnoreFields = flagutil.NewArrayString("datadog.ignoreFields", "Comma-separated list of fields to ignore for logs ingested via DataDog protocol. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/#dropping-fields")
+
+	maxRequestSize = flagutil.NewBytes("datadog.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single DataDog request")
 )
 
 var parserPool fastjson.ParserPool
@@ -62,22 +61,6 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 		ts = startTime.UnixNano()
 	}
 
-	encoding := r.Header.Get("Content-Encoding")
-	reader, err := common.GetUncompressedReader(r.Body, encoding)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot read %s-compressed DataDog protocol data: %s", encoding, err)
-		return true
-	}
-	defer common.PutUncompressedReader(reader, encoding)
-
-	wcr := writeconcurrencylimiter.GetReader(reader)
-	data, err := io.ReadAll(wcr)
-	writeconcurrencylimiter.PutReader(wcr)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot read request body: %s", err)
-		return true
-	}
-
 	cp, err := insertutils.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
@@ -96,11 +79,15 @@ func datadogLogsIngestion(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	lmp := cp.NewLogMessageProcessor("datadog")
-	err = readLogsRequest(ts, data, lmp)
-	lmp.MustClose()
+	encoding := r.Header.Get("Content-Encoding")
+	err = common.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
+		lmp := cp.NewLogMessageProcessor("datadog")
+		err := readLogsRequest(ts, data, lmp)
+		lmp.MustClose()
+		return err
+	})
 	if err != nil {
-		logger.Warnf("cannot decode log message in /api/v2/logs request: %s, stream fields: %s", err, cp.StreamFields)
+		httpserver.Errorf(w, r, "cannot read DataDog protocol data: %s", err)
 		return true
 	}
 
