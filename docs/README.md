@@ -177,7 +177,7 @@ Additionally, all the VictoriaMetrics components allow setting flag values via e
 ### Setting up service
 
 Read [instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/43) on how to set up VictoriaMetrics
-as a service for your OS.
+as a service for your OS. See also [ansible playbooks](https://github.com/VictoriaMetrics/ansible-playbooks).
 
 ### Running as Windows service
 
