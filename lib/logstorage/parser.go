@@ -1197,7 +1197,7 @@ func parseQueryInParens(lex *lexer) (*Query, error) {
 func parseQuery(lex *lexer) (*Query, error) {
 	opts, err := parseQueryOptions(lex)
 	if err != nil {
-		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
+		return nil, fmt.Errorf("cannot parse query options: %w; context: [%s]; see https://docs.victoriametrics.com/victorialogs/logsql/#query-options", err, lex.context())
 	}
 	lex.pushQueryOptions(opts)
 	defer lex.popQueryOptions()
