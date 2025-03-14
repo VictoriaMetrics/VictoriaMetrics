@@ -19,6 +19,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 **Update note: this release changes data storage format in backwards-incompatible way, so it is impossible to downgrade to the previous releases after upgrading to this release.
 It is safe upgrading to this release and all the future releases from older releases.**
 
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): allow specifying prefixes for log fields, which must be ignored during data ingestion, at `ignore_fields` HTTP query arg and at `VL-Ignore-Fields` HTTP header. For example, `ignore_fields=foo.*,bar.baz.*` will ignore all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), which start from `foo.` or from `bar.baz.`. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
 * FEATURE: improve performance when processing constant log fields with length exceeding 256 bytes. For example, repeated stack traces.
 
 ## [v1.16.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.16.0-victorialogs)

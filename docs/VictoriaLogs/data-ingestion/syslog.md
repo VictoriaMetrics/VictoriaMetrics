@@ -158,6 +158,9 @@ For example, the following command starts VictoriaLogs, which drops `proc_id` an
 ./victoria-logs -syslog.listenAddr.tcp=:514 -syslog.ignoreFields.tcp='["prod_id","msg_id"]'
 ```
 
+The list may contain field name prefixes ending with `*` such as `some-prefix*`. In this case all the log fields starting with this prefix
+are ignored during data ingestion.
+
 ## Adding extra fields
 
 VictoriaLogs supports -`syslog.extraFields.tcp` and `-syslog.extraFields.udp` command-line flags for adding

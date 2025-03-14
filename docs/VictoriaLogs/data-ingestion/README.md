@@ -226,7 +226,8 @@ All the [HTTP-based data ingestion protocols](#http-apis) support the following 
   If the `_stream_fields` arg isn't set, then all the ingested logs are written to default log stream - `{}`.
 
 - `ignore_fields` - an optional comma-separated list of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names,
-  which must be ignored during data ingestion.
+  which must be ignored during data ingestion. The list may contain field name prefixes ending with `*` such a `some-prefix*`.
+  In this case all the log fields starting with `some-prefix` are ignored during data ingestion.
 
 - `extra_fields` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
   which must be added to all the ingested logs. The format of every `extra_fields` entry is `field_name=field_value`.
@@ -268,7 +269,8 @@ additionally to [HTTP query args](#http-query-string-parameters):
   If the `VL-Stream-Fields` header isn't set, then all the ingested logs are written to default log stream - `{}`.
 
 - `VL-Ignore-Fields` - an optional comma-separated list of [log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) names,
-  which must be ignored during data ingestion.
+  which must be ignored during data ingestion. The list may contain field name prefixes ending with `*` such a `some-prefix*`.
+  In this case all the log fields starting with `some-prefix` are ignored during data ingestion.
 
 - `VL-Extra-Fields` - an optional comma-separated list of [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model),
   which must be added to all the ingested logs. The format of every `extra_fields` entry is `field_name=field_value`.
