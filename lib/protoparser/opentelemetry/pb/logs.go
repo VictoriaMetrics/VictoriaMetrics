@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"encoding/hex"
 
 	"github.com/VictoriaMetrics/easyproto"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // ExportLogsServiceRequest represents the corresponding OTEL protobuf message
@@ -251,13 +250,13 @@ func (lr *LogRecord) unmarshalProtobuf(src []byte) (err error) {
 			if !ok {
 				return fmt.Errorf("cannot read trace id")
 			}
-			lr.TraceID = bytesutil.ToUnsafeString(traceID)
+			lr.TraceID = hex.EncodeToString(traceID)
 		case 10:
 			spanID, ok := fc.Bytes()
 			if !ok {
 				return fmt.Errorf("cannot read span id")
 			}
-			lr.SpanID = bytesutil.ToUnsafeString(spanID)
+			lr.SpanID = hex.EncodeToString(spanID)
 		}
 	}
 	return nil
