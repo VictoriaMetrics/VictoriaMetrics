@@ -25,6 +25,10 @@ var (
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
+	insertHttpListenAddrs = flagutil.NewArrayString("insert.httpListenAddr", "TCP address to listen on for /insert/* handlers in addition to those provided with -httpListenAddr . "+
+		"See also -insert.httpListenAddr.useProxyProtocol")
+	insertUseProxyProtocol = flagutil.NewArrayBool("insert.httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -insert.httpListenAddr . "+
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt .")
 )
 
 func main() {
@@ -39,6 +43,7 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":9428"}
 	}
+	insertListenAddrs := *insertHttpListenAddrs
 	logger.Infof("starting VictoriaLogs at %q...", listenAddrs)
 	startTime := time.Now()
 
@@ -47,6 +52,9 @@ func main() {
 	vlinsert.Init()
 
 	go httpserver.Serve(listenAddrs, useProxyProtocol, requestHandler)
+	if len(insertListenAddrs) > 0 {
+		go httpserver.Serve(insertListenAddrs, insertUseProxyProtocol, requestHandlerInsert)
+	}
 	logger.Infof("started VictoriaLogs in %.3f seconds; see https://docs.victoriametrics.com/victorialogs/", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
@@ -93,6 +101,22 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if vlstorage.RequestHandler(w, r) {
+		return true
+	}
+	return false
+}
+
+func requestHandlerInsert(w http.ResponseWriter, r *http.Request) bool {
+	if r.URL.Path == "/" {
+		if r.Method != http.MethodGet {
+			return false
+		}
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, "<h2>Data ingestion for single-node VictoriaLogs</h2></br>")
+		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/victorialogs/data-ingestion/'>https://docs.victoriametrics.com/victorialogs/data-ingestion/</a></br>")
+		return true
+	}
+	if vlinsert.RequestHandler(w, r) {
 		return true
 	}
 	return false
