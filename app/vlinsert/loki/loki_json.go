@@ -2,7 +2,6 @@ package loki
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -12,11 +11,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
+
+var maxRequestSize = flagutil.NewBytes("loki.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single Loki request")
 
 var parserPool fastjson.ParserPool
 
@@ -33,13 +34,17 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	lmp := cp.cp.NewLogMessageProcessor("loki_json")
-	useDefaultStreamFields := len(cp.cp.StreamFields) == 0
+
 	encoding := r.Header.Get("Content-Encoding")
-	err = parseJSONRequest(r.Body, encoding, lmp, cp.cp.MsgFields, useDefaultStreamFields, cp.parseMessage)
-	lmp.MustClose()
+	err = common.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
+		lmp := cp.cp.NewLogMessageProcessor("loki_json")
+		useDefaultStreamFields := len(cp.cp.StreamFields) == 0
+		err := parseJSONRequest(data, lmp, cp.cp.MsgFields, useDefaultStreamFields, cp.parseMessage)
+		lmp.MustClose()
+		return err
+	})
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse Loki json request: %s", err)
+		httpserver.Errorf(w, r, "cannot read Loki json data: %s", err)
 		return
 	}
 
@@ -54,20 +59,7 @@ var (
 	requestJSONDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="json"}`)
 )
 
-func parseJSONRequest(r io.Reader, encoding string, lmp insertutils.LogMessageProcessor, msgFields []string, useDefaultStreamFields, parseMessage bool) error {
-	reader, err := common.GetUncompressedReader(r, encoding)
-	if err != nil {
-		return fmt.Errorf("cannot read %s-compressed Loki protocol data: %w", encoding, err)
-	}
-	defer common.PutUncompressedReader(reader, encoding)
-
-	wcr := writeconcurrencylimiter.GetReader(reader)
-	data, err := io.ReadAll(wcr)
-	writeconcurrencylimiter.PutReader(wcr)
-	if err != nil {
-		return fmt.Errorf("cannot read request body: %w", err)
-	}
-
+func parseJSONRequest(data []byte, lmp insertutils.LogMessageProcessor, msgFields []string, useDefaultStreamFields, parseMessage bool) error {
 	p := parserPool.Get()
 	defer parserPool.Put(p)
 

@@ -28,8 +28,8 @@ func InsertHandler(req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-	return stream.Parse(req.Body, defaultTimestamp, isGzipped, true, func(rows []parser.Row) error {
+	encoding := req.Header.Get("Content-Encoding")
+	return stream.Parse(req.Body, defaultTimestamp, encoding, true, func(rows []parser.Row) error {
 		return insertRows(rows, extraLabels)
 	}, func(s string) {
 		httpserver.LogError(req, s)

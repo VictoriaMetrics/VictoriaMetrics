@@ -2,20 +2,21 @@ package opentelemetry
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
+
+var maxRequestSize = flagutil.NewBytes("opentelemetry.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single OpenTelemetry request")
 
 // RequestHandler processes Opentelemetry insert requests
 func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
@@ -38,22 +39,6 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 	startTime := time.Now()
 	requestsProtobufTotal.Inc()
 
-	encoding := r.Header.Get("Content-Encoding")
-	reader, err := common.GetUncompressedReader(r.Body, encoding)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot read %s-compressed OpenTelemetry protocol data: %s", encoding, err)
-		return
-	}
-	defer common.PutUncompressedReader(reader, encoding)
-
-	wcr := writeconcurrencylimiter.GetReader(reader)
-	data, err := io.ReadAll(wcr)
-	writeconcurrencylimiter.PutReader(wcr)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot read request body: %s", err)
-		return
-	}
-
 	cp, err := insertutils.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
@@ -64,12 +49,16 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 		return
 	}
 
-	lmp := cp.NewLogMessageProcessor("opentelelemtry_protobuf")
-	useDefaultStreamFields := len(cp.StreamFields) == 0
-	err = pushProtobufRequest(data, lmp, useDefaultStreamFields)
-	lmp.MustClose()
+	encoding := r.Header.Get("Content-Encoding")
+	err = common.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
+		lmp := cp.NewLogMessageProcessor("opentelelemtry_protobuf")
+		useDefaultStreamFields := len(cp.StreamFields) == 0
+		err := pushProtobufRequest(data, lmp, useDefaultStreamFields)
+		lmp.MustClose()
+		return err
+	})
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse OpenTelemetry protobuf request: %s", err)
+		httpserver.Errorf(w, r, "cannot read OpenTelemetry protocol data: %s", err)
 		return
 	}
 

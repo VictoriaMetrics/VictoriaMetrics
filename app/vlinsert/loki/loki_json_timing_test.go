@@ -1,7 +1,6 @@
 package loki
 
 import (
-	"bytes"
 	"fmt"
 	"strconv"
 	"testing"
@@ -27,16 +26,16 @@ func benchmarkParseJSONRequest(b *testing.B, streams, rows, labels int) {
 	b.ReportAllocs()
 	b.SetBytes(int64(streams * rows))
 	b.RunParallel(func(pb *testing.PB) {
-		r := getJSONBody(streams, rows, labels)
+		data := getJSONBody(streams, rows, labels)
 		for pb.Next() {
-			if err := parseJSONRequest(r, "", blp, nil, false, true); err != nil {
+			if err := parseJSONRequest(data, blp, nil, false, true); err != nil {
 				panic(fmt.Errorf("unexpected error: %w", err))
 			}
 		}
 	})
 }
 
-func getJSONBody(streams, rows, labels int) *bytes.Reader {
+func getJSONBody(streams, rows, labels int) []byte {
 	body := append([]byte{}, `{"streams":[`...)
 	now := time.Now().UnixNano()
 	valuePrefix := fmt.Sprintf(`["%d","value_`, now)
@@ -75,5 +74,5 @@ func getJSONBody(streams, rows, labels int) *bytes.Reader {
 
 	body = append(body, `]}`...)
 
-	return bytes.NewReader(body)
+	return body
 }

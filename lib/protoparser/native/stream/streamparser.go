@@ -19,20 +19,18 @@ import (
 // The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold block after returning.
-func Parse(r io.Reader, isGzip bool, callback func(block *Block) error) error {
-	wcr := writeconcurrencylimiter.GetReader(r)
-	defer writeconcurrencylimiter.PutReader(wcr)
-	r = wcr
-
-	if isGzip {
-		zr, err := common.GetGzipReader(r)
-		if err != nil {
-			return fmt.Errorf("cannot read gzipped vmimport data: %w", err)
-		}
-		defer common.PutGzipReader(zr)
-		r = zr
+func Parse(r io.Reader, contentEncoding string, callback func(block *Block) error) error {
+	reader, err := common.GetUncompressedReader(r, contentEncoding)
+	if err != nil {
+		return fmt.Errorf("cannot decode vmimport data: %w", err)
 	}
-	br := getBufferedReader(r)
+	defer common.PutUncompressedReader(reader)
+
+	wcr := writeconcurrencylimiter.GetReader(reader)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	reader = wcr
+
+	br := getBufferedReader(reader)
 	defer putBufferedReader(br)
 
 	// Read time range (tr)

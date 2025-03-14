@@ -136,9 +136,9 @@ func readBulkRequest(streamName string, r io.Reader, encoding string, timeField 
 
 	reader, err := common.GetUncompressedReader(r, encoding)
 	if err != nil {
-		return 0, fmt.Errorf("cannot read %s-compressed Elasticsearch protocol data: %w", encoding, err)
+		return 0, fmt.Errorf("cannot decode Elasticsearch protocol data: %w", err)
 	}
-	defer common.PutUncompressedReader(reader, encoding)
+	defer common.PutUncompressedReader(reader)
 
 	wcr := writeconcurrencylimiter.GetReader(reader)
 	defer writeconcurrencylimiter.PutReader(wcr)

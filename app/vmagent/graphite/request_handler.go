@@ -21,7 +21,7 @@ var (
 //
 // See https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol
 func InsertHandler(r io.Reader) error {
-	return stream.Parse(r, false, func(rows []parser.Row) error {
+	return stream.Parse(r, "", func(rows []parser.Row) error {
 		return insertRows(nil, rows)
 	})
 }

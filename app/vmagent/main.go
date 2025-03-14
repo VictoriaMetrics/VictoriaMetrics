@@ -148,7 +148,7 @@ func main() {
 	common.StartUnmarshalWorkers()
 	if len(*influxListenAddr) > 0 {
 		influxServer = influxserver.MustStart(*influxListenAddr, *influxUseProxyProtocol, func(r io.Reader) error {
-			return influx.InsertHandlerForReader(nil, r, false)
+			return influx.InsertHandlerForReader(nil, r, "")
 		})
 	}
 	if len(*graphiteListenAddr) > 0 {

@@ -38,16 +38,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reader := r.Body
-	if r.Header.Get("Content-Encoding") == "gzip" {
-		zr, err := common.GetGzipReader(reader)
-		if err != nil {
-			logger.Errorf("cannot read gzipped jsonline request: %s", err)
-			return
-		}
-		defer common.PutGzipReader(zr)
-		reader = zr
+	encoding := r.Header.Get("Content-Encoding")
+	reader, err := common.GetUncompressedReader(r.Body, encoding)
+	if err != nil {
+		logger.Errorf("cannot decode jsonline request: %s", err)
+		return
 	}
+	defer common.PutUncompressedReader(reader)
 
 	lmp := cp.NewLogMessageProcessor("jsonline")
 	streamName := fmt.Sprintf("remoteAddr=%s, requestURI=%q", httpserver.GetQuotedRemoteAddr(r), r.RequestURI)

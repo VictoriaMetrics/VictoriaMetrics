@@ -2,7 +2,6 @@ package loki
 
 import (
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,7 +13,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -35,13 +33,22 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	lmp := cp.cp.NewLogMessageProcessor("loki_protobuf")
-	useDefaultStreamFields := len(cp.cp.StreamFields) == 0
+
 	encoding := r.Header.Get("Content-Encoding")
-	err = parseProtobufRequest(r.Body, encoding, lmp, cp.cp.MsgFields, useDefaultStreamFields, cp.parseMessage)
-	lmp.MustClose()
+	if encoding == "" {
+		// Loki protocol uses snappy compression by default.
+		// See https://grafana.com/docs/loki/latest/reference/loki-http-api/#ingest-logs
+		encoding = "snappy"
+	}
+	err = common.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
+		lmp := cp.cp.NewLogMessageProcessor("loki_protobuf")
+		useDefaultStreamFields := len(cp.cp.StreamFields) == 0
+		err := parseProtobufRequest(data, lmp, cp.cp.MsgFields, useDefaultStreamFields, cp.parseMessage)
+		lmp.MustClose()
+		return err
+	})
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse Loki protobuf request: %s", err)
+		httpserver.Errorf(w, r, "cannot read Loki protobuf data: %s", err)
 		return
 	}
 
@@ -56,24 +63,11 @@ var (
 	requestProtobufDuration = metrics.NewHistogram(`vl_http_request_duration_seconds{path="/insert/loki/api/v1/push",format="protobuf"}`)
 )
 
-func parseProtobufRequest(r io.Reader, encoding string, lmp insertutils.LogMessageProcessor, msgFields []string, useDefaultStreamFields, parseMessage bool) error {
-	reader, err := common.GetUncompressedReader(r, encoding)
-	if err != nil {
-		return fmt.Errorf("cannot read %s-compressed Loki protocol data: %w", encoding, err)
-	}
-	defer common.PutUncompressedReader(reader, encoding)
-
-	wcr := writeconcurrencylimiter.GetReader(reader)
-	data, err := io.ReadAll(wcr)
-	writeconcurrencylimiter.PutReader(wcr)
-	if err != nil {
-		return fmt.Errorf("cannot read request body: %w", err)
-	}
-
+func parseProtobufRequest(data []byte, lmp insertutils.LogMessageProcessor, msgFields []string, useDefaultStreamFields, parseMessage bool) error {
 	req := getPushRequest()
 	defer putPushRequest(req)
 
-	err = req.UnmarshalProtobuf(data)
+	err := req.UnmarshalProtobuf(data)
 	if err != nil {
 		return fmt.Errorf("cannot parse request body: %w", err)
 	}
