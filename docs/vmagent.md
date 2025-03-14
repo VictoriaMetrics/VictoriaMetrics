@@ -1029,6 +1029,7 @@ scrape_configs:
   proxy_headers:
   - "Proxy-Auth: top-secret"
 ```
+
 ## On-disk persistence
 
 By default `vmagent` stores pending data, which cannot be sent to the configured remote storage systems in a timely manner, in the folder set
