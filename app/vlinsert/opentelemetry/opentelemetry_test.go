@@ -66,9 +66,9 @@ func TestPushProtoOk(t *testing.T) {
 		},
 	},
 		[]int64{1234, 1235, 1236},
-		`{"logger":"context","instance_id":"10","node_taints":"[{\"Key\":\"role\",\"Value\":{\"StringValue\":\"dev\",\"BoolValue\":null,\"IntValue\":null,\"DoubleValue\":null,\"ArrayValue\":null,\"KeyValueList\":null,\"BytesValue\":null}},{\"Key\":\"cluster_load_percent\",\"Value\":{\"StringValue\":null,\"BoolValue\":null,\"IntValue\":null,\"DoubleValue\":0.55,\"ArrayValue\":null,\"KeyValueList\":null,\"BytesValue\":null}}]","_msg":"log-line-message","severity":"Trace"}
-{"logger":"context","instance_id":"10","node_taints":"[{\"Key\":\"role\",\"Value\":{\"StringValue\":\"dev\",\"BoolValue\":null,\"IntValue\":null,\"DoubleValue\":null,\"ArrayValue\":null,\"KeyValueList\":null,\"BytesValue\":null}},{\"Key\":\"cluster_load_percent\",\"Value\":{\"StringValue\":null,\"BoolValue\":null,\"IntValue\":null,\"DoubleValue\":0.55,\"ArrayValue\":null,\"KeyValueList\":null,\"BytesValue\":null}}]","_msg":"log-line-message-msg-2","severity":"Unspecified"}
-{"logger":"context","instance_id":"10","node_taints":"[{\"Key\":\"role\",\"Value\":{\"StringValue\":\"dev\",\"BoolValue\":null,\"IntValue\":null,\"DoubleValue\":null,\"ArrayValue\":null,\"KeyValueList\":null,\"BytesValue\":null}},{\"Key\":\"cluster_load_percent\",\"Value\":{\"StringValue\":null,\"BoolValue\":null,\"IntValue\":null,\"DoubleValue\":0.55,\"ArrayValue\":null,\"KeyValueList\":null,\"BytesValue\":null}}]","_msg":"log-line-message-msg-2","severity":"Unspecified"}`,
+		`{"logger":"context","instance_id":"10","node_taints":"{\"role\":\"dev\",\"cluster_load_percent\":0.55}","_msg":"log-line-message","severity":"Trace"}
+{"logger":"context","instance_id":"10","node_taints":"{\"role\":\"dev\",\"cluster_load_percent\":0.55}","_msg":"log-line-message-msg-2","severity":"Unspecified"}
+{"logger":"context","instance_id":"10","node_taints":"{\"role\":\"dev\",\"cluster_load_percent\":0.55}","_msg":"log-line-message-msg-2","severity":"Unspecified"}`,
 	)
 
 	// multi-scope with resource attributes and multi-line
@@ -113,8 +113,8 @@ func TestPushProtoOk(t *testing.T) {
 		},
 	},
 		[]int64{1234, 1235, 2345, 2346, 2347, 2348},
-		`{"logger":"context","instance_id":"10","node_taints":"[{\"Key\":\"role\",\"Value\":{\"StringValue\":\"dev\",\"BoolValue\":null,\"IntValue\":null,\"DoubleValue\":null,\"ArrayValue\":null,\"KeyValueList\":null,\"BytesValue\":null}},{\"Key\":\"cluster_load_percent\",\"Value\":{\"StringValue\":null,\"BoolValue\":null,\"IntValue\":null,\"DoubleValue\":0.55,\"ArrayValue\":null,\"KeyValueList\":null,\"BytesValue\":null}}]","_msg":"log-line-message","severity":"Trace"}
-{"logger":"context","instance_id":"10","node_taints":"[{\"Key\":\"role\",\"Value\":{\"StringValue\":\"dev\",\"BoolValue\":null,\"IntValue\":null,\"DoubleValue\":null,\"ArrayValue\":null,\"KeyValueList\":null,\"BytesValue\":null}},{\"Key\":\"cluster_load_percent\",\"Value\":{\"StringValue\":null,\"BoolValue\":null,\"IntValue\":null,\"DoubleValue\":0.55,\"ArrayValue\":null,\"KeyValueList\":null,\"BytesValue\":null}}]","_msg":"log-line-message-msg-2","severity":"Debug"}
+		`{"logger":"context","instance_id":"10","node_taints":"{\"role\":\"dev\",\"cluster_load_percent\":0.55}","_msg":"log-line-message","severity":"Trace"}
+{"logger":"context","instance_id":"10","node_taints":"{\"role\":\"dev\",\"cluster_load_percent\":0.55}","_msg":"log-line-message-msg-2","severity":"Debug"}
 {"_msg":"log-line-resource-scope-1-0-0","severity":"Info2"}
 {"_msg":"log-line-resource-scope-1-0-1","severity":"Info2"}
 {"_msg":"log-line-resource-scope-1-1-0","severity":"Info4"}

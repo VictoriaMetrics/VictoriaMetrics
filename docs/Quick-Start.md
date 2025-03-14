@@ -23,7 +23,7 @@ VictoriaMetrics is distributed in the following forms:
 
 VictoriaMetrics is available as:
 
-* [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/)
+* docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and [Quay](https://quay.io/repository/victoriametrics/victoria-metrics?tab=tags)
 * [Helm Charts](https://github.com/VictoriaMetrics/helm-charts#list-of-charts)
 * [Binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 * [Ansible Roles](https://github.com/VictoriaMetrics/ansible-playbooks)
@@ -55,8 +55,8 @@ under the current directory:
 
 
 ```sh
-docker pull victoriametrics/victoria-metrics:v1.111.0
-docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 victoriametrics/victoria-metrics:v1.111.0
+docker pull victoriametrics/victoria-metrics:v1.112.0
+docker run -it --rm -v `pwd`/victoria-metrics-data:/victoria-metrics-data -p 8428:8428 victoriametrics/victoria-metrics:v1.112.0
 ```
 
 

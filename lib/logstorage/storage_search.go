@@ -653,7 +653,11 @@ func hasFilterInWithQueryForFilter(f filter) bool {
 	visitFunc := func(f filter) bool {
 		switch t := f.(type) {
 		case *filterIn:
-			return t.q != nil
+			return t.values.q != nil
+		case *filterContainsAll:
+			return t.values.q != nil
+		case *filterContainsAny:
+			return t.values.q != nil
 		case *filterStreamID:
 			return t.q != nil
 		default:
@@ -697,7 +701,11 @@ func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesF
 	visitFunc := func(f filter) bool {
 		switch t := f.(type) {
 		case *filterIn:
-			return t.q != nil
+			return t.values.q != nil
+		case *filterContainsAll:
+			return t.values.q != nil
+		case *filterContainsAny:
+			return t.values.q != nil
 		case *filterStreamID:
 			return t.q != nil
 		default:
@@ -707,16 +715,40 @@ func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesF
 	copyFunc := func(f filter) (filter, error) {
 		switch t := f.(type) {
 		case *filterIn:
-			values, err := getValuesForQuery(t.q, t.qFieldName, cache, getFieldValuesFunc)
+			values, err := getValuesForQuery(t.values.q, t.values.qFieldName, cache, getFieldValuesFunc)
 			if err != nil {
 				return nil, fmt.Errorf("cannot obtain unique values for %s: %w", t, err)
 			}
 
 			fiNew := &filterIn{
 				fieldName: t.fieldName,
-				q:         t.q,
-				values:    values,
 			}
+			fiNew.values.q = t.values.q
+			fiNew.values.values = values
+			return fiNew, nil
+		case *filterContainsAll:
+			values, err := getValuesForQuery(t.values.q, t.values.qFieldName, cache, getFieldValuesFunc)
+			if err != nil {
+				return nil, fmt.Errorf("cannot obtain unique values for %s: %w", t, err)
+			}
+
+			fiNew := &filterContainsAll{
+				fieldName: t.fieldName,
+			}
+			fiNew.values.q = t.values.q
+			fiNew.values.values = values
+			return fiNew, nil
+		case *filterContainsAny:
+			values, err := getValuesForQuery(t.values.q, t.values.qFieldName, cache, getFieldValuesFunc)
+			if err != nil {
+				return nil, fmt.Errorf("cannot obtain unique values for %s: %w", t, err)
+			}
+
+			fiNew := &filterContainsAny{
+				fieldName: t.fieldName,
+			}
+			fiNew.values.q = t.values.q
+			fiNew.values.values = values
 			return fiNew, nil
 		case *filterStreamID:
 			values, err := getValuesForQuery(t.q, t.qFieldName, cache, getFieldValuesFunc)

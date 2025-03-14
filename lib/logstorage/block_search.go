@@ -223,9 +223,9 @@ func (bs *blockSearch) search(bsw *blockSearchWork, bm *bitmap) {
 
 	// fetch the requested columns to bs.br.
 	if bs.bsw.so.needAllColumns {
-		bs.br.initAllColumns()
+		bs.br.initAllColumns(bsw.so.unneededColumnNames)
 	} else {
-		bs.br.initRequestedColumns()
+		bs.br.initRequestedColumns(bsw.so.neededColumnNames)
 	}
 }
 

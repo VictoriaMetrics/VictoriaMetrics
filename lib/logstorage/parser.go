@@ -11,8 +11,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
 
 type lexer struct {
@@ -619,7 +619,11 @@ func visitSubqueriesInFilter(f filter, visitFunc func(q *Query)) {
 	callback := func(f filter) bool {
 		switch t := f.(type) {
 		case *filterIn:
-			t.q.visitSubqueries(visitFunc)
+			t.values.q.visitSubqueries(visitFunc)
+		case *filterContainsAll:
+			t.values.q.visitSubqueries(visitFunc)
+		case *filterContainsAny:
+			t.values.q.visitSubqueries(visitFunc)
 		case *filterStreamID:
 			t.q.visitSubqueries(visitFunc)
 		}
@@ -1443,6 +1447,12 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterNotTilda(lex, fieldName)
 	case lex.isKeyword("not", "!", "-"):
 		return parseFilterNot(lex, fieldName)
+	case lex.isKeyword("contains_all"):
+		return parseFilterContainsAll(lex, fieldName)
+	case lex.isKeyword("contains_any"):
+		return parseFilterContainsAny(lex, fieldName)
+	case lex.isKeyword("eq_field"):
+		return parseFilterEqField(lex, fieldName)
 	case lex.isKeyword("exact"):
 		return parseFilterExact(lex, fieldName)
 	case lex.isKeyword("i"):
@@ -1451,8 +1461,12 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterIn(lex, fieldName)
 	case lex.isKeyword("ipv4_range"):
 		return parseFilterIPv4Range(lex, fieldName)
+	case lex.isKeyword("le_field"):
+		return parseFilterLeField(lex, fieldName)
 	case lex.isKeyword("len_range"):
 		return parseFilterLenRange(lex, fieldName)
+	case lex.isKeyword("lt_field"):
+		return parseFilterLtField(lex, fieldName)
 	case lex.isKeyword("range"):
 		return parseFilterRange(lex, fieldName)
 	case lex.isKeyword("re"):
@@ -1476,6 +1490,10 @@ func parseGenericFilter(lex *lexer, fieldName string) (filter, error) {
 }
 
 func getCompoundPhrase(lex *lexer, allowColon bool) (string, error) {
+	if err := lex.isInvalidQuotedString(); err != nil {
+		return "", err
+	}
+
 	stopTokens := []string{"*", ",", "(", ")", "[", "]", "|", ""}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound phrase cannot start with '%s'", lex.token)
@@ -1509,7 +1527,33 @@ func getCompoundToken(lex *lexer) (string, error) {
 	return getCompoundTokenExt(lex, stopTokens)
 }
 
+func (lex *lexer) isInvalidQuotedString() error {
+	if lex.token != `"` && lex.token != "`" && lex.token != `'` {
+		return nil
+	}
+
+	n := strings.Index(lex.s, lex.token)
+	if n < 0 {
+		return fmt.Errorf("missing closing quote for [%s]", lex.token+lex.s)
+	}
+
+	quotedStr := lex.token + lex.s[:n+1]
+	if _, err := strconv.Unquote(quotedStr); err != nil {
+		err = fmt.Errorf("cannot parse %s: %w", quotedStr, err)
+		if !strings.HasPrefix(quotedStr, "`") && strings.Contains(quotedStr, `\`) {
+			err = fmt.Errorf(`%w; make sure that '\' chars are properly escaped (e.g. use '\\' instead of '\'); alternatively put the string in backquotes `+"`...`", err)
+		}
+		return err
+	}
+
+	logger.Panicf("BUG: unexpected successful parsing of %s", quotedStr)
+	return nil
+}
+
 func getCompoundTokenExt(lex *lexer, stopTokens []string) (string, error) {
+	if err := lex.isInvalidQuotedString(); err != nil {
+		return "", err
+	}
 	if lex.isKeyword(stopTokens...) {
 		return "", fmt.Errorf("compound token cannot start with '%s'", lex.token)
 	}
@@ -1770,19 +1814,45 @@ func tryParseIPv4CIDR(s string) (uint32, uint32, bool) {
 	return minValue, maxValue, true
 }
 
+func parseFilterContainsAll(lex *lexer, fieldName string) (filter, error) {
+	if !lex.isKeyword("contains_all") {
+		return nil, fmt.Errorf("expecting 'contains_all' keyword")
+	}
+
+	fi := &filterContainsAll{
+		fieldName: fieldName,
+	}
+	return parseInValues(lex, fieldName, fi, &fi.values)
+}
+
+func parseFilterContainsAny(lex *lexer, fieldName string) (filter, error) {
+	if !lex.isKeyword("contains_any") {
+		return nil, fmt.Errorf("expecting 'contains_any' keyword")
+	}
+
+	fi := &filterContainsAny{
+		fieldName: fieldName,
+	}
+	return parseInValues(lex, fieldName, fi, &fi.values)
+}
+
 func parseFilterIn(lex *lexer, fieldName string) (filter, error) {
 	if !lex.isKeyword("in") {
 		return nil, fmt.Errorf("expecting 'in' keyword")
 	}
 
-	// Try parsing in(arg1, ..., argN) at first
+	fi := &filterIn{
+		fieldName: fieldName,
+	}
+	return parseInValues(lex, fieldName, fi, &fi.values)
+}
+
+func parseInValues(lex *lexer, fieldName string, f filter, iv *inValues) (filter, error) {
+	// Try parsing (arg1, ..., argN) at first
 	lexState := lex.backupState()
 	fi, err := parseFuncArgs(lex, fieldName, func(args []string) (filter, error) {
-		fi := &filterIn{
-			fieldName: fieldName,
-			values:    args,
-		}
-		return fi, nil
+		iv.values = args
+		return f, nil
 	})
 	if err == nil {
 		return fi, nil
@@ -1796,13 +1866,13 @@ func parseFilterIn(lex *lexer, fieldName string) (filter, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	fi = &filterIn{
-		fieldName:  fieldName,
-		q:          q,
-		qFieldName: qFieldName,
+	if q == nil {
+		return &filterNoop{}, nil
 	}
-	return fi, nil
+
+	iv.q = q
+	iv.qFieldName = qFieldName
+	return f, nil
 }
 
 func parseFilterSequence(lex *lexer, fieldName string) (filter, error) {
@@ -1812,6 +1882,38 @@ func parseFilterSequence(lex *lexer, fieldName string) (filter, error) {
 			phrases:   args,
 		}
 		return fs, nil
+	})
+}
+
+func parseFilterEqField(lex *lexer, fieldName string) (filter, error) {
+	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
+		fe := &filterEqField{
+			fieldName:      fieldName,
+			otherFieldName: arg,
+		}
+		return fe, nil
+	})
+}
+
+func parseFilterLeField(lex *lexer, fieldName string) (filter, error) {
+	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
+		fe := &filterLeField{
+			fieldName:      fieldName,
+			otherFieldName: arg,
+		}
+		return fe, nil
+	})
+}
+
+func parseFilterLtField(lex *lexer, fieldName string) (filter, error) {
+	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
+		fe := &filterLeField{
+			fieldName:      fieldName,
+			otherFieldName: arg,
+
+			excludeEqualValues: true,
+		}
+		return fe, nil
 	})
 }
 
@@ -1833,23 +1935,23 @@ func parseFilterExact(lex *lexer, fieldName string) (filter, error) {
 }
 
 func parseFilterRegexp(lex *lexer, fieldName string) (filter, error) {
-	funcName := lex.token
 	return parseFuncArg(lex, fieldName, func(arg string) (filter, error) {
-		re, err := regexutil.NewRegex(arg)
-		if err != nil {
-			return nil, fmt.Errorf("invalid regexp %q for %s(): %w", arg, funcName, err)
-		}
-		fr := &filterRegexp{
-			fieldName: fieldName,
-			re:        re,
-		}
-		return fr, nil
+		return newFilterRegexp(fieldName, arg)
 	})
 }
 
-func parseFilterTilda(lex *lexer, fieldName string) (filter, error) {
-	lex.nextToken()
-	arg := getCompoundFuncArg(lex)
+func newFilterRegexp(fieldName, arg string) (filter, error) {
+	// Optimizations for typical regexps generated by Grafana
+	if arg == "" || arg == ".*" {
+		return &filterNoop{}, nil
+	}
+	if arg == ".+" {
+		fp := &filterPrefix{
+			fieldName: fieldName,
+		}
+		return fp, nil
+	}
+
 	re, err := regexutil.NewRegex(arg)
 	if err != nil {
 		return nil, fmt.Errorf("invalid regexp %q: %w", arg, err)
@@ -1859,6 +1961,12 @@ func parseFilterTilda(lex *lexer, fieldName string) (filter, error) {
 		re:        re,
 	}
 	return fr, nil
+}
+
+func parseFilterTilda(lex *lexer, fieldName string) (filter, error) {
+	lex.nextToken()
+	arg := getCompoundFuncArg(lex)
+	return newFilterRegexp(fieldName, arg)
 }
 
 func parseFilterNotTilda(lex *lexer, fieldName string) (filter, error) {
@@ -2318,25 +2426,9 @@ func getDayRangeArg(lex *lexer) (int64, string, error) {
 	if err != nil {
 		return 0, "", err
 	}
-	n := strings.IndexByte(argStr, ':')
-	if n < 0 {
-		return 0, "", fmt.Errorf("invalid format for day_range arg; want 'hh:mm'; got %q", argStr)
-	}
-	hoursStr := argStr[:n]
-	minutesStr := argStr[n+1:]
-
-	hours, ok := tryParseUint64(hoursStr)
+	offset, ok := tryParseHHMM(argStr)
 	if !ok {
-		return 0, "", fmt.Errorf("cannot parse hh from %q; expected format: 'hh:mm'", hoursStr)
-	}
-	minutes, ok := tryParseUint64(minutesStr)
-	if !ok {
-		return 0, "", fmt.Errorf("cannot parse mm from %q; expected format: 'hh:mm'", minutesStr)
-	}
-
-	offset := int64(hours*nsecsPerHour + minutes*nsecsPerMinute)
-	if offset < 0 {
-		offset = 0
+		return 0, "", fmt.Errorf("cannot parse %q as 'hh:mm'", argStr)
 	}
 	if offset >= nsecsPerDay {
 		offset = nsecsPerDay - 1
@@ -2730,6 +2822,9 @@ func parseFilterStreamIDIn(lex *lexer) (filter, error) {
 	if err != nil {
 		return nil, err
 	}
+	if q == nil {
+		return &filterNoop{}, nil
+	}
 
 	fs = &filterStreamID{
 		q:          q,
@@ -2743,12 +2838,28 @@ func parseInQuery(lex *lexer) (*Query, string, error) {
 	if err != nil {
 		return nil, "", fmt.Errorf("cannot parse in(...) query: %w", err)
 	}
-
+	if q.isStarQuery() {
+		return nil, "", nil
+	}
 	qFieldName, err := getFieldNameFromPipes(q.pipes)
 	if err != nil {
 		return nil, "", fmt.Errorf("cannot determine field name for values in 'in(%s)': %w", q, err)
 	}
 	return q, qFieldName, nil
+}
+
+func (q *Query) isStarQuery() bool {
+	if len(q.pipes) > 0 {
+		return false
+	}
+	switch t := q.f.(type) {
+	case *filterNoop:
+		return true
+	case *filterPrefix:
+		return len(t.prefix) == 0
+	default:
+		return false
+	}
 }
 
 func getFieldNameFromPipes(pipes []pipe) (string, error) {
@@ -2801,7 +2912,7 @@ func parseTime(lex *lexer) (int64, string, error) {
 	if err != nil {
 		return 0, "", err
 	}
-	nsecs, err := promutils.ParseTimeAt(s, lex.currentTimestamp)
+	nsecs, err := timeutil.ParseTimeAt(s, lex.currentTimestamp)
 	if err != nil {
 		return 0, "", err
 	}
@@ -2918,11 +3029,16 @@ var reservedKeywords = func() map[string]struct{} {
 		"-",
 
 		// functions
+		"contains_all",
+		"contains_any",
+		"eq_field",
 		"exact",
 		"i",
 		"in",
 		"ipv4_range",
+		"le_field",
 		"len_range",
+		"lt_field",
 		"range",
 		"re",
 		"seq",

@@ -64,6 +64,15 @@ var parserPool sync.Pool
 //
 // The p.Fields remains valid until the next call to ParseLogMessage() or PutJSONParser().
 func (p *JSONParser) ParseLogMessage(msg []byte) error {
+	return p.parseLogMessage(msg, maxFieldNameSize)
+}
+
+// ParseLogMessage parses the given JSON log message msg into p.Fields.
+//
+// Items in nested objects are flattenned with `k1.k2. ... .kN` key until its' length exceeds maxFieldNameLen.
+//
+// The p.Fields remains valid until the next call to ParseLogMessage() or PutJSONParser().
+func (p *JSONParser) parseLogMessage(msg []byte, maxFieldNameLen int) error {
 	p.reset()
 
 	msgStr := bytesutil.ToUnsafeString(msg)
@@ -71,15 +80,40 @@ func (p *JSONParser) ParseLogMessage(msg []byte) error {
 	if err != nil {
 		return fmt.Errorf("cannot parse json: %w", err)
 	}
-	if t := v.Type(); t != fastjson.TypeObject {
-		return fmt.Errorf("expecting json dictionary; got %s", t)
+	o, err := v.Object()
+	if err != nil {
+		return err
 	}
-	p.Fields, p.buf, p.prefixBuf = appendLogFields(p.Fields, p.buf, p.prefixBuf, v)
+	p.Fields, p.buf, p.prefixBuf = appendLogFields(p.Fields, p.buf, p.prefixBuf, o, maxFieldNameLen)
 	return nil
 }
 
-func appendLogFields(dst []Field, dstBuf, prefixBuf []byte, v *fastjson.Value) ([]Field, []byte, []byte) {
-	o := v.GetObject()
+func appendLogFields(dst []Field, dstBuf, prefixBuf []byte, o *fastjson.Object, maxFieldNameLen int) ([]Field, []byte, []byte) {
+	maxKeyLen := 0
+	o.Visit(func(k []byte, _ *fastjson.Value) {
+		if len(k) > maxKeyLen {
+			maxKeyLen = len(k)
+		}
+	})
+
+	prefixLen := len(prefixBuf)
+	if prefixLen+maxKeyLen > maxFieldNameLen {
+		// Too long composite key. Convert o to string representation
+
+		if len(prefixBuf) > 0 && prefixBuf[len(prefixBuf)-1] == '.' {
+			// Drop trailing dot if needed
+			prefixBuf = prefixBuf[:len(prefixBuf)-1]
+		}
+
+		dstBufLen := len(dstBuf)
+		dstBuf = o.MarshalTo(dstBuf)
+		value := dstBuf[dstBufLen:]
+		dst, dstBuf = appendLogField(dst, dstBuf, prefixBuf, nil, value)
+		return dst, dstBuf, prefixBuf[:prefixLen]
+	}
+
+	// Flatten JSON object o.
+	// For example, {"foo":{"bar":"baz"}} is converted to {"foo.bar":"baz"}
 	o.Visit(func(k []byte, v *fastjson.Value) {
 		t := v.Type()
 		switch t {
@@ -87,11 +121,14 @@ func appendLogFields(dst []Field, dstBuf, prefixBuf []byte, v *fastjson.Value) (
 			// Skip nulls
 		case fastjson.TypeObject:
 			// Flatten nested JSON objects.
-			// For example, {"foo":{"bar":"baz"}} is converted to {"foo.bar":"baz"}
-			prefixLen := len(prefixBuf)
+			o, err := v.Object()
+			if err != nil {
+				logger.Panicf("BUG: unexpected error: %s", err)
+			}
+
 			prefixBuf = append(prefixBuf, k...)
 			prefixBuf = append(prefixBuf, '.')
-			dst, dstBuf, prefixBuf = appendLogFields(dst, dstBuf, prefixBuf, v)
+			dst, dstBuf, prefixBuf = appendLogFields(dst, dstBuf, prefixBuf, o, maxFieldNameLen)
 			prefixBuf = prefixBuf[:prefixLen]
 		case fastjson.TypeArray, fastjson.TypeNumber, fastjson.TypeTrue, fastjson.TypeFalse:
 			// Convert JSON arrays, numbers, true and false values to their string representation
@@ -118,9 +155,15 @@ func appendLogField(dst []Field, dstBuf, prefixBuf, k, value []byte) ([]Field, [
 	dstBuf = append(dstBuf, k...)
 	name := dstBuf[dstBufLen:]
 
+	nameStr := bytesutil.ToUnsafeString(name)
+	if nameStr == "" {
+		nameStr = "_msg"
+	}
+	valueStr := bytesutil.ToUnsafeString(value)
+
 	dst = append(dst, Field{
-		Name:  bytesutil.ToUnsafeString(name),
-		Value: bytesutil.ToUnsafeString(value),
+		Name:  nameStr,
+		Value: valueStr,
 	})
 	return dst, dstBuf
 }

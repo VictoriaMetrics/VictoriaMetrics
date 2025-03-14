@@ -20,7 +20,7 @@ var (
 )
 
 func init() {
-	r := make(map[int]*zstd.Encoder)
+	r := make(map[zstd.EncoderLevel]*zstd.Encoder)
 	av.Store(r)
 
 	var err error
@@ -39,12 +39,19 @@ func Decompress(dst, src []byte) ([]byte, error) {
 //
 // The given compressionLevel is used for the compression.
 func CompressLevel(dst, src []byte, compressionLevel int) []byte {
-	e := getEncoder(compressionLevel)
+	// Convert the compressionLevel to the real compression level supported by github.com/klauspost/compress/zstd
+	// This allows saving memory on caching zstd.Encoder instances per each level,
+	// since the number of real compression levels at github.com/klauspost/compress/zstd
+	// is smaller than the number of zstd compression levels.
+	// See https://github.com/klauspost/compress/discussions/1025
+	realCompressionLevel := zstd.EncoderLevelFromZstd(compressionLevel)
+
+	e := getEncoder(realCompressionLevel)
 	return e.EncodeAll(src, dst)
 }
 
-func getEncoder(compressionLevel int) *zstd.Encoder {
-	r := av.Load().(map[int]*zstd.Encoder)
+func getEncoder(compressionLevel zstd.EncoderLevel) *zstd.Encoder {
+	r := av.Load().(map[zstd.EncoderLevel]*zstd.Encoder)
 	e := r[compressionLevel]
 	if e != nil {
 		return e
@@ -53,10 +60,10 @@ func getEncoder(compressionLevel int) *zstd.Encoder {
 	mu.Lock()
 	// Create the encoder under lock in order to prevent from wasted work
 	// when concurrent goroutines create encoder for the same compressionLevel.
-	r1 := av.Load().(map[int]*zstd.Encoder)
+	r1 := av.Load().(map[zstd.EncoderLevel]*zstd.Encoder)
 	if e = r1[compressionLevel]; e == nil {
 		e = newEncoder(compressionLevel)
-		r2 := make(map[int]*zstd.Encoder)
+		r2 := make(map[zstd.EncoderLevel]*zstd.Encoder)
 		for k, v := range r1 {
 			r2[k] = v
 		}
@@ -68,11 +75,10 @@ func getEncoder(compressionLevel int) *zstd.Encoder {
 	return e
 }
 
-func newEncoder(compressionLevel int) *zstd.Encoder {
-	level := zstd.EncoderLevelFromZstd(compressionLevel)
+func newEncoder(compressionLevel zstd.EncoderLevel) *zstd.Encoder {
 	e, err := zstd.NewWriter(nil,
 		zstd.WithEncoderCRC(false), // Disable CRC for performance reasons.
-		zstd.WithEncoderLevel(level))
+		zstd.WithEncoderLevel(compressionLevel))
 	if err != nil {
 		logger.Panicf("BUG: failed to create ZSTD writer: %s", err)
 	}

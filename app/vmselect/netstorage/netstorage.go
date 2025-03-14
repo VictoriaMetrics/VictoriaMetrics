@@ -1467,3 +1467,18 @@ func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
 //
 // See https://github.com/golang/go/blob/704401ffa06c60e059c9e6e4048045b4ff42530a/src/runtime/malloc.go#L11
 const maxFastAllocBlockSize = 32 * 1024
+
+// GetMetricNamesStats returns statistic for timeseries metric names usage.
+func GetMetricNamesStats(qt *querytracer.Tracer, limit, le int, matchPattern string) (storage.MetricNamesStatsResponse, error) {
+	qt = qt.NewChild("get metric names usage statistics with limit: %d, less or equal to: %d, match pattern=%q", limit, le, matchPattern)
+	defer qt.Done()
+	return vmstorage.GetMetricNamesStats(qt, limit, le, matchPattern)
+}
+
+// ResetMetricNamesStats resets state of metric names usage
+func ResetMetricNamesStats(qt *querytracer.Tracer) error {
+	qt = qt.NewChild("reset metric names usage stats")
+	defer qt.Done()
+	vmstorage.ResetMetricNamesStats(qt)
+	return nil
+}
