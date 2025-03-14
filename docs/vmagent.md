@@ -96,40 +96,6 @@ See [various use cases](#use-cases) for vmagent.
 
 Pass `-help` to `vmagent` in order to see [the full list of supported command-line flags with their descriptions](#advanced-usage).
 
-## How to push data to vmagent
-
-`vmagent` supports [the same set of push-based data ingestion protocols as VictoriaMetrics does](https://docs.victoriametrics.com/#how-to-import-time-series-data)
-in addition to the pull-based Prometheus-compatible targets' scraping:
-
-* DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-datadog-agent).
-* InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
-* Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
-* OpenTelemetry http API. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#sending-data-via-opentelemetry).
-* NewRelic API. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-newrelic-agent).
-* OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-opentsdb-compatible-agents).
-* Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
-* JSON lines import protocol via `http://<vmagent>:8429/api/v1/import`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
-* Native data import protocol via `http://<vmagent>:8429/api/v1/import/native`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-data-in-native-format).
-* Prometheus exposition format via `http://<vmagent>:8429/api/v1/import/prometheus`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format) for details.
-* Arbitrary CSV data via `http://<vmagent>:8429/api/v1/import/csv`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-csv-data).
-
-## Configuration update
-
-`vmagent` should be restarted in order to update config options set via command-line args.
-`vmagent` supports multiple approaches for reloading configs from updated config files such as
-`-promscrape.config`, `-remoteWrite.relabelConfig`, `-remoteWrite.urlRelabelConfig`, `-streamAggr.config`
-and `-remoteWrite.streamAggr.config`:
-
-* Sending `SIGHUP` signal to `vmagent` process:
-
-  ```sh
-  kill -SIGHUP `pidof vmagent`
-  ```
-
-* Sending HTTP request to `http://vmagent:8429/-/reload` endpoint. This endpoint can be protected with `-reloadAuthKey` command-line flag.
-
-There is also `-promscrape.configCheckInterval` command-line flag, which can be used for automatic reloading configs from updated `-promscrape.config` file.
-
 ## Use cases
 
 ### IoT and Edge monitoring
@@ -277,6 +243,132 @@ for the collected samples. Examples:
   ./vmagent -remoteWrite=http://remote-storage/api/v1/write -streamAggr.dropInputLabels=replica -streamAggr.dedupInterval=60s
   ```
 
+## How to push data to vmagent
+
+`vmagent` supports [the same set of push-based data ingestion protocols as VictoriaMetrics does](https://docs.victoriametrics.com/#how-to-import-time-series-data)
+in addition to the pull-based Prometheus-compatible targets' scraping:
+
+* DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-datadog-agent).
+* InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
+* Graphite plaintext protocol if `-graphiteListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-graphite-compatible-agents-such-as-statsd).
+* OpenTelemetry http API. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#sending-data-via-opentelemetry).
+* NewRelic API. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-newrelic-agent).
+* OpenTSDB telnet and http protocols if `-opentsdbListenAddr` command-line flag is set. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-send-data-from-opentsdb-compatible-agents).
+* Prometheus remote write protocol via `http://<vmagent>:8429/api/v1/write`.
+* JSON lines import protocol via `http://<vmagent>:8429/api/v1/import`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-data-in-json-line-format).
+* Native data import protocol via `http://<vmagent>:8429/api/v1/import/native`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-data-in-native-format).
+* Prometheus exposition format via `http://<vmagent>:8429/api/v1/import/prometheus`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format) for details.
+* Arbitrary CSV data via `http://<vmagent>:8429/api/v1/import/csv`. See [these docs](https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-csv-data).
+
+## How to collect metrics in Prometheus format
+
+Specify the path to `prometheus.yml` file via `-promscrape.config` command-line flag. `vmagent` takes into account the following
+sections from [Prometheus config file](https://prometheus.io/docs/prometheus/latest/configuration/configuration/):
+
+* `global`
+* `scrape_configs`
+
+All other sections are ignored, including the [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write) section.
+Use `-remoteWrite.*` command-line flag instead for configuring remote write settings. See [the list of unsupported config sections](#unsupported-prometheus-config-sections).
+
+The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
+
+See also:
+
+- [scrape config examples](https://docs.victoriametrics.com/scrape_config_examples/)
+- [the list of supported service discovery types for Prometheus scrape targets](https://docs.victoriametrics.com/sd_configs/).
+
+
+### scrape_config enhancements
+
+`vmagent` supports the following additional options in [scrape_configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs) section:
+
+* `headers` - a list of HTTP headers to send to scrape target with each scrape request. This can be used when the scrape target
+  needs custom authorization and authentication. For example:
+
+```yaml
+scrape_configs:
+- job_name: custom_headers
+  headers:
+  - "TenantID: abc"
+  - "My-Auth: TopSecret"
+```
+
+* `disable_compression: true` for disabling response compression on a per-job basis. By default, `vmagent` requests compressed responses
+  from scrape targets for saving network bandwidth.
+* `disable_keepalive: true` for disabling [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection)
+  on a per-job basis. By default, `vmagent` uses keep-alive connections to scrape targets for reducing overhead on connection re-establishing.
+* `series_limit: N` for limiting the number of unique time series a single scrape target can expose. See [these docs](#cardinality-limiter).
+* `stream_parse: true` for scraping targets in a streaming manner. This may be useful when targets export big number of metrics. See [these docs](#stream-parsing-mode).
+* `scrape_align_interval: duration` for aligning scrapes to the given interval instead of using random offset
+  in the range `[0 ... scrape_interval]` for scraping each target. The random offset helps to spread scrapes evenly in time.
+* `scrape_offset: duration` for specifying the exact offset for scraping instead of using random offset in the range `[0 ... scrape_interval]`.
+
+See [scrape_configs docs](https://docs.victoriametrics.com/sd_configs/#scrape_configs) for more details on all the supported options.
+
+### Loading scrape configs from multiple files
+
+`vmagent` supports loading [scrape configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs) from multiple files specified
+in the `scrape_config_files` section of `-promscrape.config` file. For example, the following `-promscrape.config` instructs `vmagent`
+loading scrape configs from all the `*.yml` files under `configs` directory, from `single_scrape_config.yml` local file
+and from `https://config-server/scrape_config.yml` url:
+
+```yaml
+scrape_config_files:
+- configs/*.yml
+- single_scrape_config.yml
+- https://config-server/scrape_config.yml
+```
+
+Every referred file can contain arbitrary number of [supported scrape configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs).
+There is no need in specifying top-level `scrape_configs` section in these files. For example:
+
+```yaml
+- job_name: foo
+  static_configs:
+  - targets: ["vmagent:8429"]
+- job_name: bar
+  kubernetes_sd_configs:
+  - role: pod
+```
+
+`vmagent` is able to dynamically reload these files - see [these docs](#configuration-update).
+
+### Unsupported Prometheus config sections
+
+`vmagent` doesn't support the following sections in Prometheus config file passed to `-promscrape.config` command-line flag:
+
+* [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). This section is substituted
+  with various `-remoteWrite*` command-line flags. See [the full list of flags](#advanced-usage). The `remote_write` section isn't supported
+  in order to reduce possible confusion when `vmagent` is used for accepting incoming metrics via [supported push protocols](#how-to-push-data-to-vmagent).
+  In this case the `-promscrape.config` file isn't needed.
+* `remote_read`. This section isn't supported at all, since `vmagent` doesn't provide Prometheus querying API.
+  It is expected that the querying API is provided by the remote storage specified via `-remoteWrite.url` such as VictoriaMetrics.
+  See [Prometheus querying API docs for VictoriaMetrics](https://docs.victoriametrics.com/#prometheus-querying-api-usage).
+* `rule_files` and `alerting`. These sections are supported by [vmalert](https://docs.victoriametrics.com/vmalert/).
+
+The list of supported service discovery types is available [here](#how-to-collect-metrics-in-prometheus-format).
+
+Additionally, `vmagent` doesn't support `refresh_interval` option at service discovery sections.
+This option is substituted with `-promscrape.*CheckInterval` command-line flags, which are specific per each service discovery type.
+See [the full list of command-line flags for vmagent](#advanced-usage).
+
+## Configuration update
+
+`vmagent` should be restarted in order to update config options set via command-line args.
+`vmagent` supports multiple approaches for reloading configs from updated config files such as
+`-promscrape.config`, `-remoteWrite.relabelConfig`, `-remoteWrite.urlRelabelConfig`, `-streamAggr.config`
+and `-remoteWrite.streamAggr.config`:
+
+* Sending `SIGHUP` signal to `vmagent` process:
+
+  ```sh
+  kill -SIGHUP `pidof vmagent`
+  ```
+
+* Sending HTTP request to `http://vmagent:8429/-/reload` endpoint. This endpoint can be protected with `-reloadAuthKey` command-line flag.
+
+There is also `-promscrape.configCheckInterval` command-line flag, which can be used for automatic reloading configs from updated `-promscrape.config` file.
 
 ## SRV urls
 
@@ -352,100 +444,6 @@ In this case, vmagent automatically converts tenant identifiers from the URL to 
 These tenant labels are added before applying [relabeling](#relabeling) specified via `-remoteWrite.relabelConfig`
 and `-remoteWrite.urlRelabelConfig` command-line flags. Metrics with `vm_account_id` and `vm_project_id` labels can be routed to the corresponding tenants
 when specifying `-remoteWrite.url` to [multitenant url at VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#multitenancy-via-labels).
-
-## How to collect metrics in Prometheus format
-
-Specify the path to `prometheus.yml` file via `-promscrape.config` command-line flag. `vmagent` takes into account the following
-sections from [Prometheus config file](https://prometheus.io/docs/prometheus/latest/configuration/configuration/):
-
-* `global`
-* `scrape_configs`
-
-All other sections are ignored, including the [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write) section.
-Use `-remoteWrite.*` command-line flag instead for configuring remote write settings. See [the list of unsupported config sections](#unsupported-prometheus-config-sections).
-
-The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
-
-See also:
-
-- [scrape config examples](https://docs.victoriametrics.com/scrape_config_examples/)
-- [the list of supported service discovery types for Prometheus scrape targets](https://docs.victoriametrics.com/sd_configs/).
-
-
-## scrape_config enhancements
-
-`vmagent` supports the following additional options in [scrape_configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs) section:
-
-* `headers` - a list of HTTP headers to send to scrape target with each scrape request. This can be used when the scrape target
-  needs custom authorization and authentication. For example:
-
-```yaml
-scrape_configs:
-- job_name: custom_headers
-  headers:
-  - "TenantID: abc"
-  - "My-Auth: TopSecret"
-```
-
-* `disable_compression: true` for disabling response compression on a per-job basis. By default, `vmagent` requests compressed responses
-  from scrape targets for saving network bandwidth.
-* `disable_keepalive: true` for disabling [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection)
-  on a per-job basis. By default, `vmagent` uses keep-alive connections to scrape targets for reducing overhead on connection re-establishing.
-* `series_limit: N` for limiting the number of unique time series a single scrape target can expose. See [these docs](#cardinality-limiter).
-* `stream_parse: true` for scraping targets in a streaming manner. This may be useful when targets export big number of metrics. See [these docs](#stream-parsing-mode).
-* `scrape_align_interval: duration` for aligning scrapes to the given interval instead of using random offset
-  in the range `[0 ... scrape_interval]` for scraping each target. The random offset helps to spread scrapes evenly in time.
-* `scrape_offset: duration` for specifying the exact offset for scraping instead of using random offset in the range `[0 ... scrape_interval]`.
-
-See [scrape_configs docs](https://docs.victoriametrics.com/sd_configs/#scrape_configs) for more details on all the supported options.
-
-
-## Loading scrape configs from multiple files
-
-`vmagent` supports loading [scrape configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs) from multiple files specified
-in the `scrape_config_files` section of `-promscrape.config` file. For example, the following `-promscrape.config` instructs `vmagent`
-loading scrape configs from all the `*.yml` files under `configs` directory, from `single_scrape_config.yml` local file
-and from `https://config-server/scrape_config.yml` url:
-
-```yaml
-scrape_config_files:
-- configs/*.yml
-- single_scrape_config.yml
-- https://config-server/scrape_config.yml
-```
-
-Every referred file can contain arbitrary number of [supported scrape configs](https://docs.victoriametrics.com/sd_configs/#scrape_configs).
-There is no need in specifying top-level `scrape_configs` section in these files. For example:
-
-```yaml
-- job_name: foo
-  static_configs:
-  - targets: ["vmagent:8429"]
-- job_name: bar
-  kubernetes_sd_configs:
-  - role: pod
-```
-
-`vmagent` is able to dynamically reload these files - see [these docs](#configuration-update).
-
-## Unsupported Prometheus config sections
-
-`vmagent` doesn't support the following sections in Prometheus config file passed to `-promscrape.config` command-line flag:
-
-* [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). This section is substituted
-  with various `-remoteWrite*` command-line flags. See [the full list of flags](#advanced-usage). The `remote_write` section isn't supported
-  in order to reduce possible confusion when `vmagent` is used for accepting incoming metrics via [supported push protocols](#how-to-push-data-to-vmagent).
-  In this case the `-promscrape.config` file isn't needed.
-* `remote_read`. This section isn't supported at all, since `vmagent` doesn't provide Prometheus querying API.
-  It is expected that the querying API is provided by the remote storage specified via `-remoteWrite.url` such as VictoriaMetrics.
-  See [Prometheus querying API docs for VictoriaMetrics](https://docs.victoriametrics.com/#prometheus-querying-api-usage).
-* `rule_files` and `alerting`. These sections are supported by [vmalert](https://docs.victoriametrics.com/vmalert/).
-
-The list of supported service discovery types is available [here](#how-to-collect-metrics-in-prometheus-format).
-
-Additionally, `vmagent` doesn't support `refresh_interval` option at service discovery sections.
-This option is substituted with `-promscrape.*CheckInterval` command-line flags, which are specific per each service discovery type.
-See [the full list of command-line flags for vmagent](#advanced-usage).
 
 ## Adding labels to metrics
 
@@ -626,7 +624,7 @@ The following articles contain useful information about Prometheus relabeling:
 * [Extracting labels from legacy metric names](https://www.robustperception.io/extracting-labels-from-legacy-metric-names)
 * [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
 
-## Relabeling enhancements
+### Relabeling enhancements
 
 `vmagent` provides the following enhancements on top of Prometheus-compatible relabeling:
 
@@ -767,7 +765,7 @@ The following articles contain useful information about Prometheus relabeling:
 
   * `graphite`: applies Graphite-style relabeling to metric name. See [these docs](#graphite-relabeling) for details.
 
-## Graphite relabeling
+### Graphite relabeling
 
 VictoriaMetrics components support `action: graphite` relabeling rules, which allow extracting various parts from Graphite-style metrics
 into the configured labels with the syntax similar to [Glob matching in statsd_exporter](https://github.com/prometheus/statsd_exporter#glob-matching).
@@ -798,7 +796,7 @@ Important notes about `action: graphite` relabeling rules:
 The `action: graphite` relabeling rules are easier to write and maintain than `action: replace` for labels extraction from Graphite-style metric names.
 Additionally, the `action: graphite` relabeling rules usually work much faster than the equivalent `action: replace` rules.
 
-## Relabel debug
+### Relabel debug
 
 `vmagent` and [single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter)
 provide the following tools for debugging target-level and metric-level relabeling:
@@ -1032,25 +1030,26 @@ scrape_configs:
 
 ## On-disk persistence
 
-By default `vmagent` stores pending data, which cannot be sent to the configured remote storage systems in a timely manner, in the folder set
-by `-remoteWrite.tmpDataPath` command-line flag. By default `vmagent` writes all the pending data to this folder until this data is sent to the configured
-`-remoteWrite.url` systems or until the folder becomes full. The maximum data size, which can be saved to `-remoteWrite.tmpDataPath`
-per every configured `-remoteWrite.url`, can be limited via `-remoteWrite.maxDiskUsagePerURL` command-line flag.
-When this limit is reached, `vmagent` drops the oldest data from disk in order to save newly ingested data.
+`vmagent` stores pending data that cannot be sent to the configured remote storage systems in a timely manner.
+By default, `vmagent` writes all the pending data to folder configured via `-remoteWrite.tmpDataPath` cmd-line flag
+until this data is sent to the configured `-remoteWrite.url` systems or until the folder becomes full. 
+The maximum data size that can be saved to `-remoteWrite.tmpDataPath` per every configured `-remoteWrite.url` can be 
+limited via `-remoteWrite.maxDiskUsagePerURL` command-line flag. When this limit is reached, `vmagent` drops the oldest 
+data from disk in order to save newly ingested data.
 
-The folder structure of persistence data is as follows. Each remote write URL corresponds to a folder similar to `1_B9EB7BE220B91E9D`.
-
+The folder structure of persistence data is as follows:
 ```
 <remoteWrite.tmpDataPath>
 └── persistent-queue
     └── 1_B9EB7BE220B91E9D
 ```
+Each remote write URL corresponds to a folder similar to `1_B9EB7BE220B91E9D`.
 
 It's generated based on the following information:
-1. The **sequence order** of this remote write URL in the remote write configuration, starting from **1**.
+1. The **sequence order** of the remote write URL cmd-line flags, starting from **1**.
 2. The **hash result** of the remote write URL itself, excluding query parameters and fragments.
 
-For the remote write configs:
+For example, for the remote write configs:
 ```
 -remoteWrite.url=http://example-1:8428/prometheus/api/v1/write?foo=bar#baz
 -remoteWrite.url=http://user:pass@example-2:8428/prometheus/api/v1/write?qux=quux#quuz
@@ -1064,7 +1063,7 @@ vmagent will generate the following persistent queue folders:
 2_0AAFDF53E314A72A
 ```
 
-## Disabling On-disk persistence
+### Disabling On-disk persistence
 
 There are cases when it is better disabling on-disk persistence for pending data at `vmagent` side:
 
@@ -1629,7 +1628,11 @@ Two types of auth are supported:
     -remoteWrite.tlsKeyFile=/opt/key.pem
 ```
 
-## mTLS protection
+## Security
+
+See general recommendations regarding security [here](https://docs.victoriametrics.com/single-server-victoriametrics/#security).
+
+### mTLS protection
 
 By default `vmagent` accepts http requests at `8429` port (this port can be changed via `-httpListenAddr` command-line flags),
 since it is expected it runs in an isolated trusted network.
@@ -1640,14 +1643,8 @@ requests at this port, by specifying `-tls` and `-mtls` command-line flags. For 
 ./vmagent -tls -mtls -remoteWrite.url=...
 ```
 
-By default system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
+By default, system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
 It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
-
-## Security
-
-See general recommendations regarding security [here](https://docs.victoriametrics.com/single-server-victoriametrics/#security).
-
-See also [mTLS protection docs](#mtls-protection).
 
 ## How to build from sources
 
