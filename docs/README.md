@@ -174,6 +174,11 @@ Additionally, all the VictoriaMetrics components allow setting flag values via e
 * For repeating flags an alternative syntax can be used by joining the different values into one using `,` char as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`).
 * Environment var prefix can be set via `-envflag.prefix` flag. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`.
 
+### Setting up service
+
+Read [instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/43) on how to set up VictoriaMetrics
+as a service for your OS. See also [ansible playbooks](https://github.com/VictoriaMetrics/ansible-playbooks).
+
 ### Running as Windows service
 
 In order to run VictoriaMetrics as a Windows service it is required to create a service configuration for [WinSW](https://github.com/winsw/winsw)
@@ -227,6 +232,12 @@ and then install it as a service according to the following guide:
     ```
 
 See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3781) for more details.
+
+### Start with docker-compose
+
+[Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose.yml)
+helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/vmagent/) and Grafana with one command.
+More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#folder-contains-basic-images-and-tools-for-building-and-running-victoria-metrics-in-docker).
 
 ## Playgrounds
 
@@ -1194,17 +1205,6 @@ For example: `make victoria-metrics-pure DOCKER=podman DOCKER_RUN="podman run --
 
 Note that `production` builds are not supported via Podman because Podman does not support `buildx`.
 
-## Start with docker-compose
-
-[Docker-compose](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose.yml)
-helps to spin up VictoriaMetrics, [vmagent](https://docs.victoriametrics.com/vmagent/) and Grafana with one command.
-More details may be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#folder-contains-basic-images-and-tools-for-building-and-running-victoria-metrics-in-docker).
-
-## Setting up service
-
-Read [instructions](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/43) on how to set up VictoriaMetrics
-as a service for your OS.
-
 ## How to work with snapshots
 
 Send a request to `http://<victoriametrics-addr>:8428/snapshot/create` endpoint in order to create
@@ -2061,7 +2061,42 @@ IndexDB respects [retention period](#retention) and once it is over, the indexes
 are dropped. For the new retention period, the indexes are gradually populated
 again as the new samples arrive.
 
-Also see how IndexDB can be [tuned](#index-tuning).
+### Index tuning for low churn rate
+
+By default, VictoriaMetrics uses the following indexes for data retrieval: `global` and `per-day`.
+Both store the same data and on query time VictoriaMetrics can choose between indexes for optimal performance.
+See [IndexDB](#indexdb) for details.
+
+If your use case involves [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
+with [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
+then this default setting should be ideal for you.
+
+A prominent example is Kubernetes. Services in k8s expose big number of series with short lifetime, significantly
+increasing churn rate. The per-day index speeds up data retrieval in this case.
+
+But if your use case assumes low or no churn rate, then you might benefit from disabling the per-day index by setting
+the flag `-disablePerDayIndex`{{% available_from "v1.112.0" %}}. This will improve the time series ingestion speed and decrease disk space usage,
+since no time or disk space is spent maintaining the per-day index.
+
+Example use cases:
+
+* Historical weather data, such as [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels).
+  It consists of millions time series whose hourly values span tens of years. The time series set never changes.
+  If the per-day index is disabled, once the first hour of data is ingested the entire time series set will be written
+  into the global index and subsequent portions of data will not result in index update. But if the per-day index
+  is enabled, the same set of time-series will be written to the per-day index for every day of data.
+
+* IoT: a huge set of sensors exports time series with the sensor ID used as a metric label value. Since sensor additions
+  or removals happen infrequently, the time series churn rate will be low. With the per-day index disabled, the entire
+  time series set will be registered in global index during the initial data ingestion and the global index will receive
+  small updates when a sensor is added or removed.
+
+What to expect:
+
+* Prefer setting this flag on fresh installations.
+* Disabling per-day index on installations with historical data is Ok.
+* Re-enabling per-day index on installations with historical data will make it unsearchable.
+
 
 ## Retention
 
@@ -2086,7 +2121,7 @@ value than before, then data outside the configured period will be eventually de
 
 VictoriaMetrics does not support indefinite retention, but you can specify an arbitrarily high duration, e.g. `-retentionPeriod=100y`.
 
-## Multiple retentions
+### Multiple retentions
 
 Distinct retentions for distinct time series can be configured via [retention filters](#retention-filters)
 in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise/).
@@ -2104,7 +2139,7 @@ so it could route requests from particular user to VictoriaMetrics with the desi
 Similar scheme can be applied for multiple tenants in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/).
 See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup.html) for multi-retention setup details.
 
-## Retention filters
+### Retention filters
 
 [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports e.g. `retention filters`,
 which allow configuring multiple retentions for distinct sets of time series matching the configured [series filters](https://docs.victoriametrics.com/keyconcepts/#filtering)
@@ -2235,21 +2270,6 @@ Additionally, alerting can be set up with the following tools:
 * With Promxy - see [the corresponding docs](https://github.com/jacksontj/promxy/blob/master/README.md#how-do-i-use-alertingrecording-rules-in-promxy).
 * With Grafana - see [the corresponding docs](https://grafana.com/docs/alerting/rules/).
 
-## mTLS protection
-
-By default `VictoriaMetrics` accepts http requests at `8428` port (this port can be changed via `-httpListenAddr` command-line flags).
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
-requests at this port, by specifying `-tls` and `-mtls` command-line flags. For example, the following command runs `VictoriaMetrics`, which accepts only mTLS requests at port `8428`:
-
-```
-./victoria-metrics -tls -mtls
-```
-
-By default system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
-It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
-
-See also [security docs](#security).
-
 ## Security
 
 General security recommendations:
@@ -2292,7 +2312,20 @@ For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<i
 See also [security recommendation for VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/#security)
 and [the general security page at VictoriaMetrics website](https://victoriametrics.com/security/).
 
-## Automatic issuing of TLS certificates
+### mTLS protection
+
+By default `VictoriaMetrics` accepts http requests at `8428` port (this port can be changed via `-httpListenAddr` command-line flags).
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise/) supports the ability to accept [mTLS](https://en.wikipedia.org/wiki/Mutual_authentication)
+requests at this port, by specifying `-tls` and `-mtls` command-line flags. For example, the following command runs `VictoriaMetrics`, which accepts only mTLS requests at port `8428`:
+
+```
+./victoria-metrics -tls -mtls
+```
+
+By default, system-wide [TLS Root CA](https://en.wikipedia.org/wiki/Root_certificate) is used for verifying client certificates if `-mtls` command-line flag is specified.
+It is possible to specify custom TLS Root CA via `-mtlsCAFile` command-line flag.
+
+### Automatic issuing of TLS certificates
 
 All the VictoriaMetrics [Enterprise](https://docs.victoriametrics.com/enterprise/) components support automatic issuing of TLS certificates for public HTTPS server running at `-httpListenAddr`
 via [Let's Encrypt service](https://letsencrypt.org/). The following command-line flags must be set in order to enable automatic issuing of TLS certificates:
@@ -2307,7 +2340,6 @@ via [Let's Encrypt service](https://letsencrypt.org/). The following command-lin
 This functionality can be evaluated for free according to [these docs](https://docs.victoriametrics.com/enterprise/).
 
 See also [security recommendations](#security).
-
 
 ## Tuning
 
@@ -2364,8 +2396,8 @@ and [troubleshooting docs](https://docs.victoriametrics.com/troubleshooting/).
 
 VictoriaMetrics returns TSDB stats at `/api/v1/status/tsdb` page in the way similar to Prometheus - see [these Prometheus docs](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats). VictoriaMetrics accepts the following optional query args at `/api/v1/status/tsdb` page:
 
-* `topN=N` where `N` is the number of top entries to return in the response. By default top 10 entries are returned.
-* `date=YYYY-MM-DD` where `YYYY-MM-DD` is the date for collecting the stats. By default the stats is collected for the current day. Pass `date=1970-01-01` in order to collect global stats across all the days.
+* `topN=N` where `N` is the number of top entries to return in the response. By default, top 10 entries are returned.
+* `date=YYYY-MM-DD` where `YYYY-MM-DD` is the date for collecting the stats. By default, the stats is collected for the current day. Pass `date=1970-01-01` in order to collect global stats across all the days.
 * `focusLabel=LABEL_NAME` returns label values with the highest number of time series for the given `LABEL_NAME` in the `seriesCountByFocusLabelValue` list.
 * `match[]=SELECTOR` where `SELECTOR` is an arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) for series to take into account during stats calculation. By default all the series are taken into account.
 * `extra_label=LABEL=VALUE`. See [these docs](#prometheus-querying-api-enhancements) for more details.
@@ -2375,7 +2407,7 @@ vmselect requests stats via [/api/v1/status/tsdb](https://docs.victoriametrics.c
 This may lead to inflated values when samples for the same time series are spread across multiple vmstorage nodes
 due to [replication](#replication) or [rerouting](https://docs.victoriametrics.com/cluster-victoriametrics/?highlight=re-routes#cluster-availability).
 
-VictoriaMetrics provides an UI on top of `/api/v1/status/tsdb` - see [cardinality explorer docs](#cardinality-explorer).
+VictoriaMetrics provides UI on top of `/api/v1/status/tsdb` - see [cardinality explorer docs](#cardinality-explorer).
 
 ## Query tracing
 
@@ -2447,7 +2479,7 @@ Query tracing is allowed by default. It can be denied by passing `-denyQueryTrac
 
 ## Cardinality limiter
 
-By default VictoriaMetrics doesn't limit the number of stored time series. The limit can be enforced by setting the following command-line flags:
+By default, VictoriaMetrics doesn't limit the number of stored time series. The limit can be enforced by setting the following command-line flags:
 
 * `-storage.maxHourlySeries` - limits the number of time series that can be added during the last hour. Useful for limiting the number of [active time series](https://docs.victoriametrics.com/faq/#what-is-an-active-time-series).
 * `-storage.maxDailySeries` - limits the number of time series that can be added during the last day. Useful for limiting daily [churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate).
@@ -2599,7 +2631,9 @@ are added to all the metrics before sending them to the remote storage:
   -pushmetrics.extraLabel='job="vm"'
 ```
 
-## Cache removal
+## Caches
+
+### Cache removal
 
 VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown
 (e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup.
@@ -2612,7 +2646,7 @@ Sometimes it is needed to remove such caches on the next startup. This can be do
 
 It is also possible removing [rollup result cache](#rollup-result-cache) on startup by passing `-search.resetRollupResultCacheOnStartup` command-line flag to VictoriaMetrics.
 
-## Rollup result cache
+### Rollup result cache
 
 VictoriaMetrics caches query responses by default. This allows increasing performance for repeated queries
 to [`/api/v1/query`](https://docs.victoriametrics.com/keyconcepts/#instant-query) and [`/api/v1/query_range`](https://docs.victoriametrics.com/keyconcepts/#range-query)
@@ -2625,7 +2659,7 @@ or on a per-query basis by passing `nocache=1` query arg to `/api/v1/query` and 
 
 See also [cache removal docs](#cache-removal).
 
-## Cache tuning
+### Cache tuning
 
 VictoriaMetrics uses various in-memory caches for faster data ingestion and query performance.
 The following metrics for each type of cache are exported at [`/metrics` page](#monitoring):
@@ -2649,42 +2683,6 @@ and vmstorage has enough free memory to accommodate new cache sizes.
 
 To override the default values see command-line flags with `-storage.cacheSize` prefix.
 See the full description of flags [here](#list-of-command-line-flags).
-
-## Index tuning for low churn rate
-
-By default, VictoriaMetrics uses the following indexes for data retrieval: `global` and `per-day`.
-Both store the same data and on query time VictoriaMetrics can choose between indexes for optimal performance. 
-See [IndexDB](#indexdb) for details.
-
-If your use case involves [high cardinality](https://docs.victoriametrics.com/faq/#what-is-high-cardinality)
-with [high churn rate](https://docs.victoriametrics.com/faq/#what-is-high-churn-rate)
-then this default setting should be ideal for you.
-
-A prominent example is Kubernetes. Services in k8s expose big number of series with short lifetime, significantly 
-increasing churn rate. The per-day index speeds up data retrieval in this case.
-
-But if your use case assumes low or no churn rate, then you might benefit from disabling the per-day index by setting 
-the flag `-disablePerDayIndex`{{% available_from "v1.112.0" %}}. This will improve the time series ingestion speed and decrease disk space usage,
-since no time or disk space is spent maintaining the per-day index.
-
-Example use cases:
-
-* Historical weather data, such as [ERA5](https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels).
-  It consists of millions time series whose hourly values span tens of years. The time series set never changes.
-  If the per-day index is disabled, once the first hour of data is ingested the entire time series set will be written
-  into the global index and subsequent portions of data will not result in index update. But if the per-day index 
-  is enabled, the same set of time-series will be written to the per-day index for every day of data.
-
-* IoT: a huge set of sensors exports time series with the sensor ID used as a metric label value. Since sensor additions
-  or removals happen infrequently, the time series churn rate will be low. With the per-day index disabled, the entire
-  time series set will be registered in global index during the initial data ingestion and the global index will receive
-  small updates when a sensor is added or removed.
-
-What to expect:
-
-* Prefer setting this flag on fresh installations.
-* Disabling per-day index on installations with historical data is Ok.
-* Re-enabling per-day index on installations with historical data will make it unsearchable.
 
 ## Data migration
 
