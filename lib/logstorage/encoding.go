@@ -2,10 +2,12 @@ package logstorage
 
 import (
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // marshalStringsBlock marshals a and appends the result to dst.
@@ -14,23 +16,28 @@ import (
 func marshalStringsBlock(dst []byte, a []string) []byte {
 	// Encode string lengths
 	u64s := encoding.GetUint64s(len(a))
-	aLens := u64s.A[:0]
-	for _, s := range a {
-		aLens = append(aLens, uint64(len(s)))
+	aLens := u64s.A
+	for i, s := range a {
+		aLens[i] = uint64(len(s))
 	}
-	u64s.A = aLens
-	dst = marshalUint64Block(dst, u64s.A)
+	dst = marshalUint64Block(dst, aLens)
 	encoding.PutUint64s(u64s)
 
 	// Encode strings
-	bb := bbPool.Get()
-	b := bb.B
-	for _, s := range a {
-		b = append(b, s...)
+	if areConstValues(a) {
+		// Special case for const values
+		dst = marshalBytesBlock(dst, bytesutil.ToUnsafeBytes(a[0]))
+	} else {
+		// Regular case for non-const values
+		bb := bbPool.Get()
+		b := bb.B
+		for _, s := range a {
+			b = append(b, s...)
+		}
+		bb.B = b
+		dst = marshalBytesBlock(dst, bb.B)
+		bbPool.Put(bb)
 	}
-	bb.B = b
-	dst = marshalBytesBlock(dst, bb.B)
-	bbPool.Put(bb)
 
 	return dst
 }
@@ -92,16 +99,43 @@ func (sbu *stringsBlockUnmarshaler) unmarshal(dst []string, src []byte, itemsCou
 
 	// Decode strings from sbu.data into dst
 	data := sbu.data[dataLen:]
-	for _, sLen := range aLens {
+
+	dst = slicesutil.SetLength(dst, len(dst)+len(aLens))
+	dstA := dst[len(dst)-len(aLens):]
+
+	if len(aLens) >= 2 && areConstUint64s(aLens) && uint64(len(data)) == aLens[0] {
+		// Special case - decode a constant string
+		s := bytesutil.ToUnsafeString(data)
+		for i := range dstA {
+			dstA[i] = s
+		}
+		return dst, nil
+	}
+
+	for i := range dstA {
+		sLen := aLens[i]
 		if uint64(len(data)) < sLen {
 			return dst, fmt.Errorf("cannot unmarshal a string with the length %d bytes from %d bytes", sLen, len(data))
 		}
 		s := bytesutil.ToUnsafeString(data[:sLen])
 		data = data[sLen:]
-		dst = append(dst, s)
+		dstA[i] = s
 	}
 
 	return dst, nil
+}
+
+func areConstUint64s(a []uint64) bool {
+	if len(a) == 0 {
+		return false
+	}
+	v := a[0]
+	for i := 1; i < len(a); i++ {
+		if v != a[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // marshalUint64Block appends marshaled a to dst and returns the result.
@@ -138,37 +172,64 @@ const (
 	uintBlockType16 = 1
 	uintBlockType32 = 2
 	uintBlockType64 = 3
+
+	uintBlockTypeConst8  = 4
+	uintBlockTypeConst16 = 5
+	uintBlockTypeConst32 = 6
+	uintBlockTypeConst64 = 7
 )
 
 // marshalUint64Items appends the marshaled a items to dst and returns the result.
 func marshalUint64Items(dst []byte, a []uint64) []byte {
 	// Do not marshal len(a), since it is expected that unmarshaler knows it.
+
 	nMax := uint64(0)
 	for _, n := range a {
 		if n > nMax {
 			nMax = n
 		}
 	}
+	areConsts := len(a) >= 2 && areConstUint64s(a)
 	switch {
 	case nMax < (1 << 8):
-		dst = append(dst, uintBlockType8)
-		for _, n := range a {
-			dst = append(dst, byte(n))
+		if areConsts {
+			dst = append(dst, uintBlockTypeConst8)
+			dst = append(dst, byte(a[0]))
+		} else {
+			dst = append(dst, uintBlockType8)
+			for _, n := range a {
+				dst = append(dst, byte(n))
+			}
 		}
 	case nMax < (1 << 16):
-		dst = append(dst, uintBlockType16)
-		for _, n := range a {
-			dst = encoding.MarshalUint16(dst, uint16(n))
+		if areConsts {
+			dst = append(dst, uintBlockTypeConst16)
+			dst = encoding.MarshalUint16(dst, uint16(a[0]))
+		} else {
+			dst = append(dst, uintBlockType16)
+			for _, n := range a {
+				dst = encoding.MarshalUint16(dst, uint16(n))
+			}
 		}
 	case nMax < (1 << 32):
-		dst = append(dst, uintBlockType32)
-		for _, n := range a {
-			dst = encoding.MarshalUint32(dst, uint32(n))
+		if areConsts {
+			dst = append(dst, uintBlockTypeConst32)
+			dst = encoding.MarshalUint32(dst, uint32(a[0]))
+		} else {
+			dst = append(dst, uintBlockType32)
+			for _, n := range a {
+				dst = encoding.MarshalUint32(dst, uint32(n))
+			}
 		}
 	default:
-		dst = append(dst, uintBlockType64)
-		for _, n := range a {
-			dst = encoding.MarshalUint64(dst, uint64(n))
+		if areConsts {
+			dst = append(dst, uintBlockTypeConst64)
+			dst = encoding.MarshalUint64(dst, a[0])
+		} else {
+			dst = append(dst, uintBlockType64)
+			for _, n := range a {
+				dst = encoding.MarshalUint64(dst, n)
+			}
 		}
 	}
 	return dst
@@ -183,47 +244,86 @@ func unmarshalUint64Items(dst []uint64, src []byte, itemsCount uint64) ([]uint64
 	blockType := src[0]
 	src = src[1:]
 
+	dstLen := uint64(len(dst)) + itemsCount
+	if dstLen > math.MaxInt {
+		return dst, fmt.Errorf("too long destination buffer: len=%d; musn't exceed %d", dstLen, uint64(math.MaxInt))
+	}
+	dst = slicesutil.SetLength(dst, int(dstLen))
+	dstA := dst[dstLen-itemsCount:]
+
 	switch blockType {
 	case uintBlockType8:
 		// A block with items smaller than 1<<8 bytes
 		if uint64(len(src)) != itemsCount {
-			return dst, fmt.Errorf("unexpected block length for %d items; got %d bytes; want %d bytes", itemsCount, len(src), itemsCount)
+			return dst, fmt.Errorf("unexpected block length for %d uint8 items; got %d bytes; want %d bytes", itemsCount, len(src), itemsCount)
 		}
-		for _, v := range src {
-			dst = append(dst, uint64(v))
+		for i := range dstA {
+			dstA[i] = uint64(src[i])
 		}
 	case uintBlockType16:
 		// A block with items smaller than 1<<16 bytes
 		if uint64(len(src)) != 2*itemsCount {
-			return dst, fmt.Errorf("unexpected block length for %d items; got %d bytes; want %d bytes", itemsCount, len(src), 2*itemsCount)
+			return dst, fmt.Errorf("unexpected block length for %d uint16 items; got %d bytes; want %d bytes", itemsCount, len(src), 2*itemsCount)
 		}
-		for len(src) > 0 {
-			v := encoding.UnmarshalUint16(src)
-			src = src[2:]
-			dst = append(dst, uint64(v))
+		for i := range dstA {
+			idx := 2 * i
+			v := encoding.UnmarshalUint16(src[idx : idx+2])
+			dst[i] = uint64(v)
 		}
 	case uintBlockType32:
 		// A block with items smaller than 1<<32 bytes
 		if uint64(len(src)) != 4*itemsCount {
-			return dst, fmt.Errorf("unexpected block length for %d items; got %d bytes; want %d bytes", itemsCount, len(src), 4*itemsCount)
+			return dst, fmt.Errorf("unexpected block length for %d uint32 items; got %d bytes; want %d bytes", itemsCount, len(src), 4*itemsCount)
 		}
-		for len(src) > 0 {
-			v := encoding.UnmarshalUint32(src)
-			src = src[4:]
-			dst = append(dst, uint64(v))
+		for i := range dstA {
+			idx := 4 * i
+			v := encoding.UnmarshalUint32(src[idx : idx+4])
+			dst[i] = uint64(v)
 		}
 	case uintBlockType64:
 		// A block with items smaller than 1<<64 bytes
 		if uint64(len(src)) != 8*itemsCount {
-			return dst, fmt.Errorf("unexpected block length for %d items; got %d bytes; want %d bytes", itemsCount, len(src), 8*itemsCount)
+			return dst, fmt.Errorf("unexpected block length for %d uint64 items; got %d bytes; want %d bytes", itemsCount, len(src), 8*itemsCount)
 		}
-		for len(src) > 0 {
-			v := encoding.UnmarshalUint64(src)
-			src = src[8:]
-			dst = append(dst, v)
+		for i := range dstA {
+			idx := 8 * i
+			v := encoding.UnmarshalUint64(src[idx : idx+8])
+			dst[i] = v
+		}
+	case uintBlockTypeConst8:
+		if len(src) != 1 {
+			return dst, fmt.Errorf("unexpected block length for const uint8 item; got %d bytes; want 1 byte", len(src))
+		}
+		v := uint64(src[0])
+		for i := range dstA {
+			dst[i] = v
+		}
+	case uintBlockTypeConst16:
+		if len(src) != 2 {
+			return dst, fmt.Errorf("unexpected block length for const uint16 item; got %d bytes; want 2 bytes", len(src))
+		}
+		v := uint64(encoding.UnmarshalUint16(src))
+		for i := range dstA {
+			dst[i] = v
+		}
+	case uintBlockTypeConst32:
+		if len(src) != 4 {
+			return dst, fmt.Errorf("unexpected block length for const uint32 item; got %d bytes; want 4 bytes", len(src))
+		}
+		v := uint64(encoding.UnmarshalUint32(src))
+		for i := range dstA {
+			dst[i] = v
+		}
+	case uintBlockTypeConst64:
+		if len(src) != 8 {
+			return dst, fmt.Errorf("unexpected block length for const uint64 item; got %d bytes; want 8 bytes", len(src))
+		}
+		v := encoding.UnmarshalUint64(src)
+		for i := range dstA {
+			dst[i] = v
 		}
 	default:
-		return dst, fmt.Errorf("unexpected uint64 block type: %d; want 0, 1, 2 or 3", blockType)
+		return dst, fmt.Errorf("unexpected uint64 block type: %d", blockType)
 	}
 	return dst, nil
 }
