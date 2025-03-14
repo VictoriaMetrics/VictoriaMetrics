@@ -23,8 +23,10 @@ import (
 )
 
 var (
-	datadogStreamFields = flagutil.NewArrayString("datadog.streamFields", "Datadog tags to be used as stream fields.")
-	datadogIgnoreFields = flagutil.NewArrayString("datadog.ignoreFields", "Datadog tags to ignore.")
+	datadogStreamFields = flagutil.NewArrayString("datadog.streamFields", "Comma-separated list of fields to use as log stream fields for logs ingested via DataDog protocol. "+
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/#stream-fields")
+	datadogIgnoreFields = flagutil.NewArrayString("datadog.ignoreFields", "Comma-separated list of fields to ignore for logs ingested via DataDog protocol. "+
+		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/#dropping-fields")
 )
 
 var parserPool fastjson.ParserPool
