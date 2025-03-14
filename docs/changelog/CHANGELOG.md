@@ -37,7 +37,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 Released at 2025-03-07
 
-**Known issues: this release contains change that could increase CPU usage for vminsert or vmagent for certain type of workloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8501) for details. If you are impacted by this, please rollback to [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0).**
+**Known issues: this release contains change that could increase CPU usage for vminsert, vmagent, vmsingle for certain type of workloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8501) for details. If you are impacted by this, please rollback to [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0).**
 
 **Update note 1: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/) include a fix which enforces IPv6 addresses escaping for containers discovered with [Kubernetes service-discovery](https://docs.victoriametrics.com/sd_configs/#kubernetes_sd_configs) and `role: pod` which do not have exposed ports defined. This means that `address` for these containers will always be wrapped in square brackets, this might affect some relabeling rules which were relying on previous behaviour.**
 
@@ -79,7 +79,7 @@ Released at 2025-03-07
 
 Released at 2025-02-21
 
-**Known issues: this release contains change that could increase CPU usage for vminsert or vmagent for certain type of workloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8501) for details. If you are impacted by this, please rollback to [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0).**
+**Known issues: this release contains change that could increase CPU usage for vminsert, vmagent, vmsingle for certain type of workloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8501) for details. If you are impacted by this, please rollback to [v1.111.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.111.0).**
 
 * SECURITY: upgrade Go builder from Go1.23.5 to Go1.23.6. See the list of issues addressed in [Go1.23.6](https://github.com/golang/go/issues?q=milestone%3AGo1.23.6+label%3ACherryPickApproved).
 * SECURITY: upgrade base docker image (Alpine) from 3.21.2 to 3.21.3. See [Alpine 3.21.3 release notes](https://alpinelinux.org/posts/Alpine-3.18.12-3.19.7-3.20.6-3.21.3-released.html).
