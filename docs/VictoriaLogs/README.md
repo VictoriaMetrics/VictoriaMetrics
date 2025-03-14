@@ -339,6 +339,9 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Comma-separated list of fields to ignore for logs ingested via DataDog protocol. See https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/#dropping-fields
     	Supports an array of values separated by comma or specified via multiple flags.
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -datadog.maxRequestSize size
+    	The maximum size in bytes of a single DataDog request
+    	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -datadog.streamFields array
     	Comma-separated list of fields to use as log stream fields for logs ingested via DataDog protocol. See https://docs.victoriametrics.com/victorialogs/data-ingestion/datadog-agent/#stream-fields
     	Supports an array of values separated by comma or specified via multiple flags.
@@ -418,6 +421,9 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -journald.includeEntryMetadata
     	Include journal entry fields, which with double underscores.
+  -journald.maxRequestSize size
+    	The maximum size in bytes of a single journald request
+    	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -journald.streamFields array
     	Comma-separated list of fields to use as log stream fields for logs ingested over journald protocol. See https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/#stream-fields
     	Supports an array of values separated by comma or specified via multiple flags.
@@ -450,6 +456,9 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
     	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -loki.disableMessageParsing
     	Whether to disable automatic parsing of JSON-encoded log fields inside Loki log message into distinct log fields
+  -loki.maxRequestSize size
+    	The maximum size in bytes of a single Loki request
+    	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -maxConcurrentInserts int
     	The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 32)
   -memory.allowedBytes size
@@ -462,6 +471,9 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -metricsAuthKey value
     	Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
     	Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -opentelemetry.maxRequestSize size
+    	The maximum size in bytes of a single OpenTelemetry request
+    	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -pprofAuthKey value
     	Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
     	Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -pprofAuthKey=http://host/path or -pprofAuthKey=https://host/path

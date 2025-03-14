@@ -65,7 +65,7 @@ func TestParseStream(t *testing.T) {
 			return nil
 		}
 
-		err := Parse(buf, isStreamMode, false, "ns", "test", cb)
+		err := Parse(buf, "", isStreamMode, "ns", "test", cb)
 		wg.Wait()
 
 		if badData && !isStreamMode && err == nil {

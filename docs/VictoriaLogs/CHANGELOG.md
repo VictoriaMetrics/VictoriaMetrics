@@ -19,6 +19,7 @@ according to [these docs](https://docs.victoriametrics.com/victorialogs/quicksta
 **Update note: this release changes data storage format in backwards-incompatible way, so it is impossible to downgrade to the previous releases after upgrading to this release.
 It is safe upgrading to this release and all the future releases from older releases.**
 
+* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support zstd compression for all HTTP-based ingestion protocols. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8380) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8300) issues.
 * FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): allow specifying prefixes for log fields, which must be ignored during data ingestion, at `ignore_fields` HTTP query arg and at `VL-Ignore-Fields` HTTP header. For example, `ignore_fields=foo.*,bar.baz.*` will ignore all the [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), which start from `foo.` or from `bar.baz.`. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters) for details.
 * FEATURE: improve performance when processing constant log fields with length exceeding 256 bytes. For example, repeated stack traces.
 
@@ -42,7 +43,6 @@ Released at 2025-02-27
 * FEATURE: allow passing `*` as a subquery inside [`in(*)`, `contains_any(*)` and `contains_all(*)` filters](https://docs.victoriametrics.com/victorialogs/logsql/#subquery-filter). Such filters are treated as `match all` aka `*`. This is going to be used by [Grafana plugin for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/victorialogs-datasource/). See [this issue](https://github.com/VictoriaMetrics/victorialogs-datasource/issues/238#issuecomment-2685447673).
 * FEATURE: [victorialogs dashboard](https://grafana.com/grafana/dashboards/22084-victorialogs/): add panels to display amount of ingested logs in bytes, latency of [select APIs](https://docs.victoriametrics.com/victorialogs/querying/#http-api) calls, troubleshooting panels.
 * FEATURE: provide alternative registry for all VictoriaLogs components at [Quay.io](https://quay.io/organization/victoriametrics): [VictoriaLogs](https://quay.io/repository/victoriametrics/victoria-logs?tab=tags) and [vlogscli](https://quay.io/repository/victoriametrics/vlogscli?tab=tags).
-* FEATURE: [data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/): support zstd compression for all HTTP-based ingestion protocols. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8380) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8300) issues.
 
 * BUGFIX: do not treat a string containing leading zeros as a number during data ingestion and querying. For example, `00123` string shouldn't be treated as `123` number. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8361).
 
