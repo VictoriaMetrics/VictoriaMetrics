@@ -17,8 +17,10 @@ func marshalStringsBlock(dst []byte, a []string) []byte {
 	// Encode string lengths
 	u64s := encoding.GetUint64s(len(a))
 	aLens := u64s.A
+	totalLen := 0
 	for i, s := range a {
 		aLens[i] = uint64(len(s))
+		totalLen += len(s)
 	}
 	dst = marshalUint64Block(dst, aLens)
 	encoding.PutUint64s(u64s)
@@ -30,12 +32,17 @@ func marshalStringsBlock(dst []byte, a []string) []byte {
 	} else {
 		// Regular case for non-const values
 		bb := bbPool.Get()
-		b := bb.B
+
+		// Pre-allocate the needed memory in order to reduce the number of reallocations in the loop below.
+		b := slicesutil.SetLength(bb.B, totalLen)
+
+		b = b[:0]
 		for _, s := range a {
 			b = append(b, s...)
 		}
+		dst = marshalBytesBlock(dst, b)
+
 		bb.B = b
-		dst = marshalBytesBlock(dst, bb.B)
 		bbPool.Put(bb)
 	}
 
