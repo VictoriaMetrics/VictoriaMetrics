@@ -3279,6 +3279,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The offset for performing indexdb rotation. If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)
   -search.cacheTimestampOffset duration
      The maximum duration since the current time for response data, which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses due to time synchronization issues between VictoriaMetrics and data sources. See also -search.disableAutoCacheReset (default 5m0s)
+  -search.deltaTolerationFactor int
+    	The factor between the first value and the first delta used to infer the previous missing value. This flag could be useful for adjusting the calculation of the missing previous value in delta() and increase() functions . A negative value forces the assumption of a missing value of zero. A value of zero assumes the missing value is equal to the first recorded value. Higher values allow for greater toleration in assuming the counter starts at 0. (default 10)
   -search.disableAutoCacheReset
      Whether to disable automatic response cache reset if a sample with timestamp outside -search.cacheTimestampOffset is inserted into VictoriaMetrics
   -search.disableCache
