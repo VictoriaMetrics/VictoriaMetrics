@@ -56,6 +56,9 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 	// There is no need in updating requestProtobufDuration for request errors,
 	// since their timings are usually much smaller than the timing for successful request parsing.
 	requestProtobufDuration.UpdateDuration(startTime)
+
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8505
+	w.WriteHeader(http.StatusNoContent)
 }
 
 var (

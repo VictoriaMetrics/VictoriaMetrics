@@ -52,6 +52,9 @@ func handleJSON(r *http.Request, w http.ResponseWriter) {
 	// There is no need in updating requestJSONDuration for request errors,
 	// since their timings are usually much smaller than the timing for successful request parsing.
 	requestJSONDuration.UpdateDuration(startTime)
+
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8505
+	w.WriteHeader(http.StatusNoContent)
 }
 
 var (
