@@ -35,6 +35,10 @@ For example, the following query returns all the log entries with the `error` wo
 curl http://localhost:9428/select/logsql/query -d 'query=error'
 ```
 
+This command returns all the logs with the `error` word, which are stored in the VictoriaLogs running at `localhost:9428`.
+There are no limits on the number of returned logs - the command above may return billions of logs without any issues.
+See [these docs](#command-line) for details.
+
 The response by default contains all the [fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) for the selected logs.
 Use [`fields` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) for selecting only the needed fields.
 
