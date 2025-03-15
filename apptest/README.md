@@ -7,9 +7,8 @@ An integration test aims at verifying the behavior of an application as a whole,
 as apposed to a unit test that verifies the behavior of a building block of an
 application.
 
-To achieve that an integration test starts an application in a separate process
-and then issues HTTP requets to it and verifies the responses, examines the
-metrics the app exposes and/or files it creates, etc.
+An integration test starts the application in a separate process, issues HTTP requests to it, 
+and verifies responses, exposed metrics, logs, or created files.
 
 Note that an object of testing may be not just a single app, but several apps
 working together. A good example is VictoriaMetrics cluster. An integration test

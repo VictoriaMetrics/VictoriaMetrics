@@ -404,7 +404,8 @@ VictoriaMetrics remote write protocol provides the following benefits comparing 
 
 `vmagent` automatically switches to VictoriaMetrics remote write protocol when it sends data to VictoriaMetrics components such as other `vmagent` instances,
 [single-node VictoriaMetrics](https://docs.victoriametrics.com/single-server-victoriametrics/)
-or `vminsert` at [cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/).
+or `vminsert` at [cluster version](https://docs.victoriametrics.com/cluster-victoriametrics/). 
+`vmagent` {{% available_from "v1.114.0" %}}  can upgrade or downgrade the remote write protocol at runtime without requiring a restart.
 It is possible to force switch to VictoriaMetrics remote write protocol by specifying `-remoteWrite.forceVMProto`
 command-line flag for the corresponding `-remoteWrite.url`.
 It is possible to tune the compression level for VictoriaMetrics remote write protocol with `-remoteWrite.vmProtoCompressLevel` command-line flag.
