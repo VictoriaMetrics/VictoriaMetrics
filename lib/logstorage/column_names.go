@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -176,7 +175,12 @@ func (g *columnNameIDGenerator) getColumnNameID(name string) uint64 {
 		g.columnNameIDs = make(map[string]uint64)
 	}
 	id = uint64(len(g.columnNames))
-	nameCopy := strings.Clone(name)
+
+	// it is better to intern the column name instead of cloning it with string.Clone,
+	// since the number of column names is usually small (e.g. less than 10K).
+	// This reduces memory allocations.
+	nameCopy := bytesutil.InternString(name)
+
 	g.columnNameIDs[nameCopy] = id
 	g.columnNames = append(g.columnNames, nameCopy)
 	return id
