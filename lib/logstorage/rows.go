@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 )
 
 // Field is a single field for the log entry.
@@ -219,11 +220,22 @@ func (rs *rows) reset() {
 func (rs *rows) appendRows(timestamps []int64, rows [][]Field) {
 	rs.timestamps = append(rs.timestamps, timestamps...)
 
-	fieldsBuf := rs.fieldsBuf
+	// Pre-allocate rs.fieldsBuf
+	fieldsCount := 0
 	for _, fields := range rows {
+		fieldsCount += len(fields)
+	}
+	fieldsBuf := slicesutil.SetLength(rs.fieldsBuf, len(rs.fieldsBuf)+fieldsCount)
+	fieldsBuf = fieldsBuf[:len(fieldsBuf)-fieldsCount]
+
+	// Pre-allocate rs.rows
+	rs.rows = slicesutil.SetLength(rs.rows, len(rs.rows)+len(rows))
+	dstRows := rs.rows[len(rs.rows)-len(rows):]
+
+	for i, fields := range rows {
 		fieldsLen := len(fieldsBuf)
 		fieldsBuf = append(fieldsBuf, fields...)
-		rs.rows = append(rs.rows, fieldsBuf[fieldsLen:])
+		dstRows[i] = fieldsBuf[fieldsLen:]
 	}
 	rs.fieldsBuf = fieldsBuf
 }
