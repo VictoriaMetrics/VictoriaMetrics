@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
 
@@ -54,13 +55,15 @@ func GetUncompressedReader(r io.Reader, encoding string) (io.Reader, error) {
 	case "zstd":
 		return getZstdReader(r), nil
 	case "snappy":
-		return getSnappyReader(r), nil
+		return getSnappyReader(r)
 	case "gzip":
 		return getGzipReader(r)
 	case "deflate":
 		return getZlibReader(r)
 	case "", "none":
-		return r, nil
+		return &plainReader{
+			r: r,
+		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported encoding: %s", encoding)
 	}
@@ -69,7 +72,7 @@ func GetUncompressedReader(r io.Reader, encoding string) (io.Reader, error) {
 // PutUncompressedReader puts r to the pool, so it could be re-used via GetUncompressedReader()
 func PutUncompressedReader(r io.Reader) {
 	switch t := r.(type) {
-	case *snappy.Reader:
+	case *snappyReader:
 		putSnappyReader(t)
 	case *zstd.Reader:
 		putZstdReader(t)
@@ -77,7 +80,19 @@ func PutUncompressedReader(r io.Reader) {
 		putGzipReader(t)
 	case zlib.Resetter:
 		putZlibReader(t)
+	case *plainReader:
+		// do nothing
+	default:
+		logger.Panicf("BUG: unsupported reader passed to PutUncompressedReader: %T", r)
 	}
+}
+
+type plainReader struct {
+	r io.Reader
+}
+
+func (pr *plainReader) Read(p []byte) (int, error) {
+	return pr.r.Read(p)
 }
 
 func getGzipReader(r io.Reader) (*gzip.Reader, error) {
@@ -116,17 +131,57 @@ func putZlibReader(zr zlib.Resetter) {
 
 var zlibReaderPool sync.Pool
 
-func getSnappyReader(r io.Reader) *snappy.Reader {
-	v := snappyReaderPool.Get()
-	if v == nil {
-		return snappy.NewReader(r)
-	}
-	zr := v.(*snappy.Reader)
-	zr.Reset(r)
-	return zr
+type snappyReader struct {
+	// b contains decompressed the data, which must be read by snappy reader
+	b []byte
+
+	// offset is an offset at b for the remaining data to read
+	offset int
 }
 
-func putSnappyReader(zr *snappy.Reader) {
+func (sr *snappyReader) Reset(r io.Reader) error {
+	// Read the whole data in one go, since it is expected that Snappy data
+	// is compressed in block mode instead of stream mode.
+	// See https://pkg.go.dev/github.com/golang/snappy
+	bb := dataBufPool.Get()
+	_, err := bb.ReadFrom(r)
+	if err != nil {
+		return fmt.Errorf("cannot read snappy-encoded data block: %w", err)
+	}
+	sr.b, err = snappy.Decode(sr.b[:cap(sr.b)], bb.B)
+	dataBufPool.Put(bb)
+	sr.offset = 0
+	if err != nil {
+		return fmt.Errorf("cannot decode snappy-encoded data block of size %d: %w", len(bb.B), err)
+	}
+	return err
+}
+
+func (sr *snappyReader) Read(p []byte) (int, error) {
+	if sr.offset >= len(sr.b) {
+		return 0, io.EOF
+	}
+	n := copy(p, sr.b[sr.offset:])
+	sr.offset += n
+	if n == len(p) {
+		return n, nil
+	}
+	return n, io.EOF
+}
+
+func getSnappyReader(r io.Reader) (*snappyReader, error) {
+	v := snappyReaderPool.Get()
+	if v == nil {
+		v = &snappyReader{}
+	}
+	zr := v.(*snappyReader)
+	if err := zr.Reset(r); err != nil {
+		return nil, err
+	}
+	return zr, nil
+}
+
+func putSnappyReader(zr *snappyReader) {
 	snappyReaderPool.Put(zr)
 }
 
