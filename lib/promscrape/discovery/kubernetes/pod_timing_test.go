@@ -1,14 +1,12 @@
 package kubernetes
 
 import (
-	"bytes"
 	"fmt"
 	"testing"
 )
 
 func BenchmarkPodGetTargetLabels(b *testing.B) {
-	r := bytes.NewBufferString(testPodsList)
-	objectsByKey, _, err := parsePodList(r)
+	objectsByKey, _, err := parsePodList([]byte(testPodsList), contentTypeJSON)
 	if err != nil {
 		panic(fmt.Errorf("BUG: unexpected error: %w", err))
 	}
