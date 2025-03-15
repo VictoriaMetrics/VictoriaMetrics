@@ -1,16 +1,14 @@
 package kubernetes
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
 )
 
 func TestParseEndpointSliceListFail(t *testing.T) {
-	f := func(data string) {
-		r := bytes.NewBufferString(data)
-		objectsByKey, _, err := parseEndpointSliceList(r)
+	f := func(data, contentType string) {
+		objectsByKey, _, err := parseEndpointSliceList([]byte(data), contentType)
 		if err == nil {
 			t.Fatalf("unexpected result, test must fail! data: %s", data)
 		}
@@ -19,12 +17,12 @@ func TestParseEndpointSliceListFail(t *testing.T) {
 		}
 	}
 
-	f(``)
-	f(`{"items": [1,2,3]`)
+	f(``, contentTypeJSON)
+	f(`{"items": [1,2,3]`, contentTypeJSON)
 	f(`{"items": [
     {
       "metadata": {
-        "name": "kubernetes"}]}`)
+        "name": "kubernetes"}]}`, contentTypeJSON)
 
 }
 
@@ -133,9 +131,7 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
             "uid": "36a545ff-dbba-4192-a5f6-1dbb0c21c73d",
             "resourceVersion": "603"
           },
-          "topology": {
-            "kubernetes.io/hostname": "kind-control-plane"
-          }
+          "nodeName": "kind-control-plane"
         }
       ],
       "ports": [
@@ -153,8 +149,7 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
     }
   ]
 }`
-	r := bytes.NewBufferString(data)
-	objectsByKey, meta, err := parseEndpointSliceList(r)
+	objectsByKey, meta, err := parseEndpointSliceList([]byte(data), contentTypeJSON)
 	if err != nil {
 		t.Fatalf("cannot parse data for EndpointSliceList: %v", err)
 	}
@@ -253,9 +248,7 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 						Namespace: "default",
 						Name:      "test-pod",
 					},
-					Topology: map[string]string{
-						"x": "y",
-					},
+					NodeName: "y",
 				},
 			},
 			AddressType: "foobar",
@@ -357,33 +350,33 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 		}, []*promutil.Labels{
 			promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8081",
-				"__meta_kubernetes_endpointslice_address_target_kind":                     "Pod",
-				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
-				"__meta_kubernetes_endpointslice_address_type":                            "foobar",
-				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
-				"__meta_kubernetes_endpointslice_endpoint_hostname":                       "foo.bar",
-				"__meta_kubernetes_endpointslice_endpoint_topology_present_x":             "true",
-				"__meta_kubernetes_endpointslice_endpoint_topology_x":                     "y",
-				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":        "test-svc",
-				"__meta_kubernetes_endpointslice_labelpresent_kubernetes_io_service_name": "true",
-				"__meta_kubernetes_endpointslice_name":                                    "test-eps",
-				"__meta_kubernetes_endpointslice_port":                                    "8081",
-				"__meta_kubernetes_endpointslice_port_name":                               "web",
-				"__meta_kubernetes_endpointslice_port_protocol":                           "foobar",
-				"__meta_kubernetes_namespace":                                             "default",
-				"__meta_kubernetes_node_label_node_label":                                 "xyz",
-				"__meta_kubernetes_node_labelpresent_node_label":                          "true",
-				"__meta_kubernetes_node_name":                                             "test-node",
-				"__meta_kubernetes_pod_host_ip":                                           "4.5.6.7",
-				"__meta_kubernetes_pod_ip":                                                "192.168.15.1",
-				"__meta_kubernetes_pod_name":                                              "test-pod",
-				"__meta_kubernetes_pod_node_name":                                         "test-node",
-				"__meta_kubernetes_pod_phase":                                             "abc",
-				"__meta_kubernetes_pod_ready":                                             "unknown",
-				"__meta_kubernetes_pod_uid":                                               "pod-uid",
-				"__meta_kubernetes_service_cluster_ip":                                    "1.2.3.4",
-				"__meta_kubernetes_service_name":                                          "test-svc",
-				"__meta_kubernetes_service_type":                                          "service-type",
+				"__meta_kubernetes_endpointslice_address_target_kind":                              "Pod",
+				"__meta_kubernetes_endpointslice_address_target_name":                              "test-pod",
+				"__meta_kubernetes_endpointslice_address_type":                                     "foobar",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                        "true",
+				"__meta_kubernetes_endpointslice_endpoint_hostname":                                "foo.bar",
+				"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname": "true",
+				"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname":         "y",
+				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":                 "test-svc",
+				"__meta_kubernetes_endpointslice_labelpresent_kubernetes_io_service_name":          "true",
+				"__meta_kubernetes_endpointslice_name":                                             "test-eps",
+				"__meta_kubernetes_endpointslice_port":                                             "8081",
+				"__meta_kubernetes_endpointslice_port_name":                                        "web",
+				"__meta_kubernetes_endpointslice_port_protocol":                                    "foobar",
+				"__meta_kubernetes_namespace":                                                      "default",
+				"__meta_kubernetes_node_label_node_label":                                          "xyz",
+				"__meta_kubernetes_node_labelpresent_node_label":                                   "true",
+				"__meta_kubernetes_node_name":                                                      "test-node",
+				"__meta_kubernetes_pod_host_ip":                                                    "4.5.6.7",
+				"__meta_kubernetes_pod_ip":                                                         "192.168.15.1",
+				"__meta_kubernetes_pod_name":                                                       "test-pod",
+				"__meta_kubernetes_pod_node_name":                                                  "test-node",
+				"__meta_kubernetes_pod_phase":                                                      "abc",
+				"__meta_kubernetes_pod_ready":                                                      "unknown",
+				"__meta_kubernetes_pod_uid":                                                        "pod-uid",
+				"__meta_kubernetes_service_cluster_ip":                                             "1.2.3.4",
+				"__meta_kubernetes_service_name":                                                   "test-svc",
+				"__meta_kubernetes_service_type":                                                   "service-type",
 			}),
 		})
 	})
@@ -405,33 +398,33 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 		}, []*promutil.Labels{
 			promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8081",
-				"__meta_kubernetes_endpointslice_address_target_kind":                     "Pod",
-				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
-				"__meta_kubernetes_endpointslice_address_type":                            "foobar",
-				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
-				"__meta_kubernetes_endpointslice_endpoint_hostname":                       "foo.bar",
-				"__meta_kubernetes_endpointslice_endpoint_topology_present_x":             "true",
-				"__meta_kubernetes_endpointslice_endpoint_topology_x":                     "y",
-				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":        "test-svc",
-				"__meta_kubernetes_endpointslice_labelpresent_kubernetes_io_service_name": "true",
-				"__meta_kubernetes_endpointslice_name":                                    "test-eps",
-				"__meta_kubernetes_endpointslice_port":                                    "8081",
-				"__meta_kubernetes_endpointslice_port_name":                               "web",
-				"__meta_kubernetes_endpointslice_port_protocol":                           "https",
-				"__meta_kubernetes_namespace":                                             "default",
-				"__meta_kubernetes_node_label_node_label":                                 "xyz",
-				"__meta_kubernetes_node_labelpresent_node_label":                          "true",
-				"__meta_kubernetes_node_name":                                             "test-node",
-				"__meta_kubernetes_pod_host_ip":                                           "4.5.6.7",
-				"__meta_kubernetes_pod_ip":                                                "192.168.15.1",
-				"__meta_kubernetes_pod_name":                                              "test-pod",
-				"__meta_kubernetes_pod_node_name":                                         "test-node",
-				"__meta_kubernetes_pod_phase":                                             "abc",
-				"__meta_kubernetes_pod_ready":                                             "unknown",
-				"__meta_kubernetes_pod_uid":                                               "pod-uid",
-				"__meta_kubernetes_service_cluster_ip":                                    "1.2.3.4",
-				"__meta_kubernetes_service_name":                                          "test-svc",
-				"__meta_kubernetes_service_type":                                          "service-type",
+				"__meta_kubernetes_endpointslice_address_target_kind":                              "Pod",
+				"__meta_kubernetes_endpointslice_address_target_name":                              "test-pod",
+				"__meta_kubernetes_endpointslice_address_type":                                     "foobar",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                        "true",
+				"__meta_kubernetes_endpointslice_endpoint_hostname":                                "foo.bar",
+				"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname": "true",
+				"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname":         "y",
+				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":                 "test-svc",
+				"__meta_kubernetes_endpointslice_labelpresent_kubernetes_io_service_name":          "true",
+				"__meta_kubernetes_endpointslice_name":                                             "test-eps",
+				"__meta_kubernetes_endpointslice_port":                                             "8081",
+				"__meta_kubernetes_endpointslice_port_name":                                        "web",
+				"__meta_kubernetes_endpointslice_port_protocol":                                    "https",
+				"__meta_kubernetes_namespace":                                                      "default",
+				"__meta_kubernetes_node_label_node_label":                                          "xyz",
+				"__meta_kubernetes_node_labelpresent_node_label":                                   "true",
+				"__meta_kubernetes_node_name":                                                      "test-node",
+				"__meta_kubernetes_pod_host_ip":                                                    "4.5.6.7",
+				"__meta_kubernetes_pod_ip":                                                         "192.168.15.1",
+				"__meta_kubernetes_pod_name":                                                       "test-pod",
+				"__meta_kubernetes_pod_node_name":                                                  "test-node",
+				"__meta_kubernetes_pod_phase":                                                      "abc",
+				"__meta_kubernetes_pod_ready":                                                      "unknown",
+				"__meta_kubernetes_pod_uid":                                                        "pod-uid",
+				"__meta_kubernetes_service_cluster_ip":                                             "1.2.3.4",
+				"__meta_kubernetes_service_name":                                                   "test-svc",
+				"__meta_kubernetes_service_type":                                                   "service-type",
 			}),
 			promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "192.168.15.1:8428",
@@ -482,39 +475,39 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 		}, []*promutil.Labels{
 			promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8428",
-				"__meta_kubernetes_endpointslice_address_target_kind":                     "Pod",
-				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
-				"__meta_kubernetes_endpointslice_address_type":                            "foobar",
-				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
-				"__meta_kubernetes_endpointslice_endpoint_hostname":                       "foo.bar",
-				"__meta_kubernetes_endpointslice_endpoint_topology_present_x":             "true",
-				"__meta_kubernetes_endpointslice_endpoint_topology_x":                     "y",
-				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":        "test-svc",
-				"__meta_kubernetes_endpointslice_labelpresent_kubernetes_io_service_name": "true",
-				"__meta_kubernetes_endpointslice_name":                                    "test-eps",
-				"__meta_kubernetes_endpointslice_port":                                    "8428",
-				"__meta_kubernetes_endpointslice_port_name":                               "web",
-				"__meta_kubernetes_endpointslice_port_protocol":                           "xabc",
-				"__meta_kubernetes_namespace":                                             "default",
-				"__meta_kubernetes_node_label_node_label":                                 "xyz",
-				"__meta_kubernetes_node_labelpresent_node_label":                          "true",
-				"__meta_kubernetes_node_name":                                             "test-node",
-				"__meta_kubernetes_pod_container_image":                                   "test-image",
-				"__meta_kubernetes_pod_container_init":                                    "false",
-				"__meta_kubernetes_pod_container_name":                                    "metrics",
-				"__meta_kubernetes_pod_container_port_name":                               "web",
-				"__meta_kubernetes_pod_container_port_number":                             "8428",
-				"__meta_kubernetes_pod_container_port_protocol":                           "sdc",
-				"__meta_kubernetes_pod_host_ip":                                           "4.5.6.7",
-				"__meta_kubernetes_pod_ip":                                                "192.168.15.1",
-				"__meta_kubernetes_pod_name":                                              "test-pod",
-				"__meta_kubernetes_pod_node_name":                                         "test-node",
-				"__meta_kubernetes_pod_phase":                                             "abc",
-				"__meta_kubernetes_pod_ready":                                             "unknown",
-				"__meta_kubernetes_pod_uid":                                               "pod-uid",
-				"__meta_kubernetes_service_cluster_ip":                                    "1.2.3.4",
-				"__meta_kubernetes_service_name":                                          "test-svc",
-				"__meta_kubernetes_service_type":                                          "service-type",
+				"__meta_kubernetes_endpointslice_address_target_kind":                              "Pod",
+				"__meta_kubernetes_endpointslice_address_target_name":                              "test-pod",
+				"__meta_kubernetes_endpointslice_address_type":                                     "foobar",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                        "true",
+				"__meta_kubernetes_endpointslice_endpoint_hostname":                                "foo.bar",
+				"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname": "true",
+				"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname":         "y",
+				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":                 "test-svc",
+				"__meta_kubernetes_endpointslice_labelpresent_kubernetes_io_service_name":          "true",
+				"__meta_kubernetes_endpointslice_name":                                             "test-eps",
+				"__meta_kubernetes_endpointslice_port":                                             "8428",
+				"__meta_kubernetes_endpointslice_port_name":                                        "web",
+				"__meta_kubernetes_endpointslice_port_protocol":                                    "xabc",
+				"__meta_kubernetes_namespace":                                                      "default",
+				"__meta_kubernetes_node_label_node_label":                                          "xyz",
+				"__meta_kubernetes_node_labelpresent_node_label":                                   "true",
+				"__meta_kubernetes_node_name":                                                      "test-node",
+				"__meta_kubernetes_pod_container_image":                                            "test-image",
+				"__meta_kubernetes_pod_container_init":                                             "false",
+				"__meta_kubernetes_pod_container_name":                                             "metrics",
+				"__meta_kubernetes_pod_container_port_name":                                        "web",
+				"__meta_kubernetes_pod_container_port_number":                                      "8428",
+				"__meta_kubernetes_pod_container_port_protocol":                                    "sdc",
+				"__meta_kubernetes_pod_host_ip":                                                    "4.5.6.7",
+				"__meta_kubernetes_pod_ip":                                                         "192.168.15.1",
+				"__meta_kubernetes_pod_name":                                                       "test-pod",
+				"__meta_kubernetes_pod_node_name":                                                  "test-node",
+				"__meta_kubernetes_pod_phase":                                                      "abc",
+				"__meta_kubernetes_pod_ready":                                                      "unknown",
+				"__meta_kubernetes_pod_uid":                                                        "pod-uid",
+				"__meta_kubernetes_service_cluster_ip":                                             "1.2.3.4",
+				"__meta_kubernetes_service_name":                                                   "test-svc",
+				"__meta_kubernetes_service_type":                                                   "service-type",
 			}),
 		})
 	})
@@ -536,39 +529,39 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 		}, []*promutil.Labels{
 			promutil.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8428",
-				"__meta_kubernetes_endpointslice_address_target_kind":                     "Pod",
-				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
-				"__meta_kubernetes_endpointslice_address_type":                            "foobar",
-				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
-				"__meta_kubernetes_endpointslice_endpoint_hostname":                       "foo.bar",
-				"__meta_kubernetes_endpointslice_endpoint_topology_present_x":             "true",
-				"__meta_kubernetes_endpointslice_endpoint_topology_x":                     "y",
-				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":        "test-svc",
-				"__meta_kubernetes_endpointslice_labelpresent_kubernetes_io_service_name": "true",
-				"__meta_kubernetes_endpointslice_name":                                    "test-eps",
-				"__meta_kubernetes_endpointslice_port":                                    "8428",
-				"__meta_kubernetes_endpointslice_port_name":                               "web",
-				"__meta_kubernetes_endpointslice_port_protocol":                           "xabc",
-				"__meta_kubernetes_namespace":                                             "default",
-				"__meta_kubernetes_node_label_node_label":                                 "xyz",
-				"__meta_kubernetes_node_labelpresent_node_label":                          "true",
-				"__meta_kubernetes_node_name":                                             "test-node",
-				"__meta_kubernetes_pod_container_image":                                   "test-init-image",
-				"__meta_kubernetes_pod_container_init":                                    "true",
-				"__meta_kubernetes_pod_container_name":                                    "metrics",
-				"__meta_kubernetes_pod_container_port_name":                               "web",
-				"__meta_kubernetes_pod_container_port_number":                             "8428",
-				"__meta_kubernetes_pod_container_port_protocol":                           "sdc",
-				"__meta_kubernetes_pod_host_ip":                                           "4.5.6.7",
-				"__meta_kubernetes_pod_ip":                                                "192.168.15.1",
-				"__meta_kubernetes_pod_name":                                              "test-pod",
-				"__meta_kubernetes_pod_node_name":                                         "test-node",
-				"__meta_kubernetes_pod_phase":                                             "abc",
-				"__meta_kubernetes_pod_ready":                                             "unknown",
-				"__meta_kubernetes_pod_uid":                                               "pod-uid",
-				"__meta_kubernetes_service_cluster_ip":                                    "1.2.3.4",
-				"__meta_kubernetes_service_name":                                          "test-svc",
-				"__meta_kubernetes_service_type":                                          "service-type",
+				"__meta_kubernetes_endpointslice_address_target_kind":                              "Pod",
+				"__meta_kubernetes_endpointslice_address_target_name":                              "test-pod",
+				"__meta_kubernetes_endpointslice_address_type":                                     "foobar",
+				"__meta_kubernetes_endpointslice_endpoint_conditions_ready":                        "true",
+				"__meta_kubernetes_endpointslice_endpoint_hostname":                                "foo.bar",
+				"__meta_kubernetes_endpointslice_endpoint_topology_present_kubernetes_io_hostname": "true",
+				"__meta_kubernetes_endpointslice_endpoint_topology_kubernetes_io_hostname":         "y",
+				"__meta_kubernetes_endpointslice_label_kubernetes_io_service_name":                 "test-svc",
+				"__meta_kubernetes_endpointslice_labelpresent_kubernetes_io_service_name":          "true",
+				"__meta_kubernetes_endpointslice_name":                                             "test-eps",
+				"__meta_kubernetes_endpointslice_port":                                             "8428",
+				"__meta_kubernetes_endpointslice_port_name":                                        "web",
+				"__meta_kubernetes_endpointslice_port_protocol":                                    "xabc",
+				"__meta_kubernetes_namespace":                                                      "default",
+				"__meta_kubernetes_node_label_node_label":                                          "xyz",
+				"__meta_kubernetes_node_labelpresent_node_label":                                   "true",
+				"__meta_kubernetes_node_name":                                                      "test-node",
+				"__meta_kubernetes_pod_container_image":                                            "test-init-image",
+				"__meta_kubernetes_pod_container_init":                                             "true",
+				"__meta_kubernetes_pod_container_name":                                             "metrics",
+				"__meta_kubernetes_pod_container_port_name":                                        "web",
+				"__meta_kubernetes_pod_container_port_number":                                      "8428",
+				"__meta_kubernetes_pod_container_port_protocol":                                    "sdc",
+				"__meta_kubernetes_pod_host_ip":                                                    "4.5.6.7",
+				"__meta_kubernetes_pod_ip":                                                         "192.168.15.1",
+				"__meta_kubernetes_pod_name":                                                       "test-pod",
+				"__meta_kubernetes_pod_node_name":                                                  "test-node",
+				"__meta_kubernetes_pod_phase":                                                      "abc",
+				"__meta_kubernetes_pod_ready":                                                      "unknown",
+				"__meta_kubernetes_pod_uid":                                                        "pod-uid",
+				"__meta_kubernetes_service_cluster_ip":                                             "1.2.3.4",
+				"__meta_kubernetes_service_name":                                                   "test-svc",
+				"__meta_kubernetes_service_type":                                                   "service-type",
 			}),
 		})
 	})

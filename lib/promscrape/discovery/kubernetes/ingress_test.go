@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
@@ -28,10 +27,9 @@ func TestMatchesHostPattern(t *testing.T) {
 }
 
 func TestParseIngressListFailure(t *testing.T) {
-	f := func(s string) {
+	f := func(s string, contentType string) {
 		t.Helper()
-		r := bytes.NewBufferString(s)
-		objectsByKey, _, err := parseIngressList(r)
+		objectsByKey, _, err := parseIngressList([]byte(s), contentType)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -39,10 +37,10 @@ func TestParseIngressListFailure(t *testing.T) {
 			t.Fatalf("unexpected non-empty IngressList: %v", objectsByKey)
 		}
 	}
-	f(``)
-	f(`[1,23]`)
-	f(`{"items":[{"metadata":1}]}`)
-	f(`{"items":[{"metadata":{"labels":[1]}}]}`)
+	f(``, contentTypeJSON)
+	f(`[1,23]`, contentTypeJSON)
+	f(`{"items":[{"metadata":1}]}`, contentTypeJSON)
+	f(`{"items":[{"metadata":{"labels":[1]}}]}`, contentTypeJSON)
 }
 
 func TestParseIngressListSuccess(t *testing.T) {
@@ -92,8 +90,7 @@ func TestParseIngressListSuccess(t *testing.T) {
     }
   ]
 }`
-	r := bytes.NewBufferString(data)
-	objectsByKey, meta, err := parseIngressList(r)
+	objectsByKey, meta, err := parseIngressList([]byte(data), contentTypeJSON)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

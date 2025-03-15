@@ -1,7 +1,6 @@
 package kubernetes
 
 import (
-	"bytes"
 	"reflect"
 	"sort"
 	"strconv"
@@ -11,10 +10,9 @@ import (
 )
 
 func TestParseNodeListFailure(t *testing.T) {
-	f := func(s string) {
+	f := func(s string, contentType string) {
 		t.Helper()
-		r := bytes.NewBufferString(s)
-		objectsByKey, _, err := parseNodeList(r)
+		objectsByKey, _, err := parseNodeList([]byte(s), contentType)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -22,10 +20,10 @@ func TestParseNodeListFailure(t *testing.T) {
 			t.Fatalf("unexpected non-empty objectsByKey: %v", objectsByKey)
 		}
 	}
-	f(``)
-	f(`[1,23]`)
-	f(`{"items":[{"metadata":1}]}`)
-	f(`{"items":[{"metadata":{"labels":[1]}}]}`)
+	f(``, contentTypeJSON)
+	f(`[1,23]`, contentTypeJSON)
+	f(`{"items":[{"metadata":1}]}`, contentTypeJSON)
+	f(`{"items":[{"metadata":{"labels":[1]}}]}`, contentTypeJSON)
 }
 
 func TestParseNodeListSuccess(t *testing.T) {
@@ -231,8 +229,7 @@ func TestParseNodeListSuccess(t *testing.T) {
   ]
 }
 `
-	r := bytes.NewBufferString(data)
-	objectsByKey, meta, err := parseNodeList(r)
+	objectsByKey, meta, err := parseNodeList([]byte(data), contentTypeJSON)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

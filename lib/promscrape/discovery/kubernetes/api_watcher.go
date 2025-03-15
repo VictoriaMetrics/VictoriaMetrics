@@ -1,7 +1,9 @@
 package kubernetes
 
 import (
+	"bufio"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -17,14 +19,17 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/easyproto"
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 )
@@ -37,12 +42,92 @@ var (
 		" This may reduce amount of concurrent connections to API server when watching for a big number of Kubernetes objects.")
 )
 
+const (
+	contentTypeJSON     = "application/json"
+	contentTypeProtobuf = "application/vnd.kubernetes.protobuf"
+	acceptHeader        = "application/vnd.kubernetes.protobuf, application/json"
+)
+
+var dataBufPool bytesutil.ByteBufferPool
+
+func newEventUnmarshaller(r io.Reader, contentType string) func(*WatchEvent) error {
+	switch contentType {
+	case contentTypeProtobuf:
+		var buf []byte
+		br := bufio.NewReader(r)
+		return func(we *WatchEvent) error {
+			length64, err := binary.ReadUvarint(br)
+			if err != nil {
+				return err
+			}
+			buf = slicesutil.SetLength(buf, int(length64))
+			if _, err := io.ReadFull(br, buf); err != nil {
+				return err
+			}
+			return we.unmarshalProtobuf(buf)
+		}
+	default:
+		d := json.NewDecoder(r)
+		return func(we *WatchEvent) error {
+			return d.Decode(we)
+		}
+	}
+}
+
 // WatchEvent is a watch event returned from API server endpoints if `watch=1` query arg is set.
 //
 // See https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes
 type WatchEvent struct {
 	Type   string
-	Object json.RawMessage
+	Object []byte
+}
+
+// unmarshalProtobuf unmarshals Error according to spec
+//
+// See https://github.com/kubernetes/api/blob/master/core/v1/generated.proto
+func (r *WatchEvent) unmarshalProtobuf(src []byte) (err error) {
+	// message WatchEvent {
+	//   optional string type = 1;
+	//   optional RawExtension object = 2;
+	// }
+	var fc easyproto.FieldContext
+	var rawFc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field in WatchEvent: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			eventType, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read Type")
+			}
+			r.Type = strings.Clone(eventType)
+		case 2:
+			raw, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read RawExtension")
+			}
+			_, err := rawFc.NextField(raw)
+			if err != nil {
+				return fmt.Errorf("cannot next field in RawExtension")
+			}
+			if rawFc.FieldNum == 1 {
+				object, ok := rawFc.Bytes()
+				if !ok {
+					return fmt.Errorf("cannot read Raw")
+				}
+				r.Object = object
+			}
+		}
+	}
+	return nil
+}
+
+func (r *WatchEvent) marshalProtobuf(mm *easyproto.MessageMarshaler) {
+	mm.AppendString(1, r.Type)
+	mm.AppendMessage(2).AppendBytes(1, r.Object)
 }
 
 // object is any Kubernetes object.
@@ -54,10 +139,10 @@ type object interface {
 }
 
 // parseObjectFunc must parse object from the given data.
-type parseObjectFunc func(data []byte) (object, error)
+type parseObjectFunc func(data []byte, contentType string) (object, error)
 
 // parseObjectListFunc must parse objectList from the given r.
-type parseObjectListFunc func(r io.Reader) (map[string]object, ListMeta, error)
+type parseObjectListFunc func(data []byte, contentType string) (map[string]object, ListMeta, error)
 
 // apiWatcher is used for watching for Kubernetes object changes and caching their latest states.
 type apiWatcher struct {
@@ -506,6 +591,7 @@ func (gw *groupWatcher) doRequest(ctx context.Context, requestURL string) (*http
 	if err := gw.setHeaders(req); err != nil {
 		return nil, fmt.Errorf("cannot set request headers: %w", err)
 	}
+	req.Header.Add("Accept", acceptHeader)
 	resp, err := gw.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -720,7 +806,15 @@ func (uw *urlWatcher) reloadObjects() string {
 		logger.Errorf("unexpected status code for request to %q: %d; want %d; response: %q", requestURL, resp.StatusCode, http.StatusOK, body)
 		return ""
 	}
-	objectsByKey, metadata, err := uw.parseObjectList(resp.Body)
+	contentType := resp.Header.Get("Content-Type")
+	bb := dataBufPool.Get()
+	defer dataBufPool.Put(bb)
+	_, err = bb.ReadFrom(resp.Body)
+	if err != nil {
+		logger.Errorf("cannot read objects from %q: %s", requestURL, err)
+		return ""
+	}
+	objectsByKey, metadata, err := uw.parseObjectList(bb.B, contentType)
 	_ = resp.Body.Close()
 	if err != nil {
 		logger.Errorf("cannot parse objects from %q: %s", requestURL, err)
@@ -836,7 +930,8 @@ func (uw *urlWatcher) watchForUpdates() {
 			continue
 		}
 		backoffDelay = minBackoffDelay
-		err = uw.readObjectUpdateStream(resp.Body)
+		contentType := resp.Header.Get("Content-Type")
+		err = uw.readObjectUpdateStream(resp.Body, contentType)
 		_ = resp.Body.Close()
 		if err != nil {
 			if !errors.Is(err, io.EOF) && !errors.Is(err, context.Canceled) {
@@ -850,17 +945,17 @@ func (uw *urlWatcher) watchForUpdates() {
 }
 
 // readObjectUpdateStream reads Kubernetes watch events from r and updates locally cached objects according to the received events.
-func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
+func (uw *urlWatcher) readObjectUpdateStream(r io.Reader, contentType string) error {
 	gw := uw.gw
-	d := json.NewDecoder(r)
-	var we WatchEvent
+	unmarshalEvent := newEventUnmarshaller(r, contentType)
+	we := &WatchEvent{}
 	for {
-		if err := d.Decode(&we); err != nil {
-			return fmt.Errorf("cannot parse WatchEvent json response: %w", err)
+		if err := unmarshalEvent(we); err != nil {
+			return fmt.Errorf("cannot parse WatchEvent %q response: %w", contentType, err)
 		}
 		switch we.Type {
 		case "ADDED", "MODIFIED":
-			o, err := uw.parseObject(we.Object)
+			o, err := uw.parseObject(we.Object, contentType)
 			if err != nil {
 				return fmt.Errorf("cannot parse %s object: %w", we.Type, err)
 			}
@@ -869,7 +964,7 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			uw.updateObjectLocked(key, o)
 			gw.mu.Unlock()
 		case "DELETED":
-			o, err := uw.parseObject(we.Object)
+			o, err := uw.parseObject(we.Object, contentType)
 			if err != nil {
 				return fmt.Errorf("cannot parse %s object: %w", we.Type, err)
 			}
@@ -879,13 +974,13 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 			gw.mu.Unlock()
 		case "BOOKMARK":
 			// See https://kubernetes.io/docs/reference/using-api/api-concepts/#watch-bookmarks
-			bm, err := parseBookmark(we.Object)
+			bm, err := parseBookmark(we.Object, contentType)
 			if err != nil {
 				return fmt.Errorf("cannot parse bookmark from %q: %w", we.Object, err)
 			}
 			uw.resourceVersion = bm.Metadata.ResourceVersion
 		case "ERROR":
-			em, err := parseError(we.Object)
+			em, err := parseError(we.Object, contentType)
 			if err != nil {
 				return fmt.Errorf("cannot parse error message from %q: %w", we.Object, err)
 			}
@@ -972,17 +1067,77 @@ type Bookmark struct {
 	Metadata BookmarkMetadata
 }
 
+// unmarshalProtobuf unmarshals Error according to spec
+//
+// See https://github.com/kubernetes/api/blob/master/core/v1/generated.proto
+func (r *Bookmark) unmarshalProtobuf(src []byte) (err error) {
+	// message Bookmark {
+	//   BookmarkMetadata metadata = 1
+	// }
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field in Bookmark: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			data, ok := fc.MessageData()
+			if !ok {
+				return fmt.Errorf("cannot read Metadata")
+			}
+			m := &r.Metadata
+			if err := m.unmarshalProtobuf(data); err != nil {
+				return fmt.Errorf("cannot unmarshal Metadata: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
 // BookmarkMetadata is metadata for Bookmark
 type BookmarkMetadata struct {
 	ResourceVersion string
 }
 
-func parseBookmark(data []byte) (*Bookmark, error) {
-	var bm Bookmark
-	if err := json.Unmarshal(data, &bm); err != nil {
-		return nil, err
+// unmarshalProtobuf unmarshals BookmarkMetadata according to spec
+//
+// See https://github.com/kubernetes/api/blob/master/core/v1/generated.proto
+func (r *BookmarkMetadata) unmarshalProtobuf(src []byte) (err error) {
+	// message BookmarkMetadata {
+	//   string resourceVersion = 1
+	// }
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field in BookmarkMetadata: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			resourceVersion, ok := fc.String()
+			if !ok {
+				return fmt.Errorf("cannot read ResourceVersion")
+			}
+			r.ResourceVersion = strings.Clone(resourceVersion)
+		}
 	}
-	return &bm, nil
+	return nil
+}
+
+func parseBookmark(data []byte, contentType string) (*Bookmark, error) {
+	bm := &Bookmark{}
+	switch contentType {
+	case contentTypeJSON:
+		if err := json.Unmarshal(data, &bm); err != nil {
+			return nil, err
+		}
+	case contentTypeProtobuf:
+		if err := bm.unmarshalProtobuf(data); err != nil {
+			return nil, err
+		}
+	}
+	return bm, nil
 }
 
 // Error is an error message from Kubernetes Watch API.
@@ -990,12 +1145,44 @@ type Error struct {
 	Code int
 }
 
-func parseError(data []byte) (*Error, error) {
-	var em Error
-	if err := json.Unmarshal(data, &em); err != nil {
-		return nil, err
+// unmarshalProtobuf unmarshals Error according to spec
+//
+// See https://github.com/kubernetes/api/blob/master/core/v1/generated.proto
+func (r *Error) unmarshalProtobuf(src []byte) (err error) {
+	// message Error {
+	//   int32 code = 1
+	// }
+	var fc easyproto.FieldContext
+	for len(src) > 0 {
+		src, err = fc.NextField(src)
+		if err != nil {
+			return fmt.Errorf("cannot read next field in Error: %w", err)
+		}
+		switch fc.FieldNum {
+		case 1:
+			code, ok := fc.Int32()
+			if !ok {
+				return fmt.Errorf("cannot read Code")
+			}
+			r.Code = int(code)
+		}
 	}
-	return &em, nil
+	return nil
+}
+
+func parseError(data []byte, contentType string) (*Error, error) {
+	em := &Error{}
+	switch contentType {
+	case contentTypeJSON:
+		if err := json.Unmarshal(data, &em); err != nil {
+			return nil, err
+		}
+	case contentTypeProtobuf:
+		if err := em.unmarshalProtobuf(data); err != nil {
+			return nil, err
+		}
+	}
+	return em, nil
 }
 
 func getAPIPathsWithNamespaces(role string, namespaces []string, selectors []Selector) []string {
