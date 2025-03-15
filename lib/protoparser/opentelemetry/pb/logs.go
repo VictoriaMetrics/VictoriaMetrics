@@ -1,10 +1,10 @@
 package pb
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
-	"encoding/hex"
 
 	"github.com/VictoriaMetrics/easyproto"
 )
