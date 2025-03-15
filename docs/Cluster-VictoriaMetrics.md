@@ -1923,7 +1923,7 @@ Below is the output for `/path/to/vmstorage -help`:
   -smallMergeConcurrency int
      Deprecated: this flag does nothing
   -snapshotAuthKey value
-     authKey, which must be passed in query string to /snapshot* pages
+     authKey, which must be passed in query string or via 'X-AuthKey' http header to /snapshot* pages
      Flag value can be read from the given file when using -snapshotAuthKey=file:///abs/path/to/file or -snapshotAuthKey=file://./relative/path/to/file . Flag value can be read from the given http/https url when using -snapshotAuthKey=http://host/path or -snapshotAuthKey=https://host/path
   -snapshotCreateTimeout duration
      Deprecated: this flag does nothing
