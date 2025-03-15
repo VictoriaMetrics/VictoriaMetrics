@@ -458,7 +458,13 @@ This query is equivalent to the following [`exact` filter](#exact-filter) query,
 app:="nginx"
 ```
 
-It is allowed to add `_stream:` prefix in front of `{...}` filter. The following filter is equivalent to `{app="nginx"}`:
+The stream filter supports `{label in (v1,...,vN)}` and `{label not_in (v1,...,vN)}` syntax.
+It is equivalent to `{label=~"v1|...|vN"}` and `{label!~"v1|...|vN"}` respectively. The `v1`, ..., `vN` are properly escaped inside the regexp.
+For example, `{app in ("nginx", "foo.bar")}` is equivalent to `{app=~"nginx|foo\\.bar"}` - note that the `.` char is properly escaped.
+
+It is allowed to add `_stream:` prefix in front of `{...}` filter in order to make clear that the filtering is performed
+on the [`_stream` log field](https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields).
+The following filter is equivalent to `{app="nginx"}`:
 
 ```logsql
 _stream:{app="nginx"}
