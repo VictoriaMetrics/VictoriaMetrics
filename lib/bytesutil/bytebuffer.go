@@ -34,11 +34,6 @@ func (bb *ByteBuffer) Path() string {
 
 // Reset resets bb.
 func (bb *ByteBuffer) Reset() {
-	if cap(bb.B) > 64*1024 {
-		// It is better dropping too big buffers instead of keeping them around.
-		// This should reduce the overall memory usage, while shouldn't increase time spent in GC too much.
-		bb.B = nil
-	}
 	bb.B = bb.B[:0]
 }
 
