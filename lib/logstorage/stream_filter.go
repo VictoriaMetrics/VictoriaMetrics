@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -171,8 +172,8 @@ func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse stream tag name: %w", err)
 	}
-	if !lex.isKeyword("=", "!=", "=~", "!~") {
-		return nil, fmt.Errorf("unsupported operation %q in _steam filter for %q field; supported operations: =, !=, =~, !~", lex.token, tagName)
+	if !lex.isKeyword("=", "!=", "=~", "!~", "in", "not_in") {
+		return nil, fmt.Errorf("unsupported operation %q in _steam filter for %q field; supported operations: =, !=, =~, !~, in, not_in", lex.token, tagName)
 	}
 
 	// parse op
@@ -180,10 +181,30 @@ func parseStreamTagFilter(lex *lexer) (*streamTagFilter, error) {
 	lex.nextToken()
 
 	// parse tag value
-	value, err := parseStreamTagValue(lex)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse value for tag %q: %w", tagName, err)
+	value := ""
+	if op == "in" || op == "not_in" {
+		args, err := parseArgsInParens(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read %q() args: %w", op, err)
+		}
+		if op == "in" {
+			op = "=~"
+		} else {
+			op = "!~"
+		}
+		argsEscaped := make([]string, len(args))
+		for i := range args {
+			argsEscaped[i] = regexp.QuoteMeta(args[i])
+		}
+		value = strings.Join(argsEscaped, "|")
+	} else {
+		v, err := parseStreamTagValue(lex)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse value for tag %q: %w", tagName, err)
+		}
+		value = v
 	}
+
 	stf := &streamTagFilter{
 		tagName: tagName,
 		op:      op,
@@ -205,7 +226,7 @@ func parseStreamTagName(lex *lexer) (string, error) {
 }
 
 func parseStreamTagValue(lex *lexer) (string, error) {
-	stopTokens := []string{",", "{", "}", "'", `"`, "`", ""}
+	stopTokens := []string{",", "{", "}", "(", "'", `"`, "`", ""}
 	return getCompoundTokenExt(lex, stopTokens)
 }
 

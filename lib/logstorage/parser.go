@@ -2219,16 +2219,26 @@ func parseFuncArgs(lex *lexer, fieldName string, callback func(args []string) (f
 		phrase := funcName + getCompoundSuffix(lex, fieldName != "")
 		return parseFilterForPhrase(lex, phrase, fieldName)
 	}
-	if !lex.mustNextToken() {
-		return nil, fmt.Errorf("missing args for %s()", funcName)
+	args, err := parseArgsInParens(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse %s(): %w", funcName, err)
 	}
+	return callback(args)
+}
+
+func parseArgsInParens(lex *lexer) ([]string, error) {
+	if !lex.isKeyword("(") {
+		return nil, fmt.Errorf("missing '('")
+	}
+	lex.nextToken()
+
 	var args []string
 	for !lex.isKeyword(")") {
 		if lex.isKeyword(",") {
-			return nil, fmt.Errorf("unexpected ',' - missing arg in %s()", funcName)
+			return nil, fmt.Errorf("unexpected ',' inside ()")
 		}
 		if lex.isKeyword("(") {
-			return nil, fmt.Errorf("unexpected '(' - missing arg in %s()", funcName)
+			return nil, fmt.Errorf("unexpected '(' inside ()")
 		}
 		arg := getCompoundFuncArg(lex)
 		args = append(args, arg)
@@ -2236,15 +2246,14 @@ func parseFuncArgs(lex *lexer, fieldName string, callback func(args []string) (f
 			break
 		}
 		if !lex.isKeyword(",") {
-			return nil, fmt.Errorf("missing ',' after %q in %s()", arg, funcName)
+			return nil, fmt.Errorf("missing ',' after %q inside ()", arg)
 		}
 		if !lex.mustNextToken() {
-			return nil, fmt.Errorf("missing the next arg after %q in %s()", arg, funcName)
+			return nil, fmt.Errorf("missing the next arg after %q inside ()", arg)
 		}
 	}
 	lex.nextToken()
-
-	return callback(args)
+	return args, nil
 }
 
 // startsWithYear returns true if s starts with YYYY
