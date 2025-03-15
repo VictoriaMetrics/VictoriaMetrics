@@ -24,6 +24,8 @@ It is safe upgrading to this release and all the future releases from older rele
 * FEATURE: [stream filter](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter): support `{label in ("v1", ..., "vN")}` and `{label not_in ("v1", ..., "vN")}` syntax. It is equivalent to `{label=~"v1|...|vN"}` and `{label!~"v1|...|vN"}` respectively, where `v1`, ... , `vN` are properly escaped inside regexp. For example, `{app in ("foo.bar","baz")}` is equivalent to `{app=~"foo\\.bar|baz"}` - note that the `.` char is properly escaped inside the regexp.
 * FEATURE: improve performance when processing constant log fields with length exceeding 256 bytes. For example, repeated stack traces.
 
+* BUGFIX: [Loki data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/): return `204 No Content` HTTP response code from `/insert/loki/api/v1/push` endpoint. Previously `200 Success` code was sent. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8505).
+
 ## [v1.16.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.16.0-victorialogs)
 
 Released at 2025-03-12
