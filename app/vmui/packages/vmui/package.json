@@ -36,7 +36,8 @@
     "lint": "eslint 'src/**/*.{ts,tsx}'",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "copy-metricsql-docs": "cp ../../../../docs/MetricsQL.md src/assets/MetricsQL.md || true",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node run-tests.js"
   },
   "browserslist": {
     "production": [
