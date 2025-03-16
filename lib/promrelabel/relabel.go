@@ -18,7 +18,7 @@ import (
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
 type parsedRelabelConfig struct {
-	// ruleOriginal contains the original relabeling rule for the given prasedRelabelConfig.
+	// ruleOriginal contains the original relabeling rule for the given parsedRelabelConfig.
 	ruleOriginal string
 
 	SourceLabels  []string
