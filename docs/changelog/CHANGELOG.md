@@ -34,7 +34,6 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): prevent dropping persistent queue data when changes happened for `-remoteWrite.showURL` flag, query params or fragment in remote write URL. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8477).
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly handle `multitenant` query request on storage communication error. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8461) for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/vmagent/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): reduce number of allocations that could increase CPU usage on ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8501) for details.
-* BUGFIX: Fixed an issue where `trace_id` and `span_id` were incorrectly displayed as garbled text when sent from OpenTelemetry Collector to Victoria Logs. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8502) for details.
 
 ## [v1.113.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.113.0)
 

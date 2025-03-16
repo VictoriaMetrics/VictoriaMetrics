@@ -182,6 +182,19 @@ func (lr *LogRecord) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	for _, a := range lr.Attributes {
 		a.marshalProtobuf(mm.AppendMessage(6))
 	}
+
+	traceID, err := hex.DecodeString(lr.TraceID)
+	if err != nil {
+		traceID = []byte(lr.TraceID)
+	}
+	mm.AppendBytes(9, traceID)
+
+	spanID, err := hex.DecodeString(lr.SpanID)
+	if err != nil {
+		spanID = []byte(lr.SpanID)
+	}
+	mm.AppendBytes(10, spanID)
+
 	mm.AppendFixed64(11, lr.ObservedTimeUnixNano)
 }
 
