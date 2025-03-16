@@ -23,12 +23,13 @@ const Accordion: FC<AccordionProps> = ({
     if (selection && selection.toString()) {
       return; // If the text is selected, cancel the execution of toggle.
     }
-    setIsOpen(prev => !prev);
-  };
 
-  useEffect(() => {
-    onChange && onChange(isOpen);
-  }, [isOpen]);
+    setIsOpen((prev) => {
+      const newState = !prev;
+      onChange && onChange(newState);
+      return newState;
+    });
+  };
 
   useEffect(() => {
     setIsOpen(defaultExpanded);
