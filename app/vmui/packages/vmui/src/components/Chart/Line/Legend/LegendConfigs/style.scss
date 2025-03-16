@@ -1,6 +1,28 @@
 @use "src/styles/variables" as *;
 
 .vm-legend-configs {
+  display: grid;
+  gap: $padding-large;
+
+  &_compact {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: $padding-global;
+    padding: $padding-global;
+  }
+
+  &_compact &-item {
+    &_switch {
+      display: flex;
+    }
+
+    &__label,
+    &__info {
+      display: none;
+    }
+  }
+
   &-item {
     display: grid;
     align-items: center;

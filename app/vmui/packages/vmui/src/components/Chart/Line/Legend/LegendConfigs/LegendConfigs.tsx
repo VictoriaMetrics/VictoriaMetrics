@@ -10,19 +10,26 @@ import Select from "../../../../Main/Select/Select";
 import { useLegendGroup } from "../hooks/useLegendGroup";
 import "./style.scss";
 import { MetricResult } from "../../../../../api/types";
+import classNames from "classnames";
+import Button from "../../../../Main/Button/Button";
+import { SettingsIcon } from "../../../../Main/Icons";
+import { useGraphDispatch } from "../../../../../state/graph/GraphStateContext";
 
 type Props = {
-  data: MetricResult[]
+  data?: MetricResult[]
+  isCompact?: boolean
 }
 
-const LegendConfigs: FC<Props> = ({ data }) => {
+const LegendConfigs: FC<Props> = ({ data, isCompact }) => {
   const { isTableView, onChange: onChangeView } = useLegendView();
   const { hideDuplicates, onChange: onChangeDuplicates } = useHideDuplicateFields();
   const { hideStats, onChange: onChangeStats } = useShowStats();
   const { format, onChange: onChangeFormat, onApply: onApplyFormat } = useLegendFormat();
   const { groupByLabel, onChange: onChangeGroup } = useLegendGroup();
+  const graphDispatch = useGraphDispatch();
 
   const uniqueFields = useMemo(() => {
+    if (!data || !data.length) return [];
     const fields = data.flatMap(d => Object.keys(d.metric));
     return Array.from(new Set(fields));
   }, [data]);
@@ -32,12 +39,21 @@ const LegendConfigs: FC<Props> = ({ data }) => {
     onChangeView(value);
   };
 
+  const handleOpenSettings = () => {
+    graphDispatch({ type: "SET_OPEN_SETTINGS", payload: true });
+  };
+
   return (
-    <>
+    <div
+      className={classNames({
+        "vm-legend-configs": true,
+        "vm-legend-configs_compact": isCompact,
+      })}
+    >
       <div className="vm-legend-configs-item vm-legend-configs-item_switch">
         <span className="vm-legend-configs-item__label">Table View</span>
         <Switch
-          label={isTableView ? "Enabled" : "Disabled"}
+          label={`${isCompact ? "Table view" : isTableView ? "Enabled" : "Disabled"}`}
           value={isTableView}
           onChange={handleChangeView}
         />
@@ -49,7 +65,7 @@ const LegendConfigs: FC<Props> = ({ data }) => {
       <div className="vm-legend-configs-item vm-legend-configs-item_switch">
         <span className="vm-legend-configs-item__label">Common Labels</span>
         <Switch
-          label={hideDuplicates ? "Hide" : "Show"}
+          label={`${isCompact ? "Common labels" : hideDuplicates ? "Hide" : "Show"}`}
           value={!hideDuplicates}
           onChange={onChangeDuplicates}
         />
@@ -61,7 +77,7 @@ const LegendConfigs: FC<Props> = ({ data }) => {
       <div className="vm-legend-configs-item vm-legend-configs-item_switch">
         <span className="vm-legend-configs-item__label">Statistics</span>
         <Switch
-          label={hideStats ? "Hide" : "Show"}
+          label={`${isCompact ? "Statistics" : hideStats ? "Hide" : "Show"}`}
           value={!hideStats}
           onChange={onChangeStats}
         />
@@ -70,34 +86,49 @@ const LegendConfigs: FC<Props> = ({ data }) => {
         </span>
       </div>
 
-      <div className="vm-legend-configs-item">
-        <TextField
-          label="Custom Legend Format"
-          placeholder={"{{label_name}}"}
-          value={format}
-          onChange={onChangeFormat}
-          onBlur={onApplyFormat}
-          onEnter={onApplyFormat}
-        />
-        <span className="vm-legend-configs-item__info vm-legend-configs-item__info_input">
-          Customize legend labels with text and &#123;&#123;label_name&#125;&#125; placeholders.
-        </span>
-      </div>
+      {isCompact && (
+        <Button
+          size="small"
+          variant="text"
+          startIcon={<SettingsIcon/>}
+          onClick={handleOpenSettings}
+        >
+          Settings
+        </Button>
+      )}
 
-      <div className="vm-legend-configs-item">
-        <Select
-          label="Group Legend By"
-          value={groupByLabel}
-          list={[WITHOUT_GROUPING, ...uniqueFields]}
-          placeholder={WITHOUT_GROUPING}
-          onChange={onChangeGroup}
-          searchable
-        />
-        <span className="vm-legend-configs-item__info">
+      {!isCompact && (
+        <>
+          <div className="vm-legend-configs-item">
+            <TextField
+              label="Custom Legend Format"
+              placeholder={"{{label_name}}"}
+              value={format}
+              onChange={onChangeFormat}
+              onBlur={onApplyFormat}
+              onEnter={onApplyFormat}
+            />
+            <span className="vm-legend-configs-item__info vm-legend-configs-item__info_input">
+          Customize legend labels with text and &#123;&#123;label_name&#125;&#125; placeholders.
+            </span>
+          </div>
+
+          <div className="vm-legend-configs-item">
+            <Select
+              label="Group Legend By"
+              value={groupByLabel}
+              list={[WITHOUT_GROUPING, ...uniqueFields]}
+              placeholder={WITHOUT_GROUPING}
+              onChange={onChangeGroup}
+              searchable
+            />
+            <span className="vm-legend-configs-item__info">
           Choose a label to group the legend. By default, legends are grouped by query.
-        </span>
-      </div>
-    </>
+            </span>
+          </div>
+        </>
+      )}
+    </div>
   );
 };
 
