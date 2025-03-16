@@ -25,6 +25,7 @@ It is safe upgrading to this release and all the future releases from older rele
 * FEATURE: improve performance when processing constant log fields with length exceeding 256 bytes. For example, repeated stack traces.
 
 * BUGFIX: [Loki data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/): return `204 No Content` HTTP response code from `/insert/loki/api/v1/push` endpoint. Previously `200 Success` code was sent. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8505).
+* BUGFIX: [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): properly parse `trace_id` and `span_id` [log fields](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model) as hex numbers. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8502) for details. Thanks to @forgethub for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/8511).
 
 ## [v1.16.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.16.0-victorialogs)
 
