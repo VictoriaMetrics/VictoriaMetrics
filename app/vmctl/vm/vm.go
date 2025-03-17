@@ -69,7 +69,6 @@ type Importer struct {
 	user       string
 	password   string
 
-	close  chan struct{}
 	input  chan *TimeSeries
 	errors chan *ImportError
 
@@ -143,7 +142,6 @@ func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 		user:       cfg.User,
 		password:   cfg.Password,
 		rl:         limiter.NewLimiter(cfg.RateLimit),
-		close:      make(chan struct{}),
 		input:      make(chan *TimeSeries, cfg.Concurrency*4),
 		errors:     make(chan *ImportError, cfg.Concurrency),
 		backoff:    cfg.Backoff,
@@ -207,7 +205,6 @@ func (im *Importer) Input(ctx context.Context, ts *TimeSeries) error {
 // and waits until they are finished
 func (im *Importer) Close() {
 	im.once.Do(func() {
-		close(im.close)
 		close(im.input)
 		im.wg.Wait()
 		close(im.errors)
