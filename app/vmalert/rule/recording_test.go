@@ -421,3 +421,35 @@ func TestSetIntervalAsTimeFilter(t *testing.T) {
 	f(`error AND _time:5m | count()`, "vlogs", false)
 	f(`* | error AND _time:5m | count()`, "vlogs", false)
 }
+
+func TestRecordingRuleExec_Partial(t *testing.T) {
+	ts, _ := time.Parse(time.RFC3339, "2024-10-29T00:00:00Z")
+	fq := &datasource.FakeQuerier{}
+
+	m := metricWithValueAndLabels(t, 10, "__name__", "bar")
+	fq.Add(m)
+	fq.SetPartialResponse(true)
+	rule := &RecordingRule{
+		GroupName: "Bar",
+		Name:      "foo",
+		state: &ruleState{
+			entries: make([]StateEntry, 10),
+		},
+	}
+	rule.q = fq
+	got, err := rule.exec(context.TODO(), ts, 0)
+	want := []prompbmarshal.TimeSeries{
+		newTimeSeries([]float64{10}, []int64{ts.UnixNano()}, []prompbmarshal.Label{
+			{
+				Name:  "__name__",
+				Value: "foo",
+			},
+		}),
+	}
+	if err != nil {
+		t.Fatalf("fail to test rule %s: unexpected error: %s", rule.Name, err)
+	}
+	if err := compareTimeSeries(t, want, got); err != nil {
+		t.Fatalf("fail to test rule %s: time series mismatch: %s", rule.Name, err)
+	}
+}
