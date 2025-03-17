@@ -490,7 +490,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	`)
 }
 
-func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
+func TestTryAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	f := func(row string, cfg *ScrapeWork, dataExpected string) {
 		t.Helper()
 		sw := scrapeWork{
@@ -498,7 +498,7 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		}
 		var wc writeRequestCtx
 		r := parsePromRow(row)
-		sw.addRowToTimeseries(&wc, r, r.Timestamp, false)
+		sw.tryAddRowToTimeseries(&wc, r, r.Timestamp, false)
 		tss := wc.writeRequest.Timeseries
 		tssExpected := parseData(dataExpected)
 		if err := expectEqualTimeseries(tss, tssExpected); err != nil {

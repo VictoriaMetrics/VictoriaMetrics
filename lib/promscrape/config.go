@@ -265,6 +265,7 @@ func (cfg *Config) getJobNames() []string {
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/
 type GlobalConfig struct {
+	LabelLimit           int                         `yaml:"label_limit,omitempty"`
 	ScrapeInterval       *promutils.Duration         `yaml:"scrape_interval,omitempty"`
 	ScrapeTimeout        *promutils.Duration         `yaml:"scrape_timeout,omitempty"`
 	ExternalLabels       *promutils.Labels           `yaml:"external_labels,omitempty"`
@@ -295,6 +296,7 @@ type ScrapeConfig struct {
 	RelabelConfigs       []promrelabel.RelabelConfig `yaml:"relabel_configs,omitempty"`
 	MetricRelabelConfigs []promrelabel.RelabelConfig `yaml:"metric_relabel_configs,omitempty"`
 	SampleLimit          int                         `yaml:"sample_limit,omitempty"`
+	LabelLimit           int                         `yaml:"label_limit,omitempty"`
 
 	// This silly option is needed for compatibility with Prometheus.
 	// vmagent was supporting disable_compression option since the beginning, while Prometheus developers
@@ -878,6 +880,13 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if jobName == "" {
 		return nil, fmt.Errorf("missing `job_name` field in `scrape_config`")
 	}
+	labelLimit := sc.LabelLimit
+	if labelLimit <= 0 {
+		labelLimit = globalCfg.LabelLimit
+		if labelLimit < 0 {
+			labelLimit = defaultLabelLimit
+		}
+	}
 	scrapeInterval := sc.ScrapeInterval.Duration()
 	if scrapeInterval <= 0 {
 		scrapeInterval = globalCfg.ScrapeInterval.Duration()
@@ -987,6 +996,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
 		sampleLimit:          sc.SampleLimit,
+		labelLimit:           labelLimit,
 		disableCompression:   disableCompression,
 		disableKeepAlive:     sc.DisableKeepAlive,
 		streamParse:          sc.StreamParse,
@@ -1018,6 +1028,7 @@ type scrapeWorkConfig struct {
 	relabelConfigs       *promrelabel.ParsedConfigs
 	metricRelabelConfigs *promrelabel.ParsedConfigs
 	sampleLimit          int
+	labelLimit           int
 	disableCompression   bool
 	disableKeepAlive     bool
 	streamParse          bool
@@ -1300,13 +1311,14 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		AuthConfig:           swc.authConfig,
 		RelabelConfigs:       swc.relabelConfigs,
 		MetricRelabelConfigs: swc.metricRelabelConfigs,
-		SampleLimit:          sampleLimit,
 		DisableCompression:   swc.disableCompression,
 		DisableKeepAlive:     swc.disableKeepAlive,
 		StreamParse:          streamParse,
 		ScrapeAlignInterval:  swc.scrapeAlignInterval,
 		ScrapeOffset:         swc.scrapeOffset,
+		SampleLimit:          sampleLimit,
 		SeriesLimit:          seriesLimit,
+		LabelLimit:           swc.labelLimit,
 		NoStaleMarkers:       swc.noStaleMarkers,
 		AuthToken:            at,
 
@@ -1352,4 +1364,5 @@ func mergeLabels(dst *promutils.Labels, swc *scrapeWorkConfig, target string, ex
 const (
 	defaultScrapeInterval = time.Minute
 	defaultScrapeTimeout  = 10 * time.Second
+	defaultLabelLimit     = 0
 )
