@@ -126,7 +126,7 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 	if cp.IsDefaultTimeRange() {
 		cp.start = cp.end - lookbackDelta
 	}
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filters, *maxFederateSeries)
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxFederateSeries)
 	rss, err := netstorage.ProcessSearchQuery(nil, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
@@ -171,7 +171,7 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	fieldNames := strings.Split(format, ",")
 	reduceMemUsage := httputils.GetBool(r, "reduce_mem_usage")
 
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filters, *maxExportSeries)
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxExportSeries)
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -251,7 +251,7 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 		return err
 	}
 
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filters, *maxExportSeries)
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxExportSeries)
 	w.Header().Set("Content-Type", "VictoriaMetrics/native")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -396,7 +396,7 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 		}
 	}
 
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filters, *maxExportSeries)
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxExportSeries)
 	w.Header().Set("Content-Type", contentType)
 
 	doneCh := make(chan error, 1)
@@ -500,7 +500,7 @@ func DeleteHandler(startTime time.Time, r *http.Request) error {
 	if !cp.IsDefaultTimeRange() {
 		return fmt.Errorf("start=%d and end=%d args aren't supported. Remove these args from the query in order to delete all the matching metrics", cp.start, cp.end)
 	}
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filters, *maxDeleteSeries)
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxDeleteSeries)
 	deletedCount, err := netstorage.DeleteSeries(nil, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot delete time series: %w", err)
@@ -527,7 +527,7 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName s
 	if err != nil {
 		return err
 	}
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filters, *maxLabelsAPISeries)
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxLabelsAPISeries)
 	labelValues, err := netstorage.LabelValues(qt, labelName, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain values for label %q: %w", labelName, err)
@@ -592,7 +592,7 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	}
 	start := int64(date*secsPerDay) * 1000
 	end := int64((date+1)*secsPerDay)*1000 - 1
-	sq := storage.NewSearchQuery(start, end, cp.filters, *maxTSDBStatusSeries)
+	sq := storage.NewSearchQuery(start, end, cp.filterss, *maxTSDBStatusSeries)
 	status, err := netstorage.TSDBStatus(qt, sq, focusLabel, topN, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain tsdb stats: %w", err)
@@ -624,7 +624,7 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	if err != nil {
 		return err
 	}
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filters, *maxLabelsAPISeries)
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxLabelsAPISeries)
 	labels, err := netstorage.LabelNames(qt, sq, limit, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain labels: %w", err)
@@ -683,7 +683,7 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return err
 	}
 
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filters, *maxSeriesLimit)
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxSeriesLimit)
 	metricNames, err := netstorage.SearchMetricNames(qt, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
@@ -754,17 +754,17 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 			end = start
 		}
 
-		tagFilters, err := getTagFiltersFromMatches([]string{childQuery})
+		tagFilters, err := getTagFilterssFromMatches([]string{childQuery})
 		if err != nil {
 			return err
 		}
-		filters := searchutils.JoinTagFilters(tagFilters, etfs)
+		filterss := searchutils.JoinTagFilterss(tagFilters, etfs)
 
 		cp := &commonParams{
 			deadline: deadline,
 			start:    start,
 			end:      end,
-			filters:  filters,
+			filterss: filterss,
 		}
 		if err := exportHandler(qt, w, cp, "promapi", 0, false); err != nil {
 			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
@@ -818,7 +818,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		MayCache:            mayCache,
 		LookbackDelta:       lookbackDelta,
 		RoundDigits:         getRoundDigits(r),
-		EnforcedTagFilters:  etfs,
+		EnforcedTagFilterss: etfs,
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
 		},
@@ -926,7 +926,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		MayCache:            mayCache,
 		LookbackDelta:       lookbackDelta,
 		RoundDigits:         getRoundDigits(r),
-		EnforcedTagFilters:  etfs,
+		EnforcedTagFilterss: etfs,
 		GetRequestURI: func() string {
 			return httpserver.GetRequestURI(r)
 		},
@@ -1059,7 +1059,7 @@ func getMaxLookback(r *http.Request) (int64, error) {
 	return d, nil
 }
 
-func getTagFiltersFromMatches(matches []string) ([][]storage.TagFilter, error) {
+func getTagFilterssFromMatches(matches []string) ([][]storage.TagFilter, error) {
 	tfss := make([][]storage.TagFilter, 0, len(matches))
 	for _, match := range matches {
 		tfssLocal, err := searchutils.ParseMetricSelector(match)
@@ -1127,7 +1127,7 @@ type commonParams struct {
 	start            int64
 	end              int64
 	currentTimestamp int64
-	filters          [][]storage.TagFilter
+	filterss         [][]storage.TagFilter
 }
 
 func (cp *commonParams) IsDefaultTimeRange() bool {
@@ -1202,12 +1202,12 @@ func getCommonParamsInternal(r *http.Request, startTime time.Time, requireNonEmp
 	if requireNonEmptyMatch && len(matches) == 0 {
 		return nil, fmt.Errorf("missing `match[]` arg")
 	}
-	filters, err := getTagFiltersFromMatches(matches)
+	filterss, err := getTagFilterssFromMatches(matches)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(filters) > 0 || !isLabelsAPI || !*ignoreExtraFiltersAtLabelsAPI {
+	if len(filterss) > 0 || !isLabelsAPI || !*ignoreExtraFiltersAtLabelsAPI {
 		// If matches isn't empty, then there is no sense in ignoring extra filters
 		// even if ignoreExtraLabelsAtLabelsAPI is set, since extra filters won't slow down
 		// the query - they can only improve query performance by reducing the number
@@ -1216,7 +1216,7 @@ func getCommonParamsInternal(r *http.Request, startTime time.Time, requireNonEmp
 		if err != nil {
 			return nil, err
 		}
-		filters = searchutils.JoinTagFilters(filters, etfs)
+		filterss = searchutils.JoinTagFilterss(filterss, etfs)
 	}
 
 	cp := &commonParams{
@@ -1224,7 +1224,7 @@ func getCommonParamsInternal(r *http.Request, startTime time.Time, requireNonEmp
 		start:            start,
 		end:              end,
 		currentTimestamp: ct,
-		filters:          filters,
+		filterss:         filterss,
 	}
 	return cp, nil
 }
