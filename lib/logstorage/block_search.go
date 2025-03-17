@@ -578,7 +578,8 @@ func (bs *blockSearch) getStreamStrSlow() string {
 	}
 
 	st := GetStreamTags()
-	mustUnmarshalStreamTags(st, bb.B)
+	streamTagsCanonical := bytesutil.ToUnsafeString(bb.B)
+	mustUnmarshalStreamTags(st, streamTagsCanonical)
 	bb.B = st.marshalString(bb.B[:0])
 	PutStreamTags(st)
 
