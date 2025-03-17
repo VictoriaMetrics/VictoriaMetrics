@@ -58,11 +58,6 @@ func (bb *ByteBuffer) ReadFrom(r io.Reader) (int64, error) {
 	}
 }
 
-// MustClose closes bb for subsequent reuse.
-func (bb *ByteBuffer) MustClose() {
-	// Do nothing, since certain code rely on bb reading after MustClose call.
-}
-
 // NewReader returns new reader for the given bb.
 func (bb *ByteBuffer) NewReader() filestream.ReadCloser {
 	return &reader{
