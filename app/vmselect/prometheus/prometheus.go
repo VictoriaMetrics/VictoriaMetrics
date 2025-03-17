@@ -754,11 +754,11 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 			end = start
 		}
 
-		tagFilters, err := getTagFilterssFromMatches([]string{childQuery})
+		tagFilterss, err := getTagFilterssFromMatches([]string{childQuery})
 		if err != nil {
 			return err
 		}
-		filterss := searchutils.JoinTagFilterss(tagFilters, etfs)
+		filterss := searchutils.JoinTagFilterss(tagFilterss, etfs)
 
 		cp := &commonParams{
 			deadline: deadline,
