@@ -18,6 +18,8 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 
 ## tip
 
+**Update note 1: metric `vm_mmaped_files`was renamed to `vm_mmapped_files` to fix the typo in word `mmapped`.**
+
 * SECURITY: upgrade Go builder from Go1.24.0 to Go1.24.1. See the list of issues addressed in [Go1.24.1](https://github.com/golang/go/issues?q=milestone%3AGo1.24.1+label%3ACherryPickApproved).
 
 * FEATURE: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/) and [vmagent](https://docs.victoriametrics.com/vmagent/): support zstd compression for OpenTelemetry and Datadog metrics ingestion. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8380) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8300) issues.
@@ -34,7 +36,7 @@ See also [LTS releases](https://docs.victoriametrics.com/lts-releases/).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent/): prevent dropping persistent queue data when changes happened for `-remoteWrite.showURL` flag, query params or fragment in remote write URL. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8477).
 * BUGFIX: `vmselect` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): properly handle `multitenant` query request on storage communication error. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8461) for details.
 * BUGFIX: [vmsingle](https://docs.victoriametrics.com/single-server-victoriametrics/), [vmagent](https://docs.victoriametrics.com/vmagent/), `vminsert` in [VictoriaMetrics cluster](https://docs.victoriametrics.com/cluster-victoriametrics/): reduce number of allocations that could increase CPU usage on ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8501) for details.
-* BUGFIX: Renamed `vm_mmaped_files` metric to `vm_mmapped_files`.
+* BUGFIX: fix typo in metric `vm_mmaped_files` by renaming it to `vm_mmapped_files`.
 
 ## [v1.113.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.113.0)
 
