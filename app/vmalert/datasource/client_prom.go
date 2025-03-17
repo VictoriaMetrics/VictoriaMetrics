@@ -35,6 +35,8 @@ type promResponse struct {
 	Stats struct {
 		SeriesFetched *string `json:"seriesFetched,omitempty"`
 	} `json:"stats,omitempty"`
+	// IsPartial supported by VictoriaMetrics
+	IsPartial *bool `json:"isPartial,omitempty"`
 }
 
 // see https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
@@ -209,7 +211,7 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result
 	if err != nil {
 		return res, err
 	}
-	res = Result{Data: ms}
+	res = Result{Data: ms, IsPartial: r.IsPartial}
 	if r.Stats.SeriesFetched != nil {
 		intV, err := strconv.Atoi(*r.Stats.SeriesFetched)
 		if err != nil {
