@@ -29,12 +29,12 @@ func BenchmarkLabelsCompressorCompress(b *testing.B) {
 func BenchmarkLabelsCompressorDecompress(b *testing.B) {
 	var lc LabelsCompressor
 	series := newTestSeries(100, 10)
-	data := make([][]byte, len(series))
+	datas := make([][]byte, len(series))
 	var dst []byte
 	for i, labels := range series {
 		dstLen := len(dst)
 		dst = lc.Compress(dst, labels)
-		data[i] = dst[dstLen:]
+		datas[i] = dst[dstLen:]
 	}
 
 	b.ReportAllocs()
@@ -43,8 +43,8 @@ func BenchmarkLabelsCompressorDecompress(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var labels []prompbmarshal.Label
 		for pb.Next() {
-			for _, data_item := range data {
-				labels = lc.Decompress(labels[:0], data_item)
+			for _, data := range datas {
+				labels = lc.Decompress(labels[:0], data)
 			}
 			Sink.Add(uint64(len(labels)))
 		}

@@ -20,9 +20,9 @@ type Buffer struct {
 	offset int
 }
 
-// Reset resets the cb, so it can be re-used for writing new data into it.
+// Reset resets the cb, so it can be reused for writing new data into it.
 //
-// Reset frees up memory chunks allocated for cb, so they could be re-used by other Buffer instances.
+// Reset frees up memory chunks allocated for cb, so they could be reused by other Buffer instances.
 func (cb *Buffer) Reset() {
 	for _, chunk := range cb.chunks {
 		putChunk(chunk)
@@ -119,7 +119,7 @@ func (cb *Buffer) Path() string {
 	return fmt.Sprintf("Buffer/%p/mem", cb)
 }
 
-// MustClose closes cb for subsequent re-use.
+// MustClose closes cb for subsequent reuse.
 func (cb *Buffer) MustClose() {
 	// Do nothing, since certain code rely on cb reading after MustClose call.
 }

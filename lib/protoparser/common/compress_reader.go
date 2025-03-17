@@ -20,7 +20,7 @@ import (
 //
 // The maxDataSize limits the maximum data size, which can be read from r.
 //
-// The callback musn't hold references to the data after returning.
+// The callback must not hold references to the data after returning.
 func ReadUncompressedData(r io.Reader, encoding string, maxDataSize *flagutil.Bytes, callback func(data []byte) error) error {
 	reader, err := GetUncompressedReader(r, encoding)
 	if err != nil {
@@ -69,7 +69,7 @@ func GetUncompressedReader(r io.Reader, encoding string) (io.Reader, error) {
 	}
 }
 
-// PutUncompressedReader puts r to the pool, so it could be re-used via GetUncompressedReader()
+// PutUncompressedReader puts r to the pool, so it could be reused via GetUncompressedReader()
 func PutUncompressedReader(r io.Reader) {
 	switch t := r.(type) {
 	case *snappyReader:
